@@ -42,7 +42,7 @@ final class CollectibleTaken extends GameEvent {
   static final EventCodec<CollectibleTaken> codec =
       EventCodec<CollectibleTaken>.of(
         encode: (CollectibleTaken e) => <Object?>[e.collectible.name, e.scored],
-        decode: (Object? data, int version) => null,
+        decode: (_) => null,
       );
 
   final Collectible collectible;
@@ -72,8 +72,10 @@ final class LevelSaid extends GameEvent {
   /// Its codec: the sentence. Reads back whole.
   static final EventCodec<LevelSaid> codec = EventCodec<LevelSaid>.of(
     encode: (LevelSaid e) => e.message,
-    decode: (Object? data, int version) =>
-        data is String ? LevelSaid(data) : null,
+    decode: (context) {
+      final data = context.data;
+      return data is String ? LevelSaid(data) : null;
+    },
   );
 
   final String message;
@@ -98,7 +100,7 @@ final class CheckpointReached extends GameEvent {
   static final EventCodec<CheckpointReached> codec =
       EventCodec<CheckpointReached>.of(
         encode: (CheckpointReached e) => e.checkpoint.name,
-        decode: (Object? data, int version) => null,
+        decode: (_) => null,
       );
 
   final Checkpoint checkpoint;
@@ -121,7 +123,7 @@ final class EnemyStomped extends GameEvent {
   /// a live part of a world, not a value.
   static final EventCodec<EnemyStomped> codec = EventCodec<EnemyStomped>.of(
     encode: (EnemyStomped e) => e.enemy.ordinal,
-    decode: (Object? data, int version) => null,
+    decode: (_) => null,
   );
 
   final Actor enemy;
@@ -143,7 +145,7 @@ final class RunnerDied extends GameEvent {
   /// Its codec: nothing but the name, read back as the event.
   static final EventCodec<RunnerDied> codec = EventCodec<RunnerDied>.of(
     encode: (RunnerDied e) => null,
-    decode: (Object? data, int version) => const RunnerDied(),
+    decode: (_) => const RunnerDied(),
   );
 
   @override
@@ -171,7 +173,7 @@ final class Jumped extends RunnerEvent {
   /// Its codec: nothing but the name, read back as the event.
   static final EventCodec<Jumped> codec = EventCodec<Jumped>.of(
     encode: (Jumped e) => null,
-    decode: (Object? data, int version) => const Jumped(),
+    decode: (_) => const Jumped(),
   );
 
   @override
@@ -188,7 +190,7 @@ final class WallJumped extends RunnerEvent {
   /// Its codec: nothing but the name, read back as the event.
   static final EventCodec<WallJumped> codec = EventCodec<WallJumped>.of(
     encode: (WallJumped e) => null,
-    decode: (Object? data, int version) => const WallJumped(),
+    decode: (_) => const WallJumped(),
   );
 
   @override
@@ -205,7 +207,7 @@ final class LongJumped extends RunnerEvent {
   /// Its codec: nothing but the name, read back as the event.
   static final EventCodec<LongJumped> codec = EventCodec<LongJumped>.of(
     encode: (LongJumped e) => null,
-    decode: (Object? data, int version) => const LongJumped(),
+    decode: (_) => const LongJumped(),
   );
 
   @override
@@ -222,7 +224,7 @@ final class Mantled extends RunnerEvent {
   /// Its codec: nothing but the name, read back as the event.
   static final EventCodec<Mantled> codec = EventCodec<Mantled>.of(
     encode: (Mantled e) => null,
-    decode: (Object? data, int version) => const Mantled(),
+    decode: (_) => const Mantled(),
   );
 
   @override
@@ -239,7 +241,7 @@ final class Dashed extends RunnerEvent {
   /// Its codec: nothing but the name, read back as the event.
   static final EventCodec<Dashed> codec = EventCodec<Dashed>.of(
     encode: (Dashed e) => null,
-    decode: (Object? data, int version) => const Dashed(),
+    decode: (_) => const Dashed(),
   );
 
   @override
@@ -256,7 +258,7 @@ final class Slid extends RunnerEvent {
   /// Its codec: nothing but the name, read back as the event.
   static final EventCodec<Slid> codec = EventCodec<Slid>.of(
     encode: (Slid e) => null,
-    decode: (Object? data, int version) => const Slid(),
+    decode: (_) => const Slid(),
   );
 
   @override
@@ -273,7 +275,7 @@ final class Grabbed extends RunnerEvent {
   /// Its codec: nothing but the name, read back as the event.
   static final EventCodec<Grabbed> codec = EventCodec<Grabbed>.of(
     encode: (Grabbed e) => null,
-    decode: (Object? data, int version) => const Grabbed(),
+    decode: (_) => const Grabbed(),
   );
 
   @override
@@ -293,8 +295,10 @@ final class Landed extends RunnerEvent {
   /// Its codec: whether it was the end of a ground pound. Reads back whole.
   static final EventCodec<Landed> codec = EventCodec<Landed>.of(
     encode: (Landed e) => e.pounded,
-    decode: (Object? data, int version) =>
-        data is bool ? Landed(pounded: data) : null,
+    decode: (context) {
+      final data = context.data;
+      return data is bool ? Landed(pounded: data) : null;
+    },
   );
 
   /// Whether the landing was the end of a ground pound.
@@ -317,7 +321,7 @@ final class Bounced extends RunnerEvent {
   /// Its codec: nothing but the name, read back as the event.
   static final EventCodec<Bounced> codec = EventCodec<Bounced>.of(
     encode: (Bounced e) => null,
-    decode: (Object? data, int version) => const Bounced(),
+    decode: (_) => const Bounced(),
   );
 
   @override
@@ -350,11 +354,14 @@ final class SpringFired extends FurnitureEvent {
   /// Its codec: where it happened. Reads back whole.
   static final EventCodec<SpringFired> codec = EventCodec<SpringFired>.of(
     encode: (SpringFired e) => <double>[e.at.x, e.at.y, e.at.z],
-    decode: (Object? data, int version) => switch (data) {
-      [final num x, final num y, final num z] => SpringFired(
-        Vector3(x.toDouble(), y.toDouble(), z.toDouble()),
-      ),
-      _ => null,
+    decode: (context) {
+      final data = context.data;
+      return switch (data) {
+        [final num x, final num y, final num z] => SpringFired(
+          Vector3(x.toDouble(), y.toDouble(), z.toDouble()),
+        ),
+        _ => null,
+      };
     },
   );
 
@@ -372,11 +379,14 @@ final class BlockCrumbled extends FurnitureEvent {
   /// Its codec: where it happened. Reads back whole.
   static final EventCodec<BlockCrumbled> codec = EventCodec<BlockCrumbled>.of(
     encode: (BlockCrumbled e) => <double>[e.at.x, e.at.y, e.at.z],
-    decode: (Object? data, int version) => switch (data) {
-      [final num x, final num y, final num z] => BlockCrumbled(
-        Vector3(x.toDouble(), y.toDouble(), z.toDouble()),
-      ),
-      _ => null,
+    decode: (context) {
+      final data = context.data;
+      return switch (data) {
+        [final num x, final num y, final num z] => BlockCrumbled(
+          Vector3(x.toDouble(), y.toDouble(), z.toDouble()),
+        ),
+        _ => null,
+      };
     },
   );
 
@@ -394,11 +404,14 @@ final class BlockBroke extends FurnitureEvent {
   /// Its codec: where it happened. Reads back whole.
   static final EventCodec<BlockBroke> codec = EventCodec<BlockBroke>.of(
     encode: (BlockBroke e) => <double>[e.at.x, e.at.y, e.at.z],
-    decode: (Object? data, int version) => switch (data) {
-      [final num x, final num y, final num z] => BlockBroke(
-        Vector3(x.toDouble(), y.toDouble(), z.toDouble()),
-      ),
-      _ => null,
+    decode: (context) {
+      final data = context.data;
+      return switch (data) {
+        [final num x, final num y, final num z] => BlockBroke(
+          Vector3(x.toDouble(), y.toDouble(), z.toDouble()),
+        ),
+        _ => null,
+      };
     },
   );
 
@@ -421,8 +434,10 @@ final class PowerEnded extends GameEvent {
   /// Its codec: the power's name. Reads back whole.
   static final EventCodec<PowerEnded> codec = EventCodec<PowerEnded>.of(
     encode: (PowerEnded e) => e.power,
-    decode: (Object? data, int version) =>
-        data is String ? PowerEnded(data) : null,
+    decode: (context) {
+      final data = context.data;
+      return data is String ? PowerEnded(data) : null;
+    },
   );
 
   /// What ran out, by the name the level gave it.
@@ -446,8 +461,10 @@ final class ChainEnded extends GameEvent {
   /// Its codec: what the chain was worth. Reads back whole.
   static final EventCodec<ChainEnded> codec = EventCodec<ChainEnded>.of(
     encode: (ChainEnded e) => e.worth,
-    decode: (Object? data, int version) =>
-        data is num ? ChainEnded(data.toDouble()) : null,
+    decode: (context) {
+      final data = context.data;
+      return data is num ? ChainEnded(data.toDouble()) : null;
+    },
   );
 
   /// What the whole run came to.

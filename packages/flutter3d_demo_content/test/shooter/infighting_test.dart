@@ -10,7 +10,7 @@
 /// here; it was impossible.
 ///
 /// Two halves make it work, and they are in different packages on purpose. The
-/// engine learned who dealt damage: `Damageable.applyDamage(amount, from:)`, an
+/// engine learned who dealt damage: `Damageable.applyDamage(Damage(amount:, from:))`, an
 /// `Object?` because an engine has no business knowing what a monster is. The
 /// genre decided what to do about it, which is this file's subject.
 library;
@@ -73,7 +73,7 @@ void main() {
     final culprit = it.bestiary.spawn(Monsters.runner, Vector3(4.0, 0.0, 0.0));
 
     // The engine's own call, which is what a stray shot arrives as.
-    hurt.applyDamage(10.0, from: culprit);
+    hurt.applyDamage(Damage(amount: 10.0, from: culprit));
 
     expect(
       _brainOf(hurt).quarrel,
@@ -91,7 +91,7 @@ void main() {
 
     // What the simulation passes for a hitscan: the player, which is not an
     // actor.
-    monster.applyDamage(10.0, from: Object());
+    monster.applyDamage(Damage(amount: 10.0, from: Object()));
 
     expect(_brainOf(monster).quarrel, isNull);
   });
@@ -103,7 +103,7 @@ void main() {
     final it = _room();
     final monster = it.bestiary.spawn(Monsters.runner, Vector3.zero());
 
-    monster.applyDamage(5.0);
+    monster.applyDamage(Damage(amount: 5.0));
 
     expect(_brainOf(monster).quarrel, isNull);
   });
@@ -117,7 +117,7 @@ void main() {
         Monsters.runner,
         Vector3(-12.0, 0.0, 0.0),
       );
-      hurt.applyDamage(10.0, from: culprit);
+      hurt.applyDamage(Damage(amount: 10.0, from: culprit));
 
       final startedAt = hurt.position!.clone();
       _step(it.system, it.eye, times: 120);
@@ -141,7 +141,7 @@ void main() {
       Monsters.runner,
       Vector3(-12.0, 0.0, 0.0),
     );
-    hurt.applyDamage(10.0, from: culprit);
+    hurt.applyDamage(Damage(amount: 10.0, from: culprit));
     expect(_brainOf(hurt).quarrel, same(culprit));
 
     // Killed by something else entirely, which is the usual way an infight

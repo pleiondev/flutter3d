@@ -25,9 +25,10 @@ final class _JsonOnly extends PeerWire {
   final List<Map<String, Object?>> sent = <Map<String, Object?>>[];
 
   @override
-  void send(Map<String, Object?> message, {bool reliable = true}) {
+  void send(PeerSend context) {
+    final message = context.message;
     sent.add(message);
-    peer.deliver(message);
+    peer.deliver(PeerDelivery(message: message));
   }
 }
 
@@ -41,11 +42,15 @@ void main() {
     final order = <Object>[];
     b
       ..listen(order.add)
-      ..listenBytes((from, bytes) => order.add(<Object>[from, bytes.toList()]));
+      ..listenBytes((heard) {
+        final from = heard.from;
+        final bytes = heard.bytes;
+        order.add(<Object>[from, bytes.toList()]);
+      });
     final buffer = Uint8List.fromList(<int>[1, 2, 3]);
     a
-      ..send(<String, Object?>{'n': 1})
-      ..sendBytes(buffer);
+      ..send(PeerSend(message: <String, Object?>{'n': 1}))
+      ..sendBytes(PeerSendBytes(bytes: buffer));
     // The sender reuses its buffer; the far side has its own copy.
     buffer[0] = 99;
     b.tick();
@@ -71,11 +76,13 @@ void main() {
     final bytes = <Uint8List>[];
     b
       ..listen(messages.add)
-      ..listenBytes((from, data) {
+      ..listenBytes((heard) {
+        final from = heard.from;
+        final data = heard.bytes;
         expect(from, 0);
         bytes.add(data);
       });
-    a.sendBytes(Uint8List.fromList(<int>[0, 255, 7]));
+    a.sendBytes(PeerSendBytes(bytes: Uint8List.fromList(<int>[0, 255, 7])));
     expect(a.sent.single[PeerWire.engineKey], PeerWire.bytesFrame);
     expect(a.sent.single[PeerWire.bytesKey], isA<String>());
     expect(bytes.single, <int>[0, 255, 7]);
@@ -87,10 +94,12 @@ void main() {
     // reads as slot 1 sending.
     final party = LoopbackParty(3);
     final heard = <List<Object>>[];
-    party
-        .wire(0)
-        .listenBytes((from, data) => heard.add(<Object>[from, data.toList()]));
-    party.wire(2).sendBytes(Uint8List.fromList(<int>[5]));
+    party.wire(0).listenBytes((given) {
+      final from = given.from;
+      final data = given.bytes;
+      heard.add(<Object>[from, data.toList()]);
+    });
+    party.wire(2).sendBytes(PeerSendBytes(bytes: Uint8List.fromList(<int>[5])));
     party.tick();
     expect(heard, <List<Object>>[
       <Object>[
@@ -110,8 +119,12 @@ void main() {
     final messages = <Map<String, Object?>>[];
     right
       ..listen(messages.add)
-      ..listenBytes((from, data) => heard.add(<Object>[from, data.toList()]));
-    left.sendBytes(Uint8List.fromList(<int>[42, 43]));
+      ..listenBytes((given) {
+        final from = given.from;
+        final data = given.bytes;
+        heard.add(<Object>[from, data.toList()]);
+      });
+    left.sendBytes(PeerSendBytes(bytes: Uint8List.fromList(<int>[42, 43])));
     b.tick();
     expect(heard, <List<Object>>[
       <Object>[
@@ -125,11 +138,14 @@ void main() {
   test('a cancelled byte listener hears nothing more', () {
     final LoopbackPair(first: a, second: b) = LoopbackWire.pair();
     final heard = <List<int>>[];
-    final listening = b.listenBytes((_, data) => heard.add(data.toList()));
-    a.sendBytes(Uint8List.fromList(<int>[1]));
+    final listening = b.listenBytes((given) {
+      final data = given.bytes;
+      heard.add(data.toList());
+    });
+    a.sendBytes(PeerSendBytes(bytes: Uint8List.fromList(<int>[1])));
     b.tick();
     listening.cancel();
-    a.sendBytes(Uint8List.fromList(<int>[2]));
+    a.sendBytes(PeerSendBytes(bytes: Uint8List.fromList(<int>[2])));
     b.tick();
     expect(heard, <List<int>>[
       <int>[1],

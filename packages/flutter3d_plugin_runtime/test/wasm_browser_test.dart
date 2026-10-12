@@ -52,10 +52,12 @@ void main() {
       ],
     );
     final instance = browserWasmRuntime()!.instantiate(
-      WasmModule.decode(m.build()),
-      const _Quiet(),
-      const WasmLimits(),
-    )..step(0, 0);
+      WasmInstantiation(
+        WasmModule.decode(m.build()),
+        imports: const _Quiet(),
+        limits: const WasmLimits(),
+      ),
+    )..step(WasmStep(step: 0, dtFixed: 0));
     final good = instance.save();
     expect(good['globals'], <int>[7, 9]);
     expect(good['memory'], isNot(''));

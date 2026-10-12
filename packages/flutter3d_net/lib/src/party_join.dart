@@ -217,7 +217,7 @@ Future<PartySeat> _seat(
 /// own messages delivered to whoever listens.
 final class _Forwarding extends PeerWire {
   _Forwarding(this.inner, this.attach) {
-    attach(deliver);
+    attach((message) => deliver(PeerDelivery(message: message)));
   }
 
   @override
@@ -230,6 +230,5 @@ final class _Forwarding extends PeerWire {
   final void Function(void Function(Map<String, Object?>) listener) attach;
 
   @override
-  void send(Map<String, Object?> message, {bool reliable = true}) =>
-      inner.send(message, reliable: reliable);
+  void send(PeerSend context) => inner.send(context);
 }

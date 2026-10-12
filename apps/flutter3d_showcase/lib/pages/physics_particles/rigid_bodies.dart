@@ -54,7 +54,7 @@ final class RigidBodiesDemo extends ShowcaseDemo {
     _world.addBox(Vector3(0.0, -0.5, 0.0), Vector3(6.0, 1.0, 6.0));
     // The run's backend: the core, or the Dart reference where it will
     // not start.
-    _dynamics = usePhysics().dynamics(_world);
+    _dynamics = usePhysics().dynamics(DynamicsRequest(_world));
     // #endregion world
     if (_dynamics case final NativeDynamics core) _native = core;
 

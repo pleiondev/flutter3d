@@ -533,7 +533,9 @@ void main() {
       );
       final actor = _actor();
       final graph = AnimationGraph(
-        machine: _Graphs().machineFor(actor, doc.animations)!,
+        machine: _Graphs().machineFor(
+          ActorMachineContext(actor: actor, clips: doc.animations),
+        )!,
         clips: doc.animations,
         pose: engine.AnimationPose.fromNodes(doc.nodes),
       )..parameters.setBool('running', true);
@@ -865,7 +867,8 @@ final class _PublishedLook with ActorAppearance {
   List<String> clipsFor(Actor actor) => const <String>[];
 
   @override
-  List<String> clipsFrom(Actor actor, PublishedActor published) {
+  List<String> clipsFrom(ActorClipsContext context) {
+    final published = context.published;
     asked.add(published);
     return const <String>['CharacterArmature|Idle'];
   }
@@ -881,12 +884,10 @@ final class _Corpses with ActorCorpses {
   bool disposed = false;
 
   @override
-  bool begin(
-    Actor actor,
-    ModelInstance model, {
-    List<Matrix4>? previous,
-    double dt = 1.0 / 60.0,
-  }) {
+  bool begin(ActorDeathContext context) {
+    final actor = context.actor;
+    final model = context.model;
+    final previous = context.previous;
     begun.add(actor);
     this.model = model;
     this.previous = previous;
@@ -921,7 +922,7 @@ final class _Graphs with ActorGraphs {
   int dressed = 0;
 
   @override
-  AnimationStateMachine? machineFor(Actor actor, List<AnimationClip> clips) =>
+  AnimationStateMachine? machineFor(ActorMachineContext context) =>
       AnimationStateMachine(
         parameters: AnimationParameterSchema(<AnimationParameter>[
           const AnimationParameter.boolean('running'),
@@ -946,11 +947,11 @@ final class _Graphs with ActorGraphs {
       );
 
   @override
-  void dress(Actor actor, AnimationGraph graph, ModelInstance model) =>
-      dressed++;
+  void dress(ActorDressContext context) => dressed++;
 
   @override
-  void drive(Actor actor, AnimationGraph graph, ModelInstance model) {
+  void drive(ActorDriveContext context) {
+    final graph = context.graph;
     driven++;
     graph.parameters.setBool('running', running);
   }

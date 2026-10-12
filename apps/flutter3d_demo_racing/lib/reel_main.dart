@@ -192,9 +192,11 @@ Future<int> _ford() async {
   final start = track.center.wrap(ford - 170.0);
   track.frameAt(start, frame);
   cars[0].placeAt(
-    frame.position.clone()..y += 0.6,
-    math.atan2(frame.forward.x, frame.forward.z),
-    trackDistance: start,
+    VehiclePlacement(
+      position: frame.position.clone()..y += 0.6,
+      headingYaw: math.atan2(frame.forward.x, frame.forward.z),
+      trackDistance: start,
+    ),
   );
   cars[0].velocity.setFrom(frame.forward * 30.0);
 
@@ -209,13 +211,21 @@ Future<int> _ford() async {
   final homeYaw = cars[1].headingYaw;
   final homeAlong = cars[1].trackDistance;
   cars[1].placeAt(
-    verge.clone()..y += 0.6,
-    math.atan2(frame.forward.x, frame.forward.z),
-    trackDistance: wreckAt,
+    VehiclePlacement(
+      position: verge.clone()..y += 0.6,
+      headingYaw: math.atan2(frame.forward.x, frame.forward.z),
+      trackDistance: wreckAt,
+    ),
   );
   circuit.elements.wreckNow(1);
   final wreck = verge.clone()..y += 1.0;
-  cars[1].placeAt(home, homeYaw, trackDistance: homeAlong);
+  cars[1].placeAt(
+    VehiclePlacement(
+      position: home,
+      headingYaw: homeYaw,
+      trackDistance: homeAlong,
+    ),
+  );
 
   final camera = CameraNode(
     projection: const PerspectiveProjection(fovY: 0.9, near: 0.3, far: 1600.0),

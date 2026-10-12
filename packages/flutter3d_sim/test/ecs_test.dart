@@ -9,7 +9,7 @@ library;
 import 'dart:convert';
 
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show ComponentCodec, Entity;
+    show ComponentCodec, Entity, SimSpawned;
 import 'package:flutter3d_sim/src/ecs/ecs_world.dart';
 import 'package:flutter3d_sim/src/ecs/snapshots.dart';
 import 'package:flutter3d_sim/src/save/snapshot.dart'
@@ -41,7 +41,8 @@ EcsWorld _world() {
       ComponentCodec<_Position>.of(
         id: 'position',
         encode: (_Position p) => <double>[p.x, p.y],
-        decode: (Object? data, int _) {
+        decode: (context) {
+          final data = context.data;
           final row = data! as List;
           return _Position(
             (row[0] as num).toDouble(),
@@ -54,7 +55,10 @@ EcsWorld _world() {
       ComponentCodec<_Name>.of(
         id: 'name',
         encode: (_Name n) => n.value,
-        decode: (Object? data, int _) => _Name(data! as String),
+        decode: (context) {
+          final data = context.data;
+          return _Name(data! as String);
+        },
       ),
     );
 }
@@ -311,7 +315,7 @@ void main() {
           ComponentCodec<_Visual>.of(
             id: 'name',
             encode: (_Visual v) => '',
-            decode: (Object? data, int _) => _Visual(Object()),
+            decode: (_) => _Visual(Object()),
           ),
         ),
         throwsA(isA<ArgumentError>()),
@@ -489,5 +493,23 @@ void main() {
     expect(fresh, isNot(stale));
     expect(fresh.generation, 300);
     expect(stale.generation, 44);
+  });
+
+  test('a queued spawn hands its builder the new entity and its world', () {
+    // Mutation: hand the builder a world other than the one that queued the
+    // spawn, or an entity it did not spawn, and the component lands
+    // elsewhere.
+    final world = _world();
+    Entity? built;
+    world.commands.spawn((SimSpawned spawned) {
+      built = spawned.entity;
+      spawned.world.set<_Name>(spawned.entity, _Name('queued'));
+    });
+    expect(world.length, 0, reason: 'nothing spawns before the commands run');
+
+    world.applyCommands();
+
+    expect(world.isAlive(built!), isTrue);
+    expect(world.get<_Name>(built!)?.value, 'queued');
   });
 }

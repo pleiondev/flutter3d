@@ -15704,7 +15704,7 @@ entries:
       plugin acts on is the loop's. In `setUp`, put the application's state
       in `loop.world`, or add a part for it —
       `loop.snapshots.add(SnapshotPart.of(id: 'my.world', capture: world.save,
-      restore: (data, _) => world.load(data)))` — and the checks capture,
+      restore: (context) => world.load(context.data)))` — and the checks capture,
       restore and digest it through `EngineLoop.snapshots`, the path a
       rollback takes. `hasWorld` is gone: a loop whose snapshots hold
       nothing is a run with no world.
@@ -15925,7 +15925,7 @@ entries:
       `world.register<T>('name', encode: e, decode: d)` was a second door to
       the world's component registry with no version. Register a codec:
       `world.components.register<T>(ComponentCodec<T>.of(id: 'name',
-      encode: e, decode: (data, version) => d(data)))`, adding `version:`
+      encode: e, decode: (context) => d(context.data)))`, adding `version:`
       when the shape changes and `published: true` for what the view reads.
       The id is the same name, so a save written before reads back.
 
@@ -21869,6 +21869,2164 @@ entries:
       Only a type it names moved or was renamed (one severity, one kind of
       light, one pose, a ghost's frame); that type's own entry carries the
       fix, and a call needs none.
+
+  - id: hook-flame_flutter3d-CollisionBridge-onCollision
+    package: flame_flutter3d
+    symbol: CollisionBridge.onCollision
+    kind: hookContext
+    context: CollisionContext
+    fields:
+      '0': self
+      '1': other
+    wave: 4
+    guidance: >-
+      `CollisionBridge.onCollision` takes one `CollisionContext` where it took
+      its parameters. A collision listener is the hook a game overrides most,
+      and a contact is handed to it per pair per step, so the world reuses one
+      context and an override must not keep it; one context can gain members
+      in a minor release, where a parameter added to the call would break
+      every override written against 1.0. `migrate` gives an override the
+      context and reads each parameter it used from it, and a call builds one.
+
+  - id: hook-flame_flutter3d-CollisionBridge-onCollisionEnd
+    package: flame_flutter3d
+    symbol: CollisionBridge.onCollisionEnd
+    kind: hookContext
+    context: CollisionContext
+    fields:
+      '0': self
+      '1': other
+    wave: 4
+    guidance: >-
+      `CollisionBridge.onCollisionEnd` takes one `CollisionContext` where it
+      took its parameters. A collision listener is the hook a game overrides
+      most, and a contact is handed to it per pair per step, so the world
+      reuses one context and an override must not keep it; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-flame_flutter3d-CollisionBridge-onCollisionStart
+    package: flame_flutter3d
+    symbol: CollisionBridge.onCollisionStart
+    kind: hookContext
+    context: CollisionContext
+    fields:
+      '0': self
+      '1': other
+    wave: 4
+    guidance: >-
+      `CollisionBridge.onCollisionStart` takes one `CollisionContext` where it
+      took its parameters. A collision listener is the hook a game overrides
+      most, and a contact is handed to it per pair per step, so the world
+      reuses one context and an override must not keep it; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-flame_flutter3d-Tap3dCallbacks-hitAt3d
+    package: flame_flutter3d
+    symbol: Tap3dCallbacks.hitAt3d
+    kind: hookContext
+    context: Tap3dProbe
+    fields:
+      '0': screen
+      '1': projector
+    wave: 4
+    guidance: >-
+      `Tap3dCallbacks.hitAt3d` takes one `Tap3dProbe` where it took its
+      parameters. A tap target is a hook a component overrides for a tighter
+      shape; one context can gain members in a minor release, where a
+      parameter added to the call would break every override written against
+      1.0. `migrate` gives an override the context and reads each parameter it
+      used from it, and a call builds one.
+
+  - id: hook-flame_multiplayer_dashwire-DashwireWire-send
+    package: flame_multiplayer_dashwire
+    symbol: DashwireWire.send
+    kind: hookContext
+    context: PeerSend
+    fields:
+      '0': message
+      reliable: reliable
+    wave: 4
+    guidance: >-
+      `DashwireWire.send` takes one `PeerSend` where it took its parameters. A
+      peer wire is a transport a network library implements; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-audio_core-SilentBackend-start
+    package: flutter3d_audio_core
+    symbol: SilentBackend.start
+    kind: hookContext
+    context: VoiceStart
+    fields:
+      '0': asset
+      gain: gain
+      pan: pan
+      rate: rate
+      loop: loop
+      muffle: muffle
+    wave: 4
+    guidance: >-
+      `SilentBackend.start` takes one `VoiceStart` where it took its
+      parameters. An audio backend is a hook a platform implements, asked per
+      voice, so the scene reuses one context and a backend must not keep it;
+      one context can gain members in a minor release, where a parameter added
+      to the call would break every override written against 1.0. `migrate`
+      gives an override the context and reads each parameter it used from it,
+      and a call builds one.
+
+  - id: hook-audio_core-SilentBackend-update
+    package: flutter3d_audio_core
+    symbol: SilentBackend.update
+    kind: hookContext
+    context: VoiceUpdate
+    fields:
+      '0': voice
+      gain: gain
+      pan: pan
+      rate: rate
+      muffle: muffle
+    wave: 4
+    guidance: >-
+      `SilentBackend.update` takes one `VoiceUpdate` where it took its
+      parameters. An audio backend is a hook a platform implements, asked per
+      voice per frame, so the scene reuses one context and a backend must not
+      keep it; one context can gain members in a minor release, where a
+      parameter added to the call would break every override written against
+      1.0. `migrate` gives an override the context and reads each parameter it
+      used from it, and a call builds one.
+
+  - id: hook-core-F3dDecoder-decode
+    package: flutter3d_core
+    symbol: F3dDecoder.decode
+    kind: hookContext
+    context: ModelDecodeContext
+    fields:
+      '0': bytes
+      '1': request
+      '2': resolveUri
+    wave: 4
+    guidance: >-
+      `F3dDecoder.decode` takes one `ModelDecodeContext` where it took its
+      parameters. A model decoder is the plugin boundary for reading; one
+      context can gain members in a minor release, where a parameter added to
+      the call would break every override written against 1.0. `migrate` gives
+      an override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-core-F3dDecoder-handles
+    package: flutter3d_core
+    symbol: F3dDecoder.handles
+    kind: hookContext
+    context: ModelProbe
+    fields:
+      '0': fileName
+      '1': bytes
+    wave: 4
+    guidance: >-
+      `F3dDecoder.handles` takes one `ModelProbe` where it took its
+      parameters. A model decoder is the plugin boundary for reading; one
+      context can gain members in a minor release, where a parameter added to
+      the call would break every override written against 1.0. `migrate` gives
+      an override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-core-F3dModelWriter-write
+    package: flutter3d_core
+    symbol: F3dModelWriter.write
+    kind: hookContext
+    context: ModelWriteContext
+    fields:
+      '0': document
+      baseName: baseName
+    wave: 4
+    guidance: >-
+      `F3dModelWriter.write` takes one `ModelWriteContext` where it took its
+      parameters. A model writer is a hook a format implements; one context
+      can gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-core-FbxDecoder-decode
+    package: flutter3d_core
+    symbol: FbxDecoder.decode
+    kind: hookContext
+    context: ModelDecodeContext
+    fields:
+      '0': bytes
+      '1': request
+      '2': resolveUri
+    wave: 4
+    guidance: >-
+      `FbxDecoder.decode` takes one `ModelDecodeContext` where it took its
+      parameters. A model decoder is the plugin boundary for reading; one
+      context can gain members in a minor release, where a parameter added to
+      the call would break every override written against 1.0. `migrate` gives
+      an override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-core-FbxDecoder-handles
+    package: flutter3d_core
+    symbol: FbxDecoder.handles
+    kind: hookContext
+    context: ModelProbe
+    fields:
+      '0': fileName
+      '1': bytes
+    wave: 4
+    guidance: >-
+      `FbxDecoder.handles` takes one `ModelProbe` where it took its
+      parameters. A model decoder is the plugin boundary for reading; one
+      context can gain members in a minor release, where a parameter added to
+      the call would break every override written against 1.0. `migrate` gives
+      an override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-core-GlbModelWriter-write
+    package: flutter3d_core
+    symbol: GlbModelWriter.write
+    kind: hookContext
+    context: ModelWriteContext
+    fields:
+      '0': document
+      baseName: baseName
+    wave: 4
+    guidance: >-
+      `GlbModelWriter.write` takes one `ModelWriteContext` where it took its
+      parameters. A model writer is a hook a format implements; one context
+      can gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-core-GltfLoader-decode
+    package: flutter3d_core
+    symbol: GltfLoader.decode
+    kind: hookContext
+    context: ModelDecodeContext
+    fields:
+      '0': bytes
+      '1': request
+      '2': resolveUri
+    wave: 4
+    guidance: >-
+      `GltfLoader.decode` takes one `ModelDecodeContext` where it took its
+      parameters. A model decoder is the plugin boundary for reading; one
+      context can gain members in a minor release, where a parameter added to
+      the call would break every override written against 1.0. `migrate` gives
+      an override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-core-GltfLoader-handles
+    package: flutter3d_core
+    symbol: GltfLoader.handles
+    kind: hookContext
+    context: ModelProbe
+    fields:
+      '0': fileName
+      '1': bytes
+    wave: 4
+    guidance: >-
+      `GltfLoader.handles` takes one `ModelProbe` where it took its
+      parameters. A model decoder is the plugin boundary for reading; one
+      context can gain members in a minor release, where a parameter added to
+      the call would break every override written against 1.0. `migrate` gives
+      an override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-core-ObjLoader-decode
+    package: flutter3d_core
+    symbol: ObjLoader.decode
+    kind: hookContext
+    context: ModelDecodeContext
+    fields:
+      '0': bytes
+      '1': request
+      '2': resolveUri
+    wave: 4
+    guidance: >-
+      `ObjLoader.decode` takes one `ModelDecodeContext` where it took its
+      parameters. A model decoder is the plugin boundary for reading; one
+      context can gain members in a minor release, where a parameter added to
+      the call would break every override written against 1.0. `migrate` gives
+      an override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-core-ObjLoader-handles
+    package: flutter3d_core
+    symbol: ObjLoader.handles
+    kind: hookContext
+    context: ModelProbe
+    fields:
+      '0': fileName
+      '1': bytes
+    wave: 4
+    guidance: >-
+      `ObjLoader.handles` takes one `ModelProbe` where it took its parameters.
+      A model decoder is the plugin boundary for reading; one context can gain
+      members in a minor release, where a parameter added to the call would
+      break every override written against 1.0. `migrate` gives an override
+      the context and reads each parameter it used from it, and a call builds
+      one.
+
+  - id: hook-core-ObjModelWriter-write
+    package: flutter3d_core
+    symbol: ObjModelWriter.write
+    kind: hookContext
+    context: ModelWriteContext
+    fields:
+      '0': document
+      baseName: baseName
+    wave: 4
+    guidance: >-
+      `ObjModelWriter.write` takes one `ModelWriteContext` where it took its
+      parameters. A model writer is a hook a format implements; one context
+      can gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-core-StlLoader-decode
+    package: flutter3d_core
+    symbol: StlLoader.decode
+    kind: hookContext
+    context: ModelDecodeContext
+    fields:
+      '0': bytes
+      '1': request
+      '2': resolveUri
+    wave: 4
+    guidance: >-
+      `StlLoader.decode` takes one `ModelDecodeContext` where it took its
+      parameters. A model decoder is the plugin boundary for reading; one
+      context can gain members in a minor release, where a parameter added to
+      the call would break every override written against 1.0. `migrate` gives
+      an override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-core-StlLoader-handles
+    package: flutter3d_core
+    symbol: StlLoader.handles
+    kind: hookContext
+    context: ModelProbe
+    fields:
+      '0': fileName
+      '1': bytes
+    wave: 4
+    guidance: >-
+      `StlLoader.handles` takes one `ModelProbe` where it took its parameters.
+      A model decoder is the plugin boundary for reading; one context can gain
+      members in a minor release, where a parameter added to the call would
+      break every override written against 1.0. `migrate` gives an override
+      the context and reads each parameter it used from it, and a call builds
+      one.
+
+  - id: hook-core-StlModelWriter-write
+    package: flutter3d_core
+    symbol: StlModelWriter.write
+    kind: hookContext
+    context: ModelWriteContext
+    fields:
+      '0': document
+      baseName: baseName
+    wave: 4
+    guidance: >-
+      `StlModelWriter.write` takes one `ModelWriteContext` where it took its
+      parameters. A model writer is a hook a format implements; one context
+      can gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-core-UsdzModelWriter-write
+    package: flutter3d_core
+    symbol: UsdzModelWriter.write
+    kind: hookContext
+    context: ModelWriteContext
+    fields:
+      '0': document
+      baseName: baseName
+    wave: 4
+    guidance: >-
+      `UsdzModelWriter.write` takes one `ModelWriteContext` where it took its
+      parameters. A model writer is a hook a format implements; one context
+      can gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-game_platformer-BreakableKind-spawn
+    package: flutter3d_game_platformer
+    symbol: BreakableKind.spawn
+    kind: hookContext
+    context: EntitySpawn
+    fields:
+      '0': entity
+      '1': context
+    wave: 4
+    guidance: >-
+      `BreakableKind.spawn` takes one `EntitySpawn` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-game_platformer-Checkpoint-onCollisionStart
+    package: flutter3d_game_platformer
+    symbol: Checkpoint.onCollisionStart
+    kind: hookContext
+    context: CollisionContext
+    fields:
+      '0': self
+      '1': other
+    wave: 4
+    guidance: >-
+      `Checkpoint.onCollisionStart` takes one `CollisionContext` where it took
+      its parameters. A collision listener is the hook a game overrides most,
+      and a contact is handed to it per pair per step, so the world reuses one
+      context and an override must not keep it; one context can gain members
+      in a minor release, where a parameter added to the call would break
+      every override written against 1.0. `migrate` gives an override the
+      context and reads each parameter it used from it, and a call builds one.
+
+  - id: hook-game_platformer-CheckpointKind-spawn
+    package: flutter3d_game_platformer
+    symbol: CheckpointKind.spawn
+    kind: hookContext
+    context: EntitySpawn
+    fields:
+      '0': entity
+      '1': context
+    wave: 4
+    guidance: >-
+      `CheckpointKind.spawn` takes one `EntitySpawn` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-game_platformer-CheckpointKind-validate
+    package: flutter3d_game_platformer
+    symbol: CheckpointKind.validate
+    kind: hookContext
+    context: EntityCheck
+    fields:
+      '0': entity
+      '1': scope
+      '2': out
+    wave: 4
+    guidance: >-
+      `CheckpointKind.validate` takes one `EntityCheck` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-game_platformer-ClimbableKind-spawn
+    package: flutter3d_game_platformer
+    symbol: ClimbableKind.spawn
+    kind: hookContext
+    context: EntitySpawn
+    fields:
+      '0': entity
+      '1': context
+    wave: 4
+    guidance: >-
+      `ClimbableKind.spawn` takes one `EntitySpawn` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-game_platformer-ClimbableKind-validate
+    package: flutter3d_game_platformer
+    symbol: ClimbableKind.validate
+    kind: hookContext
+    context: EntityCheck
+    fields:
+      '0': entity
+      '1': scope
+      '2': out
+    wave: 4
+    guidance: >-
+      `ClimbableKind.validate` takes one `EntityCheck` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-game_platformer-CollectibleKind-spawn
+    package: flutter3d_game_platformer
+    symbol: CollectibleKind.spawn
+    kind: hookContext
+    context: EntitySpawn
+    fields:
+      '0': entity
+      '1': context
+    wave: 4
+    guidance: >-
+      `CollectibleKind.spawn` takes one `EntitySpawn` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-game_platformer-CollectibleKind-validate
+    package: flutter3d_game_platformer
+    symbol: CollectibleKind.validate
+    kind: hookContext
+    context: EntityCheck
+    fields:
+      '0': entity
+      '1': scope
+      '2': out
+    wave: 4
+    guidance: >-
+      `CollectibleKind.validate` takes one `EntityCheck` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-game_platformer-ConveyorKind-spawn
+    package: flutter3d_game_platformer
+    symbol: ConveyorKind.spawn
+    kind: hookContext
+    context: EntitySpawn
+    fields:
+      '0': entity
+      '1': context
+    wave: 4
+    guidance: >-
+      `ConveyorKind.spawn` takes one `EntitySpawn` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-game_platformer-ConveyorKind-validate
+    package: flutter3d_game_platformer
+    symbol: ConveyorKind.validate
+    kind: hookContext
+    context: EntityCheck
+    fields:
+      '0': entity
+      '1': scope
+      '2': out
+    wave: 4
+    guidance: >-
+      `ConveyorKind.validate` takes one `EntityCheck` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-game_platformer-CrumblingKind-spawn
+    package: flutter3d_game_platformer
+    symbol: CrumblingKind.spawn
+    kind: hookContext
+    context: EntitySpawn
+    fields:
+      '0': entity
+      '1': context
+    wave: 4
+    guidance: >-
+      `CrumblingKind.spawn` takes one `EntitySpawn` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-game_platformer-CrumblingKind-validate
+    package: flutter3d_game_platformer
+    symbol: CrumblingKind.validate
+    kind: hookContext
+    context: EntityCheck
+    fields:
+      '0': entity
+      '1': scope
+      '2': out
+    wave: 4
+    guidance: >-
+      `CrumblingKind.validate` takes one `EntityCheck` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-game_platformer-EnemyKind-spawn
+    package: flutter3d_game_platformer
+    symbol: EnemyKind.spawn
+    kind: hookContext
+    context: EntitySpawn
+    fields:
+      '0': entity
+      '1': context
+    wave: 4
+    guidance: >-
+      `EnemyKind.spawn` takes one `EntitySpawn` where it took its parameters.
+      An entity kind is a hook a game extends; one context can gain members in
+      a minor release, where a parameter added to the call would break every
+      override written against 1.0. `migrate` gives an override the context
+      and reads each parameter it used from it, and a call builds one.
+
+  - id: hook-game_platformer-EnemyKind-validate
+    package: flutter3d_game_platformer
+    symbol: EnemyKind.validate
+    kind: hookContext
+    context: EntityCheck
+    fields:
+      '0': entity
+      '1': scope
+      '2': out
+    wave: 4
+    guidance: >-
+      `EnemyKind.validate` takes one `EntityCheck` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-game_platformer-Hazard-onCollision
+    package: flutter3d_game_platformer
+    symbol: Hazard.onCollision
+    kind: hookContext
+    context: CollisionContext
+    fields:
+      '0': self
+      '1': other
+    wave: 4
+    guidance: >-
+      `Hazard.onCollision` takes one `CollisionContext` where it took its
+      parameters. A collision listener is the hook a game overrides most, and
+      a contact is handed to it per pair per step, so the world reuses one
+      context and an override must not keep it; one context can gain members
+      in a minor release, where a parameter added to the call would break
+      every override written against 1.0. `migrate` gives an override the
+      context and reads each parameter it used from it, and a call builds one.
+
+  - id: hook-game_platformer-Hazard-onCollisionStart
+    package: flutter3d_game_platformer
+    symbol: Hazard.onCollisionStart
+    kind: hookContext
+    context: CollisionContext
+    fields:
+      '0': self
+      '1': other
+    wave: 4
+    guidance: >-
+      `Hazard.onCollisionStart` takes one `CollisionContext` where it took its
+      parameters. A collision listener is the hook a game overrides most, and
+      a contact is handed to it per pair per step, so the world reuses one
+      context and an override must not keep it; one context can gain members
+      in a minor release, where a parameter added to the call would break
+      every override written against 1.0. `migrate` gives an override the
+      context and reads each parameter it used from it, and a call builds one.
+
+  - id: hook-game_platformer-HazardKind-spawn
+    package: flutter3d_game_platformer
+    symbol: HazardKind.spawn
+    kind: hookContext
+    context: EntitySpawn
+    fields:
+      '0': entity
+      '1': context
+    wave: 4
+    guidance: >-
+      `HazardKind.spawn` takes one `EntitySpawn` where it took its parameters.
+      An entity kind is a hook a game extends; one context can gain members in
+      a minor release, where a parameter added to the call would break every
+      override written against 1.0. `migrate` gives an override the context
+      and reads each parameter it used from it, and a call builds one.
+
+  - id: hook-game_platformer-HazardKind-validate
+    package: flutter3d_game_platformer
+    symbol: HazardKind.validate
+    kind: hookContext
+    context: EntityCheck
+    fields:
+      '0': entity
+      '1': scope
+      '2': out
+    wave: 4
+    guidance: >-
+      `HazardKind.validate` takes one `EntityCheck` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-game_platformer-OneWayKind-spawn
+    package: flutter3d_game_platformer
+    symbol: OneWayKind.spawn
+    kind: hookContext
+    context: EntitySpawn
+    fields:
+      '0': entity
+      '1': context
+    wave: 4
+    guidance: >-
+      `OneWayKind.spawn` takes one `EntitySpawn` where it took its parameters.
+      An entity kind is a hook a game extends; one context can gain members in
+      a minor release, where a parameter added to the call would break every
+      override written against 1.0. `migrate` gives an override the context
+      and reads each parameter it used from it, and a call builds one.
+
+  - id: hook-game_platformer-OneWayKind-validate
+    package: flutter3d_game_platformer
+    symbol: OneWayKind.validate
+    kind: hookContext
+    context: EntityCheck
+    fields:
+      '0': entity
+      '1': scope
+      '2': out
+    wave: 4
+    guidance: >-
+      `OneWayKind.validate` takes one `EntityCheck` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-game_platformer-Runner-applyDamage
+    package: flutter3d_game_platformer
+    symbol: Runner.applyDamage
+    kind: hookContext
+    context: Damage
+    fields:
+      '0': amount
+      from: from
+    wave: 4
+    guidance: >-
+      `Runner.applyDamage` takes one `Damage` where it took its parameters.
+      Something that can be hurt is a hook a game implements; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-game_platformer-Spring-onCollision
+    package: flutter3d_game_platformer
+    symbol: Spring.onCollision
+    kind: hookContext
+    context: CollisionContext
+    fields:
+      '0': self
+      '1': other
+    wave: 4
+    guidance: >-
+      `Spring.onCollision` takes one `CollisionContext` where it took its
+      parameters. A collision listener is the hook a game overrides most, and
+      a contact is handed to it per pair per step, so the world reuses one
+      context and an override must not keep it; one context can gain members
+      in a minor release, where a parameter added to the call would break
+      every override written against 1.0. `migrate` gives an override the
+      context and reads each parameter it used from it, and a call builds one.
+
+  - id: hook-game_platformer-Spring-onCollisionStart
+    package: flutter3d_game_platformer
+    symbol: Spring.onCollisionStart
+    kind: hookContext
+    context: CollisionContext
+    fields:
+      '0': self
+      '1': other
+    wave: 4
+    guidance: >-
+      `Spring.onCollisionStart` takes one `CollisionContext` where it took its
+      parameters. A collision listener is the hook a game overrides most, and
+      a contact is handed to it per pair per step, so the world reuses one
+      context and an override must not keep it; one context can gain members
+      in a minor release, where a parameter added to the call would break
+      every override written against 1.0. `migrate` gives an override the
+      context and reads each parameter it used from it, and a call builds one.
+
+  - id: hook-game_platformer-SpringKind-spawn
+    package: flutter3d_game_platformer
+    symbol: SpringKind.spawn
+    kind: hookContext
+    context: EntitySpawn
+    fields:
+      '0': entity
+      '1': context
+    wave: 4
+    guidance: >-
+      `SpringKind.spawn` takes one `EntitySpawn` where it took its parameters.
+      An entity kind is a hook a game extends; one context can gain members in
+      a minor release, where a parameter added to the call would break every
+      override written against 1.0. `migrate` gives an override the context
+      and reads each parameter it used from it, and a call builds one.
+
+  - id: hook-game_platformer-SpringKind-validate
+    package: flutter3d_game_platformer
+    symbol: SpringKind.validate
+    kind: hookContext
+    context: EntityCheck
+    fields:
+      '0': entity
+      '1': scope
+      '2': out
+    wave: 4
+    guidance: >-
+      `SpringKind.validate` takes one `EntityCheck` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-game_racing-SphereVehicle-placeAt
+    package: flutter3d_game_racing
+    symbol: SphereVehicle.placeAt
+    kind: hookContext
+    context: VehiclePlacement
+    fields:
+      '0': position
+      '1': headingYaw
+      trackDistance: trackDistance
+    wave: 4
+    guidance: >-
+      `SphereVehicle.placeAt` takes one `VehiclePlacement` where it took its
+      parameters. A vehicle is a hook a racing game implements; one context
+      can gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-game_racing-SphereVehicle-step
+    package: flutter3d_game_racing
+    symbol: SphereVehicle.step
+    kind: hookContext
+    context: VehicleStep
+    fields:
+      '0': dt
+      '1': input
+    wave: 4
+    guidance: >-
+      `SphereVehicle.step` takes one `VehicleStep` where it took its
+      parameters. A vehicle is a hook a racing game implements, stepped per
+      car per step, so the simulation reuses one context and a vehicle must
+      not keep it; one context can gain members in a minor release, where a
+      parameter added to the call would break every override written against
+      1.0. `migrate` gives an override the context and reads each parameter it
+      used from it, and a call builds one.
+
+  - id: hook-game_shooter-ChaseBrain-onHurt
+    package: flutter3d_game_shooter
+    symbol: ChaseBrain.onHurt
+    kind: hookContext
+    context: BrainHurt
+    fields:
+      '0': mind
+      '1': amount
+    wave: 4
+    guidance: >-
+      `ChaseBrain.onHurt` takes one `BrainHurt` where it took its parameters.
+      A brain is a hook a game extends; one context can gain members in a
+      minor release, where a parameter added to the call would break every
+      override written against 1.0. `migrate` gives an override the context
+      and reads each parameter it used from it, and a call builds one.
+
+  - id: hook-game_shooter-ChaseBrain-onNoise
+    package: flutter3d_game_shooter
+    symbol: ChaseBrain.onNoise
+    kind: hookContext
+    context: BrainNoise
+    fields:
+      '0': mind
+      '1': at
+    wave: 4
+    guidance: >-
+      `ChaseBrain.onNoise` takes one `BrainNoise` where it took its
+      parameters. A brain is a hook a game extends; one context can gain
+      members in a minor release, where a parameter added to the call would
+      break every override written against 1.0. `migrate` gives an override
+      the context and reads each parameter it used from it, and a call builds
+      one.
+
+  - id: hook-game_shooter-MonsterKind-spawn
+    package: flutter3d_game_shooter
+    symbol: MonsterKind.spawn
+    kind: hookContext
+    context: EntitySpawn
+    fields:
+      '0': entity
+      '1': context
+    wave: 4
+    guidance: >-
+      `MonsterKind.spawn` takes one `EntitySpawn` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-game_shooter-MonsterKind-validate
+    package: flutter3d_game_shooter
+    symbol: MonsterKind.validate
+    kind: hookContext
+    context: EntityCheck
+    fields:
+      '0': entity
+      '1': scope
+      '2': out
+    wave: 4
+    guidance: >-
+      `MonsterKind.validate` takes one `EntityCheck` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-game_shooter-NoteKind-validate
+    package: flutter3d_game_shooter
+    symbol: NoteKind.validate
+    kind: hookContext
+    context: EntityCheck
+    fields:
+      '0': entity
+      '1': scope
+      '2': out
+    wave: 4
+    guidance: >-
+      `NoteKind.validate` takes one `EntityCheck` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-game_shooter-PickupKind-spawn
+    package: flutter3d_game_shooter
+    symbol: PickupKind.spawn
+    kind: hookContext
+    context: EntitySpawn
+    fields:
+      '0': entity
+      '1': context
+    wave: 4
+    guidance: >-
+      `PickupKind.spawn` takes one `EntitySpawn` where it took its parameters.
+      An entity kind is a hook a game extends; one context can gain members in
+      a minor release, where a parameter added to the call would break every
+      override written against 1.0. `migrate` gives an override the context
+      and reads each parameter it used from it, and a call builds one.
+
+  - id: hook-game_shooter-PickupKind-validate
+    package: flutter3d_game_shooter
+    symbol: PickupKind.validate
+    kind: hookContext
+    context: EntityCheck
+    fields:
+      '0': entity
+      '1': scope
+      '2': out
+    wave: 4
+    guidance: >-
+      `PickupKind.validate` takes one `EntityCheck` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-game_shooter-Player-applyDamage
+    package: flutter3d_game_shooter
+    symbol: Player.applyDamage
+    kind: hookContext
+    context: Damage
+    fields:
+      '0': amount
+      from: from
+    wave: 4
+    guidance: >-
+      `Player.applyDamage` takes one `Damage` where it took its parameters.
+      Something that can be hurt is a hook a game implements; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-game_shooter-Secret-onCollisionStart
+    package: flutter3d_game_shooter
+    symbol: Secret.onCollisionStart
+    kind: hookContext
+    context: CollisionContext
+    fields:
+      '0': self
+      '1': other
+    wave: 4
+    guidance: >-
+      `Secret.onCollisionStart` takes one `CollisionContext` where it took its
+      parameters. A collision listener is the hook a game overrides most, and
+      a contact is handed to it per pair per step, so the world reuses one
+      context and an override must not keep it; one context can gain members
+      in a minor release, where a parameter added to the call would break
+      every override written against 1.0. `migrate` gives an override the
+      context and reads each parameter it used from it, and a call builds one.
+
+  - id: hook-game_shooter-SecretKind-spawn
+    package: flutter3d_game_shooter
+    symbol: SecretKind.spawn
+    kind: hookContext
+    context: EntitySpawn
+    fields:
+      '0': entity
+      '1': context
+    wave: 4
+    guidance: >-
+      `SecretKind.spawn` takes one `EntitySpawn` where it took its parameters.
+      An entity kind is a hook a game extends; one context can gain members in
+      a minor release, where a parameter added to the call would break every
+      override written against 1.0. `migrate` gives an override the context
+      and reads each parameter it used from it, and a call builds one.
+
+  - id: hook-particles-BoxEmitter-emit
+    package: flutter3d_particles
+    symbol: BoxEmitter.emit
+    kind: hookContext
+    context: ParticleBirth
+    fields:
+      '0': particle
+      '1': origin
+      '2': direction
+      '3': random
+    wave: 4
+    guidance: >-
+      `BoxEmitter.emit` takes one `ParticleBirth` where it took its
+      parameters. An emitter is a hook an effect implements, asked per
+      particle, so the system reuses one context and an emitter must not keep
+      it; one context can gain members in a minor release, where a parameter
+      added to the call would break every override written against 1.0.
+      `migrate` gives an override the context and reads each parameter it used
+      from it, and a call builds one.
+
+  - id: hook-particles-DriftEmitter-emit
+    package: flutter3d_particles
+    symbol: DriftEmitter.emit
+    kind: hookContext
+    context: ParticleBirth
+    fields:
+      '0': particle
+      '1': origin
+      '2': direction
+      '3': random
+    wave: 4
+    guidance: >-
+      `DriftEmitter.emit` takes one `ParticleBirth` where it took its
+      parameters. An emitter is a hook an effect implements, asked per
+      particle, so the system reuses one context and an emitter must not keep
+      it; one context can gain members in a minor release, where a parameter
+      added to the call would break every override written against 1.0.
+      `migrate` gives an override the context and reads each parameter it used
+      from it, and a call builds one.
+
+  - id: hook-particles-ParticleAffector-apply
+    package: flutter3d_particles
+    symbol: ParticleAffector.apply
+    kind: hookContext
+    context: ParticleStep
+    fields:
+      '0': particle
+      '1': dt
+    wave: 4
+    guidance: >-
+      `ParticleAffector.apply` takes one `ParticleStep` where it took its
+      parameters. An affector is a hook an effect implements, asked per
+      particle per frame, so the system reuses one context and an affector
+      must not keep it; one context can gain members in a minor release, where
+      a parameter added to the call would break every override written against
+      1.0. `migrate` gives an override the context and reads each parameter it
+      used from it, and a call builds one.
+
+  - id: hook-particles-ParticleColorGradient-apply
+    package: flutter3d_particles
+    symbol: ParticleColorGradient.apply
+    kind: hookContext
+    context: ParticleStep
+    fields:
+      '0': particle
+      '1': dt
+    wave: 4
+    guidance: >-
+      `ParticleColorGradient.apply` takes one `ParticleStep` where it took its
+      parameters. An affector is a hook an effect implements, asked per
+      particle per frame, so the system reuses one context and an affector
+      must not keep it; one context can gain members in a minor release, where
+      a parameter added to the call would break every override written against
+      1.0. `migrate` gives an override the context and reads each parameter it
+      used from it, and a call builds one.
+
+  - id: hook-particles-ParticleDrag-apply
+    package: flutter3d_particles
+    symbol: ParticleDrag.apply
+    kind: hookContext
+    context: ParticleStep
+    fields:
+      '0': particle
+      '1': dt
+    wave: 4
+    guidance: >-
+      `ParticleDrag.apply` takes one `ParticleStep` where it took its
+      parameters. An affector is a hook an effect implements, asked per
+      particle per frame, so the system reuses one context and an affector
+      must not keep it; one context can gain members in a minor release, where
+      a parameter added to the call would break every override written against
+      1.0. `migrate` gives an override the context and reads each parameter it
+      used from it, and a call builds one.
+
+  - id: hook-particles-ParticleEmitter-emit
+    package: flutter3d_particles
+    symbol: ParticleEmitter.emit
+    kind: hookContext
+    context: ParticleBirth
+    fields:
+      '0': particle
+      '1': origin
+      '2': direction
+      '3': random
+    wave: 4
+    guidance: >-
+      `ParticleEmitter.emit` takes one `ParticleBirth` where it took its
+      parameters. An emitter is a hook an effect implements, asked per
+      particle, so the system reuses one context and an emitter must not keep
+      it; one context can gain members in a minor release, where a parameter
+      added to the call would break every override written against 1.0.
+      `migrate` gives an override the context and reads each parameter it used
+      from it, and a call builds one.
+
+  - id: hook-particles-ParticleFade-apply
+    package: flutter3d_particles
+    symbol: ParticleFade.apply
+    kind: hookContext
+    context: ParticleStep
+    fields:
+      '0': particle
+      '1': dt
+    wave: 4
+    guidance: >-
+      `ParticleFade.apply` takes one `ParticleStep` where it took its
+      parameters. An affector is a hook an effect implements, asked per
+      particle per frame, so the system reuses one context and an affector
+      must not keep it; one context can gain members in a minor release, where
+      a parameter added to the call would break every override written against
+      1.0. `migrate` gives an override the context and reads each parameter it
+      used from it, and a call builds one.
+
+  - id: hook-particles-ParticleSizeCurve-apply
+    package: flutter3d_particles
+    symbol: ParticleSizeCurve.apply
+    kind: hookContext
+    context: ParticleStep
+    fields:
+      '0': particle
+      '1': dt
+    wave: 4
+    guidance: >-
+      `ParticleSizeCurve.apply` takes one `ParticleStep` where it took its
+      parameters. An affector is a hook an effect implements, asked per
+      particle per frame, so the system reuses one context and an affector
+      must not keep it; one context can gain members in a minor release, where
+      a parameter added to the call would break every override written against
+      1.0. `migrate` gives an override the context and reads each parameter it
+      used from it, and a call builds one.
+
+  - id: hook-particles-ParticleSizeOverLife-apply
+    package: flutter3d_particles
+    symbol: ParticleSizeOverLife.apply
+    kind: hookContext
+    context: ParticleStep
+    fields:
+      '0': particle
+      '1': dt
+    wave: 4
+    guidance: >-
+      `ParticleSizeOverLife.apply` takes one `ParticleStep` where it took its
+      parameters. An affector is a hook an effect implements, asked per
+      particle per frame, so the system reuses one context and an affector
+      must not keep it; one context can gain members in a minor release, where
+      a parameter added to the call would break every override written against
+      1.0. `migrate` gives an override the context and reads each parameter it
+      used from it, and a call builds one.
+
+  - id: hook-particles-ParticleSpin-apply
+    package: flutter3d_particles
+    symbol: ParticleSpin.apply
+    kind: hookContext
+    context: ParticleStep
+    fields:
+      '0': particle
+      '1': dt
+    wave: 4
+    guidance: >-
+      `ParticleSpin.apply` takes one `ParticleStep` where it took its
+      parameters. An affector is a hook an effect implements, asked per
+      particle per frame, so the system reuses one context and an affector
+      must not keep it; one context can gain members in a minor release, where
+      a parameter added to the call would break every override written against
+      1.0. `migrate` gives an override the context and reads each parameter it
+      used from it, and a call builds one.
+
+  - id: hook-particles-ParticleTurbulence-apply
+    package: flutter3d_particles
+    symbol: ParticleTurbulence.apply
+    kind: hookContext
+    context: ParticleStep
+    fields:
+      '0': particle
+      '1': dt
+    wave: 4
+    guidance: >-
+      `ParticleTurbulence.apply` takes one `ParticleStep` where it took its
+      parameters. An affector is a hook an effect implements, asked per
+      particle per frame, so the system reuses one context and an affector
+      must not keep it; one context can gain members in a minor release, where
+      a parameter added to the call would break every override written against
+      1.0. `migrate` gives an override the context and reads each parameter it
+      used from it, and a call builds one.
+
+  - id: hook-particles-ParticleWind-apply
+    package: flutter3d_particles
+    symbol: ParticleWind.apply
+    kind: hookContext
+    context: ParticleStep
+    fields:
+      '0': particle
+      '1': dt
+    wave: 4
+    guidance: >-
+      `ParticleWind.apply` takes one `ParticleStep` where it took its
+      parameters. An affector is a hook an effect implements, asked per
+      particle per frame, so the system reuses one context and an affector
+      must not keep it; one context can gain members in a minor release, where
+      a parameter added to the call would break every override written against
+      1.0. `migrate` gives an override the context and reads each parameter it
+      used from it, and a call builds one.
+
+  - id: hook-particles-SphereEmitter-emit
+    package: flutter3d_particles
+    symbol: SphereEmitter.emit
+    kind: hookContext
+    context: ParticleBirth
+    fields:
+      '0': particle
+      '1': origin
+      '2': direction
+      '3': random
+    wave: 4
+    guidance: >-
+      `SphereEmitter.emit` takes one `ParticleBirth` where it took its
+      parameters. An emitter is a hook an effect implements, asked per
+      particle, so the system reuses one context and an emitter must not keep
+      it; one context can gain members in a minor release, where a parameter
+      added to the call would break every override written against 1.0.
+      `migrate` gives an override the context and reads each parameter it used
+      from it, and a call builds one.
+
+  - id: hook-physics-CollisionListener-onCollision
+    package: flutter3d_physics
+    symbol: CollisionListener.onCollision
+    kind: hookContext
+    context: CollisionContext
+    fields:
+      '0': self
+      '1': other
+    wave: 4
+    guidance: >-
+      `CollisionListener.onCollision` takes one `CollisionContext` where it
+      took its parameters. A collision listener is the hook a game overrides
+      most, and a contact is handed to it per pair per step, so the world
+      reuses one context and an override must not keep it; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-physics-CollisionListener-onCollisionEnd
+    package: flutter3d_physics
+    symbol: CollisionListener.onCollisionEnd
+    kind: hookContext
+    context: CollisionContext
+    fields:
+      '0': self
+      '1': other
+    wave: 4
+    guidance: >-
+      `CollisionListener.onCollisionEnd` takes one `CollisionContext` where it
+      took its parameters. A collision listener is the hook a game overrides
+      most, and a contact is handed to it per pair per step, so the world
+      reuses one context and an override must not keep it; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-physics-CollisionListener-onCollisionStart
+    package: flutter3d_physics
+    symbol: CollisionListener.onCollisionStart
+    kind: hookContext
+    context: CollisionContext
+    fields:
+      '0': self
+      '1': other
+    wave: 4
+    guidance: >-
+      `CollisionListener.onCollisionStart` takes one `CollisionContext` where
+      it took its parameters. A collision listener is the hook a game
+      overrides most, and a contact is handed to it per pair per step, so the
+      world reuses one context and an override must not keep it; one context
+      can gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-sim-Actor-applyDamage
+    package: flutter3d_sim
+    symbol: Actor.applyDamage
+    kind: hookContext
+    context: Damage
+    fields:
+      '0': amount
+      from: from
+    wave: 4
+    guidance: >-
+      `Actor.applyDamage` takes one `Damage` where it took its parameters.
+      Something that can be hurt is a hook a game implements; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-sim-AtLeastOne-check
+    package: flutter3d_sim
+    symbol: AtLeastOne.check
+    kind: hookContext
+    context: LevelCheck
+    fields:
+      '0': level
+      '1': out
+    wave: 4
+    guidance: >-
+      `AtLeastOne.check` takes one `LevelCheck` where it took its parameters.
+      A level rule is a hook a game brings; one context can gain members in a
+      minor release, where a parameter added to the call would break every
+      override written against 1.0. `migrate` gives an override the context
+      and reads each parameter it used from it, and a call builds one.
+
+  - id: hook-sim-Brain-onHurt
+    package: flutter3d_sim
+    symbol: Brain.onHurt
+    kind: hookContext
+    context: BrainHurt
+    fields:
+      '0': mind
+      '1': amount
+    wave: 4
+    guidance: >-
+      `Brain.onHurt` takes one `BrainHurt` where it took its parameters. A
+      brain is a hook a game extends; one context can gain members in a minor
+      release, where a parameter added to the call would break every override
+      written against 1.0. `migrate` gives an override the context and reads
+      each parameter it used from it, and a call builds one.
+
+  - id: hook-sim-Brain-onNoise
+    package: flutter3d_sim
+    symbol: Brain.onNoise
+    kind: hookContext
+    context: BrainNoise
+    fields:
+      '0': mind
+      '1': at
+    wave: 4
+    guidance: >-
+      `Brain.onNoise` takes one `BrainNoise` where it took its parameters. A
+      brain is a hook a game extends; one context can gain members in a minor
+      release, where a parameter added to the call would break every override
+      written against 1.0. `migrate` gives an override the context and reads
+      each parameter it used from it, and a call builds one.
+
+  - id: hook-sim-ButtonKind-spawn
+    package: flutter3d_sim
+    symbol: ButtonKind.spawn
+    kind: hookContext
+    context: EntitySpawn
+    fields:
+      '0': entity
+      '1': context
+    wave: 4
+    guidance: >-
+      `ButtonKind.spawn` takes one `EntitySpawn` where it took its parameters.
+      An entity kind is a hook a game extends; one context can gain members in
+      a minor release, where a parameter added to the call would break every
+      override written against 1.0. `migrate` gives an override the context
+      and reads each parameter it used from it, and a call builds one.
+
+  - id: hook-sim-ButtonKind-validate
+    package: flutter3d_sim
+    symbol: ButtonKind.validate
+    kind: hookContext
+    context: EntityCheck
+    fields:
+      '0': entity
+      '1': scope
+      '2': out
+    wave: 4
+    guidance: >-
+      `ButtonKind.validate` takes one `EntityCheck` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-sim-DoorKind-spawn
+    package: flutter3d_sim
+    symbol: DoorKind.spawn
+    kind: hookContext
+    context: EntitySpawn
+    fields:
+      '0': entity
+      '1': context
+    wave: 4
+    guidance: >-
+      `DoorKind.spawn` takes one `EntitySpawn` where it took its parameters.
+      An entity kind is a hook a game extends; one context can gain members in
+      a minor release, where a parameter added to the call would break every
+      override written against 1.0. `migrate` gives an override the context
+      and reads each parameter it used from it, and a call builds one.
+
+  - id: hook-sim-DoorKind-validate
+    package: flutter3d_sim
+    symbol: DoorKind.validate
+    kind: hookContext
+    context: EntityCheck
+    fields:
+      '0': entity
+      '1': scope
+      '2': out
+    wave: 4
+    guidance: >-
+      `DoorKind.validate` takes one `EntityCheck` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-sim-EntityKind-spawn
+    package: flutter3d_sim
+    symbol: EntityKind.spawn
+    kind: hookContext
+    context: EntitySpawn
+    fields:
+      '0': entity
+      '1': context
+    wave: 4
+    guidance: >-
+      `EntityKind.spawn` takes one `EntitySpawn` where it took its parameters.
+      An entity kind is a hook a game extends; one context can gain members in
+      a minor release, where a parameter added to the call would break every
+      override written against 1.0. `migrate` gives an override the context
+      and reads each parameter it used from it, and a call builds one.
+
+  - id: hook-sim-EntityKind-validate
+    package: flutter3d_sim
+    symbol: EntityKind.validate
+    kind: hookContext
+    context: EntityCheck
+    fields:
+      '0': entity
+      '1': scope
+      '2': out
+    wave: 4
+    guidance: >-
+      `EntityKind.validate` takes one `EntityCheck` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-sim-ExactlyOne-check
+    package: flutter3d_sim
+    symbol: ExactlyOne.check
+    kind: hookContext
+    context: LevelCheck
+    fields:
+      '0': level
+      '1': out
+    wave: 4
+    guidance: >-
+      `ExactlyOne.check` takes one `LevelCheck` where it took its parameters.
+      A level rule is a hook a game brings; one context can gain members in a
+      minor release, where a parameter added to the call would break every
+      override written against 1.0. `migrate` gives an override the context
+      and reads each parameter it used from it, and a call builds one.
+
+  - id: hook-sim-Exit-onCollisionStart
+    package: flutter3d_sim
+    symbol: Exit.onCollisionStart
+    kind: hookContext
+    context: CollisionContext
+    fields:
+      '0': self
+      '1': other
+    wave: 4
+    guidance: >-
+      `Exit.onCollisionStart` takes one `CollisionContext` where it took its
+      parameters. A collision listener is the hook a game overrides most, and
+      a contact is handed to it per pair per step, so the world reuses one
+      context and an override must not keep it; one context can gain members
+      in a minor release, where a parameter added to the call would break
+      every override written against 1.0. `migrate` gives an override the
+      context and reads each parameter it used from it, and a call builds one.
+
+  - id: hook-sim-ExitKind-spawn
+    package: flutter3d_sim
+    symbol: ExitKind.spawn
+    kind: hookContext
+    context: EntitySpawn
+    fields:
+      '0': entity
+      '1': context
+    wave: 4
+    guidance: >-
+      `ExitKind.spawn` takes one `EntitySpawn` where it took its parameters.
+      An entity kind is a hook a game extends; one context can gain members in
+      a minor release, where a parameter added to the call would break every
+      override written against 1.0. `migrate` gives an override the context
+      and reads each parameter it used from it, and a call builds one.
+
+  - id: hook-sim-ExitKind-validate
+    package: flutter3d_sim
+    symbol: ExitKind.validate
+    kind: hookContext
+    context: EntityCheck
+    fields:
+      '0': entity
+      '1': scope
+      '2': out
+    wave: 4
+    guidance: >-
+      `ExitKind.validate` takes one `EntityCheck` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-sim-LevelRule-check
+    package: flutter3d_sim
+    symbol: LevelRule.check
+    kind: hookContext
+    context: LevelCheck
+    fields:
+      '0': level
+      '1': out
+    wave: 4
+    guidance: >-
+      `LevelRule.check` takes one `LevelCheck` where it took its parameters. A
+      level rule is a hook a game brings; one context can gain members in a
+      minor release, where a parameter added to the call would break every
+      override written against 1.0. `migrate` gives an override the context
+      and reads each parameter it used from it, and a call builds one.
+
+  - id: hook-sim-LiftKind-spawn
+    package: flutter3d_sim
+    symbol: LiftKind.spawn
+    kind: hookContext
+    context: EntitySpawn
+    fields:
+      '0': entity
+      '1': context
+    wave: 4
+    guidance: >-
+      `LiftKind.spawn` takes one `EntitySpawn` where it took its parameters.
+      An entity kind is a hook a game extends; one context can gain members in
+      a minor release, where a parameter added to the call would break every
+      override written against 1.0. `migrate` gives an override the context
+      and reads each parameter it used from it, and a call builds one.
+
+  - id: hook-sim-LiftKind-validate
+    package: flutter3d_sim
+    symbol: LiftKind.validate
+    kind: hookContext
+    context: EntityCheck
+    fields:
+      '0': entity
+      '1': scope
+      '2': out
+    wave: 4
+    guidance: >-
+      `LiftKind.validate` takes one `EntityCheck` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-sim-LightFixtureKind-spawn
+    package: flutter3d_sim
+    symbol: LightFixtureKind.spawn
+    kind: hookContext
+    context: EntitySpawn
+    fields:
+      '0': entity
+      '1': context
+    wave: 4
+    guidance: >-
+      `LightFixtureKind.spawn` takes one `EntitySpawn` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-sim-LightFixtureKind-validate
+    package: flutter3d_sim
+    symbol: LightFixtureKind.validate
+    kind: hookContext
+    context: EntityCheck
+    fields:
+      '0': entity
+      '1': scope
+      '2': out
+    wave: 4
+    guidance: >-
+      `LightFixtureKind.validate` takes one `EntityCheck` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-sim-PlatformKind-spawn
+    package: flutter3d_sim
+    symbol: PlatformKind.spawn
+    kind: hookContext
+    context: EntitySpawn
+    fields:
+      '0': entity
+      '1': context
+    wave: 4
+    guidance: >-
+      `PlatformKind.spawn` takes one `EntitySpawn` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-sim-PlatformKind-validate
+    package: flutter3d_sim
+    symbol: PlatformKind.validate
+    kind: hookContext
+    context: EntityCheck
+    fields:
+      '0': entity
+      '1': scope
+      '2': out
+    wave: 4
+    guidance: >-
+      `PlatformKind.validate` takes one `EntityCheck` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-sim-ReflectionProbeKind-validate
+    package: flutter3d_sim
+    symbol: ReflectionProbeKind.validate
+    kind: hookContext
+    context: EntityCheck
+    fields:
+      '0': entity
+      '1': scope
+      '2': out
+    wave: 4
+    guidance: >-
+      `ReflectionProbeKind.validate` takes one `EntityCheck` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-sim-Takeable-onCollision
+    package: flutter3d_sim
+    symbol: Takeable.onCollision
+    kind: hookContext
+    context: CollisionContext
+    fields:
+      '0': self
+      '1': other
+    wave: 4
+    guidance: >-
+      `Takeable.onCollision` takes one `CollisionContext` where it took its
+      parameters. A collision listener is the hook a game overrides most, and
+      a contact is handed to it per pair per step, so the world reuses one
+      context and an override must not keep it; one context can gain members
+      in a minor release, where a parameter added to the call would break
+      every override written against 1.0. `migrate` gives an override the
+      context and reads each parameter it used from it, and a call builds one.
+
+  - id: hook-sim-Takeable-onCollisionStart
+    package: flutter3d_sim
+    symbol: Takeable.onCollisionStart
+    kind: hookContext
+    context: CollisionContext
+    fields:
+      '0': self
+      '1': other
+    wave: 4
+    guidance: >-
+      `Takeable.onCollisionStart` takes one `CollisionContext` where it took
+      its parameters. A collision listener is the hook a game overrides most,
+      and a contact is handed to it per pair per step, so the world reuses one
+      context and an override must not keep it; one context can gain members
+      in a minor release, where a parameter added to the call would break
+      every override written against 1.0. `migrate` gives an override the
+      context and reads each parameter it used from it, and a call builds one.
+
+  - id: hook-sim-TriggerKind-spawn
+    package: flutter3d_sim
+    symbol: TriggerKind.spawn
+    kind: hookContext
+    context: EntitySpawn
+    fields:
+      '0': entity
+      '1': context
+    wave: 4
+    guidance: >-
+      `TriggerKind.spawn` takes one `EntitySpawn` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-sim-TriggerKind-validate
+    package: flutter3d_sim
+    symbol: TriggerKind.validate
+    kind: hookContext
+    context: EntityCheck
+    fields:
+      '0': entity
+      '1': scope
+      '2': out
+    wave: 4
+    guidance: >-
+      `TriggerKind.validate` takes one `EntityCheck` where it took its
+      parameters. An entity kind is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-sim-TriggerVolume-onCollisionStart
+    package: flutter3d_sim
+    symbol: TriggerVolume.onCollisionStart
+    kind: hookContext
+    context: CollisionContext
+    fields:
+      '0': self
+      '1': other
+    wave: 4
+    guidance: >-
+      `TriggerVolume.onCollisionStart` takes one `CollisionContext` where it
+      took its parameters. A collision listener is the hook a game overrides
+      most, and a contact is handed to it per pair per step, so the world
+      reuses one context and an override must not keep it; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-pad_input-GamepadPlatform-readPad
+    package: pad_input
+    symbol: GamepadPlatform.readPad
+    kind: hookContext
+    context: PadReadContext
+    fields:
+      '0': index
+      '1': out
+    wave: 4
+    guidance: >-
+      `GamepadPlatform.readPad` takes one `PadReadContext` where it took its
+      parameters. A gamepad platform is a hook a platform implements, read per
+      pad per frame, so the gamepad reuses one context and a platform must not
+      keep it; one context can gain members in a minor release, where a
+      parameter added to the call would break every override written against
+      1.0. `migrate` gives an override the context and reads each parameter it
+      used from it, and a call builds one.
+
+  - id: hook-audio_core-AudioBackend-start
+    package: flutter3d_audio_core
+    symbol: AudioBackend.start
+    kind: hookContext
+    context: VoiceStart
+    fields:
+      '0': asset
+      gain: gain
+      pan: pan
+      rate: rate
+      loop: loop
+      muffle: muffle
+    wave: 4
+    guidance: >-
+      `AudioBackend.start` takes one `VoiceStart` where it took its
+      parameters. An audio backend is a hook a platform implements, asked per
+      voice, so the scene reuses one context and a backend must not keep it;
+      one context can gain members in a minor release, where a parameter added
+      to the call would break every override written against 1.0. `migrate`
+      gives an override the context and reads each parameter it used from it,
+      and a call builds one.
+
+  - id: hook-audio_core-AudioBackend-update
+    package: flutter3d_audio_core
+    symbol: AudioBackend.update
+    kind: hookContext
+    context: VoiceUpdate
+    fields:
+      '0': voice
+      gain: gain
+      pan: pan
+      rate: rate
+      muffle: muffle
+    wave: 4
+    guidance: >-
+      `AudioBackend.update` takes one `VoiceUpdate` where it took its
+      parameters. An audio backend is a hook a platform implements, asked per
+      voice per frame, so the scene reuses one context and a backend must not
+      keep it; one context can gain members in a minor release, where a
+      parameter added to the call would break every override written against
+      1.0. `migrate` gives an override the context and reads each parameter it
+      used from it, and a call builds one.
+
+  - id: hook-game_shooter-Gift-grantTo
+    package: flutter3d_game_shooter
+    symbol: Gift.grantTo
+    kind: hookContext
+    context: GiftGrant
+    fields:
+      '0': to
+      '1': amount
+      '2': detail
+    wave: 4
+    guidance: >-
+      `Gift.grantTo` takes one `GiftGrant` where it took its parameters. A
+      gift is a hook a game extends; one context can gain members in a minor
+      release, where a parameter added to the call would break every override
+      written against 1.0. `migrate` gives an override the context and reads
+      each parameter it used from it, and a call builds one.
+
+  - id: hook-game_shooter-Gift-announce
+    package: flutter3d_game_shooter
+    symbol: Gift.announce
+    kind: hookContext
+    context: GiftAnnounce
+    fields:
+      '0': amount
+      '1': detail
+    wave: 4
+    guidance: >-
+      `Gift.announce` takes one `GiftAnnounce` where it took its parameters. A
+      gift is a hook a game extends; one context can gain members in a minor
+      release, where a parameter added to the call would break every override
+      written against 1.0. `migrate` gives an override the context and reads
+      each parameter it used from it, and a call builds one.
+
+  - id: hook-game-RunSession-restoreInto
+    package: flutter3d_game
+    symbol: RunSession.restoreInto
+    kind: hookContext
+    context: RunRestoreContext
+    fields:
+      '0': level
+      '1': snapshot
+    wave: 4
+    guidance: >-
+      `RunSession.restoreInto` takes one `RunRestoreContext` where it took its
+      parameters. A run session is a hook a game extends; one context can gain
+      members in a minor release, where a parameter added to the call would
+      break every override written against 1.0. `migrate` gives an override
+      the context and reads each parameter it used from it, and a call builds
+      one.
+
+  - id: hook-game-RunSession-carryFrom
+    package: flutter3d_game
+    symbol: RunSession.carryFrom
+    kind: hookContext
+    context: RunCarryContext
+    fields:
+      '0': level
+      '1': next
+    wave: 4
+    guidance: >-
+      `RunSession.carryFrom` takes one `RunCarryContext` where it took its
+      parameters. A run session is a hook a game extends; one context can gain
+      members in a minor release, where a parameter added to the call would
+      break every override written against 1.0. `migrate` gives an override
+      the context and reads each parameter it used from it, and a call builds
+      one.
+
+  - id: hook-game_racing-VehicleController-step
+    package: flutter3d_game_racing
+    symbol: VehicleController.step
+    kind: hookContext
+    context: VehicleStep
+    fields:
+      '0': dt
+      '1': input
+    wave: 4
+    guidance: >-
+      `VehicleController.step` takes one `VehicleStep` where it took its
+      parameters. A vehicle is a hook a racing game implements, stepped per
+      car per step, so the simulation reuses one context and a vehicle must
+      not keep it; one context can gain members in a minor release, where a
+      parameter added to the call would break every override written against
+      1.0. `migrate` gives an override the context and reads each parameter it
+      used from it, and a call builds one.
+
+  - id: hook-game_racing-VehicleController-placeAt
+    package: flutter3d_game_racing
+    symbol: VehicleController.placeAt
+    kind: hookContext
+    context: VehiclePlacement
+    fields:
+      '0': position
+      '1': headingYaw
+      trackDistance: trackDistance
+    wave: 4
+    guidance: >-
+      `VehicleController.placeAt` takes one `VehiclePlacement` where it took
+      its parameters. A vehicle is a hook a racing game implements; one
+      context can gain members in a minor release, where a parameter added to
+      the call would break every override written against 1.0. `migrate` gives
+      an override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-core-ModelDecoder-decode
+    package: flutter3d_core
+    symbol: ModelDecoder.decode
+    kind: hookContext
+    context: ModelDecodeContext
+    fields:
+      '0': bytes
+      '1': request
+      '2': resolveUri
+    wave: 4
+    guidance: >-
+      `ModelDecoder.decode` takes one `ModelDecodeContext` where it took its
+      parameters. A model decoder is the plugin boundary for reading; one
+      context can gain members in a minor release, where a parameter added to
+      the call would break every override written against 1.0. `migrate` gives
+      an override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-core-ModelDecoder-handles
+    package: flutter3d_core
+    symbol: ModelDecoder.handles
+    kind: hookContext
+    context: ModelProbe
+    fields:
+      '0': fileName
+      '1': bytes
+    wave: 4
+    guidance: >-
+      `ModelDecoder.handles` takes one `ModelProbe` where it took its
+      parameters. A model decoder is the plugin boundary for reading; one
+      context can gain members in a minor release, where a parameter added to
+      the call would break every override written against 1.0. `migrate` gives
+      an override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-core-ModelWriter-write
+    package: flutter3d_core
+    symbol: ModelWriter.write
+    kind: hookContext
+    context: ModelWriteContext
+    fields:
+      '0': document
+      baseName: baseName
+    wave: 4
+    guidance: >-
+      `ModelWriter.write` takes one `ModelWriteContext` where it took its
+      parameters. A model writer is a hook a format implements; one context
+      can gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-flutter3d-MaterialDecoder-decode
+    package: flutter3d
+    symbol: MaterialDecoder.decode
+    kind: hookContext
+    context: MaterialDecodeContext
+    fields:
+      '0': bytes
+      '1': fileName
+    wave: 4
+    guidance: >-
+      `MaterialDecoder.decode` takes one `MaterialDecodeContext` where it took
+      its parameters. A material decoder is the plugin boundary for looks; one
+      context can gain members in a minor release, where a parameter added to
+      the call would break every override written against 1.0. `migrate` gives
+      an override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-flutter3d-MaterialDecoder-handles
+    package: flutter3d
+    symbol: MaterialDecoder.handles
+    kind: hookContext
+    context: MaterialProbe
+    fields:
+      '0': fileName
+      '1': bytes
+    wave: 4
+    guidance: >-
+      `MaterialDecoder.handles` takes one `MaterialProbe` where it took its
+      parameters. A material decoder is the plugin boundary for looks; one
+      context can gain members in a minor release, where a parameter added to
+      the call would break every override written against 1.0. `migrate` gives
+      an override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-sim-Damageable-applyDamage
+    package: flutter3d_sim
+    symbol: Damageable.applyDamage
+    kind: hookContext
+    context: Damage
+    fields:
+      '0': amount
+      from: from
+    wave: 4
+    guidance: >-
+      `Damageable.applyDamage` takes one `Damage` where it took its
+      parameters. Something that can be hurt is a hook a game implements; one
+      context can gain members in a minor release, where a parameter added to
+      the call would break every override written against 1.0. `migrate` gives
+      an override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-core-RenderServices-encodeScene
+    package: flutter3d_core
+    symbol: RenderServices.encodeScene
+    kind: hookContext
+    context: SceneEncodeRequest
+    fields:
+      frame: frame
+      encoder: encoder
+      scene: scene
+      viewProjection: viewProjection
+      cameraPosition: cameraPosition
+      casterIndex: casterIndex
+    wave: 4
+    guidance: >-
+      `RenderServices.encodeScene` takes one `SceneEncodeRequest` where it
+      took its parameters. The renderer's services are mixed in by a test or a
+      renderer of one's own; one context can gain members in a minor release,
+      where a parameter added to the call would break every override written
+      against 1.0. `migrate` gives an override the context and reads each
+      parameter it used from it, and a call builds one.
+
+  - id: hook-core-ContributorLights-bind
+    package: flutter3d_core
+    symbol: ContributorLights.bind
+    kind: hookContext
+    context: LightBindRequest
+    fields:
+      '0': encoder
+      '1': stage
+      centre: center
+      center: center
+      radius: radius
+    wave: 4
+    guidance: >-
+      `ContributorLights.bind` takes one `LightBindRequest` where it took its
+      parameters. A contributor's lights are mixed in by a test or a renderer
+      of one's own; one context can gain members in a minor release, where a
+      parameter added to the call would break every override written against
+      1.0. `migrate` gives an override the context and reads each parameter it
+      used from it, and a call builds one.
+
+  - id: hook-sim-HeadlessGame-start
+    package: flutter3d_sim
+    symbol: HeadlessGame.start
+    kind: hookContext
+    context: HeadlessStart
+    fields:
+      '0': level
+      '1': world
+      '2': input
+    wave: 4
+    guidance: >-
+      `HeadlessGame.start` takes one `HeadlessStart` where it took its
+      parameters. A headless game is a hook a game extends; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-flame_multiplayer-PeerWire-send
+    package: flame_multiplayer
+    symbol: PeerWire.send
+    kind: hookContext
+    context: PeerSend
+    fields:
+      '0': message
+      reliable: reliable
+    wave: 4
+    guidance: >-
+      `PeerWire.send` takes one `PeerSend` where it took its parameters. A
+      peer wire is a transport a network library implements; one context can
+      gain members in a minor release, where a parameter added to the call
+      would break every override written against 1.0. `migrate` gives an
+      override the context and reads each parameter it used from it, and a
+      call builds one.
+
+  - id: hook-game-FixtureAppearance-refresh
+    package: flutter3d_game
+    symbol: FixtureAppearance.refresh
+    kind: hookContext
+    context: FixtureRefreshContext
+    fields:
+      '0': fixture
+      '1': material
+    wave: 4
+    guidance: >-
+      `FixtureAppearance.refresh` takes one `FixtureRefreshContext` where it
+      took its parameters. A fixture appearance is a hook a game implements,
+      refreshed per fixture per frame, so the visuals reuse one context and an
+      appearance must not keep it; one context can gain members in a minor
+      release, where a parameter added to the call would break every override
+      written against 1.0. `migrate` gives an override the context and reads
+      each parameter it used from it, and a call builds one.
 
   - id: corpus-game-Playing-capturesPointer
     package: flutter3d_game

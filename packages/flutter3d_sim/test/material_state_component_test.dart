@@ -26,7 +26,7 @@ final ComponentCodec<MaterialStateComponent> _codec =
     MaterialStateComponent.codec;
 
 MaterialStateComponent _read(Object? json) =>
-    _codec.decode(json, _codec.version)!;
+    _codec.decode(ComponentDecodeContext(json, version: _codec.version))!;
 
 void main() {
   test('every quantity is kept, the ones it cannot read as they were '
@@ -97,13 +97,15 @@ void main() {
   });
 
   test('a document that is not a state is not read', () {
-    expect(_codec.decode('warm', 1), isNull);
+    expect(_codec.decode(ComponentDecodeContext('warm', version: 1)), isNull);
     expect(
-      _codec.decode(<String, Object?>{
-        'quantities': <String, Object?>{
-          'charring': <String, Object?>{'value': 1, 'unit': '1'},
-        },
-      }, 1),
+      _codec.decode(
+        ComponentDecodeContext(<String, Object?>{
+          'quantities': <String, Object?>{
+            'charring': <String, Object?>{'value': 1, 'unit': '1'},
+          },
+        }, version: 1),
+      ),
       isNull,
       reason: 'an id that is not <namespace>.<name>',
     );

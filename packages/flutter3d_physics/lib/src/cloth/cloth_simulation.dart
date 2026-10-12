@@ -29,13 +29,10 @@ abstract base class ClothSimulation {
   /// The sheet this steps, in place.
   ClothMesh get mesh;
 
-  /// Advances [mesh] by [dt] seconds as [settings] say, against
-  /// [obstacles] where they stand now: what [stepCloth] does.
-  void step(
-    ClothSettings settings,
-    double dt, {
-    List<ClothObstacle> obstacles = const <ClothObstacle>[],
-  });
+  /// Advances [mesh] by the step's [ClothStep.dt] seconds as its settings
+  /// say, against its obstacles where they stand now: what [stepCloth]
+  /// does.
+  void step(ClothStep step);
 
   /// Lets go of what the backend holds for [mesh]. The mesh itself stays
   /// as the last step left it. Nothing, by default.
@@ -50,13 +47,35 @@ final class DartCloth extends ClothSimulation {
   final ClothMesh mesh;
 
   @override
-  void step(
-    ClothSettings settings,
-    double dt, {
-    List<ClothObstacle> obstacles = const <ClothObstacle>[],
-  }) => stepCloth(mesh, settings, dt, obstacles: obstacles);
+  void step(ClothStep step) =>
+      stepCloth(mesh, step.settings, step.dt, obstacles: step.obstacles);
 
   /// Nothing: the reference keeps nothing but the mesh.
   @override
   void dispose() {}
+}
+
+/// What [ClothSimulation.step] is handed: the settings, the step's length
+/// in seconds and the obstacles where they stand now.
+///
+/// **One object, so a minor can hand a simulation more** — a wind, a
+/// moving frame — without breaking one written against 1.0.
+/// **Reusable**: a sheet stepped every frame keeps one and sets it before
+/// the call; a simulation reads it during [ClothSimulation.step] and does
+/// not keep it.
+final class ClothStep {
+  ClothStep({
+    this.settings = const ClothSettings(),
+    this.dt = 0.0,
+    this.obstacles = const <ClothObstacle>[],
+  });
+
+  /// How the sheet behaves.
+  ClothSettings settings;
+
+  /// The step, in seconds.
+  double dt;
+
+  /// What it collides with, where it stands now.
+  List<ClothObstacle> obstacles;
 }

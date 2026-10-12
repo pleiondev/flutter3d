@@ -16,7 +16,10 @@ final class CollectibleKind extends EntityKind {
   static Vector3 get defaultSize => Vector3(0.5, 0.5, 0.5);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     requireText(entity, scope, out, 'what');
     final howMany = entity.integer('count');
     if (howMany != null && howMany <= 0) {
@@ -31,7 +34,9 @@ final class CollectibleKind extends EntityKind {
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final what = entity.string('what');
     if (what == null) return;
     final collider = place(

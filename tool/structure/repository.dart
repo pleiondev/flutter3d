@@ -1930,40 +1930,147 @@ const Map<String, String> closedSetPending = <String, String>{};
 /// methods are a fixed shape no minor will grow, or that nobody outside the
 /// engine implements. [hookParametersPending] holds the debts.
 const Map<String, String> hookParametersAllowed = <String, String>{
+  'ActionBinding.withSource':
+      'flutter3d_game: a binding copied with another source and part, a value\'s own copyWith',
+  'AnimationPointerSink':
+      'flutter3d_core: a pointer track\'s path and its sampled values, set per channel per frame, for AnimationTarget\'s reason',
+  'AnimationTarget':
+      'flutter3d_core: a node\'s transform as a player drives it, set per channel per frame as a vector\'s three components so a sampled frame allocates nothing',
+  'BackendOpener':
+      'flutter3d_hardware: opening a backend at a surface\'s size, the one shape every backend\'s `open` has; the hardware interface, for GraphicsDevice\'s reason',
+  'BinaryStorage': 'flutter3d_app: a key and its bytes, for Storage\'s reason',
+  'BridgeSpace':
+      'flame_flutter3d: a Flame point to a scene position (and an angle to a rotation), written into the caller\'s vector per component per frame: a coordinate transform whose inputs are the coordinates',
+  'CollisionShape':
+      'flutter3d_physics: the geometric queries a narrow phase asks per pair per step (a support point along a direction at a pose, an overlap of two posed shapes, a ray against one), whose inputs are the mathematics of the query; a context per call would be an allocation per pair in the hottest loop the physics has, and a new query arrives as a new member with a default body',
   'ComponentRegistry':
       'flutter3d_plugin_api: a registry the engine implements and a plugin calls, for LoopRegistry\'s reason',
-  'EventRegistry':
-      'flutter3d_plugin_api: a registry the engine implements and a plugin calls, for LoopRegistry\'s reason',
-  'SimCommands':
-      'flutter3d_plugin_api: the simulation\'s own command buffer, which the engine implements and a system calls',
-  'SimWorld':
-      'flutter3d_plugin_api: the simulation\'s world, which the engine implements and a system calls',
   'ComputeEncoder':
       'flutter3d_hardware: the hardware interface, for GraphicsDevice\'s reason',
   'CpuComputeShader':
       'flutter3d_cpu: the per-workgroup call, for CpuVertexShader\'s reason',
-  'KernelTexture':
-      'flutter3d_shaders: the kernel language\'s load(t, x, y), one call per texel, mirroring the shader builtin it runs in place of',
-  'KernelImage':
-      'flutter3d_shaders: the kernel language\'s store(i, x, y, v), one call per texel, mirroring the shader builtin it runs in place of',
   'CpuFragmentShader':
       'flutter3d_cpu: the per-fragment call, for CpuVertexShader\'s reason',
+  'CpuMaterialCompiler':
+      'flutter3d_cpu: a test seam with the shape of the compiler it stands in for (stage, source)',
   'CpuVertexShader':
       'flutter3d_cpu: the software rasteriser\'s per-vertex call, where a context object made per call would be an allocation in the hottest loop the backend has',
   'CpuVertexShaderByIndex':
       'flutter3d_cpu: the per-vertex call, for CpuVertexShader\'s reason',
+  'CustomShape':
+      'flutter3d_physics: CollisionShape\'s queries derived from one support function, for CollisionShape\'s reason',
+  'DeviceFactory':
+      'flutter3d_conformance: a device at a size, BackendOpener\'s shape',
+  'ElementBodyEvent.codecOf':
+      'flutter3d_elements: a codec for the package\'s own body events, made from each event\'s constructor `(body, made)`; nobody outside makes one',
+  'ElementFields':
+      'flutter3d_elements: the world\'s fields as the core that steps them implements them and an element calls them; it grows by members with defaults, and its calls by named parameters a caller may leave out',
+  'EncodedImageUpload':
+      'flutter3d_hardware: a capability of the hardware interface, for GraphicsDevice\'s reason',
+  'EntityKind.place':
+      'flutter3d_sim: a helper a kind calls from its spawn to place its collider, not a hook it overrides; it grows by named parameters a caller may leave out',
+  'EntityKind.requireKeyExists':
+      'flutter3d_sim: a check a kind calls from its validate, not a hook it overrides, for EntityKind.place\'s reason',
+  'EntityKind.requireSize':
+      'flutter3d_sim: a check a kind calls from its validate, not a hook it overrides, for EntityKind.place\'s reason',
+  'EntityKind.requireTarget':
+      'flutter3d_sim: a check a kind calls from its validate, not a hook it overrides, for EntityKind.place\'s reason',
+  'EntityKind.requireText':
+      'flutter3d_sim: a check a kind calls from its validate, not a hook it overrides, for EntityKind.place\'s reason',
+  'EntityKind.requireTravel':
+      'flutter3d_sim: a check a kind calls from its validate, not a hook it overrides, for EntityKind.place\'s reason',
+  'EventRegistry':
+      'flutter3d_plugin_api: a registry the engine implements and a plugin calls, for LoopRegistry\'s reason',
   'FormatDocument':
       'flutter3d_foundation: `write` is the helper a document calls to put its body in the envelope, not a hook it overrides',
   'FrameContext':
       'flutter3d_core: a context the engine makes and hands to every node and contributor; nobody outside implements it',
+  'FramePresenter':
+      'flutter3d_app: the backend packages register presenters of this shape through `DeviceRegistry.addPresenter` as closures, and cannot import a context from this package, which depends on them; the shape is shared structurally or not at all',
+  'GameAsk':
+      'flutter3d_mcp: a test seam with the shape of `callGameExtension` it stands in for',
   'GraphicsDevice':
       'flutter3d_hardware: the hardware interface mirrors the call shapes of the GPU APIs it wraps, and grows by a member with a default body (D25), never by a parameter',
+  'GroundField':
+      'flutter3d_game_racing: what is under a wheel, asked per wheel per step with a position and a hint and written into the caller\'s GroundSample, which is where the answer grows',
+  'GroundHeight':
+      'flutter3d_game_kit: a height field over the ground, a function of x and z',
+  'HasFlutter3d.open3d':
+      'flame_flutter3d: a method the mixin gives a game to call, not one it overrides; it grows by named parameters a caller may leave out',
+  'JetObstacle':
+      'flutter3d_physics: whether a drop of a stream, at a point and of a radius, reaches or touches a wall: a geometric query per drop per step, for CollisionShape\'s reason',
+  'JetReceiver.catches':
+      'flutter3d_physics: whether a drop, at a point and of a radius, lands in a vessel, for JetObstacle\'s reason',
+  'JsonPost':
+      'flutter3d_sim: an HTTP POST of a JSON body to a URL, the shape of the client call it wraps',
+  'KernelImage':
+      'flutter3d_shaders: the kernel language\'s store(i, x, y, v), one call per texel, mirroring the shader builtin it runs in place of',
+  'KernelTexture':
+      'flutter3d_shaders: the kernel language\'s load(t, x, y), one call per texel, mirroring the shader builtin it runs in place of',
+  'LevelKit':
+      'flutter3d_sim: a kit of the engine\'s own table of level recipes (room, corridor, scatter), `(sketch, recipe)`; a recipe names one of those kits and nobody outside adds one',
+  'LightBehavior':
+      'flutter3d_sim: a light\'s brightness as a function of time and a seed, a curve with nothing else to be handed',
   'LoopRegistry':
       'flutter3d_plugin_api: a registry the engine implements and a plugin calls; it grows by a member with a default, and its calls by named parameters a caller may leave out',
+  'MaskRead':
+      'flutter3d_model_core: a mask\'s value at a texel, a function of x and y',
+  'NewRun':
+      'flutter3d_mcp: a test seam with the shape of `FlutterRun`\'s constructor (project root, device) it stands in for',
+  'ParameterType':
+      'flutter3d_core: one value laid out as the floats a uniform block reads, per parameter per draw: a layout kernel whose inputs are the value and the floats it writes',
+  'ParticleEmitter.randomDirection':
+      'flutter3d_particles: a uniform unit vector written into the caller\'s vector, a maths helper an emitter calls per particle, not a hook it overrides',
+  'PassEncoder':
+      'flutter3d_hardware: the hardware interface, for GraphicsDevice\'s reason',
+  'PluginProcessRunner':
+      'flutter3d_build: `Process.run`\'s shape (executable, arguments, working directory), for ProcessProbe\'s reason',
+  'ProcessProbe':
+      'flutter3d_build: `Process.run`\'s shape (executable, arguments), mirrored so a test hands a canned answer',
+  'Projection':
+      'flutter3d_core: a camera\'s projection maths, an eye-space point to normalized device coordinates at an aspect, whose inputs the maths fixes',
+  'RunFlutterIn':
+      'flutter3d_mcp: `Process.run`\'s shape (arguments, working directory), for ProcessProbe\'s reason',
+  'RunSession.load':
+      'flutter3d_game: the session\'s driver, which a game calls and nobody overrides; it grows by named parameters a caller may leave out',
+  'SimCommands':
+      'flutter3d_plugin_api: the simulation\'s own command buffer, which the engine implements and a system calls',
+  'SimWorld':
+      'flutter3d_plugin_api: the simulation\'s world, which the engine implements and a system calls',
+  'SimulationHandle':
+      'flutter3d_sim: what the engine hands the view, implemented by the engine in this isolate or another, for LoopRegistry\'s reason',
   'SimulationQueryRegistry':
       'flutter3d_sim: a registry the engine implements and a plugin calls, for LoopRegistry\'s reason',
+  'SixWayField':
+      'flutter3d_particles: a density field over the cube and the animation\'s time, a function of x, y, z and t',
+  'SizedImageDecoder':
+      'flutter3d_core: an `ImageDecoder` with one optional cap, so the same function serves wherever an `ImageDecoder` is asked for (`uploadEncodedImage` tests `is SizedImageDecoder`); the decoding seam that grows is `TextureCodec.decode`, which takes one context',
+  'SpatialRenderer':
+      'flutter3d_audio_core: the query it reads and the result it writes are both objects that grow by fields, reused per voice per frame, so the call already takes its context and its answer',
+  'SplatRangeReader':
+      'flutter3d_core: a byte range of a file, an offset and a length, the shape of the range read it wraps (`RandomAccessFile`, an HTTP range request)',
+  'StartFlutter':
+      'flutter3d_editor_play: `Process.start`\'s shape (arguments, working directory), for ProcessProbe\'s reason',
+  'Storage':
+      'flutter3d_app: a key and its document, the shape of every store it wraps (localStorage, a file, shared preferences); a store grows by members with defaults, never by a parameter',
+  'SynchronousBufferReadback':
+      'flutter3d_hardware: a capability of the hardware interface, for GraphicsDevice\'s reason',
+  'TileDevice':
+      'flutter3d_model_core: a device for one tile at its size, BackendOpener\'s shape, a top-level function so it crosses an isolate',
+  'ToolEventPoster':
+      'flutter3d_game: `dart:developer`\'s `postEvent(kind, data)`, mirrored so a test hears what a tool would',
   'TransferEncoder':
       'flutter3d_hardware: the hardware interface, for GraphicsDevice\'s reason',
+  'UnitPace':
+      'flutter3d_game_strategy: a unit\'s pace along a ground direction, asked per unit per step, a function of the unit and the direction\'s two components',
+  'VesselShape':
+      'flutter3d_physics: the volume of a vessel below a plane, a function of the plane fixed by the geometry, asked per vessel per step',
+  'VmExtensionHandler':
+      'flutter3d_plugin_api: `dart:developer`\'s `ServiceExtensionHandler`, (method, parameters), mirrored so a handler registers unchanged',
+  'WasmImports':
+      'flutter3d_plugin_runtime: the module\'s imports as the ABI declares them (`field_get(field, index)`), mirrored one to one; an import arrives with an ABI version as a member with a default body, never as a parameter',
+  'WgslStageCompiler':
+      'flutter3d_build_hooks: a test seam with the shape of `compileStage` it stands in for',
 };
 
 /// Hooks whose methods still take a list of parameters, by class, with the
@@ -1972,111 +2079,9 @@ const Map<String, String> hookParametersAllowed = <String, String>{
 /// **A to-do list, not an exemption**, like [closedSetPending]: the rule
 /// passes these while they take more than one parameter and fails on an
 /// entry once no method of its class does, so the list only shrinks. A new
-/// hook is not added here; it takes one context from the start.
-const Map<String, String> hookParametersPending = <String, String>{
-  'ActionBinding':
-      'flutter3d_game: converted to one context object by its package\'s owner before 1.0.0',
-  'ActorStrides':
-      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
-  'AudioBackend':
-      'flutter3d_audio_core: converted to one context object by its package\'s owner before 1.0.0',
-  'BehaviorComposite':
-      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
-  'BinaryStorage':
-      'flutter3d_app: converted to one context object by its package\'s owner before 1.0.0',
-  'Brain':
-      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
-  'CameraFraming':
-      'flutter3d_camera: converted to one context object by its package\'s owner before 1.0.0',
-  'CharacterMover':
-      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
-  'ClothSimulation':
-      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
-  'CloudSaveStore':
-      'flutter3d_game: converted to one context object by its package\'s owner before 1.0.0',
-  'CollisionShape':
-      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
-  'ComponentCodec':
-      'flutter3d_plugin_api: converted to one context object by its package\'s owner before 1.0.0',
-  'CustomShape':
-      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
-  'DataSection':
-      'flutter3d_plugin_api: converted to one context object by its package\'s owner before 1.0.0',
-  'ElementFields':
-      'flutter3d_elements: converted to one context object by its package\'s owner before 1.0.0',
-  'EntityKind':
-      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
-  'EventCodec':
-      'flutter3d_plugin_api: converted to one context object by its package\'s owner before 1.0.0',
-  'GamepadPlatform':
-      'pad_input: converted to one context object by its package\'s owner before 1.0.0',
-  'GenrePlugin':
-      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
-  'Gift':
-      'flutter3d_game_shooter: converted to one context object by its package\'s owner before 1.0.0',
-  'HeadlessGame':
-      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
-  'InPlaceCodec':
-      'flutter3d_plugin_api: converted to one context object by its package\'s owner before 1.0.0',
-  'LevelRule':
-      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
-  'LightBehavior':
-      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
-  'MaterialDecoder':
-      'flutter3d: converted to one context object by its package\'s owner before 1.0.0',
-  'ModelDecoder':
-      'flutter3d_core: converted to one context object by its package\'s owner before 1.0.0',
-  'ModelWriter':
-      'flutter3d_core: converted to one context object by its package\'s owner before 1.0.0',
-  'PadDevice':
-      'flutter3d_game: converted to one context object by its package\'s owner before 1.0.0',
-  'ParameterType':
-      'flutter3d_core: converted to one context object by its package\'s owner before 1.0.0',
-  'ParticleAffector':
-      'flutter3d_particles: converted to one context object by its package\'s owner before 1.0.0',
-  'ParticleEmitter':
-      'flutter3d_particles: converted to one context object by its package\'s owner before 1.0.0',
-  'PeerWire':
-      'flutter3d_net: converted to one context object by its package\'s owner before 1.0.0',
-  'PhotoControls':
-      'flutter3d_game_ui: converted to one context object by its package\'s owner before 1.0.0',
-  'PhysicsBackend':
-      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
-  'PhysicsConstraint':
-      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
-  'Projection':
-      'flutter3d_core: converted to one context object by its package\'s owner before 1.0.0',
-  'RigidDynamics':
-      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
-  'RunSession':
-      'flutter3d_game: converted to one context object by its package\'s owner before 1.0.0',
-  'SettingsSection':
-      'flutter3d_game_ui: converted to one context object by its package\'s owner before 1.0.0',
-  'SimulationHandle':
-      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
-  'SnapshotPart':
-      'flutter3d_plugin_api: converted to one context object by its package\'s owner before 1.0.0',
-  'SpatialRenderer':
-      'flutter3d_audio_core: converted to one context object by its package\'s owner before 1.0.0',
-  'Storage':
-      'flutter3d_app: converted to one context object by its package\'s owner before 1.0.0',
-  'Takeable':
-      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
-  'TimeSource':
-      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
-  'VesselShape':
-      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
-  'WasmImports':
-      'flutter3d_plugin_runtime: converted to one context object by its package\'s owner before 1.0.0',
-  'WasmInstance':
-      'flutter3d_plugin_runtime: converted to one context object by its package\'s owner before 1.0.0',
-  'WasmRuntime':
-      'flutter3d_plugin_runtime: converted to one context object by its package\'s owner before 1.0.0',
-  'WorldRays':
-      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
-  'WorldSweeps':
-      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
-};
+/// hook is not added here; it takes one context from the start. Empty since
+/// 1.0.0-rc.1: every hook takes one context or has its reason above.
+const Map<String, String> hookParametersPending = <String, String>{};
 
 // ------------------------------------------------------------ 1.0: naming
 
@@ -2380,6 +2385,8 @@ const Map<String, String> slowTestsPending = <String, String>{
       'the 0.8 fixture project migrated and then `flutter analyze`d in a '
       'process of its own',
   'packages/flutter3d_build/test/migration_kinds_enum_to_class_test.dart':
+      'a migration kind applied to its fixture and the result analysed',
+  'packages/flutter3d_build/test/migration_kinds_hook_context_test.dart':
       'a migration kind applied to its fixture and the result analysed',
   'packages/flutter3d_build/test/migration_kinds_internal_test.dart':
       'a migration kind applied to its fixture and the result analysed',

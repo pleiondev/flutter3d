@@ -1,5 +1,6 @@
 import '../level/level.dart';
 import '../level/level_issue.dart';
+import '../level/level_rule.dart' show LevelCheck;
 import '../save/game_random.dart';
 import 'exit_reachable.dart';
 import 'wfc.dart';
@@ -194,7 +195,7 @@ Generated generateLevel(
     final level = _attempt(rules, tried);
     if (level == null) continue;
     final issues = <LevelIssue>[];
-    const ExitReachable().check(level, issues);
+    const ExitReachable().check(LevelCheck(level: level, out: issues));
     if (issues.any((LevelIssue issue) => issue.isError)) continue;
     return Generated(
       level: level,

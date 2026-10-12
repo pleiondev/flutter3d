@@ -17,16 +17,9 @@ import 'package:vector_math/vector_math.dart';
 /// member added in a 1.x release arrives with a body and nothing that mixes
 /// it in has to change.
 abstract base mixin class ActorCorpses {
-  /// [actor] has died, drawn as [model]. True when this takes its pose over;
-  /// false leaves it to its death clip. [previous] is every joint's world
-  /// matrix of its first skeleton a frame before, [dt] seconds before, when
-  /// they were kept — the motion it died in.
-  bool begin(
-    Actor actor,
-    ModelInstance model, {
-    List<Matrix4>? previous,
-    double dt,
-  });
+  /// The context's actor has died, drawn as its model. True when this takes
+  /// its pose over; false leaves it to its death clip.
+  bool begin(ActorDeathContext context);
 
   /// Once a frame, after the living have been animated, with the frame's dt.
   void step(double dt);
@@ -38,4 +31,32 @@ abstract base mixin class ActorCorpses {
 
   /// The level is over: everything [begin] made goes.
   void dispose();
+}
+
+/// What [ActorCorpses.begin] is handed, once per death: the actor, its
+/// model, and the motion it died in.
+///
+/// **One object, so a minor can hand the corpses more** — the blow that
+/// killed it, the step it died at — without breaking ones written against
+/// 1.0.
+final class ActorDeathContext {
+  const ActorDeathContext({
+    required this.actor,
+    required this.model,
+    this.previous,
+    this.dt = 1.0 / 60.0,
+  });
+
+  /// The actor that died.
+  final Actor actor;
+
+  /// Where it is drawn.
+  final ModelInstance model;
+
+  /// Every joint's world matrix of its first skeleton a frame before, [dt]
+  /// seconds before, when they were kept; null when they were not.
+  final List<Matrix4>? previous;
+
+  /// The seconds between [previous] and now.
+  final double dt;
 }

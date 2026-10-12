@@ -94,7 +94,9 @@ final class GltfLoader extends ModelDecoder {
   /// Not a JSON brace with no name: a `.fmat` and a level are JSON too, and a
   /// decoder in an application's own list is asked before anything is sniffed.
   @override
-  bool handles(String fileName, Uint8List bytes) {
+  bool handles(ModelProbe probe) {
+    final fileName = probe.fileName;
+    final bytes = probe.bytes;
     final name = fileName.toLowerCase();
     return name.endsWith('.gltf') ||
         name.endsWith('.glb') ||
@@ -106,11 +108,11 @@ final class GltfLoader extends ModelDecoder {
   }
 
   @override
-  Future<ModelDocument> decode(
-    Uint8List bytes,
-    ModelLoadRequest request,
-    AssetUriResolver resolveUri,
-  ) => load(bytes, resolveUri: resolveUri);
+  Future<ModelDocument> decode(ModelDecodeContext context) {
+    final bytes = context.bytes;
+    final resolveUri = context.resolveUri;
+    return load(bytes, resolveUri: resolveUri);
+  }
 
   Future<GltfAsset> load(
     Uint8List bytes, {

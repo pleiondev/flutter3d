@@ -1,5 +1,11 @@
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show BusEvent, DataSection, DataSectionContext, PluginException, PluginHost;
+    show
+        BusEvent,
+        DataSection,
+        DataSectionInstall,
+        DataSectionLoad,
+        DataSectionRead,
+        PluginException;
 import 'package:vector_math/vector_math.dart';
 
 import 'effect_document.dart';
@@ -45,11 +51,14 @@ final class _EffectsSection extends DataSection {
   String get name => 'effects';
 
   @override
-  Object read(Object? written, DataSectionContext context) => switch (written) {
-    null => const _Effects(<Object?>[]),
-    final List<Object?> list => _Effects(List<Object?>.unmodifiable(list)),
-    _ => throw const EffectFormatException('"effects" is not a list'),
-  };
+  Object read(DataSectionRead step) {
+    final written = step.written;
+    return switch (written) {
+      null => const _Effects(<Object?>[]),
+      final List<Object?> list => _Effects(List<Object?>.unmodifiable(list)),
+      _ => throw const EffectFormatException('"effects" is not a list'),
+    };
+  }
 
   @override
   Object? write(Object section) => (section as _Effects).written;
@@ -63,7 +72,9 @@ final class _EffectsSection extends DataSection {
   /// Every document read before anything is installed: one that does not
   /// read refuses the plugin here, not halfway through an install.
   @override
-  Object load(Object section, DataSectionContext context) {
+  Object load(DataSectionLoad step) {
+    final section = step.section;
+    final context = step.context;
     final written = (section as _Effects).written;
     return _Effects(
       written,
@@ -86,7 +97,10 @@ final class _EffectsSection extends DataSection {
   }
 
   @override
-  void install(PluginHost host, Object section, DataSectionContext context) {
+  void install(DataSectionInstall step) {
+    final host = step.host;
+    final section = step.section;
+    final context = step.context;
     final effects = section as _Effects;
     final kept = effects.kept;
     if (kept > 0) {

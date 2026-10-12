@@ -235,11 +235,14 @@ void main() {
     final heard = <Uint8List>[];
     final messages = <Map<String, Object?>>[];
     wireB
-      ..listenBytes((_, bytes) => heard.add(bytes))
+      ..listenBytes((given) {
+        final bytes = given.bytes;
+        heard.add(bytes);
+      })
       ..listen(messages.add);
     wireA
-      ..sendBytes(Uint8List.fromList(<int>[1, 2, 3, 255]))
-      ..send(<String, Object?>{'hello': 1});
+      ..sendBytes(PeerSendBytes(bytes: Uint8List.fromList(<int>[1, 2, 3, 255])))
+      ..send(PeerSend(message: <String, Object?>{'hello': 1}));
     for (var i = 0; i < 100 && (heard.isEmpty || messages.isEmpty); i++) {
       await _pause();
     }
@@ -253,7 +256,7 @@ void main() {
     final tapped = d.messages.listen((m) => raw.add(m.payload));
     addTearDown(tapped.cancel);
     addTearDown(d.close);
-    wireC.sendBytes(Uint8List.fromList(<int>[4, 5]));
+    wireC.sendBytes(PeerSendBytes(bytes: Uint8List.fromList(<int>[4, 5])));
     for (var i = 0; i < 100 && raw.isEmpty; i++) {
       await _pause();
     }
@@ -274,12 +277,19 @@ void main() {
       final heard = <Uint8List>[];
       final messages = <Map<String, Object?>>[];
       wireB
-        ..listenBytes((_, bytes) => heard.add(bytes))
+        ..listenBytes((given) {
+          final bytes = given.bytes;
+          heard.add(bytes);
+        })
         ..listen(messages.add);
-      wireA.send(<String, Object?>{
-        PeerWire.engineKey: PeerWire.bytesFrame,
-        PeerWire.bytesKey: base64Encode(<int>[9, 8, 7]),
-      });
+      wireA.send(
+        PeerSend(
+          message: <String, Object?>{
+            PeerWire.engineKey: PeerWire.bytesFrame,
+            PeerWire.bytesKey: base64Encode(<int>[9, 8, 7]),
+          },
+        ),
+      );
       for (var i = 0; i < 100 && heard.isEmpty; i++) {
         await _pause();
       }

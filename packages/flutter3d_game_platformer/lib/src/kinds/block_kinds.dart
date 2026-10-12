@@ -13,7 +13,9 @@ final class BreakableKind extends EntityKind {
   static Vector3 get defaultSize => Vector3(2.0, 2.0, 2.0);
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final collider = place(
       entity,
       context,
@@ -40,7 +42,10 @@ final class ClimbableKind extends EntityKind {
   static Vector3 get defaultSize => Vector3(1.0, 6.0, 1.0);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     final size = entity.vector('size') ?? defaultSize;
     if (size.y < 2.0) {
       out.add(
@@ -55,7 +60,9 @@ final class ClimbableKind extends EntityKind {
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final collider = place(
       entity,
       context,

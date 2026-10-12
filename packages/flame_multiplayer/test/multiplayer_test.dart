@@ -91,9 +91,9 @@ void main() {
       b.channel('level:one').listen((m) => heardOne.add(m['n']));
       b.channel('level:two').listen((m) => heardTwo.add(m['n']));
 
-      a.channel('level:one').send({'n': 1});
-      a.channel('level:two').send({'n': 2});
-      a.channel('nobody').send({'n': 3});
+      a.channel('level:one').send(PeerSend(message: {'n': 1}));
+      a.channel('level:two').send(PeerSend(message: {'n': 2}));
+      a.channel('nobody').send(PeerSend(message: {'n': 3}));
       wireB.tick();
 
       expect(heardOne, <Object?>[1]);
@@ -102,7 +102,9 @@ void main() {
 
     test('machines on the same simulation version meet, and each hears the '
         'other\'s versions', () {
-      final LoopbackPair(first: wireA, second: wireB) = LoopbackWire.pair(delaySteps: 2);
+      final LoopbackPair(first: wireA, second: wireB) = LoopbackWire.pair(
+        delaySteps: 2,
+      );
       final a = PeerRoom(wireA, slot: 0, simulation: _sim(3));
       final b = PeerRoom(wireB, slot: 1, simulation: _sim(3));
       for (var i = 0; i < 60 && !(a.hasMet && b.hasMet); i++) {
@@ -120,7 +122,9 @@ void main() {
 
     test('machines on different simulation versions refuse each other, say '
         'which to update to, and fall quiet', () {
-      final LoopbackPair(first: wireA, second: wireB) = LoopbackWire.pair(delaySteps: 2);
+      final LoopbackPair(first: wireA, second: wireB) = LoopbackWire.pair(
+        delaySteps: 2,
+      );
       final sentA = _Counting(wireA);
       final sentB = _Counting(wireB);
       final older = PeerRoom(sentA, slot: 0, simulation: _sim(2));
@@ -149,7 +153,7 @@ void main() {
 
       // Mutation: channels open to a refused machine — its frames land in a
       // simulation they do not belong to.
-      older.channel('play').send({'n': 1});
+      older.channel('play').send(PeerSend(message: {'n': 1}));
       for (var i = 0; i < 5; i++) {
         wireB.tick();
       }
@@ -306,7 +310,9 @@ void main() {
   group('BatonStream', () {
     test('the watcher replays a turn in order and at its pace, and the '
         'turn goes across with its state', () {
-      final LoopbackPair(first: wireA, second: wireB) = LoopbackWire.pair(delaySteps: 6);
+      final LoopbackPair(first: wireA, second: wireB) = LoopbackWire.pair(
+        delaySteps: 6,
+      );
       final watched = <String>[];
       Map<String, Object?>? handedB;
       Map<String, Object?>? handedA;
@@ -460,11 +466,14 @@ void main() {
   });
 
   test('the loopback loses unreliable messages only', () {
-    final LoopbackPair(first: a, second: b) = LoopbackWire.pair(lossRate: 0.5, seed: 4);
+    final LoopbackPair(first: a, second: b) = LoopbackWire.pair(
+      lossRate: 0.5,
+      seed: 4,
+    );
     final heard = <Object?>[];
     b.listen((m) => heard.add(m['n']));
     for (var n = 0; n < 200; n++) {
-      a.send({'n': n}, reliable: n.isEven);
+      a.send(PeerSend(message: {'n': n}, reliable: n.isEven));
     }
     b.tick();
     expect(heard.whereType<int>().where((n) => n.isEven), hasLength(100));
@@ -487,7 +496,7 @@ final class _Swapping {
       _toB[i + 1] = first;
     }
     for (final message in _toB) {
-      b.deliver(message);
+      b.deliver(PeerDelivery(message: message));
     }
     _toB.clear();
   }
@@ -499,7 +508,8 @@ final class _End extends PeerWire {
   final _Swapping _wire;
   final bool toB;
   @override
-  void send(Map<String, Object?> message, {bool reliable = true}) {
+  void send(PeerSend context) {
+    final message = context.message;
     if (toB) _wire._toB.add(message);
   }
 }
@@ -515,15 +525,16 @@ final class _Counting extends PeerWire {
   int get slot => _inner.slot;
 
   @override
-  void send(Map<String, Object?> message, {bool reliable = true}) {
+  void send(PeerSend context) {
+    final message = context.message;
+    final reliable = context.reliable;
     if (message['tag'] == 'hello') hellos++;
-    _inner.send(message, reliable: reliable);
+    _inner.send(PeerSend(message: message, reliable: reliable));
   }
 
   @override
-  Registration listenFrom(
-    void Function(int from, Map<String, Object?> message) onMessage,
-  ) => _inner.listenFrom(onMessage);
+  Registration listenFrom(void Function(PeerMessage message) onMessage) =>
+      _inner.listenFrom(onMessage);
 }
 
 /// Two slots' frames as the list `_Walk.step` reads.

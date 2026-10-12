@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a photo control and a settings section take one context.**
+  `PhotoControls.steer` takes a `PhotoSteerContext` (new) with the camera,
+  the frame's seconds, the input and the look, which `PhotoMode` reuses
+  every frame; `SettingsSection.build` takes a `SettingsSectionContext`
+  (new) with the build context, the settings and the panel's state. A game's
+  own control or section then keeps compiling when a minor hands it more.
 - **Every widget here keeps WCAG 2.2 at level AA**, and
   `test/accessibility_test.dart` (tag `accessibility`) holds each screen to
   it at the platform text size and at twice it, over a white frame and a

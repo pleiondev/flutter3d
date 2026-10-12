@@ -19,7 +19,10 @@ final class EnemyKind extends EntityKind {
   static Vector3 get defaultSize => Vector3(0.7, 0.7, 0.7);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     final kind = entity.string('kind');
     if (kind != null &&
         kind != 'patrol' &&
@@ -78,7 +81,9 @@ final class EnemyKind extends EntityKind {
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final actors = context.actors;
     final kind = entity.string('kind');
     final rows = entity.properties['route'];

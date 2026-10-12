@@ -38,7 +38,10 @@ final class PickupKind extends EntityKind {
   Iterable<String> get gives => gifts.names;
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     final what = entity.string('gives');
     if (what == null) {
       out.add(
@@ -72,7 +75,9 @@ final class PickupKind extends EntityKind {
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final gift = gifts[entity.string('gives') ?? ''];
     if (gift == null) return;
     final collider = place(
@@ -115,7 +120,9 @@ final class SecretKind extends EntityKind {
   static Vector3 get defaultSize => Vector3(2.0, 2.5, 2.0);
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final collider = place(
       entity,
       context,
@@ -137,12 +144,17 @@ final class ShooterKeyKind extends EntityKind {
   static Vector3 get defaultSize => Vector3(0.4, 0.4, 0.4);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     requireText(entity, scope, out, 'color');
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final color = entity.string('color');
     if (color == null) return;
     final collider = place(
@@ -175,7 +187,10 @@ final class NoteKind extends EntityKind {
   const NoteKind() : super(ShooterEntities.note);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     requireText(entity, scope, out, 'text');
   }
 }

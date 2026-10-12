@@ -63,7 +63,7 @@ void _wallAt(CollisionWorld world, double away) => world.add(
 
 void _drive(SphereVehicle car, VehicleInput input, double seconds) {
   for (var step = 0; step < (seconds / _step).round(); step++) {
-    car.step(_step, input);
+    car.step(VehicleStep(dt: _step, input: input));
   }
 }
 
@@ -82,11 +82,11 @@ void _drive(SphereVehicle car, VehicleInput input, double seconds) {
 double _crashInto(SphereVehicle car, double target) {
   final throttle = VehicleInput()..throttle = 1.0;
   for (var step = 0; step < 60 * 30 && car.speed < target; step++) {
-    car.step(_step, throttle);
+    car.step(VehicleStep(dt: _step, input: throttle));
   }
   final coast = VehicleInput();
   for (var step = 0; step < 60 * 30; step++) {
-    car.step(_step, coast);
+    car.step(VehicleStep(dt: _step, input: coast));
     if (car.struckThisStep > 0.0) return car.struckThisStep;
   }
   return 0.0;
@@ -108,7 +108,7 @@ void main() {
     expect(it.car.struckThisStep, greaterThan(0.0));
 
     // A step edge: it says what happened, not what is.
-    it.car.step(_step, VehicleInput());
+    it.car.step(VehicleStep(dt: _step, input: VehicleInput()));
     expect(
       it.car.struckThisStep,
       0.0,
@@ -246,7 +246,7 @@ void main() {
       final brake = VehicleInput()..brake = 1.0;
       var steps = 0;
       for (; steps < 60 * 10 && it.car.speed > 1.0; steps++) {
-        it.car.step(_step, brake);
+        it.car.step(VehicleStep(dt: _step, input: brake));
       }
 
       expect(speed, greaterThan(20.0), reason: 'the wreck never got going');

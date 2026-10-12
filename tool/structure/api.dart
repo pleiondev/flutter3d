@@ -1572,6 +1572,69 @@ List<(String, String)> proveApiDetectorsWork() {
     ));
   }
 
+  // Hooks that take a list. The traps are the four headers a hook can have
+  // besides `abstract base class`, a callback a factory takes, a typedef, a
+  // deprecated method, and the shapes that are fine: one parameter, a
+  // getter, a callback of one, a final class, a record typedef. Mutation:
+  // drop `isHookHeader`'s mixin arms and the mixin classes and the mixins
+  // go quiet; drop the function-type scan and the factory and the typedef
+  // do.
+  final hooks = wideHooksIn(
+    '${lib}abstract base class Ab\n'
+    '  abstract void f(int a, int b)\n'
+    '  abstract void g(int a)\n'
+    '  int get h\n'
+    '  const factory Ab.of({required int Function(Object? d, int v) read, void Function(int a) one})\n'
+    '  @Deprecated(\'x\') void old(int a, {int b})\n'
+    'abstract base mixin class Cd\n'
+    '  void e(int a, int b, int c)\n'
+    'base mixin Ef\n'
+    '  void k(int a, [int b])\n'
+    '  void spawn(void Function(Object w, int e) build)\n'
+    'abstract mixin class Op\n'
+    '  void q(int a, int b)\n'
+    'mixin Rs on Ab\n'
+    '  bool t(int a, int b)\n'
+    'final class Gh\n'
+    '  void m(int a, int b)\n'
+    'typedef Ij = void Function(int a, int b)\n'
+    'typedef Kl = void Function(int a)\n'
+    'typedef Mn = ({int a, int b})\n',
+  );
+  final wide = <String>{
+    for (final w in hooks.wide)
+      w.member.isEmpty ? w.type : '${w.type}.${w.member}',
+  };
+  const fires = <String>{
+    'Ab.f',
+    'Ab.of',
+    'Ab.old',
+    'Cd.e',
+    'Ef.k',
+    'Ef.spawn',
+    'Op.q',
+    'Rs.t',
+    'Ij',
+  };
+  for (final name in fires.difference(wide)) {
+    broken.add(('hook shape', 'did not fire on $name: read $wide'));
+  }
+  for (final name in wide.difference(fires)) {
+    broken.add((
+      'hook shape',
+      'fired on $name, which takes one parameter, is no method, or is no '
+          'hook',
+    ));
+  }
+  if (!hooks.seen.containsAll(<String>{'Ab', 'Ab.g', 'Cd', 'Ef', 'Kl'}) ||
+      hooks.seen.contains('Gh')) {
+    broken.add((
+      'hook shape',
+      'saw ${hooks.seen}, where every hook, its methods and every typedef '
+          'are seen and a final class is not',
+    ));
+  }
+
   // Interfaces. Mutation: drop the `interface` test and every base class is
   // reported; match the word anywhere and a member named `interfaceName` is.
   final interfaces = interfaceClassesIn(
@@ -1721,12 +1784,20 @@ List<(String, String)> proveApiDetectorsWork() {
     }
   }
   if (close < 0) return null;
-  final inside = line.substring(open + 1, close);
+  return (
+    name: name,
+    parameters: _parameterCount(line.substring(open + 1, close)),
+  );
+}
+
+/// The number of parameters in [inside], the text between a parameter
+/// list's parentheses.
+int _parameterCount(String inside) {
   // Parameters at the top level, the `{` and `[` that open the optional
   // ones read as a group rather than as a nesting: a brace that starts a
   // slot is the group's, one inside a default value is the value's.
   var count = 0;
-  depth = 0;
+  var depth = 0;
   var group = false;
   final token = StringBuffer();
   for (var i = 0; i < inside.length; i++) {
@@ -1752,5 +1823,121 @@ List<(String, String)> proveApiDetectorsWork() {
     token.write(c);
   }
   if (token.toString().trim().isNotEmpty) count++;
-  return (name: name, parameters: count);
+  return count;
+}
+
+/// The parameter count of every function type written in [text], a
+/// snapshot line, in the order they appear: `T? Function(Object? data, int
+/// version)` is 2, and a function type nested in another's parameters is
+/// counted too.
+List<int> functionTypeArities(String text) {
+  final arities = <int>[];
+  for (final match in RegExp(r'(?<![\w$])Function\s*\(').allMatches(text)) {
+    final open = match.end - 1;
+    var depth = 0;
+    for (var i = open; i < text.length; i++) {
+      final c = text[i];
+      if ('(<{['.contains(c)) depth++;
+      if (')>}]'.contains(c)) depth--;
+      if (depth == 0) {
+        arities.add(_parameterCount(text.substring(open + 1, i)));
+        break;
+      }
+    }
+  }
+  return arities;
+}
+
+int _larger(int a, int b) => a > b ? a : b;
+
+/// Whether [header], a snapshot's declaration line, declares a type an
+/// outside author extends or mixes in: an `abstract base class`, an
+/// `abstract base mixin class`, an `abstract mixin class`, a `base mixin`
+/// or a `mixin`.
+bool isHookHeader(String header) =>
+    header.startsWith('abstract base class ') ||
+    header.startsWith('abstract base mixin class ') ||
+    header.startsWith('abstract mixin class ') ||
+    header.startsWith('base mixin ') ||
+    header.startsWith('mixin ');
+
+/// The name a member line declares: `spawn` for `void spawn(...)`, `of` for
+/// `const factory SnapshotPart.of(...)`, the class's own name for its
+/// unnamed constructor.
+String memberNameIn(String member) {
+  var head = splitAnnotations(member).rest;
+  final open = head.indexOf('(');
+  if (open >= 0) head = head.substring(0, open);
+  head = head.trim();
+  if (head.endsWith('>')) {
+    var depth = 0;
+    for (var i = head.length - 1; i >= 0; i--) {
+      if (head[i] == '>') depth++;
+      if (head[i] == '<') depth--;
+      if (depth == 0) {
+        head = head.substring(0, i).trim();
+        break;
+      }
+    }
+  }
+  final last = head.split(RegExp(r'\s+')).last;
+  return last.contains('.') ? last.substring(last.lastIndexOf('.') + 1) : last;
+}
+
+/// Every place [snapshot] hands an outside author a list of parameters:
+/// a method of a hook type ([isHookHeader]) that takes more than one, and a
+/// function type with more than one parameter in any member of a hook type
+/// (the `decode` of `ComponentCodec.of`, the callback of a `spawn`) or in a
+/// public typedef. Each is keyed by its type (or typedef) and member;
+/// [seen] is every key a hook declares, so an allowance that names nothing
+/// can be told apart.
+({
+  Set<String> seen,
+  List<({String type, String member, int parameters, bool callback})> wide,
+})
+wideHooksIn(String snapshot) {
+  final seen = <String>{};
+  final wide =
+      <({String type, String member, int parameters, bool callback})>[];
+  for (final library in parseApi(snapshot).values) {
+    for (final MapEntry(key: name, value: block)
+        in library.declarations.entries) {
+      if (block.header.startsWith('typedef ')) {
+        seen.add(name);
+        final most = functionTypeArities(block.header).fold(0, _larger);
+        if (most > 1) {
+          wide.add((type: name, member: '', parameters: most, callback: true));
+        }
+        continue;
+      }
+      if (!isHookHeader(block.header)) continue;
+      seen.add(name);
+      for (final member in block.members) {
+        final method = hookMethodIn(splitAnnotations(member).rest);
+        if (method != null) {
+          seen.add('$name.${method.name}');
+          if (method.parameters > 1) {
+            wide.add((
+              type: name,
+              member: method.name,
+              parameters: method.parameters,
+              callback: false,
+            ));
+          }
+        }
+        final most = functionTypeArities(member).fold(0, _larger);
+        if (most > 1) {
+          final memberName = memberNameIn(member);
+          seen.add('$name.$memberName');
+          wide.add((
+            type: name,
+            member: memberName,
+            parameters: most,
+            callback: true,
+          ));
+        }
+      }
+    }
+  }
+  return (seen: seen, wide: wide);
 }

@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1
 
+- **Breaking: the racing genre's hooks take the engine's contexts.** The
+  plugin's `stepSimulation`, `publishEvents` and `restoreSimulation` take
+  a `GenreStepContext`, `GenrePublishContext` and `GenreRestoreContext`,
+  and the headless game's `start` a `HeadlessStart`: the one context
+  `flutter3d_sim` hands each.
+- **Breaking: a vehicle's step and placing take one context each.**
+  `VehicleController.step` takes a `VehicleStep` (new: `dt`, `input`),
+  which `RacingSimulation` reuses for every car every step, and `placeAt` a
+  `VehiclePlacement` (new: `position`, `headingYaw`, `trackDistance`). A
+  car a game brings keeps compiling when a minor hands it more.
 - **Breaking: `GhostFrame` is the simulation's own type**, where this
   package named the simulation's `Pose` with it.
 - **A game's rules hang on the step through `addSystem`.**

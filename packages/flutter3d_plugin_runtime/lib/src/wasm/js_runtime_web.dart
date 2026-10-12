@@ -50,11 +50,8 @@ final class _BrowserRuntime extends WasmRuntime {
   bool get isMetered => false;
 
   @override
-  WasmInstance instantiate(
-    WasmModule module,
-    WasmImports imports,
-    WasmLimits limits,
-  ) {
+  WasmInstance instantiate(WasmInstantiation request) {
+    final WasmInstantiation(:module, :imports, :limits) = request;
     final min = module.memoryMin;
     if (min != null) {
       final max = module.memoryMax;
@@ -136,8 +133,10 @@ final class _BrowserInstance extends WasmInstance {
   }
 
   @override
-  void step(int step, int dtFixed) =>
-      _call('f3d_step', <int>[step.toSigned(32), dtFixed.toSigned(32)]);
+  void step(WasmStep step) => _call('f3d_step', <int>[
+    step.step.toSigned(32),
+    step.dtFixed.toSigned(32),
+  ]);
 
   _JsMemory? get _memory {
     final name = _module.memoryExport;

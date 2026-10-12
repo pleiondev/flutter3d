@@ -4,10 +4,7 @@ import 'package:vector_math/vector_math.dart';
 import '../physics/layers.dart';
 import '../world/exit.dart';
 import '../world/signals.dart';
-import 'entity_def.dart';
 import 'entity_kind.dart';
-import 'level_issue.dart';
-import 'spawn_context.dart';
 
 /// Kinds built on a trigger collider: a button, a trigger volume and an exit.
 /// Grouped because all three place a [ColliderKind.trigger] and drive a
@@ -19,13 +16,18 @@ final class ButtonKind extends EntityKind {
   static Vector3 get defaultSize => Vector3(0.6, 0.6, 0.15);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     requireTarget(entity, scope, out);
     requireKeyExists(entity, scope, out);
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final target = entity.string('target');
     if (target == null) return;
     final collider = place(
@@ -58,13 +60,18 @@ final class TriggerKind extends EntityKind {
   const TriggerKind() : super(EntityTypes.trigger);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     requireTarget(entity, scope, out);
     requireSize(entity, scope, out);
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final target = entity.string('target');
     if (target == null) return;
     // Monsters can be allowed to set a trigger off, which is how an ambush
@@ -96,12 +103,17 @@ final class ExitKind extends EntityKind {
   const ExitKind() : super(EntityTypes.exit);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     requireKeyExists(entity, scope, out);
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     // The player alone, and not because monsters would mind: a monster
     // wandering across the finish line would end the level from the far side
     // of the map with nobody watching.

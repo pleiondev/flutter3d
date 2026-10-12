@@ -153,7 +153,7 @@ final GiftRegistry gifts = GiftRegistry(<Gift>[
 ]);
 ```
 
-A `Gift` answers two questions: `grantTo(inventory, amount, detail)`, did it do anything, and `announce(amount, detail)`, what does the HUD say. A pickup that grants nothing is refused rather than silently consumed, so walking over a medkit at full health leaves the medkit there.
+A `Gift` answers two questions: `grantTo(GiftGrant(to: inventory, amount: amount, detail: detail))`, did it do anything, and `announce(GiftAnnounce(amount: amount, detail: detail))`, what does the HUD say. A pickup that grants nothing is refused rather than silently consumed, so walking over a medkit at full health leaves the medkit there.
 
 ## Monsters
 

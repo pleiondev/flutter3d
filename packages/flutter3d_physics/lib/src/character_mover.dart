@@ -70,16 +70,44 @@ final class CharacterMoved {
 abstract base class CharacterMover {
   const CharacterMover();
 
-  /// Moves [body] from where it is by [delta], sliding along what it meets
-  /// and taking the speed into it out of the body's velocity; standing on
-  /// ground whose normal's height is at least [walkableNormalY]; and, when
-  /// [mayStep] — it stood on ground — climbing up to [stepHeight] where that
-  /// gets further than sliding does.
-  CharacterMoved move(
-    CharacterController body,
-    Vector3 delta, {
-    required double stepHeight,
-    required double walkableNormalY,
-    required bool mayStep,
+  /// Moves the move's [CharacterMove.body] from where it is by its
+  /// [CharacterMove.delta], as [CharacterMove] says.
+  CharacterMoved move(CharacterMove move);
+}
+
+/// What [CharacterMover.move] is handed: move [body] from where it is by
+/// [delta], sliding along what it meets and taking the speed into it out of
+/// the body's velocity; standing on ground whose normal's height is at least
+/// [walkableNormalY]; and, when [mayStep] — it stood on ground — climbing up
+/// to [stepHeight] where that gets further than sliding does.
+///
+/// **One object, so a minor can hand a mover more** — a ceiling's height, a
+/// slope's friction — without breaking a mover written against 1.0.
+/// **Reused**: a controller owns one and sets it before every step, so a
+/// step allocates nothing for it; a mover reads it during the call and does
+/// not keep it.
+final class CharacterMove {
+  CharacterMove({
+    required this.body,
+    required this.delta,
+    this.stepHeight = 0.0,
+    this.walkableNormalY = 0.0,
+    this.mayStep = false,
   });
+
+  /// The character being moved.
+  CharacterController body;
+
+  /// How far it moves this step, m.
+  Vector3 delta;
+
+  /// The highest step it may climb, m.
+  double stepHeight;
+
+  /// The least height of a normal it can stand on, a fraction of the
+  /// normal's unit length: the cosine of the steepest walkable slope.
+  double walkableNormalY;
+
+  /// Whether it may climb a step: it stood on ground.
+  bool mayStep;
 }

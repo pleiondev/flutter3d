@@ -142,10 +142,15 @@ abstract base class ComponentCodec<T extends Object>
   Type get type
   abstract Object? encode(T value)
   abstract String get id
-  abstract T? decode(Object? data, int version)
+  abstract T? decode(ComponentDecodeContext context)
   const ComponentCodec()
-  const factory ComponentCodec.of({required String id, required Object? Function(T value) encode, required T? Function(Object? data, int version) decode, int version})
+  const factory ComponentCodec.of({required String id, required Object? Function(T value) encode, required T? Function(ComponentDecodeContext context) decode, int version})
   int get version
+
+final class ComponentDecodeContext
+  const ComponentDecodeContext(this.data, {required this.version})
+  final Object? data
+  final int version
 
 final class ComponentInfo
   const ComponentInfo({required this.type, required this.id, required this.version, required this.published, required this.declaredBy, this.excludedBecause})
@@ -166,6 +171,12 @@ abstract base class ComponentRegistry extends PluginRegistry
   abstract bool isPublished<T extends Object>()
   const ComponentRegistry()
 
+final class ComponentRestoreContext<T extends Object>
+  const ComponentRestoreContext(this.value, this.data, {required this.version})
+  final Object? data
+  final T value
+  final int version
+
 final class ConstraintCycleException extends PluginException
   ConstraintCycleException({required this.what, required this.cycle})
   String toString()
@@ -174,12 +185,12 @@ final class ConstraintCycleException extends PluginException
 
 abstract base class DataSection
   List<String> resources(Object section)
-  Object load(Object section, DataSectionContext context)
+  Object load(DataSectionLoad step)
   String? get requirement
-  abstract Object read(Object? written, DataSectionContext context)
+  abstract Object read(DataSectionRead step)
   abstract Object? write(Object section)
   abstract String get name
-  abstract void install(PluginHost host, Object section, DataSectionContext context)
+  abstract void install(DataSectionInstall step)
   const DataSection()
 
 final class DataSectionContext
@@ -189,6 +200,22 @@ final class DataSectionContext
   const DataSectionContext({required this.plugin, this._textOf, this._eventName, this._numbersOf, this._note})
   final String plugin
   void note(String note)
+
+final class DataSectionInstall
+  const DataSectionInstall(this.section, {required this.host, required this.context})
+  final DataSectionContext context
+  final Object section
+  final PluginHost host
+
+final class DataSectionLoad
+  const DataSectionLoad(this.section, {required this.context})
+  final DataSectionContext context
+  final Object section
+
+final class DataSectionRead
+  const DataSectionRead(this.written, {required this.context})
+  final DataSectionContext context
+  final Object? written
 
 abstract base class DataSectionRegistry extends PluginRegistry
   abstract DataSection? operator [](String name)
@@ -217,9 +244,9 @@ extension type const Entity._(int packed)
 abstract base class EventCodec<T extends BusEvent>
   Object? encodeAny(BusEvent event)
   abstract Object? encode(T event)
-  abstract T? decode(Object? data, int version)
+  abstract T? decode(EventDecodeContext context)
   const EventCodec()
-  const factory EventCodec.of({required Object? Function(T event) encode, required T? Function(Object? data, int version) decode, int version})
+  const factory EventCodec.of({required Object? Function(T event) encode, required T? Function(EventDecodeContext context) decode, int version})
   int get version
 
 final class EventDeclaration
@@ -230,6 +257,11 @@ final class EventDeclaration
   final String name
   final String? description
   final Type type
+
+final class EventDecodeContext
+  const EventDecodeContext(this.data, {required this.version})
+  final Object? data
+  final int version
 
 abstract base class EventDigestSink
   abstract void add(Object? value)
@@ -288,10 +320,11 @@ base class FormatRegistry extends PluginRegistry
   Registration add(FormatSpec spec)
 
 abstract base class InPlaceCodec<T extends Object> extends ComponentCodec<T>
-  T? decode(Object? data, int version)
-  abstract void restoreInto(T value, Object? data, int version)
+  T? decode(ComponentDecodeContext context)
+  abstract void restoreInto(ComponentRestoreContext<T> context)
   const InPlaceCodec()
-  const factory InPlaceCodec.of({required String id, required Object? Function(T value) encode, required void Function(T value, Object? data, int version) restore, int version})
+  const factory InPlaceCodec.of({required String id, required Object? Function(T value) encode, required void Function(ComponentRestoreContext<T> context) restore, int version})
+  void restoreAny(ComponentRestoreContext<Object> context)
 
 abstract base class LoopContext
   PublishedState get published
@@ -722,7 +755,7 @@ abstract base class SimCommands
   abstract void remove<T extends Object>(Entity entity)
   abstract void run(void Function(SimWorld world) change)
   abstract void set<T extends Object>(Entity entity, T component)
-  abstract void spawn(void Function(SimWorld world, Entity entity) build)
+  abstract void spawn(void Function(SimSpawned spawned) build)
   const SimCommands()
 
 abstract base class SimQuery
@@ -732,6 +765,11 @@ abstract base class SimQuery
   abstract SimQuery without<T extends Object>()
   const SimQuery()
   int get length
+
+final class SimSpawned
+  const SimSpawned(this.world, this.entity)
+  final Entity entity
+  final SimWorld world
 
 abstract base class SimWorld
   abstract ComponentRegistry get components
@@ -795,10 +833,10 @@ final class SimulationVersion
 abstract base class SnapshotPart
   abstract Object? capture()
   abstract String get id
-  abstract void restore(Object? data, int version)
+  abstract void restore(SnapshotRestoreContext context)
   bool get restoresFirst
   const SnapshotPart()
-  const factory SnapshotPart.of({required String id, required Object? Function() capture, required void Function(Object? data, int version) restore, int version, int? Function()? digest})
+  const factory SnapshotPart.of({required String id, required Object? Function() capture, required void Function(SnapshotRestoreContext context) restore, int version, int? Function()? digest})
   int get version
   int? digest()
 
@@ -810,6 +848,11 @@ abstract base class SnapshotRegistry extends PluginRegistry
   abstract int digest()
   abstract void restore(Object state)
   const SnapshotRegistry()
+
+final class SnapshotRestoreContext
+  const SnapshotRestoreContext(this.data, {required this.version})
+  final Object? data
+  final int version
 
 final class VersionRange
   String toString()
@@ -836,7 +879,7 @@ base class VmExtensions extends PluginRegistry
 final class WorldPositionCodec extends ComponentCodec<WorldPosition>
   Object? encode(WorldPosition value)
   String get id
-  WorldPosition? decode(Object? data, int version)
+  WorldPosition? decode(ComponentDecodeContext context)
   const WorldPositionCodec()
   static const String name = 'flutter3d.position'
 

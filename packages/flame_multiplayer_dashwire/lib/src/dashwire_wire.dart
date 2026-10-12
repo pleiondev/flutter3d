@@ -36,7 +36,9 @@ final class DashwireWire extends PeerWire {
   static const int bytesTag = 0;
 
   @override
-  void send(Map<String, Object?> message, {bool reliable = true}) {
+  void send(PeerSend context) {
+    final message = context.message;
+    final reliable = context.reliable;
     if (!connection.isOpen) return;
     connection.send(
       reliable ? Channel.reliable : Channel.unreliable,
@@ -45,7 +47,9 @@ final class DashwireWire extends PeerWire {
   }
 
   @override
-  void sendBytes(Uint8List bytes, {bool reliable = true}) {
+  void sendBytes(PeerSendBytes context) {
+    final bytes = context.bytes;
+    final reliable = context.reliable;
     if (!connection.isOpen) return;
     final payload = Uint8List(bytes.length + 1)
       ..[0] = bytesTag
@@ -56,7 +60,7 @@ final class DashwireWire extends PeerWire {
   void _hear(NetMessage message) {
     final payload = message.payload;
     if (payload.isNotEmpty && payload[0] == bytesTag) {
-      deliverBytes(Uint8List.sublistView(payload, 1));
+      deliverBytes(PeerBytesDelivery(bytes: Uint8List.sublistView(payload, 1)));
       return;
     }
     final Object? decoded;
@@ -65,7 +69,9 @@ final class DashwireWire extends PeerWire {
     } on FormatException {
       return;
     }
-    if (decoded is Map<String, Object?>) deliver(decoded);
+    if (decoded is Map<String, Object?>) {
+      deliver(PeerDelivery(message: decoded));
+    }
   }
 
   /// Stops listening and closes the connection.

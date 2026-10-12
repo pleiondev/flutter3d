@@ -25,9 +25,10 @@ final class _World {
   SnapshotPart get part => SnapshotPart.of(
     id: 'test.world',
     capture: () => List<int>.of(values),
-    restore: (data, _) => values = <int>[
-      for (final value in data! as List) (value as num).toInt(),
-    ],
+    restore: (context) {
+      final data = context.data;
+      values = <int>[for (final value in data! as List) (value as num).toInt()];
+    },
   );
 
   PluginHarness harness({
@@ -89,8 +90,10 @@ final class _Good extends Flutter3dPlugin {
       '$id.tick',
       codec: EventCodec<_Tick>.of(
         encode: (tick) => tick.value,
-        decode: (data, _) =>
-            data is num ? _Tick('$id.tick', data.toInt()) : null,
+        decode: (context) {
+          final data = context.data;
+          return data is num ? _Tick('$id.tick', data.toInt()) : null;
+        },
       ),
     );
     host.loop.addSystem('$id.count', LoopPhase.rules, (context) {

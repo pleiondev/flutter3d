@@ -40,10 +40,12 @@ import 'api.dart';
 /// migration diagnostics and their fixes; `import` into the `migrate`
 /// command's own import rewrite — and `none` into nothing but a line in the
 /// guide, with the reason a caller has nothing to do. `regroup`,
-/// `enumToClass`, `recordToClass`, `nullToThrow` and `argument` are carried
-/// out by the lints with the resolved code; `internal` is one diagnostic per import
-/// and one line per package in the guide.
+/// `enumToClass`, `recordToClass`, `nullToThrow`, `argument` and
+/// `hookContext` are carried out by the lints with the resolved code;
+/// `internal` is one diagnostic per import and one line per package in the
+/// guide.
 const Map<String, String?> migrationKinds = <String, String?>{
+  'hookContext': 'context',
   'rename': 'to',
   'moved': 'to',
   'parameters': 'changes',
@@ -63,6 +65,7 @@ const Map<String, String?> migrationKinds = <String, String?>{
 /// The keys a kind needs beside the one [migrationKinds] names.
 const Map<String, List<String>> migrationKindsAlsoNeed = <String, List<String>>{
   'regroup': <String>['options', 'arguments'],
+  'hookContext': <String>['fields'],
 };
 
 /// **The ceiling on `manual` entries.** What is left once the colour

@@ -2,6 +2,7 @@ import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../physics/layers.dart';
+import 'entity_kind.dart' show EntitySpawn;
 import 'heightfield.dart';
 import 'level.dart';
 import 'level_validator.dart';
@@ -118,7 +119,7 @@ extension LevelCollision on Level {
     final kinds = registry;
     context.level = this;
     for (final entity in entities) {
-      kinds[entity.type]?.spawn(entity, context);
+      kinds[entity.type]?.spawn(EntitySpawn(entity: entity, context: context));
     }
   }
 

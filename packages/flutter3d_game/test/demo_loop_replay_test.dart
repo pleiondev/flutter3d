@@ -34,7 +34,10 @@ final class _Moved extends BusEvent {
   /// A step event is declared with its codec.
   static final EventCodec<_Moved> codec = EventCodec<_Moved>.of(
     encode: (event) => event.whole,
-    decode: (data, _) => data is int ? _Moved(data) : null,
+    decode: (context) {
+      final data = context.data;
+      return data is int ? _Moved(data) : null;
+    },
   );
 
   @override
@@ -68,7 +71,8 @@ EngineLoop _loopFor(_Toy toy, InputState input) =>
         SnapshotPart.of(
           id: 'toy',
           capture: () => toy.save().data,
-          restore: (Object? data, int _) {
+          restore: (context) {
+            final data = context.data;
             if (data is Map) {
               toy.restore(Snapshot(data.cast<String, Object?>()));
             }

@@ -23,7 +23,10 @@ void main() {
       expect(start.fallbackBecause, isNull);
       expect(start.backend.name, 'native');
       final world = CollisionWorld(backend: start.backend);
-      expect(world.backend.dynamics(world), isA<NativeDynamics>());
+      expect(
+        world.backend.dynamics(DynamicsRequest(world)),
+        isA<NativeDynamics>(),
+      );
       // Its characters and rays as well as its bodies.
       expect(world.characterMover, isA<NativeCharacterMover>());
       expect(world.rays, isA<NativeWorldRays>());
@@ -34,7 +37,7 @@ void main() {
     final start = await startPhysics(asked: 'dart');
     expect(start.backend, isA<DartPhysics>());
     final world = CollisionWorld(backend: start.backend);
-    expect(world.backend.dynamics(world), isA<Dynamics>());
+    expect(world.backend.dynamics(DynamicsRequest(world)), isA<Dynamics>());
     expect(world.characterMover, isNull);
   });
 
@@ -84,7 +87,8 @@ void main() {
       final backend = (await startPhysics(asked: 'native')).backend;
       final world = CollisionWorld(backend: backend);
       backend.attach(world);
-      final dynamics = backend.dynamics(world) as NativeDynamics;
+      final dynamics =
+          backend.dynamics(DynamicsRequest(world)) as NativeDynamics;
       // Mutation: leaving the attached one in place, whose mirror would be
       // brought up to date every step for nobody.
       expect(world.mirrors, <Object>[dynamics]);

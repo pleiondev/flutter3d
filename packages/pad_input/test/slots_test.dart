@@ -40,10 +40,12 @@ final class _TwoPads extends GamepadPlatform {
       const Stream<PadConnection>.empty();
 
   @override
-  void read(PadSnapshot out) => readPad(0, out);
+  void read(PadSnapshot out) => readPad(PadReadContext(index: 0, out: out));
 
   @override
-  void readPad(int index, PadSnapshot out) {
+  void readPad(PadReadContext context) {
+    final index = context.index;
+    final out = context.out;
     if (index > 1) {
       out.disconnect();
       return;
@@ -179,7 +181,7 @@ void main() {
       'twice', () {
     // Mutation: answer every slot from read.
     final out = PadSnapshot()..isConnected = true;
-    UnsupportedGamepad().readPad(1, out);
+    UnsupportedGamepad().readPad(PadReadContext(index: 1, out: out));
     expect(out.isConnected, isFalse);
   });
 }

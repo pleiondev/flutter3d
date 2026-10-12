@@ -41,7 +41,8 @@ final class RunLoop {
         SnapshotPart.of(
           id: partId,
           capture: () => run.save().data,
-          restore: (data, _) {
+          restore: (context) {
+            final data = context.data;
             final saved = data is Map
                 ? Snapshot(data.cast<String, Object?>())
                 : throw StateError(

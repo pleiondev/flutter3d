@@ -74,8 +74,10 @@ final class _WalkGame extends HeadlessGame {
   EntityRegistry registry() => EntityRegistry(const <EntityKind>[]);
 
   @override
-  HeadlessRun start(Level level, CollisionWorld world, InputState input) =>
-      _Walk(input, start: from);
+  HeadlessRun start(HeadlessStart start) {
+    final input = start.input;
+    return _Walk(input, start: from);
+  }
 }
 
 Level _level({double width = 20.0}) => Level(
@@ -97,7 +99,9 @@ Demo _record(Level level, {required double stick, int steps = 120}) {
   final input = InputState();
   final world = CollisionWorld();
   level.addTo(world);
-  final run = const _WalkGame().start(level, world, input);
+  final run = const _WalkGame().start(
+    HeadlessStart(level: level, world: world, input: input),
+  );
   final start = run.save();
   final recorder = InputTapeRecorder(seed: 1);
   final trace = DigestTrace(every: 10);

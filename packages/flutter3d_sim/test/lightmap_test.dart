@@ -8,7 +8,6 @@
 /// writes are `flutter3d_build`'s, and tested there.
 library;
 
-
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';

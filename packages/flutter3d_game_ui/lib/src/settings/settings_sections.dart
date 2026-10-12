@@ -21,12 +21,9 @@ import 'settings_panel_controls.dart';
 abstract base class SettingsSection {
   const SettingsSection();
 
-  /// The rows of this section, reading [settings] and changing it.
-  Widget build(
-    BuildContext context,
-    GameSettingsController settings,
-    SettingsState state,
-  );
+  /// The rows of this section, reading the section's settings and changing
+  /// them.
+  Widget build(SettingsSectionContext section);
 
   /// The sections every game's panel had, in its order: the volumes of
   /// [buses], the controls when [defaultActions] is given, accessibility,
@@ -68,11 +65,9 @@ final class VolumesSection extends SettingsSection {
   final List<AudioBus> buses;
 
   @override
-  Widget build(
-    BuildContext context,
-    GameSettingsController settings,
-    SettingsState state,
-  ) {
+  Widget build(SettingsSectionContext section) {
+    final context = section.context;
+    final settings = section.settings;
     final words = Flutter3dGameLocalizations.of(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -124,35 +119,36 @@ final class ControlsSection extends SettingsSection {
   final String? Function(ActionDeclaration declaration)? actionLabel;
 
   @override
-  Widget build(
-    BuildContext context,
-    GameSettingsController settings,
-    SettingsState state,
-  ) => Column(
-    mainAxisSize: MainAxisSize.min,
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: <Widget>[
-      SettingsHeading(Flutter3dGameLocalizations.of(context).controls),
-      const SizedBox(height: 8),
-      ActionBindingsSection(
-        map: settings.rebinding.actions,
-        waitingFor: state.waitingFor,
-        waitingPart: state.waitingPart,
-        conflicts: state.conflicts,
-        actionLabel: actionLabel,
-        onRebind: (RebindRequest request) =>
-            settings.rebind(request.action, part: request.part),
-        onReset: () => settings.reset(defaults()),
-        onTuning: showsTuning
-            ? (TuningChange change) => settings.setTuning(
-                change.action,
-                change.tuning,
-                device: change.device,
-              )
-            : null,
-      ),
-    ],
-  );
+  Widget build(SettingsSectionContext section) {
+    final context = section.context;
+    final settings = section.settings;
+    final state = section.state;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        SettingsHeading(Flutter3dGameLocalizations.of(context).controls),
+        const SizedBox(height: 8),
+        ActionBindingsSection(
+          map: settings.rebinding.actions,
+          waitingFor: state.waitingFor,
+          waitingPart: state.waitingPart,
+          conflicts: state.conflicts,
+          actionLabel: actionLabel,
+          onRebind: (RebindRequest request) =>
+              settings.rebind(request.action, part: request.part),
+          onReset: () => settings.reset(defaults()),
+          onTuning: showsTuning
+              ? (TuningChange change) => settings.setTuning(
+                  change.action,
+                  change.tuning,
+                  device: change.device,
+                )
+              : null,
+        ),
+      ],
+    );
+  }
 }
 
 /// What a player cannot play without: the camera's motion, a correction for
@@ -161,11 +157,9 @@ final class AccessibilitySection extends SettingsSection {
   const AccessibilitySection();
 
   @override
-  Widget build(
-    BuildContext context,
-    GameSettingsController settings,
-    SettingsState state,
-  ) {
+  Widget build(SettingsSectionContext section) {
+    final context = section.context;
+    final settings = section.settings;
     final words = Flutter3dGameLocalizations.of(context);
     final current = settings.settings;
     return Column(
@@ -231,27 +225,27 @@ final class ColorsSection extends SettingsSection {
   final ColorRoles roles;
 
   @override
-  Widget build(
-    BuildContext context,
-    GameSettingsController settings,
-    SettingsState state,
-  ) => Column(
-    mainAxisSize: MainAxisSize.min,
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: <Widget>[
-      SettingsHeading(Flutter3dGameLocalizations.of(context).colors),
-      const SizedBox(height: 8),
-      // What each colour means, and the colour it is: a player who cannot
-      // tell two marks apart moves one of them.
-      for (final role in roles.roles)
-        SettingsColourRow(
-          label: role.label,
-          choices: ColorRoles.choices(role),
-          chosen: settings.settings.valueOf(role.setting),
-          onChanged: (int chosen) => settings.setValue(role.setting, chosen),
-        ),
-    ],
-  );
+  Widget build(SettingsSectionContext section) {
+    final context = section.context;
+    final settings = section.settings;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        SettingsHeading(Flutter3dGameLocalizations.of(context).colors),
+        const SizedBox(height: 8),
+        // What each colour means, and the colour it is: a player who cannot
+        // tell two marks apart moves one of them.
+        for (final role in roles.roles)
+          SettingsColourRow(
+            label: role.label,
+            choices: ColorRoles.choices(role),
+            chosen: settings.settings.valueOf(role.setting),
+            onChanged: (int chosen) => settings.setValue(role.setting, chosen),
+          ),
+      ],
+    );
+  }
 }
 
 /// The questions about the player's data: cloud saves, and sending runs.
@@ -261,11 +255,8 @@ final class ConsentsSection extends SettingsSection {
   final Consents consents;
 
   @override
-  Widget build(
-    BuildContext context,
-    GameSettingsController settings,
-    SettingsState state,
-  ) => PrivacySection(consents: consents);
+  Widget build(SettingsSectionContext section) =>
+      PrivacySection(consents: consents);
 }
 
 /// The mouse's look speed and its vertical invert.
@@ -280,11 +271,9 @@ final class MouseSection extends SettingsSection {
   const MouseSection();
 
   @override
-  Widget build(
-    BuildContext context,
-    GameSettingsController settings,
-    SettingsState state,
-  ) {
+  Widget build(SettingsSectionContext section) {
+    final context = section.context;
+    final settings = section.settings;
     final words = Flutter3dGameLocalizations.of(context);
     final current = settings.settings;
     return Column(
@@ -329,11 +318,9 @@ final class GamepadSection extends SettingsSection {
   static const double maxDeadZone = 0.4;
 
   @override
-  Widget build(
-    BuildContext context,
-    GameSettingsController settings,
-    SettingsState state,
-  ) {
+  Widget build(SettingsSectionContext section) {
+    final context = section.context;
+    final settings = section.settings;
     final words = Flutter3dGameLocalizations.of(context);
     final current = settings.settings;
     return Column(
@@ -373,9 +360,27 @@ final class WidgetSection extends SettingsSection {
   final Widget child;
 
   @override
-  Widget build(
-    BuildContext context,
-    GameSettingsController settings,
-    SettingsState state,
-  ) => child;
+  Widget build(SettingsSectionContext section) => child;
+}
+
+/// What [SettingsSection.build] is handed.
+///
+/// **One object, so a minor can hand a section more** — the panel's width,
+/// the device the player last touched — without breaking a section written
+/// against 1.0.
+final class SettingsSectionContext {
+  const SettingsSectionContext({
+    required this.context,
+    required this.settings,
+    required this.state,
+  });
+
+  /// Where in the tree the section is built.
+  final BuildContext context;
+
+  /// The settings the rows read and change.
+  final GameSettingsController settings;
+
+  /// The panel's own state: the binding it waits on, and the like.
+  final SettingsState state;
 }

@@ -48,16 +48,31 @@ void main() {
     const decoder = FbxDecoder();
 
     test('a binary FBX file, by its own magic', () {
-      expect(decoder.handles('character.dat', _binaryFbxHeader()), isTrue);
+      expect(
+        decoder.handles(
+          ModelProbe(fileName: 'character.dat', bytes: _binaryFbxHeader()),
+        ),
+        isTrue,
+      );
     });
 
     test('an ASCII FBX file, by its own header comment', () {
-      expect(decoder.handles('character.dat', _asciiFbxHeader()), isTrue);
+      expect(
+        decoder.handles(
+          ModelProbe(fileName: 'character.dat', bytes: _asciiFbxHeader()),
+        ),
+        isTrue,
+      );
     });
 
     test('anything named .fbx, whatever its bytes are', () {
       expect(
-        decoder.handles('character.fbx', Uint8List.fromList(<int>[1, 2, 3])),
+        decoder.handles(
+          ModelProbe(
+            fileName: 'character.fbx',
+            bytes: Uint8List.fromList(<int>[1, 2, 3]),
+          ),
+        ),
         isTrue,
       );
     });
@@ -69,11 +84,17 @@ void main() {
           '\x02\x00\x00\x00',
         ),
       );
-      expect(decoder.handles('model.glb', glb), isFalse);
+      expect(
+        decoder.handles(ModelProbe(fileName: 'model.glb', bytes: glb)),
+        isFalse,
+      );
     });
 
     test('an empty file names nothing', () {
-      expect(decoder.handles('model.dat', Uint8List(0)), isFalse);
+      expect(
+        decoder.handles(ModelProbe(fileName: 'model.dat', bytes: Uint8List(0))),
+        isFalse,
+      );
     });
   });
 
@@ -84,9 +105,11 @@ void main() {
       final source = const _FakeAssetSource('a.fbx');
       await expectLater(
         () => decoder.decode(
-          _binaryFbxHeader(),
-          ModelLoadRequest(source: source),
-          source.resolveUri,
+          ModelDecodeContext(
+            bytes: _binaryFbxHeader(),
+            request: ModelLoadRequest(source: source),
+            resolveUri: source.resolveUri,
+          ),
         ),
         throwsA(
           isA<FbxFormatException>().having(

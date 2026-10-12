@@ -85,7 +85,10 @@ void main() {
         SnapshotPart.of(
           id: 'run',
           capture: () => const <String, Object?>{},
-          restore: (Object? data, int _) => restored.add(data),
+          restore: (context) {
+            final data = context.data;
+            restored.add(data);
+          },
         ),
       );
     rewind.attach(loop);

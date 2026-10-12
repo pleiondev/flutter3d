@@ -9,6 +9,9 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show
         DataSection,
         DataSectionContext,
+        DataSectionInstall,
+        DataSectionLoad,
+        DataSectionRead,
         DocumentFormatException,
         FormatSpec,
         PluginException,
@@ -178,18 +181,21 @@ final class _MaterialsSection extends DataSection {
   String get name => 'materials';
 
   @override
-  Object read(Object? written, DataSectionContext context) => _Materials(
-    List<DataMaterial>.unmodifiable(<DataMaterial>[
-      for (final entry in _entries(written, name))
-        switch ((entry['source'], entry['text'])) {
-          (final String source, null) => DataMaterial(source: source),
-          (null, final String text) => DataMaterial(text: text),
-          _ => throw const DocumentFormatException(
-            'a material is a "source" file or its "text", one of the two',
-          ),
-        },
-    ]),
-  );
+  Object read(DataSectionRead step) {
+    final written = step.written;
+    return _Materials(
+      List<DataMaterial>.unmodifiable(<DataMaterial>[
+        for (final entry in _entries(written, name))
+          switch ((entry['source'], entry['text'])) {
+            (final String source, null) => DataMaterial(source: source),
+            (null, final String text) => DataMaterial(text: text),
+            _ => throw const DocumentFormatException(
+              'a material is a "source" file or its "text", one of the two',
+            ),
+          },
+      ]),
+    );
+  }
 
   @override
   Object? write(Object section) => <Object?>[
@@ -202,7 +208,9 @@ final class _MaterialsSection extends DataSection {
   ];
 
   @override
-  Object load(Object section, DataSectionContext context) {
+  Object load(DataSectionLoad step) {
+    final section = step.section;
+    final context = step.context;
     final materials = (section as _Materials).materials;
     return _Materials(
       materials,
@@ -220,7 +228,10 @@ final class _MaterialsSection extends DataSection {
   }
 
   @override
-  void install(PluginHost host, Object section, DataSectionContext context) {
+  void install(DataSectionInstall step) {
+    final host = step.host;
+    final section = step.section;
+    final context = step.context;
     final texts = (section as _Materials).texts;
     if (texts.isEmpty) return;
     if (host.backend == null) {
@@ -253,11 +264,14 @@ final class _RenderStepsSection extends DataSection {
   String get name => 'renderSteps';
 
   @override
-  Object read(Object? written, DataSectionContext context) => _RenderSteps(
-    List<DataRenderStep>.unmodifiable(<DataRenderStep>[
-      for (final entry in _entries(written, name)) _renderStep(entry),
-    ]),
-  );
+  Object read(DataSectionRead step) {
+    final written = step.written;
+    return _RenderSteps(
+      List<DataRenderStep>.unmodifiable(<DataRenderStep>[
+        for (final entry in _entries(written, name)) _renderStep(entry),
+      ]),
+    );
+  }
 
   @override
   Object? write(Object section) => <Object?>[
@@ -270,7 +284,9 @@ final class _RenderStepsSection extends DataSection {
   ];
 
   @override
-  Object load(Object section, DataSectionContext context) {
+  Object load(DataSectionLoad given) {
+    final section = given.section;
+    final context = given.context;
     final steps = (section as _RenderSteps).steps;
     return _RenderSteps(steps, <String, Map<String, String>>{
       for (final step in steps)
@@ -283,7 +299,10 @@ final class _RenderStepsSection extends DataSection {
   }
 
   @override
-  void install(PluginHost host, Object section, DataSectionContext context) {
+  void install(DataSectionInstall given) {
+    final host = given.host;
+    final section = given.section;
+    final context = given.context;
     final _RenderSteps(:steps, :stages) = section as _RenderSteps;
     if (steps.isEmpty) return;
     if (host.backend == null) {
@@ -343,11 +362,13 @@ final class _BindingsSection extends DataSection {
   String get name => 'bindings';
 
   @override
-  Object read(Object? written, DataSectionContext context) =>
-      List<SceneBindingSpec>.unmodifiable(<SceneBindingSpec>[
-        for (final entry in _entries(written, name))
-          SceneBindingSpec.fromJson(entry),
-      ]);
+  Object read(DataSectionRead step) {
+    final written = step.written;
+    return List<SceneBindingSpec>.unmodifiable(<SceneBindingSpec>[
+      for (final entry in _entries(written, name))
+        SceneBindingSpec.fromJson(entry),
+    ]);
+  }
 
   @override
   Object? write(Object section) => <Object?>[
@@ -355,7 +376,10 @@ final class _BindingsSection extends DataSection {
   ];
 
   @override
-  void install(PluginHost host, Object section, DataSectionContext context) {
+  void install(DataSectionInstall step) {
+    final host = step.host;
+    final section = step.section;
+    final context = step.context;
     final specs = section as List<SceneBindingSpec>;
     if (specs.isEmpty) return;
     final bindings = host.maybeRegistry<SceneBindingRegistry>();
@@ -374,16 +398,19 @@ final class _PipelineSection extends DataSection {
   String get name => 'pipeline';
 
   @override
-  Object read(Object? written, DataSectionContext context) => switch (written) {
-    final Map<Object?, Object?> map when map.keys.every((k) => k is String) =>
-      PipelineDocument.fromJson(<String, Object?>{
-        // The section is the body; the envelope is the document's own.
-        'format': 'f3d.pipeline',
-        'version': 1,
-        ...map.cast<String, Object?>(),
-      }),
-    _ => throw const DocumentFormatException('"pipeline" is not an object'),
-  };
+  Object read(DataSectionRead step) {
+    final written = step.written;
+    return switch (written) {
+      final Map<Object?, Object?> map when map.keys.every((k) => k is String) =>
+        PipelineDocument.fromJson(<String, Object?>{
+          // The section is the body; the envelope is the document's own.
+          'format': 'f3d.pipeline',
+          'version': 1,
+          ...map.cast<String, Object?>(),
+        }),
+      _ => throw const DocumentFormatException('"pipeline" is not an object'),
+    };
+  }
 
   @override
   Object? write(Object section) {
@@ -395,7 +422,10 @@ final class _PipelineSection extends DataSection {
   }
 
   @override
-  void install(PluginHost host, Object section, DataSectionContext context) {
+  void install(DataSectionInstall step) {
+    final host = step.host;
+    final section = step.section;
+    final context = step.context;
     final document = section as PipelineDocument;
     if (document.anchors.isEmpty && document.nodes.isEmpty) return;
     if (host.backend == null) {

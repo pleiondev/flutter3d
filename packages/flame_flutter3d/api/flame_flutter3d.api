@@ -174,9 +174,9 @@ final class CollisionBridge with CollisionListener
   final PhysicsStepComponent? stepper
   final PositionComponent? Function(Collider other) resolveOther
   void detach()
-  void onCollision(Collider self, Collider other)
-  void onCollisionEnd(Collider self, Collider other)
-  void onCollisionStart(Collider self, Collider other)
+  void onCollision(CollisionContext context)
+  void onCollisionEnd(CollisionContext context)
+  void onCollisionStart(CollisionContext context)
 
 final class CurvilinearSpace implements BridgeSpace
   CurvilinearSpace(this.path)
@@ -228,7 +228,7 @@ final class FlameChaseFraming extends CameraFraming
   final double followAcross
   final double lookAcross
   final double stiffness
-  void frame(CameraShot wanted, double dt)
+  void frame(FramingStep step)
 
 final class FlameInputBridge
   Component followJoystick(JoystickComponent stick, {double deadZone = 0.0})
@@ -594,11 +594,16 @@ enum SyncDirection
 
 mixin Tap3dCallbacks on Component, HasVisibility, Drawn3d
   Iterable<Aabb3> drawnBoxes3d()
-  bool hitAt3d(Vector2 screen, BridgeProjector projector)
+  bool hitAt3d(Tap3dProbe probe)
   void onLongTap3d(Vector2 screen)
   void onTap3d(Vector2 screen)
   void onTapCancel3d()
   void onTapUp3d(Vector2 screen)
+
+final class Tap3dProbe
+  const Tap3dProbe({required this.screen, required this.projector})
+  final BridgeProjector projector
+  final Vector2 screen
 
 class Taps3dComponent extends PositionComponent with TapCallbacks, HasGameReference<HasFlutter3d>
   Tap3dCallbacks? nearestAt(Vector2 screen)
@@ -671,7 +676,7 @@ final class ViewFraming extends CameraFraming
   double get lag
   final bool Function(Vector3 eye, Vector3 target) view
   final double stiffness
-  void frame(CameraShot wanted, double dt)
+  void frame(FramingStep step)
 
 class WrapSpace extends Component
   Iterable<Aabb3> ghostBoundsOf(Object3dComponent owner)

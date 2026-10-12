@@ -142,6 +142,12 @@ final class PlatformerSimulation {
   final MechanismWorld? mechanisms;
   final RigidDynamics? dynamics;
 
+  /// The runner's push, set before every step's: a step allocates none.
+  late final CharacterPush _push = CharacterPush(
+    by: runner.body.collider,
+    velocity: runner.shove,
+  );
+
   /// The things that move on their own, or null for a level with none.
   ///
   /// Built by the application since this package existed and **never stepped**,
@@ -389,7 +395,11 @@ final class PlatformerSimulation {
     runner.step(dt, input, cameraYaw: cameraYaw);
 
     // Intent, not residual velocity — see [Runner.shove].
-    dynamics?.push(runner.body.collider, runner.shove);
+    dynamics?.push(
+      _push
+        ..by = runner.body.collider
+        ..velocity = runner.shove,
+    );
     _run(PlatformerPhases.afterRunner, dt);
 
     _readFloor();
@@ -502,7 +512,7 @@ final class PlatformerSimulation {
         _publish(EnemyStomped(actor));
         runner.bounce();
       } else {
-        runner.applyDamage(actorDamage * dt);
+        runner.applyDamage(Damage(amount: actorDamage * dt));
       }
     }
   }

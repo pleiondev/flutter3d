@@ -31,7 +31,13 @@ final class CompiledExpression
   final List<ExpressionType> types
   final List<String> variables
 
-typedef CrashReporter = void Function(Object error, StackTrace stackTrace, LogRecord record);
+final class CrashContext
+  const CrashContext({required this.error, required this.stackTrace, required this.record})
+  final LogRecord record
+  final Object error
+  final StackTrace stackTrace
+
+typedef CrashReporter = void Function(CrashContext crash);
 
 final class Dimension
   Dimension operator *(Dimension other)

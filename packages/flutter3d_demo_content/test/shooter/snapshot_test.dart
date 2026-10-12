@@ -293,7 +293,7 @@ void main() {
       final world = _World();
       final medkit = world.mechanisms['medkit']! as Pickup;
       // A medkit refused at full health is not a medkit taken.
-      world.player.applyDamage(40.0);
+      world.player.applyDamage(Damage(amount: 40.0));
       medkit.activate(Activation(by: world.player.body.collider));
       expect(medkit.isTaken, isTrue);
 

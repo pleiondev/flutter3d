@@ -106,7 +106,10 @@ void main() {
     final bottom = a.bottom < b.bottom ? a.bottom : b.bottom;
     expect(left < right && top < bottom, isTrue, reason: 'no overlap to tap');
     final screen = Vector2((left + right) / 2.0, (top + bottom) / 2.0);
-    expect(far.hitAt3d(screen, game.projector), isTrue);
+    expect(
+      far.hitAt3d(Tap3dProbe(screen: screen, projector: game.projector)),
+      isTrue,
+    );
     expect(taps.nearestAt(screen), same(near));
   });
 
@@ -152,7 +155,10 @@ void main() {
     game.update(0.0);
 
     final screen = game.projector.toScreen(crate.scenePosition)!;
-    expect(field.hitAt3d(screen, game.projector), isTrue);
+    expect(
+      field.hitAt3d(Tap3dProbe(screen: screen, projector: game.projector)),
+      isTrue,
+    );
     expect(taps.nearestAt(screen), same(crate));
   });
 

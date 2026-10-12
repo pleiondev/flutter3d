@@ -27,7 +27,10 @@ final class _Platform extends GamepadPlatform {
   void read(PadSnapshot out) => out.copyFrom(state);
 
   @override
-  void readPad(int index, PadSnapshot out) => out.copyFrom(state);
+  void readPad(PadReadContext context) {
+    final out = context.out;
+    out.copyFrom(state);
+  }
 
   @override
   Future<void> dispose() async {}
@@ -51,7 +54,7 @@ void main() {
       ..setDown(PadButton.start, down: true)
       ..setDown(const PadButton('paddle.1'), down: true);
     final device = PadDevice.platform(slot: 1)
-      ..setDeadZones(stick: 0.0, trigger: 0.0);
+      ..setDeadZones(PadDeadZones(stick: 0.0, trigger: 0.0));
     final reading = PadReading();
 
     device.read(reading);

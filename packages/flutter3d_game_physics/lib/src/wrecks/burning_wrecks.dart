@@ -5,7 +5,7 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show ComponentCodec, SnapshotPart;
+    show ComponentCodec, SnapshotPart, SnapshotRestoreContext;
 import 'package:flutter3d_sim/flutter3d_sim.dart' show SnapshotFormatException;
 import 'package:vector_math/vector_math.dart';
 
@@ -58,7 +58,8 @@ final class BurningWreck {
       ComponentCodec<BurningWreck>.of(
         id: 'flutter3d.game_physics.wreck',
         encode: (wreck) => wreck.toJson(),
-        decode: (data, _) {
+        decode: (context) {
+          final data = context.data;
           try {
             return fromJson(data);
           } on SnapshotFormatException {
@@ -274,7 +275,8 @@ final class BurningWrecks {
       <String, Object?>{'body': body.native.raw, 'oil': oil},
   ];
 
-  void _restore(Object? data, int version) {
+  void _restore(SnapshotRestoreContext context) {
+    final data = context.data;
     final saved = <int, bool>{
       if (data is List<Object?>)
         for (final wreck in data)

@@ -5,7 +5,6 @@
 library;
 
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter3d_build/flutter3d_build.dart';
 import 'package:flutter3d_core/formats.dart';
@@ -19,15 +18,13 @@ final class _Tri extends ModelDecoder {
   const _Tri();
 
   @override
-  bool handles(String fileName, Uint8List bytes) =>
-      fileName.toLowerCase().endsWith('.tri');
+  bool handles(ModelProbe probe) {
+    final fileName = probe.fileName;
+    return fileName.toLowerCase().endsWith('.tri');
+  }
 
   @override
-  Future<ModelDocument> decode(
-    Uint8List bytes,
-    ModelLoadRequest request,
-    AssetUriResolver resolveUri,
-  ) async {
+  Future<ModelDocument> decode(ModelDecodeContext context) async {
     final builder = MeshBuilder(
       VertexLayout.standard,
       reserveVertices: 3,

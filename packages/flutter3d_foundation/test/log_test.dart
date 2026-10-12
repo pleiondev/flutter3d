@@ -69,9 +69,9 @@ void main() {
     final records = <LogRecord>[];
     log
       ..listen(records.add)
-      ..onCrash((error, stack, record) {
-        crashes.add(error);
-        expect(record.stackTrace, same(stack));
+      ..onCrash((crash) {
+        crashes.add(crash.error);
+        expect(crash.record.stackTrace, same(crash.stackTrace));
       });
     final error = StateError('a frame callback threw');
     log.reportCrash(error, StackTrace.current, source: 'view');

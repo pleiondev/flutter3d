@@ -73,7 +73,9 @@ final class _Cloud extends CloudSaveStore {
   }
 
   @override
-  Future<CloudPut> put(String slot, String doc, {String? replacing}) async {
+  Future<CloudPut> put(CloudPutRequest request) async {
+    final doc = request.document;
+    final replacing = request.replacing;
     calls.add('put');
     if (replacing != (document == null ? null : '$revision')) {
       return const CloudMoved();
@@ -114,7 +116,9 @@ final class _Game extends RunSession<_Level> {
   });
 
   @override
-  void restoreInto(_Level level, Snapshot snapshot) {
+  void restoreInto(RunRestoreContext<_Level> context) {
+    final level = context.level;
+    final snapshot = context.snapshot;
     level
       ..hearts = (snapshot.data['hearts'] as List<Object?>? ?? const []).length
       ..coins = snapshot.data.integer('coins');

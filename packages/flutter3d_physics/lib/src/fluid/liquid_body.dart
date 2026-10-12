@@ -199,13 +199,12 @@ final class LiquidBody with JetReceiver {
   /// its own volume over the patch it strikes — and striking the surface
   /// with the momentum it comes down with, from where both spread as waves.
   @override
-  void receive(
-    double volume,
-    Vector3 point,
-    Vector3 velocity,
-    FluidMedium medium,
-    Map<String, double> concentrations,
-  ) {
+  void receive(JetLanding landing) {
+    final volume = landing.volume;
+    final point = landing.point;
+    final velocity = landing.velocity;
+    final medium = landing.medium;
+    final concentrations = landing.concentrations;
     final spread = surface.knockSpread;
     final patch = 2.0 * math.pi * spread * spread;
     pour(volume, medium: medium, concentrations: concentrations);

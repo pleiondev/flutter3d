@@ -199,7 +199,10 @@ final class _CampKind extends EntityKind {
   const _CampKind() : super(StrategyLevelTypes.camp);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     _requireName(entity, scope, out, 'so nothing can be told to carry to it');
     _requireSide(entity, scope, out);
     _requirePositive(entity, scope, out, 'width');
@@ -211,7 +214,10 @@ final class _ResourceNodeKind extends EntityKind {
   const _ResourceNodeKind() : super(StrategyLevelTypes.resourceNode);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     _requireName(entity, scope, out, 'so nobody can be sent to dig it');
     _requirePositive(entity, scope, out, 'amount');
   }
@@ -221,7 +227,10 @@ final class _ProducerKind extends EntityKind {
   const _ProducerKind() : super(StrategyLevelTypes.producer);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     requireTarget(entity, scope, out);
     _requirePositive(entity, scope, out, 'cost');
     _requirePositive(entity, scope, out, 'seconds');
@@ -232,7 +241,10 @@ final class _StockpileKind extends EntityKind {
   const _StockpileKind() : super(StrategyLevelTypes.stockpile);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     _requireSide(entity, scope, out);
     if (entity.number('amount') == null) {
       out.add(
@@ -250,7 +262,10 @@ final class _WorkerKind extends EntityKind {
   const _WorkerKind() : super(StrategyLevelTypes.worker);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     _requireSide(entity, scope, out);
     _requirePositive(entity, scope, out, 'count');
     _requirePositive(entity, scope, out, 'across');

@@ -387,7 +387,10 @@ bool _recognised(String path, List<ModelDecoder> decoders) {
   if (recognizedExtensions.contains(_extensionOf(path))) return true;
   final name = path.substring(path.lastIndexOf('/') + 1).toLowerCase();
   final nothing = Uint8List(0);
-  return decoders.any((ModelDecoder decoder) => decoder.handles(name, nothing));
+  return decoders.any(
+    (ModelDecoder decoder) =>
+        decoder.handles(ModelProbe(fileName: name, bytes: nothing)),
+  );
 }
 
 List<(String, String)> _planDirectory(

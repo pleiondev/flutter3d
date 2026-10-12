@@ -109,7 +109,10 @@ final class EcsWorldDemo extends ShowcaseDemo {
       ComponentCodec<_Position>.of(
         id: 'position',
         encode: (_Position p) => p.x,
-        decode: (Object? data, int _) => _Position((data! as num).toDouble()),
+        decode: (context) {
+          final data = context.data;
+          return _Position((data! as num).toDouble());
+        },
       ),
     );
 
@@ -182,7 +185,10 @@ final class EcsWorldDemo extends ShowcaseDemo {
         ComponentCodec<_Position>.of(
           id: 'position',
           encode: (_Position p) => p.x,
-          decode: (Object? data, int _) => _Position((data! as num).toDouble()),
+          decode: (context) {
+            final data = context.data;
+            return _Position((data! as num).toDouble());
+          },
         ),
       );
     final goblin = world.spawn();
@@ -209,7 +215,10 @@ final class EcsWorldDemo extends ShowcaseDemo {
         ComponentCodec<_Position>.of(
           id: 'position',
           encode: (_Position p) => p.x,
-          decode: (Object? data, int _) => _Position((data! as num).toDouble()),
+          decode: (context) {
+            final data = context.data;
+            return _Position((data! as num).toDouble());
+          },
         ),
       );
     // Three spawns to give the world the same three slots `newNames` describes.

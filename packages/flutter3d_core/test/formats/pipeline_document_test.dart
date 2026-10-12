@@ -14,7 +14,11 @@ import 'package:flutter3d_core/data_plugins.dart';
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show DataSectionContext, DocumentFormatException, RenderAnchor;
+    show
+        DataSectionContext,
+        DataSectionRead,
+        DocumentFormatException,
+        RenderAnchor;
 import 'package:test/test.dart';
 
 final class _Streak extends RenderNode {
@@ -171,7 +175,9 @@ void main() {
         },
       ],
     };
-    final read = pipelineSection.read(body, context) as PipelineDocument;
+    final read =
+        pipelineSection.read(DataSectionRead(body, context: context))
+            as PipelineDocument;
     expect(read.added.single.kind, 'acme_glow.streak');
     expect(pipelineSection.write(read), body);
   });

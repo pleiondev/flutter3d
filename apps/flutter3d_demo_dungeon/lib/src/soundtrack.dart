@@ -24,40 +24,42 @@ import 'sounds.dart';
 final class Soundtrack {
   Soundtrack({this.stride = 1.9}) : _feet = Footsteps(stride: stride) {
     _cues
-      ..on<ShotFired>((ShotFired event, List<Heard> out) {
+      ..on<ShotFired>((cue) {
         // At the eye rather than at the muzzle, for the same reason the shot
         // starts there: a sound half a metre to one side pans audibly wrong
         // when the player is against a wall.
-        out.add(Heard(forWeapon(event.weapon), event.from));
+        cue.out.add(Heard(forWeapon(cue.event.weapon), cue.event.from));
       })
-      ..on<ActorDied>((ActorDied event, List<Heard> out) {
-        final where = event.actor.position;
-        if (where != null) out.add(Heard(Sounds.monsterDie, where));
+      ..on<ActorDied>((cue) {
+        final where = cue.event.actor.position;
+        if (where != null) cue.out.add(Heard(Sounds.monsterDie, where));
       })
-      ..on<ActorHurt>((ActorHurt event, List<Heard> out) {
+      ..on<ActorHurt>((cue) {
         // Only the ones that flinched. A hit that did not stagger reads as a
         // hit that did not land, and every hit screaming is worse than none.
-        final where = event.actor.position;
-        if (event.staggered && where != null) {
-          out.add(Heard(Sounds.monsterPain, where));
+        final where = cue.event.actor.position;
+        if (cue.event.staggered && where != null) {
+          cue.out.add(Heard(Sounds.monsterPain, where));
         }
       })
-      ..on<SequenceSignal>((SequenceSignal event, List<Heard> out) {
+      ..on<SequenceSignal>((cue) {
         // A cutscene names the sound it wants and where, in the level's own
         // document; a name this bank has not got is silence rather than a
         // guess. Where it is not said, at the player.
-        final named = event.data['sound'];
+        final named = cue.event.data['sound'];
         final sound = Sounds.all
             .where((SoundDef s) => s.name == named)
             .firstOrNull;
         if (sound != null) {
-          out.add(Heard(sound, _place(event.data['at']) ?? _at));
+          cue.out.add(Heard(sound, _place(cue.event.data['at']) ?? _at));
         }
       })
-      ..on<MechanismUsed>((MechanismUsed event, List<Heard> out) {
+      ..on<MechanismUsed>((cue) {
         // A door that will not open. The refusal is the simulation's; saying
         // so is this.
-        if (event.outcome is Refused) out.add(Heard(Sounds.locked, _at));
+        if (cue.event.outcome is Refused) {
+          cue.out.add(Heard(Sounds.locked, _at));
+        }
       });
   }
 

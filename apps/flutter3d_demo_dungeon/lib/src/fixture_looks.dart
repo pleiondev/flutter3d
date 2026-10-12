@@ -166,7 +166,7 @@ final class DungeonFixtures with FixtureAppearance {
   /// Nothing in this game changes colour once it is placed. A collected pickup
   /// disappears rather than fading, and a door is the same door open or shut.
   @override
-  void refresh(Fixture fixture, RenderMaterial material) {}
+  void refresh(FixtureRefreshContext context) {}
 
   /// Nothing here shrinks either.
   @override

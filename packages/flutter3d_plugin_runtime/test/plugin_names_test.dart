@@ -36,13 +36,16 @@ final class _Section extends DataSection {
   final String name;
 
   @override
-  Object read(Object? written, DataSectionContext context) => written ?? 0;
+  Object read(DataSectionRead step) {
+    final written = step.written;
+    return written ?? 0;
+  }
 
   @override
   Object? write(Object section) => section;
 
   @override
-  void install(PluginHost host, Object section, DataSectionContext context) {}
+  void install(DataSectionInstall step) {}
 }
 
 void _install(String id, void Function(PluginHost host) registers) {

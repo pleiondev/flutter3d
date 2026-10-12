@@ -52,6 +52,14 @@ final class CharacterController
   void suppressFloorSnap()
   void teleport(Vector3 to)
 
+final class CharacterMove
+  CharacterController body
+  CharacterMove({required this.body, required this.delta, this.stepHeight = 0.0, this.walkableNormalY = 0.0, this.mayStep = false})
+  Vector3 delta
+  bool mayStep
+  double stepHeight
+  double walkableNormalY
+
 final class CharacterMoved
   CharacterMoved({required this.position, required this.grounded, required this.velocity, this.hitWall = false, this.hitCeiling = false, this.stepped = false, this.steppedUp = 0.0, Vector3? groundNormal, this.ground})
   final Collider? ground
@@ -65,8 +73,14 @@ final class CharacterMoved
   final double steppedUp
 
 abstract base class CharacterMover
-  abstract CharacterMoved move(CharacterController body, Vector3 delta, {required double stepHeight, required double walkableNormalY, required bool mayStep})
+  abstract CharacterMoved move(CharacterMove move)
   const CharacterMover()
+
+final class CharacterPush
+  CharacterPush({required this.by, required this.velocity, this.strength = 1.0})
+  Collider by
+  Vector3 velocity
+  double strength
 
 final class ClothMesh
   ClothMesh({required this.cols, required this.rows, required this.positions, required this.velocities, required this.invMass, required this.structuralPairs, required this.structuralRestLength, required this.bendPairs, required this.bendRestLength, required this.triangles, Int32List? shearPairs, Float64List? shearRestLength, Float64List? restPositions})
@@ -114,9 +128,15 @@ final class ClothSettings
 
 abstract base class ClothSimulation
   abstract ClothMesh get mesh
-  abstract void step(ClothSettings settings, double dt, {List<ClothObstacle> obstacles = const <ClothObstacle>[]})
+  abstract void step(ClothStep step)
   const ClothSimulation()
   void dispose()
+
+final class ClothStep
+  ClothSettings settings
+  ClothStep({this.settings = const ClothSettings(), this.dt = 0.0, this.obstacles = const <ClothObstacle>[]})
+  List<ClothObstacle> obstacles
+  double dt
 
 final class Collider
   Collider({required this.shape, Vector3? position, this.kind = ColliderKind.static, this.layer = 1 << 0, this.mask = Layers.all, CollisionListener? listener, this.userData, this.material})
@@ -183,6 +203,11 @@ final class CollisionCapsule extends CollisionShape
   int get expandedPlaneCount
   void supportPoint(double dx, double dy, double dz, Vector3 out)
 
+final class CollisionContext
+  Collider other
+  Collider self
+  CollisionContext({required this.self, required this.other})
+
 final class CollisionHeightfield extends CollisionShape
   CollisionHeightfield({required this.columns, required this.rows, required this.cellSize, required Float32List heights, double? thickness})
   Vector3 get boundsHalfExtents
@@ -212,9 +237,9 @@ final class CollisionHeightfield extends CollisionShape
   int partsIn(Vector3 position, Vector3 min, Vector3 max, Int32List out)
 
 abstract mixin class CollisionListener
-  void onCollision(Collider self, Collider other)
-  void onCollisionEnd(Collider self, Collider other)
-  void onCollisionStart(Collider self, Collider other)
+  void onCollision(CollisionContext context)
+  void onCollisionEnd(CollisionContext context)
+  void onCollisionStart(CollisionContext context)
 
 abstract base class CollisionShape
   Vector3 inertia(double mass)
@@ -313,8 +338,20 @@ final class CollisionWorld
   void shiftsWithOrigin(Vector3 point)
   void update()
 
+final class ConstraintForce
+  ConstraintForce({RigidBody? body, this.dt = 0.0, Vector3? out})
+  double dt
+  final Vector3 out
+  late RigidBody body
+
 abstract base mixin class ConstraintPhysics
-  abstract Registration constrain(RigidDynamics dynamics, PhysicsConstraint constraint, List<RigidBody> bodies)
+  abstract Registration constrain(ConstraintRequest request)
+
+final class ConstraintRequest
+  const ConstraintRequest(this.constraint, {required this.dynamics, required this.bodies})
+  final List<RigidBody> bodies
+  final PhysicsConstraint constraint
+  final RigidDynamics dynamics
 
 final class Contact
   Contact()
@@ -348,7 +385,7 @@ final class DartCloth extends ClothSimulation
   DartCloth(this.mesh)
   final ClothMesh mesh
   void dispose()
-  void step(ClothSettings settings, double dt, {List<ClothObstacle> obstacles = const <ClothObstacle>[]})
+  void step(ClothStep step)
 
 final class DartFluid extends FluidSolver
   const DartFluid()
@@ -378,10 +415,15 @@ final class Dynamics extends RigidDynamics
   final int iterations
   int get bodyLookupsLastStep
   int positionIterations
-  void push(Collider by, Vector3 velocity, {double strength = 1.0})
+  void push(CharacterPush push)
   void remove(RigidBody body)
   void restoreState(Object? saved)
   void step(double dt)
+
+final class DynamicsRequest
+  const DynamicsRequest(this.world, {this.gravity})
+  final CollisionWorld world
+  final Vector3? gravity
 
 final class FloatPush
   FloatPush({required this.bodies, required this.pushes, required this.gravity, required this.dt})
@@ -502,13 +544,21 @@ final class JetDrop
   final Vector3 velocity
   final double volume
 
+final class JetLanding
+  FluidMedium medium
+  JetLanding({this.volume = 0.0, Vector3? point, Vector3? velocity, FluidMedium? medium, this.concentrations = const <String, double>{}})
+  Map<String, double> concentrations
+  Vector3 point
+  Vector3 velocity
+  double volume
+
 abstract base mixin class JetObstacle
   abstract ObstacleTouch? touch(Vector3 point, double radius)
   abstract bool reaches(Vector3 center, double distance)
 
 abstract base mixin class JetReceiver
   abstract bool catches(Vector3 point, double radius)
-  abstract void receive(double volume, Vector3 point, Vector3 velocity, FluidMedium medium, Map<String, double> concentrations)
+  abstract void receive(JetLanding landing)
 
 typedef JetSample = ({Vector3 position, Vector3 direction, Vector3 across, double wide, double thick});
 
@@ -520,9 +570,23 @@ final class JointHandle
   int get hashCode
 
 abstract base mixin class JointPhysics
-  abstract JointHandle join(RigidDynamics dynamics, JointType type, RigidBody a, RigidBody b, {required Vector3 anchor, Vector3? axis})
+  abstract JointHandle join(JointRequest request)
   abstract Set<JointType> get jointTypes
-  abstract void unjoin(RigidDynamics dynamics, JointHandle joint)
+  abstract void unjoin(JointRelease request)
+
+final class JointRelease
+  const JointRelease(this.joint, {required this.dynamics})
+  final JointHandle joint
+  final RigidDynamics dynamics
+
+final class JointRequest
+  const JointRequest(this.type, this.a, this.b, {required this.dynamics, required this.anchor, this.axis})
+  final JointType type
+  final RigidBody a
+  final RigidBody b
+  final RigidDynamics dynamics
+  final Vector3 anchor
+  final Vector3? axis
 
 final class JointType
   String toString()
@@ -570,7 +634,7 @@ final class LiquidBody with JetReceiver
   void add(LiquidLayer layer)
   void place(Matrix3 turn, Vector3 at, {double? time})
   void pour(double amount, {FluidMedium? medium, Map<String, double> concentrations = const {}, Vector3? where, double knock = 0.0})
-  void receive(double volume, Vector3 point, Vector3 velocity, FluidMedium medium, Map<String, double> concentrations)
+  void receive(JetLanding landing)
 
 final class LiquidLayer
   LiquidLayer withdraw(double amount)
@@ -703,7 +767,7 @@ final class ParticleMotion
 abstract base class PhysicsBackend
   ClothSimulation cloth(ClothMesh mesh)
   FluidSolver get fluid
-  RigidDynamics dynamics(CollisionWorld world, {Vector3? gravity})
+  RigidDynamics dynamics(DynamicsRequest request)
   String toString()
   abstract String get name
   const PhysicsBackend()
@@ -712,7 +776,7 @@ abstract base class PhysicsBackend
 
 abstract base class PhysicsConstraint
   abstract String get name
-  abstract void forceOn(RigidBody body, double dt, Vector3 out)
+  abstract void forceOn(ConstraintForce context)
   const PhysicsConstraint()
 
 final class Pipe
@@ -764,6 +828,15 @@ final class RayHit
   final Vector3 normal
   final Vector3 point
   void reset()
+
+final class RayQuery
+  Collider? ignore
+  RayHit out
+  RayQuery({required this.origin, required this.direction, required this.maxDistance, required this.out, this.mask = Layers.all, this.ignore})
+  Vector3 direction
+  Vector3 origin
+  double maxDistance
+  int mask
 
 final class RevolvedVessel implements VesselShape
   ({double distance, Vector3 normal})? wallDistance(Vector3 point)
@@ -824,7 +897,7 @@ abstract base class RigidDynamics
   abstract void remove(RigidBody body)
   abstract void step(double dt)
   const RigidDynamics()
-  void push(Collider by, Vector3 velocity, {double strength = 1.0})
+  void push(CharacterPush push)
   void restoreState(Object? saved)
 
 abstract final class SegmentMassShares
@@ -888,6 +961,15 @@ final class SweepHit
   final Vector3 normal
   void reset()
 
+final class SweepQuery
+  Collider? ignore
+  CollisionShape shape
+  SweepHit out
+  SweepQuery({required this.shape, required this.origin, required this.delta, required this.out, this.mask = Layers.all, this.ignore})
+  Vector3 delta
+  Vector3 origin
+  int mask
+
 final class SweptContact
   Collider get other
   SweptContact()
@@ -945,11 +1027,11 @@ abstract base mixin class WorldMirror
   abstract void mirror()
 
 abstract base class WorldRays
-  abstract bool raycast(Vector3 origin, Vector3 direction, double maxDistance, RayHit out, {required int mask, Collider? ignore})
+  abstract bool raycast(RayQuery query)
   const WorldRays()
 
 abstract base class WorldSweeps
-  abstract bool sweep(CollisionShape shape, Vector3 origin, Vector3 delta, SweepHit out, {required int mask, Collider? ignore})
+  abstract bool sweep(SweepQuery query)
   const WorldSweeps()
 
 double circularSegment(double radius, double offset)

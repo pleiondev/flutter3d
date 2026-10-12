@@ -124,15 +124,15 @@ abstract base class GenrePlugin<S extends Object> extends Flutter3dPlugin {
     _reforward();
   }
 
-  /// Steps [simulation] by the loop's step. Called once a step, in
-  /// [stepPhase], while there is a simulation.
-  void stepSimulation(S simulation, LoopContext context);
+  /// Steps the step's [GenreStepContext.simulation] by the loop's step.
+  /// Called once a step, in [stepPhase], while there is a simulation.
+  void stepSimulation(GenreStepContext<S> step);
 
-  /// Has [simulation] publish its events onto [bus] until the returned
-  /// registration is cancelled — the run's own `publishTo`. Null for a genre
-  /// that publishes from [stepSimulation] itself, through its
-  /// `LoopContext`.
-  Registration? publishEvents(S simulation, EventRegistry bus) => null;
+  /// Has the run publish its events onto [GenrePublishContext.bus] until
+  /// the returned registration is cancelled — the run's own `publishTo`.
+  /// Null for a genre that publishes from [stepSimulation] itself, through
+  /// its `LoopContext`.
+  Registration? publishEvents(GenrePublishContext<S> publish) => null;
 
   /// Declares the genre's own events, under names prefixed with the genre,
   /// each with its codec and a description a tool shows.
@@ -147,9 +147,9 @@ abstract base class GenrePlugin<S extends Object> extends Flutter3dPlugin {
   /// genre's snapshot part holds.
   Snapshot captureSimulation(S simulation);
 
-  /// Puts [state], one [captureSimulation] wrote, back into [simulation]:
-  /// the run's own `restore`.
-  void restoreSimulation(S simulation, Snapshot state);
+  /// Puts [GenreRestoreContext.state], one [captureSimulation] wrote, back
+  /// into the run: the run's own `restore`.
+  void restoreSimulation(GenreRestoreContext<S> restore);
 
   /// A number that differs when [simulation]'s state does, or null to digest
   /// what [captureSimulation] writes, which is always right and sometimes
@@ -195,7 +195,7 @@ abstract base class GenrePlugin<S extends Object> extends Flutter3dPlugin {
     final bus = _bus;
     final run = _simulation;
     if (bus == null || run == null) return;
-    _forward = publishEvents(run, bus);
+    _forward = publishEvents(GenrePublishContext<S>(run, bus: bus));
     final world = publishedWorldOf(run);
     if (world != null) _publishing = _publishedWorlds?.add(world);
   }
@@ -203,9 +203,15 @@ abstract base class GenrePlugin<S extends Object> extends Flutter3dPlugin {
   @override
   void install(PluginHost host) {
     _bus = host.events;
+    GenreStepContext<S>? step;
     host.loop.addSystem(systemName, stepPhase, (LoopContext context) {
       final run = _simulation;
-      if (run != null) stepSimulation(run, context);
+      if (run == null) return;
+      stepSimulation(
+        (step ??= GenreStepContext<S>(run, context: context))
+          ..simulation = run
+          ..context = context,
+      );
     });
     host.maybeRegistry<SnapshotRegistry>()?.add(_GenrePart<S>(this));
     _publishedWorlds = host.maybeRegistry<PublishedWorlds>();
@@ -231,6 +237,51 @@ abstract base class GenrePlugin<S extends Object> extends Flutter3dPlugin {
     _publishedWorlds = null;
     _bus = null;
   }
+}
+
+/// What [GenrePlugin.stepSimulation] is handed: the run and the loop's
+/// step.
+///
+/// **One object, so a minor can hand a genre more** without breaking a
+/// genre written against 1.0. **Reused**: the genre's system owns one and
+/// sets it before every step, so a step allocates nothing for it; a genre
+/// reads it during the step and does not keep it.
+final class GenreStepContext<S extends Object> {
+  GenreStepContext(this.simulation, {required this.context});
+
+  /// The run being stepped.
+  S simulation;
+
+  /// The loop's step: its number, its length, the bus.
+  LoopContext context;
+}
+
+/// What [GenrePlugin.publishEvents] is handed: the run and the bus its
+/// events go to.
+///
+/// One object, for the reason [GenreStepContext] gives.
+final class GenrePublishContext<S extends Object> {
+  const GenrePublishContext(this.simulation, {required this.bus});
+
+  /// The run whose events are published.
+  final S simulation;
+
+  /// Where they go.
+  final EventRegistry bus;
+}
+
+/// What [GenrePlugin.restoreSimulation] is handed: the run and the state to
+/// put back into it.
+///
+/// One object, for the reason [GenreStepContext] gives.
+final class GenreRestoreContext<S extends Object> {
+  const GenreRestoreContext(this.simulation, {required this.state});
+
+  /// The run being restored.
+  final S simulation;
+
+  /// What [GenrePlugin.captureSimulation] wrote.
+  final Snapshot state;
 }
 
 /// The blind games [genres] carry, by [HeadlessGame.name]: what a telemetry
@@ -269,10 +320,16 @@ final class _GenrePart<S extends Object> extends SnapshotPart {
   }
 
   @override
-  void restore(Object? data, int version) {
+  void restore(SnapshotRestoreContext context) {
+    final data = context.data;
     final run = genre.simulation;
     if (run == null || data is! Map) return;
-    genre.restoreSimulation(run, Snapshot(data.cast<String, Object?>()));
+    genre.restoreSimulation(
+      GenreRestoreContext<S>(
+        run,
+        state: Snapshot(data.cast<String, Object?>()),
+      ),
+    );
   }
 
   @override

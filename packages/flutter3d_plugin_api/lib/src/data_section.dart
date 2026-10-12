@@ -43,10 +43,11 @@ abstract base class DataSection {
   /// ignore.
   String? get requirement => null;
 
-  /// [written], what the document has under [name], read for the plugin
-  /// [context] names. Throws a [Flutter3dFormatException] for a section that
-  /// is not the shape it should be.
-  Object read(Object? written, DataSectionContext context);
+  /// [DataSectionRead.written], what the document has under [name], read
+  /// for the plugin the step's context names. Throws a
+  /// [Flutter3dFormatException] for a section that is not the shape it
+  /// should be.
+  Object read(DataSectionRead step);
 
   /// What [read] returned, as the document writes it back: the same shape
   /// [read] takes.
@@ -56,15 +57,63 @@ abstract base class DataSection {
   /// directory, in the order they are named.
   List<String> resources(Object section) => const <String>[];
 
-  /// [section] with the files it named in memory, read through
-  /// [DataSectionContext.textOf]; the section itself when it names none.
-  Object load(Object section, DataSectionContext context) => section;
+  /// [DataSectionLoad.section] with the files it named in memory, read
+  /// through [DataSectionContext.textOf]; the section itself when it names
+  /// none.
+  Object load(DataSectionLoad step) => step.section;
 
-  /// Puts [section], as [load] returned it, into [host]'s registries. A
-  /// registry the section needs and the engine does not have is a
-  /// `PluginException`; what is left out on purpose — an effect on an engine
-  /// that draws nothing — goes to [DataSectionContext.note].
-  void install(PluginHost host, Object section, DataSectionContext context);
+  /// Puts [DataSectionInstall.section], as [load] returned it, into
+  /// [DataSectionInstall.host]'s registries. A registry the section needs
+  /// and the engine does not have is a `PluginException`; what is left out
+  /// on purpose — an effect on an engine that draws nothing — goes to
+  /// [DataSectionContext.note].
+  void install(DataSectionInstall step);
+}
+
+/// What [DataSection.read] is handed.
+///
+/// **One object per step, so a minor can hand a section more** without
+/// breaking a section written against 1.0; what every step shares is
+/// [context].
+final class DataSectionRead {
+  const DataSectionRead(this.written, {required this.context});
+
+  /// What the document has under the section's name, as JSON decoded it.
+  final Object? written;
+
+  /// The plugin being read.
+  final DataSectionContext context;
+}
+
+/// What [DataSection.load] is handed, for the reason [DataSectionRead]
+/// gives.
+final class DataSectionLoad {
+  const DataSectionLoad(this.section, {required this.context});
+
+  /// What [DataSection.read] returned.
+  final Object section;
+
+  /// The plugin being read, whose files are in memory now.
+  final DataSectionContext context;
+}
+
+/// What [DataSection.install] is handed, for the reason [DataSectionRead]
+/// gives.
+final class DataSectionInstall {
+  const DataSectionInstall(
+    this.section, {
+    required this.host,
+    required this.context,
+  });
+
+  /// What [DataSection.load] returned.
+  final Object section;
+
+  /// The plugin's own view of the engine's registries.
+  final PluginHost host;
+
+  /// The plugin being installed.
+  final DataSectionContext context;
 }
 
 /// What a [DataSection] is told about the plugin it is reading or

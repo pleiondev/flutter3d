@@ -1,7 +1,7 @@
 import 'package:flame/components.dart' show Component;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_camera/flutter3d_camera.dart'
-    show CameraFraming, CameraRig, CameraShot, VirtualCamera;
+    show CameraFraming, CameraRig, FramingStep, VirtualCamera;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 
 import '../host/bridge_priority.dart';
@@ -134,7 +134,8 @@ final class FlameChaseFraming extends CameraFraming {
   double get lag => stiffness > 0.0 ? stiffness : _rigid;
 
   @override
-  void frame(CameraShot wanted, double dt) {
+  void frame(FramingStep step) {
+    final wanted = step.wanted;
     final at = target.scenePosition;
     wanted.eye
       ..setFrom(at)

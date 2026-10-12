@@ -34,16 +34,19 @@ final class ElementEvent extends BusEvent {
       event.body.raw,
       event.other?.raw,
     ],
-    decode: (data, _) => switch (data) {
-      [final int code, final String name, final int body, final int? other] =>
-        ElementEvent(
-          kind: code >= NativeEventKind.firstPluginCode
-              ? NativeEventKind.plugin(code, name)
-              : NativeEventKind.of(code),
-          body: NativeBody(body),
-          other: other == null ? null : NativeBody(other),
-        ),
-      _ => null,
+    decode: (context) {
+      final data = context.data;
+      return switch (data) {
+        [final int code, final String name, final int body, final int? other] =>
+          ElementEvent(
+            kind: code >= NativeEventKind.firstPluginCode
+                ? NativeEventKind.plugin(code, name)
+                : NativeEventKind.of(code),
+            body: NativeBody(body),
+            other: other == null ? null : NativeBody(other),
+          ),
+        _ => null,
+      };
     },
   );
 
@@ -298,7 +301,10 @@ abstract base class ElementBodyEvent extends BusEvent {
     T Function(NativeBody body, TrackedBody? made) make,
   ) => EventCodec<T>.of(
     encode: (event) => event.body.raw,
-    decode: (data, _) => data is int ? make(NativeBody(data), null) : null,
+    decode: (context) {
+      final data = context.data;
+      return data is int ? make(NativeBody(data), null) : null;
+    },
   );
 
   @override
@@ -382,13 +388,16 @@ final class ElementExploded extends BusEvent with PlacedEvent {
           event.at.z,
           event.pushed,
         ],
-        decode: (data, _) => switch (data) {
-          [final num x, final num y, final num z, final int pushed] =>
-            ElementExploded(
-              Vector3(x.toDouble(), y.toDouble(), z.toDouble()),
-              pushed,
-            ),
-          _ => null,
+        decode: (context) {
+          final data = context.data;
+          return switch (data) {
+            [final num x, final num y, final num z, final int pushed] =>
+              ElementExploded(
+                Vector3(x.toDouble(), y.toDouble(), z.toDouble()),
+                pushed,
+              ),
+            _ => null,
+          };
         },
       );
 

@@ -166,7 +166,9 @@ void main() {
         kind: ColliderKind.kinematic,
       ),
     );
-    game.staged.dynamics.push(walker, Vector3(0.0, 0.0, -3.0));
+    game.staged.dynamics.push(
+      CharacterPush(by: walker, velocity: Vector3(0.0, 0.0, -3.0)),
+    );
     game.world.remove(walker);
     game.settle(30);
     expect(crate.position.z, lessThan(before.z - 0.1));
@@ -185,7 +187,9 @@ void main() {
         kind: ColliderKind.kinematic,
       ),
     );
-    game.staged.dynamics.push(walker, Vector3(0.0, 0.0, -6.0));
+    game.staged.dynamics.push(
+      CharacterPush(by: walker, velocity: Vector3(0.0, 0.0, -6.0)),
+    );
     game.world.remove(walker);
     // Saved as it comes to rest: slower than sleep's threshold, the core's
     // clock counting towards sleep — which a body's own save cannot carry.

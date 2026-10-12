@@ -59,18 +59,23 @@ final class _WalkGenre extends GenrePlugin<_Walk> {
   );
 
   @override
-  String get systemName => 'walk.step';
+  String get systemName => 'test.walk.step';
 
   @override
-  void stepSimulation(_Walk simulation, LoopContext context) =>
-      simulation.step();
+  void stepSimulation(GenreStepContext<_Walk> step) {
+    final simulation = step.simulation;
+    simulation.step();
+  }
 
   @override
   Snapshot captureSimulation(_Walk simulation) => simulation.save();
 
   @override
-  void restoreSimulation(_Walk simulation, Snapshot state) =>
-      simulation.restore(state);
+  void restoreSimulation(GenreRestoreContext<_Walk> restore) {
+    final simulation = restore.simulation;
+    final state = restore.state;
+    simulation.restore(state);
+  }
 }
 
 /// The walk, installed in a loop the way a game installs its genre.

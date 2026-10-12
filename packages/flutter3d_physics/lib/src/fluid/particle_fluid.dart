@@ -137,6 +137,9 @@ final class ParticleFluid {
   double _bank = 0.0;
   double _received = 0.0;
 
+  /// The one landing every particle handed over goes in.
+  final JetLanding _landing = JetLanding();
+
   /// How much liquid one particle is, in cubic metres.
   double get particleVolume => spacing * spacing * spacing;
   double get _mass => medium.density * particleVolume;
@@ -289,7 +292,14 @@ final class ParticleFluid {
       final at = _x[i].toVector3();
       for (final r in receivers) {
         if (!r.catches(at, radius)) continue;
-        r.receive(particleVolume, at, _v[i].toVector3(), medium, _c[i]);
+        r.receive(
+          _landing
+            ..volume = particleVolume
+            ..point = at
+            ..velocity = _v[i].toVector3()
+            ..medium = medium
+            ..concentrations = _c[i],
+        );
         _received += particleVolume;
         _x.removeAt(i);
         _v.removeAt(i);

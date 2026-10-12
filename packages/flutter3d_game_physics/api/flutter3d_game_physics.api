@@ -122,7 +122,7 @@ final class RagdollCorpses with ActorCorpses
   RagdollCorpses(CollisionWorld world, {this.pushedFrom, this.push = defaultPush, this.chest = 'Torso', this.mass = referenceBodyMass, this.tone = MuscleTone.human})
   SkeletonRagdoll? ragdollOf(Actor actor)
   SnapshotPart snapshotPart({String id = 'flutter3d.game_physics.corpses'})
-  bool begin(Actor actor, ModelInstance model, {List<Matrix4>? previous, double dt = stepSeconds})
+  bool begin(ActorDeathContext context)
   double blowAt
   final MuscleTone? tone
   final String chest
@@ -277,7 +277,7 @@ final class RagdollCorpses with ActorCorpses
   RagdollCorpses(CollisionWorld world, {this.pushedFrom, this.push = defaultPush, this.chest = 'Torso', this.mass = referenceBodyMass, this.tone = MuscleTone.human})
   SkeletonRagdoll? ragdollOf(Actor actor)
   SnapshotPart snapshotPart({String id = 'flutter3d.game_physics.corpses'})
-  bool begin(Actor actor, ModelInstance model, {List<Matrix4>? previous, double dt = stepSeconds})
+  bool begin(ActorDeathContext context)
   double blowAt
   final MuscleTone? tone
   final String chest

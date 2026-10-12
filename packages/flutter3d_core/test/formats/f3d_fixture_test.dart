@@ -187,7 +187,9 @@ void main() {
     final bundle = F3dDocument.parse(
       File('test/fixtures/v2/bundle.f3d').readAsBytesSync(),
     );
-    final written = const F3dModelWriter().write(bundle);
+    final written = const F3dModelWriter().write(
+      ModelWriteContext(document: bundle),
+    );
 
     // The cloud's "download .f3d" goes through this writer. Mutation: write
     // `F3dWriter(document)` in `F3dModelWriter.write` and every map is empty.

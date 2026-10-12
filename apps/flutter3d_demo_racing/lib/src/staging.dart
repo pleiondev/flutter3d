@@ -98,9 +98,11 @@ Staged stage(
     // Told where it is on the lap, or its first step is a car that has never
     // been on the circuit and counts the grid as somewhere off it.
     car.placeAt(
-      car.position,
-      car.headingYaw,
-      trackDistance: track.center.wrap(track.grid.s),
+      VehiclePlacement(
+        position: car.position,
+        headingYaw: car.headingYaw,
+        trackDistance: track.center.wrap(track.grid.s),
+      ),
     );
     vehicles[carIndex] = car;
   }

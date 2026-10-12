@@ -16,7 +16,6 @@ import 'package:flutter3d_sim/flutter3d_sim.dart'
 import 'package:vector_math/vector_math.dart';
 
 import 'framing.dart';
-import 'shot.dart';
 
 /// Behind where a subject is *going*, looking a little way up the road, and
 /// wider the faster it goes.
@@ -111,7 +110,8 @@ final class ChaseFraming extends CameraFraming {
   double _heading = 0.0;
 
   @override
-  void frame(CameraShot wanted, double dt) {
+  void frame(FramingStep step) {
+    final wanted = step.wanted;
     _heading = _headingNow();
 
     wanted.target
@@ -241,7 +241,9 @@ final class OrbitFraming extends CameraFraming {
   }
 
   @override
-  void frame(CameraShot wanted, double dt) {
+  void frame(FramingStep step) {
+    final wanted = step.wanted;
+    final dt = step.dt;
     final moving = traveling;
     _drift(moving, dt);
 
@@ -375,7 +377,8 @@ final class OverheadFraming extends CameraFraming {
   }
 
   @override
-  void frame(CameraShot wanted, double dt) {
+  void frame(FramingStep step) {
+    final wanted = step.wanted;
     _focus.y = groundHeight(_focus.x, _focus.z);
     wanted.target.setFrom(_focus);
 
@@ -413,7 +416,8 @@ final class FirstPersonFraming extends CameraFraming {
   double get lag => double.infinity;
 
   @override
-  void frame(CameraShot wanted, double dt) {
+  void frame(FramingStep step) {
+    final wanted = step.wanted;
     wanted.eye.setFrom(eye);
     wanted.target
       ..setFrom(eye)

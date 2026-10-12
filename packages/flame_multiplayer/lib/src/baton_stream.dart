@@ -3,7 +3,7 @@ library;
 
 import 'dart:collection' show ListQueue;
 
-import 'package:flutter3d_net/flutter3d_net.dart' show PeerWire;
+import 'package:flutter3d_net/flutter3d_net.dart' show PeerSend, PeerWire;
 
 /// Turns across two machines: the one holding the baton runs the game, and
 /// the other replays what it is told.
@@ -102,8 +102,9 @@ final class BatonStream {
     _send(_baton, state);
   }
 
-  void _send(String kind, Map<String, Object?> body) =>
-      transport.send(<String, Object?>{'k': kind, 'n': _sent++, 'body': body});
+  void _send(String kind, Map<String, Object?> body) => transport.send(
+    PeerSend(message: <String, Object?>{'k': kind, 'n': _sent++, 'body': body}),
+  );
 
   void _arrive(Map<String, Object?> message) {
     final n = message['n'];

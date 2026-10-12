@@ -12,6 +12,7 @@ import 'simulation_version.dart';
 import 'track.dart';
 import 'track_field.dart';
 import 'vehicle/sphere_vehicle.dart';
+import 'vehicle/vehicle_controller.dart';
 
 /// A racing circuit as a tool that plays it blind needs one: the player's
 /// car driven from the stick, rivals driven by the genre's AI.
@@ -64,7 +65,10 @@ final class RacingHeadlessGame extends HeadlessGame {
   EntityRegistry registry() => EntityRegistry(const <EntityKind>[]);
 
   @override
-  HeadlessRun start(Level level, CollisionWorld world, InputState input) {
+  HeadlessRun start(HeadlessStart start) {
+    final level = start.level;
+    final world = start.world;
+    final input = start.input;
     // The race's world, with the level's laid over it, as the application's.
     raceIn(world, level: level);
     final cars = 1 + rivals;
@@ -102,9 +106,11 @@ final class RacingHeadlessGame extends HeadlessGame {
       headingYaw: Portable.atan2(forward.x, forward.z),
     );
     car.placeAt(
-      car.position,
-      car.headingYaw,
-      trackDistance: track.center.wrap(track.grid.s),
+      VehiclePlacement(
+        position: car.position,
+        headingYaw: car.headingYaw,
+        trackDistance: track.center.wrap(track.grid.s),
+      ),
     );
     return car;
   }

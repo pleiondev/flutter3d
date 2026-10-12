@@ -12,7 +12,10 @@ final class HazardKind extends EntityKind {
   static Vector3 get defaultSize => Vector3(2.0, 1.0, 2.0);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     final rail = entity.string('follows');
     if (rail != null && scope.level.named(rail) == null) {
       out.add(
@@ -36,7 +39,9 @@ final class HazardKind extends EntityKind {
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final collider = place(
       entity,
       context,

@@ -62,7 +62,10 @@ final class CrateKind extends EntityKind {
   RigidDynamics? dynamics;
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     final mass = entity.number('mass');
     if (mass != null && mass <= 0.0) {
       out.add(
@@ -76,7 +79,9 @@ final class CrateKind extends EntityKind {
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final world = dynamics;
     if (world == null) return;
     final size = entity.vector('size') ?? Crate.defaultSize;

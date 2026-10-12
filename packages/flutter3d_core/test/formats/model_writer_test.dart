@@ -58,10 +58,9 @@ final class _Ply extends ModelWriter {
   String get says => 'a scanner\'s point cloud';
 
   @override
-  ModelWrite write(ModelDocument document, {String baseName = 'model'}) =>
-      ModelWrite(<WrittenFile>[
-        WrittenFile('$baseName.ply', Uint8List.fromList('ply'.codeUnits)),
-      ]);
+  ModelWrite write(ModelWriteContext context) => ModelWrite(<WrittenFile>[
+    WrittenFile('${context.baseName}.ply', Uint8List.fromList('ply'.codeUnits)),
+  ]);
 }
 
 void main() {
@@ -105,42 +104,56 @@ void main() {
       // that moved from the class to the list would change its output.
       final document = _triangle();
       expect(
-        const F3dModelWriter().write(document).files.single.bytes,
+        const F3dModelWriter()
+            .write(ModelWriteContext(document: document))
+            .files
+            .single
+            .bytes,
         F3dWriter(document).write(),
       );
       expect(
-        const GlbModelWriter().write(document).files.single.bytes,
+        const GlbModelWriter()
+            .write(ModelWriteContext(document: document))
+            .files
+            .single
+            .bytes,
         GltfWriter(document).writeGlb(),
       );
       expect(
         const StlModelWriter()
-            .write(document, baseName: 'tri')
+            .write(ModelWriteContext(document: document, baseName: 'tri'))
             .files
             .single
             .bytes,
         StlWriter(document, name: 'tri').write(),
       );
       expect(
-        const StlModelWriter(
-          ascii: true,
-        ).write(document, baseName: 'tri').files.single.bytes,
+        const StlModelWriter(ascii: true)
+            .write(ModelWriteContext(document: document, baseName: 'tri'))
+            .files
+            .single
+            .bytes,
         StlWriter(document, name: 'tri').writeAscii(),
       );
       expect(
         const UsdzModelWriter()
-            .write(document, baseName: 'tri')
+            .write(ModelWriteContext(document: document, baseName: 'tri'))
             .files
             .single
             .bytes,
         UsdzWriter(document, name: 'tri').write(),
       );
-      final obj = const ObjModelWriter().write(document, baseName: 'tri');
+      final obj = const ObjModelWriter().write(
+        ModelWriteContext(document: document, baseName: 'tri'),
+      );
       expect(obj.files.first.bytes, ObjWriter(document, name: 'tri').write());
     });
 
     test('names its first file from the base name and its own suffix', () {
       for (final ModelWriter writer in builtInModelWriters) {
-        final written = writer.write(_triangle(), baseName: 'tri');
+        final written = writer.write(
+          ModelWriteContext(document: _triangle(), baseName: 'tri'),
+        );
         expect(
           written.files.first.name,
           'tri${writer.suffix}',

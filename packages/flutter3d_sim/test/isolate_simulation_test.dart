@@ -27,7 +27,10 @@ final class _Count {
   static final ComponentCodec<_Count> codec = ComponentCodec<_Count>.of(
     id: 'test.count',
     encode: (count) => count.value,
-    decode: (data, _) => data is int ? _Count(data) : null,
+    decode: (context) {
+      final data = context.data;
+      return data is int ? _Count(data) : null;
+    },
   );
 }
 
@@ -48,11 +51,15 @@ SimulationSetup _counting(Object? arguments) {
     if (context.step == 2) loop.shiftOrigin(const WorldPosition(10, 0, 0));
   });
   loop.queries
-    ..add('test.count', (world, _) => world.get<_Count>(counter)?.value)
+    ..add(
+      'test.count',
+      (question) => question.world.get<_Count>(counter)?.value,
+    )
     ..add(
       'test.plus',
-      (world, arguments) =>
-          (world.get<_Count>(counter)?.value ?? 0) + (arguments! as int),
+      (question) =>
+          (question.world.get<_Count>(counter)?.value ?? 0) +
+          (question.arguments! as int),
     );
   return SimulationSetup(
     loop: loop,

@@ -788,7 +788,11 @@ final class EngineLoop extends LoopRegistry {
     final previous = _lastVsync;
     final elapsed = paced != null
         ? paced.due(vsync, clock: time)
-        : time.elapsed(previous ?? vsync, vsync);
+        : time.elapsed(
+            _span
+              ..from = previous ?? vsync
+              ..to = vsync,
+          );
     if (paced != null && elapsed == null) return null;
     _lastVsync = vsync;
     final dt = measured != null ? _skippedSeconds : (elapsed ?? 0.0);
@@ -801,6 +805,9 @@ final class EngineLoop extends LoopRegistry {
 
   /// The vsync of the last frame [frameAtVsync] drew without a [cadence].
   Duration? _lastVsync;
+
+  /// What [time] is asked with, set before every frame.
+  final FrameSpan _span = FrameSpan();
 
   /// The loop's clock: how many simulated seconds a frame drawn by
   /// [frameAtVsync] brings — [TimeSource.realTime] unless a game, a
@@ -1567,11 +1574,14 @@ final class WorldOrigin {
       ComponentCodec<WorldOrigin>.of(
         id: 'flutter3d.origin',
         encode: (origin) => <double>[origin.at.x, origin.at.y, origin.at.z],
-        decode: (data, _) => switch (data) {
-          [final num x, final num y, final num z] => WorldOrigin(
-            WorldPosition(x.toDouble(), y.toDouble(), z.toDouble()),
-          ),
-          _ => null,
+        decode: (context) {
+          final data = context.data;
+          return switch (data) {
+            [final num x, final num y, final num z] => WorldOrigin(
+              WorldPosition(x.toDouble(), y.toDouble(), z.toDouble()),
+            ),
+            _ => null,
+          };
         },
       );
 }

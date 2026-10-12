@@ -4394,14 +4394,15 @@ final class Renderer with RenderServices {
   /// weapons it is not holding by switching off their shared parent, and
   /// testing only the leaf draws every weapon at once.
   @override
-  void encodeScene({
-    required RenderFrame frame,
-    required PassEncoder encoder,
-    required Scene scene,
-    required vm.Matrix4 viewProjection,
-    required vm.Vector3 cameraPosition,
-    int casterIndex = -1,
-  }) {
+  void encodeScene(SceneEncodeRequest request) {
+    final SceneEncodeRequest(
+      :frame,
+      :encoder,
+      :scene,
+      :viewProjection,
+      :cameraPosition,
+      :casterIndex,
+    ) = request;
     // Assembled here, from what the calling node declared, rather than handed
     // in. A caller that forgot produced a pass lit as though nothing shadowed
     // it, and nothing on this side could tell the difference.

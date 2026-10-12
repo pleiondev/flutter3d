@@ -240,7 +240,9 @@ void main() {
       final world = CollisionWorld();
       level.addTo(world);
       final input = InputState()..press(GameAction.moveForward);
-      final run = game.start(level, world, input);
+      final run = game.start(
+        HeadlessStart(level: level, world: world, input: input),
+      );
       world.update();
       final from = run.position;
       for (var i = 0; i < 30; i++) {
@@ -264,9 +266,7 @@ void main() {
       final world = CollisionWorld();
       level.addTo(world);
       final run = const PlatformerHeadlessGame().start(
-        level,
-        world,
-        InputState(),
+        HeadlessStart(level: level, world: world, input: InputState()),
       );
       world.update();
       final before = run.position;

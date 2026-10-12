@@ -204,7 +204,9 @@ void main() {
         final carrying = Inventory();
         carrying.health.damage(60.0);
         expect(
-          gift.grantTo(carrying, gift.defaultAmount, 'blue'),
+          gift.grantTo(
+            GiftGrant(to: carrying, amount: gift.defaultAmount, detail: 'blue'),
+          ),
           isTrue,
           reason: '"$name" granted nothing to an empty inventory',
         );

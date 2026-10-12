@@ -88,7 +88,13 @@ void main() {
           life: 10.0,
         ),
       ])
-      ..step(ParticleForces(world: world), 1.0 / 60.0, steps: 60);
+      ..step(
+        ParticleCloudStep(
+          forces: ParticleForces(world: world),
+          dt: 1.0 / 60.0,
+          steps: 60,
+        ),
+      );
     final y = sparks.read()[1];
     sparks.dispose();
     expect(y, inInclusiveRange(-0.5 * 1.62 * 1.05, -0.5 * 1.62 * 0.95));

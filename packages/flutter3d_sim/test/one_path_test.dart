@@ -41,15 +41,20 @@ final class _Genre extends GenrePlugin<_Run> {
   String get systemName => 'test.step';
 
   @override
-  void stepSimulation(_Run simulation, LoopContext context) =>
-      simulation.steps++;
+  void stepSimulation(GenreStepContext<_Run> step) {
+    final simulation = step.simulation;
+    simulation.steps++;
+  }
 
   @override
   Snapshot captureSimulation(_Run simulation) => simulation.save();
 
   @override
-  void restoreSimulation(_Run simulation, Snapshot state) =>
-      simulation.restore(state);
+  void restoreSimulation(GenreRestoreContext<_Run> restore) {
+    final simulation = restore.simulation;
+    final state = restore.state;
+    simulation.restore(state);
+  }
 
   @override
   EcsWorld? publishedWorldOf(_Run simulation) => world;
@@ -216,7 +221,7 @@ void main() {
 
     test('answers a question by name, and refuses one it does not know', () {
       final loop = EngineLoop(input: InputState());
-      loop.queries.add('test.count', (world, _) => world.length);
+      loop.queries.add('test.count', (question) => question.world.length);
       final handle = LocalSimulation(loop, applyInput: (_, _) {});
       loop.world.spawn();
       expect(handle.ask('test.count'), completion(1));

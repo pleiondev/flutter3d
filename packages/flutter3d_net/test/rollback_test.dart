@@ -85,27 +85,36 @@ final class _LyingTransport extends PeerWire {
   int get slot => _inner.slot;
 
   @override
-  void send(Map<String, Object?> message, {bool reliable = true}) {
+  void send(PeerSend context) {
+    final message = context.message;
+    final reliable = context.reliable;
     final frames = message['frames']! as Map<String, Object?>;
     final key = '$lieAtStep';
     final lied = frames[key];
     if (lied == null) {
-      _inner.send(message, reliable: reliable);
+      _inner.send(PeerSend(message: message, reliable: reliable));
       return;
     }
-    _inner.send(<String, Object?>{
-      ...message,
-      'frames': <String, Object?>{
-        ...frames,
-        key: <String, Object?>{...lied as Map<String, Object?>, 'move': 999.0},
-      },
-    }, reliable: reliable);
+    _inner.send(
+      PeerSend(
+        message: <String, Object?>{
+          ...message,
+          'frames': <String, Object?>{
+            ...frames,
+            key: <String, Object?>{
+              ...lied as Map<String, Object?>,
+              'move': 999.0,
+            },
+          },
+        },
+        reliable: reliable,
+      ),
+    );
   }
 
   @override
-  Registration listenFrom(
-    void Function(int from, Map<String, Object?> message) onMessage,
-  ) => _inner.listenFrom(onMessage);
+  Registration listenFrom(void Function(PeerMessage message) onMessage) =>
+      _inner.listenFrom(onMessage);
 }
 
 /// Runs [steps] fixed steps of two [RollbackSession]s joined by
@@ -172,11 +181,8 @@ _play(
 
 void main() {
   test('two peers 120ms apart with 5% loss converge on the same digests', () {
-    final LoopbackPair(first: transportA, second: transportB) = LoopbackWire.pair(
-      delaySteps: 7,
-      lossRate: 0.05,
-      seed: 20260912,
-    );
+    final LoopbackPair(first: transportA, second: transportB) =
+        LoopbackWire.pair(delaySteps: 7, lossRate: 0.05, seed: 20260912);
     final result = _play(
       (transportA, transportB),
       steps: 600,
@@ -205,10 +211,8 @@ void main() {
   test(
     'a frame rewritten in flight on one side gives a desync, named by step',
     () {
-      final LoopbackPair(first: transportA, second: transportB) = LoopbackWire.pair(
-        delaySteps: 7,
-        seed: 5,
-      );
+      final LoopbackPair(first: transportA, second: transportB) =
+          LoopbackWire.pair(delaySteps: 7, seed: 5);
       const lieAtStep = 50;
       final result = _play(
         (_LyingTransport(transportA, lieAtStep: lieAtStep), transportB),
@@ -243,7 +247,8 @@ void main() {
     // first and is corrected once the real frame lands — exercising
     // `RollbackSession.receive`'s rollback path on nearly every step, rather than
     // on none of them by accident of favourable timing.
-    final LoopbackPair(first: transportA, second: transportB) = LoopbackWire.pair(delaySteps: 9, seed: 1);
+    final LoopbackPair(first: transportA, second: transportB) =
+        LoopbackWire.pair(delaySteps: 9, seed: 1);
     final result = _play(
       (transportA, transportB),
       steps: 400,
@@ -261,7 +266,10 @@ void main() {
 
   test('two engine loops kept in step by EngineRollback settle on the same '
       'state, rewound through their snapshots', () {
-    final LoopbackPair(first: wireA, second: wireB) = LoopbackWire.pair(delaySteps: 5, seed: 3);
+    final LoopbackPair(first: wireA, second: wireB) = LoopbackWire.pair(
+      delaySteps: 5,
+      seed: 3,
+    );
     final digests = <DigestTrace>[DigestTrace(), DigestTrace()];
     final rollbacks = <EngineRollback>[];
     for (final slot in <int>[0, 1]) {
@@ -272,9 +280,12 @@ void main() {
           ComponentCodec<_Walked>.of(
             id: 'test.walked',
             encode: (w) => <int>[w.a, w.b],
-            decode: (data, _) => switch (data) {
-              [final num a, final num b] => _Walked(a.toInt(), b.toInt()),
-              _ => null,
+            decode: (context) {
+              final data = context.data;
+              return switch (data) {
+                [final num a, final num b] => _Walked(a.toInt(), b.toInt()),
+                _ => null,
+              };
             },
           ),
         )
@@ -337,13 +348,18 @@ void main() {
     // Mutation: keep every frame at or past the step, as before 1.0. A
     // peer naming a thousand step numbers far ahead — or one per message,
     // for as long as the match lasts — has this machine hold all of them.
-    theirs.send(<String, Object?>{
-      PeerWire.engineKey: RollbackSession.messageKind,
-      'frames': <String, Object?>{
-        for (var at = 1000000; at < 1001000; at++) '$at': <String, Object?>{},
-        '3': <String, Object?>{'move': 1},
-      },
-    });
+    theirs.send(
+      PeerSend(
+        message: <String, Object?>{
+          PeerWire.engineKey: RollbackSession.messageKind,
+          'frames': <String, Object?>{
+            for (var at = 1000000; at < 1001000; at++)
+              '$at': <String, Object?>{},
+            '3': <String, Object?>{'move': 1},
+          },
+        },
+      ),
+    );
     ours.tick();
     expect(session.droppedEarly, 1000);
 

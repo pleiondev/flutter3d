@@ -1,5 +1,9 @@
 ## 0.5.0
 
+* **Breaking: `GamepadPlatform.readPad` takes a `PadReadContext`** (new),
+  the slot and the snapshot to fill, which a `Gamepad` reuses for every
+  read. A backend written outside keeps compiling when a minor hands it
+  more.
 * **Breaking: `PadAxis` is an open set**, a class with constants rather than
   an enum: pads report more axes than these six (a gyro, a touchpad). The
   constants, `values` and `name` are as they were. `PadConnection` stays an

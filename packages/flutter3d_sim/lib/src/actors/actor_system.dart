@@ -268,10 +268,28 @@ final class ActorSystem {
 
   final Vector3 _toFocus = Vector3.zero();
   final Vector3 _wish = Vector3.zero();
+
+  /// The wish a dead actor's strides are handed: zero, set again before
+  /// every call so strides that wrote into it leave nothing behind.
+  final Vector3 _still = Vector3.zero();
+
+  /// The one [ActorStride] the strides are handed, made at the first call
+  /// and set before every one: a step allocates none.
+  ActorStride? _stride;
+
+  ActorStride _strideOf(Actor actor, Vector3 wish, double dt) =>
+      (_stride ??= ActorStride(actor: actor, wish: wish, dt: dt))
+        ..actor = actor
+        ..wish = wish
+        ..dt = dt;
   final Vector3 _eye = Vector3.zero();
   final Vector3 _aim = Vector3.zero();
   final RayHit _sight = RayHit();
   late final Mind _mind = Mind(this);
+
+  /// What [Brain.onNoise] is handed, over [_mind]: one, set before every
+  /// call, since a noise is told to every actor within earshot.
+  late final BrainNoise _noise = BrainNoise(mind: _mind, at: Vector3.zero());
 
   /// Brings an actor into being: an entity, whichever components it needs, and
   /// the one handle that answers for it.
@@ -466,7 +484,9 @@ final class ActorSystem {
         // Asked before the body steps and whether or not there is one: the
         // animation of something with no body still runs, and its markers
         // are still heard.
-        final stride = strides?.strideOf(actor, Vector3.zero(), dt);
+        final stride = strides?.strideOf(
+          _strideOf(actor, _still..setZero(), dt),
+        );
         body?.step(dt, wishDirection: Vector3.zero(), drivenBy: stride);
         continue;
       }
@@ -493,7 +513,7 @@ final class ActorSystem {
       if (avoid != null && body != null && body.isGrounded) {
         _avoid(actor, body, avoid, dt);
       }
-      final stride = strides?.strideOf(actor, _wish, dt);
+      final stride = strides?.strideOf(_strideOf(actor, _wish, dt));
       body?.step(dt, wishDirection: _wish, drivenBy: stride);
     }
     _focusIndex = 0;
@@ -641,7 +661,9 @@ final class ActorSystem {
     final hurt = ActorHurt(actor, amount, from: from);
     hurtThisStep.add(hurt);
     events?.publish(hurt);
-    actor.brain?.onHurt(_mind, amount);
+    // Made per hit rather than reused: a brain that hurts another in its
+    // reply would otherwise change the amount under itself.
+    actor.brain?.onHurt(BrainHurt(mind: _mind, amount: amount));
     _mind.hurtBy = null;
     return false;
   }
@@ -670,7 +692,7 @@ final class ActorSystem {
       if (where == null) continue;
       if (where.distanceToSquared(at) > squared) continue;
       _mind.actor = actor;
-      actor.brain?.onNoise(_mind, at);
+      actor.brain?.onNoise(_noise..at = at);
     }
   }
 
@@ -894,7 +916,8 @@ final class ActorSystem {
 
   /// Asks [actor]'s animation for the gesture [name], on this step — see
   /// [ActorStrides.gesture]. Nothing when there are no strides.
-  void gesture(Actor actor, String name) => strides?.gesture(actor, name);
+  void gesture(Actor actor, String name) =>
+      strides?.gesture(ActorGesture(actor, name));
 
   /// Asks this actor's body to jump.
   ///
@@ -1057,7 +1080,7 @@ final class ActorSystem {
     if (from is! Map) return;
     final tick = from['tick'];
     if (tick is num) _tick = tick.toInt();
-    strides?.restore(from['strides'], actors);
+    strides?.restore(ActorStridesRestore(from['strides'], actors: actors));
     _lastFoci.clear();
     final several = from['lastFoci'];
     final saved = several is List ? several : <Object?>[from['lastFocus']];

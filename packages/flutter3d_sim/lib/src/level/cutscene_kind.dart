@@ -5,7 +5,6 @@ import '../world/cutscene.dart';
 import 'entity_def.dart';
 import 'entity_kind.dart';
 import 'level_issue.dart';
-import 'spawn_context.dart';
 
 /// A cutscene in a level: an entity with its [Sequence] document in its
 /// `sequence` property, played when something it is the target of fires.
@@ -30,7 +29,10 @@ final class CutsceneKind extends EntityKind {
   );
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     if (entity.name == null) {
       out.add(
         LevelIssue(
@@ -52,7 +54,9 @@ final class CutsceneKind extends EntityKind {
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final sequence = _read(entity).sequence;
     if (sequence == null) return;
     context.mechanisms.add(

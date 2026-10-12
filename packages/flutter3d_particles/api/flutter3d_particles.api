@@ -7,13 +7,13 @@ library package:flutter3d_particles/flutter3d_particles.dart
 final class BoxEmitter extends ParticleEmitter
   BoxEmitter({required Vector3 halfExtents, this.speed = const Range(0.0, 0.0), Vector3? along})
   final Range speed
-  void emit(Particle particle, Vector3 origin, Vector3 direction, math.Random random)
+  void emit(ParticleBirth birth)
 
 final class ConeEmitter extends ParticleEmitter
   const ConeEmitter({this.speed = const Range(3.0, 8.0), this.halfAngle = 25.0 * math.pi / 180.0})
   final Range speed
   final double halfAngle
-  void emit(Particle particle, Vector3 origin, Vector3 direction, math.Random random)
+  void emit(ParticleBirth birth)
 
 final class CurveKey
   const CurveKey(this.at, this.value, {this.ease = KeyEase.linear})
@@ -25,7 +25,7 @@ final class DriftEmitter extends ParticleEmitter
   const DriftEmitter({this.speed = const Range(0.3, 1.0), this.spread = const Range(-0.3, 0.3)})
   final Range speed
   final Range spread
-  void emit(Particle particle, Vector3 origin, Vector3 direction, math.Random random)
+  void emit(ParticleBirth birth)
 
 typedef EffectAffectorReader = ParticleAffector Function(Map<String, Object?> json);
 
@@ -185,17 +185,24 @@ final class Particle
   final Vector4 color
 
 abstract base class ParticleAffector
-  abstract void apply(Particle particle, double dt)
+  abstract void apply(ParticleStep step)
   const ParticleAffector()
+
+final class ParticleBirth
+  Particle particle
+  ParticleBirth({required this.particle, required this.origin, required this.direction, required this.random})
+  Vector3 direction
+  Vector3 origin
+  math.Random random
 
 final class ParticleColorGradient extends ParticleAffector
   const ParticleColorGradient(this.gradient)
   final ParticleGradient gradient
-  void apply(Particle particle, double dt)
+  void apply(ParticleStep step)
 
 final class ParticleColorOverLife extends ParticleAffector
   const ParticleColorOverLife(this._from, this._to)
-  void apply(Particle particle, double dt)
+  void apply(ParticleStep step)
 
 final class ParticleContributor extends PassContributor
   ParticleContributor(this.particles, {this.texture, this.flipbook, this.sixWay, this.softness = 0.0})
@@ -221,7 +228,7 @@ final class ParticleCurve
 final class ParticleDrag extends ParticleAffector
   const ParticleDrag(this.perSecond)
   final double perSecond
-  void apply(Particle particle, double dt)
+  void apply(ParticleStep step)
 
 final class ParticleEffect
   const ParticleEffect({required this.count, required this.emitter, required this.lifetime, required this.size, required this.color, this.affectors = const <ParticleAffector>[]})
@@ -250,14 +257,14 @@ final class ParticleEffects extends PluginRegistry
   void emitInWorld(Object key, String name, WorldPosition at, {required Scene scene, double? perSecond, Vector3? direction})
 
 abstract base class ParticleEmitter
-  abstract void emit(Particle particle, Vector3 origin, Vector3 direction, math.Random random)
+  abstract void emit(ParticleBirth birth)
   const ParticleEmitter()
   void randomDirection(Vector3 out, math.Random random)
 
 final class ParticleFade extends ParticleAffector
   const ParticleFade({this.startsAt = 0.0})
   final double startsAt
-  void apply(Particle particle, double dt)
+  void apply(ParticleStep step)
 
 final class ParticleGlow
   Vector3 get center
@@ -281,14 +288,14 @@ final class ParticleGravity extends ParticleAffector
   const ParticleGravity.world({this.scale = 1.0})
   final double scale
   final double? acceleration
-  void apply(Particle particle, double dt)
+  void apply(ParticleStep step)
 
 final class ParticlePlaneCollision extends ParticleAffector
   const ParticlePlaneCollision({this.height = 0.0, this.bounce = 0.0, this.friction = 0.0})
   final double bounce
   final double friction
   final double height
-  void apply(Particle particle, double dt)
+  void apply(ParticleStep step)
 
 final class ParticleRandom implements math.Random
   ParticleRandom(this.systemSeed)
@@ -305,19 +312,24 @@ abstract final class ParticleSalt
 final class ParticleSizeCurve extends ParticleAffector
   const ParticleSizeCurve(this.curve)
   final ParticleCurve curve
-  void apply(Particle particle, double dt)
+  void apply(ParticleStep step)
 
 final class ParticleSizeOverLife extends ParticleAffector
   const ParticleSizeOverLife({this.from = 1.0, this.to = 0.0})
   final double from
   final double to
-  void apply(Particle particle, double dt)
+  void apply(ParticleStep given)
 
 final class ParticleSpin extends ParticleAffector
   const ParticleSpin({required this.turnsPerSecond, this.randomizeStart = true})
   final bool randomizeStart
   final double turnsPerSecond
-  void apply(Particle particle, double dt)
+  void apply(ParticleStep step)
+
+final class ParticleStep
+  Particle particle
+  ParticleStep({required this.particle, required this.dt})
+  double dt
 
 final class ParticleSystem
   Aabb3 boundsOf(Aabb3 footprint)
@@ -355,11 +367,11 @@ final class ParticleTurbulence extends ParticleAffector
   final double c
   final double scale
   final double strength
-  void apply(Particle particle, double dt)
+  void apply(ParticleStep step)
 
 final class ParticleWind extends ParticleAffector
   ParticleWind(Vector3 acceleration)
-  void apply(Particle particle, double dt)
+  void apply(ParticleStep step)
 
 final class Range
   const Range(this.min, this.max)
@@ -412,7 +424,7 @@ final class SphereEmitter extends ParticleEmitter
   const SphereEmitter({this.speed = const Range(2.0, 6.0), this.radius = const Range.exact(0.0)})
   final Range radius
   final Range speed
-  void emit(Particle particle, Vector3 origin, Vector3 direction, math.Random random)
+  void emit(ParticleBirth birth)
 
 SixWaySheet bakeSixWay({required SixWayField density, SixWayField? emission, int frames = 16, int columns = 4, int cell = 64, double extinction = 6.0})
 

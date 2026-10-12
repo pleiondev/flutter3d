@@ -47,7 +47,7 @@ final class CameraDirector
 abstract base class CameraFraming
   CameraFraming()
   abstract double get lag
-  abstract void frame(CameraShot wanted, double dt)
+  abstract void frame(FramingStep step)
   void cut()
 
 final class CameraImpulse
@@ -121,7 +121,7 @@ final class ChaseFraming extends CameraFraming
   final double lag
   final double lookAheadWeight
   final double maxFov
-  void frame(CameraShot wanted, double dt)
+  void frame(FramingStep step)
 
 final class FirstPersonFraming extends CameraFraming
   FirstPersonFraming({this.fovY = 1.0})
@@ -129,7 +129,7 @@ final class FirstPersonFraming extends CameraFraming
   double get lag
   final Vector3 direction
   final Vector3 eye
-  void frame(CameraShot wanted, double dt)
+  void frame(FramingStep step)
 
 final class FollowFraming extends CameraFraming
   FollowFraming({Vector3? offset, Vector3? aim, Vector3? deadZone, Vector3? damping, this.lag = 9.0, this.fovY = 1.0})
@@ -142,13 +142,18 @@ final class FollowFraming extends CameraFraming
   final Vector3 subject
   final double lag
   void cut()
-  void frame(CameraShot wanted, double dt)
+  void frame(FramingStep step)
 
 final class FramedTarget
   FramedTarget({Vector3? position, this.radius = 1.0, this.weight = 1.0})
   double radius
   double weight
   final Vector3 position
+
+final class FramingStep
+  CameraShot wanted
+  FramingStep({required this.wanted, required this.dt})
+  double dt
 
 final class GroupFraming extends CameraFraming
   GroupFraming({List<FramedTarget>? targets, this.yaw = 0.0, this.pitch = 0.6, this.padding = 1.15, this.minDistance = 4.0, this.maxDistance = 120.0, this.aspect = 16.0 / 9.0, this.lag = 6.0, this.fovY = 1.0})
@@ -162,7 +167,7 @@ final class GroupFraming extends CameraFraming
   double yaw
   final List<FramedTarget> targets
   final double lag
-  void frame(CameraShot wanted, double dt)
+  void frame(FramingStep step)
 
 typedef ImpulseRule<T extends BusEvent> = CameraImpulse? Function(T event);
 
@@ -194,7 +199,7 @@ final class LookAtFraming extends CameraFraming
   final Vector3 subject
   final double lag
   void cut()
-  void frame(CameraShot wanted, double dt)
+  void frame(FramingStep step)
 
 final class OrbitFraming extends CameraFraming
   OrbitFraming({this.distance = 7.0, this.height = 2.6, this.aimHeight = 1.2, this.lag = 9.0, double pitch = -0.22, this.minPitch = -1.2, this.maxPitch = 0.9, this.sensitivity = 0.0035, this.lookAhead = 0.34, this.lookAheadLimit = 4.0, this.recenter = 1.6, this.recenterAbove = 3.0, this.fovY = 1.0, double yaw = 0.0})
@@ -214,7 +219,7 @@ final class OrbitFraming extends CameraFraming
   final double recenter
   final double recenterAbove
   final double sensitivity
-  void frame(CameraShot wanted, double dt)
+  void frame(FramingStep step)
   void look(Vector2 delta)
 
 final class OverheadFraming extends CameraFraming
@@ -231,7 +236,7 @@ final class OverheadFraming extends CameraFraming
   final double minX
   final double minZ
   final double pitch
-  void frame(CameraShot wanted, double dt)
+  void frame(FramingStep step)
   void pan(double x, double z)
   void zoom(double by)
 

@@ -1,5 +1,16 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a decoder, a writer and the renderer's services take one
+  context each.** `ModelDecoder.handles` takes a `ModelProbe` (new: the
+  file's name and bytes) and `decode` a `ModelDecodeContext` (new: the
+  bytes, the request and `resolveUri`); `ModelWriter.write` takes a
+  `ModelWriteContext` (new: the document and `baseName`);
+  `RenderServices.encodeScene` takes a `SceneEncodeRequest` (new) with its
+  six former named arguments, and `ContributorLights.bind` a
+  `LightBindRequest` (new: the encoder, the stage, `center` and `radius`),
+  mutable so a contributor that binds every frame keeps one. A parameter
+  added later would have broken every decoder, writer and test double
+  written against 1.0; a field added to a context breaks none.
 - **The light list is built once a view, not once a draw.** A scene with
   more than 8 lights puts them, and the view's cells, into one texture
   every lit draw samples; each of those draws wrote all of its rows again

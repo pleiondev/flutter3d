@@ -32,8 +32,8 @@ final class LoopbackWire extends PeerWire
   final int slot
   int lost
   static LoopbackPair pair({int delaySteps = 0, double lossRate = 0.0, int seed = 1})
-  void send(Map<String, Object?> message, {bool reliable = true})
-  void sendBytes(Uint8List bytes, {bool reliable = true})
+  void send(PeerSend context)
+  void sendBytes(PeerSendBytes context)
   void tick()
 
 final class ObserverFeed
@@ -76,6 +76,26 @@ final class ObserverSnapshot
 
 typedef PartySeat = ({PeerWire wire, int slot, int size, String code, Future<void> full, WebSocketTransport socket, String? owner});
 
+final class PeerBytes
+  const PeerBytes({required this.from, required this.bytes})
+  final Uint8List bytes
+  final int from
+
+final class PeerBytesDelivery
+  const PeerBytesDelivery({required this.bytes, this.from})
+  final Uint8List bytes
+  final int? from
+
+final class PeerDelivery
+  const PeerDelivery({required this.message, this.from})
+  final Map<String, Object?> message
+  final int? from
+
+final class PeerMessage
+  const PeerMessage({required this.from, required this.message})
+  final Map<String, Object?> message
+  final int from
+
 final class PeerRoom
   Map<String, Object?>? get peer
   PeerRoom(this.wire, {required this.slot, this.about = const <String, Object?>{}, this.helloEvery = 0.5, this.simulation = SimulationVersion.engineOnly})
@@ -94,22 +114,32 @@ final class PeerRoom
   void leave()
   void step(double dt)
 
+final class PeerSend
+  const PeerSend({required this.message, this.reliable = true})
+  final Map<String, Object?> message
+  final bool reliable
+
+final class PeerSendBytes
+  const PeerSendBytes({required this.bytes, this.reliable = true})
+  final Uint8List bytes
+  final bool reliable
+
 abstract base class PeerWire
   Future<void> close()
   PeerWire()
   Registration listen(void Function(Map<String, Object?> message) onMessage)
-  Registration listenBytes(void Function(int from, Uint8List bytes) onBytes)
-  Registration listenFrom(void Function(int from, Map<String, Object?> message) onMessage)
+  Registration listenBytes(void Function(PeerBytes bytes) onBytes)
+  Registration listenFrom(void Function(PeerMessage message) onMessage)
   WireState get state
-  abstract void send(Map<String, Object?> message, {bool reliable = true})
+  abstract void send(PeerSend context)
   int get slot
   static PeerWire party(PeerWire wire, {required int slot})
   static const String bytesFrame = 'bytes'
   static const String bytesKey = 'b'
   static const String engineKey = 'f3d'
-  void deliver(Map<String, Object?> message, {int? from})
-  void deliverBytes(Uint8List bytes, {int? from})
-  void sendBytes(Uint8List bytes, {bool reliable = true})
+  void deliver(PeerDelivery context)
+  void deliverBytes(PeerBytesDelivery context)
+  void sendBytes(PeerSendBytes context)
 
 final class RollbackSession<S>
   ({int step, S after})? get agreedEnd
@@ -169,8 +199,8 @@ final class WebSocketTransport extends PeerWire
   WebSocketTransport(this._channel)
   WireState get state
   static Future<WebSocketTransport> connect(Uri uri)
-  void send(Map<String, Object?> message, {bool reliable = true})
-  void sendBytes(Uint8List bytes, {bool reliable = true})
+  void send(PeerSend context)
+  void sendBytes(PeerSendBytes context)
 
 final class WireHello
   Map<String, Object?> toJson()

@@ -21,7 +21,6 @@
 library;
 
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_hardware/testing.dart';
@@ -42,11 +41,13 @@ final class _ToyMaterials extends MaterialDecoder {
   final bool greedy;
 
   @override
-  bool handles(String fileName, Uint8List bytes) =>
-      greedy || fileName.endsWith('.toymat');
+  bool handles(MaterialProbe probe) {
+    final fileName = probe.fileName;
+    return greedy || fileName.endsWith('.toymat');
+  }
 
   @override
-  MaterialDocument decode(Uint8List bytes, String fileName) =>
+  MaterialDocument decode(MaterialDecodeContext context) =>
       MaterialDocument(surface: SurfaceMaterial(name: 'toy', roughness: 0.125));
 }
 

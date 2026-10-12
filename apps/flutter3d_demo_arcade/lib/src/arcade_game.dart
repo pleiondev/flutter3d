@@ -66,7 +66,7 @@ final WorldProperties arcadeWorld = WorldProperties(gravity: Vector3.zero());
 /// [world]'s own gravity, [arcadeWorld]'s none. On the core the bots are
 /// walked through the yard it mirrors as well.
 RigidDynamics arcadeDynamics(CollisionWorld world) =>
-    usePhysics().dynamics(world);
+    usePhysics().dynamics(DynamicsRequest(world));
 
 /// A ship over a floating meteor yard, and the bots patrolling it.
 ///

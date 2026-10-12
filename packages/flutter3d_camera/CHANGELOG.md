@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a framing takes one `FramingStep`.** `CameraFraming.frame`
+  takes a `FramingStep` (new) with the shot to write into and `dt`, which
+  the camera owns and sets before every frame, so a frame allocates none
+  and a minor can hand a framing more without breaking one written
+  against 1.0.
 - **Breaking: `CameraRig`, `PhotoCamera` and `RigSettings` are this
   package's**, moved from `flutter3d_sim`, which no longer exports them: a
   camera places a view and no step reads it, so the rig sits beside the

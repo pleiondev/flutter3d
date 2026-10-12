@@ -70,10 +70,11 @@ abstract base class RigidDynamics {
   /// between steps; the next step replaces it.
   List<StepContact> get contacts => const <StepContact>[];
 
-  /// Shoves whatever [by] is walking into, horizontally, at most at the speed
-  /// it is walking into it: how a kinematic character pushes a crate.
-  /// Nothing by default: a backend without loose bodies pushes nothing.
-  void push(Collider by, Vector3 velocity, {double strength = 1.0}) {}
+  /// Shoves whatever the push's [CharacterPush.by] is walking into,
+  /// horizontally, at most at the speed it is walking into it: how a
+  /// kinematic character pushes a crate. Nothing by default: a backend
+  /// without loose bodies pushes nothing.
+  void push(CharacterPush push) {}
 
   /// What a save must carry beyond the bodies' own `save()` for a run
   /// restored from it to step on to the same bits: null when there is
@@ -85,4 +86,30 @@ abstract base class RigidDynamics {
   /// Back to what [saveState] gave, after the bodies' own `restore`; null
   /// changes nothing. Nothing by default.
   void restoreState(Object? saved) {}
+}
+
+/// What [RigidDynamics.push] is handed: who is walking, how fast, and how
+/// hard.
+///
+/// **One object, so a minor can hand a backend more** — a push's height, a
+/// mass to push with — without breaking one written against 1.0.
+/// **Reusable**: a game that pushes every step keeps one and sets it before
+/// the call; a backend reads it during [RigidDynamics.push] and does not
+/// keep it.
+final class CharacterPush {
+  CharacterPush({
+    required this.by,
+    required this.velocity,
+    this.strength = 1.0,
+  });
+
+  /// The character's collider.
+  Collider by;
+
+  /// Its velocity this step, metres per second.
+  Vector3 velocity;
+
+  /// How much of the walking speed a pushed body takes up, one for all of
+  /// it.
+  double strength;
 }

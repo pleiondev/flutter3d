@@ -26,10 +26,16 @@ final class SequenceSignal extends GameEvent {
       'signal': e.signal,
       'data': e.data,
     },
-    decode: (Object? data, int version) => switch (data) {
-      {'signal': final String signal, 'data': final Map<Object?, Object?> d} =>
-        SequenceSignal(signal, d.cast<String, Object?>()),
-      _ => null,
+    decode: (context) {
+      final data = context.data;
+      return switch (data) {
+        {
+          'signal': final String signal,
+          'data': final Map<Object?, Object?> d,
+        } =>
+          SequenceSignal(signal, d.cast<String, Object?>()),
+        _ => null,
+      };
     },
   );
 

@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_fields/flutter3d_fields.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show SnapshotRestoreContext;
 import 'package:test/test.dart';
 
 const FieldDeclaration _heat = FieldDeclaration(
@@ -191,11 +193,13 @@ void main() {
       // Mutation: digest by the values' sum. A field moved from one cell
       // to another would digest alike.
       expect(part.digest(), isNot(digest));
-      part.restore(saved, part.version);
+      part.restore(SnapshotRestoreContext(saved, version: part.version));
       expect(field.valueAt(3, 2, 1), closeTo(0.1, 1e-7));
       expect(part.digest(), digest);
       expect(
-        () => part.restore(<double>[1, 2], part.version),
+        () => part.restore(
+          SnapshotRestoreContext(<double>[1, 2], version: part.version),
+        ),
         throwsStateError,
       );
     });

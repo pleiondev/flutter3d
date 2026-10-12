@@ -147,13 +147,14 @@ final class TurretKind extends EntityKind {
   const TurretKind() : super('turret');
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
-    requireText(entity, scope, out, 'facing');
-    requireTarget(entity, scope, out, 'shootsAt');
+  void validate(EntityCheck check) {
+    requireText(check.entity, check.scope, check.out, 'facing');
+    requireTarget(check.entity, check.scope, check.out, 'shootsAt');
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final EntitySpawn(:entity, :context) = spawn;
     final collider = place(entity, context, size: Vector3(1, 2, 1));
     context.actors.spawn(position: entity.position, brain: TurretBrain());
   }
@@ -248,7 +249,7 @@ final class Patrol extends Brain {
   }
 
   @override
-  void onHurt(Mind it, double amount) { /* flinch, or do not */ }
+  void onHurt(BrainHurt hurt) { /* flinch, or do not */ }
 
   @override
   Map<String, Object?> save() => <String, Object?>{'leg': _leg};

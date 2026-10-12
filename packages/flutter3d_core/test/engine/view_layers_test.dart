@@ -138,14 +138,13 @@ void main() {
     expect(copies, hasLength(2));
     final placed = <(int, int, int)>[
       for (final copy in copies)
-        if (copy
-            case (
-              source: final TextureCopyLocation from,
-              destination: final TextureCopyLocation to,
-              width: final int width,
-              height: _,
-              depthOrArrayLayers: _,
-            ))
+        if (copy case (
+          source: final TextureCopyLocation from,
+          destination: final TextureCopyLocation to,
+          width: final int width,
+          height: _,
+          depthOrArrayLayers: _,
+        ))
           (from.x, to.z, width),
     ];
     expect(placed, <(int, int, int)>[(0, 0, 32), (32, 1, 32)]);

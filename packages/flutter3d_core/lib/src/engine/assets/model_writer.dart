@@ -100,7 +100,9 @@ final class ModelWriteRequest {
 /// [encodeModelInIsolate] falls back to on the web, and what a caller with
 /// no isolate to spare can call directly.
 Uint8List encodeModel(ModelWriteRequest request) => request.format.writer
-    .write(request.document, baseName: request.name)
+    .write(
+      ModelWriteContext(document: request.document, baseName: request.name),
+    )
     .files
     .first
     .bytes;

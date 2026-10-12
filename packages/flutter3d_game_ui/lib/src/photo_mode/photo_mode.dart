@@ -127,8 +127,25 @@ final class PhotoMode {
   void fly(double dt, {InputState? input, Vector2? look}) {
     final camera = _camera;
     if (camera == null || isBusy) return;
-    controls.steer(camera, dt, input: input, look: look);
+    controls.steer(switch (_steer) {
+      null => _steer = PhotoSteerContext(
+        camera: camera,
+        dt: dt,
+        input: input,
+        look: look,
+      ),
+      final context =>
+        context
+          ..camera = camera
+          ..dt = dt
+          ..input = input
+          ..look = look,
+    });
   }
+
+  /// What [PhotoControls.steer] is handed, made on the first frame and set
+  /// on each after: flying allocates nothing.
+  PhotoSteerContext? _steer;
 
   /// Turns the camera by a drag of [dx], [dy] pixels, at [perPixel] radians
   /// a pixel — the game's own look speed, so the view turns at the rate the

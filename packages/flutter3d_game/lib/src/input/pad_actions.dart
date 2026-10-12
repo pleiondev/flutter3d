@@ -449,8 +449,10 @@ final class PadInput {
   void applySettings(GameSettings settings) {
     lookRate = settings.valueOf(GameSettingKeys.padLook);
     pad.setDeadZones(
-      stick: settings.valueOf(GameSettingKeys.stickDeadZone),
-      trigger: settings.valueOf(GameSettingKeys.triggerDeadZone),
+      PadDeadZones(
+        stick: settings.valueOf(GameSettingKeys.stickDeadZone),
+        trigger: settings.valueOf(GameSettingKeys.triggerDeadZone),
+      ),
     );
   }
 

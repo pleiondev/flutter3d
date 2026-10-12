@@ -160,13 +160,19 @@ abstract base class WasmInstance
   abstract Map<String, Object?> save()
   abstract int get fuelUsed
   abstract void restore(Map<String, Object?> state)
-  abstract void step(int step, int dtFixed)
+  abstract void step(WasmStep step)
   const WasmInstance()
   int get abi
 
+final class WasmInstantiation
+  const WasmInstantiation(this.module, {required this.imports, required this.limits})
+  final WasmImports imports
+  final WasmLimits limits
+  final WasmModule module
+
 final class WasmInterpreter extends WasmRuntime
   String get name
-  WasmInstance instantiate(WasmModule module, WasmImports imports, WasmLimits limits)
+  WasmInstance instantiate(WasmInstantiation request)
   bool get isMetered
   const WasmInterpreter()
 
@@ -204,10 +210,15 @@ final class WasmPlugin extends Flutter3dPlugin
 
 abstract base class WasmRuntime
   abstract String get name
-  abstract WasmInstance instantiate(WasmModule module, WasmImports imports, WasmLimits limits)
+  abstract WasmInstance instantiate(WasmInstantiation request)
   abstract bool get isMetered
   const WasmRuntime()
   static const WasmRuntime interpreter = WasmInterpreter()
+
+final class WasmStep
+  WasmStep({this.step = 0, this.dtFixed = 0})
+  int dtFixed
+  int step
 
 final class WasmSystem
   Map<String, Object?> save()

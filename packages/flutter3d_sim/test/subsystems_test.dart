@@ -70,7 +70,11 @@ final class _Count {
   static final ComponentCodec<_Count> codec = InPlaceCodec<_Count>.of(
     id: 'test.count',
     encode: (count) => count.value,
-    restore: (count, data, _) => count.value = data! as int,
+    restore: (context) {
+      final count = context.value;
+      final data = context.data;
+      count.value = data! as int;
+    },
   );
 }
 

@@ -274,7 +274,7 @@ abstract final class RacingActions
 
 final class RacingHeadlessGame extends HeadlessGame
   EntityRegistry registry()
-  HeadlessRun start(Level level, CollisionWorld world, InputState input)
+  HeadlessRun start(HeadlessStart start)
   Map<String, GameAction> get buttons
   SimulationVersion get simulation
   String get name
@@ -298,15 +298,15 @@ abstract final class RacingPhases
 final class RacingPlugin extends GenrePlugin<RacingSimulation>
   PluginManifest get manifest
   RacingPlugin({super.kinds, super.replaceKinds, super.headless})
-  Registration publishEvents(RacingSimulation simulation, EventRegistry bus)
+  Registration publishEvents(GenrePublishContext<RacingSimulation> publish)
   Snapshot captureSimulation(RacingSimulation simulation)
   String get systemName
   static const List<String> eventNames = …
   static const String id = 'flutter3d_game_racing'
   static const String stepSystem = 'racing.step'
   void declareEvents(EventRegistry events)
-  void restoreSimulation(RacingSimulation simulation, Snapshot state)
-  void stepSimulation(RacingSimulation simulation, LoopContext context)
+  void restoreSimulation(GenreRestoreContext<RacingSimulation> restore)
+  void stepSimulation(GenreStepContext<RacingSimulation> step)
 
 final class RacingSimulation
   List<String> systemsIn(LoopPhase phase)
@@ -412,9 +412,9 @@ final class SphereVehicle with VehicleController
   final Vector3 velocity
   final VehicleSettings tuning
   void hurt(double speed)
-  void placeAt(Vector3 position, double headingYaw, {double? trackDistance})
+  void placeAt(VehiclePlacement placement)
   void restore(Map<String, Object?> from)
-  void step(double dt, VehicleInput input)
+  void step(VehicleStep context)
 
 final class StartGrid
   const StartGrid({this.s = -12.0, this.columns = 2, this.rowGap = 6.0, this.columnGap = 3.5})
@@ -511,9 +511,9 @@ abstract base mixin class VehicleController
   abstract double get slipRatio
   abstract double get speed
   abstract double get trackDistance
-  abstract void placeAt(Vector3 position, double headingYaw, {double? trackDistance})
+  abstract void placeAt(VehiclePlacement placement)
   abstract void restore(Map<String, Object?> from)
-  abstract void step(double dt, VehicleInput input)
+  abstract void step(VehicleStep context)
 
 final class VehicleInput
   bool boost
@@ -524,6 +524,12 @@ final class VehicleInput
   double throttle
   void reset()
   void setFrom(VehicleInput other)
+
+final class VehiclePlacement
+  const VehiclePlacement({required this.position, required this.headingYaw, this.trackDistance})
+  final Vector3 position
+  final double headingYaw
+  final double? trackDistance
 
 final class VehicleSettings
   VehicleSettings copyWith({double? radius, double? rideHeight, double? maxSpeed, double? maxReverse, double? enginePush, double? brakeStrength, double? rollingDrag, double? rollingResistance, double? holdSpeed, double? holdSlope, double? airDrag, double? slipstream, double? maxSteer, double? steerFalloff, double? wheelBase, double? impactShrugged, double? impactCost, double? powerLostWhenWrecked, double? speedLostWhenWrecked, double? groundStick, double? suspensionRate, double? slideAlignment, double? wheelInertia})
@@ -551,6 +557,11 @@ final class VehicleSettings
   final double suspensionRate
   final double wheelBase
   final double wheelInertia
+
+final class VehicleStep
+  VehicleInput input
+  VehicleStep({required this.dt, required this.input})
+  double dt
 
 final class WentWrongWay extends RacerEvent
   String get name

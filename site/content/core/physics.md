@@ -198,7 +198,9 @@ That is not an oversight. The controller is kinematic and is never moved by anyt
 
 ```dart
 body.step(dt, wishDirection: wish);
-dynamics.push(body.collider, body.velocity, strength: 1.0);
+dynamics.push(
+  CharacterPush(by: body.collider, velocity: body.velocity, strength: 1.0),
+);
 ```
 
 <div class="why">
@@ -221,7 +223,7 @@ Future<void> main() async {
 }
 
 // later, wherever a world is staged
-final dynamics = usePhysics().dynamics(world);
+final dynamics = usePhysics().dynamics(DynamicsRequest(world));
 ```
 
 The core is the default. The reference runs when the build asks for it with `--dart-define=FLUTTER3D_PHYSICS=dart`, or when the core will not start: a missing library, a module that did not load, or bindings for another ABI. In that case `physicsFallbackReason` says what happened, and the game keeps running.

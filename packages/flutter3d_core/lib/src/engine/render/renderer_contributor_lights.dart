@@ -31,12 +31,8 @@ final class _ContributorLights with ContributorLights {
   void end() => _frame = null;
 
   @override
-  void bind(
-    PassEncoder encoder,
-    ShaderHandle stage, {
-    required vm.Vector3 center,
-    required double radius,
-  }) {
+  void bind(LightBindRequest request) {
+    final LightBindRequest(:encoder, :stage, :center, :radius) = request;
     final frame = _frame;
     if (frame == null) return;
     final renderer = _renderer;

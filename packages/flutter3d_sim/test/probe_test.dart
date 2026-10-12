@@ -134,7 +134,9 @@ void main() {
           region: region,
           derived: 'x * 2',
         );
-        final back = Probe.codec.decode(Probe.codec.encode(probe), 1)!;
+        final back = Probe.codec.decode(
+          ComponentDecodeContext(Probe.codec.encode(probe), version: 1),
+        )!;
         expect(back.toJson(), probe.toJson());
       }
     },

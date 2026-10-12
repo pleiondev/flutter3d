@@ -156,7 +156,7 @@ void main() {
     );
 
     harness.sim.step(_dt);
-    harness.player.applyDamage(1000.0);
+    harness.player.applyDamage(Damage(amount: 1000.0));
     harness.sim.step(_dt);
 
     expect(states, <GameState>[GameState.playing, GameState.dead]);

@@ -103,7 +103,7 @@ final class LevelValidator {
         );
         continue;
       }
-      kind.validate(entity, scope, issues);
+      kind.validate(EntityCheck(entity: entity, scope: scope, out: issues));
     }
   }
 
@@ -111,7 +111,7 @@ final class LevelValidator {
 
   void _checkTheSetOfEntities(Level level, List<LevelIssue> issues) {
     for (final rule in rules) {
-      rule.check(level, issues);
+      rule.check(LevelCheck(level: level, out: issues));
     }
 
     final names = <String, int>{};

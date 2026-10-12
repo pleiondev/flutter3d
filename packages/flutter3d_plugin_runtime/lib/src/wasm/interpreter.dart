@@ -30,11 +30,8 @@ final class WasmInterpreter extends WasmRuntime {
   bool get isMetered => true;
 
   @override
-  WasmInstance instantiate(
-    WasmModule module,
-    WasmImports imports,
-    WasmLimits limits,
-  ) => _Instance(module, imports, limits).._begin();
+  WasmInstance instantiate(WasmInstantiation request) =>
+      _Instance(request.module, request.imports, request.limits).._begin();
 }
 
 final class _Instance extends WasmInstance {
@@ -117,8 +114,8 @@ final class _Instance extends WasmInstance {
   }
 
   @override
-  void step(int step, int dtFixed) =>
-      _run(_module.stepFunction, <int>[i32(step), i32(dtFixed)]);
+  void step(WasmStep step) =>
+      _run(_module.stepFunction, <int>[i32(step.step), i32(step.dtFixed)]);
 
   int _host(int host, List<int> args) {
     switch (host) {

@@ -56,9 +56,11 @@ final class Field {
         headingYaw: math.atan2(forward.x, forward.z),
       );
       car.placeAt(
-        car.position,
-        car.headingYaw,
-        trackDistance: track.center.wrap(track.grid.s),
+        VehiclePlacement(
+          position: car.position,
+          headingYaw: car.headingYaw,
+          trackDistance: track.center.wrap(track.grid.s),
+        ),
       );
       cars_.add(car);
     }
@@ -285,9 +287,11 @@ void main() {
       final at = Vector3.zero();
       it.track.centerAt(ahead, at);
       it.cars_[1].placeAt(
-        at..y += 0.6,
-        it.cars_[1].headingYaw,
-        trackDistance: ahead,
+        VehiclePlacement(
+          position: at..y += 0.6,
+          headingYaw: it.cars_[1].headingYaw,
+          trackDistance: ahead,
+        ),
       );
 
       final input = VehicleInput();
@@ -305,7 +309,13 @@ void main() {
       final ahead = it.cars_[0].trackDistance + 200.0;
       final at = Vector3.zero();
       it.track.centerAt(ahead, at);
-      it.cars_[1].placeAt(at..y += 0.6, 0.0, trackDistance: ahead);
+      it.cars_[1].placeAt(
+        VehiclePlacement(
+          position: at..y += 0.6,
+          headingYaw: 0.0,
+          trackDistance: ahead,
+        ),
+      );
 
       final input = VehicleInput();
       it.driver.drive(it.cars_[0], input, others: it.cars_);

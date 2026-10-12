@@ -95,7 +95,8 @@ void main() {
         SnapshotPart.of(
           id: 'twin',
           capture: () => toy.save().data,
-          restore: (Object? data, int _) {
+          restore: (context) {
+            final data = context.data;
             if (data is Map) {
               toy.restore(Snapshot(data.cast<String, Object?>()));
             }

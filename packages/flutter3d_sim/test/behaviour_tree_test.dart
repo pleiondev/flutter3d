@@ -395,7 +395,7 @@ void main() {
       expect(at.x, 1.0);
 
       system.beginStep();
-      actor.applyDamage(1.0);
+      actor.applyDamage(Damage(amount: 1.0));
       expect(board.number(BehaviorBrain.hurtAt), closeTo(0.1, 1e-12));
     });
   });

@@ -277,8 +277,9 @@ final class Runner
   /// setting is applied here: a hazard, an enemy stood against, a fall — every
   /// source arrives at this method, so a source added later is scaled without
   /// anybody remembering to.
-  bool applyDamage(double amount, {Object? from}) =>
-      health.damage(amount * difficulty.damageTaken);
+  @override
+  bool applyDamage(Damage damage) =>
+      health.damage(damage.amount * difficulty.damageTaken);
 
   static final List<Vector3> _sides = <Vector3>[
     Vector3(1.0, 0.0, 0.0),

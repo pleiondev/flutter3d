@@ -33,45 +33,18 @@ abstract base class AudioBackend {
   /// Reads an asset so that [start] does not have to wait.
   Future<void> preload(String asset);
 
-  /// Begins a voice, or null when the backend refused.
+  /// Begins the voice [VoiceStart] describes, or null when the backend
+  /// refused.
   ///
-  /// [pan] runs from -1 (hard left) through 0 to 1 (hard right). [rate] is a
-  /// multiple of the file's own speed, and it is a required parameter rather
-  /// than an optional one on purpose: a one-shot that begins at rate one and is
-  /// corrected a frame later is audible as a chirp, so there is no
-  /// `setRate(voice, rate)` to forget to call.
-  ///
-  /// [muffle] is how much of the sound's top end the world takes away, from
-  /// 0 (clear) to 1 (heard through a wall): a backend that can filter turns
-  /// it into a low-pass cutoff, and one that cannot ignores it. Optional so
-  /// a backend written before there was a wall between anything keeps
-  /// working; `SoundOcclusion` in the bridge is what supplies it.
-  VoiceId? start(
-    String asset, {
-    required double gain,
-    required double pan,
-    required double rate,
-    required bool loop,
-    double muffle = 0.0,
-  });
+  /// The scene reuses one [VoiceStart] for every voice it starts: read it
+  /// here and do not keep it.
+  VoiceId? start(VoiceStart voice);
 
-  /// Changes a voice that is already playing.
+  /// Changes a voice that is already playing, to what [VoiceUpdate] says.
   ///
-  /// [rate] is required here for the same reason it is required on [start], and
-  /// the reason there is a rate here at all is a looping sound whose speed is
-  /// the point: an engine note is one file played faster and slower, and a
-  /// backend that could only set it once would leave a car droning on one tone
-  /// through every gear. The argument that killed `setRate` for one-shots — a
-  /// sound that begins at the wrong speed and is corrected a frame later is
-  /// audible as a chirp — does not apply to a loop already running at the speed
-  /// the caller last asked for.
-  void update(
-    VoiceId voice, {
-    required double gain,
-    required double pan,
-    required double rate,
-    double muffle = 0.0,
-  });
+  /// The scene reuses one [VoiceUpdate] for every voice of every mix: read
+  /// it here and do not keep it.
+  void update(VoiceUpdate voice);
 
   void stop(VoiceId voice);
 
@@ -112,18 +85,140 @@ abstract base class AudioBackend {
 /// in a minor arrives with a body and a backend written against 1.0 keeps
 /// compiling; a backend that opts in overrides what it mixes.
 abstract base mixin class MixingBackend {
-  /// Puts [voice], just started, on [bus]. Nothing by default.
-  void routeVoice(VoiceId voice, AudioBus bus) {}
+  /// Puts [VoiceRoute.voice], just started, on [VoiceRoute.bus]. Nothing by
+  /// default. The scene reuses one [VoiceRoute]: do not keep it.
+  void routeVoice(VoiceRoute route) {}
 
-  /// What [bus] does this mix: routes into [parent] (null for the master),
-  /// at [gain] linear — its volume and level, not its parents' — through
-  /// [effects] in order. Nothing by default.
-  void mixBus(
-    AudioBus bus, {
-    required AudioBus? parent,
-    required double gain,
-    required List<BusEffect> effects,
-  }) {}
+  /// What [BusMix.bus] does this mix. Nothing by default. The scene reuses
+  /// one [BusMix] for every bus: do not keep it.
+  void mixBus(BusMix mix) {}
+}
+
+/// What [AudioBackend.start] is handed: the voice to begin.
+///
+/// **One object, so a minor can hand a backend more** — a start offset, a
+/// priority — without breaking a backend written against 1.0. **Reused**:
+/// the scene owns one and sets it before every start, so a mix allocates
+/// nothing for it; a backend reads it during [AudioBackend.start] and does
+/// not keep it.
+final class VoiceStart {
+  VoiceStart({
+    required this.asset,
+    required this.gain,
+    required this.pan,
+    required this.rate,
+    required this.loop,
+    this.muffle = 0.0,
+  });
+
+  /// The sound's file.
+  String asset;
+
+  /// How loud it begins, a linear gain.
+  double gain;
+
+  /// From -1 (hard left) through 0 to 1 (hard right).
+  double pan;
+
+  /// A multiple of the file's own speed. Given at the start on purpose: a
+  /// one-shot that begins at rate one and is corrected a frame later is
+  /// audible as a chirp, so there is no `setRate(voice, rate)` to forget.
+  double rate;
+
+  /// Whether it plays round and round until stopped.
+  bool loop;
+
+  /// How much of the sound's top end the world takes away, a fraction from
+  /// 0 (clear) to 1 (heard through a wall): a backend that can filter turns it into a
+  /// low-pass cutoff, and one that cannot ignores it.
+  double muffle;
+}
+
+/// What [AudioBackend.update] is handed: a playing voice and what it plays
+/// at now.
+///
+/// One object for the reason [VoiceStart] gives, and **reused** the same
+/// way: one per scene, set before every update.
+final class VoiceUpdate {
+  VoiceUpdate({
+    required this.voice,
+    required this.gain,
+    required this.pan,
+    required this.rate,
+    this.muffle = 0.0,
+  });
+
+  /// The voice [AudioBackend.start] answered.
+  VoiceId voice;
+
+  /// How loud it plays now, a linear gain.
+  double gain;
+
+  /// From -1 (hard left) through 0 to 1 (hard right).
+  double pan;
+
+  /// A multiple of the file's own speed. A rate here at all is for a loop
+  /// whose speed is the point: an engine note is one file played faster
+  /// and slower, through every gear.
+  double rate;
+
+  /// As [VoiceStart.muffle]: a fraction, 0 clear.
+  double muffle;
+}
+
+/// What [MixingBackend.routeVoice] is handed: a voice just started and the
+/// bus it is on.
+///
+/// One object for the reason [VoiceStart] gives, and **reused** the same
+/// way.
+final class VoiceRoute {
+  VoiceRoute({required this.voice, required this.bus});
+
+  /// The voice [AudioBackend.start] answered.
+  VoiceId voice;
+
+  /// The bus it plays on.
+  AudioBus bus;
+}
+
+/// What [MixingBackend.mixBus] is handed: what one bus does this mix.
+///
+/// One object for the reason [VoiceStart] gives, and **reused** the same
+/// way: one per scene, set for each bus.
+final class BusMix {
+  BusMix({
+    required this.bus,
+    required this.parent,
+    required this.gain,
+    required this.effects,
+  });
+
+  /// The bus.
+  AudioBus bus;
+
+  /// The bus it routes into; null for the master.
+  AudioBus? parent;
+
+  /// Its own gain, linear: its volume and level, not its parents'.
+  double gain;
+
+  /// Its effects, in order.
+  List<BusEffect> effects;
+}
+
+/// What [DirectionalBackend.placeVoice] is handed: a voice and where it is
+/// heard from.
+///
+/// One object for the reason [VoiceStart] gives, and **reused** the same
+/// way.
+final class VoicePlacement {
+  VoicePlacement({required this.voice, required this.spatial});
+
+  /// The voice [AudioBackend.start] answered.
+  VoiceId voice;
+
+  /// What its renderer decided this mix.
+  SpatialResult spatial;
 }
 
 /// A backend that places a voice in three dimensions itself: where a
@@ -135,8 +230,9 @@ abstract base mixin class MixingBackend {
 /// the listener's frame — and the backend may render from those instead of
 /// from the stereo pan, which it still gets.
 abstract base mixin class DirectionalBackend {
-  /// Where [voice] is heard from this mix. Nothing by default.
-  void placeVoice(VoiceId voice, SpatialResult spatial) {}
+  /// Where [VoicePlacement.voice] is heard from this mix. Nothing by
+  /// default. The scene reuses one [VoicePlacement]: do not keep it.
+  void placeVoice(VoicePlacement placement) {}
 }
 
 /// A backend that makes no sound and records everything.
@@ -182,44 +278,31 @@ final class SilentBackend extends AudioBackend {
   Future<void> preload(String asset) async => preloaded.add(asset);
 
   @override
-  VoiceId? start(
-    String asset, {
-    required double gain,
-    required double pan,
-    required double rate,
-    required bool loop,
-    double muffle = 0.0,
-  }) {
+  VoiceId? start(VoiceStart voice) {
     // Held from the start while paused, as [AudioBackend.pause] asks.
-    final voice =
+    final started =
         SilentVoice(
             id: _next++,
-            asset: asset,
-            gain: gain,
-            pan: pan,
-            rate: rate,
-            loop: loop,
+            asset: voice.asset,
+            gain: voice.gain,
+            pan: voice.pan,
+            rate: voice.rate,
+            loop: voice.loop,
           )
-          ..muffle = muffle
+          ..muffle = voice.muffle
           ..isPaused = _paused;
-    started.add(voice);
-    return voice;
+    this.started.add(started);
+    return started;
   }
 
   @override
-  void update(
-    VoiceId voice, {
-    required double gain,
-    required double pan,
-    required double rate,
-    double muffle = 0.0,
-  }) {
-    final live = voice as SilentVoice;
+  void update(VoiceUpdate voice) {
+    final live = voice.voice as SilentVoice;
     live
-      ..gain = gain
-      ..pan = pan
-      ..rate = rate
-      ..muffle = muffle;
+      ..gain = voice.gain
+      ..pan = voice.pan
+      ..rate = voice.rate
+      ..muffle = voice.muffle;
     live.updates++;
   }
 

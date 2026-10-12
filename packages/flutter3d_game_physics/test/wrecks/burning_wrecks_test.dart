@@ -16,6 +16,8 @@ import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_elements/flutter3d_elements.dart';
 import 'package:flutter3d_game_physics/wrecks.dart';
 import 'package:flutter3d_hardware/testing.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show SnapshotRestoreContext;
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -133,7 +135,7 @@ void main() {
     expect(elements.world.contains(heap.native), isFalse);
 
     elements.world.restore(world);
-    part.restore(saved, part.version);
+    part.restore(SnapshotRestoreContext(saved, version: part.version));
 
     // Mutation: restore nothing, and the list holds the slick the world no
     // longer has while the heap the world has again burns unheld.
@@ -155,7 +157,7 @@ void main() {
     expect(wrecks.bodies, isEmpty);
 
     elements.world.restore(world);
-    part.restore(saved, part.version);
+    part.restore(SnapshotRestoreContext(saved, version: part.version));
 
     // Mutation: take a wreck back in as timbers, and the slick burns on the
     // water with nothing drawn for it.

@@ -305,7 +305,14 @@ const Set<String> pluginContractRoots = <String>{
 /// `AssimilationContext`, the hook a twin writes; `ProbeReading` and
 /// `ProbeField`, what `PublishedState` carries of a probe, since the view
 /// reads nothing else.
-const int pluginApiTypeBudget = 70;
+/// Eight more with one context per hook (amendment 2 of the field review):
+/// `ComponentDecodeContext`, `ComponentRestoreContext`,
+/// `EventDecodeContext` and `SnapshotRestoreContext`, what a codec and a
+/// snapshot part are handed; `DataSectionRead`, `DataSectionLoad` and
+/// `DataSectionInstall`, a data section's three steps; and `SimSpawned`,
+/// what a queued spawn's builder is handed. Each is the one object those
+/// hooks take, so a minor can hand them more without breaking a plugin.
+const int pluginApiTypeBudget = 78;
 
 /// The packages of the simulation stack: what steps a run, which a server
 /// replays with no window and no GPU.

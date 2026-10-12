@@ -11,12 +11,17 @@ const Duration _period = Duration(microseconds: 16667);
 void main() {
   test('real time is the gap between the vsyncs', () {
     const time = TimeSource.realTime();
-    expect(time.elapsed(Duration.zero, _period * 2), closeTo(0.033334, 1e-9));
+    expect(
+      time.elapsed(FrameSpan(from: Duration.zero, to: _period * 2)),
+      closeTo(0.033334, 1e-9),
+    );
   });
 
   test('scaled time is real time times the factor', () {
     expect(
-      TimeSource.scaled(0.5).elapsed(Duration.zero, _period * 2),
+      TimeSource.scaled(
+        0.5,
+      ).elapsed(FrameSpan(from: Duration.zero, to: _period * 2)),
       closeTo(0.016667, 1e-9),
     );
     expect(() => TimeSource.scaled(-1.0), throwsArgumentError);
@@ -25,23 +30,23 @@ void main() {
   test("a log's time walks its timestamps, one gap a frame", () {
     final log = TimeSource.log(<double>[10.0, 10.5, 12.0]) as LogTime;
     // Mutation: hand the wall clock's gap instead of the log's.
-    expect(log.elapsed(Duration.zero, _period), 0.5);
-    expect(log.elapsed(_period, _period * 2), 1.5);
+    expect(log.elapsed(FrameSpan(from: Duration.zero, to: _period)), 0.5);
+    expect(log.elapsed(FrameSpan(from: _period, to: _period * 2)), 1.5);
     expect(log.isFinished, isTrue);
-    expect(log.elapsed(_period * 2, _period * 3), 0.0);
+    expect(log.elapsed(FrameSpan(from: _period * 2, to: _period * 3)), 0.0);
     log.reset();
-    expect(log.elapsed(Duration.zero, _period), 0.5);
+    expect(log.elapsed(FrameSpan(from: Duration.zero, to: _period)), 0.5);
     expect(() => TimeSource.log(<double>[1.0, 0.5]), throwsArgumentError);
   });
 
   test('manual time brings what was queued, once', () {
     final manual = TimeSource.manual() as ManualTime;
-    expect(manual.elapsed(Duration.zero, _period), 0.0);
+    expect(manual.elapsed(FrameSpan(from: Duration.zero, to: _period)), 0.0);
     manual
       ..advance(0.25)
       ..advance(0.25);
-    expect(manual.elapsed(_period, _period * 2), 0.5);
-    expect(manual.elapsed(_period * 2, _period * 3), 0.0);
+    expect(manual.elapsed(FrameSpan(from: _period, to: _period * 2)), 0.5);
+    expect(manual.elapsed(FrameSpan(from: _period * 2, to: _period * 3)), 0.0);
     expect(() => manual.advance(-0.1), throwsArgumentError);
   });
 

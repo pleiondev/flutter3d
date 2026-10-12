@@ -983,7 +983,11 @@ final class CryptWorld {
       InPlaceCodec<CryptWorld>.of(
         id: 'crypt',
         encode: (crypt) => crypt._save(),
-        restore: (crypt, data, _) => crypt._restore(data),
+        restore: (context) {
+          final crypt = context.value;
+          final data = context.data;
+          crypt._restore(data);
+        },
       ),
     );
     entities.set(entities.spawn(), this);

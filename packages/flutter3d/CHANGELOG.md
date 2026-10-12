@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a material decoder takes one context per call.**
+  `MaterialDecoder.handles` takes a `MaterialProbe` (new: the file's name
+  and bytes) and `decode` a `MaterialDecodeContext` (new: the bytes and the
+  file's name), so a minor can hand a decoder more without breaking one
+  written against 1.0. The model decoder's and writer's contexts
+  (`ModelProbe`, `ModelDecodeContext`, `ModelWriteContext`) are exported
+  here too.
 - **A material file is lifted to its material's version on load.**
   `bindMaterial` and `loadMaterial` take `programs:`, the material-language
   materials by name; when the model a `.fmat` is drawn with is one of them,

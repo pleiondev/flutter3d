@@ -104,9 +104,17 @@ final class RacingSimulation {
   final MechanismWorld? mechanisms;
   final RigidDynamics? dynamics;
 
+  /// The one push every car's goes in, made the first time: a step
+  /// allocates none.
+  CharacterPush? _push;
+
   /// What each driver is asking for. Filled in before [step] — by the player's
   /// keys for car nought, and by an AI for the rest.
   final List<VehicleInput> inputs;
+
+  /// What [VehicleController.step] is handed, set for each car each step:
+  /// a step allocates none.
+  final VehicleStep _vehicleStep = VehicleStep(dt: 0, input: VehicleInput());
 
   /// The height below which there is no track left.
   /// In metres.
@@ -228,7 +236,11 @@ final class RacingSimulation {
       _readDrift(race.progress[i], vehicles[i], dt);
       inputs[i].shelter = _shelterFor(i);
       if (assisted.contains(i)) _assist(inputs[i], vehicles[i]);
-      vehicles[i].step(dt, racing ? inputs[i] : _revvingOnly(inputs[i]));
+      vehicles[i].step(
+        _vehicleStep
+          ..dt = dt
+          ..input = racing ? inputs[i] : _revvingOnly(inputs[i]),
+      );
       if (!racing) {
         // Held on the line. The wheels have turned, which is the point of
         // letting the throttle through, but the car has not.
@@ -240,7 +252,14 @@ final class RacingSimulation {
 
     if (dynamics != null) {
       for (final vehicle in vehicles) {
-        dynamics!.push(vehicle.collider, vehicle.velocity);
+        dynamics!.push(
+          (_push ??= CharacterPush(
+              by: vehicle.collider,
+              velocity: vehicle.velocity,
+            ))
+            ..by = vehicle.collider
+            ..velocity = vehicle.velocity,
+        );
       }
     }
     _run(RacingPhases.afterVehicles, dt);
@@ -657,9 +676,11 @@ final class RacingSimulation {
       ..setFrom(_frame.position)
       ..y += 1.0;
     vehicle.placeAt(
-      _spawn,
-      Portable.atan2(_frame.forward.x, _frame.forward.z),
-      trackDistance: at,
+      VehiclePlacement(
+        position: _spawn,
+        headingYaw: Portable.atan2(_frame.forward.x, _frame.forward.z),
+        trackDistance: at,
+      ),
     );
 
     _previousS[index] = race.track.center.wrap(at);
@@ -742,9 +763,11 @@ final class RacingSimulation {
       if (car < 0 || car >= vehicles.length) continue;
       race.track.startSlot(slot, position, forward);
       vehicles[car].placeAt(
-        position,
-        Portable.atan2(forward.x, forward.z),
-        trackDistance: race.track.grid.s,
+        VehiclePlacement(
+          position: position,
+          headingYaw: Portable.atan2(forward.x, forward.z),
+          trackDistance: race.track.grid.s,
+        ),
       );
       inputs[car].reset();
       // The simulation's own per-car memory, which a restart has to forget as

@@ -46,15 +46,32 @@ abstract base mixin class ActorAppearance {
   /// order inside somebody else's export.
   List<String> clipsFor(Actor actor);
 
-  /// [clipsFor], asked with what the simulation published of [actor] — where
-  /// it is, whether it lives, the stair it climbed — when the view reads
-  /// published state (`ActorVisuals.published`).
+  /// [clipsFor], asked with what the simulation published of the context's
+  /// actor — where it is, whether it lives, the stair it climbed — when the
+  /// view reads published state (`ActorVisuals.published`).
   ///
   /// **The form that keeps working when the simulation runs elsewhere.** A
   /// game whose clips follow what is published (a dead actor's death clip,
-  /// a falling one's fall) answers from [published] and reads nothing live
-  /// off the actor. [clipsFor] by default, so a game that has not moved yet
-  /// plays what it played.
-  List<String> clipsFrom(Actor actor, PublishedActor published) =>
-      clipsFor(actor);
+  /// a falling one's fall) answers from [ActorClipsContext.published] and
+  /// reads nothing live off the actor. [clipsFor] by default, so a game that
+  /// has not moved yet plays what it played.
+  List<String> clipsFrom(ActorClipsContext context) => clipsFor(context.actor);
+}
+
+/// What [ActorAppearance.clipsFrom] is handed: the actor and what the
+/// simulation published of it.
+///
+/// **One object, so a minor can hand an appearance more** — the frame's
+/// delta, the clips the model has — without breaking one written against
+/// 1.0. **Reused**: `ActorVisuals` owns one and sets it for each actor each
+/// frame, so asking allocates nothing; an appearance reads it during the
+/// call and does not keep it.
+final class ActorClipsContext {
+  ActorClipsContext({required this.actor, required this.published});
+
+  /// The actor being drawn.
+  Actor actor;
+
+  /// What the simulation published of [actor] this frame.
+  PublishedActor published;
 }

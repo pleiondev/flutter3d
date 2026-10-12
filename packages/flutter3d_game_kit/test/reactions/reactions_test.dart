@@ -30,12 +30,15 @@ final class _Landed extends BusEvent {
       event.at.z,
       event.hard,
     ],
-    decode: (data, _) => switch (data) {
-      [final num x, final num y, final num z, final bool hard] => _Landed(
-        Vector3(x.toDouble(), y.toDouble(), z.toDouble()),
-        hard: hard,
-      ),
-      _ => null,
+    decode: (context) {
+      final data = context.data;
+      return switch (data) {
+        [final num x, final num y, final num z, final bool hard] => _Landed(
+          Vector3(x.toDouble(), y.toDouble(), z.toDouble()),
+          hard: hard,
+        ),
+        _ => null,
+      };
     },
   );
 
@@ -68,16 +71,16 @@ final ParticleEffect _dust = ParticleEffect(
 );
 
 ReactionTable _table() => ReactionTable()
-  ..on<_Landed>((e, out) {
-    out.bursts.add(Shown(_dust, e.at));
-    if (e.hard) out.jolts.add(Felt.kick(Vector3(0.0, -0.2, 0.0)));
+  ..on<_Landed>((rule) {
+    rule.out.bursts.add(Shown(_dust, rule.event.at));
+    if (rule.event.hard) rule.out.jolts.add(Felt.kick(Vector3(0.0, -0.2, 0.0)));
   })
-  ..on<_Blast>((e, out) {
-    out.flash = true;
-    out.lingering.add(
-      Lingering(Object(), _dust, e.at, perSecond: 30.0, seconds: 0.8),
+  ..on<_Blast>((rule) {
+    rule.out.flash = true;
+    rule.out.lingering.add(
+      Lingering(Object(), _dust, rule.event.at, perSecond: 30.0, seconds: 0.8),
     );
-    out.haptics.add(Haptic.heavy);
+    rule.out.haptics.add(Haptic.heavy);
   });
 
 void main() {

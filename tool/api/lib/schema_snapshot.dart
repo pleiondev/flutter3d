@@ -908,7 +908,7 @@ final class ProbeGame extends OrderedGame {
   EntityRegistry registry() => throw UnsupportedError('a probe');
 
   @override
-  HeadlessRun start(Level level, CollisionWorld world, InputState input) =>
+  HeadlessRun start(HeadlessStart start) =>
       throw UnsupportedError('a probe');
 }
 ''';

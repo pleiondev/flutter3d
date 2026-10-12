@@ -28,10 +28,10 @@ final class Reactions {
     _table
       ..on<ShotFired>(_unlessQuiet<ShotFired>(_muzzle))
       ..on<ShotLanded>(
-        _unlessQuiet<ShotLanded>((ShotLanded event, ReactionBuilder out) {
-          final hit = event.hit;
+        _unlessQuiet<ShotLanded>((rule) {
+          final hit = rule.event.hit;
           if (!hit.didStrikeSomething) return;
-          out
+          rule.out
             ..flash = true
             ..bursts.add(
               Shown(Effects.impactSparks, hit.point, direction: hit.normal),
@@ -42,9 +42,11 @@ final class Reactions {
         }),
       )
       ..on<ActorDied>(
-        _unlessQuiet<ActorDied>((ActorDied event, ReactionBuilder out) {
-          final where = event.actor.position;
-          if (where != null) out.bursts.add(Shown(Effects.impactSparks, where));
+        _unlessQuiet<ActorDied>((rule) {
+          final where = rule.event.actor.position;
+          if (where != null) {
+            rule.out.bursts.add(Shown(Effects.impactSparks, where));
+          }
         }),
       );
   }
@@ -68,8 +70,8 @@ final class Reactions {
   bool quiet = false;
 
   ReactionRule<T> _unlessQuiet<T extends BusEvent>(ReactionRule<T> rule) =>
-      (T event, ReactionBuilder out) {
-        if (!quiet) rule(event, out);
+      (ReactionContext<T> context) {
+        if (!quiet) rule(context);
       };
 
   /// Where the muzzle is, relative to the eye the shot came from.
@@ -85,11 +87,12 @@ final class Reactions {
   final Vector3 _aim = Vector3.zero();
   final Vector3 _right = Vector3.zero();
 
-  void _muzzle(ShotFired event, ReactionBuilder out) {
+  void _muzzle(ReactionContext<ShotFired> rule) {
+    final event = rule.event;
     player
       ?..aim(_aim)
       ..right(_right);
-    out.bursts.add(
+    rule.out.bursts.add(
       Shown(
         Effects.muzzleFlash,
         Vector3(

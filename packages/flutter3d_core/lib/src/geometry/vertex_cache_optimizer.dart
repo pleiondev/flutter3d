@@ -189,10 +189,7 @@ final class VertexFetchOrder {
 /// right after the one before it in memory is a vertex its prefetcher already
 /// has queued; a triangle order optimized for the post-transform cache alone
 /// can still reference vertex data scattered across the buffer.
-VertexFetchOrder optimizeVertexFetch(
-  Uint32List indices,
-  int vertexCount,
-) {
+VertexFetchOrder optimizeVertexFetch(Uint32List indices, int vertexCount) {
   const unmapped = 0xFFFFFFFF;
   final oldToNew = Uint32List(vertexCount)..fillRange(0, vertexCount, unmapped);
   final newIndices = Uint32List(indices.length);

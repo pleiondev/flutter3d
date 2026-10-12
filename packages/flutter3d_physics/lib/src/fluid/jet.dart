@@ -34,15 +34,43 @@ abstract base mixin class JetReceiver {
   /// receiver's surface: whether its underside has.
   bool catches(Vector3 point, double radius);
 
-  /// Takes [volume] cubic metres of [medium] carrying [concentrations],
-  /// arriving at [point] moving at [velocity].
-  void receive(
-    double volume,
-    Vector3 point,
-    Vector3 velocity,
-    FluidMedium medium,
-    Map<String, double> concentrations,
-  );
+  /// Takes the liquid the landing brings, as [JetLanding] says.
+  void receive(JetLanding landing);
+}
+
+/// What [JetReceiver.receive] is handed: [volume] cubic metres of [medium]
+/// carrying [concentrations], arriving at [point] moving at [velocity].
+///
+/// **One object, so a minor can hand a receiver more** — the temperature it
+/// lands at, the stream it came from — without breaking one written against
+/// 1.0. **Reused**: a stream owns one and sets it before every parcel that
+/// lands, so a step allocates nothing for it; a receiver reads it during
+/// the call and does not keep it.
+final class JetLanding {
+  JetLanding({
+    this.volume = 0.0,
+    Vector3? point,
+    Vector3? velocity,
+    FluidMedium? medium,
+    this.concentrations = const <String, double>{},
+  }) : point = point ?? Vector3.zero(),
+       velocity = velocity ?? Vector3.zero(),
+       medium = medium ?? FluidMedium.water;
+
+  /// How much lands, in cubic meters.
+  double volume;
+
+  /// Where it lands, in the world.
+  Vector3 point;
+
+  /// How fast it moves as it lands, m/s.
+  Vector3 velocity;
+
+  /// What it is.
+  FluidMedium medium;
+
+  /// What it carries, by name.
+  Map<String, double> concentrations;
 }
 
 /// Where a parcel is into a [JetObstacle]: the way out and how far.
@@ -230,6 +258,9 @@ final class Jet {
   double get landed => _landed;
   double _landed = 0.0;
 
+  /// The one landing every parcel that lands is handed over in.
+  final JetLanding _landing = JetLanding();
+
   /// How much has left as drops, in cubic metres.
   double get dropped => _dropped;
   double _dropped = 0.0;
@@ -357,7 +388,14 @@ final class Jet {
           }
           _dropped += p.volume * splash;
         }
-        into.receive(stays, p.position, p.velocity, p.medium, p.concentrations);
+        into.receive(
+          _landing
+            ..volume = stays
+            ..point = p.position
+            ..velocity = p.velocity
+            ..medium = p.medium
+            ..concentrations = p.concentrations,
+        );
         _landed += stays;
         if (kept.isNotEmpty) kept.last.endsRun = true;
         continue;

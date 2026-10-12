@@ -144,7 +144,7 @@ final class ProceduralLevelsDemo extends ShowcaseDemo {
     // The generator held the level to this rule already; asking again is
     // what any game that loads a level can do.
     final List<LevelIssue> issues = <LevelIssue>[];
-    const ExitReachable().check(level, issues);
+    const ExitReachable().check(LevelCheck(level: level, out: issues));
     if (issues.any((LevelIssue i) => i.isError)) {
       throw StateError('the exit cannot be walked to: $issues');
     }

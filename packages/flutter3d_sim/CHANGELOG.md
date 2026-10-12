@@ -1,5 +1,26 @@
 ## 1.0.0-rc.1
 
+- **Breaking: every hook a game implements takes one context.** A
+  parameter added to a hook would have broken every game written against
+  1.0; a member added to its context breaks none. `Brain.onHurt` and
+  `onNoise` take a `BrainHurt` and a `BrainNoise` (new), each with the
+  `mind`; `Damageable.applyDamage` a `Damage` (new) with the `amount` and
+  `from`; `EntityKind.validate` an `EntityCheck` (new) with the `entity`,
+  `scope` and `out`, and `EntityKind.spawn` an `EntitySpawn` (new) with the
+  `entity` and `context`; `LevelRule.check` a `LevelCheck` (new);
+  `HeadlessGame.start` a `HeadlessStart` (new) with the `level`, `world`
+  and `input`; `GenrePlugin.stepSimulation`, `publishEvents` and
+  `restoreSimulation` a `GenreStepContext`, `GenrePublishContext` and
+  `GenreRestoreContext` (new); `ActorStrides.strideOf`, `restore` and
+  `gesture` an `ActorStride`, `ActorStridesRestore` and `ActorGesture`
+  (new); `BehaviorComposite.tick` a `BehaviorCompositeTick` (new) with the
+  `context` and the `children`; `TimeSource.elapsed` a `FrameSpan` (new)
+  with `from` and `to`; and a `SimulationAnswer` a `SimulationQuestion`
+  (new) with the `world` and the `arguments`. The contexts a hook is
+  handed once a step or a frame (`ActorStride`, `BrainNoise`,
+  `BehaviorCompositeTick`, `GenreStepContext`, `FrameSpan`) are owned by
+  the caller and set before every call, so a step allocates nothing for
+  them; a hook does not keep one past the call.
 - **Breaking: a level's light is a `LightType` and its issues a
   `Severity`, from `flutter3d_foundation`.** `LevelLightType` and
   `LevelIssueSeverity` are gone; a level holds an area light now, and a

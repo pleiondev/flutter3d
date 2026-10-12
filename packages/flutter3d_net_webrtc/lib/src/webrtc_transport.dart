@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter3d_net/flutter3d_net.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -53,12 +52,16 @@ final class WebRtcTransport extends PeerWire {
     connection.onIceCandidate = (candidate) {
       final value = candidate.candidate;
       if (value == null) return;
-      signaling.send(<String, Object?>{
-        'kind': 'ice',
-        'candidate': value,
-        'sdpMid': candidate.sdpMid,
-        'sdpMLineIndex': candidate.sdpMLineIndex,
-      });
+      signaling.send(
+        PeerSend(
+          message: <String, Object?>{
+            'kind': 'ice',
+            'candidate': value,
+            'sdpMid': candidate.sdpMid,
+            'sdpMLineIndex': candidate.sdpMLineIndex,
+          },
+        ),
+      );
     };
   }
 
@@ -80,7 +83,9 @@ final class WebRtcTransport extends PeerWire {
 
     final offer = await connection.createOffer();
     await connection.setLocalDescription(offer);
-    signaling.send(<String, Object?>{'kind': 'offer', 'sdp': offer.sdp});
+    signaling.send(
+      PeerSend(message: <String, Object?>{'kind': 'offer', 'sdp': offer.sdp}),
+    );
 
     return transport;
   }
@@ -108,7 +113,7 @@ final class WebRtcTransport extends PeerWire {
     };
     channel.onMessage = (message) {
       if (message.isBinary) {
-        deliverBytes(message.binary);
+        deliverBytes(PeerBytesDelivery(bytes: message.binary));
         return;
       }
       final Object? decoded;
@@ -117,7 +122,9 @@ final class WebRtcTransport extends PeerWire {
       } on FormatException {
         return;
       }
-      if (decoded is Map<String, Object?>) deliver(decoded);
+      if (decoded is Map<String, Object?>) {
+        deliver(PeerDelivery(message: decoded));
+      }
     };
   }
 
@@ -129,7 +136,11 @@ final class WebRtcTransport extends PeerWire {
         );
         final answer = await _peerConnection.createAnswer();
         await _peerConnection.setLocalDescription(answer);
-        _signaling.send(<String, Object?>{'kind': 'answer', 'sdp': answer.sdp});
+        _signaling.send(
+          PeerSend(
+            message: <String, Object?>{'kind': 'answer', 'sdp': answer.sdp},
+          ),
+        );
       case 'answer':
         await _peerConnection.setRemoteDescription(
           RTCSessionDescription(message['sdp']! as String, 'answer'),
@@ -146,7 +157,8 @@ final class WebRtcTransport extends PeerWire {
   }
 
   @override
-  void send(Map<String, Object?> message, {bool reliable = true}) {
+  void send(PeerSend context) {
+    final message = context.message;
     final channel = _dataChannel;
     if (channel == null) {
       throw StateError('send called before the data channel was created');
@@ -158,7 +170,8 @@ final class WebRtcTransport extends PeerWire {
   /// The far side delivers it to its byte listeners whether it overrides
   /// this or not.
   @override
-  void sendBytes(Uint8List bytes, {bool reliable = true}) {
+  void sendBytes(PeerSendBytes context) {
+    final bytes = context.bytes;
     final channel = _dataChannel;
     if (channel == null) {
       throw StateError('sendBytes called before the data channel was created');

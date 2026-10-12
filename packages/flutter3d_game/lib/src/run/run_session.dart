@@ -96,7 +96,7 @@ abstract base class RunSession<L> {
   /// moves bodies and re-indexes the broadphase, and doing that while a level
   /// is still being populated leaves the grid describing a world that has since
   /// changed.
-  void restoreInto(L level, Snapshot snapshot);
+  void restoreInto(RunRestoreContext<L> context);
 
   /// How far the run has got, in simulation steps across all its levels.
   /// Zero by default.
@@ -106,12 +106,13 @@ abstract base class RunSession<L> {
   /// syncs; two different runs of it are simply always the player's call.
   int stepOf(L level) => 0;
 
-  /// What the player takes with them into [next]. Empty by default.
+  /// What the player takes with them into [RunCarryContext.next]. Empty by
+  /// default.
   ///
   /// Called on the level being left, before the next one is read — which is the
   /// only moment both are knowable: keys that belong to one level are
   /// dropped here, and lives or elapsed time that span the run are copied.
-  void carryFrom(L level, String next) {}
+  void carryFrom(RunCarryContext<L> context) {}
 
   /// What a fresh run starts with. Empty by default.
   ///
@@ -215,7 +216,9 @@ abstract base class RunSession<L> {
         disposeLevel(level);
         return;
       }
-      if (resume != null) restoreInto(level, resume);
+      if (resume != null) {
+        restoreInto(RunRestoreContext<L>(level: level, snapshot: resume));
+      }
       _movingOn = false;
       _emit(RunPlaying<L>(asset, level));
     } catch (error, trace) {
@@ -292,7 +295,7 @@ abstract base class RunSession<L> {
       await saves.clear();
       return;
     }
-    carryFrom(playing.level, next);
+    carryFrom(RunCarryContext<L>(level: playing.level, next: next));
     final generation = _loadGeneration;
     await beforeNext(next);
     // A restart or a start-over pressed during the wait has already loaded
@@ -335,7 +338,9 @@ abstract base class RunSession<L> {
       disposeLevel(next);
       return false;
     }
-    restoreInto(next, snapshotOf(playing.level));
+    restoreInto(
+      RunRestoreContext<L>(level: next, snapshot: snapshotOf(playing.level)),
+    );
     _emit(RunPlaying<L>(playing.asset, next, outcome: outcomeOf(next)));
     disposeLevel(playing.level);
     return true;
@@ -345,4 +350,32 @@ abstract base class RunSession<L> {
     _status = next;
     onChanged?.call(next);
   }
+}
+
+/// What [RunSession.restoreInto] is handed: the level just loaded and the
+/// run to put back into it.
+///
+/// **One object, so a minor can hand a session more** — where the snapshot
+/// came from, the step it was taken at — without breaking a game written
+/// against 1.0.
+final class RunRestoreContext<L> {
+  const RunRestoreContext({required this.level, required this.snapshot});
+
+  /// The level, fully built.
+  final L level;
+
+  /// The run saved from this level.
+  final Snapshot snapshot;
+}
+
+/// What [RunSession.carryFrom] is handed: the level being left and the
+/// document read next, for the reason [RunRestoreContext] gives.
+final class RunCarryContext<L> {
+  const RunCarryContext({required this.level, required this.next});
+
+  /// The level being left.
+  final L level;
+
+  /// The document of the level read next.
+  final String next;
 }

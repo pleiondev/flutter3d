@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: the SoLoud backend takes one context per call**, a
+  `VoiceStart` and a `VoiceUpdate`, as every `AudioBackend` does now; the
+  package exports the audio contexts with the backend.
 - **`openSpeakers(world:)`**: the air the scene's sounds travel in, which
   its Doppler shift is reckoned against (`AudioScene.world`). The standard
   world unless given.

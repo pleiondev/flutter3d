@@ -14,7 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// finish it.
 final class _NullSignalling extends PeerWire {
   @override
-  void send(Map<String, Object?> message, {bool reliable = true}) {}
+  void send(PeerSend context) {}
 }
 
 void main() {

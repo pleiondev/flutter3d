@@ -68,7 +68,8 @@ final class Spring extends Mechanism with CollisionListener {
   }
 
   @override
-  void onCollisionStart(Collider self, Collider other) {
+  void onCollisionStart(CollisionContext context) {
+    final other = context.other;
     activate(world.activationBy(other));
   }
 
@@ -76,7 +77,8 @@ final class Spring extends Mechanism with CollisionListener {
   /// is thrown may come back down onto it before the overlap ever ends, and a
   /// spring that only answers on entry would quietly stop working.
   @override
-  void onCollision(Collider self, Collider other) {
+  void onCollision(CollisionContext context) {
+    final other = context.other;
     if (!firedThisStep) activate(world.activationBy(other));
   }
 }

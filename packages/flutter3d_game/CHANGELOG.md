@@ -1,5 +1,22 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `ActorAnimations` takes the engine's stride contexts.** Its
+  `strideOf`, `gesture` and `restore` take an `ActorStride`, an
+  `ActorGesture` and an `ActorStridesRestore`, the one context
+  `flutter3d_sim` hands each.
+- **Breaking: the game's hooks take one context each.**
+  `ActorAppearance.clipsFrom` takes an `ActorClipsContext`, `ActorGraphs`'
+  `machineFor`, `dress` and `drive` an `ActorMachineContext`,
+  `ActorDressContext` and `ActorDriveContext`, `ActorCorpses.begin` an
+  `ActorDeathContext`, `FixtureAppearance.refresh` a
+  `FixtureRefreshContext`, `CloudSaveStore.put` a `CloudPutRequest`,
+  `PadDevice.setDeadZones` a `PadDeadZones`, and `RunSession`'s
+  `restoreInto` and `carryFrom` a `RunRestoreContext` and a
+  `RunCarryContext` (all new), holding what the parameters held. A
+  parameter added to any of them later would have broken every game that
+  overrides it; a member added to a context breaks none. The ones asked per
+  actor or fixture per frame are reused by the visuals that ask, so a frame
+  allocates none.
 - **The facade exports `ActionSet`**, which `ActionMap.actions` and
   `DesktopInput.defaultActionMap` name: a game declares its actions
   without importing `flutter3d_sim`.

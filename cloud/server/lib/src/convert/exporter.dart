@@ -287,7 +287,9 @@ Future<ExportOutcome> _exportHere(_Job job) async {
     return ExportRefused('There is no writer for ${job.format.column} here.');
   }
   try {
-    final written = writer.write(document, baseName: job.baseName);
+    final written = writer.write(
+      ModelWriteContext(document: document, baseName: job.baseName),
+    );
     if (written.files.isEmpty || written.files.first.bytes.isEmpty) {
       return ExportRefused(
         'The ${job.format.column} writer wrote nothing for ${job.baseName}.',

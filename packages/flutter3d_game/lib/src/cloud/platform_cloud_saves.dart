@@ -71,22 +71,23 @@ final class PlatformCloudSaves extends CloudSaveStore {
   };
 
   @override
-  Future<CloudPut> put(
-    String slot,
-    String document, {
-    String? replacing,
-  }) async => switch (await _ask('put', <String, Object?>{
-    'slot': slot,
-    'document': document,
-    'replacing': replacing,
-  })) {
-    (_, final CloudUnavailable failed) => failed,
-    ({'moved': true}, _) => const CloudMoved(),
-    ({'version': final String version}, _) => CloudStored(version: version),
-    (final answer, _) => CloudUnavailable(
-      '$name answered a write with $answer',
-    ),
-  };
+  Future<CloudPut> put(CloudPutRequest request) async {
+    final slot = request.slot;
+    final document = request.document;
+    final replacing = request.replacing;
+    return switch (await _ask('put', <String, Object?>{
+      'slot': slot,
+      'document': document,
+      'replacing': replacing,
+    })) {
+      (_, final CloudUnavailable failed) => failed,
+      ({'moved': true}, _) => const CloudMoved(),
+      ({'version': final String version}, _) => CloudStored(version: version),
+      (final answer, _) => CloudUnavailable(
+        '$name answered a write with $answer',
+      ),
+    };
+  }
 
   /// The platform's answer, or why there was none.
   Future<(Object?, CloudUnavailable?)> _ask(

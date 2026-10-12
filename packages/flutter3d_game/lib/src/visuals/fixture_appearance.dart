@@ -131,5 +131,23 @@ abstract base mixin class FixtureAppearance {
   /// changes nothing else. Fixtures drawn from a loaded model are not offered,
   /// because their materials belong to the model and are shared with every
   /// other copy of it.
-  void refresh(Fixture fixture, RenderMaterial material);
+  void refresh(FixtureRefreshContext context);
+}
+
+/// What [FixtureAppearance.refresh] is handed: the fixture and the material
+/// it is drawn with.
+///
+/// **One object, so a minor can hand an appearance more** — the time, the
+/// node — without breaking one written against 1.0. **Reused**:
+/// `FixtureVisuals` owns one and sets it for each fixture each frame, so a
+/// refresh allocates nothing; an appearance reads it during the call and
+/// does not keep it.
+final class FixtureRefreshContext {
+  FixtureRefreshContext({required this.fixture, required this.material});
+
+  /// The fixture being drawn.
+  Fixture fixture;
+
+  /// Its own material: changing it changes nothing else.
+  RenderMaterial material;
 }

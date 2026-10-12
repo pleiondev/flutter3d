@@ -59,7 +59,10 @@ final class _Spark extends BusEvent {
 
   static final EventCodec<_Spark> codec = EventCodec<_Spark>.of(
     encode: (event) => event.at,
-    decode: (data, _) => data is int ? _Spark(data) : null,
+    decode: (context) {
+      final data = context.data;
+      return data is int ? _Spark(data) : null;
+    },
   );
 
   @override
@@ -291,7 +294,10 @@ void main() {
       SnapshotPart.of(
         id: 'test.cells',
         capture: world.capture,
-        restore: (data, _) => world.restore(List<int>.of(data! as List<int>)),
+        restore: (context) {
+          final data = context.data;
+          world.restore(List<int>.of(data! as List<int>));
+        },
       ),
     );
     loop.runSteps(1);
@@ -323,12 +329,12 @@ final class _Idle extends GenrePlugin<Object> {
   String get systemName => 'test.idle.step';
 
   @override
-  void stepSimulation(Object simulation, LoopContext context) {}
+  void stepSimulation(GenreStepContext<Object> step) {}
 
   @override
   Snapshot captureSimulation(Object simulation) =>
       const Snapshot(<String, Object?>{});
 
   @override
-  void restoreSimulation(Object simulation, Snapshot state) {}
+  void restoreSimulation(GenreRestoreContext<Object> restore) {}
 }

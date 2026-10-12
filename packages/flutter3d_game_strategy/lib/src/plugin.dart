@@ -92,14 +92,20 @@ final class StrategyPlugin extends GenrePlugin<StrategyMatch> {
   /// has; the match publishes what the step left onto the bus it was pointed at
   /// ([publishEvents]).
   @override
-  void stepSimulation(StrategyMatch playing, LoopContext context) =>
-      playing.step(context.dt, context: context);
+  void stepSimulation(GenreStepContext<StrategyMatch> step) {
+    final playing = step.simulation;
+    final context = step.context;
+    playing.step(context.dt, context: context);
+  }
 
   /// The match's events go onto the bus while it is this genre's run: see
   /// [StrategyMatch.publishTo].
   @override
-  Registration publishEvents(StrategyMatch simulation, EventRegistry bus) =>
-      simulation.publishTo(bus);
+  Registration publishEvents(GenrePublishContext<StrategyMatch> publish) {
+    final simulation = publish.simulation;
+    final bus = publish.bus;
+    return simulation.publishTo(bus);
+  }
 
   /// The run in the loop's snapshots: [StrategyMatch.save].
   @override
@@ -107,8 +113,11 @@ final class StrategyPlugin extends GenrePlugin<StrategyMatch> {
 
   /// [StrategyMatch.restore].
   @override
-  void restoreSimulation(StrategyMatch simulation, Snapshot state) =>
-      simulation.restore(state);
+  void restoreSimulation(GenreRestoreContext<StrategyMatch> restore) {
+    final simulation = restore.simulation;
+    final state = restore.state;
+    simulation.restore(state);
+  }
 
   /// The crowd's world, published.
   @override

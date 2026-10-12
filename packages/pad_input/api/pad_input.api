@@ -32,7 +32,7 @@ abstract base class GamepadPlatform extends PlatformInterface
   static GamepadPlatform get instance
   static const int maxPads = 4
   static set instance(GamepadPlatform instance)
-  void readPad(int index, PadSnapshot out)
+  void readPad(PadReadContext context)
 
 final class PadAxis
   String toString()
@@ -73,6 +73,11 @@ final class PadButton
 
 enum PadConnection
   values: disconnected, connected
+
+final class PadReadContext
+  PadReadContext({required this.index, required this.out})
+  PadSnapshot out
+  int index
 
 final class PadSnapshot
   Iterable<PadButton> get held

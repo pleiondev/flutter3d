@@ -623,7 +623,10 @@ final class {{pascal}}Scored extends BusEvent {
   static final EventCodec<{{pascal}}Scored> codec =
       EventCodec<{{pascal}}Scored>.of(
         encode: (event) => event.score,
-        decode: (data, _) => data is int ? {{pascal}}Scored(data) : null,
+        decode: (context) => switch (context.data) {
+          final int score => {{pascal}}Scored(score),
+          _ => null,
+        },
       );
 
   @override
@@ -750,8 +753,7 @@ void main() {
         SnapshotPart.of(
           id: '{{name}}.state',
           capture: () => plugin.save(),
-          restore: (Object? state, int _) =>
-              plugin.restore(state! as {{state}}),
+          restore: (context) => plugin.restore(context.data! as {{state}}),
         ),
       ),
     ),

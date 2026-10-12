@@ -20,13 +20,23 @@ final class ClothFrame
   final int step
   int get hashCode
 
+final class ClothPointMove
+  ClothPointMove({required this.index, required this.at})
+  Vector3 at
+  int index
+
 abstract base mixin class ClothSystem
   abstract ClothFrame? read({bool wait = true})
   abstract int get pointCount
   abstract void dispose()
-  abstract void movePoint(int index, Vector3 at)
+  abstract void movePoint(ClothPointMove move)
   abstract void setBalls(List<ClothBall> balls)
-  abstract void step(ClothSettings settings, double dt)
+  abstract void step(ClothSystemStep step)
+
+final class ClothSystemStep
+  ClothSettings settings
+  ClothSystemStep({required this.settings, required this.dt})
+  double dt
 
 typedef CoreClothMesh = ClothMesh;
 
@@ -81,7 +91,12 @@ abstract base mixin class DebrisSystem
   abstract void add(List<DebrisBody> bodies)
   abstract void dispose()
   abstract void setStatics(List<DebrisStatic> statics)
-  abstract void step(DebrisSettings settings, double dt)
+  abstract void step(DebrisSystemStep step)
+
+final class DebrisSystemStep
+  DebrisSettings settings
+  DebrisSystemStep({required this.settings, required this.dt})
+  double dt
 
 abstract final class FireExposure
   static Vector3 middleOf(NativeFire fire)
@@ -125,15 +140,20 @@ abstract base mixin class FluidSystem
   abstract int get count
   abstract void add(List<FluidParticle> particles)
   abstract void dispose()
-  abstract void step(FluidSettings settings, double dt)
+  abstract void step(FluidSystemStep step)
+
+final class FluidSystemStep
+  FluidSettings settings
+  FluidSystemStep({required this.settings, required this.dt})
+  double dt
 
 final class GpuCloth with ClothSystem
   ClothFrame? read({bool wait = true})
   int get pointCount
   void dispose()
-  void movePoint(int index, Vector3 at)
+  void movePoint(ClothPointMove move)
   void setBalls(List<ClothBall> balls)
-  void step(ClothSettings settings, double dt)
+  void step(ClothSystemStep request)
 
 final class GpuDebris with DebrisSystem
   DebrisFrame? read({bool wait = true})
@@ -141,7 +161,7 @@ final class GpuDebris with DebrisSystem
   void add(List<DebrisBody> bodies)
   void dispose()
   void setStatics(List<DebrisStatic> statics)
-  void step(DebrisSettings settings, double dt)
+  void step(DebrisSystemStep request)
 
 final class GpuFluid with FluidSystem
   FluidFrame? read({bool wait = true})
@@ -150,14 +170,14 @@ final class GpuFluid with FluidSystem
   int get count
   void add(List<FluidParticle> particles)
   void dispose()
-  void step(FluidSettings settings, double dt)
+  void step(FluidSystemStep request)
 
 final class GpuParticles with NativeParticleCloud
   Float32List read()
   int get capacity
   void dispose()
   void emit(List<NativeParticle> particles)
-  void step(ParticleForces forces, double dt, {int steps = 1})
+  void step(ParticleCloudStep request)
 
 final class GpuUnavailableException extends CapabilityException
   String toString()
@@ -279,7 +299,7 @@ final class NativeBurner
 typedef NativeCharacterMove = ({Vector3 position, bool grounded, bool hitWall, bool hitCeiling, bool stepped, double steppedUp, Vector3 velocity, Vector3 groundNormal, NativeBody? ground});
 
 final class NativeCharacterMover extends CharacterMover
-  CharacterMoved move(CharacterController body, Vector3 delta, {required double stepHeight, required double walkableNormalY, required bool mayStep})
+  CharacterMoved move(CharacterMove move)
   NativeCharacterMover(this.dynamics)
   final NativeDynamics dynamics
 
@@ -289,9 +309,9 @@ final class NativeCloth implements ClothSystem
   int get colorCount
   int get pointCount
   void dispose()
-  void movePoint(int index, Vector3 at)
+  void movePoint(ClothPointMove move)
   void setBalls(List<ClothBall> balls)
-  void step(ClothSettings settings, double dt)
+  void step(ClothSystemStep request)
 
 final class NativeClothRefusal
   String toString()
@@ -309,7 +329,7 @@ final class NativeClothSimulation extends ClothSimulation
   NativeClothSimulation(this.mesh)
   final ClothMesh mesh
   void dispose()
-  void step(ClothSettings settings, double dt, {List<ClothObstacle> obstacles = const <ClothObstacle>[]})
+  void step(ClothStep request)
 
 extension type const NativeCompound(int id)
 
@@ -331,7 +351,7 @@ final class NativeDebris implements DebrisSystem
   void add(List<DebrisBody> bodies)
   void dispose()
   void setStatics(List<DebrisStatic> statics)
-  void step(DebrisSettings settings, double dt)
+  void step(DebrisSystemStep request)
 
 final class NativeDynamics extends RigidDynamics with WorldMirror
   Collider? colliderOf(NativeBody handle)
@@ -354,7 +374,7 @@ final class NativeDynamics extends RigidDynamics with WorldMirror
   void mirror()
   void mirrorWorld()
   void placeMovers()
-  void push(Collider by, Vector3 velocity, {double strength = 1.0})
+  void push(CharacterPush push)
   void release(NativeBody body)
   void remove(RigidBody body)
   void restore(Uint8List bytes, {List<Object?>? standing})
@@ -427,7 +447,7 @@ final class NativeFluid implements FluidSystem
   int get count
   void add(List<FluidParticle> particles)
   void dispose()
-  void step(FluidSettings settings, double dt)
+  void step(FluidSystemStep request)
 
 final class NativeForceContext
   Vector3 angularVelocityOf(NativeBody body)
@@ -621,7 +641,7 @@ abstract base mixin class NativeParticleCloud
   abstract int get capacity
   abstract void dispose()
   abstract void emit(List<NativeParticle> particles)
-  abstract void step(ParticleForces forces, double dt, {int steps = 1})
+  abstract void step(ParticleCloudStep step)
 
 final class NativeParticles implements NativeParticleCloud
   Float32List read()
@@ -629,20 +649,20 @@ final class NativeParticles implements NativeParticleCloud
   int get capacity
   void dispose()
   void emit(List<NativeParticle> particles)
-  void step(ParticleForces forces, double dt, {int steps = 1})
+  void step(ParticleCloudStep request)
 
 final class NativePhysics extends PhysicsBackend with JointPhysics, ConstraintPhysics, ShapePhysics
   ClothSimulation cloth(ClothMesh mesh)
   FluidSolver get fluid
-  JointHandle join(RigidDynamics dynamics, JointType type, RigidBody a, RigidBody b, {required Vector3 anchor, Vector3? axis})
+  JointHandle join(JointRequest request)
   NativePhysics()
-  Registration constrain(RigidDynamics dynamics, PhysicsConstraint constraint, List<RigidBody> bodies)
-  RigidDynamics dynamics(CollisionWorld world, {Vector3? gravity})
+  Registration constrain(ConstraintRequest request)
+  RigidDynamics dynamics(DynamicsRequest request)
   Set<JointType> get jointTypes
   String get name
   void attach(CollisionWorld world)
   void release(CollisionWorld world)
-  void unjoin(RigidDynamics dynamics, JointHandle joint)
+  void unjoin(JointRelease request)
 
 final class NativeRagdoll
   NativeBody bodyOf(int index)
@@ -893,13 +913,19 @@ final class NativeWorld
 
 final class NativeWorldRays extends WorldRays
   NativeWorldRays(this.dynamics)
-  bool raycast(Vector3 origin, Vector3 direction, double maxDistance, RayHit out, {required int mask, Collider? ignore})
+  bool raycast(RayQuery query)
   final NativeDynamics dynamics
 
 final class NativeWorldSweeps extends WorldSweeps
   NativeWorldSweeps(this.dynamics)
-  bool sweep(CollisionShape shape, Vector3 origin, Vector3 delta, SweepHit out, {required int mask, Collider? ignore})
+  bool sweep(SweepQuery query)
   final NativeDynamics dynamics
+
+final class ParticleCloudStep
+  ParticleCloudStep({required this.forces, required this.dt, this.steps = 1})
+  ParticleForces forces
+  double dt
+  int steps
 
 final class ParticleForces
   ParticleForces({NativeWorld? world, Vector3? gravity, Vector3? wind, this.drag = 0.0, this.floorY = double.negativeInfinity, this.restitution = 0.0, this.friction = 0.0})

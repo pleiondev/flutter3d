@@ -15,14 +15,14 @@ final class SoLoudBackend extends AudioBackend
   Future<void> preload(String asset)
   List<String> get failedAssets
   SoLoudBackend({SoLoud? soloud, IssueSink? onIssue})
-  VoiceId? start(String asset, {required double gain, required double pan, required double rate, required bool loop, double muffle = 0.0})
+  VoiceId? start(VoiceStart voice)
   bool get isPaused
   bool isAlive(VoiceId voice)
   final IssueSink onIssue
   void pause()
   void resume()
   void stop(VoiceId voice)
-  void update(VoiceId voice, {required double gain, required double pan, required double rate, double muffle = 0.0})
+  void update(VoiceUpdate update)
 
 final class Speakers
   Future<void> dispose()
@@ -34,7 +34,7 @@ final class Speakers
 
 Future<Speakers> openSpeakers({required SoundBank bank, Mixer? mixer, int maxVoices = 24, double Function(Vector3 from, Vector3 to)? occlusion, IssueSink? onIssue, SpatialRenderer spatial = const EqualPowerPanner(), WorldProperties? world})
 
-export package:flutter3d_audio_core/flutter3d_audio_core.dart show Attenuation, AudioBackend, AudioBus, AudioEmitter, AudioListener, AudioPlugin, AudioScene, BlendedLoop, BusEffect, DirectionalBackend, DuckRule, EqualPowerPanner, ExponentialRolloff, Heard, Held, HeldVoices, InverseRolloff, LinearRolloff, LoopBand, LowPassEffect, MixSnapshot, Mixer, MixingBackend, NoAttenuation, PoseSource, ReverbEffect, SilentBackend, SilentVoice, SoundBank, SoundDef, SpatialQuery, SpatialRenderer, SpatialResult, VoiceId, decibelsToGain, gainToDecibels, silenceDecibels, speedOfSoundInAir
+export package:flutter3d_audio_core/flutter3d_audio_core.dart show Attenuation, AudioBackend, AudioBus, AudioEmitter, AudioListener, AudioPlugin, AudioScene, BlendedLoop, BusEffect, BusMix, DirectionalBackend, DuckRule, EqualPowerPanner, ExponentialRolloff, Heard, Held, HeldVoices, InverseRolloff, LinearRolloff, LoopBand, LowPassEffect, MixSnapshot, Mixer, MixingBackend, NoAttenuation, PoseSource, ReverbEffect, SilentBackend, SilentVoice, SoundBank, SoundDef, SpatialQuery, SpatialRenderer, SpatialResult, VoiceId, VoicePlacement, VoiceRoute, VoiceStart, VoiceUpdate, decibelsToGain, gainToDecibels, silenceDecibels, speedOfSoundInAir
   Attenuation
   AudioBackend
   AudioBus
@@ -44,6 +44,7 @@ export package:flutter3d_audio_core/flutter3d_audio_core.dart show Attenuation, 
   AudioScene
   BlendedLoop
   BusEffect
+  BusMix
   DirectionalBackend
   DuckRule
   EqualPowerPanner
@@ -69,6 +70,10 @@ export package:flutter3d_audio_core/flutter3d_audio_core.dart show Attenuation, 
   SpatialRenderer
   SpatialResult
   VoiceId
+  VoicePlacement
+  VoiceRoute
+  VoiceStart
+  VoiceUpdate
   decibelsToGain
   gainToDecibels
   silenceDecibels

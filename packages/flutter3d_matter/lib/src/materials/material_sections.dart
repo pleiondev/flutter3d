@@ -1,5 +1,11 @@
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show DataSection, DataSectionContext, PluginException, PluginHost;
+    show
+        DataSection,
+        DataSectionContext,
+        DataSectionInstall,
+        DataSectionRead,
+        PluginException,
+        PluginHost;
 
 import 'material_catalog.dart';
 import 'material_json.dart';
@@ -60,7 +66,9 @@ final class _PhysicalMaterialsSection extends DataSection {
   /// g/cm³ or a temperature in °C refuses the plugin when it is read, not a
   /// level later.
   @override
-  Object read(Object? written, DataSectionContext context) {
+  Object read(DataSectionRead step) {
+    final written = step.written;
+    final context = step.context;
     final plugin = context.plugin;
     return List<PhysicalMaterial>.unmodifiable(<PhysicalMaterial>[
       for (final entry in _entries(written, name))
@@ -94,7 +102,10 @@ final class _PhysicalMaterialsSection extends DataSection {
   /// plugin off takes them out. A substance whose id another plugin already
   /// took refuses the install with a `MaterialRegistrationException`.
   @override
-  void install(PluginHost host, Object section, DataSectionContext context) {
+  void install(DataSectionInstall step) {
+    final host = step.host;
+    final section = step.section;
+    final context = step.context;
     final materials = section as List<PhysicalMaterial>;
     if (materials.isEmpty) return;
     final catalogue = _catalogue(host, context);
@@ -117,7 +128,9 @@ final class _MaterialPairsSection extends DataSection {
   /// of them the plugin's own, the numbers it measured and its `source`,
   /// plausible as [MaterialPair.problems] judges.
   @override
-  Object read(Object? written, DataSectionContext context) {
+  Object read(DataSectionRead step) {
+    final written = step.written;
+    final context = step.context;
     final plugin = context.plugin;
     return List<MaterialPair>.unmodifiable(<MaterialPair>[
       for (final entry in _entries(written, name))
@@ -147,7 +160,10 @@ final class _MaterialPairsSection extends DataSection {
   ];
 
   @override
-  void install(PluginHost host, Object section, DataSectionContext context) {
+  void install(DataSectionInstall step) {
+    final host = step.host;
+    final section = step.section;
+    final context = step.context;
     final pairs = section as List<MaterialPair>;
     if (pairs.isEmpty) return;
     final catalogue = _catalogue(host, context);

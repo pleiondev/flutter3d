@@ -42,13 +42,16 @@ final class UnitFired extends GameEvent {
   /// Its codec: the side and the two entities, packed. Reads back whole.
   static final EventCodec<UnitFired> codec = EventCodec<UnitFired>.of(
     encode: (UnitFired e) => <Object?>[e.side, e.shooter.packed, e.mark.packed],
-    decode: (Object? data, int version) => switch (data) {
-      [final int side, final int shooter, final int mark] => UnitFired(
-        side: side,
-        shooter: Entity.fromPacked(shooter),
-        mark: Entity.fromPacked(mark),
-      ),
-      _ => null,
+    decode: (context) {
+      final data = context.data;
+      return switch (data) {
+        [final int side, final int shooter, final int mark] => UnitFired(
+          side: side,
+          shooter: Entity.fromPacked(shooter),
+          mark: Entity.fromPacked(mark),
+        ),
+        _ => null,
+      };
     },
   );
 
@@ -82,8 +85,10 @@ final class MatchDecided extends GameEvent {
   /// Its codec: the winning side, or null for a draw.
   static final EventCodec<MatchDecided> codec = EventCodec<MatchDecided>.of(
     encode: (MatchDecided e) => e.winner,
-    decode: (Object? data, int version) =>
-        data == null || data is int ? MatchDecided(data as int?) : null,
+    decode: (context) {
+      final data = context.data;
+      return data == null || data is int ? MatchDecided(data as int?) : null;
+    },
   );
 
   /// The side that won, or null for a draw.

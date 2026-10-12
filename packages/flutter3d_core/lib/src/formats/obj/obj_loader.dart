@@ -97,15 +97,17 @@ final class ObjLoader extends ModelDecoder {
   /// that happens to begin with `v` is not a claim worth making before any
   /// other reader has had its turn.
   @override
-  bool handles(String fileName, Uint8List bytes) =>
-      fileName.toLowerCase().endsWith('.obj');
+  bool handles(ModelProbe probe) {
+    final fileName = probe.fileName;
+    return fileName.toLowerCase().endsWith('.obj');
+  }
 
   @override
-  Future<ModelDocument> decode(
-    Uint8List bytes,
-    ModelLoadRequest request,
-    AssetUriResolver resolveUri,
-  ) => load(bytes, resolveUri: resolveUri);
+  Future<ModelDocument> decode(ModelDecodeContext context) {
+    final bytes = context.bytes;
+    final resolveUri = context.resolveUri;
+    return load(bytes, resolveUri: resolveUri);
+  }
 
   Future<ObjDocument> load(
     Uint8List bytes, {

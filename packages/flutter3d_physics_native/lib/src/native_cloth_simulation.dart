@@ -132,11 +132,8 @@ final class NativeClothSimulation extends ClothSimulation {
   }
 
   @override
-  void step(
-    ClothSettings settings,
-    double dt, {
-    List<ClothObstacle> obstacles = const <ClothObstacle>[],
-  }) {
+  void step(ClothStep request) {
+    final ClothStep(:settings, :dt, :obstacles) = request;
     final held = _live;
     // The core is float, the deterministic profile's: a profile that does
     // not promise bits (`accurate`) is the Dart integrator's, and the owner

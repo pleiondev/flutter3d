@@ -158,7 +158,9 @@ void main() {
           .single;
       final component = loop.world.get<MaterialStateComponent>(body)!;
       final codec = MaterialStateComponent.codec;
-      final back = codec.decode(codec.encode(component), codec.version)!;
+      final back = codec.decode(
+        ComponentDecodeContext(codec.encode(component), version: codec.version),
+      )!;
       expect(back.state[warmthId], component.state[warmthId]);
     });
   });

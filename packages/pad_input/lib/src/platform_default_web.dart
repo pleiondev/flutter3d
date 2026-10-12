@@ -67,12 +67,14 @@ final class WebGamepad extends GamepadPlatform {
   Stream<PadConnection> get connectionChanges => _connections.stream;
 
   @override
-  void read(PadSnapshot out) => readPad(0, out);
+  void read(PadSnapshot out) => readPad(PadReadContext(index: 0, out: out));
 
   /// The [index]th controller the browser vouches for, in the order it
   /// lists them: a second player's is the second standard pad.
   @override
-  void readPad(int index, PadSnapshot out) {
+  void readPad(PadReadContext context) {
+    final index = context.index;
+    final out = context.out;
     final pad = _current(index);
     if (pad == null) {
       out.disconnect();

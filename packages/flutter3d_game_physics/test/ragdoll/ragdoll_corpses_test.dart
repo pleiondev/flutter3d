@@ -9,9 +9,12 @@
 library;
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_game/flutter3d_game.dart' show ActorDeathContext;
 import 'package:flutter3d_game_physics/ragdoll.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show SnapshotRestoreContext;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -102,7 +105,10 @@ void main() {
     );
     // Mutation: take every model over, and a crate that "dies" is handed to
     // a ragdoll it has no bones for.
-    expect(corpses.begin(_actor(world), bare), isFalse);
+    expect(
+      corpses.begin(ActorDeathContext(actor: _actor(world), model: bare)),
+      isFalse,
+    );
     expect(corpses.count, 0);
   });
 
@@ -114,8 +120,8 @@ void main() {
     addTearDown(toned.dispose);
     addTearDown(limp.dispose);
     final a = _actor(world), b = _actor(world);
-    toned.begin(a, await _hero());
-    limp.begin(b, await _hero());
+    toned.begin(ActorDeathContext(actor: a, model: await _hero()));
+    limp.begin(ActorDeathContext(actor: b, model: await _hero()));
     expect(toned.ragdollOf(a)!.ragdoll.toneLevel, 1.0);
     expect(limp.ragdollOf(b)!.ragdoll.toneLevel, 0.0);
     for (var i = 0; i < 60; i++) {
@@ -129,7 +135,10 @@ void main() {
     final corpses = RagdollCorpses(world);
     addTearDown(corpses.dispose);
     final actor = _actor(world);
-    expect(corpses.begin(actor, await _hero()), isTrue);
+    expect(
+      corpses.begin(ActorDeathContext(actor: actor, model: await _hero())),
+      isTrue,
+    );
     expect(corpses.count, 1);
     final standing = _chest(corpses, actor).y;
     for (var i = 0; i < 180; i++) {
@@ -149,7 +158,7 @@ void main() {
       final corpses = RagdollCorpses(world, pushedFrom: () => from);
       addTearDown(corpses.dispose);
       final actor = _actor(world);
-      corpses.begin(actor, await _hero());
+      corpses.begin(ActorDeathContext(actor: actor, model: await _hero()));
       for (var i = 0; i < 90; i++) {
         corpses.step(1.0 / 60.0);
       }
@@ -170,15 +179,15 @@ void main() {
     final actors = ActorSystem(world: world, random: GameRandom(1));
     final first = actors.spawn(name: 'first');
     final second = actors.spawn(name: 'second');
-    corpses.begin(first, await _hero());
+    corpses.begin(ActorDeathContext(actor: first, model: await _hero()));
     final part = corpses.snapshotPart();
     final saved = part.capture();
 
-    corpses.begin(second, await _hero());
+    corpses.begin(ActorDeathContext(actor: second, model: await _hero()));
     for (var i = 0; i < 30; i++) {
       corpses.step(1.0 / 60.0);
     }
-    part.restore(saved, part.version);
+    part.restore(SnapshotRestoreContext(saved, version: part.version));
 
     // Mutation: restore nothing, and the second lies dead beside itself
     // standing again.
@@ -192,7 +201,7 @@ void main() {
     final corpses = RagdollCorpses(world);
     addTearDown(corpses.dispose);
     final actor = _actor(world);
-    corpses.begin(actor, await _hero());
+    corpses.begin(ActorDeathContext(actor: actor, model: await _hero()));
     corpses.end(actor);
     // Mutation: forget the map entry without disposing, or keep it, and a
     // level of the dead keeps every body it ever had.

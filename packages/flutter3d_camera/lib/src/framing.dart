@@ -26,16 +26,35 @@ abstract base class CameraFraming {
   /// tighter; infinity is no smoothing at all.
   double get lag;
 
-  /// Writes the shot this framing wants into [wanted], [dt] seconds after the
-  /// last.
+  /// Writes the shot this framing wants into [FramingStep.wanted],
+  /// [FramingStep.dt] seconds after the last.
   ///
-  /// [wanted] arrives holding the last frame's wish, which a framing that
-  /// changes only some of it may keep.
-  void frame(CameraShot wanted, double dt);
+  /// The wanted shot arrives holding the last frame's wish, which a framing
+  /// that changes only some of it may keep. The camera reuses one
+  /// [FramingStep] for every frame: read it here and do not keep it.
+  void frame(FramingStep step);
 
   /// Forgets any smoothing of its own, for a cut: a respawn or a new shot.
   /// The camera's own easing is reset by the camera.
   void cut() {}
+}
+
+/// What [CameraFraming.frame] is handed: the shot to write and how long
+/// since the last frame.
+///
+/// **One object, so a minor can hand a framing more** — the camera's
+/// current pose, the world it looks into — without breaking a framing
+/// written against 1.0. **Reused**: a camera owns one and sets it before
+/// every frame, so a frame allocates nothing for it; a framing reads it
+/// during [CameraFraming.frame] and does not keep it.
+final class FramingStep {
+  FramingStep({required this.wanted, required this.dt});
+
+  /// The shot the framing writes its wish into.
+  CameraShot wanted;
+
+  /// Seconds since the last frame.
+  double dt;
 }
 
 /// A camera that keeps a fixed offset from a subject: follow and look at it.
@@ -93,7 +112,9 @@ final class FollowFraming extends CameraFraming {
   bool _anchored = false;
 
   @override
-  void frame(CameraShot wanted, double dt) {
+  void frame(FramingStep step) {
+    final wanted = step.wanted;
+    final dt = step.dt;
     if (!_anchored) {
       _anchor.setFrom(subject);
       _anchored = true;
@@ -161,7 +182,9 @@ final class LookAtFraming extends CameraFraming {
   bool _watching = false;
 
   @override
-  void frame(CameraShot wanted, double dt) {
+  void frame(FramingStep step) {
+    final wanted = step.wanted;
+    final dt = step.dt;
     final x = subject.x + aim.x;
     final y = subject.y + aim.y;
     final z = subject.z + aim.z;
@@ -260,7 +283,8 @@ final class GroupFraming extends CameraFraming {
   double _distance = 0.0;
 
   @override
-  void frame(CameraShot wanted, double dt) {
+  void frame(FramingStep step) {
+    final wanted = step.wanted;
     if (targets.isEmpty) return;
     final middle = Vector3.zero();
     var total = 0.0;

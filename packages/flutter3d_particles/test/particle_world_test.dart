@@ -68,7 +68,9 @@ void main() {
   test("drag carries a particle off on the world's wind", () {
     final particle = Particle()..wind.setValues(4.0, 0.0, 0.0);
     for (var i = 0; i < 600; i++) {
-      const ParticleDrag(3.0).apply(particle, 1.0 / 60.0);
+      const ParticleDrag(
+        3.0,
+      ).apply(ParticleStep(particle: particle, dt: 1.0 / 60.0));
     }
     // Mutation: drag towards rest instead of towards the air and it stays
     // where it was. The velocity is a float32 `Vector3`, and the approach
@@ -79,7 +81,7 @@ void main() {
   test('in still air drag slows as it always did, to the bit', () {
     final a = Particle()..velocity.setValues(3.0, -2.0, 1.0);
     final b = Vector3(3.0, -2.0, 1.0);
-    const ParticleDrag(1.2).apply(a, 1.0 / 60.0);
+    const ParticleDrag(1.2).apply(ParticleStep(particle: a, dt: 1.0 / 60.0));
     expect(a.velocity, b..scale(const ParticleDrag(1.2).factorOf(1.0 / 60.0)));
   });
 }
@@ -88,7 +90,7 @@ extension on ParticleDrag {
   // What the affector multiplies a speed by in still air over [dt].
   double factorOf(double dt) {
     final probe = Particle()..velocity.setValues(1.0, 0.0, 0.0);
-    apply(probe, dt);
+    apply(ParticleStep(particle: probe, dt: dt));
     return probe.velocity.x;
   }
 }

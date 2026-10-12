@@ -44,6 +44,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart'
     show
         EngineLoop,
         FrameCadence,
+        FrameSpan,
         InputState,
         IsolateSimulation,
         SimulationHandle,
@@ -490,6 +491,9 @@ class _Flutter3dViewState extends State<Flutter3dView>
   StreamSubscription<DeviceLoss>? _losses;
   late final FrameCadence _cadence = FrameCadence(time: widget.time);
 
+  /// What an XR session's clock is asked with, set before every frame.
+  final FrameSpan _xrSpan = FrameSpan();
+
   /// The vsync time the ticker's own count is added to: a ticker counts
   /// from nought each time it starts, and the cadence is handed one clock
   /// that only goes forward, so the source is asked across a stop and a
@@ -867,7 +871,11 @@ class _Flutter3dViewState extends State<Flutter3dView>
     final xr = _xr;
     if (xr != null && xr.beginFrame(engine.loop.input) == null) return;
     final seconds = xr != null
-        ? xr.time.elapsed(vsync, vsync)
+        ? xr.time.elapsed(
+            _xrSpan
+              ..from = vsync
+              ..to = vsync,
+          )
         : _cadence.due(vsync);
     if (seconds == null) return;
     final frame = FrameInfo(seconds: seconds, result: _drawn);
@@ -1144,7 +1152,7 @@ final class _StandingStill extends TimeSource {
   const _StandingStill();
 
   @override
-  double elapsed(Duration from, Duration to) => 0.0;
+  double elapsed(FrameSpan span) => 0.0;
 }
 
 /// What the warm-up's zone hands out once the view has gone: a timer that

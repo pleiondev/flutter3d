@@ -41,7 +41,9 @@ final class _FirstSuccess extends BehaviorComposite {
   const _FirstSuccess();
 
   @override
-  BehaviorStatus tick(BehaviorContext context, BehaviorChildren children) {
+  BehaviorStatus tick(BehaviorCompositeTick tick) {
+    final context = tick.context;
+    final children = tick.children;
     final from = switch (context.memory) {
       final num at => at.toInt(),
       _ => 0,
@@ -62,7 +64,9 @@ final class _Veto extends BehaviorComposite {
   const _Veto();
 
   @override
-  BehaviorStatus tick(BehaviorContext context, BehaviorChildren children) {
+  BehaviorStatus tick(BehaviorCompositeTick tick) {
+    final context = tick.context;
+    final children = tick.children;
     children.tick(context, 0);
     return BehaviorStatus.failure;
   }

@@ -833,7 +833,7 @@ final class ContributorFrame extends FrameContext
   final vm.Matrix4? viewProjection
 
 abstract base mixin class ContributorLights
-  abstract void bind(PassEncoder encoder, ShaderHandle stage, {required vm.Vector3 center, required double radius})
+  abstract void bind(LightBindRequest request)
 
 final class CpuMesh implements MeshGeometry
   CpuMesh(this.source)
@@ -1309,8 +1309,8 @@ abstract final class F3dAttributeFlags
   static const int weights = 1 << 6
 
 final class F3dDecoder extends ModelDecoder
-  Future<ModelDocument> decode(Uint8List bytes, ModelLoadRequest request, AssetUriResolver resolveUri)
-  bool handles(String fileName, Uint8List bytes)
+  Future<ModelDocument> decode(ModelDecodeContext context)
+  bool handles(ModelProbe probe)
   const F3dDecoder()
 
 final class F3dDocument extends ModelDocument
@@ -1357,7 +1357,7 @@ final class F3dFormatException extends Flutter3dFormatException
 
 final class F3dModelWriter extends CheckedModelWriter
   Future<ModelDocument> readBack(ModelWrite written)
-  ModelWrite write(ModelDocument document, {String baseName = 'model'})
+  ModelWrite write(ModelWriteContext context)
   String get name
   String get says
   String get suffix
@@ -1473,8 +1473,8 @@ abstract final class FabrikIk
   static int solve(AnimationPose pose, {required List<int> joints, required Vector3 target, double tolerance = 1e-4, int maxIterations = 10})
 
 final class FbxDecoder extends ModelDecoder
-  Future<ModelDocument> decode(Uint8List bytes, ModelLoadRequest request, AssetUriResolver resolveUri)
-  bool handles(String fileName, Uint8List bytes)
+  Future<ModelDocument> decode(ModelDecodeContext context)
+  bool handles(ModelProbe probe)
   const FbxDecoder()
 
 final class FbxFormatException extends Flutter3dFormatException
@@ -1918,7 +1918,7 @@ final class GlbContainer
 
 final class GlbModelWriter extends CheckedModelWriter
   Future<ModelDocument> readBack(ModelWrite written)
-  ModelWrite write(ModelDocument document, {String baseName = 'model'})
+  ModelWrite write(ModelWriteContext context)
   String get name
   String get says
   String get suffix
@@ -1981,9 +1981,9 @@ final class GltfFormatException extends Flutter3dFormatException
 
 final class GltfLoader extends ModelDecoder
   Future<GltfAsset> load(Uint8List bytes, {AssetUriResolver? resolveUri})
-  Future<ModelDocument> decode(Uint8List bytes, ModelLoadRequest request, AssetUriResolver resolveUri)
+  Future<ModelDocument> decode(ModelDecodeContext context)
   GltfLoader({this.layout = VertexLayout.standard, this.skinnedLayout = VertexLayout.skinned, this.generateFlatNormalsWhenMissing = true})
-  bool handles(String fileName, Uint8List bytes)
+  bool handles(ModelProbe probe)
   final VertexLayout layout
   final VertexLayout skinnedLayout
   final bool generateFlatNormalsWhenMissing
@@ -2258,6 +2258,13 @@ final class LensFlareSettings
   final double haloRadius
   final double intensity
   final int ghosts
+
+final class LightBindRequest
+  LightBindRequest({required this.encoder, required this.stage, required this.center, required this.radius})
+  PassEncoder encoder
+  ShaderHandle stage
+  double radius
+  vm.Vector3 center
 
 abstract final class LightChannels
   static const int all = 0xFFFFFFFF
@@ -3049,9 +3056,15 @@ final class ModelCamera
 abstract final class ModelCameraProjection
   const ModelCameraProjection()
 
+final class ModelDecodeContext
+  const ModelDecodeContext({required this.bytes, required this.request, required this.resolveUri})
+  final AssetUriResolver resolveUri
+  final ModelLoadRequest request
+  final Uint8List bytes
+
 abstract base class ModelDecoder
-  abstract Future<ModelDocument> decode(Uint8List bytes, ModelLoadRequest request, AssetUriResolver resolveUri)
-  abstract bool handles(String fileName, Uint8List bytes)
+  abstract Future<ModelDocument> decode(ModelDecodeContext context)
+  abstract bool handles(ModelProbe probe)
   const ModelDecoder()
 
 base class ModelDecoders extends DecoderRegistry
@@ -3182,6 +3195,11 @@ final class ModelPerspectiveCamera extends ModelCameraProjection
   final double? aspectRatio
   final double? zfar
 
+final class ModelProbe
+  const ModelProbe({required this.fileName, required this.bytes})
+  final String fileName
+  final Uint8List bytes
+
 final class ModelSkin
   ModelSkin({required List<int> joints, required this.inverseBindMatrices, this.skeletonRoot, this.name, this.extras})
   String toString()
@@ -3219,6 +3237,11 @@ final class ModelWrite
   final List<String> warnings
   final List<WrittenFile> files
 
+final class ModelWriteContext
+  const ModelWriteContext({required this.document, this.baseName = 'model'})
+  final ModelDocument document
+  final String baseName
+
 final class ModelWriteFormat
   ModelWriter get writer
   String toString()
@@ -3238,7 +3261,7 @@ final class ModelWriteRequest
   final String name
 
 abstract base class ModelWriter
-  abstract ModelWrite write(ModelDocument document, {String baseName = 'model'})
+  abstract ModelWrite write(ModelWriteContext context)
   abstract String get name
   abstract String get says
   abstract String get suffix
@@ -3332,10 +3355,10 @@ final class ObjDocument extends ModelDocument
   final List<SurfaceMaterial> materials
 
 final class ObjLoader extends ModelDecoder
-  Future<ModelDocument> decode(Uint8List bytes, ModelLoadRequest request, AssetUriResolver resolveUri)
+  Future<ModelDocument> decode(ModelDecodeContext context)
   Future<ObjDocument> load(Uint8List bytes, {AssetUriResolver? resolveUri})
   ObjLoader({this.layout = VertexLayout.standard, this.normals = ObjNormals.smooth, this.splitByGroup = true, this.flipTexcoordV = true})
-  bool handles(String fileName, Uint8List bytes)
+  bool handles(ModelProbe probe)
   final ObjNormals normals
   final VertexLayout layout
   final bool flipTexcoordV
@@ -3343,7 +3366,7 @@ final class ObjLoader extends ModelDecoder
 
 final class ObjModelWriter extends CheckedModelWriter
   Future<ModelDocument> readBack(ModelWrite written)
-  ModelWrite write(ModelDocument document, {String baseName = 'model'})
+  ModelWrite write(ModelWriteContext context)
   String get name
   String get says
   String get suffix
@@ -4098,7 +4121,7 @@ abstract base class RenderNode extends FrameGraphNode
 
 abstract base mixin class RenderServices
   abstract void drawFullscreen(FullscreenDraw draw)
-  abstract void encodeScene({required RenderFrame frame, required PassEncoder encoder, required Scene scene, required vm.Matrix4 viewProjection, required vm.Vector3 cameraPosition, int casterIndex = -1})
+  abstract void encodeScene(SceneEncodeRequest request)
 
 final class RenderSettings
   RenderSettings copyWith({double? specular, double? exposure, bool? wireframe, bool? backfaceCulling, bool? batchIdenticalDraws, DebugDrawSettings? debug, List<SceneNode>? highlighted, bool? tonemap, TonemapCurve? tonemapCurve, AntiAliasSettings? antiAlias, BloomSettings? bloom, LookSettings? look, ShadowSettings? shadows, bool? surfaceBuffer, bool? showSurfaceBuffer, bool? showShadowMap, bool? showStaticShadowMap, bool? showVelocity, bool? showPointShadowDebug, ReflectionSettings? reflections, AmbientOcclusionSettings? ambientOcclusion, ContactShadowSettings? contactShadows, FogSettings? fog, SkySettings? sky, int? anisotropy, double? lightFadeBand, AutoExposureSettings? autoExposure, XraySettings? xray, double? renderScale, SpatialUpscaleSettings? spatialUpscale, LocalExposureSettings? localExposure, OutputTransform? outputTransform, int? frameWorkBudget, bool? energyCompensation, DiffuseModel? diffuseModel, bool? clusteredLights, bool? aliasTargets, OcclusionMode? occlusion, LightShaftSettings? lightShafts, VolumetricFogSettings? volumetricFog, DepthOfFieldSettings? depthOfField, MotionBlurSettings? motionBlur, PlanarReflectionSettings? planarReflections, DecalSettings? decals, ViewportShadingSettings? viewportShading, HighContrastSettings? highContrast, DebugViewSettings? debugView, TransparencyMode? transparency, bool? reflectionProbes, bool? renderTextures, bool? irradianceUpdates, bool? reversedDepth, Set<RenderStep>? stepsOff, PhysicalCamera? camera, bool? physicalCamera, SettingsExtensions? extensions, TelemetryLevel? telemetry})
@@ -4312,7 +4335,7 @@ final class Renderer with RenderServices
   void Function(DebugDraw lines)? debugLines
   void dispose()
   void drawFullscreen(FullscreenDraw draw)
-  void encodeScene({required RenderFrame frame, required PassEncoder encoder, required Scene scene, required vm.Matrix4 viewProjection, required vm.Vector3 cameraPosition, int casterIndex = -1})
+  void encodeScene(SceneEncodeRequest request)
   void releaseMeshAfterFrame(DeviceMesh mesh)
   void releaseTextureAfterFrame(TextureHandle texture)
   void relinkShaders()
@@ -4525,6 +4548,15 @@ final class SceneBvh
   void queryFrustumWhere(Frustum frustum, bool Function(Aabb3 box) accepts, void Function(int index) visit, {Aabb3? scratch})
   void queryRay(LocalRay ray, void Function(int index) visit, {double maxDistance = double.infinity, Aabb3? scratch})
   void refresh(Float32List spheres, int count, int stamp)
+
+final class SceneEncodeRequest
+  const SceneEncodeRequest({required this.frame, required this.encoder, required this.scene, required this.viewProjection, required this.cameraPosition, this.casterIndex = -1})
+  final PassEncoder encoder
+  final RenderFrame frame
+  final Scene scene
+  final int casterIndex
+  final vm.Matrix4 viewProjection
+  final vm.Vector3 cameraPosition
 
 base class SceneNode with AnimationTarget
   Aabb3? get ownBounds
@@ -5104,16 +5136,16 @@ final class SplatSpzException extends Flutter3dFormatException
   final String message
 
 final class StlLoader extends ModelDecoder
-  Future<ModelDocument> decode(Uint8List bytes, ModelLoadRequest request, AssetUriResolver resolveUri)
+  Future<ModelDocument> decode(ModelDecodeContext context)
   Future<ModelDocument> load(Uint8List bytes)
   StlLoader({this.layout = VertexLayout.standard, this.normals = StlNormals.fromFile})
-  bool handles(String fileName, Uint8List bytes)
+  bool handles(ModelProbe probe)
   final StlNormals normals
   final VertexLayout layout
 
 final class StlModelWriter extends CheckedModelWriter
   Future<ModelDocument> readBack(ModelWrite written)
-  ModelWrite write(ModelDocument document, {String baseName = 'model'})
+  ModelWrite write(ModelWriteContext context)
   String get name
   String get says
   String get suffix
@@ -5376,7 +5408,7 @@ final class UnknownDeviceClassException extends Flutter3dFormatException
   final String text
 
 final class UsdzModelWriter extends ModelWriter
-  ModelWrite write(ModelDocument document, {String baseName = 'model'})
+  ModelWrite write(ModelWriteContext context)
   String get name
   String get says
   String get suffix
@@ -6346,8 +6378,8 @@ abstract final class F3dAttributeFlags
   static const int weights = 1 << 6
 
 final class F3dDecoder extends ModelDecoder
-  Future<ModelDocument> decode(Uint8List bytes, ModelLoadRequest request, AssetUriResolver resolveUri)
-  bool handles(String fileName, Uint8List bytes)
+  Future<ModelDocument> decode(ModelDecodeContext context)
+  bool handles(ModelProbe probe)
   const F3dDecoder()
 
 final class F3dDocument extends ModelDocument
@@ -6394,7 +6426,7 @@ final class F3dFormatException extends Flutter3dFormatException
 
 final class F3dModelWriter extends CheckedModelWriter
   Future<ModelDocument> readBack(ModelWrite written)
-  ModelWrite write(ModelDocument document, {String baseName = 'model'})
+  ModelWrite write(ModelWriteContext context)
   String get name
   String get says
   String get suffix
@@ -6507,8 +6539,8 @@ final class F3dWriter
   late final List<String> warnings
 
 final class FbxDecoder extends ModelDecoder
-  Future<ModelDocument> decode(Uint8List bytes, ModelLoadRequest request, AssetUriResolver resolveUri)
-  bool handles(String fileName, Uint8List bytes)
+  Future<ModelDocument> decode(ModelDecodeContext context)
+  bool handles(ModelProbe probe)
   const FbxDecoder()
 
 final class FbxFormatException extends Flutter3dFormatException
@@ -6536,7 +6568,7 @@ final class GlbContainer
 
 final class GlbModelWriter extends CheckedModelWriter
   Future<ModelDocument> readBack(ModelWrite written)
-  ModelWrite write(ModelDocument document, {String baseName = 'model'})
+  ModelWrite write(ModelWriteContext context)
   String get name
   String get says
   String get suffix
@@ -6599,9 +6631,9 @@ final class GltfFormatException extends Flutter3dFormatException
 
 final class GltfLoader extends ModelDecoder
   Future<GltfAsset> load(Uint8List bytes, {AssetUriResolver? resolveUri})
-  Future<ModelDocument> decode(Uint8List bytes, ModelLoadRequest request, AssetUriResolver resolveUri)
+  Future<ModelDocument> decode(ModelDecodeContext context)
   GltfLoader({this.layout = VertexLayout.standard, this.skinnedLayout = VertexLayout.skinned, this.generateFlatNormalsWhenMissing = true})
-  bool handles(String fileName, Uint8List bytes)
+  bool handles(ModelProbe probe)
   final VertexLayout layout
   final VertexLayout skinnedLayout
   final bool generateFlatNormalsWhenMissing
@@ -7076,9 +7108,15 @@ final class ModelCamera
 abstract final class ModelCameraProjection
   const ModelCameraProjection()
 
+final class ModelDecodeContext
+  const ModelDecodeContext({required this.bytes, required this.request, required this.resolveUri})
+  final AssetUriResolver resolveUri
+  final ModelLoadRequest request
+  final Uint8List bytes
+
 abstract base class ModelDecoder
-  abstract Future<ModelDocument> decode(Uint8List bytes, ModelLoadRequest request, AssetUriResolver resolveUri)
-  abstract bool handles(String fileName, Uint8List bytes)
+  abstract Future<ModelDocument> decode(ModelDecodeContext context)
+  abstract bool handles(ModelProbe probe)
   const ModelDecoder()
 
 base class ModelDecoders extends DecoderRegistry
@@ -7195,6 +7233,11 @@ final class ModelPerspectiveCamera extends ModelCameraProjection
   final double? aspectRatio
   final double? zfar
 
+final class ModelProbe
+  const ModelProbe({required this.fileName, required this.bytes})
+  final String fileName
+  final Uint8List bytes
+
 final class ModelSkin
   ModelSkin({required List<int> joints, required this.inverseBindMatrices, this.skeletonRoot, this.name, this.extras})
   String toString()
@@ -7232,8 +7275,13 @@ final class ModelWrite
   final List<String> warnings
   final List<WrittenFile> files
 
+final class ModelWriteContext
+  const ModelWriteContext({required this.document, this.baseName = 'model'})
+  final ModelDocument document
+  final String baseName
+
 abstract base class ModelWriter
-  abstract ModelWrite write(ModelDocument document, {String baseName = 'model'})
+  abstract ModelWrite write(ModelWriteContext context)
   abstract String get name
   abstract String get says
   abstract String get suffix
@@ -7260,10 +7308,10 @@ final class ObjDocument extends ModelDocument
   final List<SurfaceMaterial> materials
 
 final class ObjLoader extends ModelDecoder
-  Future<ModelDocument> decode(Uint8List bytes, ModelLoadRequest request, AssetUriResolver resolveUri)
+  Future<ModelDocument> decode(ModelDecodeContext context)
   Future<ObjDocument> load(Uint8List bytes, {AssetUriResolver? resolveUri})
   ObjLoader({this.layout = VertexLayout.standard, this.normals = ObjNormals.smooth, this.splitByGroup = true, this.flipTexcoordV = true})
-  bool handles(String fileName, Uint8List bytes)
+  bool handles(ModelProbe probe)
   final ObjNormals normals
   final VertexLayout layout
   final bool flipTexcoordV
@@ -7271,7 +7319,7 @@ final class ObjLoader extends ModelDecoder
 
 final class ObjModelWriter extends CheckedModelWriter
   Future<ModelDocument> readBack(ModelWrite written)
-  ModelWrite write(ModelDocument document, {String baseName = 'model'})
+  ModelWrite write(ModelWriteContext context)
   String get name
   String get says
   String get suffix
@@ -7441,16 +7489,16 @@ final class SplatSpzException extends Flutter3dFormatException
   final String message
 
 final class StlLoader extends ModelDecoder
-  Future<ModelDocument> decode(Uint8List bytes, ModelLoadRequest request, AssetUriResolver resolveUri)
+  Future<ModelDocument> decode(ModelDecodeContext context)
   Future<ModelDocument> load(Uint8List bytes)
   StlLoader({this.layout = VertexLayout.standard, this.normals = StlNormals.fromFile})
-  bool handles(String fileName, Uint8List bytes)
+  bool handles(ModelProbe probe)
   final StlNormals normals
   final VertexLayout layout
 
 final class StlModelWriter extends CheckedModelWriter
   Future<ModelDocument> readBack(ModelWrite written)
-  ModelWrite write(ModelDocument document, {String baseName = 'model'})
+  ModelWrite write(ModelWriteContext context)
   String get name
   String get says
   String get suffix
@@ -7588,7 +7636,7 @@ final class UniversalTarget
   static const UniversalTarget rgba8 = UniversalTarget._('rgba8', vkFormat: VkFormat.r8g8b8a8UNorm, bytesPerBlock: 0, carriesAlpha: true, encodeBlock: null)
 
 final class UsdzModelWriter extends ModelWriter
-  ModelWrite write(ModelDocument document, {String baseName = 'model'})
+  ModelWrite write(ModelWriteContext context)
   String get name
   String get says
   String get suffix

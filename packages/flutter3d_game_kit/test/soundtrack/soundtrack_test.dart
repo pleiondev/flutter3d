@@ -40,11 +40,14 @@ final class _Jumped extends BusEvent {
   /// A step event is declared with its codec.
   static final EventCodec<_Jumped> codec = EventCodec<_Jumped>.of(
     encode: (event) => <double>[event.at.x, event.at.y, event.at.z],
-    decode: (data, _) => switch (data) {
-      [final num x, final num y, final num z] => _Jumped(
-        Vector3(x.toDouble(), y.toDouble(), z.toDouble()),
-      ),
-      _ => null,
+    decode: (context) {
+      final data = context.data;
+      return switch (data) {
+        [final num x, final num y, final num z] => _Jumped(
+          Vector3(x.toDouble(), y.toDouble(), z.toDouble()),
+        ),
+        _ => null,
+      };
     },
   );
 
@@ -60,8 +63,8 @@ final class _Locked extends BusEvent {
 }
 
 CueSheet _sheet() => CueSheet()
-  ..on<_Jumped>((e, out) => out.add(Heard(_jump, e.at)))
-  ..on<_Locked>((e, out) => out.add(Heard(_locked, Vector3.zero())));
+  ..on<_Jumped>((cue) => cue.out.add(Heard(_jump, cue.event.at)))
+  ..on<_Locked>((cue) => cue.out.add(Heard(_locked, Vector3.zero())));
 
 void main() {
   test('a sheet hears each event through the cue for its type, in order', () {

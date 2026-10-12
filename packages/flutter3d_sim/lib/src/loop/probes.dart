@@ -209,7 +209,10 @@ final class Probe {
   static final ComponentCodec<Probe> codec = ComponentCodec<Probe>.of(
     id: 'flutter3d.probe',
     encode: (probe) => probe.toJson(),
-    decode: (data, _) => data is Map ? Probe.fromJson(data) : null,
+    decode: (context) {
+      final data = context.data;
+      return data is Map ? Probe.fromJson(data) : null;
+    },
   );
 
   Map<String, Object?> toJson() => <String, Object?>{

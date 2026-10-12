@@ -7,7 +7,7 @@
 library;
 
 import 'package:flutter3d_net/flutter3d_net.dart'
-    show LoopbackParty, PeerWire, RollbackSession;
+    show LoopbackParty, PeerSend, PeerWire, RollbackSession;
 
 /// The party's settled steps, sent to whoever only watches — a spectator
 /// played the tape rather than taking part in the rollback.
@@ -37,12 +37,16 @@ final class PartyTape<S> {
   void settled(int step, S after, Map<int, Map<String, Object?>> frames) {
     _last = (step: step, after: after);
     if (!_hosting || !_anybodyWatching) return;
-    wire.send(<String, Object?>{
-      'tape': step,
-      'frames': <String, Object?>{
-        for (final MapEntry(:key, :value) in frames.entries) '$key': value,
-      },
-    });
+    wire.send(
+      PeerSend(
+        message: <String, Object?>{
+          'tape': step,
+          'frames': <String, Object?>{
+            for (final MapEntry(:key, :value) in frames.entries) '$key': value,
+          },
+        },
+      ),
+    );
   }
 
   /// A message that is a spectator saying it is there — the rollback's
@@ -52,10 +56,14 @@ final class PartyTape<S> {
     _anybodyWatching = true;
     final last = _last;
     if (last == null) return;
-    wire.send(<String, Object?>{
-      'tapeFrom': last.step + 1,
-      'state': encode(last.after),
-    });
+    wire.send(
+      PeerSend(
+        message: <String, Object?>{
+          'tapeFrom': last.step + 1,
+          'state': encode(last.after),
+        },
+      ),
+    );
   }
 }
 
@@ -68,7 +76,7 @@ final class PartyTapeWatcher<S> {
     required this.restore,
     required this.applyAndStep,
   }) {
-    wire.listenFrom(hear);
+    wire.listenFrom((heard) => hear(heard.from, heard.message));
   }
 
   final PeerWire wire;
@@ -90,7 +98,9 @@ final class PartyTapeWatcher<S> {
   /// Says it is here, so the host starts sending. Again until the state
   /// comes, since the host may not have heard it the first time.
   void ask() {
-    if (_next == null) wire.send(const <String, Object?>{'watching': true});
+    if (_next == null) {
+      wire.send(PeerSend(message: const <String, Object?>{'watching': true}));
+    }
   }
 
   void hear(int from, Map<String, Object?> message) {
@@ -138,7 +148,7 @@ final class AuthorityServer<S> {
     required this.encode,
     this.snapshotEvery = 3,
   }) {
-    wire.listenFrom(receive);
+    wire.listenFrom((heard) => receive(heard.from, heard.message));
   }
 
   final PeerWire wire;
@@ -184,13 +194,18 @@ final class AuthorityServer<S> {
     applyAndStep(frames);
     _step++;
     if (_step % snapshotEvery == 0) {
-      wire.send(<String, Object?>{
-        'snapshot': _step,
-        'state': encode(save()),
-        'ran': <String, Object?>{
-          for (final MapEntry(:key, :value) in _ran.entries) '$key': value,
-        },
-      }, reliable: false);
+      wire.send(
+        PeerSend(
+          message: <String, Object?>{
+            'snapshot': _step,
+            'state': encode(save()),
+            'ran': <String, Object?>{
+              for (final MapEntry(:key, :value) in _ran.entries) '$key': value,
+            },
+          },
+          reliable: false,
+        ),
+      );
     }
   }
 }
@@ -208,7 +223,7 @@ final class PredictingClient<S> {
     required this.decode,
     this.redundancy = 8,
   }) {
-    wire.listenFrom(receive);
+    wire.listenFrom((heard) => receive(heard.from, heard.message));
   }
 
   final PeerWire wire;
@@ -237,14 +252,19 @@ final class PredictingClient<S> {
   void advance() {
     final frame = captureLocalFrame();
     _unacknowledged[++_sequence] = frame;
-    wire.send(<String, Object?>{
-      'inputs': <String, Object?>{
-        for (final s in _unacknowledged.keys.where(
-          (s) => s > _sequence - redundancy,
-        ))
-          '$s': _unacknowledged[s],
-      },
-    }, reliable: false);
+    wire.send(
+      PeerSend(
+        message: <String, Object?>{
+          'inputs': <String, Object?>{
+            for (final s in _unacknowledged.keys.where(
+              (s) => s > _sequence - redundancy,
+            ))
+              '$s': _unacknowledged[s],
+          },
+        },
+        reliable: false,
+      ),
+    );
     predict(frame);
   }
 

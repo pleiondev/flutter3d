@@ -63,7 +63,8 @@ final class _InTheGas extends ParticleAffector {
   final double Function(Particle particle) rise;
 
   @override
-  void apply(Particle particle, double dt) {
+  void apply(ParticleStep step) {
+    final particle = step.particle;
     final a = air(particle);
     particle.velocity.setValues(a.x, a.y + rise(particle), a.z);
   }
@@ -98,7 +99,9 @@ final class _Dragged extends ParticleAffector {
   double airDensity = standardAirDensity;
 
   @override
-  void apply(Particle particle, double dt) {
+  void apply(ParticleStep step) {
+    final particle = step.particle;
+    final dt = step.dt;
     final a = air(particle);
     final dx = a.x - particle.velocity.x;
     final dy = a.y + rise(particle) - particle.velocity.y;
@@ -143,7 +146,8 @@ final class _Thins extends ParticleAffector {
   final double? Function(Particle particle) depth;
 
   @override
-  void apply(Particle particle, double dt) {
+  void apply(ParticleStep step) {
+    final particle = step.particle;
     final tau = depth(particle);
     final life = particle.life;
     // Faded out over the last tenth of its life, where a plume cut short by
@@ -164,7 +168,8 @@ final class _PlumeWide extends ParticleAffector {
   final double Function(Particle particle) width;
 
   @override
-  void apply(Particle particle, double dt) {
+  void apply(ParticleStep step) {
+    final particle = step.particle;
     particle.size = math.max(particle.birthSize, width(particle));
   }
 }
@@ -195,7 +200,8 @@ final class _Glows extends ParticleAffector {
   final double soot, air, emissivity, kw, length;
 
   @override
-  void apply(Particle particle, double dt) {
+  void apply(ParticleStep step) {
+    final particle = step.particle;
     final life = particle.life;
     final x = life * length / math.pow(math.max(kw, 1e-6), 0.4);
     final excess = x < 0.08
@@ -257,12 +263,11 @@ final class _Tongues extends ParticleEmitter {
   final Range speed;
 
   @override
-  void emit(
-    Particle particle,
-    Vector3 origin,
-    Vector3 direction,
-    math.Random random,
-  ) {
+  void emit(ParticleBirth birth) {
+    final particle = birth.particle;
+    final origin = birth.origin;
+    final direction = birth.direction;
+    final random = birth.random;
     // Two directions across the axis, from whichever world axis it is
     // furthest from.
     final across = direction.x.abs() < 0.9

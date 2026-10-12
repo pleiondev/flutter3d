@@ -39,16 +39,47 @@ abstract base mixin class WorldMirror {
 abstract base class WorldRays {
   const WorldRays();
 
-  /// The nearest solid thing a ray from [origin] along [direction] meets
-  /// within [maxDistance], on a layer in [mask], not [ignore], into [out].
-  bool raycast(
-    Vector3 origin,
-    Vector3 direction,
-    double maxDistance,
-    RayHit out, {
-    required int mask,
-    Collider? ignore,
+  /// The nearest solid thing the query's ray meets, into its
+  /// [RayQuery.out]; whether it met one.
+  bool raycast(RayQuery query);
+}
+
+/// What [WorldRays.raycast] is handed: a ray from [origin] along
+/// [direction] within [maxDistance], meeting things on a layer in [mask] but
+/// not [ignore], and the hit to write into [out].
+///
+/// **One object, so a minor can hand the rays more** — a ray's thickness, a
+/// filter the core can run — without breaking an implementation written
+/// against 1.0. **Reused**: a world owns one and sets it before every
+/// query, so a ray allocates nothing for it; the rays read it during the
+/// call and do not keep it.
+final class RayQuery {
+  RayQuery({
+    required this.origin,
+    required this.direction,
+    required this.maxDistance,
+    required this.out,
+    this.mask = Layers.all,
+    this.ignore,
   });
+
+  /// Where the ray starts.
+  Vector3 origin;
+
+  /// Which way it goes, a unit vector.
+  Vector3 direction;
+
+  /// How far it reaches, in meters.
+  double maxDistance;
+
+  /// The hit, written by the call.
+  RayHit out;
+
+  /// The layers it meets.
+  int mask;
+
+  /// A collider it passes through: the one casting it, usually.
+  Collider? ignore;
 }
 
 /// A world's sweeps, cast elsewhere: the physics core moving a shape
@@ -69,14 +100,41 @@ abstract base class WorldRays {
 abstract base class WorldSweeps {
   const WorldSweeps();
 
-  /// The first solid thing [shape] meets moved from [origin] by [delta], on
-  /// a layer in [mask], not [ignore], into [out]; whether it met one.
-  bool sweep(
-    CollisionShape shape,
-    Vector3 origin,
-    Vector3 delta,
-    SweepHit out, {
-    required int mask,
-    Collider? ignore,
+  /// The first solid thing the query's shape meets, into its
+  /// [SweepQuery.out]; whether it met one.
+  bool sweep(SweepQuery query);
+}
+
+/// What [WorldSweeps.sweep] is handed: [shape] moved from [origin] by
+/// [delta], meeting things on a layer in [mask] but not [ignore], and the
+/// hit to write into [out].
+///
+/// One object, reused by the world, for the reasons [RayQuery] gives.
+final class SweepQuery {
+  SweepQuery({
+    required this.shape,
+    required this.origin,
+    required this.delta,
+    required this.out,
+    this.mask = Layers.all,
+    this.ignore,
   });
+
+  /// The shape moved.
+  CollisionShape shape;
+
+  /// Where its center starts.
+  Vector3 origin;
+
+  /// How far it moves.
+  Vector3 delta;
+
+  /// The hit, written by the call.
+  SweepHit out;
+
+  /// The layers it meets.
+  int mask;
+
+  /// A collider it passes through: the one moving, usually.
+  Collider? ignore;
 }

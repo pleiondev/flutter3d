@@ -8,10 +8,10 @@ import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show
         DataSection,
-        DataSectionContext,
+        DataSectionInstall,
+        DataSectionRead,
         DocumentFormatException,
-        PluginException,
-        PluginHost;
+        PluginException;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 /// A data plugin's `entityKinds`: the kinds a level may name, each a
@@ -31,20 +31,23 @@ final class _EntityKindsSection extends DataSection {
   String get name => 'entityKinds';
 
   @override
-  Object read(Object? written, DataSectionContext context) =>
-      List<DataEntityKind>.unmodifiable(<DataEntityKind>[
-        for (final entry in switch (written) {
-          null => const <Object?>[],
-          final List<Object?> list when list.every((e) => e is Map) => list,
-          _ => throw const DocumentFormatException(
-            '"entityKinds" is not a list of objects',
-          ),
-        })
-          DataEntityKind.fromJson(
-            (entry! as Map).cast<String, Object?>(),
-            owner: context.plugin,
-          ),
-      ]);
+  Object read(DataSectionRead step) {
+    final written = step.written;
+    final context = step.context;
+    return List<DataEntityKind>.unmodifiable(<DataEntityKind>[
+      for (final entry in switch (written) {
+        null => const <Object?>[],
+        final List<Object?> list when list.every((e) => e is Map) => list,
+        _ => throw const DocumentFormatException(
+          '"entityKinds" is not a list of objects',
+        ),
+      })
+        DataEntityKind.fromJson(
+          (entry! as Map).cast<String, Object?>(),
+          owner: context.plugin,
+        ),
+    ]);
+  }
 
   @override
   Object? write(Object section) => <Object?>[
@@ -52,7 +55,10 @@ final class _EntityKindsSection extends DataSection {
   ];
 
   @override
-  void install(PluginHost host, Object section, DataSectionContext context) {
+  void install(DataSectionInstall step) {
+    final host = step.host;
+    final section = step.section;
+    final context = step.context;
     final declared = section as List<DataEntityKind>;
     if (declared.isEmpty) return;
     final kinds = host.maybeRegistry<EntityKinds>();
@@ -139,7 +145,10 @@ final class DataEntityKind extends EntityKind {
   };
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     for (final key in requires) {
       if (entity.properties.containsKey(key)) continue;
       out.add(
@@ -154,7 +163,9 @@ final class DataEntityKind extends EntityKind {
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final kind = collider;
     if (kind != null) place(entity, context, kind: kind);
   }

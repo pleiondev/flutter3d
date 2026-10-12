@@ -92,7 +92,8 @@ final class MonsterGraphs with ActorGraphs {
   /// and the tank, which walk, are one definition. Null for a model with no
   /// idle to stand in.
   @override
-  AnimationStateMachine? machineFor(Actor actor, List<AnimationClip> clips) {
+  AnimationStateMachine? machineFor(ActorMachineContext context) {
+    final clips = context.clips;
     final have = <String>{for (final c in clips) ?c.name};
     String? pick(List<String> names) => names.where(have.contains).firstOrNull;
     final idle = pick(const <String>['Idle']);
@@ -285,8 +286,11 @@ final class MonsterGraphs with ActorGraphs {
   /// knee and ankle under the body, and each foot a bone of its own on the
   /// root that the clips put where the ankle is.
   @override
-  void dress(Actor actor, AnimationGraph graph, ModelInstance model) =>
-      dressNamed(graph, <String?>[for (final n in model.nodes) n.name]);
+  void dress(ActorDressContext context) {
+    final graph = context.graph;
+    final model = context.model;
+    dressNamed(graph, <String?>[for (final n in model.nodes) n.name]);
+  }
 
   /// [dress] by the nodes' [names], in the pose's order — from a model on
   /// screen or from its document, read before there is one.
@@ -333,14 +337,20 @@ final class MonsterGraphs with ActorGraphs {
   }
 
   @override
-  void drive(Actor actor, AnimationGraph graph, ModelInstance model) =>
-      _aim(actor, graph, model.root.worldMatrix);
+  void drive(ActorDriveContext context) {
+    final actor = context.actor;
+    final graph = context.graph;
+    final model = context.model;
+    _aim(actor, graph, model.root.worldMatrix);
+  }
 
   /// The graph [actor] is animated by in the simulation's step, over
   /// [document]'s clips and nodes, dressed as [dress] dresses one on screen;
   /// null for a model with no idle, which keeps naming its clips.
   AnimationGraph? graphOver(Actor actor, ModelDocument document) {
-    final machine = machineFor(actor, document.animations);
+    final machine = machineFor(
+      ActorMachineContext(actor: actor, clips: document.animations),
+    );
     if (machine == null) return null;
     final graph = AnimationGraph(
       machine: machine,

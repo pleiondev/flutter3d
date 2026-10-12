@@ -22,14 +22,11 @@ final class _Named extends ModelDecoder {
   final String name;
 
   @override
-  bool handles(String fileName, Uint8List bytes) => true;
+  bool handles(ModelProbe probe) => true;
 
   @override
-  Future<ModelDocument> decode(
-    Uint8List bytes,
-    ModelLoadRequest request,
-    AssetUriResolver resolveUri,
-  ) async => PlainModelDocument(warnings: <String>[name]);
+  Future<ModelDocument> decode(ModelDecodeContext context) async =>
+      PlainModelDocument(warnings: <String>[name]);
 
   @override
   String toString() => name;

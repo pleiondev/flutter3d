@@ -85,7 +85,9 @@ final class SimSession {
     final world = CollisionWorld(backend: usePhysics());
     level.addTo(world);
     world.backend.attach(world);
-    final run = game.start(level, world, _input);
+    final run = game.start(
+      HeadlessStart(level: level, world: world, input: _input),
+    );
     world.update();
 
     _run = run;
@@ -322,7 +324,9 @@ final class SimSession {
         level.addTo(world);
         world.backend.attach(world);
         final input = InputState();
-        final run = game.start(level, world, input);
+        final run = game.start(
+          HeadlessStart(level: level, world: world, input: input),
+        );
         world.update();
         // The standard rate, sixty a second: the loop hands the run 1 / 60,
         // which is [_dt], the step the runs were recorded at.

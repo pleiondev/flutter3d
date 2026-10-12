@@ -58,7 +58,7 @@ one says which, in its parameter's name or its doc.
   subtracting in doubles first, and `Scene.toWorld` brings a point back;
   `Scene.shiftOrigin` moves the origin and everything in scene space with
   it. The renderer's extension API is in scene space throughout:
-  `PassContributor.boundsFor`, `RenderServices.encodeScene`'s
+  `PassContributor.boundsFor`, `SceneEncodeRequest`'s
   `cameraPosition` and `viewProjection`, `ContributorFrame.viewProjection`
   (whose `origin` names the scene's), `ContributorLights.bind`, `DebugDraw`'s
   lines, `MeshOverlay`, and the particles' bursts and emissions

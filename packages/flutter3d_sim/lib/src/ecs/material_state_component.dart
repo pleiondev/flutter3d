@@ -59,9 +59,12 @@ final class MaterialStateComponent {
       ComponentCodec<MaterialStateComponent>.of(
         id: 'flutter3d.materialState',
         encode: (component) => component._toJson(),
-        decode: (data, _) => switch (data) {
-          final Map<Object?, Object?> json => _fromJson(json),
-          _ => null,
+        decode: (context) {
+          final data = context.data;
+          return switch (data) {
+            final Map<Object?, Object?> json => _fromJson(json),
+            _ => null,
+          };
         },
       );
 

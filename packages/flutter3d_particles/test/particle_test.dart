@@ -886,12 +886,10 @@ final class _GreedyEmitter extends ParticleEmitter {
   const _GreedyEmitter();
 
   @override
-  void emit(
-    Particle particle,
-    Vector3 origin,
-    Vector3 direction,
-    math.Random random,
-  ) {
+  void emit(ParticleBirth birth) {
+    final particle = birth.particle;
+    final origin = birth.origin;
+    final random = birth.random;
     random.nextDouble(); // the extra draw
     randomDirection(particle.velocity, random);
     particle.velocity.scale(1.0);

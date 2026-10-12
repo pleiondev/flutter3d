@@ -41,11 +41,7 @@ final class _Counted extends CloudSaveStore {
   }
 
   @override
-  Future<CloudPut> put(
-    String slot,
-    String document, {
-    String? replacing,
-  }) async {
+  Future<CloudPut> put(CloudPutRequest request) async {
     calls.add('put');
     return const CloudStored(version: '1');
   }

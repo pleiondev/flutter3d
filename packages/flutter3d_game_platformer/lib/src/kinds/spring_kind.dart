@@ -13,7 +13,10 @@ final class SpringKind extends EntityKind {
   static Vector3 get defaultSize => Vector3(1.6, 0.4, 1.6);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     final speed = entity.number('speed');
     if (speed != null && speed <= 0.0) {
       out.add(
@@ -27,7 +30,9 @@ final class SpringKind extends EntityKind {
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final collider = place(
       entity,
       context,

@@ -1,4 +1,3 @@
-import 'particle.dart';
 import 'particle_affector.dart';
 
 /// Stops particles at a level floor, and throws them back up off it.
@@ -45,7 +44,9 @@ final class ParticlePlaneCollision extends ParticleAffector {
   final double friction;
 
   @override
-  void apply(Particle particle, double dt) {
+  void apply(ParticleStep step) {
+    final particle = step.particle;
+    final dt = step.dt;
     final position = particle.position;
     final velocity = particle.velocity;
     if (position.y < height) position.y = height;

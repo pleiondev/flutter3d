@@ -259,12 +259,9 @@ final class _Never extends ModelDecoder {
   const _Never();
 
   @override
-  bool handles(String fileName, Uint8List bytes) => false;
+  bool handles(ModelProbe probe) => false;
 
   @override
-  Future<ModelDocument> decode(
-    Uint8List bytes,
-    ModelLoadRequest request,
-    AssetUriResolver resolveUri,
-  ) => throw UnimplementedError();
+  Future<ModelDocument> decode(ModelDecodeContext context) =>
+      throw UnimplementedError();
 }

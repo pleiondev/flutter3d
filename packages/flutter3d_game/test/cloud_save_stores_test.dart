@@ -64,9 +64,15 @@ void main() {
         }),
       );
 
-      final replaced = await store.put('s', '{}', replacing: '"v1"');
-      final created = await store.put('s', '{}');
-      final stale = await store.put('s', '{}', replacing: '"v0"');
+      final replaced = await store.put(
+        CloudPutRequest(slot: 's', document: '{}', replacing: '"v1"'),
+      );
+      final created = await store.put(
+        CloudPutRequest(slot: 's', document: '{}'),
+      );
+      final stale = await store.put(
+        CloudPutRequest(slot: 's', document: '{}', replacing: '"v0"'),
+      );
 
       expect((replaced as CloudStored).version, '"v2"');
       expect(created, isA<CloudStored>());
@@ -100,7 +106,10 @@ void main() {
       );
 
       expect(await store.fetch('s'), isA<CloudUnavailable>());
-      expect(await store.put('s', '{}'), isA<CloudUnavailable>());
+      expect(
+        await store.put(CloudPutRequest(slot: 's', document: '{}')),
+        isA<CloudUnavailable>(),
+      );
     });
   });
 
@@ -125,7 +134,9 @@ void main() {
         final store = PlatformCloudSaves(CloudProvider.playGames);
 
         final fetched = await store.fetch('save.json');
-        final put = await store.put('save.json', '{}', replacing: 'r7');
+        final put = await store.put(
+          CloudPutRequest(slot: 'save.json', document: '{}', replacing: 'r7'),
+        );
 
         expect((fetched as CloudDocument).version, 'r7');
         expect((put as CloudStored).version, 'r8');
@@ -149,7 +160,10 @@ void main() {
       final store = PlatformCloudSaves(CloudProvider.iCloud);
 
       expect(await store.fetch('s'), isA<CloudEmpty>());
-      expect(await store.put('s', '{}'), isA<CloudMoved>());
+      expect(
+        await store.put(CloudPutRequest(slot: 's', document: '{}')),
+        isA<CloudMoved>(),
+      );
     });
 
     test('a build without the platform side says so', () async {
@@ -176,7 +190,7 @@ void main() {
       );
       final store = PlatformCloudSaves(CloudProvider.playGames);
 
-      final put = await store.put('s', '{}');
+      final put = await store.put(CloudPutRequest(slot: 's', document: '{}'));
 
       expect((put as CloudUnavailable).reason, contains('not signed in'));
     });

@@ -51,15 +51,20 @@ final class _Genre extends GenrePlugin<List<double>> {
   );
 
   @override
-  void stepSimulation(List<double> simulation, LoopContext context) =>
-      simulation.add(context.dt);
+  void stepSimulation(GenreStepContext<List<double>> step) {
+    final simulation = step.simulation;
+    final context = step.context;
+    simulation.add(context.dt);
+  }
 
   @override
   Snapshot captureSimulation(List<double> simulation) =>
       Snapshot(<String, Object?>{'steps': List<double>.of(simulation)});
 
   @override
-  void restoreSimulation(List<double> simulation, Snapshot state) {
+  void restoreSimulation(GenreRestoreContext<List<double>> restore) {
+    final simulation = restore.simulation;
+    final state = restore.state;
     simulation
       ..clear()
       ..addAll(<double>[

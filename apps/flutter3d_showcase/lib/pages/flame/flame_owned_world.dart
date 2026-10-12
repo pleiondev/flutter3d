@@ -104,7 +104,10 @@ final class FlameOwnedWorldDemo extends ShowcaseDemo {
     );
     final crate = _Crate(device, Scene(), Vector2(1.0, -3.0))..update(0.0);
     final screen = projector.toScreen(crate.scenePosition)!;
-    return (crate.hitAt3d(screen, projector), !crate.containsPoint(screen));
+    return (
+      crate.hitAt3d(Tap3dProbe(screen: screen, projector: projector)),
+      !crate.containsPoint(screen),
+    );
   }
 
   /// The Flame game the page runs, for a test that steps it without a window.

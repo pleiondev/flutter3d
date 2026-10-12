@@ -5,7 +5,6 @@ import '../world/light_fixture.dart';
 import 'entity_def.dart';
 import 'entity_kind.dart';
 import 'level_issue.dart';
-import 'spawn_context.dart';
 
 /// Anything that gives off light and can be seen doing it.
 ///
@@ -39,7 +38,10 @@ final class LightFixtureKind extends EntityKind {
   final Vector3 defaultSize;
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     final light = entity.string('light');
     if (light == null) return;
     for (final candidate in scope.level.lights) {
@@ -55,7 +57,9 @@ final class LightFixtureKind extends EntityKind {
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final fixture = context.mechanisms.add(
       LightFixture(
         name: entity.name,

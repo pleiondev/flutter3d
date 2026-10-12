@@ -62,24 +62,42 @@ abstract base class GamepadPlatform extends PlatformInterface {
   /// How many controllers can be held at once: the slots [readPad] reads.
   static const int maxPads = 4;
 
-  /// Reads the controller in slot [index] into [out]: the first player's
-  /// is slot nought, the next one to connect slot one, and so on, as the
-  /// lights on a console's controllers are numbered.
+  /// Reads the controller in the context's slot into its snapshot: the
+  /// first player's is slot 0, the next one to connect slot 1, and so on, as
+  /// the lights on a console's controllers are numbered.
   ///
   /// **A second player, not a second look at the first.** [read] is the
   /// first slot; a backend that tells controllers apart answers the others.
   /// One that does not, as this default, reports every slot past the first
   /// as disconnected rather than showing the first pad twice.
-  void readPad(int index, PadSnapshot out) {
-    if (index == 0) {
-      read(out);
+  void readPad(PadReadContext context) {
+    if (context.index == 0) {
+      read(context.out);
     } else {
-      out.disconnect();
+      context.out.disconnect();
     }
   }
 
   /// Stops listening. Called when the last owner goes away.
   Future<void> dispose() async {}
+}
+
+/// What [GamepadPlatform.readPad] is handed: the slot to read and the
+/// snapshot to fill.
+///
+/// **One object, so a minor can hand a backend more** — whether rumble is
+/// wanted, the frame's time — without breaking a backend written against
+/// 1.0. **Reused**: a `Gamepad` owns one and sets it before every read, so
+/// a frame's read allocates nothing; a backend reads it during the call and
+/// does not keep it.
+final class PadReadContext {
+  PadReadContext({required this.index, required this.out});
+
+  /// The slot read: 0 for the first controller to connect.
+  int index;
+
+  /// Where the pad's state goes.
+  PadSnapshot out;
 }
 
 /// The platform for a build with no gamepad implementation.

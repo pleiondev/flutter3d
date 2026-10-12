@@ -31,8 +31,12 @@ final class _Heat {
   static final ComponentCodec<_Heat> codec = ComponentCodec<_Heat>.of(
     id: 'acme.heat',
     encode: (heat) => <String, Object?>{'temperature': heat.kelvin},
-    decode: (data, _) =>
-        data is Map ? _Heat((data['temperature']! as num).toDouble()) : null,
+    decode: (context) {
+      final data = context.data;
+      return data is Map
+          ? _Heat((data['temperature']! as num).toDouble())
+          : null;
+    },
   );
 }
 

@@ -7,6 +7,9 @@ number, so `^1.0.0-rc.1` means the same thing here as on every sibling, and
 from 1.0.0 it follows strict semver with them. The 0.2.0 and 0.3.0 entries
 were never published; everything below up to 0.1.0 ships in this release.
 
+- **The wire's contexts are exported**: `PeerSend`, `PeerSendBytes`,
+  `PeerDelivery`, `PeerBytesDelivery`, `PeerMessage` and `PeerBytes`, which
+  `PeerWire`'s hooks and listeners take since `flutter3d_net` 1.0.0-rc.1.
 - **The observer is exported**: `ObserverFeed`, `SimulationObserver`,
   `ObserverFilter`, `ObserverMode` and `ObserverSnapshot`, from
   `flutter3d_net`, for watching an authoritative simulation.

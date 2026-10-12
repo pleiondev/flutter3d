@@ -11,7 +11,7 @@ import 'run_elements.dart';
 /// above as a rule the core keeps, and the rays; on the Dart reference the
 /// same crates, and other bits.
 RigidDynamics platformerDynamics(CollisionWorld world) =>
-    usePhysics().dynamics(world);
+    usePhysics().dynamics(DynamicsRequest(world));
 
 /// A level, spawned, with somebody standing in it ready to be stepped.
 final class Staged {

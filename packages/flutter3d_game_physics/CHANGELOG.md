@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `RagdollCorpses.begin` takes one `ActorDeathContext`**, as
+  every `ActorCorpses` does now.
 - **`BurningWreck.fromJson` throws a `SnapshotFormatException`** for a
   row that is not a wreck; the component's codec still skips the row.
 - **`ElementSounds` takes `cues:` and `bus:` by name**, so it can take

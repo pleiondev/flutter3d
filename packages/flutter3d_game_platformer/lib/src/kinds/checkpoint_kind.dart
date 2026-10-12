@@ -15,7 +15,10 @@ final class CheckpointKind extends EntityKind {
   static Vector3 get markerSize => Vector3(0.35, 2.2, 0.35);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     if (entity.integer('order') == null) {
       out.add(
         LevelIssue(
@@ -28,7 +31,9 @@ final class CheckpointKind extends EntityKind {
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final order = entity.integer('order');
     if (order == null) return;
     final collider = place(

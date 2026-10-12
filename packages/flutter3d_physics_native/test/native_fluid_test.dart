@@ -57,7 +57,7 @@ void main() {
     expect(f.count, 1000);
     final settings = _tank();
     for (var i = 0; i < 180; i++) {
-      f.step(settings, 1 / 60);
+      f.step(FluidSystemStep(settings: settings, dt: 1 / 60));
     }
     final frame = f.read()!;
     expect(frame.step, 180);
@@ -108,8 +108,8 @@ void main() {
           viscosity: 0.5,
         );
         for (var step = 1; step <= 60; step++) {
-          cpu.step(settings, 1 / 60);
-          onGpu.step(settings, 1 / 60);
+          cpu.step(FluidSystemStep(settings: settings, dt: 1 / 60));
+          onGpu.step(FluidSystemStep(settings: settings, dt: 1 / 60));
           if (step % 10 != 0) continue;
           final x = cpu.read()!.particles;
           final y = onGpu.read()!.particles;
@@ -129,8 +129,8 @@ void main() {
         onGpu.add(_dam(10));
         final settings = _tank();
         for (var i = 0; i < 5; i++) {
-          cpu.step(settings, 1 / 60);
-          onGpu.step(settings, 1 / 60);
+          cpu.step(FluidSystemStep(settings: settings, dt: 1 / 60));
+          onGpu.step(FluidSystemStep(settings: settings, dt: 1 / 60));
         }
         // Slumping, before it splashes: particle for particle.
         final a = cpu.read()!.particles;
@@ -139,8 +139,8 @@ void main() {
           expect(b[i], closeTo(a[i], 1e-4), reason: 'float $i');
         }
         for (var i = 0; i < 175; i++) {
-          cpu.step(settings, 1 / 60);
-          onGpu.step(settings, 1 / 60);
+          cpu.step(FluidSystemStep(settings: settings, dt: 1 / 60));
+          onGpu.step(FluidSystemStep(settings: settings, dt: 1 / 60));
         }
         // Settled, each its own way: the same water.
         final x = _shape(cpu.read()!.particles);
@@ -159,7 +159,7 @@ void main() {
         final settings = _tank();
         var last = 0;
         for (var i = 1; i <= 20; i++) {
-          onGpu.step(settings, 1 / 60);
+          onGpu.step(FluidSystemStep(settings: settings, dt: 1 / 60));
           final late = onGpu.read(wait: false);
           if (late != null) {
             expect(late.step, inInclusiveRange(last + 1, i));

@@ -41,9 +41,15 @@ final class WebSocketTransport extends PeerWire {
           } on FormatException {
             return;
           }
-          if (decoded is Map<String, Object?>) deliver(decoded);
+          if (decoded is Map<String, Object?>) {
+            deliver(PeerDelivery(message: decoded));
+          }
         case final List<int> bytes:
-          deliverBytes(bytes is Uint8List ? bytes : Uint8List.fromList(bytes));
+          deliverBytes(
+            PeerBytesDelivery(
+              bytes: bytes is Uint8List ? bytes : Uint8List.fromList(bytes),
+            ),
+          );
       }
     }, onDone: () => _closed.complete(_channel.closeReason));
   }
@@ -71,12 +77,16 @@ final class WebSocketTransport extends PeerWire {
   }
 
   @override
-  void send(Map<String, Object?> message, {bool reliable = true}) =>
-      _channel.sink.add(jsonEncode(message));
+  void send(PeerSend context) {
+    final message = context.message;
+    _channel.sink.add(jsonEncode(message));
+  }
 
   @override
-  void sendBytes(Uint8List bytes, {bool reliable = true}) =>
-      _channel.sink.add(bytes);
+  void sendBytes(PeerSendBytes context) {
+    final bytes = context.bytes;
+    _channel.sink.add(bytes);
+  }
 
   /// Closes the underlying socket. Safe to call more than once.
   @override

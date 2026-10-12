@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `Tap3dCallbacks.hitAt3d` takes a `Tap3dProbe`** (new), the
+  tap's screen point and the projector, one per tap for every candidate. An
+  override for a tighter shape keeps compiling when a minor hands it more.
 - **Breaking: `PlaneAxis` is an open set**, a class with constants rather
   than an enum: a plane holding X constant is a value it can still gain.
   `y`, `z`, `values` and `name` are as they were. `GridHeading` and

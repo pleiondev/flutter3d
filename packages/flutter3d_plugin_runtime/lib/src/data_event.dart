@@ -23,9 +23,12 @@ final class PluginDataEvent extends BusEvent {
   static EventCodec<PluginDataEvent> codecFor(String name) =>
       EventCodec<PluginDataEvent>.of(
         encode: (event) => List<int>.of(event.values),
-        decode: (data, _) => data is List && data.every((v) => v is int)
-            ? PluginDataEvent(name, List<int>.unmodifiable(data.cast<int>()))
-            : null,
+        decode: (context) {
+          final data = context.data;
+          return data is List && data.every((v) => v is int)
+              ? PluginDataEvent(name, List<int>.unmodifiable(data.cast<int>()))
+              : null;
+        },
       );
 
   @override

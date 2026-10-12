@@ -31,7 +31,7 @@ instead.
 
 Both piles are built by one function from the same numbers: a floor, and six
 crates nearly in a column, each a little higher than the last. The backend is
-the only argument. `dynamics(world)` is where it matters, and it answers a
+the only argument. `dynamics(DynamicsRequest(world))` is where it matters, and it answers a
 `RigidDynamics`, the interface that `Dynamics` and the core's `NativeDynamics`
 both implement. The crates are the same `RigidBody` objects on either side,
 with their colliders in an ordinary `CollisionWorld`, so the rest of a game

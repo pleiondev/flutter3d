@@ -1,5 +1,14 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a backend's calls take one context each.**
+  `AudioBackend.start` takes a `VoiceStart` (new) and `update` a
+  `VoiceUpdate` (new); `MixingBackend.routeVoice` and `mixBus` take a
+  `VoiceRoute` and a `BusMix`, and `DirectionalBackend.placeVoice` a
+  `VoicePlacement` (all new). Their fields are the old parameters. The
+  scene owns one of each and sets it before every call, so a mix allocates
+  none; a backend reads it during the call and does not keep it. A
+  parameter added later would have broken every backend written against
+  1.0; a field added to a context breaks none.
 - **A scene mixes in a world: `AudioScene.world`.** The constructor takes
   `world:`, the field is settable for a level that brings its own air, and
   the standard world is the default. `SpatialQuery.world` hands it to the

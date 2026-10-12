@@ -26,9 +26,31 @@ import 'particle.dart';
 abstract base class ParticleAffector {
   const ParticleAffector();
 
-  /// Advances one particle by [dt]. Called once per particle per step, after
-  /// its age has been updated and before it is moved.
-  void apply(Particle particle, double dt);
+  /// Advances [ParticleStep.particle] by [ParticleStep.dt]. Called once per
+  /// particle per step, after its age has been updated and before it is
+  /// moved.
+  ///
+  /// The system reuses one [ParticleStep] for every particle: read it here
+  /// and do not keep it.
+  void apply(ParticleStep step);
+}
+
+/// What [ParticleAffector.apply] is handed: one particle and the step it
+/// is advanced by.
+///
+/// **One object, so a minor can hand an affector more** — the system's
+/// world, the effect the particle belongs to — without breaking an affector
+/// written against 1.0. **Reused**: a particle system owns one and sets it
+/// before every call, so a step allocates nothing for it; an affector reads
+/// it during [ParticleAffector.apply] and does not keep it.
+final class ParticleStep {
+  ParticleStep({required this.particle, required this.dt});
+
+  /// The particle being advanced.
+  Particle particle;
+
+  /// The step's length, in seconds.
+  double dt;
 }
 
 /// Pulls particles down. Sparks and debris; not smoke.
@@ -64,7 +86,9 @@ final class ParticleGravity extends ParticleAffector {
   final double scale;
 
   @override
-  void apply(Particle particle, double dt) {
+  void apply(ParticleStep step) {
+    final particle = step.particle;
+    final dt = step.dt;
     particle.velocity.y +=
         (acceleration ??
             (scale == 1.0 ? -particle.gravity : -scale * particle.gravity)) *
@@ -86,7 +110,9 @@ final class ParticleDrag extends ParticleAffector {
   final double perSecond;
 
   @override
-  void apply(Particle particle, double dt) {
+  void apply(ParticleStep step) {
+    final particle = step.particle;
+    final dt = step.dt;
     // Exponential rather than linear: linear drag reaches zero and then pushes
     // the particle backwards, which is a very recognisable bug.
     final factor = math.exp(-perSecond * dt);
@@ -110,7 +136,9 @@ final class ParticleWind extends ParticleAffector {
   final Vector3 _acceleration;
 
   @override
-  void apply(Particle particle, double dt) {
+  void apply(ParticleStep step) {
+    final particle = step.particle;
+    final dt = step.dt;
     particle.velocity
       ..x += _acceleration.x * dt
       ..y += _acceleration.y * dt
@@ -176,7 +204,9 @@ final class ParticleTurbulence extends ParticleAffector {
   final double c;
 
   @override
-  void apply(Particle particle, double dt) {
+  void apply(ParticleStep step) {
+    final particle = step.particle;
+    final dt = step.dt;
     final x = particle.position.x * scale;
     final y = particle.position.y * scale;
     final z = particle.position.z * scale;
@@ -200,7 +230,8 @@ final class ParticleColorOverLife extends ParticleAffector {
   final LinearColor _to;
 
   @override
-  void apply(Particle particle, double dt) {
+  void apply(ParticleStep step) {
+    final particle = step.particle;
     final t = particle.life;
     particle.color.setValues(
       _from.r + (_to.r - _from.r) * t,
@@ -224,7 +255,8 @@ final class ParticleFade extends ParticleAffector {
   final double startsAt;
 
   @override
-  void apply(Particle particle, double dt) {
+  void apply(ParticleStep step) {
+    final particle = step.particle;
     final t = particle.life;
     if (t <= startsAt) return;
     final span = 1.0 - startsAt;
@@ -244,7 +276,8 @@ final class ParticleSizeOverLife extends ParticleAffector {
   final double to;
 
   @override
-  void apply(Particle particle, double dt) {
+  void apply(ParticleStep given) {
+    final particle = given.particle;
     // Rebuilt from the birth size each step rather than compounded. Multiplying
     // the current size every step shrinks a particle meant to halve over a
     // second to nothing in a tenth of one.

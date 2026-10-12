@@ -48,14 +48,12 @@ final class _RecordingServices with RenderServices {
   Scene? scene;
 
   @override
-  void encodeScene({
-    required RenderFrame frame,
-    required PassEncoder encoder,
-    required Scene scene,
-    required vm.Matrix4 viewProjection,
-    required vm.Vector3 cameraPosition,
-    int casterIndex = -1,
-  }) {
+  void encodeScene(SceneEncodeRequest request) {
+    final frame = request.frame;
+    final encoder = request.encoder;
+    final scene = request.scene;
+    final viewProjection = request.viewProjection;
+    final casterIndex = request.casterIndex;
     this.encoder = encoder;
     this.scene = scene;
     // Derived the way the real one does, so a test still sees what the node
