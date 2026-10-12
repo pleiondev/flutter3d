@@ -111,6 +111,9 @@ workspace:
   # A graphics backend as somebody outside the repository writes one, with
   # no GPU: the reference `flutter3d create plugin --kind backend` copies.
   - examples/flutter3d_backend_null
+  # Twenty tasks an application writes, one file each, built and drawn on
+  # the software rasteriser by its own test.
+  - examples/cookbook
   # Not a package and not an application: a program this repository runs on
   # itself, kept where `tool/`'s other programs are. See its own pubspec for
   # why it is not in `packages/`.
