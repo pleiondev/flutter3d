@@ -79,7 +79,7 @@ the same licences.
 | `InterpolationTest.glb` | Khronos | CC0 1.0 |
 | `AnimatedMorphCube.glb` | Microsoft | CC0 1.0 |
 | `RobotExpressive.glb` | Tomás Laulhé (Quaternius), morph targets by Don McCurdy | CC0 1.0 |
-| `teapot.obj`, `teapot.stl` | the Utah teapot, from [mauricelam/Teapot](https://github.com/mauricelam/Teapot) | no licence declared upstream |
+| `teapot.obj`, `teapot.stl` | the Utah teapot (Martin Newell, 1975), tessellated by the package's `tool/make_teapot.py` from the Bezier patches in three.js' `TeapotGeometry.js` | the patch table MIT (three.js authors, notice in the script); the tessellation this repository's, MIT |
 | `radiance/*`, `ktx2/*` | written for the fixtures by ImageMagick and `basisu` | this repository's, MIT |
 
 The CC BY 4.0 models owe credit to the owner named above and a link to the
@@ -120,8 +120,14 @@ dungeon, platformer, racing, strategy) each test it in `credits_test.dart`.
 | `flutter3d_demo_strategy` | `assets/CREDITS.md`, `assets/models/LICENSES.md` | CC0 (Kenney, ambientCG) |
 | `flutter3d_showcase` | `assets/fonts/RobotoMono-OFL.txt` | SIL Open Font License 1.1 (Roboto Mono) |
 
-`packages/flutter3d/example/assets/models/fantasy_chest.glb` has no record
-yet. It is traced or replaced before the release candidate.
+## The engine's example
+
+`packages/flutter3d/example/assets/models/LICENSES.md` is the record:
+`avocado.glb` is Khronos' Avocado (Microsoft, CC0 1.0) with its tangents
+removed and its maps at 512 px, and `splat_grid.glb` is generated here. The
+avocado replaced `fantasy_chest.glb` on 2026-10-12, a model whose terms were
+never recorded, and the teapot in `flutter3d_samples` was regenerated from
+a source with a known licence the same day.
 
 ## Adding something
 

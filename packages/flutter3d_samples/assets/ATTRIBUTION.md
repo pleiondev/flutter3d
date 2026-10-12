@@ -1,18 +1,36 @@
 # Sources of the test models
 
-The models in this directory are **not ours**. They are here as test fixtures,
-chosen to cover the different loading paths.
+Most models in this directory are **not ours**. They are here as test
+fixtures, chosen to cover the different loading paths. Each licence below
+was read from the model's `metadata.json` in
+[KhronosGroup/glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets)
+on 2026-10-12.
 
-| File | Source |
-|---|---|
-| `Box.glb`, `BoxTextured.glb`, `BoxVertexColors.glb`, `Triangle.gltf`, `cube/Cube.gltf` + `cube/Cube.bin` | [KhronosGroup/glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets) |
-| `BoxAnimated.glb`, `InterpolationTest.glb`, `animated_cube/AnimatedCube.gltf` + `.bin` + `_BaseColor.png` | [KhronosGroup/glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets) |
-| `NormalTangentTest.glb`, `NormalTangentMirrorTest.glb` | [KhronosGroup/glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets) |
-| `RiggedSimple.glb`, `RiggedFigure.glb`, `simple_skin/SimpleSkin.gltf` | [KhronosGroup/glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets) |
-| `AnimatedMorphCube.glb` | [KhronosGroup/glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets), CC0-1.0 |
-| `RobotExpressive.glb` | [Tomás Laulhé](https://www.patreon.com/quaternius), CC0-1.0, with facial morph targets added by [Don McCurdy](https://donmccurdy.com/); taken from [three.js examples](https://github.com/mrdoob/three.js/tree/dev/examples/models/gltf/RobotExpressive) |
-| `teapot.obj` | [mauricelam/Teapot](https://github.com/mauricelam/Teapot) — the Utah teapot |
-| `teapot.stl` | The same geometry as `teapot.obj` above, converted by this repository's own `StlWriter` — a derived work, same licence as the source. `qa-08`'s own STL fixture: `fmt-09`'s decoder tested through `fmt-06`'s writer round trip against a model with real curvature, not only the synthetic edge cases `flutter3d_formats/test/fixtures/stl/` holds. |
+| File | Author or owner | Licence |
+|---|---|---|
+| `Box.glb`, `BoxAnimated.glb`, `BoxTextured.glb`, `RiggedSimple.glb`, `RiggedFigure.glb` | Cesium, 2017 | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); the Cesium logo in `BoxTextured` is a trademark and not licensed |
+| `NormalTangentMirrorTest.glb` | Ed Mackey, Analytical Graphics, Inc., 2018 | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
+| `NormalTangentTest.glb` | Ed Mackey, Analytical Graphics, Inc., 2018 | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| `BoxVertexColors.glb`, `Triangle.gltf`, `simple_skin/SimpleSkin.gltf` | Marco Hutter | CC0 1.0 |
+| `cube/Cube.gltf` + `.bin`, `animated_cube/AnimatedCube.gltf` + `.bin` + `_BaseColor.png` | Norbert Nopper, UX3D, 2017 | CC0 1.0 |
+| `InterpolationTest.glb` | Khronos, 2017 | CC0 1.0 |
+| `AnimatedMorphCube.glb` | Microsoft, 2017 | CC0 1.0 |
+| `RobotExpressive.glb` | [Tomás Laulhé](https://www.patreon.com/quaternius), with facial morph targets added by [Don McCurdy](https://donmccurdy.com/); taken from [three.js examples](https://github.com/mrdoob/three.js/tree/dev/examples/models/gltf/RobotExpressive) | CC0 1.0 |
+| `teapot.obj`, `teapot.stl` | The Utah teapot (Martin Newell, 1975), tessellated by `tool/make_teapot.py` in this package from the Bezier patches three.js carries in `TeapotGeometry.js` | the patch table under three.js' MIT licence (its notice is in the script); the tessellation is this repository's, MIT |
+| `f3d/*.f3d` | Conversions of the models above by `flutter3d_build:convert` | the licence of the model each was made from |
+| `radiance/*`, `ktx2/*` | Written for the fixtures with ImageMagick and `basisu` (`radiance/PROVENANCE.md`) | this repository's, MIT |
+
+The CC BY 4.0 models owe credit: the owner named above and a link to the
+licence. This table is that credit, and it ships with the package.
+
+`teapot.stl` is the same triangles as `teapot.obj`, written by the same
+script in the form `StlWriter` gives. It is `qa-08`'s own STL fixture:
+`fmt-09`'s decoder tested through `fmt-06`'s writer round trip against a
+model with real curvature, not only the synthetic edge cases
+`flutter3d_formats/test/fixtures/stl/` holds. Until 2026-10-12 both teapot
+files came from a repository that declares no licence; the tessellation is
+the same classic one (six segments a patch edge, 2256 triangles), so the
+shape did not change, only where it comes from.
 
 Why these specifically: between them they cover all three ways glTF can carry its
 data (a binary chunk in GLB, an embedded base64 buffer, an external `.bin`), plus
@@ -57,6 +75,5 @@ The files in `f3d/` are those same models converted by `dart run flutter3d_build
 into the engine's own container. They are derived works of the sources above and
 carry the same licences.
 
-**Check the licences in the upstream repositories before redistributing any of
-this.** They are not reproduced here because the Khronos files carry different
-licences per model, and the teapot's has to be checked separately.
+The full texts are at the links in the table; the licence of each Khronos
+model is also in its own directory upstream, as `LICENSE.md`.

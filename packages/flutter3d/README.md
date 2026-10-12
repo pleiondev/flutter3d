@@ -194,8 +194,8 @@ the obvious alternative does not work.
 | Materials | `.mtl` through a resolver: `newmtl`, `Kd`, `Ks`, `Ns`, `d`, `Tr`, `map_Kd` |
 | Robustness | unknown directives, malformed faces and missing libraries go to `warnings` instead of failing the file |
 
-The test model is the [Utah teapot](https://github.com/mauricelam/Teapot)
-(`flutter3d_samples`): `v` and `f` only, 1202 vertices, 2256 triangles, no
+The test model is the [Utah teapot](https://en.wikipedia.org/wiki/Utah_teapot)
+(`flutter3d_samples`, tessellated by its `tool/make_teapot.py`): `v` and `f` only, 1202 vertices, 2256 triangles, no
 normals and no materials, which is exactly the case that needs normal
 generation.
 
