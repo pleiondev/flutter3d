@@ -35,7 +35,26 @@ const String flutter3dBuildVersionConstraint = '^1.0.0-rc.1';
 /// `hook/build.dart`'s own body — [buildAssets]'s doc comment names this
 /// exact text, kept here as the one place that spells it out so the two
 /// cannot drift apart.
+///
+/// **The `ignore_for_file` line is what lets a new project analyse clean.**
+/// The two packages the hook imports are `dev_dependencies`: they run when
+/// the project builds and never ship in it. `depend_on_referenced_packages`
+/// allows that in `test/` and `tool/` and not in `hook/`, so without the
+/// line `flutter analyze` reports both imports on the first day.
 const String hookBuildContent = '''
+// The build runs these from dev_dependencies; nothing here ships.
+// ignore_for_file: depend_on_referenced_packages
+import 'package:flutter3d_build/flutter3d_build.dart';
+import 'package:hooks/hooks.dart';
+
+void main(List<String> arguments) async {
+  await build(arguments, buildAssets);
+}
+''';
+
+/// What `init` wrote before 1.0.0-rc.1, without the lint line: a hook that
+/// says exactly this is init's own and current, not one a person edited.
+const String _hookBuildContentBefore = '''
 import 'package:flutter3d_build/flutter3d_build.dart';
 import 'package:hooks/hooks.dart';
 
@@ -86,7 +105,10 @@ List<InitStep> planInit(Directory projectRoot, {bool force = false}) {
         },
       ),
     );
-  } else if (hookFile.readAsStringSync() != hookBuildContent) {
+  } else if (!const <String>{
+    hookBuildContent,
+    _hookBuildContentBefore,
+  }.contains(hookFile.readAsStringSync())) {
     if (force) {
       steps.add(
         InitStep(
@@ -145,6 +167,12 @@ List<InitStep> planInit(Directory projectRoot, {bool force = false}) {
           var lines = basePubspecLines;
           for (final entry in missingEntries) {
             lines = _withGeneratedAsset(lines, entry) ?? lines;
+            // The directory as well, empty until the first build fills it:
+            // an `assets:` line naming one that is not there is a warning
+            // from `flutter analyze` before anything has been built.
+            Directory(
+              '${projectRoot.path}/${entry.substring(2)}',
+            ).createSync(recursive: true);
           }
           pubspecFile.writeAsStringSync(_join(lines));
         },
