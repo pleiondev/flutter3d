@@ -1,0 +1,85 @@
+# **The site, deployed from the tag it documents** (A4). It was a manual
+# `site/tool/deploy.sh` from a developer's machine, and by 1.0.0-rc.1 the
+# live site was two releases behind the packages it described. On a tag this
+# runs the same script, then `tool/release_checklist.sh`: the index, the
+# quickstart, the migration guide, the download page and the changelog
+# answer 200, and the index names the tag's version, or the release is red.
+#
+# **On the self-hosted runner**, because the server is reached over SSH the
+# way the script has always reached it (the host alias `bob` in that
+# machine's SSH config, or `FLUTTER3D_SITE_HOST` from the repository
+# variable `SITE_HOST`), and a hosted runner has neither the key nor the
+# route. Node and Flutter are installed by the job.
+#
+# Secrets and variables, named here and filled in the settings:
+#
+#   vars.SITE_HOST            the SSH destination; `bob` when unset
+#   vars.SITE_PATH            the directory served; `/opt/flutter3d` when unset
+#   secrets.SITE_BASIC_AUTH   user:password of the basic auth in front of the
+#                             site until launch, for the checklist's curl
+name: site
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'The tag to deploy, e.g. v1.0.0-rc.1'
+        required: true
+
+permissions:
+  contents: read
+
+# Two deploys at once would rsync over each other with `--delete`.
+concurrency:
+  group: site-deploy
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, macOS, impeller]
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - run: flutter pub get
+      - run: (cd packages/flutter3d_impeller && dart run bin/build_shader_bundle.dart)
+      - run: npm ci
+        working-directory: site
+
+      - name: deploy the site
+        env:
+          FLUTTER3D_SITE_HOST: ${{ vars.SITE_HOST || 'bob' }}
+          FLUTTER3D_SITE_PATH: ${{ vars.SITE_PATH || '/opt/flutter3d' }}
+        run: site/tool/deploy.sh
+
+      # The API reference with it: a release whose `/docs/` describes the
+      # previous one is the same staleness this workflow exists to end.
+      - name: deploy the API reference
+        env:
+          FLUTTER3D_SITE_HOST: ${{ vars.SITE_HOST || 'bob' }}
+          FLUTTER3D_SITE_PATH: ${{ vars.SITE_PATH || '/opt/flutter3d' }}
+        run: site/tool/deploy-docs.sh
+
+      - name: release checklist
+        env:
+          FLUTTER3D_SITE_AUTH: ${{ secrets.SITE_BASIC_AUTH }}
+        run: tool/release_checklist.sh --version "${TAG#v}"
