@@ -94,9 +94,9 @@ abstract base class HeadlessGame {
   /// The entities a level of this game may spawn.
   EntityRegistry registry();
 
-  /// [level], already added to [world], spawned and ready to step, reading
-  /// [input].
-  HeadlessRun start(Level level, CollisionWorld world, InputState input);
+  /// The start's [HeadlessStart.level], already added to its world, spawned
+  /// and ready to step, reading its input.
+  HeadlessRun start(HeadlessStart start);
 
   /// Which simulation this game runs, so a tool refuses a tape recorded on
   /// another before playing it; null for a game that names none, whose tapes
@@ -105,6 +105,28 @@ abstract base class HeadlessGame {
   /// It was the opt-in interface `VersionedSimulation` before 1.0; on a base
   /// class it is a member with a default.
   SimulationVersion? get simulation => null;
+}
+
+/// What [HeadlessGame.start] is handed: the level, the world it was added
+/// to, and the input the run reads.
+///
+/// **One object, so a minor can hand a game more** — a seed, the tape being
+/// played — without breaking a game written against 1.0.
+final class HeadlessStart {
+  const HeadlessStart({
+    required this.level,
+    required this.world,
+    required this.input,
+  });
+
+  /// The level, already added to [world].
+  final Level level;
+
+  /// The world the run steps.
+  final CollisionWorld world;
+
+  /// What the caller holds down, read by the run each step.
+  final InputState input;
 }
 
 /// One verb an [OrderedGame] takes: what it does, and the numbers it reads.

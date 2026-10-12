@@ -386,8 +386,22 @@ final class ParticleContributor extends PassContributor {
     // its bounds: a cloud of smoke is local, and the stage reads a light's
     // falloff per fragment, so near and far puffs still differ.
     final radius = particles.boundsInto(_center);
-    lights.bind(encoder, stage, center: _center, radius: radius);
+    final bind = _lightBind ??= LightBindRequest(
+      encoder: encoder,
+      stage: stage,
+      center: _center,
+      radius: radius,
+    );
+    lights.bind(
+      bind
+        ..encoder = encoder
+        ..stage = stage
+        ..radius = radius,
+    );
   }
+
+  /// What the lights are bound by, kept so a frame allocates none.
+  LightBindRequest? _lightBind;
 
   /// The scene's depth and what a soft stage reads it by: the texel a
   /// fragment is on, and the axis and eye its depths are measured from.

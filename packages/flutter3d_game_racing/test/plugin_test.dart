@@ -9,10 +9,13 @@ import 'ring_track.dart';
 /// A one-car race on the ring, behind the lights, as the headless game
 /// lines it up.
 RestorableRun _run(InputState input, {int rivals = 0}) =>
-    RacingHeadlessGame(
-          track: ringTrack(),
-          rivals: rivals,
-        ).start(Level(name: 'ring'), CollisionWorld(), input)
+    RacingHeadlessGame(track: ringTrack(), rivals: rivals).start(
+          HeadlessStart(
+            level: Level(name: 'ring'),
+            world: CollisionWorld(),
+            input: input,
+          ),
+        )
         as RestorableRun;
 
 void main() {
@@ -202,9 +205,13 @@ void main() {
       // run did — five kilometres from the origin the car is reported five
       // kilometres from where it stands.
       final world = CollisionWorld();
-      final run = RacingHeadlessGame(
-        track: ringTrack(),
-      ).start(Level(name: 'ring'), world, InputState());
+      final run = RacingHeadlessGame(track: ringTrack()).start(
+        HeadlessStart(
+          level: Level(name: 'ring'),
+          world: world,
+          input: InputState(),
+        ),
+      );
       final before = run.position;
       final eye = run.eye;
       world.moveOriginTo(const WorldPosition(5000.0, 0.0, 0.0));

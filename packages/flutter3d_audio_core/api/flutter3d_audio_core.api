@@ -16,10 +16,10 @@ abstract base class AudioBackend
   Future<void> dispose()
   Future<void> open()
   abstract Future<void> preload(String asset)
-  abstract VoiceId? start(String asset, {required double gain, required double pan, required double rate, required bool loop, double muffle = 0.0})
+  abstract VoiceId? start(VoiceStart voice)
   abstract bool isAlive(VoiceId voice)
   abstract void stop(VoiceId voice)
-  abstract void update(VoiceId voice, {required double gain, required double pan, required double rate, double muffle = 0.0})
+  abstract void update(VoiceUpdate voice)
   void pause()
   void resume()
 
@@ -110,8 +110,15 @@ abstract base class BusEffect
   BusEffect? atWeight(double weight)
   const BusEffect()
 
+final class BusMix
+  AudioBus bus
+  AudioBus? parent
+  BusMix({required this.bus, required this.parent, required this.gain, required this.effects})
+  List<BusEffect> effects
+  double gain
+
 abstract base mixin class DirectionalBackend
-  void placeVoice(VoiceId voice, SpatialResult spatial)
+  void placeVoice(VoicePlacement placement)
 
 final class DuckRule
   String toString()
@@ -217,8 +224,8 @@ final class Mixer
   void setVolume(AudioBus bus, double volume)
 
 abstract base mixin class MixingBackend
-  void mixBus(AudioBus bus, {required AudioBus? parent, required double gain, required List<BusEffect> effects})
-  void routeVoice(VoiceId voice, AudioBus bus)
+  void mixBus(BusMix mix)
+  void routeVoice(VoiceRoute route)
 
 final class NoAttenuation extends Attenuation
   bool carriesTo(double distance)
@@ -240,7 +247,7 @@ final class SilentBackend extends AudioBackend
   Future<void> dispose()
   Future<void> preload(String asset)
   List<SilentVoice> get live
-  VoiceId? start(String asset, {required double gain, required double pan, required double rate, required bool loop, double muffle = 0.0})
+  VoiceId? start(VoiceStart voice)
   bool get isDisposed
   bool get isPaused
   bool isAlive(VoiceId voice)
@@ -250,7 +257,7 @@ final class SilentBackend extends AudioBackend
   void pause()
   void resume()
   void stop(VoiceId voice)
-  void update(VoiceId voice, {required double gain, required double pan, required double rate, double muffle = 0.0})
+  void update(VoiceUpdate voice)
 
 final class SilentVoice
   SilentVoice({required this.id, required this.asset, required this.gain, required this.pan, required this.rate, required this.loop})
@@ -309,6 +316,33 @@ final class SpatialResult
   double rate
 
 typedef VoiceId = Object;
+
+final class VoicePlacement
+  SpatialResult spatial
+  VoiceId voice
+  VoicePlacement({required this.voice, required this.spatial})
+
+final class VoiceRoute
+  AudioBus bus
+  VoiceId voice
+  VoiceRoute({required this.voice, required this.bus})
+
+final class VoiceStart
+  String asset
+  VoiceStart({required this.asset, required this.gain, required this.pan, required this.rate, required this.loop, this.muffle = 0.0})
+  bool loop
+  double gain
+  double muffle
+  double pan
+  double rate
+
+final class VoiceUpdate
+  VoiceId voice
+  VoiceUpdate({required this.voice, required this.gain, required this.pan, required this.rate, this.muffle = 0.0})
+  double gain
+  double muffle
+  double pan
+  double rate
 
 double decibelsToGain(double decibels)
 

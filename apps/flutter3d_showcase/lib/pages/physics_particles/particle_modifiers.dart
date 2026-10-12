@@ -114,7 +114,7 @@ final class ParticleModifiersDemo extends ShowcaseDemo {
       ..lifetime = 2.0
       ..seed = 0.5;
     for (final ParticleAffector affector in _affectors) {
-      affector.apply(sample, 1 / 60);
+      affector.apply(ParticleStep(particle: sample, dt: 1 / 60));
     }
     if (sample.velocity.y >= 2.0) {
       throw StateError('gravity and drag should have slowed the climb');

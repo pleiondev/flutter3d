@@ -18,7 +18,9 @@ void main() {
 
     // What a build from before `about` says: a tag and nothing else, so
     // protocol 0.0 by `WireHello.read`.
-    theirs.send(<String, Object?>{'tag': 'hello', 'met': false});
+    theirs.send(
+      PeerSend(message: <String, Object?>{'tag': 'hello', 'met': false}),
+    );
     ours.tick();
     theirs.tick();
 
@@ -40,11 +42,15 @@ void main() {
     final room = PeerRoom(ours, slot: 0);
     final heard = <Map<String, Object?>>[];
     room.channel('play').listen(heard.add);
-    theirs.send(<String, Object?>{'tag': 'play'});
-    theirs.send(<String, Object?>{
-      'tag': 'play',
-      'body': <String, Object?>{'n': 1},
-    });
+    theirs.send(PeerSend(message: <String, Object?>{'tag': 'play'}));
+    theirs.send(
+      PeerSend(
+        message: <String, Object?>{
+          'tag': 'play',
+          'body': <String, Object?>{'n': 1},
+        },
+      ),
+    );
     expect(ours.tick, returnsNormally);
     expect(heard, <Map<String, Object?>>[
       <String, Object?>{'n': 1},

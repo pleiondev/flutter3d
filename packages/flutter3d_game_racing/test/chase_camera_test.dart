@@ -58,10 +58,12 @@ final class PlacedCar with VehicleController {
   double trackDistance;
 
   @override
-  void step(double dt, VehicleInput input) {}
+  void step(VehicleStep context) {}
 
   @override
-  void placeAt(Vector3 at, double yaw, {double? trackDistance}) {
+  void placeAt(VehiclePlacement placement) {
+    final at = placement.position;
+    final yaw = placement.headingYaw;
     collider.position.setFrom(at);
     headingYaw = yaw;
   }
@@ -375,7 +377,7 @@ void main() {
 
       final input = VehicleInput()..throttle = 1.0;
       for (var i = 0; i < 120; i++) {
-        car.step(1 / 60, input);
+        car.step(VehicleStep(dt: 1 / 60, input: input));
         camera.follow(car, 1 / 60);
       }
 
@@ -395,7 +397,7 @@ void main() {
         ..throttle = 0.6
         ..steer = 1.0;
       for (var i = 0; i < 45; i++) {
-        car.step(1 / 60, input);
+        car.step(VehicleStep(dt: 1 / 60, input: input));
       }
 
       final clip = Vector4(car.position.x, car.position.y, car.position.z, 1.0);
@@ -417,7 +419,9 @@ void main() {
       final car = PlacedCar(at: Vector3.zero());
       settle(camera, car);
 
-      car.placeAt(Vector3(500.0, 0.5, 500.0), 0.0);
+      car.placeAt(
+        VehiclePlacement(position: Vector3(500.0, 0.5, 500.0), headingYaw: 0.0),
+      );
       camera
         ..cut()
         ..follow(car, 1 / 60);

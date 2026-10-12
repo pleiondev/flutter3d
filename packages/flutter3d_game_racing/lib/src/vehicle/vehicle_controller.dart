@@ -145,15 +145,15 @@ abstract base mixin class VehicleController {
   /// volumes lying on the road meet.
   Collider get collider;
 
-  /// Advances one fixed step.
-  void step(double dt, VehicleInput input);
+  /// Advances one fixed step of the step's length, on its input.
+  void step(VehicleStep context);
 
   /// Puts the car somewhere, stopped and facing a given way.
   ///
   /// For the starting grid and for being put back on the track. Everything
   /// carried between steps is dropped, so that a car returning from a spin does
   /// not arrive still spinning.
-  void placeAt(Vector3 position, double headingYaw, {double? trackDistance});
+  void placeAt(VehiclePlacement placement);
 
   /// Everything about this car that a race is made of.
   ///
@@ -172,4 +172,41 @@ abstract base mixin class VehicleController {
   /// whatever the car has now, which is what lets a save from an older build
   /// load at all.
   void restore(Map<String, Object?> from);
+}
+
+/// What [VehicleController.step] is handed, once a step per car.
+///
+/// **One object, so a minor can hand a car more** — the step's number, the
+/// track under it — without breaking a car written against 1.0.
+/// **Reused**: `RacingSimulation` owns one and sets it for each car each
+/// step, so a step allocates nothing for it; a car reads it during the call
+/// and does not keep it.
+final class VehicleStep {
+  VehicleStep({required this.dt, required this.input});
+
+  /// The step's length, in seconds.
+  double dt;
+
+  /// What the driver asks of the car this step.
+  VehicleInput input;
+}
+
+/// What [VehicleController.placeAt] is handed, for the reason
+/// [VehicleStep] gives.
+final class VehiclePlacement {
+  const VehiclePlacement({
+    required this.position,
+    required this.headingYaw,
+    this.trackDistance,
+  });
+
+  /// Where the car's body goes.
+  final Vector3 position;
+
+  /// Which way it faces, in radians about the up axis.
+  final double headingYaw;
+
+  /// How far along the track that is, when the caller knows; null to let
+  /// the car work it out.
+  final double? trackDistance;
 }

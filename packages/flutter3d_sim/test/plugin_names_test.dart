@@ -105,7 +105,7 @@ final Map<String, void Function(PluginHost host, String name)> _registries =
         ProbeSampler.of((_) => null),
       ),
       'a question': (host, name) =>
-          host.registry<SimulationQueryRegistry>().add(name, (_, _) => null),
+          host.registry<SimulationQueryRegistry>().add(name, (_) => null),
     };
 
 void main() {

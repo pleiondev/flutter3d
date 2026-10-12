@@ -8,8 +8,6 @@
 /// written by breaking what it covers; the mutation is named.
 library;
 
-import 'dart:typed_data';
-
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show PluginApiVersion, PluginManifest, PluginScope, Registration;
@@ -21,10 +19,10 @@ final class _Named extends MaterialDecoder {
   final String name;
 
   @override
-  bool handles(String fileName, Uint8List bytes) => true;
+  bool handles(MaterialProbe probe) => true;
 
   @override
-  MaterialDocument decode(Uint8List bytes, String fileName) =>
+  MaterialDocument decode(MaterialDecodeContext context) =>
       MaterialDocument(surface: SurfaceMaterial(name: name));
 
   @override

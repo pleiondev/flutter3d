@@ -75,6 +75,10 @@ final class VirtualCamera {
 
   final CameraShot _wanted = CameraShot();
 
+  /// What the framing is handed, set before every frame: a frame allocates
+  /// none.
+  late final FramingStep _step = FramingStep(wanted: _wanted, dt: 0.0);
+
   /// The shot the framing asked for on the last update, before the rig eased
   /// it, knocked it or pulled it out of a wall. For a test, or a debug line
   /// drawn from where the camera wanted to be.
@@ -85,7 +89,11 @@ final class VirtualCamera {
 
   /// Places the camera for a frame [dt] seconds after the last.
   void update(double dt) {
-    framing.frame(_wanted, dt);
+    framing.frame(
+      _step
+        ..wanted = _wanted
+        ..dt = dt,
+    );
     rig.place(
       desiredEye: _wanted.eye,
       desiredTarget: _wanted.target,

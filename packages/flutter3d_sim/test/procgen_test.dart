@@ -190,10 +190,14 @@ void main() {
     test('a wall right across is refused, a gap in it is not', () {
       // Mutation: asking the mesh for a route and not whether it arrived.
       final closed = <LevelIssue>[];
-      const ExitReachable().check(two(open: false), closed);
+      const ExitReachable().check(
+        LevelCheck(level: two(open: false), out: closed),
+      );
       expect(closed.single.message, contains('cannot be finished'));
       final open = <LevelIssue>[];
-      const ExitReachable().check(two(open: true), open);
+      const ExitReachable().check(
+        LevelCheck(level: two(open: true), out: open),
+      );
       expect(open, isEmpty);
     });
   });

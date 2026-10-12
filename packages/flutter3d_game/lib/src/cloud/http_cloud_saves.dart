@@ -79,11 +79,10 @@ final class HttpCloudSaves extends CloudSaveStore {
   }
 
   @override
-  Future<CloudPut> put(
-    String slot,
-    String document, {
-    String? replacing,
-  }) async {
+  Future<CloudPut> put(CloudPutRequest request) async {
+    final slot = request.slot;
+    final document = request.document;
+    final replacing = request.replacing;
     final uri = _slot(slot);
     try {
       final response = await _client.put(

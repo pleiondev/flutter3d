@@ -289,7 +289,10 @@ final class _CampKind extends EntityKind {
   const _CampKind() : super(StrategyEntities.camp);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     // A camp is named because everything else points at it by name: the
     // producer that builds from it, the workers that carry to it.
     _requireName(entity, scope, out, 'so nothing can be told to carry to it');
@@ -303,7 +306,10 @@ final class _ResourceNodeKind extends EntityKind {
   const _ResourceNodeKind() : super(StrategyEntities.resourceNode);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     _requireName(entity, scope, out, 'so nobody can be sent to dig it');
     _requirePositive(entity, scope, out, 'amount');
   }
@@ -313,7 +319,10 @@ final class _ProducerKind extends EntityKind {
   const _ProducerKind() : super(StrategyEntities.producer);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     requireTarget(entity, scope, out);
     _requirePositive(entity, scope, out, 'cost');
     _requirePositive(entity, scope, out, 'seconds');
@@ -324,7 +333,10 @@ final class _StockpileKind extends EntityKind {
   const _StockpileKind() : super(StrategyEntities.stockpile);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     _requireSide(entity, scope, out);
     // Zero is the usual answer and a perfectly good one, so this asks only
     // that the key is there: an opening purse nobody wrote is a purse whose
@@ -345,7 +357,10 @@ final class _WorkerKind extends EntityKind {
   const _WorkerKind() : super(StrategyEntities.worker);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     _requireSide(entity, scope, out);
     _requirePositive(entity, scope, out, 'count');
     _requirePositive(entity, scope, out, 'across');

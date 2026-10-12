@@ -8,23 +8,10 @@ final class _Bare extends AudioBackend with MixingBackend, DirectionalBackend {
   Future<void> preload(String asset) async {}
 
   @override
-  VoiceId? start(
-    String asset, {
-    required double gain,
-    required double pan,
-    required double rate,
-    required bool loop,
-    double muffle = 0.0,
-  }) => asset;
+  VoiceId? start(VoiceStart voice) => voice.asset;
 
   @override
-  void update(
-    VoiceId voice, {
-    required double gain,
-    required double pan,
-    required double rate,
-    double muffle = 0.0,
-  }) {}
+  void update(VoiceUpdate voice) {}
 
   @override
   void stop(VoiceId voice) {}
@@ -39,14 +26,16 @@ void main() {
     expect(backend, isA<MixingBackend>());
     expect(backend, isA<DirectionalBackend>());
     backend
-      ..routeVoice('voice', AudioBus.sfx)
+      ..routeVoice(VoiceRoute(voice: 'voice', bus: AudioBus.sfx))
       ..mixBus(
-        AudioBus.sfx,
-        parent: AudioBus.master,
-        gain: 0.5,
-        effects: const <BusEffect>[],
+        BusMix(
+          bus: AudioBus.sfx,
+          parent: AudioBus.master,
+          gain: 0.5,
+          effects: const <BusEffect>[],
+        ),
       )
-      ..placeVoice('voice', SpatialResult());
+      ..placeVoice(VoicePlacement(voice: 'voice', spatial: SpatialResult()));
   });
 
   test('a silent voice is made by name', () {

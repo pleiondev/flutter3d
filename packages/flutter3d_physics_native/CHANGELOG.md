@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **Breaking: the visual systems take one context per call.**
+  `ClothSystem.step` and `movePoint`, `FluidSystem.step`,
+  `DebrisSystem.step` and `NativeParticleCloud.step` take a
+  `ClothSystemStep`, a `ClothPointMove`, a `FluidSystemStep`, a
+  `DebrisSystemStep` and a `ParticleCloudStep` (new), so a system mixed in
+  outside keeps compiling when a minor hands it more. Each is mutable, for
+  a caller that steps every frame to keep one.
 - **A ragdoll's bone pose is `flutter3d_foundation`'s `RigidPose`**, where
   it was a record of its own.
 - **The cloth, debris, fluid and particle systems speak in classes.**

@@ -51,7 +51,25 @@ final class ReactionBuilder {
 
 /// What one rule of a [ReactionTable] does with an event of type [T].
 typedef ReactionRule<T extends BusEvent> =
-    void Function(T event, ReactionBuilder out);
+    void Function(ReactionContext<T> rule);
+
+/// What a [ReactionRule] is handed: the event, and the reaction it writes
+/// into.
+///
+/// **One object, so a minor can hand a rule more** — the step the event was
+/// published at, the camera — without breaking a rule written against 1.0.
+/// **Reused**: each rule of a table keeps one and sets it for every event,
+/// so a step allocates nothing for it; a rule reads it during the call and
+/// does not keep it.
+final class ReactionContext<T extends BusEvent> {
+  ReactionContext({required this.event, required this.out});
+
+  /// The event this rule is about.
+  T event;
+
+  /// The reaction being written.
+  ReactionBuilder out;
+}
 
 /// Reactions keyed by event type: the game's own table of what each event
 /// looks and feels like.
@@ -64,10 +82,10 @@ typedef ReactionRule<T extends BusEvent> =
 ///
 /// ```dart
 /// final table = ReactionTable()
-///   ..on<Landed>((e, out) => out.jolts.add(Felt.kick(Vector3(0, -0.1, 0))))
-///   ..on<Exploded>((e, out) {
-///     out.bursts.add(Shown(Effects.fire, e.at));
-///     out.flash = true;
+///   ..on<Landed>((r) => r.out.jolts.add(Felt.kick(Vector3(0, -0.1, 0))))
+///   ..on<Exploded>((r) {
+///     r.out.bursts.add(Shown(Effects.fire, r.event.at));
+///     r.out.flash = true;
 ///   });
 /// final reaction = table.react(events);
 /// ```
@@ -76,9 +94,16 @@ final class ReactionTable {
 
   /// Adds [rule] for every event that is a [T].
   void on<T extends BusEvent>(ReactionRule<T> rule) {
+    ReactionContext<T>? context;
     _rows.add(
       _Row(T, (BusEvent event, ReactionBuilder out) {
-        if (event is T) rule(event, out);
+        if (event is! T) return;
+        final reused = context ??= ReactionContext<T>(event: event, out: out);
+        rule(
+          reused
+            ..event = event
+            ..out = out,
+        );
       }),
     );
   }

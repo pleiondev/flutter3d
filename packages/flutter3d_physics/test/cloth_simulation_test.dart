@@ -34,7 +34,7 @@ void main() {
     expect(cloth, isA<DartCloth>());
     for (var i = 0; i < 20; i++) {
       stepCloth(stepped, settings, 1 / 60, obstacles: ball);
-      cloth.step(settings, 1 / 60, obstacles: ball);
+      cloth.step(ClothStep(settings: settings, dt: 1 / 60, obstacles: ball));
     }
     expect(cloth.mesh.positions, stepped.positions);
     expect(cloth.mesh.velocities, stepped.velocities);

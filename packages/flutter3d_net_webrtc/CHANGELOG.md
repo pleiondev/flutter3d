@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `WebRtcTransport.send` and `sendBytes` take one context**, a
+  `PeerSend` and a `PeerSendBytes`, as every `PeerWire` does now.
 - **`WebRtcTransport` carries bytes as binary messages** on the data
   channel (`sendBytes`), and delivers a binary message to `listenBytes`.
 - **Breaking: `WebRtcTransport` delivers through `PeerWire.deliver`**, so

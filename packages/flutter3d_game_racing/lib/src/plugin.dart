@@ -78,12 +78,18 @@ final class RacingPlugin extends GenrePlugin<RacingSimulation> {
   /// when it is torn down; while installed, its events are published onto
   /// the bus from inside the step, which puts them on the step channel.
   @override
-  void stepSimulation(RacingSimulation simulation, LoopContext context) =>
-      simulation.step(context.dt, context: context);
+  void stepSimulation(GenreStepContext<RacingSimulation> step) {
+    final simulation = step.simulation;
+    final context = step.context;
+    simulation.step(context.dt, context: context);
+  }
 
   @override
-  Registration publishEvents(RacingSimulation simulation, EventRegistry bus) =>
-      simulation.publishTo(bus);
+  Registration publishEvents(GenrePublishContext<RacingSimulation> publish) {
+    final simulation = publish.simulation;
+    final bus = publish.bus;
+    return simulation.publishTo(bus);
+  }
 
   /// The run in the loop's snapshots: [RacingSimulation.save].
   @override
@@ -91,8 +97,11 @@ final class RacingPlugin extends GenrePlugin<RacingSimulation> {
 
   /// [RacingSimulation.restore].
   @override
-  void restoreSimulation(RacingSimulation simulation, Snapshot state) =>
-      simulation.restore(state);
+  void restoreSimulation(GenreRestoreContext<RacingSimulation> restore) {
+    final simulation = restore.simulation;
+    final state = restore.state;
+    simulation.restore(state);
+  }
 
   @override
   void declareEvents(EventRegistry events) {

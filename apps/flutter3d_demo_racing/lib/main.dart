@@ -647,23 +647,28 @@ class _RaceScreenState extends State<RaceScreen>
   /// and `_listen` plays it, in the same frame, when no best came with it.
   late final CueSheet _cues = CueSheet()
     ..on<CountdownTicked>(
-      (CountdownTicked event, List<Heard> out) => out.add(
-        Heard(event.remaining > 0 ? Sounds.count : Sounds.go, _ears.position),
+      (cue) => cue.out.add(
+        Heard(
+          cue.event.remaining > 0 ? Sounds.count : Sounds.go,
+          _ears.position,
+        ),
       ),
     )
-    ..on<CheckpointPassed>((CheckpointPassed event, List<Heard> out) {
-      if (event.isPlayer) out.add(Heard(Sounds.checkpoint, _ears.position));
+    ..on<CheckpointPassed>((cue) {
+      if (cue.event.isPlayer) {
+        cue.out.add(Heard(Sounds.checkpoint, _ears.position));
+      }
     })
-    ..on<LapCompleted>((LapCompleted event, List<Heard> out) {
-      if (event.isPlayer) _lapHeard = true;
+    ..on<LapCompleted>((cue) {
+      if (cue.event.isPlayer) _lapHeard = true;
     })
-    ..on<BestLapSet>((BestLapSet event, List<Heard> out) {
-      if (!event.isPlayer) return;
+    ..on<BestLapSet>((cue) {
+      if (!cue.event.isPlayer) return;
       _bestHeard = true;
-      out.add(Heard(Sounds.best, _ears.position));
+      cue.out.add(Heard(Sounds.best, _ears.position));
     })
-    ..on<Respawned>((Respawned event, List<Heard> out) {
-      if (event.isPlayer) _respawnHeard = true;
+    ..on<Respawned>((cue) {
+      if (cue.event.isPlayer) _respawnHeard = true;
     });
 
   /// What [_cues] noted this frame, for `_listen` to act on.

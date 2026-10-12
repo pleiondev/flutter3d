@@ -54,11 +54,27 @@ mixin Tap3dCallbacks on Component, HasVisibility, Drawn3d {
     }
   }
 
-  /// Whether [screen] falls on what this component draws, as [projector]
-  /// sees it: the screen rectangle round one of [drawnBoxes3d]. Override
-  /// for a tighter shape.
-  bool hitAt3d(Vector2 screen, BridgeProjector projector) =>
-      drawnBoxes3d().any((box) => _covers(projector, box, screen));
+  /// Whether the probe's screen point falls on what this component draws,
+  /// as its projector sees it: the screen rectangle round one of
+  /// [drawnBoxes3d]. Override for a tighter shape.
+  bool hitAt3d(Tap3dProbe probe) =>
+      drawnBoxes3d().any((box) => _covers(probe.projector, box, probe.screen));
+}
+
+/// What [Tap3dCallbacks.hitAt3d] is handed: where the tap is, and what
+/// sees the scene.
+///
+/// **One object, so a minor can hand a component more** — the ray through
+/// the tap, the pointer's kind — without breaking an override written
+/// against 1.0. One per tap, asked of every candidate under it.
+final class Tap3dProbe {
+  const Tap3dProbe({required this.screen, required this.projector});
+
+  /// The tap, in logical pixels from the top left.
+  final Vector2 screen;
+
+  /// How the game's camera puts the scene on the screen.
+  final BridgeProjector projector;
 }
 
 bool _covers(BridgeProjector projector, Aabb3 box, Vector2 screen) {
@@ -141,9 +157,10 @@ class Taps3dComponent extends PositionComponent
     final eye = ray?.$1 ?? game.camera3d.readWorldPosition();
     Tap3dCallbacks? nearest;
     var nearestDistance = double.infinity;
+    final probe = Tap3dProbe(screen: screen, projector: game.projector);
     for (final candidate in game.descendants().whereType<Tap3dCallbacks>()) {
       if (!shownInFlame(candidate)) continue;
-      if (!candidate.hitAt3d(screen, game.projector)) continue;
+      if (!candidate.hitAt3d(probe)) continue;
       // Of its boxes, the nearest the tap is on: a craft and its ghost are
       // never both under one finger, but the one that is decides.
       for (final box in candidate.drawnBoxes3d()) {

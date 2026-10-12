@@ -45,7 +45,7 @@ import 'src/pad_snapshot.dart';
 
 export 'src/deadzone.dart';
 export 'src/gamepad_platform_interface.dart'
-    show GamepadPlatform, PadConnection, UnsupportedGamepad;
+    show GamepadPlatform, PadConnection, PadReadContext, UnsupportedGamepad;
 export 'src/pad_button.dart';
 export 'src/pad_snapshot.dart';
 
@@ -107,9 +107,16 @@ final class Gamepad {
 
   final List<double> _stick = <double>[0.0, 0.0];
 
+  /// What [GamepadPlatform.readPad] is handed, made on the first read and
+  /// set on each after: a read allocates nothing.
+  PadReadContext? _reading;
+
   /// Fills [out] with what the pad is doing, dead zone already applied.
   void read(PadSnapshot out) {
-    _platform.readPad(index, out);
+    _platform.readPad(switch (_reading) {
+      null => _reading = PadReadContext(index: index, out: out),
+      final reading => reading..out = out,
+    });
     if (!out.isConnected) return;
 
     _stick[0] = out.axis(PadAxis.leftStickX);

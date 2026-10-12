@@ -23,12 +23,17 @@ final class PlatformerKeyKind extends EntityKind {
   static Vector3 get defaultSize => Vector3(0.5, 0.5, 0.5);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     requireText(entity, scope, out, 'color');
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final color = entity.string('color');
     if (color == null) return;
     final collider = place(

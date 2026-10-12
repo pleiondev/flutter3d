@@ -1,5 +1,7 @@
 ## 0.2.0
 
+- **Breaking: `DashwireWire.send` and `sendBytes` take one context**, a
+  `PeerSend` and a `PeerSendBytes`, as every `PeerWire` does now.
 - **`DashwireWire` carries bytes as they are** (`sendBytes`): a payload
   tagged with a leading nought byte, which JSON never starts with.
 - **Breaking: asks for `flame_multiplayer` `^0.3.0`**, built on

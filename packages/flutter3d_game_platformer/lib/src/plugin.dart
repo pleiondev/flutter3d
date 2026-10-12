@@ -60,8 +60,11 @@ final class PlatformerPlugin extends GenrePlugin<PlatformerSimulation> {
   );
 
   @override
-  void stepSimulation(PlatformerSimulation simulation, LoopContext context) =>
-      simulation.step(context.dt, context: context);
+  void stepSimulation(GenreStepContext<PlatformerSimulation> step) {
+    final simulation = step.simulation;
+    final context = step.context;
+    simulation.step(context.dt, context: context);
+  }
 
   /// The run in the loop's snapshots: [PlatformerSimulation.save].
   @override
@@ -70,8 +73,11 @@ final class PlatformerPlugin extends GenrePlugin<PlatformerSimulation> {
 
   /// [PlatformerSimulation.restore].
   @override
-  void restoreSimulation(PlatformerSimulation simulation, Snapshot state) =>
-      simulation.restore(state);
+  void restoreSimulation(GenreRestoreContext<PlatformerSimulation> restore) {
+    final simulation = restore.simulation;
+    final state = restore.state;
+    simulation.restore(state);
+  }
 
   /// The enemies' world, published: the view reads where they are from
   /// `PublishedState` ([PublishedActor.read]).
@@ -83,9 +89,12 @@ final class PlatformerPlugin extends GenrePlugin<PlatformerSimulation> {
   /// [PlatformerSimulation.publishTo].
   @override
   Registration publishEvents(
-    PlatformerSimulation simulation,
-    EventRegistry bus,
-  ) => simulation.publishTo(bus);
+    GenrePublishContext<PlatformerSimulation> publish,
+  ) {
+    final simulation = publish.simulation;
+    final bus = publish.bus;
+    return simulation.publishTo(bus);
+  }
 
   /// Declares the genre's own events, each with its codec, so a run's event
   /// digest folds in what each carries. Named under the plugin, so two genres

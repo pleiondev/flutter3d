@@ -59,7 +59,7 @@ final class Breakable extends Mechanism
 final class BreakableKind extends EntityKind
   const BreakableKind()
   static Vector3 get defaultSize
-  void spawn(EntityDef entity, SpawnContext context)
+  void spawn(EntitySpawn spawn)
 
 final class ChainEnded extends GameEvent
   String get name
@@ -78,7 +78,7 @@ final class Checkpoint extends Mechanism with CollisionListener
   final Collider collider
   final Vector3 at
   final int order
-  void onCollisionStart(Collider self, Collider other)
+  void onCollisionStart(CollisionContext context)
   void restore(Map<String, Object?> from)
   void step(double dt)
 
@@ -86,8 +86,8 @@ final class CheckpointKind extends EntityKind
   const CheckpointKind()
   static Vector3 get defaultSize
   static Vector3 get markerSize
-  void spawn(EntityDef entity, SpawnContext context)
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void spawn(EntitySpawn spawn)
+  void validate(EntityCheck check)
 
 final class CheckpointReached extends GameEvent
   String get name
@@ -113,8 +113,8 @@ final class Climbable extends Mechanism
 final class ClimbableKind extends EntityKind
   const ClimbableKind()
   static Vector3 get defaultSize
-  void spawn(EntityDef entity, SpawnContext context)
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void spawn(EntitySpawn spawn)
+  void validate(EntityCheck check)
 
 final class Collectible extends Takeable
   Collectible({super.name, required this.what, required super.collider, this.howMany = 1, this.worth = 0.0, this.key})
@@ -128,8 +128,8 @@ final class CollectibleKind extends EntityKind
   bool get mustBeReachable
   const CollectibleKind()
   static Vector3 get defaultSize
-  void spawn(EntityDef entity, SpawnContext context)
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void spawn(EntitySpawn spawn)
+  void validate(EntityCheck check)
 
 final class CollectibleTaken extends GameEvent
   String get name
@@ -142,8 +142,8 @@ final class CollectibleTaken extends GameEvent
 final class ConveyorKind extends EntityKind
   const ConveyorKind()
   static Vector3 get defaultSize
-  void spawn(EntityDef entity, SpawnContext context)
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void spawn(EntitySpawn spawn)
+  void validate(EntityCheck check)
 
 final class Crate
   Collider get collider
@@ -156,8 +156,8 @@ final class CrateKind extends EntityKind
   CrateKind({this.dynamics})
   RigidDynamics? dynamics
   bool get mustBeReachable
-  void spawn(EntityDef entity, SpawnContext context)
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void spawn(EntitySpawn spawn)
+  void validate(EntityCheck check)
 
 final class Crumbling extends Mechanism with CollisionListener
   ActivationOutcome activate(Activation by)
@@ -177,8 +177,8 @@ final class Crumbling extends Mechanism with CollisionListener
 final class CrumblingKind extends EntityKind
   const CrumblingKind()
   static Vector3 get defaultSize
-  void spawn(EntityDef entity, SpawnContext context)
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void spawn(EntitySpawn spawn)
+  void validate(EntityCheck check)
 
 final class Dashed extends RunnerEvent
   String get name
@@ -189,8 +189,8 @@ final class Dashed extends RunnerEvent
 final class EnemyKind extends EntityKind
   const EnemyKind()
   static Vector3 get defaultSize
-  void spawn(EntityDef entity, SpawnContext context)
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void spawn(EntitySpawn spawn)
+  void validate(EntityCheck check)
 
 final class EnemyStomped extends GameEvent
   String get name
@@ -256,16 +256,16 @@ final class Hazard extends Mechanism with CollisionListener
   final String? follows
   final bool instant
   final double damagePerSecond
-  void onCollision(Collider self, Collider other)
-  void onCollisionStart(Collider self, Collider other)
+  void onCollision(CollisionContext context)
+  void onCollisionStart(CollisionContext context)
   void restore(Map<String, Object?> from)
   void step(double dt)
 
 final class HazardKind extends EntityKind
   const HazardKind()
   static Vector3 get defaultSize
-  void spawn(EntityDef entity, SpawnContext context)
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void spawn(EntitySpawn spawn)
+  void validate(EntityCheck check)
 
 final class Hunter extends Brain
   Hunter({this.sight = 14.0, this.patience = 3.0})
@@ -323,8 +323,8 @@ final class Mantled extends RunnerEvent
 final class OneWayKind extends EntityKind
   const OneWayKind()
   static Vector3 get defaultSize
-  void spawn(EntityDef entity, SpawnContext context)
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void spawn(EntitySpawn spawn)
+  void validate(EntityCheck check)
 
 base class Patrol extends Brain
   Map<String, Object?> save()
@@ -358,7 +358,7 @@ abstract final class PlatformerEntities
 
 final class PlatformerHeadlessGame extends HeadlessGame
   EntityRegistry registry()
-  HeadlessRun start(Level level, CollisionWorld world, InputState input)
+  HeadlessRun start(HeadlessStart start)
   Map<String, GameAction> get buttons
   SimulationVersion get simulation
   String get name
@@ -370,8 +370,8 @@ final class PlatformerKeyKind extends EntityKind
   bool get mustBeReachable
   const PlatformerKeyKind()
   static Vector3 get defaultSize
-  void spawn(EntityDef entity, SpawnContext context)
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void spawn(EntitySpawn spawn)
+  void validate(EntityCheck check)
 
 abstract final class PlatformerLayers
   static const int oneWay = 1 << 6
@@ -386,14 +386,14 @@ final class PlatformerPlugin extends GenrePlugin<PlatformerSimulation>
   EcsWorld? publishedWorldOf(PlatformerSimulation simulation)
   PlatformerPlugin({Iterable<EntityKind>? kinds, super.replaceKinds, super.headless = const PlatformerHeadlessGame()})
   PluginManifest get manifest
-  Registration publishEvents(PlatformerSimulation simulation, EventRegistry bus)
+  Registration publishEvents(GenrePublishContext<PlatformerSimulation> publish)
   Snapshot captureSimulation(PlatformerSimulation simulation)
   String get systemName
   static const String id = 'flutter3d_game_platformer'
   static const String stepSystem = 'platformer.step'
   void declareEvents(EventRegistry events)
-  void restoreSimulation(PlatformerSimulation simulation, Snapshot state)
-  void stepSimulation(PlatformerSimulation simulation, LoopContext context)
+  void restoreSimulation(GenreRestoreContext<PlatformerSimulation> restore)
+  void stepSimulation(GenreStepContext<PlatformerSimulation> step)
 
 final class PlatformerSimulation
   List<String> systemsIn(LoopPhase phase)
@@ -470,7 +470,7 @@ final class Runner with KeyHolder, Damageable, Rider, Gatherer, KeyTaker, Launch
   Vector3 get shove
   Vector3 get wallAway
   Water? inWater
-  bool applyDamage(double amount, {Object? from})
+  bool applyDamage(Damage damage)
   bool get isCrouching
   bool get isGliding
   bool get isGrounded
@@ -559,8 +559,8 @@ final class Spring extends Mechanism with CollisionListener
   bool firedThisStep
   final Collider collider
   final double speed
-  void onCollision(Collider self, Collider other)
-  void onCollisionStart(Collider self, Collider other)
+  void onCollision(CollisionContext context)
+  void onCollisionStart(CollisionContext context)
   void restore(Map<String, Object?> from)
   void step(double dt)
 
@@ -573,8 +573,8 @@ final class SpringFired extends FurnitureEvent
 final class SpringKind extends EntityKind
   const SpringKind()
   static Vector3 get defaultSize
-  void spawn(EntityDef entity, SpawnContext context)
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void spawn(EntitySpawn spawn)
+  void validate(EntityCheck check)
 
 final class Surfaces extends SurfaceTable<MovementSettings>
   MovementSettings tuningFor(String? surface)

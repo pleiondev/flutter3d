@@ -373,7 +373,9 @@ ExportResult planExport(
       format == ExportFormat.f3d && textureEncoding == TextureEncoding.ktx2
       ? _withKtx2Textures(document)
       : document;
-  final ModelWrite written = format.writer.write(encoded, baseName: name);
+  final ModelWrite written = format.writer.write(
+    ModelWriteContext(document: encoded, baseName: name),
+  );
 
   // Said once, here, rather than per object: OBJ has no node tree at all, so a
   // hierarchy does not survive it and every child comes back at the place its

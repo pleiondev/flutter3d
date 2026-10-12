@@ -19,13 +19,13 @@ abstract base class Gift {
   /// The word a level document uses in a pickup's `gives`.
   final String name;
 
-  /// Grants this to [to]. False when it would do nothing, and the pickup then
-  /// stays where it is.
-  bool grantTo(Inventory to, double amount, String? detail);
+  /// Grants this to the grant's inventory. False when it would do nothing,
+  /// and the pickup then stays where it is.
+  bool grantTo(GiftGrant context);
 
   /// What to tell the player, as a message a game words in its own
   /// language; null says nothing. See [GiftAnnouncement].
-  GiftAnnouncement? announce(double amount, String? detail) => null;
+  GiftAnnouncement? announce(GiftAnnounce context) => null;
 
   /// What a level should give when it does not say.
   /// In the gift's own unit: hit points, armour points or rounds.
@@ -40,12 +40,21 @@ final class HealthGift extends Gift {
   double get defaultAmount => 25.0;
 
   @override
-  bool grantTo(Inventory to, double amount, String? detail) =>
-      to.health.heal(amount) > 0.0;
+  bool grantTo(GiftGrant context) {
+    final to = context.to;
+    final amount = context.amount;
+    return to.health.heal(amount) > 0.0;
+  }
 
   @override
-  GiftAnnouncement? announce(double amount, String? detail) =>
-      GiftAnnouncement(GiftAnnouncement.pickedUp, gift: name, amount: amount);
+  GiftAnnouncement? announce(GiftAnnounce context) {
+    final amount = context.amount;
+    return GiftAnnouncement(
+      GiftAnnouncement.pickedUp,
+      gift: name,
+      amount: amount,
+    );
+  }
 }
 
 final class ArmorGift extends Gift {
@@ -56,12 +65,21 @@ final class ArmorGift extends Gift {
   double get defaultAmount => 50.0;
 
   @override
-  bool grantTo(Inventory to, double amount, String? detail) =>
-      to.addArmor(amount) > 0.0;
+  bool grantTo(GiftGrant context) {
+    final to = context.to;
+    final amount = context.amount;
+    return to.addArmor(amount) > 0.0;
+  }
 
   @override
-  GiftAnnouncement? announce(double amount, String? detail) =>
-      GiftAnnouncement(GiftAnnouncement.pickedUp, gift: name, amount: amount);
+  GiftAnnouncement? announce(GiftAnnounce context) {
+    final amount = context.amount;
+    return GiftAnnouncement(
+      GiftAnnouncement.pickedUp,
+      gift: name,
+      amount: amount,
+    );
+  }
 }
 
 /// One class for all three ammunition types, because they differ only in which
@@ -76,12 +94,21 @@ final class AmmoGift extends Gift {
   final double defaultAmount;
 
   @override
-  bool grantTo(Inventory to, double amount, String? detail) =>
-      to.arsenal.addAmmo(type, amount.round()) > 0;
+  bool grantTo(GiftGrant context) {
+    final to = context.to;
+    final amount = context.amount;
+    return to.arsenal.addAmmo(type, amount.round()) > 0;
+  }
 
   @override
-  GiftAnnouncement? announce(double amount, String? detail) =>
-      GiftAnnouncement(GiftAnnouncement.pickedUp, gift: name, amount: amount);
+  GiftAnnouncement? announce(GiftAnnounce context) {
+    final amount = context.amount;
+    return GiftAnnouncement(
+      GiftAnnouncement.pickedUp,
+      gift: name,
+      amount: amount,
+    );
+  }
 }
 
 /// A key, whose colour is the pickup's own `color` rather than the gift's.
@@ -89,15 +116,20 @@ final class KeyGift extends Gift {
   const KeyGift() : super('key');
 
   @override
-  bool grantTo(Inventory to, double amount, String? detail) {
+  bool grantTo(GiftGrant context) {
+    final to = context.to;
+    final detail = context.detail;
     if (detail == null) return false;
     return to.keyRing.add(detail);
   }
 
   @override
-  GiftAnnouncement? announce(double amount, String? detail) => detail == null
-      ? null
-      : GiftAnnouncement(GiftAnnouncement.key, gift: name, detail: detail);
+  GiftAnnouncement? announce(GiftAnnounce context) {
+    final detail = context.detail;
+    return detail == null
+        ? null
+        : GiftAnnouncement(GiftAnnouncement.key, gift: name, detail: detail);
+  }
 }
 
 /// Runs out, rather than filling a pool.
@@ -109,7 +141,9 @@ final class PowerUpGift extends Gift {
   final double defaultAmount;
 
   @override
-  bool grantTo(Inventory to, double amount, String? detail) {
+  bool grantTo(GiftGrant context) {
+    final to = context.to;
+    final amount = context.amount;
     // Refreshing rather than stacking: two medkits are twice the health, two
     // invulnerabilities are not two minutes of it.
     to.empower(name, amount);
@@ -117,8 +151,14 @@ final class PowerUpGift extends Gift {
   }
 
   @override
-  GiftAnnouncement? announce(double amount, String? detail) =>
-      GiftAnnouncement(GiftAnnouncement.poweredUp, gift: name, amount: amount);
+  GiftAnnouncement? announce(GiftAnnounce context) {
+    final amount = context.amount;
+    return GiftAnnouncement(
+      GiftAnnouncement.poweredUp,
+      gift: name,
+      amount: amount,
+    );
+  }
 }
 
 /// What a [Gift] tells the player it gave: a message id and what fills it in,
@@ -203,4 +243,34 @@ final class GiftRegistry {
   Iterable<String> get names => _byName.keys;
 
   bool knows(String name) => _byName.containsKey(name);
+}
+
+/// What [Gift.grantTo] is handed: who takes the gift, and how much of it.
+///
+/// **One object, so a minor can hand a gift more** — the pickup it lay in,
+/// the step it was taken at — without breaking a gift written against 1.0.
+final class GiftGrant {
+  const GiftGrant({required this.to, required this.amount, this.detail});
+
+  /// What the taker carries.
+  final Inventory to;
+
+  /// How much, in the gift's own unit: hit points, armor points or rounds.
+  final double amount;
+
+  /// What the level wrote beside the amount: a key's color, a power-up's
+  /// name; null when it wrote nothing.
+  final String? detail;
+}
+
+/// What [Gift.announce] is handed, once the gift was granted, for the
+/// reason [GiftGrant] gives.
+final class GiftAnnounce {
+  const GiftAnnounce({required this.amount, this.detail});
+
+  /// How much was given, in the gift's own unit.
+  final double amount;
+
+  /// What the level wrote beside the amount, or null.
+  final String? detail;
 }

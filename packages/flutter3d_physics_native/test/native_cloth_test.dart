@@ -55,7 +55,7 @@ void main() {
     expect(cloth.read(), isNull);
     final settings = CoreClothSettings(damping: 1.0);
     for (var i = 0; i < 120; i++) {
-      cloth.step(settings, 1 / 60);
+      cloth.step(ClothSystemStep(settings: settings, dt: 1 / 60));
     }
     final frame = cloth.read()!;
     expect(frame.step, 120);
@@ -140,9 +140,7 @@ void main() {
               compliances: <double>[1e-6],
             ),
             CoreClothSettings(floorY: 0.0, friction: 0.2),
-            <ClothBall>[
-              ClothBall(center: Vector3(0.0, 0.3, 0.0), radius: 0.3),
-            ],
+            <ClothBall>[ClothBall(center: Vector3(0.0, 0.3, 0.0), radius: 0.3)],
           ),
           (
             CoreClothMesh(
@@ -167,8 +165,8 @@ void main() {
           cpu.setBalls(balls);
           onGpu.setBalls(balls);
           for (var step = 1; step <= 120; step++) {
-            cpu.step(settings, 1 / 60);
-            onGpu.step(settings, 1 / 60);
+            cpu.step(ClothSystemStep(settings: settings, dt: 1 / 60));
+            onGpu.step(ClothSystemStep(settings: settings, dt: 1 / 60));
             if (step % 10 != 0) continue;
             final x = cpu.read()!.points;
             final y = onGpu.read()!.points;
@@ -188,8 +186,8 @@ void main() {
         addTearDown(onGpu.dispose);
         final settings = CoreClothSettings(damping: 1.0);
         for (var i = 0; i < 30; i++) {
-          cpu.step(settings, 1 / 60);
-          onGpu.step(settings, 1 / 60);
+          cpu.step(ClothSystemStep(settings: settings, dt: 1 / 60));
+          onGpu.step(ClothSystemStep(settings: settings, dt: 1 / 60));
         }
         // Half a second in, falling and not yet folded: point for point.
         final a = cpu.read()!.points;
@@ -198,8 +196,8 @@ void main() {
           expect(b[i], closeTo(a[i], 1e-4), reason: 'float $i');
         }
         for (var i = 0; i < 150; i++) {
-          cpu.step(settings, 1 / 60);
-          onGpu.step(settings, 1 / 60);
+          cpu.step(ClothSystemStep(settings: settings, dt: 1 / 60));
+          onGpu.step(ClothSystemStep(settings: settings, dt: 1 / 60));
         }
         // Wrinkled, each its own way: the same sheet.
         final settledCpu = cpu.read()!.points;
@@ -220,7 +218,7 @@ void main() {
         final settings = CoreClothSettings();
         var last = 0;
         for (var i = 1; i <= 20; i++) {
-          onGpu.step(settings, 1 / 60);
+          onGpu.step(ClothSystemStep(settings: settings, dt: 1 / 60));
           final late = onGpu.read(wait: false);
           if (late != null) {
             expect(late.step, inInclusiveRange(last + 1, i));
@@ -228,10 +226,10 @@ void main() {
           }
         }
         onGpu
-          ..movePoint(0, Vector3(-0.5, 1.0, -0.5))
-          ..movePoint(7, Vector3(0.5, 1.0, -0.5));
+          ..movePoint(ClothPointMove(index: 0, at: Vector3(-0.5, 1.0, -0.5)))
+          ..movePoint(ClothPointMove(index: 7, at: Vector3(0.5, 1.0, -0.5)));
         for (var i = 0; i < 60; i++) {
-          onGpu.step(settings, 1 / 60);
+          onGpu.step(ClothSystemStep(settings: settings, dt: 1 / 60));
         }
         final p = onGpu.read()!;
         expect(p.step, 80);

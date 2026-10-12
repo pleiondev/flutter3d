@@ -86,7 +86,7 @@ const double reelFrameStep = 1.0 / 30.0
 library package:flutter3d_game_ui/flutter3d_game_ui.dart
 
 final class AccessibilitySection extends SettingsSection
-  Widget build(BuildContext context, GameSettingsController settings, SettingsState state)
+  Widget build(SettingsSectionContext section)
   const AccessibilitySection()
 
 class ActionBindingsSection extends StatelessWidget
@@ -111,7 +111,7 @@ final class ActionPhotoControls extends PhotoControls
   final GameAction right
   final GameAction up
   final double sensitivity
-  void steer(PhotoCamera camera, double dt, {InputState? input, Vector2? look})
+  void steer(PhotoSteerContext context)
 
 typedef Announce = void Function(String sentence);
 
@@ -142,12 +142,12 @@ class AutomapView extends StatelessWidget
   final double yaw
 
 final class ColorsSection extends SettingsSection
-  Widget build(BuildContext context, GameSettingsController settings, SettingsState state)
+  Widget build(SettingsSectionContext section)
   const ColorsSection(this.roles)
   final ColorRoles roles
 
 final class ConsentsSection extends SettingsSection
-  Widget build(BuildContext context, GameSettingsController settings, SettingsState state)
+  Widget build(SettingsSectionContext section)
   const ConsentsSection(this.consents)
   final Consents consents
 
@@ -164,7 +164,7 @@ final class ContrastPair
   final double minimum
 
 final class ControlsSection extends SettingsSection
-  Widget build(BuildContext context, GameSettingsController settings, SettingsState state)
+  Widget build(SettingsSectionContext section)
   const ControlsSection({required this.defaults, this.showsTuning = false, this.actionLabel})
   final ActionMap Function() defaults
   final String? Function(ActionDeclaration declaration)? actionLabel
@@ -352,7 +352,7 @@ base class Flutter3dGameLocalizations
   static const GameUiTheme fallback = GameUiTheme()
 
 final class GamepadSection extends SettingsSection
-  Widget build(BuildContext context, GameSettingsController settings, SettingsState state)
+  Widget build(SettingsSectionContext section)
   const GamepadSection({required this.isConnected})
   final bool isConnected
   static const double maxDeadZone = 0.4
@@ -396,7 +396,7 @@ final class KeyPhotoControls extends PhotoControls
   final LogicalKeyboardKey down
   final LogicalKeyboardKey up
   final double? turnRate
-  void steer(PhotoCamera camera, double dt, {InputState? input, Vector2? look})
+  void steer(PhotoSteerContext context)
 
 final class Lens
   PerspectiveProjection at(double aspect, {double extraFovY = 0.0})
@@ -455,7 +455,7 @@ final class MomentHints<E>
   void forget()
 
 final class MouseSection extends SettingsSection
-  Widget build(BuildContext context, GameSettingsController settings, SettingsState state)
+  Widget build(SettingsSectionContext section)
   const MouseSection()
 
 class PhotoBar extends StatelessWidget
@@ -464,7 +464,7 @@ class PhotoBar extends StatelessWidget
   final PhotoMode mode
 
 abstract base class PhotoControls
-  abstract void steer(PhotoCamera camera, double dt, {InputState? input, Vector2? look})
+  abstract void steer(PhotoSteerContext context)
   const PhotoControls()
   static const double fastFactor = 3.0
 
@@ -489,6 +489,13 @@ final class PhotoMode
   void fly(double dt, {InputState? input, Vector2? look})
   void leave()
   void turn(double dx, double dy, {required double perPixel})
+
+final class PhotoSteerContext
+  InputState? input
+  PhotoCamera camera
+  PhotoSteerContext({required this.camera, required this.dt, this.input, this.look})
+  Vector2? look
+  double dt
 
 class PrivacySection extends StatefulWidget
   State<PrivacySection> createState()
@@ -552,9 +559,15 @@ class SettingsPanel extends StatelessWidget
   final List<SettingsSection> sections
 
 abstract base class SettingsSection
-  abstract Widget build(BuildContext context, GameSettingsController settings, SettingsState state)
+  abstract Widget build(SettingsSectionContext section)
   const SettingsSection()
   static List<SettingsSection> standard({List<AudioBus> buses = settableBuses, ActionMap Function()? defaultActions, bool actionTuning = false, String? Function(ActionDeclaration declaration)? actionLabel, ColorRoles? colors, Consents? privacy, required bool padConnected, Widget? credits})
+
+final class SettingsSectionContext
+  const SettingsSectionContext({required this.context, required this.settings, required this.state})
+  final BuildContext context
+  final GameSettingsController settings
+  final SettingsState state
 
 class ShareStrip extends StatefulWidget
   State<ShareStrip> createState()
@@ -710,7 +723,7 @@ final class TuningChange
   int get hashCode
 
 final class VolumesSection extends SettingsSection
-  Widget build(BuildContext context, GameSettingsController settings, SettingsState state)
+  Widget build(SettingsSectionContext section)
   const VolumesSection({this.buses = settableBuses})
   final List<AudioBus> buses
 
@@ -727,7 +740,7 @@ abstract final class Wcag
   static double luminance(Color color)
 
 final class WidgetSection extends SettingsSection
-  Widget build(BuildContext context, GameSettingsController settings, SettingsState state)
+  Widget build(SettingsSectionContext section)
   const WidgetSection(this.child)
   final Widget child
 
@@ -876,14 +889,14 @@ final class ActionPhotoControls extends PhotoControls
   final GameAction right
   final GameAction up
   final double sensitivity
-  void steer(PhotoCamera camera, double dt, {InputState? input, Vector2? look})
+  void steer(PhotoSteerContext context)
 
 final class KeyPhotoControls extends PhotoControls
   const KeyPhotoControls({required this.up, required this.down, this.turnRate})
   final LogicalKeyboardKey down
   final LogicalKeyboardKey up
   final double? turnRate
-  void steer(PhotoCamera camera, double dt, {InputState? input, Vector2? look})
+  void steer(PhotoSteerContext context)
 
 class PhotoBar extends StatelessWidget
   Widget build(BuildContext context)
@@ -891,7 +904,7 @@ class PhotoBar extends StatelessWidget
   final PhotoMode mode
 
 abstract base class PhotoControls
-  abstract void steer(PhotoCamera camera, double dt, {InputState? input, Vector2? look})
+  abstract void steer(PhotoSteerContext context)
   const PhotoControls()
   static const double fastFactor = 3.0
 
@@ -916,6 +929,13 @@ final class PhotoMode
   void fly(double dt, {InputState? input, Vector2? look})
   void leave()
   void turn(double dx, double dy, {required double perPixel})
+
+final class PhotoSteerContext
+  InputState? input
+  PhotoCamera camera
+  PhotoSteerContext({required this.camera, required this.dt, this.input, this.look})
+  Vector2? look
+  double dt
 
 library package:flutter3d_game_ui/screens.dart
 
@@ -1026,7 +1046,7 @@ class TitleSheet extends StatelessWidget
 library package:flutter3d_game_ui/settings.dart
 
 final class AccessibilitySection extends SettingsSection
-  Widget build(BuildContext context, GameSettingsController settings, SettingsState state)
+  Widget build(SettingsSectionContext section)
   const AccessibilitySection()
 
 class ActionBindingsSection extends StatelessWidget
@@ -1042,30 +1062,30 @@ class ActionBindingsSection extends StatelessWidget
   final void Function(TuningChange change)? onTuning
 
 final class ColorsSection extends SettingsSection
-  Widget build(BuildContext context, GameSettingsController settings, SettingsState state)
+  Widget build(SettingsSectionContext section)
   const ColorsSection(this.roles)
   final ColorRoles roles
 
 final class ConsentsSection extends SettingsSection
-  Widget build(BuildContext context, GameSettingsController settings, SettingsState state)
+  Widget build(SettingsSectionContext section)
   const ConsentsSection(this.consents)
   final Consents consents
 
 final class ControlsSection extends SettingsSection
-  Widget build(BuildContext context, GameSettingsController settings, SettingsState state)
+  Widget build(SettingsSectionContext section)
   const ControlsSection({required this.defaults, this.showsTuning = false, this.actionLabel})
   final ActionMap Function() defaults
   final String? Function(ActionDeclaration declaration)? actionLabel
   final bool showsTuning
 
 final class GamepadSection extends SettingsSection
-  Widget build(BuildContext context, GameSettingsController settings, SettingsState state)
+  Widget build(SettingsSectionContext section)
   const GamepadSection({required this.isConnected})
   final bool isConnected
   static const double maxDeadZone = 0.4
 
 final class MouseSection extends SettingsSection
-  Widget build(BuildContext context, GameSettingsController settings, SettingsState state)
+  Widget build(SettingsSectionContext section)
   const MouseSection()
 
 class PrivacySection extends StatefulWidget
@@ -1098,9 +1118,15 @@ class SettingsPanel extends StatelessWidget
   final List<SettingsSection> sections
 
 abstract base class SettingsSection
-  abstract Widget build(BuildContext context, GameSettingsController settings, SettingsState state)
+  abstract Widget build(SettingsSectionContext section)
   const SettingsSection()
   static List<SettingsSection> standard({List<AudioBus> buses = settableBuses, ActionMap Function()? defaultActions, bool actionTuning = false, String? Function(ActionDeclaration declaration)? actionLabel, ColorRoles? colors, Consents? privacy, required bool padConnected, Widget? credits})
+
+final class SettingsSectionContext
+  const SettingsSectionContext({required this.context, required this.settings, required this.state})
+  final BuildContext context
+  final GameSettingsController settings
+  final SettingsState state
 
 final class TuningChange
   bool operator ==(Object other)
@@ -1111,12 +1137,12 @@ final class TuningChange
   int get hashCode
 
 final class VolumesSection extends SettingsSection
-  Widget build(BuildContext context, GameSettingsController settings, SettingsState state)
+  Widget build(SettingsSectionContext section)
   const VolumesSection({this.buses = settableBuses})
   final List<AudioBus> buses
 
 final class WidgetSection extends SettingsSection
-  Widget build(BuildContext context, GameSettingsController settings, SettingsState state)
+  Widget build(SettingsSectionContext section)
   const WidgetSection(this.child)
   final Widget child
 

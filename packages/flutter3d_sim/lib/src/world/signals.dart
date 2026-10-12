@@ -75,7 +75,8 @@ final class TriggerVolume extends Signal with CollisionListener {
   ActivationOutcome? _outcome;
 
   @override
-  void onCollisionStart(Collider self, Collider other) {
+  void onCollisionStart(CollisionContext context) {
+    final other = context.other;
     _outcome = fire(world.activationBy(other));
   }
 

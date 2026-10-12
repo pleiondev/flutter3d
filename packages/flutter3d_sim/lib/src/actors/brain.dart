@@ -48,10 +48,11 @@ abstract base class Brain {
 
   /// Something hurt this actor and it lived.
   ///
-  /// Who did it is [Mind.hurtBy], which is only meaningful inside this call.
-  void onHurt(Mind it, double amount) {}
+  /// Who did it is [Mind.hurtBy], which is only meaningful inside this call;
+  /// how much is [BrainHurt.amount].
+  void onHurt(BrainHurt hurt) {}
 
-  /// Something loud happened at [at], within earshot.
+  /// Something loud happened at [BrainNoise.at], within earshot.
   ///
   /// **Hearing, which is the sense these actors did not have.** A brain that
   /// only reacts to being seen or being shot is one that stands still while a
@@ -62,7 +63,7 @@ abstract base class Brain {
   /// The caller decides what counts as loud and how far it carries; this is
   /// told only that it happened and where. Distance is already applied: a
   /// brain is not called for a noise it could not have heard.
-  void onNoise(Mind it, Vector3 at) {}
+  void onNoise(BrainNoise noise) {}
 
   /// Something hurt this actor and it did not.
   void onDeath(Mind it) {}
@@ -71,6 +72,39 @@ abstract base class Brain {
   Map<String, Object?> save() => const <String, Object?>{};
 
   void restore(Map<String, Object?> from) {}
+}
+
+/// What [Brain.onHurt] is handed: the actor's mind and how much it was
+/// hurt by.
+///
+/// **One object, so a minor can hand a brain more** — what kind of harm,
+/// where it landed — without breaking a brain written against 1.0. A brain
+/// reads it during the call and does not keep it: its mind is the system's
+/// and moves on to the next actor.
+final class BrainHurt {
+  const BrainHurt({required this.mind, required this.amount});
+
+  /// The actor's mind; who did it is its [Mind.hurtBy].
+  final Mind mind;
+
+  /// How much health it lost.
+  final double amount;
+}
+
+/// What [Brain.onNoise] is handed: the actor's mind and where the noise was.
+///
+/// One object, for the reason [BrainHurt] gives. **Reused**: `ActorSystem`
+/// owns one and sets it before telling each actor within earshot; a brain
+/// reads it during the call and does not keep it, nor its vector — a brain
+/// that keeps the place clones it.
+final class BrainNoise {
+  BrainNoise({required this.mind, required this.at});
+
+  /// The actor's mind.
+  Mind mind;
+
+  /// Where the noise was, in the world.
+  Vector3 at;
 }
 
 /// Everything a brain is allowed to know, and the few things it may do.

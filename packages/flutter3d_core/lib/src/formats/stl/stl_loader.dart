@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/geometry.dart';
 import 'package:vector_math/vector_math.dart';
 
-import '../asset_resolver.dart';
 import '../model_document.dart';
 import '../model_loader.dart';
 import '../plain_model_document.dart';
@@ -103,17 +102,19 @@ final class StlLoader extends ModelDecoder {
   final StlNormals normals;
 
   @override
-  bool handles(String fileName, Uint8List bytes) =>
-      fileName.toLowerCase().endsWith('.stl') ||
-      isBinaryStl(bytes) ||
-      looksLikeAsciiStl(bytes);
+  bool handles(ModelProbe probe) {
+    final fileName = probe.fileName;
+    final bytes = probe.bytes;
+    return fileName.toLowerCase().endsWith('.stl') ||
+        isBinaryStl(bytes) ||
+        looksLikeAsciiStl(bytes);
+  }
 
   @override
-  Future<ModelDocument> decode(
-    Uint8List bytes,
-    ModelLoadRequest request,
-    AssetUriResolver resolveUri,
-  ) => load(bytes);
+  Future<ModelDocument> decode(ModelDecodeContext context) {
+    final bytes = context.bytes;
+    return load(bytes);
+  }
 
   /// Reads [bytes], choosing the dialect the same way [isBinaryStl] does.
   ///

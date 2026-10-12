@@ -100,7 +100,8 @@ PlatformerStaged stagePlatformer(
     platformerWorld,
     materials: world.materials,
   );
-  final dynamics = (dynamicsFor ?? (w) => w.backend.dynamics(w))(world);
+  final dynamics =
+      (dynamicsFor ?? (w) => w.backend.dynamics(DynamicsRequest(w)))(world);
   (kinds[PlatformerEntities.crate] as CrateKind?)?.dynamics = dynamics;
 
   // **One generator for the whole world, and it is the same object the
@@ -219,7 +220,10 @@ final class PlatformerHeadlessGame extends HeadlessGame {
   }
 
   @override
-  HeadlessRun start(Level level, CollisionWorld world, InputState input) {
+  HeadlessRun start(HeadlessStart start) {
+    final level = start.level;
+    final world = start.world;
+    final input = start.input;
     final staged = stagePlatformer(
       level,
       world,

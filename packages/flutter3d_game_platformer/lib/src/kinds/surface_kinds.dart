@@ -22,7 +22,10 @@ final class OneWayKind extends EntityKind {
   static Vector3 get defaultSize => Vector3(4.0, 0.3, 4.0);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     final size = entity.vector('size');
     if (size != null && size.y > 0.6) {
       out.add(
@@ -37,7 +40,9 @@ final class OneWayKind extends EntityKind {
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final collider = place(
       entity,
       context,
@@ -64,7 +69,10 @@ final class ConveyorKind extends EntityKind {
   static Vector3 get defaultSize => Vector3(4.0, 0.4, 8.0);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     final flow = entity.vector('flow');
     if (flow == null) {
       out.add(
@@ -88,7 +96,9 @@ final class ConveyorKind extends EntityKind {
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final flow = entity.vector('flow');
     if (flow == null) return;
     final collider = place(
@@ -113,7 +123,10 @@ final class CrumblingKind extends EntityKind {
   static Vector3 get defaultSize => Vector3(3.0, 0.4, 3.0);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     final delay = entity.number('delay');
     if (delay != null && delay <= 0.0) {
       out.add(
@@ -128,7 +141,9 @@ final class CrumblingKind extends EntityKind {
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final collider = place(
       entity,
       context,

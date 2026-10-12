@@ -107,16 +107,16 @@ void main() {
       // with every step of a walk.
       final framing = FollowFraming(deadZone: Vector3(1.0, 1.0, 1.0));
       final shot = CameraShot();
-      framing.frame(shot, _frame);
+      framing.frame(FramingStep(wanted: shot, dt: _frame));
       final eye = shot.eye.clone();
 
       framing.subject.setValues(0.8, 0.0, -0.5);
-      framing.frame(shot, _frame);
+      framing.frame(FramingStep(wanted: shot, dt: _frame));
       expect((shot.eye - eye).length, 0.0);
 
       // Out of the zone by half a metre: dragged by exactly that.
       framing.subject.setValues(1.5, 0.0, 0.0);
-      framing.frame(shot, _frame);
+      framing.frame(FramingStep(wanted: shot, dt: _frame));
       expect(framing.anchor.x, closeTo(0.5, 1e-6));
     });
 
@@ -125,9 +125,9 @@ void main() {
       // keep up with a fall as rigidly as an untuned one.
       final framing = FollowFraming(damping: Vector3(0.0, 4.0, 0.0));
       final shot = CameraShot();
-      framing.frame(shot, _frame);
+      framing.frame(FramingStep(wanted: shot, dt: _frame));
       framing.subject.setValues(2.0, -2.0, 0.0);
-      framing.frame(shot, _frame);
+      framing.frame(FramingStep(wanted: shot, dt: _frame));
       expect(framing.anchor.x, closeTo(2.0, 1e-6), reason: 'undamped axis');
       expect(framing.anchor.y, greaterThan(-2.0));
       expect(framing.anchor.y, lessThan(0.0));
@@ -139,7 +139,7 @@ void main() {
       final framing = LookAtFraming(from: Vector3(0.0, 5.0, 0.0));
       final shot = CameraShot();
       framing.subject.setValues(10.0, 0.0, 0.0);
-      framing.frame(shot, _frame);
+      framing.frame(FramingStep(wanted: shot, dt: _frame));
       expect(shot.eye, Vector3(0.0, 5.0, 0.0));
       expect(shot.target.x, 10.0);
     });
@@ -156,7 +156,7 @@ void main() {
         aspect: 1.0,
       );
       final shot = CameraShot();
-      framing.frame(shot, _frame);
+      framing.frame(FramingStep(wanted: shot, dt: _frame));
       final axis = (shot.target - shot.eye)..normalize();
       for (final target in framing.targets) {
         final to = (target.position - shot.eye)..normalize();
@@ -252,13 +252,13 @@ void main() {
         final framing = ChaseFraming()
           ..velocity.setValues(1e-4, 0.0, 0.0)
           ..speed = 1e-4;
-        framing.frame(CameraShot(), _frame);
+        framing.frame(FramingStep(wanted: CameraShot(), dt: _frame));
         expect(framing.heading, 0.0);
 
         framing
           ..velocity.setValues(20.0, 0.0, 0.0)
           ..speed = 20.0;
-        framing.frame(CameraShot(), _frame);
+        framing.frame(FramingStep(wanted: CameraShot(), dt: _frame));
         expect(framing.heading, closeTo(math.pi / 2.0 * 0.75, 1e-9));
       },
     );
@@ -276,7 +276,7 @@ void main() {
       expect(framing.focus.x, 100.0);
       expect(framing.focus.z, 10.0);
       final shot = CameraShot();
-      framing.frame(shot, _frame);
+      framing.frame(FramingStep(wanted: shot, dt: _frame));
       expect(shot.target.y, closeTo(10.0, 1e-5));
       framing.zoom(-1000.0);
       expect(framing.distance, 12.0);

@@ -1,5 +1,8 @@
 ## 0.3.0
 
+- **The wire's contexts are exported**: `PeerSend`, `PeerSendBytes`,
+  `PeerDelivery`, `PeerBytesDelivery`, `PeerMessage` and `PeerBytes`, which
+  `PeerWire`'s hooks and listeners take since `flutter3d_net` 1.0.0-rc.1.
 - **The observer is exported**: `ObserverFeed`, `SimulationObserver`,
   `ObserverFilter`, `ObserverMode` and `ObserverSnapshot`, from
   `flutter3d_net`, for watching an authoritative simulation.

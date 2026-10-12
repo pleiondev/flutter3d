@@ -105,7 +105,9 @@ final class LocalSimulation extends SimulationHandle {
         ),
       );
     }
-    return Future<Object?>.sync(() => answer(loop.world, arguments));
+    return Future<Object?>.sync(
+      () => answer(SimulationQuestion(loop.world, arguments: arguments)),
+    );
   }
 
   @override

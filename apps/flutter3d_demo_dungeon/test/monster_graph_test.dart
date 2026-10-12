@@ -12,6 +12,7 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_demo_content/shooter_sample.dart' show Monsters;
 import 'package:flutter3d_demo_dungeon/src/monster_graphs.dart';
+import 'package:flutter3d_game/flutter3d_game.dart' show ActorMachineContext;
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
@@ -22,7 +23,9 @@ Future<AnimationGraph> _graphOf(String model) async {
   final doc = await decodeModel(
     ModelLoadRequest(source: FileAssetSource('assets_src/models/$model.glb')),
   );
-  final machine = MonsterGraphs().machineFor(_nobody(), doc.animations)!;
+  final machine = MonsterGraphs().machineFor(
+    ActorMachineContext(actor: _nobody(), clips: doc.animations),
+  )!;
   return AnimationGraph(
     machine: machine,
     clips: doc.animations,
@@ -77,7 +80,9 @@ void main() {
         source: const FileAssetSource('assets_src/models/monster_runner.glb'),
       ),
     );
-    final machine = MonsterGraphs().machineFor(_nobody(), doc.animations)!;
+    final machine = MonsterGraphs().machineFor(
+      ActorMachineContext(actor: _nobody(), clips: doc.animations),
+    )!;
     final move = machine.states[machine.indexOfState('move')];
     expect(move.blend, isNotNull);
     expect(move.blend!.points.map((p) => p.clip), <String>['Walk', 'Run']);
@@ -128,7 +133,12 @@ void main() {
   });
 
   test('a model with no idle keeps naming its clips', () {
-    expect(MonsterGraphs().machineFor(_nobody(), <AnimationClip>[]), isNull);
+    expect(
+      MonsterGraphs().machineFor(
+        ActorMachineContext(actor: _nobody(), clips: <AnimationClip>[]),
+      ),
+      isNull,
+    );
   });
 
   test('a monster says its state and how fast it goes along the floor', () {

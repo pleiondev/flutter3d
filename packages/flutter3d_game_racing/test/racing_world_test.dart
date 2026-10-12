@@ -41,12 +41,12 @@ double _stopping(WorldProperties world) {
   final car = _car(world);
   final throttle = VehicleInput()..throttle = 1.0;
   for (var i = 0; i < 60 * 30 && car.speed < 25.0; i++) {
-    car.step(_step, throttle);
+    car.step(VehicleStep(dt: _step, input: throttle));
   }
   final start = car.position.clone();
   final brake = VehicleInput()..brake = 1.0;
   for (var i = 0; i < 60 * 60 && car.speed > 1.0; i++) {
-    car.step(_step, brake);
+    car.step(VehicleStep(dt: _step, input: brake));
   }
   return car.position.distanceTo(start);
 }
@@ -65,8 +65,8 @@ void main() {
     );
     final coast = VehicleInput();
     for (var i = 0; i < 30; i++) {
-      race.step(_step, coast);
-      moon.step(_step, coast);
+      race.step(VehicleStep(dt: _step, input: coast));
+      moon.step(VehicleStep(dt: _step, input: coast));
     }
     expect(
       race.velocity.y / moon.velocity.y,
@@ -92,7 +92,7 @@ void main() {
       final car = _car(world)..velocity.setValues(0.0, 0.0, 40.0);
       final coast = VehicleInput();
       for (var i = 0; i < 120; i++) {
-        car.step(_step, coast);
+        car.step(VehicleStep(dt: _step, input: coast));
       }
       return car.speed;
     }

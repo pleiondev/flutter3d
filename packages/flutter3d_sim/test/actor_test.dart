@@ -13,6 +13,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show ComponentCodec;
 import 'package:flutter3d_sim/src/actors/actor.dart';
 import 'package:flutter3d_sim/src/actors/actor_components.dart';
+import 'package:flutter3d_sim/src/actors/actor_strides.dart';
 import 'package:flutter3d_sim/src/actors/actor_system.dart';
 import 'package:flutter3d_sim/src/actors/brain.dart';
 import 'package:flutter3d_sim/src/actors/damageable.dart';
@@ -85,7 +86,10 @@ final class _Listening extends Brain {
   final List<Vector3> heard = <Vector3>[];
 
   @override
-  void onNoise(Mind it, Vector3 at) => heard.add(at.clone());
+  void onNoise(BrainNoise noise) {
+    final at = noise.at;
+    heard.add(at.clone());
+  }
 }
 
 /// Something a game might care about and this package has never heard of.
@@ -112,7 +116,7 @@ void main() {
 
     system.beginStep();
     // Killed part-way through the game's step, as a shot does it.
-    actor.applyDamage(50.0);
+    actor.applyDamage(Damage(amount: 50.0));
     system.step(1 / 60.0, focus: Vector3(0.0, 0.9, 20.0));
 
     expect(
@@ -131,7 +135,7 @@ void main() {
     );
 
     system.beginStep();
-    actor.applyDamage(50.0);
+    actor.applyDamage(Damage(amount: 50.0));
     system.step(1 / 60.0, focus: Vector3.zero());
     expect(system.died, hasLength(1));
 
@@ -287,7 +291,10 @@ void main() {
 
       final owner = walker.body!.collider.userData;
       expect(owner, same(walker));
-      expect((owner! as Damageable).applyDamage(1000.0), isTrue);
+      expect(
+        (owner! as Damageable).applyDamage(Damage(amount: 1000.0)),
+        isTrue,
+      );
       expect(
         system.died,
         hasLength(1),
@@ -399,7 +406,7 @@ void main() {
         isTrue,
         reason: 'nothing to kill is not the same as dead',
       );
-      expect(post.applyDamage(1000.0), isFalse);
+      expect(post.applyDamage(Damage(amount: 1000.0)), isFalse);
       expect(system.died, isEmpty);
       expect(
         post.body!.collider.kind,
@@ -586,4 +593,71 @@ void main() {
       expect((dead.brain! as _Listening).heard, isEmpty);
     });
   });
+
+  group('the contexts the hooks are handed', () {
+    test('strides get one context, set for each actor and step', () {
+      // Mutation: hand the strides a new `ActorStride` per call, or forget to
+      // set its actor, and the identities or the actors below differ.
+      final world = _ground();
+      final system = ActorSystem(world: world, random: GameRandom(1));
+      final strides = _Recording();
+      system.strides = strides;
+      final first = _walker(system, at: -2.0);
+      final second = _walker(system, at: 2.0);
+      for (var i = 0; i < 2; i++) {
+        system.beginStep();
+        system.step(_dt, focus: Vector3(0.0, 100.0, 0.0));
+      }
+      expect(strides.actors, <Actor>[first, second, first, second]);
+      expect(strides.dts, everyElement(_dt));
+      expect(strides.contexts.toSet(), hasLength(1));
+    });
+
+    test('a hurt brain is handed the amount, and who did it on its mind', () {
+      // Mutation: hand `onHurt` the actor's health rather than the hit, or
+      // clear `hurtBy` before the call.
+      final world = _ground();
+      final system = ActorSystem(world: world, random: GameRandom(1));
+      final brain = _Hurt();
+      final actor = system.spawn(
+        body: CharacterController(
+          world: world,
+          position: Vector3(0.0, 0.9, 0.0),
+        ),
+        health: Health(30.0),
+        brain: brain,
+      );
+      final culprit = Object();
+      actor.applyDamage(Damage(amount: 4.0, from: culprit));
+      expect(brain.amounts, <double>[4.0]);
+      expect(brain.by, <Object?>[culprit]);
+    });
+  });
+}
+
+/// Strides that move nobody and write down what every call was handed.
+final class _Recording extends ActorStrides {
+  final List<Actor> actors = <Actor>[];
+  final List<double> dts = <double>[];
+  final List<ActorStride> contexts = <ActorStride>[];
+
+  @override
+  Vector3? strideOf(ActorStride stride) {
+    actors.add(stride.actor);
+    dts.add(stride.dt);
+    contexts.add(stride);
+    return null;
+  }
+}
+
+/// A brain that writes down every hurt it is told of.
+final class _Hurt extends Brain {
+  final List<double> amounts = <double>[];
+  final List<Object?> by = <Object?>[];
+
+  @override
+  void onHurt(BrainHurt hurt) {
+    amounts.add(hurt.amount);
+    by.add(hurt.mind.hurtBy);
+  }
 }

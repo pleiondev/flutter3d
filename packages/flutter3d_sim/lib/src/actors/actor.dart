@@ -118,7 +118,9 @@ final class Actor with Damageable, Rider {
   /// piece with a collider. **Not an error**: a rocket asks everything in its
   /// radius, and "nothing happened" is the honest answer for a lamp post.
   @override
-  bool applyDamage(double amount, {Object? from}) {
+  bool applyDamage(Damage damage) {
+    final amount = damage.amount;
+    final from = damage.from;
     if (health == null) return false;
     return onDamage?.call(amount, from) ?? health!.damage(amount);
   }

@@ -1,7 +1,6 @@
 import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
 
 import '../level/entity_types.dart';
-import '../level/level.dart';
 import '../level/level_issue.dart';
 import '../level/level_rule.dart';
 import '../nav/navmesh/navmesh.dart';
@@ -26,7 +25,9 @@ final class ExitReachable extends LevelRule {
   final NavMeshSettings config;
 
   @override
-  void check(Level level, List<LevelIssue> out) {
+  void check(LevelCheck check) {
+    final level = check.level;
+    final out = check.out;
     final starts = level.ofType(EntityTypes.playerSpawn);
     final exits = level.ofType(EntityTypes.exit);
     if (starts.isEmpty || exits.isEmpty) return;

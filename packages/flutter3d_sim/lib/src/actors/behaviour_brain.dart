@@ -78,13 +78,16 @@ final class BehaviorBrain extends Brain implements HasBehaviorTree {
   }
 
   @override
-  void onNoise(Mind it, Vector3 at) {
+  void onNoise(BrainNoise noise) {
+    final it = noise.mind;
+    final at = noise.at;
     final board = boardOf(it.actor)..setPoint(heard, at);
     board.set(heardAt, board.clock);
   }
 
   @override
-  void onHurt(Mind it, double amount) {
+  void onHurt(BrainHurt hurt) {
+    final it = hurt.mind;
     final board = boardOf(it.actor);
     board.set(hurtAt, board.clock);
   }

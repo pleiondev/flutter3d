@@ -128,7 +128,7 @@ final class ObserverFeed {
     required this.simulation,
     required this.capture,
   }) {
-    _listening = wire.listenFrom(_hear);
+    _listening = wire.listenFrom((heard) => _hear(heard.from, heard.message));
   }
 
   final PeerWire wire;
@@ -171,18 +171,22 @@ final class ObserverFeed {
         : ObserverMode.poses;
     final filter = ObserverFilter.fromJson(message['filter']);
     _observers[from] = (mode: mode, filter: filter);
-    wire.send(<String, Object?>{
-      PeerWire.engineKey: ObserverMessages.start,
-      'to': from,
-      'mode': mode.name,
-      'simulation': simulation.toJson(),
-      'snapshot': ObserverSnapshot.full.name,
-      'from': _step,
-      'state': switch (mode) {
-        ObserverMode.tape => capture().toJson(),
-        _ => _filtered(_last, filter)?.toWire(),
-      },
-    });
+    wire.send(
+      PeerSend(
+        message: <String, Object?>{
+          PeerWire.engineKey: ObserverMessages.start,
+          'to': from,
+          'mode': mode.name,
+          'simulation': simulation.toJson(),
+          'snapshot': ObserverSnapshot.full.name,
+          'from': _step,
+          'state': switch (mode) {
+            ObserverMode.tape => capture().toJson(),
+            _ => _filtered(_last, filter)?.toWire(),
+          },
+        },
+      ),
+    );
   }
 
   /// Sends step [published].step to every observer: [input], the frame the
@@ -193,23 +197,27 @@ final class ObserverFeed {
     _last = published;
     for (final MapEntry(key: slot, value: (:mode, :filter))
         in _observers.entries) {
-      wire.send(<String, Object?>{
-        PeerWire.engineKey: ObserverMessages.step,
-        'to': slot,
-        'step': published.step,
-        if (mode == ObserverMode.tape) ...<String, Object?>{
-          'input': input.toJson(),
-          if (input.external.isNotEmpty)
-            'external': <Object?>[
-              for (final reading in input.external) reading.toJson(),
-            ],
-          'probes': <Object?>[
-            for (final reading in filter.pass(published.probes))
-              reading.toJson(),
-          ],
-        } else
-          'state': _filtered(published, filter)!.toWire(),
-      });
+      wire.send(
+        PeerSend(
+          message: <String, Object?>{
+            PeerWire.engineKey: ObserverMessages.step,
+            'to': slot,
+            'step': published.step,
+            if (mode == ObserverMode.tape) ...<String, Object?>{
+              'input': input.toJson(),
+              if (input.external.isNotEmpty)
+                'external': <Object?>[
+                  for (final reading in input.external) reading.toJson(),
+                ],
+              'probes': <Object?>[
+                for (final reading in filter.pass(published.probes))
+                  reading.toJson(),
+              ],
+            } else
+              'state': _filtered(published, filter)!.toWire(),
+          },
+        ),
+      );
     }
   }
 
@@ -251,7 +259,7 @@ final class SimulationObserver {
     this.readings,
     this.wantsTape = true,
   }) {
-    _listening = wire.listenFrom(_hear);
+    _listening = wire.listenFrom((heard) => _hear(heard.from, heard.message));
   }
 
   final PeerWire wire;
@@ -297,12 +305,16 @@ final class SimulationObserver {
 
   /// Says it is here: send again until [mode] is set, since the feed may
   /// not have heard it the first time.
-  void join() => wire.send(<String, Object?>{
-    PeerWire.engineKey: ObserverMessages.join,
-    'simulation': simulation.toJson(),
-    'mode': (wantsTape ? ObserverMode.tape : ObserverMode.poses).name,
-    'filter': filter.toJson(),
-  });
+  void join() => wire.send(
+    PeerSend(
+      message: <String, Object?>{
+        PeerWire.engineKey: ObserverMessages.join,
+        'simulation': simulation.toJson(),
+        'mode': (wantsTape ? ObserverMode.tape : ObserverMode.poses).name,
+        'filter': filter.toJson(),
+      },
+    ),
+  );
 
   void _hear(int from, Map<String, Object?> message) {
     final to = message['to'];

@@ -8,14 +8,8 @@ final class _Lift extends CharacterMover {
   const _Lift();
 
   @override
-  CharacterMoved move(
-    CharacterController body,
-    Vector3 delta, {
-    required double stepHeight,
-    required double walkableNormalY,
-    required bool mayStep,
-  }) => CharacterMoved(
-    position: body.position + Vector3(0.0, 0.25, 0.0),
+  CharacterMoved move(CharacterMove move) => CharacterMoved(
+    position: move.body.position + Vector3(0.0, 0.25, 0.0),
     grounded: true,
     velocity: Vector3.zero(),
     groundNormal: Vector3(0.0, 1.0, 0.0),

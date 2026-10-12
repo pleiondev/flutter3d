@@ -18,7 +18,24 @@ import 'level_issue.dart';
 abstract base class LevelRule {
   const LevelRule();
 
-  void check(Level level, List<LevelIssue> out);
+  /// Adds what is wrong with the check's level to its [LevelCheck.out].
+  void check(LevelCheck check);
+}
+
+/// What [LevelRule.check] is handed: the level, and the list its problems go
+/// in.
+///
+/// **One object, so a minor can hand a rule more** — the registry of entity
+/// kinds, the document's version — without breaking a rule written against
+/// 1.0.
+final class LevelCheck {
+  const LevelCheck({required this.level, required this.out});
+
+  /// The level being checked.
+  final Level level;
+
+  /// Where its problems go.
+  final List<LevelIssue> out;
 }
 
 /// There must be exactly this many of a type, no more and no fewer.
@@ -35,7 +52,9 @@ final class ExactlyOne extends LevelRule {
   final String? because;
 
   @override
-  void check(Level level, List<LevelIssue> out) {
+  void check(LevelCheck check) {
+    final level = check.level;
+    final out = check.out;
     final count = level.ofType(type).length;
     if (count == 1) return;
     out.add(
@@ -59,7 +78,9 @@ final class AtLeastOne extends LevelRule {
   final Severity severity;
 
   @override
-  void check(Level level, List<LevelIssue> out) {
+  void check(LevelCheck check) {
+    final level = check.level;
+    final out = check.out;
     if (level.ofType(type).isNotEmpty) return;
     out.add(
       LevelIssue(severity, 'no $type${because == null ? '' : ': $because'}'),

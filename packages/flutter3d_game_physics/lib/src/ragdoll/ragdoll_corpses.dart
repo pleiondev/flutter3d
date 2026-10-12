@@ -5,7 +5,6 @@ import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show SnapshotPart;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'skeleton_ragdoll.dart';
 
@@ -97,12 +96,11 @@ final class RagdollCorpses with ActorCorpses {
   SkeletonRagdoll? ragdollOf(Actor actor) => _ragdolls[actor];
 
   @override
-  bool begin(
-    Actor actor,
-    ModelInstance model, {
-    List<Matrix4>? previous,
-    double dt = stepSeconds,
-  }) {
+  bool begin(ActorDeathContext context) {
+    final actor = context.actor;
+    final model = context.model;
+    final previous = context.previous;
+    final dt = context.dt;
     if (model.skeletons.isEmpty) return false;
     final skeleton = model.skeletons.first;
     final mesh = model.meshes.where((m) => m.skeleton == skeleton).firstOrNull;

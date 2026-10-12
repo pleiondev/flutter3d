@@ -67,7 +67,13 @@ class SettingsPanel extends StatelessWidget {
                         for (final (index, section)
                             in sections.indexed) ...<Widget>[
                           if (index > 0) const SizedBox(height: 12),
-                          section.build(context, settings, state),
+                          section.build(
+                            SettingsSectionContext(
+                              context: context,
+                              settings: settings,
+                              state: state,
+                            ),
+                          ),
                         ],
                         const SizedBox(height: 20),
                         // A write fails when a browser's quota has run out or a

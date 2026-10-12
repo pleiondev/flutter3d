@@ -71,6 +71,13 @@ final class BakeClothJobRequest with SimulationBakeRequest {
 
   final List<ClothObstacle> obstacles;
 
+  /// Every frame's step, the same each frame.
+  late final ClothStep _step = ClothStep(
+    settings: settings,
+    dt: dt,
+    obstacles: obstacles,
+  );
+
   /// [ClothMesh.particleCount] at the moment this was built — every captured
   /// frame is this many vertices long.
   @override
@@ -97,7 +104,7 @@ final class BakeClothJobRequest with SimulationBakeRequest {
   /// parameter is here because this is handed to `Job<T>` as its own
   /// `runChunk` verbatim.
   Future<void> runChunk(int index) async {
-    _cloth.step(settings, dt, obstacles: obstacles);
+    _cloth.step(_step);
     _frames.add(Float32List.fromList(_mesh.positions));
   }
 

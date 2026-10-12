@@ -72,11 +72,12 @@ typedef Consideration = double Function(BehaviorContext context);
 abstract base class BehaviorComposite {
   const BehaviorComposite();
 
-  /// Decides, ticking whichever [children] it chooses, in the order it
-  /// chooses. [BehaviorChildren.tick] gives the child's status and leaves
-  /// [context] addressing this composite again, so [BehaviorContext.memory]
-  /// read or written after it is still this composite's.
-  BehaviorStatus tick(BehaviorContext context, BehaviorChildren children);
+  /// Decides, ticking whichever of the tick's children it chooses, in the
+  /// order it chooses. [BehaviorChildren.tick] gives the child's status and
+  /// leaves the tick's context addressing this composite again, so
+  /// [BehaviorContext.memory] read or written after it is still this
+  /// composite's.
+  BehaviorStatus tick(BehaviorCompositeTick tick);
 }
 
 typedef LeafBuilder = BehaviorLeaf Function(BehaviorParameters params);

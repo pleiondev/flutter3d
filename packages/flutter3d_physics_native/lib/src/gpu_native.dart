@@ -10,8 +10,6 @@ library;
 import 'dart:ffi';
 import 'dart:typed_data';
 
-import 'package:vector_math/vector_math.dart';
-
 import 'core/core.dart' as c;
 import 'gpu_bindings.dart' as g;
 import 'gpu_unavailable.dart';
@@ -137,7 +135,10 @@ final class GpuParticles with NativeParticleCloud {
   }
 
   @override
-  void step(ParticleForces forces, double dt, {int steps = 1}) {
+  void step(ParticleCloudStep request) {
+    final forces = request.forces;
+    final dt = request.dt;
+    final steps = request.steps;
     final f = writeParticleForces(forces);
     try {
       g.f3d_gpu_particles_step(
@@ -221,7 +222,9 @@ final class GpuDebris with DebrisSystem {
   }
 
   @override
-  void step(DebrisSettings settings, double dt) {
+  void step(DebrisSystemStep request) {
+    final settings = request.settings;
+    final dt = request.dt;
     final s = writeDebrisSettings(settings);
     try {
       g.f3d_gpu_debris_step(_live, _at<g.F3dGpuDebrisSettings>(s), dt);
@@ -327,12 +330,16 @@ final class GpuCloth with ClothSystem {
   }
 
   @override
-  void movePoint(int index, Vector3 at) {
+  void movePoint(ClothPointMove move) {
+    final index = move.index;
+    final at = move.at;
     g.f3d_gpu_cloth_move_point(_live, index, at.x, at.y, at.z);
   }
 
   @override
-  void step(ClothSettings settings, double dt) {
+  void step(ClothSystemStep request) {
+    final settings = request.settings;
+    final dt = request.dt;
     final s = writeClothSettings(settings);
     try {
       g.f3d_gpu_cloth_step(_live, _at<g.F3dGpuClothSettings>(s), dt);
@@ -411,7 +418,9 @@ final class GpuFluid with FluidSystem {
   }
 
   @override
-  void step(FluidSettings settings, double dt) {
+  void step(FluidSystemStep request) {
+    final settings = request.settings;
+    final dt = request.dt;
     final s = writeFluidSettings(settings);
     try {
       g.f3d_gpu_fluid_step(_live, _at<g.F3dGpuFluidSettings>(s), dt);

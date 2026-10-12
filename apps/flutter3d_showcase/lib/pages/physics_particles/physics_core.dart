@@ -87,7 +87,7 @@ final class PhysicsCoreDemo extends ShowcaseDemo {
   static _Pile _drop(PhysicsBackend backend) {
     final world = CollisionWorld()
       ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(2.4, 1.0, 2.4));
-    final RigidDynamics dynamics = backend.dynamics(world);
+    final RigidDynamics dynamics = backend.dynamics(DynamicsRequest(world));
     final crates = <RigidBody>[
       for (var i = 0; i < _count; i++)
         dynamics.add(

@@ -11,7 +11,9 @@ import 'emission.dart';
 import 'flipbook.dart';
 import 'light_emitter.dart';
 import 'particle.dart';
+import 'particle_affector.dart';
 import 'particle_effect.dart';
+import 'particle_emitter.dart';
 import 'particle_random.dart';
 
 export 'emission.dart';
@@ -76,6 +78,19 @@ final class ParticleSystem {
 
   final List<Particle> _pool;
   final ParticleRandom _random;
+
+  // What an emitter and an affector are handed, one of each per system and
+  // set before every call, so a step allocates neither.
+  late final ParticleBirth _birth = ParticleBirth(
+    particle: _pool.isEmpty ? Particle() : _pool.first,
+    origin: Vector3.zero(),
+    direction: Vector3.zero(),
+    random: _random,
+  );
+  late final ParticleStep _step = ParticleStep(
+    particle: _pool.isEmpty ? Particle() : _pool.first,
+    dt: 0.0,
+  );
 
   /// The world these particles are in: its gravity, which a
   /// [ParticleGravity] with no acceleration of its own falls by, and its
@@ -517,7 +532,13 @@ final class ParticleSystem {
   ) {
     final ordinal = _ordinal++;
     _random.reseed(ordinal, ParticleSalt.emitter);
-    effect.emitter.emit(particle, origin, axis, _random);
+    effect.emitter.emit(
+      _birth
+        ..particle = particle
+        ..origin = origin
+        ..direction = axis
+        ..random = _random,
+    );
     _random.reseed(ordinal, ParticleSalt.birth);
     particle
       ..isAlive = true
@@ -563,8 +584,11 @@ final class ParticleSystem {
 
       particle.gravity = _gravity;
       particle.wind.setFrom(_wind);
+      final step = _step
+        ..particle = particle
+        ..dt = dt;
       for (final affector in particle.affectors) {
-        affector.apply(particle, dt);
+        affector.apply(step);
       }
 
       particle.position

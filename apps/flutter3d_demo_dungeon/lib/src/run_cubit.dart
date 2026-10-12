@@ -478,8 +478,11 @@ final class DungeonRun extends RunSession<LevelReady> {
   Snapshot snapshotOf(LevelReady level) => _carrying ?? level.staged.sim.save();
 
   @override
-  void restoreInto(LevelReady level, Snapshot snapshot) =>
-      level.staged.sim.restore(snapshot);
+  void restoreInto(RunRestoreContext<LevelReady> context) {
+    final level = context.level;
+    final snapshot = context.snapshot;
+    level.staged.sim.restore(snapshot);
+  }
 
   /// What this crawl has come to, for the screen at the end of it.
   final Crawl crawl = Crawl();
@@ -488,7 +491,7 @@ final class DungeonRun extends RunSession<LevelReady> {
   /// arriving at the second level already holding the third level's key is a
   /// level designer's promise broken by the plumbing.
   @override
-  void carryFrom(LevelReady level, String next) => inventory.keys.clear();
+  void carryFrom(RunCarryContext<LevelReady> context) => inventory.keys.clear();
 
   /// Rebuilt rather than emptied: a run that begins with the health you died at
   /// is not a restart — and one that begins with the last run's kill count is

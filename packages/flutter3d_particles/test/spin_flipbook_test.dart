@@ -22,7 +22,10 @@ final class _FixedSpin extends ParticleAffector {
   const _FixedSpin(this.angle);
   final double angle;
   @override
-  void apply(Particle particle, double dt) => particle.rotation = angle;
+  void apply(ParticleStep step) {
+    final particle = step.particle;
+    particle.rotation = angle;
+  }
 }
 
 /// One particle at the origin, at a stated size, with nothing moving it.
@@ -123,9 +126,9 @@ void main() {
         ..lifetime = 1.0
         ..age = 0.25
         ..seed = 0.8;
-      spin.apply(particle, 1 / 60);
+      spin.apply(ParticleStep(particle: particle, dt: 1 / 60));
       final once = particle.rotation;
-      spin.apply(particle, 1 / 60);
+      spin.apply(ParticleStep(particle: particle, dt: 1 / 60));
       expect(particle.rotation, once);
     });
 
@@ -142,8 +145,8 @@ void main() {
         ..age = 0.3
         ..seed = 0.9;
       spin
-        ..apply(a, 1 / 60)
-        ..apply(b, 1 / 60);
+        ..apply(ParticleStep(particle: a, dt: 1 / 60))
+        ..apply(ParticleStep(particle: b, dt: 1 / 60));
       expect(a.rotation, isNot(closeTo(b.rotation, 0.1)));
       // And in opposite directions, since the seed is signed about a half.
       expect(

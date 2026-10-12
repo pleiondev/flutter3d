@@ -196,14 +196,8 @@ final class SoLoudBackend extends AudioBackend {
   }
 
   @override
-  VoiceId? start(
-    String asset, {
-    required double gain,
-    required double pan,
-    required double rate,
-    required bool loop,
-    double muffle = 0.0,
-  }) {
+  VoiceId? start(VoiceStart voice) {
+    final VoiceStart(:asset, :gain, :pan, :rate, :loop, :muffle) = voice;
     final source = _sources[asset];
     if (source == null) return null;
     try {
@@ -243,13 +237,8 @@ final class SoLoudBackend extends AudioBackend {
   /// voice — and the right answer to a stale handle is to stop using it, not
   /// to stop the game.
   @override
-  void update(
-    VoiceId voice, {
-    required double gain,
-    required double pan,
-    required double rate,
-    double muffle = 0.0,
-  }) {
+  void update(VoiceUpdate update) {
+    final VoiceUpdate(:voice, :gain, :pan, :rate, :muffle) = update;
     final handle = voice as SoundHandle;
     try {
       _soloud

@@ -367,8 +367,11 @@ final class PlatformerRun extends RunSession<LevelReady> {
   Snapshot snapshotOf(LevelReady level) => level.sim.save();
 
   @override
-  void restoreInto(LevelReady level, Snapshot snapshot) =>
-      level.sim.restore(snapshot);
+  void restoreInto(RunRestoreContext<LevelReady> context) {
+    final level = context.level;
+    final snapshot = context.snapshot;
+    level.sim.restore(snapshot);
+  }
 
   /// The elapsed time in steps. It is carried from level to level and adds up
   /// the loop's fixed sixtieths, so it is the run's step count across levels
@@ -379,12 +382,15 @@ final class PlatformerRun extends RunSession<LevelReady> {
   /// The tally of the run so far. Only this side knows what the level after
   /// this one is, so only this side can carry anything into it.
   @override
-  void carryFrom(LevelReady level, String next) => _carried = (
-    lives: level.sim.lives,
-    deaths: level.sim.deaths,
-    elapsed: level.sim.elapsed,
-    coins: level.runner.purse['coin'],
-  );
+  void carryFrom(RunCarryContext<LevelReady> context) {
+    final level = context.level;
+    _carried = (
+      lives: level.sim.lives,
+      deaths: level.sim.deaths,
+      elapsed: level.sim.elapsed,
+      coins: level.runner.purse['coin'],
+    );
+  }
 
   @override
   void startFresh() => _carried = null;

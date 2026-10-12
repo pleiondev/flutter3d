@@ -41,21 +41,39 @@ abstract base class TimeSource {
   /// ([DisplayTime.predict]).
   factory TimeSource.display() = DisplayTime;
 
-  /// The simulated seconds between the frame drawn at [from] and the one at
-  /// [to], vsync timestamps both, which a source is free to ignore.
-  double elapsed(Duration from, Duration to);
+  /// The simulated seconds between the frame drawn at the span's
+  /// [FrameSpan.from] and the one at its [FrameSpan.to], vsync timestamps
+  /// both, which a source is free to ignore.
+  double elapsed(FrameSpan span);
 
   /// Forgets anything the source has kept between frames: a game that was
   /// away. Does nothing by default.
   void reset() {}
 }
 
+/// What [TimeSource.elapsed] is handed: the vsync timestamps of the frame
+/// drawn last and of the one about to be.
+///
+/// **One object, so a minor can hand a source more** — the display's
+/// refresh rate, a predicted present time — without breaking a source
+/// written against 1.0. **Reused**: the loop and the cadence own one each
+/// and set it before every frame, so a frame allocates nothing for it; a
+/// source reads it during the call and does not keep it.
+final class FrameSpan {
+  FrameSpan({this.from = Duration.zero, this.to = Duration.zero});
+
+  /// When the last frame was drawn.
+  Duration from;
+
+  /// When this frame is.
+  Duration to;
+}
+
 final class _RealTime extends TimeSource {
   const _RealTime();
 
   @override
-  double elapsed(Duration from, Duration to) =>
-      (to - from).inMicroseconds / 1e6;
+  double elapsed(FrameSpan span) => (span.to - span.from).inMicroseconds / 1e6;
 
   @override
   String toString() => 'TimeSource.realTime()';
@@ -72,8 +90,8 @@ final class _Scaled extends TimeSource {
   final double factor;
 
   @override
-  double elapsed(Duration from, Duration to) =>
-      (to - from).inMicroseconds / 1e6 * factor;
+  double elapsed(FrameSpan span) =>
+      (span.to - span.from).inMicroseconds / 1e6 * factor;
 
   @override
   String toString() => 'TimeSource.scaled($factor)';
@@ -113,7 +131,7 @@ final class LogTime extends TimeSource {
   bool get isFinished => _at >= timestamps.length - 1;
 
   @override
-  double elapsed(Duration from, Duration to) {
+  double elapsed(FrameSpan span) {
     if (isFinished) return 0.0;
     final gap = timestamps[_at + 1] - timestamps[_at];
     _at++;
@@ -152,7 +170,7 @@ final class ManualTime extends TimeSource {
   }
 
   @override
-  double elapsed(Duration from, Duration to) {
+  double elapsed(FrameSpan span) {
     final owed = _owed;
     _owed = 0.0;
     return owed;
@@ -210,7 +228,7 @@ final class DisplayTime extends TimeSource {
   }
 
   @override
-  double elapsed(Duration from, Duration to) {
+  double elapsed(FrameSpan span) {
     final predicted = _predicted;
     final handed = _handed;
     if (predicted == null || handed == null) return 0.0;

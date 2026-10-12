@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a crash reporter takes one `CrashContext`.** A
+  `CrashReporter` is handed a `CrashContext` (new) with the `error`, its
+  `stackTrace` and the `record` the log kept, so a minor can tell a
+  reporter more without breaking one written against 1.0.
 - **One severity, one kind of light and one pose for every package.**
   `Severity` (`note`, `warning`, `error`) is what a mesh check, an export,
   a level's validation and an `Issue` (new `severity:`, a warning unless

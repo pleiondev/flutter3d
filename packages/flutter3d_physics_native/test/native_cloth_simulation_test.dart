@@ -86,7 +86,7 @@ double _apart(ClothMesh a, ClothMesh b) {
   final core = NativeClothSimulation(mesh);
   addTearDown(core.dispose);
   for (var i = 0; i < steps; i++) {
-    core.step(settings, _dt, obstacles: obstacles);
+    core.step(ClothStep(settings: settings, dt: _dt, obstacles: obstacles));
     stepCloth(reference, settings, _dt, obstacles: obstacles);
   }
   return (mesh, _apart(mesh, reference));
@@ -271,7 +271,7 @@ void main() {
     mesh.invMass[11] = 1 / 0.05;
     mesh.positions[1] += 1.0;
     for (var i = 0; i < 30; i++) {
-      cloth.step(const ClothSettings(), _dt);
+      cloth.step(ClothStep(settings: const ClothSettings(), dt: _dt));
     }
     expect(mesh.positions[1], 2.5);
     // The row under the carried end is pulled up after it, and the end let
@@ -279,7 +279,10 @@ void main() {
     expect(mesh.positions[3 * 12 + 1], greaterThan(2.0));
     expect(mesh.velocities[3 * 11 + 1], isNot(0.0));
     cloth.dispose();
-    expect(() => cloth.step(const ClothSettings(), _dt), throwsStateError);
+    expect(
+      () => cloth.step(ClothStep(settings: const ClothSettings(), dt: _dt)),
+      throwsStateError,
+    );
     cloth.dispose();
   });
 }

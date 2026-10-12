@@ -62,15 +62,17 @@ skips it unless `showCorrections` is set.
 import 'package:flutter3d_game_kit/reactions.dart';
 
 final table = ReactionTable()
-  ..on<Landed>((e, out) {
-    out.bursts.add(Shown(Effects.dust, e.at));
-    if (e.speed > 6.0) out.jolts.add(Felt.kick(Vector3(0.0, -0.15, 0.0)));
+  ..on<Landed>((rule) {
+    final ReactionContext(:event, :out) = rule;
+    out.bursts.add(Shown(Effects.dust, event.at));
+    if (event.speed > 6.0) out.jolts.add(Felt.kick(Vector3(0.0, -0.15, 0.0)));
     out.haptics.add(Haptic.light);
   })
-  ..on<Exploded>((e, out) {
+  ..on<Exploded>((rule) {
+    final ReactionContext(:event, :out) = rule;
     out.flash = true;
     out.lingering.add(
-      Lingering(Object(), Effects.smoke, e.at, perSecond: 34, seconds: 0.85),
+      Lingering(Object(), Effects.smoke, event.at, perSecond: 34, seconds: 0.85),
     );
   });
 
@@ -148,8 +150,8 @@ played twice unless `playCorrections` is set.
 import 'package:flutter3d_game_kit/soundtrack.dart';
 
 final cues = CueSheet()
-  ..on<Jumped>((e, out) => out.add(Heard(Sounds.jump, e.at)))
-  ..on<DoorRefused>((e, out) => out.add(Heard(Sounds.locked, e.at)));
+  ..on<Jumped>((cue) => cue.out.add(Heard(Sounds.jump, cue.event.at)))
+  ..on<DoorRefused>((cue) => cue.out.add(Heard(Sounds.locked, cue.event.at)));
 
 final loop = EngineLoop(
   input: input,

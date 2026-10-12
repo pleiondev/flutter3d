@@ -110,7 +110,9 @@ void main() {
           life: 1.0,
         ),
       ])
-      ..step(ParticleForces(), 1 / 60, steps: 30);
+      ..step(
+        ParticleCloudStep(forces: ParticleForces(), dt: 1 / 60, steps: 30),
+      );
     expect(particles.read()[0], closeTo(0.5, 1e-5));
     particles.dispose();
     final debris = NativeDebris(1)
@@ -124,7 +126,12 @@ void main() {
         ),
       ]);
     for (var i = 0; i < 120; i++) {
-      debris.step(DebrisSettings(restitution: 0.0), 1 / 60);
+      debris.step(
+        DebrisSystemStep(
+          settings: DebrisSettings(restitution: 0.0),
+          dt: 1 / 60,
+        ),
+      );
     }
     expect(debris.read()!.bodies[1], closeTo(0.1, 0.001));
     debris.dispose();
@@ -132,7 +139,7 @@ void main() {
       CoreClothMesh.grid(columns: 6, rows: 6, pinned: <int>{0, 5}),
     );
     for (var i = 0; i < 60; i++) {
-      cloth.step(CoreClothSettings(), 1 / 60);
+      cloth.step(ClothSystemStep(settings: CoreClothSettings(), dt: 1 / 60));
     }
     expect(cloth.read()!.points[1], 0.0);
     cloth.dispose();
@@ -144,11 +151,13 @@ void main() {
         ),
       ]);
     water.step(
-      FluidSettings(
-        tankMin: Vector3(-1.0, 0.0, -1.0),
-        tankMax: Vector3(1.0, 2.0, 1.0),
+      FluidSystemStep(
+        settings: FluidSettings(
+          tankMin: Vector3(-1.0, 0.0, -1.0),
+          tankMax: Vector3(1.0, 2.0, 1.0),
+        ),
+        dt: 1 / 60,
       ),
-      1 / 60,
     );
     expect(water.read()!.particles[1], lessThan(1.0));
     water.dispose();
@@ -162,7 +171,9 @@ void main() {
     final reference = sheet();
     final cloth = NativeClothSimulation(sheet());
     for (var i = 0; i < 30; i++) {
-      cloth.step(const ClothSettings(), 1 / 60, obstacles: ball);
+      cloth.step(
+        ClothStep(settings: const ClothSettings(), dt: 1 / 60, obstacles: ball),
+      );
       stepCloth(reference, const ClothSettings(), 1 / 60, obstacles: ball);
     }
     for (var k = 0; k < reference.positions.length; k++) {

@@ -341,8 +341,8 @@ final class NativeDynamics extends RigidDynamics with WorldMirror {
   RigidBody? bodyOf(Collider collider) => _byCollider[collider];
 
   @override
-  void push(Collider by, Vector3 velocity, {double strength = 1.0}) =>
-      _pusher.push(by, velocity, strength: strength);
+  void push(CharacterPush push) =>
+      _pusher.push(push.by, push.velocity, strength: push.strength);
 
   @override
   void step(double dt) {
@@ -1059,22 +1059,17 @@ final class NativeCharacterMover extends CharacterMover {
   final NativeDynamics dynamics;
 
   @override
-  CharacterMoved move(
-    CharacterController body,
-    Vector3 delta, {
-    required double stepHeight,
-    required double walkableNormalY,
-    required bool mayStep,
-  }) {
+  CharacterMoved move(CharacterMove move) {
+    final body = move.body;
     dynamics.placeMovers();
     final moved = dynamics.native.moveCharacter(
       shape: NativeShape.box(body.halfExtents),
       position: body.position,
-      move: delta,
+      move: move.delta,
       velocity: body.velocity,
-      maxSlopeCos: walkableNormalY,
-      stepHeight: stepHeight,
-      mayStep: mayStep,
+      maxSlopeCos: move.walkableNormalY,
+      stepHeight: move.stepHeight,
+      mayStep: move.mayStep,
       // One-way platforms as the controller says them: floors from above,
       // or not there at all while it drops through.
       mask: body.dropThrough ? ~body.fromAboveLayers & Layers.all : Layers.all,
@@ -1108,21 +1103,15 @@ final class NativeWorldRays extends WorldRays {
   final NativeDynamics dynamics;
 
   @override
-  bool raycast(
-    Vector3 origin,
-    Vector3 direction,
-    double maxDistance,
-    RayHit out, {
-    required int mask,
-    Collider? ignore,
-  }) {
+  bool raycast(RayQuery query) {
+    final RayQuery(:out, :ignore) = query;
     out.reset();
     dynamics.placeMovers();
     final hit = dynamics.native.rayCast(
-      origin,
-      direction,
-      maxDistance,
-      mask: mask & Layers.all,
+      query.origin,
+      query.direction,
+      query.maxDistance,
+      mask: query.mask & Layers.all,
       ignore: ignore == null ? null : dynamics.handleOfCollider(ignore),
     );
     if (hit == null) return false;
@@ -1146,21 +1135,15 @@ final class NativeWorldSweeps extends WorldSweeps {
   final NativeDynamics dynamics;
 
   @override
-  bool sweep(
-    CollisionShape shape,
-    Vector3 origin,
-    Vector3 delta,
-    SweepHit out, {
-    required int mask,
-    Collider? ignore,
-  }) {
+  bool sweep(SweepQuery query) {
+    final SweepQuery(:out, :ignore) = query;
     out.reset();
     dynamics.placeMovers();
     final hit = dynamics.native.castShape(
-      NativeShape.box(shape.boundsHalfExtents),
-      origin,
-      delta,
-      mask: mask & Layers.all,
+      NativeShape.box(query.shape.boundsHalfExtents),
+      query.origin,
+      query.delta,
+      mask: query.mask & Layers.all,
       ignore: ignore == null ? null : dynamics.handleOfCollider(ignore),
     );
     if (hit == null || hit.at <= 0.0) return false;

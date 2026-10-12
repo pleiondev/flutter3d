@@ -130,7 +130,9 @@ void main() {
     final it = _Level(monsters: 1)..step();
     final monster = it.spawned.single;
     // Softened, so a pistol finishes it in a few shots rather than a hundred.
-    monster.applyDamage(monster.health!.current - 1.0, from: it.player);
+    monster.applyDamage(
+      Damage(amount: monster.health!.current - 1.0, from: it.player),
+    );
 
     // Straight down the barrel: the monster is put where the player is aiming.
     monster.body!.teleport(Vector3(0.0, 0.9, -4.0));

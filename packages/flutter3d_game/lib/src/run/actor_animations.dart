@@ -73,7 +73,10 @@ final class ActorAnimations extends ActorStrides {
   AnimationGraph? graphOf(Actor actor) => _animated[actor]?.graph;
 
   @override
-  Vector3? strideOf(Actor actor, Vector3 wish, double dt) {
+  Vector3? strideOf(ActorStride stride) {
+    final actor = stride.actor;
+    final wish = stride.wish;
+    final dt = stride.dt;
     final animated = _animated[actor] ?? _made(actor);
     if (animated == null) return null;
     final graph = animated.graph;
@@ -104,8 +107,12 @@ final class ActorAnimations extends ActorStrides {
   /// do. Fired in the step, so it is in the graph's state, which a snapshot
   /// keeps until a transition takes it.
   @override
-  void gesture(Actor actor, String name) =>
-      (_animated[actor] ?? _made(actor))?.graph.parameters.fire('cue:$name');
+  void gesture(ActorGesture gesture) {
+    final actor = gesture.actor;
+    (_animated[actor] ?? _made(actor))?.graph.parameters.fire(
+      'cue:${gesture.name}',
+    );
+  }
 
   _Animated? _made(Actor actor) {
     final graphFor = this.graphFor;
@@ -134,7 +141,9 @@ final class ActorAnimations extends ActorStrides {
   /// step, and its graph is made again when it does — as it was in the run
   /// that saved. An attached graph with nothing saved is left as it stands.
   @override
-  void restore(Object? from, Iterable<Actor> actors) {
+  void restore(ActorStridesRestore given) {
+    final from = given.from;
+    final actors = given.actors;
     final saved = from is Map ? from : const <String, Object?>{};
     final present = actors.toSet();
     _animated.removeWhere((actor, animated) => !present.contains(actor));

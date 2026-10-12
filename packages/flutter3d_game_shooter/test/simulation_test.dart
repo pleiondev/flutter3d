@@ -166,7 +166,7 @@ void main() {
 
     test('a player whose health runs out is dead, once', () {
       final h = _harness(_ground());
-      h.player.applyDamage(1000.0);
+      h.player.applyDamage(Damage(amount: 1000.0));
       h.sim.step(_dt);
       expect(h.sim.state, GameState.dead);
 
@@ -198,7 +198,7 @@ void main() {
       );
       world.update();
 
-      h.player.applyDamage(1000.0);
+      h.player.applyDamage(Damage(amount: 1000.0));
       h.sim.step(_dt);
       final restedAt = h.player.body.position.clone();
       final platformAt = platform.position.y;
@@ -221,7 +221,7 @@ void main() {
 
     test('a dead player cannot look around either', () {
       final h = _harness(_ground());
-      h.player.applyDamage(1000.0);
+      h.player.applyDamage(Damage(amount: 1000.0));
       h.sim.step(_dt);
 
       final facing = h.player.yaw;

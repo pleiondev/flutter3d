@@ -16,7 +16,12 @@ final class BestRun
   final int fewestPoses
   void watch(double seconds, {required Vector3 position, required double yaw, Vector3? up})
 
-typedef Cue<T extends BusEvent> = void Function(T event, List<Heard> out);
+typedef Cue<T extends BusEvent> = void Function(CueContext<T> cue);
+
+final class CueContext<T extends BusEvent>
+  CueContext({required this.event, required this.out})
+  List<Heard> out
+  T event
 
 final class CueSheet
   List<Heard> listen(Iterable<BusEvent> events)
@@ -153,11 +158,16 @@ final class ReactionBuilder
   void add(ReactionEffect effect)
   void clear()
 
+final class ReactionContext<T extends BusEvent>
+  ReactionBuilder out
+  ReactionContext({required this.event, required this.out})
+  T event
+
 abstract base class ReactionEffect
   const ReactionEffect()
   void perform()
 
-typedef ReactionRule<T extends BusEvent> = void Function(T event, ReactionBuilder out);
+typedef ReactionRule<T extends BusEvent> = void Function(ReactionContext<T> rule);
 
 final class ReactionTable
   List<Type> get types
@@ -366,11 +376,16 @@ final class ReactionBuilder
   void add(ReactionEffect effect)
   void clear()
 
+final class ReactionContext<T extends BusEvent>
+  ReactionBuilder out
+  ReactionContext({required this.event, required this.out})
+  T event
+
 abstract base class ReactionEffect
   const ReactionEffect()
   void perform()
 
-typedef ReactionRule<T extends BusEvent> = void Function(T event, ReactionBuilder out);
+typedef ReactionRule<T extends BusEvent> = void Function(ReactionContext<T> rule);
 
 final class ReactionTable
   List<Type> get types
@@ -411,7 +426,12 @@ final class SeededLevels
 
 library package:flutter3d_game_kit/soundtrack.dart
 
-typedef Cue<T extends BusEvent> = void Function(T event, List<Heard> out);
+typedef Cue<T extends BusEvent> = void Function(CueContext<T> cue);
+
+final class CueContext<T extends BusEvent>
+  CueContext({required this.event, required this.out})
+  List<Heard> out
+  T event
 
 final class CueSheet
   List<Heard> listen(Iterable<BusEvent> events)

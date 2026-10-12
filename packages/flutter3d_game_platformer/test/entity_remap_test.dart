@@ -45,7 +45,7 @@ List<EntityDef> _enemies(List<String> names) => <EntityDef>[
   );
   final kind = EnemyKind();
   for (final def in defs) {
-    kind.spawn(def, context);
+    kind.spawn(EntitySpawn(entity: def, context: context));
   }
   return (actors: actors, world: world);
 }

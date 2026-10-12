@@ -268,6 +268,12 @@ final class ActorVisuals {
   final Set<Actor> _taken = <Actor>{};
   final Set<Actor> _declined = <Actor>{};
 
+  /// The contexts [ActorAppearance.clipsFrom] and [ActorGraphs.drive] are
+  /// handed, made on the first ask and set for each actor after: a frame
+  /// allocates none.
+  ActorClipsContext? _clipsContext;
+  ActorDriveContext? _driveContext;
+
   /// Each living modelled actor's joints as the last frame left them, for
   /// the motion a corpse starts with; kept only when there are [corpses].
   final Map<Actor, List<Matrix4>> _lastPose = <Actor, List<Matrix4>>{};
@@ -513,14 +519,18 @@ final class ActorVisuals {
     if (player != null) _players[actor] = player;
     final machine = player == null || simulated != null
         ? null
-        : graphs?.machineFor(actor, player.clips);
+        : graphs?.machineFor(
+            ActorMachineContext(actor: actor, clips: player.clips),
+          );
     if (machine != null) {
       final graph = _graphs[actor] = AnimationGraph(
         machine: machine,
         clips: player!.clips,
         pose: AnimationPose.fromNodes(asset.nodes),
       );
-      graphs!.dress(actor, graph, instance);
+      graphs!.dress(
+        ActorDressContext(actor: actor, graph: graph, model: instance),
+      );
     }
   }
 
@@ -636,7 +646,19 @@ final class ActorVisuals {
       }
       final graph = _graphs[actor];
       if (graph != null) {
-        graphs!.drive(actor, graph, _instances[actor]!);
+        final model = _instances[actor]!;
+        graphs!.drive(switch (_driveContext) {
+          null => _driveContext = ActorDriveContext(
+            actor: actor,
+            graph: graph,
+            model: model,
+          ),
+          final context =>
+            context
+              ..actor = actor
+              ..graph = graph
+              ..model = model,
+        });
         graph.evaluate(dt).writeTo(entry.value.targets);
         for (final passed in graph.passed) {
           _markers.add((actor: actor, state: passed.state, name: passed.name));
@@ -646,7 +668,16 @@ final class ActorVisuals {
       }
       final wanted = row == null
           ? appearance.clipsFor(actor)
-          : appearance.clipsFrom(actor, row);
+          : appearance.clipsFrom(switch (_clipsContext) {
+              null => _clipsContext = ActorClipsContext(
+                actor: actor,
+                published: row,
+              ),
+              final context =>
+                context
+                  ..actor = actor
+                  ..published = row,
+            });
       // The first the model actually has. `crossFadeToNamed` reports whether
       // the name was there, so a clip this export does not carry is a miss
       // rather than a crash — and the next candidate gets a turn.
@@ -679,10 +710,12 @@ final class ActorVisuals {
       return false;
     }
     final taken = corpses.begin(
-      actor,
-      instance,
-      previous: _lastPose.remove(actor),
-      dt: _lastDt,
+      ActorDeathContext(
+        actor: actor,
+        model: instance,
+        previous: _lastPose.remove(actor),
+        dt: _lastDt,
+      ),
     );
     (taken ? _taken : _declined).add(actor);
     return taken;

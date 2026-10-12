@@ -19,7 +19,8 @@ final class _ZoneListener with CollisionListener {
   final List<String> started = <String>[];
 
   @override
-  void onCollisionStart(Collider self, Collider other) {
+  void onCollisionStart(CollisionContext context) {
+    final other = context.other;
     started.add(other.userData! as String);
   }
 }

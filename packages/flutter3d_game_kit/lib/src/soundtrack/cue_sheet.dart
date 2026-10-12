@@ -2,8 +2,25 @@ import 'package:flutter3d_audio_core/flutter3d_audio_core.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart' show BusEvent;
 
 /// What one cue of a [CueSheet] makes of an event of type [T]: the sounds it
-/// adds to [out].
-typedef Cue<T extends BusEvent> = void Function(T event, List<Heard> out);
+/// adds to [CueContext.out].
+typedef Cue<T extends BusEvent> = void Function(CueContext<T> cue);
+
+/// What a [Cue] is handed: the event, and the sounds it adds to.
+///
+/// **One object, so a minor can hand a cue more** — the step the event was
+/// published at, the listener — without breaking a cue written against 1.0.
+/// **Reused**: each cue of a sheet keeps one and sets it for every event, so
+/// a step allocates nothing for it; a cue reads it during the call and does
+/// not keep it.
+final class CueContext<T extends BusEvent> {
+  CueContext({required this.event, required this.out});
+
+  /// The event this cue is about.
+  T event;
+
+  /// Where the cue adds what the event sounds like.
+  List<Heard> out;
+}
 
 /// Sounds keyed by event type: a game's own sheet of what each event sounds
 /// like.
@@ -22,8 +39,8 @@ typedef Cue<T extends BusEvent> = void Function(T event, List<Heard> out);
 ///
 /// ```dart
 /// final cues = CueSheet()
-///   ..on<Jumped>((e, out) => out.add(Heard(Sounds.jump, e.at)))
-///   ..on<DoorLocked>((e, out) => out.add(Heard(Sounds.locked, e.at)));
+///   ..on<Jumped>((c) => c.out.add(Heard(Sounds.jump, c.event.at)))
+///   ..on<DoorLocked>((c) => c.out.add(Heard(Sounds.locked, c.event.at)));
 /// for (final heard in cues.listen(events)) scene.play(heard.sound, heard.at);
 /// ```
 final class CueSheet {
@@ -31,9 +48,16 @@ final class CueSheet {
 
   /// Adds [cue] for every event that is a [T].
   void on<T extends BusEvent>(Cue<T> cue) {
+    CueContext<T>? context;
     _rows.add(
       _Row(T, (BusEvent event, List<Heard> out) {
-        if (event is T) cue(event, out);
+        if (event is! T) return;
+        final reused = context ??= CueContext<T>(event: event, out: out);
+        cue(
+          reused
+            ..event = event
+            ..out = out,
+        );
       }),
     );
   }

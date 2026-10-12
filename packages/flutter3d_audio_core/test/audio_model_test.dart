@@ -45,8 +45,7 @@ Matrix4 _at(double x, double y, double z, {double yaw = 0.0}) =>
     );
 
 /// A backend that also mixes buses and places voices, recording both.
-final class _Opted extends AudioBackend
-    with MixingBackend, DirectionalBackend {
+final class _Opted extends AudioBackend with MixingBackend, DirectionalBackend {
   final SilentBackend inner = SilentBackend();
   final Map<VoiceId, AudioBus> routed = <VoiceId, AudioBus>{};
   final Map<AudioBus, double> busGains = <AudioBus, double>{};
@@ -59,30 +58,10 @@ final class _Opted extends AudioBackend
   Future<void> preload(String asset) => inner.preload(asset);
 
   @override
-  VoiceId? start(
-    String asset, {
-    required double gain,
-    required double pan,
-    required double rate,
-    required bool loop,
-    double muffle = 0.0,
-  }) => inner.start(
-    asset,
-    gain: gain,
-    pan: pan,
-    rate: rate,
-    loop: loop,
-    muffle: muffle,
-  );
+  VoiceId? start(VoiceStart voice) => inner.start(voice);
 
   @override
-  void update(
-    VoiceId voice, {
-    required double gain,
-    required double pan,
-    required double rate,
-    double muffle = 0.0,
-  }) => inner.update(voice, gain: gain, pan: pan, rate: rate, muffle: muffle);
+  void update(VoiceUpdate voice) => inner.update(voice);
 
   @override
   void stop(VoiceId voice) => inner.stop(voice);
@@ -91,23 +70,18 @@ final class _Opted extends AudioBackend
   bool isAlive(VoiceId voice) => inner.isAlive(voice);
 
   @override
-  void routeVoice(VoiceId voice, AudioBus bus) => routed[voice] = bus;
+  void routeVoice(VoiceRoute route) => routed[route.voice] = route.bus;
 
   @override
-  void mixBus(
-    AudioBus bus, {
-    required AudioBus? parent,
-    required double gain,
-    required List<BusEffect> effects,
-  }) {
-    busGains[bus] = gain;
-    busEffects[bus] = effects;
-    parents[bus] = parent;
+  void mixBus(BusMix mix) {
+    busGains[mix.bus] = mix.gain;
+    busEffects[mix.bus] = mix.effects;
+    parents[mix.bus] = mix.parent;
   }
 
   @override
-  void placeVoice(VoiceId voice, SpatialResult spatial) =>
-      azimuths[voice] = spatial.azimuth;
+  void placeVoice(VoicePlacement placement) =>
+      azimuths[placement.voice] = placement.spatial.azimuth;
 }
 
 void main() {

@@ -93,7 +93,9 @@ final class MonsterKind extends EntityKind {
   Bestiary? bestiary;
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final bestiary = this.bestiary;
     if (bestiary == null) return;
     final def = catalog[entity.string('kind')];
@@ -153,7 +155,10 @@ final class MonsterKind extends EntityKind {
   }
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     final kind = entity.string('kind');
     if (kind == null) {
       out.add(

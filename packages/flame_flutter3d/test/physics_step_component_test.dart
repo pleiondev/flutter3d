@@ -16,7 +16,7 @@ final class _Log with CollisionListener {
   final List<String> log;
 
   @override
-  void onCollisionStart(Collider self, Collider other) => log.add('contact');
+  void onCollisionStart(CollisionContext context) => log.add('contact');
 }
 
 void main() {

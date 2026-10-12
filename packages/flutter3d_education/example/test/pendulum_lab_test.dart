@@ -20,10 +20,16 @@ void main() {
   test('manual time: nothing moves until time is handed to it', () {
     final loop = pendulumSimulation(null).loop;
     final clock = ManualTime();
-    loop.frame(clock.elapsed(Duration.zero, const Duration(seconds: 1)));
+    loop.frame(
+      clock.elapsed(
+        FrameSpan(from: Duration.zero, to: const Duration(seconds: 1)),
+      ),
+    );
     expect(loop.step, 0);
     clock.advance(loop.stepSeconds * 3);
-    loop.frame(clock.elapsed(Duration.zero, Duration.zero));
+    loop.frame(
+      clock.elapsed(FrameSpan(from: Duration.zero, to: Duration.zero)),
+    );
     expect(loop.step, 3);
     final angle = loop.published.probe(PendulumLab.angleProbe)!;
     expect(angle.unit, Unit.radian);

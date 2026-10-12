@@ -51,7 +51,7 @@ SphereVehicle _car(TireSet tireSet, {String surface = 'asphalt'}) {
 
 void _run(SphereVehicle car, VehicleInput input, double seconds) {
   for (var step = 0; step < (seconds / _step).round(); step++) {
-    car.step(_step, input);
+    car.step(VehicleStep(dt: _step, input: input));
   }
 }
 
@@ -67,12 +67,12 @@ double _brakingDistance(
   final car = _car(tireSet, surface: surface);
   final throttle = VehicleInput()..throttle = 1.0;
   for (var step = 0; step < 60 * 30 && car.speed < from; step++) {
-    car.step(_step, throttle);
+    car.step(VehicleStep(dt: _step, input: throttle));
   }
   final start = car.position.clone();
   final brake = VehicleInput()..brake = 1.0;
   for (var step = 0; step < 60 * 30 && car.speed > 1.0; step++) {
-    car.step(_step, brake);
+    car.step(VehicleStep(dt: _step, input: brake));
   }
   return car.position.distanceTo(start);
 }
@@ -93,7 +93,7 @@ double _peakCornering(
   final car = _car(tireSet, surface: surface);
   final throttle = VehicleInput()..throttle = 1.0;
   for (var step = 0; step < 60 * 30 && car.speed < from; step++) {
-    car.step(_step, throttle);
+    car.step(VehicleStep(dt: _step, input: throttle));
   }
 
   final turn = VehicleInput()
@@ -102,7 +102,7 @@ double _peakCornering(
   var worst = 0.0;
   for (var step = 0; step < 180; step++) {
     final was = Vector3.copy(car.velocity);
-    car.step(_step, turn);
+    car.step(VehicleStep(dt: _step, input: turn));
     final acceleration = (car.velocity - was)..scale(1.0 / _step);
     // Across the car rather than across the world: what a tyre is holding is
     // the sideways force, and the car is turning while it holds it.

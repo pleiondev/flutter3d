@@ -75,8 +75,23 @@ abstract base class ModelWriter {
   /// One line for a menu, in the words a person recognises.
   String get says;
 
-  /// [document] as files, named from [baseName].
-  ModelWrite write(ModelDocument document, {String baseName = 'model'});
+  /// [ModelWriteContext.document] as files, named from
+  /// [ModelWriteContext.baseName].
+  ModelWrite write(ModelWriteContext context);
+}
+
+/// What [ModelWriter.write] is handed.
+///
+/// **One object, so a minor can hand a writer more** — compression, a
+/// target profile — without breaking a writer written against 1.0.
+final class ModelWriteContext {
+  const ModelWriteContext({required this.document, this.baseName = 'model'});
+
+  /// What is written.
+  final ModelDocument document;
+
+  /// The name the files are named from, without a suffix.
+  final String baseName;
 }
 
 /// A writer whose files this package can also read, so a write can be checked
@@ -119,7 +134,8 @@ final class F3dModelWriter extends CheckedModelWriter {
   String get says => 'the engine container';
 
   @override
-  ModelWrite write(ModelDocument document, {String baseName = 'model'}) {
+  ModelWrite write(ModelWriteContext context) {
+    final ModelWriteContext(:document, :baseName) = context;
     // A `.f3d` read back is written with its bundle and its tools' sections,
     // so "download .f3d" of an opened bundle keeps them.
     final writer = F3dWriter.carrying(document);
@@ -155,7 +171,9 @@ final class GlbModelWriter extends CheckedModelWriter {
   String get says => 'a glTF binary most other tools open';
 
   @override
-  ModelWrite write(ModelDocument document, {String baseName = 'model'}) {
+  ModelWrite write(ModelWriteContext context) {
+    final document = context.document;
+    final baseName = context.baseName;
     final writer = GltfWriter(document, compressGeometry: compressGeometry);
     final bytes = writer.writeGlb();
     return ModelWrite(<WrittenFile>[
@@ -187,7 +205,9 @@ final class ObjModelWriter extends CheckedModelWriter {
   String get says => 'triangles that every tool reads';
 
   @override
-  ModelWrite write(ModelDocument document, {String baseName = 'model'}) {
+  ModelWrite write(ModelWriteContext context) {
+    final document = context.document;
+    final baseName = context.baseName;
     final writer = ObjWriter(document, name: baseName);
     final obj = writer.write();
     final mtl = writer.writeMaterialLibrary();
@@ -238,7 +258,9 @@ final class StlModelWriter extends CheckedModelWriter {
       : 'a triangle soup a slicer reads';
 
   @override
-  ModelWrite write(ModelDocument document, {String baseName = 'model'}) {
+  ModelWrite write(ModelWriteContext context) {
+    final document = context.document;
+    final baseName = context.baseName;
     final writer = StlWriter(document, name: baseName);
     final bytes = ascii ? writer.writeAscii() : writer.write();
     return ModelWrite(<WrittenFile>[
@@ -272,13 +294,16 @@ final class UsdzModelWriter extends ModelWriter {
   String get says => 'geometry for Quick Look, no materials yet';
 
   @override
-  ModelWrite write(ModelDocument document, {String baseName = 'model'}) =>
-      ModelWrite(<WrittenFile>[
-        WrittenFile(
-          '$baseName$suffix',
-          UsdzWriter(document, name: baseName).write(),
-        ),
-      ]);
+  ModelWrite write(ModelWriteContext context) {
+    final document = context.document;
+    final baseName = context.baseName;
+    return ModelWrite(<WrittenFile>[
+      WrittenFile(
+        '$baseName$suffix',
+        UsdzWriter(document, name: baseName).write(),
+      ),
+    ]);
+  }
 }
 
 /// Every writer this package ships, in the order a menu would offer them.

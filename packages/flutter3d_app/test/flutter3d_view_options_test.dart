@@ -57,7 +57,7 @@ SimulationSetup _counting(Object? arguments) {
   loop.addSystem('test.count', LoopPhase.rules, (context) {
     count += 1 + (input.tunesThisStep['test.add'] ?? 0.0).round();
   });
-  loop.queries.add('test.count', (world, _) => count);
+  loop.queries.add('test.count', (_) => count);
   return SimulationSetup(
     loop: loop,
     applyInput: (_, value) => input.tune('test.add', (value! as num) * 1.0),
@@ -179,7 +179,7 @@ void main() {
     // it, and a game in the field loses it.
     final log = EngineLog();
     final crashes = <Object>[];
-    log.onCrash((error, _, _) => crashes.add(error));
+    log.onCrash((crash) => crashes.add(crash.error));
     final thrown = StateError('a game bug');
     var threw = false;
     await tester.pumpWidget(

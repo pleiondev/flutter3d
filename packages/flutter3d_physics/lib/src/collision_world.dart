@@ -94,6 +94,11 @@ final class CollisionWorld {
   /// [WorldSweeps]. Not asked for a sweep with a [ContactFilter].
   WorldSweeps? sweeps;
 
+  /// The one query every ray and sweep handed to [rays] and [sweeps] goes
+  /// in, made the first time: a query allocates nothing for it.
+  RayQuery? _rayQuery;
+  SweepQuery? _sweepQuery;
+
   /// What keeps a copy of this world, brought up to date at the end of every
   /// [update] — see [WorldMirror].
   final List<WorldMirror> mirrors = <WorldMirror>[];
@@ -436,8 +441,8 @@ final class CollisionWorld {
       final a = _pairA[key];
       final b = _pairB[key];
       if (a != null && b != null) {
-        a.listener?.onCollisionEnd(a, b);
-        b.listener?.onCollisionEnd(b, a);
+        a.listener?.onCollisionEnd(_pairContext(a, b));
+        b.listener?.onCollisionEnd(_pairContext(b, a));
       }
       _pairA.remove(key);
       _pairB.remove(key);
@@ -461,13 +466,21 @@ final class CollisionWorld {
     _pairB[key] = b;
 
     if (_overlapping.contains(key)) {
-      a.listener?.onCollision(a, b);
-      b.listener?.onCollision(b, a);
+      a.listener?.onCollision(_pairContext(a, b));
+      b.listener?.onCollision(_pairContext(b, a));
     } else {
-      a.listener?.onCollisionStart(a, b);
-      b.listener?.onCollisionStart(b, a);
+      a.listener?.onCollisionStart(_pairContext(a, b));
+      b.listener?.onCollisionStart(_pairContext(b, a));
     }
   }
+
+  /// The one context every listener is told through, set to [self] and
+  /// [other]: a step's contacts allocate nothing for it.
+  CollisionContext _pairContext(Collider self, Collider other) =>
+      (_contactContext ??= CollisionContext(self: self, other: other))
+        ..self = self
+        ..other = other;
+  CollisionContext? _contactContext;
 
   /// An order-independent key, so a pair is the same pair whichever collider
   /// noticed it.
@@ -517,12 +530,18 @@ final class CollisionWorld {
     if (allow == null) {
       if (sweeps case final WorldSweeps elsewhere) {
         return elsewhere.sweep(
-          shape,
-          origin,
-          delta,
-          out,
-          mask: mask,
-          ignore: ignore,
+          (_sweepQuery ??= SweepQuery(
+              shape: shape,
+              origin: origin,
+              delta: delta,
+              out: out,
+            ))
+            ..shape = shape
+            ..origin = origin
+            ..delta = delta
+            ..out = out
+            ..mask = mask
+            ..ignore = ignore,
         );
       }
     }
@@ -721,12 +740,18 @@ final class CollisionWorld {
     final rays = this.rays;
     if (rays != null && !includeTriggers) {
       return rays.raycast(
-        origin,
-        direction,
-        maxDistance,
-        out,
-        mask: mask,
-        ignore: ignore,
+        (_rayQuery ??= RayQuery(
+            origin: origin,
+            direction: direction,
+            maxDistance: maxDistance,
+            out: out,
+          ))
+          ..origin = origin
+          ..direction = direction
+          ..maxDistance = maxDistance
+          ..out = out
+          ..mask = mask
+          ..ignore = ignore,
       );
     }
     out.reset();

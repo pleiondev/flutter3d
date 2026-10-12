@@ -30,13 +30,42 @@ abstract base class MaterialDecoder {
   /// A decoder; a subclass says what it reads.
   const MaterialDecoder();
 
-  /// Whether this decoder wants the file. [fileName] may be empty; [bytes] is
-  /// the whole file, so a decoder with no useful suffix can sniff it.
-  bool handles(String fileName, Uint8List bytes);
+  /// Whether this decoder wants the file [MaterialProbe] names.
+  bool handles(MaterialProbe probe);
 
-  /// Reads [bytes] into a document. Throws a `Flutter3dFormatException` of
-  /// its own on a file it claimed and could not read.
-  MaterialDocument decode(Uint8List bytes, String fileName);
+  /// Reads [MaterialDecodeContext.bytes] into a document. Throws a
+  /// `Flutter3dFormatException` of its own on a file it claimed and could
+  /// not read.
+  MaterialDocument decode(MaterialDecodeContext context);
+}
+
+/// What [MaterialDecoder.handles] is asked about: a file, by name and
+/// bytes.
+///
+/// **One object, so a minor can hand a decoder more** — where the file came
+/// from, the scene's lighting — without breaking a decoder written against
+/// 1.0.
+final class MaterialProbe {
+  const MaterialProbe({required this.fileName, required this.bytes});
+
+  /// The file's name; may be empty.
+  final String fileName;
+
+  /// The whole file, so a decoder with no useful suffix can sniff it.
+  final Uint8List bytes;
+}
+
+/// What [MaterialDecoder.decode] is handed: the file it claimed.
+///
+/// One object for the reason [MaterialProbe] gives.
+final class MaterialDecodeContext {
+  const MaterialDecodeContext({required this.bytes, required this.fileName});
+
+  /// The whole file.
+  final Uint8List bytes;
+
+  /// The file's name; may be empty.
+  final String fileName;
 }
 
 /// Reads the material at [source], with no device involved.
@@ -50,8 +79,10 @@ Future<MaterialDocument> loadMaterialDocument(
   final bytes = await source.read();
   final fileName = source.fileName;
   for (final decoder in decoders) {
-    if (decoder.handles(fileName, bytes)) {
-      return decoder.decode(bytes, fileName);
+    if (decoder.handles(MaterialProbe(fileName: fileName, bytes: bytes))) {
+      return decoder.decode(
+        MaterialDecodeContext(bytes: bytes, fileName: fileName),
+      );
     }
   }
   if (!fileName.toLowerCase().endsWith('.fmat') && !isFmat(bytes)) {

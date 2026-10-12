@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **Breaking: the platformer's hooks take the engine's contexts.**
+  `Runner.applyDamage` takes a `Damage`, every entity kind's `validate`
+  and `spawn` an `EntityCheck` and an `EntitySpawn`, the plugin's
+  `stepSimulation`, `publishEvents` and `restoreSimulation` a
+  `GenreStepContext`, `GenrePublishContext` and `GenreRestoreContext`, and
+  `PlatformerHeadlessGame.start` a `HeadlessStart`: the one context
+  `flutter3d_sim` hands each.
 - **A game's rules hang on the step through `addSystem`.**
   `PlatformerSimulation.systems` (sim's `StepSystems`) is replaced by
   `addSystem(name, phase, system, {after, before})`, returning the

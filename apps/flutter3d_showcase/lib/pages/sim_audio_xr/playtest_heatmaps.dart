@@ -77,7 +77,9 @@ final class _WalkGame extends HeadlessGame {
   EntityRegistry registry() => EntityRegistry(const <EntityKind>[]);
 
   @override
-  HeadlessRun start(Level level, CollisionWorld world, InputState input) {
+  HeadlessRun start(HeadlessStart start) {
+    final level = start.level;
+    final input = start.input;
     final Brush pit = level.brushes.firstWhere((b) => b.material == 'pit');
     final Vector3 half = pit.size * 0.5;
     return _Walk(input, (
@@ -118,7 +120,9 @@ Level _yard() => Level(
 /// before each step, a checkpoint after it.
 Demo _record(Level level, int seed) {
   final input = InputState();
-  final run = const _WalkGame().start(level, CollisionWorld(), input);
+  final run = const _WalkGame().start(
+    HeadlessStart(level: level, world: CollisionWorld(), input: input),
+  );
   final start = run.save();
   // Spread evenly over the yard's width, tape by tape, by the golden ratio.
   final drift = (seed * 0.6180339887) % 1.0 * 0.7 - 0.35;

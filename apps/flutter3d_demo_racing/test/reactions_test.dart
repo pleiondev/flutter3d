@@ -72,10 +72,10 @@ final class _Car with VehicleController {
   double trackDistance = 0.0;
 
   @override
-  void step(double dt, VehicleInput input) {}
+  void step(VehicleStep context) {}
 
   @override
-  void placeAt(Vector3 at, double yaw, {double? trackDistance}) {}
+  void placeAt(VehiclePlacement placement) {}
 
   @override
   Map<String, Object?> save() => const <String, Object?>{};

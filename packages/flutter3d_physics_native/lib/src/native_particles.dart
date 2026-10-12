@@ -94,8 +94,8 @@ abstract base mixin class NativeParticleCloud {
   /// Puts [particles] into the next slots, the oldest going first.
   void emit(List<NativeParticle> particles);
 
-  /// Steps every living particle [steps] times by [dt].
-  void step(ParticleForces forces, double dt, {int steps = 1});
+  /// Steps every living particle as [ParticleCloudStep] says.
+  void step(ParticleCloudStep step);
 
   /// Every slot: position xyz and the life it has left, four floats apiece;
   /// nought or less is dead.
@@ -103,6 +103,26 @@ abstract base mixin class NativeParticleCloud {
 
   /// Frees the slots.
   void dispose();
+}
+
+/// What [NativeParticleCloud.step] is handed: every living particle is
+/// stepped [steps] times by [dt] under [forces].
+///
+/// **One object, so a minor can hand a cloud more** — a collider to bounce
+/// off, a field — without breaking one written against 1.0. **Reusable**:
+/// a cloud stepped every frame keeps one and sets it before the call; the
+/// cloud reads it during the call and does not keep it.
+final class ParticleCloudStep {
+  ParticleCloudStep({required this.forces, required this.dt, this.steps = 1});
+
+  /// What pushes the particles.
+  ParticleForces forces;
+
+  /// Each step's length, in seconds.
+  double dt;
+
+  /// How many steps.
+  int steps;
 }
 
 c.F32s packParticles(List<NativeParticle> particles) {
@@ -176,7 +196,10 @@ final class NativeParticles implements NativeParticleCloud {
   }
 
   @override
-  void step(ParticleForces forces, double dt, {int steps = 1}) {
+  void step(ParticleCloudStep request) {
+    final forces = request.forces;
+    final dt = request.dt;
+    final steps = request.steps;
     final f = writeParticleForces(forces);
     try {
       for (var s = 0; s < steps; s++) {

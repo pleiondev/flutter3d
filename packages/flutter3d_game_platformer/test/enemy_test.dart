@@ -557,7 +557,7 @@ void main() {
             position: Vector3.zero(),
           ),
         )..difficulty = difficulty;
-        runner.applyDamage(20.0);
+        runner.applyDamage(Damage(amount: 20.0));
         return runner.health.current;
       }
 

@@ -744,7 +744,7 @@ final class RunElements {
     final health = runner.health;
     if (health.isDead) return;
     final share = burnt(fluxOnto(runner, world.fires()), dt);
-    if (share > 0.0) runner.applyDamage(health.maximum * share);
+    if (share > 0.0) runner.applyDamage(Damage(amount: health.maximum * share));
   }
 
   // ------------------------------------------------------------ saving

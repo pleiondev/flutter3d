@@ -43,7 +43,7 @@ void main() {
     ParticleColorOverLife(
       const LinearColor(0.0, 0.0, 0.0, 1.0),
       const LinearColor(1.0, 1.0, 1.0, 1.0),
-    ).apply(particle, 1.0 / 60.0);
+    ).apply(ParticleStep(particle: particle, dt: 1.0 / 60.0));
     expect(particle.color.x, closeTo(0.25, 1e-6));
     expect(particle.color.w, closeTo(1.0, 1e-6));
   });

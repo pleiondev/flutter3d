@@ -40,9 +40,11 @@ final class Race {
         headingYaw: math.atan2(forward.x, forward.z),
       );
       car.placeAt(
-        car.position,
-        car.headingYaw,
-        trackDistance: this.track.center.wrap(-10.0),
+        VehiclePlacement(
+          position: car.position,
+          headingYaw: car.headingYaw,
+          trackDistance: this.track.center.wrap(-10.0),
+        ),
       );
       vehicles.add(car);
     }
@@ -125,9 +127,11 @@ void driveRound(
 void turnAround(Race it, [int car = 0]) {
   final vehicle = it.vehicles[car];
   vehicle.placeAt(
-    vehicle.position,
-    vehicle.headingYaw + math.pi,
-    trackDistance: vehicle.trackDistance,
+    VehiclePlacement(
+      position: vehicle.position,
+      headingYaw: vehicle.headingYaw + math.pi,
+      trackDistance: vehicle.trackDistance,
+    ),
   );
 }
 
@@ -285,9 +289,11 @@ void main() {
       final wasAt = it.player.s;
 
       it.vehicles[0].placeAt(
-        Vector3(0.0, -200.0, 0.0),
-        0.0,
-        trackDistance: wasAt,
+        VehiclePlacement(
+          position: Vector3(0.0, -200.0, 0.0),
+          headingYaw: 0.0,
+          trackDistance: wasAt,
+        ),
       );
       it.simulation.step(_step);
 
@@ -301,9 +307,11 @@ void main() {
       driveRound(it, seconds: 10.0);
 
       it.vehicles[0].placeAt(
-        Vector3(0.0, -200.0, 0.0),
-        0.0,
-        trackDistance: it.player.s,
+        VehiclePlacement(
+          position: Vector3(0.0, -200.0, 0.0),
+          headingYaw: 0.0,
+          trackDistance: it.player.s,
+        ),
       );
       it.simulation.step(_step);
 
@@ -454,9 +462,11 @@ void main() {
       // Put them on top of each other and let the step sort it out.
       final target = it.vehicles[0].position.clone();
       it.vehicles[1].placeAt(
-        target,
-        it.vehicles[1].headingYaw,
-        trackDistance: it.vehicles[0].trackDistance,
+        VehiclePlacement(
+          position: target,
+          headingYaw: it.vehicles[1].headingYaw,
+          trackDistance: it.vehicles[0].trackDistance,
+        ),
       );
 
       it.simulation.step(_step);
@@ -474,9 +484,11 @@ void main() {
 
       final target = it.vehicles[0].position.clone();
       it.vehicles[1].placeAt(
-        target.clone()..x += 0.4,
-        it.vehicles[1].headingYaw,
-        trackDistance: it.vehicles[0].trackDistance,
+        VehiclePlacement(
+          position: target.clone()..x += 0.4,
+          headingYaw: it.vehicles[1].headingYaw,
+          trackDistance: it.vehicles[0].trackDistance,
+        ),
       );
       final before = (it.vehicles[0].position + it.vehicles[1].position)
         ..scale(0.5);

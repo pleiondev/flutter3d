@@ -12,7 +12,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter3d_mcp/kit.dart' show ProjectRoot;
-import 'package:flutter3d_physics/flutter3d_physics.dart' show CollisionWorld;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show usePhysics;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
@@ -55,8 +54,7 @@ final class _StillGame extends HeadlessGame {
   EntityRegistry registry() => EntityRegistry(const <EntityKind>[]);
 
   @override
-  HeadlessRun start(Level level, CollisionWorld world, InputState input) =>
-      _StillRun();
+  HeadlessRun start(HeadlessStart start) => _StillRun();
 }
 
 const Map<String, Object?> _level = <String, Object?>{

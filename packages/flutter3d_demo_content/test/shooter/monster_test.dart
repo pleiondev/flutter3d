@@ -734,7 +734,7 @@ void _damageableTests() {
       final monsters = h.system;
       final monster = h.bestiary.spawn(Monsters.runner, Vector3.zero());
 
-      final died = (monster as Damageable).applyDamage(1000.0);
+      final died = (monster as Damageable).applyDamage(Damage(amount: 1000.0));
 
       expect(died, isTrue);
       expect(monsters.died, <Actor>[
@@ -753,7 +753,7 @@ void _damageableTests() {
       final monsters = h.system;
       final monster = h.bestiary.spawn(Monsters.tank, Vector3.zero());
 
-      expect((monster as Damageable).applyDamage(1.0), isFalse);
+      expect((monster as Damageable).applyDamage(Damage(amount: 1.0)), isFalse);
       expect(monsters.hurtThisStep.single.actor, monster);
     });
 
@@ -776,7 +776,10 @@ void _damageableTests() {
         ),
       );
 
-      expect((monster as Damageable).applyDamage(1000.0), isTrue);
+      expect(
+        (monster as Damageable).applyDamage(Damage(amount: 1000.0)),
+        isTrue,
+      );
       expect(monster.health!.isAlive, isFalse);
     });
 
@@ -793,7 +796,7 @@ void _damageableTests() {
       expect(owner, same(player));
       expect(owner, isA<Damageable>());
 
-      (owner! as Damageable).applyDamage(10.0);
+      (owner! as Damageable).applyDamage(Damage(amount: 10.0));
       expect(player.inventory.health.current, lessThan(100.0));
     });
 

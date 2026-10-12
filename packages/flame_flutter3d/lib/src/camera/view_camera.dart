@@ -1,7 +1,7 @@
 import 'package:flame/components.dart' show Component;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_camera/flutter3d_camera.dart'
-    show CameraFraming, CameraRig, CameraShot, VirtualCamera;
+    show CameraFraming, CameraRig, FramingStep, VirtualCamera;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 
 import '../host/bridge_priority.dart';
@@ -85,9 +85,9 @@ final class ViewFraming extends CameraFraming {
   double get lag => stiffness > 0.0 ? stiffness : 1e4;
 
   @override
-  void frame(CameraShot wanted, double dt) {
-    wanted.eye.setFrom(_eye);
-    wanted.target.setFrom(_target);
+  void frame(FramingStep step) {
+    step.wanted.eye.setFrom(_eye);
+    step.wanted.target.setFrom(_target);
   }
 }
 

@@ -385,10 +385,15 @@ final class Dynamics extends RigidDynamics {
     world.reindex();
   }
 
-  /// Shoves whatever [by] is walking into, as [Pusher] says.
+  /// Shoves whatever the push's character is walking into, as [Pusher]
+  /// says.
   @override
-  void push(Collider by, Vector3 velocity, {double strength = 1.0}) =>
-      _pusher.push(by, velocity, strength: strength, margin: margin);
+  void push(CharacterPush push) => _pusher.push(
+    push.by,
+    push.velocity,
+    strength: push.strength,
+    margin: margin,
+  );
 
   late final Pusher _pusher = Pusher(this);
 

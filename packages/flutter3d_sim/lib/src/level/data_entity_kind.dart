@@ -145,7 +145,10 @@ final class DataEntityKind extends EntityKind {
   };
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     for (final key in requires) {
       if (entity.properties.containsKey(key)) continue;
       out.add(
@@ -160,7 +163,9 @@ final class DataEntityKind extends EntityKind {
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final kind = collider;
     if (kind != null) place(entity, context, kind: kind);
   }

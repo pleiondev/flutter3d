@@ -137,7 +137,9 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
         kind: ColliderKind.trigger,
       ),
     );
-    final RigidDynamics dynamics = usePhysics().dynamics(world);
+    final RigidDynamics dynamics = usePhysics().dynamics(
+      DynamicsRequest(world),
+    );
     if (dynamics case final NativeDynamics core) _native = core;
     final RigidBody body = dynamics.add(
       RigidBody(
@@ -222,7 +224,7 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
         kind: ColliderKind.trigger,
       ),
     );
-    final dynamics = usePhysics().dynamics(world);
+    final dynamics = usePhysics().dynamics(DynamicsRequest(world));
     // #endregion world
 
     // #region body

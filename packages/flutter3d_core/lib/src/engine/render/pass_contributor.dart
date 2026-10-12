@@ -302,27 +302,9 @@ abstract base mixin class RenderServices {
   /// wrong quietly. Getting them wrong looked like a weapon lit as though the
   /// room were not, and there was no way for this method to tell.
   ///
-  /// **Everything here is in scene space**: [viewProjection] takes a point
-  /// relative to `Scene.origin` to the clip space of [encoder]'s pass, and
-  /// [cameraPosition] is the eye in that space (what the camera node's
-  /// `worldMatrix` says), not a world position — see "Space" in
-  /// `docs/CONTRACTS.md`.
-  ///
-  /// [viewProjection] stays a parameter because it is the one thing genuinely
-  /// the caller's: the view model draws the same scene through a different
-  /// camera, which is what makes it a separate pass. Build it with
-  /// `toDepthRange`, or it is right on one backend and wrong on the other —
-  /// and, drawing into a [ContributorFrame]'s pass rather than one of its
-  /// own, with `toReversedDepth` first wherever
-  /// [ContributorFrame.reversedDepth] says that pass runs reversed.
-  void encodeScene({
-    required RenderFrame frame,
-    required PassEncoder encoder,
-    required Scene scene,
-    required vm.Matrix4 viewProjection,
-    required vm.Vector3 cameraPosition,
-    int casterIndex = -1,
-  });
+  /// **Everything here is in scene space** — see [SceneEncodeRequest] and
+  /// "Space" in `docs/CONTRACTS.md`.
+  void encodeScene(SceneEncodeRequest request);
 
   /// Draws one full-screen pass, described by [draw].
   ///
@@ -625,14 +607,86 @@ final class ReactiveFrame {
 /// member added in a 1.x release arrives with a body and nothing that mixes
 /// it in has to change.
 abstract base mixin class ContributorLights {
-  /// Binds the lights reaching a sphere at [center] (in scene space) of
-  /// [radius] metres to [stage].
-  void bind(
-    PassEncoder encoder,
-    ShaderHandle stage, {
-    required vm.Vector3 center,
-    required double radius,
+  /// Binds the lights reaching the sphere [LightBindRequest] describes to
+  /// its stage.
+  void bind(LightBindRequest request);
+}
+
+/// What [ContributorLights.bind] is handed: where to bind, and the sphere
+/// the lights must reach.
+///
+/// **One object, so a minor can hand the renderer more** — a light mask, a
+/// cap on the count — without breaking a contributor written against 1.0.
+/// **Mutable**, so a contributor that binds every frame keeps one and sets
+/// it, and a frame allocates nothing for it; the renderer reads it during
+/// the call and does not keep it.
+final class LightBindRequest {
+  LightBindRequest({
+    required this.encoder,
+    required this.stage,
+    required this.center,
+    required this.radius,
   });
+
+  /// The open pass the draw is encoded into.
+  PassEncoder encoder;
+
+  /// The stage that declares `lib/contributor_lights.glsl`.
+  ShaderHandle stage;
+
+  /// The sphere's center, in scene space.
+  vm.Vector3 center;
+
+  /// The sphere's radius, in meters.
+  double radius;
+}
+
+/// What [RenderServices.encodeScene] is handed: the scene, the pass it is
+/// drawn into, and the camera it is drawn through.
+///
+/// **One object, so a minor can hand the renderer more** — a layer mask, a
+/// clip plane — without breaking a node or a test double written against
+/// 1.0.
+///
+/// **Everything here is in scene space**: [viewProjection] takes a point
+/// relative to `Scene.origin` to the clip space of [encoder]'s pass, and
+/// [cameraPosition] is the eye in that space (what the camera node's
+/// `worldMatrix` says), not a world position.
+final class SceneEncodeRequest {
+  const SceneEncodeRequest({
+    required this.frame,
+    required this.encoder,
+    required this.scene,
+    required this.viewProjection,
+    required this.cameraPosition,
+    this.casterIndex = -1,
+  });
+
+  /// The frame being drawn. The shadows a draw samples come from
+  /// [SceneShadows.from] over it: only what the calling node declared a
+  /// read of.
+  final RenderFrame frame;
+
+  /// The open pass.
+  final PassEncoder encoder;
+
+  /// What is drawn: every visible mesh of it.
+  final Scene scene;
+
+  /// The one thing genuinely the caller's: the view model draws the same
+  /// scene through a different camera, which is what makes it a separate
+  /// pass. Build it with `toDepthRange`, or it is right on one backend and
+  /// wrong on the other — and, drawing into a [ContributorFrame]'s pass
+  /// rather than one of its own, with `toReversedDepth` first wherever
+  /// [ContributorFrame.reversedDepth] says that pass runs reversed.
+  final vm.Matrix4 viewProjection;
+
+  /// The eye, in scene space.
+  final vm.Vector3 cameraPosition;
+
+  /// Which light the frame's directional shadow map belongs to, as
+  /// [SceneShadows.from] takes it; -1 for none.
+  final int casterIndex;
 }
 
 /// A [ReactiveFrame], for the renderer that draws the reactive mask. Not

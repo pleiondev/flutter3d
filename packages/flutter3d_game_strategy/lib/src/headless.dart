@@ -3,7 +3,6 @@
 library;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
-import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
@@ -102,11 +101,14 @@ final class StrategyHeadlessGame extends OrderedGame {
   EntityRegistry registry() => EntityRegistry(strategyLevelKinds);
 
   @override
-  HeadlessRun start(Level level, CollisionWorld world, InputState input) =>
-      _StrategyRun(
-        openStrategyLevel(level, workers: workers, seed: seed).match,
-        input,
-      );
+  HeadlessRun start(HeadlessStart start) {
+    final level = start.level;
+    final input = start.input;
+    return _StrategyRun(
+      openStrategyLevel(level, workers: workers, seed: seed).match,
+      input,
+    );
+  }
 }
 
 final class _StrategyRun extends RestorableRun {

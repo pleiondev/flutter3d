@@ -24,7 +24,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show StringCodec;
-import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_app/flutter3d_app.dart' show ModelVisuals;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
@@ -68,8 +67,10 @@ final class _Answers with FixtureAppearance {
   bool spins(Fixture fixture) => spinning;
 
   @override
-  void refresh(Fixture fixture, engine.RenderMaterial material) =>
-      refreshed.add(fixture);
+  void refresh(FixtureRefreshContext context) {
+    final fixture = context.fixture;
+    refreshed.add(fixture);
+  }
 }
 
 /// A level with one wall and one named light, which is what `bindLights` looks
@@ -641,7 +642,7 @@ final class _Bracket with FixtureAppearance {
   bool spins(Fixture fixture) => false;
 
   @override
-  void refresh(Fixture fixture, engine.RenderMaterial material) {}
+  void refresh(FixtureRefreshContext context) {}
 }
 
 /// The one node in [scene] with this name, and a failure if there is not

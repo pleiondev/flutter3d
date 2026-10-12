@@ -329,12 +329,12 @@ final class _Idle extends GenrePlugin<Object> {
   String get systemName => 'test.idle.step';
 
   @override
-  void stepSimulation(Object simulation, LoopContext context) {}
+  void stepSimulation(GenreStepContext<Object> step) {}
 
   @override
   Snapshot captureSimulation(Object simulation) =>
       const Snapshot(<String, Object?>{});
 
   @override
-  void restoreSimulation(Object simulation, Snapshot state) {}
+  void restoreSimulation(GenreRestoreContext<Object> restore) {}
 }

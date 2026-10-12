@@ -209,10 +209,25 @@ abstract base class PadDevice {
 
   /// Sets the dead zones a player chose. A device that applies none, such as
   /// one a test drives, keeps nothing.
-  void setDeadZones({required double stick, required double trigger}) {}
+  void setDeadZones(PadDeadZones zones) {}
 
   /// Writes what the pad is doing now into [out].
   void read(PadReading out);
+}
+
+/// The dead zones a player chose, as [PadDevice.setDeadZones] is handed
+/// them.
+///
+/// **One object, so a minor can hand a device more** — a zone per stick, an
+/// outer zone — without breaking a device written against 1.0.
+final class PadDeadZones {
+  const PadDeadZones({required this.stick, required this.trigger});
+
+  /// The fraction of a stick's travel that reads as centered.
+  final double stick;
+
+  /// The fraction of a trigger's travel that reads as at rest.
+  final double trigger;
 }
 
 /// The platform's pad, through `pad_input`, said in the game's words.
@@ -243,8 +258,11 @@ final class _PlatformPad extends PadDevice {
   double get triggerDeadZone => _pad.deadzone.trigger;
 
   @override
-  void setDeadZones({required double stick, required double trigger}) =>
-      _pad.deadzone = Deadzone(stick: stick, trigger: trigger);
+  void setDeadZones(PadDeadZones zones) {
+    final stick = zones.stick;
+    final trigger = zones.trigger;
+    _pad.deadzone = Deadzone(stick: stick, trigger: trigger);
+  }
 
   @override
   void read(PadReading out) {

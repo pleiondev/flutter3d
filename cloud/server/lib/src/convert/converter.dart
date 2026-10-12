@@ -409,7 +409,12 @@ Future<KeepableOriginal?> _keepableOriginal(
     final stem = fileName.substring(0, fileName.lastIndexOf('.'));
     final glbName = '${stem.isEmpty ? 'model' : stem}.glb';
     final glb = const GlbModelWriter()
-        .write(document, baseName: stem.isEmpty ? 'model' : stem)
+        .write(
+          ModelWriteContext(
+            document: document,
+            baseName: stem.isEmpty ? 'model' : stem,
+          ),
+        )
         .files
         .first
         .bytes;

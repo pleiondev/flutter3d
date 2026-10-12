@@ -48,6 +48,10 @@ final class FixtureVisuals {
   /// The game's half: silhouettes and fallback colours.
   final FixtureAppearance appearance;
 
+  /// What [FixtureAppearance.refresh] is handed, made on the first refresh
+  /// and set for each fixture after: a frame allocates none.
+  FixtureRefreshContext? _refresh;
+
   final List<_Piece> _pieces = <_Piece>[];
 
   /// Models already read off disk, by asset path.
@@ -369,7 +373,18 @@ final class FixtureVisuals {
       final material = piece.node is MeshNode
           ? (piece.node as MeshNode).material
           : null;
-      if (material != null) appearance.refresh(piece.fixture, material);
+      if (material != null) {
+        appearance.refresh(switch (_refresh) {
+          null => _refresh = FixtureRefreshContext(
+            fixture: piece.fixture,
+            material: material,
+          ),
+          final context =>
+            context
+              ..fixture = piece.fixture
+              ..material = material,
+        });
+      }
 
       if (appearance.spins(piece.fixture)) {
         piece.node.setRotation(

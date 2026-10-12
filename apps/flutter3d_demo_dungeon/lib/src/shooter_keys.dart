@@ -27,7 +27,10 @@ Bindings addShooterKeysTo(Bindings bindings) => bindings
   ..bind(InputSource.pad(GamePadButton.triggerRight.id), ShooterActions.fire)
   ..bind(InputSource.pad(GamePadButton.shoulderRight.id), ShooterActions.fire)
   ..bind(InputSource.key(LogicalKeyboardKey.keyC.keyId), ShooterActions.crouch)
-  ..bind(InputSource.pad(GamePadButton.stickRightClick.id), ShooterActions.crouch);
+  ..bind(
+    InputSource.pad(GamePadButton.stickRightClick.id),
+    ShooterActions.crouch,
+  );
 
 /// The crypt's controls as an action map over [ShooterActions.set]: the
 /// engine's walking defaults, the pad's, this genre's own above, and the

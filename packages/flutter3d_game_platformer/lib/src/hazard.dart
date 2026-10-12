@@ -103,18 +103,20 @@ final class Hazard extends Mechanism with CollisionListener {
     final who = by.by?.userData;
     if (who is! Damageable) return const NothingToDo();
     final killed = who.applyDamage(
-      instant ? double.infinity : damagePerSecond * _dt,
+      Damage(amount: instant ? double.infinity : damagePerSecond * _dt),
     );
     return killed ? const Activated() : const NothingToDo();
   }
 
   @override
-  void onCollisionStart(Collider self, Collider other) {
+  void onCollisionStart(CollisionContext context) {
+    final other = context.other;
     activate(world.activationBy(other));
   }
 
   @override
-  void onCollision(Collider self, Collider other) {
+  void onCollision(CollisionContext context) {
+    final other = context.other;
     activate(world.activationBy(other));
   }
 }

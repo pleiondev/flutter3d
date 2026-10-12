@@ -85,27 +85,36 @@ final class _LyingTransport extends PeerWire {
   int get slot => _inner.slot;
 
   @override
-  void send(Map<String, Object?> message, {bool reliable = true}) {
+  void send(PeerSend context) {
+    final message = context.message;
+    final reliable = context.reliable;
     final frames = message['frames']! as Map<String, Object?>;
     final key = '$lieAtStep';
     final lied = frames[key];
     if (lied == null) {
-      _inner.send(message, reliable: reliable);
+      _inner.send(PeerSend(message: message, reliable: reliable));
       return;
     }
-    _inner.send(<String, Object?>{
-      ...message,
-      'frames': <String, Object?>{
-        ...frames,
-        key: <String, Object?>{...lied as Map<String, Object?>, 'move': 999.0},
-      },
-    }, reliable: reliable);
+    _inner.send(
+      PeerSend(
+        message: <String, Object?>{
+          ...message,
+          'frames': <String, Object?>{
+            ...frames,
+            key: <String, Object?>{
+              ...lied as Map<String, Object?>,
+              'move': 999.0,
+            },
+          },
+        },
+        reliable: reliable,
+      ),
+    );
   }
 
   @override
-  Registration listenFrom(
-    void Function(int from, Map<String, Object?> message) onMessage,
-  ) => _inner.listenFrom(onMessage);
+  Registration listenFrom(void Function(PeerMessage message) onMessage) =>
+      _inner.listenFrom(onMessage);
 }
 
 /// Runs [steps] fixed steps of two [RollbackSession]s joined by
@@ -339,13 +348,18 @@ void main() {
     // Mutation: keep every frame at or past the step, as before 1.0. A
     // peer naming a thousand step numbers far ahead — or one per message,
     // for as long as the match lasts — has this machine hold all of them.
-    theirs.send(<String, Object?>{
-      PeerWire.engineKey: RollbackSession.messageKind,
-      'frames': <String, Object?>{
-        for (var at = 1000000; at < 1001000; at++) '$at': <String, Object?>{},
-        '3': <String, Object?>{'move': 1},
-      },
-    });
+    theirs.send(
+      PeerSend(
+        message: <String, Object?>{
+          PeerWire.engineKey: RollbackSession.messageKind,
+          'frames': <String, Object?>{
+            for (var at = 1000000; at < 1001000; at++)
+              '$at': <String, Object?>{},
+            '3': <String, Object?>{'move': 1},
+          },
+        },
+      ),
+    );
     ours.tick();
     expect(session.droppedEarly, 1000);
 

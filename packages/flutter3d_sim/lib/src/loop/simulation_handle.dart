@@ -25,9 +25,26 @@ final class SimulationCapabilityException extends CapabilityException {
 }
 
 /// How the simulation answers one named question: [SimulationHandle.ask]
-/// with [arguments], run against [world] where the world is, between two
-/// steps. The answer is plain values only, which is what crosses an isolate.
-typedef SimulationAnswer = Object? Function(SimWorld world, Object? arguments);
+/// with the question's [SimulationQuestion.arguments], run against its
+/// [SimulationQuestion.world] where the world is, between two steps. The
+/// answer is plain values only, which is what crosses an isolate.
+typedef SimulationAnswer = Object? Function(SimulationQuestion question);
+
+/// What a [SimulationAnswer] is handed: the world it answers from and the
+/// arguments the question was asked with.
+///
+/// **One object, so a minor can hand an answer more** — the step the world
+/// is at, the seat that asked — without breaking an answer written against
+/// 1.0.
+final class SimulationQuestion {
+  const SimulationQuestion(this.world, {this.arguments});
+
+  /// The simulation's world, between two steps.
+  final SimWorld world;
+
+  /// What [SimulationHandle.ask] was handed: plain values, or null.
+  final Object? arguments;
+}
 
 /// The questions a simulation answers by name, for a view that asks them
 /// through [SimulationHandle.ask].

@@ -49,11 +49,10 @@ final class _Store extends CloudSaveStore {
   }
 
   @override
-  Future<CloudPut> put(
-    String slot,
-    String document, {
-    String? replacing,
-  }) async {
+  Future<CloudPut> put(CloudPutRequest request) async {
+    final slot = request.slot;
+    final document = request.document;
+    final replacing = request.replacing;
     calls.add('put $slot');
     final meanwhile = writtenMeanwhile;
     if (meanwhile != null) {
@@ -319,6 +318,5 @@ final class _Down extends CloudSaveStore {
       const CloudUnavailable('no network');
 
   @override
-  Future<CloudPut> put(String slot, String document, {String? replacing}) =>
-      throw UnimplementedError();
+  Future<CloudPut> put(CloudPutRequest request) => throw UnimplementedError();
 }

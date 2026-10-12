@@ -1,5 +1,14 @@
 ## 1.0.0-rc.1
 
+- **Breaking: the shooter's hooks take the engine's contexts.**
+  `ChaseBrain.onHurt` and `onNoise`, `Player.applyDamage`, the plugin's
+  `stepSimulation`, `publishEvents` and `restoreSimulation` take the one
+  context `flutter3d_sim` hands each (`BrainHurt`, `BrainNoise`, `Damage`,
+  `GenreStepContext`, `GenrePublishContext`, `GenreRestoreContext`).
+- **Breaking: a gift takes one context per question.** `Gift.grantTo`
+  takes a `GiftGrant` (new: `to`, `amount`, `detail`) and `Gift.announce` a
+  `GiftAnnounce` (new: `amount`, `detail`), so a gift a game adds keeps
+  compiling when a minor hands it more.
 - **Breaking: `InFlight.fromJson` throws a `SnapshotFormatException`** for
   a row with no blast or no position, where it answered null; the
   component's codec still leaves that rocket out of a restore.

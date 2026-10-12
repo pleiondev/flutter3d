@@ -88,7 +88,9 @@ void main() {
     final strides = level.staged.actors.strides!;
     void animate() {
       for (final actor in level.staged.actors.actors) {
-        strides.strideOf(actor, Vector3.zero(), 1.0 / 60.0);
+        strides.strideOf(
+          ActorStride(actor: actor, wish: Vector3.zero(), dt: 1.0 / 60.0),
+        );
       }
       visuals.animate(1.0 / 60.0);
     }
@@ -257,7 +259,9 @@ void main() {
     final strides = level.staged.actors.strides!;
     void animate() {
       for (final actor in level.staged.actors.actors) {
-        strides.strideOf(actor, Vector3.zero(), 1.0 / 60.0);
+        strides.strideOf(
+          ActorStride(actor: actor, wish: Vector3.zero(), dt: 1.0 / 60.0),
+        );
       }
       visuals.animate(1.0 / 60.0);
     }

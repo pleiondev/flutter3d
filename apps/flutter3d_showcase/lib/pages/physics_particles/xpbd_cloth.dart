@@ -155,14 +155,17 @@ final class XpbdClothDemo extends ShowcaseDemo {
     // A gust that rises and falls, blowing the sheet towards the viewer.
     final double gust = wind * (0.5 + 0.5 * math.sin(_clock * 0.7));
     _simulation!.step(
-      // The sheet hangs in a world: its gravity, and its wind blowing in its
-      // air. Drag 4, not 0.3: until 0.7.4 the wind was added as a velocity,
-      // which made 0.3 several hundred times stronger than its value.
-      const ClothSettings(
-        wind: WindSettings(drag: 4.0),
-      ).inWorld(WorldProperties(wind: Vector3(0.0, 0.0, gust))),
-      _step,
-      obstacles: <ClothObstacle>[_obstacle],
+      ClothStep(
+        // The sheet hangs in a world: its gravity, and its wind blowing in
+        // its air. Drag 4, not 0.3: until 0.7.4 the wind was added as a
+        // velocity, which made 0.3 several hundred times stronger than its
+        // value.
+        settings: const ClothSettings(
+          wind: WindSettings(drag: 4.0),
+        ).inWorld(WorldProperties(wind: Vector3(0.0, 0.0, gust))),
+        dt: _step,
+        obstacles: <ClothObstacle>[_obstacle],
+      ),
     );
     // #endregion live
 
@@ -199,7 +202,7 @@ final class XpbdClothDemo extends ShowcaseDemo {
     // well below the row it hangs from.
     _obstacle.position.setValues(5.0, 5.0, 5.0);
     for (var i = 0; i < 300; i++) {
-      _simulation!.step(const ClothSettings(), _step);
+      _simulation!.step(ClothStep(dt: _step));
     }
     final int lastRow = (_rows - 1) * _cols;
     for (var col = 0; col < _cols; col++) {
@@ -212,9 +215,7 @@ final class XpbdClothDemo extends ShowcaseDemo {
     _obstacle.position.setValues(0.68, 1.0, 0.0);
     for (var i = 0; i < 120; i++) {
       _simulation!.step(
-        const ClothSettings(),
-        _step,
-        obstacles: <ClothObstacle>[_obstacle],
+        ClothStep(dt: _step, obstacles: <ClothObstacle>[_obstacle]),
       );
     }
     for (var i = 0; i < _cloth.particleCount; i++) {

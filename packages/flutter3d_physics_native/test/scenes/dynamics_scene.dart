@@ -69,7 +69,11 @@ String dynamicsSceneHash() {
     ),
   );
   for (var step = 0; step < 240; step++) {
-    if (step == 60) dynamics.push(walker, Vector3(0.0, 0.0, 2.0));
+    if (step == 60) {
+      dynamics.push(
+        CharacterPush(by: walker, velocity: Vector3(0.0, 0.0, 2.0)),
+      );
+    }
     if (step >= 90 && step < 150) {
       lift.moveTo(lift.position + Vector3(0.0, 1.0 / 60.0, 0.0));
     }

@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a wire's hooks and listeners take one object each.**
+  `PeerWire.send` takes a `PeerSend` (`message`, `reliable`), `sendBytes` a
+  `PeerSendBytes`, `deliver` a `PeerDelivery` (`message`, `from`) and
+  `deliverBytes` a `PeerBytesDelivery`; a `listenFrom` listener hears a
+  `PeerMessage` (`from`, `message`) and a `listenBytes` one `PeerBytes` (all
+  new). An adapter or a listener written against 1.0 then keeps compiling
+  when a minor hands it more: a channel, a priority, when it arrived.
 - **Observing an authoritative simulation.** `ObserverFeed` sends each
   `SimulationObserver` the run's tape (input frames with their telemetry)
   where its profile is bit-exact and the observer runs the same simulation,

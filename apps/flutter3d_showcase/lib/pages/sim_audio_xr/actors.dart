@@ -18,7 +18,7 @@ final class _WaryBrain extends Brain {
   bool everHurt = false;
 
   @override
-  void onHurt(Mind it, double amount) => everHurt = true;
+  void onHurt(BrainHurt hurt) => everHurt = true;
 
   @override
   Map<String, Object?> save() => <String, Object?>{'everHurt': everHurt};
@@ -131,8 +131,8 @@ final class ActorsDemo extends ShowcaseDemo {
     if (_hitAsked > 0.0) {
       // #region hit
       // The damage goes through `Health`; the brain hears of it separately.
-      _goblin.applyDamage(_hitAsked);
-      _brain.onHurt(Mind(_stubSystem()), _hitAsked);
+      _goblin.applyDamage(Damage(amount: _hitAsked));
+      _brain.onHurt(BrainHurt(mind: Mind(_stubSystem()), amount: _hitAsked));
       // #endregion hit
       _hitAsked = 0.0;
       _flash = 1.0;
@@ -200,8 +200,8 @@ final class ActorsDemo extends ShowcaseDemo {
 
     // #region hurt
     final brain = goblin.brain! as _WaryBrain;
-    goblin.applyDamage(12.0);
-    brain.onHurt(Mind(_stubSystem()), 12.0);
+    goblin.applyDamage(Damage(amount: 12.0));
+    brain.onHurt(BrainHurt(mind: Mind(_stubSystem()), amount: 12.0));
     final currentHealth = goblin.health!.current;
     // #endregion hurt
 

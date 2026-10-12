@@ -93,41 +93,43 @@ abstract base class PeerWire {
   /// Whether the wire carries messages. [WireState.open] by default.
   WireState get state => WireState.open;
 
-  /// Hands [message] over for delivery; returns at once.
-  void send(Map<String, Object?> message, {bool reliable = true});
+  /// Hands the context's message over for delivery; returns at once.
+  void send(PeerSend context);
 
   /// Calls [onMessage] for every message delivered from now on, until the
   /// returned registration is cancelled. Every listener hears every
   /// message, in the order they were added.
   Registration listen(void Function(Map<String, Object?> message) onMessage) =>
-      listenFrom((_, message) => onMessage(message));
+      listenFrom((PeerMessage message) => onMessage(message.message));
 
   /// Calls [onMessage] with every message delivered from now on and the
   /// slot of the machine that sent it, until the returned registration is
   /// cancelled.
-  Registration listenFrom(
-    void Function(int from, Map<String, Object?> message) onMessage,
-  ) {
+  Registration listenFrom(void Function(PeerMessage message) onMessage) {
     _listeners.add(onMessage);
     return Registration(() => _listeners.remove(onMessage));
   }
 
-  final List<void Function(int from, Map<String, Object?> message)> _listeners =
-      <void Function(int from, Map<String, Object?> message)>[];
+  final List<void Function(PeerMessage message)> _listeners =
+      <void Function(PeerMessage message)>[];
 
-  /// Hands [message], arrived from slot [from], to every listener: what an
-  /// adapter calls for each message the connection brings. [from] left out
-  /// is the other machine of two — `1 - slot`; a party's wire says who.
+  /// Hands the context's message, arrived from its slot, to every listener:
+  /// what an adapter calls for each message the connection brings. A slot
+  /// left out is the other machine of two — `1 - slot`; a party's wire says
+  /// who.
   ///
   /// A message that is [sendBytes]' frame — `{"f3d": "bytes", …}` — goes to
   /// the byte listeners ([listenBytes]) instead, as its bytes.
-  void deliver(Map<String, Object?> message, {int? from}) {
+  void deliver(PeerDelivery context) {
+    final PeerDelivery(:message, :from) = context;
     final sender = from ?? 1 - slot;
     if (message[engineKey] == bytesFrame) {
       final encoded = message[bytesKey];
       if (encoded is String) {
         try {
-          deliverBytes(base64Decode(encoded), from: sender);
+          deliverBytes(
+            PeerBytesDelivery(bytes: base64Decode(encoded), from: sender),
+          );
         } on FormatException {
           // A frame that is not base64 is passed over, as an adapter passes
           // over a payload that is not JSON.
@@ -135,8 +137,9 @@ abstract base class PeerWire {
       }
       return;
     }
+    final heard = PeerMessage(from: sender, message: message);
     for (final listener in List.of(_listeners)) {
-      listener(sender, message);
+      listener(heard);
     }
   }
 
@@ -157,36 +160,122 @@ abstract base class PeerWire {
   /// a loopback — overrides this and [deliverBytes] is called with what
   /// arrives. The two ends need not agree on which: a frame arriving at a
   /// wire that overrides this is still delivered as bytes.
-  void sendBytes(Uint8List bytes, {bool reliable = true}) => send(
-    <String, Object?>{engineKey: bytesFrame, bytesKey: base64Encode(bytes)},
-    reliable: reliable,
+  void sendBytes(PeerSendBytes context) => send(
+    PeerSend(
+      message: <String, Object?>{
+        engineKey: bytesFrame,
+        bytesKey: base64Encode(context.bytes),
+      },
+      reliable: context.reliable,
+    ),
   );
 
   /// Calls [onBytes] with every byte message delivered from now on and the
   /// slot of the machine that sent it, until the returned registration is
   /// cancelled. A byte message never reaches [listen]'s listeners, nor a
   /// JSON one these.
-  Registration listenBytes(void Function(int from, Uint8List bytes) onBytes) {
+  Registration listenBytes(void Function(PeerBytes bytes) onBytes) {
     _byteListeners.add(onBytes);
     return Registration(() => _byteListeners.remove(onBytes));
   }
 
-  final List<void Function(int from, Uint8List bytes)> _byteListeners =
-      <void Function(int from, Uint8List bytes)>[];
+  final List<void Function(PeerBytes bytes)> _byteListeners =
+      <void Function(PeerBytes bytes)>[];
 
-  /// Hands [bytes], arrived from slot [from], to every byte listener: what an
-  /// adapter that carries binary calls for each binary message. [from] as
-  /// [deliver] reads it.
-  void deliverBytes(Uint8List bytes, {int? from}) {
-    final sender = from ?? 1 - slot;
+  /// Hands the context's bytes, arrived from its slot, to every byte
+  /// listener: what an adapter that carries binary calls for each binary
+  /// message. The slot as [deliver] reads it.
+  void deliverBytes(PeerBytesDelivery context) {
+    final heard = PeerBytes(
+      from: context.from ?? 1 - slot,
+      bytes: context.bytes,
+    );
     for (final listener in List.of(_byteListeners)) {
-      listener(sender, bytes);
+      listener(heard);
     }
   }
 
   /// Lets the connection go. Nothing by default; an adapter over a socket
   /// closes it.
   Future<void> close() async {}
+}
+
+/// What [PeerWire.send] is handed: a message and how it must travel.
+///
+/// **One object, so a minor can hand a wire more** — a channel, a priority,
+/// an expiry — without breaking an adapter written against 1.0.
+final class PeerSend {
+  const PeerSend({required this.message, this.reliable = true});
+
+  /// The message: JSON values only.
+  final Map<String, Object?> message;
+
+  /// Whether it must arrive, once and in order with the other reliable
+  /// ones; false lets it be lost, late or out of order.
+  final bool reliable;
+}
+
+/// What [PeerWire.sendBytes] is handed, for the reason [PeerSend] gives.
+final class PeerSendBytes {
+  const PeerSendBytes({required this.bytes, this.reliable = true});
+
+  /// The bytes.
+  final Uint8List bytes;
+
+  /// As [PeerSend.reliable].
+  final bool reliable;
+}
+
+/// What [PeerWire.deliver] is handed by an adapter, for each message the
+/// connection brings, for the reason [PeerSend] gives.
+final class PeerDelivery {
+  const PeerDelivery({required this.message, this.from});
+
+  /// The message as it arrived.
+  final Map<String, Object?> message;
+
+  /// The slot of the machine that sent it; null for the other machine of
+  /// two.
+  final int? from;
+}
+
+/// What [PeerWire.deliverBytes] is handed, for the reason [PeerSend] gives.
+final class PeerBytesDelivery {
+  const PeerBytesDelivery({required this.bytes, this.from});
+
+  /// The bytes as they arrived.
+  final Uint8List bytes;
+
+  /// As [PeerDelivery.from].
+  final int? from;
+}
+
+/// A message as a [PeerWire.listenFrom] listener hears it: what arrived, and
+/// who sent it.
+///
+/// **One object, so a minor can hand a listener more** — when it arrived,
+/// over which channel — without breaking a listener written against 1.0.
+/// One per delivered message, heard by every listener.
+final class PeerMessage {
+  const PeerMessage({required this.from, required this.message});
+
+  /// The slot of the machine that sent it.
+  final int from;
+
+  /// The message.
+  final Map<String, Object?> message;
+}
+
+/// Bytes as a [PeerWire.listenBytes] listener hears them, for the reason
+/// [PeerMessage] gives.
+final class PeerBytes {
+  const PeerBytes({required this.from, required this.bytes});
+
+  /// The slot of the machine that sent them.
+  final int from;
+
+  /// The bytes.
+  final Uint8List bytes;
 }
 
 /// The two ends [LoopbackWire.pair] joins: [first] in slot nought, [second]
@@ -252,7 +341,9 @@ final class LoopbackWire extends PeerWire {
   int lost = 0;
 
   @override
-  void send(Map<String, Object?> message, {bool reliable = true}) {
+  void send(PeerSend context) {
+    final message = context.message;
+    final reliable = context.reliable;
     if (_closed || _peer._closed) return;
     if (!reliable && _random.nextDouble() < _lossRate) {
       lost++;
@@ -267,7 +358,9 @@ final class LoopbackWire extends PeerWire {
   /// reusing its buffer changes nothing on the far side, lost and late as
   /// a message is.
   @override
-  void sendBytes(Uint8List bytes, {bool reliable = true}) {
+  void sendBytes(PeerSendBytes context) {
+    final bytes = context.bytes;
+    final reliable = context.reliable;
     if (_closed || _peer._closed) return;
     if (!reliable && _random.nextDouble() < _lossRate) {
       lost++;
@@ -294,9 +387,9 @@ final class LoopbackWire extends PeerWire {
     for (final message in due) {
       switch (message) {
         case final Uint8List bytes:
-          deliverBytes(bytes);
+          deliverBytes(PeerBytesDelivery(bytes: bytes));
         case final Map<String, Object?> map:
-          deliver(map);
+          deliver(PeerDelivery(message: map));
       }
     }
   }
@@ -321,7 +414,7 @@ final class _OverPeer extends PeerWire {
       final from = envelope['from'];
       final body = envelope['body'];
       if (from is! int || body is! Map) return;
-      deliver(body.cast<String, Object?>(), from: from);
+      deliver(PeerDelivery(message: body.cast<String, Object?>(), from: from));
     });
   }
 
@@ -334,10 +427,16 @@ final class _OverPeer extends PeerWire {
   WireState get state => _wire.state;
 
   @override
-  void send(Map<String, Object?> message, {bool reliable = true}) => _wire.send(
-    <String, Object?>{'from': slot, 'body': message},
-    reliable: reliable,
-  );
+  void send(PeerSend context) {
+    final message = context.message;
+    final reliable = context.reliable;
+    _wire.send(
+      PeerSend(
+        message: <String, Object?>{'from': slot, 'body': message},
+        reliable: reliable,
+      ),
+    );
+  }
 
   @override
   Future<void> close() => _wire.close();
@@ -387,9 +486,9 @@ final class LoopbackParty {
       final member = _members[m.to];
       switch (m.message) {
         case final Uint8List bytes:
-          member?.deliverBytes(bytes, from: m.from);
+          member?.deliverBytes(PeerBytesDelivery(bytes: bytes, from: m.from));
         case final Map<String, Object?> map:
-          member?.deliver(map, from: m.from);
+          member?.deliver(PeerDelivery(message: map, from: m.from));
       }
     }
   }
@@ -423,12 +522,18 @@ final class _LoopbackMember extends PeerWire {
       _party.cut.contains(slot) ? WireState.closed : WireState.open;
 
   @override
-  void send(Map<String, Object?> message, {bool reliable = true}) =>
-      _party._send(slot, message, reliable);
+  void send(PeerSend context) {
+    final message = context.message;
+    final reliable = context.reliable;
+    _party._send(slot, message, reliable);
+  }
 
   @override
-  void sendBytes(Uint8List bytes, {bool reliable = true}) =>
-      _party._send(slot, Uint8List.fromList(bytes), reliable);
+  void sendBytes(PeerSendBytes context) {
+    final bytes = context.bytes;
+    final reliable = context.reliable;
+    _party._send(slot, Uint8List.fromList(bytes), reliable);
+  }
 }
 
 /// A small seeded generator, so the loopback needs no package for one.

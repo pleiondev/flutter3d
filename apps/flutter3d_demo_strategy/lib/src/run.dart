@@ -143,6 +143,9 @@ final class StrategyRun extends RunSession<Staged> {
   Snapshot snapshotOf(Staged level) => level.match.save();
 
   @override
-  void restoreInto(Staged level, Snapshot snapshot) =>
-      level.match.restore(snapshot);
+  void restoreInto(RunRestoreContext<Staged> context) {
+    final level = context.level;
+    final snapshot = context.snapshot;
+    level.match.restore(snapshot);
+  }
 }

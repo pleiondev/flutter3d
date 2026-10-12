@@ -79,12 +79,18 @@ final class ShooterPlugin extends GenrePlugin<GameSimulation> {
   );
 
   @override
-  void stepSimulation(GameSimulation simulation, LoopContext context) =>
-      simulation.step(context.dt, context: context);
+  void stepSimulation(GenreStepContext<GameSimulation> step) {
+    final simulation = step.simulation;
+    final context = step.context;
+    simulation.step(context.dt, context: context);
+  }
 
   @override
-  Registration publishEvents(GameSimulation simulation, EventRegistry bus) =>
-      simulation.publishTo(bus);
+  Registration publishEvents(GenrePublishContext<GameSimulation> publish) {
+    final simulation = publish.simulation;
+    final bus = publish.bus;
+    return simulation.publishTo(bus);
+  }
 
   /// The run in the loop's snapshots: [GameSimulation.save].
   @override
@@ -92,8 +98,11 @@ final class ShooterPlugin extends GenrePlugin<GameSimulation> {
 
   /// [GameSimulation.restore].
   @override
-  void restoreSimulation(GameSimulation simulation, Snapshot state) =>
-      simulation.restore(state);
+  void restoreSimulation(GenreRestoreContext<GameSimulation> restore) {
+    final simulation = restore.simulation;
+    final state = restore.state;
+    simulation.restore(state);
+  }
 
   /// The monsters' and the rockets' world, published: the view reads where
   /// the monsters are from `PublishedState` ([PublishedActor.read]).

@@ -82,7 +82,7 @@ DigestTrace _drive(List<VehicleInput> inputs, {int every = 25}) {
   const dt = 1.0 / 60.0;
 
   for (var step = 1; step <= inputs.length; step++) {
-    car.step(dt, inputs[step - 1]);
+    car.step(VehicleStep(dt: dt, input: inputs[step - 1]));
     world.update();
     trace.observe(step, <String, Object?>{
       'car': car.save(),

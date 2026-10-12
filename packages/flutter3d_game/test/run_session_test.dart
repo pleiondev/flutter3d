@@ -78,11 +78,17 @@ final class _Game extends RunSession<_Level> {
       Snapshot(<String, Object?>{'where': level.name});
 
   @override
-  void restoreInto(_Level level, Snapshot snapshot) =>
-      level.restored = snapshot.data;
+  void restoreInto(RunRestoreContext<_Level> context) {
+    final level = context.level;
+    final snapshot = context.snapshot;
+    level.restored = snapshot.data;
+  }
 
   @override
-  void carryFrom(_Level level, String next) => carried.add(next);
+  void carryFrom(RunCarryContext<_Level> context) {
+    final next = context.next;
+    carried.add(next);
+  }
 
   @override
   void startFresh() => freshened++;

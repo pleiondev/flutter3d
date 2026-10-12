@@ -77,7 +77,10 @@ final class DecalKind extends _SurfaceKind {
   const DecalKind() : super(EntityTypes.decal);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     _material(entity, scope, out);
     final size = entity.vector('size');
     if (size != null && !(size.x > 0.0 && size.y > 0.0 && size.z > 0.0)) {
@@ -102,7 +105,10 @@ final class ReflectorKind extends _SurfaceKind {
   const ReflectorKind() : super(EntityTypes.reflector);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     _material(entity, scope, out);
     _fraction(entity, scope, out, 'reflectance');
     _fraction(entity, scope, out, 'resolution');
@@ -131,7 +137,10 @@ final class CameraScreenKind extends _SurfaceKind {
   const CameraScreenKind() : super(EntityTypes.cameraScreen);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     _material(entity, scope, out);
     if (entity.vector('look') == null) {
       out.add(

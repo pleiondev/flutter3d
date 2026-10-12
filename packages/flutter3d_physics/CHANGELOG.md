@@ -1,5 +1,24 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a collision listener is told one `CollisionContext`.**
+  `CollisionListener.onCollisionStart`, `onCollision` and `onCollisionEnd`
+  take a `CollisionContext` (new) with `self` and `other`, where they took
+  the two colliders; the world reuses one, so a step's contacts allocate
+  nothing for it. `flutter3d migrate` rewrites an override to read `self`
+  and `other` from it.
+- **Breaking: every hook a backend implements takes one context.**
+  `PhysicsBackend.dynamics` takes a `DynamicsRequest`,
+  `RigidDynamics.push` a `CharacterPush`, `CharacterMover.move` a
+  `CharacterMove`, `WorldRays.raycast` a `RayQuery`, `WorldSweeps.sweep` a
+  `SweepQuery`, `ClothSimulation.step` a `ClothStep`,
+  `JointPhysics.join` and `unjoin` a `JointRequest` and a `JointRelease`,
+  `ConstraintPhysics.constrain` a `ConstraintRequest`,
+  `PhysicsConstraint.forceOn` a `ConstraintForce` and
+  `JetReceiver.receive` a `JetLanding`, all new. A parameter added to any
+  of them later would have broken every backend written against 1.0; a
+  member added to a context breaks none. The ones asked per character,
+  per query, per body or per parcel are reused by their caller, so a step
+  allocates nothing for them.
 - **`JetObstacle.touch` answers an `ObstacleTouch`**, a class with the
   record's `normal` and `depth`, so an obstacle somebody mixes in can say
   more in a minor.

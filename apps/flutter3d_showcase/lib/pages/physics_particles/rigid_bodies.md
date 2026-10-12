@@ -10,8 +10,8 @@ but never tumble.
 
 ## Step 1: A world with something to fall onto
 
-The solver comes from the run's physics: `usePhysics().dynamics(world)` is the
-native core's `NativeDynamics`, or `Dynamics`, the Dart reference, where the
+The solver comes from the run's physics: `usePhysics().dynamics(DynamicsRequest(world))` is
+the native core's `NativeDynamics`, or `Dynamics`, the Dart reference, where the
 core will not start. Both are a `RigidDynamics`, so nothing below cares which.
 `CollisionWorld` is still what everything, moving or not, lives in.
 

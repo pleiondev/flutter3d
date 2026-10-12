@@ -329,11 +329,13 @@ void main() {
       for (var i = 0; i < 40; i++) {
         body
           ..receive(
-            5e-9,
-            Vector3(0.003, 0.03, 0),
-            Vector3(0, -speed, 0),
-            FluidMedium.water,
-            const {},
+            JetLanding(
+              volume: 5e-9,
+              point: Vector3(0.003, 0.03, 0),
+              velocity: Vector3(0, -speed, 0),
+              medium: FluidMedium.water,
+              concentrations: const {},
+            ),
           )
           ..place(Matrix3.identity(), Vector3.zero())
           ..step(1 / 240, gravity: Vector3(0, -9.81, 0));
@@ -349,11 +351,13 @@ void main() {
     for (var i = 0; i < 12; i++) {
       body
         ..receive(
-          5e-9,
-          Vector3(0.004, 0.03, 0),
-          Vector3(0, -1.0, 0),
-          FluidMedium.water,
-          const {},
+          JetLanding(
+            volume: 5e-9,
+            point: Vector3(0.004, 0.03, 0),
+            velocity: Vector3(0, -1.0, 0),
+            medium: FluidMedium.water,
+            concentrations: const {},
+          ),
         )
         ..place(Matrix3.identity(), Vector3.zero())
         ..step(1 / 240, gravity: Vector3(0, -9.81, 0));

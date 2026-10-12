@@ -304,11 +304,7 @@ extension _DecalPass on Renderer {
       if (covers == null) continue;
       if (batches.isEmpty || !batches.last.admits(decal)) {
         batches.add(
-          _DecalBatch(
-            decal.lighting,
-            maxDecals: perDraw,
-            maxSlots: pictures,
-          ),
+          _DecalBatch(decal.lighting, maxDecals: perDraw, maxSlots: pictures),
         );
       }
       batches.last

@@ -284,7 +284,7 @@ abstract final class StrategyActions
 
 final class StrategyHeadlessGame extends OrderedGame
   EntityRegistry registry()
-  HeadlessRun start(Level level, CollisionWorld world, InputState input)
+  HeadlessRun start(HeadlessStart start)
   Map<String, GameAction> get buttons
   Map<String, GameOrder> get orders
   SimulationVersion get simulation
@@ -336,15 +336,15 @@ abstract final class StrategyPhases
 final class StrategyPlugin extends GenrePlugin<StrategyMatch>
   EcsWorld? publishedWorldOf(StrategyMatch simulation)
   PluginManifest get manifest
-  Registration publishEvents(StrategyMatch simulation, EventRegistry bus)
+  Registration publishEvents(GenrePublishContext<StrategyMatch> publish)
   Snapshot captureSimulation(StrategyMatch simulation)
   StrategyPlugin({Iterable<EntityKind>? kinds, super.replaceKinds, super.headless = const StrategyHeadlessGame()})
   String get systemName
   static const String id = 'flutter3d_game_strategy'
   static const String stepSystem = 'strategy.step'
   void declareEvents(EventRegistry events)
-  void restoreSimulation(StrategyMatch simulation, Snapshot state)
-  void stepSimulation(StrategyMatch playing, LoopContext context)
+  void restoreSimulation(GenreRestoreContext<StrategyMatch> restore)
+  void stepSimulation(GenreStepContext<StrategyMatch> step)
 
 final class StrategySimulation
   Building build(Building building)

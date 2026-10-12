@@ -350,6 +350,7 @@ final class CharacterController {
   // second, so none of this is allocated per call.
   final SweepHit _hit = SweepHit();
   final Vector3 _delta = Vector3.zero();
+  late final CharacterMove _move = CharacterMove(body: this, delta: _delta);
   final Vector3 _correction = Vector3.zero();
   final Vector3 _wish = Vector3.zero();
   final Vector3 _plainPosition = Vector3.zero();
@@ -861,11 +862,10 @@ final class CharacterController {
     _snapSuppressed = false;
     _delta.setValues(velocity.x * dt, velocity.y * dt, velocity.z * dt);
     final moved = mover.move(
-      this,
-      _delta,
-      stepHeight: tuning.stepHeight,
-      walkableNormalY: _walkableNormalY,
-      mayStep: _grounded,
+      _move
+        ..stepHeight = tuning.stepHeight
+        ..walkableNormalY = _walkableNormalY
+        ..mayStep = _grounded,
     );
     position.setFrom(moved.position);
     velocity.setFrom(moved.velocity);

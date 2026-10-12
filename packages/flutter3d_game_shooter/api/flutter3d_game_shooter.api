@@ -47,8 +47,8 @@ final class WeaponView
 library package:flutter3d_game_shooter/flutter3d_game_shooter.dart
 
 final class AmmoGift extends Gift
-  GiftAnnouncement? announce(double amount, String? detail)
-  bool grantTo(Inventory to, double amount, String? detail)
+  GiftAnnouncement? announce(GiftAnnounce context)
+  bool grantTo(GiftGrant context)
   const AmmoGift(super.name, this.type, {required this.defaultAmount})
   final AmmoType type
   final double defaultAmount
@@ -65,8 +65,8 @@ final class AmmoType
   static const AmmoType shells = AmmoType('shells')
 
 final class ArmorGift extends Gift
-  GiftAnnouncement? announce(double amount, String? detail)
-  bool grantTo(Inventory to, double amount, String? detail)
+  GiftAnnouncement? announce(GiftAnnounce context)
+  bool grantTo(GiftGrant context)
   const ArmorGift()
   double get defaultAmount
 
@@ -137,8 +137,8 @@ base class ChaseBrain extends Brain
   final WeaponShot shot
   void act(Mind it)
   void onDeath(Mind it)
-  void onHurt(Mind it, double amount)
-  void onNoise(Mind it, Vector3 at)
+  void onHurt(BrainHurt hurt)
+  void onNoise(BrainNoise noise)
   void restore(Map<String, Object?> from)
   void think(Mind it)
 
@@ -216,11 +216,16 @@ final class GameState
   static const List<GameState> values = <GameState>[playing, dead, complete]
 
 abstract base class Gift
-  GiftAnnouncement? announce(double amount, String? detail)
-  abstract bool grantTo(Inventory to, double amount, String? detail)
+  GiftAnnouncement? announce(GiftAnnounce context)
+  abstract bool grantTo(GiftGrant context)
   const Gift(this.name)
   double get defaultAmount
   final String name
+
+final class GiftAnnounce
+  const GiftAnnounce({required this.amount, this.detail})
+  final String? detail
+  final double amount
 
 final class GiftAnnouncement
   String get english
@@ -236,6 +241,12 @@ final class GiftAnnouncement
   static const String pickedUp = 'shooter.gift.pickedUp'
   static const String poweredUp = 'shooter.gift.poweredUp'
 
+final class GiftGrant
+  const GiftGrant({required this.to, required this.amount, this.detail})
+  final Inventory to
+  final String? detail
+  final double amount
+
 final class GiftRegistry
   Gift? operator [](String name)
   GiftRegistry(Iterable<Gift> gifts)
@@ -243,8 +254,8 @@ final class GiftRegistry
   bool knows(String name)
 
 final class HealthGift extends Gift
-  GiftAnnouncement? announce(double amount, String? detail)
-  bool grantTo(Inventory to, double amount, String? detail)
+  GiftAnnouncement? announce(GiftAnnounce context)
+  bool grantTo(GiftGrant context)
   const HealthGift()
   double get defaultAmount
 
@@ -302,8 +313,8 @@ final class Inventory with KeyHolder
   void step(double dt)
 
 final class KeyGift extends Gift
-  GiftAnnouncement? announce(double amount, String? detail)
-  bool grantTo(Inventory to, double amount, String? detail)
+  GiftAnnouncement? announce(GiftAnnounce context)
+  bool grantTo(GiftGrant context)
   const KeyGift()
 
 final class MechanismUsed extends GameEvent
@@ -338,8 +349,8 @@ final class MonsterKind extends EntityKind
   MonsterKind(this.catalog, {this.bestiary, BehaviorKinds? kinds})
   final BehaviorKinds kinds
   final Map<String, MonsterDef> catalog
-  void spawn(EntityDef entity, SpawnContext context)
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void spawn(EntitySpawn spawn)
+  void validate(EntityCheck check)
 
 final class MonsterState
   String toString()
@@ -357,7 +368,7 @@ final class MonsterState
 
 final class NoteKind extends EntityKind
   const NoteKind()
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void validate(EntityCheck check)
 
 final class PatrolBrain extends ChaseBrain
   Map<String, Object?> save()
@@ -384,15 +395,15 @@ final class PickupKind extends EntityKind
   const PickupKind(this.gifts)
   final GiftRegistry gifts
   static Vector3 get defaultSize
-  void spawn(EntityDef entity, SpawnContext context)
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void spawn(EntitySpawn spawn)
+  void validate(EntityCheck check)
 
 final class Player with KeyHolder, Collector, Damageable, Rider
   Collider? get carriedBy
   Map<String, Object?> save()
   Player({required this.body, Inventory? inventory, this.eyeOffset = 0.7, this.lookSensitivity = 0.0022, this.crouchHeight = 0.55, this.crouchSpeed = 1.9})
   Set<String> get keys
-  bool applyDamage(double amount, {Object? from})
+  bool applyDamage(Damage damage)
   bool get isAlive
   bool get isCrouching
   bool get wantsToStand
@@ -435,8 +446,8 @@ final class PlayerHurt extends GameEvent
   static final EventCodec<PlayerHurt> codec
 
 final class PowerUpGift extends Gift
-  GiftAnnouncement? announce(double amount, String? detail)
-  bool grantTo(Inventory to, double amount, String? detail)
+  GiftAnnouncement? announce(GiftAnnounce context)
+  bool grantTo(GiftGrant context)
   const PowerUpGift(super.name, {required this.defaultAmount})
   final double defaultAmount
 
@@ -466,7 +477,7 @@ final class Secret extends Mechanism with CollisionListener
   bool get isFound
   bool justFound
   final Collider collider
-  void onCollisionStart(Collider self, Collider other)
+  void onCollisionStart(CollisionContext context)
   void restore(Map<String, Object?> from)
   void step(double dt)
 
@@ -480,7 +491,7 @@ final class SecretFound extends GameEvent
 final class SecretKind extends EntityKind
   const SecretKind()
   static Vector3 get defaultSize
-  void spawn(EntityDef entity, SpawnContext context)
+  void spawn(EntitySpawn spawn)
 
 abstract final class ShooterActions
   static const GameAction altFire = GameAction('altFire')
@@ -498,8 +509,8 @@ abstract final class ShooterEntities
 final class ShooterKeyKind extends EntityKind
   const ShooterKeyKind()
   static Vector3 get defaultSize
-  void spawn(EntityDef entity, SpawnContext context)
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void spawn(EntitySpawn spawn)
+  void validate(EntityCheck check)
 
 abstract final class ShooterPhases
   static const List<LoopPhase> all = <LoopPhase>[begin, afterPlayer, afterWorld, afterWeapons, afterActors, end]
@@ -513,15 +524,15 @@ abstract final class ShooterPhases
 final class ShooterPlugin extends GenrePlugin<GameSimulation>
   EcsWorld? publishedWorldOf(GameSimulation simulation)
   PluginManifest get manifest
-  Registration publishEvents(GameSimulation simulation, EventRegistry bus)
+  Registration publishEvents(GenrePublishContext<GameSimulation> publish)
   ShooterPlugin({Iterable<EntityKind>? kinds, super.replaceKinds, super.headless})
   Snapshot captureSimulation(GameSimulation simulation)
   String get systemName
   static const String id = 'flutter3d_game_shooter'
   static const String stepSystem = 'shooter.step'
   void declareEvents(EventRegistry events)
-  void restoreSimulation(GameSimulation simulation, Snapshot state)
-  void stepSimulation(GameSimulation simulation, LoopContext context)
+  void restoreSimulation(GenreRestoreContext<GameSimulation> restore)
+  void stepSimulation(GenreStepContext<GameSimulation> step)
 
 final class ShotFired extends GameEvent
   ShotFired({required this.weapon, required Vector3 from})

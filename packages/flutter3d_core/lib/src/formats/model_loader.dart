@@ -80,20 +80,48 @@ abstract base class ModelDecoder {
   /// A decoder; `const` so one can be a constant.
   const ModelDecoder();
 
-  /// Whether this decoder wants the file. [fileName] may be empty; [bytes] is
-  /// the whole file, so a decoder with no useful suffix can sniff its magic.
-  bool handles(String fileName, Uint8List bytes);
+  /// Whether this decoder wants the file [ModelProbe] names.
+  bool handles(ModelProbe probe);
 
-  /// Reads [bytes] into a document.
-  ///
-  /// [resolveUri] fetches a sibling file — a `.gltf`'s buffer, an `.obj`'s
-  /// material library — and is the only way to reach the file system from here:
-  /// this runs on a background isolate that has none.
-  Future<ModelDocument> decode(
-    Uint8List bytes,
-    ModelLoadRequest request,
-    AssetUriResolver resolveUri,
-  );
+  /// Reads [ModelDecodeContext.bytes] into a document.
+  Future<ModelDocument> decode(ModelDecodeContext context);
+}
+
+/// What [ModelDecoder.handles] is asked about: a file, by name and bytes.
+///
+/// **One object, so a minor can hand a decoder more** — the file's media
+/// type, where it came from — without breaking a decoder written against
+/// 1.0.
+final class ModelProbe {
+  const ModelProbe({required this.fileName, required this.bytes});
+
+  /// The file's name, lower case; may be empty.
+  final String fileName;
+
+  /// The whole file, so a decoder with no useful suffix can sniff its magic.
+  final Uint8List bytes;
+}
+
+/// What [ModelDecoder.decode] is handed.
+///
+/// One object for the reason [ModelProbe] gives.
+final class ModelDecodeContext {
+  const ModelDecodeContext({
+    required this.bytes,
+    required this.request,
+    required this.resolveUri,
+  });
+
+  /// The file.
+  final Uint8List bytes;
+
+  /// How it is to be read.
+  final ModelLoadRequest request;
+
+  /// Fetches a sibling file — a `.gltf`'s buffer, an `.obj`'s material
+  /// library — and is the only way to reach the file system from here: a
+  /// decode runs on a background isolate that has none.
+  final AssetUriResolver resolveUri;
 }
 
 /// Everything a decode needs, in one sendable object.
@@ -152,7 +180,9 @@ Future<ModelDocument> decodeModelBytes(
   // Asked before the format is resolved at all: a decoder that recognises its
   // own file is a better authority than a suffix table this package wrote.
   for (final decoder in request.decoders) {
-    if (!decoder.handles(request.source.fileName.toLowerCase(), bytes)) {
+    if (!decoder.handles(
+      ModelProbe(fileName: request.source.fileName.toLowerCase(), bytes: bytes),
+    )) {
       continue;
     }
     final task = developer.TimelineTask()
@@ -160,7 +190,15 @@ Future<ModelDocument> decodeModelBytes(
         'decode ${decoder.runtimeType}',
         arguments: <String, Object?>{'bytes': bytes.length},
       );
-    return decoder.decode(bytes, request, resolveUri).whenComplete(task.finish);
+    return decoder
+        .decode(
+          ModelDecodeContext(
+            bytes: bytes,
+            request: request,
+            resolveUri: resolveUri,
+          ),
+        )
+        .whenComplete(task.finish);
   }
 
   final format = _resolveFormat(request, bytes);
@@ -172,10 +210,15 @@ Future<ModelDocument> decodeModelBytes(
       arguments: <String, Object?>{'bytes': bytes.length},
     );
 
-  return builtInModelDecoder(
-    format,
-    request,
-  ).decode(bytes, request, resolveUri).whenComplete(task.finish);
+  return builtInModelDecoder(format, request)
+      .decode(
+        ModelDecodeContext(
+          bytes: bytes,
+          request: request,
+          resolveUri: resolveUri,
+        ),
+      )
+      .whenComplete(task.finish);
 }
 
 /// The decoder this package ships for [format], configured from [request].
@@ -235,7 +278,10 @@ bool canDecodeFileName(
   if (recognizedModelFormat(fileName) != null) return true;
   final name = fileName.toLowerCase();
   final nothing = Uint8List(0);
-  return decoders.any((ModelDecoder decoder) => decoder.handles(name, nothing));
+  return decoders.any(
+    (ModelDecoder decoder) =>
+        decoder.handles(ModelProbe(fileName: name, bytes: nothing)),
+  );
 }
 
 /// Chooses a decoder from the file name, then from the bytes.

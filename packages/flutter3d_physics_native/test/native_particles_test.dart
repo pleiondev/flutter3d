@@ -45,7 +45,7 @@ void main() {
       ),
     ]);
     // It lives thirty steps of a sixtieth, then stays where it died.
-    p.step(ParticleForces(), 1 / 60, steps: 60);
+    p.step(ParticleCloudStep(forces: ParticleForces(), dt: 1 / 60, steps: 60));
     final out = p.read();
     const h = 1 / 60;
     expect(out[0], closeTo(3.0 * 30 * h, 1e-5));
@@ -60,7 +60,7 @@ void main() {
     final p = NativeParticles(1000);
     addTearDown(p.dispose);
     p.emit(_spray());
-    p.step(_weather, 1 / 60, steps: 120);
+    p.step(ParticleCloudStep(forces: _weather, dt: 1 / 60, steps: 120));
     final out = p.read();
     for (var i = 0; i < 1000; i++) {
       expect(out[i * 4 + 1], greaterThanOrEqualTo(0.0), reason: 'particle $i');
@@ -93,8 +93,10 @@ void main() {
         cpu.emit(_spray());
         onGpu.emit(_spray());
         for (var s = 0; s < 4; s++) {
-          cpu.step(_weather, 1 / 60, steps: 30);
-          onGpu.step(_weather, 1 / 60, steps: 30);
+          cpu.step(ParticleCloudStep(forces: _weather, dt: 1 / 60, steps: 30));
+          onGpu.step(
+            ParticleCloudStep(forces: _weather, dt: 1 / 60, steps: 30),
+          );
         }
         final Float32List a = cpu.read();
         final Float32List b = onGpu.read();

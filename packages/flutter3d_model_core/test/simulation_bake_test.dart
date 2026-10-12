@@ -177,13 +177,9 @@ final class _CountedCloth extends ClothSimulation {
   ClothMesh get mesh => _cloth.mesh;
 
   @override
-  void step(
-    ClothSettings settings,
-    double dt, {
-    List<ClothObstacle> obstacles = const <ClothObstacle>[],
-  }) {
+  void step(ClothStep step) {
     _backend.steps++;
-    _cloth.step(settings, dt, obstacles: obstacles);
+    _cloth.step(step);
   }
 
   @override

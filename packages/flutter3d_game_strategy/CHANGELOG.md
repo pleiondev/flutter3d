@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **Breaking: the strategy genre's hooks take the engine's contexts.** The
+  plugin's `stepSimulation`, `publishEvents` and `restoreSimulation` take
+  a `GenreStepContext`, `GenrePublishContext` and `GenreRestoreContext`,
+  `StrategyHeadlessGame.start` a `HeadlessStart`, and the map's entity
+  kinds' `validate` and `spawn` an `EntityCheck` and an `EntitySpawn`: the
+  one context `flutter3d_sim` hands each.
 - **Breaking: `Match` is `StrategyMatch`.** `Match` is `dart:core`'s
   regular-expression match, which a library naming its own silently
   shadows. Same constructor and members; `dart fix` renames each use.

@@ -239,27 +239,15 @@ final class _RecordingLights with ContributorLights {
   final List<double> radii = <double>[];
 
   @override
-  void bind(
-    PassEncoder encoder,
-    ShaderHandle stage, {
-    required vm.Vector3 center,
-    required double radius,
-  }) {
-    stages.add(stage);
-    radii.add(radius);
+  void bind(LightBindRequest request) {
+    stages.add(request.stage);
+    radii.add(request.radius);
   }
 }
 
 final class _NoServices with RenderServices {
   @override
-  void encodeScene({
-    required RenderFrame frame,
-    required PassEncoder encoder,
-    required Scene scene,
-    required vm.Matrix4 viewProjection,
-    required vm.Vector3 cameraPosition,
-    int casterIndex = -1,
-  }) {}
+  void encodeScene(SceneEncodeRequest request) {}
 
   @override
   void drawFullscreen(FullscreenDraw draw) {}

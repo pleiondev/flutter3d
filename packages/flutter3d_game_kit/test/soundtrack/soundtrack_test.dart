@@ -63,8 +63,8 @@ final class _Locked extends BusEvent {
 }
 
 CueSheet _sheet() => CueSheet()
-  ..on<_Jumped>((e, out) => out.add(Heard(_jump, e.at)))
-  ..on<_Locked>((e, out) => out.add(Heard(_locked, Vector3.zero())));
+  ..on<_Jumped>((cue) => cue.out.add(Heard(_jump, cue.event.at)))
+  ..on<_Locked>((cue) => cue.out.add(Heard(_locked, Vector3.zero())));
 
 void main() {
   test('a sheet hears each event through the cue for its type, in order', () {

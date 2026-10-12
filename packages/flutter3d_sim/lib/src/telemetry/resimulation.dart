@@ -130,7 +130,9 @@ Resimulation resimulate({
   // dynamics of its own takes the world over.
   physics.attach(world);
   final input = InputState();
-  final run = game.start(level, world, input);
+  final run = game.start(
+    HeadlessStart(level: level, world: world, input: input),
+  );
   world.update();
   if (StateDigest.of(run.save().toJson()) !=
       StateDigest.of(demo.start.toJson())) {

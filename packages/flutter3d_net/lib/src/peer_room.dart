@@ -124,12 +124,17 @@ final class PeerRoom {
   // Unreliable: it is said again until it is answered. `met` is whether
   // the other has been heard, refused or not, so a refusal is answered once
   // and not back and forth.
-  void _sayHello() => wire.send(<String, Object?>{
-    'tag': _helloTag,
-    'met': _heard,
-    'body': about,
-    ...hello.toJson(),
-  }, reliable: false);
+  void _sayHello() => wire.send(
+    PeerSend(
+      message: <String, Object?>{
+        'tag': _helloTag,
+        'met': _heard,
+        'body': about,
+        ...hello.toJson(),
+      },
+      reliable: false,
+    ),
+  );
 
   void _hear(Map<String, Object?> message) {
     final tag = message['tag'];
@@ -158,7 +163,9 @@ final class PeerRoom {
     // with. Before any hello a channel still hears: a frame can overtake
     // the hello it follows.
     if (_refusal != null || body is! Map) return;
-    _channels[tag]?.deliver(body.cast<String, Object?>());
+    _channels[tag]?.deliver(
+      PeerDelivery(message: body.cast<String, Object?>()),
+    );
   }
 }
 
@@ -175,9 +182,14 @@ final class _Channel extends PeerWire {
   WireState get state => _room.wire.state;
 
   @override
-  void send(Map<String, Object?> message, {bool reliable = true}) =>
-      _room.wire.send(<String, Object?>{
-        'tag': _tag,
-        'body': message,
-      }, reliable: reliable);
+  void send(PeerSend context) {
+    final message = context.message;
+    final reliable = context.reliable;
+    _room.wire.send(
+      PeerSend(
+        message: <String, Object?>{'tag': _tag, 'body': message},
+        reliable: reliable,
+      ),
+    );
+  }
 }

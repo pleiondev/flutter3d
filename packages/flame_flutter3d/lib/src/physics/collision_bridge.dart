@@ -137,7 +137,9 @@ final class CollisionBridge with CollisionListener {
   /// removed component either, and a despawned ship hearing it hit a bot
   /// is a callback into a game object that is gone.
   @override
-  void onCollisionStart(Collider self, Collider other) {
+  void onCollisionStart(CollisionContext context) {
+    final self = context.self;
+    final other = context.other;
     if (component.isRemoved) return;
     final target = resolveOther(other);
     if (target == null) return;
@@ -146,7 +148,9 @@ final class CollisionBridge with CollisionListener {
   }
 
   @override
-  void onCollision(Collider self, Collider other) {
+  void onCollision(CollisionContext context) {
+    final self = context.self;
+    final other = context.other;
     if (component.isRemoved) return;
     final target = resolveOther(other);
     if (target == null) return;
@@ -159,7 +163,8 @@ final class CollisionBridge with CollisionListener {
   }
 
   @override
-  void onCollisionEnd(Collider self, Collider other) {
+  void onCollisionEnd(CollisionContext context) {
+    final other = context.other;
     if (component.isRemoved) return;
     final target = resolveOther(other);
     if (target == null || !_touching.remove(target)) return;

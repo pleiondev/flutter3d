@@ -18,14 +18,41 @@ import 'package:vector_math/vector_math.dart';
 abstract base class PhotoControls {
   const PhotoControls();
 
-  /// One frame: turns and flies [camera] by what is held now. [input] and
-  /// [look] are what the game hands `PhotoMode.fly`; a control that needs
-  /// neither ignores them.
-  void steer(PhotoCamera camera, double dt, {InputState? input, Vector2? look});
+  /// One frame: turns and flies the context's camera by what is held now.
+  /// Its input and look are what the game hands `PhotoMode.fly`; a control
+  /// that needs neither ignores them.
+  void steer(PhotoSteerContext context);
 
   /// How much faster the camera flies while the "faster" control is held,
   /// as a walk is faster under sprint. A unitless multiplier on the speed.
   static const double fastFactor = 3.0;
+}
+
+/// What [PhotoControls.steer] is handed, once a frame.
+///
+/// **One object, so a minor can hand a control more** — a pad's sticks, the
+/// photo's lens — without breaking one written against 1.0. **Reused**:
+/// `PhotoMode` owns one and sets it every frame, so steering allocates
+/// nothing; a control reads it during the call and does not keep it.
+final class PhotoSteerContext {
+  PhotoSteerContext({
+    required this.camera,
+    required this.dt,
+    this.input,
+    this.look,
+  });
+
+  /// The camera to turn and fly.
+  PhotoCamera camera;
+
+  /// The frame's seconds.
+  double dt;
+
+  /// The game's input as `PhotoMode.fly` was handed it, or null.
+  InputState? input;
+
+  /// The pointer's look this frame, in pixels, or null.
+  Vector2? look;
 }
 
 /// Flies [camera] by [intent] for [dt], [PhotoControls.fastFactor] times as
@@ -71,12 +98,11 @@ final class ActionPhotoControls extends PhotoControls {
   final double sensitivity;
 
   @override
-  void steer(
-    PhotoCamera camera,
-    double dt, {
-    InputState? input,
-    Vector2? look,
-  }) {
+  void steer(PhotoSteerContext context) {
+    final camera = context.camera;
+    final dt = context.dt;
+    final input = context.input;
+    final look = context.look;
     if (look != null) {
       camera.look(-look.x * sensitivity, -look.y * sensitivity);
     }
@@ -109,12 +135,9 @@ final class KeyPhotoControls extends PhotoControls {
   final double? turnRate;
 
   @override
-  void steer(
-    PhotoCamera camera,
-    double dt, {
-    InputState? input,
-    Vector2? look,
-  }) {
+  void steer(PhotoSteerContext context) {
+    final camera = context.camera;
+    final dt = context.dt;
     final held = HardwareKeyboard.instance.logicalKeysPressed;
     double axis(LogicalKeyboardKey plus, LogicalKeyboardKey minus) =>
         (held.contains(plus) ? 1.0 : 0.0) - (held.contains(minus) ? 1.0 : 0.0);

@@ -124,7 +124,9 @@ void main() {
           ),
         );
         run(dynamics, 30);
-        dynamics.push(walker, Vector3(2.0, 0.0, 0.0));
+        dynamics.push(
+          CharacterPush(by: walker, velocity: Vector3(2.0, 0.0, 0.0)),
+        );
         expect(box.velocity.x, closeTo(2.0, 1e-9));
         run(dynamics, 1);
         expect(box.position.x, greaterThan(0.01));

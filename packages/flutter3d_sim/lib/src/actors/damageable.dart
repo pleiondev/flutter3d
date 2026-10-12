@@ -25,14 +25,15 @@
 /// member added in a 1.x release arrives with a body and nothing that mixes
 /// it in has to change.
 abstract base mixin class Damageable {
-  /// Takes [amount] of damage and answers whether that killed it.
+  /// Takes the damage's [Damage.amount] and answers whether that killed it.
   ///
   /// Killing is worth reporting because a caller usually has something to do
   /// with the news — a score, a sound, a door that opens when the room is
   /// clear — and asking afterwards means asking a thing that may already have
   /// been cleaned up.
   ///
-  /// [from] is whoever dealt it, as the collider's `userData` — which is to say
+  /// [Damage.from] is whoever dealt it, as the collider's `userData` — which
+  /// is to say
   /// as whatever the game decided a body is. **Deliberately an `Object?`**: the
   /// engine has no business knowing that a shooter has monsters or that a
   /// racing game has cars, and the one thing every game agrees on is that
@@ -41,5 +42,20 @@ abstract base mixin class Damageable {
   /// Null for damage with nobody behind it: a fall, a crushing lift, a pit.
   /// That is not an oversight in the caller, it is the honest answer, and it is
   /// why a brain must handle it rather than assume a culprit.
-  bool applyDamage(double amount, {Object? from});
+  bool applyDamage(Damage damage);
+}
+
+/// What [Damageable.applyDamage] is handed: how much, and who dealt it.
+///
+/// **One object, so a minor can hand a target more** — what kind of harm,
+/// where it landed — without breaking a target written against 1.0.
+final class Damage {
+  const Damage({required this.amount, this.from});
+
+  /// How much health it takes.
+  final double amount;
+
+  /// Whoever dealt it, as the collider's `userData`; null for damage with
+  /// nobody behind it.
+  final Object? from;
 }

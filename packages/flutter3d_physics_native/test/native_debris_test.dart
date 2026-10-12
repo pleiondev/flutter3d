@@ -83,7 +83,7 @@ void main() {
     expect(d.read(), isNull);
     final settings = DebrisSettings(restitution: 0.0);
     for (var i = 0; i < 120; i++) {
-      d.step(settings, 1 / 60);
+      d.step(DebrisSystemStep(settings: settings, dt: 1 / 60));
     }
     final frame = d.read()!;
     expect(frame.step, 120);
@@ -122,7 +122,7 @@ void main() {
         final settings = DebrisSettings();
         var last = 0;
         for (var i = 1; i <= 30; i++) {
-          d.step(settings, 1 / 60);
+          d.step(DebrisSystemStep(settings: settings, dt: 1 / 60));
           final late = d.read(wait: false);
           if (late != null) {
             // Never a step not queued, never one older than the last read.
@@ -179,8 +179,8 @@ void main() {
           final settings = DebrisSettings(restitution: 0.0);
           // Every tenth step, so a hop on landing that settles shows too.
           for (var step = 1; step <= 120; step++) {
-            cpu.step(settings, 1 / 60);
-            onGpu.step(settings, 1 / 60);
+            cpu.step(DebrisSystemStep(settings: settings, dt: 1 / 60));
+            onGpu.step(DebrisSystemStep(settings: settings, dt: 1 / 60));
             if (step % 10 != 0) continue;
             final x = cpu.read()!.bodies;
             final y = onGpu.read()!.bodies;
@@ -204,8 +204,8 @@ void main() {
         }
         final settings = DebrisSettings(restitution: 0.0);
         for (var i = 0; i < 5; i++) {
-          cpu.step(settings, 1 / 60);
-          onGpu.step(settings, 1 / 60);
+          cpu.step(DebrisSystemStep(settings: settings, dt: 1 / 60));
+          onGpu.step(DebrisSystemStep(settings: settings, dt: 1 / 60));
         }
         // Falling, before they meet: the same to the GPU's rounding.
         final a = cpu.read()!.bodies;
@@ -216,8 +216,8 @@ void main() {
         }
         expect(worst, lessThan(1e-4));
         for (var i = 0; i < 235; i++) {
-          cpu.step(settings, 1 / 60);
-          onGpu.step(settings, 1 / 60);
+          cpu.step(DebrisSystemStep(settings: settings, dt: 1 / 60));
+          onGpu.step(DebrisSystemStep(settings: settings, dt: 1 / 60));
         }
         // Settled: body for body they went their own ways, but the heap is
         // the same heap.

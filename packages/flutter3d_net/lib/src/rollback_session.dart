@@ -104,7 +104,7 @@ final class RollbackSession<S> {
       this.localSlot >= 0 && this.localSlot < players,
       'this machine\'s slot is one of the $players',
     );
-    _hearing = wire.listenFrom(receive);
+    _hearing = wire.listenFrom((heard) => receive(heard.from, heard.message));
   }
 
   /// What a rollback's message names under [PeerWire.engineKey].
@@ -208,12 +208,18 @@ final class RollbackSession<S> {
     _pendingLocal[appliesAt] = captured;
     _recentSent[appliesAt] = captured;
     _recentSent.removeWhere((s, _) => s < appliesAt - redundancy);
-    wire.send(<String, Object?>{
-      PeerWire.engineKey: messageKind,
-      'frames': <String, Object?>{
-        for (final MapEntry(:key, :value) in _recentSent.entries) '$key': value,
-      },
-    }, reliable: false);
+    wire.send(
+      PeerSend(
+        message: <String, Object?>{
+          PeerWire.engineKey: messageKind,
+          'frames': <String, Object?>{
+            for (final MapEntry(:key, :value) in _recentSent.entries)
+              '$key': value,
+          },
+        },
+        reliable: false,
+      ),
+    );
 
     final frames = <int, Map<String, Object?>>{};
     final guessed = <int>{};

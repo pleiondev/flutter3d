@@ -6,6 +6,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
 import 'package:vector_math/vector_math.dart';
 
 import 'backend.dart';
+import 'bus_effect.dart';
 import 'listener.dart';
 import 'mixer.dart';
 import 'pose.dart';
@@ -443,28 +444,38 @@ final class AudioScene {
         final VoiceId live;
         if (voice == null) {
           final started = backend.start(
-            emitter.sound.asset,
-            gain: gain,
-            pan: emitter.pan,
-            rate: rate,
-            loop: emitter.sound.loop,
-            muffle: muffle,
+            _start
+              ..asset = emitter.sound.asset
+              ..gain = gain
+              ..pan = emitter.pan
+              ..rate = rate
+              ..loop = emitter.sound.loop
+              ..muffle = muffle,
           );
           emitter._voice = started;
           if (started == null) continue;
-          mixing?.routeVoice(started, bus);
+          mixing?.routeVoice(
+            _route
+              ..voice = started
+              ..bus = bus,
+          );
           live = started;
         } else {
           backend.update(
-            voice,
-            gain: gain,
-            pan: emitter.pan,
-            rate: rate,
-            muffle: muffle,
+            _update
+              ..voice = voice
+              ..gain = gain
+              ..pan = emitter.pan
+              ..rate = rate
+              ..muffle = muffle,
           );
           live = voice;
         }
-        directional?.placeVoice(live, emitter.spatial);
+        directional?.placeVoice(
+          _placement
+            ..voice = live
+            ..spatial = emitter.spatial,
+        );
         continue;
       }
 
@@ -493,13 +504,41 @@ final class AudioScene {
     }
     for (final bus in buses) {
       mixing.mixBus(
-        bus,
-        parent: mixer.parentOf(bus),
-        gain: mixer.ownGainOf(bus),
-        effects: mixer.effectsOf(bus),
+        _busMix
+          ..bus = bus
+          ..parent = mixer.parentOf(bus)
+          ..gain = mixer.ownGainOf(bus)
+          ..effects = mixer.effectsOf(bus),
       );
     }
   }
+
+  // What the backend is handed, one of each per scene and set before every
+  // call, so a mix allocates none of them.
+  final VoiceStart _start = VoiceStart(
+    asset: '',
+    gain: 0.0,
+    pan: 0.0,
+    rate: 1.0,
+    loop: false,
+  );
+  final VoiceUpdate _update = VoiceUpdate(
+    voice: 0,
+    gain: 0.0,
+    pan: 0.0,
+    rate: 1.0,
+  );
+  final VoiceRoute _route = VoiceRoute(voice: 0, bus: AudioBus.master);
+  final VoicePlacement _placement = VoicePlacement(
+    voice: 0,
+    spatial: SpatialResult(),
+  );
+  final BusMix _busMix = BusMix(
+    bus: AudioBus.master,
+    parent: null,
+    gain: 1.0,
+    effects: const <BusEffect>[],
+  );
 
   final List<AudioEmitter> _audible = <AudioEmitter>[];
   final Map<String, int> _instances = <String, int>{};

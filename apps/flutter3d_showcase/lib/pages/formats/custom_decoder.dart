@@ -17,16 +17,12 @@ final class _BoxTextDecoder extends ModelDecoder {
   const _BoxTextDecoder();
 
   @override
-  bool handles(String fileName, Uint8List bytes) =>
-      fileName.toLowerCase().endsWith('.box');
+  bool handles(ModelProbe probe) =>
+      probe.fileName.toLowerCase().endsWith('.box');
 
   @override
-  Future<ModelDocument> decode(
-    Uint8List bytes,
-    ModelLoadRequest request,
-    AssetUriResolver resolveUri,
-  ) async {
-    final parts = utf8.decode(bytes).trim().split(RegExp(r'\s+'));
+  Future<ModelDocument> decode(ModelDecodeContext context) async {
+    final parts = utf8.decode(context.bytes).trim().split(RegExp(r'\s+'));
     if (parts.length != 3) {
       throw const FormatException('a .box file is three numbers: w h d');
     }

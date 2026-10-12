@@ -8,7 +8,6 @@ library;
 import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
-import 'package:flutter3d_foundation/flutter3d_foundation.dart' show RigidPose;
 
 import 'package:flutter3d_physics/flutter3d_physics.dart' show CollisionWorld;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
@@ -35,21 +34,39 @@ void main() {
   group('display time', () {
     test('a frame brings the gap between two predicted display times', () {
       final time = TimeSource.display() as DisplayTime;
-      expect(time.elapsed(Duration.zero, _period), 0.0, reason: 'none yet');
+      expect(
+        time.elapsed(FrameSpan(from: Duration.zero, to: _period)),
+        0.0,
+        reason: 'none yet',
+      );
       time.predict(100.0);
-      expect(time.elapsed(Duration.zero, _period), 0.0, reason: 'the first');
+      expect(
+        time.elapsed(FrameSpan(from: Duration.zero, to: _period)),
+        0.0,
+        reason: 'the first',
+      );
       time.predict(100.0125);
       // Mutation: hand the vsync gap instead of the runtime's.
-      expect(time.elapsed(_period, _period * 2), closeTo(0.0125, 1e-12));
-      expect(time.elapsed(_period * 2, _period * 3), 0.0, reason: 'no new');
+      expect(
+        time.elapsed(FrameSpan(from: _period, to: _period * 2)),
+        closeTo(0.0125, 1e-12),
+      );
+      expect(
+        time.elapsed(FrameSpan(from: _period * 2, to: _period * 3)),
+        0.0,
+        reason: 'no new',
+      );
       time.predict(100.05);
-      expect(time.elapsed(_period * 3, _period * 4), closeTo(0.0375, 1e-12));
+      expect(
+        time.elapsed(FrameSpan(from: _period * 3, to: _period * 4)),
+        closeTo(0.0375, 1e-12),
+      );
       expect(() => time.predict(99.0), throwsArgumentError);
       expect(() => time.predict(double.nan), throwsArgumentError);
       time
         ..reset()
         ..predict(3.0);
-      expect(time.elapsed(Duration.zero, _period), 0.0);
+      expect(time.elapsed(FrameSpan(from: Duration.zero, to: _period)), 0.0);
     });
 
     test('the loop steps by the display times and keeps its fixed step', () {

@@ -88,9 +88,11 @@ EngineLoop racingLoop({
     headingYaw: Portable.atan2(forward.x, forward.z),
   );
   car.placeAt(
-    car.position,
-    car.headingYaw,
-    trackDistance: track.center.wrap(track.grid.s),
+    VehiclePlacement(
+      position: car.position,
+      headingYaw: car.headingYaw,
+      trackDistance: track.center.wrap(track.grid.s),
+    ),
   );
   final sim = RacingSimulation(
     collision: world,

@@ -30,8 +30,9 @@ final class Reactions {
   Reactions() {
     placed
       ..on<CollectibleTaken>(
-        (CollectibleTaken event, ReactionBuilder out) =>
-            out.bursts.add(Shown(Effects.coin, event.collectible.origin)),
+        (rule) => rule.out.bursts.add(
+          Shown(Effects.coin, rule.event.collectible.origin),
+        ),
       )
       // Everything the level's own machinery did. A spring that throws
       // somebody and a shelf that gives way are both events nobody was
@@ -40,16 +41,15 @@ final class Reactions {
       // frame, asking each of them three questions.** The simulation makes
       // that pass anyway; these arrive on the bus with everything else.
       ..on<SpringFired>(
-        (SpringFired event, ReactionBuilder out) =>
-            out.bursts.add(Shown(Effects.spring, event.at, direction: _up)),
+        (rule) => rule.out.bursts.add(
+          Shown(Effects.spring, rule.event.at, direction: _up),
+        ),
       )
       ..on<BlockCrumbled>(
-        (BlockCrumbled event, ReactionBuilder out) =>
-            out.bursts.add(Shown(Effects.crumble, event.at)),
+        (rule) => rule.out.bursts.add(Shown(Effects.crumble, rule.event.at)),
       )
       ..on<BlockBroke>(
-        (BlockBroke event, ReactionBuilder out) =>
-            out.bursts.add(Shown(Effects.slam, event.at)),
+        (rule) => rule.out.bursts.add(Shown(Effects.slam, rule.event.at)),
       );
   }
 

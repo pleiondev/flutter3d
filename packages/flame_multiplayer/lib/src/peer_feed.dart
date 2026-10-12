@@ -1,7 +1,7 @@
 /// The other machine's latest word about itself, for a ghost or a score.
 library;
 
-import 'package:flutter3d_net/flutter3d_net.dart' show PeerWire;
+import 'package:flutter3d_net/flutter3d_net.dart' show PeerSend, PeerWire;
 
 /// Two machines playing their own games side by side — a race over the same
 /// course — each telling the other where it is.
@@ -42,9 +42,11 @@ final class PeerFeed {
   /// [state] is built only when it is going to be sent.
   void tell(Map<String, Object?> Function() state) {
     if (_calls++ % every != 0) return;
-    transport.send(<String, Object?>{
-      'n': _toldCount++,
-      'body': state(),
-    }, reliable: false);
+    transport.send(
+      PeerSend(
+        message: <String, Object?>{'n': _toldCount++, 'body': state()},
+        reliable: false,
+      ),
+    );
   }
 }

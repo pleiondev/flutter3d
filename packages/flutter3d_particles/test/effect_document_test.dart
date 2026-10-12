@@ -432,14 +432,14 @@ void main() {
       final particle = Particle()
         ..position.setValues(0.0, 1.01, 0.0)
         ..velocity.setValues(2.0, -4.0, 0.0);
-      floor.apply(particle, 0.01);
+      floor.apply(ParticleStep(particle: particle, dt: 0.01));
       expect(particle.velocity.y, 2.0);
       expect(particle.velocity.x, 1.5);
 
       final rising = Particle()
         ..position.setValues(0.0, 0.5, 0.0)
         ..velocity.setValues(0.0, 3.0, 0.0);
-      floor.apply(rising, 0.01);
+      floor.apply(ParticleStep(particle: rising, dt: 0.01));
       expect(rising.position.y, 1.0, reason: 'below the floor is put on it');
       expect(rising.velocity.y, 3.0, reason: 'a rise is left alone');
     });

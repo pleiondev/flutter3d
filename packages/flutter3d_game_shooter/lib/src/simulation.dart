@@ -199,6 +199,12 @@ final class GameSimulation {
   /// none.
   final RigidDynamics? dynamics;
 
+  /// The player's push, set before every step's: a step allocates none.
+  late final CharacterPush _push = CharacterPush(
+    by: player.body.collider,
+    velocity: player.body.velocity,
+  );
+
   /// What the level document says follows it.
   final String? levelNext;
 
@@ -487,7 +493,11 @@ final class GameSimulation {
     // After the player has moved, because what they shove depends on where
     // they ended up and how fast they got there.
     if (playing) {
-      dynamics?.push(player.body.collider, player.body.velocity);
+      dynamics?.push(
+        _push
+          ..by = player.body.collider
+          ..velocity = player.body.velocity,
+      );
     }
 
     _world.settle();
@@ -567,10 +577,12 @@ final class GameSimulation {
           final target = entry.key.userData;
           if (target is! Damageable) continue;
           if (identical(target, player)) {
-            target.applyDamage(entry.value, from: firedBy);
+            target.applyDamage(Damage(amount: entry.value, from: firedBy));
             continue;
           }
-          target.applyDamage(entry.value * scale, from: firedBy);
+          target.applyDamage(
+            Damage(amount: entry.value * scale, from: firedBy),
+          );
         }
       }
     }
@@ -707,7 +719,9 @@ final class GameSimulation {
       final target = entry.key.userData;
       // The player did this one, which is what stops a monster shot by them
       // from turning on the monster next to it.
-      if (target is Damageable) target.applyDamage(entry.value, from: player);
+      if (target is Damageable) {
+        target.applyDamage(Damage(amount: entry.value, from: player));
+      }
     }
   }
 
@@ -804,7 +818,7 @@ final class GameSimulation {
     // Asked before and after, so the death is reported on the step it happened
     // rather than on every step after it, which is what `player.isAlive` gives.
     final wasAlive = player.isAlive;
-    player.applyDamage(amount);
+    player.applyDamage(Damage(amount: amount));
     _publish(PlayerHurt(amount));
     if (wasAlive && !player.isAlive) _publish(const PlayerDied());
   }

@@ -7,7 +7,6 @@ import 'package:vector_math/vector_math.dart';
 
 import '../animation/animation_clip.dart';
 import '../animation/animation_track.dart';
-import '../asset_resolver.dart';
 import '../fmat/lighting_json.dart';
 import '../lighting_model.dart';
 import '../model_document.dart';
@@ -568,17 +567,19 @@ final class F3dDecoder extends ModelDecoder {
   const F3dDecoder();
 
   @override
-  bool handles(String fileName, Uint8List bytes) =>
-      fileName.toLowerCase().endsWith('.f3d') || isF3dFile(bytes);
+  bool handles(ModelProbe probe) {
+    final fileName = probe.fileName;
+    final bytes = probe.bytes;
+    return fileName.toLowerCase().endsWith('.f3d') || isF3dFile(bytes);
+  }
 
   /// Synchronous underneath: the header is read and every array becomes a
   /// view over [bytes] when it is asked for.
   @override
-  Future<ModelDocument> decode(
-    Uint8List bytes,
-    ModelLoadRequest request,
-    AssetUriResolver resolveUri,
-  ) => Future<ModelDocument>.value(F3dDocument.parse(bytes));
+  Future<ModelDocument> decode(ModelDecodeContext context) {
+    final bytes = context.bytes;
+    return Future<ModelDocument>.value(F3dDocument.parse(bytes));
+  }
 }
 
 /// True when [bytes] begins with the `.f3d` magic.

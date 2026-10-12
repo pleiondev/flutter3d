@@ -13,7 +13,6 @@ import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart' as vm;
 
 const _descriptor = RenderBundleDescriptor(
   colorFormats: <TextureFormat>[TextureFormat.r8g8b8a8UNormInt],
@@ -62,14 +61,7 @@ void main() {
 
 final class _NoServices with RenderServices {
   @override
-  void encodeScene({
-    required RenderFrame frame,
-    required PassEncoder encoder,
-    required Scene scene,
-    required vm.Matrix4 viewProjection,
-    required vm.Vector3 cameraPosition,
-    int casterIndex = -1,
-  }) => throw UnimplementedError();
+  void encodeScene(SceneEncodeRequest request) => throw UnimplementedError();
 
   @override
   void drawFullscreen(FullscreenDraw draw) => throw UnimplementedError();

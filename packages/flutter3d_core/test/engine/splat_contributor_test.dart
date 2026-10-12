@@ -248,14 +248,7 @@ void main() {
 
 final class _NoServices with RenderServices {
   @override
-  void encodeScene({
-    required RenderFrame frame,
-    required PassEncoder encoder,
-    required Scene scene,
-    required vm.Matrix4 viewProjection,
-    required vm.Vector3 cameraPosition,
-    int casterIndex = -1,
-  }) => throw UnimplementedError();
+  void encodeScene(SceneEncodeRequest request) => throw UnimplementedError();
 
   @override
   void drawFullscreen(FullscreenDraw draw) => throw UnimplementedError();

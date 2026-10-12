@@ -11,7 +11,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter3d_mcp/kit.dart' show ProjectRoot;
-import 'package:flutter3d_physics/flutter3d_physics.dart' show CollisionWorld;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show WorldPosition;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
@@ -60,8 +59,7 @@ final class _Game extends HeadlessGame {
   EntityRegistry registry() => EntityRegistry(const <EntityKind>[]);
 
   @override
-  HeadlessRun start(Level level, CollisionWorld world, InputState input) =>
-      _Standing(eye);
+  HeadlessRun start(HeadlessStart start) => _Standing(eye);
 }
 
 /// A floor, a wall in front of the eye and a light, [x] metres east. Every

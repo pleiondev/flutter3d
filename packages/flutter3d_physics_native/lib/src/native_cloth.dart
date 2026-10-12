@@ -234,16 +234,48 @@ abstract base mixin class ClothSystem {
   /// The balls the cloth falls on, replacing the last: at most 16.
   void setBalls(List<ClothBall> balls);
 
-  /// Puts point [index] at [at], still: how a pinned point is carried.
-  void movePoint(int index, Vector3 at);
+  /// Puts the move's point at its place, still: how a pinned point is
+  /// carried.
+  void movePoint(ClothPointMove move);
 
-  void step(ClothSettings settings, double dt);
+  /// One step of the cloth, as [ClothSystemStep] says.
+  void step(ClothSystemStep step);
 
   /// The latest step's points not read yet; null when there is none
   /// (absent, not an error). On the GPU, without [wait], a frame late.
   ClothFrame? read({bool wait = true});
 
   void dispose();
+}
+
+/// What [ClothSystem.movePoint] is handed: point [index] goes to [at].
+///
+/// **One object, so a minor can hand a cloth more** — a velocity to carry
+/// the point with — without breaking one written against 1.0.
+/// **Reusable**: a point dragged every frame keeps one and sets it before
+/// the call; the cloth reads it during the call and does not keep it.
+final class ClothPointMove {
+  ClothPointMove({required this.index, required this.at});
+
+  /// The point.
+  int index;
+
+  /// Where it goes.
+  Vector3 at;
+}
+
+/// What [ClothSystem.step] is handed: the settings and the step's length in
+/// seconds.
+///
+/// One object, reusable, for the reasons [ClothPointMove] gives.
+final class ClothSystemStep {
+  ClothSystemStep({required this.settings, required this.dt});
+
+  /// How the cloth behaves.
+  ClothSettings settings;
+
+  /// The step, in seconds.
+  double dt;
 }
 
 /// The mesh's arrays in the core's layout, freed by [free].
@@ -369,12 +401,16 @@ final class NativeCloth implements ClothSystem {
   }
 
   @override
-  void movePoint(int index, Vector3 at) {
+  void movePoint(ClothPointMove move) {
+    final index = move.index;
+    final at = move.at;
     c.f3d_cloth_move_point(_live, index, at.x, at.y, at.z);
   }
 
   @override
-  void step(ClothSettings settings, double dt) {
+  void step(ClothSystemStep request) {
+    final settings = request.settings;
+    final dt = request.dt;
     final s = writeClothSettings(settings);
     try {
       c.f3d_cloth_step(_live, s, dt);

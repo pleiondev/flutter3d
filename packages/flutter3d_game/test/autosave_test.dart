@@ -50,8 +50,11 @@ final class _Game extends RunSession<_Level> {
       Snapshot(<String, Object?>{'coins': level.coins});
 
   @override
-  void restoreInto(_Level level, Snapshot snapshot) =>
-      level.coins = snapshot.data.integer('coins');
+  void restoreInto(RunRestoreContext<_Level> context) {
+    final level = context.level;
+    final snapshot = context.snapshot;
+    level.coins = snapshot.data.integer('coins');
+  }
 
   @override
   int stepOf(_Level level) => level.steps;

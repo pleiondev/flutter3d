@@ -138,13 +138,31 @@ abstract base mixin class FluidSystem {
   /// Puts [particles] into the next slots, round and round once full.
   void add(List<FluidParticle> particles);
 
-  void step(FluidSettings settings, double dt);
+  /// One step of the tank, as [FluidSystemStep] says.
+  void step(FluidSystemStep step);
 
   /// The latest step's particles not read yet; null when there is
   /// none (absent, not an error). On the GPU, without [wait], a frame late.
   FluidFrame? read({bool wait = true});
 
   void dispose();
+}
+
+/// What [FluidSystem.step] is handed: the settings and the step's length in
+/// seconds.
+///
+/// **One object, so a minor can hand a tank more** — a moving container, a
+/// stirring — without breaking one written against 1.0. **Reusable**: a
+/// tank stepped every frame keeps one and sets it before the call; the tank
+/// reads it during the call and does not keep it.
+final class FluidSystemStep {
+  FluidSystemStep({required this.settings, required this.dt});
+
+  /// How the liquid behaves.
+  FluidSettings settings;
+
+  /// The step, in seconds.
+  double dt;
 }
 
 c.F32s packFluidParticles(List<FluidParticle> particles) {
@@ -232,7 +250,9 @@ final class NativeFluid implements FluidSystem {
   }
 
   @override
-  void step(FluidSettings settings, double dt) {
+  void step(FluidSystemStep request) {
+    final settings = request.settings;
+    final dt = request.dt;
     final s = writeFluidSettings(settings);
     try {
       c.f3d_fluid_step(_live, s, dt);

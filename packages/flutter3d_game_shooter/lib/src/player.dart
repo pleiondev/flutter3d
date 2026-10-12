@@ -84,7 +84,10 @@ final class Player with KeyHolder, Collector, Damageable, Rider {
   Collider? get carriedBy => body.groundBody;
 
   @override
-  bool applyDamage(double amount, {Object? from}) => inventory.damage(amount);
+  bool applyDamage(Damage damage) {
+    final amount = damage.amount;
+    return inventory.damage(amount);
+  }
 
   bool get isAlive => inventory.health.isAlive;
 

@@ -84,6 +84,9 @@ final class FrameCadence {
   Duration? _lastVsync;
   Duration? _lastDrawn;
 
+  /// What the clock is asked with, set before every frame drawn.
+  final FrameSpan _span = FrameSpan();
+
   /// Whether the refresh at [vsync] is one to draw on, and the seconds since
   /// the last one drawn when it is — [time]'s, or [clock]'s when given —
   /// null for a refresh to skip.
@@ -109,7 +112,11 @@ final class FrameCadence {
       return null;
     }
     _lastDrawn = vsync;
-    return (clock ?? time).elapsed(drawn, vsync);
+    return (clock ?? time).elapsed(
+      _span
+        ..from = drawn
+        ..to = vsync,
+    );
   }
 
   /// Forgets the last frame, so the next [due] draws: a game that was away.

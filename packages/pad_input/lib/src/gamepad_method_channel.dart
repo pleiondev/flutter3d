@@ -88,10 +88,12 @@ final class MethodChannelGamepad extends GamepadPlatform {
   }
 
   @override
-  void read(PadSnapshot out) => readPad(0, out);
+  void read(PadSnapshot out) => readPad(PadReadContext(index: 0, out: out));
 
   @override
-  void readPad(int index, PadSnapshot out) {
+  void readPad(PadReadContext context) {
+    final index = context.index;
+    final out = context.out;
     _ensureListening();
     slots.fill(index, out);
   }

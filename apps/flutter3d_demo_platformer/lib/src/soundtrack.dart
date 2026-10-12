@@ -31,38 +31,27 @@ final class Soundtrack {
     // swept up in one step were one `takenThisStep` entry each and two enemies
     // stomped were a single bool.
     _moments
-      ..on<EnemyStomped>(
-        (EnemyStomped event, List<Heard> out) =>
-            out.add(Heard(Sounds.land, _at)),
-      )
+      ..on<EnemyStomped>((cue) => cue.out.add(Heard(Sounds.land, _at)))
       ..on<CheckpointReached>(
-        (CheckpointReached event, List<Heard> out) =>
-            out.add(Heard(Sounds.checkpoint, _at)),
+        (cue) => cue.out.add(Heard(Sounds.checkpoint, _at)),
       )
-      ..on<RunnerDied>(
-        (RunnerDied event, List<Heard> out) =>
-            out.add(Heard(Sounds.death, _at)),
-      );
+      ..on<RunnerDied>((cue) => cue.out.add(Heard(Sounds.death, _at)));
     // **The level's own machinery, which had particles and no sound**, and the
     // coins: each placed by the event itself. A pad that throws you and a
     // shelf that gives way under you are the two loudest things that can
     // happen in this game, and both were silent.
     placed
       ..on<CollectibleTaken>(
-        (CollectibleTaken event, List<Heard> out) =>
-            out.add(Heard(Sounds.coin, event.collectible.origin)),
+        (cue) => cue.out.add(Heard(Sounds.coin, cue.event.collectible.origin)),
       )
       ..on<SpringFired>(
-        (SpringFired event, List<Heard> out) =>
-            out.add(Heard(Sounds.spring, event.at)),
+        (cue) => cue.out.add(Heard(Sounds.spring, cue.event.at)),
       )
       ..on<BlockCrumbled>(
-        (BlockCrumbled event, List<Heard> out) =>
-            out.add(Heard(Sounds.crumble, event.at)),
+        (cue) => cue.out.add(Heard(Sounds.crumble, cue.event.at)),
       )
       ..on<BlockBroke>(
-        (BlockBroke event, List<Heard> out) =>
-            out.add(Heard(Sounds.crumble, event.at)),
+        (cue) => cue.out.add(Heard(Sounds.crumble, cue.event.at)),
       );
   }
 

@@ -57,16 +57,21 @@ final class _Still extends GenrePlugin<List<int>> {
   String get systemName => 'still.step';
 
   @override
-  void stepSimulation(List<int> simulation, LoopContext context) =>
-      simulation[0]++;
+  void stepSimulation(GenreStepContext<List<int>> step) {
+    final simulation = step.simulation;
+    simulation[0]++;
+  }
 
   @override
   Snapshot captureSimulation(List<int> simulation) =>
       Snapshot(<String, Object?>{'steps': simulation[0]});
 
   @override
-  void restoreSimulation(List<int> simulation, Snapshot state) =>
-      simulation[0] = state.data.integer('steps');
+  void restoreSimulation(GenreRestoreContext<List<int>> restore) {
+    final simulation = restore.simulation;
+    final state = restore.state;
+    simulation[0] = state.data.integer('steps');
+  }
 }
 
 final class _Subject extends ReplaySubject {

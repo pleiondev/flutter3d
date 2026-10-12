@@ -1967,12 +1967,26 @@ const Map<String, String> hookParametersAllowed = <String, String>{
       'flutter3d_elements: the world\'s fields as the core that steps them implements them and an element calls them; it grows by members with defaults, and its calls by named parameters a caller may leave out',
   'EncodedImageUpload':
       'flutter3d_hardware: a capability of the hardware interface, for GraphicsDevice\'s reason',
+  'EntityKind.place':
+      'flutter3d_sim: a helper a kind calls from its spawn to place its collider, not a hook it overrides; it grows by named parameters a caller may leave out',
+  'EntityKind.requireKeyExists':
+      'flutter3d_sim: a check a kind calls from its validate, not a hook it overrides, for EntityKind.place\'s reason',
+  'EntityKind.requireSize':
+      'flutter3d_sim: a check a kind calls from its validate, not a hook it overrides, for EntityKind.place\'s reason',
+  'EntityKind.requireTarget':
+      'flutter3d_sim: a check a kind calls from its validate, not a hook it overrides, for EntityKind.place\'s reason',
+  'EntityKind.requireText':
+      'flutter3d_sim: a check a kind calls from its validate, not a hook it overrides, for EntityKind.place\'s reason',
+  'EntityKind.requireTravel':
+      'flutter3d_sim: a check a kind calls from its validate, not a hook it overrides, for EntityKind.place\'s reason',
   'EventRegistry':
       'flutter3d_plugin_api: a registry the engine implements and a plugin calls, for LoopRegistry\'s reason',
   'FormatDocument':
       'flutter3d_foundation: `write` is the helper a document calls to put its body in the envelope, not a hook it overrides',
   'FrameContext':
       'flutter3d_core: a context the engine makes and hands to every node and contributor; nobody outside implements it',
+  'FramePresenter':
+      'flutter3d_app: the backend packages register presenters of this shape through `DeviceRegistry.addPresenter` as closures, and cannot import a context from this package, which depends on them; the shape is shared structurally or not at all',
   'GameAsk':
       'flutter3d_mcp: a test seam with the shape of `callGameExtension` it stands in for',
   'GraphicsDevice':
@@ -1993,6 +2007,8 @@ const Map<String, String> hookParametersAllowed = <String, String>{
       'flutter3d_shaders: the kernel language\'s store(i, x, y, v), one call per texel, mirroring the shader builtin it runs in place of',
   'KernelTexture':
       'flutter3d_shaders: the kernel language\'s load(t, x, y), one call per texel, mirroring the shader builtin it runs in place of',
+  'LevelKit':
+      'flutter3d_sim: a kit of the engine\'s own table of level recipes (room, corridor, scatter), `(sketch, recipe)`; a recipe names one of those kits and nobody outside adds one',
   'LightBehavior':
       'flutter3d_sim: a light\'s brightness as a function of time and a seed, a curve with nothing else to be handed',
   'LoopRegistry':
@@ -2003,6 +2019,8 @@ const Map<String, String> hookParametersAllowed = <String, String>{
       'flutter3d_mcp: a test seam with the shape of `FlutterRun`\'s constructor (project root, device) it stands in for',
   'ParameterType':
       'flutter3d_core: one value laid out as the floats a uniform block reads, per parameter per draw: a layout kernel whose inputs are the value and the floats it writes',
+  'ParticleEmitter.randomDirection':
+      'flutter3d_particles: a uniform unit vector written into the caller\'s vector, a maths helper an emitter calls per particle, not a hook it overrides',
   'PassEncoder':
       'flutter3d_hardware: the hardware interface, for GraphicsDevice\'s reason',
   'PluginProcessRunner':
@@ -2013,6 +2031,8 @@ const Map<String, String> hookParametersAllowed = <String, String>{
       'flutter3d_core: a camera\'s projection maths, an eye-space point to normalized device coordinates at an aspect, whose inputs the maths fixes',
   'RunFlutterIn':
       'flutter3d_mcp: `Process.run`\'s shape (arguments, working directory), for ProcessProbe\'s reason',
+  'RunSession.load':
+      'flutter3d_game: the session\'s driver, which a game calls and nobody overrides; it grows by named parameters a caller may leave out',
   'SimCommands':
       'flutter3d_plugin_api: the simulation\'s own command buffer, which the engine implements and a system calls',
   'SimWorld':
@@ -2023,6 +2043,8 @@ const Map<String, String> hookParametersAllowed = <String, String>{
       'flutter3d_sim: a registry the engine implements and a plugin calls, for LoopRegistry\'s reason',
   'SixWayField':
       'flutter3d_particles: a density field over the cube and the animation\'s time, a function of x, y, z and t',
+  'SizedImageDecoder':
+      'flutter3d_core: an `ImageDecoder` with one optional cap, so the same function serves wherever an `ImageDecoder` is asked for (`uploadEncodedImage` tests `is SizedImageDecoder`); the decoding seam that grows is `TextureCodec.decode`, which takes one context',
   'SpatialRenderer':
       'flutter3d_audio_core: the query it reads and the result it writes are both objects that grow by fields, reused per voice per frame, so the call already takes its context and its answer',
   'SplatRangeReader':
@@ -2057,123 +2079,9 @@ const Map<String, String> hookParametersAllowed = <String, String>{
 /// **A to-do list, not an exemption**, like [closedSetPending]: the rule
 /// passes these while they take more than one parameter and fails on an
 /// entry once no method of its class does, so the list only shrinks. A new
-/// hook is not added here; it takes one context from the start.
-const Map<String, String> hookParametersPending = <String, String>{
-  'ActorAppearance':
-      'flutter3d_game: converted to one context object by its package\'s owner before 1.0.0',
-  'ActorCorpses':
-      'flutter3d_game: converted to one context object by its package\'s owner before 1.0.0',
-  'ActorGraphs':
-      'flutter3d_game: converted to one context object by its package\'s owner before 1.0.0',
-  'ActorStrides':
-      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
-  'AudioBackend':
-      'flutter3d_audio_core: converted to one context object by its package\'s owner before 1.0.0',
-  'BehaviorComposite':
-      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
-  'Brain':
-      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
-  'CameraFraming':
-      'flutter3d_camera: converted to one context object by its package\'s owner before 1.0.0',
-  'CharacterMover':
-      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
-  'ClothSimulation':
-      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
-  'ClothSystem':
-      'flutter3d_physics_native: converted to one context object by its package\'s owner before 1.0.0',
-  'CloudSaveStore':
-      'flutter3d_game: converted to one context object by its package\'s owner before 1.0.0',
-  'CollisionListener':
-      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
-  'ConstraintPhysics':
-      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
-  'ContributorLights':
-      'flutter3d_core: converted to one context object by its package\'s owner before 1.0.0',
-  'CrashReporter':
-      'flutter3d_foundation: converted to one context object by its package\'s owner before 1.0.0',
-  'Cue':
-      'flutter3d_game_kit: converted to one context object by its package\'s owner before 1.0.0',
-  'Damageable':
-      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
-  'DebrisSystem':
-      'flutter3d_physics_native: converted to one context object by its package\'s owner before 1.0.0',
-  'DirectionalBackend':
-      'flutter3d_audio_core: converted to one context object by its package\'s owner before 1.0.0',
-  'EntityKind':
-      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
-  'FixtureAppearance':
-      'flutter3d_game: converted to one context object by its package\'s owner before 1.0.0',
-  'FluidSystem':
-      'flutter3d_physics_native: converted to one context object by its package\'s owner before 1.0.0',
-  'FramePresenter':
-      'flutter3d_app: converted to one context object by its package\'s owner before 1.0.0',
-  'GamepadPlatform':
-      'pad_input: converted to one context object by its package\'s owner before 1.0.0',
-  'GenrePlugin':
-      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
-  'Gift':
-      'flutter3d_game_shooter: converted to one context object by its package\'s owner before 1.0.0',
-  'HeadlessGame':
-      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
-  'JetReceiver':
-      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
-  'JointPhysics':
-      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
-  'LevelKit':
-      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
-  'LevelRule':
-      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
-  'MaterialDecoder':
-      'flutter3d: converted to one context object by its package\'s owner before 1.0.0',
-  'MixingBackend':
-      'flutter3d_audio_core: converted to one context object by its package\'s owner before 1.0.0',
-  'ModelDecoder':
-      'flutter3d_core: converted to one context object by its package\'s owner before 1.0.0',
-  'ModelWriter':
-      'flutter3d_core: converted to one context object by its package\'s owner before 1.0.0',
-  'NativeParticleCloud':
-      'flutter3d_physics_native: converted to one context object by its package\'s owner before 1.0.0',
-  'PadDevice':
-      'flutter3d_game: converted to one context object by its package\'s owner before 1.0.0',
-  'ParticleAffector':
-      'flutter3d_particles: converted to one context object by its package\'s owner before 1.0.0',
-  'ParticleEmitter':
-      'flutter3d_particles: converted to one context object by its package\'s owner before 1.0.0',
-  'PeerWire':
-      'flutter3d_net: converted to one context object by its package\'s owner before 1.0.0',
-  'PhotoControls':
-      'flutter3d_game_ui: converted to one context object by its package\'s owner before 1.0.0',
-  'PhysicsBackend':
-      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
-  'PhysicsConstraint':
-      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
-  'ReactionRule':
-      'flutter3d_game_kit: converted to one context object by its package\'s owner before 1.0.0',
-  'RenderServices':
-      'flutter3d_core: converted to one context object by its package\'s owner before 1.0.0',
-  'RigidDynamics':
-      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
-  'RunSession':
-      'flutter3d_game: converted to one context object by its package\'s owner before 1.0.0',
-  'SettingsSection':
-      'flutter3d_game_ui: converted to one context object by its package\'s owner before 1.0.0',
-  'SimulationAnswer':
-      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
-  'SizedImageDecoder':
-      'flutter3d_core: converted to one context object by its package\'s owner before 1.0.0',
-  'Takeable':
-      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
-  'Tap3dCallbacks':
-      'flame_flutter3d: converted to one context object by its package\'s owner before 1.0.0',
-  'TimeSource':
-      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
-  'VehicleController':
-      'flutter3d_game_racing: converted to one context object by its package\'s owner before 1.0.0',
-  'WorldRays':
-      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
-  'WorldSweeps':
-      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
-};
+/// hook is not added here; it takes one context from the start. Empty since
+/// 1.0.0-rc.1: every hook takes one context or has its reason above.
+const Map<String, String> hookParametersPending = <String, String>{};
 
 // ------------------------------------------------------------ 1.0: naming
 

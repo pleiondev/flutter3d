@@ -61,8 +61,9 @@ kind it does not know.
 
 ## A format the engine does not ship
 
-Implement `ModelDecoder` — `handles(fileName, bytes)` and `decode(bytes,
-request, resolveUri)` — and hand it over on the request:
+Implement `ModelDecoder` — `handles(ModelProbe probe)` (the file's name and
+bytes) and `decode(ModelDecodeContext context)` (the bytes, the request and
+`resolveUri`) — and hand it over on the request:
 
 ```dart
 ModelLoadRequest(source: source, decoders: [MyFormatDecoder()]);

@@ -70,7 +70,7 @@ final class Landed extends BusEvent {
     'speed': event.speed,
   };
 
-  static Landed? _decode(Object? data, int version) => switch (data) {
+  static Landed? _decode(EventDecodeContext context) => switch (context.data) {
     {'speed': final num speed} => Landed(speed.toDouble()),
     _ => null,
   };
@@ -125,7 +125,9 @@ final class WalkGenre extends GenrePlugin<LevelWalk> {
   }
 
   @override
-  void stepSimulation(LevelWalk simulation, LoopContext context) {
+  void stepSimulation(GenreStepContext<LevelWalk> step) {
+    final simulation = step.simulation;
+    final context = step.context;
     final falling = -simulation.body.velocity.y;
     // A jump if one was pressed, a walk where the keys point turned by where
     // the head is, a run while sprint is held.
@@ -146,7 +148,9 @@ final class WalkGenre extends GenrePlugin<LevelWalk> {
       });
 
   @override
-  void restoreSimulation(LevelWalk simulation, Snapshot state) {
+  void restoreSimulation(GenreRestoreContext<LevelWalk> restore) {
+    final simulation = restore.simulation;
+    final state = restore.state;
     if (state.data['body'] case final Map<String, Object?> body) {
       simulation.body.restore(body);
     }

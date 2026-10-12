@@ -6,7 +6,6 @@
 library;
 
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
 
@@ -27,7 +26,9 @@ final class FbxDecoder extends ModelDecoder {
   const FbxDecoder();
 
   @override
-  bool handles(String fileName, Uint8List bytes) {
+  bool handles(ModelProbe probe) {
+    final fileName = probe.fileName;
+    final bytes = probe.bytes;
     if (fileName.toLowerCase().endsWith('.fbx')) return true;
     if (bytes.length >= _binaryMagic.length) {
       var matches = true;
@@ -57,11 +58,7 @@ final class FbxDecoder extends ModelDecoder {
   }
 
   @override
-  Future<ModelDocument> decode(
-    Uint8List bytes,
-    ModelLoadRequest request,
-    AssetUriResolver resolveUri,
-  ) async {
+  Future<ModelDocument> decode(ModelDecodeContext context) async {
     throw const FbxFormatException(
       'FBX files are recognised but not yet read: this decoder is a '
       'skeleton (fmt-29d), and the reader (fmt-24/25) has not landed. '

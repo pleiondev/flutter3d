@@ -83,7 +83,7 @@ void drive(
 
   final steps = (seconds / _step).round();
   for (var i = 0; i < steps; i++) {
-    car.step(_step, input);
+    car.step(VehicleStep(dt: _step, input: input));
     watch?.call(car, (i + 1) * _step);
   }
 }
@@ -97,7 +97,7 @@ void driveUpTo(SphereVehicle car, double target, {double limit = 25.0}) {
   final input = VehicleInput()..throttle = 1.0;
   final steps = (limit / _step).round();
   for (var i = 0; i < steps && car.speed < target; i++) {
-    car.step(_step, input);
+    car.step(VehicleStep(dt: _step, input: input));
   }
 }
 
@@ -116,7 +116,7 @@ void main() {
       // a second of *simulated* time at two different step sizes.
       it.car.collider.position.y += 0.25;
       for (var i = 0; i < steps; i++) {
-        it.car.step(dt, VehicleInput());
+        it.car.step(VehicleStep(dt: dt, input: VehicleInput()));
       }
       return it.car.collider.position.y;
     }
@@ -529,9 +529,11 @@ void main() {
         headingYaw: math.atan2(forward.x, forward.z),
       );
       car.placeAt(
-        car.position,
-        car.headingYaw,
-        trackDistance: track.center.wrap(track.grid.s),
+        VehiclePlacement(
+          position: car.position,
+          headingYaw: car.headingYaw,
+          trackDistance: track.center.wrap(track.grid.s),
+        ),
       );
 
       final race = RaceState(
@@ -631,7 +633,9 @@ void main() {
       drive(it.car, seconds: 6.0, throttle: 1.0);
       drive(it.car, seconds: 1.0, steer: 1.0, handbrake: true);
 
-      it.car.placeAt(Vector3(0.0, 0.55, 0.0), 0.0);
+      it.car.placeAt(
+        VehiclePlacement(position: Vector3(0.0, 0.55, 0.0), headingYaw: 0.0),
+      );
 
       expect(it.car.speed, 0.0);
       expect(it.car.slipAngle, 0.0);
@@ -670,10 +674,16 @@ void main() {
       double coastFrom(double shelter) {
         final it = onFlat();
         final input = VehicleInput()..shelter = shelter;
-        it.car.placeAt(it.car.position, 0.0, trackDistance: 0.0);
+        it.car.placeAt(
+          VehiclePlacement(
+            position: it.car.position,
+            headingYaw: 0.0,
+            trackDistance: 0.0,
+          ),
+        );
         it.car.velocity.setValues(0.0, 0.0, -60.0);
         for (var i = 0; i < 120; i++) {
-          it.car.step(1 / 60, input);
+          it.car.step(VehicleStep(dt: 1 / 60, input: input));
         }
         return it.car.speed;
       }
@@ -714,7 +724,7 @@ void main() {
       for (var i = 0; i < 600; i++) {
         if (i > 180) input.steer = 1.0;
         if (i > 400) input.handbrake = true;
-        it.car.step(1 / 60, input);
+        it.car.step(VehicleStep(dt: 1 / 60, input: input));
         final slip = it.car.slipRatio.abs();
         if (i <= 180 && slip > launch) launch = slip;
         if (i > 180 && i <= 400 && slip > cornering) cornering = slip;

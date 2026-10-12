@@ -9,7 +9,6 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' show Vector3;
 
 Level _room() => Level.fromJson(<String, Object?>{
   'version': 1,
@@ -51,9 +50,9 @@ final class _Counting extends PhysicsBackend {
   @override
   String get name => 'counting';
   @override
-  RigidDynamics dynamics(CollisionWorld world, {Vector3? gravity}) {
-    made.add(world);
-    return const DartPhysics().dynamics(world, gravity: gravity);
+  RigidDynamics dynamics(DynamicsRequest request) {
+    made.add(request.world);
+    return const DartPhysics().dynamics(request);
   }
 }
 
@@ -87,7 +86,9 @@ void main() {
       "world's origin", () {
     final world = CollisionWorld();
     final level = _room()..addTo(world);
-    final run = const ShooterHeadlessGame().start(level, world, InputState());
+    final run = const ShooterHeadlessGame().start(
+      HeadlessStart(level: level, world: world, input: InputState()),
+    );
     world.update();
     final before = run.position;
     // Mutation: read the player's float32 position against the default

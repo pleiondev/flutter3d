@@ -34,7 +34,9 @@ final class FakePad extends PadDevice {
   double get triggerDeadZone => _trigger;
 
   @override
-  void setDeadZones({required double stick, required double trigger}) {
+  void setDeadZones(PadDeadZones zones) {
+    final stick = zones.stick;
+    final trigger = zones.trigger;
     _stick = stick;
     _trigger = trigger;
   }
@@ -682,7 +684,7 @@ void main() {
       // Mutation: drop the override of `setDeadZones` in the platform pad,
       // and the player's slider moves nothing.
       final device = PadDevice.platform(slot: 1)
-        ..setDeadZones(stick: 0.25, trigger: 0.1);
+        ..setDeadZones(PadDeadZones(stick: 0.25, trigger: 0.1));
 
       expect(device.stickDeadZone, 0.25);
       expect(device.triggerDeadZone, 0.1);

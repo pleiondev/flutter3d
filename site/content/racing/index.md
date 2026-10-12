@@ -89,8 +89,8 @@ double get speed;          double get slipAngle;
 double get slipRatio;      bool get grounded;
 double get rpm;            double get trackDistance;
 Collider get collider;
-void step(double dt, VehicleInput input);
-void placeAt(Vector3 position, double headingYaw, {double? trackDistance});
+void step(VehicleStep context);           // dt, input
+void placeAt(VehiclePlacement placement); // position, headingYaw, trackDistance
 ```
 
 `VehicleInput` is a throttle, a brake, a steer and a handbrake, not a forward and a back. `GameAction` is a string for exactly this reason: a car's controls are not a walker's.

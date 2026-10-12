@@ -1,7 +1,6 @@
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show Registration;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'core/load.dart';
 import 'native_cloth_simulation.dart';
@@ -53,14 +52,8 @@ final class NativePhysics extends PhysicsBackend
   };
 
   @override
-  JointHandle join(
-    RigidDynamics dynamics,
-    JointType type,
-    RigidBody a,
-    RigidBody b, {
-    required Vector3 anchor,
-    Vector3? axis,
-  }) {
+  JointHandle join(JointRequest request) {
+    final JointRequest(:dynamics, :type, :a, :b, :anchor, :axis) = request;
     final native = _native(dynamics);
     final kind = _nativeJoint(type);
     if (kind == null) {
@@ -86,17 +79,14 @@ final class NativePhysics extends PhysicsBackend
   }
 
   @override
-  void unjoin(RigidDynamics dynamics, JointHandle joint) =>
-      _native(dynamics).native.removeJoint(NativeJoint(joint.id));
+  void unjoin(JointRelease request) => _native(
+    request.dynamics,
+  ).native.removeJoint(NativeJoint(request.joint.id));
 
   @override
-  Registration constrain(
-    RigidDynamics dynamics,
-    PhysicsConstraint constraint,
-    List<RigidBody> bodies,
-  ) {
-    final native = _native(dynamics);
-    final field = _ConstraintField(constraint, native, bodies);
+  Registration constrain(ConstraintRequest request) {
+    final native = _native(request.dynamics);
+    final field = _ConstraintField(request.constraint, native, request.bodies);
     native.forceFields.add(field);
     return Registration(() => native.forceFields.remove(field));
   }
@@ -118,12 +108,13 @@ final class NativePhysics extends PhysicsBackend
   /// Takes over from what [attach] gave [world], if anything did: one
   /// core world per collision world.
   @override
-  RigidDynamics dynamics(CollisionWorld world, {Vector3? gravity}) {
+  RigidDynamics dynamics(DynamicsRequest request) {
+    final world = request.world;
     _attached[world]?.dispose();
     _attached[world] = null;
     return NativeDynamics(
       world: world,
-      gravity: gravity,
+      gravity: request.gravity,
       movesCharacters: true,
       castsRays: true,
     );
@@ -244,7 +235,9 @@ final class _ConstraintField extends NativeForceField {
   final PhysicsConstraint constraint;
   final NativeDynamics dynamics;
   final List<RigidBody> bodies;
-  final Vector3 _force = Vector3.zero();
+
+  /// The one context every body of every step is handed in.
+  final ConstraintForce _force = ConstraintForce();
 
   @override
   String get name => 'constraint.${constraint.name}';
@@ -254,9 +247,12 @@ final class _ConstraintField extends NativeForceField {
     for (final body in bodies) {
       final handle = dynamics.handleOf(body);
       if (handle == null || !context.contains(handle)) continue;
-      _force.setZero();
-      constraint.forceOn(body, context.dt, _force);
-      context.addForce(handle, _force);
+      _force
+        ..body = body
+        ..dt = context.dt
+        ..out.setZero();
+      constraint.forceOn(_force);
+      context.addForce(handle, _force.out);
     }
   }
 }

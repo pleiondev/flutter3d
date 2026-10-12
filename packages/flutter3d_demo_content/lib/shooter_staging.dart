@@ -117,7 +117,7 @@ final class Staged {
 /// The crypt has no loose bodies, so that is all it is for.
 RigidDynamics? shooterDynamics(CollisionWorld world) => switch (world.backend) {
   DartPhysics() => null,
-  final PhysicsBackend core => core.dynamics(world),
+  final PhysicsBackend core => core.dynamics(DynamicsRequest(world)),
 };
 
 /// Turns a level document into a run, given a world it has already been added
@@ -373,7 +373,10 @@ final class ShooterHeadlessGame extends HeadlessGame {
   EntityRegistry registry() => sampleRegistry(extra: extra);
 
   @override
-  HeadlessRun start(Level level, CollisionWorld world, InputState input) {
+  HeadlessRun start(HeadlessStart start) {
+    final level = start.level;
+    final world = start.world;
+    final input = start.input;
     final staged = stage(
       level,
       world,

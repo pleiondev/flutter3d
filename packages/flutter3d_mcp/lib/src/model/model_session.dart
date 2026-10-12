@@ -859,8 +859,7 @@ final class ModelSession {
         ? to.substring(0, to.lastIndexOf('/'))
         : '.';
     final ModelWrite written = writer.write(
-      _document.of(project),
-      baseName: baseName,
+      ModelWriteContext(document: _document.of(project), baseName: baseName),
     );
     for (var i = 0; i < written.files.length; i++) {
       final WrittenFile each = written.files[i];

@@ -83,12 +83,13 @@ final class DungeonRun extends RunSession<LevelReady> {
   Snapshot snapshotOf(LevelReady level) => level.staged.sim.save();
 
   @override
-  void restoreInto(LevelReady level, Snapshot snapshot) => level.staged.sim.restore(snapshot);
+  void restoreInto(RunRestoreContext<LevelReady> context) =>
+      context.level.staged.sim.restore(context.snapshot);
 
   // Keys do not carry between levels. A level designer's promise, and the
   // plumbing must not break it.
   @override
-  void carryFrom(LevelReady level, String next) => inventory.keys.clear();
+  void carryFrom(RunCarryContext<LevelReady> context) => inventory.keys.clear();
 }
 ```
 

@@ -286,9 +286,11 @@ final class SaveSync {
   /// Sends [local]; null when another device wrote first.
   Future<SyncReport?> _send(SaveRecord local, {String? replacing}) async {
     switch (await store.put(
-      saves.documentName,
-      SaveFile.encode(local),
-      replacing: replacing,
+      CloudPutRequest(
+        slot: saves.documentName,
+        document: SaveFile.encode(local),
+        replacing: replacing,
+      ),
     )) {
       case CloudStored():
         await _agreed(local.digest);

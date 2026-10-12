@@ -55,19 +55,20 @@ abstract base class EntityKind {
   /// The string that appears in a level document.
   final String type;
 
-  /// Checks one entity of this kind, in the context of the level around it.
+  /// Checks one entity of this kind, in the context of the level around it,
+  /// adding what is wrong to the check's [EntityCheck.out].
   ///
   /// Reports rather than throws: a level with several problems should list all
   /// of them, and an editor has to be able to load a broken level in order to
   /// fix it.
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {}
+  void validate(EntityCheck check) {}
 
-  /// Brings this entity into the world.
+  /// Brings the spawn's entity into the world.
   ///
   /// Does nothing by default, which is right for the kinds that are pure data
   /// — a spawn point is a coordinate somebody reads, and a torch is a light the
   /// level already carries.
-  void spawn(EntityDef entity, SpawnContext context) {}
+  void spawn(EntitySpawn spawn) {}
 
   /// Puts the box this entity brings with it into the world.
   ///
@@ -223,4 +224,40 @@ abstract base class EntityKind {
 /// attached, and checks nothing about it of its own.
 final class OpenKind extends EntityKind {
   const OpenKind(super.type);
+}
+
+/// What [EntityKind.validate] is handed: the entity, the level around it,
+/// and the list its problems go in.
+///
+/// **One object, so a minor can hand a kind more** — the registry of kinds,
+/// the document's version — without breaking a kind written against 1.0.
+final class EntityCheck {
+  const EntityCheck({
+    required this.entity,
+    required this.scope,
+    required this.out,
+  });
+
+  /// The entity being checked.
+  final EntityDef entity;
+
+  /// The level around it.
+  final LevelScope scope;
+
+  /// Where its problems go.
+  final List<LevelIssue> out;
+}
+
+/// What [EntityKind.spawn] is handed: the entity and what it is brought
+/// into the world with.
+///
+/// One object, for the reason [EntityCheck] gives.
+final class EntitySpawn {
+  const EntitySpawn({required this.entity, required this.context});
+
+  /// The entity being brought into the world.
+  final EntityDef entity;
+
+  /// The world, the level and what a spawned thing registers with.
+  final SpawnContext context;
 }

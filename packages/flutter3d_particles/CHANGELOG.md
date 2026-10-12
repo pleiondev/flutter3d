@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **Breaking: an affector and an emitter take one context.**
+  `ParticleAffector.apply` takes a `ParticleStep` (new: the particle and
+  `dt`) and `ParticleEmitter.emit` a `ParticleBirth` (new: the particle,
+  the origin, the direction and the random stream). A system owns one of
+  each and sets it before every call, so a step allocates none; an
+  affector or an emitter reads it during the call and does not keep it. A
+  parameter added later would have broken every affector and emitter a
+  game wrote; a field added to a context breaks none.
 - **Breaking: `SixWayMaterial.emission` and `ambient` are `LinearColor`s**,
   black by default, set in place as the vectors were.
 - **Breaking: `ParticleGravity` takes `acceleration:` by name.** An

@@ -126,12 +126,14 @@ void main() {
     final entity = _room(<String, Object?>{}).entities.single;
 
     const ReflectionProbeKind().spawn(
-      entity,
-      SpawnContext(
-        world: world,
-        actors: ActorSystem(world: world, random: GameRandom(1)),
-        mechanisms: mechanisms,
-        onFixture: fixtures.add,
+      EntitySpawn(
+        entity: entity,
+        context: SpawnContext(
+          world: world,
+          actors: ActorSystem(world: world, random: GameRandom(1)),
+          mechanisms: mechanisms,
+          onFixture: fixtures.add,
+        ),
       ),
     );
 

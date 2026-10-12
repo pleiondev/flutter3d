@@ -244,7 +244,9 @@ PlaytestRun _playOneForIsolate(_PlaytestArgs args) {
   level.addTo(world);
   world.backend.attach(world);
   final input = InputState();
-  final run = args.game.start(level, world, input);
+  final run = args.game.start(
+    HeadlessStart(level: level, world: world, input: input),
+  );
   world.update();
 
   final driver = _RandomDriver(

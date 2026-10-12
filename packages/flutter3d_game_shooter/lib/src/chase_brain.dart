@@ -212,7 +212,8 @@ base class ChaseBrain extends Brain {
   }
 
   @override
-  void onHurt(Mind it, double amount) {
+  void onHurt(BrainHurt hurt) {
+    final it = hurt.mind;
     // Being shot is how a monster notices someone it could not see.
     hasNoticed = true;
 
@@ -252,7 +253,7 @@ base class ChaseBrain extends Brain {
   /// to learn from a noise, and one that is hurt is staggering — interrupting
   /// that would cancel the flinch the player just earned.
   @override
-  void onNoise(Mind it, Vector3 at) {
+  void onNoise(BrainNoise noise) {
     if (!isResting) return;
     hasNoticed = true;
     _enter(MonsterState.chase);
@@ -314,7 +315,9 @@ base class ChaseBrain extends Brain {
       // straight through anything standing in the way. `from` is what lets the
       // one that was hit know who to turn on.
       final target = hit.collider?.userData;
-      if (target is Damageable) target.applyDamage(hit.damage, from: it.actor);
+      if (target is Damageable) {
+        target.applyDamage(Damage(amount: hit.damage, from: it.actor));
+      }
     }
   }
 

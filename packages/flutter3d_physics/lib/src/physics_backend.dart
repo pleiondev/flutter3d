@@ -39,14 +39,15 @@ abstract base class PhysicsBackend {
   /// What a recording calls it: `'native'` or `'dart'`.
   String get name;
 
-  /// A world's rigid bodies, on this backend — and its characters and rays
-  /// too, where the backend has its own of those. The reference [Dynamics]
-  /// by default.
+  /// The request's world's rigid bodies, on this backend — and its
+  /// characters and rays too, where the backend has its own of those. The
+  /// reference [Dynamics] by default.
   ///
   /// They fall by the world's gravity (`CollisionWorld.properties`);
-  /// [gravity], when given, becomes the world's, as [Dynamics] says.
-  RigidDynamics dynamics(CollisionWorld world, {Vector3? gravity}) =>
-      Dynamics(world: world, gravity: gravity);
+  /// [DynamicsRequest.gravity], when given, becomes the world's, as
+  /// [Dynamics] says.
+  RigidDynamics dynamics(DynamicsRequest request) =>
+      Dynamics(world: request.world, gravity: request.gravity);
 
   /// Gives [world] this backend's character moves and rays without any
   /// rigid bodies of its own — for a world nothing loose falls in. The
@@ -67,6 +68,21 @@ abstract base class PhysicsBackend {
 
   @override
   String toString() => 'PhysicsBackend($name)';
+}
+
+/// What [PhysicsBackend.dynamics] is handed.
+///
+/// **One object, so a minor can hand a backend more** — a solver's
+/// iterations, a sleeping threshold — without breaking a backend written
+/// against 1.0.
+final class DynamicsRequest {
+  const DynamicsRequest(this.world, {this.gravity});
+
+  /// The world whose rigid bodies the dynamics simulate.
+  final CollisionWorld world;
+
+  /// The world's gravity from now on, when given.
+  final Vector3? gravity;
 }
 
 /// The reference: everything in Dart, on every platform, from the first
@@ -148,25 +164,63 @@ abstract base mixin class JointPhysics {
   /// The joint kinds this backend solves.
   Set<JointType> get jointTypes;
 
-  /// A joint of [type] between [a] and [b] of [dynamics], at [anchor] and
-  /// along [axis] for a hinge or a slider. Throws an [ArgumentError] for a
-  /// type not in [jointTypes].
-  ///
-  /// **[anchor] is origin-local**: a position in the world's float32 frame,
-  /// relative to its floating origin (`CollisionWorld.origin`), as every
-  /// body's position is — not a `WorldPosition`. A caller holding a
-  /// `WorldPosition` narrows it with `toVector3Relative(world.origin)`.
-  JointHandle join(
-    RigidDynamics dynamics,
-    JointType type,
-    RigidBody a,
-    RigidBody b, {
-    required Vector3 anchor,
-    Vector3? axis,
+  /// The joint the request asks for. Throws an [ArgumentError] for a type
+  /// not in [jointTypes].
+  JointHandle join(JointRequest request);
+
+  /// Takes the request's joint apart.
+  void unjoin(JointRelease request);
+}
+
+/// What [JointPhysics.join] is handed: a joint of [type] between [a] and [b]
+/// of [dynamics], at [anchor] and along [axis] for a hinge or a slider.
+///
+/// **One object, so a minor can hand a backend more** — a joint's limits, a
+/// motor — without breaking a backend written against 1.0.
+///
+/// **[anchor] is origin-local**: a position in the world's float32 frame,
+/// relative to its floating origin (`CollisionWorld.origin`), as every
+/// body's position is — not a `WorldPosition`. A caller holding a
+/// `WorldPosition` narrows it with `toVector3Relative(world.origin)`.
+final class JointRequest {
+  const JointRequest(
+    this.type,
+    this.a,
+    this.b, {
+    required this.dynamics,
+    required this.anchor,
+    this.axis,
   });
 
-  /// Takes [joint] apart.
-  void unjoin(RigidDynamics dynamics, JointHandle joint);
+  /// The kind of joint.
+  final JointType type;
+
+  /// The first body, which the joint holds [b] against.
+  final RigidBody a;
+
+  /// The second body.
+  final RigidBody b;
+
+  /// The dynamics both bodies were added to.
+  final RigidDynamics dynamics;
+
+  /// Where the joint is, origin-local.
+  final Vector3 anchor;
+
+  /// The axis of a hinge or a slider.
+  final Vector3? axis;
+}
+
+/// What [JointPhysics.unjoin] is handed, for the reason [JointRequest]
+/// gives.
+final class JointRelease {
+  const JointRelease(this.joint, {required this.dynamics});
+
+  /// The joint to take apart.
+  final JointHandle joint;
+
+  /// The dynamics that made it.
+  final RigidDynamics dynamics;
 }
 
 /// A constraint a [ConstraintPhysics] backend solves inside its step: a law
@@ -178,22 +232,64 @@ abstract base class PhysicsConstraint {
   /// A stable name for a report and a snapshot.
   String get name;
 
-  /// The force, in newtons, this constraint puts on [body] this step, written
-  /// into [out]; [dt] is the step in seconds.
-  void forceOn(RigidBody body, double dt, Vector3 out);
+  /// The force, in newtons, this constraint puts on the context's body this
+  /// step, written into its [ConstraintForce.out].
+  void forceOn(ConstraintForce context);
+}
+
+/// What [PhysicsConstraint.forceOn] is handed: the body, the step, and the
+/// force to write.
+///
+/// **One object, so a minor can hand a constraint more** — the other bodies
+/// it binds, the world's gravity — without breaking one written against
+/// 1.0. **Reused**: the backend owns one per constraint and sets it before
+/// every body of every step, so a step allocates nothing for it; a
+/// constraint reads it during the call and does not keep it.
+final class ConstraintForce {
+  ConstraintForce({RigidBody? body, this.dt = 0.0, Vector3? out})
+    : out = out ?? Vector3.zero() {
+    if (body != null) this.body = body;
+  }
+
+  /// The body the force is on; set before every call.
+  late RigidBody body;
+
+  /// The step, in seconds.
+  double dt;
+
+  /// The force, in newtons, that the constraint writes; zero before the
+  /// call.
+  final Vector3 out;
 }
 
 /// A backend that solves a caller's own constraints — a spring, a magnet, a
 /// rope's pull — in its step.
 abstract base mixin class ConstraintPhysics {
-  /// Solves [constraint] on [bodies] of [dynamics] every step until the
+  /// Solves the request's constraint on its bodies every step until the
   /// returned registration is cancelled — the engine's one shape for "until
   /// taken back", as a loop system's or a subscriber's is.
-  Registration constrain(
-    RigidDynamics dynamics,
-    PhysicsConstraint constraint,
-    List<RigidBody> bodies,
-  );
+  Registration constrain(ConstraintRequest request);
+}
+
+/// What [ConstraintPhysics.constrain] is handed: [constraint] on [bodies] of
+/// [dynamics].
+///
+/// One object, for the reason [JointRequest] gives.
+final class ConstraintRequest {
+  const ConstraintRequest(
+    this.constraint, {
+    required this.dynamics,
+    required this.bodies,
+  });
+
+  /// The law to solve.
+  final PhysicsConstraint constraint;
+
+  /// The dynamics the bodies were added to.
+  final RigidDynamics dynamics;
+
+  /// The bodies it acts on.
+  final List<RigidBody> bodies;
 }
 
 /// A backend that collides a caller's own convex shape — a subclass of

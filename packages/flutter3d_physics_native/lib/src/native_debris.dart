@@ -177,7 +177,8 @@ abstract base mixin class DebrisSystem {
   /// The still shapes, replacing the last: at most 64.
   void setStatics(List<DebrisStatic> statics);
 
-  void step(DebrisSettings settings, double dt);
+  /// One step of the debris, as [DebrisSystemStep] says.
+  void step(DebrisSystemStep step);
 
   /// The latest step's bodies not read yet; null when there is none
   /// (absent, not an error). On the GPU, without [wait], a frame late: the
@@ -185,6 +186,23 @@ abstract base mixin class DebrisSystem {
   DebrisFrame? read({bool wait = true});
 
   void dispose();
+}
+
+/// What [DebrisSystem.step] is handed: the settings and the step's length
+/// in seconds.
+///
+/// **One object, so a minor can hand the debris more** — a wind, an
+/// explosion — without breaking one written against 1.0. **Reusable**:
+/// debris stepped every frame keeps one and sets it before the call; the
+/// system reads it during the call and does not keep it.
+final class DebrisSystemStep {
+  DebrisSystemStep({required this.settings, required this.dt});
+
+  /// How the debris behaves.
+  DebrisSettings settings;
+
+  /// The step, in seconds.
+  double dt;
 }
 
 c.F32s packDebrisBodies(List<DebrisBody> bodies) {
@@ -304,7 +322,9 @@ final class NativeDebris implements DebrisSystem {
   }
 
   @override
-  void step(DebrisSettings settings, double dt) {
+  void step(DebrisSystemStep request) {
+    final settings = request.settings;
+    final dt = request.dt;
     final s = writeDebrisSettings(settings);
     try {
       c.f3d_debris_step(_live, s, dt);

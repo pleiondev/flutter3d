@@ -10,5 +10,5 @@ final class DashwireWire extends PeerWire
   WireState get state
   final WireConnection connection
   static const int bytesTag = 0
-  void send(Map<String, Object?> message, {bool reliable = true})
-  void sendBytes(Uint8List bytes, {bool reliable = true})
+  void send(PeerSend context)
+  void sendBytes(PeerSendBytes context)

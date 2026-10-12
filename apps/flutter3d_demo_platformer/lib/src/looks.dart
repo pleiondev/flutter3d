@@ -168,7 +168,9 @@ final class PlatformerLooks with FixtureAppearance {
   /// thing is to answer a question that changes. Built once, it stayed blue for
   /// ever and a player reasonably asked what the purple post was for.
   @override
-  void refresh(Fixture fixture, RenderMaterial material) {
+  void refresh(FixtureRefreshContext context) {
+    final fixture = context.fixture;
+    final material = context.material;
     final mechanism = fixture.mechanism;
     if (mechanism is! Checkpoint) return;
     final reached = mechanism.isReached;

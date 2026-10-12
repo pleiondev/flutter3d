@@ -13,17 +13,12 @@ import 'particle.dart';
 abstract base class ParticleEmitter {
   const ParticleEmitter();
 
-  /// Places [particle] for a burst at [origin], in scene space, pointing
-  /// along [direction].
+  /// Places [ParticleBirth.particle] for a burst at [ParticleBirth.origin],
+  /// in scene space, pointing along [ParticleBirth.direction].
   ///
-  /// [direction] is normalised and may be ignored by an emitter that does not
-  /// care — a sphere does not.
-  void emit(
-    Particle particle,
-    Vector3 origin,
-    Vector3 direction,
-    math.Random random,
-  );
+  /// The system reuses one [ParticleBirth] for every particle it emits: read
+  /// it here and do not keep it.
+  void emit(ParticleBirth birth);
 
   /// A unit vector, uniformly over the sphere.
   ///
@@ -36,6 +31,36 @@ abstract base class ParticleEmitter {
     final r = math.sqrt(1.0 - z * z);
     out.setValues(r * math.cos(angle), r * math.sin(angle), z);
   }
+}
+
+/// What [ParticleEmitter.emit] is handed: the particle to place, and the
+/// burst it is born in.
+///
+/// **One object, so a minor can hand an emitter more** — the effect, the
+/// burst's source — without breaking an emitter written against 1.0.
+/// **Reused**: a particle system owns one and sets it before every particle
+/// it emits, so a burst allocates nothing for it; an emitter reads it during
+/// [ParticleEmitter.emit] and does not keep it.
+final class ParticleBirth {
+  ParticleBirth({
+    required this.particle,
+    required this.origin,
+    required this.direction,
+    required this.random,
+  });
+
+  /// The particle to place.
+  Particle particle;
+
+  /// Where the burst is, in scene space.
+  Vector3 origin;
+
+  /// Which way it is fired, normalized; an emitter that does not care — a
+  /// sphere does not — ignores it.
+  Vector3 direction;
+
+  /// The particle's own random stream.
+  math.Random random;
 }
 
 /// Outwards in every direction. Explosions, and anything that bursts.
@@ -52,12 +77,10 @@ final class SphereEmitter extends ParticleEmitter {
   final Range radius;
 
   @override
-  void emit(
-    Particle particle,
-    Vector3 origin,
-    Vector3 direction,
-    math.Random random,
-  ) {
+  void emit(ParticleBirth birth) {
+    final particle = birth.particle;
+    final origin = birth.origin;
+    final random = birth.random;
     randomDirection(particle.velocity, random);
     final offset = radius.sample(random);
     particle.position
@@ -83,12 +106,11 @@ final class ConeEmitter extends ParticleEmitter {
   final double halfAngle;
 
   @override
-  void emit(
-    Particle particle,
-    Vector3 origin,
-    Vector3 direction,
-    math.Random random,
-  ) {
+  void emit(ParticleBirth birth) {
+    final particle = birth.particle;
+    final origin = birth.origin;
+    final direction = birth.direction;
+    final random = birth.random;
     // A random direction blended towards the axis. Cheaper than building an
     // orthonormal basis, and the distribution is close enough for something
     // that lasts a third of a second.
@@ -130,12 +152,11 @@ final class BoxEmitter extends ParticleEmitter {
   final Range speed;
 
   @override
-  void emit(
-    Particle particle,
-    Vector3 origin,
-    Vector3 direction,
-    math.Random random,
-  ) {
+  void emit(ParticleBirth birth) {
+    final particle = birth.particle;
+    final origin = birth.origin;
+    final direction = birth.direction;
+    final random = birth.random;
     particle.position.setValues(
       origin.x + (random.nextDouble() * 2.0 - 1.0) * _halfExtents.x,
       origin.y + (random.nextDouble() * 2.0 - 1.0) * _halfExtents.y,
@@ -162,12 +183,10 @@ final class DriftEmitter extends ParticleEmitter {
   final Range spread;
 
   @override
-  void emit(
-    Particle particle,
-    Vector3 origin,
-    Vector3 direction,
-    math.Random random,
-  ) {
+  void emit(ParticleBirth birth) {
+    final particle = birth.particle;
+    final origin = birth.origin;
+    final random = birth.random;
     particle.position.setFrom(origin);
     particle.velocity.setValues(
       spread.sample(random),

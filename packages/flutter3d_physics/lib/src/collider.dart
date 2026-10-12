@@ -87,19 +87,38 @@ abstract final class Layers {
 /// Told when colliders begin, continue and stop overlapping.
 ///
 /// Attached to a [Collider], the way Flame attaches `CollisionCallbacks` to a
-/// component. `self` is always the collider the listener belongs to, so an
-/// implementation never has to work out which of the two it is.
+/// component. [CollisionContext.self] is always the collider the listener
+/// belongs to, so an implementation never has to work out which of the two
+/// it is.
 ///
 /// A mixin class rather than an interface so a monster or a pickup can take the
 /// three defaults and override only the one it cares about — which is almost
 /// always [onCollisionStart].
 abstract mixin class CollisionListener {
-  void onCollisionStart(Collider self, Collider other) {}
+  void onCollisionStart(CollisionContext context) {}
 
   /// Called for every step the pair stays overlapping, the first one excepted.
-  void onCollision(Collider self, Collider other) {}
+  void onCollision(CollisionContext context) {}
 
-  void onCollisionEnd(Collider self, Collider other) {}
+  void onCollisionEnd(CollisionContext context) {}
+}
+
+/// What a [CollisionListener] is told: its own collider and the one it met.
+///
+/// **One object, so a minor can hand a listener more** — where they touch,
+/// how hard — without breaking a listener written against 1.0. **Reused**:
+/// the world owns one and sets it before every call of every pair of every
+/// step, so a step's contacts allocate nothing for it; a listener reads it
+/// during the call and does not keep it (keeping [self] or [other] is
+/// fine).
+final class CollisionContext {
+  CollisionContext({required this.self, required this.other});
+
+  /// The collider the listener belongs to.
+  Collider self;
+
+  /// The collider it met.
+  Collider other;
 }
 
 /// A shape, somewhere, that takes part in collision.

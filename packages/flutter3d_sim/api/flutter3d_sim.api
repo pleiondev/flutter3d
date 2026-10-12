@@ -11,8 +11,8 @@ final class DataEntityKind extends EntityKind
   final ColliderKind? collider
   final List<String> requires
   final String owner
-  void spawn(EntityDef entity, SpawnContext context)
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void spawn(EntitySpawn spawn)
+  void validate(EntityCheck check)
 
 const DataSection entityKindsSection = _EntityKindsSection()
 
@@ -69,7 +69,7 @@ final class Actor with Damageable, Rider
   Health? get health
   Vector3? get position
   bool Function(double amount, Object? from)? onDamage
-  bool applyDamage(double amount, {Object? from})
+  bool applyDamage(Damage damage)
   bool eyeLevel(Vector3 out)
   bool get exists
   bool get isAlive
@@ -126,6 +126,11 @@ abstract base mixin class ActorDirector
   abstract bool directs(Actor actor)
   abstract void steer(Mind it)
 
+final class ActorGesture
+  const ActorGesture(this.actor, this.name)
+  final Actor actor
+  final String name
+
 final class ActorHurt extends GameEvent
   ActorHurt(this.actor, this.amount, {this.from})
   String get name
@@ -136,12 +141,23 @@ final class ActorHurt extends GameEvent
   static const String eventName = 'actor.hurt'
   static final EventCodec<ActorHurt> codec
 
+final class ActorStride
+  Actor actor
+  ActorStride({required this.actor, required this.wish, required this.dt})
+  Vector3 wish
+  double dt
+
 abstract base class ActorStrides
   Object? save()
-  abstract Vector3? strideOf(Actor actor, Vector3 wish, double dt)
+  abstract Vector3? strideOf(ActorStride stride)
   const ActorStrides()
-  void gesture(Actor actor, String name)
-  void restore(Object? from, Iterable<Actor> actors)
+  void gesture(ActorGesture gesture)
+  void restore(ActorStridesRestore restore)
+
+final class ActorStridesRestore
+  const ActorStridesRestore(this.from, {required this.actors})
+  final Iterable<Actor> actors
+  final Object? from
 
 final class ActorSystem
   Actor spawn({CharacterController? body, Health? health, Brain? brain, Facing? facing, String? name, Entity? entity})
@@ -198,7 +214,7 @@ final class AtLeastOne extends LevelRule
   final Severity severity
   final String type
   final String? because
-  void check(Level level, List<LevelIssue> out)
+  void check(LevelCheck check)
 
 final class AttributeMatch
   const AttributeMatch(this.entity, {this.node})
@@ -246,8 +262,8 @@ final class BehaviorBrain extends Brain implements HasBehaviorTree
   static const String heardAt = 'heardAt'
   static const String hurtAt = 'hurtAt'
   void act(Mind it)
-  void onHurt(Mind it, double amount)
-  void onNoise(Mind it, Vector3 at)
+  void onHurt(BrainHurt hurt)
+  void onNoise(BrainNoise noise)
   void think(Mind it)
 
 final class BehaviorChildren
@@ -256,8 +272,12 @@ final class BehaviorChildren
   int get length
 
 abstract base class BehaviorComposite
-  abstract BehaviorStatus tick(BehaviorContext context, BehaviorChildren children)
+  abstract BehaviorStatus tick(BehaviorCompositeTick tick)
   const BehaviorComposite()
+
+final class BehaviorCompositeTick
+  BehaviorContext get context
+  final BehaviorChildren children
 
 final class BehaviorContext
   Object? get memory
@@ -337,7 +357,7 @@ final class BehaviorsRead extends LevelRule
   const BehaviorsRead(this.kinds, {this.property = 'behavior'})
   final BehaviorKinds kinds
   final String property
-  void check(Level level, List<LevelIssue> out)
+  void check(LevelCheck check)
 
 final class Blackboard
   Blackboard({Map<String, Object?>? values})
@@ -376,10 +396,20 @@ abstract base class Brain
   Map<String, Object?> save()
   void act(Mind it)
   void onDeath(Mind it)
-  void onHurt(Mind it, double amount)
-  void onNoise(Mind it, Vector3 at)
+  void onHurt(BrainHurt hurt)
+  void onNoise(BrainNoise noise)
   void restore(Map<String, Object?> from)
   void think(Mind it)
+
+final class BrainHurt
+  const BrainHurt({required this.mind, required this.amount})
+  final Mind mind
+  final double amount
+
+final class BrainNoise
+  BrainNoise({required this.mind, required this.at})
+  Mind mind
+  Vector3 at
 
 final class Breaches
   Breaches(this.level, this.world, {bool Function(Brush)? breakable})
@@ -460,8 +490,8 @@ final class Button extends Signal
 final class ButtonKind extends EntityKind
   const ButtonKind()
   static Vector3 get defaultSize
-  void spawn(EntityDef entity, SpawnContext context)
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void spawn(EntitySpawn spawn)
+  void validate(EntityCheck check)
 
 typedef ButtonPair = ({GameAction negative, GameAction positive});
 
@@ -477,7 +507,7 @@ final class CameraKey
 
 final class CameraScreenKind extends _SurfaceKind
   const CameraScreenKind()
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void validate(EntityCheck check)
 
 final class CatchUp
   String toString()
@@ -553,11 +583,16 @@ final class Cutscene extends Mechanism
 final class CutsceneKind extends EntityKind
   const CutsceneKind({required this.stepsPerSecond})
   final int stepsPerSecond
-  void spawn(EntityDef entity, SpawnContext context)
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void spawn(EntitySpawn spawn)
+  void validate(EntityCheck check)
+
+final class Damage
+  const Damage({required this.amount, this.from})
+  final Object? from
+  final double amount
 
 abstract base mixin class Damageable
-  abstract bool applyDamage(double amount, {Object? from})
+  abstract bool applyDamage(Damage damage)
 
 final class DataSourceRegistry
   DataSourceRegistry(Map<String, EduDataSource> sources)
@@ -582,7 +617,7 @@ final class DataSourceTraceFormatException extends Flutter3dFormatException
 
 final class DecalKind extends _SurfaceKind
   const DecalKind()
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void validate(EntityCheck check)
 
 final class Demo
   Map<String, Object?> toJson()
@@ -686,7 +721,7 @@ final class DirectBus extends EventRegistry
 final class DisplayTime extends TimeSource
   DisplayTime()
   String toString()
-  double elapsed(Duration from, Duration to)
+  double elapsed(FrameSpan span)
   double? get predicted
   void predict(double seconds)
   void reset()
@@ -709,8 +744,8 @@ final class Door extends Mover
 
 final class DoorKind extends EntityKind
   const DoorKind()
-  void spawn(EntityDef entity, SpawnContext context)
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void spawn(EntitySpawn spawn)
+  void validate(EntityCheck check)
 
 final class DualAxisAction implements InputAction<Vector2>
   ActionKind get kind
@@ -822,6 +857,12 @@ final class EngineLoop extends LoopRegistry
   void shiftOrigin(WorldPosition to)
   void stageWorld(CollisionWorld world)
 
+final class EntityCheck
+  const EntityCheck({required this.entity, required this.scope, required this.out})
+  final EntityDef entity
+  final LevelScope scope
+  final List<LevelIssue> out
+
 final class EntityComponent
   Map<String, Object?> toJson()
   String toString()
@@ -861,8 +902,8 @@ abstract base class EntityKind
   void requireTarget(EntityDef entity, LevelScope scope, List<LevelIssue> out, {bool optional = false})
   void requireText(EntityDef entity, LevelScope scope, List<LevelIssue> out, String key)
   void requireTravel(EntityDef entity, LevelScope scope, List<LevelIssue> out)
-  void spawn(EntityDef entity, SpawnContext context)
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void spawn(EntitySpawn spawn)
+  void validate(EntityCheck check)
 
 abstract base class EntityKindRegistry extends PluginRegistry
   const EntityKindRegistry()
@@ -898,6 +939,11 @@ final class EntityRemap
   const EntityRemap({required this.save, required this.dropped})
   final List<String> dropped
   final Map<String, Object?> save
+
+final class EntitySpawn
+  const EntitySpawn({required this.entity, required this.context})
+  final EntityDef entity
+  final SpawnContext context
 
 final class EntityTracks
   EntityTracks(this.layout)
@@ -970,7 +1016,7 @@ final class ExactlyOne extends LevelRule
   const ExactlyOne(this.type, {this.because})
   final String type
   final String? because
-  void check(Level level, List<LevelIssue> out)
+  void check(LevelCheck check)
 
 final class Exit extends Mechanism with CollisionListener
   ActivationOutcome activate(Activation by)
@@ -984,19 +1030,19 @@ final class Exit extends Mechanism with CollisionListener
   final String? message
   final String? next
   void collect(MechanismEvents into)
-  void onCollisionStart(Collider self, Collider other)
+  void onCollisionStart(CollisionContext context)
   void restore(Map<String, Object?> from)
   void step(double dt)
 
 final class ExitKind extends EntityKind
   const ExitKind()
-  void spawn(EntityDef entity, SpawnContext context)
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void spawn(EntitySpawn spawn)
+  void validate(EntityCheck check)
 
 final class ExitReachable extends LevelRule
   const ExitReachable({this.config = const NavMeshSettings()})
   final NavMeshSettings config
-  void check(Level level, List<LevelIssue> out)
+  void check(LevelCheck check)
 
 final class Facing
   Facing({this.yaw = 0.0, this.turnRate = 6.0, this.eyeFraction = 0.32})
@@ -1064,6 +1110,11 @@ final class FrameCadence
   set refreshRate(double? hertz)
   void reset()
 
+final class FrameSpan
+  Duration from
+  Duration to
+  FrameSpan({this.from = Duration.zero, this.to = Duration.zero})
+
 final class Gait
   Gait(this.controller)
   final CharacterController controller
@@ -1111,14 +1162,14 @@ abstract base class GenrePlugin<S extends Object> extends Flutter3dPlugin
   EcsWorld? publishedWorldOf(S simulation)
   GenrePlugin({Iterable<EntityKind> kinds = const <EntityKind>[], this.replaceKinds = false, this.headless})
   LoopPhase get stepPhase
-  Registration? publishEvents(S simulation, EventRegistry bus)
+  Registration? publishEvents(GenrePublishContext<S> publish)
   S? get simulation
   Snapshot loopStateOf(Snapshot runState)
   Snapshot? runStateOf(Snapshot loopState)
   abstract Snapshot captureSimulation(S simulation)
   abstract String get systemName
-  abstract void restoreSimulation(S simulation, Snapshot state)
-  abstract void stepSimulation(S simulation, LoopContext context)
+  abstract void restoreSimulation(GenreRestoreContext<S> restore)
+  abstract void stepSimulation(GenreStepContext<S> step)
   final HeadlessGame? headless
   final List<EntityKind> kinds
   final bool replaceKinds
@@ -1128,6 +1179,21 @@ abstract base class GenrePlugin<S extends Object> extends Flutter3dPlugin
   void declareEvents(EventRegistry events)
   void install(PluginHost host)
   void uninstall(PluginHost host)
+
+final class GenrePublishContext<S extends Object>
+  const GenrePublishContext(this.simulation, {required this.bus})
+  final EventRegistry bus
+  final S simulation
+
+final class GenreRestoreContext<S extends Object>
+  const GenreRestoreContext(this.simulation, {required this.state})
+  final S simulation
+  final Snapshot state
+
+final class GenreStepContext<S extends Object>
+  GenreStepContext(this.simulation, {required this.context})
+  LoopContext context
+  S simulation
 
 abstract final class GeometryTolerance
   static const double divisor = 1e-9
@@ -1158,7 +1224,7 @@ abstract base mixin class HasBehaviorTree
 abstract base class HeadlessGame
   SimulationVersion? get simulation
   abstract EntityRegistry registry()
-  abstract HeadlessRun start(Level level, CollisionWorld world, InputState input)
+  abstract HeadlessRun start(HeadlessStart start)
   abstract Map<String, GameAction> get buttons
   abstract String get name
   const HeadlessGame()
@@ -1173,6 +1239,12 @@ abstract base class HeadlessRun
   abstract void aim(Vector3 out)
   abstract void step(double dt)
   const HeadlessRun()
+
+final class HeadlessStart
+  const HeadlessStart({required this.level, required this.world, required this.input})
+  final CollisionWorld world
+  final InputState input
+  final Level level
 
 final class Health
   Health(this.maximum, {double? current, this.armor = 0.0})
@@ -1488,6 +1560,11 @@ final class Level extends FormatDocument
   static const int formatVersion = 5
   void requireMaterials(MaterialCatalog materials)
 
+final class LevelCheck
+  const LevelCheck({required this.level, required this.out})
+  final Level level
+  final List<LevelIssue> out
+
 extension LevelCollision on Level
   PlayerStart? get playerStart
   void addTo(CollisionWorld world)
@@ -1596,7 +1673,7 @@ final class LevelRecipe
   final int seed
 
 abstract base class LevelRule
-  abstract void check(Level level, List<LevelIssue> out)
+  abstract void check(LevelCheck check)
   const LevelRule()
 
 final class LevelRules
@@ -1672,8 +1749,8 @@ final class Lift extends Mover
 
 final class LiftKind extends EntityKind
   const LiftKind()
-  void spawn(EntityDef entity, SpawnContext context)
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void spawn(EntitySpawn spawn)
+  void validate(EntityCheck check)
 
 abstract base class LightBehavior
   abstract double at(double time, double seed)
@@ -1698,8 +1775,8 @@ final class LightFixtureKind extends EntityKind
   LightFixtureKind(super.type, {required this.defaultBehavior, required Vector3 defaultSize})
   final LightBehavior defaultBehavior
   final Vector3 defaultSize
-  void spawn(EntityDef entity, SpawnContext context)
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void spawn(EntitySpawn spawn)
+  void validate(EntityCheck check)
 
 final class Lightmap
   Lightmap({required this.width, required this.height, required this.texelsPerMeter, required this.levelHash, Uint8List? pixels})
@@ -1777,7 +1854,7 @@ final class LogTime extends TimeSource
   LogTime(List<double> timestamps)
   String toString()
   bool get isFinished
-  double elapsed(Duration from, Duration to)
+  double elapsed(FrameSpan span)
   final List<double> timestamps
   int get position
   void reset()
@@ -1828,7 +1905,7 @@ final class LoopTimeScale extends LoopChange
 final class ManualTime extends TimeSource
   ManualTime()
   String toString()
-  double elapsed(Duration from, Duration to)
+  double elapsed(FrameSpan span)
   double get pending
   void advance(double seconds)
   void reset()
@@ -2102,8 +2179,8 @@ final class Physical
 
 final class PlatformKind extends EntityKind
   const PlatformKind()
-  void spawn(EntityDef entity, SpawnContext context)
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void spawn(EntitySpawn spawn)
+  void validate(EntityCheck check)
 
 final class Playback
   Playback(this.tape)
@@ -2290,11 +2367,11 @@ final class Recorder
 
 final class ReflectionProbeKind extends EntityKind
   const ReflectionProbeKind()
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void validate(EntityCheck check)
 
 final class ReflectorKind extends _SurfaceKind
   const ReflectorKind()
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void validate(EntityCheck check)
 
 final class Refused extends ActivationOutcome
   const Refused(this.message)
@@ -2682,7 +2759,7 @@ final class SimQueries extends SimulationQueryRegistry
   SimulationAnswer? answerFor(String name)
   SimulationQueryRegistry forPlugin(PluginScope scope)
 
-typedef SimulationAnswer = Object? Function(SimWorld world, Object? arguments);
+typedef SimulationAnswer = Object? Function(SimulationQuestion question);
 
 final class SimulationCapabilityException extends CapabilityException
   String toString()
@@ -2708,6 +2785,11 @@ abstract base class SimulationQueryRegistry extends PluginRegistry
   abstract SimulationAnswer? answerFor(String name)
   abstract SimulationQueryRegistry forPlugin(PluginScope scope)
   const SimulationQueryRegistry()
+
+final class SimulationQuestion
+  const SimulationQuestion(this.world, {this.arguments})
+  final Object? arguments
+  final SimWorld world
 
 final class SimulationSetup
   LocalSimulation local()
@@ -2850,8 +2932,8 @@ abstract base class Takeable extends Mechanism with CollisionListener
   final Collider collider
   final bool retryWhileTouching
   void collect(MechanismEvents into)
-  void onCollision(Collider self, Collider other)
-  void onCollisionStart(Collider self, Collider other)
+  void onCollision(CollisionContext context)
+  void onCollisionStart(CollisionContext context)
   void restore(Map<String, Object?> from)
   void step(double dt)
 
@@ -2978,7 +3060,7 @@ final class TimeLostReason
   static const TimeLostReason overBudget = TimeLostReason._('overBudget')
 
 abstract base class TimeSource
-  abstract double elapsed(Duration from, Duration to)
+  abstract double elapsed(FrameSpan span)
   const TimeSource()
   const factory TimeSource.realTime()
   factory TimeSource.display()
@@ -2996,8 +3078,8 @@ final class TrackSample
 
 final class TriggerKind extends EntityKind
   const TriggerKind()
-  void spawn(EntityDef entity, SpawnContext context)
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
+  void spawn(EntitySpawn spawn)
+  void validate(EntityCheck check)
 
 final class TriggerVolume extends Signal with CollisionListener
   ActivationOutcome activate(Activation by)
@@ -3005,7 +3087,7 @@ final class TriggerVolume extends Signal with CollisionListener
   TriggerVolume({super.name, required super.target, required this.collider, super.once = false})
   final Collider collider
   void collect(MechanismEvents into)
-  void onCollisionStart(Collider self, Collider other)
+  void onCollisionStart(CollisionContext context)
 
 final class Tunable<T extends Object>
   String toString()
@@ -3056,7 +3138,7 @@ final class WorldSnapshotPart extends SnapshotPart
   int get version
   int? digest()
   static const int changesVersion = 2
-  void restore(Object? data, int version)
+  void restore(SnapshotRestoreContext context)
 
 final class WorldStep
   WorldStep({required this.collision, this.mechanisms, this.dynamics, this.raise})

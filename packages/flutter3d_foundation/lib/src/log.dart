@@ -121,8 +121,30 @@ typedef LogListener = void Function(LogRecord record);
 
 /// Told an error nothing caught, with where it was thrown: what a crash
 /// reporter (Crashlytics, Sentry, a file of one's own) is wired to.
-typedef CrashReporter =
-    void Function(Object error, StackTrace stackTrace, LogRecord record);
+typedef CrashReporter = void Function(CrashContext crash);
+
+/// What a [CrashReporter] is told: the error, where it was thrown, and the
+/// record the log kept of it.
+///
+/// **One object, so a minor can hand a reporter more** — the frame the
+/// error came out of, the plugin that threw it — without breaking a
+/// reporter written against 1.0.
+final class CrashContext {
+  const CrashContext({
+    required this.error,
+    required this.stackTrace,
+    required this.record,
+  });
+
+  /// What was thrown.
+  final Object error;
+
+  /// Where it was thrown.
+  final StackTrace stackTrace;
+
+  /// The record [EngineLog.reportCrash] kept of it.
+  final LogRecord record;
+}
 
 /// An engine's log: what the engine says about itself, by level, to whoever
 /// listens, and the errors nothing caught, to a crash reporter.
@@ -134,7 +156,7 @@ typedef CrashReporter =
 /// ```dart
 /// final log = EngineLog(level: LogLevel.debug, clock: DateTime.now);
 /// log.listen((record) => debugPrint('$record'));
-/// log.onCrash((error, stack, _) => crashlytics.recordError(error, stack));
+/// log.onCrash((crash) => crashlytics.recordError(crash.error, crash.stackTrace));
 /// ```
 final class EngineLog {
   /// A log keeping records at [level] and above, stamped by [clock] when one
@@ -259,8 +281,13 @@ final class EngineLog {
     for (final listener in List<LogListener>.of(_listeners)) {
       listener(record);
     }
+    final crash = CrashContext(
+      error: error,
+      stackTrace: stackTrace,
+      record: record,
+    );
     for (final reporter in List<CrashReporter>.of(_reporters)) {
-      reporter(error, stackTrace, record);
+      reporter(crash);
     }
     return record;
   }

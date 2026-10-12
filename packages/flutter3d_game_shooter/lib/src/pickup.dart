@@ -46,9 +46,12 @@ final class Pickup extends Takeable {
   @override
   bool offerTo(Object? taker) {
     if (taker is! Collector) return false;
-    if (!gift.grantTo(taker.inventory, amount, detail)) return false;
+    final granted = gift.grantTo(
+      GiftGrant(to: taker.inventory, amount: amount, detail: detail),
+    );
+    if (!granted) return false;
 
-    final said = gift.announce(amount, detail);
+    final said = gift.announce(GiftAnnounce(amount: amount, detail: detail));
     announcement = said;
     message = said?.english;
     return true;

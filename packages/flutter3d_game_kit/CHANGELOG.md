@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a cue and a reaction rule take one context.** A `Cue` is
+  handed a `CueContext` (new) and a `ReactionRule` a `ReactionContext`
+  (new), each with the `event` and the `out` it writes into, so a minor
+  can hand them more without breaking a sheet or a table written against
+  1.0. Each row keeps one and sets it for every event.
 - **`ghostOfRun` returns a `RunGhost`** (`ghost`, `note`) in place of a
   record, so it can say more in a minor release.
 

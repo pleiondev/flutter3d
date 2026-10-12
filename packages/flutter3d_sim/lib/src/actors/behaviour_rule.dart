@@ -4,7 +4,6 @@ library;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
 
-import '../level/level.dart';
 import '../level/level_issue.dart';
 import '../level/level_rule.dart';
 import 'behaviour_tree.dart';
@@ -26,7 +25,9 @@ final class BehaviorsRead extends LevelRule {
   final String property;
 
   @override
-  void check(Level level, List<LevelIssue> out) {
+  void check(LevelCheck check) {
+    final level = check.level;
+    final out = check.out;
     for (final MapEntry(key: name, value: document)
         in level.behaviors.entries) {
       for (final problem in BehaviorTree.read(document, kinds).problems) {

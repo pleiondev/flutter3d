@@ -152,11 +152,32 @@ final class BehaviorChildren {
   }
 }
 
+/// What a [BehaviorComposite.tick] is handed: the context it ticks in and
+/// its children.
+///
+/// **One object, so a minor can hand a composite more** — the tree, the
+/// step — without breaking a composite written against 1.0. **Reused**: one
+/// per composite node, made when the tree is read and set before every
+/// tick, so a tick allocates nothing; a composite reads it during the tick
+/// and does not keep it.
+final class BehaviorCompositeTick {
+  BehaviorCompositeTick._(this.children);
+
+  /// The context the composite ticks in, addressing the composite.
+  BehaviorContext get context => _context;
+  late BehaviorContext _context;
+
+  /// The composite's children, as it may tick them.
+  final BehaviorChildren children;
+}
+
 final class BehaviorTree {
   BehaviorTree._(this._root, this._nodes, this.digestHex, this.json)
     : _statusOf = List<BehaviorStatus?>.filled(_nodes.length, null) {
     for (final node in _nodes) {
-      if (node is _Custom) node.view = BehaviorChildren._(this, node);
+      if (node is _Custom) {
+        node.view = BehaviorCompositeTick._(BehaviorChildren._(this, node));
+      }
     }
   }
 
@@ -297,7 +318,9 @@ final class BehaviorTree {
         _ => BehaviorStatus.success,
       },
       _Cooldown() => _cooldown(node, context),
-      _Custom() => node.composite.tick(context..node = node.index, node.view),
+      _Custom() => node.composite.tick(
+        node.view.._context = (context..node = node.index),
+      ),
     };
     _stack.removeLast();
     _statusOf[node.index] = status;
@@ -416,7 +439,7 @@ final class _Custom extends _Node {
   _Custom(super.index, super.kind, super.label, this.composite);
   final BehaviorComposite composite;
   final List<_Node> children = <_Node>[];
-  late final BehaviorChildren view;
+  late final BehaviorCompositeTick view;
 }
 
 typedef _Option = ({

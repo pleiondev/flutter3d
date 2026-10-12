@@ -244,9 +244,9 @@ final class _Gestures extends ActorStrides {
   final int Function() step;
 
   @override
-  Vector3? strideOf(Actor actor, Vector3 wish, double dt) => null;
+  Vector3? strideOf(ActorStride stride) => null;
 
   @override
-  void gesture(Actor actor, String name) =>
-      asked.add('${step()}:${actor.name}:$name');
+  void gesture(ActorGesture gesture) =>
+      asked.add('${step()}:${gesture.actor.name}:${gesture.name}');
 }

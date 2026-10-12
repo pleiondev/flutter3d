@@ -224,7 +224,7 @@ void main() {
     addTearDown(second.close);
     final heard = Completer<Map<String, Object?>>();
     second.listen(heard.complete);
-    first.send(<String, Object?>{'hello': 1});
+    first.send(PeerSend(message: <String, Object?>{'hello': 1}));
     expect(
       await heard.future.timeout(const Duration(seconds: 5)),
       <String, Object?>{'hello': 1},
@@ -256,7 +256,7 @@ void main() {
     addTearDown(second.close);
     final heard = Completer<Map<String, Object?>>();
     second.listen(heard.complete);
-    first.send(<String, Object?>{'n': 1});
+    first.send(PeerSend(message: <String, Object?>{'n': 1}));
     expect(
       await heard.future.timeout(const Duration(seconds: 5)),
       <String, Object?>{'n': 1},
@@ -293,7 +293,7 @@ void main() {
     addTearDown(second.close);
     final heard = Completer<Map<String, Object?>>();
     second.listen(heard.complete);
-    first.send(<String, Object?>{'n': 2});
+    first.send(PeerSend(message: <String, Object?>{'n': 2}));
     expect(
       await heard.future.timeout(const Duration(seconds: 5)),
       <String, Object?>{'n': 2},
@@ -364,8 +364,10 @@ void main() {
       if (!firstGot.isCompleted) firstGot.complete(m);
     });
 
-    first.wire.send(const <String, Object?>{'ask': 'join'});
-    authority.wire.send(<String, Object?>{'to': first.slot, 'only': 'you'});
+    first.wire.send(PeerSend(message: const <String, Object?>{'ask': 'join'}));
+    authority.wire.send(
+      PeerSend(message: <String, Object?>{'to': first.slot, 'only': 'you'}),
+    );
     final got = await firstGot.future.timeout(const Duration(seconds: 5));
     expect(got, <String, Object?>{'to': first.slot, 'only': 'you'});
     // Mutation: forward an observer's message to everybody, or an addressed

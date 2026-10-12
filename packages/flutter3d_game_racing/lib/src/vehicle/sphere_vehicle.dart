@@ -206,7 +206,9 @@ final class SphereVehicle with VehicleController {
   /// 9.  hold the car inside any barrier the track has here;
   /// 10. settle the body onto its ride height.
   @override
-  void step(double dt, VehicleInput input) {
+  void step(VehicleStep context) {
+    final dt = context.dt;
+    final input = context.input;
     _scraped = 0.0;
     _struck = 0.0;
     final found = ground.sample(position, _ground.s, _ground);
@@ -235,7 +237,10 @@ final class SphereVehicle with VehicleController {
   }
 
   @override
-  void placeAt(Vector3 position, double headingYaw, {double? trackDistance}) {
+  void placeAt(VehiclePlacement placement) {
+    final position = placement.position;
+    final headingYaw = placement.headingYaw;
+    final trackDistance = placement.trackDistance;
     collider.position.setFrom(position);
     velocity.setZero();
     _headingYaw = headingYaw;
