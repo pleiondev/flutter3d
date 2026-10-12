@@ -92,7 +92,7 @@ final class LevelElements {
       final sunlight = Vector3(color.r, color.g, color.b)
         ..scale(light.intensity / LevelLight.defaultIntensity);
       _sun = (along: light.direction, light: sunlight);
-      elements.sun(along: light.direction, light: sunlight);
+      elements.sun(along: light.direction, light: sunlight.toLinearColor());
       break;
     }
     if (run == null) return;
@@ -179,11 +179,13 @@ final class LevelElements {
     final glow = liquid.glow;
     if (glow != null) look.glow = glow;
     final sun = _sun;
-    if (sun != null) look.sun(along: sun.along, light: sun.light);
+    if (sun != null)
+      look.sun(along: sun.along, light: sun.light.toLinearColor());
     // Metal mirrors the fog dimly, water brighter towards its horizon.
     look.sky(
-      zenith: pool.molten ? _fog : _fog * 2.0,
-      horizon: pool.molten ? _fog * 2.0 : _fog * 4.0 + Vector3.all(0.05),
+      zenith: (pool.molten ? _fog : _fog * 2.0).toLinearColor(),
+      horizon: (pool.molten ? _fog * 2.0 : _fog * 4.0 + Vector3.all(0.05))
+          .toLinearColor(),
     );
     final view = LiquidView(
       world: world,

@@ -1,18 +1,21 @@
 /// A material's parameters by typed key or by name, against the schema its
-/// `.f3dmat` declares — what `RenderMaterial.parameters` holds, and what a
-/// `MeshNode` overrides for itself.
+/// `.f3dmat` declares: what `RenderMaterial.parameters`, `Material3D` and a
+/// level's `LevelMaterial` hold, and what a `MeshNode` overrides for itself.
+///
+/// **One type for one concept, here because all three need it.** The level
+/// format's package may not import the engine, and the engine's material
+/// and the widget both stand on this package, so the type that is the same
+/// thing in all three lives below them.
 library;
 
 import 'dart:collection';
 import 'dart:typed_data';
 
-import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show Flutter3dFormatException, LinearColor, Quantity, Unit;
 import 'package:vector_math/vector_math.dart';
 
-import '../../formats/material_language/material_ast.dart' show MaterialProgram;
-import '../../formats/material_language/material_bundle.dart'
-    show BundledMaterials;
+import 'exceptions.dart' show Flutter3dFormatException;
+import 'linear_color.dart' show LinearColor;
+import 'units.dart' show Quantity, Unit;
 
 /// A parameter name, a value or a unit a material does not take: a name it
 /// does not declare, a value of another width, a `param` folded into the
@@ -239,20 +242,6 @@ final class MaterialParameterSchema {
         key: (Object? d) => (d! as ParameterDeclaration).name,
       );
 
-  /// The schema of a parsed `.f3dmat`: each `uniform` and `param` it
-  /// declares, with its width and default. A source says no unit yet, so
-  /// none is filled in.
-  factory MaterialParameterSchema.fromProgram(MaterialProgram program) =>
-      MaterialParameterSchema(<ParameterDeclaration>[
-        for (final parameter in program.parameters)
-          ParameterDeclaration(
-            parameter.name,
-            components: parameter.type.components,
-            defaultValue: List<double>.unmodifiable(parameter.defaultValue),
-            isUniform: parameter.uniform,
-          ),
-      ]);
-
   final Map<String, ParameterDeclaration> _byName;
 
   /// Every declared name, in source order.
@@ -265,46 +254,21 @@ final class MaterialParameterSchema {
   ParameterDeclaration? operator [](String name) => _byName[name];
 }
 
-/// The schemas of a bundle's materials.
-extension BundledMaterialSchemas on BundledMaterials {
-  /// What material [name] lets a draw set: each `uniform` its source
-  /// declares, its width and its default, as the bundle carries them — the
-  /// schema a [MaterialParameters] over `material(name).parameters` checks
-  /// against. A bundle keeps no `param`, which is folded into its stages.
-  /// Throws an [ArgumentError] naming the materials the bundle has.
-  MaterialParameterSchema schema(String name) {
-    final bindings =
-        stages[name] ??
-        (throw ArgumentError.value(
-          name,
-          'name',
-          'bundle "${bundle.name}" has the materials '
-              '${lighting.keys.join(', ')}',
-        ));
-    return MaterialParameterSchema(<ParameterDeclaration>[
-      for (final MapEntry(:key, :value) in bindings.uniforms.entries)
-        ParameterDeclaration(
-          key,
-          components: value.length,
-          defaultValue: List<double>.unmodifiable(value),
-        ),
-    ]);
-  }
-}
-
 /// A material's parameter values: set and read by [ParameterKey] from code
 /// and by name from data, checked against a [schema] when there is one, and
 /// held as the floats the uniform block is filled from.
 ///
-/// **What `RenderMaterial.parameters` holds, given types.** A
-/// [MaterialParameters.over] that map edits what the encoder binds; a
-/// `MeshNode.parameters` of its own overrides the material's for that node
-/// alone, which is how a hundred rocks share one material and one rock
-/// glows.
+/// **The one shape of a material's parameters** (since 1.0):
+/// `RenderMaterial.parameters`, `Material3D(parameters:)` and a level's
+/// `LevelMaterial.parameters` are each one of these. A `MeshNode.parameters`
+/// of its own overrides the material's for that node alone, which is how a
+/// hundred rocks share one material and one rock glows.
 final class MaterialParameters {
   /// Values of their own, starting at [schema]'s defaults for every
   /// parameter a draw can set.
-  MaterialParameters({this.schema}) : _values = <String, Float32List>{} {
+  MaterialParameters({MaterialParameterSchema? schema})
+    : _schema = schema,
+      _values = <String, Float32List>{} {
     for (final declared in schema?.declarations ?? <ParameterDeclaration>[]) {
       if (!declared.isUniform) continue;
       _values[declared.name] = Float32List.fromList(declared.defaultValue);
@@ -312,12 +276,54 @@ final class MaterialParameters {
   }
 
   /// Over [values], which every set writes into and every read reads: a
-  /// `RenderMaterial`'s own map, typed.
-  MaterialParameters.over(Map<String, Float32List> values, {this.schema})
-    : _values = values;
+  /// map the caller keeps writing, typed. What a `Map<String, Float32List>`
+  /// handed to a material before 1.0 becomes, so a list the caller still
+  /// holds and writes in place is the one the draw binds.
+  MaterialParameters.over(
+    Map<String, Float32List> values, {
+    MaterialParameterSchema? schema,
+  }) : _schema = schema,
+       _values = values;
+
+  /// [values] copied, each by name as [setNamed] takes it: [schema]'s
+  /// defaults first, then each value checked against it. What a level's
+  /// `parameters` and a widget's map of numbers become.
+  ///
+  /// Throws a [MaterialParameterException] for a value [schema] refuses.
+  factory MaterialParameters.of(
+    Map<String, List<double>> values, {
+    MaterialParameterSchema? schema,
+  }) {
+    final parameters = MaterialParameters(schema: schema);
+    for (final MapEntry(:key, :value) in values.entries) {
+      parameters.setNamed(key, value);
+    }
+    return parameters;
+  }
 
   /// What the material declares, or null to take any name and width.
-  final MaterialParameterSchema? schema;
+  MaterialParameterSchema? get schema => _schema;
+  MaterialParameterSchema? _schema;
+
+  /// Takes [schema] as what the material now declares, in place: a hot
+  /// reload of its source. A value it still declares at the same width is
+  /// kept, the rest are dropped, and each parameter new to it starts at its
+  /// default, so whatever holds these values goes on drawing with them.
+  void adopt(MaterialParameterSchema schema) {
+    _schema = schema;
+    _values.removeWhere(
+      (String name, Float32List held) => switch (schema[name]) {
+        final declared? =>
+          !declared.isUniform || declared.components != held.length,
+        null => true,
+      },
+    );
+    for (final declared in schema.declarations) {
+      if (!declared.isUniform || _values.containsKey(declared.name)) continue;
+      _values[declared.name] = Float32List.fromList(declared.defaultValue);
+    }
+    _version++;
+  }
 
   final Map<String, Float32List> _values;
 
@@ -325,13 +331,37 @@ final class MaterialParameters {
   Map<String, Float32List> get uniforms =>
       UnmodifiableMapView<String, Float32List>(_values);
 
-  /// Bumped by every change, for a caller that caches what it built from
-  /// the values.
+  /// The names that hold a value, in the order they were first set.
+  Iterable<String> get names => _values.keys;
+
+  /// Bumped by every change through [set], [setNamed], `[]=` and [remove],
+  /// for a caller that caches what it built from the values. A write into
+  /// the list `[]` hands back is not a change it sees.
   int get version => _version;
   int _version = 0;
 
   /// Whether nothing is set.
   bool get isEmpty => _values.isEmpty;
+
+  /// Whether anything is set.
+  bool get isNotEmpty => _values.isNotEmpty;
+
+  /// The floats the parameter called [name] holds, or null when nothing is
+  /// set: **the list the draw binds**, not a copy.
+  ///
+  /// For a hot path that moves a number every frame (a time, a viewport, a
+  /// wave's phase) without allocating: written in place, it is drawn at the
+  /// next frame. [named] hands back a copy instead.
+  Float32List? operator [](String name) => _values[name];
+
+  /// Sets the parameter called [name] to [value], as [setNamed] does.
+  void operator []=(String name, List<double> value) => setNamed(name, value);
+
+  /// An independent copy: the same [schema], each value's floats copied.
+  MaterialParameters copy() => MaterialParameters.over(<String, Float32List>{
+    for (final MapEntry(:key, :value) in _values.entries)
+      key: Float32List.fromList(value),
+  }, schema: schema);
 
   /// Sets [key] to [value], in [key]'s unit.
   ///

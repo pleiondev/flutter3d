@@ -259,7 +259,12 @@ final class SceneDressing {
       // their own size, and what tells them apart without knowing either word
       // is that one says what it is made of.
       if (handle.volume && material == null) {
-        final cage = buildCage(scene, handle.center, handle.size, handle.tint);
+        final cage = buildCage(
+          scene,
+          handle.center,
+          handle.size,
+          handle.tint.toVector3(),
+        );
         gizmos.add(cage);
         owners[cage] = handle;
         continue;
@@ -278,14 +283,14 @@ final class SceneDressing {
                   ? engine.RenderMaterial(
                       name: 'gizmo',
                       baseColor: LinearColor.fromSrgb(
-                        handle.tint.x,
-                        handle.tint.y,
-                        handle.tint.z,
+                        handle.tint.r,
+                        handle.tint.g,
+                        handle.tint.b,
                         1.0,
                       ),
                       // Lit by itself, or a mark in an unlit corner is a mark
                       // nobody can find.
-                      emissive: (handle.tint * 0.9).toLinearColor(),
+                      emissive: handle.tint.scaled(0.9),
                     )
                   : LevelLoader.materialFrom(material, textures, name: named),
               name: 'gizmo',
@@ -318,12 +323,11 @@ final class SceneDressing {
           .where((Handle h) => h.kind == drawn.kind && h.index == drawn.index)
           .firstOrNull;
       final mark = drawn.mark;
-      final tint =
-          mark.tint?.toVector3() ?? owner?.tint ?? Vector3(1.0, 1.0, 1.0);
+      final tint = mark.tint ?? owner?.tint ?? LinearColor.white;
       final material = engine.RenderMaterial(
         name: 'gizmo',
-        baseColor: LinearColor.fromSrgb(tint.x, tint.y, tint.z, 1.0),
-        emissive: (tint * 0.9).toLinearColor(),
+        baseColor: LinearColor.fromSrgb(tint.r, tint.g, tint.b, 1.0),
+        emissive: tint.scaled(0.9).withAlpha(1.0),
       );
       final SceneNode node = switch (mark.shape) {
         GizmoShape.box => MeshNode(
@@ -341,7 +345,13 @@ final class SceneDressing {
         )..setPosition(mark.from.x, mark.from.y, mark.from.z),
         GizmoShape.line => _line(meshes, mark, material),
         // A cage, and the outline of a shape this build does not draw.
-        _ => buildCage(scene, mark.center, mark.size, tint, name: 'mark'),
+        _ => buildCage(
+          scene,
+          mark.center,
+          mark.size,
+          tint.toVector3(),
+          name: 'mark',
+        ),
       };
       if (node is MeshNode) {
         node.castsShadow = false;
@@ -432,16 +442,14 @@ final class SceneDressing {
         engine.RenderMaterial(
           name: part.glows ? 'flame' : 'part',
           baseColor: LinearColor.fromSrgb(
-            part.color.x,
-            part.color.y,
-            part.color.z,
+            part.color.r,
+            part.color.g,
+            part.color.b,
             1.0,
           ),
           // A flame is the light rather than the thing holding it, and a dark
           // corridor would otherwise swallow the one part that is the point.
-          emissive: part.glows
-              ? (part.color * 1.4).toLinearColor()
-              : LinearColor.black,
+          emissive: part.glows ? part.color.scaled(1.4) : LinearColor.black,
         ),
         name: part.shape,
       )..setPosition(part.at.x, part.at.y, part.at.z);

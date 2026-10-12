@@ -33,7 +33,9 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
         ExpressionVariable,
         ExpressionVisitor,
         Expression,
-        Flutter3dFormatException;
+        Flutter3dFormatException,
+        MaterialParameterSchema,
+        ParameterDeclaration;
 import 'package:flutter3d_foundation/internal.dart'
     show applyExpressionOperator, broadcastExpressionArguments;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart'
@@ -785,6 +787,20 @@ final class MaterialProgram {
   });
 
   final String name;
+
+  /// What the source declares a draw may set, or folds: each `uniform` and
+  /// `param`, with its width and default. A source says no unit yet, so
+  /// none is filled in.
+  MaterialParameterSchema get schema =>
+      MaterialParameterSchema(<ParameterDeclaration>[
+        for (final parameter in parameters)
+          ParameterDeclaration(
+            parameter.name,
+            components: parameter.type.components,
+            defaultValue: List<double>.unmodifiable(parameter.defaultValue),
+            isUniform: parameter.uniform,
+          ),
+      ]);
 
   /// The material language version the source was written in: its
   /// `f3dmat <version>` line, or 1 when it has none. See

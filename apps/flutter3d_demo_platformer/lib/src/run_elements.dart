@@ -30,7 +30,8 @@ import 'package:flutter3d_effects/flutter3d_effects.dart'
     show Liquid, LiquidOptics;
 import 'package:flutter3d_elements/flutter3d_elements.dart'
     show Bed, Igniter, Solid;
-import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor, Portable;
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
@@ -193,7 +194,7 @@ final class RunElements {
       conductivity: 1.5,
       expansion: 3e-5,
     ),
-    glow: Vector3(1.3, 0.3, 0.04),
+    glow: LinearColor(1.3, 0.3, 0.04),
   );
 
   /// Cistern water, as the drawing colours it.

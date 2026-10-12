@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show Flutter3dException;
+    show Flutter3dException, MaterialParameters;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'default_image_decoder.dart';
@@ -296,11 +296,10 @@ Future<RenderMaterial> bindMaterial(
     sheenMap: sheen?.texture,
     sheenMapSampler: sheen?.sampler,
     parameterBlock: document.parameterBlock,
-    parameters: _liftedParameters(
-      document,
-      programs[model.shaderName],
-      warnings,
-    ),
+    // A map of the material's own: the document's may be a constant.
+    parameters: MaterialParameters.over(<String, Float32List>{
+      ..._liftedParameters(document, programs[model.shaderName], warnings),
+    }),
     extraTextures: extra,
     physicalMaterial: surface.physicalMaterial,
   );

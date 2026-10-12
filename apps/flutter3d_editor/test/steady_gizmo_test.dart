@@ -198,12 +198,12 @@ void main() {
             engine.RenderMaterial(
               name: 'gizmo',
               baseColor: LinearColor.fromSrgb(
-                handle.tint.x,
-                handle.tint.y,
-                handle.tint.z,
+                handle.tint.r,
+                handle.tint.g,
+                handle.tint.b,
                 1.0,
               ),
-              emissive: (handle.tint * 0.9).toLinearColor(),
+              emissive: handle.tint.scaled(0.9),
             ),
             name: 'gizmo',
           )

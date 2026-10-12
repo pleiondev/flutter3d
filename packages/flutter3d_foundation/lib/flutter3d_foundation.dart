@@ -43,6 +43,7 @@ export 'src/issues.dart';
 export 'src/light_type.dart';
 export 'src/linear_color.dart';
 export 'src/log.dart';
+export 'src/material_parameters.dart';
 export 'src/placed_event.dart';
 export 'src/portable_math.dart';
 export 'src/registration.dart';

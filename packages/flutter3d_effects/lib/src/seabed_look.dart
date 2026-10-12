@@ -87,11 +87,12 @@ final class SeabedLook {
   /// The wind over the water above, m/s, as [LiquidLook.wind] says.
   set wind(double speed) => _params.chop = rippleSteepness(speed);
 
-  /// The sun: the direction its light travels along, and its light.
-  void sun({required Vector3 along, required Vector3 light}) {
+  /// The sun: the direction its light travels along, and its light: its
+  /// linear colour times its intensity, in the scene's light.
+  void sun({required Vector3 along, required LinearColor light}) {
     _params
       ..toSun = (-along).normalized()
-      ..sunColor = light;
+      ..sunColor = light.toVector3();
   }
 
   /// What the water over it does to light, as [LiquidLook.optics]: pure

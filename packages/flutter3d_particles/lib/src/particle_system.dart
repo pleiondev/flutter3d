@@ -555,7 +555,7 @@ final class ParticleSystem {
       ..seed = _random.nextDouble();
     particle.size = particle.birthSize;
     final color = effect.color;
-    particle.color.setValues(color.r, color.g, color.b, color.a);
+    particle.linearRgba.setValues(color.r, color.g, color.b, color.a);
     particle.affectors = effect.affectors;
   }
 
@@ -675,10 +675,10 @@ final class ParticleSystem {
       out[at] = particle.position.x;
       out[at + 1] = particle.position.y;
       out[at + 2] = particle.position.z;
-      out[at + 3] = particle.color.x;
-      out[at + 4] = particle.color.y;
-      out[at + 5] = particle.color.z;
-      out[at + 6] = particle.color.w;
+      out[at + 3] = particle.linearRgba.x;
+      out[at + 4] = particle.linearRgba.y;
+      out[at + 5] = particle.linearRgba.z;
+      out[at + 6] = particle.linearRgba.w;
       out[at + 7] = particle.size;
     }
     return count;
@@ -717,7 +717,7 @@ final class ParticleSystem {
     for (var i = 0; i < _alive; i++) {
       final particle = _pool[order == null ? i : order[i]];
       if (written >= maxParticles) break;
-      if (particle.size <= 0.0 || particle.color.w <= 0.0) continue;
+      if (particle.size <= 0.0 || particle.linearRgba.w <= 0.0) continue;
 
       final half = particle.size * 0.5;
 
@@ -764,10 +764,10 @@ final class ParticleSystem {
         vertices[out] = particle.position.x + rx * sx + ux * sy;
         vertices[out + 1] = particle.position.y + ry * sx + uy * sy;
         vertices[out + 2] = particle.position.z + rz * sx + uz * sy;
-        vertices[out + 3] = particle.color.x;
-        vertices[out + 4] = particle.color.y;
-        vertices[out + 5] = particle.color.z;
-        vertices[out + 6] = particle.color.w;
+        vertices[out + 3] = particle.linearRgba.x;
+        vertices[out + 4] = particle.linearRgba.y;
+        vertices[out + 5] = particle.linearRgba.z;
+        vertices[out + 6] = particle.linearRgba.w;
         vertices[out + 7] = cell == null ? u : cell.left + u * cell.width;
         vertices[out + 8] = cell == null ? v : cell.top + v * cell.height;
         out += 9;

@@ -303,7 +303,7 @@ void main() {
       'a file written at version 1 is carried through the updates',
       () async {
         final (material, warnings) = await load('hatch_at_1.fmat');
-        expect(material.parameters.keys.toSet(), <String>{
+        expect(material.parameters.names.toSet(), <String>{
           'inkColor',
           'spacing',
         });

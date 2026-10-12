@@ -1,4 +1,6 @@
 import 'package:flutter3d_effects/flutter3d_effects.dart' show Elements;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Vector3Foundation;
 import 'package:flutter3d_game_kit/world.dart' show Daylight;
 import 'package:vector_math/vector_math.dart';
 
@@ -19,10 +21,13 @@ extension DaylightOnWater on Daylight {
     final up = towardsSun;
     final seen = sky;
     water
-      ..sun(along: -up, light: air.sunlight(up)..scale(sunIntensity))
+      ..sun(
+        along: -up,
+        light: (air.sunlight(up)..scale(sunIntensity)).toLinearColor(),
+      )
       ..sky(
-        zenith: seen.sample(Vector3(0.0, 1.0, 0.0)),
-        horizon: seen.sample(Vector3(1.0, 0.02, 0.0)),
+        zenith: seen.sample(Vector3(0.0, 1.0, 0.0)).toLinearColor(),
+        horizon: seen.sample(Vector3(1.0, 0.02, 0.0)).toLinearColor(),
       );
   }
 }

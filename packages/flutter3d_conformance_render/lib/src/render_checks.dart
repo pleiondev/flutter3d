@@ -6,7 +6,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_conformance/plugins.dart' show PluginCheckOutcome;
 import 'package:flutter3d_core/flutter3d_core.dart';
-import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LightType, MaterialParameters;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart' show EngineLoop, InputState;
@@ -315,7 +316,7 @@ Future<List<PluginCheckOutcome>> checkPluginRender(
           stage.scene(
             material: RenderMaterial(
               lighting: model,
-              parameters: parameters,
+              parameters: MaterialParameters.over(parameters),
               extraTextures: extra,
             ),
           ),
@@ -373,12 +374,12 @@ Future<List<PluginCheckOutcome>> checkPluginRender(
           stage.scene(
             material: RenderMaterial(
               lighting: model,
-              parameters: <String, Float32List>{
+              parameters: MaterialParameters.over(<String, Float32List>{
                 for (final block in model.slots.blocks)
                   for (final m in block.members)
                     if (m.defaultValue.isNotEmpty)
                       m.name: Float32List.fromList(m.defaultValue),
-              },
+              }),
               extraTextures: <String, TextureHandle>{
                 for (final t in model.slots.textures) t.binding: white,
               },

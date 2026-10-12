@@ -52,7 +52,7 @@ final Liquid _lava = Liquid(
     backscatter: Vector3(0.7271, 0.2819, 0.1396),
   ),
   heat: NativeLiquidHeat.water(),
-  glow: Vector3(6.0, 1.6, 0.25),
+  glow: LinearColor(6.0, 1.6, 0.25),
 );
 
 /// The river's water: a mountain stream's, clear.

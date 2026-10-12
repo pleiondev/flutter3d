@@ -3,6 +3,8 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show MaterialParameterSchema, MaterialParameters, ParameterDeclaration;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import '../format_exceptions.dart';
@@ -100,13 +102,21 @@ final class BundledMaterials {
       ));
 
   /// What `RenderMaterial.parameters` starts as for material [name]: each
-  /// `uniform` the source declares, at its default — `P8`. A fresh map every
-  /// call, so one material's edits are not another's. Empty for a material
-  /// with no uniform.
+  /// `uniform` the source declares, at its default, checked against
+  /// [schema] — `P8`. Fresh values every call, so one material's edits are
+  /// not another's. Empty for a material with no uniform.
   ///
   /// A full-screen stage's or a kernel's too — version 2: what
-  /// `FullscreenEffect.uniforms` holds under `MaterialParams`.
-  Map<String, Float32List> parameters(String name) {
+  /// `FullscreenEffect.material` binds as `MaterialParams`.
+  MaterialParameters parameters(String name) =>
+      MaterialParameters(schema: schema(name));
+
+  /// What material [name] lets a draw set: each `uniform` its source
+  /// declares, its width and its default, as the bundle carries them — the
+  /// schema [parameters] checks against. A bundle keeps no `param`, which
+  /// is folded into its stages. Throws an [ArgumentError] naming the
+  /// materials the bundle has.
+  MaterialParameterSchema schema(String name) {
     final bindings =
         stages[name] ??
         (throw ArgumentError.value(
@@ -115,9 +125,13 @@ final class BundledMaterials {
           'bundle "${bundle.name}" has the materials '
               '${lighting.keys.join(', ')}',
         ));
-    return <String, Float32List>{
+    return MaterialParameterSchema(<ParameterDeclaration>[
       for (final MapEntry(:key, :value) in bindings.uniforms.entries)
-        key: Float32List.fromList(value),
-    };
+        ParameterDeclaration(
+          key,
+          components: value.length,
+          defaultValue: List<double>.unmodifiable(value),
+        ),
+    ]);
   }
 }

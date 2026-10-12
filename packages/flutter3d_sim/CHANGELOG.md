@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a level material's glow is a colour and a strength.**
+  `LevelMaterial.emissive` is a `LinearColor?` (null glows in the base
+  colour, as every level did), and the number it was is `emissiveStrength`.
+  The file is unchanged: its `emissive` key is still the strength, and a
+  colour is the new optional `emissiveColor`. `LevelMaterial.parameters` is
+  a `MaterialParameters`, the shape the renderer's material has, and
+  `storedBaseColor` an `SrgbColor` rather than a `Vector4`.
 - **Breaking: every hook a game implements takes one context.** A
   parameter added to a hook would have broken every game written against
   1.0; a member added to its context breaks none. `Brain.onHurt` and

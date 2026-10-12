@@ -13,6 +13,8 @@ library;
 import 'dart:convert';
 
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -214,7 +216,7 @@ void main() {
             kind: Piece.entity,
             what: 'wumpus',
             count: 0,
-            tint: Vector3.zero(),
+            tint: LinearColor.black,
           ),
           Vector3.zero(),
         );

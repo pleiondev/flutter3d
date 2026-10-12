@@ -6,6 +6,8 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor, LinearColorVector;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -136,10 +138,10 @@ final class LiquidLook {
 
   /// The sun: the direction its light travels along, and its colour times
   /// its intensity.
-  void sun({required Vector3 along, required Vector3 light}) {
+  void sun({required Vector3 along, required LinearColor light}) {
     _params
       ..toSun = (-along).normalized()
-      ..sunColor = light;
+      ..sunColor = light.toVector3();
   }
 
   /// What the liquid does to light: pure water's at first.
@@ -151,13 +153,15 @@ final class LiquidLook {
 
   /// Light the liquid gives off itself, as molten rock does: brightest
   /// where its flow breaks the crust. Nought for anything cold.
-  set glow(Vector3 value) => _params.glow = value;
+  /// Linear, in the scene's light.
+  set glow(LinearColor value) => _params.glow = value.toVector3();
 
   /// The sky the water mirrors: what the scene's sky draws overhead and at
   /// the horizon.
-  void sky({required Vector3 zenith, required Vector3 horizon}) {
+  /// Both linear.
+  void sky({required LinearColor zenith, required LinearColor horizon}) {
     _params
-      ..zenith = zenith
-      ..horizon = horizon;
+      ..zenith = zenith.toVector3()
+      ..horizon = horizon.toVector3();
   }
 }

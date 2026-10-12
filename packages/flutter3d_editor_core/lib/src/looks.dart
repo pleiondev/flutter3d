@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor, Vector3Foundation;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
@@ -74,7 +76,7 @@ final class Looks {
 
   /// What colour to draw the mark, or null to keep the one from the type's
   /// name.
-  Vector3? tintFor(EntityDef entity) => _byType[entity.type]?.tint;
+  LinearColor? tintFor(EntityDef entity) => _byType[entity.type]?.tint;
 
   /// The shapes this type is built out of, or empty.
   ///
@@ -114,7 +116,9 @@ final class Look {
 
   final String? model;
   final Vector3? size;
-  final Vector3? tint;
+
+  /// What it is drawn in, linear: the document's `tint`.
+  final LinearColor? tint;
 
   /// The shapes it is built out of, for a thing with no model.
   final List<Part> parts;
@@ -122,7 +126,7 @@ final class Look {
   factory Look.fromJson(Map<String, Object?> json) => Look(
     model: json['model'] is String ? json['model']! as String : null,
     size: _vector(json['size']),
-    tint: _vector(json['tint']),
+    tint: _vector(json['tint'])?.toLinearColor(),
     parts: <Part>[
       for (final part
           in json['parts'] is List
@@ -181,7 +185,8 @@ final class Part {
   /// out of the wall.
   final double pitch;
 
-  final Vector3 color;
+  /// What it is drawn in, linear.
+  final LinearColor color;
 
   /// Whether this part is the light rather than the thing holding it. Drawn so
   /// that a dark corridor cannot swallow it, which is the whole point of a
@@ -196,9 +201,9 @@ final class Part {
     height: json['height'] is num ? (json['height']! as num).toDouble() : 0.1,
     pitch: json['pitch'] is num ? (json['pitch']! as num).toDouble() : 0.0,
     color:
-        Look._vector(json['colour']) ??
-        Look._vector(json['glow']) ??
-        Vector3(0.6, 0.6, 0.62),
+        (Look._vector(json['colour']) ?? Look._vector(json['glow']))
+            ?.toLinearColor() ??
+        const LinearColor(0.6, 0.6, 0.62),
     glows: json['glow'] != null,
   );
 }

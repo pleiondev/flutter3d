@@ -280,7 +280,7 @@ void main() {
       expect(entry.type, 'boat');
       expect(entry.label, 'Boat');
       expect(entry.properties, <String, Object?>{'buoyancy': 1.0});
-      expect(entry.tint!.z, closeTo(1.0, 1e-9));
+      expect(entry.tint!.b, closeTo(1.0, 1e-9));
     });
 
     test('a field refuses the wrong shape and takes a value past its ends', () {

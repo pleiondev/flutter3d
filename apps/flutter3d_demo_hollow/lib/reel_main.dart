@@ -68,7 +68,7 @@ Future<HollowRun> _open(
           scene: scene,
           load: rootBundle.load,
         )
-        ..sun(along: _sunAlong, light: Vector3(2.0, 1.9, 1.75));
+        ..sun(along: _sunAlong, light: LinearColor(2.0, 1.9, 1.75));
   return HollowRun(
     device: device,
     scene: scene,

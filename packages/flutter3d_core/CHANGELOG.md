@@ -1,5 +1,16 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a material's parameters are a `MaterialParameters`.**
+  `RenderMaterial.parameters` (and its constructor's `parameters:`) was a
+  `Map<String, Float32List>`; it is the one shape a material's parameters
+  have, the same type `Material3D` and a level's `LevelMaterial` hold.
+  Indexing reads the bound floats and writes through the schema's check;
+  `MaterialParameters.over(map)` wraps a map a caller still writes.
+  `BundledMaterials.parameters` answers one checked against the source's
+  schema, `BundledMaterials.schema` is a method of the bundle (the
+  `BundledMaterialSchemas` extension is gone), and a parsed source's schema
+  is `MaterialProgram.schema`. The types themselves moved to
+  `flutter3d_foundation`.
 - **Breaking: a decoder, a writer and the renderer's services take one
   context each.** `ModelDecoder.handles` takes a `ModelProbe` (new: the
   file's name and bytes) and `decode` a `ModelDecodeContext` (new: the

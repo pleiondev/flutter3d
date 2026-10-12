@@ -66,7 +66,7 @@ final class PlatformerLooks with FixtureAppearance {
         baseColor: LinearColor.fromSrgb(0.98, 0.80, 0.22),
         roughness: 0.25,
         metallic: 0.8,
-        emissive: 0.35,
+        emissiveStrength: 0.35,
       );
     }
     if (mechanism is Hazard) {
@@ -75,7 +75,7 @@ final class PlatformerLooks with FixtureAppearance {
       return LevelMaterial(
         baseColor: LinearColor.fromSrgb(0.75, 0.13, 0.10),
         roughness: 0.6,
-        emissive: 0.5,
+        emissiveStrength: 0.5,
       );
     }
     if (mechanism is Checkpoint) {
@@ -84,14 +84,14 @@ final class PlatformerLooks with FixtureAppearance {
             ? LinearColor.fromSrgb(0.35, 0.85, 0.45)
             : LinearColor.fromSrgb(0.35, 0.45, 0.85),
         roughness: 0.4,
-        emissive: 0.3,
+        emissiveStrength: 0.3,
       );
     }
     if (mechanism is Exit) {
       return LevelMaterial(
         baseColor: LinearColor.fromSrgb(0.95, 0.95, 0.85),
         roughness: 0.3,
-        emissive: 0.7,
+        emissiveStrength: 0.7,
       );
     }
     return LevelMaterial(baseColor: LinearColor.fromSrgb(0.55, 0.52, 0.48));

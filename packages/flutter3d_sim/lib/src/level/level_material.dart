@@ -1,5 +1,5 @@
-import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show LinearColor;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor, MaterialParameters, SrgbColor;
 import 'package:vector_math/vector_math.dart';
 
 import 'json_reader.dart';
@@ -21,7 +21,8 @@ final class LevelMaterial {
     LinearColor? baseColor,
     this.roughness = 0.85,
     this.metallic = 0.0,
-    this.emissive = 0.0,
+    this.emissive,
+    this.emissiveStrength = 0.0,
 
     /// How many times a texture repeats per metre.
     this.texelsPerMeter = 1.0,
@@ -30,11 +31,12 @@ final class LevelMaterial {
     this.orm,
     this.fmat,
     this.depthLayer = 0,
-    this.parameters = const <String, List<double>>{},
+    MaterialParameters? parameters,
     this.materialVersion,
     this.physicalMaterial,
     Map<String, Object?> source = const <String, Object?>{},
   }) : baseColor = baseColor ?? _defaultBaseColor,
+       parameters = parameters ?? MaterialParameters(),
        // ignore: prefer_initializing_formals
        _source = source;
 
@@ -55,13 +57,23 @@ final class LevelMaterial {
   /// Metalness, a 0..1 factor: 0 is a dielectric, 1 is bare metal.
   final double metallic;
 
-  /// How brightly the surface glows in its own [baseColor]. Zero is not lit.
+  /// The colour the surface glows in, linear, or null for the colour it is
+  /// painted ([baseColor]), which is what every level written before 1.0
+  /// glows in. The document's `emissiveColor`, written only when set.
   ///
-  /// A strength rather than a colour, because a surface that emits light in
-  /// some other colour than the one it is painted is a thing no level here has
-  /// wanted, and a second colour is a second value to keep in step. The bridge
-  /// turns it into the renderer's emissive factor and strength.
-  final double emissive;
+  /// **A `LinearColor`, as every material's emissive is** (since 1.0): the
+  /// renderer's `RenderMaterial.emissive` and `Material3D.emissive` are
+  /// colours too, and how bright it shines is [emissiveStrength].
+  final LinearColor? emissive;
+
+  /// How brightly the surface glows: a plain multiple of
+  /// `RenderMaterial.defaultEmissiveStrength`, as a level has always stored
+  /// it. Zero is not lit. The document's `emissive` key, unchanged, so a
+  /// level reads and writes the number it did.
+  ///
+  /// Named `emissive` before 1.0, when it was the only emissive value a
+  /// level had.
+  final double emissiveStrength;
 
   /// Texture repeats per metre: the UV span one metre of a face covers.
   final double texelsPerMeter;
@@ -114,11 +126,16 @@ final class LevelMaterial {
 
   /// The values this surface gives the parameters of the material it is
   /// drawn with, when that material is written in the engine's material
-  /// language: each a parameter's name and its components, as
-  /// `RenderMaterial.parameters` takes them.
+  /// language: each a parameter's name and its components.
+  ///
+  /// **A [MaterialParameters], the one shape a material's parameters have**
+  /// (since 1.0; it was a map of names to numbers): the loader writes these
+  /// into the `RenderMaterial.parameters` it draws with, by name. Held
+  /// without a schema, because this package does not read materials; the
+  /// material checks them when the loader writes them.
   ///
   /// Empty is every level written so far, and the material's defaults.
-  final Map<String, List<double>> parameters;
+  final MaterialParameters parameters;
 
   /// The version of that material [parameters] were written for: its
   /// `material Name version N`. Null for a level that predates material
@@ -142,11 +159,15 @@ final class LevelMaterial {
   /// (`Level.requireMaterials`).
   final String? physicalMaterial;
 
-  /// [baseColor] as the document stores it: sRGB-encoded, in single
+  /// [baseColor] as the document stores it: sRGB-encoded, rounded to single
   /// precision, which is what a level file has always said.
-  Vector4 get storedBaseColor {
+  ///
+  /// An [SrgbColor] since 1.0, where it was a `Vector4`: a colour, typed as
+  /// the encoding it is in.
+  SrgbColor get storedBaseColor {
     final stored = baseColor.toSrgb();
-    return Vector4(stored.r, stored.g, stored.b, stored.a);
+    final single = Vector4(stored.r, stored.g, stored.b, stored.a);
+    return SrgbColor(single.x, single.y, single.z, single.w);
   }
 
   /// Whether anything here has to be loaded from disk.
@@ -166,7 +187,10 @@ final class LevelMaterial {
     },
     roughness: json.numberOr('roughness', 0.85),
     metallic: json.numberOr('metallic', 0.0),
-    emissive: json.numberOr('emissive', 0.0),
+    emissive: json.containsKey('emissiveColor')
+        ? json.linearColor('emissiveColor', fallback: LinearColor.black)
+        : null,
+    emissiveStrength: json.numberOr('emissive', 0.0),
     // `texelsPerMetre` until format 5; a level's lift renames it.
     texelsPerMeter: json.numberOr('texelsPerMeter', 1.0),
     albedo: json.textOrNull('albedo'),
@@ -186,37 +210,46 @@ final class LevelMaterial {
   );
 
   /// A document's `parameters`: each name to a number or a list of them.
-  static Map<String, List<double>> _parameters(Object? json) => switch (json) {
-    null => const <String, List<double>>{},
-    final Map<String, Object?> map => <String, List<double>>{
-      for (final MapEntry(:key, :value) in map.entries)
-        key: switch (value) {
-          final num number => <double>[number.toDouble()],
-          final List<Object?> list
-              when list.isNotEmpty &&
-                  list.length <= 4 &&
-                  list.every((e) => e is num) =>
-            <double>[for (final e in list) (e! as num).toDouble()],
-          _ => throw LevelFormatException(
-            'material parameter "$key" is a number or a list of one to four, '
-            'not $value',
-          ),
-        },
-    },
+  static MaterialParameters _parameters(Object? json) => switch (json) {
+    null => MaterialParameters(),
+    final Map<String, Object?> map => MaterialParameters.of(
+      <String, List<double>>{
+        for (final MapEntry(:key, :value) in map.entries)
+          key: switch (value) {
+            final num number => <double>[number.toDouble()],
+            final List<Object?> list
+                when list.isNotEmpty &&
+                    list.length <= 4 &&
+                    list.every((e) => e is num) =>
+              <double>[for (final e in list) (e! as num).toDouble()],
+            _ => throw LevelFormatException(
+              'material parameter "$key" is a number or a list of one to four, '
+              'not $value',
+            ),
+          },
+      },
+    ),
     _ => throw LevelFormatException(
       'a material\'s "parameters" is a map of names to numbers, not $json',
     ),
   };
 
   Map<String, Object?> toJson() => writeThrough(_source, <WriteThroughField>[
-    WriteThroughField(
-      'baseColor',
-      storedBaseColor.toJson(),
-      whenAbsent: baseColor != _defaultBaseColor,
-    ),
+    WriteThroughField('baseColor', switch (storedBaseColor) {
+      SrgbColor(:final r, :final g, :final b, :final a) => <double>[r, g, b, a],
+    }, whenAbsent: baseColor != _defaultBaseColor),
     WriteThroughField('roughness', roughness, whenAbsent: roughness != 0.85),
     WriteThroughField('metallic', metallic, whenAbsent: metallic != 0.0),
-    WriteThroughField('emissive', emissive, whenAbsent: emissive != 0.0),
+    WriteThroughField(
+      'emissive',
+      emissiveStrength,
+      whenAbsent: emissiveStrength != 0.0,
+    ),
+    WriteThroughField(
+      'emissiveColor',
+      emissive?.toJson(),
+      whenAbsent: emissive != null,
+    ),
     WriteThroughField(
       'texelsPerMeter',
       texelsPerMeter,
@@ -232,8 +265,8 @@ final class LevelMaterial {
     WriteThroughField('fmat', fmat, whenAbsent: fmat != null),
     WriteThroughField('depthLayer', depthLayer, whenAbsent: depthLayer != 0),
     WriteThroughField('parameters', <String, Object?>{
-      for (final MapEntry(:key, :value) in parameters.entries)
-        key: value.length == 1 ? value.single : value,
+      for (final MapEntry(:key, :value) in parameters.uniforms.entries)
+        key: value.length == 1 ? value.single : <double>[...value],
     }, whenAbsent: parameters.isNotEmpty),
     WriteThroughField(
       'materialVersion',

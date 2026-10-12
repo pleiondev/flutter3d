@@ -704,7 +704,7 @@ final class HotSwap {
     final parameter = field.substring(parameterField.length);
     final held = material.parameters[parameter];
     if (held == null) {
-      final has = material.parameters.keys;
+      final has = material.parameters.names;
       throw ArgumentError.value(
         field,
         'field',
@@ -1380,13 +1380,7 @@ final class HotMaterials {
 
   void _rebind(RenderMaterial material, String name) {
     material.lighting = _materials[name];
-    final defaults = _materials.parameters(name);
-    material.parameters
-      ..removeWhere((String key, _) => !defaults.containsKey(key))
-      ..addAll(<String, Float32List>{
-        for (final MapEntry(:key, :value) in defaults.entries)
-          if (!material.parameters.containsKey(key)) key: value,
-      });
+    material.parameters.adopt(_materials.schema(name));
   }
 
   /// A reload took [bytes]: read the sources again and rebind. A material

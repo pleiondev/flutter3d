@@ -24410,3 +24410,125 @@ entries:
       What was under `pointer_lock`'s `lib/src/` is under
       `flutter3d_pointer_lock`'s, file for file. Importing it was never the
       public API; the main library above is.
+
+  - id: fixr-core-RenderMaterial-parameters
+    package: flutter3d_core
+    symbol: RenderMaterial.parameters
+    kind: argument
+    arguments: [parameters]
+    types: [Map]
+    template: 'MaterialParameters.over({value})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
+    guidance: >-
+      A material's parameters are a `MaterialParameters`, the one shape
+      `RenderMaterial`, `Material3D` and `LevelMaterial` share.
+      `parameters: map` is `parameters: MaterialParameters.over(map)`, which
+      writes into the map you still hold. Indexing reads and writes as it
+      did: `material.parameters['wind']` is the bound floats, and
+      `material.parameters['wind'] = values` sets them (checked against the
+      material's schema where it has one). A use as a `Map` reads
+      `material.parameters.uniforms`, and `keys` is `names`.
+
+  - id: fixr-sim-LevelMaterial-emissive
+    package: flutter3d_sim
+    symbol: LevelMaterial.emissive
+    kind: argument
+    arguments: [emissive]
+    to: emissiveStrength
+    types: [double, int, num]
+    guidance: >-
+      A level material's `emissive` is a `LinearColor`, as every material's
+      is, and null (the default) glows in the colour the surface is painted.
+      The number it was is `emissiveStrength`: `emissive: 0.5` is
+      `emissiveStrength: 0.5`, and a read of the number is
+      `material.emissiveStrength`. A level file is unchanged: its `emissive`
+      key is still the strength, and a colour is the new `emissiveColor`.
+
+  - id: fixr-particles-Particle-color
+    package: flutter3d_particles
+    symbol: Particle.color
+    kind: rename
+    to: linearRgba
+    guidance: >-
+      A particle's colour is `linearRgba`, the same `Vector4` under a name
+      that says what its four numbers are: linear RGB and an alpha read as
+      brightness, written in place by every affector. Nothing else changed;
+      `LinearColor(p.linearRgba.x, p.linearRgba.y, p.linearRgba.z)` reads it
+      as a colour.
+
+  - id: fixr-editor_core-Handle-tint
+    package: flutter3d_editor_core
+    symbol: Handle.tint
+    kind: argument
+    arguments: [tint]
+    types: [Vector3]
+    template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b}
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
+    guidance: >-
+      A handle's `tint` is a linear `LinearColor`, as every colour the engine
+      takes is: `Vector3(r, g, b)` is `LinearColor(r, g, b)`, and a read of
+      `.x` is `.r`.
+
+  - id: fixr-editor_core-Placeable-tint
+    package: flutter3d_editor_core
+    symbol: Placeable.tint
+    kind: argument
+    arguments: [tint]
+    types: [Vector3]
+    template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b}
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
+    guidance: >-
+      A palette row's `tint` is a linear `LinearColor`, as every colour the engine
+      takes is: `Vector3(r, g, b)` is `LinearColor(r, g, b)`, and a read of
+      `.x` is `.r`.
+
+  - id: fixr-editor_core-Look-tint
+    package: flutter3d_editor_core
+    symbol: Look.tint
+    kind: argument
+    arguments: [tint]
+    types: [Vector3]
+    template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b}
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
+    guidance: >-
+      A look's `tint` is a linear `LinearColor`, as every colour the engine
+      takes is: `Vector3(r, g, b)` is `LinearColor(r, g, b)`, and a read of
+      `.x` is `.r`.
+
+  - id: fixr-editor_core-Part-color
+    package: flutter3d_editor_core
+    symbol: Part.color
+    kind: argument
+    arguments: [color]
+    types: [Vector3]
+    template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b}
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
+    guidance: >-
+      A part's `color` is a linear `LinearColor`, as every colour the engine
+      takes is: `Vector3(r, g, b)` is `LinearColor(r, g, b)`, and a read of
+      `.x` is `.r`.
+
+  - id: fixr-editor_core-atLeast-color
+    package: flutter3d_editor_core
+    symbol: atLeast
+    kind: rewrite
+    types: [Vector3]
+    template: 'atLeast({0}.toLinearColor(), {1}).toVector3()'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
+    guidance: >-
+      `atLeast` takes and gives a `LinearColor`. A call with a `Vector3` is
+      rewritten to convert both ways, which keeps it compiling; pass the
+      colour as a `LinearColor` where you have one.
+
+  - id: fixr-editor_core-tintFor-color
+    package: flutter3d_editor_core
+    symbol: tintFor
+    kind: none
+    reason: >-
+      The call is unchanged and so are the numbers it answers; only their
+      type is, a `LinearColor` whose channels are `r`, `g` and `b`, which is
+      what a gizmo's and a palette row's `tint` now take as they are.

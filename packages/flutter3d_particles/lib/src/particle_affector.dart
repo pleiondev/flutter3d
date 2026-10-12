@@ -233,7 +233,7 @@ final class ParticleColorOverLife extends ParticleAffector {
   void apply(ParticleStep step) {
     final particle = step.particle;
     final t = particle.life;
-    particle.color.setValues(
+    particle.linearRgba.setValues(
       _from.r + (_to.r - _from.r) * t,
       _from.g + (_to.g - _from.g) * t,
       _from.b + (_to.b - _from.b) * t,
@@ -261,7 +261,7 @@ final class ParticleFade extends ParticleAffector {
     if (t <= startsAt) return;
     final span = 1.0 - startsAt;
     final fade = span <= 0.0 ? 0.0 : 1.0 - (t - startsAt) / span;
-    particle.color.w *= fade;
+    particle.linearRgba.w *= fade;
   }
 }
 

@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a generated material accessor is over a `MaterialParameters`**,
+  the shape `RenderMaterial.parameters` has, and its `defaults()` answers
+  one. A `vec3` or `vec4` uniform whose name says it is a colour says in
+  its doc that the vector is the linear buffer the shader reads.
 - **A material build asks the backends' own compilers.**
   `MaterialCompilers.registry` (and `MaterialCompilers.locate(registry:)`)
   holds a `MaterialCompilerRegistry`; `compileMaterial` hands each

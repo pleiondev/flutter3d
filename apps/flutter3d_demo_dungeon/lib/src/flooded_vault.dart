@@ -40,10 +40,10 @@ final class FloodedVault {
       // of the room is seen at, is torchlit stone, warm and many times
       // brighter than the vault's black ceiling, so the ripples, tipping the
       // mirrored ray between the two, show as a moving sheen.
-      ..sun(along: Vector3(0.0, -0.5, 0.85), light: flameLight)
+      ..sun(along: Vector3(0.0, -0.5, 0.85), light: flameLight.toLinearColor())
       ..sky(
-        zenith: Vector3(0.012, 0.01, 0.008),
-        horizon: Vector3(0.12, 0.08, 0.042),
+        zenith: LinearColor(0.012, 0.01, 0.008),
+        horizon: LinearColor(0.12, 0.08, 0.042),
       );
     view = LiquidView(
       world: world,
@@ -187,7 +187,7 @@ final class FloodedVault {
       image.setValues(x, plan.level, z);
     }
     if (shone == null) return;
-    look.sun(along: image - shone, light: flameLight);
+    look.sun(along: image - shone, light: flameLight.toLinearColor());
   }
 
   /// Out of the scene, its meshes given back.

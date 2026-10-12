@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `Material3D(parameters:)` takes a `MaterialParameters`**, the
+  one shape a material's parameters have; `MaterialParameters.of(map)`
+  takes the map of numbers it took before. A hot reload keeps the values a
+  material's source still declares through `MaterialParameters.adopt`.
 - **The view's own loop runs the profile it is given.**
   `LoopSettings.profile` (deterministic by default) is the
   `SimulationProfile` of the loop `Flutter3dView` steps inline, so a

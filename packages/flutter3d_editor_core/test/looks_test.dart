@@ -127,7 +127,7 @@ void main() {
       final described = looks.tintFor(_entity('torch'))!;
 
       expect(described, isNot(tintFor('torch')));
-      expect(described.x, greaterThan(described.z), reason: 'a torch is warm');
+      expect(described.r, greaterThan(described.b), reason: 'a torch is warm');
     });
   });
 
@@ -189,7 +189,7 @@ void main() {
 
       expect(parts.last.glows, isTrue);
       expect(parts.first.glows, isFalse);
-      expect(parts.last.color.x, greaterThan(parts.last.color.z));
+      expect(parts.last.color.r, greaterThan(parts.last.color.b));
     });
 
     test('and an angle, which is what holds a torch out of a wall', () {
@@ -228,7 +228,7 @@ void main() {
     final handle = handlesOf(level, looks: looks).single;
 
     expect(handle.size.y, closeTo(0.75, 1e-6));
-    expect(handle.tint.x, closeTo(1.0, 1e-6));
+    expect(handle.tint.r, closeTo(1.0, 1e-6));
   });
 
   group('the crypt\'s own file', () {

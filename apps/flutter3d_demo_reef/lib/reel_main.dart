@@ -60,7 +60,7 @@ Future<(int, int)> _wreck(
           renderer: renderer,
           bundle: await rootBundle.load(LiquidLook.asset),
         )
-        ..sun(along: sunAlong, light: sunLight)
+        ..sun(along: sunAlong, light: sunLight.toLinearColor())
         ..optics = LiquidOptics.pureWater;
   final floor =
       await SeabedLook.load(
@@ -68,7 +68,7 @@ Future<(int, int)> _wreck(
           renderer: renderer,
           bundle: await rootBundle.load(SeabedLook.asset),
         )
-        ..sun(along: sunAlong, light: sunLight)
+        ..sun(along: sunAlong, light: sunLight.toLinearColor())
         ..optics = LiquidOptics.pureWater;
   final camera = CameraNode(name: 'reel');
   final scene = Scene()
@@ -88,7 +88,7 @@ Future<(int, int)> _wreck(
           load: rootBundle.load,
           lights: FireLights.none,
         )
-        ..sun(along: sunAlong, light: sunLight);
+        ..sun(along: sunAlong, light: sunLight.toLinearColor());
   final run = ReefRun(
     device: device,
     scene: scene,

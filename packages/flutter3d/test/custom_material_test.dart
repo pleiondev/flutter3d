@@ -205,9 +205,9 @@ void main() {
           name: 'tinted',
           lighting: _tint,
           parameterBlock: 'Tint',
-          parameters: <String, Float32List>{
+          parameters: MaterialParameters.over(<String, Float32List>{
             'colour': Float32List.fromList(<double>[0.0, 0.85, 0.2, 1.0]),
-          },
+          }),
         ),
       )..setPosition(0.0, 0.0, -8.0),
     );

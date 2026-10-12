@@ -11,6 +11,8 @@ library;
 
 import 'package:flutter3d_core/data_plugins.dart';
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show MaterialParameters;
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:test/test.dart';

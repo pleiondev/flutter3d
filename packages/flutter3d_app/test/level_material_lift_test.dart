@@ -111,8 +111,8 @@ void main() {
       Float32List.fromList(<double>[0.2, 0.4, 0.5]),
     );
     expect(parameters['rimPower'], <double>[2.0]);
-    expect(parameters.containsKey('rim'), isFalse);
-    expect(parameters.containsKey('pulse'), isFalse);
+    expect(parameters.names.contains('rim'), isFalse);
+    expect(parameters.names.contains('pulse'), isFalse);
   });
 
   test('values for a newer material keep the material\'s own, with a '
@@ -139,7 +139,7 @@ void main() {
     );
     expect(loaded.issues.single.message, contains('"glare"'));
     final parameters = loaded.brushNodes.single.material.parameters;
-    expect(parameters.containsKey('glare'), isFalse);
+    expect(parameters.names.contains('glare'), isFalse);
     expect(parameters['rimPower'], <double>[5.0]);
   });
 

@@ -231,7 +231,7 @@ class _HollowScreenState extends State<HollowScreen>
                 ),
               ),
             )
-            ..sun(along: _sunAlong, light: Vector3(2.0, 1.9, 1.75));
+            ..sun(along: _sunAlong, light: LinearColor(2.0, 1.9, 1.75));
       final run = HollowRun(
         device: device,
         scene: scene,

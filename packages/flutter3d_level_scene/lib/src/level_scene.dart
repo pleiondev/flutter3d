@@ -348,23 +348,23 @@ final class LevelScene {
       baseColor: source.baseColor,
       roughness: source.roughness,
       metallic: source.metallic,
-      // A level material's `emissive` is a strength, not a colour: the surface
-      // glows in the base colour it already has, that much. A separate
-      // emissive colour would be a second value an author has to keep in step
-      // with the first, and everything that has reached for the key so far —
-      // the platformer's hazard "lit from inside", its checkpoints, its exit —
-      // wanted exactly the tint it had already written.
-      // The level's numbers as they always reached the shader, and its
-      // strength in the old unit, which the material takes as nits.
-      emissive: switch (source.storedBaseColor) {
-        final stored => LinearColor(stored.x, stored.y, stored.z),
-      },
+      // Without a colour of its own, a level material glows in the base
+      // colour it already has: everything that has reached for the strength
+      // so far — the platformer's hazard "lit from inside", its checkpoints,
+      // its exit — wanted exactly the tint it had already written. The
+      // level's numbers as they always reached the shader, and its strength
+      // in the old unit, which the material takes as nits.
+      emissive:
+          source.emissive ??
+          switch (source.storedBaseColor) {
+            final stored => LinearColor(stored.r, stored.g, stored.b),
+          },
       emissiveStrength:
-          source.emissive * RenderMaterial.defaultEmissiveStrength,
+          source.emissiveStrength * RenderMaterial.defaultEmissiveStrength,
     );
     if (substance != null) _lookOf(material, source, substance);
-    for (final MapEntry(:key, :value) in source.parameters.entries) {
-      material.parameters[key] = Float32List.fromList(value);
+    for (final MapEntry(:key, :value) in source.parameters.uniforms.entries) {
+      material.parameters[key] = value;
     }
     if (!source.hasMaps) return material;
 

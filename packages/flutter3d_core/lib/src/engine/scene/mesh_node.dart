@@ -5,7 +5,6 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../render/material.dart';
-import '../render/material_parameters.dart';
 import 'morph_state.dart';
 import 'scene.dart';
 import 'scene_node.dart';
@@ -141,10 +140,10 @@ base class MeshNode extends SceneNode {
   /// again on each call. The material's map is never written.
   Map<String, Float32List> parametersFor(RenderMaterial material) {
     final own = parameters;
-    if (own == null || own.isEmpty) return material.parameters;
+    if (own == null || own.isEmpty) return material.parameters.uniforms;
     return _mergedParameters
       ..clear()
-      ..addAll(material.parameters)
+      ..addAll(material.parameters.uniforms)
       ..addAll(own.uniforms);
   }
 

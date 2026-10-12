@@ -42,7 +42,7 @@ final class MapEffects {
     _look = LiquidLook.of(liquid)
       ..optics = _optics
       ..wind = _world.wind.length
-      ..sun(along: sunAlong, light: sunLight);
+      ..sun(along: sunAlong, light: sunLight.toLinearColor());
     _river = LiquidView(
       world: _world.world,
       liquid: _world.river,
