@@ -50,7 +50,9 @@ if ! curl -sf --max-time 5 -o /dev/null https://pub.dev/api/packages/flutter3d; 
   exit 2
 fi
 
-WORK="$(mktemp -d)"
+# Under $TMPDIR when it is set: macOS's `mktemp -d` ignores it and writes to
+# the system disk, which holds a copy of every package for the whole run.
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/api_against_pub.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT INT TERM
 
 # Every package of this repository, "name directory" per line, so a copy can
@@ -61,6 +63,19 @@ for dir in packages/*/; do
   [ -f "$dir/pubspec.yaml" ] || continue
   name="$(awk '/^name:/ { print $2; exit }' "$dir/pubspec.yaml")"
   echo "$name $PWD/${dir%/}" >> "$LIST"
+done
+
+# The workspace's examples are never published and never compared, but a
+# package may name one as a dev dependency (`flutter3d_build` names the
+# outside backend its shader build is held to), and a copy resolving outside
+# the workspace finds nothing on pub.dev under that name. So they are
+# siblings to point at, in a list of their own that the loop below skips.
+EXAMPLES="$WORK/examples.txt"
+: > "$EXAMPLES"
+for dir in examples/*/; do
+  [ -f "$dir/pubspec.yaml" ] || continue
+  name="$(awk '/^name:/ { print $2; exit }' "$dir/pubspec.yaml")"
+  echo "$name $PWD/${dir%/}" >> "$EXAMPLES"
 done
 
 FAILED=0
@@ -103,6 +118,10 @@ while read -r name dir <&3; do
       echo "  $sibling:"
       echo "    path: $home"
     done < "$LIST"
+    while read -r example home; do
+      echo "  $example:"
+      echo "    path: $home"
+    done < "$EXAMPLES"
   } > "$copy/pubspec_overrides.yaml"
 
   # `fully`: a break needs a major, an addition a minor, as pub.dev's latest

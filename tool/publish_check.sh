@@ -32,7 +32,8 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
-BACKUPS="$(mktemp -d)"
+# Under $TMPDIR when it is set, which macOS's bare `mktemp -d` ignores.
+BACKUPS="$(mktemp -d "${TMPDIR:-/tmp}/publish_check.XXXXXX")"
 
 # On any exit, including a signal: put back every pubspec this touched. The
 # list is built as it goes, so a run interrupted before the first copy restores
