@@ -182,31 +182,10 @@ if [[ ! -f "$BUNDLE" ]]; then
   exit 2
 fi
 
-# One resident-memory sample a second into $1, `<seconds> <kB>` a line,
-# counted from the first sample the application answers.
-sample_rss() {
-  local out="$1" start="" kb pid now
-  while :; do
-    kb=""
-    case "$MEMORY" in
-      android)
-        kb="$(adb -s "$DEVICE" shell dumpsys meminfo "$PACKAGE" 2>/dev/null |
-          awk '/TOTAL RSS:/ { for (i = 1; i < NF; i++) if ($i == "RSS:") { print $(i + 1); exit } }')"
-        ;;
-      macos)
-        # The profile build's own binary, not another checkout's game.
-        pid="$(pgrep -f "$APP/build/macos/Build/Products/Profile/" | head -1)"
-        [[ -n "$pid" ]] && kb="$(ps -o rss= -p "$pid" | tr -d ' ')"
-        ;;
-    esac
-    if [[ "$kb" =~ ^[0-9]+$ ]]; then
-      now="$(date +%s)"
-      start="${start:-$now}"
-      echo "$((now - start)) $kb" >> "$out"
-    fi
-    sleep 1
-  done
-}
+# One resident-memory sample a second: `sample_rss <file>`, shared with
+# tool/soak.sh.
+# shellcheck source=pacing_rss.sh
+source "$ROOT/tool/pacing_rss.sh"
 
 # Read before the run, so the build's own load is over and the run's has not
 # begun. macOS has no /proc. In the C locale, because sysctl otherwise

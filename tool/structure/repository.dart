@@ -551,6 +551,14 @@ const Map<String, Map<String, String>> repeatableStepExempt =
             'measured, as a view\'s ticker does, and a step still sees only '
             'the count of fixed steps the loop owes',
       },
+      'flutter3d_net': <String, String>{
+        'lib/src/rollback_clock.dart':
+            'a profiler observing a rollback from outside its steps: '
+            '`RollbackSession.stats` reads a `Stopwatch` to time each step '
+            'run again, and the times go into the stats nothing in the '
+            'simulation reads back, as `step_time_trace.dart` does for a '
+            'step',
+      },
       'flutter3d_editor_core': <String, String>{
         'lib/src/editing.dart':
             'the ids of rows a person adds in the editor (`LevelIds.fresh`): '

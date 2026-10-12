@@ -1,5 +1,21 @@
 ## 1.0.0-rc.1
 
+- **A rollback says what it costs.** `RollbackSession.stats` reads a
+  `RollbackStats` (new): the steps run, the rollbacks, the steps run again
+  with the median, 99th percentile and worst time of each, the steps that
+  settled on a guess, and `droppedCorrectionShare`; `toJson` and `fromJson`
+  carry one machine's line of a party's report. The time is read off the
+  new `elapsed` clock parameter, a monotonic stopwatch unless a test hands
+  another. `tool/rollback_party.dart` plays a party of N machines over a
+  loopback with a round trip and loss and writes the report
+  `tool/rollback_report.dart` renders and holds to `--fail-on`.
+- **`droppedCorrections` counts corrections lost, once each.** A late copy
+  of a frame already had, which redundancy sends on purpose, used to count
+  every time it came past the window, and a frame that agreed with the
+  guess counted too; now only a frame that contradicts the guess its step
+  settled on does. A frame past the window also becomes the slot's latest
+  word, so a wire slower than the window no longer guesses the empty hand
+  forever.
 - **Breaking: a wire's hooks and listeners take one object each.**
   `PeerWire.send` takes a `PeerSend` (`message`, `reliable`), `sendBytes` a
   `PeerSendBytes`, `deliver` a `PeerDelivery` (`message`, `from`) and

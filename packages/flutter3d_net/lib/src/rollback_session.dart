@@ -3,10 +3,13 @@
 /// wrong.
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show Registration;
 
 import 'peer_wire.dart';
+import 'rollback_clock.dart';
 
 /// What one step ran on: the state before it, every slot's frame, and which
 /// of them were guesses.
@@ -51,9 +54,20 @@ final class _Ran<S> {
 /// ## The window
 ///
 /// Only the last [maxRollbackFrames] steps keep the state a correction
-/// needs. A frame for a step older than that is too late to use, and
-/// [droppedCorrections] counts it rather than pretend the guess was right;
-/// the answer to seeing it move is a longer delay or a longer window.
+/// needs. A step that leaves the window still running on a guess about a
+/// slot is counted in [RollbackStats.settledOnGuess]; when that slot's frame
+/// comes later and says something else than the guess, it is too late to
+/// use, and [droppedCorrections] counts it rather than pretend the guess was
+/// right. The answer to seeing it move is a longer delay or a longer window.
+/// A late copy of a frame already had, which [redundancy] sends on purpose,
+/// is not a correction and is not counted.
+///
+/// ## What it costs
+///
+/// [stats] reads the counters at once, with the time each step run again
+/// took (its median, its 99th percentile and its worst), read off [elapsed]:
+/// a game that rolls back eight steps on a frame spends eight of these in
+/// that frame.
 ///
 /// ## Redundancy
 ///
@@ -94,7 +108,9 @@ final class RollbackSession<S> {
     this.endsAt,
     this.onSettled,
     this.onMessage,
+    Duration Function()? elapsed,
   }) : localSlot = localSlot ?? wire.slot,
+       elapsed = elapsed ?? rollbackClock,
        assert(players >= 2 && players <= 32, 'two to thirty-two machines'),
        assert(inputDelay >= 0, 'a negative delay would apply input early'),
        assert(maxRollbackFrames > 0, 'a window of nought corrects nothing'),
@@ -160,6 +176,11 @@ final class RollbackSession<S> {
   /// as well listen to the wire itself, which hears every message too.
   final void Function(int from, Map<String, Object?> message)? onMessage;
 
+  /// The clock [stats] times a step run again by: a monotonic stopwatch
+  /// started with the first session unless the session is handed another,
+  /// as a test hands one that moves by known amounts.
+  final Duration Function() elapsed;
+
   /// Stops hearing the wire. The session sends nothing more once nobody
   /// calls [advance]; the wire stays open for whoever else listens.
   void dispose() => _hearing.cancel();
@@ -169,7 +190,8 @@ final class RollbackSession<S> {
   /// The step about to run.
   int get step => _step;
 
-  /// Frames that came too late to correct anything.
+  /// Frames that came after their step left the window and said something
+  /// else than the guess it settled on: corrections too late to make.
   int droppedCorrections = 0;
 
   /// Frames that came for a step more than [maxStepsAhead] ahead.
@@ -181,6 +203,29 @@ final class RollbackSession<S> {
   /// Whether the steps running now are being run again after a correction.
   bool get isResimulating => _resimulating;
   bool _resimulating = false;
+
+  int _rollbacks = 0;
+  int _settledOnGuess = 0;
+  final _ResimulationTimes _times = _ResimulationTimes();
+
+  /// The guesses steps left the window on, by slot and then by step, kept
+  /// so a frame that comes later is held to what was guessed; forgotten
+  /// [maxStepsAhead] steps on, when no peer still sends them.
+  final Map<int, Map<int, Map<String, Object?>>> _settledGuesses =
+      <int, Map<int, Map<String, Object?>>>{};
+
+  /// The counters and the time steps run again took, read now.
+  RollbackStats get stats => RollbackStats(
+    steps: _step,
+    rollbacks: _rollbacks,
+    stepsRerun: stepsRerun,
+    settledOnGuess: _settledOnGuess,
+    droppedCorrections: droppedCorrections,
+    droppedEarly: droppedEarly,
+    resimulationP50: _times.percentile(50),
+    resimulationP99: _times.percentile(99),
+    resimulationMax: _times.max,
+  );
 
   /// Whether every other machine's hands have arrived at least once.
   bool get isConnected => _lastConfirmed.length >= players - 1;
@@ -293,7 +338,13 @@ final class RollbackSession<S> {
     }
     final ran = _history[at];
     if (ran == null) {
-      droppedCorrections++;
+      // Past the window. Only a frame the step settled on a guess for, and
+      // a different one, is a correction lost; a repeat of a frame already
+      // had, or one the guess got right, changes nothing. Either way it is
+      // the latest word from that slot, which the next guess is made of.
+      _confirm(from, at, frame);
+      final guess = _settledGuesses[from]?.remove(at);
+      if (guess != null && !_same(guess, frame)) droppedCorrections++;
       return;
     }
     _confirm(from, at, frame);
@@ -307,8 +358,12 @@ final class RollbackSession<S> {
     }
     // Guessed wrong: back to before that step, and every step since again —
     // each on what it had on record, this one on the frame that came.
+    // Each step run again is timed from the end of the one before, so the
+    // restore counts against the first of them: what the frame pays.
+    var start = elapsed();
     restore(ran.before);
     _resimulating = true;
+    _rollbacks++;
     try {
       for (var s = at; s < _step; s++) {
         final h = s == at ? _Ran<S>(ran.before, frames, guessed) : _history[s]!;
@@ -316,6 +371,9 @@ final class RollbackSession<S> {
         applyAndStep(h.frames);
         _history[s] = _Ran<S>(before, h.frames, h.guessed);
         stepsRerun++;
+        final to = elapsed();
+        _times.add(to - start);
+        start = to;
       }
     } finally {
       _resimulating = false;
@@ -326,6 +384,11 @@ final class RollbackSession<S> {
     final horizon = _step - maxRollbackFrames;
     final leaving = _history.keys.where((s) => s < horizon).toList()..sort();
     for (final s in leaving) {
+      for (final slot in _history[s]!.guessed) {
+        _settledOnGuess++;
+        (_settledGuesses[slot] ??= <int, Map<String, Object?>>{})[s] =
+            _history[s]!.frames[slot]!;
+      }
       // The state a step leaving ended in is the one the next began in.
       final next = _history[s + 1];
       if (next == null) continue;
@@ -336,9 +399,152 @@ final class RollbackSession<S> {
       }
     }
     _history.removeWhere((s, _) => s < horizon);
+    final forgotten = _step - maxStepsAhead;
+    for (final guesses in _settledGuesses.values) {
+      guesses.removeWhere((s, _) => s < forgotten);
+    }
   }
 
   static bool _same(Map<String, Object?> a, Map<String, Object?> b) =>
       a.length == b.length &&
       a.entries.every((e) => b.containsKey(e.key) && b[e.key] == e.value);
+}
+
+/// What a [RollbackSession] has done, read at one moment: how many steps it
+/// ran, how many it ran again and what each of those took, and the
+/// corrections it could not make.
+///
+/// The times are per step run again, the restore counted against the first
+/// step of each rollback: the median, the 99th percentile (the least time
+/// that 99 in 100 of them took no more than) and the worst. They are exact
+/// to the microsecond up to [RollbackStats.histogramLimit]; a percentile
+/// beyond it reads as the worst. All three are zero before the first
+/// rollback.
+///
+/// [toJson] is one machine's line of a party's report, and [fromJson] reads
+/// it back, so the report of a party of phones is put together from what
+/// each phone wrote.
+final class RollbackStats {
+  const RollbackStats({
+    required this.steps,
+    required this.rollbacks,
+    required this.stepsRerun,
+    required this.settledOnGuess,
+    required this.droppedCorrections,
+    required this.droppedEarly,
+    required this.resimulationP50,
+    required this.resimulationP99,
+    required this.resimulationMax,
+  });
+
+  /// Reads what [toJson] wrote; a missing count is nought.
+  factory RollbackStats.fromJson(Map<String, Object?> json) {
+    int count(String key) => (json[key] as num?)?.toInt() ?? 0;
+    Duration time(String key) => Duration(microseconds: count(key));
+    return RollbackStats(
+      steps: count('steps'),
+      rollbacks: count('rollbacks'),
+      stepsRerun: count('stepsRerun'),
+      settledOnGuess: count('settledOnGuess'),
+      droppedCorrections: count('droppedCorrections'),
+      droppedEarly: count('droppedEarly'),
+      resimulationP50: time('resimulationP50Us'),
+      resimulationP99: time('resimulationP99Us'),
+      resimulationMax: time('resimulationMaxUs'),
+    );
+  }
+
+  /// How long a step run again may take and still be timed exactly: fifty
+  /// milliseconds, three frames at sixty steps a second.
+  static const Duration histogramLimit = Duration(milliseconds: 50);
+
+  /// Steps run, each once; the step about to run.
+  final int steps;
+
+  /// Corrections that took the game back and ran it forward again.
+  final int rollbacks;
+
+  /// Steps run again, over every rollback.
+  final int stepsRerun;
+
+  /// A step and a slot whose frame had not come when the step left the
+  /// window: settled on a guess, right or wrong. Counted once per slot.
+  final int settledOnGuess;
+
+  /// Frames that came after their step settled and differ from the guess
+  /// it settled on: the corrections lost.
+  final int droppedCorrections;
+
+  /// Frames that came for a step too far ahead to keep.
+  final int droppedEarly;
+
+  /// The median time of a step run again.
+  final Duration resimulationP50;
+
+  /// The 99th percentile of the time of a step run again.
+  final Duration resimulationP99;
+
+  /// The longest a step run again took.
+  final Duration resimulationMax;
+
+  /// [droppedCorrections] over [steps]; nought before the first step.
+  double get droppedCorrectionShare =>
+      steps == 0 ? 0.0 : droppedCorrections / steps;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'steps': steps,
+    'rollbacks': rollbacks,
+    'stepsRerun': stepsRerun,
+    'settledOnGuess': settledOnGuess,
+    'droppedCorrections': droppedCorrections,
+    'droppedEarly': droppedEarly,
+    'resimulationP50Us': resimulationP50.inMicroseconds,
+    'resimulationP99Us': resimulationP99.inMicroseconds,
+    'resimulationMaxUs': resimulationMax.inMicroseconds,
+  };
+
+  @override
+  String toString() =>
+      'RollbackStats(steps: $steps, rollbacks: $rollbacks, stepsRerun: '
+      '$stepsRerun, settledOnGuess: $settledOnGuess, droppedCorrections: '
+      '$droppedCorrections, droppedEarly: $droppedEarly, resimulation p50 '
+      '${resimulationP50.inMicroseconds} µs, p99 '
+      '${resimulationP99.inMicroseconds} µs, max '
+      '${resimulationMax.inMicroseconds} µs)';
+}
+
+/// The times of steps run again, as a count per microsecond up to
+/// [RollbackStats.histogramLimit] and one count past it: bounded however
+/// long a session runs, exact where the thresholds are. Allocated on the
+/// first rollback, so a session that never rolls back holds none of it.
+final class _ResimulationTimes {
+  Uint32List? _counts;
+  int _count = 0;
+  Duration max = Duration.zero;
+
+  static final int _buckets = RollbackStats.histogramLimit.inMicroseconds;
+
+  void add(Duration time) {
+    final us = time.inMicroseconds < 0 ? 0 : time.inMicroseconds;
+    // Past the limit only the count and the worst are kept.
+    if (us < _buckets) (_counts ??= Uint32List(_buckets))[us]++;
+    _count++;
+    if (time > max) max = time;
+  }
+
+  /// The least time that [percent] in a hundred of the steps took no more
+  /// than, by nearest rank.
+  Duration percentile(int percent) {
+    final counts = _counts;
+    if (_count == 0) return Duration.zero;
+    final rank = (percent * _count + 99) ~/ 100;
+    var seen = 0;
+    if (counts != null) {
+      for (var us = 0; us < _buckets; us++) {
+        seen += counts[us];
+        if (seen >= rank) return Duration(microseconds: us);
+      }
+    }
+    return max;
+  }
 }
