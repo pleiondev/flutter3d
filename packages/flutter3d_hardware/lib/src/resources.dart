@@ -208,8 +208,9 @@ base class TextureDescriptor {
   );
 
   /// Throws [UnsupportedCapabilityException] when this texture needs a
-  /// feature [features] lacks: a layered or volume shape (`textureArrays`,
-  /// `texture3D`, `cubeTextures`, `cubeArrayTextures`), a storage usage
+  /// feature [features] lacks: a shape other than 2D (`texture1D`,
+  /// `textureArrays`, `texture3D`, `cubeTextures`, `cubeArrayTextures`), a
+  /// storage usage
   /// (`storageTextures`) or more than one sample (`offscreenMultisample`).
   ///
   /// What the descriptor's own fields need, and only that: whether the
@@ -220,6 +221,7 @@ base class TextureDescriptor {
   /// names the backend as a person would.
   void checkFeatures(DeviceFeatures features, {required String backend}) {
     final shape = switch (dimension) {
+      TextureDimension.d1 => DeviceFeature.texture1D,
       TextureDimension.d2Array => DeviceFeature.textureArrays,
       TextureDimension.d3 => DeviceFeature.texture3D,
       TextureDimension.cube => DeviceFeature.cubeTextures,
@@ -852,11 +854,29 @@ final class DepthBias {
   /// primitive.
   final double slopeScale;
 
-  /// The largest offset, in depth from 0 to 1 (unitless), or zero for none. A non-zero clamp is not a
-  /// feature of its own in 1.0: WebGL2's `polygonOffset` has no clamp, and a
-  /// backend that cannot honour one refuses it with an [UnsupportedError]
-  /// naming the clamp rather than drawing unclamped.
+  /// The largest offset, in depth from 0 to 1 (unitless), or zero for none.
+  /// A non-zero clamp needs `DeviceFeature.depthBiasClamp`: WebGL2's
+  /// `polygonOffset` has no clamp, and a backend that cannot honour one
+  /// refuses it by that feature rather than drawing unclamped.
   final double clamp;
+
+  /// Throws [UnsupportedCapabilityException] when this bias needs a feature
+  /// [features] lacks: `depthBias` for any bias, and `depthBiasClamp` for a
+  /// non-zero [clamp].
+  ///
+  /// **For a backend's `PassEncoder.setDepthBias`**, so that a field a minor
+  /// adds with its feature is refused by a backend written before it rather
+  /// than ignored. [backend] names the backend as a person would.
+  void checkFeatures(DeviceFeatures features, {required String backend}) {
+    features.require(DeviceFeature.depthBias, backend: backend);
+    if (clamp != 0) {
+      features.require(
+        DeviceFeature.depthBiasClamp,
+        backend: backend,
+        reason: 'the bias is clamped at $clamp',
+      );
+    }
+  }
 
   @override
   bool operator ==(Object other) =>

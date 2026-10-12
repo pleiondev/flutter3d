@@ -213,7 +213,7 @@ abstract base class WebGpuRecorder extends PassEncoder {
   /// `depthBiasClamp` are pipeline state.
   @override
   void setDepthBias(DepthBias bias) {
-    _device.features.require(DeviceFeature.depthBias, backend: _backend);
+    bias.checkFeatures(_device.features, backend: _backend);
     _depthBias = bias;
   }
 

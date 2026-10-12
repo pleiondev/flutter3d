@@ -593,6 +593,22 @@ final class DeviceFeature extends Capability {
     FeatureStability.stable,
   );
 
+  /// `TextureDimension.d1` textures: one row of texels, created, sampled,
+  /// written. Core in WebGPU; WebGL2 has none (OpenGL ES never had one), and
+  /// a caller there makes a 2D texture one texel high.
+  static const texture1D = DeviceFeature._(
+    '1d-textures',
+    FeatureStability.stable,
+  );
+
+  /// A non-zero `DepthBias.clamp`: the depth offset is capped at the clamp.
+  /// Needs [depthBias] too. Core in WebGPU; WebGL2's `polygonOffset` has no
+  /// clamp, so a device there refuses a clamp rather than draw unclamped.
+  static const depthBiasClamp = DeviceFeature._(
+    'depth-bias-clamp',
+    FeatureStability.stable,
+  );
+
   // --------------------------------------------------------------- reserved
   // Named, not built. No backend may report these and no call exists yet.
 
@@ -753,6 +769,8 @@ final class DeviceFeature extends Capability {
     conservativeRasterization,
     depthBounds,
     presenterColorSpaces,
+    texture1D,
+    depthBiasClamp,
   ];
 
   /// The feature called [name], or null for a name this version does not

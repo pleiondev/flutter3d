@@ -346,8 +346,10 @@ final class FakePass extends PassEncoder
   // ---------------------------------------------------------------- 1.0
 
   @override
-  void setDepthBias(DepthBias bias) =>
-      _gated(DeviceFeature.depthBias, 'setDepthBias', bias);
+  void setDepthBias(DepthBias bias) {
+    bias.checkFeatures(features, backend: _name);
+    commands.add(RecordedCall('setDepthBias', arguments: bias));
+  }
 
   @override
   void setColorWriteMask(ColorWriteMask mask, {int attachment = 0}) => _gated(

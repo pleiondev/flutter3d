@@ -147,7 +147,7 @@ final class CpuRenderBundleEncoder extends PassEncoder
 
   @override
   void setDepthBias(DepthBias bias) {
-    _features.require(DeviceFeature.depthBias, backend: cpuBackendName);
+    bias.checkFeatures(_features, backend: cpuBackendName);
     _record((p) => p.setDepthBias(bias));
   }
 

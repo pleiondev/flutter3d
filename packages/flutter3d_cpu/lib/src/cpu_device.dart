@@ -142,6 +142,7 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
     DeviceFeature.float32Blendable,
     // Layers, slices and cubes of cubes are lists of the same arrays a 2D
     // texture is; `CpuTexture.plane` addresses all of them.
+    DeviceFeature.texture1D,
     DeviceFeature.textureArrays,
     DeviceFeature.texture3D,
     DeviceFeature.cubeArrayTextures,
