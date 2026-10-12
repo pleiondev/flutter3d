@@ -60,6 +60,7 @@ const Set<String> lintsKinds = <String>{
   'manual',
   'rename',
   'parameters',
+  'moved',
 };
 
 /// A `parameters` entry's positional arguments that became named, by their
@@ -83,7 +84,8 @@ bool _carried(MigrationEntry e) =>
             (e.member == null
                 ? RegExp(r'^[A-Z]\w*$').hasMatch(e.to ?? '')
                 : renamedMember(e) != null))) &&
-    (e.kind != 'parameters' || toNamedOf(e).isNotEmpty);
+    (e.kind != 'parameters' || toNamedOf(e).isNotEmpty) &&
+    (e.kind != 'moved' || (e.member == null && !e.symbol.contains(':')));
 
 /// A member `rename`'s new name, where it stays on its class (`to: name`
 /// or `to: Type.name` of its own type); null for one that moved to another
@@ -146,6 +148,9 @@ String _message(MigrationEntry e, MigrationTable table) {
       '${e.arguments.map((String a) => '`$a:`').join(', ')} of `${e.symbol}` '
           '${e.to == null ? 'takes a value of another type' : 'is `${e.to}:`'} '
           'in ${table.to}.',
+    'moved' =>
+      '`${e.topName}` is ${e.name == null ? '' : '`${e.name}`, '}imported '
+          'from `${e.to}` in ${table.to}.',
     'rename' when e.member != null =>
       '`${e.symbol}` is `${e.topName}.${renamedMember(e)}` in ${table.to}.',
     'rename' => '`${e.topName}` is `${e.to}` in ${table.to}.',
@@ -208,6 +213,8 @@ Map<String, Object?> _rule(
     'member': ?(e.kind == 'parameters' ? _calledMember(e) : e.member),
     if (e.template != null) 'template': _flat(e.template!),
     if (e.imports.isNotEmpty) 'imports': e.imports,
+    if (e.kind == 'moved') 'imports': <String>[e.to!],
+    if (e.kind == 'moved') 'to': ?e.name,
     'switchOver': ?switchOver,
     if (match != 'uses') 'match': match,
     if (members.isNotEmpty) 'members': members,
@@ -216,7 +223,8 @@ Map<String, Object?> _rule(
     if (e.kind == 'recordToClass') 'fields': e.fieldMap,
     if (e.kind == 'parameters') 'fields': toNamedOf(e),
     if (e.kind == 'argument' && e.reads.isNotEmpty) 'fields': e.reads,
-    if (e.kind == 'rewrite') 'receiver': ?(e.fields['on'] as String?),
+    if (e.kind == 'rewrite' || e.kind == 'manual')
+      'receiver': ?(e.fields['on'] as String?),
     if (e.kind == 'rewrite' && e.fields['static'] == true) 'throughClass': true,
     if (e.kind != 'rename' || e.member != null)
       'renamedTo': ?renamed[e.topName],

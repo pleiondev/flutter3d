@@ -124,6 +124,9 @@ final class _Scan extends RecursiveAstVisitor<void> {
             into(classRenames, r.type, r);
           }
           continue;
+        case MigrationKind.moved:
+          into(movedNames, r.type, r);
+          continue;
         case MigrationKind.parameters:
           into(toNamedCreations, r.type, r);
           into(toNamedCalls, r.member ?? r.type, r);
@@ -200,6 +203,10 @@ final class _Scan extends RecursiveAstVisitor<void> {
   final Map<String, List<MigrationRule>> classRenames =
       <String, List<MigrationRule>>{};
 
+  /// `moved` rules by the name that moved.
+  final Map<String, List<MigrationRule>> movedNames =
+      <String, List<MigrationRule>>{};
+
   /// `rename` rules of a member, by its old name: what `dart fix` leaves
   /// where the file does not import the library its entry names (the class
   /// reached through the project's own code).
@@ -261,12 +268,16 @@ final class _Scan extends RecursiveAstVisitor<void> {
     // A use further down a statement that spans lines gets its TODO on the
     // line above its own, where the reader of the error finds it: a line
     // comment may stand between any two tokens, so long as the line starts
-    // with a token rather than inside a string.
-    if (_lineStart(at.offset) != _lineStart(start)) {
+    // with a token rather than inside a string. A use on the declaration's
+    // own first line keeps the TODO above its doc comment.
+    final code = anchor is AnnotatedNode
+        ? anchor.firstTokenAfterCommentAndMetadata
+        : anchor.beginToken;
+    if (_lineStart(at.offset) != _lineStart(code.offset)) {
       final line = _lineStart(at.offset);
       final first = line + _indentOf(at.offset).length;
       for (
-        Token? t = anchor.beginToken;
+        Token? t = code;
         t != null && t.offset <= at.offset && !t.isEof;
         t = t.next
       ) {
@@ -326,6 +337,10 @@ final class _Scan extends RecursiveAstVisitor<void> {
       if (arguments[name] case final rules?) _readOfOldType(node, rules);
       if (memberRenames[name] case final rules? when node.element == null) {
         _renameMember(node, rules);
+      }
+      if (movedNames[name] case final rules?
+          when node.element == null && !_isQualifiedMember(node)) {
+        _moved(node.token, node, rules.first);
       }
     }
     final rules = <MigrationRule>[...?byMember[name], ...?byListedMember[name]];
@@ -547,9 +562,21 @@ final class _Scan extends RecursiveAstVisitor<void> {
         ),
       _ => (node, null, false, const <AstNode>[], null, null),
     };
+    // A call whose parameter changed type is rewritten only where it still
+    // passes the old one: the rewritten call passes the new one, and a
+    // later pass must leave it alone.
+    if (rule.types.isNotEmpty) {
+      final first = args
+          .whereType<Argument>()
+          .where((Argument a) => a is! NamedArgument)
+          .firstOrNull;
+      if (first == null || !_typeFits(first.argumentExpression, rule)) {
+        return;
+      }
+    }
+    var text = rule.template!;
     // A cascade's receiver is not written where the rewrite needs it, and
     // a null-aware access changes the type the rewrite would produce.
-    var text = rule.template!;
     // `{0}` names an argument by its place, which a named one has not.
     if (nullAware ||
         (whole is PropertyAccess && whole.isCascaded) ||
@@ -685,6 +712,10 @@ final class _Scan extends RecursiveAstVisitor<void> {
         when node.element == null && node.importPrefix == null) {
       _add(rules.first, node);
     }
+    if (movedNames[node.name.lexeme] case final rules?
+        when node.element == null && node.importPrefix == null) {
+      _moved(node.name, node, rules.first);
+    }
     final rules = byType[node.name.lexeme];
     if (rules != null) {
       final element = node.element;
@@ -724,7 +755,8 @@ final class _Scan extends RecursiveAstVisitor<void> {
                 MigrationKind.argument ||
                 MigrationKind.internal ||
                 MigrationKind.rename ||
-                MigrationKind.parameters:
+                MigrationKind.parameters ||
+                MigrationKind.moved:
               break;
           }
         }
@@ -1427,7 +1459,10 @@ final class _Scan extends RecursiveAstVisitor<void> {
       ..._manualRulesOfCall(node),
       // A rule about the parameter itself, `RunTimeline.stepSim`.
       for (final a in unmatched)
-        for (final r in byMember[a.name.lexeme] ?? const <MigrationRule>[])
+        for (final r in <MigrationRule>[
+          ...?byMember[a.name.lexeme],
+          ...?byListedMember[a.name.lexeme],
+        ])
           if (r.kind == MigrationKind.manual &&
               _named(_manualRulesOfCallType(node), r))
             r,
@@ -1545,6 +1580,20 @@ final class _Scan extends RecursiveAstVisitor<void> {
     for (final rule in rules) {
       _add(rule, at);
     }
+  }
+
+  /// A name that moved to another library, met where the analyzer finds
+  /// none: imported from there, under its new name where it has one.
+  void _moved(Token name, AstNode at, MigrationRule rule) {
+    final to = rule.to ?? name.lexeme;
+    _add(
+      rule,
+      at,
+      edits: <MigrationEdit>[
+        if (to != name.lexeme) MigrationEdit(name.offset, name.length, to),
+        ..._importsFor(rule, <String>{to}),
+      ],
+    );
   }
 
   /// A member renamed since the release, met where the analyzer finds

@@ -115,6 +115,14 @@ final class KindShade {
 
 abstract final class Board {
   static Table fill(Table into) => into..rows.add(1);
+
+  // 0.8: `static Table pile(Table table)`.
+  static Pile pile(Pile pile) => pile;
+}
+
+final class Pile {
+  Pile(this.table);
+  final Table table;
 }
 
 // 0.8 also had `srgbColor(r, g, b, [a])`, which is `LinearColor.fromSrgb`

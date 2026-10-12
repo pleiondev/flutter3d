@@ -3372,6 +3372,7 @@ entries:
     package: flutter3d_game
     symbol: SettingsFile
     kind: manual
+    members: [read, write, clear]
     wave: 3
     guidance: >-
       `read`, `write` and `clear` are asynchronous, because `Storage` is.
@@ -3384,6 +3385,7 @@ entries:
     package: flutter3d_game
     symbol: SaveFile
     kind: manual
+    members: [read, write, clear]
     wave: 3
     guidance: >-
       `read`, `readRecord`, `write`, `writeRecord` and `clear` are
@@ -3394,6 +3396,7 @@ entries:
     package: flutter3d_game
     symbol: DemoFile
     kind: manual
+    members: [read, write, clear]
     wave: 3
     guidance: >-
       `read`, `write` and `clear` are asynchronous, because `Storage` is:
@@ -20345,9 +20348,12 @@ entries:
 
   - id: 2s-game-PadPresses-menuButton
     package: flutter3d_game
-    symbol: PadPresses
-    kind: manual
-    members: [offer]
+    symbol: PadPresses.offer
+    kind: argument
+    arguments: [menuButton]
+    types: [PadButton]
+    template: 'GamePadButton({value}.id)'
+    imports: [package:flutter3d_game/flutter3d_game.dart]
     wave: 2
     guidance: >-
       `menuButton:` takes a `GamePadButton`, the game's own: write
@@ -21885,7 +21891,71 @@ entries:
     package: flutter3d_game
     symbol: SettingsCubit.close
     kind: rewrite
-    template: '{target}.dispose()'
+    template: 'Future<void>.sync({target}.dispose)'
     guidance: >-
       `GameSettingsController` is a `ChangeNotifier`: `dispose()` is what a
-      cubit's `close()` was.
+      cubit's `close()` was, and it answers nothing to await.
+
+  - id: corpus-game-PadInput-addDefaultsTo
+    package: flutter3d_game
+    symbol: PadInput.addDefaultsTo
+    kind: rewrite
+    types: [Bindings]
+    template: 'PadInput.addDefaultsTo(ActionMap(actions: ActionSet.common, buttons: {0})).buttons'
+    imports:
+      - package:flutter3d_game/flutter3d_game.dart
+      - package:flutter3d_sim/flutter3d_sim.dart show ActionSet
+    guidance: >-
+      `PadInput.addDefaultsTo` adds the pad's defaults to an `ActionMap`: an
+      old table goes in as its buttons, and the buttons are the table it
+      returned.
+
+  - id: corpus-foundation-LinearColor-x
+    package: flutter3d_foundation
+    symbol: LinearColor.x
+    kind: rewrite
+    on: LinearColor
+    template: '{target}.r'
+    guidance: >-
+      A colour the engine hands out is a `LinearColor` where it was a vector:
+      `.x` of it is `.r`.
+
+  - id: corpus-foundation-LinearColor-y
+    package: flutter3d_foundation
+    symbol: LinearColor.y
+    kind: rewrite
+    on: LinearColor
+    template: '{target}.g'
+    guidance: >-
+      A colour the engine hands out is a `LinearColor` where it was a vector:
+      `.y` of it is `.g`.
+
+  - id: corpus-foundation-LinearColor-z
+    package: flutter3d_foundation
+    symbol: LinearColor.z
+    kind: rewrite
+    on: LinearColor
+    template: '{target}.b'
+    guidance: >-
+      A colour the engine hands out is a `LinearColor` where it was a vector:
+      `.z` of it is `.b`.
+
+  - id: corpus-foundation-LinearColor-w
+    package: flutter3d_foundation
+    symbol: LinearColor.w
+    kind: rewrite
+    on: LinearColor
+    template: '{target}.a'
+    guidance: >-
+      A colour the engine hands out is a `LinearColor` where it was a vector:
+      `.w` of it is `.a`.
+
+  - id: corpus-foundation-LinearColor-scale
+    package: flutter3d_foundation
+    symbol: LinearColor.scale
+    kind: manual
+    on: LinearColor
+    guidance: >-
+      A colour the engine hands out is a `LinearColor`, a value, where it was
+      a vector changed in place: `color.scale(f)` is `holder.color =
+      color.scaled(f)` on whatever held it.

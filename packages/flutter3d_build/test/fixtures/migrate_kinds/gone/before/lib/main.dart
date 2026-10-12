@@ -28,6 +28,8 @@ final class MyShelf implements Shelf {
   int count() => held;
 }
 
+/// A dial, documented over
+/// two lines.
 Dial dial() => Dial(
       level: 2,
       label: 'gain',
@@ -40,3 +42,9 @@ final Object prefixed = kinds.KindShade();
 int sum(KindLedger ledger) => ledger.total;
 
 int tallied(KindLedger ledger) => ledger.count;
+
+const Object wrench = Wrench();
+
+Table piled(Table table) => Board.pile(table);
+
+Pile kept(Pile pile) => Board.pile(pile);

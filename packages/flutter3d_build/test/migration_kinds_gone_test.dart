@@ -39,6 +39,8 @@ void main() {
       'kinds-Match',
       'kinds-Ledger-total',
       'kinds-Ledger-count',
+      'kinds-Wrench',
+      'kinds-Board-pile',
     ]);
     expect(manualOf(report), <String>[
       'kinds-roster:3',
@@ -46,8 +48,8 @@ void main() {
       'kinds-roster:21',
       'kinds-Shelf:24',
       'kinds-Shelf:27',
-      'kinds-Dial-constructor:31',
       'kinds-Dial-constructor:33',
+      'kinds-Dial-constructor:35',
     ]);
   });
 }

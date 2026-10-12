@@ -56,6 +56,14 @@ enum MigrationKind {
   /// `dart fix` has the same change and offers no fix for an extra
   /// positional argument, so this is what carries it out.
   parameters,
+
+  /// The name [MigrationRule.type] is declared in another library since the
+  /// release: imported from [MigrationRule.imports] (and named
+  /// [MigrationRule.to] where it was renamed on the way) where the analyzer
+  /// finds no such name. `dart fix` carries the same move only in a file
+  /// that imports a library its fix names, not one that reached the name
+  /// through the project's own re-export.
+  moved,
 }
 
 /// Which uses of a rule's name a [MigrationKind.manual] rule is about.
@@ -216,7 +224,9 @@ final class MigrationRule {
   final String? to;
 
   /// For [MigrationKind.argument]: the types (by name) of the values it
-  /// rewrites, the parameter's old ones. Empty for any value.
+  /// rewrites, the parameter's old ones; for [MigrationKind.rewrite], those
+  /// of a call's first argument, the only calls it rewrites. Empty for any
+  /// value.
   final List<String> types;
 
   /// For a [MigrationKind.rewrite] of an extension's member: the type the

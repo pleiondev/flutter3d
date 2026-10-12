@@ -79,3 +79,14 @@ entries:
     symbol: Ledger.count
     kind: rename
     to: tally
+  - id: kinds-Wrench
+    package: flutter3d_kinds
+    symbol: Wrench
+    kind: moved
+    to: package:flutter3d_kinds/tools.dart
+  - id: kinds-Board-pile
+    package: flutter3d_kinds
+    symbol: Board.pile
+    kind: rewrite
+    types: [Table]
+    template: 'Board.pile(Pile({0})).table'

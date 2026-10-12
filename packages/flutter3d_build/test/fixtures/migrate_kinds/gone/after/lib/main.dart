@@ -2,6 +2,7 @@ import 'package:flutter3d_kinds/flutter3d_kinds.dart';
 import 'package:flutter3d_kinds/flutter3d_kinds.dart' as kinds show KindShade;
 // TODO(flutter3d-1.0): The roster was one game's; copy it into your own code. See https://flutter3d.pleion.dev/reference/migrating-to-1.0/#kinds-roster
 import 'package:flutter3d_kinds/roster.dart';
+import 'package:flutter3d_kinds/tools.dart';
 
 const Object shade = KindShade();
 
@@ -34,6 +35,8 @@ final class MyShelf implements Shelf {
 }
 
 // TODO(flutter3d-1.0): `label` is gone: a dial shows its level alone. See https://flutter3d.pleion.dev/reference/migrating-to-1.0/#kinds-Dial-constructor
+/// A dial, documented over
+/// two lines.
 Dial dial() => Dial(
       level: 2,
       // TODO(flutter3d-1.0): `label` is gone: a dial shows its level alone. See https://flutter3d.pleion.dev/reference/migrating-to-1.0/#kinds-Dial-constructor
@@ -47,3 +50,9 @@ final Object prefixed = kinds.KindShade();
 int sum(KindLedger ledger) => ledger.sum;
 
 int tallied(KindLedger ledger) => ledger.tally;
+
+const Object wrench = Wrench();
+
+Table piled(Table table) => Board.pile(Pile(table)).table;
+
+Pile kept(Pile pile) => Board.pile(pile);
