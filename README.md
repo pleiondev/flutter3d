@@ -178,7 +178,7 @@ too.
 
 ## Coming from 0.8
 
-1.0 changed the 0.8 API in 1853 places, 308 of them left to you; 380 are
+1.0 changed the 0.8 API in 1887 places, 306 of them left to you; 380 are
 backend internals no application called. One command does the rest:
 
 ```bash
