@@ -10,7 +10,7 @@ void main() {
   final sets = <String, (List<Object>, List<String>, String Function(Object))>{
     'LightType': (
       LightType.values,
-      <String>['directional', 'point', 'spot'],
+      <String>['directional', 'point', 'spot', 'area'],
       (v) => (v as LightType).name,
     ),
     'ShadowCastingMode': (
