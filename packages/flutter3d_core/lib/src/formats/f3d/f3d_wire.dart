@@ -14,6 +14,9 @@
 /// and `values[` out of the format's code.
 library;
 
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show SamplerAddressMode;
+
 import '../animation/animation_track.dart';
 import '../surface_material.dart';
 

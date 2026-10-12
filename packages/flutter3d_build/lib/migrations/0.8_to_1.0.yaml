@@ -24449,7 +24449,9 @@ entries:
       `SamplerAddressMode`, the type a `SamplerDescriptor` already took, so
       `TextureSampling.wrapS` and `wrapT` hand a sampler their value as it
       is. `repeat` and `clampToEdge` keep their names; `mirroredRepeat` is
-      `mirror`. Files keep their own words for it.
+      `mirror`. Files keep their own words for it. `package:flutter3d` exports
+      it; a file that imported only `package:flutter3d_core/formats.dart`
+      imports `package:flutter3d_hardware/flutter3d_hardware.dart` for it.
 
   - id: fixh-core-TextureWrap-mirroredRepeat
     package: flutter3d_core
@@ -24459,3 +24461,27 @@ entries:
     guidance: >-
       `TextureWrap.mirroredRepeat` is `SamplerAddressMode.mirror`, the same
       wrap.
+
+  - id: fixh-core-TextureSampling-wrap
+    package: flutter3d_core
+    symbol: TextureSampling.TextureSampling
+    kind: none
+    reason: >-
+      Only the wrap's type was renamed, `TextureWrap` to
+      `SamplerAddressMode`; that rename's own fix carries every use.
+
+  - id: fixh-core-TextureSampling-wrapS
+    package: flutter3d_core
+    symbol: TextureSampling.wrapS
+    kind: none
+    reason: >-
+      Only the wrap's type was renamed; that rename's own fix carries every
+      use.
+
+  - id: fixh-core-TextureSampling-wrapT
+    package: flutter3d_core
+    symbol: TextureSampling.wrapT
+    kind: none
+    reason: >-
+      Only the wrap's type was renamed; that rename's own fix carries every
+      use.

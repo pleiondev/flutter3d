@@ -19,7 +19,9 @@
 library;
 
 import 'package:flutter3d_core/formats.dart'
-    show AnimationInterpolation, AnimationPath, SurfaceAlphaMode, SamplerAddressMode;
+    show AnimationInterpolation, AnimationPath, SurfaceAlphaMode;
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show SamplerAddressMode;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart'
     show CsgOperation, ElementLevel;
 

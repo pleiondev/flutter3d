@@ -1,9 +1,5 @@
 import 'dart:typed_data';
 
-// How a texture wraps is the sampler's own type: one type for the file and
-// the device.
-export 'package:flutter3d_hardware/flutter3d_hardware.dart'
-    show SamplerAddressMode;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart'
     show SamplerAddressMode;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'

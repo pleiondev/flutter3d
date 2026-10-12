@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show SamplerAddressMode;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show LinearColor;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart' show FormatSpec;

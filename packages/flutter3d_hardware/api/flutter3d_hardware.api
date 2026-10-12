@@ -1087,12 +1087,12 @@ final class StencilState
   static int narrowReference(int value)
 
 final class StorageBuffer
-  bool get hostReadable
   bool get isDisposed
   final BufferUsage usage
   final GeometryBuffer? asIndices
   final GeometryBuffer? asVertices
   final Object backend
+  final bool hostReadable
   final int lengthInBytes
   void dispose()
 

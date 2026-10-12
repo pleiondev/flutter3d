@@ -6079,9 +6079,6 @@ Uint8List zlibCompress(Uint8List data)
 
 Uint8List? zlibInflate(Uint8List zlib)
 
-export package:flutter3d_hardware/flutter3d_hardware.dart show SamplerAddressMode
-  SamplerAddressMode
-
 library package:flutter3d_core/formats.dart
 
 final class AnimationClip
@@ -7980,9 +7977,6 @@ Uint8List writeKtx2WithMips(Rgba8Image base, {bool srgb = false, bool isNormalMa
 Uint8List zlibCompress(Uint8List data)
 
 Uint8List? zlibInflate(Uint8List zlib)
-
-export package:flutter3d_hardware/flutter3d_hardware.dart show SamplerAddressMode
-  SamplerAddressMode
 
 library package:flutter3d_core/geometry.dart
 

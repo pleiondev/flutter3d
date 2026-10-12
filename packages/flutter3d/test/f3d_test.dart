@@ -5,6 +5,8 @@ import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_core/src/engine/animation/animation.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show SamplerAddressMode;
 import 'package:flutter3d_samples/flutter3d_samples.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';

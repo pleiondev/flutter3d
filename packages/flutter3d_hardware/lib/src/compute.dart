@@ -35,7 +35,7 @@ final class StorageBuffer {
     required this.usage,
     this.asIndices,
     this.asVertices,
-  });
+  }) : hostReadable = usage.contains(BufferUsage.hostReadable);
 
   final void Function(StorageBuffer)? _release;
 
@@ -79,7 +79,7 @@ final class StorageBuffer {
   ///
   /// Read from [usage], the one source of truth: whether it has
   /// [BufferUsage.hostReadable].
-  bool get hostReadable => usage.contains(BufferUsage.hostReadable);
+  final bool hostReadable;
 
   /// The same memory as an index buffer a draw can bind, when it was asked
   /// for with `bindableAsIndices` — `H11`: a compute pass writes a draw's
