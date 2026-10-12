@@ -17,7 +17,8 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_impeller/flutter3d_impeller.dart';
 // The spike reads what only the backend knows; its own business since 1.0.
 // ignore: implementation_imports
-import 'package:flutter3d_impeller/src/gpu_loaded_shaders.dart' show runningSdk;
+import 'package:flutter3d_impeller/src/gpu_loaded_shaders.dart'
+    show impellerSectionOf, runningSdk;
 
 void main() => runApp(const ConformanceApp());
 
@@ -42,11 +43,17 @@ class _ConformanceAppState extends State<ConformanceApp> {
     var failed = 0;
     var declined = 0;
     // The engine's own compiled bundle, as the section a packed bundle would
-    // carry: the same `impellerc` output the device loaded by asset path,
-    // read as bytes and stamped with the SDK this process runs on.
+    // carry: the asset is the F3SB container the build hook writes, so its
+    // `impellerc` section is read out of it (the one the device loaded by
+    // asset path) and stamped with the SDK this process runs on.
     Future<OwnShaderSection?> ownShaders() async => (
       id: ShaderBundle.impellerSection,
-      bytes: await rootBundle.load(GpuRenderBackend.defaultBundleAsset),
+      bytes: impellerSectionOf(
+        ShaderBundle.decode(
+          await rootBundle.load(GpuRenderBackend.defaultBundleAsset),
+        ),
+        running: runningSdk,
+      ),
       sdk: runningSdk,
     );
     final checks = conformanceChecksWith(ownShaders);
