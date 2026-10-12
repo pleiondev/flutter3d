@@ -124,6 +124,9 @@ final class _Scan extends RecursiveAstVisitor<void> {
           into(toNamedCreations, r.type, r);
           into(toNamedCalls, r.member ?? r.type, r);
           continue;
+        case MigrationKind.hookContext:
+          if (r.member case final member?) into(hooks, member, r);
+          continue;
         case MigrationKind.rewrite ||
             MigrationKind.implementsToWith ||
             MigrationKind.manual:
@@ -269,6 +272,9 @@ final class _Scan extends RecursiveAstVisitor<void> {
         }
         for (final rule in toNamedCalls[name] ?? const <MigrationRule>[]) {
           if (_callMatches(node, rule)) _toNamed(argumentList, rule);
+        }
+        for (final rule in hooks[name] ?? const <MigrationRule>[]) {
+          if (_callsHook(node, rule)) _hookCall(argumentList, rule);
         }
       }
       // `Old()` with no `new` or `const`, where `Old` is no name at all.
@@ -594,7 +600,8 @@ final class _Scan extends RecursiveAstVisitor<void> {
                 MigrationKind.argument ||
                 MigrationKind.internal ||
                 MigrationKind.rename ||
-                MigrationKind.parameters:
+                MigrationKind.parameters ||
+                MigrationKind.hookContext:
               break;
           }
         }
@@ -1439,6 +1446,171 @@ final class _Scan extends RecursiveAstVisitor<void> {
     PropertyAccess(:final target?) => _isPath(target),
     _ => false,
   };
+
+  // --------------------------------------------------------- hookContext
+
+  /// `hookContext` rules by the hook's name, for an override and a call.
+  final Map<String, List<MigrationRule>> hooks =
+      <String, List<MigrationRule>>{};
+
+  /// An override of a hook that takes one context now: its parameters
+  /// become the context, and each one it reads becomes a local read from
+  /// the context's field, so the body is left as it was written.
+  @override
+  void visitMethodDeclaration(MethodDeclaration node) {
+    for (final rule in hooks[node.name.lexeme] ?? const <MigrationRule>[]) {
+      if (_overridesHook(node, rule)) _hookOverride(node, rule);
+    }
+    super.visitMethodDeclaration(node);
+  }
+
+  /// Whether [node] is an override of [rule]'s hook: a method of a class or
+  /// mixin, not the engine's own declaration, under the hook's type.
+  bool _overridesHook(MethodDeclaration node, MigrationRule rule) {
+    if (node.isStatic || node.isGetter || node.isSetter) return false;
+    final enclosing = node.declaredFragment?.element.enclosingElement;
+    if (enclosing is! InterfaceElement) return false;
+    if (enclosing.name == rule.type && _ownedAs(enclosing, rule)) return false;
+    return enclosing.allSupertypes.any(
+      (InterfaceType s) =>
+          s.element.name == rule.type && _ownedAs(s.element, rule),
+    );
+  }
+
+  void _hookOverride(MethodDeclaration node, MigrationRule rule) {
+    final parameters = node.parameters;
+    if (parameters == null) return;
+    final list = parameters.parameters;
+    // Already one parameter of the context's type: migrated.
+    if (list.length == 1 &&
+        _textOrNull(list.single.type)?.startsWith(rule.options!) == true) {
+      return;
+    }
+    final reads = <(String, String)>[];
+    var position = 0;
+    for (final p in list) {
+      final name = p.name?.lexeme;
+      final key = p.isNamed ? name : '${position++}';
+      final field = rule.fields[key];
+      if (name == null || field == null) {
+        // A parameter the table does not know: a person's to place.
+        _add(rule, node.name.isSynthetic ? node : parameters);
+        return;
+      }
+      reads.add((name, field));
+    }
+    final body = node.body;
+    final bodyText = _text(body);
+    final taken = <String>{
+      for (final (name, _) in reads) name,
+      ...RegExp(
+        r'[A-Za-z_$][\w$]*',
+      ).allMatches(bodyText).map((Match m) => m.group(0)!),
+    };
+    final context = <String>[
+      'context',
+      'hookContext',
+      'given',
+    ].firstWhere((String n) => !taken.contains(n));
+    final used = <(String, String)>[
+      for (final (name, field) in reads)
+        if (RegExp(
+          '(?<![\\w\$.])${RegExp.escape(name)}(?![\\w\$])',
+        ).hasMatch(bodyText))
+          (name, field),
+    ];
+    final indent = '${_indentOf(node.offset)}  ';
+    final lets = <String>[
+      for (final (name, field) in used)
+        '${indent}final $name = $context.$field;',
+    ];
+    final edits = <MigrationEdit>[
+      MigrationEdit(
+        parameters.offset,
+        parameters.length,
+        '(${rule.options} $context)',
+      ),
+    ];
+    switch (body) {
+      case BlockFunctionBody(:final block) when lets.isNotEmpty:
+        edits.add(
+          MigrationEdit(block.leftBracket.end, 0, '\n${lets.join('\n')}'),
+        );
+      case ExpressionFunctionBody(:final expression) when lets.isNotEmpty:
+        final returns = node.returnType?.toSource() != 'void';
+        final statement = returns
+            ? 'return ${_text(expression)};'
+            : '${_text(expression)};';
+        final outer = _indentOf(node.offset);
+        edits.add(
+          MigrationEdit(
+            body.offset,
+            body.length,
+            '{\n${lets.join('\n')}\n$indent$statement\n$outer}',
+          ),
+        );
+      default:
+        break;
+    }
+    _add(
+      rule,
+      parameters,
+      edits: <MigrationEdit>[
+        ...edits,
+        ..._importsFor(rule, <String>{?rule.options}),
+      ],
+    );
+  }
+
+  /// Whether [node], the name of a call, calls [rule]'s hook: on a receiver
+  /// (or in a class) of the hook's type or one under it, an override of a
+  /// project's own included, which is where the other checks look away.
+  bool _callsHook(SimpleIdentifier node, MigrationRule rule) {
+    final receiver = _receiverType(node);
+    if (receiver == null) return false;
+    if (receiver.element.name == rule.type) {
+      return _ownedAs(receiver.element, rule);
+    }
+    return receiver.allSupertypes.any(
+      (InterfaceType s) =>
+          s.element.name == rule.type && _ownedAs(s.element, rule),
+    );
+  }
+
+  /// A call of a hook that takes one context now: its arguments become the
+  /// context's, each named by the field [MigrationRule.fields] maps it to.
+  void _hookCall(ArgumentList arguments, MigrationRule rule) {
+    final all = arguments.arguments;
+    if (all.isEmpty) return;
+    // Already one argument building the context: migrated.
+    if (all.length == 1 && _text(all.single).startsWith('${rule.options}(')) {
+      return;
+    }
+    final named = <String>[];
+    var position = 0;
+    for (final a in all) {
+      final key = a is NamedArgument ? a.name.lexeme : '${position++}';
+      final field = rule.fields[key];
+      if (field == null) {
+        _add(rule, a);
+        return;
+      }
+      final value = a is NamedArgument ? _text(a.argumentExpression) : _text(a);
+      named.add('$field: $value');
+    }
+    _add(
+      rule,
+      all.first,
+      edits: <MigrationEdit>[
+        MigrationEdit(
+          all.first.offset,
+          all.last.end - all.first.offset,
+          '${rule.options}(${named.join(', ')})',
+        ),
+        ..._importsFor(rule, <String>{?rule.options}),
+      ],
+    );
+  }
 
   // ---------------------------------------------------------------- text
 

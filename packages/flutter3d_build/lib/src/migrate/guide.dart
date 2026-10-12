@@ -20,7 +20,7 @@ String howCarriedOut(MigrationEntry e) => switch (e.kind) {
   'parameters' when toNamedOf(e).isNotEmpty => '`migrate`',
   'rename' || 'moved' || 'parameters' => '`dart fix`',
   'rewrite' || 'implementsToWith' || 'import' => '`migrate`',
-  'regroup' || 'recordToClass' || 'argument' => '`migrate`',
+  'regroup' || 'recordToClass' || 'argument' || 'hookContext' => '`migrate`',
   // Each leaves a TODO beside what it wrote: a throw where a value used to
   // fall through, a `try` around what used to answer null.
   'enumToClass' || 'nullToThrow' => '`migrate`, with a TODO',
@@ -56,8 +56,22 @@ String _what(MigrationEntry e, MigrationTable table) => switch (e.kind) {
         'check beside a call becomes `try … on ${e.exception}`.',
   'argument' => _argument(e),
   'parameters' when toNamedOf(e).isNotEmpty => _toNamed(e),
+  'hookContext' => _hookContext(e),
   _ => '',
 };
+
+/// A `hookContext` entry in the guide's words: what an override takes now,
+/// and where each of its old parameters is read from.
+String _hookContext(MigrationEntry e) {
+  final reads = <String>[
+    for (final MapEntry(:key, :value) in e.fieldMap.entries)
+      int.tryParse(key) == null
+          ? '`$key:` is `.$value`'
+          : 'parameter ${int.parse(key) + 1} is `.$value`',
+  ].join(', ');
+  return '`${e.symbol}` takes one `${e.fields['context']}`: an override '
+      'reads its old parameters from it ($reads), and a call builds one.';
+}
 
 /// A `parameters` entry's positional arguments that became named, in the
 /// guide's words: `Gauge(r, 2)` is `Gauge(r, scale: 2)`.

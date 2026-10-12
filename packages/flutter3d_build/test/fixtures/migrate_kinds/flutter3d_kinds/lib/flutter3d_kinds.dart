@@ -133,3 +133,19 @@ final class Sieve {
   final int coarse;
   final int fine;
 }
+
+// ---------------------------------------------------------- hookContext
+// 0.8: `abstract base class Sensor` whose `sense(String what, double
+// amount, {bool loud = false})` an outside class overrides.
+
+final class Sensing {
+  const Sensing({required this.what, required this.amount, this.loud = false});
+  final String what;
+  final double amount;
+  final bool loud;
+}
+
+abstract base class Sensor {
+  const Sensor();
+  void sense(Sensing sensing);
+}

@@ -56,6 +56,13 @@ enum MigrationKind {
   /// `dart fix` has the same change and offers no fix for an extra
   /// positional argument, so this is what carries it out.
   parameters,
+
+  /// The hook [MigrationRule.member] of [MigrationRule.type] takes one
+  /// [MigrationRule.options] where it took a list of parameters. An
+  /// override takes the context and reads each old parameter from the
+  /// field [MigrationRule.fields] maps it to (by its old index, or its name
+  /// for a named one); a call passes `Options(field: argument, …)`.
+  hookContext,
 }
 
 /// Which uses of a rule's name a [MigrationKind.manual] rule is about.
@@ -184,12 +191,15 @@ final class MigrationRule {
   /// For [MigrationKind.regroup]: the parameter that takes the group.
   final String? into;
 
-  /// For [MigrationKind.regroup]: the group's class.
+  /// For [MigrationKind.regroup]: the group's class. For
+  /// [MigrationKind.hookContext]: the context's class.
   final String? options;
 
   /// For [MigrationKind.recordToClass]: each record field (`$1`, `name`) to
   /// the class's getter. For [MigrationKind.parameters]: each old position
-  /// (`0`, `1`) to the name its argument is passed by now.
+  /// (`0`, `1`) to the name its argument is passed by now. For
+  /// [MigrationKind.hookContext]: each old parameter, by position or by
+  /// name for a named one, to the context's field that holds it.
   final Map<String, String> fields;
 
   /// For [MigrationKind.nullToThrow]: what the call throws now.

@@ -60,6 +60,7 @@ const Set<String> lintsKinds = <String>{
   'manual',
   'rename',
   'parameters',
+  'hookContext',
 };
 
 /// A `parameters` entry's positional arguments that became named, by their
@@ -136,6 +137,9 @@ String _message(MigrationEntry e, MigrationTable table) {
       '${toNamedOf(e).values.map((String a) => '`$a:`').join(', ')} of '
           '`${_callable(e)}` ${toNamedOf(e).length == 1 ? 'is a named argument' : 'are named arguments'} '
           'in ${table.to}, not a positional one.',
+    'hookContext' when e.text.isEmpty =>
+      '`${e.symbol}` takes one `${e.fields['context']}` in ${table.to}: an '
+          'override reads its old parameters from it, and a call builds one.',
     _ => firstSentence(e.text),
   };
 }
@@ -180,8 +184,11 @@ Map<String, Object?> _rule(MigrationEntry e, MigrationTable table) {
     if (match != 'uses') 'match': match,
     if (members.isNotEmpty) 'members': members,
     'into': ?e.into,
-    'options': ?e.options,
-    if (e.kind == 'recordToClass') 'fields': e.fieldMap,
+    'options': ?(e.kind == 'hookContext'
+        ? e.fields['context'] as String?
+        : e.options),
+    if (e.kind == 'recordToClass' || e.kind == 'hookContext')
+      'fields': e.fieldMap,
     if (e.kind == 'parameters') 'fields': toNamedOf(e),
     'exception': ?e.exception,
     if (e.kind == 'argument' || e.kind == 'rename') 'to': ?e.to,

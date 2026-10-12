@@ -2478,6 +2478,8 @@ const Map<String, String> slowTestsPending = <String, String>{
       'process of its own',
   'packages/flutter3d_build/test/migration_kinds_enum_to_class_test.dart':
       'a migration kind applied to its fixture and the result analysed',
+  'packages/flutter3d_build/test/migration_kinds_hook_context_test.dart':
+      'a migration kind applied to its fixture and the result analysed',
   'packages/flutter3d_build/test/migration_kinds_internal_test.dart':
       'a migration kind applied to its fixture and the result analysed',
   'packages/flutter3d_build/test/migration_kinds_null_to_throw_test.dart':
