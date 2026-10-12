@@ -2157,8 +2157,6 @@ const Map<String, String> hookParametersPending = <String, String>{
       'flutter3d_game: converted to one context object by its package\'s owner before 1.0.0',
   'SettingsSection':
       'flutter3d_game_ui: converted to one context object by its package\'s owner before 1.0.0',
-  'SimCommands':
-      'flutter3d_plugin_api: converted to one context object by its package\'s owner before 1.0.0',
   'SimulationAnswer':
       'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
   'SizedImageDecoder':
@@ -2171,10 +2169,6 @@ const Map<String, String> hookParametersPending = <String, String>{
       'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
   'VehicleController':
       'flutter3d_game_racing: converted to one context object by its package\'s owner before 1.0.0',
-  'WasmInstance':
-      'flutter3d_plugin_runtime: converted to one context object by its package\'s owner before 1.0.0',
-  'WasmRuntime':
-      'flutter3d_plugin_runtime: converted to one context object by its package\'s owner before 1.0.0',
   'WorldRays':
       'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
   'WorldSweeps':

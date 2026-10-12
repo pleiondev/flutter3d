@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a Wasm runtime and its instances take one context per
+  call.** `WasmRuntime.instantiate` takes a `WasmInstantiation` (new) with
+  the module, its imports and its limits, and `WasmInstance.step` a
+  `WasmStep` (new) with the step and its length in Q16.16, which the
+  system reuses from step to step so a step allocates nothing. A runtime
+  written outside (wasmtime, a JIT) then keeps compiling when a minor
+  hands it more. `WasmImports` keeps the ABI's own shapes.
 - **Breaking: `.f3dplugin` version 4 files a phase under the plugin.** A
   phase a document declares is added to the loop as `<id>.<name>`, as its
   events and Wasm systems already were, and so is every `after`, `before`,

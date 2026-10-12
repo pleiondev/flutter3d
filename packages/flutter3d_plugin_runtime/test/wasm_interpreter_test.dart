@@ -38,9 +38,11 @@ WasmInstance _instance(
   ModuleBuilder m, {
   WasmLimits limits = const WasmLimits(),
 }) => WasmRuntime.interpreter.instantiate(
-  WasmModule.decode(m.build()),
-  const _Quiet(),
-  limits,
+  WasmInstantiation(
+    WasmModule.decode(m.build()),
+    imports: const _Quiet(),
+    limits: limits,
+  ),
 );
 
 int _global(WasmInstance instance) =>
@@ -56,7 +58,7 @@ int _after(
   final m = ModuleBuilder()..global(0);
   also?.call(m);
   m.abi(step: code, locals: locals);
-  final instance = _instance(m)..step(step, 0);
+  final instance = _instance(m)..step(WasmStep(step: step, dtFixed: 0));
   return _global(instance);
 }
 
@@ -239,7 +241,7 @@ void main() {
         ],
       );
       final instance = _instance(m, limits: const WasmLimits(memoryPages: 2))
-        ..step(0, 0);
+        ..step(WasmStep(step: 0, dtFixed: 0));
       expect(_global(instance), -1);
     });
   });
@@ -252,7 +254,7 @@ void main() {
       expect(
         () =>
             _instance(m, limits: const WasmLimits(fuelPerStep: 1000))
-              ..step(0, 0),
+              ..step(WasmStep(step: 0, dtFixed: 0)),
         _traps('ran out of fuel'),
       );
     });
@@ -275,22 +277,24 @@ void main() {
             ],
             locals: 1,
           );
-        final first = _instance(counting())..step(0, 0);
-        final second = _instance(counting())..step(0, 0);
+        final first = _instance(counting())
+          ..step(WasmStep(step: 0, dtFixed: 0));
+        final second = _instance(counting())
+          ..step(WasmStep(step: 0, dtFixed: 0));
         expect(first.fuelUsed, greaterThan(50));
         expect(second.fuelUsed, first.fuelUsed);
         expect(
           () => _instance(
             counting(),
             limits: WasmLimits(fuelPerStep: first.fuelUsed),
-          )..step(0, 0),
+          )..step(WasmStep(step: 0, dtFixed: 0)),
           returnsNormally,
         );
         expect(
           () => _instance(
             counting(),
             limits: WasmLimits(fuelPerStep: first.fuelUsed - 1),
-          )..step(0, 0),
+          )..step(WasmStep(step: 0, dtFixed: 0)),
           _traps('ran out of fuel'),
         );
       },
@@ -303,7 +307,9 @@ void main() {
       final recurse = m.function(0, 0, <int>[call, 0]);
       m.abi(step: <int>[call, recurse]);
       expect(
-        () => _instance(m, limits: const WasmLimits(callDepth: 8))..step(0, 0),
+        () =>
+            _instance(m, limits: const WasmLimits(callDepth: 8))
+              ..step(WasmStep(step: 0, dtFixed: 0)),
         _traps('deeper than 8'),
       );
     });
@@ -321,19 +327,19 @@ void main() {
         ...konst(0), globalGet, 0, ...store(),
       ],
     );
-    final instance = _instance(m)..step(0, 0);
+    final instance = _instance(m)..step(WasmStep(step: 0, dtFixed: 0));
     final afterOne = instance.save();
     instance
-      ..step(1, 0)
-      ..step(2, 0);
+      ..step(WasmStep(step: 1, dtFixed: 0))
+      ..step(WasmStep(step: 2, dtFixed: 0));
     final afterTwo =
         (_instance(m)
-              ..step(0, 0)
-              ..step(1, 0))
+              ..step(WasmStep(step: 0, dtFixed: 0))
+              ..step(WasmStep(step: 1, dtFixed: 0)))
             .save();
     instance
       ..restore(afterOne)
-      ..step(1, 0);
+      ..step(WasmStep(step: 1, dtFixed: 0));
     expect(instance.save(), afterTwo);
     expect(_global(instance), 2);
   });
@@ -354,7 +360,7 @@ void main() {
         ...konst(0), ...konst(42), ...store(),
       ],
     );
-    final instance = _instance(m)..step(0, 0);
+    final instance = _instance(m)..step(WasmStep(step: 0, dtFixed: 0));
     final good = instance.save();
     expect(good['globals'], <int>[7, 9]);
 

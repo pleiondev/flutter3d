@@ -131,8 +131,9 @@ final class Snapshots extends SnapshotRegistry {
     // origin before the bodies written in it.
     for (final first in <bool>[true, false]) {
       for (final (part, data, version) in read) {
-        if (part.restoresFirst == first)
+        if (part.restoresFirst == first) {
           part.restore(SnapshotRestoreContext(data, version: version));
+        }
       }
     }
   }

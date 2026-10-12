@@ -265,6 +265,9 @@ final class WasmSystem {
   final WasmSystemSpec _spec;
   final List<WorldField> _fields;
   late final WasmInstance _instance;
+
+  /// The one step context, set before every step: a step allocates none.
+  final WasmStep _step = WasmStep();
   LoopContext? _context;
   String? _trapped;
 
@@ -294,7 +297,11 @@ final class WasmSystem {
     if (_trapped != null) return;
     _context = context;
     try {
-      _instance.step(context.step, Fixed16.fromDouble(context.dt));
+      _instance.step(
+        _step
+          ..step = context.step
+          ..dtFixed = Fixed16.fromDouble(context.dt),
+      );
     } on WasmTrapException catch (trap) {
       _trapped = trap.message;
       context.publish(
@@ -444,7 +451,9 @@ WasmSystem installWasmSystem(
     }
   }
   final system = WasmSystem._('$id.${spec.system}', id, spec, fields);
-  system._instance = runtime.instantiate(module, _Imports(system), spec.limits);
+  system._instance = runtime.instantiate(
+    WasmInstantiation(module, imports: _Imports(system), limits: spec.limits),
+  );
   final wide = spec.fields
       .where(
         (WasmFieldSpec f) =>

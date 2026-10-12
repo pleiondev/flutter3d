@@ -14,6 +14,9 @@
   contexts. A parameter added to any of them later would have broken
   every codec and section written against 1.0; a member added to a
   context breaks none.
+- **Breaking: a queued spawn's builder takes one `SimSpawned`.**
+  `SimCommands.spawn` hands its builder a `SimSpawned` (new), the entity
+  and its world, rather than the two as parameters.
 - **`LightType`, `RigidPose` and `Severity` come with the contract.** The
   foundation types a plugin's signatures name now include an `Issue`'s
   severity, a light's type and a pose, so a plugin gets them from this

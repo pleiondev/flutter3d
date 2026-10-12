@@ -39,9 +39,11 @@ void main() {
     final module = WasmModule.decode((ModuleBuilder()..abi()).build());
     expect(
       () => WasmRuntime.interpreter.instantiate(
-        module,
-        const _Quiet(),
-        const WasmLimits(),
+        WasmInstantiation(
+          module,
+          imports: const _Quiet(),
+          limits: const WasmLimits(),
+        ),
       ),
       returnsNormally,
     );
@@ -150,9 +152,11 @@ void main() {
         );
         expect(
           () => WasmRuntime.interpreter.instantiate(
-            module,
-            const _Quiet(),
-            const WasmLimits(),
+            WasmInstantiation(
+              module,
+              imports: const _Quiet(),
+              limits: const WasmLimits(),
+            ),
           ),
           _refused(
             'ABI $abi and this engine runs ABI $wasmPluginAbiMin to '
@@ -174,9 +178,11 @@ void main() {
       );
       expect(
         () => WasmRuntime.interpreter.instantiate(
-          module,
-          const _Quiet(),
-          const WasmLimits(),
+          WasmInstantiation(
+            module,
+            imports: const _Quiet(),
+            limits: const WasmLimits(),
+          ),
         ),
         _refused('ABI $wasmRenderAbi and this engine runs ABI'),
       );
@@ -192,9 +198,11 @@ void main() {
       );
       expect(
         () => WasmRuntime.interpreter.instantiate(
-          module,
-          const _Quiet(),
-          const WasmLimits(memoryPages: 2),
+          WasmInstantiation(
+            module,
+            imports: const _Quiet(),
+            limits: const WasmLimits(memoryPages: 2),
+          ),
         ),
         _refused('starts at 4 pages'),
       );

@@ -9,7 +9,7 @@ library;
 import 'dart:convert';
 
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show ComponentCodec, Entity;
+    show ComponentCodec, Entity, SimSpawned;
 import 'package:flutter3d_sim/src/ecs/ecs_world.dart';
 import 'package:flutter3d_sim/src/ecs/snapshots.dart';
 import 'package:flutter3d_sim/src/save/snapshot.dart'
@@ -493,5 +493,23 @@ void main() {
     expect(fresh, isNot(stale));
     expect(fresh.generation, 300);
     expect(stale.generation, 44);
+  });
+
+  test('a queued spawn hands its builder the new entity and its world', () {
+    // Mutation: hand the builder a world other than the one that queued the
+    // spawn, or an entity it did not spawn, and the component lands
+    // elsewhere.
+    final world = _world();
+    Entity? built;
+    world.commands.spawn((SimSpawned spawned) {
+      built = spawned.entity;
+      spawned.world.set<_Name>(spawned.entity, _Name('queued'));
+    });
+    expect(world.length, 0, reason: 'nothing spawns before the commands run');
+
+    world.applyCommands();
+
+    expect(world.isAlive(built!), isTrue);
+    expect(world.get<_Name>(built!)?.value, 'queued');
   });
 }

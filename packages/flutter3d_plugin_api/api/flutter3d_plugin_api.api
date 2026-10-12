@@ -755,7 +755,7 @@ abstract base class SimCommands
   abstract void remove<T extends Object>(Entity entity)
   abstract void run(void Function(SimWorld world) change)
   abstract void set<T extends Object>(Entity entity, T component)
-  abstract void spawn(void Function(SimWorld world, Entity entity) build)
+  abstract void spawn(void Function(SimSpawned spawned) build)
   const SimCommands()
 
 abstract base class SimQuery
@@ -765,6 +765,11 @@ abstract base class SimQuery
   abstract SimQuery without<T extends Object>()
   const SimQuery()
   int get length
+
+final class SimSpawned
+  const SimSpawned(this.world, this.entity)
+  final Entity entity
+  final SimWorld world
 
 abstract base class SimWorld
   abstract ComponentRegistry get components

@@ -419,10 +419,11 @@ final class EcsWorld extends SimWorld {
             // Nothing there means this world does not have that actor, which
             // is the documented edge of what a snapshot restores.
             final present = store.values[index];
-            if (present != null)
+            if (present != null) {
               codec.restoreAny(
                 ComponentRestoreContext(present, row.value, version: version),
               );
+            }
             continue;
           }
           // Null means the decoder could not read this row, and the component
@@ -596,8 +597,8 @@ final class _Commands extends SimCommands {
   int get pending => _world._commands.length;
 
   @override
-  void spawn(void Function(SimWorld world, Entity entity) build) =>
-      _world._commands.add(() => build(_world, _world.spawn()));
+  void spawn(void Function(SimSpawned spawned) build) =>
+      _world._commands.add(() => build(SimSpawned(_world, _world.spawn())));
 
   @override
   void despawn(Entity entity) =>

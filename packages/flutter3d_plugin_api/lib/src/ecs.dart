@@ -327,8 +327,9 @@ abstract base class ComponentRegistry extends PluginRegistry {
 abstract base class SimCommands {
   const SimCommands();
 
-  /// Spawns an entity at the end of the phase and hands it to [build].
-  void spawn(void Function(SimWorld world, Entity entity) build);
+  /// Spawns an entity at the end of the phase and hands it to [build], with
+  /// the world it is in.
+  void spawn(void Function(SimSpawned spawned) build);
 
   /// Despawns [entity] at the end of the phase.
   void despawn(Entity entity);
@@ -344,6 +345,22 @@ abstract base class SimCommands {
 
   /// How many changes are waiting.
   int get pending;
+}
+
+/// What a [SimCommands.spawn] hands its builder: the entity just spawned
+/// and the world it is in.
+///
+/// **One object, so a minor can hand a builder more** — the step it was
+/// spawned at, the system that asked — without breaking a builder written
+/// against 1.0.
+final class SimSpawned {
+  const SimSpawned(this.world, this.entity);
+
+  /// The world the entity was spawned in.
+  final SimWorld world;
+
+  /// The entity, alive and with no components yet.
+  final Entity entity;
 }
 
 /// A query being built: the component types an entity must carry, must not

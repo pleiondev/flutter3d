@@ -197,24 +197,43 @@ abstract base class WasmRuntime {
   /// Whether [WasmLimits.fuelPerStep] and [WasmLimits.callDepth] are held.
   bool get isMetered;
 
-  /// [module], ready to step, with [imports] behind its imports. Runs its
-  /// start function and checks `f3d_abi`; throws [WasmException] for a module
-  /// these [limits] cannot hold and [WasmTrapException] for a start function that
-  /// traps.
-  WasmInstance instantiate(
-    WasmModule module,
-    WasmImports imports,
-    WasmLimits limits,
-  );
+  /// The request's module, ready to step, with its imports behind the
+  /// module's imports. Runs its start function and checks `f3d_abi`; throws
+  /// [WasmException] for a module the request's limits cannot hold and
+  /// [WasmTrapException] for a start function that traps.
+  WasmInstance instantiate(WasmInstantiation request);
+}
+
+/// What [WasmRuntime.instantiate] is handed.
+///
+/// **One object, so a minor can hand a runtime more** — a module's
+/// declared fields, a debug hook — without breaking a runtime written
+/// against 1.0.
+final class WasmInstantiation {
+  const WasmInstantiation(
+    this.module, {
+    required this.imports,
+    required this.limits,
+  });
+
+  /// The decoded module.
+  final WasmModule module;
+
+  /// What the module's imports call.
+  final WasmImports imports;
+
+  /// The fuel, depth and memory the module is held to.
+  final WasmLimits limits;
 }
 
 /// One running module.
 abstract base class WasmInstance {
   const WasmInstance();
 
-  /// Calls the module's `f3d_step(step, dt)`, [dtFixed] in Q16.16. Throws
-  /// [WasmTrapException] when the module traps.
-  void step(int step, int dtFixed);
+  /// Calls the module's `f3d_step(step, dt)` with the step's
+  /// [WasmStep.step] and [WasmStep.dtFixed]. Throws [WasmTrapException]
+  /// when the module traps.
+  void step(WasmStep step);
 
   /// The module's state — its memory and its globals — as a document a
   /// snapshot can hold and `StateDigest` can fold: numbers, strings and
@@ -231,4 +250,21 @@ abstract base class WasmInstance {
   /// The ABI the module said it was written for, read from `f3d_abi` when
   /// it was instantiated. [wasmPluginAbiMin] unless a runtime says.
   int get abi => wasmPluginAbiMin;
+}
+
+/// What [WasmInstance.step] is handed: the step and its length.
+///
+/// **One object, so a minor can hand a module's step more**, for the
+/// reason [WasmInstantiation] gives. **Reused**: the system that steps a
+/// module owns one and sets it before every step, so a step allocates
+/// nothing; an instance reads it during [WasmInstance.step] and does not
+/// keep it.
+final class WasmStep {
+  WasmStep({this.step = 0, this.dtFixed = 0});
+
+  /// The simulation step being run.
+  int step;
+
+  /// The step's length in seconds, in Q16.16.
+  int dtFixed;
 }
