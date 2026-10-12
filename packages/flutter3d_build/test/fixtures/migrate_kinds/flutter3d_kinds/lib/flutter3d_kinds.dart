@@ -50,12 +50,14 @@ final class Span {
 
 Span spanOf(String text) => Span(0, text.length, label: text);
 
-// 0.8: `typedef Frame = ({int width, int height})`.
+// 0.8: `typedef Frame = ({int width, int height})`, and a frame with a
+// `depth` was a record of its own; the class takes it.
 
 final class Frame {
-  const Frame({required this.width, required this.height});
+  const Frame({required this.width, required this.height, this.depth = 0});
   final int width;
   final int height;
+  final int depth;
 }
 
 // ---------------------------------------------------------- nullToThrow

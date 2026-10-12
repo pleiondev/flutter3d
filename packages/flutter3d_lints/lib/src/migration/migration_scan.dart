@@ -137,6 +137,12 @@ final class _Scan extends RecursiveAstVisitor<void> {
         case MigrationKind.parameters:
           into(toNamedCreations, r.type, r);
           into(toNamedCalls, r.member ?? r.type, r);
+          // The class renamed too: `dart fix`, or the pass before it, may
+          // have written its new name already.
+          if (r.renamedTo case final renamed?) {
+            into(toNamedCreations, renamed, r);
+            if (r.member == null) into(toNamedCalls, renamed, r);
+          }
           continue;
         case MigrationKind.rewrite when r.member == null && r.receiver != null:
           into(valueConversions, r.receiver!, r);
@@ -1343,9 +1349,28 @@ final class _Scan extends RecursiveAstVisitor<void> {
       for (final a in arguments.arguments)
         if (a is NamedArgument && a.correspondingParameter == null)
           if (rule.fields[a.name.lexeme] case final to?)
-            MigrationEdit(a.name.offset, a.name.length, to),
+            to.isEmpty
+                ? _removal(a)
+                : MigrationEdit(a.name.offset, a.name.length, to),
     ];
     if (edits.isNotEmpty) _add(rule, arguments, edits: edits);
+  }
+
+  /// [argument] gone with its comma, and with its line where it had the
+  /// line to itself (a comment after it explained the value removed).
+  MigrationEdit _removal(Argument argument) {
+    final comma = argument.endToken.next;
+    var end = comma?.type == TokenType.COMMA ? comma!.end : argument.end;
+    var start = argument.offset;
+    final lineStart = _lineStart(start);
+    final lineEnd = source.indexOf('\n', end);
+    final rest = lineEnd < 0 ? '' : source.substring(end, lineEnd).trim();
+    if (source.substring(lineStart, start).trim().isEmpty &&
+        (rest.isEmpty || rest.startsWith('//'))) {
+      start = lineStart;
+      end = lineEnd + 1;
+    }
+    return MigrationEdit(start, end - start, '');
   }
 
   /// The named arguments [MigrationRule.members] of [arguments] moved into
@@ -1426,28 +1451,16 @@ final class _Scan extends RecursiveAstVisitor<void> {
     final type = node.staticType;
     if (type is RecordType &&
         type.positionalFields.isEmpty &&
-        type.namedFields.isNotEmpty &&
-        !node.isConst) {
-      final names = <String>{for (final f in type.namedFields) f.name};
+        type.namedFields.isNotEmpty) {
+      final names = <String>[for (final f in type.namedFields) f.name];
       final expected = _expectedType(node);
       if (expected is RecordType) _renameRecordLabels(node, expected);
       if (expected is InterfaceType) {
         for (final rule
             in records[expected.element.name] ?? const <MigrationRule>[]) {
-          final same =
-              rule.fields.length == names.length &&
-              rule.fields.entries.every(
-                (MapEntry<String, String> f) =>
-                    f.key == f.value && names.contains(f.key),
-              );
-          if (same && _ownedAs(expected.element, rule)) {
-            _add(
-              rule,
-              node,
-              edits: <MigrationEdit>[
-                MigrationEdit(node.offset, 0, expected.element.name ?? ''),
-              ],
-            );
+          final edits = _creationOf(node, names, expected.element, rule);
+          if (edits != null && _ownedAs(expected.element, rule)) {
+            _add(rule, node, edits: edits);
             break;
           }
         }
@@ -1455,6 +1468,63 @@ final class _Scan extends RecursiveAstVisitor<void> {
     }
     super.visitRecordLiteral(node);
   }
+
+  /// The edits that make [node], a record with the fields [names], a
+  /// creation of [type] through its unnamed constructor: its name before
+  /// the parenthesis, and each label [rule] renamed. Null where that
+  /// constructor does not take those names (every required one among
+  /// them), or cannot be `const` where the record is.
+  List<MigrationEdit>? _creationOf(
+    RecordLiteral node,
+    List<String> names,
+    InterfaceElement type,
+    MigrationRule rule,
+  ) {
+    final constructor = type.unnamedConstructor;
+    if (constructor == null || (node.isConst && !constructor.isConst)) {
+      return null;
+    }
+    final named = <String>{
+      for (final p in constructor.formalParameters)
+        if (p.isNamed) ?p.name,
+    };
+    final required = <String>{
+      for (final p in constructor.formalParameters)
+        if (p.isRequiredNamed) ?p.name,
+    };
+    final passed = <String>{for (final n in names) rule.fields[n] ?? n};
+    if (!passed.every(named.contains) || !required.every(passed.contains)) {
+      return null;
+    }
+    return <MigrationEdit>[
+      MigrationEdit(node.leftParenthesis.offset, 0, type.name ?? ''),
+      for (final (label, at) in _labelsOf(node))
+        if (rule.fields[label] case final to? when to != label)
+          MigrationEdit(at, label.length, to),
+    ];
+  }
+
+  /// The type the first read of [variable] that is passed somewhere asks
+  /// for, within the function it is declared in.
+  DartType? _expectedOfReads(Element variable, AstNode at) {
+    final body = at.thisOrAncestorOfType<FunctionBody>();
+    if (body == null) return null;
+    final reads = <SimpleIdentifier>[];
+    body.accept(_ReadsOf(variable, reads.add));
+    for (final read in reads) {
+      final parameter = _parameterOf(read);
+      if (parameter != null) return parameter.type;
+    }
+    return null;
+  }
+
+  /// The parameter [e] is passed for, a named argument's included.
+  static FormalParameterElement? _parameterOf(Expression e) =>
+      e.correspondingParameter ??
+      switch (e.parent) {
+        final NamedArgument a => a.correspondingParameter,
+        _ => null,
+      };
 
   /// The type the place [node] stands in asks for, a `Future`'s unwrapped:
   /// a function's return type, a variable's, a parameter's.
@@ -1473,13 +1543,19 @@ final class _Scan extends RecursiveAstVisitor<void> {
         MethodDeclaration(:final returnType?) => returnType.type,
         // A closure: the return type of the function type its place asks
         // for (a builder passed for a `FrameSubject Function()`).
-        final FunctionExpression closure =>
-          switch (closure.correspondingParameter?.type) {
-            final FunctionType function => function.returnType,
-            _ => null,
-          },
+        final FunctionExpression closure => switch (_parameterOf(
+          closure,
+        )?.type) {
+          final FunctionType function => function.returnType,
+          _ => null,
+        },
         _ => null,
       },
+      // A variable of its own type, inferred from the record: what its reads
+      // are passed for (`final frame = (…); expectMatchesGolden(frame, …)`).
+      VariableDeclaration(:final declaredFragment?, :final parent)
+          when parent is VariableDeclarationList && parent.type == null =>
+        _expectedOfReads(declaredFragment.element, parent),
       VariableDeclaration(:final declaredFragment?) =>
         declaredFragment.element.type,
       // An element of a list literal: the list's element type.
@@ -1488,7 +1564,7 @@ final class _Scan extends RecursiveAstVisitor<void> {
           list.typeArguments.single,
         _ => null,
       },
-      _ when at is Expression => at.correspondingParameter?.type,
+      _ when at is Expression => _parameterOf(at)?.type,
       _ => null,
     };
     if (type is InterfaceType &&

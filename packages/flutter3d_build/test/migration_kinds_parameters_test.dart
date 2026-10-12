@@ -2,8 +2,8 @@
 // that became named, `Gauge(r, 2)` to `Gauge(r, scale: 2)`. `fix_data.yaml`
 // carries it as `dart fix`'s add-then-remove, and the batch migrator writes
 // the name, since `dart fix` offers no fix for an extra positional argument.
-// A renamed named parameter is `dart fix`'s, and the batch migrator's too
-// where `dart fix` does not reach the call.
+// A renamed or removed named parameter is `dart fix`'s, and the batch
+// migrator's too where `dart fix` does not reach the call.
 import 'package:flutter3d_build/src/migrate/fix_data.dart';
 import 'package:flutter3d_build/src/migrate/guide.dart';
 import 'package:flutter3d_build/src/migrate/lints_table.dart';
@@ -23,8 +23,9 @@ final class Sieve
   final int coarse
   final int fine
 final class Tap
-  const Tap({this.centre = 0})
+  const Tap({this.centre = 0, this.speed = 0})
   final int centre
+  final int speed
 ''';
 
 void main() {
@@ -62,7 +63,7 @@ void main() {
       ),
     );
     expect(yaml, contains("value: 'arguments[0]'"));
-    expect("removeParameter'".allMatches(yaml), hasLength(3));
+    expect("removeParameter'".allMatches(yaml), hasLength(4));
   });
 
   test('the plugin table and the guide carry it', () {
@@ -84,13 +85,15 @@ void main() {
 
   // Six seconds with the migrator compiled; a cold `dart run` compiles it
   // first, which is what the three minutes are for.
-  test('a positional argument is named where it stands, and a renamed '
-      'one renamed; a call that passes the name as well keeps a TODO', () async {
+  test('a positional argument is named where it stands, a renamed one '
+      'renamed and a removed one dropped; a call that passes the name as '
+      'well keeps a TODO', () async {
     final report = await migrateKindFixture('parameters');
     expect(appliedOf(report), <String>[
       'kinds-Gauge-named',
       'kinds-Sieve-named',
       'kinds-Sieve-named',
+      'kinds-Tap-center',
       'kinds-Tap-center',
     ]);
     expect(manualOf(report), <String>['kinds-Gauge-named:9']);

@@ -27,3 +27,4 @@ entries:
     changes:
       - rename: centre
         to: center
+      - remove: speed

@@ -31,6 +31,9 @@ void main() {
       'kinds-Frame-class',
       'kinds-Frame-class',
       'kinds-Frame-class',
+      'kinds-Frame-class',
+      'kinds-Frame-class',
+      'kinds-Frame-class',
     ]);
     expect(manualOf(report), <String>['kinds-Span-class:11']);
   }, timeout: const Timeout(Duration(minutes: 3)));

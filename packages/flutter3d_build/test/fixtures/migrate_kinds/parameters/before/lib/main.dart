@@ -8,3 +8,7 @@ final Sieve none = Sieve();
 final Sieve named = Sieve(fine: 3);
 final Gauge twice = Gauge(2.0, 0.5, scale: 1);
 const Tap tap = Tap(centre: 2);
+const Tap slow = Tap(
+  center: 1,
+  speed: 4, // the old speed
+);

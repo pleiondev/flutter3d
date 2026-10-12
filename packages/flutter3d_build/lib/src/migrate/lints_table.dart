@@ -76,7 +76,10 @@ Map<String, String> toNamedOf(MigrationEntry e) => <String, String>{
 Map<String, String> renamedParametersOf(MigrationEntry e) => <String, String>{
   for (final c in e.changes)
     if ((c['rename'], c['to']) case (final String from, final String to))
-      from: to,
+      from: to
+    // A removed one maps to nothing: a named argument for it is dropped.
+    else if (c['remove'] case final String gone)
+      gone: '',
 };
 
 /// Whether [e] is one the plugin's table carries: a `rename` only when it
@@ -165,7 +168,7 @@ String _message(MigrationEntry e, MigrationTable table) {
       '`${e.symbol}` is `${e.topName}.${renamedMember(e)}` in ${table.to}.',
     'rename' => '`${e.topName}` is `${e.to}` in ${table.to}.',
     'parameters' when toNamedOf(e).isEmpty =>
-      '${renamedParametersOf(e).entries.map((MapEntry<String, String> r) => '`${r.key}:` is `${r.value}:`').join(', ')} '
+      '${renamedParametersOf(e).entries.map((MapEntry<String, String> r) => r.value.isEmpty ? '`${r.key}:` is gone' : '`${r.key}:` is `${r.value}:`').join(', ')} '
           'of `${_callable(e)}` in ${table.to}.',
     'parameters' =>
       '${toNamedOf(e).values.map((String a) => '`$a:`').join(', ')} of '

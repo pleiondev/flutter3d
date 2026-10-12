@@ -25,3 +25,16 @@ final int built = build(() {
 });
 
 final List<Frame> frames = <Frame>[(width: 1, height: 1)];
+
+const List<Frame> fixed = <Frame>[(width: 1, height: 1)];
+
+int area({required Frame frame}) => frame.width * frame.height;
+
+final int deep = area(frame: (width: 2, height: 3, depth: 1));
+
+int takes(Frame frame) => frame.width;
+
+int later() {
+  final f = (width: 1, height: 2);
+  return takes(f);
+}

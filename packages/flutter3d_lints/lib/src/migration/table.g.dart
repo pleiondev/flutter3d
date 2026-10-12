@@ -11004,6 +11004,16 @@ const List<MigrationRule> migrationRules = <MigrationRule>[
     link: 'https://flutter3d.pleion.dev/reference/migrating-to-1.0/#2f-game_racing-SkyPreset-colors',
   ),
   MigrationRule(
+    id: '2f-game_racing-VehicleTuning-gravity',
+    kind: MigrationKind.parameters,
+    package: 'flutter3d_game_racing',
+    type: 'VehicleTuning',
+    fields: <String, String>{'gravity': ''},
+    renamedTo: 'VehicleSettings',
+    message: '`gravity:` is gone of `VehicleTuning` in 1.0.0-rc.1.',
+    link: 'https://flutter3d.pleion.dev/reference/migrating-to-1.0/#2f-game_racing-VehicleTuning-gravity',
+  ),
+  MigrationRule(
     id: '2b-core-AnimationBlend',
     kind: MigrationKind.enumToClass,
     package: 'flutter3d_core',
@@ -11929,6 +11939,16 @@ const List<MigrationRule> migrationRules = <MigrationRule>[
     switchOver: 'ResourceSize',
     message: '`ResourceSize` is an `abstract base class` with a visitor rather than a sealed class, so a size a later minor adds breaks no `switch`: a `switch` over `FrameFraction` and `AbsolutePixels` ends with a wildcard, or reads them through `accept` and a `ResourceSizeVisitor`, whose `visitUnknown` answers for a kind it predates.',
     link: 'https://flutter3d.pleion.dev/reference/migrating-to-1.0/#2x-core-ResourceSize-open',
+  ),
+  MigrationRule(
+    id: '2x-impeller-GpuRenderBackend-extraBundles',
+    kind: MigrationKind.parameters,
+    package: 'flutter3d_impeller',
+    type: 'GpuRenderBackend',
+    member: 'create',
+    fields: <String, String>{'extraBundles': ''},
+    message: '`extraBundles:` is gone of `GpuRenderBackend.create` in 1.0.0-rc.1.',
+    link: 'https://flutter3d.pleion.dev/reference/migrating-to-1.0/#2x-impeller-GpuRenderBackend-extraBundles',
   ),
   MigrationRule(
     id: '3e0-core-MaterialBuiltin-glsl',
