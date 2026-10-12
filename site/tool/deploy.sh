@@ -4,6 +4,10 @@
 # nginx serves it on 127.0.0.1:8790 behind basic auth, and a Cloudflare tunnel
 # (cloudflared-flutter3d.service) publishes that as flutter3d.pleion.dev. None
 # of that changes on a redeploy — this only replaces the files.
+#
+# On a tag, `.github/workflows/site.yml` runs this on the self-hosted runner,
+# which reaches the server the way a developer's machine does; by hand it is
+# still `site/tool/deploy.sh`.
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -29,6 +33,10 @@ tool/demos.sh
 
 # The showcase app, into dist/showcase beside the guides `npm run build` wrote.
 tool/showcase.sh
+
+# The level editor's web build, at /editor/: the first thing the download
+# page offers.
+tool/editor.sh
 
 # --delete, because a page removed from the nav must stop being reachable.
 # The generated API reference still lives beside the site rather than inside
