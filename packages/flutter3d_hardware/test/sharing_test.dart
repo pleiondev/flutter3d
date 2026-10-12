@@ -15,14 +15,20 @@ const TextureDescriptor _square = TextureDescriptor(
   format: TextureFormat.r8g8b8a8UNormInt,
 );
 
+/// A fake that makes the plain textures shared here: texture writes, and
+/// no sharing feature.
+FakeBackend _fake() => FakeBackend(
+  extraFeatures: const <DeviceFeature>[DeviceFeature.textureWrites],
+);
+
 void main() {
   test('two devices without sharing copy through host memory', () async {
     // Mutation: publish without overwriting the consumer's texture, and the
     // consumer samples what it was made with.
-    final producer = FakeBackend()
+    final producer = _fake()
       ..answerReadback = (TextureHandle t, ScreenRect r) =>
           ByteData.sublistView(Uint8List.fromList(List<int>.filled(16, 7)));
-    final consumer = FakeBackend();
+    final consumer = _fake();
     final shared = SharedTexture.create(
       producer: producer,
       consumer: consumer,
@@ -42,8 +48,8 @@ void main() {
     // needs the texture in place gets a copy it did not ask for.
     expect(
       () => SharedTexture.create(
-        producer: FakeBackend(),
-        consumer: FakeBackend(),
+        producer: _fake(),
+        consumer: _fake(),
         descriptor: _square,
         demand: SharingMode.zeroCopy,
       ),
@@ -58,7 +64,7 @@ void main() {
   test('a device without the features refuses each sharing call', () {
     // Mutation: give a default body that answers, and conformance cannot
     // tell a device that shares from one that pretends to.
-    final device = FakeBackend();
+    final device = _fake();
     final texture = device.createTexture(_square);
     expect(device.shareableKinds, isEmpty);
     Matcher refusal(DeviceFeature feature) => throwsA(
