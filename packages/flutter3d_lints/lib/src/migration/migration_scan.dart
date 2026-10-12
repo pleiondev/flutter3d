@@ -2165,8 +2165,11 @@ final class _Scan extends RecursiveAstVisitor<void> {
       for (final m in body.members)
         ...switch (m) {
           MethodDeclaration(:final name) => <(Token, AstNode)>[(name, m)],
-          FieldDeclaration(:final fields) => <(Token, AstNode)>[
-            for (final v in fields.variables) (v.name, v),
+          // A field's variables (a declaration of fields, by its shape).
+          _ when m is! ConstructorDeclaration => <(Token, AstNode)>[
+            for (final list
+                in m.childEntities.whereType<VariableDeclarationList>())
+              for (final v in list.variables) (v.name, v),
           ],
           _ => const <(Token, AstNode)>[],
         },

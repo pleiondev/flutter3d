@@ -5,8 +5,8 @@ description: Move a project written against flutter3d 0.8 to 1.0.0-rc.1, with on
 # Migrating from 0.8 to 1.0
 
 1.0 is the release the engine promises to keep: from it on, a break comes
-only in a major version. To get there, 0.8's API changed in 1853 places,
-308 of them left to you; 380 are backend internals no application called.
+only in a major version. To get there, 0.8's API changed in 1887 places,
+306 of them left to you; 380 are backend internals no application called.
 The rest a program carries out for you, and three
 tools share the work. All three read one table,
 `flutter3d_build/lib/migrations/0.8_to_1.0.yaml`, so they agree about what
@@ -222,7 +222,7 @@ carried out:
 
 <!-- migration-table:start -->
 
-*Generated from `flutter3d_build/lib/migrations/` — 1886 entries from 0.8.5 to 1.0.0-rc.1, 306 by hand: 224 `migrate`, 306 by hand, 369 nothing to do, 500 `dart fix`, 380 gone internal, 107 `migrate`, with a TODO.*
+*Generated from `flutter3d_build/lib/migrations/` — 1887 entries from 0.8.5 to 1.0.0-rc.1, 306 by hand: 224 `migrate`, 306 by hand, 370 nothing to do, 500 `dart fix`, 380 gone internal, 107 `migrate`, with a TODO.*
 
 ### `flame_flutter3d`
 
@@ -1818,6 +1818,7 @@ carried out:
 - <a id="sim-SnapshotFormatException"></a>**`SnapshotFormatException`** (nothing to do). `SnapshotFormatException` is still a final class with the same members; it now extends `Flutter3dFormatException` (and through it `Flutter3dException`) instead of implementing `Exception` directly. Every `on SnapshotFormatException` and `on Exception` still catches it, and nothing outside the package could extend it.
 - <a id="4a-sim-SteadyLight"></a>**`SteadyLight`** (nothing to do). Only a type its declaration names was renamed; that rename's own fix carries every use.
 - <a id="sim-StepContext"></a>**`StepContext`** (`dart fix`). `StepContext` is `LoopContext`. Every system is handed a `LoopContext`: `dt` is the same, `phase` is the loop's `LoopPhase`, and the context also carries the step, the world and `publish`. Import it from `package:flutter3d_plugin_api`.
+- <a id="corpus-sim-StepEvents-gone"></a>**`StepEvents`** (nothing to do). The extension is gone with the drained buffer; its two members' own entries (`sim-StepEvents`, `corpus-sim-StepEvents-count`) rewrite each call to `whereType`.
 - <a id="corpus-sim-StepEvents-count"></a>**`StepEvents.count`** (`migrate`). `StepEvents.count` becomes `x.whereType<T>().length`. `count` on a list of events is gone with the drained buffer: `events.count<CollectibleTaken>()` is `events.whereType<CollectibleTaken>().length`.
 - <a id="sim-StepEvents"></a>**`StepEvents.has`** (`migrate`). `StepEvents.has` becomes `x.whereType<T>().isNotEmpty`. `has` and `count` on a drained list are gone with the buffer. Before: `events.has<Jumped>()`, `events.count<CollectibleTaken>()`. After, on the list of a step's events (`StepEventSummary.events`, or what a subscriber collected): `events.whereType<Jumped>().isNotEmpty`, `events.whereType<CollectibleTaken>().length`. Or subscribe to the type itself: `loop.events.onStep<Jumped>(...)`.
 - <a id="sim-StepPhase"></a>**`StepPhase`** (by hand). `StepPhase` is gone with `StepSystems`: a moment in a step is a place among the loop's systems. `StepPhase.begin` is `before:` the genre's step system and `StepPhase.end` is `after:` it; a genre's own moment ("after the weapons fired") is a system of the genre's, named `<genre>.<moment>`, which a rule orders itself after. A phase of a game's own is `loop.addPhase(LoopPhase.step('mygame.phase'), after: [...])`.

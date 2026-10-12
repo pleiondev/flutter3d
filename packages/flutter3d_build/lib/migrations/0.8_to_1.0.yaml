@@ -22222,3 +22222,12 @@ entries:
     template: '{value} / 1000'
     guidance: >-
       A pacing report keeps seconds: `limitMillis: 50` is `limit: 50 / 1000`.
+
+  - id: corpus-sim-StepEvents-gone
+    package: flutter3d_sim
+    symbol: StepEvents
+    kind: none
+    reason: >-
+      The extension is gone with the drained buffer; its two members' own
+      entries (`sim-StepEvents`, `corpus-sim-StepEvents-count`) rewrite each
+      call to `whereType`.
