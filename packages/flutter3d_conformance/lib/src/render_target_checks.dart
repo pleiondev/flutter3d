@@ -42,8 +42,8 @@ Future<void> checkRenderToCubeFaceAndMip(GraphicsDevice device) async {
     mipLevels: levels,
   );
   require(
-    cube.type == TextureType.textureCube,
-    'the cube came back as ${cube.type.name}',
+    cube.dimension == TextureDimension.cube,
+    'the cube came back as ${cube.dimension.name}',
   );
 
   // Three clears, each into its own face and level, in an order that makes a

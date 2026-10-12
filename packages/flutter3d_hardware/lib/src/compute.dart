@@ -32,10 +32,9 @@ final class StorageBuffer {
     this._release, {
     required this.backend,
     required this.lengthInBytes,
-    this.hostReadable = false,
+    required this.usage,
     this.asIndices,
     this.asVertices,
-    this.usage = BufferUsage.standardStorage,
   });
 
   final void Function(StorageBuffer)? _release;
@@ -77,7 +76,10 @@ final class StorageBuffer {
   /// Whether `GraphicsDevice.readBuffer` may read it back. Asked at creation
   /// because a GPU buffer that can be mapped for reading is a different
   /// allocation from one that cannot, on every API that has either.
-  final bool hostReadable;
+  ///
+  /// Read from [usage], the one source of truth: whether it has
+  /// [BufferUsage.hostReadable].
+  bool get hostReadable => usage.contains(BufferUsage.hostReadable);
 
   /// The same memory as an index buffer a draw can bind, when it was asked
   /// for with `bindableAsIndices` — `H11`: a compute pass writes a draw's
@@ -244,23 +246,43 @@ abstract base class ComputeEncoder {
 /// A [StorageBuffer] over a backend's own [backend] buffer — for a backend,
 /// from `package:flutter3d_hardware/backend.dart`. [owner]'s
 /// `releaseStorageBuffer` is what the handle's `dispose` calls.
+///
+/// **Say what it is for with [usage].** [hostReadable] is the pre-1.0 way to
+/// say one bit of it, still read when [usage] is absent: the buffer is then
+/// [BufferUsage.standardStorage], with [BufferUsage.hostReadable] when it is
+/// true. When both are given they must agree, or this throws an
+/// [ArgumentError] rather than make a handle whose two fields disagree.
 StorageBuffer wrapStorageBuffer({
   required Object backend,
   required int lengthInBytes,
-  bool hostReadable = false,
+  bool? hostReadable,
   GeometryBuffer? asIndices,
   GeometryBuffer? asVertices,
-  BufferUsage usage = BufferUsage.standardStorage,
+  BufferUsage? usage,
   GraphicsDevice? owner,
-}) => StorageBuffer._(
-  owner?.releaseStorageBuffer,
-  backend: backend,
-  lengthInBytes: lengthInBytes,
-  hostReadable: hostReadable,
-  asIndices: asIndices,
-  asVertices: asVertices,
-  usage: usage,
-);
+}) {
+  if (hostReadable != null &&
+      usage != null &&
+      hostReadable != usage.contains(BufferUsage.hostReadable)) {
+    throw ArgumentError(
+      'wrapStorageBuffer was told hostReadable: $hostReadable and $usage, '
+          'which disagree. Say it with usage alone.',
+      'hostReadable',
+    );
+  }
+  return StorageBuffer._(
+    owner?.releaseStorageBuffer,
+    backend: backend,
+    lengthInBytes: lengthInBytes,
+    usage:
+        usage ??
+        (hostReadable ?? false
+            ? BufferUsage.standardStorage | BufferUsage.hostReadable
+            : BufferUsage.standardStorage),
+    asIndices: asIndices,
+    asVertices: asVertices,
+  );
+}
 
 /// A [ComputePipelineHandle] over a backend's own [backend] pipeline, for a
 /// backend; see [wrapStorageBuffer].
