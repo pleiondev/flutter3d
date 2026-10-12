@@ -35,6 +35,7 @@ final class MyShelf implements Shelf {
 Dial dial() => Dial(
       level: 2,
       label: 'gain',
+      onTurn: (int from, int to) {},
     );
 
 Match pick(List<Match> all) => all.first;
@@ -56,10 +57,15 @@ Future<int> loaded(Store store) async {
   return n + store.load().bitLength;
 }
 
-void forget(Store store) {
+int forget(Store store) {
   store.load();
   final held = store.load();
   print(held);
+  return 0;
+}
+
+void refresh(Store store) {
+  store.load();
 }
 
 void test(String name, Object? Function() body) => body();
@@ -70,3 +76,12 @@ void checks(Store store) {
     print(store.load());
   });
 }
+
+int counted(Object o) => switch (o) {
+  KindLedger(:final count) => count,
+  _ => 0,
+};
+
+Credit credit() => (title: 't', licence: 'MIT');
+
+String licenseOf(Credit credit) => credit.licence;

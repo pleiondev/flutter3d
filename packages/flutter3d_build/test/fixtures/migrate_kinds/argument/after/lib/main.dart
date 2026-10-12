@@ -23,3 +23,8 @@ Lamp mended() => Lamp.tinted(LinearColor(0.1, 0.2, 0.3));
 void shine(Vector3 colour) {}
 
 void glowing(Lamp lamp) => shine(lamp.glow.toVector3());
+
+Vector3 seen(Lamp lamp) {
+  final Vector3 c = lamp.glow.toVector3();
+  return c;
+}

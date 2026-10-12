@@ -17374,8 +17374,11 @@ entries:
   - id: rc-core-MeshOverlay-colours
     package: flutter3d_core
     symbol: MeshOverlay
-    kind: manual
-    members: [edge, point, ribbon, wash, asDrawn]
+    kind: argument
+    arguments: [color]
+    types: [Vector4]
+    template: 'LinearColor.fromSrgb({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
       `edge`, `point`, `ribbon` and `wash` take a linear `LinearColor` and
@@ -22041,3 +22044,31 @@ entries:
       `WebGlDevice.open` is asynchronous, as every backend's `open` is: await
       it, inside an `async` function, and hand on a `Future<GraphicsDevice>`
       where a device was returned.
+
+  - id: corpus-core-MeshOverlay-asDrawn
+    package: flutter3d_core
+    symbol: MeshOverlay.asDrawn
+    kind: rewrite
+    template: 'LinearColor.fromSrgb({0}.x, {0}.y, {0}.z, {0}.w).toVector4()'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
+    guidance: >-
+      `MeshOverlay.asDrawn(v)` is gone with the vector colours: the overlay
+      takes `LinearColor.fromSrgb(v.x, v.y, v.z, v.w)`.
+
+  - id: corpus-editor_widgets-NumberUnit-metres
+    package: flutter3d_editor_widgets
+    symbol: NumberUnit.metres
+    kind: rewrite
+    template: 'NumberUnit.meters'
+    guidance: >-
+      Public names are spelled the American way: `NumberUnit.metres` is
+      `NumberUnit.meters`, the same unit.
+
+  - id: corpus-model_core-ModelCredit-licence
+    package: flutter3d_model_core
+    symbol: ModelCredit.licence
+    kind: rename
+    to: license
+    guidance: >-
+      Public names are spelled the American way: a credit's `licence` field
+      is `license`, read and built alike.

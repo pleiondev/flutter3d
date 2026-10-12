@@ -113,3 +113,8 @@ entries:
     symbol: Wheel.rolling
     kind: rename
     to: isRolling
+  - id: kinds-Credit-licence
+    package: flutter3d_kinds
+    symbol: Credit.licence
+    kind: rename
+    to: license

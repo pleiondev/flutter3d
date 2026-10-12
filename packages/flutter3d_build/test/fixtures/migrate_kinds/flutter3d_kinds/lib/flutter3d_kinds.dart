@@ -157,11 +157,14 @@ abstract base class Shelf {
   Future<int> count();
 }
 
-// 0.8: `Dial({int level = 0, String label = ''})`; the label is gone.
+// 0.8: `Dial({int level = 0, String label = '', onTurn})`; the label is gone.
 
 final class Dial {
-  const Dial({this.level = 0});
+  const Dial({this.level = 0, this.onTurn});
   final int level;
+
+  /// 0.8: `void Function(int from, int to)`.
+  final void Function(int to)? onTurn;
 }
 
 // 0.8: `class Match`, which shadowed `dart:core`'s; `KindMatch` since.
@@ -190,6 +193,10 @@ final class Store {
 final class KindSeat {
   KindSeat();
 }
+
+// 0.8: `typedef Credit = ({String title, String licence})`.
+
+typedef Credit = ({String title, String license});
 
 // ----------------------------------------------------------- parameters
 // 0.8: `Gauge(double reading, [double scale = 1])` and

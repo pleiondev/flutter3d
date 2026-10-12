@@ -43,6 +43,8 @@ Dial dial() => Dial(
       level: 2,
       // TODO(flutter3d-1.0): `label` is gone: a dial shows its level alone. See https://flutter3d.pleion.dev/reference/migrating-to-1.0/#kinds-Dial-constructor
       label: 'gain',
+      // TODO(flutter3d-1.0): `label` is gone: a dial shows its level alone. See https://flutter3d.pleion.dev/reference/migrating-to-1.0/#kinds-Dial-constructor
+      onTurn: (int from, int to) {},
     );
 
 KindMatch pick(List<KindMatch> all) => all.first;
@@ -64,13 +66,19 @@ Future<int> loaded(Store store) async {
   return n + (await store.load()).bitLength;
 }
 
-void forget(Store store) {
+int forget(Store store) {
   // TODO(flutter3d-1.0): `load` is asynchronous: await it. See https://flutter3d.pleion.dev/reference/migrating-to-1.0/#kinds-Store-load
   store.load();
   // TODO(flutter3d-1.0): `load` is asynchronous: await it. See https://flutter3d.pleion.dev/reference/migrating-to-1.0/#kinds-Store-load
   final held = store.load();
   // TODO(flutter3d-1.0): `load` is asynchronous: await it. See https://flutter3d.pleion.dev/reference/migrating-to-1.0/#kinds-Store-load
   print(held);
+  return 0;
+}
+
+void refresh(Store store) async {
+  // TODO(flutter3d-1.0): `load` is asynchronous: await it. See https://flutter3d.pleion.dev/reference/migrating-to-1.0/#kinds-Store-load
+  await store.load();
 }
 
 void test(String name, Object? Function() body) => body();
@@ -81,3 +89,12 @@ void checks(Store store) {
     print(await store.load());
   });
 }
+
+int counted(Object o) => switch (o) {
+  KindLedger(tally: final count) => count,
+  _ => 0,
+};
+
+Credit credit() => (title: 't', license: 'MIT');
+
+String licenseOf(Credit credit) => credit.license;

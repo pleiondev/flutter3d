@@ -1,6 +1,7 @@
 // The `recordToClass` kind: `.$1` and `.$2` of a record that became a class
-// are the class's getters; a record built where the class is expected, with
-// its fields, is a creation of it; a destructuring pattern is left to a
+// are the class's getters; a record built where the class is expected (a
+// return, a closure's return, a variable, an argument, a list's element),
+// with its fields, is a creation of it; a destructuring pattern is left to a
 // person.
 import 'package:flutter3d_build/src/migrate/guide.dart';
 import 'package:flutter3d_build/src/migrate/lints_table.dart';
@@ -26,6 +27,8 @@ void main() {
     expect(appliedOf(report), <String>[
       'kinds-Span-class',
       'kinds-Span-class',
+      'kinds-Frame-class',
+      'kinds-Frame-class',
       'kinds-Frame-class',
       'kinds-Frame-class',
     ]);

@@ -108,6 +108,9 @@ final class _Scan extends RecursiveAstVisitor<void> {
           continue;
         case MigrationKind.enumToClass:
           into(openedSwitches, r.switchOver ?? r.type, r);
+          if (r.renamedTo case final renamed?) {
+            into(openedSwitches, renamed, r);
+          }
           continue;
         case MigrationKind.recordToClass:
           into(records, r.type, r);
@@ -509,10 +512,11 @@ final class _Scan extends RecursiveAstVisitor<void> {
       if (rule.kind == MigrationKind.manual &&
           rule.match == MigrationMatch.uses) {
         switch (rule.awaits ? _awaited(node) : null) {
-          case (true, _):
+          case (true, _, _):
             break;
-          case (false, final List<MigrationEdit> edits):
+          case (false, final List<MigrationEdit> edits, final bool todo):
             _add(rule, node, edits: edits);
+            if (todo) _addTodo(rule, node);
           case null:
             _add(rule, node);
             if (rule.awaits) _readsOfHeldFuture(node, rule);
@@ -632,6 +636,13 @@ final class _Scan extends RecursiveAstVisitor<void> {
       text = text.replaceAll('{target}', _operand(target));
     }
     for (var i = 0; i < args.length; i++) {
+      // An argument written more than once is evaluated more than once:
+      // only a name or a chain of field reads may be.
+      if ('{$i}'.allMatches(text).length > 1 &&
+          !(args[i] is Expression && _isPath(args[i] as Expression))) {
+        _add(rule, node);
+        return;
+      }
       text = text.replaceAll('{$i}', _text(args[i]));
     }
     if (RegExp(r'\{(\d+|arguments|typeArguments)\}').hasMatch(text)) {
@@ -652,18 +663,24 @@ final class _Scan extends RecursiveAstVisitor<void> {
   /// no edits) where it is awaited already, (false, the edits) that await
   /// it inside an `async` body, null where that is not this scan's to write
   /// (a body that is not `async`, a cascade).
-  (bool, List<MigrationEdit>)? _awaited(SimpleIdentifier node) {
+  (bool, List<MigrationEdit>, bool)? _awaited(SimpleIdentifier node) {
     final call = node.parent;
     if (call is! MethodInvocation || call.methodName != node) return null;
     final type = call.staticType;
     if (type is! InterfaceType || !type.isDartAsyncFuture) return null;
-    if (call.parent is AwaitExpression) return (true, const <MigrationEdit>[]);
+    if (call.parent is AwaitExpression) {
+      return (true, const <MigrationEdit>[], false);
+    }
     if (call.isCascaded) return null;
     final body = call.thisOrAncestorOfType<FunctionBody>();
     if (body == null) return null;
     // A test's own callback may become `async`: the runner awaits what it
     // returns.
-    final makeAsync = !body.isAsynchronous && _isTestCallback(body);
+    // A function that returns nothing may too, but what follows the await
+    // now runs later: that keeps its TODO.
+    final test = !body.isAsynchronous && _isTestCallback(body);
+    final void_ = !body.isAsynchronous && !test && _returnsVoid(body);
+    final makeAsync = test || void_;
     if (!body.isAsynchronous && !makeAsync) return null;
     final parent = call.parent;
     final operand = switch (parent) {
@@ -683,6 +700,36 @@ final class _Scan extends RecursiveAstVisitor<void> {
               ]
             : <MigrationEdit>[MigrationEdit(call.offset, 0, 'await ')],
       ],
+      void_,
+    );
+  }
+
+  /// Whether [body] is the body of a function or a method declared to
+  /// return `void`, which an `async` keeps returning nothing a caller reads.
+  static bool _returnsVoid(FunctionBody body) {
+    if (body.star != null) return false;
+    final returnType = switch (body.parent) {
+      FunctionExpression(parent: FunctionDeclaration(:final returnType)) =>
+        returnType,
+      MethodDeclaration(:final returnType, :final propertyKeyword) =>
+        propertyKeyword == null ? returnType : null,
+      _ => null,
+    };
+    return returnType?.type is VoidType;
+  }
+
+  /// A TODO at [at] beside an edit made there already, for a rewrite that
+  /// a person still has to read.
+  void _addTodo(MigrationRule rule, AstNode at) {
+    if (!_seen.add(('${rule.id}#todo', at.offset))) return;
+    found.add(
+      MigrationFinding(
+        rule: rule,
+        offset: at.offset,
+        length: at.length,
+        edits: const <MigrationEdit>[],
+        todo: _todoFor(rule, at),
+      ),
     );
   }
 
@@ -1346,7 +1393,12 @@ final class _Scan extends RecursiveAstVisitor<void> {
     if (type is! InterfaceType) return;
     for (final rule in records[type.element.name] ?? const <MigrationRule>[]) {
       final getter = rule.fields[node.name];
-      if (getter == null || !_ownedAs(type.element, rule)) continue;
+      // A field the class keeps under its own name reads as it did.
+      if (getter == null ||
+          getter == node.name ||
+          !_ownedAs(type.element, rule)) {
+        continue;
+      }
       _add(
         rule,
         node,
@@ -1367,6 +1419,7 @@ final class _Scan extends RecursiveAstVisitor<void> {
         !node.isConst) {
       final names = <String>{for (final f in type.namedFields) f.name};
       final expected = _expectedType(node);
+      if (expected is RecordType) _renameRecordLabels(node, expected);
       if (expected is InterfaceType) {
         for (final rule
             in records[expected.element.name] ?? const <MigrationRule>[]) {
@@ -1404,15 +1457,26 @@ final class _Scan extends RecursiveAstVisitor<void> {
       ReturnStatement() || ExpressionFunctionBody() => switch (at
           .thisOrAncestorOfType<FunctionBody>()
           ?.parent) {
-        FunctionExpression(:final parent?) => switch (parent) {
-          FunctionDeclaration(:final returnType?) => returnType.type,
-          _ => null,
-        },
+        FunctionExpression(parent: FunctionDeclaration(:final returnType?)) =>
+          returnType.type,
         MethodDeclaration(:final returnType?) => returnType.type,
+        // A closure: the return type of the function type its place asks
+        // for (a builder passed for a `FrameSubject Function()`).
+        final FunctionExpression closure =>
+          switch (closure.correspondingParameter?.type) {
+            final FunctionType function => function.returnType,
+            _ => null,
+          },
         _ => null,
       },
       VariableDeclaration(:final declaredFragment?) =>
         declaredFragment.element.type,
+      // An element of a list literal: the list's element type.
+      ListLiteral(:final staticType) => switch (staticType) {
+        final InterfaceType list when list.typeArguments.length == 1 =>
+          list.typeArguments.single,
+        _ => null,
+      },
       _ when at is Expression => at.correspondingParameter?.type,
       _ => null,
     };
@@ -1422,6 +1486,37 @@ final class _Scan extends RecursiveAstVisitor<void> {
       return type.typeArguments.first;
     }
     return type;
+  }
+
+  /// A field of an object pattern a member rename renamed:
+  /// `PerspectiveProjection(:final fovYRadians)` is
+  /// `PerspectiveProjection(fovY: final fovYRadians)`, the variable kept.
+  @override
+  void visitPatternField(PatternField node) {
+    final pattern = node.parent;
+    final name = node.effectiveName;
+    if (pattern is ObjectPattern && node.element == null && name != null) {
+      final type = pattern.type.type;
+      for (final rule in memberRenames[name] ?? const <MigrationRule>[]) {
+        final to = rule.to;
+        if (to == null || type is! InterfaceType || !_isOfRule(type, rule)) {
+          continue;
+        }
+        final label = node.name;
+        _add(
+          rule,
+          node,
+          edits: <MigrationEdit>[
+            if (label?.name case final written?)
+              MigrationEdit(written.offset, written.length, to)
+            else if (label != null)
+              MigrationEdit(label.colon.offset, 1, '$to: '),
+          ],
+        );
+        break;
+      }
+    }
+    super.visitPatternField(node);
   }
 
   @override
@@ -1644,11 +1739,21 @@ final class _Scan extends RecursiveAstVisitor<void> {
       String? member,
       Element? element,
     ) = switch (list.parent) {
-      InstanceCreationExpression(:final constructorName) => (
-        constructorName.type.name.lexeme,
-        constructorName.name?.name ?? constructorName.type.name.lexeme,
-        constructorName.type.element,
-      ),
+      // Through a typedef, the class it names (`ModelPictureTool(…)` makes
+      // an `OfferedTool`).
+      InstanceCreationExpression(:final constructorName) =>
+        switch (constructorName.type.type) {
+          final InterfaceType created => (
+            created.element.name,
+            constructorName.name?.name ?? created.element.name,
+            created.element,
+          ),
+          _ => (
+            constructorName.type.name.lexeme,
+            constructorName.name?.name ?? constructorName.type.name.lexeme,
+            constructorName.type.element,
+          ),
+        },
       MethodInvocation(:final methodName, :final realTarget) =>
         switch (methodName.element?.enclosingElement) {
           final InterfaceElement owner => (owner.name, methodName.name, owner),
@@ -1684,29 +1789,49 @@ final class _Scan extends RecursiveAstVisitor<void> {
   /// `Vector3`): converted, as a rule's template says, to the old type.
   void _convertValues(ArgumentList node) {
     for (final argument in node.arguments) {
-      final value = argument.argumentExpression;
-      final type = value.staticType;
-      final wants = argument.correspondingParameter?.type;
-      if (type is! InterfaceType || wants is! InterfaceType) continue;
-      for (final rule
-          in valueConversions[type.element.name] ?? const <MigrationRule>[]) {
-        final name = wants.element.name;
-        if (name == null || !rule.types.contains(name)) continue;
-        _add(
-          rule,
-          value,
-          edits: <MigrationEdit>[
-            MigrationEdit(
-              value.offset,
-              value.length,
-              rule.template!
-                  .replaceAll('{target}', _operand(value))
-                  .replaceAll('{type}', name),
-            ),
-          ],
-        );
-        break;
-      }
+      _convertValue(
+        argument.argumentExpression,
+        argument.correspondingParameter?.type,
+      );
+    }
+  }
+
+  @override
+  void visitVariableDeclaration(VariableDeclaration node) {
+    final value = node.initializer;
+    final list = node.parent;
+    if (value != null &&
+        valueConversions.isNotEmpty &&
+        list is VariableDeclarationList &&
+        list.type != null) {
+      _convertValue(value, node.declaredFragment?.element.type);
+    }
+    super.visitVariableDeclaration(node);
+  }
+
+  /// [value] converted where [wants], the type its place takes, is one a
+  /// conversion rule turns its type into.
+  void _convertValue(Expression value, DartType? wants) {
+    final type = value.staticType;
+    if (type is! InterfaceType || wants is! InterfaceType) return;
+    for (final rule
+        in valueConversions[type.element.name] ?? const <MigrationRule>[]) {
+      final name = wants.element.name;
+      if (name == null || !rule.types.contains(name)) continue;
+      _add(
+        rule,
+        value,
+        edits: <MigrationEdit>[
+          MigrationEdit(
+            value.offset,
+            value.length,
+            rule.template!
+                .replaceAll('{target}', _operand(value))
+                .replaceAll('{type}', name),
+          ),
+        ],
+      );
+      return;
     }
   }
 
@@ -1718,7 +1843,20 @@ final class _Scan extends RecursiveAstVisitor<void> {
       for (final a in node.arguments)
         if (a is NamedArgument && a.correspondingParameter == null) a,
     ];
-    if (unmatched.isEmpty) return;
+    // And an argument the call still has a parameter for, of a type that
+    // parameter no longer takes (a callback whose shape changed).
+    final typeSystem = unit.declaredFragment?.element.library.typeSystem;
+    final mistyped = <Argument>[
+      if (typeSystem != null)
+        for (final a in node.arguments)
+          if ((a.argumentExpression.staticType, a.correspondingParameter?.type)
+              case (final DartType given?, final DartType wanted?)
+              when given is! InvalidType &&
+                  given is! DynamicType &&
+                  !typeSystem.isAssignableTo(given, wanted))
+            a,
+    ];
+    if (unmatched.isEmpty && mistyped.isEmpty) return;
     final rules = <MigrationRule>[
       ..._manualRulesOfCall(node),
       // A rule about the parameter itself, `RunTimeline.stepSim`.
@@ -1732,7 +1870,7 @@ final class _Scan extends RecursiveAstVisitor<void> {
             r,
     ];
     if (rules.isEmpty) return;
-    for (final a in unmatched) {
+    for (final a in <Argument>[...unmatched, ...mistyped]) {
       _add(rules.first, a);
     }
     // And on the call's name, where the analyzer names a parameter it now
@@ -1956,7 +2094,10 @@ final class _Scan extends RecursiveAstVisitor<void> {
   void _renameMember(SimpleIdentifier node, List<MigrationRule> rules) {
     for (final rule in rules) {
       final to = rule.to;
-      if (to == null || !_isMemberOf(node, rule)) continue;
+      if (to == null ||
+          !(_isMemberOf(node, rule) || _isFieldOfRecordAlias(node, rule))) {
+        continue;
+      }
       _add(
         rule,
         node,
@@ -1964,6 +2105,74 @@ final class _Scan extends RecursiveAstVisitor<void> {
       );
       return;
     }
+  }
+
+  /// Whether [node] reads a field of a record typedef named as [rule]'s
+  /// type (`ModelCredit`, a record whose `licence` is `license`).
+  bool _isFieldOfRecordAlias(SimpleIdentifier node, MigrationRule rule) {
+    final target = switch (node.parent) {
+      PrefixedIdentifier(:final prefix, :final identifier)
+          when identifier == node =>
+        prefix,
+      PropertyAccess(:final realTarget, :final propertyName)
+          when propertyName == node =>
+        realTarget,
+      _ => null,
+    };
+    final type = target?.staticType;
+    return type is RecordType && _named(type.alias?.element.name, rule);
+  }
+
+  /// The labels of [node], a record literal built where a record typedef
+  /// is expected, that a member rename of that typedef renamed.
+  void _renameRecordLabels(RecordLiteral node, RecordType expected) {
+    final alias = expected.alias?.element.name;
+    if (alias == null) return;
+    for (final (label, at) in _labelsOf(node)) {
+      for (final rule in memberRenames[label] ?? const <MigrationRule>[]) {
+        final to = rule.to;
+        if (to == null || !_named(alias, rule)) continue;
+        _add(
+          rule,
+          node,
+          edits: <MigrationEdit>[MigrationEdit(at, label.length, to)],
+        );
+        break;
+      }
+    }
+  }
+
+  /// Each named field's label of [node] with its offset: an identifier
+  /// right after the opening parenthesis or a comma at the literal's own
+  /// depth, followed by a colon.
+  static List<(String, int)> _labelsOf(RecordLiteral node) {
+    final labels = <(String, int)>[];
+    var depth = 0;
+    Token? previous;
+    for (
+      Token? t = node.leftParenthesis;
+      t != null && t != node.rightParenthesis.next;
+      t = t.next
+    ) {
+      final type = t.type;
+      if (type == TokenType.OPEN_PAREN ||
+          type == TokenType.OPEN_SQUARE_BRACKET ||
+          type == TokenType.OPEN_CURLY_BRACKET) {
+        depth++;
+      } else if (type == TokenType.CLOSE_PAREN ||
+          type == TokenType.CLOSE_SQUARE_BRACKET ||
+          type == TokenType.CLOSE_CURLY_BRACKET) {
+        depth--;
+      } else if (depth == 1 &&
+          t.isIdentifier &&
+          t.next?.type == TokenType.COLON &&
+          (previous == node.leftParenthesis ||
+              previous?.type == TokenType.COMMA)) {
+        labels.add((t.lexeme, t.offset));
+      }
+      previous = t;
+    }
+    return labels;
   }
 
   // ------------------------------------------------------------ argument

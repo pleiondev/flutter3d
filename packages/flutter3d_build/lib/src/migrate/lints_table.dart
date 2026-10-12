@@ -186,7 +186,13 @@ List<Map<String, Object?>> lintsRules(List<MigrationTable> tables) {
             e.member == null &&
             !e.symbol.contains(':') &&
             RegExp(r'^[A-Z]\w*$').hasMatch(e.to ?? ''))
-          e.topName: e.to!,
+          e.topName: e.to!
+        // A class moved to another library under a new name.
+        else if (e.kind == 'moved' &&
+            e.member == null &&
+            !e.symbol.contains(':') &&
+            e.name != null)
+          e.topName: e.name!,
   };
   return <Map<String, Object?>>[
     for (final table in tables)

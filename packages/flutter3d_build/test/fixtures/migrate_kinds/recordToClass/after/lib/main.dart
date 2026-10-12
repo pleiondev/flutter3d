@@ -18,3 +18,11 @@ Frame framed(int w) => Frame(width: w, height: w * 2);
 Future<Frame> later(int w) async {
   return Frame(width: w, height: w);
 }
+
+int build(Frame Function() make) => make().width;
+
+final int built = build(() {
+  return Frame(width: 1, height: 2);
+});
+
+final List<Frame> frames = <Frame>[Frame(width: 1, height: 1)];

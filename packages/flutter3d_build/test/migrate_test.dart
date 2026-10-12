@@ -483,9 +483,15 @@ entries:
       final source = generateLintsTable(<MigrationTable>[table], stamp: 's');
       expect(source, contains("switchOver: 'Mn'"));
       expect(source, contains('kind: MigrationKind.rewrite'));
-      // A move is `dart fix`'s alone; a class rename reaches the plugin
-      // too, for the `const` creation `dart fix` cannot resolve.
-      expect(source, isNot(contains("id: 'core-ef'")));
+      // A move reaches the plugin too, for a file that reached the name
+      // through a re-export of its own, which `dart fix` does not see; so
+      // does a class rename, for the `const` creation `dart fix` cannot
+      // resolve.
+      expect(source, contains("id: 'core-ef'"));
+      expect(
+        source,
+        contains("imports: <String>['package:flutter3d_core/more.dart']"),
+      );
       expect(source, contains("id: 'core-Ab'"));
       expect(source, contains('kind: MigrationKind.rename'));
     });

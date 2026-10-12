@@ -8,7 +8,9 @@
 //   whose old class the file did not hide;
 // * a member renamed where `dart fix` did not reach it, a member of a
 //   renamed class met under the new name, and an implementer's declaration
-//   of a renamed member, a getter or a field;
+//   of a renamed member, a getter or a field; a renamed member named in an
+//   object pattern; a renamed field of a record typedef, as a read and as a
+//   label of a record built where the typedef goes;
 // * a name moved to another library, imported from there;
 // * a static member that is gone (`Board.table()`), a top-level function
 //   gone with its arguments handed on (`srgbColor(…)`), an extension's
@@ -16,12 +18,14 @@
 //   member (`Mode.touch`), and a call whose parameter changed type,
 //   rewritten only where it passes the old one;
 // * a call of a member that became asynchronous, awaited in an `async` body
-//   (a test's callback made `async` for it), and elsewhere a TODO at the
+//   (a test's callback made `async` for it, and a function that returns
+//   nothing, which keeps a TODO), and elsewhere a TODO at the
 //   call and at each read of the variable that holds it;
 // * and where nothing can be written, a TODO on the line of each use of a
 //   gone function or a gone library's names, at each override of a type
-//   whose implementers have something to do, and at a creation and each
-//   argument it lost of a constructor whose shape changed.
+//   whose implementers have something to do, and at a creation of a
+//   constructor whose shape changed and each argument it lost or now takes
+//   in another type.
 import 'package:flutter3d_build/src/migrate/lints_table.dart';
 import 'package:test/test.dart';
 
@@ -57,6 +61,10 @@ void main() {
       'kinds-Store-load',
       'kinds-Store-load',
       'kinds-Store-load',
+      'kinds-Store-load',
+      'kinds-Ledger-count',
+      'kinds-Credit-licence',
+      'kinds-Credit-licence',
       'kinds-Seat',
       'kinds2-Seat',
       'kinds2-Seat',
@@ -71,9 +79,11 @@ void main() {
       'kinds-Shelf:29',
       'kinds-Dial-constructor:35',
       'kinds-Dial-constructor:37',
-      'kinds-Store-load:60',
+      'kinds-Dial-constructor:38',
       'kinds-Store-load:61',
       'kinds-Store-load:62',
+      'kinds-Store-load:63',
+      'kinds-Store-load:68',
     ]);
   });
 }
