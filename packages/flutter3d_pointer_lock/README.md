@@ -71,12 +71,35 @@ which calls `release()` itself.
 | Web, phone or tablet | not applicable | reported by `(pointer: coarse)`; `isSupported` is false so the game shows its touch controls |
 | Windows | supported | Raw Input for the motion, `ClipCursor` to the window's centre, `ShowCursor(FALSE)` |
 | Linux | supported on X11 | `gdk_seat_grab` with a blank cursor, the pointer warped back to the centre after each motion. Wayland forbids the warp, so there the deltas stop at the window's edge |
-| iOS, Android | not applicable | no pointer to capture; `isSupported` is false |
+| Android | supported with a mouse, API 26 on | `View.requestPointerCapture` on the Flutter view, the motion from its captured-pointer listener; a click is handed to Flutter at the view's centre |
+| iPadOS | supported with a mouse or a trackpad, full screen | `prefersPointerLocked` on the Flutter view controller, the motion from `GCMouse`; the scene's `UIPointerLockState` says when the lock is held |
+| iPhone, a phone or tablet with no mouse | not applicable | no pointer to capture; `isSupported` is false |
 
 The backend answers `isSupported`; the caller does not have to guess. An
 application can then offer another control scheme instead of discovering the
 gap at the first call. The engine above this plugin reads exactly that flag: in
 a build where it is false, the camera turns by dragging.
+
+On a phone or a tablet the answer follows the mouse: it is false until the
+native side has said one is connected, a moment after start, and changes when
+one comes or goes. Listen to `onSupportChanged` to swap touch controls for the
+mouse:
+
+```dart
+capture.onSupportChanged.listen((supported) {
+  setState(() => showTouchControls = !supported);
+});
+```
+
+### What an iPad asks for
+
+iPadOS grants the lock only to a scene that fills the screen, so a game in
+Split View or Slide Over stays released, and `onStateChanged` never reports a
+capture it did not get. The Flutter view controller has to be the root of its
+window, or a container above it has to return it from
+`childViewControllerForPointerLock`. The plugin adds the
+`prefersPointerLocked` answer to the controller's class at run time, so the
+application does not subclass anything.
 
 ### What a browser does that a desktop does not
 
@@ -116,10 +139,11 @@ it. This plugin differs from it in three places a game needed:
 
 ## Cost
 
-One platform-channel message per mouse event, carrying a two-element
-`Float64List`. Nobody has yet measured whether that shows up in a frame profile
-at a 1000 Hz polling rate. If it does, the fix is to accumulate natively and
-flush once per frame.
+On the desktops, one platform-channel message per mouse event, carrying a
+two-element `Float64List`. Nobody has yet measured whether that shows up in a
+frame profile at a 1000 Hz polling rate. Android and iPadOS already sum the
+motion natively and send it once a frame, and the desktops can do the same if
+the profile says so.
 
 ---
 

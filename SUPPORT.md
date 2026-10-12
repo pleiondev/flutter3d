@@ -158,7 +158,7 @@ run on Flutter's native platforms; most of the ones marked that way reach
 | `flame_multiplayer` | android, ios, linux, macos, web, windows |
 | `flame_multiplayer_dashwire` | android, ios, linux, macos, web, windows |
 | `pad_input` | android, ios, linux, macos, web, windows |
-| `flutter3d_pointer_lock` | linux, macos, web, windows |
+| `flutter3d_pointer_lock` | android, ios, linux, macos, web, windows |
 
 The desktop-only packages are tools for the machine a game is made on: the
 build hook, the MCP servers an agent starts over stdio, the editor's Play

@@ -39,9 +39,20 @@ abstract base class PointerLockPlatform extends PlatformInterface {
     _instance = instance;
   }
 
-  /// False where there is no pointer to capture — the mobile platforms — and
-  /// where the plugin has no implementation yet.
+  /// False where there is no pointer to capture: a phone or a tablet with no
+  /// mouse connected, a touch screen in a browser, and a platform the plugin
+  /// has no implementation for.
   bool get isSupported;
+
+  /// Each change of [isSupported] after the first read, as its new value.
+  ///
+  /// A desktop never changes its answer and keeps the default, a stream that
+  /// never fires. A phone or a tablet answers true while a mouse is
+  /// connected, and its native side says so a moment after the first listen,
+  /// so a game that reads [isSupported] at its first frame and listens here
+  /// shows its touch controls until the mouse is known and hides them when it
+  /// is.
+  Stream<bool> get supportChanges => const Stream<bool>.empty();
 
   /// Motion reported since the last capture, in logical pixels.
   ///

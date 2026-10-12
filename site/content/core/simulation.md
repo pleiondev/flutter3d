@@ -74,7 +74,7 @@ abstract final class MyActions {
 `setStickAxis` is the seam a gamepad or touch backend would write to. None exists yet.
 
 <div class="note">
-<p>Relative mouse deltas need pointer lock, which Flutter exposes on no desktop platform and does not surface in a browser either. <code>packages/flutter3d_pointer_lock</code> supplies it on macOS by breaking the association between the physical mouse and the on-screen cursor, so <code>mouseMoved</code> events keep arriving with their deltas while the cursor stays put, and in a browser through <code>requestPointerLock</code>, which is why a web build of a first-person game is now played with the mouse instead of by dragging the world around.</p>
+<p>Relative mouse deltas need pointer lock, which Flutter exposes on no desktop platform and does not surface in a browser either. <code>packages/flutter3d_pointer_lock</code> supplies it on macOS by breaking the association between the physical mouse and the on-screen cursor, so <code>mouseMoved</code> events keep arriving with their deltas while the cursor stays put; on Windows through Raw Input with the cursor clipped to the window; on Linux through an X11 seat grab that warps the pointer back after each motion; on Android through <code>View.requestPointerCapture</code>; on an iPad through <code>prefersPointerLocked</code>, with the motion read from <code>GCMouse</code>; and in a browser through <code>requestPointerLock</code>, which is why a web build of a first-person game is now played with the mouse instead of by dragging the world around. A phone or a tablet captures only while a mouse is connected, and says so when one comes or goes, so a game on a phone without one keeps its touch controls.</p>
 </div>
 
 ## The level format

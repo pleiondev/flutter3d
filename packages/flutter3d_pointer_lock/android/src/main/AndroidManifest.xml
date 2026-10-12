@@ -1,0 +1,4 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- No permissions. Pointer capture needs none: it is a request a focused
+         window makes of its own view. -->
+</manifest>

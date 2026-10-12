@@ -17,8 +17,11 @@ environment:
 
 # Declared, because pub.dev reads a plugin's platforms off `flutter: plugin:`
 # and this one reaches the browser's Pointer Lock API through Dart instead.
-# Phones and tablets have no pointer to lock: `isSupported` says false there.
+# A phone or a tablet captures while a mouse is connected; without one
+# `isSupported` says false there.
 platforms:
+  android:
+  ios:
   linux:
   macos:
   web:
@@ -44,6 +47,17 @@ dev_dependencies:
 flutter:
   plugin:
     platforms:
+      # `View.requestPointerCapture` on the Flutter view, API 26 on.
+      android:
+        package: dev.flutter3d.flutter3d_pointer_lock
+        pluginClass: Flutter3dPointerLockPlugin
+
+      # `prefersPointerLocked` on the Flutter view controller, the motion from
+      # `GCMouse`. A different Swift source from macOS's: AppKit and UIKit
+      # share nothing a pointer lock needs.
+      ios:
+        pluginClass: Flutter3dPointerLockPlugin
+
       macos:
         pluginClass: Flutter3dPointerLockPlugin
 

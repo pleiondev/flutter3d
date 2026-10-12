@@ -23,6 +23,22 @@
   window's edge. Both let go when the window loses focus, as macOS does.
   Neither could be built where this was written; the desktop jobs in CI
   build them.
+* **Android and iPadOS capture the pointer too, so pub.dev lists all six
+  platforms.** On Android the Flutter view asks for
+  `View.requestPointerCapture` (API 26 on) and the motion comes from its
+  captured-pointer listener, in logical pixels; a click while captured
+  reaches Flutter at the view's centre. On an iPad the Flutter view
+  controller answers `prefersPointerLocked`, the motion comes from
+  `GCMouse`, and the capture counts as held only once the scene says it is,
+  which it will not in Split View or Slide Over. Both let go when the
+  application loses focus, as the desktops do, and both sum the motion
+  natively and send it once a frame rather than once a mouse event.
+* **On a phone or a tablet `isSupported` follows the mouse.** It is true
+  while one is connected and false otherwise, so a game on a phone with no
+  mouse still shows its touch controls. The answer arrives a moment after
+  start, and each change of it after that, on the new
+  `PointerLock.onSupportChanged` (`PointerLockPlatform.supportChanges` for a
+  platform implementation, a stream that never fires by default).
 
 ## 0.4.2+1
 
