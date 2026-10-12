@@ -441,11 +441,24 @@ List<String> _members(List<ClassMember> members, {bool markAbstract = false}) {
     return '${split.annotations}abstract ${split.rest}';
   }
 
+  // A private field's type, for the constructors that initialize it through
+  // `this._x`: the source names no type there, and the snapshot has to,
+  // or a change of it (or a third-party type behind it) moves nothing here.
+  final privateFields = <String, String>{
+    for (final m in members.whereType<FieldDeclaration>())
+      if (m.fields.type case final type?)
+        for (final v in m.fields.variables)
+          if (_private(v.name.lexeme))
+            v.name.lexeme: _text(type.beginToken, type.end),
+  };
+
   return <String>[
     for (final m in members)
       ...switch (m) {
         ConstructorDeclaration() when !_private(m.name?.lexeme ?? '') =>
-          <String>[text(m, m.parameters.end)],
+          <String>[
+            _typedPrivateFormals(text(m, m.parameters.end), m, privateFields),
+          ],
         MethodDeclaration() when !_private(m.name.lexeme) => <String>[
           abstract(
             m.body is EmptyFunctionBody && m.externalKeyword == null,
@@ -463,6 +476,28 @@ List<String> _members(List<ClassMember> members, {bool markAbstract = false}) {
         _ => const <String>[],
       },
   ]..sort();
+}
+
+/// [line], a constructor's signature, with the type of each untyped
+/// `this._x` written before it, from [privateFields]: `Transport(this._channel)`
+/// is listed as `Transport(WebSocketChannel this._channel)`.
+String _typedPrivateFormals(
+  String line,
+  ConstructorDeclaration constructor,
+  Map<String, String> privateFields,
+) {
+  var out = line;
+  for (final formal in constructor.parameters.parameters) {
+    if (formal is! FieldFormalParameter || formal.type != null) continue;
+    final name = formal.name.lexeme;
+    final type = privateFields[name];
+    if (!_private(name) || type == null) continue;
+    out = out.replaceFirst(
+      RegExp('\\bthis\\.${RegExp.escape(name)}(?![\\w\$])'),
+      '$type this.$name',
+    );
+  }
+  return out;
 }
 
 ({String annotations, String rest}) _leadingAnnotations(String line) {
