@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **`BurningWreck.fromJson` throws a `SnapshotFormatException`** for a
+  row that is not a wreck; the component's codec still skips the row.
 - **`ElementSounds` takes `cues:` and `bus:` by name**, so it can take
   another in a minor.
 - **The wrecks are drawn from what they publish.** `BurningWrecks` is the

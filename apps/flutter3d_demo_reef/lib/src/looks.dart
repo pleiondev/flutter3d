@@ -232,13 +232,11 @@ final class ReefLooks {
         _read(device, 'assets/models/$file');
     Future<TextureHandle> picture(String file) async {
       final bytes = await rootBundle.load('assets/textures/$file');
-      final texture = await uploadEncodedImage(
+      return uploadEncodedImage(
         device,
         bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
         decodeImage: defaultImageDecoder,
       );
-      if (texture == null) throw StateError('$file would not decode');
-      return texture;
     }
 
     return ReefLooks._(

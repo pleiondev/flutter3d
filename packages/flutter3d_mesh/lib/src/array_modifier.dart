@@ -102,9 +102,9 @@ final class ArrayModifier extends Modifier {
     'mergeDistance': mergeDistance,
   };
 
-  /// [ArrayModifier] from its own [toJson], or null when a field is missing
-  /// or of the wrong type.
-  static ArrayModifier? fromJson(Map<String, Object?> json) => switch ((
+  /// [ArrayModifier] from its own [toJson]. Throws a
+  /// [ModifierFormatException] when a field is missing or of the wrong type.
+  static ArrayModifier fromJson(Map<String, Object?> json) => switch ((
     json['count'],
     json['offset'],
   )) {
@@ -116,6 +116,8 @@ final class ArrayModifier extends Modifier {
         _ => null,
       },
     ),
-    _ => null,
+    _ => throw const ModifierFormatException(
+      'an array modifier names its whole "count" and its three-number "offset"',
+    ),
   };
 }

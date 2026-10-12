@@ -21,6 +21,7 @@ library;
 
 import 'dart:typed_data';
 
+import '../../formats/format_exceptions.dart';
 import 'capture_json.dart';
 
 /// One draw, as the encoder saw it.
@@ -121,17 +122,21 @@ final class DrawRecord {
     'uniforms': decodedUniforms,
   };
 
-  /// A draw read back from [toJson] or [toCaptureJson] — `A5.23` — or null
-  /// when [json] lacks what every draw has: its index, its pass and its
-  /// kind.
+  /// A draw read back from [toJson] or [toCaptureJson] — `A5.23`. Throws a
+  /// [FrameCaptureFormatException] when [json] lacks what every draw has:
+  /// its index, its pass and its kind.
   ///
   /// Uniforms are taken in either form, decoded or as bare lists. [node] is
   /// null: a draw from a file belongs to no running scene.
-  static DrawRecord? fromJson(Map<String, Object?> json) {
+  static DrawRecord fromJson(Map<String, Object?> json) {
     final index = json['index'];
     final pass = json['pass'];
     final kind = json['kind'];
-    if (index is! int || pass is! String || kind is! String) return null;
+    if (index is! int || pass is! String || kind is! String) {
+      throw const FrameCaptureFormatException(
+        'a draw names its "index", its "pass" and its "kind"',
+      );
+    }
     int whole(String key) => switch (json[key]) {
       final int n => n,
       _ => 0,

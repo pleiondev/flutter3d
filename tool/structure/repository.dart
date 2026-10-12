@@ -2115,6 +2115,58 @@ const Map<String, String> nameCollisionAllowed = <String, String>{
       'anonymous pipe between processes',
 };
 
+/// Readers that answer null for "not there", as `Type.member` or
+/// `function`, each with what absent means (E.7).
+///
+/// **Absent, skipped, or a word that is not one.** A field a file need not
+/// have, a part a newer build wrote that this one skips rather than refuse
+/// the whole document over, or text a person typed that `double.tryParse`
+/// would answer null for too.
+const Map<String, String> nullAsErrorAllowed = <String, String>{
+  'parseChunkThreshold':
+      'a command-line word that is not a count; the command throws its '
+      'usage exception',
+  'parseDeviceClasses':
+      'a command-line word that names no class; the command falls back to '
+      'every class',
+  'AnimationPath.fromGltf':
+      'a glTF channel path this build does not animate, which a model skips',
+  'readSurface':
+      'a software shader stage, not a reader: null discards the '
+      'fragment',
+  'uploadCoatMap': 'absent: a material with no coat maps binds white',
+  'uploadSheenMap': 'absent: a material with no sheen maps binds white',
+  'EditorCommand.fromJson':
+      'an agent\'s command whose arguments do not read is refused whole, as '
+      'a value the server answers with',
+  'SetLights.fromArguments':
+      'an agent\'s command whose arguments do not read is refused whole',
+  'ExperimentEdit.fromJson':
+      'an agent\'s edit whose arguments do not read is refused whole',
+  'ColorField.parseHex': 'text a person typed that is not six hex digits',
+  'NumberField.parse': 'text a person typed that is not a finite number',
+  'CheckQuestion.fromStepProperties':
+      'the lenient reading of a hand-authored step: no question is a step '
+      'without one; `fromJson` is the strict reader',
+  'HarvestJob.fromSnapshot':
+      'a save must load: a worker whose seam is gone comes back idle',
+  'ActionBinding.fromJson':
+      'a binding shape a newer build wrote, kept by the map rather than read',
+  'ModifierSlot.fromJson':
+      'a modifier kind a newer build wrote, skipped rather than the project '
+      'refused',
+  'ProjectSelection.fromJson':
+      'a stale selection is skipped, not a reason to lose the document',
+  'decodeSectionJson':
+      'answers the JSON value, which may be null; it throws for bytes that '
+      'are not JSON',
+  'EngineBundleStamp.decode':
+      'absent: a bundle written by a build that does not stamp has none',
+  'PublishedActor.read': 'absent: an actor that published no body',
+  'ShadowCasting.fromWireName':
+      'a word that names no mode, as `byName` answers',
+};
+
 /// Members of implementable types that name a record, as `Type.member`,
 /// each with why the record never grows.
 ///

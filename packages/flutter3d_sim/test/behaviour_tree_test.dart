@@ -315,6 +315,14 @@ void main() {
   });
 
   group('the board', () {
+    // Mutation: answer null for a row that is not a board, as before 1.0.
+    test('a row that is not a board throws', () {
+      expect(
+        () => Blackboard.fromJson('a board'),
+        throwsA(isA<SnapshotFormatException>()),
+      );
+    });
+
     test('refuses what a snapshot cannot hold', () {
       final board = Blackboard();
       expect(() => board.set('at', Vector3.zero()), throwsArgumentError);
@@ -322,7 +330,7 @@ void main() {
         ..setPoint('at', Vector3(1.0, 2.0, 3.0))
         ..set('seen', true)
         ..set('names', <Object?>['a', 1, null]);
-      final read = Blackboard.fromJson(jsonDecode(jsonEncode(board.toJson())))!;
+      final read = Blackboard.fromJson(jsonDecode(jsonEncode(board.toJson())));
       final at = Vector3.zero();
       expect(read.point('at', at), isTrue);
       expect(at, Vector3(1.0, 2.0, 3.0));

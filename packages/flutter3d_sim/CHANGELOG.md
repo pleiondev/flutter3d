@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `Blackboard.fromJson` throws a `SnapshotFormatException`**
+  for a row that is not a board, where it answered null.
 - **Breaking: `TelemetrySent`, `BehaviorView` and a cutscene's keys are
   classes.** `TelemetrySent` is what a `TelemetrySink` an outside author
   writes returns, `BehaviorView` what a `BehaviorLeaf` is handed, and

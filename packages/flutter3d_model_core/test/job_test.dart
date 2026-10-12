@@ -124,14 +124,13 @@ void main() {
       final request = jobRequestFor(project, 1, 0)!;
       final restored = JobRequest.fromJson(request.toJson());
 
-      expect(restored, isNotNull);
-      expect(restored!.objectId, request.objectId);
+      expect(restored.objectId, request.objectId);
       expect(restored.baseVersion, request.baseVersion);
       expect(restored.meshBytes, request.meshBytes);
       expect(restored.modifiers.single, isA<MirrorModifier>());
     });
 
-    test('JobRequest.fromJson is null for a modifier this build does not '
+    test('JobRequest.fromJson throws for a modifier this build does not '
         'know', () {
       final json = <String, Object?>{
         'objectId': 1,
@@ -141,11 +140,17 @@ void main() {
           <String, Object?>{'kind': 'future'},
         ],
       };
-      expect(JobRequest.fromJson(json), isNull);
+      expect(
+        () => JobRequest.fromJson(json),
+        throwsA(isA<ProjectFormatException>()),
+      );
     });
 
-    test('JobRequest.fromJson is null for a missing field', () {
-      expect(JobRequest.fromJson(<String, Object?>{'objectId': 1}), isNull);
+    test('JobRequest.fromJson throws for a missing field', () {
+      expect(
+        () => JobRequest.fromJson(<String, Object?>{'objectId': 1}),
+        throwsA(isA<ProjectFormatException>()),
+      );
     });
 
     test('JobResult round-trips', () {
@@ -155,8 +160,7 @@ void main() {
         meshBytes: Uint8List.fromList(<int>[1, 2, 3]),
       );
       final restored = JobResult.fromJson(result.toJson());
-      expect(restored, isNotNull);
-      expect(restored!.objectId, 3);
+      expect(restored.objectId, 3);
       expect(restored.baseVersion, 7);
       expect(restored.meshBytes, <int>[1, 2, 3]);
     });

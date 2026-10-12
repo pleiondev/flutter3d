@@ -11,7 +11,7 @@ final class ArrayModifier extends Modifier
   final Vector3 offset
   final double? mergeDistance
   final int count
-  static ArrayModifier? fromJson(Map<String, Object?> json)
+  static ArrayModifier fromJson(Map<String, Object?> json)
 
 typedef BakeSample = ({int x, int y, Vector3 position, Vector3 normal, Vector3 tangent, Vector3 bitangent});
 
@@ -32,7 +32,7 @@ final class BooleanModifier extends Modifier
   final CsgOperation operation
   final Matrix4 operandTransform
   final int operandId
-  static BooleanModifier? fromJson(Map<String, Object?> json)
+  static BooleanModifier fromJson(Map<String, Object?> json)
 
 final class BrushFalloff
   String toString()
@@ -488,7 +488,7 @@ final class MirrorModifier extends Modifier
   final bool bisect
   final bool flipUv
   final double? mergeDistance
-  static MirrorModifier? fromJson(Map<String, Object?> json)
+  static MirrorModifier fromJson(Map<String, Object?> json)
 
 abstract final class Modifier
   abstract EditMesh apply(EditMesh base, ModifierContext context)
@@ -498,6 +498,11 @@ abstract final class Modifier
 final class ModifierContext
   const ModifierContext({this.operands = const <int, EditMesh>{}})
   final Map<int, EditMesh> operands
+
+final class ModifierFormatException extends Flutter3dFormatException
+  String toString()
+  const ModifierFormatException(this.message)
+  final String message
 
 final class ModifierStack
   EditMesh evaluate(EditMesh base, ModifierContext context)
@@ -723,7 +728,7 @@ final class SmoothModifier extends Modifier
   final bool preserveVolume
   final double lambda
   final int iterations
-  static SmoothModifier? fromJson(Map<String, Object?> json)
+  static SmoothModifier fromJson(Map<String, Object?> json)
 
 final class StaticMeshShape
   const StaticMeshShape({required this.vertices, required this.triangles})
@@ -736,7 +741,7 @@ final class SubdivisionModifier extends Modifier
   const SubdivisionModifier({required this.levels, int? viewLevels})
   final int levels
   final int viewLevels
-  static SubdivisionModifier? fromJson(Map<String, Object?> json)
+  static SubdivisionModifier fromJson(Map<String, Object?> json)
 
 final class UvProjection
   String toString()

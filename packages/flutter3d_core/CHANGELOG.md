@@ -1,5 +1,20 @@
 ## 1.0.0-rc.1
 
+- **Breaking: an upload that cannot make its texture throws, saying why.**
+  `uploadEncodedImage` throws an `ImageFormatException` for bytes it cannot
+  read, the `Ktx2FormatException` of a KTX2 file this build cannot open,
+  and a `DeviceResourceException` for a texture the device will not hold
+  (a format it does not sample, a size that is not whole blocks);
+  `uploadRgba8` throws the device's refusal. Both answered null, which a
+  caller could not tell from a texture it never asked for. The model,
+  material and level loaders catch `Flutter3dException` and keep "one
+  texture costs a texture, not the model", with the reason in their
+  warnings.
+- **Breaking: a capture's pass, image and draw readers throw.**
+  `CapturedPass.fromJson`, `CapturedImage.fromJson` and
+  `DrawRecord.fromJson` throw a `FrameCaptureFormatException` naming what
+  is missing; `FrameCapture.fromJson` still leaves out a part it cannot
+  read.
 - **Breaking: `DrawableGeometry.clusters` is a `ClusteredIndices`.** The
   same `table` and `indices`, in a class a geometry somebody implements
   can return when the culling pass later wants more beside them.

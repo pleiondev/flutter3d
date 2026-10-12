@@ -63,8 +63,10 @@ void main() {
     },
   );
 
+  // Mutation: answer null for a format the device does not sample, as it
+  // did before 1.0, and this sees no exception.
   test(
-    'a device that does not sample the format gets no texture and a reason',
+    'a device that does not sample the format refuses it, saying which',
     () async {
       final device = FakeBackend(
         unsupportedFormats: const <TextureFormat>{
@@ -72,19 +74,18 @@ void main() {
         },
       );
       final bytes = buildKtx2(vkFormat: VkFormat.bc7UNormBlock);
-      final reports = <String>[];
 
-      expect(
-        await uploadEncodedImage(
-          device,
-          bytes,
-          decodeImage: _neverDecodes,
-          report: reports.add,
+      await expectLater(
+        uploadEncodedImage(device, bytes, decodeImage: _neverDecodes),
+        throwsA(
+          isA<DeviceResourceException>().having(
+            (DeviceResourceException e) => e.reason,
+            'reason',
+            contains('bc7RGBAUNormInt'),
+          ),
         ),
-        isNull,
       );
       expect(device.uploadedTextures, isEmpty);
-      expect(reports.single, contains('bc7RGBAUNormInt'));
     },
   );
 
@@ -101,19 +102,16 @@ void main() {
         pixelHeight: 6,
         levels: [List<int>.filled(64, 0)],
       );
-      final reports = <String>[];
-
-      expect(
-        await uploadEncodedImage(
-          device,
-          bytes,
-          decodeImage: _neverDecodes,
-          report: reports.add,
+      await expectLater(
+        uploadEncodedImage(device, bytes, decodeImage: _neverDecodes),
+        throwsA(
+          isA<DeviceResourceException>().having(
+            (DeviceResourceException e) => e.reason,
+            'reason',
+            allOf(contains('6x6'), contains('4x4')),
+          ),
         ),
-        isNull,
       );
-      expect(reports.single, contains('6x6'));
-      expect(reports.single, contains('4x4'));
     },
   );
 
@@ -206,23 +204,22 @@ void main() {
     },
   );
 
-  test('a refused feature is reported in a sentence, not swallowed', () async {
+  test('a refused feature throws, saying which', () async {
     final device = FakeBackend();
     final bytes = buildKtx2(
       supercompressionScheme: Ktx2SupercompressionScheme.zstandard,
     );
-    final reports = <String>[];
 
-    expect(
-      await uploadEncodedImage(
-        device,
-        bytes,
-        decodeImage: _neverDecodes,
-        report: reports.add,
+    await expectLater(
+      uploadEncodedImage(device, bytes, decodeImage: _neverDecodes),
+      throwsA(
+        isA<Ktx2FormatException>().having(
+          (Ktx2FormatException e) => e.message,
+          'message',
+          contains('Zstandard'),
+        ),
       ),
-      isNull,
     );
-    expect(reports.single, contains('Zstandard'));
   });
 
   test('a Basis Universal KTX2 file uploads as plain RGBA8', () async {
@@ -366,28 +363,41 @@ void main() {
     },
   );
 
-  test('empty bytes upload nothing', () async {
+  test('empty bytes upload nothing and say so', () async {
     final device = FakeBackend();
-    expect(
-      await uploadEncodedImage(
-        device,
-        Uint8List(0),
-        decodeImage: _neverDecodes,
-      ),
-      isNull,
+    await expectLater(
+      uploadEncodedImage(device, Uint8List(0), decodeImage: _neverDecodes),
+      throwsA(isA<ImageFormatException>()),
     );
     expect(device.uploadedTextures, isEmpty);
   });
 
-  test('a truncated KTX2 file degrades to no texture', () async {
+  test('a truncated KTX2 file throws its format exception', () async {
     final device = FakeBackend();
     final bytes = _readSample('ktx2/etc1s_gradient_quadrants.ktx2');
     final truncated = Uint8List.sublistView(bytes, 0, 16);
 
-    expect(
-      await uploadEncodedImage(device, truncated, decodeImage: _neverDecodes),
-      isNull,
+    await expectLater(
+      uploadEncodedImage(device, truncated, decodeImage: _neverDecodes),
+      throwsA(isA<Ktx2FormatException>()),
     );
     expect(device.uploadedTextures, isEmpty);
   });
+
+  // Mutation: answer null when the decoder reads no image, as before 1.0.
+  test(
+    'an image the decoder cannot read throws an image format exception',
+    () async {
+      final device = FakeBackend();
+      await expectLater(
+        uploadEncodedImage(
+          device,
+          Uint8List.fromList(<int>[1, 2, 3, 4]),
+          decodeImage: (_) async => null,
+          platformDecode: false,
+        ),
+        throwsA(isA<ImageFormatException>()),
+      );
+    },
+  );
 }

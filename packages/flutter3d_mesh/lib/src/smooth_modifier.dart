@@ -50,12 +50,13 @@ final class SmoothModifier extends Modifier {
     'preserveVolume': preserveVolume,
   };
 
-  /// [SmoothModifier] from its own [toJson], or null when [iterations] is
-  /// missing or of the wrong type. [lambda] and [preserveVolume] default the
-  /// same way the constructor does when absent, matching how this class's
-  /// own [toJson] always writes every field but a hand-built call — an MCP
-  /// tool call, say — need not.
-  static SmoothModifier? fromJson(Map<String, Object?> json) => switch (json) {
+  /// [SmoothModifier] from its own [toJson]. Throws a
+  /// [ModifierFormatException] when [iterations] is missing or of the wrong
+  /// type. [lambda] and [preserveVolume] default the same way the
+  /// constructor does when absent, matching how this class's own [toJson]
+  /// always writes every field but a hand-built call — an MCP tool call,
+  /// say — need not.
+  static SmoothModifier fromJson(Map<String, Object?> json) => switch (json) {
     {'iterations': final int iterations} => SmoothModifier(
       iterations: iterations,
       lambda: switch (json['lambda']) {
@@ -67,6 +68,8 @@ final class SmoothModifier extends Modifier {
         _ => false,
       },
     ),
-    _ => null,
+    _ => throw const ModifierFormatException(
+      'a smooth modifier names its whole "iterations"',
+    ),
   };
 }

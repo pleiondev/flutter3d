@@ -106,17 +106,19 @@ final class MaterialPool {
       final key = (_contentHash(bytes), sampling.useMipmaps);
       if (_textures.containsKey(key)) return _textures[key];
 
-      final uploaded = await uploadEncodedImage(
-        device,
-        bytes,
-        decodeImage: defaultImageDecoder,
-        sampling: sampling,
-        report: (String message) => warnings.add('image $index: $message'),
-      );
-      if (uploaded == null) {
+      TextureHandle? uploaded;
+      try {
+        uploaded = await uploadEncodedImage(
+          device,
+          bytes,
+          decodeImage: defaultImageDecoder,
+          sampling: sampling,
+          report: (String message) => warnings.add('image $index: $message'),
+        );
+      } on Flutter3dException catch (refused) {
         warnings.add(
-          'image $index could not be read; the material falls back to its '
-          'colour',
+          'image $index could not be read (${refused.message}); the material '
+          'falls back to its colour',
         );
       }
       _textures[key] = uploaded;

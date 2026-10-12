@@ -355,7 +355,7 @@ final class Blackboard
   final List<int> path
   final Map<int, Object?> memory
   final Map<int, double> readyAt
-  static Blackboard? fromJson(Object? data)
+  static Blackboard fromJson(Object? data)
   static final ComponentCodec<Blackboard> codec
   void remove(String key)
   void restart()

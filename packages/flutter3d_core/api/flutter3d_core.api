@@ -659,7 +659,7 @@ final class CapturedImage
   final int height
   final int width
   int? channelAt(int x, int y, int channel)
-  static CapturedImage? fromJson(Map<String, Object?> json)
+  static CapturedImage fromJson(Map<String, Object?> json)
 
 final class CapturedPass
   CapturedImage? imageOf(String resource)
@@ -676,7 +676,7 @@ final class CapturedPass
   final int drawCalls
   final int micros
   final int triangles
-  static CapturedPass? fromJson(Map<String, Object?> json)
+  static CapturedPass fromJson(Map<String, Object?> json)
 
 final class CellGrid
   CellGrid({required this.columns, required this.rows, this.cell = 1.0})
@@ -1204,7 +1204,7 @@ final class DrawRecord
   final int passIndex
   final int triangles
   final int vertices
-  static DrawRecord? fromJson(Map<String, Object?> json)
+  static DrawRecord fromJson(Map<String, Object?> json)
 
 abstract base class DrawableGeometry with MeshGeometry
   abstract ClusteredIndices? get clusters
@@ -6053,9 +6053,9 @@ const String universalBlockRgba = 'endpoint-weight-4x4-v1/rgba'
 
 Future<PackedMap?> uploadCoatMap(GraphicsDevice device, MaterialExtensions layers, {required Future<Rgba8Image?> Function(TextureBinding binding) image})
 
-Future<TextureHandle?> uploadEncodedImage(GraphicsDevice device, Uint8List encoded, {required ImageDecoder decodeImage, TextureSampling sampling = const TextureSampling(), void Function(String message)? report, int? maxDimension, bool platformDecode = true, TextureCodecs? codecs})
+Future<TextureHandle> uploadEncodedImage(GraphicsDevice device, Uint8List encoded, {required ImageDecoder decodeImage, TextureSampling sampling = const TextureSampling(), void Function(String message)? report, int? maxDimension, bool platformDecode = true, TextureCodecs? codecs})
 
-TextureHandle? uploadRgba8(GraphicsDevice device, Rgba8Image image, {TextureSampling sampling = const TextureSampling()})
+TextureHandle uploadRgba8(GraphicsDevice device, Rgba8Image image, {TextureSampling sampling = const TextureSampling()})
 
 Future<PackedMap?> uploadSheenMap(GraphicsDevice device, MaterialExtensions layers, {required Future<Rgba8Image?> Function(TextureBinding binding) image})
 

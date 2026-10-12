@@ -161,8 +161,7 @@ void main() {
         decodeImage: (_) async => null,
         codecs: codecs,
       );
-      expect(texture, isNotNull);
-      expect((texture!.width, texture.height), (2, 3));
+      expect((texture.width, texture.height), (2, 3));
       expect(
         ModelDecoders().companions.whereType<TextureCodecs>(),
         hasLength(1),

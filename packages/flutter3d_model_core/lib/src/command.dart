@@ -43,6 +43,7 @@ import 'param_hint.dart';
 import 'parametric_json.dart';
 import 'project.dart';
 import 'project_animation.dart';
+import 'project_format.dart' show ProjectFormatException;
 import 'project_morphs.dart';
 import 'project_wire.dart';
 import 'scene_lighting.dart';
@@ -590,6 +591,17 @@ final class DuplicateObjects extends ModelCommand {
 final List<String> modelCommandNames = List<String>.unmodifiable(
   _modelCommandReaders.keys,
 );
+
+/// What [read] reads, or null when it throws a [ProjectFormatException]: a
+/// journal entry whose argument does not read back is skipped whole, never
+/// half-built, the rule every reader below keeps.
+T? _readOrNull<T>(T Function() read) {
+  try {
+    return read();
+  } on ProjectFormatException {
+    return null;
+  }
+}
 
 /// Reads a command back out of a journal, or null.
 ///
@@ -1207,7 +1219,7 @@ _modelCommandReaders =
               final int baseVersion,
               final Map<String, Object?> cacheJson,
             ) =>
-              switch (SimulationCache.fromJson(cacheJson)) {
+              switch (_readOrNull(() => SimulationCache.fromJson(cacheJson))) {
                 final SimulationCache cache => ApplySimulationCache(
                   objectId: objectId,
                   baseVersion: baseVersion,
@@ -1278,11 +1290,12 @@ _modelCommandReaders =
             _ => null,
           },
       'addShapeDriver': (json) => switch ((json['id'], json['driver'])) {
-        (final int id, final Object? driverJson) =>
-          switch (ShapeDriver.fromJson(driverJson)) {
-            final ShapeDriver driver => AddShapeDriver(id: id, driver: driver),
-            null => null,
-          },
+        (final int id, final Object? driverJson) => switch (_readOrNull(
+          () => ShapeDriver.fromJson(driverJson),
+        )) {
+          final ShapeDriver driver => AddShapeDriver(id: id, driver: driver),
+          null => null,
+        },
         _ => null,
       },
       'removeShapeDriver': (json) => switch ((json['id'], json['index'])) {
@@ -1421,8 +1434,8 @@ _modelCommandReaders =
               skinObjectId: json['skinObjectId'] as int?,
               label: label,
             ),
-            final Object? weightsJson => switch (SkinWeightsBlob.fromJson(
-              weightsJson,
+            final Object? weightsJson => switch (_readOrNull(
+              () => SkinWeightsBlob.fromJson(weightsJson),
             )) {
               final SkinWeightsBlob weights => SetRig(
                 jointObjects: jointObjects,

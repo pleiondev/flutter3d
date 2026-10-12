@@ -150,7 +150,7 @@ void main() {
       decodeImage: (_) async => null,
       codecs: engine.decoders.textureCodecs,
     );
-    expect((texture!.width, texture.height), (4, 2));
+    expect((texture.width, texture.height), (4, 2));
   });
 
   test('the data half installs its binding and its pipeline', () async {

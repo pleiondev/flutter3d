@@ -36,6 +36,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'key_table.dart';
 import 'project_animation.dart';
+import 'project_format.dart' show ProjectFormatException;
 
 /// Which local axis of a joint's rotation a [ShapeDriver] reads.
 ///
@@ -155,15 +156,15 @@ final class ShapeDriver {
     'curve': curve.name,
   };
 
-  /// A [ShapeDriver] from its own [toJson], or null when [json] is missing a
-  /// field or has one of the wrong type — the same "null and not an
-  /// exception" rule `modelCommandFromJson` itself keeps, since this feeds
-  /// straight into one of its own readers. [curve] always reads back as
+  /// A [ShapeDriver] from its own [toJson]. Throws a
+  /// [ProjectFormatException] when [json] is missing a field or has one of
+  /// the wrong type; the journal reader that feeds on it skips the entry
+  /// rather than failing the file. [curve] always reads back as
   /// [ShapeDriverCurve.linear] — the only kind that exists yet, so there is
   /// nothing else a name in the file could mean, the same reasoning
   /// [DriverAxis]'s own `x` fallback gives for a name this build does not
   /// know.
-  static ShapeDriver? fromJson(Object? json) {
+  static ShapeDriver fromJson(Object? json) {
     if (json case {
       'shapeIndex': final int shapeIndex,
       'jointId': final int jointId,
@@ -183,7 +184,10 @@ final class ShapeDriver {
         to: to.toDouble(),
       );
     }
-    return null;
+    throw const ProjectFormatException(
+      'a shape driver names its whole "shapeIndex" and "jointId", and its '
+      '"from" and "to" as numbers',
+    );
   }
 
   /// The twist [rotation] carries about [axis], in radians — see this

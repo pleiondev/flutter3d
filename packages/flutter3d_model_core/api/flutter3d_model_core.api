@@ -458,7 +458,7 @@ final class BrushSample
   const BrushSample({required this.center, required this.radius})
   final Vector3 center
   final double radius
-  static BrushSample? fromJson(Object? json)
+  static BrushSample fromJson(Object? json)
 
 final class BudgetUsage
   String toString()
@@ -889,7 +889,7 @@ final class JobRequest
   final Uint8List meshBytes
   final int baseVersion
   final int objectId
-  static JobRequest? fromJson(Map<String, Object?> json)
+  static JobRequest fromJson(Map<String, Object?> json)
 
 final class JobResult
   Map<String, Object?> toJson()
@@ -897,7 +897,7 @@ final class JobResult
   final Uint8List meshBytes
   final int baseVersion
   final int objectId
-  static JobResult? fromJson(Map<String, Object?> json)
+  static JobResult fromJson(Map<String, Object?> json)
 
 final class JournalReplay
   bool get isOk
@@ -1302,14 +1302,14 @@ final class PaintMirror
   final double plane
   final double tolerance
   final int axis
-  static PaintMirror? fromJson(Object? json)
+  static PaintMirror fromJson(Object? json)
 
 final class PaintSample
   Map<String, Object?> toJson()
   const PaintSample({required this.center, required this.radius})
   final Vector3 center
   final double radius
-  static PaintSample? fromJson(Object? json)
+  static PaintSample fromJson(Object? json)
 
 final class PaintStack
   List<double> pixelAt(int x, int y)
@@ -2284,7 +2284,7 @@ final class ShapeDriver
   final double to
   final int jointId
   final int shapeIndex
-  static ShapeDriver? fromJson(Object? json)
+  static ShapeDriver fromJson(Object? json)
 
 final class ShapeDriverCurve
   String toString()
@@ -2323,14 +2323,14 @@ final class SimulationCache
   final List<Float32List> frames
   final int vertexCount
   int get frameCount
-  static SimulationCache? fromJson(Map<String, Object?> json)
+  static SimulationCache fromJson(Map<String, Object?> json)
 
 final class SkinWeightsBlob
   Map<String, Object?> toJson()
   const SkinWeightsBlob({required this.baseVersion, required this.data})
   final Float32List data
   final int baseVersion
-  static SkinWeightsBlob? fromJson(Object? json)
+  static SkinWeightsBlob fromJson(Object? json)
 
 final class SlideEdges extends ModelCommand
   Map<String, Object?> get arguments

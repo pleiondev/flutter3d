@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `InFlight.fromJson` throws a `SnapshotFormatException`** for
+  a row with no blast or no position, where it answered null; the
+  component's codec still leaves that rocket out of a restore.
 - **Breaking: a game's rules hang on the step through `addSystem`.**
   `GameSimulation.systems` (sim's `StepSystems`) is gone: a rule is added
   with `addSystem(name, ShooterPhases.afterActors, (LoopContext c) {...},

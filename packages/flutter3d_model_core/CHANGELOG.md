@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **Breaking: the command arguments' readers throw.** `BrushSample`,
+  `PaintMirror`, `PaintSample`, `ShapeDriver`, `SimulationCache`,
+  `SkinWeightsBlob`, `JobRequest` and `JobResult` `fromJson` throw a
+  `ProjectFormatException` naming the field where they answered null; a
+  journal entry whose arguments do not read is still skipped whole.
 - **Breaking: `TextureInputSocket` is a class.** A node of your own
   declares `TextureInputSocket(type:, from:)`; the fields read as before.
 - **Breaking: `Key` is `Keyframe`, `BlendMode` is `PaintBlendMode`, and

@@ -6,6 +6,7 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show ComponentCodec, SnapshotPart;
+import 'package:flutter3d_sim/flutter3d_sim.dart' show SnapshotFormatException;
 import 'package:vector_math/vector_math.dart';
 
 /// A wreck as it is published: what a view draws it from, with no world to
@@ -25,8 +26,9 @@ final class BurningWreck {
     required this.burning,
   });
 
-  /// Read back from [toJson]'s map; null for anything else.
-  static BurningWreck? fromJson(Object? json) => switch (json) {
+  /// Read back from [toJson]'s map. Throws a [SnapshotFormatException] for
+  /// anything else; the component's codec skips such a row.
+  static BurningWreck fromJson(Object? json) => switch (json) {
     {
       'body': final int body,
       'oil': final bool oil,
@@ -46,7 +48,9 @@ final class BurningWreck {
         ),
         burning: burning,
       ),
-    _ => null,
+    _ => throw const SnapshotFormatException(
+      'a wreck names its "body", "oil", "at", "turn" and "burning"',
+    ),
   };
 
   /// How a wreck is written as a component, published.
@@ -54,7 +58,13 @@ final class BurningWreck {
       ComponentCodec<BurningWreck>.of(
         id: 'flutter3d.game_physics.wreck',
         encode: (wreck) => wreck.toJson(),
-        decode: (data, _) => fromJson(data),
+        decode: (data, _) {
+          try {
+            return fromJson(data);
+          } on SnapshotFormatException {
+            return null;
+          }
+        },
       );
 
   /// The core's body, by its handle: what a view keys the look it keeps

@@ -57,7 +57,7 @@ final class BurningWreck
   final bool burning
   final bool oil
   final int body
-  static BurningWreck? fromJson(Object? json)
+  static BurningWreck fromJson(Object? json)
   static final ComponentCodec<BurningWreck> codec
 
 final class BurningWrecks
@@ -341,7 +341,7 @@ final class BurningWreck
   final bool burning
   final bool oil
   final int body
-  static BurningWreck? fromJson(Object? json)
+  static BurningWreck fromJson(Object? json)
   static final ComponentCodec<BurningWreck> codec
 
 final class BurningWrecks

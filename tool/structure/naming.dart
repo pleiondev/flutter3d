@@ -588,6 +588,70 @@ List<NamingProblem> recordsInContractsIn(
   return out;
 }
 
+// -------------------------------------------------------- null as an error
+
+/// The verbs that read or make something, whose failure is an error and
+/// not an absence (E.7): a reader of a document, bytes or text, a loader,
+/// an upload.
+final RegExp readingVerb = RegExp(
+  r'^(fromJson|from[A-Z]\w*|decode\w*|parse\w*|read\w*|load\w*|upload\w*)$',
+);
+
+/// Each static or top-level reader in [snapshot] that answers null, as
+/// `Type.member` or `function` (E.7).
+///
+/// **Null cannot say why.** A reader that answers null for a malformed
+/// document leaves its caller with "something went wrong" and nothing to
+/// show a person, and a caller that forgot the check reads on with a null
+/// it did not expect. One that throws the package's typed exception says
+/// which field and where. A reader whose null means "not there" (an
+/// absent key, a kind a newer build wrote that this one skips) says so in
+/// its doc and in `nullAsErrorAllowed`; `try…` names are the Dart idiom for
+/// that and are not read.
+List<NamingProblem> nullAsErrorIn(String snapshot) {
+  final out = <NamingProblem>[];
+  final seen = <String>{};
+  void check(String line, String? type) {
+    final bare = splitAnnotations(line).rest;
+    final m = RegExp(
+      r'^(?:static\s+)?(?:Future<|FutureOr<)?([\w$<>, ?]+?\?)>?\s+'
+      r'([A-Za-z_$][\w$]*)(?:<[^(]*>)?\(',
+    ).firstMatch(bare);
+    if (m == null) return;
+    if (type != null && !bare.startsWith('static ')) return;
+    final name = m.group(2)!;
+    if (!readingVerb.hasMatch(name)) return;
+    final subject = type == null ? name : '$type.$name';
+    if (!seen.add(subject)) return;
+    out.add((
+      subject: subject,
+      what:
+          'reads or makes something and answers null when it cannot, which '
+          'says nothing about why: throw the package\'s typed exception '
+          '(a `nullToThrow` migration), or, where null means absent, say so '
+          'in its doc and in `nullAsErrorAllowed`',
+    ));
+  }
+
+  for (final library in parseApi(snapshot).values) {
+    for (final MapEntry(key: type, value: block)
+        in library.declarations.entries) {
+      final header = splitAnnotations(block.header).rest;
+      if (RegExp(
+        r'^(?:(?:abstract|base|final|interface|sealed|mixin)\s+)*'
+        r'(class|enum|mixin|extension|extension type)\s',
+      ).hasMatch(header)) {
+        for (final member in block.members) {
+          check(member, type);
+        }
+      } else {
+        check(block.header, null);
+      }
+    }
+  }
+  return out;
+}
+
 // ---------------------------------------------------- growing constructors
 
 /// Each constructor in [snapshot] that takes optional positional
@@ -1018,6 +1082,29 @@ List<(String, String)> proveNamingDetectorsWork() {
         'a final class',
     'a parameter list is not a record, and a final class is nobody\'s to '
         'implement',
+  );
+
+  // Null as an error.
+  final nulls = nullAsErrorIn(
+    '${lib}final class Blackboard\n'
+    '  static Blackboard? fromJson(Object? data)\n'
+    '  static Blackboard? tryParse(String text)\n'
+    '  Blackboard? read(int at)\n'
+    '  static int? byName(String name)\n\n'
+    'Future<TextureHandle?> uploadEncodedImage(Uint8List bytes)\n\n'
+    'TextureHandle uploadRgba8(Rgba8Image image)\n',
+  ).map((NamingProblem p) => p.subject).toSet();
+  fires(
+    'null as an error',
+    nulls.containsAll(<String>{'Blackboard.fromJson', 'uploadEncodedImage'}),
+    'a static fromJson and a top-level upload that answer null',
+  );
+  quiet(
+    'null as an error',
+    nulls.length == 2,
+    'a tryParse, an instance read, a byName and an upload that throws',
+    'a try name and a lookup answer null by their idiom, and an instance '
+        'member is its object\'s business',
   );
 
   // Constructors that cannot grow.

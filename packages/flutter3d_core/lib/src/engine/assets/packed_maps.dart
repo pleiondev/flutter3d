@@ -62,7 +62,8 @@ typedef PackedMap = ({TextureHandle texture, SamplerDescriptor sampler});
 /// [layers]' coat map on [device]: red the clear coat, green its roughness,
 /// blue the transmission and alpha the thickness — `M3`. Null when no such
 /// texture is there or none of them decodes, which binds white — the factors
-/// alone.
+/// alone: absent, not refused. A device that refuses the packed texture
+/// throws its [DeviceResourceException].
 ///
 /// [image] decodes one binding's image; a caller that has already decoded it
 /// for another slot hands back the same pixels. The sampler is the first
@@ -97,8 +98,8 @@ Future<PackedMap?> _uploadPacked(
   final packed = packLanes(lanes);
   if (packed == null) return null;
   final sampling = sources.nonNulls.first.binding.sampling;
-  final texture = uploadRgba8(device, packed, sampling: sampling);
-  return texture == null
-      ? null
-      : (texture: texture, sampler: samplerOptionsFor(sampling));
+  return (
+    texture: uploadRgba8(device, packed, sampling: sampling),
+    sampler: samplerOptionsFor(sampling),
+  );
 }

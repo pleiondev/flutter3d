@@ -101,48 +101,47 @@ void main() {
 
         final restored = SimulationCache.fromJson(cache.toJson());
 
-        expect(restored, isNotNull);
-        expect(restored!.vertexCount, 3);
+        expect(restored.vertexCount, 3);
         expect(restored.frameCount, 2);
         for (var f = 0; f < 2; f++) {
           expect(restored.frame(f), cache.frame(f));
         }
       });
 
-      test('fromJson is null for a missing field', () {
+      test('fromJson throws for a missing field', () {
         expect(
-          SimulationCache.fromJson(<String, Object?>{'vertexCount': 3}),
-          isNull,
+          () => SimulationCache.fromJson(<String, Object?>{'vertexCount': 3}),
+          throwsA(isA<ProjectFormatException>()),
         );
       });
 
-      test('fromJson is null for a frame that is not a string', () {
+      test('fromJson throws for a frame that is not a string', () {
         expect(
-          SimulationCache.fromJson(<String, Object?>{
+          () => SimulationCache.fromJson(<String, Object?>{
             'vertexCount': 1,
             'frames': <Object?>[42],
           }),
-          isNull,
+          throwsA(isA<ProjectFormatException>()),
         );
       });
 
       test(
-        'fromJson is null for a frame whose byte length is not a multiple of 4',
+        'fromJson throws for a frame whose byte length is not a multiple of 4',
         () {
           expect(
-            SimulationCache.fromJson(<String, Object?>{
+            () => SimulationCache.fromJson(<String, Object?>{
               'vertexCount': 1,
               // Base64 for a single odd byte — five bytes decoded, not a
               // multiple of 4.
               'frames': <Object?>['AQIDBAU='],
             }),
-            isNull,
+            throwsA(isA<ProjectFormatException>()),
           );
         },
       );
 
       test(
-        'fromJson is null for a frame whose length does not match vertexCount',
+        'fromJson throws for a frame whose length does not match vertexCount',
         () {
           final mismatched = SimulationCache(
             vertexCount: 2,
@@ -150,7 +149,10 @@ void main() {
           ).toJson();
           // vertexCount says 5, but the one frame is still 2 vertices long.
           mismatched['vertexCount'] = 5;
-          expect(SimulationCache.fromJson(mismatched), isNull);
+          expect(
+            () => SimulationCache.fromJson(mismatched),
+            throwsA(isA<ProjectFormatException>()),
+          );
         },
       );
     });

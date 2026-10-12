@@ -3019,15 +3019,15 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
   }
   final drivers = <ShapeDriver>[];
   for (var i = 0; i < json.length; i++) {
-    final driver = ShapeDriver.fromJson(json[i]);
-    if (driver == null) {
+    try {
+      drivers.add(ShapeDriver.fromJson(json[i]));
+    } on ProjectFormatException {
       return (
         null,
         'Object $index ("$name")\'s shape driver $i is missing a field or '
             'has one of the wrong type.',
       );
     }
-    drivers.add(driver);
   }
   return (drivers, null);
 }

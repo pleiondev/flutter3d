@@ -282,6 +282,13 @@ List<Rule> get allRules => <Rule>[
     },
   ),
   (
+    name: 'a reader throws where it fails, and answers null only for absent',
+    run: () => _namingRule(
+      (String snapshot, String package) => nullAsErrorIn(snapshot),
+      nullAsErrorAllowed,
+    ),
+  ),
+  (
     name: 'a constructor takes no optional positional parameters',
     run: () => _namingRule(
       (String snapshot, String package) =>

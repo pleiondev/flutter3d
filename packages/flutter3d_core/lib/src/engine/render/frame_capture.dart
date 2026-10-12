@@ -66,18 +66,23 @@ final class CapturedImage {
     this.thumbnail,
   });
 
-  /// [json] as [toJson] wrote it, or null when it lacks a resource name or
-  /// a size — `A5.23`.
+  /// [json] as [toJson] wrote it — `A5.23`. Throws a
+  /// [FrameCaptureFormatException] when it lacks a resource name or a size.
   ///
   /// The pixels come back exactly when the file kept them
   /// (`FrameCapture.toJson(images: true)`); otherwise [pixels] is null and
   /// [thumbnail] holds what there is. [floats] come back when the file kept
   /// them, NaNs included.
-  static CapturedImage? fromJson(Map<String, Object?> json) {
+  static CapturedImage fromJson(Map<String, Object?> json) {
     final resource = json['resource'];
     final width = json['width'];
     final height = json['height'];
-    if (resource is! String || width is! int || height is! int) return null;
+    if (resource is! String || width is! int || height is! int) {
+      throw const FrameCaptureFormatException(
+        'a captured image names its "resource", and its "width" and '
+        '"height" in whole pixels',
+      );
+    }
     final format = switch (json['format']) {
       final String word => captureTextureFormats[word],
       _ => null,
@@ -265,10 +270,14 @@ final class CapturedPass {
   /// One entry per resource this pass wrote or maintained.
   final List<CapturedImage> images;
 
-  /// [json] as [toJson] wrote it, or null without a name — `A5.23`.
-  static CapturedPass? fromJson(Map<String, Object?> json) {
+  /// [json] as [toJson] wrote it — `A5.23`. Throws a
+  /// [FrameCaptureFormatException] without a name; an image of it this
+  /// reader cannot make sense of is left out.
+  static CapturedPass fromJson(Map<String, Object?> json) {
     final name = json['name'];
-    if (name is! String) return null;
+    if (name is! String) {
+      throw const FrameCaptureFormatException('a captured pass has a "name"');
+    }
     List<String> names(String key) => switch (json[key]) {
       final List<Object?> list => List<String>.unmodifiable(
         list.whereType<String>(),
@@ -289,7 +298,7 @@ final class CapturedPass {
       images: List<CapturedImage>.unmodifiable(<CapturedImage>[
         if (json['images'] case final List<Object?> images)
           for (final image in images.whereType<Map<String, Object?>>())
-            ?CapturedImage.fromJson(image),
+            ?_readOrSkip(() => CapturedImage.fromJson(image)),
       ]),
       micros: whole('micros'),
       drawCalls: whole('drawCalls'),
@@ -496,12 +505,12 @@ final class FrameCapture extends FormatDocument {
       passes: List<CapturedPass>.unmodifiable(<CapturedPass>[
         if (json['passes'] case final List<Object?> passes)
           for (final pass in passes.whereType<Map<String, Object?>>())
-            ?CapturedPass.fromJson(pass),
+            ?_readOrSkip(() => CapturedPass.fromJson(pass)),
       ]),
       draws: List<DrawRecord>.unmodifiable(<DrawRecord>[
         if (json['draws'] case final List<Object?> draws)
           for (final draw in draws.whereType<Map<String, Object?>>())
-            ?DrawRecord.fromJson(draw),
+            ?_readOrSkip(() => DrawRecord.fromJson(draw)),
       ]),
       undetailedDraws: Map<String, int>.unmodifiable(<String, int>{
         if (json['undetailedDraws'] case final Map<String, Object?> counts)
@@ -785,4 +794,15 @@ String captureWordFor(TextureFormat format) {
     if (value == format) return key;
   }
   return 'unknown';
+}
+
+/// What [read] reads, or null when it throws a
+/// [FrameCaptureFormatException]: a pass, an image or a draw this reader
+/// cannot make sense of is left out rather than failing the whole file.
+T? _readOrSkip<T>(T Function() read) {
+  try {
+    return read();
+  } on FrameCaptureFormatException {
+    return null;
+  }
 }

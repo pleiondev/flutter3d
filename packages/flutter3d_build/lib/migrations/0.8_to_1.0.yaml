@@ -20774,3 +20774,147 @@ entries:
       Its tools answer an `Answer`, which carries the picture now; the
       rename of `PictureAnswer` carries the fix, and a tool that reads
       `did`, `says` or `png` reads them as before.
+
+  - id: rc-core-uploadEncodedImage-throws
+    package: flutter3d_core
+    symbol: uploadEncodedImage
+    kind: nullToThrow
+    exception: Flutter3dException
+    wave: 4
+    guidance: >-
+      It throws where it answered null, saying why: an `ImageFormatException` for bytes it cannot read, a `Ktx2FormatException` for a KTX2 file this build cannot open, a `DeviceResourceException` for a texture the device refuses. Catch `Flutter3dException` where a missing texture was fine.
+
+  - id: rc-core-uploadRgba8-throws
+    package: flutter3d_core
+    symbol: uploadRgba8
+    kind: nullToThrow
+    exception: DeviceResourceException
+    wave: 4
+    guidance: >-
+      It throws the device's `DeviceResourceException` where it answered null for a texture the device refused.
+
+  - id: rc-mesh-ArrayModifier-fromJson-throws
+    package: flutter3d_mesh
+    symbol: ArrayModifier.fromJson
+    kind: nullToThrow
+    exception: ModifierFormatException
+    wave: 4
+    guidance: >-
+      It throws a `ModifierFormatException` naming the field where it answered null; `modifierFromJson` still answers null for a modifier it skips.
+
+  - id: rc-mesh-BooleanModifier-fromJson-throws
+    package: flutter3d_mesh
+    symbol: BooleanModifier.fromJson
+    kind: nullToThrow
+    exception: ModifierFormatException
+    wave: 4
+    guidance: >-
+      It throws a `ModifierFormatException` naming the field where it answered null; `modifierFromJson` still answers null for a modifier it skips.
+
+  - id: rc-mesh-MirrorModifier-fromJson-throws
+    package: flutter3d_mesh
+    symbol: MirrorModifier.fromJson
+    kind: nullToThrow
+    exception: ModifierFormatException
+    wave: 4
+    guidance: >-
+      It throws a `ModifierFormatException` naming the field where it answered null; `modifierFromJson` still answers null for a modifier it skips.
+
+  - id: rc-mesh-SmoothModifier-fromJson-throws
+    package: flutter3d_mesh
+    symbol: SmoothModifier.fromJson
+    kind: nullToThrow
+    exception: ModifierFormatException
+    wave: 4
+    guidance: >-
+      It throws a `ModifierFormatException` naming the field where it answered null; `modifierFromJson` still answers null for a modifier it skips.
+
+  - id: rc-mesh-SubdivisionModifier-fromJson-throws
+    package: flutter3d_mesh
+    symbol: SubdivisionModifier.fromJson
+    kind: nullToThrow
+    exception: ModifierFormatException
+    wave: 4
+    guidance: >-
+      It throws a `ModifierFormatException` naming the field where it answered null; `modifierFromJson` still answers null for a modifier it skips.
+
+  - id: rc-model_core-BrushSample-fromJson-throws
+    package: flutter3d_model_core
+    symbol: BrushSample.fromJson
+    kind: nullToThrow
+    exception: ProjectFormatException
+    wave: 4
+    guidance: >-
+      It throws a `ProjectFormatException` naming the field where it answered null for JSON it could not read.
+
+  - id: rc-model_core-PaintMirror-fromJson-throws
+    package: flutter3d_model_core
+    symbol: PaintMirror.fromJson
+    kind: nullToThrow
+    exception: ProjectFormatException
+    wave: 4
+    guidance: >-
+      It throws a `ProjectFormatException` naming the field where it answered null for JSON it could not read.
+
+  - id: rc-model_core-PaintSample-fromJson-throws
+    package: flutter3d_model_core
+    symbol: PaintSample.fromJson
+    kind: nullToThrow
+    exception: ProjectFormatException
+    wave: 4
+    guidance: >-
+      It throws a `ProjectFormatException` naming the field where it answered null for JSON it could not read.
+
+  - id: rc-model_core-ShapeDriver-fromJson-throws
+    package: flutter3d_model_core
+    symbol: ShapeDriver.fromJson
+    kind: nullToThrow
+    exception: ProjectFormatException
+    wave: 4
+    guidance: >-
+      It throws a `ProjectFormatException` naming the field where it answered null for JSON it could not read.
+
+  - id: rc-model_core-SimulationCache-fromJson-throws
+    package: flutter3d_model_core
+    symbol: SimulationCache.fromJson
+    kind: nullToThrow
+    exception: ProjectFormatException
+    wave: 4
+    guidance: >-
+      It throws a `ProjectFormatException` naming the field where it answered null for JSON it could not read.
+
+  - id: rc-model_core-SkinWeightsBlob-fromJson-throws
+    package: flutter3d_model_core
+    symbol: SkinWeightsBlob.fromJson
+    kind: nullToThrow
+    exception: ProjectFormatException
+    wave: 4
+    guidance: >-
+      It throws a `ProjectFormatException` naming the field where it answered null for JSON it could not read.
+
+  - id: rc-model_core-JobRequest-fromJson-throws
+    package: flutter3d_model_core
+    symbol: JobRequest.fromJson
+    kind: nullToThrow
+    exception: ProjectFormatException
+    wave: 4
+    guidance: >-
+      It throws a `ProjectFormatException` naming the field where it answered null for JSON it could not read.
+
+  - id: rc-model_core-JobResult-fromJson-throws
+    package: flutter3d_model_core
+    symbol: JobResult.fromJson
+    kind: nullToThrow
+    exception: ProjectFormatException
+    wave: 4
+    guidance: >-
+      It throws a `ProjectFormatException` naming the field where it answered null for JSON it could not read.
+
+  - id: rc-game_shooter-InFlight-fromJson-throws
+    package: flutter3d_game_shooter
+    symbol: InFlight.fromJson
+    kind: nullToThrow
+    exception: SnapshotFormatException
+    wave: 4
+    guidance: >-
+      It throws a `SnapshotFormatException` for a row with no blast or no position, where it answered null; the component codec still leaves such a rocket out of a restore.

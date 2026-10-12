@@ -81,13 +81,6 @@ Future<Uint8List> _renderPatch(
     decodeImage: defaultImageDecoder,
     sampling: const TextureSampling(),
   );
-  // Not a hardware limit reached honestly, as `wg-00`/`net-00` name theirs —
-  // a genuine test-authoring failure if it ever fires, since every format
-  // and size above is this package's own and chosen to be unobjectionable.
-  if (handle == null) {
-    fail('the device left the texture out — see report, none was wired up.');
-  }
-
   // Camera-facing, far enough that a 64px-square texture covers only a
   // handful of screen pixels: at z = -60 with fovY = 1.0 rad the frustum is
   // about 65 units tall, so a plane 6 units square covers roughly
