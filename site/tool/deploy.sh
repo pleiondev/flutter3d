@@ -34,10 +34,6 @@ tool/demos.sh
 # The showcase app, into dist/showcase beside the guides `npm run build` wrote.
 tool/showcase.sh
 
-# The level editor's web build, at /editor/: the first thing the download
-# page offers.
-tool/editor.sh
-
 # --delete, because a page removed from the nav must stop being reachable.
 # The generated API reference still lives beside the site rather than inside
 # dist/ — a dartdoc tree per package is minutes to regenerate and changes only

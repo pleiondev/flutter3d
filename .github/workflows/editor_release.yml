@@ -1,8 +1,8 @@
 # **The level editor as a download, on every tag** (D55): a notarised macOS
 # disk image, a Windows zip and a Linux tarball, with `SHA256SUMS` over the
 # three, attached to the tag's GitHub Release. The web build is the other
-# half and is deployed with the site (`site/tool/editor.sh`), because the
-# download page offers it first.
+# half and is deployed with the site as one of the demos (`site/tool/demos.sh`,
+# at /demo/editor/), because the download page offers it first.
 #
 # The building and the packing are `tool/editor_release.sh`, one desktop per
 # runner, so a developer makes the same file with the same command.
