@@ -8,6 +8,8 @@ description: How to write a flutter3d graphics backend for another API, outside 
 
 **You write it in your own package, against published libraries, without a fork.** That is a promise the engine's own repository proves on every run: `examples/flutter3d_backend_null` is a backend written as you would write yours, depending on each engine package by path, importing nothing from another package's `src/`, and passing the conformance suite in CI. A structure rule refuses it the first private import.
 
+The complete reference, every member and what may grow in a minor, is [`HAL.md`](https://github.com/pleiondev/flutter3d/blob/main/packages/flutter3d_hardware/HAL.md) in the hardware package.
+
 What could **not** be written from the device contract alone is the shaders. That limit is real, and since 1.0 it has a contract of its own: [the last section on this page](#the-shader-contract).
 
 <div class="goal">
