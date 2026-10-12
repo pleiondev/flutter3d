@@ -145,6 +145,7 @@ extension _TransparencyPasses on Renderer {
         near: projection.near,
         far: _DepthConvention._finiteFar(projection),
       );
+      _lightListEpoch++;
     }
   }
 

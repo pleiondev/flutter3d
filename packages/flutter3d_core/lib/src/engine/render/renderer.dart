@@ -3811,6 +3811,23 @@ final class Renderer with RenderServices {
   /// never shrunk, so a steady scene allocates nothing.
   Float32List _lightListScratch = Float32List(0);
 
+  /// What [_lightListTexture] was last built from: the table, whether the
+  /// cells went in, and [_lightListEpoch] at the time. Every lit draw of a
+  /// view asks for the list, and while all three still hold the list it
+  /// holds is the one it would build — see `_buildLightList`.
+  LightBuffer? _lightListBuiltFrom;
+  bool _lightListBuiltClustered = false;
+  int _lightListBuiltEpoch = -1;
+
+  /// Advanced wherever the rows can change between two asks of one table:
+  /// a frame begun (the lights moved, the shadow rows reassigned), cells
+  /// cut for another view, a pass's own lights gathered into a table.
+  int _lightListEpoch = 0;
+
+  /// How many times the list's rows were written, for a test to hold it to
+  /// once a view.
+  int _lightListBuilds = 0;
+
   /// Staging for the per-draw list, beside every other uniform this renderer
   /// writes: arrays reused rather than allocated per draw.
   Float32List get _lightListParams => _lightListInfo.list;
@@ -4410,6 +4427,8 @@ final class Renderer with RenderServices {
       if (_passLights.count == 0 && scene.defaultLightWhenUnlit) {
         _passLights.useDefaultLight();
       }
+      // Another scene's lights in the same table: its list is rebuilt.
+      _lightListEpoch++;
       passLights = _passLights;
       passShadowSlots = _noShadowSlots;
     }
@@ -5210,6 +5229,9 @@ final class Renderer with RenderServices {
     _shadowsDenied = assignment.denied.length;
 
     _shadowRowOf.clear();
+    // The lights were gathered above and their rows are reassigned here:
+    // the light list the last frame built is not this frame's.
+    _lightListEpoch++;
     var slot = 0;
     for (var row = 0; row < assignment.owners.length; row++) {
       final owner = assignment.owners[row];
@@ -6571,6 +6593,11 @@ extension RendererInternals on Renderer {
 
   /// How many times the exposure meter's readback failed.
   int get debugMeterFailures => _debugMeterFailures;
+
+  /// How many times the light list's rows were written, over the renderer's
+  /// life: once a view of a frame that overflows the eight slots, however
+  /// many draws read it.
+  int get debugLightListBuilds => _lightListBuilds;
 
   /// The near plane each view of the last frame's scene pass was drawn
   /// with: the camera's own, or the fitted one under reversed depth.
