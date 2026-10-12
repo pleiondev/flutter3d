@@ -5,9 +5,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter3d_audio_core/flutter3d_audio_core.dart' show AudioBus;
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const GameAction _dash = GameAction('dash');

@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `LevelBatch` is a class** with the same `node`, `mesh`,
+  `bounds` and `brush`, so a batch can later say more of what it draws.
 - **A substance named by id is read from the catalogue.**
   `LevelScene(materials:)` takes a `MaterialCatalog`, and a level material
   naming what it is made of (`physicalMaterial`) takes from the substance's

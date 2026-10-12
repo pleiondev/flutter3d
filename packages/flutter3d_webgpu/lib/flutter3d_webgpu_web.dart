@@ -19,6 +19,15 @@ export 'src/webgpu_device.dart' show WebGpuDevice;
 /// The widget `presentFrame` in `flutter3d_app` returns for this device.
 export 'src/webgpu_frame_presenter.dart';
 
+/// What a WebGPU call the device checked throws when the browser refused it,
+/// so a caller can catch it by name.
+export 'src/webgpu_interop.dart' show GpuDeviceException;
+
+/// What the device mixes in to turn WGSL into a module. Exported because the
+/// device's own header names it, and a type a caller is handed and cannot
+/// name is a dependency on `src/`.
+export 'src/webgpu_shaders.dart' show WgslModuleCompiler;
+
 // The encoder, the JavaScript bindings (`GPU*`), the allocators and the
 // handle types are not exported since 1.0: they are this backend's own
 // business, and a browser API in a signature here would make every change

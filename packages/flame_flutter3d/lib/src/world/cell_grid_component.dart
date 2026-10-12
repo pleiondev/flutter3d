@@ -31,7 +31,7 @@ import '../transform/plane.dart';
 /// Flame's own raycast, and [cellAt] of the contact point says which. One
 /// `RectangleHitbox()` round the whole grid, as a shield uses, says only
 /// that something reached it.
-class CellGridComponent extends Object3dComponent {
+base class CellGridComponent extends Object3dComponent {
   CellGridComponent({
     required this.grid,
     required this.device,

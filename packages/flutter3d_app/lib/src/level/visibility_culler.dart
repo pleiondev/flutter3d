@@ -3,7 +3,18 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// One batch of level geometry and the box it fills.
-typedef VisibilityBatch = ({MeshNode node, Aabb3 bounds});
+///
+/// A class rather than a record, so a batch can later say more (the cell it
+/// belongs to) without breaking a caller.
+final class VisibilityBatch {
+  const VisibilityBatch({required this.node, required this.bounds});
+
+  /// The node to show or hide.
+  final MeshNode node;
+
+  /// The box it fills, in world space.
+  final Aabb3 bounds;
+}
 
 /// Hides the level's batches a camera cannot see, once a frame.
 ///

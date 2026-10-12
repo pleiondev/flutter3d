@@ -216,7 +216,7 @@ void main() {
     );
     for (var i = 0; i < 400; i++) {
       world.step(1.0 / 60.0);
-      view.update(1.0 / 60.0);
+      view.update(dt: 1.0 / 60.0);
     }
     // Each strand clear at its lip and frayed through at its foot, where it
     // is gone. Mutation: never fray it.

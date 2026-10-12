@@ -106,7 +106,9 @@ void main() {
       height: _height,
       scene: circuit.scene,
       views: views,
-      settings: circuit.settings(frameWorkBudget: _budget),
+      settings: circuit.settings(
+        frameWorkBudget: Duration(microseconds: _budget),
+      ),
     );
     await gpuSettled(device);
 
@@ -117,7 +119,9 @@ void main() {
         height: _height,
         scene: circuit.scene,
         views: views,
-        settings: circuit.settings(frameWorkBudget: _budget),
+        settings: circuit.settings(
+          frameWorkBudget: Duration(microseconds: _budget),
+        ),
       );
       await gpuSettled(device);
     }
@@ -328,7 +332,7 @@ final class _CircuitReplay {
 
   /// `main.dart`'s `_raceSettings`: the haze along the gaze, the hour's
   /// exposure, the sky and the cascades.
-  RenderSettings settings({int frameWorkBudget = 0}) {
+  RenderSettings settings({Duration frameWorkBudget = Duration.zero}) {
     final skySettings = SkySettings(
       enabled: true,
       physical: _air,

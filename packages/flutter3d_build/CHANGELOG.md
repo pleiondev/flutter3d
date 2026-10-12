@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `PluginProcessResult` and `F3dConversion` are classes.**
+  `PluginProcessResult` is built with
+  `PluginProcessResult(exitCode: …, stdout: …, stderr: …)` by a runner, so a
+  run can later report more.
 - **`create project --kind viewer` and `--kind arcade`.** `ProjectKind`
   (`scene`, the default, `viewer`, `arcade`; a class with constants, so a
   kind added later breaks no `switch`) is what `createProject(kind:)` and

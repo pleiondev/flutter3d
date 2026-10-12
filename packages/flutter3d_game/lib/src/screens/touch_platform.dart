@@ -42,7 +42,7 @@ import '../input/playing.dart';
 /// Fires the two calls and does not wait for them, so `main()` stays
 /// synchronous — a `runApp` that waited on a platform channel would show
 /// nothing until the operating system answered.
-void lockLandscapeForTouch([Playing? playing]) {
+void lockLandscapeForTouch({Playing? playing}) {
   if (!(playing ?? Playing.ofPlatform()).touch) return;
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations(<DeviceOrientation>[

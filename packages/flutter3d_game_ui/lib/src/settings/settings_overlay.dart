@@ -19,7 +19,7 @@ import 'settings_sections.dart';
 ///
 /// It is [Positioned], so it belongs to a [Stack] — the same one the game's own
 /// heads-up display is in.
-class SettingsOverlay extends StatelessWidget {
+final class SettingsOverlay extends StatelessWidget {
   const SettingsOverlay({
     super.key,
     required this.settings,

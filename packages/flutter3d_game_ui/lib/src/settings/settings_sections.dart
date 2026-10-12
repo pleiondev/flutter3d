@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter3d_audio_core/flutter3d_audio_core.dart' show AudioBus;
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart' show ActionDeclaration;
 
 import '../l10n/game_localizations.dart';
 import 'action_bindings_section.dart';

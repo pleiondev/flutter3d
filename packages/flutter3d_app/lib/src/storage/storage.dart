@@ -129,10 +129,13 @@ abstract base class BinaryStorage {
   /// The document called [name], or null if there is not one.
   Future<Uint8List?> read(String name);
 
-  /// Writes [contents], and says whether it managed to. Never throws: an
-  /// autosave that could not be written is a line in a log and the next
-  /// autosave, not a crash.
-  Future<bool> write(String name, Uint8List contents);
+  /// Writes [contents] under [name].
+  ///
+  /// Throws a [StorageException] when the platform refused, as
+  /// [Storage.write] does: one store, one failure contract. A caller whose
+  /// write may fail without harm (an autosave that the next autosave
+  /// replaces) catches it and logs it.
+  Future<void> write(String name, Uint8List contents);
 
   /// Forgets [name], if it is there.
   Future<void> remove(String name);

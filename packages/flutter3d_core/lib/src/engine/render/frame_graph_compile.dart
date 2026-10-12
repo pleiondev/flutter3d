@@ -200,7 +200,7 @@ final class FrameGraph {
     final byName = <String, FrameGraphNode>{
       for (final node in nodes) node.name: node,
     };
-    return CompiledFrameGraph(
+    return CompiledFrameGraph._(
       compiled._lastUse,
       compiled._readers,
       compiled._bindings,
@@ -532,7 +532,7 @@ final class FrameGraph {
     };
     final skipped = <SkippedPass>[
       for (final node in culled)
-        (
+        SkippedPass(
           name: node.name,
           reason: switch (activeIndex[node]) {
             // The order inside this arm is the order of causes too. A caller
@@ -587,7 +587,7 @@ final class FrameGraph {
         for (final desc in declared[node]!.created) desc.id.name: desc,
     };
 
-    return CompiledFrameGraph(
+    return CompiledFrameGraph._(
       lastUse,
       readers,
       bindings,

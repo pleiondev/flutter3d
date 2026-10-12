@@ -167,7 +167,7 @@ void main() {
     expect(b.meshes.single.material.baseColor.toSrgb().r, closeTo(0.1, 1e-6));
 
     a.player!
-      ..play(0)
+      ..play(index: 0)
       ..seek(2.0);
     expect(
       a.pointerTargets.materials[0]!.baseColor.toSrgb().r,
@@ -187,7 +187,7 @@ void main() {
       );
       final scene = Scene();
       final instance = asset.instantiate(scene);
-      final player = instance.player!..play(0);
+      final player = instance.player!..play(index: 0);
 
       final frames = <List<int>>[];
       for (final t in <double>[0.0, 1.0, 2.0]) {

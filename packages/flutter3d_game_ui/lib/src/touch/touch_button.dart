@@ -24,7 +24,7 @@ import 'touch_face.dart';
 /// Labelled for a screen reader with [label], which is also what it says on
 /// its face: a player with low vision meets "jump" or "throttle" rather than
 /// an unnamed shape.
-class TouchButton extends StatefulWidget {
+final class TouchButton extends StatefulWidget {
   /// A round button of [radius].
   const TouchButton({
     super.key,

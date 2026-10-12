@@ -9,7 +9,6 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
-import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart'
     show ColorTarget, DepthTarget, RenderPassDescriptor;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';

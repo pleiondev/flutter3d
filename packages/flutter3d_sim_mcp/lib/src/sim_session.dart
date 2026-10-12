@@ -172,7 +172,7 @@ final class SimSession {
       if (value is! num) return _refuse('"$key" is a number');
       numbers[key] = value.toDouble();
     }
-    OrderTunes.give(_input, verb, numbers);
+    OrderTunes.give(_input, verb, arguments: numbers);
     for (var i = 0; i < steps; i++) {
       _advance(run, 0.0, 0.0, 0.0, 0.0);
     }

@@ -70,7 +70,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Landscape and no system bars on a handset — see `lockLandscapeForTouch`,
   // which two applications had written out and the third had not.
-  lockLandscapeForTouch(_playing);
+  lockLandscapeForTouch(playing: _playing);
   // Settings before the screen: the bindings a player saved are the ones the
   // keyboard should be reading from the first key press, not from the first
   // rebind.
@@ -608,7 +608,7 @@ class _GameScreenState extends State<GameScreen> {
     final RunGhost(:ghost, :note) = ghostOf(Level.fromJson(bundle.level), run);
     if (!mounted) return '';
     final says = note.say(
-      Localizations.maybeLocaleOf(context)?.languageCode ?? 'en',
+      languageCode: Localizations.maybeLocaleOf(context)?.languageCode ?? 'en',
     );
     if (ghost == null) return says;
     setState(() {
@@ -1455,7 +1455,7 @@ class _GameScreenState extends State<GameScreen> {
 
   /// [look] with the player's colour vision correction, when they asked
   /// for one in the settings.
-  LookSettings _seen(LookSettings look) => _vision?.of(_config, look) ?? look;
+  LookSettings _seen(LookSettings look) => _vision?.of(_config, base: look) ?? look;
 
   /// What the last simulated step published. See [_afterStep].
   List<GameEvent> _lastStep = const <GameEvent>[];

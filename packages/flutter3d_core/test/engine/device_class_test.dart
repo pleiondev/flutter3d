@@ -115,6 +115,26 @@ void main() {
       );
     });
 
+    test('the desktop limit is a Duration the caller sets', () {
+      // Mutation: compare against the default instead of `desktopLimit`, and
+      // the stricter selector keeps the 5 ms part a desktop.
+      const strict = DeviceClassSelector(
+        desktopLimit: Duration(milliseconds: 4),
+      );
+      expect(
+        strict.choose(_desktopGpu, measuredMicros: 4000),
+        DeviceClass.desktop,
+      );
+      expect(
+        strict.choose(_desktopGpu, measuredMicros: 5000),
+        DeviceClass.phone,
+      );
+      expect(
+        const DeviceClassSelector().desktopLimit,
+        const Duration(microseconds: 8000),
+      );
+    });
+
     test('a slow desktop part reads the phone files', () {
       expect(
         selector.choose(_desktopGpu, measuredMicros: 8001),

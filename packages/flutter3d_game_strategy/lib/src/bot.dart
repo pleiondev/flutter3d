@@ -272,7 +272,7 @@ final class Bot {
   };
 
   void restore(Map<String, Object?> from) =>
-      _sinceThought = from.integer('sinceThought', _sinceThought);
+      _sinceThought = from.integer('sinceThought', orElse: _sinceThought);
 
   /// Sends a unit with nothing to dig towards the nearest ground nobody of this
   /// side has seen.

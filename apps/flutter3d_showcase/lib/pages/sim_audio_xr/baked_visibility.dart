@@ -11,7 +11,6 @@ import 'package:flutter3d/flutter3d.dart' as f3d show RenderMaterial;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 final class BakedVisibilityDemo extends ShowcaseDemo {
@@ -69,11 +68,11 @@ final class BakedVisibilityDemo extends ShowcaseDemo {
 
     // #region cull
     final culler = VisibilityCuller(visibility, <VisibilityBatch>[
-      (
+      VisibilityBatch(
         node: nearMarker,
         bounds: Aabb3.minMax(Vector3(-1, 0, 1), Vector3(1, 2, 3)),
       ),
-      (
+      VisibilityBatch(
         node: farMarker,
         bounds: Aabb3.minMax(Vector3(9, 0, 1), Vector3(11, 2, 3)),
       ),
@@ -102,7 +101,7 @@ final class BakedVisibilityDemo extends ShowcaseDemo {
     ];
     _live = VisibilityCuller(visibility, <VisibilityBatch>[
       for (final MeshNode marker in markers)
-        (
+        VisibilityBatch(
           node: marker,
           bounds: Aabb3.minMax(
             marker.readPosition() - Vector3.all(0.7),

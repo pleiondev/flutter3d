@@ -1,5 +1,6 @@
 ## 1.0.0-rc.1
 
+- **`LiquidView.update` takes `dt:` by name.**
 - **Breaking: `ElementsViewPlugin` is `flutter3d_effects.elements` by
   default**,
   where it was `elements.view`: `elements` is an area of the engine's

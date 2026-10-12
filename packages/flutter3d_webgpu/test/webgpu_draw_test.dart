@@ -163,7 +163,7 @@ void main() {
     // reported as a texel that should have been red, and the sentence the
     // browser wrote about what was actually wrong is drained afterwards and
     // never printed.
-    expect(await scene.device.debugDrainErrors('the draw'), isNull);
+    expect(await scene.device.debugDrainErrors(where: 'the draw'), isNull);
     // A four-pixel row samples the two-texel palette at 0.125, 0.375, 0.625 and
     // 0.875, so the left half is the left texel and the right half the right.
     expect(_texel(pixels, 4, 0, 1), _red);
@@ -294,7 +294,7 @@ void main() {
             'two draws bound the same buffer, view and sampler at different '
             'offsets, which is one bind group and two dynamic offsets',
       );
-      expect(await scene.device.debugDrainErrors('two placements'), isNull);
+      expect(await scene.device.debugDrainErrors(where: 'two placements'), isNull);
       scene.device.dispose();
     },
   );
@@ -333,7 +333,7 @@ void main() {
       ..draw()
       ..submit();
     expect(scene.device.debugSamplerCount, 2);
-    expect(await scene.device.debugDrainErrors('samplers'), isNull);
+    expect(await scene.device.debugDrainErrors(where: 'samplers'), isNull);
 
     // Released, the object goes; the next bind of the same description makes
     // it again.
@@ -353,7 +353,7 @@ void main() {
       ..draw()
       ..submit();
     expect(scene.device.debugSamplerCount, 2);
-    expect(await scene.device.debugDrainErrors('released'), isNull);
+    expect(await scene.device.debugDrainErrors(where: 'released'), isNull);
     scene.device.dispose();
   });
 
@@ -410,7 +410,7 @@ void main() {
         ..draw()
         ..submit();
       expect(scene.device.pipelines.length, 2, reason: 'found, not built');
-      expect(await scene.device.debugDrainErrors('warmed'), isNull);
+      expect(await scene.device.debugDrainErrors(where: 'warmed'), isNull);
       scene.device.dispose();
     },
   );
@@ -459,7 +459,7 @@ void main() {
     second.dispose();
     expect(scene.device.pipelines.length, 0);
     expect(scene.device.debugBindGroupCount, lessThan(groups));
-    expect(await scene.device.debugDrainErrors('released'), isNull);
+    expect(await scene.device.debugDrainErrors(where: 'released'), isNull);
     scene.device.dispose();
   });
 
@@ -471,7 +471,7 @@ void main() {
     final stage = scene.device.shaders['PrefixSum']!;
     final pipeline = await scene.device.createComputePipelineAsync(stage);
     expect(pipeline.isDisposed, isFalse);
-    expect(await scene.device.debugDrainErrors('compute async'), isNull);
+    expect(await scene.device.debugDrainErrors(where: 'compute async'), isNull);
     scene.device.dispose();
   });
 
@@ -535,7 +535,7 @@ void main() {
     final pixels = await scene.device.readback(target);
     expect(_texel(pixels, 4, 0, 0), _red);
     expect(_texel(pixels, 4, 3, 3), _green);
-    expect(await scene.device.debugDrainErrors('two layouts'), isNull);
+    expect(await scene.device.debugDrainErrors(where: 'two layouts'), isNull);
     scene.device.dispose();
   });
 
@@ -591,7 +591,7 @@ void main() {
       closeTo(128, 2),
       reason: 'additive on attachment one: the two draws summed',
     );
-    expect(await scene.device.debugDrainErrors('two blends'), isNull);
+    expect(await scene.device.debugDrainErrors(where: 'two blends'), isNull);
     scene.device.dispose();
   });
 
@@ -630,7 +630,7 @@ void main() {
     final drawn = await scene.device.readback(written);
     final left = await scene.device.readback(untouched);
     expect(
-      await scene.device.debugDrainErrors('one output, two targets'),
+      await scene.device.debugDrainErrors(where: 'one output, two targets'),
       isNull,
     );
     expect(_texel(drawn, 4, 0, 1), _red);
@@ -679,7 +679,7 @@ void main() {
     final pixels = await scene.device.readback(resolved);
     expect(_texel(pixels, 4, 0, 1), _red);
     expect(_texel(pixels, 4, 3, 1), _green);
-    expect(await scene.device.debugDrainErrors('the resolve'), isNull);
+    expect(await scene.device.debugDrainErrors(where: 'the resolve'), isNull);
     scene.device.dispose();
   });
 
@@ -738,7 +738,7 @@ void main() {
     final pixels = await scene.device.readback(target);
     expect(_texel(pixels, 4, 0, 1), _red, reason: 'the +X face is the first');
     expect(_texel(pixels, 4, 3, 1), _green, reason: 'and −X the second');
-    expect(await scene.device.debugDrainErrors('the cube'), isNull);
+    expect(await scene.device.debugDrainErrors(where: 'the cube'), isNull);
     scene.device.dispose();
   });
 
@@ -788,7 +788,7 @@ void main() {
       _red,
       reason: 'the second draw was at an equal depth and `less` refused it',
     );
-    expect(await scene.device.debugDrainErrors('the depth test'), isNull);
+    expect(await scene.device.debugDrainErrors(where: 'the depth test'), isNull);
     scene.device.dispose();
   });
 
@@ -1021,7 +1021,7 @@ void main() {
         ..submit();
 
       final pixels = await device.readback(target);
-      expect(await device.debugDrainErrors('the compressed draw'), isNull);
+      expect(await device.debugDrainErrors(where: 'the compressed draw'), isNull);
       final got = _texel(pixels, 4, 1, 1);
       // BC1 stores 5:6:5, so the endpoint comes back as (140, 69, 206). Eight is
       // the same tolerance the conformance suite allows for the same reason.
@@ -1076,7 +1076,7 @@ void main() {
           .submit();
       final pixels = await device.readback(target);
       expect(
-        await device.debugDrainErrors('the ${format.name} conversion'),
+        await device.debugDrainErrors(where: 'the ${format.name} conversion'),
         isNull,
       );
       expect(
@@ -1228,7 +1228,7 @@ void main() {
             ),
           )
           .submit();
-      expect(await scene.device.debugDrainErrors('a cube chain'), isNull);
+      expect(await scene.device.debugDrainErrors(where: 'a cube chain'), isNull);
       scene.device.dispose();
     },
   );
@@ -1284,7 +1284,7 @@ void main() {
     if (scene == null) return;
     final frame = scene.target(size: 32);
     scene.device.copyToCanvas(frame);
-    expect(await scene.device.debugDrainErrors('present'), isNull);
+    expect(await scene.device.debugDrainErrors(where: 'present'), isNull);
     scene.device.dispose();
   });
 
@@ -1329,7 +1329,7 @@ void main() {
       expect(_texel(second, 4, 3, 1), _green);
       expect(scene.device.debugDeferredDraws, 1);
       expect(scene.device.pipelines.length, 1);
-      expect(await scene.device.debugDrainErrors('deferred'), isNull);
+      expect(await scene.device.debugDrainErrors(where: 'deferred'), isNull);
       scene.device.dispose();
     });
 
@@ -1355,7 +1355,7 @@ void main() {
         final second = await drawFrame(scene, target);
         expect(_texel(second, 4, 0, 1), _red);
         expect(scene.device.debugDeferredDraws, 1);
-        expect(await scene.device.debugDrainErrors('fallback'), isNull);
+        expect(await scene.device.debugDrainErrors(where: 'fallback'), isNull);
         scene.device.dispose();
       },
     );

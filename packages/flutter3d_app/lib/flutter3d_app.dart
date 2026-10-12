@@ -45,6 +45,51 @@
 /// drives with no headset.
 library;
 
+export 'package:flutter3d_cpu/flutter3d_cpu.dart'
+    show
+        CpuFragmentShader,
+        CpuVertexShaderByIndex,
+        FragmentContext,
+        ShaderBindings;
+export 'package:flutter3d_level_scene/flutter3d_level_scene.dart'
+    show LevelBatching;
+export 'package:flutter3d_particles/flutter3d_particles.dart'
+    show
+        Flipbook,
+        FlipbookCell,
+        Particle,
+        ParticleBirth,
+        ParticleEffect,
+        ParticleEmitter,
+        ParticleSystem,
+        Range;
+export 'package:flutter3d_physics/flutter3d_physics.dart'
+    show CollisionWorld, PhysicsBackend;
+export 'package:flutter3d_sim/flutter3d_sim.dart'
+    show
+        Brush,
+        DisplayTime,
+        EngineLoop,
+        EntityDef,
+        EntityKind,
+        EntityRegistry,
+        FrameCadence,
+        HeightfieldTiles,
+        InputAction,
+        InputState,
+        Level,
+        LevelMaterial,
+        LevelVisibility,
+        Lightmap,
+        LightmapLayout,
+        ShadowCasting,
+        SimulationFactory,
+        SimulationHandle,
+        TileLevelChooser,
+        TimeSource,
+        WorldTiming,
+        XrHand;
+
 export 'src/backend_native.dart'
     if (dart.library.js_interop) 'src/backend_web.dart'
     show fixedResolution, openDevice, platformDevices, presentFrame;

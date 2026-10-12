@@ -24,7 +24,7 @@ final class EndingTally {
 /// been argued out once: the tallies, the credits because a licence puts them
 /// where the work is, and one line saying how to begin again in words the
 /// build can honour.
-class EndingSheet extends StatelessWidget {
+final class EndingSheet extends StatelessWidget {
   const EndingSheet({
     super.key,
     required this.title,
@@ -159,7 +159,7 @@ class EndingSheet extends StatelessWidget {
 ///
 /// **Read as one thing**, `falls 3`, rather than as two unrelated words in a
 /// row of numbers, for the screen reader that is already on.
-class TallyView extends StatelessWidget {
+final class TallyView extends StatelessWidget {
   const TallyView({
     super.key,
     required this.tally,

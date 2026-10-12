@@ -33,7 +33,7 @@ final class TouchSlot {
 ///
 /// A tap and not a hold, unlike [TouchButton]: choosing is an event, and
 /// `slotRequest` is read once per step and cleared.
-class TouchSlots extends StatelessWidget {
+final class TouchSlots extends StatelessWidget {
   const TouchSlots({
     super.key,
     required this.state,

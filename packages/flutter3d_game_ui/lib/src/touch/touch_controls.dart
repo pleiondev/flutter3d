@@ -62,7 +62,7 @@ import 'touch_toggle.dart';
 /// multi-touch and is not optional: a player walking and jumping is holding two
 /// fingers down at once, and a control that took the most recent pointer would
 /// snap the stick to the jump button.
-class TouchControls extends StatelessWidget {
+final class TouchControls extends StatelessWidget {
   const TouchControls({
     super.key,
     required this.state,

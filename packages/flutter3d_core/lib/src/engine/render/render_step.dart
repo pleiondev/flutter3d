@@ -684,7 +684,7 @@ abstract final class RenderStepInternals {
           if (!step.isBuiltIn) step,
       ])
         if (off.contains(step) && !named.contains(step.name))
-          (name: step.name, reason: PassSkip.switchedOff),
+          SkippedPass(name: step.name, reason: PassSkip.switchedOff),
     ]);
   }
 }

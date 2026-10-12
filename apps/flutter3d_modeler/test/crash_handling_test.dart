@@ -44,10 +44,9 @@ final class FakeBinaryStorage extends BinaryStorage {
   Future<Uint8List?> read(String name) async => documents[name];
 
   @override
-  Future<bool> write(String name, Uint8List contents) async {
-    if (refuse) return false;
+  Future<void> write(String name, Uint8List contents) async {
+    if (refuse) throw StorageException(name, 'could not write $name');
     documents[name] = contents;
-    return true;
   }
 
   @override

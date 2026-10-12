@@ -22,11 +22,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show StringCodec;
 import 'package:flutter3d/flutter3d.dart' as engine show AnimationPose;
-import 'package:flutter3d_core/flutter3d_core.dart'
-    show SceneBindingContext, SceneBindings, SceneNodeKind;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_hardware/testing.dart';
-import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -135,7 +132,7 @@ void main() {
       actor.body!.teleport(Vector3(2.0, 0.0, 0.0));
       visuals.recordStep();
 
-      visuals.sync(0.5);
+      visuals.sync(alpha: 0.5);
 
       expect(scene.meshes.single.readPosition().x, closeTo(1.0, 1e-6));
     });
@@ -550,7 +547,7 @@ void main() {
       expect(visuals.graphOf(actor), same(graph));
       List<Matrix4> drawn(double alpha) {
         visuals
-          ..sync(alpha)
+          ..sync(alpha: alpha)
           ..animate(1.0 / 60.0);
         return <Matrix4>[
           for (final j in _skeletonOf(visuals, actor).joints)

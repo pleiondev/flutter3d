@@ -1,5 +1,33 @@
 ## 1.0.0-rc.1
 
+- **With `flutter3d`, the import a view needs.** `ParticleEffect`,
+  `EngineLoop`, `TimeSource`, `WorldTiming`, `InputState`, `Level` and the
+  other types the view, the scene widgets and the level loader name are
+  exported here; the rest of the simulation is `flutter3d_game`'s.
+- **Breaking: `VisibilityBatch` is a class**, built with
+  `VisibilityBatch(node: …, bounds: …)`, so a batch can later say more.
+- **Breaking: `BinaryStorage.write` throws where it answered `false`.** It
+  returns `Future<void>` and throws a `StorageException` naming the
+  document when the platform refused, as `Storage.write` does, so the two
+  stores keep one failure contract and a refusal carries its reason.
+  `FileBinaryStorage` and `IndexedDbBinaryStorage` throw it; an
+  implementation of your own throws one where it returned `false`.
+- **`HotSwap.clearMaterial` takes `name:` by name.**
+- **`Scene3D` takes the view's groups, not a flat copy of them.**
+  `device: DeviceSettings`, `view: ViewSettings`, `loop: LoopSettings`,
+  `plugins: PluginSettings`, `xr`, focus, restoration, the log and the
+  rest of `Flutter3dView`'s options are handed to the view underneath
+  whole, so an option the view gains in a minor is a scene's too; the flat
+  `device`, `presenter`, `settings`, `continuous`, `frameRateCap` and
+  `placeholder` are gone into those groups. `onFrame` and `onBeforeFrame`
+  take the engine and the frame, as the view's do, and what the scene made
+  arrives in `onSceneCreated(Scene3DController)`, named apart from the
+  view's `onCreated(Flutter3dEngine)` so one name never means two shapes.
+  A device that will not open shows the view's failure, in the app's
+  language, or `ViewSettings.failure`.
+- **`Model3D.onTap` takes the hit alone, as `Mesh3D.onTap` does.** The
+  part is `HitResult.node`; one object can carry more later, where two
+  positionals could not.
 - **The view's own loop runs the profile it is given.**
   `LoopSettings.profile` (deterministic by default) is the
   `SimulationProfile` of the loop `Flutter3dView` steps inline, so a

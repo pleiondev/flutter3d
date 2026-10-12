@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **Breaking: optional arguments are named.** `SnapshotFields.number`
+  and `integer` take `orElse:`, `Tally.add` `howMany:`,
+  `firstDifferingPath` `prefix:`, `OrderTunes.give` `arguments:`, and
+  `BehaviorParameters.number` and `GivenOrder.number` `fallback:`; `dart
+  fix` writes the names.
 - **Breaking: every hook a game implements takes one context.** A
   parameter added to a hook would have broken every game written against
   1.0; a member added to its context breaks none. `Brain.onHurt` and

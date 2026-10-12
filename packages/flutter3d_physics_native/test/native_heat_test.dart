@@ -85,7 +85,7 @@ void main() {
     world.step(0.1);
     expect(world.isBurning(block), isTrue);
     expect(world.readEvents(), <NativeEvent>[
-      (body: block, other: null, kind: NativeEventKind.ignited),
+      NativeEvent(body: block, other: null, kind: NativeEventKind.ignited),
     ]);
     for (var i = 0; i < 600; i++) {
       world.step(0.1);
@@ -193,7 +193,7 @@ void main() {
       ..step(0.1);
     expect(world.isBurning(wet), isFalse);
     expect(world.readEvents(), <NativeEvent>[
-      (body: wet, other: null, kind: NativeEventKind.extinguished),
+      NativeEvent(body: wet, other: null, kind: NativeEventKind.extinguished),
     ]);
   });
 

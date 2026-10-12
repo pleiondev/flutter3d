@@ -377,7 +377,7 @@ final class AnimationPlayer {
   ///
   /// Selecting a clip applies its first pose immediately rather than waiting for
   /// the next tick, so a paused player still shows the right thing.
-  void play([int? index]) {
+  void play({int? index}) {
     if (clips.isEmpty) return;
     if (index != null) {
       if (index < 0 || index >= clips.length) {
@@ -401,7 +401,7 @@ final class AnimationPlayer {
   bool playNamed(String name) {
     for (var i = 0; i < clips.length; i++) {
       if (clips[i].name == name) {
-        play(i);
+        play(index: i);
         return true;
       }
     }

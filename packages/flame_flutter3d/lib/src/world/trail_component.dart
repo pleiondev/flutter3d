@@ -12,7 +12,7 @@ import '../transform/object3d_component.dart';
 /// [length] points, the oldest let go as new ones come; the line is a
 /// `LineStripNode` in the `HasFlutter3d` game's scene, [width] pixels
 /// across, and goes, its mesh with it, when this component does.
-class TrailComponent extends Component {
+base class TrailComponent extends Component {
   TrailComponent({
     this.spacing = 0.5,
     this.length = 48,

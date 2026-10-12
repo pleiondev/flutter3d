@@ -39,7 +39,7 @@ import 'physics_step_component.dart';
 /// nothing here supports writing a Flame position back onto a [RigidBody]'s
 /// [Collider], because [Collider.moveTo] is [Dynamics]'s to call, not a
 /// transform bridge's.
-class RigidBodyComponent extends Object3dComponent
+base class RigidBodyComponent extends Object3dComponent
     with CollisionCallbacks
     implements StepFollower {
   RigidBodyComponent({

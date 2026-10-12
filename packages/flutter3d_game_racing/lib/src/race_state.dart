@@ -108,7 +108,7 @@ final class RaceState {
   /// grid loads rather than refuses.
   void restore(Map<String, Object?> from) {
     phase = RacePhase.byName(from['phase']) ?? phase;
-    countdown = from.number('countdown', countdown);
+    countdown = from.number('countdown', orElse: countdown);
     elapsed = from.number('elapsed');
     final rows = from['progress'];
     if (rows is! List) return;

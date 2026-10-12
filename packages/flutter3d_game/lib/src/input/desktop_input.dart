@@ -38,7 +38,7 @@ final class DesktopInput {
   ///
   /// [set] is [ActionSet.common] for a game with nothing of its own, or a
   /// genre's set; its own actions are the caller's to bind.
-  static ActionMap defaultActionMap([ActionSet set = ActionSet.common]) =>
+  static ActionMap defaultActionMap({ActionSet set = ActionSet.common}) =>
       PadInput.addDefaultsTo(
         addDefaultsTo(
           ActionMap(

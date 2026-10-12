@@ -51,7 +51,7 @@ import 'frame_image.dart';
 /// because a renderer's targets are sized to what it draws, and two models
 /// of different sizes sharing one would reallocate them twice a frame. A
 /// [device] passed in is used instead and is never closed here.
-class Model3dComponent extends PositionComponent {
+base class Model3dComponent extends PositionComponent {
   Model3dComponent({
     this.model,
     this.animation,

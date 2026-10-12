@@ -30,7 +30,44 @@ import 'layout_plan.dart';
 import 'selection.dart';
 
 /// Where a ray met the mesh.
-typedef MeshHit = ({int face, int triangle, double distance, Vector3 point});
+///
+/// A class rather than a record, so a hit can later carry more (the normal,
+/// the barycentric weights) without breaking a reader.
+final class MeshHit {
+  const MeshHit({
+    required this.face,
+    required this.triangle,
+    required this.distance,
+    required this.point,
+  });
+
+  /// The face the ray met.
+  final int face;
+
+  /// The triangle of that face it met.
+  final int triangle;
+
+  /// How far along the ray, in world units.
+  final double distance;
+
+  /// Where, in the mesh's space.
+  final Vector3 point;
+
+  @override
+  bool operator ==(Object other) =>
+      other is MeshHit &&
+      other.face == face &&
+      other.triangle == triangle &&
+      other.distance == distance &&
+      other.point == point;
+
+  @override
+  int get hashCode => Object.hash(face, triangle, distance, point);
+
+  @override
+  String toString() =>
+      'MeshHit(face: $face, triangle: $triangle, distance: $distance)';
+}
 
 /// A bounding-volume hierarchy over an [EditMesh], through a [MeshLayoutPlan].
 final class MeshBvh {
@@ -90,7 +127,7 @@ final class MeshBvh {
   MeshHit? raycast(LocalRay ray, {double maxDistance = double.infinity}) {
     final hit = _tree.raycast(ray, maxDistance: maxDistance);
     if (hit == null) return null;
-    return (
+    return MeshHit(
       face: _faceOfTriangle[hit.triangle],
       triangle: hit.triangle,
       distance: hit.distance,

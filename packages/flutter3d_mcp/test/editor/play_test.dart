@@ -198,8 +198,8 @@ void main() {
       await _played(it);
       await pumpEventQueue();
       final game = it.games.single
-        ..posts('flutter3d.level.loaded', <String, Object?>{'level': 'crypt'})
-        ..posts('flutter3d.pickup.taken', <String, Object?>{'gift': 'key'});
+        ..posts('flutter3d.level.loaded', data: <String, Object?>{'level': 'crypt'})
+        ..posts('flutter3d.pickup.taken', data: <String, Object?>{'gift': 'key'});
       await pumpEventQueue();
 
       final first = await events(it.session, 0);

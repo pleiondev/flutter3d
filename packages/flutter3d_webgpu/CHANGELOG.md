@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `WebGpuFramePresenter` is a `final class`.**
+- **`GpuDeviceException` and `WgslModuleCompiler` are exported** from
+  `flutter3d_webgpu_web.dart`: the first is what a checked WebGPU call
+  throws, now catchable by name, and the second is in `WebGpuDevice`'s own
+  header.
+- **Breaking: `WebGpuDevice.debugDrainErrors` takes `where:` by name.**
 - **A device is opened with the adapter's own stage-binding limits.**
   `requestDevice` asked for no `requiredLimits`, so the device kept
   WebGPU's minimum of 16 textures and 16 samplers a stage whatever the

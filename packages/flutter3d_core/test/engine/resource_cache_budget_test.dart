@@ -38,7 +38,7 @@ void main() {
       expect(crossings.single.isOver, isTrue);
       expect(crossings.single.used, 120);
       expect(crossings.single.limit, 100);
-      expect(budget.isOver(MemoryCategory.textures), isTrue);
+      expect(budget.isOver(category: MemoryCategory.textures), isTrue);
 
       budget.refund(MemoryCategory.textures, 50);
       expect(crossings, hasLength(2));
@@ -115,7 +115,7 @@ void main() {
       expect(disposed, <int>[1]);
       expect(cache.contains('2'), isTrue);
       expect(cache.contains('3'), isTrue);
-      expect(budget.isOver(MemoryCategory.textures), isFalse);
+      expect(budget.isOver(category: MemoryCategory.textures), isFalse);
 
       // Never what is still held, however little it is wanted.
       held.priority = ResourcePriority.background;

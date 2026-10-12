@@ -864,7 +864,7 @@ final class StrategySimulation {
               nodes: resources,
               buildings: buildings,
             );
-    final int mark = from.integer('target', -1);
+    final int mark = from.integer('target', orElse: -1);
     if (mark >= 0) _pendingMarks[unit] = mark;
     return unit;
   }
@@ -929,7 +929,7 @@ final class StrategySimulation {
   /// take their numbers back.
   void restore(Snapshot snapshot) {
     final Map<String, Object?> from = snapshot.data;
-    random.state = from.integer('random', random.state);
+    random.state = from.integer('random', orElse: random.state);
     _shots.clear();
 
     final Map<String, Object?>? saved = from.object('entities');
@@ -961,7 +961,7 @@ final class StrategySimulation {
     }
     final Map<String, Object?>? known = from.object('fog');
     if (known != null) fog.restore(known);
-    _sinceFog = from.integer('sinceFog', _sinceFog);
+    _sinceFog = from.integer('sinceFog', orElse: _sinceFog);
     orders.restore(from.rows('orders'));
 
     _settle();

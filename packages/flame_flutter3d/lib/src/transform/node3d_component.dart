@@ -28,7 +28,7 @@ import 'object3d_component.dart' show shownInFlame;
 /// [Scale3dEffect] take any `EffectController`: eased, repeated,
 /// alternating, in sequence. [TintEffect] and `OpacityEffect` colour and
 /// fade it, and `Tap3dCallbacks` hear a tap on it.
-class Node3dComponent extends Component
+base class Node3dComponent extends Component
     with HasVisibility
     implements OpacityProvider, Drawn3d {
   Node3dComponent({
@@ -160,7 +160,7 @@ class Node3dComponent extends Component
 /// Moves a [Node3dComponent] by an offset in its parent's space, or to a
 /// place, on any `EffectController`: Flame's `MoveEffect`, in three
 /// dimensions.
-class Move3dEffect extends ComponentEffect<Node3dComponent> {
+base class Move3dEffect extends ComponentEffect<Node3dComponent> {
   /// Moves it by [offset].
   Move3dEffect.by(
     Vector3 offset,
@@ -199,7 +199,7 @@ class Move3dEffect extends ComponentEffect<Node3dComponent> {
 /// Turns a [Node3dComponent] by [angle] radians about [axis], in its own
 /// frame, on any `EffectController`: Flame's `RotateEffect`, about any
 /// axis.
-class Rotate3dEffect extends ComponentEffect<Node3dComponent> {
+base class Rotate3dEffect extends ComponentEffect<Node3dComponent> {
   Rotate3dEffect.by(
     Vector3 axis,
     this.angle,
@@ -231,7 +231,7 @@ class Rotate3dEffect extends ComponentEffect<Node3dComponent> {
 /// Scales a [Node3dComponent] to a scale, from wherever it is when the
 /// effect starts, on any `EffectController`: Flame's `ScaleEffect`, on
 /// each axis.
-class Scale3dEffect extends ComponentEffect<Node3dComponent> {
+base class Scale3dEffect extends ComponentEffect<Node3dComponent> {
   Scale3dEffect.to(
     Vector3 scale,
     super.controller, {

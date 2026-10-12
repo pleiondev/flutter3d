@@ -77,7 +77,7 @@ final class AnimationLayersDemo extends ShowcaseDemo {
     _player = AnimationPlayer(
       clips: <AnimationClip>[walk, wave],
       targets: <AnimationTarget?>[bodyMesh, armMesh],
-    )..play(0);
+    )..play(index: 0);
     _wave = _player.playLayer(
       1,
       mask: AnimationMask(<int>[1]),

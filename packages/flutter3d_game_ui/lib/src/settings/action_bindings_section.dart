@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import '../l10n/game_localizations.dart';
 import '../theme/game_ui_theme.dart';
@@ -89,7 +88,7 @@ final class TuningChange {
 /// [GameSettingsController]'s, passed in, and every change goes out through the
 /// callbacks — so the same section sits in the engine's [SettingsPanel] and
 /// in a game's own screen.
-class ActionBindingsSection extends StatelessWidget {
+final class ActionBindingsSection extends StatelessWidget {
   const ActionBindingsSection({
     super.key,
     required this.map,

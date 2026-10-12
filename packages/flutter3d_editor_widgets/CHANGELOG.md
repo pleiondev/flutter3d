@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `ColorField` and `NumberField` are `final class`es.** Wrap
+  one rather than extending it; a new option is then an addition.
 - **A plugin's panel is published under its namespace**,
   `<namespace>.<id>` (`PluginManifest.namespace`), not under its whole id;
   an id in another namespace is refused with a `PluginException`.

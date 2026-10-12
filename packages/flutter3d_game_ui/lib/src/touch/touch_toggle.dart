@@ -21,7 +21,7 @@ import 'touch_face.dart';
 /// bool. A button that kept its own answer would be able to disagree with
 /// either — the classic checkbox that says off while the thing is on — so this
 /// draws what it is told and reports the tap.
-class TouchToggle extends StatelessWidget {
+final class TouchToggle extends StatelessWidget {
   const TouchToggle({
     super.key,
     required this.label,

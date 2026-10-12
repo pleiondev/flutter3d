@@ -13,8 +13,6 @@ import 'package:flutter3d_game/flutter3d_game.dart' show ActorDeathContext;
 import 'package:flutter3d_game_physics/ragdoll.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
-import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show SnapshotRestoreContext;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';

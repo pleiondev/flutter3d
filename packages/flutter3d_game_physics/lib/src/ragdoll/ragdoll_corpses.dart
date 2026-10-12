@@ -2,9 +2,6 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart'
     show referenceBodyMass;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
-import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show SnapshotPart;
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'skeleton_ragdoll.dart';
 

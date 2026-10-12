@@ -112,8 +112,8 @@ final class MoveOrder extends StrategyOrder {
       ],
       goal: goal,
       formation: Formation.block(
-        spacing: from.number('spacing', 1.4),
-        width: from.integer('width', 5),
+        spacing: from.number('spacing', orElse: 1.4),
+        width: from.integer('width', orElse: 5),
       ),
     );
   }
@@ -182,11 +182,11 @@ final class AssignOrder extends StrategyOrder {
 
   /// An order read back from [toJson].
   factory AssignOrder.fromJson(Map<String, Object?> from) => AssignOrder(
-    unit: from.integer('unit', -1),
-    node: from.integer('node', -1),
-    dropOff: from.integer('dropOff', -1),
-    capacity: from.number('capacity', 10.0),
-    rate: from.number('rate', 8.0),
+    unit: from.integer('unit', orElse: -1),
+    node: from.integer('node', orElse: -1),
+    dropOff: from.integer('dropOff', orElse: -1),
+    capacity: from.number('capacity', orElse: 10.0),
+    rate: from.number('rate', orElse: 8.0),
   );
 
   @override
@@ -237,7 +237,7 @@ final class AttackOrder extends StrategyOrder {
           for (final Object? index in units)
             if (index is num) index.toInt(),
       ],
-      target: from.integer('target', -1),
+      target: from.integer('target', orElse: -1),
     );
   }
 
@@ -304,12 +304,12 @@ final class TrainOrder extends StrategyOrder {
 
   /// An order read back from [toJson].
   factory TrainOrder.fromJson(Map<String, Object?> from) => TrainOrder(
-    producer: from.integer('producer', -1),
+    producer: from.integer('producer', orElse: -1),
     type: switch (from.object('type')) {
       final Map<String, Object?> row => UnitType.fromJson(row),
       null => UnitType.worker,
     },
-    count: from.integer('count', 1),
+    count: from.integer('count', orElse: 1),
   );
 
   @override

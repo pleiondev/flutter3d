@@ -78,7 +78,7 @@ final class MemoryBudget {
 
   /// Whether [category] is over its limit, or with no category, whether
   /// the [total] is.
-  bool isOver([MemoryCategory? category]) {
+  bool isOver({MemoryCategory? category}) {
     if (category == null) {
       final limit = total;
       return limit != null && _total > limit;
@@ -89,7 +89,7 @@ final class MemoryBudget {
 
   /// Whether [category] or the total is over, which is what a cache holding
   /// [category] has to bring down.
-  bool isOverFor(MemoryCategory category) => isOver(category) || isOver();
+  bool isOverFor(MemoryCategory category) => isOver(category: category) || isOver();
 
   /// Calls [handler] each time a category or the total crosses its limit,
   /// either way, until the registration is canceled.
@@ -106,12 +106,12 @@ final class MemoryBudget {
 
   void _move(MemoryCategory category, int bytes) {
     if (bytes == 0) return;
-    final wasOver = isOver(category);
+    final wasOver = isOver(category: category);
     final wasTotalOver = isOver();
     _used[category] = usedOf(category) + bytes;
     _total += bytes;
     final crossings = <MemoryBudgetCrossing>[
-      if (isOver(category) != wasOver)
+      if (isOver(category: category) != wasOver)
         MemoryBudgetCrossing(
           category: category,
           used: usedOf(category),

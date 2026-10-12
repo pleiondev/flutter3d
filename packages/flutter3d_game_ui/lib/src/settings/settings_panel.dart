@@ -17,7 +17,7 @@ import 'settings_sections.dart';
 /// panel every game had. The panel had a dozen arguments of which each game
 /// used some, and a game that wanted one row more had to write the whole
 /// screen again.
-class SettingsPanel extends StatelessWidget {
+final class SettingsPanel extends StatelessWidget {
   const SettingsPanel({
     super.key,
     required this.settings,

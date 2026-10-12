@@ -1,5 +1,6 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `WebGlFramePresenter` is a `final class`.**
 - **A device opened without sources draws with the project's own stages.**
   `WebGlDevice.open` reads the `webgl` section of the bundle
   `flutter3d_build`'s hook writes (`EngineBundleStamp.projectAsset`), through

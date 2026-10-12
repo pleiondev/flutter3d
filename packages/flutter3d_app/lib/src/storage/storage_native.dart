@@ -241,17 +241,26 @@ final class FileBinaryStorage extends BinaryStorage {
   }
 
   @override
-  Future<bool> write(String name, Uint8List contents) async {
+  Future<void> write(String name, Uint8List contents) async {
+    final File? file;
     try {
-      final where = directory;
-      final file = _file(name);
-      if (where == null || file == null) return false;
+      file = directory == null ? null : _file(name);
+    } catch (error) {
+      throw StorageException(
+        name,
+        'no directory to write $name in',
+        cause: error,
+      );
+    }
+    if (file == null) {
+      throw StorageException(name, 'this platform keeps no documents');
+    }
+    try {
       _makeRoomFor(file);
       writeBytesAtomicallySync(file.path, contents);
-      return true;
     } catch (error) {
       onIssue(Issue('storage: could not write $name ($error)'));
-      return false;
+      throw StorageException(name, 'could not write $name', cause: error);
     }
   }
 

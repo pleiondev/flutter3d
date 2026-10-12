@@ -67,7 +67,25 @@ const List<String> pluginConformanceChecks = <String>[
 ];
 
 /// What a run of a program answered: its exit code and both streams.
-typedef PluginProcessResult = ({int exitCode, String stdout, String stderr});
+///
+/// A class rather than a record, so a run can later report more (how long
+/// it took) without breaking a runner written against it.
+final class PluginProcessResult {
+  const PluginProcessResult({
+    required this.exitCode,
+    required this.stdout,
+    required this.stderr,
+  });
+
+  /// The program's exit code.
+  final int exitCode;
+
+  /// What it wrote to standard output.
+  final String stdout;
+
+  /// What it wrote to standard error.
+  final String stderr;
+}
 
 /// Runs [executable] with [arguments] in [workingDirectory].
 ///
@@ -90,7 +108,7 @@ Future<PluginProcessResult> _runProcess(
     arguments,
     workingDirectory: workingDirectory,
   );
-  return (
+  return PluginProcessResult(
     exitCode: result.exitCode,
     stdout: '${result.stdout}',
     stderr: '${result.stderr}',

@@ -23,7 +23,7 @@ import 'touch_button.dart';
 /// | [corner] | top right, on its own |
 ///
 /// What the controls are named and which actions they press are the game's.
-class TouchDrive extends StatelessWidget {
+final class TouchDrive extends StatelessWidget {
   const TouchDrive({
     super.key,
     required this.state,

@@ -179,7 +179,7 @@ final class VariantsAndPointersDemo extends ShowcaseDemo {
     // The page opens halfway through the clip, where both tracks are
     // furthest from what the file says, and plays on from there.
     _player = _instance.player!
-      ..play(0)
+      ..play(index: 0)
       ..seek(1.5);
     // #endregion play
     _wear(variant);

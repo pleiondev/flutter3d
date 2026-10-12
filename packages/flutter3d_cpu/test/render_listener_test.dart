@@ -87,10 +87,19 @@ void main() {
     );
     expect(told, result.skipped);
     expect(result.wireframeDeclined, isTrue);
-    expect(told, contains((name: 'wireframe', reason: PassSkip.declined)));
-    expect(told, contains((name: 'tonemap', reason: PassSkip.switchedOff)));
+    expect(
+      told,
+      contains(SkippedPass(name: 'wireframe', reason: PassSkip.declined)),
+    );
+    expect(
+      told,
+      contains(SkippedPass(name: 'tonemap', reason: PassSkip.switchedOff)),
+    );
     // And a pass off by its own default setting, reported as such.
-    expect(told, contains((name: 'object ids', reason: PassSkip.settings)));
+    expect(
+      told,
+      contains(SkippedPass(name: 'object ids', reason: PassSkip.settings)),
+    );
   });
 
   test('the declined entries are exactly what the fields say', () {

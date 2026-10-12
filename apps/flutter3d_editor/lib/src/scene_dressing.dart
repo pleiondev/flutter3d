@@ -550,7 +550,7 @@ final class SceneDressing {
         final resting = clips.indexWhere(
           (String name) => name.toLowerCase().contains('idle'),
         );
-        player.play(resting < 0 ? 0 : resting);
+        player.play(index: resting < 0 ? 0 : resting);
       }
 
       instance.root

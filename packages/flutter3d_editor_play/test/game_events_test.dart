@@ -30,10 +30,10 @@ void main() {
         await _settle();
 
         game
-          ..posts('flutter3d.level.loaded', <String, Object?>{
+          ..posts('flutter3d.level.loaded', data: <String, Object?>{
             'level': 'crypt',
-          }, 1767225600000)
-          ..posts('Flutter.Frame', <String, Object?>{'elapsed': 16})
+          }, time: 1767225600000)
+          ..posts('Flutter.Frame', data: <String, Object?>{'elapsed': 16})
           ..posts('flutter3d.player.died');
         await _settle();
 
@@ -73,7 +73,7 @@ void main() {
       });
       await pumpEventQueue();
 
-      game.posts('flutter3d.pickup.taken', <String, Object?>{'gift': 'key'});
+      game.posts('flutter3d.pickup.taken', data: <String, Object?>{'gift': 'key'});
       await pumpEventQueue();
 
       // Mutation: not opening the connection at `app.debugPort` keeps

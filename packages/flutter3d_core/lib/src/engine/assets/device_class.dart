@@ -179,13 +179,15 @@ final class DeviceTraits {
 /// loading screen is still a phone ten minutes later, hot, and the desktop's
 /// textures would not fit its memory then either.
 final class DeviceClassSelector {
-  const DeviceClassSelector({this.desktopMicros = 8000});
+  const DeviceClassSelector({
+    this.desktopLimit = const Duration(microseconds: 8000),
+  });
 
-  /// The slowest a probe frame may be, in microseconds, and still be a
-  /// desktop. Half a sixty-hertz frame: the probe is a small scene, and a
+  /// The slowest a probe frame may be, against the wall clock, and still be
+  /// a desktop. Half a sixty-hertz frame: the probe is a small scene, and a
   /// device that needs more than that for it will not hold the full chain
   /// at its own resolution.
-  final int desktopMicros;
+  final Duration desktopLimit;
 
   /// The class for [traits], given the probe frame took [measuredMicros]
   /// (null when nothing was measured, which leaves the flags to decide
@@ -193,7 +195,8 @@ final class DeviceClassSelector {
   DeviceClass choose(DeviceTraits traits, {int? measuredMicros}) {
     if (traits.web) return DeviceClass.web;
     final byFlags = traits.samplesBc ? DeviceClass.desktop : DeviceClass.phone;
-    final tooSlow = measuredMicros != null && measuredMicros > desktopMicros;
+    final tooSlow =
+        measuredMicros != null && measuredMicros > desktopLimit.inMicroseconds;
     return byFlags == DeviceClass.desktop && tooSlow
         ? DeviceClass.phone
         : byFlags;

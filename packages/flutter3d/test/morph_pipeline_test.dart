@@ -113,7 +113,7 @@ void main() {
       expect(player, isNotNull, reason: 'the sample carries a clip');
 
       final node = instance.meshes.single;
-      player!.play(0);
+      player!.play(index: 0);
 
       final seen = <List<double>>[];
       for (final time in <double>[0.0, 0.25, 0.5, 0.75, 1.0]) {

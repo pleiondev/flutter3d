@@ -65,12 +65,29 @@ final class LevelBatching {
 /// (uploaded by [LevelScene], so released by whoever keeps the level), the
 /// box around it, and the brush it is when the level was built
 /// [LevelBatching.perBrush].
-typedef LevelBatch = ({
-  MeshNode node,
-  DeviceMesh mesh,
-  Aabb3 bounds,
-  int? brush,
-});
+///
+/// A class rather than a record, so a batch can later say more about what
+/// it draws (its material, its cell) without breaking a reader.
+final class LevelBatch {
+  const LevelBatch({
+    required this.node,
+    required this.mesh,
+    required this.bounds,
+    this.brush,
+  });
+
+  /// The node in the scene.
+  final MeshNode node;
+
+  /// The mesh it draws, uploaded by [LevelScene].
+  final DeviceMesh mesh;
+
+  /// The box around it, in world space.
+  final Aabb3 bounds;
+
+  /// The brush it is, under [LevelBatching.perBrush]; null otherwise.
+  final int? brush;
+}
 
 /// What [LevelScene.build] made: the scene, and the parts of it a caller
 /// keeps to rebuild, cull or release.
@@ -292,7 +309,7 @@ final class LevelScene {
     // The document's depth layer — `RenderMaterial.depthLayer`, which coplanar
     // surfaces are ordered by; batches never mix layers.
     material.depthLayer = surface.depthLayer;
-    return (
+    return LevelBatch(
       node: node,
       mesh: mesh,
       bounds: surface.bounds,

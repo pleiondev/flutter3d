@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart' show SaveRecord;
 
 import '../l10n/game_localizations.dart';
 import '../theme/game_ui_theme.dart';
@@ -13,7 +12,7 @@ import 'settings_panel_controls.dart';
 ///
 /// Each says what it does in a line under it, because a switch labelled
 /// "Telemetry" is a switch a player cannot answer honestly.
-class PrivacySection extends StatefulWidget {
+final class PrivacySection extends StatefulWidget {
   const PrivacySection({super.key, required this.consents, this.onChanged});
 
   final Consents consents;

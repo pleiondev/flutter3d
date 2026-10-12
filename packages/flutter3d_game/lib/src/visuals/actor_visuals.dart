@@ -3,10 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
-import 'package:flutter3d_core/flutter3d_core.dart'
-    show SceneBinding, SceneBindingContext, SceneBindings, SceneNodeKind;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
-import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -836,7 +833,7 @@ final class ActorVisuals {
   /// `EngineLoop.alpha`. The default of 1.0 is the authoritative position, which
   /// is exactly what this did before [recordStep] existed, so a game that has
   /// not wired the per-step call up draws what it always drew.
-  void sync([double alpha = 1.0]) {
+  void sync({double alpha = 1.0}) {
     _alpha = alpha;
     final state = published?.call();
     for (final entry in _nodes.entries) {

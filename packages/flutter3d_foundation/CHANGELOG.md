@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **`internal.dart` is outside semver, and the engine's packages ask for
+  each other within one minor** (`'>=1.0.0-rc.1 <1.1.0'`), so a minor that
+  changes the parser never resolves under a core built before it.
+- **`ExpressionType.measuring` takes `components:` and
+  `ExpressionParser.fail` `where:` by name**, so either can gain an option
+  beside it.
 - **Breaking: a crash reporter takes one `CrashContext`.** A
   `CrashReporter` is handed a `CrashContext` (new) with the `error`, its
   `stackTrace` and the `record` the log kept, so a minor can tell a

@@ -34,8 +34,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_game/flutter3d_game.dart' show RunTimeline;
-import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show ProbeReading;
 import 'package:flutter3d_sim/flutter3d_sim.dart'
     show RewindBuffer, TimeSource, WorldTiming;
 

@@ -167,7 +167,7 @@ final class SandboxRun {
         slot: saved.integer('slot').clamp(0, hotbar.length - 1),
         // A save from before the day turned has no hour, and opens in the
         // morning a new world starts in.
-        hour: saved.number('hour', Daylight.morning),
+        hour: saved.number('hour', orElse: Daylight.morning),
       );
     } on Object catch (error) {
       onUnread?.call(error);
@@ -384,7 +384,7 @@ final class SandboxRun {
       ..yaw = data.number('yaw')
       ..pitch = data.number('pitch');
     slot = data.integer('slot').clamp(0, hotbar.length - 1);
-    day = Daylight(hour: data.number('hour', Daylight.morning));
+    day = Daylight(hour: data.number('hour', orElse: Daylight.morning));
     elements?.restore(data.object('elements'));
     physics.update();
     _homeReachable = null;

@@ -781,10 +781,10 @@ Meshes the build cut into clusters (`MeshData.clusters`, runs of up to 4096 tria
 
 ## The frame budget
 
-Some work does not have to happen this frame: irradiance probe updates and the faces of dynamic point shadows. `frameWorkBudget` gives it one allowance, in microseconds, and what does not fit waits for the next frame.
+Some work does not have to happen this frame: irradiance probe updates and the faces of dynamic point shadows. `frameWorkBudget` gives it one allowance, a `Duration`, and what does not fit waits for the next frame.
 
 ```dart
-RenderSettings(frameWorkBudget: 2000) // nought, the default, is no limit
+RenderSettings(frameWorkBudget: Duration(milliseconds: 2)) // Duration.zero, the default, is no limit
 ```
 
 Each piece of work asks before it starts, and is allowed when what the frame has spent plus what a piece has lately been costing still fits, so the piece that would tip the allowance waits. The first piece of a frame always runs, so every queue drains even on a device too slow to fit one item. `Renderer.frameWorkBudget` reports what was spent, how many pieces ran and how many were told to wait.
@@ -796,7 +796,10 @@ Each piece of work asks before it starts, and is allowed when what the frame has
 ```dart
 final quality = AdaptiveQuality(
   QualityTable.of(DeviceClass.desktop),
-  settings: const AdaptiveQualitySettings(enabled: true, budgetMicros: 16667),
+  settings: const AdaptiveQualitySettings(
+    enabled: true,
+    budget: Duration(microseconds: 16667),
+  ),
 );
 
 // every frame

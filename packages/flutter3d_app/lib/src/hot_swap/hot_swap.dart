@@ -725,7 +725,7 @@ final class HotSwap {
 
   /// Forgets the overrides for [name], or for every material when null. The
   /// materials keep what they were set to until their file is loaded again.
-  void clearMaterial([String? name]) {
+  void clearMaterial({String? name}) {
     if (name == null) {
       _overrides.clear();
     } else {

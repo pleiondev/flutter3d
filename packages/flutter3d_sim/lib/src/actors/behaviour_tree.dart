@@ -556,7 +556,7 @@ final class _Reader {
           index,
           kind,
           label,
-          params.number('inertia', 0.0),
+          params.number('inertia', fallback: 0.0),
         );
         nodes.add(made);
         made.options.addAll(_options(row, where));
@@ -624,7 +624,7 @@ final class _Reader {
         continue;
       }
       final params = BehaviorParameters(option, at, problems);
-      final weight = params.number('weight', 1.0);
+      final weight = params.number('weight', fallback: 1.0);
       final considerations = _considerations(option['considerations'], at);
       // Named by the option when the child is not, so the overlay says
       // "flee" rather than the leaf kind the option happens to run.

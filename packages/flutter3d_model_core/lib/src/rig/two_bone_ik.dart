@@ -23,7 +23,7 @@ import 'package:vector_math/vector_math.dart';
 /// The result of one [solveTwoBoneIk] call: the corrected *local* rotations
 /// for `root` and `mid` — `tip` never rotates, the same convention its own
 /// engine namesake uses.
-class TwoBoneIkResult {
+final class TwoBoneIkResult {
   const TwoBoneIkResult({
     required this.rootLocalRotation,
     required this.midLocalRotation,

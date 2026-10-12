@@ -152,10 +152,10 @@ Everything 0.8.0 added is off as well, and each one says what switching it on co
 | `shadows.filter` | null (follows `directionalLightRadius`) | `evsm`: an rgba32f atlas and two blur passes; needs float filtering |
 | `transparency` | `TransparencyMode.sorted` | `weightedBlended`: two scene-sized targets, a kept depth buffer, no MSAA |
 | `occlusion` | `OcclusionMode.none` | `software`: a 256 × 128 CPU raster of the marked occluders. `hiZ`: a depth pyramid and a readback, and no MSAA |
-| `frameWorkBudget` | 0 (no limit) | Nothing; it only makes deferrable work wait |
+| `frameWorkBudget` | `Duration.zero` (no limit) | Nothing; it only makes deferrable work wait |
 | `aliasTargets` | false | Nothing; fewer pooled targets |
 
-`AdaptiveQuality` sits outside `RenderSettings` and rewrites it each frame. `AdaptiveQualitySettings.budgetMicros` is 16667, sixty frames a second; a row is kept while it fits under `headroom` (0.9) of that and climbed to only after it has fitted under `climbHeadroom` (0.75) for `climbFrames` (30) frames running. The rows come from `QualityTable.of(deviceClass)`, and the costs in the tables committed today are software-rasteriser stand-ins until each device class is measured. [The frame](/core/rendering/#the-frame-budget) has the rest.
+`AdaptiveQuality` sits outside `RenderSettings` and rewrites it each frame. `AdaptiveQualitySettings.budget` is 16 667 µs, sixty frames a second; a row is kept while it fits under `headroom` (0.9) of that and climbed to only after it has fitted under `climbHeadroom` (0.75) for `climbFrames` (30) frames running. The rows come from `QualityTable.of(deviceClass)`, and the costs in the tables committed today are software-rasteriser stand-ins until each device class is measured. [The frame](/core/rendering/#the-frame-budget) has the rest.
 
 `ShadowSettings` is where the two expensive numbers are:
 

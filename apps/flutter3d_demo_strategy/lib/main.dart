@@ -56,7 +56,6 @@ import 'package:flutter3d_audio/flutter3d_audio.dart'
 import 'package:flutter3d_game/flutter3d_game.dart' show SaveFile;
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
 import 'package:flutter3d_game_ui/access.dart' show Spoken, SpokenEvents;
-import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart'
     show EngineLoop, EntityKinds, InputState;
 import 'package:vector_math/vector_math.dart' as vm;

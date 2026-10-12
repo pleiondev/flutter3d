@@ -1306,7 +1306,7 @@ void main() {
       final player = AnimationPlayer(
         clips: _clips,
         targets: <AnimationTarget?>[node],
-      )..play(0);
+      )..play(index: 0);
 
       graph.evaluate(_dt);
       player.crossFadeTo(1, duration: 0.25);

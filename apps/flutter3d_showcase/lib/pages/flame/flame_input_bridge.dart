@@ -13,7 +13,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/flame_layer.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 /// A Flame game that hands keyboard events to the components that ask.
 final class _InputGame extends TransparentFlameGame

@@ -633,7 +633,7 @@ final class Elements {
       w.look.update(seconds: frame.clock, eye: frame.eye, pixel: frame.pixel);
       w
         ..show()
-        ..view.update(frame.dt);
+        ..view.update(dt: frame.dt);
     }
     fireView.update(frame.dt);
     for (final hook in List.of(_views)) {

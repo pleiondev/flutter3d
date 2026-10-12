@@ -82,7 +82,7 @@ Future<void> main() async {
   // the system bars on a handset; this one, which has touch controls and is
   // meant to be played on a phone, did neither — so a tilt reframed the chase
   // camera mid-corner and the status bar sat over the lap counter.
-  lockLandscapeForTouch(_playing);
+  lockLandscapeForTouch(playing: _playing);
   // Settings before the screen: the bindings a player saved are the ones the
   // keyboard should read from the first key press, not from the first rebind.
   final unread = <Issue>[];

@@ -350,7 +350,7 @@ base class ExpressionParser {
   ExpressionToken get current => tokens[position];
 
   /// Throws an [ExpressionSyntaxException] at [where], [current] by default.
-  Never fail(String message, [ExpressionToken? where]) {
+  Never fail(String message, {ExpressionToken? where}) {
     final token = where ?? current;
     throw ExpressionSyntaxException(message, token.line, token.column);
   }
@@ -393,7 +393,7 @@ base class ExpressionParser {
   Expression resolveName(ExpressionToken name) {
     final type = scope.variables[name.text];
     if (type != null) return ExpressionVariable(name.text, type);
-    fail('"${name.text}" is not bound here.', name);
+    fail('"${name.text}" is not bound here.', where: name);
   }
 
   /// A form the host reads itself, given the name it starts with (already
@@ -426,13 +426,13 @@ base class ExpressionParser {
     expectToken(':', '":" and the value when the condition is false');
     final otherwise = parseExpression();
     if (!condition.type.isBoolean) {
-      fail('a condition is a bool, and this is a ${condition.type}.', question);
+      fail('a condition is a bool, and this is a ${condition.type}.', where: question);
     }
     if (then.type != otherwise.type) {
       fail(
         'the two values of "?" are a ${then.type} and a ${otherwise.type}; '
         'they have to be one type.',
-        question,
+        where: question,
       );
     }
     return ExpressionConditional(condition, then, otherwise);
@@ -463,7 +463,7 @@ base class ExpressionParser {
     final op = expectToken(current.kind, 'an operator');
     final right = parseSum();
     if (comparisons.contains(current.kind)) {
-      fail('comparisons do not chain: write "a < b && b < c".', current);
+      fail('comparisons do not chain: write "a < b && b < c".', where: current);
     }
     return comparison(op, left, right);
   }
@@ -496,7 +496,7 @@ base class ExpressionParser {
       final token = expectToken('-', '"-"');
       final operand = parseUnary();
       if (!operand.type.isNumeric) {
-        fail('a ${operand.type} cannot be negated.', token);
+        fail('a ${operand.type} cannot be negated.', where: token);
       }
       if (operand is ExpressionConstant) {
         return ExpressionConstant(<double>[
@@ -509,7 +509,7 @@ base class ExpressionParser {
       final token = expectToken('!', '"!"');
       final operand = parseUnary();
       if (!operand.type.isBoolean) {
-        fail('"!" takes a bool, and this is a ${operand.type}.', token);
+        fail('"!" takes a bool, and this is a ${operand.type}.', where: token);
       }
       return ExpressionNot(operand);
     }
@@ -568,7 +568,7 @@ base class ExpressionParser {
     try {
       unit = Unit.parse(unitToken.text, also: scope.units);
     } on UnitFormatException catch (error) {
-      fail('"[${unitToken.text}]" is not a unit: ${error.reason}.', unitToken);
+      fail('"[${unitToken.text}]" is not a unit: ${error.reason}.', where: unitToken);
     }
     return ExpressionConstant(<double>[
       number.number! * unit.scale + unit.offset,
@@ -594,7 +594,7 @@ base class ExpressionParser {
     var components = 0;
     for (final part in parts) {
       if (!part.type.isNumeric) {
-        fail('a ${part.type} is not a number and cannot go in a $type.', token);
+        fail('a ${part.type} is not a number and cannot go in a $type.', where: token);
       }
       components += part.type.components;
     }
@@ -605,7 +605,7 @@ base class ExpressionParser {
       fail(
         'the parts of a $type measure different things: '
         '${parts.map((part) => part.type.dimension).toSet().join(', ')}.',
-        token,
+        where: token,
       );
     }
     final typed = type.withDimension(dimension);
@@ -628,7 +628,7 @@ base class ExpressionParser {
       fail(
         'a $type takes ${type.components} components and these add up to '
         '$components.',
-        token,
+        where: token,
       );
     }
     if (parts.every((p) => p is ExpressionConstant)) {
@@ -646,13 +646,13 @@ base class ExpressionParser {
       fail(
         '${builtin.name} takes ${builtin.arity} arguments and was given '
         '${parts.length}.',
-        token,
+        where: token,
       );
     }
     var width = 1;
     for (final part in parts) {
       if (!part.type.isNumeric) {
-        fail('${builtin.name} takes numbers, not a ${part.type}.', token);
+        fail('${builtin.name} takes numbers, not a ${part.type}.', where: token);
       }
       if (part.type.components > width) width = part.type.components;
     }
@@ -662,7 +662,7 @@ base class ExpressionParser {
         fail(
           '${builtin.name} was given a ${part.type} beside a '
           '${ExpressionType.numeric[width]}.',
-          token,
+          where: token,
         );
       }
     }
@@ -671,7 +671,7 @@ base class ExpressionParser {
         fail(
           '${builtin.name} ${builtin.units}, and was given '
           '${parts.map((part) => part.type).join(', ')}.',
-          token,
+          where: token,
         );
     final resultWidth = builtin.resultComponents ?? width;
     return ExpressionCall(
@@ -686,7 +686,7 @@ base class ExpressionParser {
   Expression binary(ExpressionToken op, Expression left, Expression right) {
     for (final side in <Expression>[left, right]) {
       if (!side.type.isNumeric) {
-        fail('"${op.text}" works on numbers, not on a ${side.type.name}.', op);
+        fail('"${op.text}" works on numbers, not on a ${side.type.name}.', where: op);
       }
     }
     final a = left.type.components;
@@ -695,7 +695,7 @@ base class ExpressionParser {
       fail(
         'a ${left.type} and a ${right.type} cannot be combined with '
         '"${op.text}".',
-        op,
+        where: op,
       );
     }
     final dimension = switch (op.text) {
@@ -706,7 +706,7 @@ base class ExpressionParser {
         'a ${left.type} and a ${right.type} cannot be '
         '${op.text == '+' ? 'added' : 'subtracted'}: they measure different '
         'things.',
-        op,
+        where: op,
       ),
     };
     return ExpressionBinary(
@@ -725,14 +725,14 @@ base class ExpressionParser {
     if (!(equality && bothBool)) {
       for (final side in <Expression>[left, right]) {
         if (!side.type.isNumeric || side.type.components != 1) {
-          fail('"${op.text}" compares two numbers, not a ${side.type}.', op);
+          fail('"${op.text}" compares two numbers, not a ${side.type}.', where: op);
         }
       }
       if (left.type.dimension != right.type.dimension) {
         fail(
           'a ${left.type} and a ${right.type} cannot be compared: they '
           'measure different things.',
-          op,
+          where: op,
         );
       }
     }
@@ -745,7 +745,7 @@ base class ExpressionParser {
       fail(
         '"${op.text}" takes two bools, and was given a ${left.type} and a '
         '${right.type}.',
-        op,
+        where: op,
       );
     }
     return ExpressionBinary(op.text, left, right, ExpressionType.boolean);
@@ -754,7 +754,7 @@ base class ExpressionParser {
   /// `.xyz` and `.rgb`, folded on a constant.
   Expression swizzle(Expression target, ExpressionToken field) {
     if (!target.type.isNumeric) {
-      fail('a ${target.type} has no components.', field);
+      fail('a ${target.type} has no components.', where: field);
     }
     const sets = <String>['xyzw', 'rgba'];
     final indices = <int>[];
@@ -765,7 +765,7 @@ base class ExpressionParser {
         fail(
           '"$letter" is not a component: xyzw and rgba are, and one '
           'swizzle does not mix the two.',
-          field,
+          where: field,
         );
       }
       // GLSL refuses `.xg` too, and for the reason it reads badly rather than
@@ -773,16 +773,16 @@ base class ExpressionParser {
       // expression is somebody having lost track of which vector they are in.
       chosen ??= set;
       if (set != chosen) {
-        fail('"${field.text}" mixes xyzw with rgba.', field);
+        fail('"${field.text}" mixes xyzw with rgba.', where: field);
       }
       final index = set.indexOf(letter);
       if (index >= target.type.components) {
-        fail('a ${target.type} has no "$letter".', field);
+        fail('a ${target.type} has no "$letter".', where: field);
       }
       indices.add(index);
     }
     if (indices.isEmpty || indices.length > 4) {
-      fail('"${field.text}" is not one to four components.', field);
+      fail('"${field.text}" is not one to four components.', where: field);
     }
     final type = ExpressionType.numeric[indices.length]!.withDimension(
       target.type.dimension,

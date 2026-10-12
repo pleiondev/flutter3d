@@ -445,7 +445,7 @@ final class _Parser extends ExpressionParser {
   );
 
   @override
-  Never fail(String message, [ExpressionToken? where]) {
+  Never fail(String message, {ExpressionToken? where}) {
     final token = where ?? current;
     throw MaterialSyntaxException(message, token.line, token.column);
   }
@@ -499,7 +499,7 @@ final class _Parser extends ExpressionParser {
       _Block block,
     ) {
       position++;
-      if (already != null) fail('a material has one $what.', where);
+      if (already != null) fail('a material has one $what.', where: where);
       return parseBody(block);
     }
 
@@ -522,7 +522,7 @@ final class _Parser extends ExpressionParser {
       } else if (word == 'light' && surface) {
         lightAt = where;
         position++;
-        if (light != null) fail('a material has one light block.', lightAt);
+        if (light != null) fail('a material has one light block.', where: lightAt);
         light = parseBody(lightBlock);
       } else if (surface &&
           version < materialLanguageStagesVersion &&
@@ -538,7 +538,7 @@ final class _Parser extends ExpressionParser {
         );
       } else if (word == 'state' && surface) {
         position++;
-        if (stateAt != null) fail('a material has one state block.', where);
+        if (stateAt != null) fail('a material has one state block.', where: where);
         stateAt = where;
         state = parseState();
       } else if (word == 'vertex' && surface) {
@@ -551,7 +551,7 @@ final class _Parser extends ExpressionParser {
         composite = once(composite, where, 'composite block', compositeBlock);
       } else if (word == 'workgroup' && kind == MaterialStageKind.compute) {
         position++;
-        if (workgroupAt != null) fail('a kernel has one workgroup.', where);
+        if (workgroupAt != null) fail('a kernel has one workgroup.', where: where);
         workgroupAt = where;
         workgroup = parseWorkgroup();
       } else if (word == 'updates' &&
@@ -562,7 +562,7 @@ final class _Parser extends ExpressionParser {
         );
       } else if (word == 'updates') {
         position++;
-        if (updatesAt != null) fail('a material has one updates block.', where);
+        if (updatesAt != null) fail('a material has one updates block.', where: where);
         updatesAt = where;
         updates.addAll(parseUpdates());
       } else {
@@ -599,7 +599,7 @@ final class _Parser extends ExpressionParser {
       fail(
         '"lit" is the light a "light" block gathers, and this material has '
         'none: add one, or return the colour without it.',
-        where,
+        where: where,
       );
     }
     if (light != null && litAt == null) {
@@ -607,7 +607,7 @@ final class _Parser extends ExpressionParser {
         'the light block is never read: a fragment body that does not read '
         '"lit" gathers no lights, and the compiled shader would drop the '
         'block and everything the engine binds for it.',
-        lightAt,
+        where: lightAt,
       );
     }
     // The two hooks shape the light a `light` block gathers; without one
@@ -620,7 +620,7 @@ final class _Parser extends ExpressionParser {
         fail(
           'the $hook block shapes the light a "light" block gathers, and this '
           'material has none: add one, or leave the $hook block out.',
-          where,
+          where: where,
         );
       }
     }
@@ -628,7 +628,7 @@ final class _Parser extends ExpressionParser {
       fail(
         '"environment" and "directional" switch light out of what a "light" '
         'block gathers, and this material has none.',
-        stateAt,
+        where: stateAt,
       );
     }
     if (!state.environment && ambientAt != null) {
@@ -636,7 +636,7 @@ final class _Parser extends ExpressionParser {
         'the ambient block is the environment\'s light, and the state block '
         'compiles the environment out with "environment off": keep one or '
         'the other.',
-        ambientAt,
+        where: ambientAt,
       );
     }
     if (sceneAt case final where? when !state.isTranslucent && surface) {
@@ -645,7 +645,7 @@ final class _Parser extends ExpressionParser {
         'material is opaque: give its state block "blend alpha", "blend '
         'additive" or "blend premultiplied". An opaque surface is the scene '
         'it would be reading.',
-        where,
+        where: where,
       );
     }
     if (!surface) {
@@ -693,7 +693,7 @@ final class _Parser extends ExpressionParser {
         fail(
           '"${candidate.name}" is material language version 2: open the file '
           'with "f3dmat 2".',
-          token,
+          where: token,
         );
       }
       return candidate;
@@ -732,7 +732,7 @@ final class _Parser extends ExpressionParser {
         'off' => false,
         _ => fail(
           '"${key.text}" is "on" or "off", not "${value.text}".',
-          value,
+          where: value,
         ),
       };
     }
@@ -740,7 +740,7 @@ final class _Parser extends ExpressionParser {
     while (!skipIf('}')) {
       if (current.kind == 'end') fail('the state block is never closed.');
       final key = expectToken('name', 'a setting');
-      if (!seen.add(key.text)) fail('"${key.text}" is set twice.', key);
+      if (!seen.add(key.text)) fail('"${key.text}" is set twice.', where: key);
       switch (key.text) {
         case 'blend':
           final value = expectToken('name', 'a blend after "blend"');
@@ -749,14 +749,14 @@ final class _Parser extends ExpressionParser {
               fail(
                 '"${value.text}" is not a blend: '
                 '${MaterialBlend.all.join(', ')} are.',
-                value,
+                where: value,
               );
         case 'cutoff':
           cutoffAt = key;
           final value = expectToken('number', 'the alpha the mask cuts at');
           cutoff = value.number!;
           if (cutoff < 0 || cutoff > 1) {
-            fail('a cutoff is an alpha, from nought to one.', value);
+            fail('a cutoff is an alpha, from nought to one.', where: value);
           }
         case 'depthWrite':
           depthWrite = onOff(key);
@@ -772,7 +772,7 @@ final class _Parser extends ExpressionParser {
             fail(
               '"${value.text}" is not a depth test: '
               '${materialDepthCompares.join(', ')} are.',
-              value,
+              where: value,
             );
           }
           depthCompare = value.text;
@@ -793,7 +793,7 @@ final class _Parser extends ExpressionParser {
             fail(
               'a depth layer is a whole number from '
               '-$materialDepthLayerLimit to $materialDepthLayerLimit.',
-              value,
+              where: value,
             );
           }
           depthLayer = negative ? -number.toInt() : number.toInt();
@@ -810,7 +810,7 @@ final class _Parser extends ExpressionParser {
             'cutoff, depthWrite, depthTest, depthCompare, alphaToCoverage, '
             'doubleSided, depthLayer, effectsDepth, environment and '
             'directional.',
-            key,
+            where: key,
           );
       }
       expectToken(';', '";" after the setting');
@@ -820,28 +820,28 @@ final class _Parser extends ExpressionParser {
     if (cutoffAt != null && !masked) {
       fail(
         'a cutoff is where "blend mask" cuts, and this is not masked.',
-        cutoffAt,
+        where: cutoffAt,
       );
     }
     if (coverageAt != null && alphaToCoverage! && !masked) {
       fail(
         'alpha to coverage antialiases the edge "blend mask" cuts, and this '
         'is not masked.',
-        coverageAt,
+        where: coverageAt,
       );
     }
     if (compareAt != null && depthTest != null) {
       fail(
         '"depthTest" and "depthCompare" both say how the depth is tested: '
         'keep one.',
-        compareAt,
+        where: compareAt,
       );
     }
     if (effectsAt != null && effectsDepth! && !(blend?.translucent ?? false)) {
       fail(
         '"effectsDepth" puts a translucent surface into the depth the '
         'effects read, and an opaque one is there already.',
-        effectsAt,
+        where: effectsAt,
       );
     }
     return MaterialFileState(
@@ -865,7 +865,7 @@ final class _Parser extends ExpressionParser {
     final token = expectToken('number', what);
     final value = token.number!;
     if (value != value.truncateToDouble() || value < from) {
-      fail('$what is a whole number from $from, not "${token.text}".', token);
+      fail('$what is a whole number from $from, not "${token.text}".', where: token);
     }
     return value.toInt();
   }
@@ -891,7 +891,7 @@ final class _Parser extends ExpressionParser {
           expectToken('-', '"->" after the old name');
           expectToken('>', '"->" after the old name');
           final to = expectToken('name', 'the name the parameter has now').text;
-          if (from == to) fail('"$from" is renamed to itself.', verb);
+          if (from == to) fail('"$from" is renamed to itself.', where: verb);
           return MaterialRenameUpdate(leadsTo, from, to);
         }(),
         'scale' => () {
@@ -913,7 +913,7 @@ final class _Parser extends ExpressionParser {
         ),
         _ => fail(
           '"${verb.text}" is not an update: rename, scale and remove are.',
-          verb,
+          where: verb,
         ),
       };
       expectToken(';', '";" after the update');
@@ -947,7 +947,7 @@ final class _Parser extends ExpressionParser {
           '$materialVersion, and this one leads to ${update.version}: raise '
           'the material\'s version with "material $material version '
           '${update.version}".',
-          at,
+          where: at,
         );
       }
       String? name = switch (update) {
@@ -971,7 +971,7 @@ final class _Parser extends ExpressionParser {
               ? '"$name" is not a parameter "$material" declares.'
               : '"$written" becomes "$name", which "$material" does not '
                     'declare.',
-          at,
+          where: at,
         );
       }
     }
@@ -986,7 +986,7 @@ final class _Parser extends ExpressionParser {
       final token = expectToken('number', 'a whole number of invocations');
       final value = token.number!;
       if (value != value.truncateToDouble() || value < 1 || value > 256) {
-        fail('a workgroup side is a whole number from 1 to 256.', token);
+        fail('a workgroup side is a whole number from 1 to 256.', where: token);
       }
       return value.toInt();
     }
@@ -1022,7 +1022,7 @@ final class _Parser extends ExpressionParser {
         '"${number.text}" is not a language version: write a whole number '
         'from $materialLanguageFirstVersion, as in "f3dmat '
         '$materialLanguageFirstVersion".',
-        number,
+        where: number,
       );
     }
     final version = value.toInt();
@@ -1031,7 +1031,7 @@ final class _Parser extends ExpressionParser {
         'this material is written in material language version $version and '
         'this build reads up to $materialLanguageVersion. Update flutter3d '
         'to a release that reads version $version.',
-        header,
+        where: header,
       );
     }
     return version;
@@ -1047,7 +1047,7 @@ final class _Parser extends ExpressionParser {
         fail(
           'a uniform block of a material\'s own is version 2; start the file '
           'with "f3dmat 2"',
-          named,
+          where: named,
         );
       }
       if (_engineBlockNames.contains(named.text) ||
@@ -1055,7 +1055,7 @@ final class _Parser extends ExpressionParser {
         fail(
           '"${named.text}" cannot name a material\'s block: a block is named '
           'in PascalCase, and not as one of the engine\'s own',
-          named,
+          where: named,
         );
       }
       expectToken(')', '")" after the block\'s name');
@@ -1079,7 +1079,7 @@ final class _Parser extends ExpressionParser {
       fail(
         '"${nameToken.text}" is a name the generated shader already uses, and '
         'a uniform is written into it under its own name.',
-        nameToken,
+        where: nameToken,
       );
     }
     expectToken(
@@ -1111,7 +1111,7 @@ final class _Parser extends ExpressionParser {
           'a texture of a material\'s own is version 2; start the file with '
           '"f3dmat 2", or bind one the engine binds: '
           '${materialTextureBindings.join(', ')}',
-          nameToken,
+          where: nameToken,
         );
       }
       textures.add(
@@ -1135,11 +1135,11 @@ final class _Parser extends ExpressionParser {
         fail(
           '"${binding.text}" is a name the generated stage already uses; '
           'bind the texture under another.',
-          binding,
+          where: binding,
         );
       }
       if (textures.any((slot) => slot.bindingName == binding.text)) {
-        fail('"${binding.text}" is bound twice.', binding);
+        fail('"${binding.text}" is bound twice.', where: binding);
       }
     } else if (!materialTextureBindings.contains(binding.text)) {
       fail(
@@ -1147,7 +1147,7 @@ final class _Parser extends ExpressionParser {
         '${materialTextureBindings.join(', ')}; a texture of the material\'s '
         'own is declared without one, "texture ${nameToken.text};", and '
         'bound from RenderMaterial.extraTextures.',
-        binding,
+        where: binding,
       );
     }
     expectToken(';', '";" after the texture');
@@ -1187,27 +1187,27 @@ final class _Parser extends ExpressionParser {
           kind == MaterialStageKind.surface
               ? '"$name" is one of the surface inputs.'
               : '"$name" is one of the inputs.',
-          token,
+          where: token,
         );
       }
     }
     if (kind == MaterialStageKind.fullscreen && name == 'scene') {
-      fail('"scene" is the picture a full-screen stage draws over.', token);
+      fail('"scene" is the picture a full-screen stage draws over.', where: token);
     }
     if (builtinNamed(name) != null || name == 'sample') {
-      fail('"$name" is a builtin function.', token);
+      fail('"$name" is a builtin function.', where: token);
     }
     if (ExpressionType.numeric.values.any((t) => t.name == name)) {
-      fail('"$name" is a type.', token);
+      fail('"$name" is a type.', where: token);
     }
     for (final parameter in parameters) {
-      if (parameter.name == name) fail('"$name" is declared twice.', token);
+      if (parameter.name == name) fail('"$name" is declared twice.', where: token);
     }
     for (final slot in textures) {
-      if (slot.name == name) fail('"$name" is declared twice.', token);
+      if (slot.name == name) fail('"$name" is declared twice.', where: token);
     }
     if (locals.containsKey(name)) {
-      fail('"$name" is already bound in this body.', token);
+      fail('"$name" is already bound in this body.', where: token);
     }
   }
 
@@ -1218,7 +1218,7 @@ final class _Parser extends ExpressionParser {
     }
     fail(
       '"${token.text}" is not a type: float, vec2, vec3 and vec4 are.',
-      token,
+      where: token,
     );
   }
 
@@ -1265,7 +1265,7 @@ final class _Parser extends ExpressionParser {
             '"$name" is a name the generated shader already uses — GLSL, '
             '`surface.glsl` or the emitter itself — so a binding of it would '
             'not compile, or would quietly replace what the engine reads.',
-            nameToken,
+            where: nameToken,
           );
         }
         expectToken('=', '"=" after the name');
@@ -1345,14 +1345,14 @@ final class _Parser extends ExpressionParser {
         fail(
           '"$name" is not an output: a vertex block writes '
           '${materialVertexOutputs.map((o) => o.name).join(', ')}.',
-          nameToken,
+          where: nameToken,
         );
-    if (!outputs.add(name)) fail('"$name" is written twice.', nameToken);
+    if (!outputs.add(name)) fail('"$name" is written twice.', where: nameToken);
     if (outputs.contains('position') && outputs.contains('world')) {
       fail(
         'a vertex block writes "position", before the model transform, or '
         '"world", after it — not both.',
-        nameToken,
+        where: nameToken,
       );
     }
     expectToken('=', '"=" after the output');
@@ -1403,7 +1403,7 @@ final class _Parser extends ExpressionParser {
       fail(
         '"$name" is read of one light, in the "light" block; the '
         'fragment body sees them gathered, as "lit".',
-        token,
+        where: token,
       );
     }
     if (surface && name == materialLitInput.name) {
@@ -1411,14 +1411,14 @@ final class _Parser extends ExpressionParser {
         fail(
           '"lit" is every light gathered through this block, so the block '
           'cannot read it; the fragment body does.',
-          token,
+          where: token,
         );
       }
       if (!identical(body, fragmentBlock)) {
         fail(
           '"lit" is what the light, ambient and composite blocks add up, so '
           'the ${body.what} cannot read it; the fragment body does.',
-          token,
+          where: token,
         );
       }
       litAt ??= token;
@@ -1426,7 +1426,7 @@ final class _Parser extends ExpressionParser {
       return MaterialInputRef(materialLitInput);
     }
     if (textureNamed(name) != null) {
-      fail('"$name" is a texture; it is read with sample($name, uv).', token);
+      fail('"$name" is a texture; it is read with sample($name, uv).', where: token);
     }
     // An input of another body: where it is read, rather than "not bound",
     // which would send an author looking for a declaration.
@@ -1443,13 +1443,13 @@ final class _Parser extends ExpressionParser {
           fail(
             '"$name" is read from material language version 2: open the '
             'file with "f3dmat 2".',
-            token,
+            where: token,
           );
         }
-        fail('"$name" is read in the $other, not in the ${body.what}.', token);
+        fail('"$name" is read in the $other, not in the ${body.what}.', where: token);
       }
     }
-    fail('"$name" is not bound here.', token);
+    fail('"$name" is not bound here.', where: token);
   }
 
   MaterialParameter? parameterNamed(String name) {
@@ -1473,7 +1473,7 @@ final class _Parser extends ExpressionParser {
         'a ${body.what} cannot sample a texture: the vertex stage binds '
         'none, and a displacement read from a map is a fragment\'s work or '
         'a uniform\'s.',
-        token,
+        where: token,
       );
     }
     expectToken('(', '"(" after sample');
@@ -1482,14 +1482,14 @@ final class _Parser extends ExpressionParser {
     if (slot == null) {
       fail(
         '"${slotToken.text}" is not a texture this material declares.',
-        slotToken,
+        where: slotToken,
       );
     }
     sampled.add(slot.name);
     expectToken(',', '"," and the coordinates');
     final uv = parseExpression();
     if (uv.type != ExpressionType.vec2) {
-      fail('sample takes a vec2 of coordinates, not a ${uv.type}.', token);
+      fail('sample takes a vec2 of coordinates, not a ${uv.type}.', where: token);
     }
     expectToken(')', '")" after sample');
     return MaterialSample(slot, uv);

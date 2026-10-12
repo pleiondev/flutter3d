@@ -9,8 +9,6 @@ import 'package:flutter3d_game_physics/ragdoll.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show NativeDynamics, NativePhysics, NativeWorld, preparePhysics, usePhysics;
-import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'depths.dart';

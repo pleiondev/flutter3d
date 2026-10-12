@@ -2,7 +2,6 @@ import 'package:flutter/painting.dart' show Color;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_game_ui/access.dart' show RoleRings;
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'hud.dart';
 

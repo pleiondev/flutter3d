@@ -87,7 +87,7 @@ final class EditorComponent {
   }
 
   /// Whether it belongs on a [piece] of entity type [type].
-  bool appliesTo(Piece piece, [String? type]) =>
+  bool appliesTo(Piece piece, {String? type}) =>
       this.piece == piece &&
       (types.isEmpty || (type != null && types.contains(type)));
 
@@ -386,10 +386,10 @@ final class EditorPieces extends EditorRegistry {
   /// added, then for an entity those its type's [hints] build — the kind's
   /// own fields, kind `type:<type>`, and every [ComponentHints] that names
   /// the type or that the kind names.
-  List<EditorComponent> componentsFor(Piece piece, [String? type]) =>
+  List<EditorComponent> componentsFor(Piece piece, {String? type}) =>
       <EditorComponent>[
         for (final component in components)
-          if (component.appliesTo(piece, type)) component,
+          if (component.appliesTo(piece, type: type)) component,
         if (piece == Piece.entity && type != null) ...[
           if (_store.hints.entityKind(type) case final EntityKindHints kind
               when kind.fields.isNotEmpty)
@@ -423,7 +423,7 @@ final class EditorPieces extends EditorRegistry {
   /// the first component that hints it; null for a field shown by its
   /// value's shape.
   FieldHint? fieldHint(Piece piece, String key, {String? type}) {
-    for (final component in componentsFor(piece, type)) {
+    for (final component in componentsFor(piece, type: type)) {
       if (component.hintFor(key) case final FieldHint hint) return hint;
     }
     return null;
@@ -448,12 +448,12 @@ final class EditorPieces extends EditorRegistry {
   /// not set, beside the format's own.
   Map<String, Object?> offersFor(
     Piece piece,
-    Iterable<String> present, [
+    Iterable<String> present, {
     String? type,
-  ]) {
+  }) {
     final has = present.toSet();
     return <String, Object?>{
-      for (final component in componentsFor(piece, type))
+      for (final component in componentsFor(piece, type: type))
         for (final entry in component.defaults.entries)
           if (!has.contains(entry.key)) entry.key: entry.value,
     };

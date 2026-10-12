@@ -9,7 +9,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_effects/flutter3d_effects.dart';
 import 'package:flutter3d_elements/flutter3d_elements.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
-import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart'
     show
         ActionDeclaration,

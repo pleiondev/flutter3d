@@ -6,7 +6,6 @@ library;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_demo_content/shooter_sample.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'crypt_fog.dart';
 import 'run_cubit.dart';
@@ -101,16 +100,17 @@ final class CryptReplay {
 
   /// The settings the game draws the crypt with: the level's fog and a
   /// metered exposure. [frameWorkBudget] is `RenderSettings.frameWorkBudget`.
-  RenderSettings settings({int frameWorkBudget = 0}) => RenderSettings(
-    fog: cryptFog(
-      level.loaded.level,
-      eye:
-          level.staged.player.eyeOffset +
-          level.staged.player.body.halfExtents.y,
-    ),
-    autoExposure: const AutoExposureSettings(enabled: true),
-    frameWorkBudget: frameWorkBudget,
-  );
+  RenderSettings settings({Duration frameWorkBudget = Duration.zero}) =>
+      RenderSettings(
+        fog: cryptFog(
+          level.loaded.level,
+          eye:
+              level.staged.player.eyeOffset +
+              level.staged.player.body.halfExtents.y,
+        ),
+        autoExposure: const AutoExposureSettings(enabled: true),
+        frameWorkBudget: frameWorkBudget,
+      );
 
   /// Puts [camera] where the player's eyes are, looking where they look.
   void placeCamera() {

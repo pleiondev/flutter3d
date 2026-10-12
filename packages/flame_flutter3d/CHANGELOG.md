@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **Breaking: every component and effect is a `base class`, and
+  `Flutter3dFlameWidget` a `final` one.** A game still extends
+  `Object3dComponent`, `RigidBodyComponent`, `TransparentFlameGame` and the
+  rest, and its subclass says `base`, `final` or `sealed`; nothing outside
+  can `implements` one, so a member they gain in a minor breaks nobody.
+  `migrate` writes the modifier.
 - **Breaking: `Tap3dCallbacks.hitAt3d` takes a `Tap3dProbe`** (new), the
   tap's screen point and the projector, one per tap for every candidate. An
   override for a tighter shape keeps compiling when a minor hands it more.

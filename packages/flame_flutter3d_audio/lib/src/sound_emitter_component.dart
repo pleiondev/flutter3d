@@ -18,7 +18,7 @@ import 'audio_scene_component.dart';
 /// **Where its parent is.** Under a bridged component it sounds from that
 /// component's scene position; anywhere else, from the listener. [gain] and
 /// [rate] are read every frame, so an engine can climb with the throttle.
-class SoundEmitterComponent extends Component {
+base class SoundEmitterComponent extends Component {
   SoundEmitterComponent(
     this.sound, {
     this.isPlaying = true,

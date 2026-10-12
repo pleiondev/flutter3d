@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `DocumentText.compact` takes `depth:` by name**, and
+  `EditorComponent.appliesTo`, `EditorPieces.componentsFor` and `offersFor`
+  take `type:`.
 - **A gizmo mark's `tint` is a `LinearColor`**, the one colour type, where
   it was a vector.
 - **A plugin's pieces are published under its namespace.**

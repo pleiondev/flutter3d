@@ -20,7 +20,7 @@ import 'editor_widgets_theme.dart';
 import 'number_expression.dart';
 
 /// One labelled number.
-class NumberField extends StatefulWidget {
+final class NumberField extends StatefulWidget {
   const NumberField({
     super.key,
     required this.label,

@@ -16,11 +16,25 @@ import 'material_loader.dart';
 part 'model_instance.dart';
 
 /// An impostor level's uploaded card and atlases — see [ModelAsset.impostors].
-typedef ImpostorPart = ({
-  DeviceMesh card,
-  TextureHandle albedo,
-  TextureHandle normalDepth,
-});
+///
+/// A class rather than a record, so an impostor can later carry more maps
+/// without breaking a reader.
+final class ImpostorPart {
+  const ImpostorPart({
+    required this.card,
+    required this.albedo,
+    required this.normalDepth,
+  });
+
+  /// The card the atlas is drawn on.
+  final DeviceMesh card;
+
+  /// The atlas of colours.
+  final TextureHandle albedo;
+
+  /// The atlas of normals, with depth in alpha.
+  final TextureHandle normalDepth;
+}
 
 /// An immutable, GPU-resident model that can be placed in a scene any number of
 /// times.
@@ -447,7 +461,7 @@ final class ModelAsset {
           );
           continue;
         }
-        impostors[impostor] = (
+        impostors[impostor] = ImpostorPart(
           card: DeviceMesh.upload(
             device,
             impostorCard(center: impostor.center, radius: impostor.radius),

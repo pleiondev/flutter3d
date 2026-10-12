@@ -245,7 +245,7 @@ final class HotSwapDemo extends ShowcaseDemo {
   void dispose() {
     _hot
       ..forgetTexture(_poster)
-      ..clearMaterial('hull paint');
+      ..clearMaterial(name: 'hull paint');
   }
 
   Future<void> _swapNow() async {
@@ -285,7 +285,7 @@ final class HotSwapDemo extends ShowcaseDemo {
           });
         } else {
           // The material keeps the yellow until its file is loaded again.
-          _hot.clearMaterial('hull paint');
+          _hot.clearMaterial(name: 'hull paint');
           _overridden = 0;
           _hullFile = Uint8List.fromList(<int>[_hullFile.first % 3 + 1]);
           _swapNow();

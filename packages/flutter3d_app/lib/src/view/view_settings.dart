@@ -10,10 +10,6 @@ library;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_hardware/flutter3d_hardware.dart'
-    show DeviceLoss, DeviceRegistry;
-import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show Flutter3dPlugin, FormatSpec, PluginRegistry, SimulationProfile;
 import 'package:flutter3d_sim/flutter3d_sim.dart'
     show InputState, SimulationFactory, WorldTiming;
 

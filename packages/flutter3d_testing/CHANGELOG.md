@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `QualityMeasurement` is a class** with the same `setting`,
+  `cost` and `flip`, so a row can later carry more measures.
 - **Breaking: `FrameSubject` and `RenderedFrame` are classes.** A replay
   subject and a frame builder return `FrameSubject(scene:, camera:)`;
   `RenderedFrame` keeps `pixels`, `width`, `height` and `drawCalls`. Read

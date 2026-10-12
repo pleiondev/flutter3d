@@ -24,11 +24,22 @@ import 'run_part.dart';
 BugReportTape? bugReportTape(RewindBuffer rewind, {String? part}) {
   final point = rewind.rewindBy(rewind.available);
   if (point == null) return null;
-  return (
+  return BugReportTape(
     start: part == null ? point.snapshot : runStateIn(point.snapshot, part),
     tape: InputTape(seed: point.seed, frames: point.frames),
   );
 }
 
 /// The state a bug report's tape starts from, and everything since.
-typedef BugReportTape = ({Snapshot start, InputTape tape});
+///
+/// A class rather than a record, so a report can later carry more of the
+/// run (its version, its probes) without breaking a reader.
+final class BugReportTape {
+  const BugReportTape({required this.start, required this.tape});
+
+  /// The state the tape starts from.
+  final Snapshot start;
+
+  /// Every input since [start].
+  final InputTape tape;
+}

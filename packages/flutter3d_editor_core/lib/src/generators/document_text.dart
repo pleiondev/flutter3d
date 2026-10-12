@@ -41,7 +41,7 @@ abstract final class DocumentText {
   /// structure longer than 60 — without the second condition a brush with a
   /// long route in it collapses onto one unreadable line that happens to be
   /// under the limit. A list of numbers and strings is always one line.
-  static String compact(Object? value, [int depth = 0]) {
+  static String compact(Object? value, {int depth = 0}) {
     final pad = '  ' * depth;
     switch (value) {
       case final Map<Object?, Object?> map:
@@ -61,7 +61,7 @@ abstract final class DocumentText {
         if (list.every((Object? v) => v is num || v is String || v is bool)) {
           return '$pad${inline(list)}';
         }
-        return '$pad[\n${list.map((Object? v) => compact(v, depth + 1)).join(',\n')}\n$pad]';
+        return '$pad[\n${list.map((Object? v) => compact(v, depth: depth + 1)).join(',\n')}\n$pad]';
       default:
         return '$pad${inline(value)}';
     }
@@ -71,7 +71,7 @@ abstract final class DocumentText {
   /// deeper, starting on the key's line; anything else on one line.
   static String _member(Object? value, int depth) =>
       value is Map || value is List
-      ? compact(value, depth + 1).trimLeft()
+      ? compact(value, depth: depth + 1).trimLeft()
       : inline(value);
 
   /// A number as the documents spell it. See the class comment.

@@ -19,7 +19,7 @@ import '../theme/game_ui_theme.dart';
 ///
 /// What it does not draw: monsters, items, the exit. A map that shows the
 /// monsters is a different game, and the decision belongs to the game.
-class AutomapView extends StatelessWidget {
+final class AutomapView extends StatelessWidget {
   const AutomapView({
     super.key,
     required this.automap,
@@ -78,7 +78,7 @@ class AutomapView extends StatelessWidget {
 }
 
 /// The painting, public so a test can ask it what it would draw.
-class AutomapPainter extends CustomPainter {
+final class AutomapPainter extends CustomPainter {
   const AutomapPainter({
     required this.automap,
     required this.position,

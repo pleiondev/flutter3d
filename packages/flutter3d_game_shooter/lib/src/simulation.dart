@@ -543,7 +543,7 @@ final class GameSimulation {
       hurtPlayer(actors.damageToFocusThisStep);
       // Counted where the news is, which is the step it happened on: `died` is
       // cleared at the top of the next one.
-      if (actors.died.isNotEmpty) tally.add(kills, actors.died.length);
+      if (actors.died.isNotEmpty) tally.add(kills, howMany: actors.died.length);
     }
     _run(ShooterPhases.afterActors, dt);
 
@@ -784,8 +784,8 @@ final class GameSimulation {
     if (seen is Map) automap?.restore(seen.cast<String, Object?>());
     final blown = from['breaches'];
     if (blown is Map) breaches?.restore(blown.cast<String, Object?>());
-    _monsterCount = from.integer('monsterCount', _monsterCount);
-    _secretCount = from.integer('secretCount', _secretCount);
+    _monsterCount = from.integer('monsterCount', orElse: _monsterCount);
+    _secretCount = from.integer('secretCount', orElse: _secretCount);
     _counted = from.flag('counted', orElse: _counted);
 
     // Whatever the step that took the snapshot reported is not news any more.

@@ -21,7 +21,7 @@ CpuDevice _device() => CpuDevice(
 );
 
 /// A sphere instead of a model file, which a test has no bundle to read.
-class _Sphere extends Model3dComponent {
+final class _Sphere extends Model3dComponent {
   _Sphere({super.device}) : super(size: Vector2.all(32), pixelRatio: 1.0);
 
   @override

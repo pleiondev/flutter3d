@@ -51,7 +51,7 @@ enum GridHeading {
 /// fixed steps when the game has `HasFixedStep`, and in frames otherwise;
 /// Flame's effects and hitboxes on what it moves go on working, and
 /// [onArrive] is told each middle of a cell reached, for a dot to be eaten.
-class GridMover extends Component with FixedStepUpdate {
+base class GridMover extends Component with FixedStepUpdate {
   GridMover({
     required this.grid,
     required this.speed,

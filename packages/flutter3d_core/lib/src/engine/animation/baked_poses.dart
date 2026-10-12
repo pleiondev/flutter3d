@@ -149,7 +149,7 @@ final class BakedPoses {
 
     var at = 0;
     for (var clip = 0; clip < player.clips.length; clip++) {
-      player.play(clip);
+      player.play(index: clip);
       final double duration = player.duration;
       durations.add(duration);
       for (var frame = 0; frame < framesPerClip; frame++) {
@@ -170,7 +170,7 @@ final class BakedPoses {
 
     if (wasPlaying >= 0) {
       player
-        ..play(wasPlaying)
+        ..play(index: wasPlaying)
         ..seek(wasAt);
     }
     if (!wasRunning) player.pause();

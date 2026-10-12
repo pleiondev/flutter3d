@@ -25,10 +25,6 @@ import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show EngineLog, LogLevel;
-import 'package:flutter3d_hardware/flutter3d_hardware.dart'
-    show DeviceLoss, DeviceRegistry;
 import 'package:flutter3d_particles/flutter3d_particles.dart'
     show ParticleSystem;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'

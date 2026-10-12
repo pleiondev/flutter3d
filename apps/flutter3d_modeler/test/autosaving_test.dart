@@ -10,7 +10,6 @@ import 'dart:typed_data';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
-import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/autosaving.dart';
@@ -32,11 +31,10 @@ final class FakeBinaryStorage extends BinaryStorage {
   Future<Uint8List?> read(String name) async => documents[name];
 
   @override
-  Future<bool> write(String name, Uint8List contents) async {
+  Future<void> write(String name, Uint8List contents) async {
     writeCount++;
-    if (refuse) return false;
+    if (refuse) throw StorageException(name, 'could not write $name');
     documents[name] = contents;
-    return true;
   }
 
   @override
@@ -195,12 +193,11 @@ void main() {
 
       // The real key, not a flat name: `autosave/<hash>`, whose parent is a
       // directory nothing had created. Mutation: create the storage's own
-      // root rather than the file's own parent, and this answers `false`.
+      // root rather than the file's own parent, and this throws.
       final String key = recoveryPathFor(null, sessionId: 'a-session');
       expect(key, contains('/'));
-      final wrote = await storage.write(key, Uint8List.fromList(<int>[1, 2]));
+      await storage.write(key, Uint8List.fromList(<int>[1, 2]));
 
-      expect(wrote, isTrue);
       expect(File('${root.path}/$key').existsSync(), isTrue);
       expect(await storage.read(key), Uint8List.fromList(<int>[1, 2]));
     });
@@ -219,10 +216,11 @@ void main() {
         onIssue: issues.add,
       );
 
-      final wrote = await storage.write('probe', Uint8List.fromList(<int>[1]));
-
-      expect(wrote, isFalse);
-      // Mutation: swallow the exception into a bare `false`. The controller
+      await expectLater(
+        storage.write('probe', Uint8List.fromList(<int>[1])),
+        throwsA(isA<StorageException>()),
+      );
+      // Mutation: throw without telling the sink. The controller
       // then has nothing but "could not write" to put on the status line —
       // the sentence the live run found unactionable.
       expect(issues.issues, hasLength(1));

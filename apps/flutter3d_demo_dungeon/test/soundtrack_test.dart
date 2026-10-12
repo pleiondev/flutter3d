@@ -27,7 +27,6 @@ import 'package:flutter3d_demo_dungeon/src/soundtrack.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
 import 'package:flutter3d_game_kit/soundtrack.dart' show Sustained, Voice;
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
-import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 

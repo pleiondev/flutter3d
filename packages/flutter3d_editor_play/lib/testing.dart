@@ -84,10 +84,10 @@ final class FakeGame {
   /// [data] — `flutter3d_game`'s `postToolEvent` posts `flutter3d.<kind>` —
   /// at [time], milliseconds since the epoch as the VM stamps it.
   void posts(
-    String kind, [
+    String kind, {
     Map<String, Object?> data = const <String, Object?>{},
     int time = 0,
-  ]) => _event('Extension', <String, Object?>{
+  }) => _event('Extension', <String, Object?>{
     'kind': 'Extension',
     'extensionKind': kind,
     'extensionData': data,

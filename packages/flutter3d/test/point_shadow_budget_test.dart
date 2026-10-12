@@ -79,7 +79,7 @@ Future<Uint8List> _frame(_Engine it, int allowance) async {
     views: <RenderView>[RenderView(camera: it.camera)],
     settings: RenderSettings(
       bloom: const BloomSettings(enabled: false),
-      frameWorkBudget: allowance,
+      frameWorkBudget: Duration(microseconds: allowance),
     ),
   );
   final pixels = await it.device.readback(result.frame);

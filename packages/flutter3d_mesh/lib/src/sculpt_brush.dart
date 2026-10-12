@@ -100,7 +100,7 @@ double shapeFalloff(BrushFalloff falloff, double t) {
 /// A sculpting brush: what it does ([kind]), how far it reaches ([radius]),
 /// how hard it pushes ([strength]) and how its influence tapers to the edge
 /// ([falloff]).
-class MeshBrush {
+final class MeshBrush {
   const MeshBrush({
     required this.kind,
     required this.radius,

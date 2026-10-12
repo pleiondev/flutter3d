@@ -9,7 +9,6 @@ library;
 
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 /// What this game lets a driver ask for.
 ///

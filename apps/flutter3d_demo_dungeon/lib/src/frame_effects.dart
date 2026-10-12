@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_kit/reactions.dart';
 import 'package:flutter3d_game_kit/soundtrack.dart';
-import 'package:flutter3d_particles/flutter3d_particles.dart';
 
 import 'effects.dart';
 

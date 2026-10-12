@@ -281,8 +281,8 @@ void main() {
     world.applyImpulse(b, Vector3(1.0, 0.0, 0.0));
     expect(world.isAsleep(b), isFalse);
     expect(world.readEvents(), <NativeEvent>[
-      (body: b, other: null, kind: NativeEventKind.slept),
-      (body: b, other: null, kind: NativeEventKind.woke),
+      NativeEvent(body: b, other: null, kind: NativeEventKind.slept),
+      NativeEvent(body: b, other: null, kind: NativeEventKind.woke),
     ]);
     expect(world.readEvents(), isEmpty);
     expect(world.eventsDropped, 0);

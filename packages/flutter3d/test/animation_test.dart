@@ -513,7 +513,7 @@ void main() {
 
     test('an out-of-range clip index is refused', () {
       final (:player, :node) = build();
-      expect(() => player.play(5), throwsRangeError);
+      expect(() => player.play(index: 5), throwsRangeError);
     });
   });
 }

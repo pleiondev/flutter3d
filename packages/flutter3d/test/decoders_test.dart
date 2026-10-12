@@ -9,8 +9,6 @@
 library;
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show PluginApiVersion, PluginManifest, PluginScope, Registration;
 import 'package:flutter_test/flutter_test.dart';
 
 final class _Named extends MaterialDecoder {
@@ -60,7 +58,7 @@ void main() {
     // passes its own `.fmat` reader would have a plugin's answer first.
     expect(
       decoders
-          .withMaterialDecoders(const <MaterialDecoder>[_Named('own')])
+          .withMaterialDecoders(decoders: const <MaterialDecoder>[_Named('own')])
           .map((d) => d.toString()),
       <String>['own', 'early', 'late'],
     );

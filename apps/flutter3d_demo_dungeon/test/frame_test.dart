@@ -32,7 +32,6 @@ import 'package:flutter3d_demo_content/shooter_sample.dart';
 import 'package:flutter3d_demo_dungeon/src/run_cubit.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
 import 'package:flutter3d_game/flutter3d_game.dart'; // RunSession, SettingsOverlay
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const String _crypt = 'assets/levels/crypt.json';

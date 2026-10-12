@@ -100,7 +100,7 @@ bool _covers(BridgeProjector projector, Aabb3 box, Vector2 screen) {
 /// field, whose middle was nearer the camera. The distance is to where the
 /// ray through the tap enters the box, and to its middle only for a box the
 /// ray misses although its screen rectangle is hit.
-class Taps3dComponent extends PositionComponent
+base class Taps3dComponent extends PositionComponent
     with TapCallbacks, HasGameReference<HasFlutter3d> {
   Taps3dComponent({super.priority});
 

@@ -125,8 +125,13 @@ final class QualitySetting {
             )
           : null,
       // Nought is "no limit", which there is nothing to take a share of.
-      frameWorkBudget: full.frameWorkBudget > 0 && tier > 0
-          ? math.max(1, (full.frameWorkBudget * kept).round())
+      frameWorkBudget: full.frameWorkBudget > Duration.zero && tier > 0
+          ? Duration(
+              microseconds: math.max(
+                1,
+                (full.frameWorkBudget.inMicroseconds * kept).round(),
+              ),
+            )
           : null,
     );
   }

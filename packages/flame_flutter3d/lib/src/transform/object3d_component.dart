@@ -87,7 +87,7 @@ enum SyncDirection {
 /// `OpacityEffect` drives, fades every mesh under [node], and [tint]
 /// colours them, through each mesh's own `MeshNode.tint`: a hit flash or a
 /// wreck fading out, over a material a hundred craft share.
-class Object3dComponent extends PositionComponent
+base class Object3dComponent extends PositionComponent
     with HasVisibility
     implements OpacityProvider, Bridged3d {
   Object3dComponent({

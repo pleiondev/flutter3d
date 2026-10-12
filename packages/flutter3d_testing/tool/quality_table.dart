@@ -166,7 +166,7 @@ Future<void> main() async {
   // more often than not. Nothing may cost more than full or less than zero.
   final rounded = <QualityMeasurement>[
     for (final r in rows)
-      (
+      QualityMeasurement(
         setting: r.setting,
         cost: (math.min(r.cost, 1.0) * 100).round() / 100,
         flip: r.flip,

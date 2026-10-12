@@ -3378,7 +3378,12 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
             'url': final String url,
           }
               when author.isNotEmpty =>
-            (title: title, author: author, license: license, url: url),
+            ModelCredit(
+              title: title,
+              author: author,
+              license: license,
+              url: url,
+            ),
           _ => null,
         },
       ),

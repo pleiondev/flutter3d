@@ -72,7 +72,7 @@ final class WaterRuns {
       level: waterLevel,
       levelHash: waterLevelHash,
       start: start,
-      seed: start.data.integer('random', 7),
+      seed: start.data.integer('random', orElse: 7),
       simulation: waterSimulation,
       bodies: run.poses,
     )..attach(loop);

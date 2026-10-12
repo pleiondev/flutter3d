@@ -8,11 +8,8 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d_app/flutter3d_app.dart';
-import 'package:flutter3d_audio_core/flutter3d_audio_core.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_ui/flutter3d_game_ui.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 final class _Storage extends Storage {

@@ -138,7 +138,7 @@ final class _MaterialReader extends ExpressionParser {
           final int width => ExpressionType.numeric[width]!,
           null => this.fail(
             '"${name.text}" is not in this test\'s inputs.',
-            name,
+            where: name,
           ),
         };
     return ExpressionVariable(name.text, type);

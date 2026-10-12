@@ -158,7 +158,7 @@ void main() {
           _texture(),
           passes: <FramePass>[_pass('scene', 2000)],
           skipped: const <SkippedPass>[
-            (name: 'bloom', reason: PassSkip.settings),
+            SkippedPass(name: 'bloom', reason: PassSkip.settings),
           ],
         ),
       ),

@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: every widget and painter is a `final class`.** A widget is
+  composed, not extended, and a new option on one is then an addition: a
+  plain class could be implemented, so it could never gain a field.
 - **Breaking: a photo control and a settings section take one context.**
   `PhotoControls.steer` takes a `PhotoSteerContext` (new) with the camera,
   the frame's seconds, the input and the look, which `PhotoMode` reuses

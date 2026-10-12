@@ -117,8 +117,8 @@ void main() {
       }
     }
     expect(seen, <NativeEvent>[
-      (body: wall, other: ball, kind: NativeEventKind.contactBegan),
-      (body: wall, other: ball, kind: NativeEventKind.contactEnded),
+      NativeEvent(body: wall, other: ball, kind: NativeEventKind.contactBegan),
+      NativeEvent(body: wall, other: ball, kind: NativeEventKind.contactEnded),
     ]);
     // It never got into the wall past the slop, and came back at the speed
     // it arrived with.

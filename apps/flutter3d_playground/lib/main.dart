@@ -16,7 +16,6 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart' show Level;
 
 import 'src/reading.dart';
 import 'src/samples.dart';

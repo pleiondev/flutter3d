@@ -5119,8 +5119,8 @@ final class Renderer with RenderServices {
     _outputWidth = outputWidth;
     _outputHeight = outputHeight;
     // `N3`: the allowance for work that can wait, from nothing each frame.
-    if (_workBudget.microseconds != settings.frameWorkBudget) {
-      _workBudget = FrameWorkBudget(microseconds: settings.frameWorkBudget);
+    if (_workBudget.allowance != settings.frameWorkBudget) {
+      _workBudget = FrameWorkBudget(allowance: settings.frameWorkBudget);
     }
     _workBudget.beginFrame();
     // `R9`: the extended output where it was asked for and the device can

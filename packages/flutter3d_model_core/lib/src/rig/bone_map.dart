@@ -43,7 +43,7 @@ String mirrorBoneName(String name) {
 /// A source bone name → target bone name mapping, used by [retargetClip] to
 /// find, for each animated source bone, which bone (if any) on the target
 /// skeleton it drives.
-class BoneMap {
+final class BoneMap {
   const BoneMap(Map<String, String> map) : _map = map;
 
   final Map<String, String> _map;

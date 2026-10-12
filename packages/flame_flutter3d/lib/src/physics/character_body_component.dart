@@ -27,7 +27,7 @@ import '../transform/object3d_component.dart';
 /// the start of each step, before the game moves it. Keeping it in its own
 /// `fixedUpdate`, which runs after the game's, kept the place the game had
 /// already moved it to, and the body was drawn with no smoothing at all.
-class CharacterBodyComponent extends Object3dComponent
+base class CharacterBodyComponent extends Object3dComponent
     with CollisionCallbacks, FixedStepUpdate
     implements StepFollower {
   CharacterBodyComponent({

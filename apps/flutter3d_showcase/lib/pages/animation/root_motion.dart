@@ -126,7 +126,7 @@ final class RootMotionDemo extends ShowcaseDemo {
     _player = AnimationPlayer(
       clips: <AnimationClip>[walk],
       targets: <AnimationTarget?>[walker],
-    )..play(0);
+    )..play(index: 0);
     // #endregion controller
     scene.add(_controller);
 

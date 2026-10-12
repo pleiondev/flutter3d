@@ -37,7 +37,7 @@ Bindings addShooterKeysTo(Bindings bindings) => bindings
 /// mouse's motion bound to looking so the settings screen has its
 /// sensitivity and its inverted look on the binding they belong to.
 ActionMap shooterActionMap() {
-  final map = DesktopInput.defaultActionMap(ShooterActions.set);
+  final map = DesktopInput.defaultActionMap(set: ShooterActions.set);
   addShooterKeysTo(map.buttons);
   return map;
 }

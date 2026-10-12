@@ -75,7 +75,7 @@ void main() {
       5,
       reason: 'asking for a stage is what compiles it',
     );
-    expect(await device.debugDrainErrors('opening'), isNull);
+    expect(await device.debugDrainErrors(where: 'opening'), isNull);
     device.dispose();
   });
 
@@ -108,7 +108,7 @@ void main() {
     device.uploadGeometry(quadIndices(), GeometryUsage.indices);
     expect(device.debugTrackedResourceCount, before + 4);
 
-    expect(await device.debugDrainErrors('allocating'), isNull);
+    expect(await device.debugDrainErrors(where: 'allocating'), isNull);
     device.dispose();
   });
 
@@ -131,13 +131,13 @@ void main() {
       ..uploadGeometry(quadVertices(), GeometryUsage.vertices);
     // Drained first, so a leftover complaint from setup is not blamed on
     // dispose.
-    await device.debugDrainErrors('setup');
+    await device.debugDrainErrors(where: 'setup');
 
     device.dispose();
 
     expect(device.debugTrackedResourceCount, 0);
     expect(
-      await device.debugDrainErrors('dispose'),
+      await device.debugDrainErrors(where: 'dispose'),
       isNull,
       reason:
           'destroying a texture or a buffer twice, or one this device never '
@@ -173,12 +173,12 @@ void main() {
       final before = device.debugTrackedResourceCount;
       final texture = device.createTexture(_target);
       expect(device.debugTrackedResourceCount, before + 1);
-      await device.debugDrainErrors('setup');
+      await device.debugDrainErrors(where: 'setup');
 
       device.releaseTexture(texture);
 
       expect(device.debugTrackedResourceCount, before);
-      expect(await device.debugDrainErrors('releaseTexture'), isNull);
+      expect(await device.debugDrainErrors(where: 'releaseTexture'), isNull);
       device.dispose();
     });
 
@@ -196,12 +196,12 @@ void main() {
         final before = device.debugTrackedResourceCount;
         final texture = device.createTexture(_target);
         device.releaseTexture(texture);
-        await device.debugDrainErrors('first release');
+        await device.debugDrainErrors(where: 'first release');
 
         device.releaseTexture(texture);
 
         expect(device.debugTrackedResourceCount, before);
-        expect(await device.debugDrainErrors('second release'), isNull);
+        expect(await device.debugDrainErrors(where: 'second release'), isNull);
         device.dispose();
       },
     );
@@ -218,12 +218,12 @@ void main() {
         GeometryUsage.indices,
       );
       expect(device.debugTrackedResourceCount, before + 1);
-      await device.debugDrainErrors('setup');
+      await device.debugDrainErrors(where: 'setup');
 
       device.releaseGeometry(geometry);
 
       expect(device.debugTrackedResourceCount, before);
-      expect(await device.debugDrainErrors('releaseGeometry'), isNull);
+      expect(await device.debugDrainErrors(where: 'releaseGeometry'), isNull);
       device.dispose();
     });
   });
@@ -257,7 +257,7 @@ void main() {
         }
         expect(device.uniformArena.peakBytes, afterOneFrame);
         expect(device.uniformArena.bufferCount, 1);
-        expect(await device.debugDrainErrors('arena'), isNull);
+        expect(await device.debugDrainErrors(where: 'arena'), isNull);
         device.dispose();
       },
     );
@@ -277,7 +277,7 @@ void main() {
         expect(device.uniformArena.bufferCount, 1);
         device.uniformArena.write(ByteData(1 << 18));
         expect(device.uniformArena.bufferCount, 2);
-        expect(await device.debugDrainErrors('growth'), isNull);
+        expect(await device.debugDrainErrors(where: 'growth'), isNull);
 
         device.dispose();
         expect(device.debugTrackedResourceCount, 0);

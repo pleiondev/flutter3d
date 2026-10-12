@@ -51,7 +51,6 @@ import 'package:flutter3d_game/flutter3d_game.dart'
 import 'package:flutter3d_game_physics/elements.dart' show DaylightOnWater;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show physicsFallbackReason, preparePhysics, usePhysics;
-import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart'
     show EngineLoop, InputState, ReplayException;
 
