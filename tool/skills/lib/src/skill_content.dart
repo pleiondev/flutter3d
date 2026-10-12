@@ -272,11 +272,13 @@ defaults are a starting point, not a universal answer:
   Too low and a correction fires on almost every step from ordinary
   latency; the number has to fit the connection it runs on.
 - `maxRollbackFrames` — how many past steps keep a snapshot a correction can
-  restore. `droppedCorrections` (a public counter on the session) increments
-  every time a confirmation arrives for a step that has already aged out of
-  this window — a non-zero count on a connection the other two numbers were
+  restore. `droppedCorrections` (a public counter on the session, and in
+  `session.stats`) counts a confirmation that arrives after its step aged
+  out of this window and contradicts the guess the step settled on, once
+  per step — a non-zero count on a connection the other two numbers were
   actually sized for is the signal the window is too small, not a
-  transport bug.
+  transport bug. `stats` also times every step run again (p50, p99, max),
+  which is what a rollback costs a frame.
 - `redundancy` — how many past steps each outgoing message repeats, trading
   bandwidth against tolerance for a dropped packet.
 
