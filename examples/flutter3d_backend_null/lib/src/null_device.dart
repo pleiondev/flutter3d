@@ -41,6 +41,12 @@ final class NullDevice extends GraphicsDevice {
   @override
   String get backendName => name;
 
+  /// [name], said outright rather than left to the default: the id a
+  /// compiler and a manifest match is fixed for good, and must not follow a
+  /// later rewording of the name people read.
+  @override
+  String get backendId => name;
+
   /// Little beyond the base contract: texture-to-texture copies, and 32-bit
   /// float targets, which it holds as it holds every other. A capability is
   /// reported when the device does it, and refused by name when asked of it

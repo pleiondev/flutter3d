@@ -667,19 +667,21 @@ abstract base class GraphicsDevice with TextureAllocator {
   /// The results of [count] queries of [querySet] from [first], once every
   /// pass submitted before this call has finished: sample counts for
   /// occlusion, nanoseconds for timestamps. A query no pass wrote reads zero.
+  /// By default refused by the feature of the set's own type.
   Future<List<int>> readQueryResults(
     QuerySet querySet, {
     int first = 0,
     int? count,
-  }) => Future<List<int>>.error(refuse(DeviceFeature.occlusionQuery));
+  }) => Future<List<int>>.error(refuse(querySet.type.feature));
 
   /// Releases one query set, as [releaseStorageBuffer] releases a buffer.
   void releaseQuerySet(QuerySet querySet) {}
 
   /// Opens a pass of copies between buffers and textures. Never refused —
-  /// each copy is gated by its own feature. See [TransferEncoder].
-  TransferEncoder beginTransferPass({String? label}) =>
-      throw refuse(DeviceFeature.bufferCopy);
+  /// each copy is gated by its own feature. See [TransferEncoder]. By
+  /// default a pass whose every copy refuses by its feature, and whose
+  /// `submit` has nothing to send.
+  TransferEncoder beginTransferPass({String? label}) => _RefusingTransfer();
 
   /// Maps [sizeInBytes] bytes (to the end by default) of [buffer] from
   /// [offsetInBytes] into host memory, once every pass submitted before this
@@ -728,6 +730,11 @@ abstract base class GraphicsDevice with TextureAllocator {
   /// four. A `MaterialCompiler` for this backend answers the same string as
   /// its `backend`. [backendName] in lower case by default, so a backend
   /// that names itself "Vulkan" is `vulkan` unless it says otherwise.
+  ///
+  /// **Override it with a constant.** The default follows [backendName], so
+  /// a backend that renames itself for people would silently change the id
+  /// every compiler and manifest matches; the engine's backends, `wgpu`, the
+  /// null example and the backend template all say theirs outright.
   String get backendId => backendName.toLowerCase();
 
   /// The refusal for [feature] on this device, for a default body or a
@@ -990,4 +997,11 @@ final class DeviceLossReason {
 
   @override
   String toString() => 'DeviceLossReason.$name';
+}
+
+/// [GraphicsDevice.beginTransferPass]'s default: every copy keeps the
+/// refusal [TransferEncoder] gives it, so there is never anything to submit.
+final class _RefusingTransfer extends TransferEncoder {
+  @override
+  void submit() {}
 }
