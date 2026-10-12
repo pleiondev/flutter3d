@@ -66,7 +66,7 @@ flutter run -d macos --dart-define=level=../flutter3d_demo_dungeon/assets/levels
 
 The panel comes from one plugin, called from one function.
 `package:file_selector` is the first plugin here that was not written here.
-`pad_input` and `pointer_lock` are packages in this repository, and their
+`pad_input` and `flutter3d_pointer_lock` are packages in this repository, and their
 platform code can be read and fixed in the same checkout. The plugin provides
 the one thing Dart alone cannot, the panel this platform's own applications put
 up, and it is called from `askForLevel` in `src/editor_chooser.dart` and nowhere

@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter3d_pointer_lock/flutter3d_pointer_lock.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:pointer_lock/pointer_lock.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'bindings.dart';

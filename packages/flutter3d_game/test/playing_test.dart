@@ -12,8 +12,8 @@ library;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_pointer_lock/flutter3d_pointer_lock.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pointer_lock/pointer_lock.dart';
 
 /// A capture backend whose answer the test sets.
 ///
@@ -57,7 +57,7 @@ void main() {
   group('a desktop', () {
     test('with a capture backend takes the pointer', () {
       // Broken by keeping the old platform whitelist: it named Windows and
-      // Linux, where `pointer_lock` has no native side, so those builds
+      // Linux, where `flutter3d_pointer_lock` has no native side, so those builds
       // captured nothing *and* turned off drag-look — a camera that does not
       // move however the player holds the mouse.
       on(TargetPlatform.macOS, captureAvailable: true);

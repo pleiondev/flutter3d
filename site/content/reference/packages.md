@@ -4,7 +4,7 @@ description: Every package in the workspace, what it owns, what it depends on, a
 
 # Package index
 
-Thirty-eight packages and twelve applications, resolved as one [pub workspace](https://dart.dev/tools/pub/workspaces), so a single `flutter pub get` covers everything against one lock file. Every package is on pub.dev. Thirty-six of them carry 0.8.0, and any `^0.8.0` on one of them resolves against every other. `pad_input` and `pointer_lock` keep a line of their own at 0.4.2, since neither names a sibling. Four names pub.dev still lists at 0.6.0 are no longer packages here: `flutter3d_backend`, `flutter3d_screens`, `flutter3d_session` and `flutter3d_bridge` were folded into `flutter3d_app` and `flutter3d_game`, and pub.dev marks each of them discontinued in favour of the package that took it in.
+Thirty-eight packages and twelve applications, resolved as one [pub workspace](https://dart.dev/tools/pub/workspaces), so a single `flutter pub get` covers everything against one lock file. Every package is on pub.dev. Thirty-six of them carry 0.8.0, and any `^0.8.0` on one of them resolves against every other. `pad_input` and `flutter3d_pointer_lock` keep a 0.4 line of their own, since neither names a sibling. Four names pub.dev still lists at 0.6.0 are no longer packages here: `flutter3d_backend`, `flutter3d_screens`, `flutter3d_session` and `flutter3d_bridge` were folded into `flutter3d_app` and `flutter3d_game`, and pub.dev marks each of them discontinued in favour of the package that took it in. A fifth, `pointer_lock`, is the name `flutter3d_pointer_lock` was published under until 0.4.2+2.
 
 ## Engine
 
@@ -178,7 +178,7 @@ Positional audio: attenuation curves, panning, occlusion through a callback, voi
 
 → [Particles & audio](/core/extras/)
 
-### `pointer_lock`
+### `flutter3d_pointer_lock`
 Relative mouse deltas, which Flutter offers on no desktop platform and does not surface in a browser either. On macOS it turns off the association between the physical mouse and the on-screen cursor, so `mouseMoved` events keep arriving with their deltas while the cursor stays put. In a browser it is `document.requestPointerLock` through static interop: pure Dart, chosen by conditional export, so nothing is registered and `flutter test --platform chrome` can exercise it. Windows and Linux are not implemented, and now say so: a game reads `isSupported` and turns the camera by dragging instead, which it could not do while the answer was a platform list in the game.
 
 Three things a browser does that a desktop does not, all handled: a capture must come out of a user gesture, a refusal arrives as an event rather than as an exception, and the player can leave the lock with Escape at any moment.
@@ -357,7 +357,7 @@ flowchart TB
   onebackend --> gfx
   onebackend --> shaders["flutter3d_shaders"]
   extras["flutter3d_particles<br>flutter3d_audio"] -.-> engine
-  game --> devices["pointer_lock<br>pad_input<br><i>devices only</i>"]
+  game --> devices["flutter3d_pointer_lock<br>pad_input<br><i>devices only</i>"]
 
   classDef forbidden stroke-dasharray: 4 3
   sim -.-x engine

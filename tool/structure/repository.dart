@@ -312,7 +312,7 @@ const Map<String, String> notARepeatableStep = <String, String>{
   'flutter3d_audio': 'display: a mix is recomputed once a frame',
   'flutter3d_audio_core': 'display: a mix is recomputed once a frame',
   'pad_input': 'a device, read once a frame',
-  'pointer_lock': 'a platform channel',
+  'flutter3d_pointer_lock': 'a platform channel',
   'flutter3d_build':
       'a build-time tool, not a step: `dart run flutter3d_build:convert` reads a '
       'wall clock to report how long a decode or an encode took a human '
@@ -1135,7 +1135,7 @@ const Map<String, String> boundaryEnumPackageExempt = <String, String>{
   'pad_input':
       'mirrors what a gamepad platform reports. The buttons and axes are the '
       "device's, not this package's",
-  'pointer_lock':
+  'flutter3d_pointer_lock':
       "mirrors the platform's pointer lock, which has exactly these states",
 };
 

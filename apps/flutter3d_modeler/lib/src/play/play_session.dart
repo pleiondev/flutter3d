@@ -22,7 +22,7 @@
 /// ## Why not `flutter3d_game`
 ///
 /// The candidate named `flutter3d_game` and `flutter3d_bridge`, and the
-/// spike does not depend on either. `flutter3d_game` brings `pointer_lock`,
+/// spike does not depend on either. `flutter3d_game` brings `flutter3d_pointer_lock`,
 /// `pad_input`, `flutter3d_audio` and `flutter3d_particles` with it — four
 /// packages, two of them native plugins — into an application that has to
 /// keep building for the web and inside a macOS sandbox. What Play actually

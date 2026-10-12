@@ -22,7 +22,7 @@ description: Four independent golden sets, mutation-checking every new test, det
 | `apps/flutter3d_demo_platformer` | 199 | | `flutter3d_impeller` | 64 |
 | `flutter3d_cpu` | 328 | | `apps/flutter3d_demo_strategy` | 50 |
 | `apps/flutter3d_editor` | 215 | | `apps/flutter3d_demo_arcade` | 20 |
-| `apps/flutter3d_demo_racing` | 162 | | `pointer_lock` | 28 |
+| `apps/flutter3d_demo_racing` | 162 | | `flutter3d_pointer_lock` | 28 |
 | `flutter3d_physics` | 187 | | `flutter3d_webgpu` | 193 |
 | `flutter3d_game_strategy` | 133 | | `flutter3d_editor_mcp` | 28 |
 | `apps/flutter3d_demo_river` | 53 | | `flutter3d_testing` | 27 |

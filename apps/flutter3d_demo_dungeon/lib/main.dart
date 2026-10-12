@@ -56,7 +56,7 @@ const String _buildStamp = String.fromEnvironment(
 /// renderer in `flutter3d`, the clock and the input in `flutter3d_game`, the
 /// level documents and their validator in `flutter3d_sim`, the shooter's rules
 /// in `flutter3d_game_shooter`, the settings and the save in
-/// `flutter3d_game`, the pointer capture in `pointer_lock` — and what is
+/// `flutter3d_game`, the pointer capture in `flutter3d_pointer_lock` — and what is
 /// left here is the part that is specific to this game.
 ///
 /// **This doc used to say "a handful of boxes, because the level format does

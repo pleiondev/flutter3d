@@ -125,7 +125,7 @@ It was extracted when the second game wanted rebinding, which mattered for acces
 
 ## Input
 
-A game rarely calls `pad_input` or `pointer_lock` directly. `flutter3d_game`'s `DesktopInput` and pad-action layer already wrap both, and that is what `_devices.isCaptured` and `_devices.captureMouse()` in an app's `main.dart` reach. The two packages underneath matter because they're where a fifth platform gets implemented:
+A game rarely calls `pad_input` or `flutter3d_pointer_lock` directly. `flutter3d_game`'s `DesktopInput` and pad-action layer already wrap both, and that is what `_devices.isCaptured` and `_devices.captureMouse()` in an app's `main.dart` reach. The two packages underneath matter because they're where a fifth platform gets implemented:
 
 ```dart
 final pad = Gamepad.instance;

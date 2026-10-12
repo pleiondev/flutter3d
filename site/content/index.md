@@ -28,7 +28,7 @@ flutter3d is a renderer, a game layer, and six games built on them: a shooter, a
 | | |
 |---|---|
 | Platforms | macOS and the browser are supported and exercised; Android is played on a real handset (Impeller Vulkan, touch controls); iOS runs clean in the simulator on Metal; Windows and Linux are unverified |
-| Published | Yes: all 38 packages are on [pub.dev](https://pub.dev/publishers/pleion.dev/packages). Thirty-six carry 0.8.0, so any `^0.8.0` resolves against every other; `pad_input` and `pointer_lock` keep their own line at 0.4.2 |
+| Published | Yes: all 38 packages are on [pub.dev](https://pub.dev/publishers/pleion.dev/packages). Thirty-six carry 0.8.0, so any `^0.8.0` resolves against every other; `pad_input` and `flutter3d_pointer_lock` keep their own 0.4 line |
 | Stability | Pre-1.0. The graphics HAL carries a written compatibility promise; nothing else does |
 
 ## Where to start
@@ -143,7 +143,7 @@ flowchart TB
   simp --> physics
 ```
 
-Three more packages are left out of the diagram on purpose, because none of them changes what an app may know. `pad_input` and `pointer_lock` are gamepad and mouse capture, read once per frame by `flutter3d_game`, and `flutter3d_conformance` is test-only: it is what a backend has to pass before it can appear in the table below. `flutter3d_app` makes one decision of its own, which device to open (web or native at compile time, and which of the two on each side at run time), so the conditional import an app needs is written once and not per project. [Assembling an application](/core/session/) walks through all of it with the real code that uses them. The rules the diagram states live outside any package, in `tool/structure.dart`: thirty-five checks that read source text and run before a build.
+Three more packages are left out of the diagram on purpose, because none of them changes what an app may know. `pad_input` and `flutter3d_pointer_lock` are gamepad and mouse capture, read once per frame by `flutter3d_game`, and `flutter3d_conformance` is test-only: it is what a backend has to pass before it can appear in the table below. `flutter3d_app` makes one decision of its own, which device to open (web or native at compile time, and which of the two on each side at run time), so the conditional import an app needs is written once and not per project. [Assembling an application](/core/session/) walks through all of it with the real code that uses them. The rules the diagram states live outside any package, in `tool/structure.dart`: thirty-five checks that read source text and run before a build.
 
 Three of those rules hold the picture up:
 
@@ -188,7 +188,7 @@ Each backend exists for a different reason. Impeller is the production one. WebG
 | Animation | All three glTF interpolations, skinning with 64 joint matrices, an `AnimationPlayer` with crossfades, transport and once/loop/ping-pong |
 | Scene | Version-stamped nodes, a BVH shared by culling and picking, LOD groups by screen coverage, orbit and follow cameras, CPU raycasting |
 | Simulation | A fixed step with interpolation, device-agnostic input with latched edges, a level format with a validator, holes blown in its walls, mechanisms, actors and brains, a navigation grid with flow fields and an automap drawn from it, an ECS, snapshots, demos that replay a run exactly, a rewind buffer for a kill camera |
-| Input | Gamepad through `pad_input` on macOS, iOS, Web and Android, read as a per-frame snapshot; mouse capture for FPS-style cameras through `pointer_lock`, on macOS through a method channel and in a browser through the Pointer Lock API, which is pure Dart and needs no registration; on-screen touch controls in `flutter3d_game` |
+| Input | Gamepad through `pad_input` on macOS, iOS, Web and Android, read as a per-frame snapshot; mouse capture for FPS-style cameras through `flutter3d_pointer_lock`, on macOS through a method channel and in a browser through the Pointer Lock API, which is pure Dart and needs no registration; on-screen touch controls in `flutter3d_game` |
 | Physics | Overlap, sweeps and rays over a uniform-grid broadphase, a character controller that walks, jumps, climbs a step and rides a lift, and rigid bodies without rotation |
 | Driving | A track as a spline with width, camber and surface bands, a sphere-and-frame vehicle, a tire curve with a friction circle, lap counting through checkpoints, AI drivers and ghost tapes |
 | Extras | A pooled particle system that draws in one call, positional audio with attenuation, panning, voice limiting, and occlusion through the level's walls that muffles a sound as well as quietening it |
@@ -198,5 +198,5 @@ Each backend exists for a different reason. Impeller is the production one. WebG
 - **No runtime shader compilation.** Shaders are compiled ahead of time into a bundle, so a material graph assembled while the game runs is not possible. Every lighting model is a separate pre-built shader and every shader is a separate pipeline.
 - **No compute passes.** `flutter_gpu` still lacks them, which is why the bloom chain is half-size targets and not a workgroup. Compressed textures and rendering into a mip level have both arrived since this line was written: `GraphicsDevice.supportsTextureFormat` answers per format, and a device that says no leaves the texture out with a warning. `supportsRenderToMip` is true on Metal and Vulkan and false elsewhere, the one capability that splits a single backend by platform.
 - **No navmesh, and no flanking or squads.** Navigation gets an agent to where it is going; it does not work its way around you.
-- **No gamepad or mouse capture on Windows or Linux.** `pad_input` covers macOS, iOS, Web and Android; `pointer_lock` covers macOS and the web. `InputState` is device-agnostic, so the remaining platforms are new implementations of an existing seam, not a design change.
+- **No gamepad or mouse capture on Windows or Linux.** `pad_input` covers macOS, iOS, Web and Android; `flutter3d_pointer_lock` covers macOS and the web. `InputState` is device-agnostic, so the remaining platforms are new implementations of an existing seam, not a design change.
 - **Basis Universal textures unpack to RGBA8.** ETC1S and UASTC are both read, with or without Zstandard, but as pixels: neither is repacked into the BC, ETC2 or ASTC blocks a device samples, so a Basis texture costs four bytes a texel once loaded. A KTX2 file's own BC, ETC2 and ASTC blocks do upload as they are where the device samples them. Draco-compressed geometry is decoded.

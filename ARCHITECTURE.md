@@ -62,7 +62,7 @@ work in the sentence this replaces:
 | Linux | untried | **no** | **no** | no runner directory exists |
 
 **"Desktop" in this repository means macOS.** Neither `pad_input` nor
-`pointer_lock` has a Windows or Linux native side — both answer `isSupported`
+`flutter3d_pointer_lock` has a Windows or Linux native side — both answer `isSupported`
 false there, honestly and by design, so nothing crashes — and no application
 has a `windows/` or `linux/` directory to build in the first place. A
 first-person game on either would be played by dragging the mouse, with no
@@ -247,7 +247,7 @@ point of §3.3.
 | `flutter3d_model_core` | The modeller's own document: `ModelProject`, commands, undo, `ExportReadiness`, its own project file ([§8.7](#87-the-project-file-and-three-undo-models)), and the rig algorithms it runs — bone-name mapping, rest-relative retargeting with a two-bone-IK foot lock, automatic skin weights — which read a rig as nodes and tracks and know nothing of a project — and the pictures of a project: `sceneFromProject`, `renderProject` for an agent's still, `RenderSnapshotJob` for a tiled, supersampled snapshot, each on a device the caller supplies. Plain Dart, for the identical Flutter-SDK-boundary reason `flutter3d_core` is |
 | `flutter3d_model_mcp` | The modeller's own commands offered to an agent over MCP, the same shape `flutter3d_editor_mcp` already gives the level editor |
 | `pad_input` | Gamepad devices on web, Android, macOS and iOS |
-| `pointer_lock` | Relative mouse movement: a method channel on macOS, the Pointer Lock API in a browser, which Flutter surfaces on neither |
+| `flutter3d_pointer_lock` | Relative mouse movement: a method channel on macOS, the Pointer Lock API in a browser, which Flutter surfaces on neither |
 
 Applications: `apps/flutter3d_demo_dungeon` (shooter),
 `apps/flutter3d_demo_platformer`, `apps/flutter3d_demo_racing`,
@@ -2548,7 +2548,7 @@ on both; the only difference is that Apple counts a stick axis positive upwards
 while Android, the browser and this package count it downwards, and the sign is
 flipped in Dart, once, under a test.
 
-`pointer_lock` supplies relative mouse movement, which Flutter surfaces on no
+`flutter3d_pointer_lock` supplies relative mouse movement, which Flutter surfaces on no
 desktop platform and does not surface in a browser either. Two backends: a method
 channel on macOS, and the browser's own Pointer Lock API through static interop,
 chosen by conditional export the way `pad_input` chooses its gamepad. Three rules
@@ -3606,7 +3606,7 @@ internet" — came out of the packages that day; the workspace root, the
 applications and the example apps keep theirs, being repository-only by design.
 
 **0.8.0 is the shelf the tree carries now, and it fixes the hardware contract
-for the whole 0.8 line.** Every package but `pad_input` and `pointer_lock` is
+for the whole 0.8 line.** Every package but `pad_input` and `flutter3d_pointer_lock` is
 0.8.0 and asks for `^0.8.0` of its siblings, because
 `PassEncoder.bindTexture` returns `bool` and every implementation of the
 interface changed with it. `GraphicsDevice`, `PassEncoder` and
@@ -3672,7 +3672,7 @@ that being in the publishing order and being published are different things. It
 is one of the thirteen now.
 
 **Three packages keep lines of their own, and it is not an oversight.**
-`pad_input` and `pointer_lock` are plugins this repository vendors: neither
+`pad_input` and `flutter3d_pointer_lock` are plugins this repository vendors: neither
 names a sibling in its pubspec, nothing in either was built against an engine
 release, and both sat out the whole 0.5 series. They take 0.4.1, a documentation
 patch for a README footer that pub.dev renders as a link to nothing, and every
@@ -3705,7 +3705,7 @@ what went out at 0.4.2.
 
 1. `flutter3d_hardware`, `flutter3d_shaders`, `flutter3d_samples`,
    `flutter3d_audio_core`, `flutter3d_physics`, `flutter3d_mcp_kit`,
-   `flutter3d_lti`, `pad_input`, `pointer_lock`, `flame_multiplayer`
+   `flutter3d_lti`, `pad_input`, `flutter3d_pointer_lock`, `flame_multiplayer`
 2. `flutter3d_conformance`, `flutter3d_core`, `flutter3d_audio`,
    `flame_multiplayer_dashwire`
 3. `flutter3d_mesh`, `flutter3d_build`, `flutter3d_particles`,

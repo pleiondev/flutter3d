@@ -70,7 +70,7 @@ Everything above that line is the ordinary frame: a `Scene`, a `CameraNode`, a `
 
 Three entries used to be here and are not any more. The page claimed them for months, so they are named below.
 
-**Pointer capture works.** `pointer_lock` grew a browser backend over `document.requestPointerLock`, so the camera is the mouse. A page embedding the game needs `allow="pointer-lock"` on the iframe; this one has it.
+**Pointer capture works.** `flutter3d_pointer_lock` grew a browser backend over `document.requestPointerLock`, so the camera is the mouse. A page embedding the game needs `allow="pointer-lock"` on the iframe; this one has it.
 
 **Sound plays.** `flutter_soloud` ships a WebAssembly build and starts here.
 
