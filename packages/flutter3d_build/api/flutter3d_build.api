@@ -89,6 +89,16 @@ final class MissingToolException extends ResourceException
 
 typedef ProcessProbe = String? Function(String executable, List<String> arguments);
 
+final class ProjectKind
+  String toString()
+  final String about
+  final String name
+  static ProjectKind named(String name)
+  static const List<ProjectKind> values = <ProjectKind>[scene, viewer, arcade]
+  static const ProjectKind arcade = ProjectKind._('arcade', 'a Flame game drawn over a 3D layer through flame_flutter3d: a catcher, ' 'falling orbs and a score')
+  static const ProjectKind scene = ProjectKind._('scene', 'one lit sphere in a Scene3D, the smallest application')
+  static const ProjectKind viewer = ProjectKind._('viewer', 'a model from assets_src/ that a drag turns and a pinch or a scroll ' 'brings closer, through Flutter3dView')
+
 final class ToolFailedException extends ResourceException
   String toString()
   const ToolFailedException(this.message)
@@ -118,7 +128,7 @@ List<Map<String, Object?>> convertReportsFrom(Object? json)
 
 const String convertUsage = …
 
-({bool did, String says}) createProject(String target, String name)
+({bool did, String says}) createProject(String target, String name, {ProjectKind kind = ProjectKind.scene})
 
 const String createUsage = …
 
@@ -158,7 +168,7 @@ List<DoctorCheck> projectPlatformChecks(Directory project)
 
 List<DoctorCheck> projectShaderChecks(Directory project, {String? dart, String? engineRevision})
 
-Map<String, String> projectTemplate(String name)
+Map<String, String> projectTemplate(String name, {ProjectKind kind = ProjectKind.scene})
 
 Future<int> runConvertCommand(List<String> arguments, {IOSink? out, IOSink? err})
 

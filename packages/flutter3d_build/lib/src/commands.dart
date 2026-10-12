@@ -26,7 +26,7 @@ import 'migrate/command.dart' show runMigrateCommand;
 import 'plugin_author_server.dart' show PluginWorkshop;
 import 'plugin_discovery.dart';
 import 'plugin_template.dart' show PluginKind;
-import 'project_template.dart' show createProject;
+import 'project_template.dart' show ProjectKind, createProject;
 import 'shader_build.dart';
 
 /// Runs `flutter3d <command> [arguments]` and returns its exit code
@@ -158,22 +158,37 @@ int _createPlugin(List<String> arguments) {
 int _createProject(List<String> arguments) {
   final positional = <String>[];
   String? name;
+  String? kindName;
   for (var i = 0; i < arguments.length; i++) {
-    if (arguments[i] == '--name' && i + 1 < arguments.length) {
+    final argument = arguments[i];
+    if (argument == '--name' && i + 1 < arguments.length) {
       name = arguments[++i];
-    } else if (!arguments[i].startsWith('-')) {
-      positional.add(arguments[i]);
+    } else if (argument == '--kind' && i + 1 < arguments.length) {
+      kindName = arguments[++i];
+    } else if (argument.startsWith('--name=')) {
+      name = argument.substring('--name='.length);
+    } else if (argument.startsWith('--kind=')) {
+      kindName = argument.substring('--kind='.length);
+    } else if (!argument.startsWith('-')) {
+      positional.add(argument);
     }
   }
   if (positional.length != 1) {
-    stderr.writeln('Usage: flutter3d create project <dir> [--name <package>]');
+    stderr.writeln(createUsage);
+    return CliExit.usage;
+  }
+  final ProjectKind kind;
+  try {
+    kind = ProjectKind.named(kindName ?? ProjectKind.scene.name);
+  } on ArgumentError catch (error) {
+    stderr.writeln('${error.message}\n\n$createUsage');
     return CliExit.usage;
   }
   final target = positional.single;
   final package =
       name ??
       Uri.directory(target).pathSegments.where((String s) => s.isNotEmpty).last;
-  final answer = createProject(target, package);
+  final answer = createProject(target, package, kind: kind);
   if (!answer.did) {
     stderr.writeln(answer.says);
     return CliExit.refused;

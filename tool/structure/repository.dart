@@ -69,6 +69,7 @@ const List<String> applications = <String>[
   'flutter3d_stereo_lesson_viewer',
   'flutter3d_lab_incident',
   'flutter3d_lab_pendulum',
+  'flutter3d_playground',
 ];
 
 /// Packages that must run with no Flutter SDK anywhere near them, and what
@@ -2345,6 +2346,12 @@ const Map<String, String> slowTestsAllowed = <String, String>{
       'a benchmark, tagged and skipped outside tool/benchmarks.sh: sixty '
       '512x512 frames rasterised and read back, twice, to time a redraw '
       'against a skip',
+  'packages/flutter3d_build/test/create_project_kinds_test.dart':
+      'tagged slow: every kind `create project` makes, scaffolded, resolved, '
+      'analysed and its own widget test run by `flutter test` in a process '
+      'of its own, which runs the build hooks first (the C physics core and '
+      'the shader bundle): 2 to 4.5 min a kind the first time on an M3 Pro '
+      'on 2026-10-12, 10 to 75 s once the hooks are built',
 };
 
 /// The widget test that checks `test/flutter_test_config.dart` still does what

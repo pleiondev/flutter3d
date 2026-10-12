@@ -1,5 +1,23 @@
 ## 1.0.0-rc.1
 
+- **`create project --kind viewer` and `--kind arcade`.** `ProjectKind`
+  (`scene`, the default, `viewer`, `arcade`; a class with constants, so a
+  kind added later breaks no `switch`) is what `createProject(kind:)` and
+  `projectTemplate(kind:)` take. A viewer is a model on `Flutter3dView`
+  that a drag turns and a pinch or a scroll brings closer, with a GLB made
+  from the engine's own shapes in `assets_src/model.glb` to start from; an
+  arcade is a Flame game that owns its 3D world through `HasFlutter3d`. Each
+  comes with a `test/widget_test.dart` that opens it on the software device,
+  and `create_project_kinds_test` scaffolds every kind, analyses it with no
+  issue and runs that test.
+
+- **A new project analyses clean before its first build.** The hook `init`
+  writes says why its two imports are dev dependencies, which
+  `depend_on_referenced_packages` otherwise reports in `hook/`; a hook
+  written by an earlier `init` still counts as `init`'s own. `init` also
+  makes the `flutter3d_generated/` directories it names under `assets:`,
+  which `flutter analyze` warned were missing until a build made them.
+
 - **`doctor` checks the keys that turn Flutter GPU on.** In a project that
   reaches `flutter3d_impeller`, `projectPlatformChecks` reads
   `FLTEnableFlutterGPU` and `FLTEnableImpeller` in each `Info.plist` and
