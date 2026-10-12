@@ -809,8 +809,8 @@ void main() {
       );
 
       final sampler = asset.materials.single.baseColorTexture!.sampling;
-      expect(sampler.wrapS, TextureWrap.clampToEdge);
-      expect(sampler.wrapT, TextureWrap.mirroredRepeat);
+      expect(sampler.wrapS, SamplerAddressMode.clampToEdge);
+      expect(sampler.wrapT, SamplerAddressMode.mirror);
       expect(sampler.magLinear, isFalse);
     });
   });

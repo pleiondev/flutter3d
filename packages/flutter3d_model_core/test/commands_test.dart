@@ -2718,7 +2718,7 @@ void main() {
           materialIndex: 0,
           slot: 'albedo',
           imageIndex: 0,
-          sampling: const TextureSampling(wrapS: TextureWrap.clampToEdge),
+          sampling: const TextureSampling(wrapS: SamplerAddressMode.clampToEdge),
         ),
         AddImage(bytes: Uint8List.fromList(<int>[1, 2, 3]), imageName: 'atlas'),
         const AssignMaterial(id: 1, to: 0),

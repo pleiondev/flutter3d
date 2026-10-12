@@ -427,8 +427,8 @@ final class ModelAsset {
     // coarsest mesh instead.
     const atlasSampling = TextureSampling(
       useMipmaps: false,
-      wrapS: TextureWrap.clampToEdge,
-      wrapT: TextureWrap.clampToEdge,
+      wrapS: SamplerAddressMode.clampToEdge,
+      wrapT: SamplerAddressMode.clampToEdge,
     );
     final impostors = <ModelImpostor, ImpostorPart>{};
     for (final node in document.nodes) {

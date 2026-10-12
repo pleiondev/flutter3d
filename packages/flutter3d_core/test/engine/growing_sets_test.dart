@@ -119,12 +119,6 @@ void main() {
       (v) => (v as TemporalClip).name,
       TemporalClip.byName,
     ),
-    'TextureWrap': (
-      TextureWrap.values,
-      <String>['repeat', 'clampToEdge', 'mirroredRepeat'],
-      (v) => (v as TextureWrap).name,
-      TextureWrap.byName,
-    ),
   };
 
   for (final MapEntry(key: type, value: (values, names, nameOf, byName))

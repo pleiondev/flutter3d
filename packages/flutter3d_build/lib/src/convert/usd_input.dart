@@ -1085,9 +1085,9 @@ final class _UsdReader {
     return GraphInput('a $shaderId node', fallback: fallback);
   }
 
-  static TextureWrap _wrap(String? word) => switch (word) {
-    'clamp' => TextureWrap.clampToEdge,
-    'mirror' => TextureWrap.mirroredRepeat,
-    _ => TextureWrap.repeat,
+  static SamplerAddressMode _wrap(String? word) => switch (word) {
+    'clamp' => SamplerAddressMode.clampToEdge,
+    'mirror' => SamplerAddressMode.mirror,
+    _ => SamplerAddressMode.repeat,
   };
 }

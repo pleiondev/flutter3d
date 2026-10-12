@@ -68,7 +68,7 @@ ModelProject fixtureProject() {
                     imageIndex: 0,
                     sampling: TextureSampling(
                       useMipmaps: false,
-                      wrapS: TextureWrap.clampToEdge,
+                      wrapS: SamplerAddressMode.clampToEdge,
                     ),
                   ),
                   alphaMode: SurfaceAlphaMode.mask,

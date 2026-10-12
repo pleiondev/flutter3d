@@ -534,7 +534,6 @@ export 'package:flutter3d/flutter3d.dart'
         TextureTransform,
         TextureType,
         TextureUsage,
-        TextureWrap,
         TiledProjection,
         TonemapCurve,
         TorusShape,

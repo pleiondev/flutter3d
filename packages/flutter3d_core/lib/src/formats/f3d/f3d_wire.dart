@@ -34,18 +34,18 @@ SurfaceAlphaMode? alphaModeOf(int code) => switch (code) {
 };
 
 /// A sampler's `wrapS`/`wrapT`, two bits each in `F3dSamplingFlags`.
-int textureWrapCode(TextureWrap wrap) => switch (wrap) {
-  TextureWrap.repeat => 0,
-  TextureWrap.clampToEdge => 1,
-  TextureWrap.mirroredRepeat => 2,
+int textureWrapCode(SamplerAddressMode wrap) => switch (wrap) {
+  SamplerAddressMode.repeat => 0,
+  SamplerAddressMode.clampToEdge => 1,
+  SamplerAddressMode.mirror => 2,
   _ => throw UnsupportedError('.f3d has no code for $wrap'),
 };
 
-/// The [TextureWrap] for [code], or null for a code this build lacks.
-TextureWrap? textureWrapOf(int code) => switch (code) {
-  0 => TextureWrap.repeat,
-  1 => TextureWrap.clampToEdge,
-  2 => TextureWrap.mirroredRepeat,
+/// The [SamplerAddressMode] for [code], or null for a code this build lacks.
+SamplerAddressMode? textureWrapOf(int code) => switch (code) {
+  0 => SamplerAddressMode.repeat,
+  1 => SamplerAddressMode.clampToEdge,
+  2 => SamplerAddressMode.mirror,
   _ => null,
 };
 

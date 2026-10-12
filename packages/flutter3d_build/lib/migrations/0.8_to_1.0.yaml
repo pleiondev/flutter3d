@@ -24410,3 +24410,52 @@ entries:
       What was under `pointer_lock`'s `lib/src/` is under
       `flutter3d_pointer_lock`'s, file for file. Importing it was never the
       public API; the main library above is.
+
+  - id: fixh-conformance-ConformanceCheck-class
+    package: flutter3d_conformance
+    symbol: ConformanceCheck
+    kind: recordToClass
+    fields:
+      name: name
+      run: run
+    guidance: >-
+      `ConformanceCheck` is a final class with the same `name` and `run`, so
+      a check can carry more in a minor. A record literal
+      `(name: 'x', run: check)` becomes `ConformanceCheck(name: 'x', run:
+      check)`; two checks with one name and one run are still equal, so
+      filtering one list by another works as before.
+
+  - id: fixh-conformance-OwnShaderSection-class
+    package: flutter3d_conformance
+    symbol: OwnShaderSection
+    kind: recordToClass
+    fields:
+      id: id
+      bytes: bytes
+      sdk: sdk
+    guidance: >-
+      `OwnShaderSection` is a final class with the same `id`, `bytes` and
+      `sdk`. The `ownShaders` callback returns
+      `OwnShaderSection(id: …, bytes: …, sdk: …)` where it returned the
+      record.
+
+  - id: fixh-core-TextureWrap-SamplerAddressMode
+    package: flutter3d_core
+    symbol: TextureWrap
+    kind: rename
+    to: SamplerAddressMode
+    guidance: >-
+      One type says how a texture wraps: `TextureWrap` is
+      `SamplerAddressMode`, the type a `SamplerDescriptor` already took, so
+      `TextureSampling.wrapS` and `wrapT` hand a sampler their value as it
+      is. `repeat` and `clampToEdge` keep their names; `mirroredRepeat` is
+      `mirror`. Files keep their own words for it.
+
+  - id: fixh-core-TextureWrap-mirroredRepeat
+    package: flutter3d_core
+    symbol: TextureWrap.mirroredRepeat
+    kind: rename
+    to: mirror
+    guidance: >-
+      `TextureWrap.mirroredRepeat` is `SamplerAddressMode.mirror`, the same
+      wrap.

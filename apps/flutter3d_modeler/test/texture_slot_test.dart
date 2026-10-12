@@ -153,8 +153,8 @@ void main() {
     test('clamp and mirrored wrap read as their own words', () {
       final display = textureSamplingDisplay(
         const TextureSampling(
-          wrapS: TextureWrap.clampToEdge,
-          wrapT: TextureWrap.mirroredRepeat,
+          wrapS: SamplerAddressMode.clampToEdge,
+          wrapT: SamplerAddressMode.mirror,
         ),
       );
 

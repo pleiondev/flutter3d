@@ -185,10 +185,10 @@ extension _GltfWriterMaterials on GltfWriter {
   }
 }
 
-const Map<TextureWrap, int> _kGltfWrap = <TextureWrap, int>{
-  TextureWrap.repeat: 10497,
-  TextureWrap.clampToEdge: 33071,
-  TextureWrap.mirroredRepeat: 33648,
+const Map<SamplerAddressMode, int> _kGltfWrap = <SamplerAddressMode, int>{
+  SamplerAddressMode.repeat: 10497,
+  SamplerAddressMode.clampToEdge: 33071,
+  SamplerAddressMode.mirror: 33648,
 };
 
 /// Structural-equality key for [TextureSampling], which has none of its own —

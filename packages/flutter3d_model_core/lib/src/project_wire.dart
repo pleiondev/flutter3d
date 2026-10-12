@@ -19,7 +19,7 @@
 library;
 
 import 'package:flutter3d_core/formats.dart'
-    show AnimationInterpolation, AnimationPath, SurfaceAlphaMode, TextureWrap;
+    show AnimationInterpolation, AnimationPath, SurfaceAlphaMode, SamplerAddressMode;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart'
     show CsgOperation, ElementLevel;
 
@@ -101,18 +101,18 @@ SurfaceAlphaMode? alphaModeOf(Object? word) => switch (word) {
 };
 
 /// A sampler's `wrapS` and `wrapT`.
-String textureWrapWord(TextureWrap wrap) => switch (wrap) {
-  TextureWrap.repeat => 'repeat',
-  TextureWrap.clampToEdge => 'clampToEdge',
-  TextureWrap.mirroredRepeat => 'mirroredRepeat',
+String textureWrapWord(SamplerAddressMode wrap) => switch (wrap) {
+  SamplerAddressMode.repeat => 'repeat',
+  SamplerAddressMode.clampToEdge => 'clampToEdge',
+  SamplerAddressMode.mirror => 'mirroredRepeat',
   _ => wrap.name,
 };
 
-/// The [TextureWrap] [word] names, or null.
-TextureWrap? textureWrapOf(Object? word) => switch (word) {
-  'repeat' => TextureWrap.repeat,
-  'clampToEdge' => TextureWrap.clampToEdge,
-  'mirroredRepeat' => TextureWrap.mirroredRepeat,
+/// The [SamplerAddressMode] [word] names, or null.
+SamplerAddressMode? textureWrapOf(Object? word) => switch (word) {
+  'repeat' => SamplerAddressMode.repeat,
+  'clampToEdge' => SamplerAddressMode.clampToEdge,
+  'mirroredRepeat' => SamplerAddressMode.mirror,
   _ => null,
 };
 

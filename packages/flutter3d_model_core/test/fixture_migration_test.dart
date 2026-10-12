@@ -134,7 +134,7 @@ void main() {
       final binding = material.surface.baseColorTexture!;
       expect(binding.imageIndex, 0);
       expect(binding.sampling.useMipmaps, isFalse);
-      expect(binding.sampling.wrapS, TextureWrap.clampToEdge);
+      expect(binding.sampling.wrapS, SamplerAddressMode.clampToEdge);
 
       expect(project.images.single.bytes, <int>[1, 2, 3, 4, 5]);
       expect(project.images.single.name, 'atlas');

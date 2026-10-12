@@ -169,10 +169,10 @@ TextureSampling _decodeSampler(Map<String, Object?> sampler) {
   final magFilter = _asInt(sampler['magFilter']);
   final minFilter = _asInt(sampler['minFilter']);
 
-  TextureWrap wrap(Object? code) => switch (_asInt(code)) {
-    33071 => TextureWrap.clampToEdge,
-    33648 => TextureWrap.mirroredRepeat,
-    _ => TextureWrap.repeat,
+  SamplerAddressMode wrap(Object? code) => switch (_asInt(code)) {
+    33071 => SamplerAddressMode.clampToEdge,
+    33648 => SamplerAddressMode.mirror,
+    _ => SamplerAddressMode.repeat,
   };
 
   return TextureSampling(

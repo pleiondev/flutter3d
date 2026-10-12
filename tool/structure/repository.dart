@@ -1916,7 +1916,6 @@ const Map<String, String> openedSets = <String, String>{
   'TextureSampleKind': 'flutter3d_hardware: a class with constants',
   'TextureType': 'flutter3d_hardware: a class with constants',
   'TextureValueType': 'flutter3d_model_core: a class with constants',
-  'TextureWrap': 'flutter3d_core: a class with constants',
   'TransformPivot': 'flutter3d_model_core: a class with constants',
   'TransformSpace': 'flutter3d_model_core: a class with constants',
   'UpAxis': 'flutter3d_model_core: a class with constants',

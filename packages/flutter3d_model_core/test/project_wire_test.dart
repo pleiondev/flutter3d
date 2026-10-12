@@ -50,9 +50,11 @@ void main() {
       'mask',
       'blend',
     ]);
-    holds(TextureWrap.values, textureWrapWord, textureWrapOf, <String>[
-      'repeat',
+    // In the order of `SamplerAddressMode.values`; the words are the ones
+    // the project file wrote when the wrap had a type of its own.
+    holds(SamplerAddressMode.values, textureWrapWord, textureWrapOf, <String>[
       'clampToEdge',
+      'repeat',
       'mirroredRepeat',
     ]);
     holds(SelectionMode.values, selectionModeWord, selectionModeOf, <String>[

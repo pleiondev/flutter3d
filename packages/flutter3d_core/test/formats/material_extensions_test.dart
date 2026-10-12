@@ -285,7 +285,7 @@ void main() {
       clearcoat: 1.0,
       clearcoatTexture: TextureBinding(
         imageIndex: 0,
-        sampling: const TextureSampling(wrapS: TextureWrap.clampToEdge),
+        sampling: const TextureSampling(wrapS: SamplerAddressMode.clampToEdge),
       ),
       clearcoatRoughness: 0.125,
       clearcoatRoughnessTexture: const TextureBinding(imageIndex: 0),
@@ -315,7 +315,7 @@ void main() {
     _expectCarPaint(reread.materials.first.extensions);
     expect(
       reread.materials.first.extensions!.clearcoatTexture!.sampling.wrapS,
-      TextureWrap.clampToEdge,
+      SamplerAddressMode.clampToEdge,
     );
     expect(reread.materials.last.extensions, isNull);
   });

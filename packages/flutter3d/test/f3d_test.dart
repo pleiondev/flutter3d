@@ -243,8 +243,8 @@ void main() {
             magLinear: false,
             minLinear: true,
             useMipmaps: false,
-            wrapS: TextureWrap.clampToEdge,
-            wrapT: TextureWrap.mirroredRepeat,
+            wrapS: SamplerAddressMode.clampToEdge,
+            wrapT: SamplerAddressMode.mirror,
           ),
         ),
         normalTexture: const TextureBinding(imageIndex: 2),
@@ -300,8 +300,8 @@ void main() {
       expect(orm.sampling.magLinear, isFalse);
       expect(orm.sampling.minLinear, isTrue);
       expect(orm.sampling.useMipmaps, isFalse);
-      expect(orm.sampling.wrapS, TextureWrap.clampToEdge);
-      expect(orm.sampling.wrapT, TextureWrap.mirroredRepeat);
+      expect(orm.sampling.wrapS, SamplerAddressMode.clampToEdge);
+      expect(orm.sampling.wrapT, SamplerAddressMode.mirror);
     });
 
     test('an absent texture slot stays absent', () {

@@ -43,8 +43,8 @@ final class BlockSurfaces {
     AssetBundle bundle,
   ) async {
     const sampling = TextureSampling(
-      wrapS: TextureWrap.clampToEdge,
-      wrapT: TextureWrap.clampToEdge,
+      wrapS: SamplerAddressMode.clampToEdge,
+      wrapT: SamplerAddressMode.clampToEdge,
     );
     final sampler = samplerOptionsFor(sampling);
     final flat = BlockSurfaces.flat();

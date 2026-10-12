@@ -1330,8 +1330,8 @@ void main() {
           magLinear: false,
           minLinear: false,
           useMipmaps: false,
-          wrapS: TextureWrap.clampToEdge,
-          wrapT: TextureWrap.mirroredRepeat,
+          wrapS: SamplerAddressMode.clampToEdge,
+          wrapT: SamplerAddressMode.mirror,
         ),
       ),
       normalTexture: const TextureBinding(imageIndex: 0),
@@ -1409,13 +1409,13 @@ void main() {
       final binding = after.materials.first.surface.baseColorTexture!;
 
       // Mutation: write the sampler and read it back by index into
-      // `TextureWrap.values`. It round-trips today and reinterprets every file
+      // `SamplerAddressMode.values`. It round-trips today and reinterprets every file
       // already saved the moment a case is inserted into that enum.
       expect(binding.imageIndex, 1);
       expect(binding.sampling.magLinear, isFalse);
       expect(binding.sampling.useMipmaps, isFalse);
-      expect(binding.sampling.wrapS, TextureWrap.clampToEdge);
-      expect(binding.sampling.wrapT, TextureWrap.mirroredRepeat);
+      expect(binding.sampling.wrapS, SamplerAddressMode.clampToEdge);
+      expect(binding.sampling.wrapT, SamplerAddressMode.mirror);
       // A slot the material does not fill stays unfilled, rather than becoming
       // image zero of a table it never named.
       expect(after.materials.first.surface.occlusionTexture, isNull);

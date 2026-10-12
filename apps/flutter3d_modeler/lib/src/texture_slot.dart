@@ -147,9 +147,9 @@ String _minFilterLabel(TextureSampling sampling) {
   return '$base, ${sampling.mipLinear ? 'mipmapped' : 'mipmapped (nearest mip)'}';
 }
 
-String _wrapLabel(TextureWrap wrap) => switch (wrap) {
-  TextureWrap.repeat => 'Repeat',
-  TextureWrap.clampToEdge => 'Clamp to edge',
-  TextureWrap.mirroredRepeat => 'Mirrored repeat',
+String _wrapLabel(SamplerAddressMode wrap) => switch (wrap) {
+  SamplerAddressMode.repeat => 'Repeat',
+  SamplerAddressMode.clampToEdge => 'Clamp to edge',
+  SamplerAddressMode.mirror => 'Mirrored repeat',
   _ => wrap.name,
 };
