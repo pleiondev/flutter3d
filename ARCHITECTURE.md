@@ -3057,9 +3057,15 @@ while Android, the browser and this package count it downwards, and the sign is
 flipped in Dart, once, under a test.
 
 `flutter3d_pointer_lock` supplies relative mouse movement, which Flutter surfaces on no
-desktop platform and does not surface in a browser either. Two backends: a method
-channel on macOS, and the browser's own Pointer Lock API through static interop,
-chosen by conditional export the way `pad_input` chooses its gamepad. Three rules
+desktop platform and does not surface in a browser either. Six platforms, two
+kinds of backend: a method channel to native code on macOS (the cursor dissociated
+from the mouse), Windows (Raw Input, the cursor clipped), Linux (an X11 seat grab
+and a warp), Android (`View.requestPointerCapture`) and iPadOS
+(`prefersPointerLocked` with `GCMouse` for the motion), and the browser's own
+Pointer Lock API through static interop, chosen by conditional export the way
+`pad_input` chooses its gamepad. A phone or a tablet answers `isSupported` only
+while a mouse is connected and says so on `onSupportChanged`, so a game keeps its
+touch controls on a phone without one. Three rules
 matter. A `reset` on construction, because a plugin outlives a hot restart and
 would otherwise strand the cursor with nothing left to ask for it back. Focus loss
 must **release** rather than pause, or a hidden cursor ends up over another
