@@ -37,9 +37,13 @@ extension type _JsMemory._(JSObject _) implements JSObject {
 /// by the interpreter, and this is for a game that trusts its modules.
 ///
 /// Its saves hold what the module exports — its memory and its exported
-/// mutable globals — because the browser keeps the rest out of reach. A
-/// module that keeps state in a global it does not export is not restored
-/// whole here.
+/// mutable globals, by name — because the browser keeps the rest out of
+/// reach; the interpreter's saves hold the same, and the rest under
+/// `internal`, which this ignores. A module that keeps state in a global
+/// it does not export is not restored whole here. Under a bit-exact
+/// profile a simulating module is refused this runtime
+/// (`installWasmSystem`): a module that runs out of fuel traps only on the
+/// interpreter a replay steps it on.
 final class _BrowserRuntime extends WasmRuntime {
   const _BrowserRuntime();
 
@@ -143,11 +147,7 @@ final class _BrowserInstance extends WasmInstance {
     return name == null ? null : _exports[name] as _JsMemory?;
   }
 
-  List<String> get _globals => <String>[
-    for (final MapEntry(key: name, value: index)
-        in _module.globalExports.entries)
-      if (_module.globals[index].mutable) name,
-  ];
+  List<String> get _globals => savedGlobalsOf(_module).keys.toList();
 
   @override
   Map<String, Object?> save() {
@@ -162,10 +162,10 @@ final class _BrowserInstance extends WasmInstance {
     return <String, Object?>{
       'pages': bytes.length ~/ 65536,
       'memory': base64Encode(Uint8List.sublistView(bytes, 0, last)),
-      'globals': <int>[
+      'globals': <String, Object?>{
         for (final name in _globals)
-          ((_exports[name]! as JSObject)['value']! as JSNumber).toDartInt,
-      ],
+          name: ((_exports[name]! as JSObject)['value']! as JSNumber).toDartInt,
+      },
     };
   }
 
@@ -190,9 +190,9 @@ final class _BrowserInstance extends WasmInstance {
         pages < 0 ||
         pages > most ||
         saved is! String ||
-        globals is! List<Object?> ||
+        globals is! Map<String, Object?> ||
         globals.length != names.length ||
-        globals.any((Object? g) => g is! int)) {
+        !names.every((name) => globals[name] is int)) {
       throw refused;
     }
     final Uint8List restored;
@@ -209,8 +209,8 @@ final class _BrowserInstance extends WasmInstance {
         ..fillRange(0, memory.buffer.toDart.lengthInBytes, 0)
         ..setRange(0, restored.length, restored);
     }
-    for (var i = 0; i < names.length; i++) {
-      (_exports[names[i]]! as JSObject)['value'] = (globals[i]! as int).toJS;
+    for (final name in names) {
+      (_exports[name]! as JSObject)['value'] = (globals[name]! as int).toJS;
     }
   }
 }

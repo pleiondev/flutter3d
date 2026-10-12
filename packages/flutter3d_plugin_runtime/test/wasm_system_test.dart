@@ -63,6 +63,39 @@ WasmPlugin _plugin({
   bytes: _breeze(),
 );
 
+/// The interpreter under another name and unmetered, as the browser's
+/// runtime is: what a VM test can stand in for it with.
+final class _Unmetered extends WasmRuntime {
+  const _Unmetered();
+
+  @override
+  String get name => 'unmetered';
+
+  @override
+  bool get isMetered => false;
+
+  @override
+  WasmInstance instantiate(WasmInstantiation request) =>
+      WasmRuntime.interpreter.instantiate(request);
+}
+
+WasmPlugin _onRuntime(WasmRuntime runtime, PluginTouches touches) =>
+    WasmPlugin(
+      manifest: PluginManifest(
+        id: 'breeze',
+        apiVersion: PluginApiVersion.current,
+        touches: touches,
+      ),
+      spec: const WasmSystemSpec(
+        module: 'breeze.wasm',
+        system: 'blow',
+        phase: 'elements',
+        fields: <WasmFieldSpec>[WasmFieldSpec('heat')],
+      ),
+      bytes: _breeze(),
+      runtime: runtime,
+    );
+
 void main() {
   late Float64List heat;
   late Float64List wind;
@@ -196,5 +229,40 @@ void main() {
     expect(Fixed16.fromDouble(double.nan), 0);
     expect(Fixed16.fromDouble(1e9), 0x7FFFFFFF);
     expect(Fixed16.fromDouble(-1e9), -0x80000000);
+  });
+
+  test('a simulating module on a runtime that counts no fuel is refused '
+      'under a bit-exact profile', () {
+    // Mutation: drop the check from `installWasmSystem`. A module that runs
+    // out of fuel traps on the interpreter a server replays it on and not
+    // in the browser that recorded the run, and the two part with no
+    // sentence saying why.
+    expect(
+      () => EngineLoop(
+        input: InputState(),
+        registries: <PluginRegistry>[fields],
+        plugins: <Flutter3dPlugin>[
+          _onRuntime(const _Unmetered(), PluginTouches.simulation),
+        ],
+      ),
+      throwsA(
+        isA<WasmException>().having(
+          (e) => e.message,
+          'message',
+          allOf(contains('unmetered'), contains('deterministic')),
+        ),
+      ),
+    );
+    // Under a profile that promises no bits, and for a module that only
+    // draws, it runs; its save names the runtime.
+    final plugin = _onRuntime(const _Unmetered(), PluginTouches.simulation);
+    EngineLoop(
+      input: InputState(),
+      profile: SimulationProfile.accurate,
+      registries: <PluginRegistry>[fields],
+      plugins: <Flutter3dPlugin>[plugin],
+    ).runSteps(1);
+    expect(plugin.system!.save()['runtime'], 'unmetered');
+    expect(plugin.system!.digestible().containsKey('runtime'), isFalse);
   });
 }

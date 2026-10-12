@@ -803,11 +803,17 @@ final class DataPlugin extends Flutter3dPlugin {
       host.maybeRegistry<SnapshotRegistry>()?.add(
         SnapshotPart.of(
           id: id,
+          // 2: a module's globals by export name, its own under `internal`,
+          // and the runtime that ran it; a build that reads 1 refuses it.
+          version: 2,
           capture: save,
           restore: (context) {
             final data = context.data;
             if (data is Map) restore(data.cast<String, Object?>());
           },
+          digest: () => _digestOf(<String, Object?>{
+            for (final system in _wasmSystems) system.name: system.digestible(),
+          }),
         ),
       );
     }
@@ -853,6 +859,19 @@ final class DataPlugin extends Flutter3dPlugin {
     ),
     _ => null,
   };
+
+  /// FNV-1a over [document] written as JSON, as an unsigned 32-bit number:
+  /// the same on the VM and in a browser, whose integers are doubles, since
+  /// every product stays under 2^53.
+  static int _digestOf(Object? document) {
+    var hash = 0x811C9DC5;
+    for (final byte in utf8.encode(jsonEncode(document))) {
+      final mixed = (hash ^ byte) & 0xFFFFFFFF;
+      // × 16777619, which is 2^24 + 403, kept to 32 bits.
+      hash = (mixed * 403 + ((mixed & 0xFF) << 24)) % 0x100000000;
+    }
+    return hash;
+  }
 
   /// The state its systems keep outside the world, by system name.
   Map<String, Object?> save() => <String, Object?>{

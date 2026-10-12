@@ -221,7 +221,9 @@ final class WasmStep
   int step
 
 final class WasmSystem
+  Map<String, Object?> digestible()
   Map<String, Object?> save()
+  String get runtime
   String? get trapped
   final String name
   void restore(Map<String, Object?> state)

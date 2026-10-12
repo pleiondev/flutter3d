@@ -118,6 +118,15 @@ final class DataSegment {
   final Uint8List bytes;
 }
 
+/// The globals a save of [module] holds by name, whichever runtime ran it:
+/// each mutable global the module exports, by its export name, to its
+/// index. What every runtime can read and write, the browser's included,
+/// so a save holds the same globals whichever wrote it.
+Map<String, int> savedGlobalsOf(WasmModule module) => <String, int>{
+  for (final MapEntry(key: name, value: index) in module.globalExports.entries)
+    if (module.globals[index].mutable) name: index,
+};
+
 /// A Wasm module that is ABI 1: decoded, validated and compiled, ready for
 /// any [WasmRuntime].
 ///

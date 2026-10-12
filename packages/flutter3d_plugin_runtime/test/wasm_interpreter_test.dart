@@ -45,8 +45,10 @@ WasmInstance _instance(
   ),
 );
 
+/// Global 0, which no test module exports: the first of the save's
+/// `internal` globals.
 int _global(WasmInstance instance) =>
-    (instance.save()['globals']! as List<Object?>).first! as int;
+    (instance.save()['internal']! as List<Object?>).first! as int;
 
 /// Global 0 after one step of [code], which sets it, at [step].
 int _after(
@@ -362,7 +364,8 @@ void main() {
     );
     final instance = _instance(m)..step(WasmStep(step: 0, dtFixed: 0));
     final good = instance.save();
-    expect(good['globals'], <int>[7, 9]);
+    expect(good['internal'], <int>[7, 9]);
+    expect(good['globals'], <String, Object?>{});
 
     Map<String, Object?> damaged(String key, Object? value) =>
         <String, Object?>{...good, key: value};
@@ -374,10 +377,14 @@ void main() {
       'memory not base64': damaged('memory', 'not*base64!'),
       'memory not text': damaged('memory', 42),
       'memory past its pages': damaged('memory', tooLong),
-      'a global not a number': damaged('globals', <Object?>[1, 'two']),
-      'a global missing': damaged('globals', <Object?>[1, null]),
-      'too few globals': damaged('globals', <Object?>[1]),
-      'globals not a list': damaged('globals', 1),
+      'a global not a number': damaged('internal', <Object?>[1, 'two']),
+      'a global missing': damaged('internal', <Object?>[1, null]),
+      'too few globals': damaged('internal', <Object?>[1]),
+      'internal not a list': damaged('internal', 1),
+      'globals not a map': damaged('globals', <Object?>[7, 9]),
+      'a global it does not export': damaged('globals', <String, Object?>{
+        'x': 1,
+      }),
     };
     for (final MapEntry(key: what, value: state) in cases.entries) {
       expect(
@@ -393,5 +400,36 @@ void main() {
       );
       expect(instance.save(), good, reason: '$what left the module changed');
     }
+  });
+
+  test('a save holds the exported globals by name, whichever runtime '
+      'wrote it, and the rest apart', () {
+    // A browser's save has the exported globals and no `internal`; the
+    // interpreter reads it, leaving its own globals as they are. Mutation:
+    // save every global as one list again — a browser's save is refused
+    // here, and a run it recorded fails its replay at the first checkpoint.
+    final m = ModuleBuilder()
+      ..global(0)
+      ..global(0)
+      ..memory(1);
+    m
+      ..exportGlobal('score', 1)
+      ..abi(
+        step: <int>[
+          ...konst(5), globalSet, 0, ...konst(11), globalSet, 1, //
+        ],
+      );
+    final instance = _instance(m)..step(WasmStep(step: 0, dtFixed: 0));
+    final saved = instance.save();
+    expect(saved['globals'], <String, Object?>{'score': 11});
+    expect(saved['internal'], <int>[5]);
+
+    final browser = <String, Object?>{
+      for (final MapEntry(:key, :value) in saved.entries)
+        if (key != 'internal') key: value,
+    }..['globals'] = <String, Object?>{'score': 3};
+    instance.restore(browser);
+    expect(instance.save()['globals'], <String, Object?>{'score': 3});
+    expect(instance.save()['internal'], <int>[5]);
   });
 }

@@ -236,8 +236,15 @@ abstract base class WasmInstance {
   void step(WasmStep step);
 
   /// The module's state — its memory and its globals — as a document a
-  /// snapshot can hold and `StateDigest` can fold: numbers, strings and
-  /// lists only.
+  /// snapshot can hold and `StateDigest` can fold: numbers, strings, lists
+  /// and maps only.
+  ///
+  /// **One shape for every runtime**, since a run one runtime recorded is
+  /// replayed on another: `pages`, `memory` (base64, to its last byte that
+  /// is not nought) and `globals`, each mutable global the module exports
+  /// by its export name. A runtime that can reach the globals the module
+  /// keeps to itself writes them as `internal`, by index, which a digest
+  /// leaves out and another runtime ignores.
   Map<String, Object?> save();
 
   /// Puts back what [save] wrote.
