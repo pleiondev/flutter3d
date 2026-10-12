@@ -45,9 +45,9 @@ const bool fixedResolution = true;
 ///
 ///     flutter build web --dart-define=FLUTTER3D_WEBGPU=false   # WebGL2 only
 ///
-/// **On by default since 0.9.0**, when WebGPU's golden set held every scene
-/// the other three hold (nothing left in `cross_backend_test.dart`'s
-/// `_provisional`) — decision 18's condition for a backend a build reaches
+/// **On by default since 1.0.0** (first in 1.0.0-rc.1), when WebGPU's golden
+/// set held every scene the other three hold (nothing left in
+/// `cross_backend_test.dart`'s `_provisional`) — decision 18's condition for a backend a build reaches
 /// without asking. Where a browser hands out no adapter, the registry's
 /// fallback opens WebGL2, as it always did for a build that asked.
 ///

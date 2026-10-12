@@ -24,9 +24,9 @@ Nothing in this section is genre knowledge. That property is what made the secon
 | Backend | Runs on |
 |---|---|
 | `flutter3d_impeller` | `flutter_gpu`, over Metal and Vulkan. The production one |
-| `flutter3d_webgl` | WebGL2 in the browser. Runs all three games at a fixed resolution and a lower frame rate, and is what an ordinary web build opens |
+| `flutter3d_webgl` | WebGL2 in the browser. Runs all three games at a fixed resolution and a lower frame rate, and is what a web build opens where the browser hands out no WebGPU adapter |
 | `flutter3d_cpu` | Nothing: it rasterises in Dart, so 96 golden scenes stay checkable with no GPU in the room |
-| `flutter3d_webgpu` | WebGPU in a browser that has an adapter. Reached by `--dart-define=FLUTTER3D_WEBGPU=true`, because a build that can try it ships it |
+| `flutter3d_webgpu` | WebGPU in a browser that has an adapter. A web build tries it first; `--dart-define=FLUTTER3D_WEBGPU=false` leaves it out of the bundle and keeps WebGL2 only |
 
 `flutter3d_conformance` is the suite each of them passed before it belonged in that table, and [Writing a HAL backend](/core/backends/) is the guide for writing the fifth.
 

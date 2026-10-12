@@ -1,10 +1,11 @@
 # flutter3d
 
 An independent implementation of a 3D engine on Flutter GPU, a game engine on
-top of it, and four games of different genres built from both. The games are
-there because building them is the only honest test that the engine is one.
-flutter3d is not a fork, a binding or a wrapper around another engine, and it is
-not affiliated with Google or the Flutter team.
+top of it, and six games built from both: four of different genres and two
+Flame games drawn in 3D. The games are there because building them is the
+only honest test that the engine is one. flutter3d is not a fork, a binding or
+a wrapper around another engine, and it is not affiliated with Google or the
+Flutter team.
 
 It is a game engine first. The same fixed step, probes and time source carry
 a virtual laboratory or a device's digital twin, and

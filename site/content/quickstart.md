@@ -64,7 +64,7 @@ The hook also compiles the engine's shaders into your project, with your SDK's o
 <p><strong>Why <code>flutter clean</code>.</strong> A project that was built once before the hook existed keeps build output that has never heard of it, and Flutter does not always notice that a hook appeared. Cleaning once, right after <code>init</code>, makes the first build run it. You do not need to clean again for a new model; the hook picks those up by itself.</p>
 </div>
 
-`dart run flutter3d_build:flutter3d doctor` (or `flutter3d doctor`, after `dart pub global activate flutter3d_build`) checks the hook, the asset lines and the shader bundle, and says what to change.
+`dart run flutter3d_build:flutter3d doctor` (or `flutter3d doctor`, after `dart pub global activate flutter3d_build`) checks the hook, the asset lines, the shader bundle and the platform keys of the next step, and says what to change.
 
 ## Turn Flutter GPU on for the app {.step}
 

@@ -12,9 +12,9 @@ flutter run -t lib/minimal_main.dart
 The view opens its device through `flutter3d_app`, so the same file runs on
 Impeller (desktop, mobile), WebGL2 (web) and the software rasteriser (anywhere
 neither of those starts, including `flutter test`; that is how
-`test/minimal_smoke_test.dart` runs it headless). Given
-`--dart-define=FLUTTER3D_WEBGPU=true`, a web build of it tries WebGPU first;
-the `flutter3d_app` README explains that option and what it costs.
+`test/minimal_smoke_test.dart` runs it headless). A web build of it tries
+WebGPU first and falls back to WebGL2; `--dart-define=FLUTTER3D_WEBGPU=false`
+keeps WebGL2 only and leaves the WebGPU backend out of the bundle.
 
 The other packages' examples start from `Flutter3dView` too: a digital twin
 fed by a real source in `flutter3d_app/example/lib/twin_main.dart`, a

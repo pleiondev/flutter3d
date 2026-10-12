@@ -67,8 +67,8 @@ it by moving it.
 | Web | **yes** | `navigator.getGamepads()`, pure Dart, no native code |
 | iOS | **yes** | the same file, through `sharedDarwinSource` |
 | Android | **yes** | Kotlin forwards raw `MotionEvent` axes and an inventory of what the device has; every decision is in Dart |
-| Windows | no | XInput, when somebody needs it |
-| Linux | no | evdev, likewise |
+| Windows | **yes**, built in CI, not yet played | XInput, four slots asked about 120 times a second, the numbers read in Dart |
+| Linux | **yes**, built in CI, not yet played | the kernel joystick devices `/dev/input/js0` to `js3`, the numbers read in Dart |
 
 A build picks its implementation through a conditional export
 (`lib/src/platform_default.dart`) instead of a plugin registration. The web
