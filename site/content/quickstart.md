@@ -173,7 +173,7 @@ Flutter3dView(
     ),
   ),
   // After the loop has stepped and before the frame is drawn.
-  onFrame: (Flutter3dEngine engine, FrameInfo frame) {},
+  onFrame: (EngineFrame frame) {},
 )
 ```
 

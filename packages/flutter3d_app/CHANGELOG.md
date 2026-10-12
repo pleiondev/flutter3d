@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **A view's callbacks take one object each.** `Flutter3dView.onFrame` and
+  `onBeforeFrame` (and `Scene3D`'s) take an `EngineFrame` (new: the engine
+  and the `FrameInfo`), `DeviceSettings.onDeviceLost` a `DeviceLostEvent`
+  (new: the engine and the `DeviceLoss`), `SimulationPlacement.inline`'s
+  `applyInput` a `SeatInput` (new: the seat and the input), and
+  `XrDriver.drawPanel` an `XrPanelRequest` (new: the widget and its size),
+  so a minor can hand any of them more without breaking a handler.
 - **With `flutter3d`, the import a view needs.** `ParticleEffect`,
   `EngineLoop`, `TimeSource`, `WorldTiming`, `InputState`, `Level` and the
   other types the view, the scene widgets and the level loader name are

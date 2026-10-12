@@ -288,9 +288,9 @@ class _LevelScreenState extends State<LevelScreen> {
     _status.value = status;
   }
 
-  void _frame(Flutter3dEngine engine, FrameInfo frame) {
+  void _frame(EngineFrame f) {
     // At eye height, looking where the mouse has been dragged.
-    _genre.simulation?.placeCamera(engine.camera);
+    _genre.simulation?.placeCamera(f.engine.camera);
   }
 
   @override

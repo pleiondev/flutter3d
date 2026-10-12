@@ -1908,10 +1908,12 @@ export package:flutter3d/flutter3d.dart show AbsolutePixels, AcousticProperties,
   writeKtx2 from flutter3d_core
   writeKtx2WithMips from flutter3d_core
 
-export package:flutter3d_app/flutter3d_app.dart show AssetBytes, DeviceSettings, DidNotStart, Flutter3dEngine, Flutter3dView, FrameInfo, FramePresenter, LevelBatching, LevelDocumentText, LevelLoader, ListenerPose, LoadedLevel, LoopSettings, PluginSettings, SharedMeshes, SimulationPlacement, Storage, ViewResolution, ViewSettings, VisibilityCuller, XrAnchor, XrAnchorRequest, XrCapability, XrFrame, XrFrameEnd, XrHaptic, XrLightEstimate, XrSession, XrSessionRequest, XrSessionState, XrSettings, XrSpace, XrSwapchain, XrSwapchainRequest
+export package:flutter3d_app/flutter3d_app.dart show AssetBytes, DeviceLostEvent, DeviceSettings, DidNotStart, EngineFrame, Flutter3dEngine, Flutter3dView, FrameInfo, FramePresenter, LevelBatching, LevelDocumentText, LevelLoader, ListenerPose, LoadedLevel, LoopSettings, PluginSettings, SeatInput, SharedMeshes, SimulationPlacement, Storage, ViewResolution, ViewSettings, VisibilityCuller, XrAnchor, XrAnchorRequest, XrCapability, XrFrame, XrFrameEnd, XrHaptic, XrLightEstimate, XrPanelRequest, XrSession, XrSessionRequest, XrSessionState, XrSettings, XrSpace, XrSwapchain, XrSwapchainRequest
   AssetBytes
+  DeviceLostEvent
   DeviceSettings
   DidNotStart
+  EngineFrame
   Flutter3dEngine
   Flutter3dView
   FrameInfo
@@ -1923,6 +1925,7 @@ export package:flutter3d_app/flutter3d_app.dart show AssetBytes, DeviceSettings,
   LoadedLevel
   LoopSettings
   PluginSettings
+  SeatInput
   SharedMeshes
   SimulationPlacement
   Storage
@@ -1936,6 +1939,7 @@ export package:flutter3d_app/flutter3d_app.dart show AssetBytes, DeviceSettings,
   XrFrameEnd
   XrHaptic
   XrLightEstimate
+  XrPanelRequest
   XrSession
   XrSessionRequest
   XrSessionState

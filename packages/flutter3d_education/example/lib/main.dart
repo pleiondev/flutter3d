@@ -101,7 +101,8 @@ class _BenchScreenState extends State<BenchScreen> {
     setState(() => _bench = bench);
   }
 
-  void _step(Flutter3dEngine engine, FrameInfo frame) {
+  void _step(EngineFrame f) {
+    final frame = f.frame;
     final bench = _bench;
     if (bench == null) return;
     // A frame late is a frame long: held to a thirtieth, so a stall does not
@@ -172,7 +173,7 @@ class _BenchScreenState extends State<BenchScreen> {
               child: Flutter3dView(
                 camera: _camera,
                 onCreated: _open,
-                onBeforeFrame: (_, _) => _orbit.syncProjectionDepth(_camera),
+                onBeforeFrame: (_) => _orbit.syncProjectionDepth(_camera),
                 onFrame: _step,
                 view: ViewSettings(
                   settings: bench?.settings ?? const RenderSettings(),

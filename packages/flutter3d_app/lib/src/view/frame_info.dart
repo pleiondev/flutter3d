@@ -2,7 +2,7 @@ import 'package:flutter3d/flutter3d.dart';
 
 import '../declarative/scene_widgets.dart' show Scene3D;
 import '../surface/scene_surface.dart' show SceneSurface;
-import 'flutter3d_view.dart' show Flutter3dView;
+import 'flutter3d_view.dart' show Flutter3dEngine, Flutter3dView;
 
 /// What a frame callback is told about one frame: [SceneSurface.onFrame],
 /// [Scene3D.onFrame], and [Flutter3dView.onBeforeFrame] and
@@ -15,8 +15,7 @@ import 'flutter3d_view.dart' show Flutter3dView;
 /// does not.
 ///
 /// ```dart
-/// Scene3D(onFrame: (Flutter3dEngine engine, FrameInfo frame) =>
-///     spin += frame.seconds)
+/// Scene3D(onFrame: (EngineFrame f) => spin += f.frame.seconds)
 /// ```
 final class FrameInfo {
   /// A frame [seconds] after the one before, with the renderer's [result]
@@ -40,6 +39,33 @@ final class FrameInfo {
   /// Its [FrameResult.frame] is the renderer's own target and is good only
   /// until the next frame: keep the counters, not the texture.
   final FrameResult? result;
+}
+
+/// What [Flutter3dView.onFrame], [Flutter3dView.onBeforeFrame] and their
+/// [Scene3D] twins are told each frame: the [engine] that drew it and the
+/// [frame].
+///
+/// **One object, so a handler can be handed more later.** The callbacks took
+/// the engine and the frame as two parameters, and a third (the view's
+/// size, the frame's number) would have broken every handler written
+/// against them; a field added here does not.
+///
+/// ```dart
+/// Flutter3dView(onFrame: (EngineFrame f) => spin += f.seconds)
+/// ```
+final class EngineFrame {
+  /// The [frame] [engine] is drawing.
+  const EngineFrame({required this.engine, required this.frame});
+
+  /// The engine of the view the frame is for: its scene, camera, loop and
+  /// renderer.
+  final Flutter3dEngine engine;
+
+  /// The frame: its seconds and the renderer's last answer.
+  final FrameInfo frame;
+
+  /// Seconds since the frame before, [FrameInfo.seconds].
+  double get seconds => frame.seconds;
 }
 
 /// Where a view's ears are after a frame: [Flutter3dView.onListenerMoved].

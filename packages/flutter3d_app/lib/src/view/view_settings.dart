@@ -63,8 +63,9 @@ final class SimulationPlacement {
   final String? debugName;
 
   /// Inline, what `Flutter3dEngine.simulation.submit` hands on: told each
-  /// input and its seat at the start of the next step. Null drops them.
-  final void Function(int seat, Object? input)? applyInput;
+  /// input and its seat ([SeatInput]) at the start of the next step. Null
+  /// drops them.
+  final void Function(SeatInput input)? applyInput;
 
   @override
   String toString() => factory == null
@@ -109,7 +110,7 @@ final class DeviceSettings {
   /// Told when the device stops working — a WebGL context lost, a WebGPU
   /// device lost — before the view waits for it or opens another. Nothing is
   /// drawn until [onDeviceRestored]; the loop goes on stepping.
-  final void Function(Flutter3dEngine engine, DeviceLoss loss)? onDeviceLost;
+  final void Function(DeviceLostEvent event)? onDeviceLost;
 
   /// Told when the engine draws again after a loss: the device came back, or
   /// the view opened a new one from [devices] (only when it opened the first
@@ -129,7 +130,7 @@ final class DeviceSettings {
     DeviceRegistry? devices,
     FramePresenter? presenter,
     bool? fallbackBanner,
-    void Function(Flutter3dEngine engine, DeviceLoss loss)? onDeviceLost,
+    void Function(DeviceLostEvent event)? onDeviceLost,
     void Function(Flutter3dEngine engine)? onDeviceRestored,
     bool clearDevice = false,
     bool clearRenderer = false,
@@ -372,4 +373,37 @@ final class PluginSettings {
     formats: formats ?? this.formats,
     registries: registries ?? this.registries,
   );
+}
+
+/// What `SimulationPlacement.inline`'s `applyInput` is told: one input a
+/// game submitted, and the [seat] it came from.
+///
+/// **One object, so a later minor can say more** (the step it was submitted
+/// at, the player behind the seat) without breaking a handler.
+final class SeatInput {
+  /// [input] from [seat].
+  const SeatInput({required this.seat, required this.input});
+
+  /// The seat that submitted it: nought for a game of one.
+  final int seat;
+
+  /// What was submitted, as `Flutter3dEngine.simulation.submit` was handed
+  /// it.
+  final Object? input;
+}
+
+/// What `DeviceSettings.onDeviceLost` is told: the [engine] whose device
+/// stopped working, and the [loss].
+///
+/// **One object, so a later minor can say more** (what the view will try
+/// next) without breaking a handler.
+final class DeviceLostEvent {
+  /// [engine]'s device was lost, as [loss] says.
+  const DeviceLostEvent({required this.engine, required this.loss});
+
+  /// The engine of the view that lost its device.
+  final Flutter3dEngine engine;
+
+  /// Why, as the backend said.
+  final DeviceLoss loss;
 }

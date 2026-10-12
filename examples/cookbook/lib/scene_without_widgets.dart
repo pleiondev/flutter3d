@@ -28,7 +28,7 @@ class SceneWithoutWidgets extends StatelessWidget {
       ),
     ),
     // After the loop has stepped and before the frame is drawn.
-    onFrame: (engine, frame) => engine.scene.meshes.first
-        .setRotationYawPitchRoll(turned += frame.seconds, 0.4, 0.0),
+    onFrame: (EngineFrame f) => f.engine.scene.meshes.first
+        .setRotationYawPitchRoll(turned += f.seconds, 0.4, 0.0),
   );
 }

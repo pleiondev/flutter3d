@@ -48,7 +48,8 @@ Future<PlacedSimulation> placeSimulation(
     final apply = placement.applyInput;
     final local = LocalSimulation(
       loop,
-      applyInput: (int seat, Object? input) => apply?.call(seat, input),
+      applyInput: (int seat, Object? input) =>
+          apply?.call(SeatInput(seat: seat, input: input)),
     );
     return PlacedSimulation._(local, null, local.dispose);
   }

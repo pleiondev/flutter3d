@@ -31,7 +31,7 @@ class _PendulumSliderState extends State<PendulumSlider> {
   @override
   Widget build(BuildContext context) => Scaffold(
     body: Scene3D(
-      onFrame: (_, frame) => swing(frame.seconds),
+      onFrame: (EngineFrame frame) => swing(frame.seconds),
       children: <Widget>[
         Camera3D(position: Vector3(0, -1, 6), target: Vector3(0, -1, 0)),
         const Light3D.sun(),

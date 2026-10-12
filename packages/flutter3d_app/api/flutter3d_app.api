@@ -45,16 +45,21 @@ final class Decal3D extends Spatial3D
   final double depthFade
   final int order
 
+final class DeviceLostEvent
+  const DeviceLostEvent({required this.engine, required this.loss})
+  final DeviceLoss loss
+  final Flutter3dEngine engine
+
 final class DeviceSettings
-  DeviceSettings copyWith({GraphicsDevice? device, Renderer? renderer, DeviceRegistry? devices, FramePresenter? presenter, bool? fallbackBanner, void Function(Flutter3dEngine engine, DeviceLoss loss)? onDeviceLost, void Function(Flutter3dEngine engine)? onDeviceRestored, bool clearDevice = false, bool clearRenderer = false, bool clearDevices = false, bool clearPresenter = false, bool clearOnDeviceLost = false, bool clearOnDeviceRestored = false})
+  DeviceSettings copyWith({GraphicsDevice? device, Renderer? renderer, DeviceRegistry? devices, FramePresenter? presenter, bool? fallbackBanner, void Function(DeviceLostEvent event)? onDeviceLost, void Function(Flutter3dEngine engine)? onDeviceRestored, bool clearDevice = false, bool clearRenderer = false, bool clearDevices = false, bool clearPresenter = false, bool clearOnDeviceLost = false, bool clearOnDeviceRestored = false})
   const DeviceSettings({this.device, this.renderer, this.devices, this.presenter, this.fallbackBanner = true, this.onDeviceLost, this.onDeviceRestored})
   final DeviceRegistry? devices
   final FramePresenter? presenter
   final GraphicsDevice? device
   final Renderer? renderer
   final bool fallbackBanner
+  final void Function(DeviceLostEvent event)? onDeviceLost
   final void Function(Flutter3dEngine engine)? onDeviceRestored
-  final void Function(Flutter3dEngine engine, DeviceLoss loss)? onDeviceLost
 
 final class DidNotStart extends StatelessWidget
   Widget build(BuildContext context)
@@ -63,6 +68,12 @@ final class DidNotStart extends StatelessWidget
   final Color foreground
   final Object error
   final String? explaining
+
+final class EngineFrame
+  const EngineFrame({required this.engine, required this.frame})
+  double get seconds
+  final Flutter3dEngine engine
+  final FrameInfo frame
 
 typedef EnvironmentBuild = Future<BuiltEnvironment?> Function(Uint8List bytes);
 
@@ -143,9 +154,9 @@ final class Flutter3dView extends StatefulWidget
   final ViewSettings view
   final XrSettings? xr
   final bool autofocus
+  final void Function(EngineFrame frame)? onBeforeFrame
+  final void Function(EngineFrame frame)? onFrame
   final void Function(Flutter3dEngine engine)? onCreated
-  final void Function(Flutter3dEngine engine, FrameInfo frame)? onBeforeFrame
-  final void Function(Flutter3dEngine engine, FrameInfo frame)? onFrame
   final void Function(ListenerPose ears)? onListenerMoved
   final void Function(Object? saved)? restoreState
   final void Function(bool paused)? onPausedChanged
@@ -540,8 +551,8 @@ final class Scene3D extends StatefulWidget
   final ViewSettings view
   final XrSettings? xr
   final bool autofocus
-  final void Function(Flutter3dEngine engine, FrameInfo frame)? onBeforeFrame
-  final void Function(Flutter3dEngine engine, FrameInfo frame)? onFrame
+  final void Function(EngineFrame frame)? onBeforeFrame
+  final void Function(EngineFrame frame)? onFrame
   final void Function(ListenerPose ears)? onListenerMoved
   final void Function(Object? saved)? restoreState
   final void Function(Scene3DController scene)? onSceneCreated
@@ -596,6 +607,11 @@ final class SceneWidgetsMount
   void dispose()
   void update(List<Widget> children)
 
+final class SeatInput
+  const SeatInput({required this.seat, required this.input})
+  final Object? input
+  final int seat
+
 @immutable final class SemanticObject
   const SemanticObject({required this.id, required this.label, required this.bounds, this.hint, this.selected = false, this.onTap})
   final Object id
@@ -620,7 +636,7 @@ final class SimulationPlacement
   final Object? arguments
   final SimulationFactory? factory
   final String? debugName
-  final void Function(int seat, Object? input)? applyInput
+  final void Function(SeatInput input)? applyInput
 
 abstract base class Spatial3D extends StatefulWidget
   const Spatial3D({super.key, this.position, this.rotation, this.scale, this.visible = true, this.children = const <Widget>[]})
@@ -814,7 +830,7 @@ final class XrDriver
   XrSwapchain? get swapchain
   final DisplayTime time
   final EnvironmentDepthNode environmentDepth
-  final Future<TextureHandle?> Function(Widget widget, int width, int height)? drawPanel
+  final Future<TextureHandle?> Function(XrPanelRequest panel)? drawPanel
   final ProjectionLayerNode projection
   final Renderer renderer
   final SceneNode origin
@@ -892,6 +908,12 @@ final class XrPanel
   final int pixelWidth
   int get generation
   void invalidate()
+
+final class XrPanelRequest
+  const XrPanelRequest({required this.widget, required this.width, required this.height})
+  final Widget widget
+  final int height
+  final int width
 
 final class XrPanelShape
   String toString()

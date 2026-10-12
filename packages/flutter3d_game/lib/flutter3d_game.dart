@@ -897,8 +897,10 @@ export 'package:flutter3d/flutter3d.dart'
 export 'package:flutter3d_app/flutter3d_app.dart'
     show
         AssetBytes,
+        DeviceLostEvent,
         DeviceSettings,
         DidNotStart,
+        EngineFrame,
         Flutter3dEngine,
         Flutter3dView,
         FrameInfo,
@@ -910,6 +912,7 @@ export 'package:flutter3d_app/flutter3d_app.dart'
         LoadedLevel,
         LoopSettings,
         PluginSettings,
+        SeatInput,
         SharedMeshes,
         SimulationPlacement,
         Storage,
@@ -923,6 +926,7 @@ export 'package:flutter3d_app/flutter3d_app.dart'
         XrFrameEnd,
         XrHaptic,
         XrLightEstimate,
+        XrPanelRequest,
         XrSession,
         XrSessionRequest,
         XrSessionState,

@@ -23,7 +23,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart' show ManualTime, standardStepRate;
+import 'package:flutter3d_sim/flutter3d_sim.dart'
+    show ManualTime, standardStepRate;
 
 import 'src/pendulum_lab.dart';
 
@@ -153,13 +154,13 @@ class _PendulumScreenState extends State<PendulumScreen> {
               time: _clock,
               loop: LoopSettings(simulation: widget.simulation),
               onCreated: _open,
-              onBeforeFrame: (_, _) {
+              onBeforeFrame: (_) {
                 // Running is the hand on the clock every frame: a step's
                 // worth of time, whatever the display's rate.
                 if (_running) _clock.advance(_step);
               },
-              onFrame: (Flutter3dEngine engine, _) {
-                final angle = engine.published.value.probe(
+              onFrame: (EngineFrame f) {
+                final angle = f.engine.published.value.probe(
                   PendulumLab.angleProbe,
                 );
                 if (angle != null) {

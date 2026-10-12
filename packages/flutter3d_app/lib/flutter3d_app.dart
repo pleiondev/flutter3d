@@ -120,9 +120,11 @@ export 'src/view/frame_info.dart';
 export 'src/view/probe_builder.dart';
 export 'src/view/view_settings.dart'
     show
+        DeviceLostEvent,
         DeviceSettings,
         LoopSettings,
         PluginSettings,
+        SeatInput,
         SimulationPlacement,
         ViewSettings;
 export 'src/widget_surface/widget_surface.dart';

@@ -186,7 +186,7 @@ void main() {
             presenter: _noPresenter,
           ),
           log: log,
-          onFrame: (_, _) {
+          onFrame: (_) {
             if (threw) return;
             threw = true;
             throw thrown;
@@ -285,7 +285,7 @@ void main() {
             ),
             loop: LoopSettings(
               simulation: SimulationPlacement.inline(
-                applyInput: (_, input) => applied.add(input),
+                applyInput: (SeatInput seated) => applied.add(seated.input),
               ),
             ),
             onCreated: (e) => engine = e,

@@ -24,7 +24,7 @@ Widget _noPresenter(
 Widget _view(
   FakeBackend device, {
   void Function(Flutter3dEngine engine)? onCreated,
-  void Function(Flutter3dEngine engine, DeviceLoss loss)? onDeviceLost,
+  void Function(DeviceLostEvent event)? onDeviceLost,
   void Function(Flutter3dEngine engine)? onDeviceRestored,
 }) => Directionality(
   textDirection: TextDirection.ltr,
@@ -59,7 +59,7 @@ Widget _capped(
     child: Flutter3dView(
       device: DeviceSettings(device: device, presenter: _noPresenter),
       view: ViewSettings(continuous: continuous, frameRateCap: cap),
-      onFrame: (_, frame) => frames.add(frame),
+      onFrame: (EngineFrame f) => frames.add(f.frame),
     ),
   ),
 );
@@ -223,7 +223,7 @@ void main() {
       _view(
         device,
         onCreated: (e) => engine = e,
-        onDeviceLost: (_, loss) => lost.add(loss),
+        onDeviceLost: (DeviceLostEvent event) => lost.add(event.loss),
         onDeviceRestored: (_) => restored++,
       ),
     );

@@ -215,11 +215,11 @@ Particles3D(effect: sparks, perSecond: 200, position: tappedAt),
 
 ## What the frame cost {.step}
 
-`onFrame` is called before every frame with the engine, the seconds since the last one and what the renderer answered for the frame before, the shape `Flutter3dView.onFrame` has:
+`onFrame` is called before every frame with one `EngineFrame`: the engine, the seconds since the last one and what the renderer answered for the frame before, the shape `Flutter3dView.onFrame` has:
 
 ```dart
-onFrame: (Flutter3dEngine engine, FrameInfo frame) {
-  if (frame.result case final result?) {
+onFrame: (EngineFrame f) {
+  if (f.frame.result case final result?) {
     debugPrint('${result.drawCalls} draws, ${result.triangles} triangles, '
         '${result.cpuMicros} µs');
   }

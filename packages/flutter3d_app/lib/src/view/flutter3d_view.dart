@@ -391,21 +391,20 @@ final class Flutter3dView extends StatefulWidget {
   final void Function(Flutter3dEngine engine)? onCreated;
 
   /// Called every frame the view draws, after the loop has stepped and
-  /// before the frame is drawn, with the engine and the frame: the seconds
-  /// since the last ([FrameInfo.seconds]) and what the renderer answered
-  /// for the frame before ([FrameInfo.result]).
+  /// before the frame is drawn, with one [EngineFrame]: the engine, the
+  /// seconds since the last ([FrameInfo.seconds]) and what the renderer
+  /// answered for the frame before ([FrameInfo.result]).
   ///
-  /// The engine is the context every callback of this view is handed first,
-  /// as `DeviceSettings.onDeviceLost` is; what is said about the frame is one
-  /// [FrameInfo], so it can say more without breaking a handler.
-  final void Function(Flutter3dEngine engine, FrameInfo frame)? onFrame;
+  /// One object, as `DeviceSettings.onDeviceLost` is handed, so it can say
+  /// more without breaking a handler.
+  final void Function(EngineFrame frame)? onFrame;
 
-  /// Called every frame the view draws, with the engine and the frame (see
-  /// [onFrame]), before the loop steps: where a game reads a device that is
+  /// Called every frame the view draws, with the engine and the frame (an
+  /// [EngineFrame], as [onFrame]), before the loop steps: where a game reads a device that is
   /// polled, a gamepad, and decides whether the loop is paused this frame
   /// (`engine.loop.isPaused`), so the frame that reads a press is the frame
   /// it acts in.
-  final void Function(Flutter3dEngine engine, FrameInfo frame)? onBeforeFrame;
+  final void Function(EngineFrame frame)? onBeforeFrame;
 
   /// The device: one to borrow, where to open one, what shows its frames,
   /// what a loss does, and whether a fallback is said on screen.
@@ -646,8 +645,9 @@ class _Flutter3dViewState extends State<Flutter3dView>
           settings: xr,
           renderer: renderer,
           origin: camera,
-          drawPanel: (Widget panel, int width, int height) =>
-              WidgetTexture(device).draw(panel, width: width, height: height),
+          drawPanel: (XrPanelRequest panel) => WidgetTexture(
+            device,
+          ).draw(panel.widget, width: panel.width, height: panel.height),
         );
         await driver.start(input: loop.input);
         if (!mounted) {
@@ -769,7 +769,9 @@ class _Flutter3dViewState extends State<Flutter3dView>
       source: _source,
     );
     setState(() => engine._loss = loss);
-    widget.device.onDeviceLost?.call(engine, loss);
+    widget.device.onDeviceLost?.call(
+      DeviceLostEvent(engine: engine, loss: loss),
+    );
     if (loss.isRecoverable) return;
     // For good. A device the view opened is opened again from the same
     // registry; a borrowed one is its owner's, and so is the failure.
@@ -874,8 +876,11 @@ class _Flutter3dViewState extends State<Flutter3dView>
           )
         : _cadence.due(vsync);
     if (seconds == null) return;
-    final frame = FrameInfo(seconds: seconds, result: _drawn);
-    _guarded('onBeforeFrame', () => widget.onBeforeFrame?.call(engine, frame));
+    final frame = EngineFrame(
+      engine: engine,
+      frame: FrameInfo(seconds: seconds, result: _drawn),
+    );
+    _guarded('onBeforeFrame', () => widget.onBeforeFrame?.call(frame));
     _guarded('the loop', () {
       engine.loop.frame(seconds);
       // A simulation placed apart is stepped by the same seconds, so it
@@ -885,7 +890,7 @@ class _Flutter3dViewState extends State<Flutter3dView>
     // What an isolate published arrives between frames; what the loop here
     // published, during this one. Either way the widgets hear it once.
     engine._republish();
-    _guarded('onFrame', () => widget.onFrame?.call(engine, frame));
+    _guarded('onFrame', () => widget.onFrame?.call(frame));
     _followCamera(engine);
     final listener = widget.onListenerMoved;
     if (listener != null) {

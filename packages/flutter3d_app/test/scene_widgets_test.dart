@@ -132,8 +132,7 @@ void main() {
           focusNode: focus,
           restorationId: 'scene',
           onSceneCreated: (c) => controller = c,
-          onFrame: (Flutter3dEngine engine, FrameInfo frame) =>
-              frames.add((engine, frame)),
+          onFrame: (EngineFrame f) => frames.add((f.engine, f.frame)),
         ),
       ),
     );

@@ -304,12 +304,12 @@ void main() {
           ),
           renderer: renderer,
           origin: origin,
-          drawPanel: (widget, width, height) async {
+          drawPanel: (XrPanelRequest panel) async {
             drawn++;
             return device.createTexture(
               RenderTargetDescriptor(
-                width: width,
-                height: height,
+                width: panel.width,
+                height: panel.height,
                 format: TextureFormat.r8g8b8a8UNormInt,
               ),
             );

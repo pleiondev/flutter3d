@@ -29,7 +29,7 @@ class _RunnerAt60State extends State<RunnerAt60> {
         bloom: BloomSettings(enabled: false),
       ),
     ),
-    onFrame: (_, frame) => setState(() => run += 6.0 * frame.seconds),
+    onFrame: (EngineFrame frame) => setState(() => run += 6.0 * frame.seconds),
     children: <Widget>[
       Camera3D(position: Vector3(0, 2.5, 5 - run), target: Vector3(0, 1, -run)),
       const Light3D.sun(),

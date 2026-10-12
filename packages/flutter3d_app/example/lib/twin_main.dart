@@ -212,10 +212,10 @@ class _TwinScreenState extends State<TwinScreen> {
               // The transport decides whether the loop runs: a paused
               // timeline is one the loop must not step, since a scrub puts
               // the past where the present was.
-              onBeforeFrame: (engine, _) =>
-                  engine.loop.isPaused = ready?.timeline.isPaused ?? false,
-              onFrame: (engine, _) {
-                final reading = engine.published.value.probe(
+              onBeforeFrame: (EngineFrame f) =>
+                  f.engine.loop.isPaused = ready?.timeline.isPaused ?? false,
+              onFrame: (EngineFrame f) {
+                final reading = f.engine.published.value.probe(
                   SiteTwin.waterProbe,
                 );
                 if (reading != null && ready != null) {

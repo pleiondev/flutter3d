@@ -41,7 +41,7 @@ Widget _view({
         LoopPhase.rules,
         (context) => steps.add(context.step),
       ),
-      onFrame: (_, frame) => seconds.add(frame.seconds),
+      onFrame: (EngineFrame frame) => seconds.add(frame.seconds),
     ),
   ),
 );
@@ -156,7 +156,7 @@ void main() {
               presenter: _noPresenter,
             ),
             time: TimeSource.scaled(0.1),
-            onFrame: (_, frame) => seconds.add(frame.seconds),
+            onFrame: (EngineFrame frame) => seconds.add(frame.seconds),
           ),
         ),
       ),

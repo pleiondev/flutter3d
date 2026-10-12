@@ -211,13 +211,13 @@ final class Scene3D extends StatefulWidget {
   final void Function(Scene3DController scene)? onSceneCreated;
 
   /// `Flutter3dView.onBeforeFrame`: every frame, before the loop steps.
-  final void Function(Flutter3dEngine engine, FrameInfo frame)? onBeforeFrame;
+  final void Function(EngineFrame frame)? onBeforeFrame;
 
   /// `Flutter3dView.onFrame`, after this scene's models and particles have
   /// advanced: every frame, after the loop has stepped and before the frame
   /// is drawn, with the engine and the frame — the seconds since the last
   /// one and what the renderer answered for it.
-  final void Function(Flutter3dEngine engine, FrameInfo frame)? onFrame;
+  final void Function(EngineFrame frame)? onFrame;
 
   /// `Flutter3dView.device`: one to borrow, where to open one, what shows
   /// its frames, what a loss does. **A device lost and recovered** has the
@@ -348,11 +348,11 @@ class _Scene3DState extends State<Scene3D>
 
   /// The animations advance by what passed since the last frame, then the
   /// game's own [Scene3D.onFrame]: one place for "before the frame".
-  void _beforeFrame(Flutter3dEngine engine, FrameInfo frame) {
+  void _beforeFrame(EngineFrame frame) {
     for (final animated in List<_Animated>.of(_animated)) {
       animated.advance(frame.seconds);
     }
-    widget.onFrame?.call(engine, frame);
+    widget.onFrame?.call(frame);
   }
 
   /// The children built again on the device that came back, then the
