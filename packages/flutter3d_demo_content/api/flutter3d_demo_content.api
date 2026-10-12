@@ -230,7 +230,7 @@ library package:flutter3d_demo_content/shooter_staging.dart
 
 final class ShooterHeadlessGame extends HeadlessGame
   EntityRegistry registry()
-  HeadlessRun start(Level level, CollisionWorld world, InputState input)
+  HeadlessRun start(HeadlessStart start)
   Map<String, GameAction> get buttons
   SimulationVersion get simulation
   String get name
