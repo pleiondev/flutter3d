@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **`LightType`, `RigidPose` and `Severity` come with the contract.** The
+  foundation types a plugin's signatures name now include an `Issue`'s
+  severity, a light's type and a pose, so a plugin gets them from this
+  one import like the rest.
 - **The engine is a list of packages, not a prefix.** `isEngine` reads
   `PluginManifest.engineNamespaces` (new), the packages this repository
   publishes and the ones it published before 1.0.0 under other names, so a

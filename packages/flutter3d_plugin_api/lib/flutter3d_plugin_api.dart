@@ -23,10 +23,12 @@
 /// `flutter3d_foundation`, where they live since 1.0.0-rc.1:
 /// [Flutter3dException] and its families, the root of everything the engine
 /// throws; [WorldPosition], a place in the world in double precision;
-/// [LinearColor], the one colour type; [Issue]; the file envelope
-/// ([FormatSpec], [FormatDocument]); and [Registration]. A plugin's
-/// signatures name them, so a plugin gets them from this one import. A
-/// package that needs them and not the contract depends on the foundation.
+/// [LinearColor], the one colour type; [LightType]; [RigidPose], where a
+/// rigid thing is and which way it is turned; [Issue] and its [Severity];
+/// the file envelope ([FormatSpec], [FormatDocument]); and [Registration].
+/// A plugin's signatures name them, so a plugin gets them from this one
+/// import. A package that needs them and not the contract depends on the
+/// foundation.
 /// `docs/CONTRACTS.md` gives the units they are in.
 library;
 
@@ -46,11 +48,14 @@ export 'package:flutter3d_foundation/flutter3d_foundation.dart'
         FormatSpec,
         Issue,
         IssueSink,
+        LightType,
         LinearColor,
         PluginException,
         Quantity,
         Registration,
         ResourceException,
+        RigidPose,
+        Severity,
         Unit,
         WorldPosition;
 

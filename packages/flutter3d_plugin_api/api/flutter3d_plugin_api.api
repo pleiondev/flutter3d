@@ -848,7 +848,7 @@ const String vmSchemaVersion = '1.0.0'
 
 const String vmVersionExtension = 'ext.flutter3d.version'
 
-export package:flutter3d_foundation/flutter3d_foundation.dart show CapabilityException, DocumentFormatException, Flutter3dException, Flutter3dFormatException, FormatDocument, FormatMigration, FormatRefusal, FormatSpec, Issue, IssueSink, LinearColor, PluginException, Quantity, Registration, ResourceException, Unit, WorldPosition
+export package:flutter3d_foundation/flutter3d_foundation.dart show CapabilityException, DocumentFormatException, Flutter3dException, Flutter3dFormatException, FormatDocument, FormatMigration, FormatRefusal, FormatSpec, Issue, IssueSink, LightType, LinearColor, PluginException, Quantity, Registration, ResourceException, RigidPose, Severity, Unit, WorldPosition
   CapabilityException
   DocumentFormatException
   Flutter3dException
@@ -859,10 +859,13 @@ export package:flutter3d_foundation/flutter3d_foundation.dart show CapabilityExc
   FormatSpec
   Issue
   IssueSink
+  LightType
   LinearColor
   PluginException
   Quantity
   Registration
   ResourceException
+  RigidPose
+  Severity
   Unit
   WorldPosition
