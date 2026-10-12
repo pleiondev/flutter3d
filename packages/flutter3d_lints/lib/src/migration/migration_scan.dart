@@ -106,6 +106,12 @@ final class _Scan extends RecursiveAstVisitor<void> {
         case MigrationKind.regroup:
           into(regroups, r.member ?? r.type, r);
           continue;
+        case MigrationKind.subclassModifier:
+          into(subclassModifiers, r.type, r);
+          if (r.renamedTo case final renamed?) {
+            into(subclassModifiers, renamed, r);
+          }
+          continue;
         case MigrationKind.enumToClass:
           into(openedSwitches, r.switchOver ?? r.type, r);
           if (r.renamedTo case final renamed?) {
@@ -200,6 +206,10 @@ final class _Scan extends RecursiveAstVisitor<void> {
   /// `regroup` rules by the name of what is called: a function, a method,
   /// or the class of a constructor.
   final Map<String, List<MigrationRule>> regroups =
+      <String, List<MigrationRule>>{};
+
+  /// `subclassModifier` rules by the class that became `base` or `final`.
+  final Map<String, List<MigrationRule>> subclassModifiers =
       <String, List<MigrationRule>>{};
 
   /// `enumToClass` rules by the type switched over.
@@ -945,6 +955,7 @@ final class _Scan extends RecursiveAstVisitor<void> {
             // Only the three above are kept by type; the rest have maps of
             // their own.
             case MigrationKind.rewrite ||
+                MigrationKind.subclassModifier ||
                 MigrationKind.regroup ||
                 MigrationKind.enumToClass ||
                 MigrationKind.recordToClass ||
@@ -1005,15 +1016,7 @@ final class _Scan extends RecursiveAstVisitor<void> {
     final edits = <MigrationEdit>[];
     final typeText = _text(type);
     // Out of `implements`.
-    if (clause.interfaces.length == 1) {
-      final start = clause.implementsKeyword.previous!.end;
-      edits.add(MigrationEdit(start, clause.end - start, ''));
-    } else {
-      final index = clause.interfaces.indexOf(type);
-      final start = index == 0 ? type.offset : clause.interfaces[index - 1].end;
-      final end = index == 0 ? clause.interfaces[1].offset : type.end;
-      edits.add(MigrationEdit(start, end - start, ''));
-    }
+    edits.add(_outOfImplements(clause, type));
     // Into `with`.
     final WithClause? withClause = switch (declaration) {
       ClassDeclaration(:final withClause) => withClause,
@@ -1049,6 +1052,144 @@ final class _Scan extends RecursiveAstVisitor<void> {
       edits.add(MigrationEdit(keyword.offset, 0, 'base '));
     }
     _add(rule, type, edits: edits);
+  }
+
+  // --------------------------------------------------- subclass modifiers
+
+  @override
+  void visitClassDeclaration(ClassDeclaration node) {
+    if (subclassModifiers.isNotEmpty) _subclassModifier(node);
+    super.visitClassDeclaration(node);
+  }
+
+  @override
+  void visitMixinDeclaration(MixinDeclaration node) {
+    if (subclassModifiers.isNotEmpty) _mixinOnModified(node);
+    super.visitMixinDeclaration(node);
+  }
+
+  /// The rules of [named], a type a clause names, that are about the
+  /// engine's class it resolves to.
+  List<MigrationRule> _modifiersOf(NamedType named) {
+    final rules = subclassModifiers[named.name.lexeme];
+    final element = named.element;
+    if (rules == null || element == null || !_ownedAs(element, rules.first)) {
+      return const <MigrationRule>[];
+    }
+    return rules;
+  }
+
+  /// The `base` rule over a declaration whose supertypes are [supertypes]
+  /// (directly, or through the project's own classes), with the clause's
+  /// type among [direct] that names it, null when it is further up.
+  (MigrationRule, NamedType?)? _baseAbove(
+    List<InterfaceType> supertypes,
+    List<NamedType> direct,
+  ) {
+    for (final s in supertypes) {
+      final rules = subclassModifiers[s.element.name];
+      if (rules == null || !_ownedAs(s.element, rules.first)) continue;
+      final rule = rules.where((MigrationRule r) => r.to == 'base').firstOrNull;
+      if (rule == null) continue;
+      return (
+        rule,
+        direct.where((NamedType t) => t.element == s.element).firstOrNull,
+      );
+    }
+    return null;
+  }
+
+  /// A `final` class named in a clause of the project's own: nothing
+  /// outside its package may extend or implement it, so the clause gets a
+  /// TODO (holding one is the way out, and a person writes it).
+  void _finalNamed(List<NamedType> direct) {
+    for (final t in direct) {
+      for (final rule in _modifiersOf(t)) {
+        if (rule.to == 'final') _add(rule, t);
+      }
+    }
+  }
+
+  void _subclassModifier(ClassDeclaration node) {
+    final element = node.declaredFragment?.element;
+    if (element == null || _ownedAs(element, null)) return;
+    final direct = <NamedType>[
+      ?node.extendsClause?.superclass,
+      ...?node.withClause?.mixinTypes,
+      ...?node.implementsClause?.interfaces,
+    ];
+    _finalNamed(direct);
+    final (rule, named) =
+        _baseAbove(element.allSupertypes, direct) ?? (null, null);
+    if (rule == null) return;
+    final at = named ?? direct.firstOrNull;
+    if (at == null) return;
+    final modified =
+        node.baseKeyword != null ||
+        node.finalKeyword != null ||
+        node.sealedKeyword != null;
+    // `interface` and `base` together are `final` to outside code; that
+    // choice is a person's.
+    if (!modified && node.interfaceKeyword != null) {
+      _add(rule, at);
+      return;
+    }
+    final edits = <MigrationEdit>[];
+    if (named != null && named.parent is ImplementsClause) {
+      // Outside its library a base class is extended, never implemented;
+      // where something else is the superclass, a person decides.
+      if (node.extendsClause != null || node.mixinKeyword != null) {
+        _add(rule, named);
+        return;
+      }
+      edits
+        ..add(_outOfImplements(named.parent! as ImplementsClause, named))
+        ..add(MigrationEdit(node.namePart.end, 0, ' extends ${_text(named)}'));
+    }
+    if (!modified) {
+      final keyword = node.mixinKeyword ?? node.classKeyword;
+      edits.add(MigrationEdit(keyword.offset, 0, 'base '));
+    }
+    if (edits.isNotEmpty) _add(rule, at, edits: edits);
+  }
+
+  /// A mixin `on` a class that became `base` is `base` itself; one that
+  /// implements it, or names a `final` one, is left to a person.
+  void _mixinOnModified(MixinDeclaration node) {
+    final element = node.declaredFragment?.element;
+    if (element == null || _ownedAs(element, null)) return;
+    final on = <NamedType>[...?node.onClause?.superclassConstraints];
+    final implemented = <NamedType>[...?node.implementsClause?.interfaces];
+    _finalNamed(<NamedType>[...on, ...implemented]);
+    final (rule, named) =
+        _baseAbove(element.allSupertypes, <NamedType>[...on, ...implemented]) ??
+        (null, null);
+    if (rule == null || named == null) return;
+    if (named.parent is ImplementsClause) {
+      _add(rule, named);
+      return;
+    }
+    if (node.baseKeyword != null) return;
+    _add(
+      rule,
+      named,
+      edits: <MigrationEdit>[
+        MigrationEdit(node.mixinKeyword.offset, 0, 'base '),
+      ],
+    );
+  }
+
+  /// The edit that takes [type] out of [clause], with the clause itself
+  /// when it was the only type there.
+  MigrationEdit _outOfImplements(ImplementsClause clause, NamedType type) {
+    if (clause.interfaces.length == 1) {
+      final start = clause.implementsKeyword.previous!.end;
+      return MigrationEdit(start, clause.end - start, '');
+    }
+    final index = clause.interfaces.indexOf(type);
+    final start = index == 0 ? type.offset : clause.interfaces[index - 1].end;
+    final end = index == 0 ? clause.interfaces[1].offset : type.end;
+    return MigrationEdit(start, end - start, '');
   }
 
   // ------------------------------------------------------------- switches

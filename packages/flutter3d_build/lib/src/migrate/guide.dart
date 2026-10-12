@@ -20,6 +20,10 @@ String howCarriedOut(MigrationEntry e) => switch (e.kind) {
   'parameters' when toNamedOf(e).isNotEmpty => '`migrate`',
   'rename' || 'moved' || 'parameters' => '`dart fix`',
   'rewrite' || 'implementsToWith' || 'import' => '`migrate`',
+  'subclassModifier' when e.to == 'base' => '`migrate`',
+  // Nothing outside a final class's package may subclass it: what it leaves
+  // is a TODO at each clause that did.
+  'subclassModifier' => '`migrate`, with a TODO',
   'regroup' || 'recordToClass' || 'argument' || 'hookContext' => '`migrate`',
   // Each leaves a TODO beside what it wrote: a throw where a value used to
   // fall through, a `try` around what used to answer null.
@@ -40,6 +44,12 @@ String _what(MigrationEntry e, MigrationTable table) => switch (e.kind) {
   'implementsToWith' =>
     '`${e.topName}` is a base mixin class: `implements ${e.topName}` '
         'becomes `with ${e.topName}`, on a `base` class.',
+  'subclassModifier' when e.to == 'base' =>
+    '`${e.topName}` is a `base` class: a class below it is `base` itself, '
+        'and `implements ${e.topName}` becomes `extends ${e.topName}`.',
+  'subclassModifier' =>
+    '`${e.topName}` is a `final` class: a class that extended or '
+        'implemented it gets a TODO.',
   'import' => '`${e.from}` is `${e.to}`.',
   'regroup' =>
     '`${e.arguments.map((String a) => '$a:').join(' ')}` of `${e.symbol}` '
