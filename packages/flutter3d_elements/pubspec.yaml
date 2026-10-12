@@ -36,15 +36,15 @@ platforms:
 dependencies:
   # `Portable` for a step's arithmetic, and `PlacedEvent`, which a charge's
   # event is, so an effect goes off where it went off.
-  flutter3d_foundation: ^1.0.0-rc.1
+  flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
   # The world the elements step: its bodies, waters, fires and events.
-  flutter3d_physics_native: ^1.0.0-rc.1
+  flutter3d_physics_native: '>=1.0.0-rc.1 <1.1.0'
   # The catalogue a solid is weighed and made from (`Solid.of`).
-  flutter3d_matter: ^1.0.0-rc.1
+  flutter3d_matter: '>=1.0.0-rc.1 <1.1.0'
   # The bus and the loop a plugin element is installed into: its step
   # phase, its events, the registries of switches and event kinds, and the
   # snapshot part the elements' own state travels in.
-  flutter3d_plugin_api: ^1.0.0-rc.1
+  flutter3d_plugin_api: '>=1.0.0-rc.1 <1.1.0'
   vector_math: ^2.2.0
 
 dev_dependencies:

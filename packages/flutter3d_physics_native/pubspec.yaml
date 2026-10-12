@@ -35,7 +35,7 @@ dependencies:
   # `flutter3d_wgpu`'s `wgpu_native_hook.dart`: the one pinned release, with
   # its checksums, that the compute sidecar links as well. Only the hook
   # imports it; nothing in `lib/` names the sidecar.
-  flutter3d_wgpu: ^1.0.0-rc.1
+  flutter3d_wgpu: '>=1.0.0-rc.1 <1.1.0'
   code_assets: ^2.1.0
   hooks: ^2.0.0
   logging: ^1.3.0
@@ -44,20 +44,20 @@ dependencies:
   # What NativeDynamics stands under: its bodies, colliders and world. Also
   # the reference the tests hold a native world to, with a tolerance, since
   # that one is in doubles.
-  flutter3d_physics: ^1.0.0-rc.1
+  flutter3d_physics: '>=1.0.0-rc.1 <1.1.0'
   # `WorldPosition`: a body's place in the world in doubles, the origin
   # added, which `NativeWorld.positionOf` answers with.
-  flutter3d_foundation: ^1.0.0-rc.1
+  flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
   # The material catalogue and the standard world: what the core's heat and
   # liquid presets are views of, and what `tool/gen_materials.dart` writes
   # the C header from.
-  flutter3d_matter: ^1.0.0-rc.1
+  flutter3d_matter: '>=1.0.0-rc.1 <1.1.0'
 
 dev_dependencies:
   test: ^1.25.0
   flutter_lints: ^6.0.0
   # `SimulationProfile`, which a test sets a world's profile to.
-  flutter3d_plugin_api: ^1.0.0-rc.1
+  flutter3d_plugin_api: '>=1.0.0-rc.1 <1.1.0'
 
 # The core as a WebAssembly module, for the browser: a Flutter web app
 # serves it from assets/packages/flutter3d_physics_native/web/.

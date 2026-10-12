@@ -38,10 +38,10 @@ dependencies:
   flutter_gpu:
     sdk: flutter
 
-  flutter3d_hardware: ^1.0.0-rc.1
+  flutter3d_hardware: '>=1.0.0-rc.1 <1.1.0'
 
   # `ResourceException`, which `ShaderBundleBuildException` extends.
-  flutter3d_foundation: ^1.0.0-rc.1
+  flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
 
   # Named directly because the HAL's own signatures do: a clear value and a
   # blend constant are `Vector4`, and an implementation of `PassEncoder` cannot
@@ -55,7 +55,7 @@ dependencies:
   # `package_config.json`, so an external consumer's own `dart pub get`
   # puts `flutter3d_shaders` where the hook can find it too.
   hooks: ^2.0.0
-  flutter3d_shaders: ^1.0.0-rc.1
+  flutter3d_shaders: '>=1.0.0-rc.1 <1.1.0'
 
   # `@visibleForTesting` on `flutterSdkRootFrom`, the one seam a test can
   # hand a Windows-shaped path to without running on Windows to get one.

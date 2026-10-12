@@ -29,38 +29,38 @@ dependencies:
 
   # The simulation every game steps through, and `HeadlessGame`/`HeadlessRun`
   # — what this server asks of a game. No genre: a host hands one in.
-  flutter3d_sim: ^1.0.0-rc.1
+  flutter3d_sim: '>=1.0.0-rc.1 <1.1.0'
 
   # The physics a session's worlds run on: the core where it starts, the Dart
   # reference where it does not — and a recorded run replayed on whichever
   # it was recorded on.
-  flutter3d_physics_native: ^1.0.0-rc.1
+  flutter3d_physics_native: '>=1.0.0-rc.1 <1.1.0'
 
   # A level's own scene, a device with no GPU behind it, and the debug views
   # `RenderSettings` already carries — `showSurfaceBuffer`, `showShadowMap` —
   # for `DiagnosticRenderer`, which draws both `frame`'s picture and the
   # diagnostic server's views. They were two packages, and a picture from the
   # sim server was already the diagnostic server's `lit` frame.
-  flutter3d: ^1.0.0-rc.1
-  flutter3d_app: ^1.0.0-rc.1
-  flutter3d_cpu: ^1.0.0-rc.1
+  flutter3d: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_app: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_cpu: '>=1.0.0-rc.1 <1.1.0'
 
   # The tool table, the answers and the server underneath this one — what
   # every server here shares.
-  flutter3d_mcp: ^1.0.0-rc.1
+  flutter3d_mcp: '>=1.0.0-rc.1 <1.1.0'
 
   vector_math: ^2.2.0
 
   dart_mcp: ">=0.5.2 <0.6.0"
 
   # `Flutter3dFormatException`, which `ReadingPredicateException` extends.
-  flutter3d_foundation: ^1.0.0-rc.1
+  flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
 
   # The collision world and its bodies, named here directly.
-  flutter3d_physics: ^1.0.0-rc.1
+  flutter3d_physics: '>=1.0.0-rc.1 <1.1.0'
 
   # The plugin contract: the loop's phases, the bus and the host.
-  flutter3d_plugin_api: ^1.0.0-rc.1
+  flutter3d_plugin_api: '>=1.0.0-rc.1 <1.1.0'
 dev_dependencies:
   flutter_test:
     sdk: flutter

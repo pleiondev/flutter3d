@@ -57,44 +57,44 @@ dependencies:
 
   # The slot `McpTools` fills: `McpToolRegistry`, the registration a plugin
   # gets back, and the scope that files a tool under the plugin's id.
-  flutter3d_plugin_api: ^1.0.0-rc.1
+  flutter3d_plugin_api: '>=1.0.0-rc.1 <1.1.0'
 
   # The level document and everything you can do to one. `EditorCommand` is
   # what keeps the editor server small: the things an editor does are already
   # values with a name, a `toJson` and a `fromJson`.
-  flutter3d_editor_core: ^1.0.0-rc.1
+  flutter3d_editor_core: '>=1.0.0-rc.1 <1.1.0'
 
   # `LevelScene`, which draws the level the editor server shows an agent
   # on the software renderer, one draw per brush.
-  flutter3d_level_scene: ^1.0.0-rc.1
+  flutter3d_level_scene: '>=1.0.0-rc.1 <1.1.0'
 
   # Play: the game the level belongs to, run with `flutter run --machine`
   # and sent the level when it is saved — the editor application's own.
-  flutter3d_editor_play: ^1.0.0-rc.1
+  flutter3d_editor_play: '>=1.0.0-rc.1 <1.1.0'
 
   # `Level`, `LevelIssue` and `LevelValidator`, which `validate` reports.
-  flutter3d_sim: ^1.0.0-rc.1
+  flutter3d_sim: '>=1.0.0-rc.1 <1.1.0'
 
   # The model project and its commands, as values the same way.
-  flutter3d_model_core: ^1.0.0-rc.1
+  flutter3d_model_core: '>=1.0.0-rc.1 <1.1.0'
 
   # The renderer both editors' screenshots draw with, and the formats the
   # model server imports and exports through. `flutter3d_core` is the engine
   # with the Flutter seams taken out.
-  flutter3d_core: ^1.0.0-rc.1
+  flutter3d_core: '>=1.0.0-rc.1 <1.1.0'
 
   # `ElementLevel`, for the `select` verb's mesh-mode argument.
-  flutter3d_mesh: ^1.0.0-rc.1
+  flutter3d_mesh: '>=1.0.0-rc.1 <1.1.0'
 
   # `CpuDevice`, the device every `render` and `screenshot` draws on, and
   # `GraphicsDevice`, the type its factory returns. No GPU and no display.
-  flutter3d_cpu: ^1.0.0-rc.1
-  flutter3d_hardware: ^1.0.0-rc.1
+  flutter3d_cpu: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_hardware: '>=1.0.0-rc.1 <1.1.0'
 
   vector_math: ^2.2.0
 
   # The foundation's value types and their crossings into `vector_math`.
-  flutter3d_foundation: ^1.0.0-rc.1
+  flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
 
 dev_dependencies:
   test: ^1.25.0
@@ -102,7 +102,7 @@ dev_dependencies:
 
   # The experiment tools' test reads back what `experiment.save` wrote with
   # the document's own reader.
-  flutter3d_education: ^1.0.0-rc.1
+  flutter3d_education: '>=1.0.0-rc.1 <1.1.0'
 
 # **A host starts this with `dart run`, and that is the whole of why every
 # package under it is plain Dart.** `dart run` cannot resolve a package that

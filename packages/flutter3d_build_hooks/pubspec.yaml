@@ -30,17 +30,17 @@ platforms:
 
 dependencies:
   # The material language: `parseMaterial` and the GLSL emitter.
-  flutter3d_core: ^1.0.0-rc.1
+  flutter3d_core: '>=1.0.0-rc.1 <1.1.0'
 
   # `ShaderBundle`, the container a material is written into.
-  flutter3d_hardware: ^1.0.0-rc.1
+  flutter3d_hardware: '>=1.0.0-rc.1 <1.1.0'
 
   # `Flutter3dFormatException`, the family `MaterialBuildException` is of.
-  flutter3d_foundation: ^1.0.0-rc.1
+  flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
 
   # `compile.dart`: the engine's headers a material includes, the WebGL2 and
   # WebGPU translators, and the WGSL compile.
-  flutter3d_shaders: ^1.0.0-rc.1
+  flutter3d_shaders: '>=1.0.0-rc.1 <1.1.0'
 
 dev_dependencies:
   test: ^1.25.0

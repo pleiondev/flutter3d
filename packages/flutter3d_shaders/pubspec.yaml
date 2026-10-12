@@ -46,11 +46,11 @@ dependencies:
   # For `typed_blocks.dart` alone, whose generated classes extend
   # `UniformBlock` — `H1`. The contract layer, pure Dart, and nothing a
   # backend brings with it.
-  flutter3d_hardware: ^1.0.0-rc.1
+  flutter3d_hardware: '>=1.0.0-rc.1 <1.1.0'
 
   # `Flutter3dFormatException`, which the translator's and the WGSL tools'
   # refusals extend.
-  flutter3d_foundation: ^1.0.0-rc.1
+  flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
 
 dev_dependencies:
   test: ^1.25.0

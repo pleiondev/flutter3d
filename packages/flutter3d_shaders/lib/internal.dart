@@ -10,6 +10,10 @@
 /// depend on something the API snapshot sees — a change here shows up in
 /// review — but an application that binds the engine's own blocks by these
 /// names is reaching into the engine, and a minor may move what it reads.
+///
+/// The engine's packages ask for each other within one minor
+/// (`'>=1.0.0 <1.1.0'`), so a shaders 1.1 that moves these tables never
+/// resolves under a backend 1.0 built against the tables before them.
 library;
 
 export 'src/typed_blocks.dart';

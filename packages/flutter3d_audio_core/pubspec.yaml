@@ -32,16 +32,16 @@ dependencies:
 
   # `AudioPlugin`: the mix as a system in the loop's `audio` phase. Plain
   # Dart over the foundation, so it brings nothing else with it.
-  flutter3d_plugin_api: ^1.0.0-rc.1
+  flutter3d_plugin_api: '>=1.0.0-rc.1 <1.1.0'
 
   # `WorldProperties` and `standardSpeedOfSound`: the world's air, which
   # doppler is reckoned against. What a world is made of, with nothing that
   # steps a body, so the mix needs no collision world.
-  flutter3d_matter: ^1.0.0-rc.1
+  flutter3d_matter: '>=1.0.0-rc.1 <1.1.0'
 
 dev_dependencies:
   test: ^1.25.0
   flutter_lints: ^6.0.0
 
   # An `EngineLoop` to install `AudioPlugin` into.
-  flutter3d_sim: ^1.0.0-rc.1
+  flutter3d_sim: '>=1.0.0-rc.1 <1.1.0'

@@ -32,26 +32,26 @@ dependencies:
 
   # The virtual cameras this genre's camera is a preset of: the framing, the
   # director it can be handed to, and the blends and shakes between cameras.
-  flutter3d_camera: ^1.0.0-rc.1
+  flutter3d_camera: '>=1.0.0-rc.1 <1.1.0'
 
   # The engine half. Everything here is content it takes as an argument. The
   # runner switches on `CollisionHeightfield`, and only a floor can say that
   # the version underneath has it.
-  flutter3d_sim: ^1.0.0-rc.1
+  flutter3d_sim: '>=1.0.0-rc.1 <1.1.0'
 
   vector_math: ^2.2.0
 
   # The collision world and its bodies, named here directly.
-  flutter3d_physics: ^1.0.0-rc.1
+  flutter3d_physics: '>=1.0.0-rc.1 <1.1.0'
 
   # The plugin contract: the loop's phases, the bus and the host.
-  flutter3d_plugin_api: ^1.0.0-rc.1
+  flutter3d_plugin_api: '>=1.0.0-rc.1 <1.1.0'
 
   # The foundation's value types and their crossings into `vector_math`.
-  flutter3d_foundation: ^1.0.0-rc.1
+  flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
 
   # What a world is made of: its properties, the materials and the constants.
-  flutter3d_matter: ^1.0.0-rc.1
+  flutter3d_matter: '>=1.0.0-rc.1 <1.1.0'
 
 dev_dependencies:
   flutter_test:

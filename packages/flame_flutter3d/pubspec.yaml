@@ -36,36 +36,36 @@ dependencies:
 
   # The surface flutter3d itself draws through, and the clock every host in
   # this repo already ticks a scene with.
-  flutter3d_app: ^1.0.0-rc.1
+  flutter3d_app: '>=1.0.0-rc.1 <1.1.0'
 
   # Impeller's frame as a `ui.Image` with no copy, for a model drawn into
   # Flame's own canvas (`Model3dComponent`). Imported on native builds only.
-  flutter3d_impeller: ^1.0.0-rc.1
+  flutter3d_impeller: '>=1.0.0-rc.1 <1.1.0'
 
   # The scene graph a Flame component's transform is bridged onto.
-  flutter3d: ^1.0.0-rc.1
+  flutter3d: '>=1.0.0-rc.1 <1.1.0'
 
   # The actor/entity system the ECS bridge wraps, and the shared `InputState`
   # the input bridge writes into — the same object `flutter3d_game`'s own
   # `DesktopInput`/`PadInput` write into, so a bridged game and a native one
   # read one input model.
-  flutter3d_sim: ^1.0.0-rc.1
+  flutter3d_sim: '>=1.0.0-rc.1 <1.1.0'
 
   # Rigid bodies and the collision world the physics bridge steps and
   # listens to.
-  flutter3d_physics: ^1.0.0-rc.1
+  flutter3d_physics: '>=1.0.0-rc.1 <1.1.0'
 
   # `Bindings`, and the desktop/pad input translators the input bridge's own
   # guide points a reader back to rather than duplicating.
-  flutter3d_game: ^1.0.0-rc.1
+  flutter3d_game: '>=1.0.0-rc.1 <1.1.0'
 
   # `VirtualCamera` and `CameraFraming`: the chase and view cameras are
   # framings the engine's one camera rig carries out.
-  flutter3d_camera: ^1.0.0-rc.1
+  flutter3d_camera: '>=1.0.0-rc.1 <1.1.0'
 
   # The pool and the instanced draw a Flame game's blasts go through. Plain
   # Dart, no native code: a game that throws no particles pays nothing.
-  flutter3d_particles: ^1.0.0-rc.1
+  flutter3d_particles: '>=1.0.0-rc.1 <1.1.0'
 
   # The map a Tiled level is read into, the one `flame_tiled` reads too: a
   # game that loads its level through `TiledComponent` hands over its
@@ -75,10 +75,10 @@ dependencies:
   vector_math: ^2.2.0
 
   # The plugin contract: the loop's phases, the bus and the host.
-  flutter3d_plugin_api: ^1.0.0-rc.1
+  flutter3d_plugin_api: '>=1.0.0-rc.1 <1.1.0'
 
   # The foundation's value types and their crossings into `vector_math`.
-  flutter3d_foundation: ^1.0.0-rc.1
+  flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
 
 dev_dependencies:
   flutter_test:
@@ -87,10 +87,10 @@ dev_dependencies:
 
   # A renderer with no GPU under it, so a bridge test can build a scene and
   # pump a frame without a device.
-  flutter3d_cpu: ^1.0.0-rc.1
+  flutter3d_cpu: '>=1.0.0-rc.1 <1.1.0'
   # The scene graph's change counter, which two tests hold a transform to;
   # the engine's own since 1.0, so read from its `src`.
-  flutter3d_core: ^1.0.0-rc.1
+  flutter3d_core: '>=1.0.0-rc.1 <1.1.0'
 
   # Flame's own test harness: a `GameWidget` under `flutter_test` needs its
   # first load/resize driven a specific way plain `pumpWidget`/`pump` does
@@ -99,10 +99,10 @@ dev_dependencies:
 
   # A device that records rather than draws, to see what a component gave
   # back when it went.
-  flutter3d_hardware: ^1.0.0-rc.1
+  flutter3d_hardware: '>=1.0.0-rc.1 <1.1.0'
 
   # A runner that climbs, for the character body's own test.
-  flutter3d_game_platformer: ^1.0.0-rc.1
+  flutter3d_game_platformer: '>=1.0.0-rc.1 <1.1.0'
 
 
   # Flame's own 2D physics, for the test that a bridged component follows

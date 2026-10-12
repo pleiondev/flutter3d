@@ -31,14 +31,14 @@ dependencies:
   # The application layer a game stands on: the surface, storage and what a
   # document says when it cannot be read, and the level loader a fixture's
   # visual reads its materials through.
-  flutter3d_app: ^1.0.0-rc.1
+  flutter3d_app: '>=1.0.0-rc.1 <1.1.0'
 
   # The renderer, for the actors and fixtures drawn.
-  flutter3d: ^1.0.0-rc.1
+  flutter3d: '>=1.0.0-rc.1 <1.1.0'
 
   # The scene bindings an actor is drawn through (`SceneBindings`,
   # `SceneNodeKind`), which the facade above does not re-export.
-  flutter3d_core: ^1.0.0-rc.1
+  flutter3d_core: '>=1.0.0-rc.1 <1.1.0'
 
   # Relative mouse deltas, which Flutter offers on no desktop platform.
   flutter3d_pointer_lock: ^0.5.0
@@ -54,21 +54,21 @@ dependencies:
   # package's pubspec for the whole reason. The facade re-exports the level,
   # the loop and its input by name; a caller that needs more of the
   # simulation names this package itself.
-  flutter3d_sim: ^1.0.0-rc.1
+  flutter3d_sim: '>=1.0.0-rc.1 <1.1.0'
 
   # The collision world a walk and an actor move through, and the three
   # names of it the facade re-exports.
-  flutter3d_physics: ^1.0.0-rc.1
+  flutter3d_physics: '>=1.0.0-rc.1 <1.1.0'
 
   # Volumes are a mixer's, and the settings are where they are kept.
   # The core and not `flutter3d_audio`: the settings name buses and nothing
   # else, and the SoLoud backend would bring a native build that Flutter 3.44
   # cannot resolve. A game that plays sound depends on `flutter3d_audio`
   # itself, whose types are these.
-  flutter3d_audio_core: ^1.0.0-rc.1
+  flutter3d_audio_core: '>=1.0.0-rc.1 <1.1.0'
 
   # A torch's flame, which is the particles its light is measured from.
-  flutter3d_particles: ^1.0.0-rc.1
+  flutter3d_particles: '>=1.0.0-rc.1 <1.1.0'
 
   vector_math: ^2.2.0
 
@@ -79,13 +79,13 @@ dependencies:
   http: ^1.2.0
 
   # The foundation's value types and their crossings into `vector_math`.
-  flutter3d_foundation: ^1.0.0-rc.1
+  flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
 
   # The plugin contract: the loop's phases, the bus and the host.
-  flutter3d_plugin_api: ^1.0.0-rc.1
+  flutter3d_plugin_api: '>=1.0.0-rc.1 <1.1.0'
 
   # What a world is made of: its properties, the materials and the constants.
-  flutter3d_matter: ^1.0.0-rc.1
+  flutter3d_matter: '>=1.0.0-rc.1 <1.1.0'
 
 dev_dependencies:
   flutter_test:
@@ -94,11 +94,11 @@ dev_dependencies:
 
   # A renderer with no GPU under it, so a visual can be built and a screen
   # pumped.
-  flutter3d_cpu: ^1.0.0-rc.1
+  flutter3d_cpu: '>=1.0.0-rc.1 <1.1.0'
 
   # For `FakeBackend`, which is what lets the teardown tests assert that
   # uploaded meshes are actually handed back rather than merely forgotten.
-  flutter3d_hardware: ^1.0.0-rc.1
+  flutter3d_hardware: '>=1.0.0-rc.1 <1.1.0'
 
   # An external client for `run_timeline_extensions_test.dart` — the same
   # package DevTools and `flutter attach` use to reach a running app's VM

@@ -34,12 +34,12 @@ dependencies:
   # `ColorSwatchField` and `FieldRow` read `TextureHint`/`ColorHint`/
   # `MaterialHint` off the same package, `ui-27`'s own P2 — no second
   # dependency joined to get there.
-  flutter3d_core: ^1.0.0-rc.1
+  flutter3d_core: '>=1.0.0-rc.1 <1.1.0'
 
   # `EditorPanels`, the registry a plugin's panel is added through, is a
   # `PluginRegistry` and tracks a plugin's `Registration`s. The contract is
   # plain Dart over the foundation, so nothing of the editor arrives with it.
-  flutter3d_plugin_api: ^1.0.0-rc.1
+  flutter3d_plugin_api: '>=1.0.0-rc.1 <1.1.0'
 
 dev_dependencies:
   flutter_test:

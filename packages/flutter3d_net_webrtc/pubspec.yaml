@@ -33,7 +33,7 @@ dependencies:
   # The `PeerWire` base class this extends, and nothing else from it —
   # `flutter3d_net` itself stays flat Dart, so the Flutter and native cost of
   # a real peer connection lives only in a package that opted into it.
-  flutter3d_net: ^1.0.0-rc.1
+  flutter3d_net: '>=1.0.0-rc.1 <1.1.0'
 
   # The actual peer connection: `RTCPeerConnection`, `RTCDataChannel`, ICE
   # candidate gathering. Native platform code on every platform but the web,

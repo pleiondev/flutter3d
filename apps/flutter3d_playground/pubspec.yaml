@@ -12,19 +12,19 @@ dependencies:
     sdk: flutter
 
   # The view: the device with its software fallback, the loop and the frame.
-  flutter3d_app: ^1.0.0-rc.1
+  flutter3d_app: '>=1.0.0-rc.1 <1.1.0'
 
   # The scene graph, the orbit and the shapes the entity markers are.
-  flutter3d: ^1.0.0-rc.1
+  flutter3d: '>=1.0.0-rc.1 <1.1.0'
 
   # The document: `Level`, `Prefab` and their expansion.
-  flutter3d_sim: ^1.0.0-rc.1
+  flutter3d_sim: '>=1.0.0-rc.1 <1.1.0'
 
   # A level turned into a scene: brushes into meshes, its lights into nodes.
-  flutter3d_level_scene: ^1.0.0-rc.1
+  flutter3d_level_scene: '>=1.0.0-rc.1 <1.1.0'
 
   # `Severity`, which a prefab issue carries.
-  flutter3d_foundation: ^1.0.0-rc.1
+  flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
 
 dev_dependencies:
   flutter_test:
@@ -32,7 +32,7 @@ dev_dependencies:
 
   # A device with no GPU under it, so a test draws a document the way the
   # page does.
-  flutter3d_cpu: ^1.0.0-rc.1
+  flutter3d_cpu: '>=1.0.0-rc.1 <1.1.0'
 
   flutter_lints: ^6.0.0
 

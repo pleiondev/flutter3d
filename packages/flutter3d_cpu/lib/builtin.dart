@@ -7,6 +7,10 @@
 /// follow the engine's shaders and change with them in any release. A library
 /// of its own rather than a `src/` import, so what another package builds on
 /// is in this package's API snapshot and a change to it is seen in review.
+///
+/// The engine's packages ask for each other within one minor
+/// (`'>=1.0.0 <1.1.0'`), so a cpu 1.1 that changes these stages never
+/// resolves under an engine package 1.0 compiled onto the stages before them.
 library;
 
 export 'src/cpu_mesh_layout.dart';

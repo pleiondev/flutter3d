@@ -11,34 +11,34 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter3d: ^1.0.0-rc.1
-  flutter3d_app: ^1.0.0-rc.1
-  flutter3d_game: ^1.0.0-rc.1
-  flutter3d_sim: ^1.0.0-rc.1
-  flutter3d_game_strategy: ^1.0.0-rc.1
+  flutter3d: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_app: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_game: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_sim: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_game_strategy: '>=1.0.0-rc.1 <1.1.0'
 
   # `MapWorld`: this map's pond, river, fires and stones, which are this
   # game's content and not the genre's.
-  flutter3d_demo_content: ^1.0.0-rc.1
+  flutter3d_demo_content: '>=1.0.0-rc.1 <1.1.0'
 
   # The water, the fires and the thrown stones over the map: a world of
   # their own, fed from what the match does and never feeding back.
-  flutter3d_physics_native: ^1.0.0-rc.1
+  flutter3d_physics_native: '>=1.0.0-rc.1 <1.1.0'
 
   # `Portable`'s sines and powers, for the arithmetic of that world's step:
   # `dart:math`'s are each platform's own, and a match replayed on another
   # machine must come out the same.
-  flutter3d_physics: ^1.0.0-rc.1
+  flutter3d_physics: '>=1.0.0-rc.1 <1.1.0'
 
   # That world drawn — the pond and the stream, the flames and the smoke —
   # and what it sounds like.
-  flutter3d_effects: ^1.0.0-rc.1
+  flutter3d_effects: '>=1.0.0-rc.1 <1.1.0'
   # The elements' simulation the effects draw: the bodies, waters and
   # fires stepped, and their events.
-  flutter3d_elements: ^1.0.0-rc.1
+  flutter3d_elements: '>=1.0.0-rc.1 <1.1.0'
 
   # The voices the fires, the stream and the splashes are played through.
-  flutter3d_audio: ^1.0.0-rc.1
+  flutter3d_audio: '>=1.0.0-rc.1 <1.1.0'
 
   # Where `RunSession` lives. Named here rather than reached through the
   # `flutter3d_app` barrel above, because `src/run.dart` imports it by name and
@@ -70,7 +70,7 @@ dev_dependencies:
     sdk: flutter
 
   # A device with no GPU behind it, for the frame test.
-  flutter3d_cpu: ^1.0.0-rc.1
+  flutter3d_cpu: '>=1.0.0-rc.1 <1.1.0'
   flutter_lints: ^6.0.0
 
   # Real-device e2e — see `apps/flutter3d_demo_platformer/pubspec.yaml` for the

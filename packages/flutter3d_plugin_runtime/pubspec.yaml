@@ -29,7 +29,7 @@ platforms:
 dependencies:
   # What a run-time plugin is: a `Flutter3dPlugin` with a manifest, installed
   # through the same host as a compiled one.
-  flutter3d_plugin_api: ^1.0.0-rc.1
+  flutter3d_plugin_api: '>=1.0.0-rc.1 <1.1.0'
 
   # Nothing else of the engine's. No subsystem's section is read here:
   # `entityKinds` (flutter3d_sim), `materials` and `renderSteps`
@@ -46,14 +46,14 @@ dev_dependencies:
   # sections they read a document with: `entityKinds` from the simulation,
   # `materials` and `renderSteps` from the core, `effects` from the
   # particles, `physicalMaterials` and `materialPairs` from the matter.
-  flutter3d_sim: ^1.0.0-rc.1
-  flutter3d_core: ^1.0.0-rc.1
-  flutter3d_physics: ^1.0.0-rc.1
-  flutter3d_particles: ^1.0.0-rc.1
-  flutter3d_matter: ^1.0.0-rc.1
+  flutter3d_sim: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_core: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_physics: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_particles: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_matter: '>=1.0.0-rc.1 <1.1.0'
 
   # The foundation's value types and their crossings into `vector_math`.
-  flutter3d_foundation: ^1.0.0-rc.1
+  flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
 
 # **A plain Dart package.** A Wasm module that touches the simulation is
 # replayed on a server with the rest of the run, so the interpreter that

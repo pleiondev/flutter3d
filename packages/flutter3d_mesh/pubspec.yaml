@@ -31,12 +31,12 @@ dependencies:
   # direction is one-way — geometry describes a finished mesh, this package is
   # what a person is halfway through editing. `flutter3d_core`'s geometry
   # library; the package is plain Dart, so this one stays that way.
-  flutter3d_core: ^1.0.0-rc.1
+  flutter3d_core: '>=1.0.0-rc.1 <1.1.0'
 
   vector_math: ^2.2.0
 
   # The foundation's value types and their crossings into `vector_math`.
-  flutter3d_foundation: ^1.0.0-rc.1
+  flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
 
 dev_dependencies:
   test: ^1.25.0

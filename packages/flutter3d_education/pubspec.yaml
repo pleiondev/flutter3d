@@ -36,12 +36,12 @@ dependencies:
   # `Portable` (a step asks no machine for an answer), `DigestTrace`
   # (verification), `DataSourceTrace` (a value with no controller behind
   # it), `Demo`/`Snapshot`/`InputTape` (a run, wrapped as a real `.f3drun`).
-  flutter3d_sim: ^1.0.0-rc.1
+  flutter3d_sim: '>=1.0.0-rc.1 <1.1.0'
 
   # `Flutter3dException` and its families: the launch, AGS and xAPI
   # refusals are `ResourceException`s, so a caller catches them with the rest
   # of the engine's. Plain Dart over `vector_math` alone.
-  flutter3d_foundation: ^1.0.0-rc.1
+  flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
 
   # RS256 verification of a platform's `id_token` against its JWKS, and
   # signing this tool's own client-credentials assertion for AGS. A
@@ -60,7 +60,7 @@ dependencies:
   http: ^1.2.0
 
   # What a world is made of: its properties, the materials and the constants.
-  flutter3d_matter: ^1.0.0-rc.1
+  flutter3d_matter: '>=1.0.0-rc.1 <1.1.0'
 
 dev_dependencies:
   test: ^1.25.0
