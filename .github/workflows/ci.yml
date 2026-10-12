@@ -495,14 +495,8 @@ jobs:
           fi
           ~/godot/godot --headless --version
 
-      # The comparison's own suite, here rather than in `check`: that job's
-      # test loop walks `packages/` and has never run anything under `tool/`
-      # — see `tool/ci.sh`'s own note above its loop. These eleven break each
-      # of the comparison's rules on purpose, which is the half where it could
-      # be quietly wrong: a check that pairs surfaces badly, or forgives a
-      # bound it should not, passes every committed fixture in silence.
-      - run: dart test
-        working-directory: tool/godot_check
+      # The comparison's own suite runs in `check`, in `tool/ci.sh`'s loop
+      # over `tool/`; this job is the half that needs the engine.
       - run: dart run godot_check:godot_check --godot=$HOME/godot/godot
 
   # **A second operating system, because half of what this repository does is

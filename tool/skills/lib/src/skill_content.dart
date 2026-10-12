@@ -263,9 +263,9 @@ through a shipped genre). `GameRandom(seed)`'s `.state` is one number;
 writing it into a save and restoring it on load is what makes a saved
 game's future rolls continue rather than restart.
 
-## `NetSession`'s three numbers trade against each other, not independently
+## `RollbackSession`'s three numbers trade against each other, not independently
 
-`NetSession(inputDelay: 2, maxRollbackFrames: 8, redundancy: 8)` — the
+`RollbackSession(inputDelay: 2, maxRollbackFrames: 8, redundancy: 8)` — the
 defaults are a starting point, not a universal answer:
 
 - `inputDelay` — steps a captured local input waits before it is applied.
@@ -285,7 +285,7 @@ defaults are a starting point, not a universal answer:
 A step that has just run is still a guess about the far side until its
 confirmation lands — a digest taken the moment a step executes is a digest
 of a guess, and two honest peers holding different guesses is not a
-desync, only two sides that have not compared notes yet. `NetSession`'s
+desync, only two sides that have not compared notes yet. `RollbackSession`'s
 `onSettled(step, after)` callback fires exactly once a step ages out of the
 rollback window, which is the first moment no later correction can ever
 touch it again — call `DigestTrace.observe` from there, and nowhere else,
