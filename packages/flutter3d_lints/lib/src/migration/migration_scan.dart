@@ -528,22 +528,21 @@ final class _Scan extends RecursiveAstVisitor<void> {
     if (rule.kind != MigrationKind.rewrite) {
       if (rule.kind == MigrationKind.manual &&
           rule.match == MigrationMatch.uses) {
+        // A call that answered a value and answers nothing now (a write
+        // that said whether it took), kept in a variable, awaited or not:
+        // its value is a person's to drop, there and where it is read.
+        final keptNothing = rule.awaits && _keptNothing(node);
         switch (rule.awaits ? _awaited(node) : null) {
           case (true, _, _):
-            break;
+            if (keptNothing) _addTodo(rule, node);
           case (false, final List<MigrationEdit> edits, final bool todo):
             _add(rule, node, edits: edits);
-            // A call that answered a value and answers nothing now (a write
-            // that said whether it took): its value is a person's to drop.
-            final answersNothing =
-                _answersNothing(node) &&
-                node.parent?.parent is VariableDeclaration;
-            if (todo || answersNothing) _addTodo(rule, node);
-            if (answersNothing) _readsOfHeldFuture(node, rule);
+            if (todo || keptNothing) _addTodo(rule, node);
           case null:
             _add(rule, node);
             if (rule.awaits) _readsOfHeldFuture(node, rule);
         }
+        if (keptNothing) _readsOfHeldFuture(node, rule);
       }
       return;
     }
@@ -756,6 +755,21 @@ final class _Scan extends RecursiveAstVisitor<void> {
     );
   }
 
+  /// The variable [call]'s value, awaited or not, initializes.
+  static VariableDeclaration? _variableHolding(AstNode? call) {
+    if (call == null) return null;
+    final value = call.parent is AwaitExpression ? call.parent! : call;
+    final variable = value.parent;
+    return variable is VariableDeclaration && variable.initializer == value
+        ? variable
+        : null;
+  }
+
+  /// Whether the call named by [node] answers a `Future<void>` kept in a
+  /// variable.
+  static bool _keptNothing(SimpleIdentifier node) =>
+      _answersNothing(node) && _variableHolding(node.parent) != null;
+
   /// Whether the call named by [node] answers a `Future<void>`.
   static bool _answersNothing(SimpleIdentifier node) {
     final type = node.parent is MethodInvocation
@@ -773,12 +787,8 @@ final class _Scan extends RecursiveAstVisitor<void> {
   /// device`), not on the call.
   void _readsOfHeldFuture(SimpleIdentifier node, MigrationRule rule) {
     final call = node.parent;
-    final variable = call?.parent;
-    if (call is! MethodInvocation ||
-        variable is! VariableDeclaration ||
-        variable.initializer != call) {
-      return;
-    }
+    final variable = _variableHolding(call);
+    if (call is! MethodInvocation || variable == null) return;
     final element = variable.declaredFragment?.element;
     final body = variable.thisOrAncestorOfType<FunctionBody>();
     if (element == null || body == null) return;

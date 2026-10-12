@@ -56,6 +56,8 @@ Future<int> loaded(Store store) async {
   final n = store.load();
   final saved = store.save();
   print(saved);
+  final again = await store.save();
+  print(again);
   return n + store.load().bitLength;
 }
 

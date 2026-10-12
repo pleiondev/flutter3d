@@ -89,10 +89,12 @@ void main() {
       'kinds-Dial-constructor:38',
       'kinds-Store-load:57',
       'kinds-Store-load:58',
-      'kinds-Store-load:63',
-      'kinds-Store-load:64',
+      'kinds-Store-load:59',
+      'kinds-Store-load:60',
       'kinds-Store-load:65',
-      'kinds-Store-load:70',
+      'kinds-Store-load:66',
+      'kinds-Store-load:67',
+      'kinds-Store-load:72',
     ]);
   });
 }
