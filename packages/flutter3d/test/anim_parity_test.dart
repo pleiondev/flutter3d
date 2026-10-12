@@ -133,7 +133,7 @@ Map<String, Matrix4> _matricesAt({
   );
 
   // Path 2: AnimationPlayer.seek + Skeleton.update.
-  player.play(0);
+  player.play(index: 0);
   player.seek(time);
   skeleton.update(meshNode.worldMatrix);
   final playerMatrix = Matrix4.fromFloat32List(

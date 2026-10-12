@@ -97,7 +97,7 @@ final class BehaviorParameters {
 
   /// The number [name], or [fallback] when it is absent. Absent with no
   /// fallback, or not a number, is a problem, and the answer is nought.
-  double number(String name, [double? fallback]) {
+  double number(String name, {double? fallback}) {
     final value = _row[name];
     if (value is num) return value.toDouble();
     if (value == null && fallback != null) return fallback;
@@ -226,8 +226,8 @@ final class BehaviorKinds {
 
   void _standardLeaves() {
     leaf('wait', (p) => _Wait(p.number('seconds')));
-    leaf('goToFocus', (p) => _GoToFocus(p.number('within', 1.0)));
-    leaf('goTo', (p) => _GoTo(p.text('key'), p.number('within', 0.5)));
+    leaf('goToFocus', (p) => _GoToFocus(p.number('within', fallback: 1.0)));
+    leaf('goTo', (p) => _GoTo(p.text('key'), p.number('within', fallback: 0.5)));
     leaf('seesFocus', (p) => const _SeesFocus());
     leaf('focusWithin', (p) => _FocusWithin(p.number('distance')));
     leaf(
@@ -259,8 +259,8 @@ final class BehaviorKinds {
           (c) => c.mind.canSee() ? 1.0 : 0.0,
     );
     consideration('health', (p) {
-      final from = p.number('from', 0.0);
-      final to = p.number('to', 1.0);
+      final from = p.number('from', fallback: 0.0);
+      final to = p.number('to', fallback: 1.0);
       return (c) {
         final health = c.mind.actor.health;
         if (health == null || health.maximum <= 0.0) return 1.0;

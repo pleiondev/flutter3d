@@ -95,7 +95,7 @@ void main() {
         clip.duration * 0.9,
         clip.duration,
       ]) {
-        player.play(0);
+        player.play(index: 0);
         player.seek(t);
         pose.sampleClip(clip, t);
         final world = pose.worldMatrices();
@@ -173,7 +173,7 @@ void main() {
         clip.duration * 0.75,
         clip.duration,
       ]) {
-        player.play(0);
+        player.play(index: 0);
         player.seek(t);
         skeleton.update(built.created[meshNodeIndex].worldMatrix);
 

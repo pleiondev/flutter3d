@@ -226,7 +226,7 @@ final class _NullBinaryStorage extends BinaryStorage {
   Future<Uint8List?> read(String name) async => null;
 
   @override
-  Future<bool> write(String name, Uint8List contents) async => true;
+  Future<void> write(String name, Uint8List contents) async {}
 
   @override
   Future<void> remove(String name) async {}

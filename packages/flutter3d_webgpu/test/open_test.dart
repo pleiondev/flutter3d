@@ -117,7 +117,7 @@ void main() {
     // module compiles whether or not the code was valid, and the failure
     // otherwise arrives at the first pipeline as "invalid due to a previous
     // error", naming no line. Any stage that reacquires the fault fails here.
-    final said = await webgpu.debugDrainErrors('compiling the engine');
+    final said = await webgpu.debugDrainErrors(where: 'compiling the engine');
     expect(
       said,
       isNull,
@@ -158,7 +158,7 @@ void main() {
       expect(device.shaders[vertex], isNotNull);
       expect(device.shaders[fragment], isNotNull);
     }
-    await webgpu.debugDrainErrors('targets and the stages drawn with them');
+    await webgpu.debugDrainErrors(where: 'targets and the stages drawn with them');
 
     for (final (String vertex, String fragment) in _pairs) {
       final pipeline = device.createPipeline(
@@ -181,7 +181,7 @@ void main() {
       // layouts, not that there were any.
       webgpu.bindingsFor(pipeline.backend as WebGpuPipeline);
       expect(
-        await webgpu.debugDrainErrors('$vertex+$fragment'),
+        await webgpu.debugDrainErrors(where: '$vertex+$fragment'),
         isNull,
         reason:
             'the bind group layouts come out of the bundle\'s reflection '

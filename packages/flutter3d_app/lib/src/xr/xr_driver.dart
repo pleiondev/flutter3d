@@ -127,10 +127,9 @@ final class XrDriver {
   /// the runtime's poses in the session's space.
   final SceneNode origin;
 
-  /// Draws a panel's widget into a texture of the given size; null shows no
-  /// panels. A view hands `WidgetTexture.draw`.
-  final Future<TextureHandle?> Function(Widget widget, int width, int height)?
-  drawPanel;
+  /// Draws a panel's widget into a texture of the size an [XrPanelRequest]
+  /// asks for; null shows no panels. A view hands `WidgetTexture.draw`.
+  final Future<TextureHandle?> Function(XrPanelRequest panel)? drawPanel;
 
   /// The loop's clock while the session runs: the runtime's display times.
   final DisplayTime time = DisplayTime();
@@ -330,9 +329,13 @@ final class XrDriver {
     if (drawn == null || drawn.$1 != panel.generation) {
       final generation = panel.generation;
       unawaited(
-        draw(panel.child, panel.pixelWidth, panel.pixelHeight).then((
-          TextureHandle? texture,
-        ) {
+        draw(
+          XrPanelRequest(
+            widget: panel.child,
+            width: panel.pixelWidth,
+            height: panel.pixelHeight,
+          ),
+        ).then((TextureHandle? texture) {
           if (texture == null || !_running) return;
           final old = _panelImages[panel];
           _panelImages[panel] = (generation, texture);
@@ -371,4 +374,27 @@ final class XrDriver {
       await session.end();
     }
   }
+}
+
+/// What `XrDriver.drawPanel` is asked to draw: a panel's [widget] into a
+/// texture [width] by [height] pixels.
+///
+/// **One object, so a later minor can ask for more** (a scale, a colour
+/// space) without breaking a drawer.
+final class XrPanelRequest {
+  /// [widget], drawn [width] by [height].
+  const XrPanelRequest({
+    required this.widget,
+    required this.width,
+    required this.height,
+  });
+
+  /// What the panel shows.
+  final Widget widget;
+
+  /// The texture's width, in pixels.
+  final int width;
+
+  /// The texture's height, in pixels.
+  final int height;
 }

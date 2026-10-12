@@ -55,9 +55,8 @@ final class _FakeBinaryStorage extends BinaryStorage {
   Future<Uint8List?> read(String name) async => documents[name];
 
   @override
-  Future<bool> write(String name, Uint8List contents) async {
+  Future<void> write(String name, Uint8List contents) async {
     documents[name] = contents;
-    return true;
   }
 
   @override

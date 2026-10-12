@@ -144,7 +144,7 @@ PlatformerStaged stagePlatformer(
     // Seeded so the purse is the run's total rather than this level's.
     // Through the purse rather than beside it, so `sim.save()` carries it
     // and a resumed run is not a run that lost its coins.
-    purse: Purse()..add('coin', coins),
+    purse: Purse()..add('coin', howMany: coins),
   );
 
   return PlatformerStaged(

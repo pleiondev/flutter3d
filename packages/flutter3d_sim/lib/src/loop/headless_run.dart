@@ -174,7 +174,7 @@ final class GivenOrder {
   final Map<String, double> arguments;
 
   /// The argument [name], or [fallback] when it was not given.
-  double number(String name, [double fallback = 0.0]) =>
+  double number(String name, {double fallback = 0.0}) =>
       arguments[name] ?? fallback;
 
   @override
@@ -204,9 +204,9 @@ abstract final class OrderTunes {
   /// Gives [input] the order [verb] with [arguments], for the next step.
   static void give(
     InputState input,
-    String verb, [
+    String verb, {
     Map<String, double> arguments = const <String, double>{},
-  ]) {
+  }) {
     for (final MapEntry(:key, :value) in encode(verb, arguments).entries) {
       input.tune(key, value);
     }

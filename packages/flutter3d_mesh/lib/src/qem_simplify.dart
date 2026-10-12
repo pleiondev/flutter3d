@@ -840,8 +840,11 @@ MeshData simplifyMeshWithAttributes(
 
 /// What [simplifyMeshWithAttributesMeasured] made, and how far it had to bend
 /// the surface to make it.
-typedef SimplifiedMesh = ({
-  MeshData mesh,
+final class SimplifiedMesh {
+  const SimplifiedMesh({required this.mesh, required this.error});
+
+  /// The simplified mesh.
+  final MeshData mesh;
 
   /// The largest geometric error any accepted collapse reached, in the
   /// mesh's own units: the square root of the merged vertex's quadric —
@@ -862,8 +865,8 @@ typedef SimplifiedMesh = ({
   /// lower target is a run to a higher one continued, and the maximum over a
   /// longer run is never below the maximum over its prefix — which is what
   /// lets a chain of levels cut from one base promise errors that only grow.
-  double error,
-});
+  final double error;
+}
 
 /// [simplifyMeshWithAttributes], also reporting [SimplifiedMesh.error] — the
 /// number an automatic LOD chain (`C5`) writes beside each level and checks
@@ -882,7 +885,7 @@ SimplifiedMesh simplifyMeshWithAttributesMeasured(
   bool Function()? isCanceled,
 }) {
   if (mesh.triangleCount <= targetTriangleCount) {
-    return (mesh: mesh, error: 0.0);
+    return SimplifiedMesh(mesh: mesh, error: 0.0);
   }
 
   final simplifier = _AttributedSimplifier.fromMesh(
@@ -896,7 +899,10 @@ SimplifiedMesh simplifyMeshWithAttributesMeasured(
     onProgress: onProgress,
     isCanceled: isCanceled,
   );
-  return (mesh: simplifier.toMeshData(), error: math.sqrt(worstCost));
+  return SimplifiedMesh(
+    mesh: simplifier.toMeshData(),
+    error: math.sqrt(worstCost),
+  );
 }
 
 /// A quadric's value at a point: the summed squared distances from it to

@@ -37,7 +37,7 @@ import '../transform/object3d_component.dart';
 /// craft seen across the seam reaches the craft.
 ///
 /// [min] and [max] are the world's corners in Flame's coordinates.
-class WrapSpace extends Component {
+base class WrapSpace extends Component {
   WrapSpace({
     required this.min,
     required this.max,

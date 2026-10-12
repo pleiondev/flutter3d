@@ -60,9 +60,9 @@ final class Decoders extends ModelDecoders {
 
   /// [decoders] — one call's own — with the registered ones after them:
   /// what to pass to `loadMaterial` and `loadMaterialDocument`.
-  List<MaterialDecoder> withMaterialDecoders([
+  List<MaterialDecoder> withMaterialDecoders({
     List<MaterialDecoder> decoders = const <MaterialDecoder>[],
-  ]) => List<MaterialDecoder>.unmodifiable(<MaterialDecoder>[
+  }) => List<MaterialDecoder>.unmodifiable(<MaterialDecoder>[
     ...decoders,
     ...materialDecoders,
   ]);

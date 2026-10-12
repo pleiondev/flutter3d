@@ -143,7 +143,31 @@ final class NativePhysics extends PhysicsBackend
 }
 
 /// Why the run is on the backend it is on — what [startPhysics] answered.
-typedef PhysicsStart = ({PhysicsBackend backend, String? fallbackBecause});
+///
+/// A class rather than a record, so it can later say more about the start
+/// (the core's version, what it was asked for) without breaking a reader.
+final class PhysicsStart {
+  const PhysicsStart({required this.backend, this.fallbackBecause});
+
+  /// The backend the run is on.
+  final PhysicsBackend backend;
+
+  /// Why the run fell back to the Dart reference, or null when it did not.
+  final String? fallbackBecause;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PhysicsStart &&
+      other.backend == backend &&
+      other.fallbackBecause == fallbackBecause;
+
+  @override
+  int get hashCode => Object.hash(backend, fallbackBecause);
+
+  @override
+  String toString() =>
+      'PhysicsStart($backend${fallbackBecause == null ? '' : ', fallback: $fallbackBecause'})';
+}
 
 /// What [usePhysics] chose, once it could; null until then.
 PhysicsStart? _chosen;
@@ -173,13 +197,16 @@ PhysicsBackend usePhysics({String asked = askedPhysics}) {
 PhysicsStart _choose(String asked, void Function() probe) {
   PhysicsStart chosen;
   if (asked == 'dart') {
-    chosen = (backend: const DartPhysics(), fallbackBecause: null);
+    chosen = PhysicsStart(backend: const DartPhysics());
   } else {
     try {
       probe();
-      chosen = (backend: NativePhysics(), fallbackBecause: null);
+      chosen = PhysicsStart(backend: NativePhysics());
     } on Object catch (e) {
-      chosen = (backend: const DartPhysics(), fallbackBecause: '$e');
+      chosen = PhysicsStart(
+        backend: const DartPhysics(),
+        fallbackBecause: '$e',
+      );
     }
   }
   return _chosen = chosen;

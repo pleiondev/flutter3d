@@ -88,7 +88,7 @@ final class ExpressionType {
   };
 
   /// The type of [components] numbers that measure what [unit] measures.
-  static ExpressionType measuring(Unit unit, [int components = 1]) =>
+  static ExpressionType measuring(Unit unit, {int components = 1}) =>
       numeric[components]!.withDimension(unit.dimension);
 
   /// How it is written: `float`, `vec3`, `bool`.

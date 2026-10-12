@@ -5,7 +5,6 @@
 ///     flutter test --dart-define=FLUTTER3D_PHYSICS=dart test/physics_backend_test.dart
 library;
 
-import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_demo_content/shooter_sample.dart';
 import 'package:flutter3d_demo_dungeon/src/run_cubit.dart';

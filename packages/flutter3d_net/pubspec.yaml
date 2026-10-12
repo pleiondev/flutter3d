@@ -28,12 +28,12 @@ platforms:
 dependencies:
   # `Registration`, which `PeerWire.listen` hands back, and the
   # `SimulationVersion` a hello carries whole.
-  flutter3d_plugin_api: ^1.0.0-rc.1
+  flutter3d_plugin_api: '>=1.0.0-rc.1 <1.1.0'
 
   # `Snapshot`, `GameRandom` for the test transport's loss, nothing that
   # draws or reads a device — the same reason `net-01`'s own row gives for
   # sitting on this package and not on `flutter3d_game`.
-  flutter3d_sim: ^1.0.0-rc.1
+  flutter3d_sim: '>=1.0.0-rc.1 <1.1.0'
 
   # `WebSocketTransport` — net-02's fallback transport, and the one client
   # class in this package that has to compile for the web as well as

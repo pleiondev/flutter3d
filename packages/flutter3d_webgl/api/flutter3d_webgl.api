@@ -74,7 +74,7 @@ final class WebGlDevice extends GraphicsDevice with EncodedImageUpload, Synchron
   void writeBuffer(StorageBuffer target, int offsetInBytes, ByteData bytes)
   void writeTexture(TextureHandle target, ByteData data, {TextureRegion? region, int mipLevel = 0, int? bytesPerRow})
 
-class WebGlFramePresenter extends StatelessWidget
+final class WebGlFramePresenter extends StatelessWidget
   Widget build(BuildContext context)
   const WebGlFramePresenter({super.key, required this.device, required this.frame, this.fit = BoxFit.fill, this.quality = FilterQuality.none})
   final BoxFit fit

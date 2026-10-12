@@ -20,7 +20,8 @@ class _SpinAShapeState extends State<SpinAShape> {
   @override
   Widget build(BuildContext context) => Scene3D(
     // Before every frame, with the seconds since the last one.
-    onFrame: (frame) => setState(() => angle += frame.seconds * 0.8),
+    onFrame: (EngineFrame frame) =>
+        setState(() => angle += frame.seconds * 0.8),
     children: <Widget>[
       Camera3D(position: Vector3(0.0, 1.5, 4.0), target: Vector3.zero()),
       const Light3D.sun(),

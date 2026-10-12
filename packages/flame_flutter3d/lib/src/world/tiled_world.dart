@@ -30,7 +30,7 @@ import 'cell_grid_component.dart';
 ///
 /// One tile is [cell] metres, the tile's top left at `(0, 0)` of this
 /// component.
-class TiledWorld3d extends PositionComponent {
+base class TiledWorld3d extends PositionComponent {
   TiledWorld3d({
     required this.map,
     required this.device,

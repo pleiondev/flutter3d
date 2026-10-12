@@ -103,6 +103,11 @@ and do not take a `WorldPosition`.
   parameter, an animation controller, a vsync timestamp, a frame-time budget
   the renderer measures against the wall clock. The engine converts once,
   where the value comes in, and nothing a step runs reads one.
+- **A measurement may be integral microseconds; a budget is a `Duration`.**
+  What the engine reports having measured (a pass's GPU time, a frame's CPU
+  time) may be an `int` of microseconds named `…Micros`, while a budget or a
+  threshold a caller sets (`AdaptiveQualitySettings.budget`,
+  `RenderSettings.frameWorkBudget`) is a `Duration`.
 - **A step is counted, not timed.** Code that has to be repeatable reads the
   step number and the fixed `dt`, never a clock.
 - **How many steps a frame brings is the loop's `TimeSource`'s answer**:

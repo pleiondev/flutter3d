@@ -141,7 +141,7 @@ final class EditorInspector extends StatelessWidget {
     // no way to reach the two that matter.
     final type = editing.entity?.type;
     final absent = <String, Object?>{
-      ...?pieces?.offersFor(kind, fields.keys, type),
+      ...?pieces?.offersFor(kind, fields.keys, type: type),
       ...editing.offerable,
     };
     final more = absent.keys.toList()..sort();

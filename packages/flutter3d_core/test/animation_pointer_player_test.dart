@@ -54,7 +54,7 @@ void main() {
       ],
       targets: const <AnimationTarget?>[],
       pointers: PointerTargets(materials: <int, RenderMaterial>{0: material}),
-    )..play(0);
+    )..play(index: 0);
 
     expect(material.roughness, 0.0);
     player.seek(0.25);
@@ -97,7 +97,7 @@ void main() {
       pointers: PointerTargets(
         materials: <int, RenderMaterial>{0: material, 1: other},
       ),
-    )..play(0);
+    )..play(index: 0);
     expect(material.roughness, closeTo(0.2, 1e-6));
     expect(other.roughness, closeTo(0.9, 1e-6));
     expect(node.position.x, 9.0);

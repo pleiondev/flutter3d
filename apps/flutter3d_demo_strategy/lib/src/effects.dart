@@ -186,7 +186,7 @@ final class MapEffects {
     _look.wind = _world.wind.length;
     _elements.update(dt, eye: eye, events: _world.takeEvents());
     _look.update(seconds: _seconds, eye: eye, pixel: 0.001);
-    _river.update(dt);
+    _river.update(dt: dt);
     _glow();
     _char();
   }

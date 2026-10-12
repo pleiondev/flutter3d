@@ -51,7 +51,7 @@ final class ResourceNode {
   Map<String, Object?> save() => <String, Object?>{'amount': amount};
 
   void restore(Map<String, Object?> from) =>
-      amount = from.number('amount', amount);
+      amount = from.number('amount', orElse: amount);
 }
 
 /// What a unit is doing when nobody is giving it orders.
@@ -112,15 +112,15 @@ final class HarvestJob {
     required List<ResourceNode> nodes,
     required List<Building> buildings,
   }) {
-    final int node = from.integer('node', -1);
-    final int dropOff = from.integer('dropOff', -1);
+    final int node = from.integer('node', orElse: -1);
+    final int dropOff = from.integer('dropOff', orElse: -1);
     if (node < 0 || node >= nodes.length) return null;
     if (dropOff < 0 || dropOff >= buildings.length) return null;
     return HarvestJob(
       node: nodes[node],
       dropOff: buildings[dropOff],
-      capacity: from.number('capacity', 10.0),
-      rate: from.number('rate', 8.0),
+      capacity: from.number('capacity', orElse: 10.0),
+      rate: from.number('rate', orElse: 8.0),
     )..carried = from.number('carried');
   }
 }
@@ -148,7 +148,7 @@ final class Stockpile {
   Map<String, Object?> save() => <String, Object?>{'amount': amount};
 
   void restore(Map<String, Object?> from) =>
-      amount = from.number('amount', amount);
+      amount = from.number('amount', orElse: amount);
 }
 
 /// A building that turns a stockpile into units.
@@ -225,7 +225,7 @@ final class Producer {
   };
 
   void restore(Map<String, Object?> from) {
-    progress = from.number('progress', progress);
+    progress = from.number('progress', orElse: progress);
     ordered = from.integer('ordered');
     wanted = switch (from.object('wanted')) {
       final Map<String, Object?> row => UnitType.fromJson(row),

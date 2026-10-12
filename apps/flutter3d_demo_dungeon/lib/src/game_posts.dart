@@ -1,6 +1,5 @@
 import 'package:flutter3d_game/flutter3d_game.dart'; // postToolEvent, RunStatus
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart' show Pickup;
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'run_cubit.dart';
 

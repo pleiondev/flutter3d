@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `BoneMap`, `BuiltRig` and `TwoBoneIkResult` are `final
+  class`es**, values the rig builder hands back, so they can gain fields in
+  a minor.
+- **Breaking: `ModelCredit`, `RigPreview` and `ImpostorBake` are classes.**
+  The same fields as getters (`ModelCredit` and `RigPreview` equal by
+  value); a credit is built with `ModelCredit(…)`, so it can later carry
+  more of what a licence asks for.
 - **Breaking: a project's lights are the scene's `LightType`, its export
   issues a `Severity`, and its colours `LinearColor`s.**
   `ProjectLightType` and `ExportSeverity` are gone into the foundation's

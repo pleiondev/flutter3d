@@ -9,7 +9,6 @@
 library;
 
 import 'package:flutter3d_app/flutter3d_app.dart';
-import 'package:flutter3d_audio_core/flutter3d_audio_core.dart' show AudioBus;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter_test/flutter_test.dart';
 

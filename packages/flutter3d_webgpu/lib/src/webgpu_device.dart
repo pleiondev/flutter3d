@@ -839,7 +839,7 @@ final class WebGpuDevice extends GraphicsDevice
   /// that draws and then asks gets the truth, and takes what it read: the next
   /// [beginFrame] does not throw it again. Production does not need to ask;
   /// [beginFrame] hands the same complaints over as a typed refusal.
-  Future<String?> debugDrainErrors([String where = '']) =>
+  Future<String?> debugDrainErrors({String where = ''}) =>
       _ledger.debugDrain(where);
 
   // -------------------------------------------------------- the caches

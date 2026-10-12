@@ -10,7 +10,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_effects/flutter3d_effects.dart';
 import 'package:flutter3d_elements/flutter3d_elements.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
-import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart'
     show
         BodyPose,
@@ -441,7 +440,7 @@ final class WaterRun {
       data.object('elements') ?? const <String, Object?>{},
     );
     windy = data.flag('windy');
-    _scatter.state = data.integer('random', 7);
+    _scatter.state = data.integer('random', orElse: 7);
     for (final row in (data['thrown'] as List<Object?>?) ?? const <Object?>[]) {
       if (row case [final String kind, final int raw]) {
         final stone = kind == 'stone';

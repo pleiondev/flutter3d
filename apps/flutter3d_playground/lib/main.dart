@@ -16,7 +16,6 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart' show Level;
 
 import 'src/reading.dart';
 import 'src/samples.dart';
@@ -203,7 +202,7 @@ class PlaygroundState extends State<Playground> {
       child: Flutter3dView(
         camera: _camera,
         onCreated: _opened,
-        onBeforeFrame: (_, _) => _orbit.syncProjectionDepth(_camera),
+        onBeforeFrame: (_) => _orbit.syncProjectionDepth(_camera),
         view: ViewSettings(
           placeholder: const ColoredBox(
             color: Color(0xFF121418),

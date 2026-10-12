@@ -14,7 +14,6 @@
 /// across it, and the four rules a run has to keep.
 library;
 
-import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_demo_platformer/src/run.dart';
 import 'package:flutter3d_game/flutter3d_game.dart'; // RunPlaying/RunFailed, SaveFile

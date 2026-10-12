@@ -86,7 +86,7 @@ final class InterpolationDemo extends ShowcaseDemo {
     _player = AnimationPlayer(
       clips: <AnimationClip>[bounce],
       targets: <AnimationTarget?>[_stepCube, _linearCube, _cubicCube],
-    )..play(0);
+    )..play(index: 0);
     // #endregion player
 
     return Scene()

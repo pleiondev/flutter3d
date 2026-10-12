@@ -649,20 +649,47 @@ typedef SourceLink = ({String path, String sha});
 /// credit.** A name alone leaves whoever reads the exported file unable to
 /// find the original or the terms; the licence and its URL are what make
 /// the line answerable.
-typedef ModelCredit = ({
+///
+/// A class rather than a record, so a credit can later carry more of what
+/// a licence asks for (a copyright line, the changes made) without
+/// breaking a reader.
+final class ModelCredit {
+  const ModelCredit({
+    required this.title,
+    required this.author,
+    required this.license,
+    required this.url,
+  });
+
   /// What the thing is called where it came from.
-  String title,
+  final String title;
 
   /// Who to credit. Never empty — `gal-01` refuses an item that asks for
   /// a credit and names nobody.
-  String author,
+  final String author;
 
   /// The licence's own name, as the card showed it.
-  String license,
+  final String license;
 
   /// Where the licence text is.
-  String url,
-});
+  final String url;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ModelCredit &&
+      other.title == title &&
+      other.author == author &&
+      other.license == license &&
+      other.url == url;
+
+  @override
+  int get hashCode => Object.hash(title, author, license, url);
+
+  @override
+  String toString() =>
+      'ModelCredit(title: $title, author: $author, license: $license, '
+      'url: $url)';
+}
 
 /// The document.
 final class ModelProject with ModelProjectView {

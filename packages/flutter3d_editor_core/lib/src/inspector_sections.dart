@@ -96,7 +96,7 @@ List<EditorComponent> inspectorComponents(
   ];
   return <EditorComponent>[
     ...own.take(own.length - 1),
-    ...?pieces?.componentsFor(piece, type),
+    ...?pieces?.componentsFor(piece, type: type),
     own.last,
   ];
 }

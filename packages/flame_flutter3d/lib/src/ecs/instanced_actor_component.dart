@@ -29,7 +29,7 @@ import '../host/step_clock.dart';
 /// **[batch] sits at the scene's origin, unturned**, as for
 /// `InstancedObject3dComponent`: the transform written is the body's place in
 /// the scene as it is.
-class InstancedActorComponent extends Component implements StepFollower {
+base class InstancedActorComponent extends Component implements StepFollower {
   InstancedActorComponent({
     required this.actor,
     required this.batch,
@@ -142,7 +142,7 @@ class InstancedActorComponent extends Component implements StepFollower {
 /// answers false once it is gone, which takes this component and its slot
 /// away. For a sim's own list of short-lived things the game mirrors one
 /// component per item.
-class InstancedPoseComponent extends Component {
+base class InstancedPoseComponent extends Component {
   InstancedPoseComponent({
     required this.batch,
     required this.place,

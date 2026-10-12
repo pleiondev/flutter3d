@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `PartySeat` is a class** with the same fields, so a seat
+  can later carry more of what the relay said.
 - **A rollback says what it costs.** `RollbackSession.stats` reads a
   `RollbackStats` (new): the steps run, the rollbacks, the steps run again
   with the median, 99th percentile and worst time of each, the steps that

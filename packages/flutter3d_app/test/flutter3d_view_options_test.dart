@@ -13,11 +13,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_app/src/view/simulation_placing.dart';
-import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show EngineLog, LogLevel, LogRecord;
 import 'package:flutter3d_hardware/testing.dart' show FakeBackend;
-import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show LoopPhase, Registration, SimulationProfile;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -190,7 +186,7 @@ void main() {
             presenter: _noPresenter,
           ),
           log: log,
-          onFrame: (_, _) {
+          onFrame: (_) {
             if (threw) return;
             threw = true;
             throw thrown;
@@ -289,7 +285,7 @@ void main() {
             ),
             loop: LoopSettings(
               simulation: SimulationPlacement.inline(
-                applyInput: (_, input) => applied.add(input),
+                applyInput: (SeatInput seated) => applied.add(seated.input),
               ),
             ),
             onCreated: (e) => engine = e,

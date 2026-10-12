@@ -334,7 +334,7 @@ final class MeshAttribute
   static const MeshAttribute uv0 = MeshAttribute._('uv0')
   static const MeshAttribute weights = MeshAttribute._('weights')
 
-class MeshBrush
+final class MeshBrush
   const MeshBrush({required this.kind, required this.radius, required this.strength, this.falloff = BrushFalloff.smooth})
   final BrushFalloff falloff
   final BrushKind kind
@@ -376,7 +376,15 @@ final class MeshDomain
   static const MeshDomain face = MeshDomain._('face')
   static const MeshDomain vertex = MeshDomain._('vertex')
 
-typedef MeshHit = ({int face, int triangle, double distance, Vector3 point});
+final class MeshHit
+  String toString()
+  bool operator ==(Object other)
+  const MeshHit({required this.face, required this.triangle, required this.distance, required this.point})
+  final Vector3 point
+  final double distance
+  final int face
+  final int triangle
+  int get hashCode
 
 final class MeshImportReport
   String toString()
@@ -709,7 +717,10 @@ final class ShapeKey
   static Float32List blend(EditMesh base, List<ShapeKey> keys, List<double> weights)
   void setPosition(int vertex, Vector3 position)
 
-typedef SimplifiedMesh = ({MeshData mesh, double error});
+final class SimplifiedMesh
+  const SimplifiedMesh({required this.mesh, required this.error})
+  final MeshData mesh
+  final double error
 
 final class SmoothModifier extends Modifier
   EditMesh apply(EditMesh base, ModifierContext context)

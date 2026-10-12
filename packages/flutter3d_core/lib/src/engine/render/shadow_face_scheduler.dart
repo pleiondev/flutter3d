@@ -84,7 +84,7 @@ final class ShadowFaceScheduler {
   /// leaves out stays pending, so the next [select] names it again, and the
   /// first of them becomes where the next scan starts: a face that keeps
   /// losing to faces ahead of it in the atlas would otherwise never be drawn.
-  void recordDrawn([Set<int>? only]) {
+  void recordDrawn({Set<int>? only}) {
     final pending = _pending;
     if (pending == null) return;
     int? firstWaiting;

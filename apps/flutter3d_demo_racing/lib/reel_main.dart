@@ -20,7 +20,6 @@ import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_game_ui/capture.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show preparePhysics, usePhysics;
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'src/backend.dart';
 import 'src/circuits.dart';

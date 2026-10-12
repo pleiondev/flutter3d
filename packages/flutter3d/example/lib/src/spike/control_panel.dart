@@ -491,7 +491,7 @@ class AnimationControls extends StatelessWidget {
                   label: Text(names[i]),
                   selected: player.clipIndex == i,
                   onSelected: (_) {
-                    player.play(i);
+                    player.play(index: i);
                     onChanged();
                   },
                 ),

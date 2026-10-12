@@ -117,6 +117,25 @@ void main() {
     expect(text, isNot(contains('_Hidden')));
   });
 
+  test('a constructor that sets a private field names its type', () {
+    // Mutation: print `this._channel` as the source writes it, and a change
+    // of the field's type (or a third-party type behind it) moves nothing.
+    final text = _snapshot(<String, Map<String, String>>{
+      'p': <String, String>{
+        'lib/p.dart':
+            'final class Transport {\n'
+            '  Transport(this._channel, {this.name = ""});\n'
+            '  Transport.typed(Sink<String> this._channel) : name = "";\n'
+            '  final Sink<String> _channel;\n'
+            '  final String name;\n'
+            '}\n',
+      },
+    }, 'p');
+    expect(text, contains('  Transport(Sink<String> this._channel, {'));
+    expect(text, contains('this.name = ""'));
+    expect(text, contains('  Transport.typed(Sink<String> this._channel)\n'));
+  });
+
   test('a whole-package re-export names its origin and every name', () {
     // Mutation: list only the package's own declarations, and `flutter3d`
     // dropping the core's re-export — every name a caller had — would leave

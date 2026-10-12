@@ -315,10 +315,10 @@ abstract base class BehaviorLeaf
   void act(BehaviorContext context)
 
 final class BehaviorParameters
-  BehaviorParameters(this._row, this._where, this._problems)
+  BehaviorParameters(Map<Object?, Object?> this._row, String this._where, List<String> this._problems)
   Object? value(String name)
   String text(String name)
-  double number(String name, [double? fallback])
+  double number(String name, {double? fallback})
   double? optionalNumber(String name)
 
 typedef BehaviorPathStep = ({int node, String kind, String label, BehaviorStatus status});
@@ -1214,7 +1214,7 @@ final class GhostFrame
 final class GivenOrder
   String toString()
   const GivenOrder(this.verb, this.arguments)
-  double number(String name, [double fallback = 0.0])
+  double number(String name, {double fallback = 0.0})
   final Map<String, double> arguments
   final String verb
 
@@ -2159,7 +2159,7 @@ abstract final class OrderTunes
   static List<GivenOrder> read(InputState input)
   static Map<String, double> encode(String verb, Map<String, double> arguments)
   static const String prefix = 'order.'
-  static void give(InputState input, String verb, [Map<String, double> arguments = const <String, double>{}])
+  static void give(InputState input, String verb, {Map<String, double> arguments = const <String, double>{}})
 
 abstract base class OrderedGame extends HeadlessGame
   abstract Map<String, GameOrder> get orders
@@ -2553,7 +2553,7 @@ typedef RunTransport = Future<RunResponse> Function(RunRequest request);
 
 final class SamplerDataSource extends EduDataSource
   Object? sample(int step)
-  const SamplerDataSource(this._sample)
+  const SamplerDataSource(Object? Function(int step) this._sample)
 
 final class SaveFound extends SaveRead
   const SaveFound(this.record, {required this.upgradedFrom})
@@ -2821,8 +2821,8 @@ extension SnapshotFields on Map<String, Object?>
   T enumOf<T extends Enum>(String key, List<T> values, T orElse)
   bool flag(String key, {bool orElse = false})
   bool vectorInto(String key, Vector3 out)
-  double number(String key, [double orElse = 0.0])
-  int integer(String key, [int orElse = 0])
+  double number(String key, {double orElse = 0.0})
+  int integer(String key, {int orElse = 0})
 
 final class SnapshotFormatException extends Flutter3dFormatException
   String toString()
@@ -2918,7 +2918,7 @@ base class SurfaceTable<T>
   Iterable<String> get names
   T of(String? surface)
   bool knows(String surface)
-  const SurfaceTable(this._byName, {required this.fallback})
+  const SurfaceTable(Map<String, T> this._byName, {required this.fallback})
   final T fallback
 
 abstract base class Takeable extends Mechanism with CollisionListener
@@ -2943,7 +2943,7 @@ base class Tally
   Map<String, Object?> save()
   Tally()
   UnmodifiableMapView<String, int> get counts
-  bool add(String what, [int howMany = 1])
+  bool add(String what, {int howMany = 1})
   bool get isEmpty
   int operator [](String what)
   void clear()
@@ -3336,7 +3336,7 @@ Level expandRecipes(Level level)
 
 List<AttributeMatch> findByAttribute(Iterable<EntityDef> entities, String name, Object? value)
 
-({String path, Object? a, Object? b})? firstDifferingPath(Object? a, Object? b, [String prefix = ''])
+({String path, Object? a, Object? b})? firstDifferingPath(Object? a, Object? b, {String prefix = ''})
 
 Generated generateLevel(LevelRules rules, {required int seed, int attempts = 32})
 

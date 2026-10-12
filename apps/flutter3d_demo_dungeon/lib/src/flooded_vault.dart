@@ -149,7 +149,7 @@ final class FloodedVault {
     required Iterable<Vector3> flames,
   }) {
     look.update(seconds: seconds, eye: eye);
-    view.update(dt);
+    view.update(dt: dt);
     _mirror(eye, flames);
   }
 

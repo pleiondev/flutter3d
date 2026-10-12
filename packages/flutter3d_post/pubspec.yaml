@@ -69,16 +69,16 @@ flutter3d_plugins:
 dependencies:
   # `RenderStepAddon`, `RendererSteps.provide` and the settings this package
   # re-exports. The passes themselves are still drawn there.
-  flutter3d_core: ^1.0.0-rc.1
-  flutter3d_plugin_api: ^1.0.0-rc.1
+  flutter3d_core: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_plugin_api: '>=1.0.0-rc.1 <1.1.0'
 
 dev_dependencies:
   test: ^1.25.0
   flutter_lints: ^6.0.0
   # A renderer to install the plugins into and plan frames with, on the
   # software device.
-  flutter3d_cpu: ^1.0.0-rc.1
+  flutter3d_cpu: '>=1.0.0-rc.1 <1.1.0'
   vector_math: ^2.2.0
 
   # The foundation's value types and their crossings into `vector_math`.
-  flutter3d_foundation: ^1.0.0-rc.1
+  flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'

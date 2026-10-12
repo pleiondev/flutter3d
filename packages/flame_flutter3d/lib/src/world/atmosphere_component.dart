@@ -18,7 +18,7 @@ import '../host/has_flutter3d.dart';
 /// The sky is the game's `clearColor`, linear as the atmosphere's is. A
 /// `Flutter3dFlameWidget` handed a `clearColor` of its own draws that
 /// instead, as it says: leave it out for the day to show.
-class AtmosphereComponent extends Component {
+base class AtmosphereComponent extends Component {
   AtmosphereComponent({
     required this.cycle,
     this.sun,

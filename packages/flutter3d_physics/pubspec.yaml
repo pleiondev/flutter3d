@@ -27,12 +27,12 @@ platforms:
 
 dependencies:
   # `WorldPosition`, `Portable` and the crossings into `vector_math`.
-  flutter3d_foundation: ^1.0.0-rc.1
+  flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
   # What a world and its bodies are made of: `WorldProperties`, the material
   # catalogue, the standard world. Re-exported while its readers move to it.
-  flutter3d_matter: ^1.0.0-rc.1
+  flutter3d_matter: '>=1.0.0-rc.1 <1.1.0'
   # `SnapshotPart`: a world's state is a part of the run's snapshot.
-  flutter3d_plugin_api: ^1.0.0-rc.1
+  flutter3d_plugin_api: '>=1.0.0-rc.1 <1.1.0'
   vector_math: ^2.2.0
 
 dev_dependencies:

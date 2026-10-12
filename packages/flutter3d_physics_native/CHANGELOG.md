@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **Breaking: the core's results are classes.** `PhysicsStart`,
+  `NativeEvent`, `NativeContact`, `NativeHit`, `NativeCharacterMove`,
+  `NativeWheelState` and `NativeShallowInfo` are final classes with the
+  record's field names as getters and equality by value, so a later core
+  can report more (a contact's materials and impulse, a hit's material)
+  without breaking a reader. Only a destructuring pattern changes.
 - **Breaking: the visual systems take one context per call.**
   `ClothSystem.step` and `movePoint`, `FluidSystem.step`,
   `DebrisSystem.step` and `NativeParticleCloud.step` take a

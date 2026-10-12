@@ -618,7 +618,18 @@ Future<bool> convertOne(
 
 /// What [convertDocument] made: the document as written, after levels,
 /// chunks, impostors and texture encoding, and the `.f3d` bytes of it.
-typedef F3dConversion = ({ModelDocument document, Uint8List bytes});
+///
+/// A class rather than a record, so a conversion can later report more
+/// (what it dropped) without breaking a reader.
+final class F3dConversion {
+  const F3dConversion({required this.document, required this.bytes});
+
+  /// The document as written.
+  final ModelDocument document;
+
+  /// The `.f3d` bytes of it.
+  final Uint8List bytes;
+}
 
 /// The written `.f3d` did not read back as the document it was written from.
 final class F3dRoundTripException extends Flutter3dFormatException {
@@ -719,7 +730,7 @@ Future<F3dConversion> convertDocument(
   final roundTrip = F3dDocument.parse(encoded);
   final problems = compareModelDocuments(encodedDocument, roundTrip);
   if (problems.isNotEmpty) throw F3dRoundTripException(problems);
-  return (document: encodedDocument, bytes: encoded);
+  return F3dConversion(document: encodedDocument, bytes: encoded);
 }
 
 /// The model file at [path] decoded as [convertOne] decodes it: [decoders]

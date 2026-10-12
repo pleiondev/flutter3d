@@ -269,13 +269,13 @@ void main() {
         ]),
       );
       expect(
-        pieces.offersFor(Piece.entity, <String>['type'], 'torch'),
+        pieces.offersFor(Piece.entity, <String>['type'], type: 'torch'),
         isEmpty,
       );
       // Mutation: offer every default, set or not. `buoyancy` is set here and
       // must not be offered again under "not set".
       expect(
-        pieces.offersFor(Piece.entity, <String>['type', 'buoyancy'], 'boat'),
+        pieces.offersFor(Piece.entity, <String>['type', 'buoyancy'], type: 'boat'),
         <String, Object?>{'drag': 0.4},
       );
     });

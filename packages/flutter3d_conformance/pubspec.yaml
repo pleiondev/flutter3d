@@ -32,29 +32,29 @@ dependencies:
   # deliberate and unusual: this package *is* tests, and the backends that run
   # them take it as a dev dependency of their own.
   test: ^1.25.0
-  flutter3d_hardware: ^1.0.0-rc.1
+  flutter3d_hardware: '>=1.0.0-rc.1 <1.1.0'
   # The refusal the capability checks hold every backend to,
   # `UnsupportedCapabilityException`, which every layer throws.
-  flutter3d_foundation: ^1.0.0-rc.1
+  flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
   vector_math: ^2.2.0
   # The list of entry points a bundle must answer to.
-  flutter3d_shaders: ^1.0.0-rc.1
+  flutter3d_shaders: '>=1.0.0-rc.1 <1.1.0'
   # The plugin suite (`plugins.dart`): what a plugin is written against, and
   # the loop that installs it, switches it and steps it twice. Both plain
   # Dart, so this package stays flat and runs in a browser as before; only
   # a plugin's own suite reaches either.
-  flutter3d_plugin_api: ^1.0.0-rc.1
-  flutter3d_sim: ^1.0.0-rc.1
+  flutter3d_plugin_api: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_sim: '>=1.0.0-rc.1 <1.1.0'
   # The material catalogue, whose plugin-declared entries the `materials`
   # check holds to the engine's ranges. Plain Dart too.
-  flutter3d_physics: ^1.0.0-rc.1
+  flutter3d_physics: '>=1.0.0-rc.1 <1.1.0'
 
   # What a world is made of: its properties, the materials and the constants.
-  flutter3d_matter: ^1.0.0-rc.1
+  flutter3d_matter: '>=1.0.0-rc.1 <1.1.0'
 
   # The fields a backend holds on a device and a plugin declares, which the
   # field checks and the plugin suite's namespaces read. Plain Dart.
-  flutter3d_fields: ^1.0.0-rc.1
+  flutter3d_fields: '>=1.0.0-rc.1 <1.1.0'
 
 dev_dependencies:
   flutter_lints: ^6.0.0

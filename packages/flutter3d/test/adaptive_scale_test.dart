@@ -43,6 +43,24 @@ void main() {
     ),
   );
 
+  test('the target is a Duration the slow and fast lines are drawn from', () {
+    // Mutation: read the default target instead of the one set, and a
+    // 30 ms window at a 33 ms target is slow.
+    final controller = AdaptiveScale(
+      const AdaptiveScaleSettings(
+        enabled: true,
+        target: Duration(milliseconds: 33),
+        window: 1,
+      ),
+    );
+    expect(
+      const AdaptiveScaleSettings().target,
+      const Duration(microseconds: 16667),
+    );
+    controller.recordFrame(30000);
+    expect(controller.scale, 1.0);
+  });
+
   test('off, it reports full and decides nothing', () {
     // An application that has not asked for its resolution to move should not
     // find it moving, and should not find a window kept for it either.

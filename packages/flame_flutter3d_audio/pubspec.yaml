@@ -33,13 +33,13 @@ dependencies:
 
   # The bridge, for the game's 3D camera the ears ride on and the scene
   # position a bridged component makes its sound at.
-  flame_flutter3d: ^1.0.0-rc.1
+  flame_flutter3d: '>=1.0.0-rc.1 <1.1.0'
 
   # The sound itself. **Its own package, not part of the bridge**, because
   # this brings SoLoud's native library, and on the web its script, into
   # every application that depends on it: a bridged game with no sound
   # should not carry either.
-  flutter3d_audio: ^1.0.0-rc.1
+  flutter3d_audio: '>=1.0.0-rc.1 <1.1.0'
 
   vector_math: ^2.2.0
 
@@ -49,6 +49,6 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   flame_test: ^2.3.1
   # The scene nodes a test's bridged craft is drawn as.
-  flutter3d: ^1.0.0-rc.1
+  flutter3d: '>=1.0.0-rc.1 <1.1.0'
   # A device that records rather than draws, to open a game's 3D world on.
-  flutter3d_hardware: ^1.0.0-rc.1
+  flutter3d_hardware: '>=1.0.0-rc.1 <1.1.0'

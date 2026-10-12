@@ -206,8 +206,8 @@ void main() {
     // Mutation: drop the `tally` line from `save`. Both counts come back nought.
     final it = _Level(monsters: 3, secrets: 2);
     it.sim.step(_dt);
-    it.sim.tally.add(GameSimulation.kills, 2);
-    it.sim.tally.add(GameSimulation.secrets, 1);
+    it.sim.tally.add(GameSimulation.kills, howMany: 2);
+    it.sim.tally.add(GameSimulation.secrets, howMany: 1);
 
     final loaded = _Level(monsters: 3, secrets: 2);
     loaded.sim.restore(Snapshot.fromJson(it.sim.save().toJson()));

@@ -28,11 +28,27 @@ typedef QualityScene =
     );
 
 /// A row of [QualitySetting.grid], measured.
-typedef QualityMeasurement = ({
-  QualitySetting setting,
-  double cost,
-  double flip,
-});
+///
+/// A class rather than a record, so a row can later carry more measures
+/// without breaking a reader.
+final class QualityMeasurement {
+  const QualityMeasurement({
+    required this.setting,
+    required this.cost,
+    required this.flip,
+  });
+
+  /// The setting measured.
+  final QualitySetting setting;
+
+  /// What it cost: its frame time as a ratio of full quality's, one for
+  /// full quality itself.
+  final double cost;
+
+  /// How far its picture is from the reference, as a FLIP score: a
+  /// fraction, nought for the same picture.
+  final double flip;
+}
 
 /// Renders [scenes] at every setting of [QualitySetting.grid] on [device], at
 /// [width] × [height], and returns a measurement per setting in grid order.
@@ -74,7 +90,7 @@ Future<List<QualityMeasurement>> measureQualityTable({
 
   return <QualityMeasurement>[
     for (final (i, setting) in QualitySetting.grid.indexed)
-      (
+      QualityMeasurement(
         setting: setting,
         cost: i == 0
             ? 1.0

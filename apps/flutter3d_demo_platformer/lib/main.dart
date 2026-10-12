@@ -70,7 +70,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Landscape and no system bars on a handset — see `lockLandscapeForTouch`,
   // which two applications had written out and the third had not.
-  lockLandscapeForTouch(_playing);
+  lockLandscapeForTouch(playing: _playing);
   // Settings before the screen: the bindings a player saved are the ones the
   // keyboard should be reading from the first key press, not from the first
   // rebind.
@@ -608,7 +608,7 @@ class _GameScreenState extends State<GameScreen> {
     final RunGhost(:ghost, :note) = ghostOf(Level.fromJson(bundle.level), run);
     if (!mounted) return '';
     final says = note.say(
-      Localizations.maybeLocaleOf(context)?.languageCode ?? 'en',
+      languageCode: Localizations.maybeLocaleOf(context)?.languageCode ?? 'en',
     );
     if (ghost == null) return says;
     setState(() {
@@ -1190,7 +1190,8 @@ class _GameScreenState extends State<GameScreen> {
 
   /// The top of a frame, before the view steps the loop: the pad read, and
   /// whether the loop is paused this frame.
-  void _beforeFrame(Flutter3dEngine engine, FrameInfo frame) {
+  void _beforeFrame(EngineFrame f) {
+    final frame = f.frame;
     final dt = frame.seconds;
     _elapsed += dt;
     // Before the loop, so the frame that reads the pad is the frame it moves in.
@@ -1217,7 +1218,7 @@ class _GameScreenState extends State<GameScreen> {
 
   /// The bottom of a frame, after the loop: the screen around the picture
   /// redrawn with what the frame did.
-  void _afterFrame(Flutter3dEngine engine, FrameInfo frame) {
+  void _afterFrame(EngineFrame f) {
     // Not while a photo is drawn: a rebuild draws a frame on the renderer the
     // tiles are drawn on — see `capturePhoto`. The view itself is held still
     // then too, under a `TickerMode` in [_game].
@@ -1455,7 +1456,8 @@ class _GameScreenState extends State<GameScreen> {
 
   /// [look] with the player's colour vision correction, when they asked
   /// for one in the settings.
-  LookSettings _seen(LookSettings look) => _vision?.of(_config, look) ?? look;
+  LookSettings _seen(LookSettings look) =>
+      _vision?.of(_config, base: look) ?? look;
 
   /// What the last simulated step published. See [_afterStep].
   List<GameEvent> _lastStep = const <GameEvent>[];

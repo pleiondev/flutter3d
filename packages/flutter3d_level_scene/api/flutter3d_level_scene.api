@@ -4,7 +4,12 @@
 
 library package:flutter3d_level_scene/flutter3d_level_scene.dart
 
-typedef LevelBatch = ({MeshNode node, DeviceMesh mesh, Aabb3 bounds, int? brush});
+final class LevelBatch
+  const LevelBatch({required this.node, required this.mesh, required this.bounds, this.brush})
+  final Aabb3 bounds
+  final DeviceMesh mesh
+  final MeshNode node
+  final int? brush
 
 final class LevelBatching
   String toString()

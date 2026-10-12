@@ -28,11 +28,14 @@ uniform FragInfo
 } frag_info;
 ''';
     // Mutation: ignore `#else` and both branches are counted.
-    expect(countGlslBindings(glsl), (textures: 2, uniformBlocks: 2));
-    expect(countGlslBindings(glsl, defines: <String>{'F3D_NO_FOG'}), (
-      textures: 3,
-      uniformBlocks: 1,
-    ));
+    expect(
+      countGlslBindings(glsl),
+      const GlslBindingCount(textures: 2, uniformBlocks: 2),
+    );
+    expect(
+      countGlslBindings(glsl, defines: <String>{'F3D_NO_FOG'}),
+      const GlslBindingCount(textures: 3, uniformBlocks: 1),
+    );
   });
 
   test('a stage over the budget is refused, naming it and the count', () {

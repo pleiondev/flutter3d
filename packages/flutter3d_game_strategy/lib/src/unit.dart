@@ -159,13 +159,13 @@ final class UnitType {
   /// document left out.
   factory UnitType.fromJson(Map<String, Object?> from) => UnitType(
     name: from.text('name') ?? worker.name,
-    radius: from.number('radius', worker.radius),
-    speed: from.number('speed', worker.speed),
-    sight: from.number('sight', worker.sight),
-    health: from.number('health', worker.health),
-    damage: from.number('damage', worker.damage),
-    range: from.number('range', worker.range),
-    reload: from.number('reload', worker.reload),
+    radius: from.number('radius', orElse: worker.radius),
+    speed: from.number('speed', orElse: worker.speed),
+    sight: from.number('sight', orElse: worker.sight),
+    health: from.number('health', orElse: worker.health),
+    damage: from.number('damage', orElse: worker.damage),
+    range: from.number('range', orElse: worker.range),
+    reload: from.number('reload', orElse: worker.reload),
   );
 
   /// Two kinds are the same kind when their numbers are.
@@ -400,7 +400,7 @@ final class StrategyUnit {
       type: type,
       side: from.integer('side'),
       order: UnitOrder.fromSnapshot(from),
-      health: from.number('health', type.health),
+      health: from.number('health', orElse: type.health),
     )..cooldown = from.number('cooldown');
   }
 }

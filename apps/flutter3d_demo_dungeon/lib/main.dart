@@ -26,7 +26,6 @@ import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 // dance.
 import 'package:flutter3d_game_ui/flutter3d_game_ui.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
-import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show usePhysics;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
@@ -91,7 +90,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Landscape and no system bars on a handset — see `lockLandscapeForTouch`,
   // which two applications had written out and the third had not.
-  lockLandscapeForTouch(_playing);
+  lockLandscapeForTouch(playing: _playing);
   // Settings before the screen: the bindings a player saved are the ones the
   // keyboard should read from the first key press, not from the first rebind.
   final unread = <Issue>[];
@@ -1436,7 +1435,7 @@ class _GameScreenState extends State<GameScreen>
         // set whether or not it is.
         _actorVisuals
           ?..outlineOf ??= _rings.actor
-          ..sync(frame.alpha);
+          ..sync(alpha: frame.alpha);
         _fixtureVisuals?.outlineOf ??= _rings.fixture;
         // The monsters' graphs are stepped by the simulation and this draws
         // the pose the last step left; what it still plays on the frame's

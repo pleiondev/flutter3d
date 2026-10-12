@@ -77,7 +77,7 @@ abstract final class MaterialStageBudget {
   /// WGSL compiler is installed. Counted as declared, after `#ifdef`, which
   /// the engine's headers keep in step with what the compiler keeps.
   static String? problemOfGlsl(String stage, String glsl) {
-    final (:textures, :uniformBlocks) = countGlslBindings(glsl);
+    final GlslBindingCount(:textures, :uniformBlocks) = countGlslBindings(glsl);
     return problem(
       stage,
       textures: textures,
@@ -87,12 +87,38 @@ abstract final class MaterialStageBudget {
   }
 }
 
+/// What [countGlslBindings] counts in one stage's GLSL: a class rather than
+/// a record, so a later minor can count one more kind of binding.
+final class GlslBindingCount {
+  /// A count of [textures] textures and [uniformBlocks] uniform blocks.
+  const GlslBindingCount({required this.textures, required this.uniformBlocks});
+
+  /// The distinct sampled textures the stage declares.
+  final int textures;
+
+  /// The distinct uniform blocks the stage declares.
+  final int uniformBlocks;
+
+  @override
+  bool operator ==(Object other) =>
+      other is GlslBindingCount &&
+      other.textures == textures &&
+      other.uniformBlocks == uniformBlocks;
+
+  @override
+  int get hashCode => Object.hash(textures, uniformBlocks);
+
+  @override
+  String toString() =>
+      'GlslBindingCount(textures: $textures, uniformBlocks: $uniformBlocks)';
+}
+
 /// The distinct textures and uniform blocks [glsl] declares (its includes
 /// already resolved), after `#define`, `#undef`, `#ifdef`, `#ifndef`,
 /// `#else` and `#endif` are applied with [defines] set to begin with. A
 /// directive it does not read (`#if <expression>`) is taken as true, which
 /// counts more rather than fewer.
-({int textures, int uniformBlocks}) countGlslBindings(
+GlslBindingCount countGlslBindings(
   String glsl, {
   Set<String> defines = const <String>{},
 }) {
@@ -147,5 +173,8 @@ abstract final class MaterialStageBudget {
     for (final m in RegExp(r'\buniform\s+(\w+)\s*\{').allMatches(text))
       m.group(1)!,
   };
-  return (textures: textures.length, uniformBlocks: blocks.length);
+  return GlslBindingCount(
+    textures: textures.length,
+    uniformBlocks: blocks.length,
+  );
 }

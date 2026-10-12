@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `MeshBrush` is a `final class`**, so it can gain a setting
+  in a minor.
+- **Breaking: `MeshHit` and `SimplifiedMesh` are classes** with the same
+  fields (`MeshHit` equal by value), so a hit can later carry its normal
+  and weights and a simplification more of what it measured.
 - **Breaking: `IssueSeverity` is `flutter3d_foundation`'s `Severity`**,
   with the same three tiers and wire words.
 - **Breaking: a modifier's `fromJson` throws a `ModifierFormatException`.**

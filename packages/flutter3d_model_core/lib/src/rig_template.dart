@@ -187,7 +187,7 @@ final class RigBuildSettings {
 /// [objects], so every joint's own [ModelObject.parent] that names it is
 /// still naming an earlier list entry — it is simply never one of
 /// [skeleton]'s own [ProjectSkeleton.joints].
-class BuiltRig {
+final class BuiltRig {
   const BuiltRig({required this.objects, required this.skeleton});
 
   final List<ModelObject> objects;
@@ -199,12 +199,46 @@ class BuiltRig {
 /// joints, how many of them actually deform a mesh, how many rig
 /// controllers, how many IK chains. `anim-33d`'s own row, for the
 /// composition-card UI screen 16 draws ("N bones · M deforming").
-typedef RigPreview = ({
-  int jointCount,
-  int deformingCount,
-  int controllerCount,
-  int ikChainCount,
-});
+///
+/// A class rather than a record, so a preview can later count more without
+/// breaking a reader.
+final class RigPreview {
+  const RigPreview({
+    required this.jointCount,
+    required this.deformingCount,
+    required this.controllerCount,
+    required this.ikChainCount,
+  });
+
+  /// How many joints.
+  final int jointCount;
+
+  /// How many of them deform a mesh.
+  final int deformingCount;
+
+  /// How many rig controllers.
+  final int controllerCount;
+
+  /// How many IK chains.
+  final int ikChainCount;
+
+  @override
+  bool operator ==(Object other) =>
+      other is RigPreview &&
+      other.jointCount == jointCount &&
+      other.deformingCount == deformingCount &&
+      other.controllerCount == controllerCount &&
+      other.ikChainCount == ikChainCount;
+
+  @override
+  int get hashCode =>
+      Object.hash(jointCount, deformingCount, controllerCount, ikChainCount);
+
+  @override
+  String toString() =>
+      'RigPreview(joints: $jointCount, deforming: $deformingCount, '
+      'controllers: $controllerCount, ik chains: $ikChainCount)';
+}
 
 /// One row of a rig's own bone table: a joint's name, its parent's name (or
 /// none, for the root), and where its rest position comes from.
@@ -584,7 +618,7 @@ RigPreview previewRig(
   RigBuildSettings options = const RigBuildSettings(),
 }) {
   final table = _tableFor(template, options);
-  return (
+  return RigPreview(
     jointCount: table.length,
     deformingCount: table.where((bone) => bone.deforming).length,
     controllerCount: options.controllers ? 1 : 0,

@@ -93,7 +93,9 @@ void main() {
     final device = await openDevice(width: _width, height: _height);
     final ascent = await _AscentReplay.open(demo, device: device);
     final renderer = Renderer.create(device: device);
-    final settings = ascent.settings(frameWorkBudget: _budget);
+    final settings = ascent.settings(
+      frameWorkBudget: Duration(microseconds: _budget),
+    );
     final views = ascent.views();
 
     // The loading screen's work, done before the first timed frame: the
@@ -272,12 +274,13 @@ final class _AscentReplay {
 
   /// What the game draws every frame with: the level's sky and fog and its
   /// three cascades. [frameWorkBudget] is `RenderSettings.frameWorkBudget`.
-  RenderSettings settings({int frameWorkBudget = 0}) => RenderSettings(
-    fog: levelFog(loaded.level),
-    sky: levelSky(loaded.level),
-    shadows: const ShadowSettings(cascades: 3, resolution: 2048),
-    frameWorkBudget: frameWorkBudget,
-  );
+  RenderSettings settings({Duration frameWorkBudget = Duration.zero}) =>
+      RenderSettings(
+        fog: levelFog(loaded.level),
+        sky: levelSky(loaded.level),
+        shadows: const ShadowSettings(cascades: 3, resolution: 2048),
+        frameWorkBudget: frameWorkBudget,
+      );
 
   List<RenderView> views() => <RenderView>[RenderView(camera: camera)];
 }

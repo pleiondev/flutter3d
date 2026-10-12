@@ -39,7 +39,6 @@ import 'package:flutter3d_game/flutter3d_game.dart'
         replayDemoOnLoop;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show NativeWorld, preparePhysics, usePhysics;
-import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart'
     show
         Divergence,

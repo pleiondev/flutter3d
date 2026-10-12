@@ -14,7 +14,9 @@ class GlowingSign extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scene3D(
     clearColor: const LinearColor(0.01, 0.01, 0.02),
-    settings: const RenderSettings(bloom: BloomSettings(intensity: 0.15)),
+    view: const ViewSettings(
+      settings: RenderSettings(bloom: BloomSettings(intensity: 0.15)),
+    ),
     children: <Widget>[
       Camera3D(position: Vector3(0.0, 0.0, 4.0), target: Vector3.zero()),
       Material3D(

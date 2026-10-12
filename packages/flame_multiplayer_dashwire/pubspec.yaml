@@ -27,7 +27,7 @@ platforms:
 
 dependencies:
   # The four modes and the wire they ask for.
-  flame_multiplayer: ^1.0.0-rc.1
+  flame_multiplayer: '>=1.0.0-rc.1 <1.1.0'
 
   # The connection: `WireConnection` with its reliable and unreliable
   # channels, a WebSocket for native and the web, a loopback, and a network
@@ -39,7 +39,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
   # The plugin contract: the loop's phases, the bus and the host.
-  flutter3d_plugin_api: ^1.0.0-rc.1
+  flutter3d_plugin_api: '>=1.0.0-rc.1 <1.1.0'
 
 # **An adapter, and a package of its own,** so `flame_multiplayer` stays
 # without dependencies and a game that talks through `flutter3d_net`'s relay

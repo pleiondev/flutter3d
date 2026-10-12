@@ -70,7 +70,9 @@ void main() {
     final device = await openDevice(width: _width, height: _height);
     final renderer = Renderer.create(device: device);
     final crypt = await CryptReplay.open(device: device, renderer: renderer);
-    final settings = crypt.settings(frameWorkBudget: _budget);
+    final settings = crypt.settings(
+      frameWorkBudget: Duration(microseconds: _budget),
+    );
 
     // The loading screen's work, done where the game does it: every
     // pipeline the level needs is linked, and every probe captured, before

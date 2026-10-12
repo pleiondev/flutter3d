@@ -256,7 +256,7 @@ final class _CubeShadowNode extends RenderNode {
       // Without one, the frame draws every face it selected, as it always
       // did.
       final budget = _renderer._workBudget;
-      final limited = budget.microseconds > 0;
+      final limited = budget.allowance > Duration.zero;
       final drawnTiles = limited ? <int>{} : null;
       _renderer._renderCubeShadow(
         resources: frame.resources,
@@ -270,7 +270,7 @@ final class _CubeShadowNode extends RenderNode {
         drawnTiles: drawnTiles,
         fits: fits,
       );
-      _renderer._shadowFaceScheduler.recordDrawn(drawnTiles);
+      _renderer._shadowFaceScheduler.recordDrawn(only: drawnTiles);
     }
 
     // Even when nothing was drawn. The tiles hold the pictures earlier frames

@@ -16,7 +16,7 @@ import 'webgl_device.dart';
 /// Blits [frame] onto [device]'s canvas and shows it, styled by [fit] and
 /// [quality] through CSS on the element rather than through Flutter, since
 /// Flutter does not composite these pixels.
-class WebGlFramePresenter extends StatelessWidget {
+final class WebGlFramePresenter extends StatelessWidget {
   const WebGlFramePresenter({
     super.key,
     required this.device,

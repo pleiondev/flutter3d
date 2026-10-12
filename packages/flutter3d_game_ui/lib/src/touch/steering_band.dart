@@ -18,7 +18,7 @@ import '../theme/game_ui_theme.dart';
 /// gesture nobody can perform: a player with low vision whose reader is on
 /// meets "steering" rather than an unnamed strip. The pedals are labelled
 /// too, and they are buttons — see `TouchButton.pedal`.
-class SteeringBand extends StatefulWidget {
+final class SteeringBand extends StatefulWidget {
   const SteeringBand({
     super.key,
     required this.state,

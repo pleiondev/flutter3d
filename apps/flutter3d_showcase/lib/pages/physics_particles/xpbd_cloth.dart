@@ -9,7 +9,6 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_matter/flutter3d_matter.dart' show WorldProperties;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show usePhysics;

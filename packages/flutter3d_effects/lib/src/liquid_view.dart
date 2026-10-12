@@ -319,7 +319,7 @@ final class LiquidView {
   /// Everything brought up to date with the world as it stands, [dt]
   /// seconds after the last time: how far the mist off a falls has drifted
   /// and thinned, which a step at sixty a second assumes when not told.
-  void update([double dt = 1.0 / 60.0]) {
+  void update({double dt = 1.0 / 60.0}) {
     // Water the core lets rest, with nothing in the air over it, is as it
     // was last drawn.
     final resting = _world.shallowInfoOf(liquid).resting;

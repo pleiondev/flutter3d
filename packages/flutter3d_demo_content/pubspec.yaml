@@ -25,35 +25,35 @@ environment:
 
 dependencies:
   # The genres whose content this is.
-  flutter3d_game_shooter: ^1.0.0-rc.1
-  flutter3d_game_strategy: ^1.0.0-rc.1
+  flutter3d_game_shooter: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_game_strategy: '>=1.0.0-rc.1 <1.1.0'
 
   # The simulation the content is spawned into and stepped by.
-  flutter3d_sim: ^1.0.0-rc.1
+  flutter3d_sim: '>=1.0.0-rc.1 <1.1.0'
 
   # The physics core's world: the crypt's fire, water and loose wood, and the
   # strategy map's pond, river and burning woods. Plain Dart over the core;
   # nothing here draws.
-  flutter3d_physics_native: ^1.0.0-rc.1
+  flutter3d_physics_native: '>=1.0.0-rc.1 <1.1.0'
 
   # What the elements answer over that world: the heat on the crypt's
   # player from the field, the strategy map's brands and its aimed throws.
-  flutter3d_elements: ^1.0.0-rc.1
+  flutter3d_elements: '>=1.0.0-rc.1 <1.1.0'
 
   # The reference human body a wading crowd weighs (`referenceBodyMass`), and
   # the world's properties.
-  flutter3d_physics: ^1.0.0-rc.1
+  flutter3d_physics: '>=1.0.0-rc.1 <1.1.0'
 
   vector_math: ^2.2.0
 
   # The plugin contract: the loop's phases, the bus and the host.
-  flutter3d_plugin_api: ^1.0.0-rc.1
+  flutter3d_plugin_api: '>=1.0.0-rc.1 <1.1.0'
 
   # What a world is made of: its properties, the materials and the constants.
-  flutter3d_matter: ^1.0.0-rc.1
+  flutter3d_matter: '>=1.0.0-rc.1 <1.1.0'
 
   # The foundation's value types and their crossings into `vector_math`.
-  flutter3d_foundation: ^1.0.0-rc.1
+  flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
 
 dev_dependencies:
   flutter_lints: ^6.0.0
@@ -68,9 +68,9 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   test: ^1.25.0
-  flutter3d_app: ^1.0.0-rc.1
-  flutter3d_game_platformer: ^1.0.0-rc.1
-  flutter3d_game_racing: ^1.0.0-rc.1
-  flutter3d_mcp: ^1.0.0-rc.1
-  flutter3d_sim_mcp: ^1.0.0-rc.1
+  flutter3d_app: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_game_platformer: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_game_racing: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_mcp: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_sim_mcp: '>=1.0.0-rc.1 <1.1.0'
   dart_mcp: ">=0.5.2 <0.6.0"

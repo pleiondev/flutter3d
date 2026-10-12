@@ -41,7 +41,7 @@ dependencies:
   # `ShaderBundleException` extend. Plain Dart over `vector_math` alone, so
   # the hardware layer still names no graphics API and no Flutter, and no
   # longer needs the plugin contract to throw.
-  flutter3d_foundation: ^1.0.0-rc.1
+  flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
   # `@experimental` and `@immutable`. The first is how the 0.9 surface says
   # which of its members may still change: a caller outside this package that
   # uses one gets an `experimental_member_use` warning and opts in by name.

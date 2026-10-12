@@ -21,7 +21,7 @@ import 'credits.dart';
 /// **The credits are here because a licence can put them here.** CC BY asks
 /// that attribution travel wherever the work does, and this is the screen
 /// every player meets, including the ones who never finish.
-class TitleSheet extends StatelessWidget {
+final class TitleSheet extends StatelessWidget {
   const TitleSheet({
     super.key,
     required this.title,

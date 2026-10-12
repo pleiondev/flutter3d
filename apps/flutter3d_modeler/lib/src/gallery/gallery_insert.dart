@@ -95,7 +95,7 @@ ModelCredit? creditFor(GalleryItem item) {
   // this cannot happen through the screen; it is here because a caller
   // that builds an item by hand can.
   if (author == null || author.trim().isEmpty) return null;
-  return (
+  return ModelCredit(
     title: item.name,
     author: author,
     license: item.license.name,

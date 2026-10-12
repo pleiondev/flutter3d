@@ -127,6 +127,6 @@ String get kBackendName => _requestedBackend;
 /// and refuses a frame drawn with errors, whatever it looks like.
 Future<String?> deviceErrors(GraphicsDevice device) async => switch (device) {
   final WebGlDevice gl => gl.debugDrainErrors('WebGL2'),
-  final WebGpuDevice gpu => await gpu.debugDrainErrors('WebGPU'),
+  final WebGpuDevice gpu => await gpu.debugDrainErrors(where: 'WebGPU'),
   _ => null,
 };

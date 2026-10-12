@@ -156,17 +156,16 @@ final class IndexedDbBinaryStorage extends BinaryStorage {
   }
 
   @override
-  Future<bool> write(String name, Uint8List contents) async {
+  Future<void> write(String name, Uint8List contents) async {
     try {
       final db = await _database();
       await _store(
         db,
         'readwrite',
       ).put(contents.toJS, name.toJS).complete<JSAny?>();
-      return true;
     } catch (error) {
       onIssue(Issue('storage: could not write $name ($error)'));
-      return false;
+      throw StorageException(name, 'could not write $name', cause: error);
     }
   }
 

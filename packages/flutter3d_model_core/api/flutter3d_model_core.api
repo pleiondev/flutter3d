@@ -428,7 +428,7 @@ final class BlendTextureNode extends TextureNode
   final int? base
   final int? overlay
 
-class BoneMap
+final class BoneMap
   Map<String, String> get pairs
   String toString()
   String? targetOf(String sourceName)
@@ -478,7 +478,7 @@ final class BuildTopology extends ModelCommand
   final double? weld
   final int id
 
-class BuiltRig
+final class BuiltRig
   const BuiltRig({required this.objects, required this.skeleton})
   final List<ModelObject> objects
   final ProjectSkeleton skeleton
@@ -829,7 +829,11 @@ final class ImpostorAtlas
   int get cellSize
   int get rows
 
-typedef ImpostorBake = ({ImpostorAtlas atlas, int size, Uint8List rgba});
+final class ImpostorBake
+  const ImpostorBake({required this.atlas, required this.size, required this.rgba})
+  final ImpostorAtlas atlas
+  final Uint8List rgba
+  final int size
 
 final class ImpostorCard
   List<Vector3> cornersAt(Vector3 center, double cameraYaw)
@@ -1077,7 +1081,15 @@ abstract final class ModelCommand
   bool get isJournaled
   const ModelCommand()
 
-typedef ModelCredit = ({String title, String author, String license, String url});
+final class ModelCredit
+  String toString()
+  bool operator ==(Object other)
+  const ModelCredit({required this.title, required this.author, required this.license, required this.url})
+  final String author
+  final String license
+  final String title
+  final String url
+  int get hashCode
 
 final class ModelHistory
   CommandJournal? recoveryJournal
@@ -1086,8 +1098,8 @@ final class ModelHistory
   List<HistoryStep> get steps
   List<ModelCommand> get journal
   Map<EditMesh, int> get openMeshSteps
-  ModelHistory(this._project, {this.depth = 64, this.historyBudgetBytes = defaultHistoryBudgetBytes, ProjectSelection? selection, this.recoveryJournal})
-  ModelHistory.withSteps(this._project, List<HistoryStep> steps, {this.depth = 64, this.historyBudgetBytes = defaultHistoryBudgetBytes, ProjectSelection? selection, this.recoveryJournal})
+  ModelHistory(ModelProject this._project, {this.depth = 64, this.historyBudgetBytes = defaultHistoryBudgetBytes, ProjectSelection? selection, this.recoveryJournal})
+  ModelHistory.withSteps(ModelProject this._project, List<HistoryStep> steps, {this.depth = 64, this.historyBudgetBytes = defaultHistoryBudgetBytes, ProjectSelection? selection, this.recoveryJournal})
   ModelProject get project
   ProjectSelection get selection
   StepAuthor? get topStepAuthor
@@ -1829,7 +1841,15 @@ final class RigNode
   final int id
   final int? parent
 
-typedef RigPreview = ({int jointCount, int deformingCount, int controllerCount, int ikChainCount});
+final class RigPreview
+  String toString()
+  bool operator ==(Object other)
+  const RigPreview({required this.jointCount, required this.deformingCount, required this.controllerCount, required this.ikChainCount})
+  final int controllerCount
+  final int deformingCount
+  final int ikChainCount
+  final int jointCount
+  int get hashCode
 
 final class RigTemplate
   String toString()
@@ -2540,7 +2560,7 @@ final class Triangulate extends ModelCommand
   String get says
   const Triangulate()
 
-class TwoBoneIkResult
+final class TwoBoneIkResult
   const TwoBoneIkResult({required this.rootLocalRotation, required this.midLocalRotation, required this.reachError})
   final Quaternion midLocalRotation
   final Quaternion rootLocalRotation

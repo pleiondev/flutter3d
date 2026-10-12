@@ -162,7 +162,9 @@ void main() {
       height: _size,
       scene: it.scene,
       views: <RenderView>[RenderView(camera: it.camera)],
-      settings: RenderSettings(frameWorkBudget: allowance),
+      settings: RenderSettings(
+        frameWorkBudget: Duration(microseconds: allowance),
+      ),
     );
     frame(0);
     expect(it.renderer.frameWorkBudget.items, 4);

@@ -25,7 +25,7 @@ import '../transform/plane.dart';
 /// `MeshParticleContributor.darkening`, it takes its colour out of what is
 /// behind it: dark smoke, soot. One component is one blend, so a game with
 /// both keeps two, each its own pool and its own draw.
-class Particles3dComponent extends Component {
+base class Particles3dComponent extends Component {
   Particles3dComponent({required this.system, required this.plane});
 
   /// The pool every burst goes into.

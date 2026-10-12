@@ -48,11 +48,12 @@ Widget _scene(
       height: _height,
       child: Scene3D(
         key: _sceneKey,
-        device: device,
-        continuous: continuous,
-        presenter: _noPresenter,
-        onCreated: onCreated,
-        settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
+        device: DeviceSettings(device: device, presenter: _noPresenter),
+        view: ViewSettings(
+          continuous: continuous,
+          settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
+        ),
+        onSceneCreated: onCreated,
         children: children,
       ),
     ),
@@ -157,7 +158,8 @@ void main() {
           load: (GraphicsDevice device) async =>
               ModelAsset.fromMesh(device, CuboidShape().build(), name: 'hull'),
           onLoaded: (ModelInstance instance) => loaded = instance,
-          onTap: (MeshNode tapped, HitResult hit) => part = tapped,
+          // The part is the hit's node: one shape for every onTap.
+          onTap: (HitResult hit) => part = hit.node,
         ),
       ]);
       await tester.pump();

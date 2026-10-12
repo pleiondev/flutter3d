@@ -40,7 +40,14 @@
 #                     it is named through the class
 #   implementsToWith  a type that became a `base mixin class`:      flutter3d_lints
 #                     `implements X` becomes `with X` on a base class
-#   regroup           named arguments that moved into an options    flutter3d_lints
+#   subclassModifier  a class that became `base` or `final`: `to:`   flutter3d_lints
+#                     the modifier. Under `base`, a project's class
+#                     below it (directly or through its own classes)
+#                     gains `base`, and `implements X` becomes
+#                     `extends X` where nothing else is the
+#                     superclass; under `final`, each clause that
+#                     extends or implements it gets a TODO
+#   regroup         named arguments that moved into an options    flutter3d_lints
 #                     object: `into:` the parameter that takes it,
 #                     `options:` its class, `arguments:` the names
 #                     that move, optional `imports:`
@@ -295,42 +302,12 @@ entries:
     to: package:flutter3d_particles/flutter3d_particles.dart
 
   # 1 break(s), seen in flutter3d_build:
-  #   kAssetPipelineVersion changed: const int kAssetPipelineVersion = 2 -> const int kAssetPipelineVersion = 3
-  - id: build-kAssetPipelineVersion
-    package: flutter3d_build
-    symbol: kAssetPipelineVersion
-    kind: none
-    reason: >-
-      Only the value of the constant moved; code that reads
-      `assetPipelineVersion` gets the new one. It is a version or a layout
-      size the engine stamps and checks itself.
-
-  # 1 break(s), seen in flutter3d_build:
-  #   kFlutter3dBuildVersionConstraint changed: const String kFlutter3dBuildVersionConstraint = '^0.8.0' -> const String kFlutter3dBuildVersionConstraint = '^1.0.0-rc…
-  - id: build-kFlutter3dBuildVersionConstraint
-    package: flutter3d_build
-    symbol: kFlutter3dBuildVersionConstraint
-    kind: none
-    reason: >-
-      Only the value of the constant moved; code that reads
-      `flutter3dBuildVersionConstraint` gets the new one. It is a version
-      the engine stamps and checks itself.
-
-  # 1 break(s), seen in flutter3d_build:
   #   gone
   - id: build-smokePuff
     package: flutter3d_build
     symbol: smokePuff
     kind: moved
     to: package:flutter3d_particles/flutter3d_particles.dart
-
-  # 1 break(s), seen in flutter3d:
-  #   no longer re-exported through package:flutter3d_core/flutter3d_core.dart
-  - id: core-AbsolutePixels
-    package: flutter3d_core
-    symbol: AbsolutePixels
-    kind: moved
-    to: package:flutter3d_core/flutter3d_core.dart
 
   # 4 break(s), seen in flutter3d_core:
   #   can no longer be implemented (abstract base mixin class AnimationPointerSink)
@@ -448,17 +425,6 @@ entries:
     symbol: InMemoryDeviceClassMemory
     kind: moved
     to: package:flutter3d_core/flutter3d_core.dart
-
-  # 1 break(s), seen in flutter3d_core:
-  #   InstancedMeshNode.floatsPerInstance changed: static const int floatsPerInstance = 16 -> static const int floatsPerInstance = 20
-  - id: core-InstancedMeshNode
-    package: flutter3d_core
-    symbol: InstancedMeshNode
-    kind: none
-    reason: >-
-      Only the value of the constant moved; code that reads
-      `InstancedMeshNode` gets the new one. It is a version or a layout
-      size the engine stamps and checks itself.
 
   # 1 break(s), seen in flutter3d_core:
   #   new subtype of sealed AnimationGoal: every exhaustive switch over it is missing a case
@@ -1652,16 +1618,6 @@ entries:
     kind: moved
     to: package:flutter3d_physics/flutter3d_physics.dart
 
-  # 1 break(s), seen in flutter3d_shaders:
-  #   kComputeShaders changed: const List<String> kComputeShaders = <String>['PrefixSum'] -> const List<String> kComputeShaders = <String>['PrefixSum', 'SplatSortCoun…
-  - id: shaders-kComputeShaders
-    package: flutter3d_shaders
-    symbol: kComputeShaders
-    kind: none
-    reason: >-
-      Only the value of the constant moved; code that reads `computeShaders`
-      gets the new one. It is a version or a layout size the engine stamps and checks itself.
-
   # 2 break(s), seen in flutter3d_sim:
   #   can no longer be implemented (abstract base mixin class Damageable)
   #   Damageable.applyDamage lost its body
@@ -2281,19 +2237,6 @@ entries:
       exposure, so `physicalCamera: false` is needed only where a camera is
       set and the multiplier alone is wanted.
 
-  # 1 break(s), seen in flutter3d_core:
-  #   Renderer.releaseTransientTargets changed: void releaseTransientTargets() -> int releaseTransientTargets()
-  - id: core-Renderer
-    package: flutter3d_core
-    symbol: Renderer
-    kind: none
-    wave: 2
-    reason: >-
-      `releaseTransientTargets` returns the bytes it handed back instead of
-      nothing. A call that ignores the result is unchanged; only a tear-off
-      stored as `void Function()` has to take the `int` or ignore it, and
-      `Renderer` is final, so nothing overrides it.
-
   # 1 break(s), seen in flutter3d_hardware:
   #   RenderTargetPool.trim changed: void trim() -> int trim()
   - id: hardware-RenderTargetPool
@@ -2403,36 +2346,6 @@ entries:
       `bindings` went from required to optional, beside a new `actions` map
       and `onConflict`; `Rebinding(bindings: table)` means what it did.
       `Rebinding` is final, so nothing extends the constructor.
-
-  # 1 break(s), seen in flutter3d_game:
-  #   TouchControls.stickAction is new on a type outside code may implement: every implementer has to add it
-  - id: game-TouchControls
-    package: flutter3d_game
-    symbol: TouchControls
-    kind: none
-    wave: 2
-    reason: >-
-      `stickAction` is a new optional parameter, defaulting to walking as the
-      stick always did. A widget is built, not implemented, so no caller has
-      anything to do.
-
-  # 1 break(s), seen in flutter3d_game:
-  #   TouchStick.action is new on a type outside code may implement: every implementer has to add it
-  - id: game-TouchStick
-    package: flutter3d_game
-    symbol: TouchStick
-    kind: none
-    wave: 2
-    reason: >-
-      `action` is a new optional parameter, defaulting to
-      `DualAxisAction.move`, which writes exactly what the stick wrote. A
-      widget is built, not implemented, so no caller has anything to do.
-
-  # Wave 3, step 0: every exception the engine throws hangs from
-  # `Flutter3dException` in flutter3d_foundation (re-exported by
-  # flutter3d_plugin_api), in one of four families
-  # (format, capability, plugin, resource). The types below kept their names
-  # and members; only their supertype moved.
 
   # 1 break(s), seen in flutter3d_build:
   #   the declaration changed: ManifestFormatException implements Exception -> extends Flutter3dFormatException
@@ -2623,21 +2536,6 @@ entries:
       could extend it.
 
   # 1 break(s), seen in flutter3d_lti:
-  #   the declaration changed: LtiLaunchException implements Exception -> extends ResourceException
-  - id: lti-LtiLaunchException
-    package: flutter3d_lti
-    symbol: LtiLaunchException
-    kind: none
-    wave: 3
-    reason: >-
-      `LtiLaunchException` has the same subtypes and members; it now extends
-      `ResourceException` (and through it `Flutter3dException`) instead of
-      implementing `Exception` directly. Every `on LtiLaunchException` and
-      `on Exception` still matches, and nothing outside the package could
-      extend it. It is no longer sealed: `2s-lti-LtiLaunchException-open`
-      says what that asks of a `switch` over its subtypes.
-
-  # 1 break(s), seen in flutter3d_lti:
   #   the declaration changed: XapiException implements Exception -> extends ResourceException
   - id: lti-XapiException
     package: flutter3d_lti
@@ -2648,20 +2546,6 @@ entries:
       `XapiException` is still a final class with the same members; it now
       extends `ResourceException` (and through it `Flutter3dException`)
       instead of implementing `Exception` directly. Every `on XapiException`
-      and `on Exception` still catches it, and nothing outside the package
-      could extend it.
-
-  # 1 break(s), seen in flutter3d_model_core:
-  #   the declaration changed: RenderRefusal implements Exception -> extends CapabilityException
-  - id: model_core-RenderRefusal
-    package: flutter3d_model_core
-    symbol: RenderRefusal
-    kind: none
-    wave: 3
-    reason: >-
-      `RenderRefusal` is still a final class with the same members; it now
-      extends `CapabilityException` (and through it `Flutter3dException`)
-      instead of implementing `Exception` directly. Every `on RenderRefusal`
       and `on Exception` still catches it, and nothing outside the package
       could extend it.
 
@@ -2832,30 +2716,6 @@ entries:
     guidance: >-
       Renamed with `FlameChaseCamera`, which it carries; the same constructor
       and members.
-
-  # 1 break(s), seen in flame_flutter3d_audio:
-  #   AudioSceneComponent.play changed: SoundEmitter play(SoundDef sound, {Vector3? at}) -> AudioEmitter play(SoundDef sound, {Vector3? at})
-  - id: flame_audio-AudioSceneComponent
-    package: flame_flutter3d_audio
-    symbol: AudioSceneComponent
-    kind: none
-    wave: 3
-    reason: >-
-      `play` returns the emitter under its 1.0 name, `AudioEmitter`, the
-      class `SoundEmitter` became; `audio_core-SoundEmitter` renames every
-      `SoundEmitter` a caller wrote, so what it assigns the result to still
-      fits.
-
-  # 1 break(s), seen in flame_flutter3d_audio:
-  #   SoundEmitterComponent.emitter changed: SoundEmitter? get emitter -> AudioEmitter? get emitter
-  - id: flame_audio-SoundEmitterComponent
-    package: flame_flutter3d_audio
-    symbol: SoundEmitterComponent
-    kind: none
-    wave: 3
-    reason: >-
-      `emitter` is typed as `AudioEmitter`, the class `SoundEmitter` became;
-      `audio_core-SoundEmitter` renames every `SoundEmitter` a caller wrote.
 
   # 1 break(s), seen in flutter3d_audio:
   #   the library is gone
@@ -3214,21 +3074,6 @@ entries:
       policy, so the replay's statistics are `PacingReport`, with the same
       members.
 
-  # 1 break(s), seen in flutter3d_testing:
-  #   replayPacing changed: Future<FramePacing> replayPacing({required Demo demo, required InputState input, required void Function(double dt) onStep, required Future…
-  - id: testing-replayPacing
-    package: flutter3d_testing
-    symbol: replayPacing
-    kind: none
-    wave: 3
-    reason: >-
-      It returns the same statistics under their new name, `PacingReport`;
-      `testing-FramePacing` renames a caller's `FramePacing`.
-
-  # Wave 3d, UI side: flutter3d_game and flutter3d_app's storage. Only names
-  # that were in 0.8.5 have entries; the addons' breaks are all on names new
-  # since then.
-
   - id: app-Storage
     package: flutter3d_app
     symbol: Storage
@@ -3260,7 +3105,10 @@ entries:
     wave: 3
     guidance: >-
       `BinaryStorage` is an `abstract base class`: an implementation is
-      written `extends BinaryStorage`. Its members are unchanged.
+      written `extends BinaryStorage`. Its `write` returns `Future<void>`
+      and throws a `StorageException` when the platform refused, where it
+      answered `false`: throw one where you returned `false`, and drop the
+      `return true`.
 
   - id: game-SettingsCubit
     package: flutter3d_game
@@ -3418,16 +3266,6 @@ entries:
       (`Flutter3dGameLocalizations.art`), and `footnote` has no default: a
       game that relied on "Sounds and surfaces are generated by this
       repository" passes its own line.
-
-  - id: game-TapToRestart
-    package: flutter3d_game
-    symbol: TapToRestart
-    kind: none
-    wave: 3
-    reason: >-
-      `label` is nullable and defaults to the player's language; a label that
-      was passed still shows, and one that was not reads "Tap to play again"
-      in English.
 
   - id: game-package-flutter3d_game-testing-dart
     package: flutter3d_game
@@ -3667,16 +3505,6 @@ entries:
       (`FrameCapture` is a `FormatDocument` now). `fileFormat` is
       `f3d.frameCapture` and `fileVersion` 2; files written as
       `flutter3d.frameCapture` version 1 still read.
-
-  - id: core-kF3dVersion
-    package: flutter3d_core
-    symbol: kF3dVersion
-    kind: none
-    wave: 3
-    reason: >-
-      It is the newest `.f3d` version this build reads, now 2 (the directory
-      flags word and per-section stride). Every version-1 file still reads,
-      and the writer still writes version 1 unless extra sections are given.
 
   # 1 break(s), seen in flutter3d_game_shooter:
   #   gone
@@ -3950,28 +3778,6 @@ entries:
   - id: flame_flutter3d-BillboardAtlas
     package: flame_flutter3d
     symbol: BillboardAtlas
-    kind: none
-    wave: 3
-    reason: >-
-      Only the engine's material type in its signature changed: `Material` is
-      `RenderMaterial` (`core-Material-RenderMaterial` renames it).
-
-  # 1 break(s), seen in flame_flutter3d:
-  #   CellGridComponent.material changed: final engine.Material material -> final engine.RenderMaterial material
-  - id: flame_flutter3d-CellGridComponent
-    package: flame_flutter3d
-    symbol: CellGridComponent
-    kind: none
-    wave: 3
-    reason: >-
-      Only the engine's material type in its signature changed: `Material` is
-      `RenderMaterial` (`core-Material-RenderMaterial` renames it).
-
-  # 1 break(s), seen in flame_flutter3d:
-  #   TiledWorld3d.material changed: final engine.Material Function(TileLayer layer) material -> final engine.RenderMaterial Function(TileLayer layer) material
-  - id: flame_flutter3d-TiledWorld3d
-    package: flame_flutter3d
-    symbol: TiledWorld3d
     kind: none
     wave: 3
     reason: >-
@@ -4581,28 +4387,6 @@ entries:
     reason: >-
       Only the frame type in its signature changed: `NodeFrame` is
       `RenderFrame` (`core-NodeFrame-RenderFrame` renames it).
-
-  # 1 break(s), seen in flutter3d_cpu:
-  #   gone
-  - id: core-decodeOctahedral-parity
-    package: flutter3d_core
-    symbol: decodeOctahedral
-    kind: none
-    wave: 3
-    reason: >-
-      Still exported by `flutter3d_core.dart`; only `parity_scene.dart`, which
-      is gone, re-exported it too.
-
-  # 1 break(s), seen in flutter3d_cpu:
-  #   gone
-  - id: core-encodeOctahedral-parity
-    package: flutter3d_core
-    symbol: encodeOctahedral
-    kind: none
-    wave: 3
-    reason: >-
-      Still exported by `flutter3d_core.dart`; only `parity_scene.dart`, which
-      is gone, re-exported it too.
 
   # 1 break(s), seen in flutter3d_core:
   #   the library is gone
@@ -7215,19 +6999,6 @@ entries:
       `cpuUnlitStage` from `package:flutter3d_cpu/testing.dart`. A package
       that compiles onto the engine's stages imports them from
       `package:flutter3d_cpu/builtin.dart`, which semver does not cover.
-
-  # 3 break(s), seen in flutter3d_editor_core:
-  #   LevelScene.brushBatches changed: List<LevelBatch> brushBatches(Level level, {required GraphicsDevice device, Map<String, TextureHandle?> textures = const <Strin…
-  #   LevelScene.build changed: LevelSceneParts build(Level level, {required GraphicsDevice device, Map<String, TextureHandle?> textures = const <String, TextureHandl…
-  #   LevelScene.materialFrom changed: static Material materialFrom(LevelMaterial source, Map<String, TextureHandle?> textures, {String? name, SamplerOptions tiling =…
-  - id: editor_core-LevelScene
-    package: flutter3d_editor_core
-    symbol: LevelScene
-    kind: none
-    wave: 3
-    reason: >-
-      Only the engine's material type in its signature changed: `Material` is
-      `RenderMaterial` (`core-Material-RenderMaterial` renames it).
 
   # 1 break(s), seen in flutter3d_game:
   #   LightFixtureBuild.glow changed: final Material glow -> final RenderMaterial glow
@@ -9959,19 +9730,6 @@ entries:
       `TextureFormat.byName` replaces `values.byName` and `asNameMap`.
 
   # wave 3b, written by hand
-  - id: core-Scene-origin
-    package: flutter3d_core
-    symbol: Scene
-    kind: none
-    wave: 3
-    reason: >-
-      Additions: `origin`, `shiftOrigin`, `rebaseAround`, `onOriginShift`,
-      `toScene` and `toWorld`, for a world bigger than float32 holds. A node's
-      transform is relative to the origin, which stays at the world origin
-      unless something shifts it, so a scene that never shifts draws as it
-      did.
-
-  # wave 3b, written by hand
   - id: cpu-decodeOctahedral
     package: flutter3d_cpu
     symbol: decodeOctahedral
@@ -10328,16 +10086,6 @@ entries:
       American spelling in identifiers, as Flutter and Dart use: the old
       British name is gone, and the new one means the same.
 
-  # MeshOverlay.asDrawn changed: static Vector4 asDrawn(Vector4 colour) -> static Vector4 asDrawn(Vector4 color)
-  - id: 4a-core-MeshOverlay-asDrawn
-    package: flutter3d_core
-    symbol: MeshOverlay.asDrawn
-    kind: none
-    wave: 4
-    reason: >-
-      Only a type or a positional parameter it names was renamed; no call
-      names a positional parameter, and a type's rename carries its own fix.
-
   # MeshOverlay.edge changed: void edge(Vector3 from, Vector3 to, Vector4 colour) -> void edge(Vector3 from, Vector3 to, Vector4 color)
   - id: 4a-core-MeshOverlay-edge
     package: flutter3d_core
@@ -10425,16 +10173,6 @@ entries:
     guidance: >-
       American spelling in identifiers, as Flutter and Dart use: the old
       British name is gone, and the new one means the same.
-
-  # OverlayBatch.vertex changed: void vertex(Vector3 at, Vector4 colour) -> void vertex(Vector3 at, Vector4 color)
-  - id: 4a-core-OverlayBatch-vertex
-    package: flutter3d_core
-    symbol: OverlayBatch.vertex
-    kind: none
-    wave: 4
-    reason: >-
-      Only a type or a positional parameter it names was renamed; no call
-      names a positional parameter, and a type's rename carries its own fix.
 
   # ShadowCastingMode.drawsColour is gone
   - id: 4a-core-ShadowCastingMode-drawsColour
@@ -10530,16 +10268,6 @@ entries:
       American spelling in identifiers, as Flutter and Dart use: the old
       British name is gone, and the new one means the same.
 
-  # buildPolyline changed: MeshData buildPolyline(List<Vector3> points, {required double width, List<Vector4>? colours, Vector4? colour, bool closed = false}) -> Me…
-  - id: 4a-core-buildPolyline
-    package: flutter3d_core
-    symbol: buildPolyline
-    kind: none
-    wave: 4
-    reason: >-
-      Only a type its declaration names was renamed; that rename's own fix
-      carries every use.
-
   # impostorCard changed: MeshData impostorCard({required Vector3 centre, required double radius}) -> MeshData impostorCard({required Vector3 center, required doubl…
   - id: 4a-core-impostorCard
     package: flutter3d_core
@@ -10553,40 +10281,10 @@ entries:
       American spelling in identifiers: `impostorCard(centre:)` is
       `impostorCard(center:)`, the same point.
 
-  # mergeSplats changed: SplatCloud mergeSplats(List<SplatCloud> parts, {required Vector3 centre, required double half, required int grid}) -> SplatCloud mergeSplat…
-  - id: 4a-core-mergeSplats
-    package: flutter3d_core
-    symbol: mergeSplats
-    kind: none
-    wave: 4
-    reason: >-
-      Only a type its declaration names was renamed; that rename's own fix
-      carries every use.
-
   # paintSky changed: void paintSky(MeshData mesh, SkyColour colour) -> void paintSky(MeshData mesh, SkyColor color)
   - id: 4a-core-paintSky
     package: flutter3d_core
     symbol: paintSky
-    kind: none
-    wave: 4
-    reason: >-
-      Only a type its declaration names was renamed; that rename's own fix
-      carries every use.
-
-  # parseSplatPly changed: SplatCloud parseSplatPly(Uint8List bytes, {bool keepHigherBands = false, SplatColourSpace colourSpace = SplatColourSpace.srgb}) -> SplatC…
-  - id: 4a-core-parseSplatPly
-    package: flutter3d_core
-    symbol: parseSplatPly
-    kind: none
-    wave: 4
-    reason: >-
-      Only a type its declaration names was renamed; that rename's own fix
-      carries every use.
-
-  # parseSplatSpz changed: SplatCloud parseSplatSpz(Uint8List bytes, {SplatAxes axes = SplatAxes.rightUpBack, bool keepHigherBands = true, SplatColourSpace colourSp…
-  - id: 4a-core-parseSplatSpz
-    package: flutter3d_core
-    symbol: parseSplatSpz
     kind: none
     wave: 4
     reason: >-
@@ -10662,26 +10360,6 @@ entries:
     guidance: >-
       American spelling in identifiers, as Flutter and Dart use: the old
       British name is gone, and the new one means the same.
-
-  # atLeast changed: Vector3 atLeast(Vector3 colour, double floor) -> Vector3 atLeast(Vector3 color, double floor)
-  - id: 4a-editor_core-atLeast
-    package: flutter3d_editor_core
-    symbol: atLeast
-    kind: none
-    wave: 4
-    reason: >-
-      Only a type its declaration names was renamed; that rename's own fix
-      carries every use.
-
-  # the values changed (values: plain, metres, degrees -> values: plain, meters, degrees): a removed value breaks its users and an added one every exhaustive switch
-  - id: 4a-editor_widgets-NumberUnit
-    package: flutter3d_editor_widgets
-    symbol: NumberUnit
-    kind: none
-    wave: 4
-    reason: >-
-      Only a type its declaration names was renamed; that rename's own fix
-      carries every use.
 
   # AutomapPainter.AutomapPainter changed: const AutomapPainter({required this.automap, required this.position, required this.yaw, required this.metresAcross, requi…
   - id: 4a-game-AutomapPainter-AutomapPainter
@@ -11217,66 +10895,6 @@ entries:
       American spelling in identifiers, as Flutter and Dart use: the old
       British name is gone, and the new one means the same.
 
-  # the values changed (values: uv0, colour, weights, joints, crease, flags, materialSlot -> values: uv0, color, weights, joints, crease, flags, materialSlot): a re…
-  - id: 4a-mesh-MeshAttribute
-    package: flutter3d_mesh
-    symbol: MeshAttribute
-    kind: none
-    wave: 4
-    reason: >-
-      Only a type its declaration names was renamed; that rename's own fix
-      carries every use.
-
-  # projectBrush changed: List<UvSpan> projectBrush({required EditMesh mesh, required TriangleBvh surface, required Vector3 centre, required double radius, required…
-  - id: 4a-mesh-projectBrush
-    package: flutter3d_mesh
-    symbol: projectBrush
-    kind: none
-    wave: 4
-    reason: >-
-      Only a type its declaration names was renamed; that rename's own fix
-      carries every use.
-
-  # simplifyMesh changed: MeshData simplifyMesh(MeshData mesh, {required int targetTriangleCount, double flipThreshold = 0.0, void Function(int collapsesDone, int c…
-  - id: 4a-mesh-simplifyMesh
-    package: flutter3d_mesh
-    symbol: simplifyMesh
-    kind: none
-    wave: 4
-    reason: >-
-      Only a type its declaration names was renamed; that rename's own fix
-      carries every use.
-
-  # simplifyMeshWithAttributes changed: MeshData simplifyMeshWithAttributes(MeshData mesh, {required int targetTriangleCount, double? targetError, double flipThresh…
-  - id: 4a-mesh-simplifyMeshWithAttributes
-    package: flutter3d_mesh
-    symbol: simplifyMeshWithAttributes
-    kind: none
-    wave: 4
-    reason: >-
-      Only a type its declaration names was renamed; that rename's own fix
-      carries every use.
-
-  # simplifyMeshWithAttributesMeasured changed: SimplifiedMesh simplifyMeshWithAttributesMeasured(MeshData mesh, {required int targetTriangleCount, double? targetEr…
-  - id: 4a-mesh-simplifyMeshWithAttributesMeasured
-    package: flutter3d_mesh
-    symbol: simplifyMeshWithAttributesMeasured
-    kind: none
-    wave: 4
-    reason: >-
-      Only a type its declaration names was renamed; that rename's own fix
-      carries every use.
-
-  # unwrapMesh changed: void unwrapMesh(EditMesh mesh, {void Function(int islandsDone, int islandsTotal)? onProgress, bool Function()? isCancelled}) -> void unwrapM…
-  - id: 4a-mesh-unwrapMesh
-    package: flutter3d_mesh
-    symbol: unwrapMesh
-    kind: none
-    wave: 4
-    reason: >-
-      Only a type its declaration names was renamed; that rename's own fix
-      carries every use.
-
   # gone
   - id: 4a-mesh-bevelledCube
     package: flutter3d_mesh
@@ -11321,26 +10939,6 @@ entries:
     reason: >-
       Only a type or a positional parameter it names was renamed; no call
       names a positional parameter, and a type's rename carries its own fix.
-
-  # the declaration changed: typedef ModelCredit = ({String title, String author, String licence, String url}); -> typedef ModelCredit = ({String title, String auth…
-  - id: 4a-model_core-ModelCredit
-    package: flutter3d_model_core
-    symbol: ModelCredit
-    kind: none
-    wave: 4
-    reason: >-
-      Only a type its declaration names was renamed; that rename's own fix
-      carries every use.
-
-  # the values changed (values: boundsCentre, boundsBottom, worldOrigin -> values: boundsCenter, boundsBottom, worldOrigin): a removed value breaks its users and an…
-  - id: 4a-model_core-OriginPlacement
-    package: flutter3d_model_core
-    symbol: OriginPlacement
-    kind: none
-    wave: 4
-    reason: >-
-      Only a type its declaration names was renamed; that rename's own fix
-      carries every use.
 
   # PaintSample.PaintSample changed: const PaintSample({required this.centre, required this.radius}) -> const PaintSample({required this.center, required this.radiu…
   - id: 4a-model_core-PaintSample-PaintSample
@@ -11413,16 +11011,6 @@ entries:
     guidance: >-
       American spelling in identifiers, as Flutter and Dart use: the old
       British name is gone, and the new one means the same.
-
-  # bakeImpostor changed: Future<ImpostorBake> bakeImpostor({required ModelProject project, required ImpostorAtlas atlas, required Vector3 centre, required double d…
-  - id: 4a-model_core-bakeImpostor
-    package: flutter3d_model_core
-    symbol: bakeImpostor
-    kind: none
-    wave: 4
-    reason: >-
-      Only a type its declaration names was renamed; that rename's own fix
-      carries every use.
 
   # gone
   - id: 4a-model_core-elementCentre
@@ -15646,19 +15234,6 @@ entries:
       Nullable, as `LoadingScreen.message`: null is
       `Flutter3dAppLocalizations.startOver` in the reader's language.
 
-  - id: f4-ui-AutomapView-colors
-    package: flutter3d_game
-    symbol: AutomapView
-    kind: none
-    reason: >-
-      The four colours are nullable now and default to the app's
-      `GameUiTheme` (`mapFloor`, `mapWall`, `mapPlayer`, `mapBackdrop`),
-      whose defaults are the colours they had. A caller that passes a
-      colour keeps it.
-
-  # Decision 2 of tasks/1.0-api-review.md, carried out: no two public types
-  # of the engine share a name. (tasks/1.0-arch-review.md, item 10.)
-
   - id: f1-rename-strategy-Selection
     package: flutter3d_game_strategy
     symbol: Selection
@@ -15710,17 +15285,6 @@ entries:
       rollback takes. `hasWorld` is gone: a loop whose snapshots hold
       nothing is a run with no world.
 
-  # The network core on the 1.0 line (decision B of
-  # tasks/1.0-arch-review.md): what moved from flame_multiplayer to
-  # flutter3d_net, the wire's several listeners, and protocol 3.
-  - id: f1-net-PeerWire-moved
-    package: flame_multiplayer
-    symbol: PeerWire
-    kind: none
-    reason: >-
-      `flutter3d_net` declares it now, on the 1.0 line; `flame_multiplayer`
-      re-exports it, so an import of either compiles.
-
   - id: f1-net-WireState-moved
     package: flame_multiplayer
     symbol: WireState
@@ -15752,13 +15316,6 @@ entries:
   - id: f1-net-WireHello-moved
     package: flame_multiplayer
     symbol: WireHello
-    kind: none
-    reason: >-
-      Declared by `flutter3d_net` now and re-exported here, as `PeerWire`.
-
-  - id: f1-net-RollbackSession-moved
-    package: flame_multiplayer
-    symbol: RollbackSession
     kind: none
     reason: >-
       Declared by `flutter3d_net` now and re-exported here, as `PeerWire`.
@@ -16199,19 +15756,6 @@ entries:
       that wrote `implements EduDataSource` now writes `extends
       EduDataSource` and is `final` or `base` itself.
 
-  - id: f3-game-registerTimelineExtensions-registration
-    package: flutter3d_game
-    symbol: registerTimelineExtensions
-    kind: none
-    wave: 4
-    reason: >-
-      It returns a `Registration`, which takes the timeline off the VM
-      service, rather than `void`; a call that ignored the result compiles
-      as before. A second timeline now registers beside the first instead
-      of throwing.
-
-  # ---- F2 (rc.1 architecture review): render, HAL, app.
-
   - id: f2-core-FrameHistory-per-view
     package: flutter3d_core
     symbol: FrameHistory
@@ -16353,7 +15897,6 @@ entries:
       answered null, so a `!` after the call or a null check on its result can
       go.
 
-
   - id: f2-hardware-TextureAllocator-createTexture
     package: flutter3d_hardware
     symbol: TextureAllocator.createTexture
@@ -16486,7 +16029,6 @@ entries:
       See `GraphicsDevice.readPixels`: one readback, which converts a whole
       float target and throws where this answered null.
 
-
   - id: f2-webgpu-openWebGpu
     package: flutter3d_webgpu
     symbol: openWebGpu
@@ -16510,7 +16052,6 @@ entries:
     symbol: WebGpuDevice.readPixels
     kind: rename
     to: readback
-
 
   - id: f2-webgpu-WebGpuDevice-readBufferSync
     package: flutter3d_webgpu
@@ -16565,7 +16106,6 @@ entries:
     kind: rename
     to: readback
 
-
   - id: f2-impeller-GpuRenderBackend-readBufferSync
     package: flutter3d_impeller
     symbol: GpuRenderBackend.readBufferSync
@@ -16614,7 +16154,6 @@ entries:
     symbol: CpuDevice.readPixels
     kind: rename
     to: readback
-
 
   # ---- Core.
 
@@ -17584,17 +17123,6 @@ entries:
       `clearColor:` keeps its name and takes what the field holds, a
       `LinearColor` (see `rc-model_core-RenderPreset-clearColorSrgb`).
 
-  - id: rc-model_core-bakeImpostor-clearColorSrgb
-    package: flutter3d_model_core
-    symbol: bakeImpostor
-    kind: none
-    wave: 5
-    reason: >-
-      `clearColor:` keeps its name and takes a linear `LinearColor`, as
-      `RenderView.clearColor` does, where it took an sRGB `Vector4`; the
-      analyzer names each call that passes one, and
-      `LinearColor.fromSrgb(r, g, b, a)` is what it passes instead.
-
   - id: rc-testing-renderFrame-clearColorSrgb
     package: flutter3d_testing
     symbol: renderFrame
@@ -18336,15 +17864,6 @@ entries:
       `export`, `import` and `journal` refuse a path outside the project
       around the session's file (the working directory with none).
 
-  - id: editor_mcp-EditorSession-root
-    package: flutter3d_editor_mcp
-    symbol: EditorSession
-    kind: none
-    reason: >-
-      The constructor gained an optional `root:`. `save` and the capture
-      tools refuse a path outside the level's project, and a save to the
-      generated level under another spelling is refused like the plain one.
-
   - id: sim_mcp-SimSession-root
     package: flutter3d_sim_mcp
     symbol: SimSession
@@ -18353,26 +17872,6 @@ entries:
       The constructor gained an optional `root:` (the working directory by
       default); `open`, `writeRun`, `expect`, `verify` and `bisect` refuse a
       path outside it, as do the levels a run or a level names.
-
-  - id: webgl-shader-compile-exception
-    package: flutter3d_webgl
-    symbol: WebGlDevice
-    kind: none
-    reason: >-
-      A stage that does not compile, or a pair that does not link, throws
-      `ShaderCompileException` where it threw `StateError`. Nothing that
-      compiled stops compiling; code that caught `StateError` around a
-      pipeline catches the new type.
-
-  - id: webgpu-WebGpuDevice-beginFrame
-    package: flutter3d_webgpu
-    symbol: WebGpuDevice
-    kind: none
-    reason: >-
-      `beginFrame` throws, once, what the browser refused since the last
-      frame: `ShaderCompileException` for WGSL it would not compile,
-      `DeviceResourceException` for anything else. Nothing is thrown once the
-      device is lost, and a frame with nothing refused behaves as before.
 
   - id: sim-Level-digestHex-content
     package: flutter3d_sim
@@ -18406,16 +17905,6 @@ entries:
       `SnapshotFormatException` before it touches the world, and removes a
       resource that has a codec but is not in the save, where it used to
       keep the old one. A save this build wrote restores as before.
-
-  - id: multiplayer-RollbackSession-early
-    package: flame_multiplayer
-    symbol: RollbackSession
-    kind: none
-    reason: >-
-      A frame more than `maxStepsAhead` (600) steps ahead of the session is
-      dropped and counted in `droppedEarly` rather than held without bound,
-      and a frame that arrives from a room maps its sender to the session's
-      own slot, so two peers of a room no longer drop each other's input.
 
   - id: game_strategy-Unit
     package: flutter3d_game_strategy
@@ -19130,16 +18619,6 @@ entries:
     reason: >-
       The widget is a `final class`: a widget is composed, not subclassed,
       so a build method that wraps a `RendererFailure` is unchanged. A class that
-      extended it builds one instead.
-
-  - id: 2f-app-SceneSurface-final
-    package: flutter3d_app
-    symbol: SceneSurface
-    kind: none
-    wave: 2
-    reason: >-
-      The widget is a `final class`: a widget is composed, not subclassed,
-      so a build method that wraps a `SceneSurface` is unchanged. A class that
       extended it builds one instead.
 
   - id: 2f-stereo-LessonStereoView-final
@@ -20434,92 +19913,6 @@ entries:
   # The material language stands on the expression language: its arithmetic
   # nodes, types and builtins are the foundation's under their material
   # names, so every name still reads and every call still compiles.
-
-  - id: 3e0-core-MaterialExpression-typedef
-    package: flutter3d_core
-    symbol: MaterialExpression
-    kind: none
-    wave: 3
-    reason: >-
-      `MaterialExpression` is now a name of the expression language's
-      `Expression`, with the same `type` and `accept`; an expression kind of
-      your own still extends it, and a visitor still extends
-      `MaterialExpressionVisitor`.
-
-  - id: 3e0-core-MaterialConstant-typedef
-    package: flutter3d_core
-    symbol: MaterialConstant
-    kind: none
-    wave: 3
-    reason: >-
-      A name of `ExpressionConstant`, with the same constructor, `value` and
-      `type`.
-
-  - id: 3e0-core-MaterialConstruct-typedef
-    package: flutter3d_core
-    symbol: MaterialConstruct
-    kind: none
-    wave: 3
-    reason: >-
-      A name of `ExpressionConstruct`, with the same constructor and
-      `arguments`.
-
-  - id: 3e0-core-MaterialSwizzle-typedef
-    package: flutter3d_core
-    symbol: MaterialSwizzle
-    kind: none
-    wave: 3
-    reason: >-
-      A name of `ExpressionSwizzle`, with the same constructor, `target` and
-      `components`.
-
-  - id: 3e0-core-MaterialNegate-typedef
-    package: flutter3d_core
-    symbol: MaterialNegate
-    kind: none
-    wave: 3
-    reason: >-
-      A name of `ExpressionNegate`, with the same constructor and `operand`.
-
-  - id: 3e0-core-MaterialBinary-typedef
-    package: flutter3d_core
-    symbol: MaterialBinary
-    kind: none
-    wave: 3
-    reason: >-
-      A name of `ExpressionBinary`, with the same constructor, `op`, `left`
-      and `right`.
-
-  - id: 3e0-core-MaterialCall-typedef
-    package: flutter3d_core
-    symbol: MaterialCall
-    kind: none
-    wave: 3
-    reason: >-
-      A name of `ExpressionCall`, with the same constructor, `builtin` and
-      `arguments`.
-
-  - id: 3e0-core-MaterialType-typedef
-    package: flutter3d_core
-    symbol: MaterialType
-    kind: none
-    wave: 3
-    reason: >-
-      A name of `ExpressionType`: `float`, `vec2`, `vec3`, `vec4`, `texture`,
-      `numeric`, `name`, `components` and `isNumeric` read as before. A type
-      now also says the dimension it measures, which for a material is
-      always none.
-
-  - id: 3e0-core-MaterialBuiltin-typedef
-    package: flutter3d_core
-    symbol: MaterialBuiltin
-    kind: none
-    wave: 3
-    reason: >-
-      A name of `ExpressionBuiltin`, with the same constants, `byName`,
-      `apply`, `arity`, `componentWise` and `resultComponents`. `all` now
-      lists the expression language's builtins; the sixteen a material may
-      call are `materialBuiltins`. `glsl` is `name`, the same word.
 
   - id: 3e0-core-MaterialBuiltin-glsl
     package: flutter3d_core
@@ -24443,6 +23836,7 @@ entries:
       application's own tools are refused a namespace that is one of the
       engine's areas (`game`, `level`, `PluginManifest.reservedAreas`):
       name them after the application.
+
   - id: fixh-conformance-ConformanceCheck-class
     package: flutter3d_conformance
     symbol: ConformanceCheck
@@ -24664,3 +24058,643 @@ entries:
       The call is unchanged and so is the tint a look gives; only its type
       is, a `LinearColor?` whose channels are `r`, `g` and `b`, which is what
       a gizmo's `tint` now takes as it is.
+
+  - id: core-CompiledFrameGraph-constructor
+    package: flutter3d_core
+    symbol: CompiledFrameGraph.CompiledFrameGraph
+    kind: none
+    reason: >-
+      The constructor took the compiler's own tables, which nothing outside
+      the engine could fill. A compiled graph comes from `FrameGraph.compile`,
+      as it always did.
+
+  - id: flame_flutter3d_audio-AudioSceneComponent-base
+    package: flame_flutter3d_audio
+    symbol: AudioSceneComponent
+    kind: subclassModifier
+    to: base
+
+  - id: flame_flutter3d_audio-SoundEmitterComponent-base
+    package: flame_flutter3d_audio
+    symbol: SoundEmitterComponent
+    kind: subclassModifier
+    to: base
+
+  - id: flame_flutter3d-AtmosphereComponent-base
+    package: flame_flutter3d
+    symbol: AtmosphereComponent
+    kind: subclassModifier
+    to: base
+
+  - id: flame_flutter3d-CellGridComponent-base
+    package: flame_flutter3d
+    symbol: CellGridComponent
+    kind: subclassModifier
+    to: base
+
+  - id: flame_flutter3d-CharacterBodyComponent-base
+    package: flame_flutter3d
+    symbol: CharacterBodyComponent
+    kind: subclassModifier
+    to: base
+
+  - id: flame_flutter3d-GridMover-base
+    package: flame_flutter3d
+    symbol: GridMover
+    kind: subclassModifier
+    to: base
+
+  - id: flame_flutter3d-InstancedActorComponent-base
+    package: flame_flutter3d
+    symbol: InstancedActorComponent
+    kind: subclassModifier
+    to: base
+
+  - id: flame_flutter3d-InstancedObject3dComponent-base
+    package: flame_flutter3d
+    symbol: InstancedObject3dComponent
+    kind: subclassModifier
+    to: base
+
+  - id: flame_flutter3d-InstancedPoseComponent-base
+    package: flame_flutter3d
+    symbol: InstancedPoseComponent
+    kind: subclassModifier
+    to: base
+
+  - id: flame_flutter3d-KinematicBodyComponent-base
+    package: flame_flutter3d
+    symbol: KinematicBodyComponent
+    kind: subclassModifier
+    to: base
+
+  - id: flame_flutter3d-MeshFlipbookComponent-base
+    package: flame_flutter3d
+    symbol: MeshFlipbookComponent
+    kind: subclassModifier
+    to: base
+
+  - id: flame_flutter3d-ModelAnimationComponent-base
+    package: flame_flutter3d
+    symbol: ModelAnimationComponent
+    kind: subclassModifier
+    to: base
+
+  - id: flame_flutter3d-Move3dEffect-base
+    package: flame_flutter3d
+    symbol: Move3dEffect
+    kind: subclassModifier
+    to: base
+
+  - id: flame_flutter3d-Node3dComponent-base
+    package: flame_flutter3d
+    symbol: Node3dComponent
+    kind: subclassModifier
+    to: base
+
+  - id: flame_flutter3d-Object3dComponent-base
+    package: flame_flutter3d
+    symbol: Object3dComponent
+    kind: subclassModifier
+    to: base
+
+  - id: flame_flutter3d-Particles3dComponent-base
+    package: flame_flutter3d
+    symbol: Particles3dComponent
+    kind: subclassModifier
+    to: base
+
+  - id: flame_flutter3d-ProjectedViewfinder-base
+    package: flame_flutter3d
+    symbol: ProjectedViewfinder
+    kind: subclassModifier
+    to: base
+
+  - id: flame_flutter3d-RigidBodyComponent-base
+    package: flame_flutter3d
+    symbol: RigidBodyComponent
+    kind: subclassModifier
+    to: base
+
+  - id: flame_flutter3d-Rotate3dEffect-base
+    package: flame_flutter3d
+    symbol: Rotate3dEffect
+    kind: subclassModifier
+    to: base
+
+  - id: flame_flutter3d-Scale3dEffect-base
+    package: flame_flutter3d
+    symbol: Scale3dEffect
+    kind: subclassModifier
+    to: base
+
+  - id: flame_flutter3d-SpriteBillboardComponent-base
+    package: flame_flutter3d
+    symbol: SpriteBillboardComponent
+    kind: subclassModifier
+    to: base
+
+  - id: flame_flutter3d-Taps3dComponent-base
+    package: flame_flutter3d
+    symbol: Taps3dComponent
+    kind: subclassModifier
+    to: base
+
+  - id: flame_flutter3d-TiledWorld3d-base
+    package: flame_flutter3d
+    symbol: TiledWorld3d
+    kind: subclassModifier
+    to: base
+
+  - id: flame_flutter3d-TintEffect-base
+    package: flame_flutter3d
+    symbol: TintEffect
+    kind: subclassModifier
+    to: base
+
+  - id: flame_flutter3d-TrailComponent-base
+    package: flame_flutter3d
+    symbol: TrailComponent
+    kind: subclassModifier
+    to: base
+
+  - id: flame_flutter3d-TransparentFlameGame-base
+    package: flame_flutter3d
+    symbol: TransparentFlameGame
+    kind: subclassModifier
+    to: base
+
+  - id: flame_flutter3d-WrapSpace-base
+    package: flame_flutter3d
+    symbol: WrapSpace
+    kind: subclassModifier
+    to: base
+
+  - id: flame_flutter3d-Flutter3dFlameWidget-final
+    package: flame_flutter3d
+    symbol: Flutter3dFlameWidget
+    kind: subclassModifier
+    to: final
+    guidance: >-
+      A widget is `final` since 1.0: wrap it in a widget of your own instead of extending it.
+
+  - id: flutter3d_editor_widgets-ColorField-final
+    package: flutter3d_editor_widgets
+    symbol: ColorField
+    kind: subclassModifier
+    to: final
+    guidance: >-
+      A widget is `final` since 1.0: wrap it in a widget of your own instead of extending it.
+
+  - id: flutter3d_editor_widgets-NumberField-final
+    package: flutter3d_editor_widgets
+    symbol: NumberField
+    kind: subclassModifier
+    to: final
+    guidance: >-
+      A widget is `final` since 1.0: wrap it in a widget of your own instead of extending it.
+
+  - id: flutter3d_game-AutomapView-final
+    package: flutter3d_game
+    symbol: AutomapView
+    kind: subclassModifier
+    to: final
+    guidance: >-
+      A widget is `final` since 1.0: wrap it in a widget of your own instead of extending it.
+
+  - id: flutter3d_game-CreditsSection-final
+    package: flutter3d_game
+    symbol: CreditsSection
+    kind: subclassModifier
+    to: final
+    guidance: >-
+      A widget is `final` since 1.0: wrap it in a widget of your own instead of extending it.
+
+  - id: flutter3d_game-SettingsOverlay-final
+    package: flutter3d_game
+    symbol: SettingsOverlay
+    kind: subclassModifier
+    to: final
+    guidance: >-
+      A widget is `final` since 1.0: wrap it in a widget of your own instead of extending it.
+
+  - id: flutter3d_game-SettingsPanel-final
+    package: flutter3d_game
+    symbol: SettingsPanel
+    kind: subclassModifier
+    to: final
+    guidance: >-
+      A widget is `final` since 1.0: wrap it in a widget of your own instead of extending it.
+
+  - id: flutter3d_game-TouchButton-final
+    package: flutter3d_game
+    symbol: TouchButton
+    kind: subclassModifier
+    to: final
+    guidance: >-
+      A widget is `final` since 1.0: wrap it in a widget of your own instead of extending it.
+
+  - id: flutter3d_game-TouchControls-final
+    package: flutter3d_game
+    symbol: TouchControls
+    kind: subclassModifier
+    to: final
+    guidance: >-
+      A widget is `final` since 1.0: wrap it in a widget of your own instead of extending it.
+
+  - id: flutter3d_game-TouchSlots-final
+    package: flutter3d_game
+    symbol: TouchSlots
+    kind: subclassModifier
+    to: final
+    guidance: >-
+      A widget is `final` since 1.0: wrap it in a widget of your own instead of extending it.
+
+  - id: flutter3d_game-TouchStick-final
+    package: flutter3d_game
+    symbol: TouchStick
+    kind: subclassModifier
+    to: final
+    guidance: >-
+      A widget is `final` since 1.0: wrap it in a widget of your own instead of extending it.
+
+  - id: flutter3d_game-TouchToggle-final
+    package: flutter3d_game
+    symbol: TouchToggle
+    kind: subclassModifier
+    to: final
+    guidance: >-
+      A widget is `final` since 1.0: wrap it in a widget of your own instead of extending it.
+
+  - id: flutter3d_game-AutomapPainter-final
+    package: flutter3d_game
+    symbol: AutomapPainter
+    kind: subclassModifier
+    to: final
+    guidance: >-
+      A painter is `final` since 1.0: paint with one from a `CustomPainter` of your own instead of extending it.
+
+  - id: flutter3d_model_core-BoneMap-final
+    package: flutter3d_model_core
+    symbol: BoneMap
+    kind: subclassModifier
+    to: final
+    guidance: >-
+      A value the rig builder returns, `final` since 1.0: hold one in a class of your own instead of extending it.
+
+  - id: flutter3d_model_core-BuiltRig-final
+    package: flutter3d_model_core
+    symbol: BuiltRig
+    kind: subclassModifier
+    to: final
+    guidance: >-
+      A value the rig builder returns, `final` since 1.0: hold one in a class of your own instead of extending it.
+
+  - id: flutter3d_model_core-TwoBoneIkResult-final
+    package: flutter3d_model_core
+    symbol: TwoBoneIkResult
+    kind: subclassModifier
+    to: final
+    guidance: >-
+      A value the rig builder returns, `final` since 1.0: hold one in a class of your own instead of extending it.
+
+  - id: flutter3d_webgl-WebGlFramePresenter-final
+    package: flutter3d_webgl
+    symbol: WebGlFramePresenter
+    kind: subclassModifier
+    to: final
+    guidance: >-
+      A widget is `final` since 1.0: wrap it in a widget of your own instead of extending it.
+
+  - id: flutter3d_webgpu-WebGpuFramePresenter-final
+    package: flutter3d_webgpu
+    symbol: WebGpuFramePresenter
+    kind: subclassModifier
+    to: final
+    guidance: >-
+      A widget is `final` since 1.0: wrap it in a widget of your own instead of extending it.
+
+  # Frame-time budgets a caller sets are a Duration.
+  - id: core-AdaptiveQualitySettings-budget
+    package: flutter3d_core
+    symbol: AdaptiveQualitySettings
+    kind: argument
+    arguments: [budgetMicros]
+    to: budget
+    template: 'Duration(microseconds: {value})'
+    guidance: >-
+      The frame time aimed at is a `Duration`: `budgetMicros: 16667` is
+      `budget: Duration(microseconds: 16667)`. A read of the field is
+      `budget.inMicroseconds`.
+
+  - id: core-AdaptiveScaleSettings-target
+    package: flutter3d_core
+    symbol: AdaptiveScaleSettings
+    kind: argument
+    arguments: [targetMicros]
+    to: target
+    template: 'Duration(microseconds: {value})'
+    guidance: >-
+      The frame period aimed at is a `Duration`: `targetMicros: 16667` is
+      `target: Duration(microseconds: 16667)`. A read of the field is
+      `target.inMicroseconds`.
+
+  - id: core-DeviceClassSelector-desktopLimit
+    package: flutter3d_core
+    symbol: DeviceClassSelector
+    kind: argument
+    arguments: [desktopMicros]
+    to: desktopLimit
+    template: 'Duration(microseconds: {value})'
+    guidance: >-
+      The slowest probe frame a desktop may take is a `Duration`:
+      `desktopMicros: 8000` is `desktopLimit: Duration(microseconds: 8000)`.
+      `choose(measuredMicros:)` still takes the measurement in microseconds.
+
+  - id: core-RenderSettings-frameWorkBudget
+    package: flutter3d_core
+    symbol: RenderSettings
+    kind: argument
+    arguments: [frameWorkBudget]
+    template: 'Duration(microseconds: {value})'
+    guidance: >-
+      The allowance for work that can wait is a `Duration`:
+      `frameWorkBudget: 2000` is
+      `frameWorkBudget: Duration(microseconds: 2000)`, and `Duration.zero`,
+      the default, is still no limit.
+
+  - id: core-FrameWorkBudget-allowance
+    package: flutter3d_core
+    symbol: FrameWorkBudget
+    kind: argument
+    arguments: [microseconds]
+    to: allowance
+    template: 'Duration(microseconds: {value})'
+    guidance: >-
+      The allowance is a `Duration`: `FrameWorkBudget(microseconds: 1000)` is
+      `FrameWorkBudget(allowance: Duration(microseconds: 1000))`. What it
+      reports having spent (`spent`, `remaining`, `averageCost`) is still
+      microseconds.
+
+  - id: app-BinaryStorage-write-throws
+    package: flutter3d_app
+    symbol: BinaryStorage.write
+    kind: manual
+    guidance: >-
+      `write` returns `Future<void>` and throws a `StorageException` when the
+      platform refused, as `Storage.write` does, where it answered `false`:
+      replace a check of the answer with `try { await storage.write(…); }
+      on StorageException catch (e) { … }`. The exception's `name` and
+      `message` say which document and why.
+
+  - id: core-AnimationPlayer-play-named
+    package: flutter3d_core
+    symbol: AnimationPlayer.play
+    kind: parameters
+    changes:
+      - toNamed: index
+        index: 0
+    guidance: >-
+      The clip to start is a named argument: `player.play(2)` is
+      `player.play(index: 2)`, beside `playLayer`'s named options.
+      `play()` with no clip still resumes the current one.
+
+  - id: core-ShadowFaceScheduler-recordDrawn-named
+    package: flutter3d_core
+    symbol: ShadowFaceScheduler.recordDrawn
+    kind: parameters
+    changes:
+      - toNamed: only
+        index: 0
+    guidance: >-
+      The faces drawn this frame are a named argument:
+      `recordDrawn(faces)` is `recordDrawn(only: faces)`.
+
+  - id: editor_core-DocumentText-compact-named
+    package: flutter3d_editor_core
+    symbol: DocumentText.compact
+    kind: parameters
+    changes:
+      - toNamed: depth
+        index: 1
+    guidance: >-
+      The indentation depth is a named argument: `compact(value, 2)` is
+      `compact(value, depth: 2)`.
+
+  - id: game-ActorVisuals-sync-named
+    package: flutter3d_game
+    symbol: ActorVisuals.sync
+    kind: parameters
+    changes:
+      - toNamed: alpha
+        index: 0
+    guidance: >-
+      The blend between the last two steps is a named argument:
+      `visuals.sync(alpha)` is `visuals.sync(alpha: alpha)`.
+
+  - id: sim-SnapshotFields-number-named
+    package: flutter3d_sim
+    symbol: SnapshotFields.number
+    kind: parameters
+    changes:
+      - toNamed: orElse
+        index: 1
+    guidance: >-
+      The value for a missing key is a named argument:
+      `data.number('hour', 8)` is `data.number('hour', orElse: 8)`.
+
+  - id: sim-SnapshotFields-integer-named
+    package: flutter3d_sim
+    symbol: SnapshotFields.integer
+    kind: parameters
+    changes:
+      - toNamed: orElse
+        index: 1
+    guidance: >-
+      The value for a missing key is a named argument:
+      `data.integer('lives', 3)` is `data.integer('lives', orElse: 3)`.
+
+  - id: sim-Tally-add-named
+    package: flutter3d_sim
+    symbol: Tally.add
+    kind: parameters
+    changes:
+      - toNamed: howMany
+        index: 1
+    guidance: >-
+      The count is a named argument: `tally.add('coin', 5)` is
+      `tally.add('coin', howMany: 5)`.
+
+  - id: net-firstDifferingPath-named
+    package: flutter3d_net
+    symbol: firstDifferingPath
+    kind: parameters
+    changes:
+      - toNamed: prefix
+        index: 2
+    guidance: >-
+      The path to start from is a named argument:
+      `firstDifferingPath(a, b, 'world')` is
+      `firstDifferingPath(a, b, prefix: 'world')`.
+
+  - id: webgpu-WebGpuDevice-debugDrainErrors-named
+    package: flutter3d_webgpu
+    symbol: WebGpuDevice.debugDrainErrors
+    kind: parameters
+    changes:
+      - toNamed: where
+        index: 0
+    guidance: >-
+      The label is a named argument: `debugDrainErrors('upload')` is
+      `debugDrainErrors(where: 'upload')`.
+
+  - id: results-model_core-ModelCredit-class
+    package: flutter3d_model_core
+    symbol: ModelCredit
+    kind: recordToClass
+    fields:
+      title: title
+      author: author
+      licence: license
+      url: url
+    guidance: >-
+      `ModelCredit` is a final class with the same `title`, `author` and
+      `url`, and `license` for `licence`; a credit is built with
+      `ModelCredit(title: …, author: …, license: …, url: …)`. Only a
+      destructuring pattern names the class.
+
+  - id: results-game-BugReportTape-class
+    package: flutter3d_game
+    symbol: BugReportTape
+    kind: recordToClass
+    fields:
+      start: start
+      tape: tape
+    guidance: >-
+      `BugReportTape` is a final class with the same `start` and `tape`; only
+      a destructuring pattern names the class.
+
+  - id: results-core-SkippedPass-class
+    package: flutter3d_core
+    symbol: SkippedPass
+    kind: recordToClass
+    fields:
+      name: name
+      reason: reason
+    guidance: >-
+      `SkippedPass` is a final class with the same `name` and `reason`, equal
+      by both as the record was; one is built with
+      `SkippedPass(name: …, reason: …)`. Only a destructuring pattern names
+      the class.
+
+  - id: results-flutter3d-ImpostorPart-class
+    package: flutter3d
+    symbol: ImpostorPart
+    kind: recordToClass
+    fields:
+      card: card
+      albedo: albedo
+      normalDepth: normalDepth
+    guidance: >-
+      `ImpostorPart` is a final class with the same `card`, `albedo` and
+      `normalDepth`; only a destructuring pattern names the class.
+
+  - id: results-app-VisibilityBatch-class
+    package: flutter3d_app
+    symbol: VisibilityBatch
+    kind: recordToClass
+    fields:
+      node: node
+      bounds: bounds
+    guidance: >-
+      `VisibilityBatch` is a final class with the same `node` and `bounds`; a
+      batch handed to `VisibilityCuller` is built with
+      `VisibilityBatch(node: …, bounds: …)`. Only a destructuring pattern
+      names the class.
+
+  - id: results-mesh-MeshHit-class
+    package: flutter3d_mesh
+    symbol: MeshHit
+    kind: recordToClass
+    fields:
+      face: face
+      triangle: triangle
+      distance: distance
+      point: point
+    guidance: >-
+      `MeshHit` is a final class with the same `face`, `triangle`, `distance`
+      and `point`, equal by all four as the record was; only a destructuring
+      pattern names the class.
+
+  - id: results-editor_core-LevelBatch-class
+    package: flutter3d_editor_core
+    symbol: LevelBatch
+    kind: recordToClass
+    fields:
+      node: node
+      mesh: mesh
+      bounds: bounds
+      brush: brush
+    guidance: >-
+      `LevelBatch` (in `flutter3d_level_scene` now) is a final class with the
+      same `node`, `mesh`, `bounds` and `brush`; only a destructuring pattern
+      names the class.
+
+  - id: results-mesh-SimplifiedMesh-class
+    package: flutter3d_mesh
+    symbol: SimplifiedMesh
+    kind: recordToClass
+    fields:
+      mesh: mesh
+      error: error
+    guidance: >-
+      `SimplifiedMesh` is a final class with the same `mesh` and `error`;
+      only a destructuring pattern names the class.
+
+  - id: results-model_core-ImpostorBake-class
+    package: flutter3d_model_core
+    symbol: ImpostorBake
+    kind: recordToClass
+    fields:
+      atlas: atlas
+      size: size
+      rgba: rgba
+    guidance: >-
+      `ImpostorBake` is a final class with the same `atlas`, `size` and
+      `rgba`; only a destructuring pattern names the class.
+
+  - id: results-model_core-RigPreview-class
+    package: flutter3d_model_core
+    symbol: RigPreview
+    kind: recordToClass
+    fields:
+      jointCount: jointCount
+      deformingCount: deformingCount
+      controllerCount: controllerCount
+      ikChainCount: ikChainCount
+    guidance: >-
+      `RigPreview` is a final class with the same four counts, equal by value
+      as the record was; only a destructuring pattern names the class.
+
+  - id: results-testing-QualityMeasurement-class
+    package: flutter3d_testing
+    symbol: QualityMeasurement
+    kind: recordToClass
+    fields:
+      setting: setting
+      cost: cost
+      flip: flip
+    guidance: >-
+      `QualityMeasurement` is a final class with the same `setting`, `cost`
+      and `flip`; one is built with `QualityMeasurement(…)`. Only a
+      destructuring pattern names the class.
+
+  - id: app-FileBinaryStorage-write-throws
+    package: flutter3d_app
+    symbol: FileBinaryStorage.write
+    kind: manual
+    guidance: >-
+      `write` returns `Future<void>` and throws a `StorageException` when the
+      file could not be written, where it answered `false`: replace a check
+      of the answer with `try { await storage.write(…); } on
+      StorageException catch (e) { … }`.

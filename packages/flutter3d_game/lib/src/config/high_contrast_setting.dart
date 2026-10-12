@@ -23,6 +23,6 @@ bool wantsHighContrast(GameSettings config, Accommodations system) =>
 /// looked.
 HighContrastSettings highContrastOf(
   GameSettings config,
-  Accommodations system, [
+  Accommodations system, {
   HighContrastSettings base = const HighContrastSettings(),
-]) => base.copyWith(enabled: wantsHighContrast(config, system));
+}) => base.copyWith(enabled: wantsHighContrast(config, system));

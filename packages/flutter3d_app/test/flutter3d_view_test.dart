@@ -9,11 +9,8 @@ import 'dart:typed_data';
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
-import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart' show FakeBackend;
 import 'package:flutter3d_particles/flutter3d_particles.dart';
-import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show OriginShifted;
 import 'package:flutter_test/flutter_test.dart';
 
 /// Shows nothing: there is no backend to present a fake's frame.
@@ -27,7 +24,7 @@ Widget _noPresenter(
 Widget _view(
   FakeBackend device, {
   void Function(Flutter3dEngine engine)? onCreated,
-  void Function(Flutter3dEngine engine, DeviceLoss loss)? onDeviceLost,
+  void Function(DeviceLostEvent event)? onDeviceLost,
   void Function(Flutter3dEngine engine)? onDeviceRestored,
 }) => Directionality(
   textDirection: TextDirection.ltr,
@@ -62,7 +59,7 @@ Widget _capped(
     child: Flutter3dView(
       device: DeviceSettings(device: device, presenter: _noPresenter),
       view: ViewSettings(continuous: continuous, frameRateCap: cap),
-      onFrame: (_, frame) => frames.add(frame),
+      onFrame: (EngineFrame f) => frames.add(f.frame),
     ),
   ),
 );
@@ -226,7 +223,7 @@ void main() {
       _view(
         device,
         onCreated: (e) => engine = e,
-        onDeviceLost: (_, loss) => lost.add(loss),
+        onDeviceLost: (DeviceLostEvent event) => lost.add(event.loss),
         onDeviceRestored: (_) => restored++,
       ),
     );

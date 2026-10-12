@@ -131,7 +131,7 @@ final class ImpostorsDemo extends ShowcaseDemo {
       roots: const <int>[0],
       localBounds: tree.computeBounds(),
       impostors: <ModelImpostor, ImpostorPart>{
-        impostor: (
+        impostor: ImpostorPart(
           card: DeviceMesh.upload(
             device,
             impostorCard(center: center, radius: radius),

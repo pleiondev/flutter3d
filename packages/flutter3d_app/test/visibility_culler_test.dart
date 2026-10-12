@@ -13,7 +13,6 @@ import 'dart:convert';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -48,10 +47,11 @@ void main() {
     cellSize: 2.0,
     samplesPerAxis: 2,
   );
-  VisibilityBatch room(String name, double fromX, double toX) => (
-    node: _node(name),
-    bounds: Aabb3.minMax(Vector3(fromX, 0.0, 0.0), Vector3(toX, 4.0, 8.0)),
-  );
+  VisibilityBatch room(String name, double fromX, double toX) =>
+      VisibilityBatch(
+        node: _node(name),
+        bounds: Aabb3.minMax(Vector3(fromX, 0.0, 0.0), Vector3(toX, 4.0, 8.0)),
+      );
 
   test('an eye in A leaves C off and B on', () {
     final a = room('a', 0.5, 7.5);

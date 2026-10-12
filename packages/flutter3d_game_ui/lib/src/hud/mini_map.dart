@@ -16,7 +16,7 @@ import '../theme/game_ui_theme.dart';
 /// **Fitted to the box rather than drawn at a fixed scale:** a course is
 /// whatever size it is, and a map that assumed one would put half of every
 /// other course outside the corner it is drawn in.
-class MiniMap extends StatelessWidget {
+final class MiniMap extends StatelessWidget {
   const MiniMap({
     super.key,
     required this.outline,
@@ -60,7 +60,7 @@ class MiniMap extends StatelessWidget {
 
 /// What [MiniMap] paints, public so a HUD that lays out its own frame can
 /// paint the map into it, and so a test can read where a point lands.
-class MiniMapPainter extends CustomPainter {
+final class MiniMapPainter extends CustomPainter {
   const MiniMapPainter({
     required this.outline,
     required this.markers,

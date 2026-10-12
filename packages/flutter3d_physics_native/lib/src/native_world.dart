@@ -226,20 +226,46 @@ final class NativeOutlet {
 }
 
 /// What a water's last step was — [NativeWorld.shallowInfoOf].
-typedef NativeShallowInfo = ({
+///
+/// A class rather than a record, so a later solver can report more of its
+/// step without breaking a reader.
+final class NativeShallowInfo {
+  const NativeShallowInfo({
+    required this.substeps,
+    required this.overruns,
+    required this.resting,
+    required this.energy,
+  });
+
   /// The substeps the step was cut into.
-  int substeps,
+  final int substeps;
 
   /// Steps since the water was made that wanted more substeps than
-  /// [c.shallowMostSubsteps], and so held the flow to what that allows.
-  int overruns,
+  /// the core allows, and so held the flow to what that allows.
+  final int overruns;
 
   /// Whether it rests, unstepped until something stirs it.
-  bool resting,
+  final bool resting;
 
   /// The most energy any cell held at the step's end, J/m².
-  double energy,
-});
+  final double energy;
+
+  @override
+  bool operator ==(Object other) =>
+      other is NativeShallowInfo &&
+      other.substeps == substeps &&
+      other.overruns == overruns &&
+      other.resting == resting &&
+      other.energy == energy;
+
+  @override
+  int get hashCode => Object.hash(substeps, overruns, resting, energy);
+
+  @override
+  String toString() =>
+      'NativeShallowInfo(substeps: $substeps, overruns: $overruns, '
+      'resting: $resting, energy: $energy)';
+}
 
 /// What a liquid is: its density, kg/m³, its viscosity, Pa·s, and its
 /// surface tension, N/m — [NativeWorld.setShallowProperties].
@@ -593,33 +619,87 @@ final class NativeWheelSettings {
 }
 
 /// A wheel as the last step left it.
-typedef NativeWheelState = ({
-  /// Whether it stands on something.
-  bool touching,
+///
+/// A class rather than a record, so a later core can report more of the
+/// wheel (its temperature, what it stands on) without breaking a reader.
+final class NativeWheelState {
+  const NativeWheelState({
+    required this.touching,
+    required this.length,
+    required this.steer,
+    required this.rotation,
+    required this.spin,
+    required this.center,
+    required this.normal,
+    required this.force,
+    required this.lateral,
+    required this.skid,
+  });
 
-  /// The suspension's length now, m.
-  double length,
+  /// Whether it stands on something.
+  final bool touching;
+
+  /// The suspension's length now, in metres.
+  final double length;
 
   /// The steering angle, radians.
-  double steer,
+  final double steer;
 
-  /// How far it has turned about its axle, radians, and how fast, rad/s.
-  double rotation,
-  double spin,
+  /// How far it has turned about its axle, radians.
+  final double rotation;
 
-  /// Its centre, and the normal of what it stands on.
-  Vector3 center,
-  Vector3 normal,
+  /// How fast it turns about its axle, in radians per second.
+  final double spin;
+
+  /// Its centre, relative to the origin.
+  final Vector3 center;
+
+  /// The normal of what it stands on.
+  final Vector3 normal;
 
   /// The spring's force, N.
-  double force,
+  final double force;
 
   /// How fast it slides sideways, m/s.
-  double lateral,
+  final double lateral;
 
-  /// How far past its grip the tyre is asked to go: nought while it grips.
-  double skid,
-});
+  /// How far past its grip the tyre is asked to go, a fraction: nought
+  /// while it grips.
+  final double skid;
+
+  @override
+  bool operator ==(Object other) =>
+      other is NativeWheelState &&
+      other.touching == touching &&
+      other.length == length &&
+      other.steer == steer &&
+      other.rotation == rotation &&
+      other.spin == spin &&
+      other.center == center &&
+      other.normal == normal &&
+      other.force == force &&
+      other.lateral == lateral &&
+      other.skid == skid;
+
+  @override
+  int get hashCode => Object.hash(
+    touching,
+    length,
+    steer,
+    rotation,
+    spin,
+    center,
+    normal,
+    force,
+    lateral,
+    skid,
+  );
+
+  @override
+  String toString() =>
+      'NativeWheelState(touching: $touching, length: $length, '
+      'force: $force, skid: $skid)';
+}
 
 /// Several shapes the world holds as one, for bodies to be shaped as
 /// ([NativeWorld.setCompound]). Numbered from one.
@@ -1405,57 +1485,196 @@ final class NativeEventKind {
 
 /// One event, in the order the step raised it. [other] is the second body
 /// of an event between two, and null for the rest.
-typedef NativeEvent = ({
-  NativeBody body,
-  NativeBody? other,
-  NativeEventKind kind,
-});
+///
+/// A class rather than a record, so a later core can tell more about an
+/// event (where, how hard) without changing what callers read today.
+final class NativeEvent {
+  const NativeEvent({required this.body, this.other, required this.kind});
+
+  /// The body the event happened to.
+  final NativeBody body;
+
+  /// The second body of an event between two; null for the rest.
+  final NativeBody? other;
+
+  /// What happened.
+  final NativeEventKind kind;
+
+  @override
+  bool operator ==(Object other) =>
+      other is NativeEvent &&
+      other.body == body &&
+      other.other == this.other &&
+      other.kind == kind;
+
+  @override
+  int get hashCode => Object.hash(body, other, kind);
+
+  @override
+  String toString() => 'NativeEvent($kind, $body, $other)';
+}
 
 /// Where two bodies touch: one point of their manifold.
-typedef NativeContact = ({
-  NativeBody a,
-  NativeBody b,
+///
+/// A class rather than a record, so it can later carry the material of
+/// each side and the impulse without breaking a reader.
+final class NativeContact {
+  const NativeContact({
+    required this.a,
+    required this.b,
+    required this.normal,
+    required this.point,
+    required this.depth,
+  });
+
+  /// The first body of the pair.
+  final NativeBody a;
+
+  /// The second body of the pair.
+  final NativeBody b;
 
   /// Out of [b], into [a]: the way [a] moves to come apart.
-  Vector3 normal,
+  final Vector3 normal;
 
   /// Halfway between the two surfaces, relative to the origin.
-  Vector3 point,
+  final Vector3 point;
 
-  /// Positive inside, negative for a gap within the margin.
-  double depth,
-});
+  /// Positive inside, negative for a gap within the margin, in metres.
+  final double depth;
+
+  @override
+  bool operator ==(Object other) =>
+      other is NativeContact &&
+      other.a == a &&
+      other.b == b &&
+      other.normal == normal &&
+      other.point == point &&
+      other.depth == depth;
+
+  @override
+  int get hashCode => Object.hash(a, b, normal, point, depth);
+
+  @override
+  String toString() =>
+      'NativeContact($a, $b, normal: $normal, point: $point, depth: $depth)';
+}
 
 /// Where a query met a body: the point and the normal there, out of the
 /// body, relative to the origin, and the distance along a ray or the
 /// fraction of a cast.
-typedef NativeHit = ({
-  NativeBody body,
-  Vector3 point,
-  Vector3 normal,
-  double at,
-});
+///
+/// A class rather than a record, so it can later carry the material hit.
+final class NativeHit {
+  const NativeHit({
+    required this.body,
+    required this.point,
+    required this.normal,
+    required this.at,
+  });
+
+  /// The body the query met.
+  final NativeBody body;
+
+  /// Where, relative to the origin.
+  final Vector3 point;
+
+  /// The surface's normal there, out of the body.
+  final Vector3 normal;
+
+  /// The distance along a ray, m, or the fraction of a cast, nought to one.
+  final double at;
+
+  @override
+  bool operator ==(Object other) =>
+      other is NativeHit &&
+      other.body == body &&
+      other.point == point &&
+      other.normal == normal &&
+      other.at == at;
+
+  @override
+  int get hashCode => Object.hash(body, point, normal, at);
+
+  @override
+  String toString() =>
+      'NativeHit($body, point: $point, normal: $normal, at: $at)';
+}
 
 /// Where a character ended up, and what it stood on.
-typedef NativeCharacterMove = ({
-  Vector3 position,
-  bool grounded,
-  bool hitWall,
-  bool hitCeiling,
-  bool stepped,
+///
+/// A class rather than a record, so a later core can report more of the
+/// move (a slide, a push) without breaking a reader.
+final class NativeCharacterMove {
+  const NativeCharacterMove({
+    required this.position,
+    required this.grounded,
+    required this.hitWall,
+    required this.hitCeiling,
+    required this.stepped,
+    required this.steppedUp,
+    required this.velocity,
+    required this.groundNormal,
+    this.ground,
+  });
+
+  /// Where it ended up, relative to the origin.
+  final Vector3 position;
+
+  /// Whether it stands on something.
+  final bool grounded;
+
+  /// Whether it ran into a wall.
+  final bool hitWall;
+
+  /// Whether it hit a ceiling.
+  final bool hitCeiling;
+
+  /// Whether it stepped up onto something.
+  final bool stepped;
 
   /// How far a step lifted it, m; nought when it did not step.
-  double steppedUp,
+  final double steppedUp;
 
   /// The velocity it was moved with, less the speed into what it met.
-  Vector3 velocity,
+  final Vector3 velocity;
 
   /// The ground's normal, or zero in the air.
-  Vector3 groundNormal,
+  final Vector3 groundNormal;
 
   /// What it stands on, or null in the air.
-  NativeBody? ground,
-});
+  final NativeBody? ground;
+
+  @override
+  bool operator ==(Object other) =>
+      other is NativeCharacterMove &&
+      other.position == position &&
+      other.grounded == grounded &&
+      other.hitWall == hitWall &&
+      other.hitCeiling == hitCeiling &&
+      other.stepped == stepped &&
+      other.steppedUp == steppedUp &&
+      other.velocity == velocity &&
+      other.groundNormal == groundNormal &&
+      other.ground == ground;
+
+  @override
+  int get hashCode => Object.hash(
+    position,
+    grounded,
+    hitWall,
+    hitCeiling,
+    stepped,
+    steppedUp,
+    velocity,
+    groundNormal,
+    ground,
+  );
+
+  @override
+  String toString() =>
+      'NativeCharacterMove(position: $position, grounded: $grounded, '
+      'ground: $ground)';
+}
 
 /// A world of bodies owned and stepped by the C core.
 ///
@@ -1820,11 +2039,13 @@ final class NativeWorld {
           batch,
         );
         for (var i = 0; i < read; i++) {
-          events.add((
-            body: NativeBody(bodies[i]),
-            other: others[i] == 0 ? null : NativeBody(others[i]),
-            kind: NativeEventKind.of(kinds[i]),
-          ));
+          events.add(
+            NativeEvent(
+              body: NativeBody(bodies[i]),
+              other: others[i] == 0 ? null : NativeBody(others[i]),
+              kind: NativeEventKind.of(kinds[i]),
+            ),
+          );
         }
         if (read < batch) return events;
       }
@@ -2400,7 +2621,7 @@ final class NativeWorld {
     }
   }
 
-  NativeHit _hitAt(int body, c.F32s h) => (
+  NativeHit _hitAt(int body, c.F32s h) => NativeHit(
     body: NativeBody(body),
     point: Vector3(h[0], h[1], h[2]),
     normal: Vector3(h[3], h[4], h[5]),
@@ -2636,7 +2857,7 @@ final class NativeWorld {
         ground,
         lifted,
       );
-      return (
+      return NativeCharacterMove(
         position: Vector3(p[0], p[1], p[2]),
         grounded: flags & c.CharacterFlags.grounded != 0,
         hitWall: flags & c.CharacterFlags.wall != 0,
@@ -2666,7 +2887,7 @@ final class NativeWorld {
       final read = c.f3d_world_read_contacts(_live, values, pairs, count);
       return <NativeContact>[
         for (var i = 0; i < read; i++)
-          (
+          NativeContact(
             a: NativeBody(pairs[i * 2]),
             b: NativeBody(pairs[i * 2 + 1]),
             normal: Vector3(
@@ -3375,7 +3596,7 @@ final class NativeWorld {
     final out = c.F32s.alloc(c.shallowInfoFloats);
     try {
       c.f3d_shallow_info(_live, water.id, out);
-      return (
+      return NativeShallowInfo(
         substeps: out[0].round(),
         overruns: out[1].round(),
         resting: out[2] != 0,
@@ -3867,7 +4088,7 @@ final class NativeWorld {
       );
       return <NativeWheelState>[
         for (var i = 0; i < n; i++)
-          (
+          NativeWheelState(
             touching: out[i * c.wheelStateFloats] != 0.0,
             length: out[i * c.wheelStateFloats + 1],
             steer: out[i * c.wheelStateFloats + 2],

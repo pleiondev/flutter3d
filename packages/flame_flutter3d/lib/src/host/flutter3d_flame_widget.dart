@@ -47,7 +47,7 @@ import 'transparent_flame_game.dart';
 /// appeared; the old game keeps its world, or lets its device go, as it
 /// would had the widget gone. Before, the new game was drawn over the old
 /// one's scene and never had its own opened.
-class Flutter3dFlameWidget extends StatelessWidget {
+final class Flutter3dFlameWidget extends StatelessWidget {
   const Flutter3dFlameWidget({
     super.key,
     required this.game,

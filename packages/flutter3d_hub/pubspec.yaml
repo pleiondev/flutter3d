@@ -33,7 +33,7 @@ platforms:
 # package needs. No engine package, so the renderer's core can name a hub
 # reference without taking a network client with it.
 dependencies:
-  flutter3d_foundation: ^1.0.0-rc.1
+  flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
 
 dev_dependencies:
   test: ^1.25.0

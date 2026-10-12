@@ -108,8 +108,7 @@ Widget build(BuildContext context) => Flutter3dView(
     );
     unawaited(_loadLevel(engine));
   },
-  onBeforeFrame: (Flutter3dEngine engine, FrameInfo frame) =>
-      _pad.tick(frame.seconds),
+  onBeforeFrame: (EngineFrame frame) => _pad.tick(frame.seconds),
   onListenerMoved: (ListenerPose ears) => _ears.placeAt(
     ears.position,
     ears.forward,

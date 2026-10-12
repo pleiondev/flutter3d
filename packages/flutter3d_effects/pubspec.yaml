@@ -30,42 +30,42 @@ platforms:
 dependencies:
   # The scene, meshes, materials and the renderer the views draw into — the
   # Flutter-free core, so the package runs under `dart test`.
-  flutter3d_core: ^1.0.0-rc.1
+  flutter3d_core: '>=1.0.0-rc.1 <1.1.0'
   # The flames, embers and smoke, and the six-way smoke sheet's baker.
-  flutter3d_particles: ^1.0.0-rc.1
+  flutter3d_particles: '>=1.0.0-rc.1 <1.1.0'
   # What is drawn: the elements' simulation, which steps the world, the
   # flames and every element, and which these views draw and sound.
-  flutter3d_elements: ^1.0.0-rc.1
+  flutter3d_elements: '>=1.0.0-rc.1 <1.1.0'
   # `Portable` for a view's trigonometry, and the crossings into
   # `vector_math` a world position is narrowed through.
-  flutter3d_foundation: ^1.0.0-rc.1
+  flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
   # The constants a view's mist and firelight are worked out with, and the
   # liquid in a vessel the liquid meshes are built from (`liquidMeshes`).
-  flutter3d_physics: ^1.0.0-rc.1
+  flutter3d_physics: '>=1.0.0-rc.1 <1.1.0'
   # The core's water, spray, bubbles and fires, read as they are drawn.
-  flutter3d_physics_native: ^1.0.0-rc.1
+  flutter3d_physics_native: '>=1.0.0-rc.1 <1.1.0'
   # The loop the view plugin draws in, once a frame.
-  flutter3d_plugin_api: ^1.0.0-rc.1
+  flutter3d_plugin_api: '>=1.0.0-rc.1 <1.1.0'
   vector_math: ^2.2.0
   # `hook/build.dart`: the material compiler, run here for the package's own
   # materials, and the hook contract. The light package rather than
   # `flutter3d_build`, whose MCP servers and `dart_mcp` a hook's imports
   # would otherwise resolve into every game (decision G of
   # `tasks/1.0-arch-review.md`).
-  flutter3d_build_hooks: ^1.0.0-rc.1
-  flutter3d_shaders: ^1.0.0-rc.1
+  flutter3d_build_hooks: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_shaders: '>=1.0.0-rc.1 <1.1.0'
   hooks: ^2.0.0
 
   # The graphics vocabulary, named here directly.
-  flutter3d_hardware: ^1.0.0-rc.1
+  flutter3d_hardware: '>=1.0.0-rc.1 <1.1.0'
 
   # What a world is made of: its properties, the materials and the constants.
-  flutter3d_matter: ^1.0.0-rc.1
+  flutter3d_matter: '>=1.0.0-rc.1 <1.1.0'
 
 dev_dependencies:
   test: ^1.25.0
   # The software device the tests draw on.
-  flutter3d_cpu: ^1.0.0-rc.1
+  flutter3d_cpu: '>=1.0.0-rc.1 <1.1.0'
   flutter_lints: ^6.0.0
 
 resolution: workspace

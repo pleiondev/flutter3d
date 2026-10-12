@@ -72,7 +72,7 @@ class _HybridScreenState extends State<HybridScreen> {
 
 /// The game. A [TransparentFlameGame], not a plain `FlameGame`: Flame paints
 /// an opaque black background by default, right over the 3D layer.
-class HybridGame extends TransparentFlameGame with KeyboardEvents {
+final class HybridGame extends TransparentFlameGame with KeyboardEvents {
   /// Flame's `y` becomes the scene's `z` on a floor half a metre up, where
   /// the cube's centre travels.
   static final BridgePlane floor = BridgePlane.ground(height: 0.5);
@@ -247,7 +247,7 @@ class HybridGame extends TransparentFlameGame with KeyboardEvents {
 
 /// The crate: a physics body the scene and Flame both follow, and the
 /// Flame-side collision callbacks `CollisionBridge` calls.
-class _CrateComponent extends RigidBodyComponent {
+final class _CrateComponent extends RigidBodyComponent {
   _CrateComponent({
     required super.body,
     required super.node,

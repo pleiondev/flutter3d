@@ -30,7 +30,7 @@ import 'package:flutter/services.dart';
 import 'editor_widgets_theme.dart';
 
 /// One colour, [ColorField.channels] components long, each in `0..1`.
-class ColorField extends StatefulWidget {
+final class ColorField extends StatefulWidget {
   const ColorField({
     super.key,
     required this.value,

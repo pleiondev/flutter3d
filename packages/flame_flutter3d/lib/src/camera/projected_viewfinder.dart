@@ -38,7 +38,7 @@ import '../transform/projector.dart';
 ///       world: world,
 ///       viewfinder: ProjectedViewfinder(projector: projector, plane: plane),
 ///     );
-class ProjectedViewfinder extends Viewfinder {
+base class ProjectedViewfinder extends Viewfinder {
   ProjectedViewfinder({required this.projector, required this.plane});
 
   /// The plane the game plays on.

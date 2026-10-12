@@ -158,12 +158,12 @@ final class Snapshot {
 /// Free functions rather than an encoder object: every one of them is two
 /// lines, and the systems that call them have nothing else in common.
 extension SnapshotFields on Map<String, Object?> {
-  double number(String key, [double orElse = 0.0]) {
+  double number(String key, {double orElse = 0.0}) {
     final value = this[key];
     return value is num ? value.toDouble() : orElse;
   }
 
-  int integer(String key, [int orElse = 0]) {
+  int integer(String key, {int orElse = 0}) {
     final value = this[key];
     return value is num ? value.toInt() : orElse;
   }

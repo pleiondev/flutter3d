@@ -32,21 +32,21 @@ dependencies:
 
   # The renderer: `RenderView`, `OffAxisProjection`, `RenderSettings.forStereo`.
   # All three exist because of this package and are used by nothing else yet.
-  flutter3d: ^1.0.0-rc.1
+  flutter3d: '>=1.0.0-rc.1 <1.1.0'
 
   # `presentFrame`, since `GraphicsDevice` names no widget of its own — see
   # `StereoSurface`.
-  flutter3d_app: ^1.0.0-rc.1
+  flutter3d_app: '>=1.0.0-rc.1 <1.1.0'
 
   # `edu-06`: `EntityDef`, the `edu_step`/`edu_sequence` a lesson is made of.
   # Plain Dart already (no Flutter, no genre), the same reason
   # `flutter3d_editor_core` depends on it directly rather than through
   # `flutter3d_game`.
-  flutter3d_sim: ^1.0.0-rc.1
+  flutter3d_sim: '>=1.0.0-rc.1 <1.1.0'
 
   # `Portable.atan`: a holder's frustum turned into the four angles an XR
   # frame carries, the same on every machine.
-  flutter3d_foundation: ^1.0.0-rc.1
+  flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
 
   vector_math: ^2.2.0
 
@@ -59,7 +59,7 @@ dev_dependencies:
   # widget tests use it, and the only way `lesson_stereo_view_test.dart` can
   # prove the button actually paints a stereo pair rather than only calling
   # a callback that compiles.
-  flutter3d_cpu: ^1.0.0-rc.1
+  flutter3d_cpu: '>=1.0.0-rc.1 <1.1.0'
 
 flutter:
   plugin:

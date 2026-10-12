@@ -75,6 +75,24 @@
   `BundledMaterialSchemas` extension is gone), and a parsed source's schema
   is `MaterialProgram.schema`. The types themselves moved to
   `flutter3d_foundation`.
+- **Breaking: `CompiledFrameGraph` has no public constructor.** It took
+  the compiler's own tables; a compiled graph comes from
+  `FrameGraph.compile`.
+- **Breaking: `SkippedPass` is a class** with the same `name` and
+  `reason`, equal by both, so a skip can later say more.
+- **Breaking: a frame-time budget a caller sets is a `Duration`.**
+  `AdaptiveQualitySettings.budgetMicros` is `budget`,
+  `AdaptiveScaleSettings.targetMicros` is `target`,
+  `DeviceClassSelector.desktopMicros` is `desktopLimit`,
+  `RenderSettings.frameWorkBudget` is a `Duration` and
+  `FrameWorkBudget.microseconds` is `allowance`, as the units contract
+  says a budget measured against the wall clock is. What the engine
+  measures (`FrameResult.cpuMicros`, `FramePass.gpuMicros`) stays integral
+  microseconds; `migrate` wraps an old number in `Duration(microseconds:)`.
+- **Breaking: optional arguments are named.** `AnimationPlayer.play`
+  takes `index:`, `ShadowFaceScheduler.recordDrawn` `only:` and
+  `MemoryBudget.isOver` `category:`, so a minor can add an option beside
+  them; `dart fix` writes the names.
 - **Breaking: a decoder, a writer and the renderer's services take one
   context each.** `ModelDecoder.handles` takes a `ModelProbe` (new: the
   file's name and bytes) and `decode` a `ModelDecodeContext` (new: the

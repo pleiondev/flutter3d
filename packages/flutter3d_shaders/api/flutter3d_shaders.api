@@ -4,6 +4,14 @@
 
 library package:flutter3d_shaders/backend.dart
 
+final class GlslBindingCount
+  String toString()
+  bool operator ==(Object other)
+  const GlslBindingCount({required this.textures, required this.uniformBlocks})
+  final int textures
+  final int uniformBlocks
+  int get hashCode
+
 final class MaterialCompileException extends CapabilityException
   String toString()
   const MaterialCompileException(this.message)
@@ -121,7 +129,7 @@ List<StageMismatch> checkBundleAgreement({required Map<String, String> vertex, r
 
 List<StageMismatch> checkStageAgreement({required StageInterface vertex, required StageInterface fragment, List<StageVariable>? attributes})
 
-({int textures, int uniformBlocks}) countGlslBindings(String glsl, {Set<String> defines = const <String>{}})
+GlslBindingCount countGlslBindings(String glsl, {Set<String> defines = const <String>{}})
 
 String? pairedFragmentStage(String vertex, Set<String> fragments)
 
@@ -147,6 +155,14 @@ final class CompiledStage
   final ShaderTarget target
   final String? text
   final Uint8List spirv
+
+final class GlslBindingCount
+  String toString()
+  bool operator ==(Object other)
+  const GlslBindingCount({required this.textures, required this.uniformBlocks})
+  final int textures
+  final int uniformBlocks
+  int get hashCode
 
 typedef GlslSources = Map<String, String>;
 
@@ -244,7 +260,7 @@ void checkStd140Offsets(String name, PreparedStage prepared, Map<String, Map<Str
 
 CompiledStage compileStage(String glsl, {required String name, bool fragment = false, bool compute = false, ShaderStageKind? kind, ShaderTarget target = ShaderTarget.wgsl})
 
-({int textures, int uniformBlocks}) countGlslBindings(String glsl, {Set<String> defines = const <String>{}})
+GlslBindingCount countGlslBindings(String glsl, {Set<String> defines = const <String>{}})
 
 const String cubeDimension = 'cube'
 
@@ -963,6 +979,14 @@ final class BundleSectionFormatException extends Flutter3dFormatException
   const BundleSectionFormatException(this.message)
   final String message
 
+final class GlslBindingCount
+  String toString()
+  bool operator ==(Object other)
+  const GlslBindingCount({required this.textures, required this.uniformBlocks})
+  final int textures
+  final int uniformBlocks
+  int get hashCode
+
 typedef GlslSources = Map<String, String>;
 
 final class GlslTranslateException extends Flutter3dFormatException
@@ -1036,7 +1060,7 @@ List<StageMismatch> checkBundleAgreement({required Map<String, String> vertex, r
 
 void checkStd140Offsets(String name, PreparedStage prepared, Map<String, Map<String, int>> offsets)
 
-({int textures, int uniformBlocks}) countGlslBindings(String glsl, {Set<String> defines = const <String>{}})
+GlslBindingCount countGlslBindings(String glsl, {Set<String> defines = const <String>{}})
 
 const String cubeDimension = 'cube'
 

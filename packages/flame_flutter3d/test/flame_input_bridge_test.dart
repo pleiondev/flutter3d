@@ -10,7 +10,6 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show KeyEventResult;
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 KeyDownEvent _down(LogicalKeyboardKey key) => KeyDownEvent(

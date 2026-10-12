@@ -29,11 +29,11 @@ platforms:
 dependencies:
   # The contract the sidecar is a device of, and where its placement is
   # named (`ComputePlacement.sidecar`).
-  flutter3d_hardware: ^1.0.0-rc.1
+  flutter3d_hardware: '>=1.0.0-rc.1 <1.1.0'
   # The kernel language: a bundle's kernel section, translated to the WGSL
   # wgpu-native compiles.
-  flutter3d_shaders: ^1.0.0-rc.1
-  flutter3d_foundation: ^1.0.0-rc.1
+  flutter3d_shaders: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
   # Memory for the calls: strings and pointer arrays handed to the C side.
   ffi: ^2.1.0
   # The build hook, shared with `flutter3d_physics_native`
@@ -51,4 +51,4 @@ dev_dependencies:
   test: ^1.25.0
   flutter_lints: ^6.0.0
   # The contract suite every backend passes, compute checks among it.
-  flutter3d_conformance: ^1.0.0-rc.1
+  flutter3d_conformance: '>=1.0.0-rc.1 <1.1.0'

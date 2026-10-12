@@ -97,7 +97,7 @@ abstract final class DocumentCommand
   const DocumentCommand()
 
 abstract final class DocumentText
-  static String compact(Object? value, [int depth = 0])
+  static String compact(Object? value, {int depth = 0})
   static String indented(Object? value, int indent)
   static String inline(Object? value)
   static String number(num value)
@@ -201,7 +201,7 @@ final class EditorComponent
   FieldHint? hintFor(String key)
   Set<String> get fields
   String toString()
-  bool appliesTo(Piece piece, [String? type])
+  bool appliesTo(Piece piece, {String? type})
   const EditorComponent({required this.kind, required this.title, this.piece = Piece.entity, this.keys = const <String>{}, this.defaults = const <String, Object?>{}, this.types = const <String>{}, this.hints = const <FieldHint>[]})
   final List<FieldHint> hints
   final Map<String, Object?> defaults
@@ -266,14 +266,14 @@ final class EditorPieces extends EditorRegistry
   List<AddedAssetEntry> get assetEntries
   List<AddedImporter> get importers
   List<DrawnMark> marksFor(Level level, {Iterable<Picked> selected = const <Picked>[]})
-  List<EditorComponent> componentsFor(Piece piece, [String? type])
+  List<EditorComponent> componentsFor(Piece piece, {String? type})
   List<EditorComponent> get components
   List<FieldHint> argumentsOf(String name)
   List<PaletteEntry> get paletteEntries
   List<PluginCommandInfo> get pluginCommands
   List<String> get commandNames
   List<String> get gizmoNames
-  Map<String, Object?> offersFor(Piece piece, Iterable<String> present, [String? type])
+  Map<String, Object?> offersFor(Piece piece, Iterable<String> present, {String? type})
   MaterialHint? materialHint(String? model, String key)
   Registration addAssetEntry(String written, AssetBrowserEntry entry)
   Registration addCommand(String written, CommandReader read, {String? description, List<FieldHint> arguments = const <FieldHint>[]})
@@ -309,7 +309,7 @@ abstract final class ExperimentEdit
 
 final class ExperimentEditing
   ExperimentDocument get document
-  ExperimentEditing(this._document, {this.path, this.limit = 64})
+  ExperimentEditing(ExperimentDocument this._document, {this.path, this.limit = 64})
   String write()
   String? get canRedo
   String? get canUndo
@@ -478,7 +478,7 @@ final class Looks
   String? modelFor(EntityDef entity)
   Vector3? sizeFor(EntityDef entity)
   bool get isEmpty
-  const Looks(this._byType)
+  const Looks(Map<String, Look> this._byType)
   factory Looks.parse(String text)
   static const Looks none = Looks(<String, Look>{})
 
@@ -574,7 +574,7 @@ final class PlacePrefab extends EditorCommand
 
 final class Placeable
   String get label
-  const Placeable({required this.kind, required this.what, required this.count, required this.tint, this.properties = const <String, Object?>{}, this._label})
+  const Placeable({required this.kind, required this.what, required this.count, required this.tint, this.properties = const <String, Object?>{}, String? this._label})
   final LinearColor tint
   final Map<String, Object?> properties
   final Piece kind

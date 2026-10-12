@@ -296,7 +296,20 @@ final class NativeBurner
   static NativeBurner charcoal(double surface)
   static NativeBurner kindling()
 
-typedef NativeCharacterMove = ({Vector3 position, bool grounded, bool hitWall, bool hitCeiling, bool stepped, double steppedUp, Vector3 velocity, Vector3 groundNormal, NativeBody? ground});
+final class NativeCharacterMove
+  String toString()
+  bool operator ==(Object other)
+  const NativeCharacterMove({required this.position, required this.grounded, required this.hitWall, required this.hitCeiling, required this.stepped, required this.steppedUp, required this.velocity, required this.groundNormal, this.ground})
+  final NativeBody? ground
+  final Vector3 groundNormal
+  final Vector3 position
+  final Vector3 velocity
+  final bool grounded
+  final bool hitCeiling
+  final bool hitWall
+  final bool stepped
+  final double steppedUp
+  int get hashCode
 
 final class NativeCharacterMover extends CharacterMover
   CharacterMoved move(CharacterMove move)
@@ -342,7 +355,16 @@ final class NativeCompoundPart
   final Vector3 at
   final double rounding
 
-typedef NativeContact = ({NativeBody a, NativeBody b, Vector3 normal, Vector3 point, double depth});
+final class NativeContact
+  String toString()
+  bool operator ==(Object other)
+  const NativeContact({required this.a, required this.b, required this.normal, required this.point, required this.depth})
+  final NativeBody a
+  final NativeBody b
+  final Vector3 normal
+  final Vector3 point
+  final double depth
+  int get hashCode
 
 final class NativeDebris implements DebrisSystem
   DebrisFrame? read({bool wait = true})
@@ -389,7 +411,14 @@ final class NativeEdgeFlow
   static const NativeEdgeFlow free = NativeEdgeFlow._(c.EdgeKind.open, 0)
   static const NativeEdgeFlow wall = NativeEdgeFlow._(c.EdgeKind.wall, 0)
 
-typedef NativeEvent = ({NativeBody body, NativeBody? other, NativeEventKind kind});
+final class NativeEvent
+  String toString()
+  bool operator ==(Object other)
+  const NativeEvent({required this.body, this.other, required this.kind})
+  final NativeBody body
+  final NativeBody? other
+  final NativeEventKind kind
+  int get hashCode
 
 final class NativeEventKind
   String toString()
@@ -491,7 +520,15 @@ final class NativeGpu
   static NativeGpu open()
   void dispose()
 
-typedef NativeHit = ({NativeBody body, Vector3 point, Vector3 normal, double at});
+final class NativeHit
+  String toString()
+  bool operator ==(Object other)
+  const NativeHit({required this.body, required this.point, required this.normal, required this.at})
+  final NativeBody body
+  final Vector3 normal
+  final Vector3 point
+  final double at
+  int get hashCode
 
 extension type const NativeHull(int id)
 
@@ -677,7 +714,15 @@ final class NativeRagdoll
   void dispose()
   void place(List<RigidPose> pose, {List<Vector3>? velocity, List<Vector3>? spin})
 
-typedef NativeShallowInfo = ({int substeps, int overruns, bool resting, double energy});
+final class NativeShallowInfo
+  String toString()
+  bool operator ==(Object other)
+  const NativeShallowInfo({required this.substeps, required this.overruns, required this.resting, required this.energy})
+  final bool resting
+  final double energy
+  final int overruns
+  final int substeps
+  int get hashCode
 
 final class NativeShallowLiquid
   final Vector3 origin
@@ -729,7 +774,21 @@ final class NativeWheelSettings
   final double stiffness
   final double? width
 
-typedef NativeWheelState = ({bool touching, double length, double steer, double rotation, double spin, Vector3 center, Vector3 normal, double force, double lateral, double skid});
+final class NativeWheelState
+  String toString()
+  bool operator ==(Object other)
+  const NativeWheelState({required this.touching, required this.length, required this.steer, required this.rotation, required this.spin, required this.center, required this.normal, required this.force, required this.lateral, required this.skid})
+  final Vector3 center
+  final Vector3 normal
+  final bool touching
+  final double force
+  final double lateral
+  final double length
+  final double rotation
+  final double skid
+  final double spin
+  final double steer
+  int get hashCode
 
 final class NativeWorld
   ({Float32List fires, List<NativeBody> bodies}) readFires()
@@ -936,7 +995,13 @@ final class ParticleForces
   final double friction
   final double restitution
 
-typedef PhysicsStart = ({PhysicsBackend backend, String? fallbackBecause});
+final class PhysicsStart
+  String toString()
+  bool operator ==(Object other)
+  const PhysicsStart({required this.backend, this.fallbackBecause})
+  final PhysicsBackend backend
+  final String? fallbackBecause
+  int get hashCode
 
 final class RagdollBall extends RagdollJoint
   const RagdollBall({required this.cone, required this.twistLower, required this.twistUpper, super.group})

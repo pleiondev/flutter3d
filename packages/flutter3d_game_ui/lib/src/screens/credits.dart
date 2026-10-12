@@ -94,7 +94,7 @@ final class Credit {
 /// The list is handed in and so is the test's: prose typed in here would be a
 /// second copy of a legal notice, and the second copy is the one that goes
 /// stale.
-class CreditsSection extends StatelessWidget {
+final class CreditsSection extends StatelessWidget {
   const CreditsSection({
     super.key,
     required this.credits,

@@ -50,7 +50,7 @@ Future<({int width, int height, int pixels})> _shapeOf(
     final resting = clips.indexWhere(
       (String name) => name.toLowerCase().contains('idle'),
     );
-    player.play(resting < 0 ? 0 : resting);
+    player.play(index: resting < 0 ? 0 : resting);
   }
 
   scene.add(
@@ -121,7 +121,7 @@ void main() {
 
     final joint = _deepestJoint(instance.root);
     final before = joint.worldMatrix.getTranslation();
-    player.play(player.clipNames.indexOf('Idle'));
+    player.play(index: player.clipNames.indexOf('Idle'));
     final after = joint.worldMatrix.getTranslation();
 
     expect(

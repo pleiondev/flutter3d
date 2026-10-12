@@ -5,6 +5,7 @@
   `horizon`, `LiquidLook.glow` and `Liquid.glow`. The generated
   `LiquidParameters` and `SeabedParameters` are over a `MaterialParameters`
   and keep vectors, the in-place buffers the shader reads.
+- **`LiquidView.update` takes `dt:` by name.**
 - **Breaking: `ElementsViewPlugin` is `flutter3d_effects.elements` by
   default**,
   where it was `elements.view`: `elements` is an area of the engine's

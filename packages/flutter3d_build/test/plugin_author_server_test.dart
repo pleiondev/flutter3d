@@ -89,7 +89,7 @@ PluginWorkshop _workshop(
 }) => PluginWorkshop(
   run: (String executable, List<String> arguments, String directory) async {
     ran?.add('$executable ${arguments.join(' ')}');
-    return (exitCode: exitCode, stdout: stdout, stderr: '');
+    return PluginProcessResult(exitCode: exitCode, stdout: stdout, stderr: '');
   },
 );
 

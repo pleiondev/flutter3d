@@ -221,9 +221,9 @@ final class FogOfWar {
   /// documents from other builds — and a fog that stays as it is, is a fog the
   /// next refresh corrects.
   void restore(Map<String, Object?> from) {
-    if (from.integer('columns', -1) != columns) return;
-    if (from.integer('rows', -1) != rows) return;
-    if (from.integer('sides', -1) != sides) return;
+    if (from.integer('columns', orElse: -1) != columns) return;
+    if (from.integer('rows', orElse: -1) != rows) return;
+    if (from.integer('sides', orElse: -1) != sides) return;
     final String? written = from.text('state');
     if (written == null) return;
     final Uint8List bytes;

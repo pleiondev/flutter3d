@@ -11,14 +11,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter3d_app/flutter3d_app.dart' show Storage;
 import 'package:flutter3d_demo_platformer/src/ghost.dart';
 import 'package:flutter3d_demo_platformer/src/staging.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_kit/ghost.dart' show Ghost, RunGhost;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show usePhysics;
-import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 

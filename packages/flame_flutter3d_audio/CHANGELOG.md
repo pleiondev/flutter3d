@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `AudioSceneComponent` and `SoundEmitterComponent` are
+  `base class`es.** A subclass says `base`, `final` or `sealed`, which
+  `migrate` writes, and a member they gain in a minor breaks nobody.
 - **Breaking: `AudioSceneComponent.opener` returns `Speakers`.** The
   `OpenedSpeakers` record is gone; an opener throws `AudioDeviceException`
   for no device, as `openSpeakers` does, and the next `open` asks again.

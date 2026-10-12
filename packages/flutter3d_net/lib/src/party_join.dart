@@ -15,15 +15,42 @@ import 'wire_hello.dart';
 /// party with, and null for everybody else: it is what a spectator is let
 /// in with ([joinParty]'s `owner`), so the host hands it only to whoever it
 /// invites to watch.
-typedef PartySeat = ({
-  PeerWire wire,
-  int slot,
-  int size,
-  String code,
-  Future<void> full,
-  WebSocketTransport socket,
-  String? owner,
-});
+///
+/// A class rather than a record, so a seat can later carry more of what
+/// the relay said without breaking a caller.
+final class PartySeat {
+  const PartySeat({
+    required this.wire,
+    required this.slot,
+    required this.size,
+    required this.code,
+    required this.full,
+    required this.socket,
+    this.owner,
+  });
+
+  /// The wire to the other machines of the party.
+  final PeerWire wire;
+
+  /// This machine's slot.
+  final int slot;
+
+  /// How many players the party is for.
+  final int size;
+
+  /// The party's code.
+  final String code;
+
+  /// Completes once every player's slot is taken.
+  final Future<void> full;
+
+  /// The connection to the relay.
+  final WebSocketTransport socket;
+
+  /// The owner's token, for the machine that opened the party; null for
+  /// everybody else.
+  final String? owner;
+}
 
 /// Joins the party [code] on the relay at [relay] — `ws://host:port/` —
 /// as a player, or with [watching] as a spectator, and answers once the
@@ -202,7 +229,7 @@ Future<PartySeat> _seat(
     _Forwarding(socket, (listener) => onward = listener),
     slot: seat.slot,
   );
-  return (
+  return PartySeat(
     wire: wire,
     slot: seat.slot,
     size: seat.size,

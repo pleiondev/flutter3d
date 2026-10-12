@@ -59,7 +59,7 @@ abstract interface class Drawn3d {
 /// a hit flash was a timer and two assignments in the game. This moves the
 /// tint from wherever it is when the effect starts to [color], on any
 /// `EffectController`: alternating for a flash, one way for a fade.
-class TintEffect extends ComponentEffect<Component> {
+base class TintEffect extends ComponentEffect<Component> {
   /// An effect taking the tint to [color], linear.
   TintEffect(LinearColor color, super.controller, {super.onComplete, super.key})
     : _to = color;

@@ -1,5 +1,16 @@
 ## 1.0.0-rc.1
 
+- **The facade exports every type its API names.** `Registration`,
+  `RenderAnchor`, `FrameGraphBuilder`, `ShadowProducerContext`,
+  `SettingsSlot`, `LodPolicy`, `SkinningHook`, `ComputeStep`, `SrgbColor`,
+  `PluginScope`, the material AST's visitors and the rest of what a hook,
+  a render node or a field upload is written in come with this import, from
+  `flutter3d_core`, `flutter3d_hardware`, `flutter3d_foundation`,
+  `flutter3d_plugin_api`, `flutter3d_fields` and `flutter3d_matter`.
+- **Breaking: `ImpostorPart` is a class** with the same `card`, `albedo`
+  and `normalDepth`, so an impostor can later carry more maps.
+- **`Decoders.withMaterialDecoders` takes `decoders:` by name**, so a
+  later option can sit beside it.
 - **Breaking: a material decoder takes one context per call.**
   `MaterialDecoder.handles` takes a `MaterialProbe` (new: the file's name
   and bytes) and `decode` a `MaterialDecodeContext` (new: the bytes and the

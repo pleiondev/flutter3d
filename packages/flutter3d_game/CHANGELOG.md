@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1
 
+- **The facade exports every type its API names**: `GameAction`,
+  `InputAction`, `Storage`, `EngineLog`, `TimeSource`, `XrSettings`,
+  `WorldTiming`, `Flutter3dPlugin`, `PhysicsBackend`, `AudioBus` and the
+  rest, so a game is written with this import and Flutter's.
+- **Breaking: `BugReportTape` is a class** with the same `start` and
+  `tape`, so a report can later carry more of the run.
+- **Breaking: optional arguments are named.** `ActorVisuals.sync` takes
+  `alpha:`, `ColorVisionLook.of` and `highContrastOf` `base:`,
+  `DesktopInput.defaultActionMap` `set:` and `lockLandscapeForTouch`
+  `playing:`; `dart fix` writes the name where the table has it.
 - **Mouse capture comes from `flutter3d_pointer_lock`**, the name
   `pointer_lock` is published under from 0.4.3 on; the dependency is
   `flutter3d_pointer_lock: ^0.5.0`. An app that named `pointer_lock` itself

@@ -16,7 +16,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_build/lightmap.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
-import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';

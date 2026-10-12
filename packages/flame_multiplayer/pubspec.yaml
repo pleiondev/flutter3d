@@ -30,14 +30,14 @@ dependencies:
   # and `RollbackSession`, which the turns, the feed and the party here are
   # built on and re-export. Flat Dart, over the simulation and the plugin
   # API, so this stays apart from any renderer.
-  flutter3d_net: ^1.0.0-rc.1
+  flutter3d_net: '>=1.0.0-rc.1 <1.1.0'
 
 dev_dependencies:
   test: ^1.25.0
   flutter_lints: ^6.0.0
 
   # The plugin contract: the loop's phases, the bus and the host.
-  flutter3d_plugin_api: ^1.0.0-rc.1
+  flutter3d_plugin_api: '>=1.0.0-rc.1 <1.1.0'
 
 # **One dependency, and apart from any renderer**: `flutter3d_net`, the network
 # core on the 1.0 line, plain Dart over the simulation and the plugin API. A

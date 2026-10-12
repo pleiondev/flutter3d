@@ -21,7 +21,7 @@ import 'package:flutter3d_audio/flutter3d_audio.dart';
 ///
 /// **Updated last.** Its priority is high, so the mix is worked out after
 /// every emitter and every craft has moved this frame.
-class AudioSceneComponent extends Component with UpdatesAtRoot {
+base class AudioSceneComponent extends Component with UpdatesAtRoot {
   AudioSceneComponent({
     required this.bank,
     this.maxVoices = 16,

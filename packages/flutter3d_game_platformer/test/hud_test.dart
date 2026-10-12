@@ -24,7 +24,7 @@ void main() {
       // A readout built around "coins" has to be rewritten the first time a
       // level has gems in it.
       final purse = Purse()
-        ..add('coin', 3)
+        ..add('coin', howMany: 3)
         ..add('gem');
 
       await _pump(t, PurseReadout(purse: purse));

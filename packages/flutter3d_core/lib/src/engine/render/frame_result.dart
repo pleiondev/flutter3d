@@ -324,10 +324,14 @@ final class FrameResult {
     required bool multisampling,
     required int shadowsDenied,
   }) => <SkippedPass>[
-    if (wireframe) (name: declinedNames[0], reason: PassSkip.declined),
-    if (alphaToCoverage) (name: declinedNames[1], reason: PassSkip.declined),
-    if (multisampling) (name: declinedNames[2], reason: PassSkip.declined),
-    if (shadowsDenied > 0) (name: declinedNames[3], reason: PassSkip.declined),
+    if (wireframe)
+      SkippedPass(name: declinedNames[0], reason: PassSkip.declined),
+    if (alphaToCoverage)
+      SkippedPass(name: declinedNames[1], reason: PassSkip.declined),
+    if (multisampling)
+      SkippedPass(name: declinedNames[2], reason: PassSkip.declined),
+    if (shadowsDenied > 0)
+      SkippedPass(name: declinedNames[3], reason: PassSkip.declined),
   ];
 
   /// Why [name] did not run this frame, or null if it ran or was never

@@ -1,5 +1,6 @@
 ## 1.0.0-rc.1
 
+- **`GhostNote.say` takes `languageCode:` by name.**
 - **Breaking: a cue and a reaction rule take one context.** A `Cue` is
   handed a `CueContext` (new) and a `ReactionRule` a `ReactionContext`
   (new), each with the `event` and the `out` it writes into, so a minor

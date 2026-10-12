@@ -14,7 +14,6 @@ import 'dart:io';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_hardware/testing.dart';
-import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter3d_testing/flutter3d_testing.dart';
 import 'package:flutter_test/flutter_test.dart';

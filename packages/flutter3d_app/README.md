@@ -45,9 +45,12 @@ Scene3D(
 Each widget owns one node of an ordinary `Scene`, made once and given the
 widget's properties on every build, so a widget that keeps its key keeps its
 node and everything a game set on it. A property left null is left as the node
-has it. `Scene3D.onCreated` hands over the device, the renderer and the scene
-for whatever the widgets do not say; a game written against the imperative API
-keeps it. A frame drawn from widgets is the frame the same scene draws when
+has it. `Scene3D.onSceneCreated` hands over the device, the renderer and the
+scene for whatever the widgets do not say; a game written against the
+imperative API keeps it. `Scene3D` takes the groups `Flutter3dView` takes —
+`device:`, `view:`, `loop:`, `plugins:` — and hands them on whole, so the
+frame's settings are `view: ViewSettings(settings: …)` and an option the view
+gains is a scene's too. A frame drawn from widgets is the frame the same scene draws when
 built by hand, to the byte — `test/scene_widgets_test.dart` holds that.
 
 ## Universal, and that is the rule for what goes in

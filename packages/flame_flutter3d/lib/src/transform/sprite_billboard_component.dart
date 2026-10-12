@@ -37,7 +37,7 @@ import 'object3d_component.dart';
 /// Drawn unlit, cut out where the sprite is clear, and sampled nearest, as
 /// pixel art wants, or [smooth] for lettering; `tint` and `opacity` colour
 /// and fade it.
-class SpriteBillboardComponent extends Object3dComponent {
+base class SpriteBillboardComponent extends Object3dComponent {
   SpriteBillboardComponent({
     Sprite? sprite,
     SpriteAnimation? animation,

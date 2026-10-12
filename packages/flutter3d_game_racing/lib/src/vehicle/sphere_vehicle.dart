@@ -291,13 +291,13 @@ final class SphereVehicle with VehicleController {
   void restore(Map<String, Object?> from) {
     from.vectorInto('at', collider.position);
     from.vectorInto('velocity', velocity);
-    _headingYaw = from.number('yaw', _headingYaw);
+    _headingYaw = from.number('yaw', orElse: _headingYaw);
     _wheelSpeed = from.number('wheelSpeed');
     _slipAngle = from.number('slipAngle');
     _slipRatio = from.number('slipRatio');
     _grounded = from.flag('grounded');
     _underPower = from.flag('underPower');
-    _ground.s = from.number('trackDistance', _ground.s);
+    _ground.s = from.number('trackDistance', orElse: _ground.s);
     damage = from.number('damage');
     // A name this build no longer ships reads as the set every car starts on,
     // rather than as a crash on the launch after an update.

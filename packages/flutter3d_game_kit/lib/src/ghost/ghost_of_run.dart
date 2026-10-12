@@ -140,7 +140,7 @@ final class GhostNote {
 
   /// The note as a sentence in the language [languageCode] names — `ru`, or
   /// English for anything else.
-  String say([String languageCode = 'en']) {
+  String say({String languageCode = 'en'}) {
     final ru = languageCode == 'ru';
     final length = seconds?.toStringAsFixed(1) ?? '?';
     return switch (id) {
@@ -160,9 +160,9 @@ final class GhostNote {
       otherSimulation => reason ?? id,
       fromPoseRecord =>
         ru
-            ? 'призрак на $length с из записи поз — ${because?.say(languageCode)}'
+            ? 'призрак на $length с из записи поз — ${because?.say(languageCode: languageCode)}'
             : 'a ghost of $length s from its pose record — '
-                  '${because?.say(languageCode)}',
+                  '${because?.say(languageCode: languageCode)}',
       replayed => ru ? 'призрак на $length с' : 'a ghost of $length s',
       _ => id,
     };

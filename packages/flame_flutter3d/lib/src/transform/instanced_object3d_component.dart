@@ -36,7 +36,7 @@ import 'plane.dart';
 /// vertex colour. The batch is one draw with one material, so [opacity]
 /// fades an instance only when that material blends; over an opaque one it
 /// changes nothing.
-class InstancedObject3dComponent extends PositionComponent
+base class InstancedObject3dComponent extends PositionComponent
     with HasVisibility
     implements OpacityProvider, Bridged3d {
   InstancedObject3dComponent({

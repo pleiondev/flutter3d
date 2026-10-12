@@ -1,10 +1,11 @@
 /// `flutter3d_lints/lib/src/migration/table.g.dart`, written from the
 /// migration tables: the entries the analyzer plugin and `dart run
 /// flutter3d_lints:migrate` check a resolved project against — `rewrite`,
-/// `implementsToWith`, `regroup`, `enumToClass`, `recordToClass`,
-/// `nullToThrow`, `argument`, `internal` and `manual` — the `rename`s of a
-/// class, for the creation `dart fix` cannot reach (`const Old()`), and the
-/// `parameters` entries whose positional arguments became named.
+/// `implementsToWith`, `subclassModifier`, `regroup`, `enumToClass`,
+/// `recordToClass`, `nullToThrow`, `argument`, `internal` and `manual` —
+/// the `rename`s of a class, for the creation `dart fix` cannot reach
+/// (`const Old()`), and the `parameters` entries whose positional arguments
+/// became named.
 ///
 /// The plugin cannot read this package's YAML (it does not depend on it, and
 /// the analysis server runs it apart from any project), so the table is
@@ -51,6 +52,7 @@ String firstSentence(String text) {
 const Set<String> lintsKinds = <String>{
   'rewrite',
   'implementsToWith',
+  'subclassModifier',
   'regroup',
   'enumToClass',
   'recordToClass',
@@ -139,6 +141,13 @@ String _message(MigrationEntry e, MigrationTable table) {
     'implementsToWith' =>
       '`${e.topName}` is a base mixin class in ${table.to}: a class mixes it '
           'in with `with` and is `base`, `final` or `sealed` itself.',
+    'subclassModifier' when e.to == 'base' && e.text.isEmpty =>
+      '`${e.topName}` is a `base` class in ${table.to}: a class below it is '
+          '`base`, `final` or `sealed` itself, and extends it rather than '
+          'implementing it.',
+    'subclassModifier' when e.text.isEmpty =>
+      '`${e.topName}` is a `final` class in ${table.to}: code outside its '
+          'package can no longer extend or implement it; hold one instead.',
     'rewrite' when e.text.isEmpty =>
       '`${e.symbol}` is deprecated in ${table.to}; the fix asks the same '
           'receiver `${_flat(e.template!).replaceAll('{target}.', '').replaceAll('{target}', 'it').replaceAll('{0}', '…').replaceAll('{arguments}', '…').replaceAll('{typeArguments}', 'T')}` '
@@ -262,6 +271,7 @@ Map<String, Object?> _rule(
     'exception': ?e.exception,
     if (e.kind == 'argument' || (e.kind == 'rename' && e.member == null))
       'to': ?e.to,
+    if (e.kind == 'subclassModifier') 'to': _modifier(e),
     if (e.kind == 'rename' && e.member != null) 'to': ?renamedMember(e),
     if (e.types.isNotEmpty) 'types': e.types,
     if (e.kind == 'internal' && e.instead != null) 'instead': _flat(e.instead!),
@@ -272,6 +282,15 @@ Map<String, Object?> _rule(
         : table.linkFor(e),
   };
 }
+
+/// A `subclassModifier` entry's modifier: `base` or `final`, the two a
+/// class outside code subclassed can take that close it to that code.
+String _modifier(MigrationEntry e) => switch (e.to) {
+  final String m when m == 'base' || m == 'final' => m,
+  final other => throw StateError(
+    '${e.id}: a subclassModifier is to `base` or `final`, not `$other`',
+  ),
+};
 
 String _string(String s) =>
     "'${s.replaceAll(r'\', r'\\').replaceAll("'", r"\'").replaceAll(r'$', r'\$')}'";

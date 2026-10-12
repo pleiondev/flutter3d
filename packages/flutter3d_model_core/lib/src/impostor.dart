@@ -205,7 +205,25 @@ final class ImpostorCard {
 ///
 /// RGBA rather than a PNG, because what a caller does next is put it on a
 /// texture, and the one that wants a file already has an encoder.
-typedef ImpostorBake = ({ImpostorAtlas atlas, int size, Uint8List rgba});
+///
+/// A class rather than a record, so a bake can later carry more maps
+/// without breaking a reader.
+final class ImpostorBake {
+  const ImpostorBake({
+    required this.atlas,
+    required this.size,
+    required this.rgba,
+  });
+
+  /// The atlas that laid the views out.
+  final ImpostorAtlas atlas;
+
+  /// The image's side, in pixels.
+  final int size;
+
+  /// The image's pixels, RGBA, row by row.
+  final Uint8List rgba;
+}
 
 /// [project] rendered from every one of [atlas]'s angles, composited into one
 /// atlas image.
@@ -289,5 +307,5 @@ Future<ImpostorBake> bakeImpostor({
       );
     }
   }
-  return (atlas: atlas, size: atlas.size, rgba: rgba);
+  return ImpostorBake(atlas: atlas, size: atlas.size, rgba: rgba);
 }

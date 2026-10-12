@@ -23,7 +23,7 @@ environment:
 # the bus and the simulation handle), and discovery, which reads pubspecs,
 # lives in `flutter3d_build` beside the build hook that runs it.
 dependencies:
-  flutter3d_foundation: ^1.0.0-rc.1
+  flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
 
 # Declared rather than left to pub.dev's detector: plain Dart that reaches
 # no `dart:io`, `dart:isolate` or `dart:ffi` from its libraries, so every

@@ -82,7 +82,7 @@ void main() {
     final player = AnimationPlayer(
       clips: <AnimationClip>[clip],
       targets: const [],
-    )..play(0);
+    )..play(index: 0);
 
     const steps = 100;
     var total = Vector3.zero();
@@ -111,7 +111,7 @@ void main() {
     final player = AnimationPlayer(
       clips: <AnimationClip>[clip],
       targets: const [],
-    )..play(0);
+    )..play(index: 0);
 
     // A frame that lands on 0.9s and, after `update`'s own `%=`, on 0.1s of
     // the next lap: the leg from 0.9 to 1.0 (0.2m) plus the leg from 0.0 to
@@ -151,7 +151,7 @@ void main() {
       final player = AnimationPlayer(
         clips: <AnimationClip>[ordinary],
         targets: const [],
-      )..play(0);
+      )..play(index: 0);
 
       expect(player.rootMotionDelta(0, fromTime: 0.0, toTime: 0.5), isNull);
     });
@@ -160,7 +160,7 @@ void main() {
       final player = AnimationPlayer(
         clips: <AnimationClip>[clip],
         targets: const [],
-      )..play(0);
+      )..play(index: 0);
 
       expect(player.rootMotionDelta(7, fromTime: 0.0, toTime: 0.5), isNull);
     });
@@ -190,7 +190,7 @@ void main() {
         final player = AnimationPlayer(
           clips: <AnimationClip>[cubic],
           targets: const [],
-        )..play(0);
+        )..play(index: 0);
 
         expect(player.rootMotionDelta(0, fromTime: 0.0, toTime: 0.5), isNull);
       },

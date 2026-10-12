@@ -34,9 +34,9 @@ final class ColorVisionLook {
   /// its own keeps it: a grade and a correction compose into one table with
   /// `ColorVision.toStrip(grade:)`, which a game with a grade does itself.
   LookSettings of(
-    GameSettings config, [
+    GameSettings config, {
     LookSettings base = const LookSettings(),
-  ]) {
+  }) {
     final vision = colorVisionOf(config);
     if (vision == null || base.lut != null) return base;
     final table = _tables.putIfAbsent(

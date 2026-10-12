@@ -61,23 +61,14 @@ import 'package:flutter/rendering.dart' show RenderPositionedBox;
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
-import 'package:flutter3d_core/flutter3d_core.dart'
-    show SceneBinding, SceneBindingContext;
 import 'package:flutter3d_particles/flutter3d_particles.dart';
-import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show
-        BindingInterpolation,
-        BindingLifetime,
-        Entity,
-        PublishedState,
-        Registration;
 import 'package:flutter3d_sim/flutter3d_sim.dart'
     show LocalSimulation, SimulationHandle, TimeSource;
 
-import '../surface/scene_surface.dart' show FramePresenter;
 import '../view/flutter3d_view.dart';
 import '../view/frame_info.dart';
 import '../view/view_settings.dart';
+import '../xr/xr_driver.dart' show XrSettings;
 
 part 'scene_widgets_bindings.dart';
 part 'scene_widgets_features.dart';
@@ -148,85 +139,139 @@ final class Scene3DController {
 /// The root of a scene written as widgets — `P10`.
 ///
 /// **Sugar on [Flutter3dView], since 1.0, not a second engine.** The view
-/// opens a device (unless [device] is given), makes the renderer and the
+/// opens a device (unless [device] gives one), makes the renderer and the
 /// loop, and owns the frame clock, focus, lifecycle and teardown as it does
 /// for any engine. What this adds is the scene: [children] built into it,
 /// the [Camera3D] built last drawn through, models and particles advanced
-/// before each frame. [placeholder] is shown while the device opens. The
-/// engine underneath is [Scene3DController.engine]; `SceneSurface` is the
-/// layer under the view, for a caller that draws the frame itself. The
-/// library's documentation states how the widgets reconcile with the scene.
+/// before each frame. The engine underneath is [Scene3DController.engine];
+/// `SceneSurface` is the layer under the view, for a caller that draws the
+/// frame itself. The library's documentation states how the widgets
+/// reconcile with the scene.
 ///
-/// **One frame per vsync while [continuous]**, which a scene with an
-/// animation needs; with it off a frame is drawn when this widget is built
-/// again, which is enough for a scene that changes only when its parent's
-/// state does, and nothing is advanced between.
+/// **The view's groups, as the view takes them**: [device], [view], [loop]
+/// and [plugins] are the `Flutter3dView`'s own settings, handed on whole, so
+/// an option the view gains in a minor is a scene's too without a field
+/// here. The placeholder while the device opens and the failure when it
+/// will not are [ViewSettings.placeholder] and [ViewSettings.failure].
+///
+/// **One frame per vsync while [ViewSettings.continuous]**, which a scene
+/// with an animation needs; with it off a frame is drawn when this widget
+/// is built again, which is enough for a scene that changes only when its
+/// parent's state does, and nothing is advanced between.
 ///
 /// **A device lost and recovered** (a browser's WebGL context) has the
 /// children built again on the device that came back, so every mesh is
 /// uploaded again; [materials] went with the old device and is the
-/// application's to load again in [onCreated]'s controller's place.
+/// application's to load again in [DeviceSettings.onDeviceRestored].
 final class Scene3D extends StatefulWidget {
   const Scene3D({
     super.key,
     this.children = const <Widget>[],
-    this.settings = const RenderSettings(),
     this.clearColor,
-    this.device,
     this.materials,
-    this.continuous = true,
-    this.placeholder = const SizedBox.expand(),
-    this.onCreated,
+    this.onSceneCreated,
+    this.onBeforeFrame,
     this.onFrame,
-    this.presenter,
-    this.frameRateCap,
+    this.device = const DeviceSettings(),
+    this.view = const ViewSettings(),
+    this.loop = const LoopSettings(),
+    this.plugins = const PluginSettings(),
+    this.log,
+    this.focusNode,
+    this.autofocus = false,
+    this.onKeyEvent,
+    this.restorationId,
+    this.saveState,
+    this.restoreState,
+    this.onPausedChanged,
+    this.onListenerMoved,
     this.time,
+    this.xr,
   });
-
-  /// Where the scene's time comes from: `Flutter3dView.time`, which this
-  /// hands to the view underneath. Null is the display's own clock. The
-  /// loop, the models' clips, the particles and [onFrame] all run on it, so
-  /// `TimeSource.scaled(0.1)` slows the whole scene to a tenth.
-  final TimeSource? time;
-
-  /// Frames a second this scene is drawn at most, held to a whole number of
-  /// the display's refreshes — `A1.5`: sixty on a 120 Hz screen is every
-  /// other refresh, thirty on sixty every other. Null, the default, draws on
-  /// every refresh while [continuous]. See `FrameCadence`.
-  final double? frameRateCap;
 
   /// The scene's contents: [Node3D], [Mesh3D], [Model3D], [Light3D] and
   /// [Camera3D], nested as the graph is.
   final List<Widget> children;
 
-  /// What every frame is drawn with.
-  final RenderSettings settings;
-
   /// The colour behind everything, in linear light; the view's default if
   /// null.
   final LinearColor? clearColor;
-
-  /// The device to draw on, borrowed; one the view opens if null.
-  final GraphicsDevice? device;
 
   /// A loaded shader library layered over the engine's, for materials whose
   /// lighting model names a stage only it has — `HotMaterials.library`.
   final ShaderLibrary? materials;
 
-  final bool continuous;
+  /// Called once, when the scene exists and before its first frame, with
+  /// what the scene made: the engine, the scene's graph and the camera.
+  ///
+  /// Named apart from `Flutter3dView.onCreated`, which is handed the engine
+  /// alone, so one name never means two shapes; [Scene3DController.engine]
+  /// is that engine.
+  final void Function(Scene3DController scene)? onSceneCreated;
 
-  final Widget placeholder;
+  /// `Flutter3dView.onBeforeFrame`: every frame, before the loop steps.
+  final void Function(EngineFrame frame)? onBeforeFrame;
 
-  /// Called once, when the scene exists and before its first frame.
-  final void Function(Scene3DController controller)? onCreated;
+  /// `Flutter3dView.onFrame`, after this scene's models and particles have
+  /// advanced: every frame, after the loop has stepped and before the frame
+  /// is drawn, with the engine and the frame — the seconds since the last
+  /// one and what the renderer answered for it.
+  final void Function(EngineFrame frame)? onFrame;
 
-  /// Called before every frame — after the animations have advanced and
-  /// before the frame is drawn — with the seconds since the last one and
-  /// what the renderer answered for it, as one [FrameInfo].
-  final void Function(FrameInfo frame)? onFrame;
+  /// `Flutter3dView.device`: one to borrow, where to open one, what shows
+  /// its frames, what a loss does. **A device lost and recovered** has the
+  /// children built again on the device that came back, before
+  /// [DeviceSettings.onDeviceRestored] is told.
+  final DeviceSettings device;
 
-  /// `presentFrame`, normally; a test without a backend passes its own.
-  final FramePresenter? presenter;
+  /// `Flutter3dView.view`: the frame's settings, the resolution, when
+  /// frames are drawn (one per vsync while [ViewSettings.continuous]), the
+  /// placeholder while the device opens and the failure when it will not.
+  /// [ViewSettings.views] is the scene's own: it draws through the
+  /// [Camera3D] built last.
+  final ViewSettings view;
+
+  /// `Flutter3dView.loop`: the step, the input, where the simulation runs.
+  final LoopSettings loop;
+
+  /// `Flutter3dView.plugins`: what the loop installs.
+  final PluginSettings plugins;
+
+  /// `Flutter3dView.log`.
+  final EngineLog? log;
+
+  /// `Flutter3dView.focusNode`.
+  final FocusNode? focusNode;
+
+  /// `Flutter3dView.autofocus`.
+  final bool autofocus;
+
+  /// `Flutter3dView.onKeyEvent`.
+  final KeyEventResult Function(KeyEvent event)? onKeyEvent;
+
+  /// `Flutter3dView.restorationId`.
+  final String? restorationId;
+
+  /// `Flutter3dView.saveState`.
+  final Object? Function()? saveState;
+
+  /// `Flutter3dView.restoreState`.
+  final void Function(Object? saved)? restoreState;
+
+  /// `Flutter3dView.onPausedChanged`.
+  final void Function(bool paused)? onPausedChanged;
+
+  /// `Flutter3dView.onListenerMoved`.
+  final void Function(ListenerPose ears)? onListenerMoved;
+
+  /// Where the scene's time comes from: `Flutter3dView.time`. Null is the
+  /// display's own clock. The loop, the models' clips, the particles and
+  /// [onFrame] all run on it, so `TimeSource.scaled(0.1)` slows the whole
+  /// scene to a tenth.
+  final TimeSource? time;
+
+  /// `Flutter3dView.xr`: an XR session the view drives.
+  final XrSettings? xr;
 
   @override
   State<Scene3D> createState() => _Scene3DState();
@@ -297,16 +342,23 @@ class _Scene3DState extends State<Scene3D>
     }
     final controller = Scene3DController._(engine, this);
     setState(() => _controller = controller);
-    widget.onCreated?.call(controller);
+    widget.onSceneCreated?.call(controller);
   }
 
   /// The animations advance by what passed since the last frame, then the
   /// game's own [Scene3D.onFrame]: one place for "before the frame".
-  void _beforeFrame(FrameInfo frame) {
+  void _beforeFrame(EngineFrame frame) {
     for (final animated in List<_Animated>.of(_animated)) {
       animated.advance(frame.seconds);
     }
     widget.onFrame?.call(frame);
+  }
+
+  /// The children built again on the device that came back, then the
+  /// game's own [DeviceSettings.onDeviceRestored].
+  void _restored(Flutter3dEngine engine) {
+    setState(() => _generation++);
+    widget.device.onDeviceRestored?.call(engine);
   }
 
   RenderView _viewFor(CameraNode camera) {
@@ -350,25 +402,28 @@ class _Scene3DState extends State<Scene3D>
         Flutter3dView(
           scene: _scene,
           camera: _defaultCamera,
-          device: DeviceSettings(
-            device: widget.device,
-            presenter: widget.presenter,
-            onDeviceRestored: (Flutter3dEngine engine) =>
-                setState(() => _generation++),
-          ),
-          view: ViewSettings(
-            settings: widget.settings,
-            views: controller == null ? null : <RenderView>[_viewFor(_camera)],
-            continuous: widget.continuous,
-            frameRateCap: widget.frameRateCap,
-            placeholder: widget.placeholder,
-            failure: (Object error) =>
-                ErrorWidget('the scene could not open a device: $error'),
-          ),
+          device: widget.device.copyWith(onDeviceRestored: _restored),
+          // The scene draws through its own camera; a failure the caller
+          // did not give is the view's, in the app's language.
+          view: controller == null
+              ? widget.view.copyWith(clearViews: true)
+              : widget.view.copyWith(views: <RenderView>[_viewFor(_camera)]),
+          loop: widget.loop,
+          plugins: widget.plugins,
+          log: widget.log,
+          focusNode: widget.focusNode,
+          autofocus: widget.autofocus,
+          onKeyEvent: widget.onKeyEvent,
+          restorationId: widget.restorationId,
+          saveState: widget.saveState,
+          restoreState: widget.restoreState,
+          onPausedChanged: widget.onPausedChanged,
+          onListenerMoved: widget.onListenerMoved,
           onCreated: _created,
-          onFrame: (Flutter3dEngine engine, FrameInfo frame) =>
-              _beforeFrame(frame),
+          onBeforeFrame: widget.onBeforeFrame,
+          onFrame: _beforeFrame,
           time: widget.time,
+          xr: widget.xr,
         ),
       ],
     );
@@ -962,11 +1017,11 @@ final class Model3D extends Spatial3D {
   final void Function(ModelInstance instance)? onLoaded;
 
   /// Called when a tap on the [Scene3D] lands on the model first, with the
-  /// [part] it landed on — one of the instance's meshes, named as the file
-  /// names it (`MeshNode.name`) — and where ([HitResult.point]). See
-  /// [Mesh3D.onTap] on what a tap reaches. A model still loading answers
-  /// nothing.
-  final void Function(MeshNode part, HitResult hit)? onTap;
+  /// hit: the part it landed on ([HitResult.node], one of the instance's
+  /// meshes, named as the file names it) and where ([HitResult.point]).
+  /// The same shape as [Mesh3D.onTap], one object that can say more later;
+  /// see it on what a tap reaches. A model still loading answers nothing.
+  final void Function(HitResult hit)? onTap;
 
   @override
   State<Model3D> createState() => _Model3DState();
@@ -1054,7 +1109,7 @@ class _Model3DState extends _SpatialState<Model3D, SceneNode>
           'the model has the clips ${player.clipNames.join(', ')}',
         );
       }
-      player.play(index);
+      player.play(index: index);
       _playingClip = clip;
     }
     player.speed = widget.speed;
@@ -1080,9 +1135,7 @@ class _Model3DState extends _SpatialState<Model3D, SceneNode>
     _answerTaps(
       host,
       meshes,
-      widget.onTap == null
-          ? null
-          : (HitResult hit) => widget.onTap?.call(hit.requireNode, hit),
+      widget.onTap == null ? null : (HitResult hit) => widget.onTap?.call(hit),
     );
   }
 

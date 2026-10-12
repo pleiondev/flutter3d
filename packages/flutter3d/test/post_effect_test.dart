@@ -27,7 +27,6 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
-import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const int _width = 48;

@@ -95,7 +95,7 @@ final class AdditiveBlendDemo extends ShowcaseDemo {
     AnimationPlayer playerFor(MeshNode node) => AnimationPlayer(
       clips: <AnimationClip>[turn, nod],
       targets: <AnimationTarget?>[node],
-    )..play(0);
+    )..play(index: 0);
     _plain = playerFor(plainHead);
     _additive = playerFor(_additiveHead);
     _override = playerFor(_overrideHead);

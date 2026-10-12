@@ -455,7 +455,28 @@ final class PassSkip {
 }
 
 /// A registered pass that did not run, and why.
-typedef SkippedPass = ({String name, PassSkip reason});
+///
+/// A class rather than a record, so it can later say more (what it would
+/// have read) without breaking a reader.
+final class SkippedPass {
+  const SkippedPass({required this.name, required this.reason});
+
+  /// The pass's name.
+  final String name;
+
+  /// Why it did not run.
+  final PassSkip reason;
+
+  @override
+  bool operator ==(Object other) =>
+      other is SkippedPass && other.name == name && other.reason == reason;
+
+  @override
+  int get hashCode => Object.hash(name, reason);
+
+  @override
+  String toString() => 'SkippedPass($name, $reason)';
+}
 
 /// A graph that failed to compile, with the reason a person can act on.
 final class FrameGraphError extends Error {
@@ -468,7 +489,7 @@ final class FrameGraphError extends Error {
 /// The result: the nodes to run, in order, what was dropped, and how long each
 /// resource has to stay alive.
 final class CompiledFrameGraph {
-  const CompiledFrameGraph(
+  const CompiledFrameGraph._(
     this._lastUse,
     this._readers,
     this._bindings,

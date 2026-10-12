@@ -12,7 +12,6 @@ import 'package:flutter/widgets.dart'
         KeyEventResult,
         WidgetsBinding;
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import '../host/bridge_priority.dart';
 import '../host/has_fixed_step.dart';

@@ -24,7 +24,7 @@ platforms:
 
 dependencies:
   # `Level.digestHex`, which the game checks a level it is sent against.
-  flutter3d_sim: ^1.0.0-rc.1
+  flutter3d_sim: '>=1.0.0-rc.1 <1.1.0'
 
   # The running game's VM service, where `ext.flutter3d.level.apply` is.
   vm_service: ^15.3.0

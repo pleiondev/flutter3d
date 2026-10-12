@@ -64,6 +64,6 @@ void main() {
       GameSettingKeys.colorVision,
       2,
     );
-    expect(look.of(config, graded).lut, same(graded.lut));
+    expect(look.of(config, base: graded).lut, same(graded.lut));
   });
 }

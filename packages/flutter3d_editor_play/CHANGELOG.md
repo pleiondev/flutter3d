@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **`FakeGame.posts` takes `data:` and `time:` by name**, so an event can
+  gain a field without a third position.
 - **`PlayState` is `abstract final` rather than sealed**, so a phase a later
   minor adds breaks no `switch` over it.
 - **A device id is checked before it reaches `flutter run -d`.**

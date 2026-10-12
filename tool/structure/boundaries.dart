@@ -177,6 +177,31 @@ const Map<String, String> reexportsAllowed = <String, String>{
       'the hub reference, its refusals and its cache policy that the core\'s '
       '`HubAssetSource` is written in, named, so loading a model from the '
       'hub takes the one import loading it from a bundle does',
+  'flutter3d -> flutter3d_plugin_api':
+      'the contract types the engine\'s own extension points are written in '
+      '(a registration, a scope, an event, a binding), named, so a hook is '
+      'written with the one import that registers it',
+  'flutter3d -> flutter3d_fields':
+      'the field declarations `RendererSteps.addFieldUpload` takes, named',
+  'flutter3d -> flutter3d_matter':
+      'the physical materials and world properties the engine\'s materials '
+      'and worlds name, named',
+  'flutter3d_app -> flutter3d_particles':
+      'the effect `Particles3D` takes, and what it is made of, named',
+  'flutter3d_app -> flutter3d_sim':
+      'the loop, the time source, the input and the level a view and a level '
+      'loader are written in, named; the rest of the simulation is '
+      '`flutter3d_game`\'s to export',
+  'flutter3d_app -> flutter3d_physics':
+      'the physics backend and collision world a loaded level hands back, '
+      'named',
+  'flutter3d_app -> flutter3d_cpu':
+      'the CPU stages a material program compiles to on the software device, '
+      'named',
+  'flutter3d_app -> flutter3d_level_scene':
+      'the batching a loaded level carries, named',
+  'flutter3d_game -> flutter3d_particles':
+      'the one facade: the particle effects a game spawns, by name',
   'flutter3d_plugin_api -> flutter3d_foundation':
       'the value types the contract\'s signatures name, so a plugin sees '
       'the contract from one import',

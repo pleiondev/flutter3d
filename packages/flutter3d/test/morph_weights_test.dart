@@ -85,7 +85,7 @@ void main() {
         targets: <AnimationTarget?>[null, null],
         morphs: <MorphSink?>[null, sink],
       );
-      player.play(0);
+      player.play(index: 0);
       player.seek(1.0);
 
       expect(sink.last, <double>[1.0, 0.5]);
@@ -100,7 +100,7 @@ void main() {
         targets: <AnimationTarget?>[null],
         morphs: <MorphSink?>[sink],
       );
-      player.play(0);
+      player.play(index: 0);
       player.seek(0.5);
 
       expect(sink.last!.first, closeTo(0.5, 1e-6));
@@ -116,7 +116,7 @@ void main() {
         ],
         targets: <AnimationTarget?>[null],
       );
-      player.play(0);
+      player.play(index: 0);
       expect(() => player.seek(1.0), returnsNormally);
     });
 
@@ -129,7 +129,7 @@ void main() {
         targets: <AnimationTarget?>[null],
         morphs: <MorphSink?>[sink],
       );
-      player.play(0);
+      player.play(index: 0);
       player.seek(1.0);
 
       expect(sink.last, isNull);

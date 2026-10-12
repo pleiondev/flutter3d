@@ -13,7 +13,7 @@ import 'package:flutter3d/flutter3d.dart';
 /// [play] changes the clip by name, crossfading over [crossFade] seconds
 /// unless told otherwise; asking for the clip already playing does nothing,
 /// so a game can ask every frame for the clip its state wants.
-class ModelAnimationComponent extends Component {
+base class ModelAnimationComponent extends Component {
   ModelAnimationComponent(this.player, {this.crossFade = 0.15, String? start})
     : _current = start {
     if (start != null) player.playNamed(start);
@@ -69,7 +69,7 @@ class ModelAnimationComponent extends Component {
 /// For animation that is a handful of shapes rather than a skeleton, which
 /// is how most of the cartridge era moved. The meshes are shared; only the
 /// one [node] draws changes, and only when the frame does.
-class MeshFlipbookComponent extends Component {
+base class MeshFlipbookComponent extends Component {
   MeshFlipbookComponent({
     required this.node,
     required this.frames,

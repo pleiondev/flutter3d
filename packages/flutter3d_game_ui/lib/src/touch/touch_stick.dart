@@ -7,7 +7,7 @@ import '../theme/game_ui_theme.dart';
 
 /// A stick under a thumb, reporting into a [DualAxisAction] — walking,
 /// [DualAxisAction.move], unless told otherwise.
-class TouchStick extends StatefulWidget {
+final class TouchStick extends StatefulWidget {
   const TouchStick({
     super.key,
     required this.state,

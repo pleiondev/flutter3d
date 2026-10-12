@@ -159,7 +159,7 @@ final class _StrategyRun extends RestorableRun {
       case 'train':
         final kind = order.number('kind').round();
         if (kind < 0 || kind >= StrategyHeadlessGame.trainable.length) return;
-        final count = order.number('count', 1.0).round();
+        final count = order.number('count', fallback: 1.0).round();
         if (count < 1) return;
         for (final maker in _sim.producers) {
           if (maker.building.side != _side) continue;

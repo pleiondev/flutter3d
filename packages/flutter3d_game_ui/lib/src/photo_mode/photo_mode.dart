@@ -248,7 +248,7 @@ final class PhotoMode {
 
 /// The strip along the bottom of the screen in photo mode: the filter, the
 /// keys, and the last picture's sentence.
-class PhotoBar extends StatelessWidget {
+final class PhotoBar extends StatelessWidget {
   const PhotoBar({required this.mode, super.key});
 
   final PhotoMode mode;

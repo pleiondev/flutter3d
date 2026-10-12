@@ -7,7 +7,6 @@ import 'package:flutter3d_core/flutter3d_core.dart'
     show MaterialVersionException;
 import 'package:flutter3d_level_scene/flutter3d_level_scene.dart'
     show LevelBatching, LevelScene;
-import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
@@ -639,7 +638,7 @@ final class LevelLoader {
             ? null
             : VisibilityCuller(visibility, <VisibilityBatch>[
                 for (final batch in parts.batches)
-                  (node: batch.node, bounds: batch.bounds),
+                  VisibilityBatch(node: batch.node, bounds: batch.bounds),
               ]),
         batching: batching,
       )

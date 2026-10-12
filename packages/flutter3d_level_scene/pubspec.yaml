@@ -28,29 +28,29 @@ platforms:
 dependencies:
   # The document: `Level`, `BrushGeometry`, `BrushSurface`, `LevelMaterial`,
   # `LevelLight`, `EntityDef`, `LevelVisibility` and `LightmapLayout`.
-  flutter3d_sim: ^1.0.0-rc.1
+  flutter3d_sim: '>=1.0.0-rc.1 <1.1.0'
 
   # What the document becomes: `Scene`, `MeshNode`, `RenderMaterial`,
   # `LightNode`, `DeviceMesh` and the device they are uploaded to.
-  flutter3d_core: ^1.0.0-rc.1
+  flutter3d_core: '>=1.0.0-rc.1 <1.1.0'
 
   vector_math: ^2.2.0
 
   # The graphics vocabulary, named here directly.
-  flutter3d_hardware: ^1.0.0-rc.1
+  flutter3d_hardware: '>=1.0.0-rc.1 <1.1.0'
 
   # The foundation's value types and their crossings into `vector_math`.
-  flutter3d_foundation: ^1.0.0-rc.1
+  flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
 
   # The substances a level names by id (`physicalMaterial`), read from the
   # catalogue for how a surface made of one meets light.
-  flutter3d_matter: ^1.0.0-rc.1
+  flutter3d_matter: '>=1.0.0-rc.1 <1.1.0'
 
 dev_dependencies:
   test: ^1.25.0
   flutter_lints: ^6.0.0
   # The software renderer, so a level is built onto a device in a test.
-  flutter3d_cpu: ^1.0.0-rc.1
+  flutter3d_cpu: '>=1.0.0-rc.1 <1.1.0'
 
 # **Out of `flutter3d_editor_core` in 1.0.0-rc.1.** Building a scene from a
 # level sat in the editor's core because the editor's agent server was the

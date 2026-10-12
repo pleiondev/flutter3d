@@ -4,7 +4,7 @@
 
 library package:flame_flutter3d_audio/flame_flutter3d_audio.dart
 
-class AudioSceneComponent extends Component with UpdatesAtRoot
+base class AudioSceneComponent extends Component with UpdatesAtRoot
   AudioEmitter play(SoundDef sound, {Vector3? at})
   AudioScene get scene
   AudioSceneComponent({required this.bank, this.maxVoices = 16, this.opener, int priority = BridgePriority.audio})
@@ -22,7 +22,7 @@ class AudioSceneComponent extends Component with UpdatesAtRoot
   void resume()
   void rootUpdate(double dt)
 
-class SoundEmitterComponent extends Component
+base class SoundEmitterComponent extends Component
   AudioEmitter? get emitter
   SoundEmitterComponent(this.sound, {this.isPlaying = true, this.gain = 1.0, this.rate = 1.0, super.priority})
   bool isPlaying

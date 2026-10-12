@@ -13,7 +13,6 @@ import 'package:flutter3d_elements/flutter3d_elements.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_game_kit/world.dart' show Horizon;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
-import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart'
     show
         ActionDeclaration,

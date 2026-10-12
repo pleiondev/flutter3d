@@ -59,7 +59,7 @@ number should be.
 
 ## Architecture is checked by scans, not by review
 
-`dart run tool/structure.dart` holds 92 rules about how the repository is
+`dart run tool/structure.dart` holds 99 rules about how the repository is
 arranged — that a genre package names no other genre, that the hardware layer
 names no graphics API, that the engine names no backend, that a simulation step
 reaches for no clock and no loose dice. It runs first in CI and takes under a
@@ -134,7 +134,16 @@ old binary has not got, and the message names neither the shader nor the edit.
 
 ## The API is a snapshot
 
-Every published package is under strict semver from 1.0.0. Its whole public
+Every published package is under strict semver from 1.0.0, with one
+exception: the libraries named `internal.dart` and `builtin.dart`
+(`flutter3d_foundation`, `flutter3d_shaders`, `flutter3d_cpu`) are what the
+engine's own packages build on, and a minor may change them. That is safe
+because the engine's packages ask for each other within one minor, `'>=1.0.0
+<1.1.0'` rather than `^1.0.0`, so a 1.1 of one never resolves under a 1.0 of
+another; the rule `every package agrees about versions with the workspace`
+holds every such constraint, and the classifier reads a change in those
+libraries as a minor's. An application asks for the engine with a caret as
+usual and does not import them. Its whole public
 surface is written down in `packages/<package>/api/<package>.api`: every
 library under `lib/` outside `lib/src/`, every name it exports, each
 declaration with its class modifiers and its members' signatures, the
@@ -184,7 +193,31 @@ sign, the answers of a yes or a no), and then `closedForGood` in
 `tool/structure/repository.dart` says why. The rule `a public enum or sealed
 type is decided` fails on one in neither list. A `switch` over an open set
 ends with a wildcard that refuses or names what it does, never one that
-does nothing.
+does nothing. A set of constants carries `values`, `name` and `byName`,
+and nothing else for its lookup.
+
+The same snapshots hold the shapes a minor could not mend later:
+
+- **Every public class says how it may be extended**: `final` where nobody
+  outside extends it (a widget, a value), `base` where an outside author
+  does (a Flame component), `sealed` or `interface` where that is the
+  point. A plain `class` can be implemented, so it could never gain a
+  member in a minor.
+- **A result is a class, not a record**, wherever a caller reads it: a
+  record typedef, or a field, getter or return type that is one. Only a
+  tuple with as many parts as its space (`(x, y, z)` of a dispatch) is
+  listed in `recordInResultAllowed`.
+- **No optional positional parameters**, on constructors, methods or
+  functions, except an output vector named `out` or `into`.
+- **A facade exports every type its API names** (`flutter3d`,
+  `flutter3d_game`, and `flutter3d_app` beside `flutter3d`), or
+  `facadeGapAllowed` says why a caller of it never writes one.
+- **A signature names only types a caller can import**: ours, the SDK's,
+  or a third-party type `thirdPartyTypeAllowed` lists for its package with
+  why it belongs in the contract. A type the code throws is one a caller
+  can name too.
+- **A budget a caller sets is a `Duration`**; a measurement may be integral
+  microseconds (`cpuMicros`), listed in `unitSuffixAllowed`.
 
 Three structure rules hold it:
 
@@ -228,7 +261,10 @@ drives three tools:
 - The `flutter3d_lints` analyzer plugin, for what needs the resolved code:
   `rewrite` (`device.supportsWireframe` becomes
   `device.features.has(DeviceFeature.wireframe)`, but only on a
-  `GraphicsDevice`), `implementsToWith`, and `manual`, a diagnostic and a
+  `GraphicsDevice`), `implementsToWith`, `subclassModifier` (a class that
+  became `base` makes the project's subclasses `base`; one that became
+  `final` leaves a TODO at each clause that extended it), and `manual`, a
+  diagnostic and a
   TODO with the guide's link. `dart run flutter3d_lints:migrate` applies its
   fixes across a project, because `dart fix` does not apply a plugin's.
 - `dart run flutter3d_build:migrate`, which does what neither can, the

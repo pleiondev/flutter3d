@@ -7,7 +7,7 @@ import '../theme/game_ui_theme.dart';
 import 'action_bindings_section.dart' show ActionBindingsSection;
 
 /// A section label, spelled once instead of four times.
-class SettingsHeading extends StatelessWidget {
+final class SettingsHeading extends StatelessWidget {
   const SettingsHeading(this.text, {super.key});
 
   final String text;
@@ -28,7 +28,7 @@ class SettingsHeading extends StatelessWidget {
 /// The value is printed because these two cannot be judged by the position of a
 /// handle: a dead zone is a hundredth of a stick's travel, and a look speed is
 /// only meaningful next to the number a player had before they touched it.
-class SettingsValueSlider extends StatelessWidget {
+final class SettingsValueSlider extends StatelessWidget {
   const SettingsValueSlider({
     super.key,
     required this.label,
@@ -93,7 +93,7 @@ class SettingsValueSlider extends StatelessWidget {
 /// be two rows and a dual axis's four directions four. It took a button
 /// action and printed its identifier, which was the one kind of action the
 /// old button table knew; the rows are an [ActionBindingsSection]'s now.
-class SettingsBindingRow extends StatelessWidget {
+final class SettingsBindingRow extends StatelessWidget {
   const SettingsBindingRow({
     super.key,
     required this.label,
@@ -158,7 +158,7 @@ class SettingsBindingRow extends StatelessWidget {
 }
 
 /// A setting that is on or off.
-class SettingsSwitchRow extends StatelessWidget {
+final class SettingsSwitchRow extends StatelessWidget {
   const SettingsSwitchRow({
     super.key,
     required this.label,
@@ -190,7 +190,7 @@ class SettingsSwitchRow extends StatelessWidget {
 }
 
 /// One of a few named choices — a row of chips, the chosen one lit.
-class SettingsChoiceRow extends StatelessWidget {
+final class SettingsChoiceRow extends StatelessWidget {
   const SettingsChoiceRow({
     super.key,
     required this.label,
@@ -239,7 +239,7 @@ class SettingsChoiceRow extends StatelessWidget {
 }
 
 /// One of a few colours — a row of swatches, the chosen one ringed.
-class SettingsColourRow extends StatelessWidget {
+final class SettingsColourRow extends StatelessWidget {
   const SettingsColourRow({
     super.key,
     required this.label,

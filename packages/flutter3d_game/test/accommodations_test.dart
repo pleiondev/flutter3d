@@ -140,7 +140,7 @@ void main() {
       final look = highContrastOf(
         config,
         const Accommodations(),
-        const HighContrastSettings(roleWidth: 4.0, saturation: 0.0),
+        base: const HighContrastSettings(roleWidth: 4.0, saturation: 0.0),
       );
       expect(look.enabled, isTrue);
       expect(look.roleWidth, 4.0);

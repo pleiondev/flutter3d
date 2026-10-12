@@ -12,7 +12,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/flame_layer.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 // #region layouts
 /// What a layout presses to join, and to do nothing else yet.

@@ -13,13 +13,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_app/xr_testing.dart';
-import 'package:flutter3d_core/flutter3d_core.dart'
-    show EnvironmentDepth, EnvironmentDepthNode;
 import 'package:flutter3d_hardware/testing.dart' show FakeBackend;
-import 'package:flutter3d_matter/flutter3d_matter.dart'
-    show GeoOrigin, WorldProperties;
-import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show ExternalStateInput, LoopPhase, ReadingKind;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -310,12 +304,12 @@ void main() {
           ),
           renderer: renderer,
           origin: origin,
-          drawPanel: (widget, width, height) async {
+          drawPanel: (XrPanelRequest panel) async {
             drawn++;
             return device.createTexture(
               RenderTargetDescriptor(
-                width: width,
-                height: height,
+                width: panel.width,
+                height: panel.height,
                 format: TextureFormat.r8g8b8a8UNormInt,
               ),
             );

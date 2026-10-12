@@ -3,9 +3,8 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart'
     show
         DeviceSettings,
-        Flutter3dEngine,
+        EngineFrame,
         Flutter3dView,
-        FrameInfo,
         ListenerPose,
         ViewSettings;
 
@@ -115,7 +114,7 @@ final class StereoSurface extends StatelessWidget {
             views: rig.views,
             settings: settings().forStereo(),
           ),
-          onFrame: (Flutter3dEngine engine, FrameInfo frame) => onBeforeFrame(),
+          onFrame: (EngineFrame f) => onBeforeFrame(),
           onListenerMoved: onListenerMoved,
         );
       },

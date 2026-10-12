@@ -94,8 +94,9 @@ final class AdaptiveQuality
   int get index
 
 final class AdaptiveQualitySettings
-  AdaptiveQualitySettings copyWith({bool? enabled, int? budgetMicros, double? headroom, double? climbHeadroom, int? climbFrames, double? smoothing, double? correctionSmoothing, double? motionThreshold, double? motionScale})
-  const AdaptiveQualitySettings({this.enabled = false, this.budgetMicros = 16667, this.headroom = 0.9, this.climbHeadroom = 0.75, this.climbFrames = 30, this.smoothing = 0.1, this.correctionSmoothing = 0.02, this.motionThreshold = 0.0, this.motionScale = 0.7})
+  AdaptiveQualitySettings copyWith({bool? enabled, Duration? budget, double? headroom, double? climbHeadroom, int? climbFrames, double? smoothing, double? correctionSmoothing, double? motionThreshold, double? motionScale})
+  const AdaptiveQualitySettings({this.enabled = false, this.budget = const Duration(microseconds: 16667), this.headroom = 0.9, this.climbHeadroom = 0.75, this.climbFrames = 30, this.smoothing = 0.1, this.correctionSmoothing = 0.02, this.motionThreshold = 0.0, this.motionScale = 0.7})
+  final Duration budget
   final bool enabled
   final double climbHeadroom
   final double correctionSmoothing
@@ -103,7 +104,6 @@ final class AdaptiveQualitySettings
   final double motionScale
   final double motionThreshold
   final double smoothing
-  final int budgetMicros
   final int climbFrames
 
 final class AdaptiveScale
@@ -114,8 +114,9 @@ final class AdaptiveScale
   int get cleanWindows
 
 final class AdaptiveScaleSettings
-  AdaptiveScaleSettings copyWith({bool? enabled, int? targetMicros, double? minimum, double? maximum, double? step, int? window, int? holdWindows, double? slowRatio, double? fastRatio})
-  const AdaptiveScaleSettings({this.enabled = false, this.targetMicros = 16667, this.minimum = 0.5, this.maximum = 1.0, this.step = 0.1, this.window = 30, this.holdWindows = 6, this.slowRatio = 1.1, this.fastRatio = 0.7})
+  AdaptiveScaleSettings copyWith({bool? enabled, Duration? target, double? minimum, double? maximum, double? step, int? window, int? holdWindows, double? slowRatio, double? fastRatio})
+  const AdaptiveScaleSettings({this.enabled = false, this.target = const Duration(microseconds: 16667), this.minimum = 0.5, this.maximum = 1.0, this.step = 0.1, this.window = 30, this.holdWindows = 6, this.slowRatio = 1.1, this.fastRatio = 0.7})
+  final Duration target
   final bool enabled
   final double fastRatio
   final double maximum
@@ -123,7 +124,6 @@ final class AdaptiveScaleSettings
   final double slowRatio
   final double step
   final int holdWindows
-  final int targetMicros
   final int window
 
 final class AmbientOcclusionMethod
@@ -363,7 +363,7 @@ final class AnimationPlayer
   void apply()
   void crossFadeTo(int index, {double duration = 0.15})
   void pause()
-  void play([int? index])
+  void play({int? index})
   void seek(double seconds)
   void stop()
   void update(double deltaSeconds)
@@ -706,7 +706,7 @@ final class CheckerboardTexture extends ProceduralTexture
   final int size
 
 final class ClusterDraws
-  ClusterDraws(this._device, {this.framesInFlight = 3})
+  ClusterDraws(GraphicsDevice this._device, {this.framesInFlight = 3})
   ClusterIndices? indicesFor({required MeshNode node, required DrawableGeometry mesh, required int view, required Frustum frustum, Vector3? eye, OcclusionTest? occlusion})
   final int framesInFlight
   int get culled
@@ -770,7 +770,6 @@ final class CompiledFrameGraph
   bool isConsumed(ResourceId id)
   bool isKeptVersion(ResourceVersion version)
   bool isRead(ResourceId id)
-  const CompiledFrameGraph(this._lastUse, this._readers, this._bindings, this._current, this._kept, {required this.order, required this.culled, required this.outputs, this.skipped = const <SkippedPass>[], this._created = const <String, ResourceDesc>{}, this._placements = const <String, Object>{}})
   final List<FrameGraphNode> culled
   final List<FrameGraphNode> order
   final List<ResourceId> outputs
@@ -1074,8 +1073,8 @@ final class DeviceClassPicker
 
 final class DeviceClassSelector
   DeviceClass choose(DeviceTraits traits, {int? measuredMicros})
-  const DeviceClassSelector({this.desktopMicros = 8000})
-  final int desktopMicros
+  const DeviceClassSelector({this.desktopLimit = const Duration(microseconds: 8000)})
+  final Duration desktopLimit
 
 final class DeviceMesh extends DrawableGeometry
   Aabb3 bounds
@@ -1853,11 +1852,11 @@ final class FrameWindow
   int get hashCode
 
 final class FrameWorkBudget
-  FrameWorkBudget({this.microseconds = 0, int Function()? clock})
+  FrameWorkBudget({this.allowance = Duration.zero, int Function()? clock})
   bool allows()
   bool spend(void Function() work)
   double get averageCost
-  final int microseconds
+  final Duration allowance
   int get deferred
   int get items
   int get remaining
@@ -2092,7 +2091,7 @@ final class ImpostorNode extends MeshNode
 final class InMemoryDeviceClassMemory extends DeviceClassMemory
   Future<String?> read()
   Future<void> write(String? value)
-  InMemoryDeviceClassMemory([this._value])
+  InMemoryDeviceClassMemory([String? this._value])
 
 final class InstanceHandle
   bool get isLive
@@ -2339,7 +2338,7 @@ final class LightingModel
   bool get usesLightList
   bool get usesPointShadow
   bool get usesShadowMap
-  const LightingModel(this.label, this.shaderName, {this.vertexShaderName, this.usesFragInfo = true, this.usesAlbedoTexture = true, this.usesMaterialMaps = true, this.usesMetallicRoughnessMap = true, this.usesMaterialParameters = true, this.usesMetallic = false, this.usesEnvironment = false, this._usesLightList, this._usesFogInfo, this.vertexStageMorphs = true, this.usesSceneDepth = false, this.vertexStageInDepthPasses = false, this.slots = MaterialSlotTable.none, this.vertexVariants = const <VertexStageVariant>{}, this.lightTypeMembers = const <String, String>{}})
+  const LightingModel(this.label, this.shaderName, {this.vertexShaderName, this.usesFragInfo = true, this.usesAlbedoTexture = true, this.usesMaterialMaps = true, this.usesMetallicRoughnessMap = true, this.usesMaterialParameters = true, this.usesMetallic = false, this.usesEnvironment = false, bool? this._usesLightList, bool? this._usesFogInfo, this.vertexStageMorphs = true, this.usesSceneDepth = false, this.vertexStageInDepthPasses = false, this.slots = MaterialSlotTable.none, this.vertexVariants = const <VertexStageVariant>{}, this.lightTypeMembers = const <String, String>{}})
   final Map<String, String> lightTypeMembers
   final MaterialSlotTable slots
   final Set<VertexStageVariant> vertexVariants
@@ -2703,7 +2702,7 @@ final class MaterialParamRef extends ExpressionVariable
 
 final class MaterialParameter
   String? get block
-  const MaterialParameter(this.name, this.type, this.defaultValue, {this.uniform = false, this._block})
+  const MaterialParameter(this.name, this.type, this.defaultValue, {this.uniform = false, String? this._block})
   final ExpressionType type
   final List<double> defaultValue
   final String name
@@ -2848,7 +2847,7 @@ final class MemoryBudget
   MemoryBudget({Map<MemoryCategory, int> limits = const {}, this.total})
   Registration onCrossed(void Function(MemoryBudgetCrossing crossing) handler)
   String toString()
-  bool isOver([MemoryCategory? category])
+  bool isOver({MemoryCategory? category})
   bool isOverFor(MemoryCategory category)
   final int? total
   int get used
@@ -4077,14 +4076,14 @@ abstract base mixin class RenderServices
   abstract void encodeScene(SceneEncodeRequest request)
 
 final class RenderSettings
-  RenderSettings copyWith({double? specular, double? exposure, bool? wireframe, bool? backfaceCulling, bool? batchIdenticalDraws, DebugDrawSettings? debug, List<SceneNode>? highlighted, bool? tonemap, TonemapCurve? tonemapCurve, AntiAliasSettings? antiAlias, BloomSettings? bloom, LookSettings? look, ShadowSettings? shadows, bool? surfaceBuffer, bool? showSurfaceBuffer, bool? showShadowMap, bool? showStaticShadowMap, bool? showVelocity, bool? showPointShadowDebug, ReflectionSettings? reflections, AmbientOcclusionSettings? ambientOcclusion, ContactShadowSettings? contactShadows, FogSettings? fog, SkySettings? sky, int? anisotropy, double? lightFadeBand, AutoExposureSettings? autoExposure, XraySettings? xray, double? renderScale, SpatialUpscaleSettings? spatialUpscale, LocalExposureSettings? localExposure, OutputTransform? outputTransform, int? frameWorkBudget, bool? energyCompensation, DiffuseModel? diffuseModel, bool? clusteredLights, bool? aliasTargets, OcclusionMode? occlusion, LightShaftSettings? lightShafts, VolumetricFogSettings? volumetricFog, DepthOfFieldSettings? depthOfField, MotionBlurSettings? motionBlur, PlanarReflectionSettings? planarReflections, DecalSettings? decals, ViewportShadingSettings? viewportShading, HighContrastSettings? highContrast, DebugViewSettings? debugView, TransparencyMode? transparency, bool? reflectionProbes, bool? renderTextures, bool? irradianceUpdates, bool? reversedDepth, Set<RenderStep>? stepsOff, PhysicalCamera? camera, bool? physicalCamera, SettingsExtensions? extensions, TelemetryLevel? telemetry})
+  RenderSettings copyWith({double? specular, double? exposure, bool? wireframe, bool? backfaceCulling, bool? batchIdenticalDraws, DebugDrawSettings? debug, List<SceneNode>? highlighted, bool? tonemap, TonemapCurve? tonemapCurve, AntiAliasSettings? antiAlias, BloomSettings? bloom, LookSettings? look, ShadowSettings? shadows, bool? surfaceBuffer, bool? showSurfaceBuffer, bool? showShadowMap, bool? showStaticShadowMap, bool? showVelocity, bool? showPointShadowDebug, ReflectionSettings? reflections, AmbientOcclusionSettings? ambientOcclusion, ContactShadowSettings? contactShadows, FogSettings? fog, SkySettings? sky, int? anisotropy, double? lightFadeBand, AutoExposureSettings? autoExposure, XraySettings? xray, double? renderScale, SpatialUpscaleSettings? spatialUpscale, LocalExposureSettings? localExposure, OutputTransform? outputTransform, Duration? frameWorkBudget, bool? energyCompensation, DiffuseModel? diffuseModel, bool? clusteredLights, bool? aliasTargets, OcclusionMode? occlusion, LightShaftSettings? lightShafts, VolumetricFogSettings? volumetricFog, DepthOfFieldSettings? depthOfField, MotionBlurSettings? motionBlur, PlanarReflectionSettings? planarReflections, DecalSettings? decals, ViewportShadingSettings? viewportShading, HighContrastSettings? highContrast, DebugViewSettings? debugView, TransparencyMode? transparency, bool? reflectionProbes, bool? renderTextures, bool? irradianceUpdates, bool? reversedDepth, Set<RenderStep>? stepsOff, PhysicalCamera? camera, bool? physicalCamera, SettingsExtensions? extensions, TelemetryLevel? telemetry})
   RenderSettings forMeasurement()
   RenderSettings forStereo()
   RenderSettings only(Set<RenderStep> steps, {Iterable<RenderStep> also = const <RenderStep>[]})
   RenderSettings withExtension<T extends Object>(SettingsSlot<T> slot, T value)
   RenderSettings without(Set<RenderStep> steps, {Iterable<RenderStep> also = const <RenderStep>[]})
   T extension<T extends Object>(SettingsSlot<T> slot)
-  const RenderSettings({this.specular = 1.0, this.exposure = defaultExposure, this.wireframe = false, this.backfaceCulling = true, this.batchIdenticalDraws = false, this.debug = const DebugDrawSettings(), this.highlighted = const <SceneNode>[], this.tonemap = true, this.tonemapCurve = TonemapCurve.neutral, this.antiAlias = const AntiAliasSettings(), this.bloom = const BloomSettings(), this.look = const LookSettings(), this.shadows = const ShadowSettings(), this.surfaceBuffer = false, this.showSurfaceBuffer = false, this.showShadowMap = false, this.showStaticShadowMap = false, this.showVelocity = false, this.showPointShadowDebug = false, this.reflections = const ReflectionSettings(), this.ambientOcclusion = const AmbientOcclusionSettings(), this.contactShadows = const ContactShadowSettings(), this.fog = const FogSettings(), this.sky = const SkySettings(), this.anisotropy = 1, this.lightFadeBand = 0.0, this.autoExposure = const AutoExposureSettings(), this.xray = const XraySettings(), this.renderScale = 1.0, this.spatialUpscale = const SpatialUpscaleSettings(), this.localExposure = const LocalExposureSettings(), this.outputTransform = OutputTransform.sdr, this.frameWorkBudget = 0, this.energyCompensation = false, this.diffuseModel = DiffuseModel.lambert, this.clusteredLights = true, this.aliasTargets = false, this.occlusion = OcclusionMode.none, this.lightShafts = const LightShaftSettings(), this.volumetricFog = const VolumetricFogSettings(), this.depthOfField = const DepthOfFieldSettings(), this.motionBlur = const MotionBlurSettings(), this.planarReflections = const PlanarReflectionSettings(), this.decals = const DecalSettings(), this.viewportShading = const ViewportShadingSettings(), this.highContrast = const HighContrastSettings(), this.debugView = const DebugViewSettings(), this.transparency = TransparencyMode.sorted, this.reflectionProbes = true, this.renderTextures = true, this.irradianceUpdates = true, this.reversedDepth = true, this.stepsOff = const <RenderStep>{}, this.camera = const PhysicalCamera(), this.physicalCamera = true, this.extensions = const SettingsExtensions(), this.telemetry = TelemetryLevel.timings})
+  const RenderSettings({this.specular = 1.0, this.exposure = defaultExposure, this.wireframe = false, this.backfaceCulling = true, this.batchIdenticalDraws = false, this.debug = const DebugDrawSettings(), this.highlighted = const <SceneNode>[], this.tonemap = true, this.tonemapCurve = TonemapCurve.neutral, this.antiAlias = const AntiAliasSettings(), this.bloom = const BloomSettings(), this.look = const LookSettings(), this.shadows = const ShadowSettings(), this.surfaceBuffer = false, this.showSurfaceBuffer = false, this.showShadowMap = false, this.showStaticShadowMap = false, this.showVelocity = false, this.showPointShadowDebug = false, this.reflections = const ReflectionSettings(), this.ambientOcclusion = const AmbientOcclusionSettings(), this.contactShadows = const ContactShadowSettings(), this.fog = const FogSettings(), this.sky = const SkySettings(), this.anisotropy = 1, this.lightFadeBand = 0.0, this.autoExposure = const AutoExposureSettings(), this.xray = const XraySettings(), this.renderScale = 1.0, this.spatialUpscale = const SpatialUpscaleSettings(), this.localExposure = const LocalExposureSettings(), this.outputTransform = OutputTransform.sdr, this.frameWorkBudget = Duration.zero, this.energyCompensation = false, this.diffuseModel = DiffuseModel.lambert, this.clusteredLights = true, this.aliasTargets = false, this.occlusion = OcclusionMode.none, this.lightShafts = const LightShaftSettings(), this.volumetricFog = const VolumetricFogSettings(), this.depthOfField = const DepthOfFieldSettings(), this.motionBlur = const MotionBlurSettings(), this.planarReflections = const PlanarReflectionSettings(), this.decals = const DecalSettings(), this.viewportShading = const ViewportShadingSettings(), this.highContrast = const HighContrastSettings(), this.debugView = const DebugViewSettings(), this.transparency = TransparencyMode.sorted, this.reflectionProbes = true, this.renderTextures = true, this.irradianceUpdates = true, this.reversedDepth = true, this.stepsOff = const <RenderStep>{}, this.camera = const PhysicalCamera(), this.physicalCamera = true, this.extensions = const SettingsExtensions(), this.telemetry = TelemetryLevel.timings})
   double get cameraExposure
   final AmbientOcclusionSettings ambientOcclusion
   final AntiAliasSettings antiAlias
@@ -4096,6 +4095,7 @@ final class RenderSettings
   final DecalSettings decals
   final DepthOfFieldSettings depthOfField
   final DiffuseModel diffuseModel
+  final Duration frameWorkBudget
   final FogSettings fog
   final HighContrastSettings highContrast
   final LightShaftSettings lightShafts
@@ -4142,7 +4142,6 @@ final class RenderSettings
   final double renderScale
   final double specular
   final int anisotropy
-  final int frameWorkBudget
   static String probePassName(int index)
   static const List<String> passOrder = …
   static const Set<RenderStep> pixelAlteringSteps = …
@@ -4703,7 +4702,7 @@ final class ShadowFaceScheduler
   final int budget
   final int tileCount
   int get scanStart
-  void recordDrawn([Set<int>? only])
+  void recordDrawn({Set<int>? only})
   void reset()
 
 final class ShadowFilter
@@ -4846,7 +4845,13 @@ abstract base class SkinningHook
   bool record(SkinningContext context)
   const SkinningHook()
 
-typedef SkippedPass = ({String name, PassSkip reason});
+final class SkippedPass
+  String toString()
+  bool operator ==(Object other)
+  const SkippedPass({required this.name, required this.reason})
+  final PassSkip reason
+  final String name
+  int get hashCode
 
 typedef SkyColor = LinearColor Function(SkyLook look);
 
@@ -6696,7 +6701,7 @@ final class LightingModel
   bool get usesLightList
   bool get usesPointShadow
   bool get usesShadowMap
-  const LightingModel(this.label, this.shaderName, {this.vertexShaderName, this.usesFragInfo = true, this.usesAlbedoTexture = true, this.usesMaterialMaps = true, this.usesMetallicRoughnessMap = true, this.usesMaterialParameters = true, this.usesMetallic = false, this.usesEnvironment = false, this._usesLightList, this._usesFogInfo, this.vertexStageMorphs = true, this.usesSceneDepth = false, this.vertexStageInDepthPasses = false, this.slots = MaterialSlotTable.none, this.vertexVariants = const <VertexStageVariant>{}, this.lightTypeMembers = const <String, String>{}})
+  const LightingModel(this.label, this.shaderName, {this.vertexShaderName, this.usesFragInfo = true, this.usesAlbedoTexture = true, this.usesMaterialMaps = true, this.usesMetallicRoughnessMap = true, this.usesMaterialParameters = true, this.usesMetallic = false, this.usesEnvironment = false, bool? this._usesLightList, bool? this._usesFogInfo, this.vertexStageMorphs = true, this.usesSceneDepth = false, this.vertexStageInDepthPasses = false, this.slots = MaterialSlotTable.none, this.vertexVariants = const <VertexStageVariant>{}, this.lightTypeMembers = const <String, String>{}})
   final Map<String, String> lightTypeMembers
   final MaterialSlotTable slots
   final Set<VertexStageVariant> vertexVariants
@@ -6930,7 +6935,7 @@ final class MaterialParamRef extends ExpressionVariable
 
 final class MaterialParameter
   String? get block
-  const MaterialParameter(this.name, this.type, this.defaultValue, {this.uniform = false, this._block})
+  const MaterialParameter(this.name, this.type, this.defaultValue, {this.uniform = false, String? this._block})
   final ExpressionType type
   final List<double> defaultValue
   final String name

@@ -553,7 +553,7 @@ material Paint {
       );
       expect(material.roughness, 0.1, reason: 'and the drag, kept');
 
-      swap.clearMaterial('paint');
+      swap.clearMaterial(name: 'paint');
       file = Uint8List.fromList(<int>[2]);
       await swap.swap();
       expect(ship.meshes.single.material.roughness, isNot(0.1));

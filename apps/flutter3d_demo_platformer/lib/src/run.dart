@@ -5,7 +5,6 @@ import 'package:flutter3d_game/flutter3d_game.dart'; // RunSession
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'looks.dart';
 import 'run_elements.dart';

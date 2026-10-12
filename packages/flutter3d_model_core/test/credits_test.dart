@@ -24,14 +24,14 @@ ModelProject _withObjects(List<ModelCredit?> credits) {
   return project;
 }
 
-const ModelCredit _chair = (
+const ModelCredit _chair = ModelCredit(
   title: 'Chair',
   author: 'A. Maker',
   license: 'CC BY 4.0',
   url: 'https://creativecommons.org/licenses/by/4.0/',
 );
 
-const ModelCredit _lamp = (
+const ModelCredit _lamp = ModelCredit(
   title: 'Lamp',
   author: 'B. Other',
   license: 'CC BY 4.0',
@@ -134,7 +134,7 @@ void main() {
     // export then writes a line that claims to attribute and names nobody
     // — worse than writing nothing at all.
     final ModelProject nameless = _withObjects(<ModelCredit?>[
-      (
+      ModelCredit(
         title: 'Chair',
         author: '',
         license: 'CC BY 4.0',

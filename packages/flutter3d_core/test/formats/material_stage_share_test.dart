@@ -58,7 +58,7 @@ void main() {
       sources,
       from: 'everything.f3dmat',
     );
-    final (:textures, :uniformBlocks) = countGlslBindings(glsl);
+    final GlslBindingCount(:textures, :uniformBlocks) = countGlslBindings(glsl);
     // Mutation: add a texture to the lit headers that packs into nothing
     // and the engine takes a plugin model's room in a minor.
     expect(

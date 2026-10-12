@@ -61,11 +61,12 @@ final class AutosaveController {
 
   /// Where [storage] reports *why* a write failed.
   ///
-  /// [BinaryStorage.write] answers `false` and nothing else — "no such
-  /// directory" and "the disk is full" are different days, and a person told
-  /// only that autosave is not working has nowhere to go. Handing the same
-  /// [IssueLog] to the storage and to this controller is what lets [onIssue]
-  /// carry the sentence the storage actually wrote.
+  /// [BinaryStorage.write] throws a `StorageException` whose message is a
+  /// short "could not write" — "no such directory" and "the disk is full"
+  /// are different days, and a person told only that autosave is not working
+  /// has nowhere to go. Handing the same [IssueLog] to the storage and to
+  /// this controller is what lets [onIssue] carry the sentence the storage
+  /// actually wrote.
   final IssueLog? issues;
 
   /// Told once per failure, not once per failed attempt — see [_check].
@@ -125,7 +126,7 @@ final class AutosaveController {
     try {
       final Uint8List bytes = writeProject(state.history.project);
       final key = recoveryPathFor(null, sessionId: sessionId);
-      final wrote = await storage.write(key, bytes);
+      final bool wrote = await _written(key, bytes);
       _lastSavedAt = clock.now();
       if (!wrote) {
         if (!_lastAttemptFailed) onIssue?.call(_reason());
@@ -136,6 +137,17 @@ final class AutosaveController {
       }
     } finally {
       _writing = false;
+    }
+  }
+
+  /// Whether [storage] took [bytes] under [key]: a refusal is a status line
+  /// and the next autosave, not a crash.
+  Future<bool> _written(String key, Uint8List bytes) async {
+    try {
+      await storage.write(key, bytes);
+      return true;
+    } on StorageException {
+      return false;
     }
   }
 
@@ -182,5 +194,10 @@ Future<bool> emergencyAutosave(
   final ModelerState state = cubit.state;
   if (state is! ModelerReady) return false;
   final Uint8List bytes = writeProject(state.history.project);
-  return storage.write(recoveryPathFor(null, sessionId: sessionId), bytes);
+  try {
+    await storage.write(recoveryPathFor(null, sessionId: sessionId), bytes);
+    return true;
+  } on StorageException {
+    return false;
+  }
 }

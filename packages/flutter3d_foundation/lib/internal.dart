@@ -13,6 +13,13 @@
 /// This is a library of its own rather than `src/` imports so that what the
 /// core depends on is in the API snapshot, and a change shows in review.
 ///
+/// **Outside semver, and safe because of how the engine depends on it.** The
+/// engine's packages ask for each other within one minor
+/// (`'>=1.0.0 <1.1.0'`), so a foundation 1.1 that changes the parser never
+/// resolves under a core 1.0 built against the parser before it. The API
+/// classifier reads a change here as a minor's (CONTRIBUTING, "The API is a
+/// snapshot").
+///
 /// `flutter3d_physics_native` compiles laws and probes' expressions to the
 /// internal bytecode ([ExpressionBytecode]) its C interpreter runs, so the
 /// core evaluates them without Dart; the format stays internal in 1.0 and

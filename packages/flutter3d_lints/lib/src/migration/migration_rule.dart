@@ -13,6 +13,14 @@ enum MigrationKind {
   /// class `base` when it is not `base`, `final` or `sealed` already.
   implementsToWith,
 
+  /// [MigrationRule.type] became a `base` or a `final` class
+  /// ([MigrationRule.to]). Under a `base` one, a class of the project's own
+  /// below it, directly or through its own classes, becomes `base` too, and
+  /// one that implemented it extends it instead where nothing else is its
+  /// superclass. A `final` one cannot be extended or implemented outside
+  /// its package at all: the clause naming it gets a TODO.
+  subclassModifier,
+
   /// Move the named arguments [MigrationRule.members] of a call into
   /// `[MigrationRule.into]: [MigrationRule.options](…)`.
   regroup,
@@ -232,7 +240,9 @@ final class MigrationRule {
   final bool library;
 
   /// For [MigrationKind.argument]: the parameter's new name, null where it
-  /// kept its own. For [MigrationKind.rename]: the class's new name.
+  /// kept its own. For [MigrationKind.rename]: the class's new name. For
+  /// [MigrationKind.subclassModifier]: the modifier the class took, `base`
+  /// or `final`.
   final String? to;
 
   /// For [MigrationKind.argument]: the types (by name) of the values it

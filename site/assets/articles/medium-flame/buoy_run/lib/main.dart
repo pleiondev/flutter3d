@@ -133,7 +133,7 @@ class BuoyRun extends FlameGame
 }
 
 // Step 5: a Flame component with a body in the scene.
-class Boat extends Object3dComponent
+final class Boat extends Object3dComponent
     with CollisionCallbacks, FixedStepUpdate, HasGameReference<BuoyRun> {
   Boat({required super.node, required super.scene})
     : super(
@@ -169,7 +169,7 @@ class Boat extends Object3dComponent
   }
 }
 
-class Buoy extends Object3dComponent {
+final class Buoy extends Object3dComponent {
   Buoy({required super.node, required super.scene, super.position})
     : super(
         plane: BuoyRun.water,

@@ -42,41 +42,41 @@ dependencies:
     sdk: flutter
 
   # The scene, a ghost's node and the model a ragdoll is drawn with.
-  flutter3d: ^1.0.0-rc.1
+  flutter3d: '>=1.0.0-rc.1 <1.1.0'
 
   # `Storage`, where the ghost's best run is kept.
-  flutter3d_app: ^1.0.0-rc.1
+  flutter3d_app: '>=1.0.0-rc.1 <1.1.0'
 
   # The mixer's types (`SoundDef`, `Heard`, `AudioScene`): what a reaction
   # sounds like and what the soundtrack plays.
-  flutter3d_audio_core: ^1.0.0-rc.1
+  flutter3d_audio_core: '>=1.0.0-rc.1 <1.1.0'
 
   # The physical sky, the lights, and the meshes of the horizon.
-  flutter3d_core: ^1.0.0-rc.1
+  flutter3d_core: '>=1.0.0-rc.1 <1.1.0'
 
   # `Shown`, `ParticleEffect` and the system a reaction bursts into.
-  flutter3d_particles: ^1.0.0-rc.1
+  flutter3d_particles: '>=1.0.0-rc.1 <1.1.0'
 
   # `BusEvent` and the plugins a reaction table and a cue sheet are heard
   # through.
-  flutter3d_plugin_api: ^1.0.0-rc.1
+  flutter3d_plugin_api: '>=1.0.0-rc.1 <1.1.0'
 
   # `CameraRig`, which a reaction kicks, shakes and widens.
-  flutter3d_camera: ^1.0.0-rc.1
+  flutter3d_camera: '>=1.0.0-rc.1 <1.1.0'
 
   # Tapes and demos, the level document and its generator.
-  flutter3d_sim: ^1.0.0-rc.1
+  flutter3d_sim: '>=1.0.0-rc.1 <1.1.0'
 
   vector_math: ^2.2.0
 
   # The foundation's value types and their crossings into `vector_math`.
-  flutter3d_foundation: ^1.0.0-rc.1
+  flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
 
   # The collision world and its bodies, named here directly.
-  flutter3d_physics: ^1.0.0-rc.1
+  flutter3d_physics: '>=1.0.0-rc.1 <1.1.0'
 
   # The graphics vocabulary, named here directly.
-  flutter3d_hardware: ^1.0.0-rc.1
+  flutter3d_hardware: '>=1.0.0-rc.1 <1.1.0'
 
 dev_dependencies:
   flutter_test:
@@ -84,4 +84,4 @@ dev_dependencies:
   test: ^1.25.0
   flutter_lints: ^6.0.0
   # A device with no GPU under it, for the ghost's meshes and the elements.
-  flutter3d_cpu: ^1.0.0-rc.1
+  flutter3d_cpu: '>=1.0.0-rc.1 <1.1.0'

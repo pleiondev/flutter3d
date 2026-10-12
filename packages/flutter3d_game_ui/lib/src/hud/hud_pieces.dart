@@ -9,7 +9,7 @@ import '../theme/game_ui_theme.dart';
 /// Draws nothing at all when it has nothing to stack, so a layout can list
 /// its lines conditionally without a panel-shaped smudge left behind. Its
 /// background is [GameUiTheme.panel].
-class HudPanel extends StatelessWidget {
+final class HudPanel extends StatelessWidget {
   const HudPanel({super.key, required this.children});
 
   final List<Widget> children;
@@ -46,7 +46,7 @@ class HudPanel extends StatelessWidget {
 /// independently and a column of labels that each measured itself would not
 /// line up, which is the thing this column is for. Fixed for one text size:
 /// it grows with the platform's, so the label stays whole at twice it.
-class HudLine extends StatelessWidget {
+final class HudLine extends StatelessWidget {
   const HudLine({
     super.key,
     required this.label,
@@ -145,7 +145,7 @@ final class HudTallyStyle {
 ///
 /// **On a [GameUiTheme.panel]**, as every line of the heads-up display is: a
 /// white number with a shadow under it was a white number on a white sky.
-class HudTally extends StatelessWidget {
+final class HudTally extends StatelessWidget {
   const HudTally({
     super.key,
     required this.label,
@@ -207,7 +207,7 @@ class HudTally extends StatelessWidget {
 /// **Said aloud when it changes.** A banner is the game talking to the
 /// player, so it is a live region: a screen reader reads the new sentence
 /// without being asked.
-class HudBanner extends StatelessWidget {
+final class HudBanner extends StatelessWidget {
   const HudBanner(this.text, {super.key, this.color, this.fontSize = 18});
 
   final String text;
@@ -244,7 +244,7 @@ class HudBanner extends StatelessWidget {
 ///
 /// Kilometres an hour, because that is the number on a dashboard; the
 /// simulation works in metres a second and is right to.
-class Speedometer extends StatelessWidget {
+final class Speedometer extends StatelessWidget {
   const Speedometer({super.key, required this.metersPerSecond});
 
   /// The speed shown, in metres per second.

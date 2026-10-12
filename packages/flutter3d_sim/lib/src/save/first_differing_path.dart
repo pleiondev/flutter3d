@@ -8,15 +8,15 @@
 /// exports it from here, so nothing that reached it there has moved.
 ({String path, Object? a, Object? b})? firstDifferingPath(
   Object? a,
-  Object? b, [
+  Object? b, {
   String prefix = '',
-]) {
+}) {
   if (a is Map && b is Map) {
     final keys = <Object?>{...a.keys, ...b.keys}.toList()
       ..sort((x, y) => x.toString().compareTo(y.toString()));
     for (final key in keys) {
       final childPrefix = prefix.isEmpty ? '$key' : '$prefix.$key';
-      final result = firstDifferingPath(a[key], b[key], childPrefix);
+      final result = firstDifferingPath(a[key], b[key], prefix: childPrefix);
       if (result != null) return result;
     }
     return null;
@@ -24,7 +24,7 @@
   if (a is List && b is List) {
     final shorter = a.length < b.length ? a.length : b.length;
     for (var i = 0; i < shorter; i++) {
-      final result = firstDifferingPath(a[i], b[i], '$prefix[$i]');
+      final result = firstDifferingPath(a[i], b[i], prefix: '$prefix[$i]');
       if (result != null) return result;
     }
     if (a.length != b.length) {

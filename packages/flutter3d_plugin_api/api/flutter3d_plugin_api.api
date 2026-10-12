@@ -197,7 +197,7 @@ final class DataSectionContext
   List<double>? numbersOf(BusEvent event)
   String eventName(String event)
   String textOf(String path)
-  const DataSectionContext({required this.plugin, this._textOf, this._eventName, this._numbersOf, this._note})
+  const DataSectionContext({required this.plugin, String Function(String path)? this._textOf, String Function(String event)? this._eventName, List<double>? Function(BusEvent event)? this._numbersOf, void Function(String note)? this._note})
   final String plugin
   void note(String note)
 

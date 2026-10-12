@@ -243,3 +243,17 @@ final class Tap {
   const Tap({this.center = 0});
   final int center;
 }
+
+// ----------------------------------------------------- subclassModifier
+// 0.8: `class Component` and `class Badge`, both plain classes.
+
+/// A class outside code extends, `base` since 1.0.
+base class Component {
+  void update(double dt) {}
+}
+
+/// A value outside code only holds, `final` since 1.0.
+final class Badge {
+  const Badge(this.text);
+  final String text;
+}

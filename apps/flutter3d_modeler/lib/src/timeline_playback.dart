@@ -164,7 +164,7 @@ final class TimelinePlayback {
   /// Starts [clipIndex], or resumes the current clip when it is null —
   /// [AnimationPlayer.play]'s own contract, carried through unchanged.
   void play([int? clipIndex]) {
-    player.play(clipIndex);
+    player.play(index: clipIndex);
     _setPlayback(
       _playback.copyWith(
         status: PlaybackStatus.playing,

@@ -55,7 +55,7 @@ final class ClipPlaybackDemo extends ShowcaseDemo {
       clips: <AnimationClip>[spin, nod],
       targets: <AnimationTarget?>[cube],
     );
-    _player.play(0);
+    _player.play(index: 0);
     _player.crossFadeTo(1, duration: 0.4);
     // #endregion player
 

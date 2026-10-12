@@ -15,7 +15,7 @@ import '../theme/game_ui_theme.dart';
 ///
 /// The keys a test finds it by are `share:run`, `share:code`, `share:open`
 /// and `share:said`.
-class ShareStrip extends StatefulWidget {
+final class ShareStrip extends StatefulWidget {
   const ShareStrip({
     super.key,
     this.onShare,

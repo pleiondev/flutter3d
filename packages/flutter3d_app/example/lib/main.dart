@@ -88,7 +88,7 @@ class _CubeScreenState extends State<CubeScreen> {
         engine.scene = buildScene(engine.device);
         engine.view.clearColor = LinearColor.fromSrgb(0.05, 0.05, 0.07, 1.0);
       },
-      onBeforeFrame: (_, _) => _orbit.syncProjectionDepth(_camera),
+      onBeforeFrame: (_) => _orbit.syncProjectionDepth(_camera),
       view: ViewSettings(
         placeholder: const ColoredBox(
           color: Color(0xFF14161A),

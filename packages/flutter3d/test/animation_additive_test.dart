@@ -110,7 +110,7 @@ _Recorder _posedAt(
   double seconds = 0.5,
 }) {
   final rig = _rig(clips);
-  rig.player.play(0);
+  rig.player.play(index: 0);
   rig.player.addLayer(layer);
   rig.player.update(seconds);
   return rig.node;

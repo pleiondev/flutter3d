@@ -8,8 +8,8 @@ typedef AssetBytes = Future<ByteData> Function(AssetRequest request);
 
 abstract base class BinaryStorage
   abstract Future<Uint8List?> read(String name)
-  abstract Future<bool> write(String name, Uint8List contents)
   abstract Future<void> remove(String name)
+  abstract Future<void> write(String name, Uint8List contents)
   const BinaryStorage()
 
 final class Binding3D extends StatefulWidget
@@ -45,16 +45,21 @@ final class Decal3D extends Spatial3D
   final double depthFade
   final int order
 
+final class DeviceLostEvent
+  const DeviceLostEvent({required this.engine, required this.loss})
+  final DeviceLoss loss
+  final Flutter3dEngine engine
+
 final class DeviceSettings
-  DeviceSettings copyWith({GraphicsDevice? device, Renderer? renderer, DeviceRegistry? devices, FramePresenter? presenter, bool? fallbackBanner, void Function(Flutter3dEngine engine, DeviceLoss loss)? onDeviceLost, void Function(Flutter3dEngine engine)? onDeviceRestored, bool clearDevice = false, bool clearRenderer = false, bool clearDevices = false, bool clearPresenter = false, bool clearOnDeviceLost = false, bool clearOnDeviceRestored = false})
+  DeviceSettings copyWith({GraphicsDevice? device, Renderer? renderer, DeviceRegistry? devices, FramePresenter? presenter, bool? fallbackBanner, void Function(DeviceLostEvent event)? onDeviceLost, void Function(Flutter3dEngine engine)? onDeviceRestored, bool clearDevice = false, bool clearRenderer = false, bool clearDevices = false, bool clearPresenter = false, bool clearOnDeviceLost = false, bool clearOnDeviceRestored = false})
   const DeviceSettings({this.device, this.renderer, this.devices, this.presenter, this.fallbackBanner = true, this.onDeviceLost, this.onDeviceRestored})
   final DeviceRegistry? devices
   final FramePresenter? presenter
   final GraphicsDevice? device
   final Renderer? renderer
   final bool fallbackBanner
+  final void Function(DeviceLostEvent event)? onDeviceLost
   final void Function(Flutter3dEngine engine)? onDeviceRestored
-  final void Function(Flutter3dEngine engine, DeviceLoss loss)? onDeviceLost
 
 final class DidNotStart extends StatelessWidget
   Widget build(BuildContext context)
@@ -64,13 +69,19 @@ final class DidNotStart extends StatelessWidget
   final Object error
   final String? explaining
 
+final class EngineFrame
+  const EngineFrame({required this.engine, required this.frame})
+  double get seconds
+  final Flutter3dEngine engine
+  final FrameInfo frame
+
 typedef EnvironmentBuild = Future<BuiltEnvironment?> Function(Uint8List bytes);
 
 final class FileBinaryStorage extends BinaryStorage
   FileBinaryStorage({required this.appName, Directory? directory, IssueSink? onIssue})
   Future<Uint8List?> read(String name)
-  Future<bool> write(String name, Uint8List contents)
   Future<void> remove(String name)
+  Future<void> write(String name, Uint8List contents)
   final IssueSink onIssue
   final String appName
   late final Directory? directory
@@ -143,9 +154,9 @@ final class Flutter3dView extends StatefulWidget
   final ViewSettings view
   final XrSettings? xr
   final bool autofocus
+  final void Function(EngineFrame frame)? onBeforeFrame
+  final void Function(EngineFrame frame)? onFrame
   final void Function(Flutter3dEngine engine)? onCreated
-  final void Function(Flutter3dEngine engine, FrameInfo frame)? onBeforeFrame
-  final void Function(Flutter3dEngine engine, FrameInfo frame)? onFrame
   final void Function(ListenerPose ears)? onListenerMoved
   final void Function(Object? saved)? restoreState
   final void Function(bool paused)? onPausedChanged
@@ -204,7 +215,7 @@ final class HotSwap
   static const Map<String, int> materialFields = <String, int>{'baseColor': 4, 'emissive': 3, 'emissiveStrength': 1, 'roughness': 1, 'metallic': 1, 'normalScale': 1, 'alphaCutoff': 1}
   static const String parameterField = 'parameters/'
   static final HotSwap instance
-  void clearMaterial([String? name])
+  void clearMaterial({String? name})
   void forgetEnvironment(SwappableEnvironment environment)
   void forgetTexture(SwappableTexture texture)
   void registerLibrary(LoadedShaderLibrary library, {required ShaderBundleSource read, ByteData? loadedFrom, void Function(ByteData bytes)? onRefreshed})
@@ -405,7 +416,7 @@ final class Model3D extends Spatial3D
   final Widget? placeholder
   final bool playing
   final double speed
-  final void Function(MeshNode part, HitResult hit)? onTap
+  final void Function(HitResult hit)? onTap
   final void Function(ModelInstance instance)? onLoaded
 
 typedef ModelBuild = Future<ModelAsset> Function(Uint8List bytes);
@@ -526,19 +537,28 @@ final class RendererFailure extends StatelessWidget
 
 final class Scene3D extends StatefulWidget
   State<Scene3D> createState()
-  const Scene3D({super.key, this.children = const <Widget>[], this.settings = const RenderSettings(), this.clearColor, this.device, this.materials, this.continuous = true, this.placeholder = const SizedBox.expand(), this.onCreated, this.onFrame, this.presenter, this.frameRateCap, this.time})
-  final FramePresenter? presenter
-  final GraphicsDevice? device
+  const Scene3D({super.key, this.children = const <Widget>[], this.clearColor, this.materials, this.onSceneCreated, this.onBeforeFrame, this.onFrame, this.device = const DeviceSettings(), this.view = const ViewSettings(), this.loop = const LoopSettings(), this.plugins = const PluginSettings(), this.log, this.focusNode, this.autofocus = false, this.onKeyEvent, this.restorationId, this.saveState, this.restoreState, this.onPausedChanged, this.onListenerMoved, this.time, this.xr})
+  final DeviceSettings device
+  final EngineLog? log
+  final FocusNode? focusNode
+  final KeyEventResult Function(KeyEvent event)? onKeyEvent
   final LinearColor? clearColor
   final List<Widget> children
-  final RenderSettings settings
+  final LoopSettings loop
+  final Object? Function()? saveState
+  final PluginSettings plugins
   final ShaderLibrary? materials
+  final String? restorationId
   final TimeSource? time
-  final Widget placeholder
-  final bool continuous
-  final double? frameRateCap
-  final void Function(FrameInfo frame)? onFrame
-  final void Function(Scene3DController controller)? onCreated
+  final ViewSettings view
+  final XrSettings? xr
+  final bool autofocus
+  final void Function(EngineFrame frame)? onBeforeFrame
+  final void Function(EngineFrame frame)? onFrame
+  final void Function(ListenerPose ears)? onListenerMoved
+  final void Function(Object? saved)? restoreState
+  final void Function(Scene3DController scene)? onSceneCreated
+  final void Function(bool paused)? onPausedChanged
 
 final class Scene3DController
   CameraNode get camera
@@ -589,6 +609,11 @@ final class SceneWidgetsMount
   void dispose()
   void update(List<Widget> children)
 
+final class SeatInput
+  const SeatInput({required this.seat, required this.input})
+  final Object? input
+  final int seat
+
 @immutable final class SemanticObject
   const SemanticObject({required this.id, required this.label, required this.bounds, this.hint, this.selected = false, this.onTap})
   final Object id
@@ -603,7 +628,7 @@ typedef ShaderBundleSource = Future<ByteData?> Function();
 final class SharedMeshes
   DeviceMesh box(Vector3 size)
   DeviceMesh shape(String key, Shape Function() shape)
-  SharedMeshes(this._device)
+  SharedMeshes(GraphicsDevice this._device)
   void dispose()
 
 final class SimulationPlacement
@@ -613,7 +638,7 @@ final class SimulationPlacement
   final Object? arguments
   final SimulationFactory? factory
   final String? debugName
-  final void Function(int seat, Object? input)? applyInput
+  final void Function(SeatInput input)? applyInput
 
 abstract base class Spatial3D extends StatefulWidget
   const Spatial3D({super.key, this.position, this.rotation, this.scale, this.visible = true, this.children = const <Widget>[]})
@@ -688,7 +713,10 @@ final class ViewSettings
   final double? frameRateCap
   final void Function(double done)? onWarmUpProgress
 
-typedef VisibilityBatch = ({MeshNode node, Aabb3 bounds});
+final class VisibilityBatch
+  const VisibilityBatch({required this.node, required this.bounds})
+  final Aabb3 bounds
+  final MeshNode node
 
 final class VisibilityCuller
   VisibilityCuller(this.visibility, this.batches)
@@ -804,7 +832,7 @@ final class XrDriver
   XrSwapchain? get swapchain
   final DisplayTime time
   final EnvironmentDepthNode environmentDepth
-  final Future<TextureHandle?> Function(Widget widget, int width, int height)? drawPanel
+  final Future<TextureHandle?> Function(XrPanelRequest panel)? drawPanel
   final ProjectionLayerNode projection
   final Renderer renderer
   final SceneNode origin
@@ -882,6 +910,12 @@ final class XrPanel
   final int pixelWidth
   int get generation
   void invalidate()
+
+final class XrPanelRequest
+  const XrPanelRequest({required this.widget, required this.width, required this.height})
+  final Widget widget
+  final int height
+  final int width
 
 final class XrPanelShape
   String toString()
@@ -1048,6 +1082,53 @@ Future<PhotoTaken> savePhoto({required Renderer renderer, required Scene scene, 
 List<SemanticObject> semanticObjectsFor(List<SceneAnnouncement> announcements, {required CameraNode camera, required Size size})
 
 void unmountWidgetTree(BuildOwner build, RenderObjectToWidgetElement<RenderBox> element, RenderObjectWithChildMixin<RenderBox> container)
+
+export package:flutter3d_cpu/flutter3d_cpu.dart show CpuFragmentShader, CpuVertexShaderByIndex, FragmentContext, ShaderBindings
+  CpuFragmentShader
+  CpuVertexShaderByIndex
+  FragmentContext
+  ShaderBindings
+
+export package:flutter3d_level_scene/flutter3d_level_scene.dart show LevelBatching
+  LevelBatching
+
+export package:flutter3d_particles/flutter3d_particles.dart show Flipbook, FlipbookCell, Particle, ParticleBirth, ParticleEffect, ParticleEmitter, ParticleSystem, Range
+  Flipbook
+  FlipbookCell
+  Particle
+  ParticleBirth
+  ParticleEffect
+  ParticleEmitter
+  ParticleSystem
+  Range
+
+export package:flutter3d_physics/flutter3d_physics.dart show CollisionWorld, PhysicsBackend
+  CollisionWorld
+  PhysicsBackend
+
+export package:flutter3d_sim/flutter3d_sim.dart show Brush, DisplayTime, EngineLoop, EntityDef, EntityKind, EntityRegistry, FrameCadence, HeightfieldTiles, InputAction, InputState, Level, LevelMaterial, LevelVisibility, Lightmap, LightmapLayout, ShadowCasting, SimulationFactory, SimulationHandle, TileLevelChooser, TimeSource, WorldTiming, XrHand
+  Brush
+  DisplayTime
+  EngineLoop
+  EntityDef
+  EntityKind
+  EntityRegistry
+  FrameCadence
+  HeightfieldTiles
+  InputAction
+  InputState
+  Level
+  LevelMaterial
+  LevelVisibility
+  Lightmap
+  LightmapLayout
+  ShadowCasting
+  SimulationFactory
+  SimulationHandle
+  TileLevelChooser
+  TimeSource
+  WorldTiming
+  XrHand
 
 library package:flutter3d_app/native.dart
 

@@ -11,6 +11,10 @@
   section.** `flutter3d.stamp` joins the engine's reserved sections.
 - **The backend template says its `backendId` outright**, and its compiler
   matches it exactly.
+- **Breaking: `PluginProcessResult` and `F3dConversion` are classes.**
+  `PluginProcessResult` is built with
+  `PluginProcessResult(exitCode: …, stdout: …, stderr: …)` by a runner, so a
+  run can later report more.
 - **`create project --kind viewer` and `--kind arcade`.** `ProjectKind`
   (`scene`, the default, `viewer`, `arcade`; a class with constants, so a
   kind added later breaks no `switch`) is what `createProject(kind:)` and
