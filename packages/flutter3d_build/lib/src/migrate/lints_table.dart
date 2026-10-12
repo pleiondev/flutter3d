@@ -142,14 +142,29 @@ String _message(MigrationEntry e, MigrationTable table) {
 
 /// Every rule of the plugin's table, from [tables], as plain data: the
 /// fields of a `MigrationRule`, without the ones at their default.
-List<Map<String, Object?>> lintsRules(List<MigrationTable> tables) =>
-    <Map<String, Object?>>[
-      for (final table in tables)
-        for (final e in table.entries)
-          if (_carried(e)) _rule(e, table),
-    ];
+List<Map<String, Object?>> lintsRules(List<MigrationTable> tables) {
+  // A class's name at the release migrated to, by its old one.
+  final renamed = <String, String>{
+    for (final table in tables)
+      for (final e in table.entries)
+        if (e.kind == 'rename' &&
+            e.member == null &&
+            !e.symbol.contains(':') &&
+            RegExp(r'^[A-Z]\w*$').hasMatch(e.to ?? ''))
+          e.topName: e.to!,
+  };
+  return <Map<String, Object?>>[
+    for (final table in tables)
+      for (final e in table.entries)
+        if (_carried(e)) _rule(e, table, renamed),
+  ];
+}
 
-Map<String, Object?> _rule(MigrationEntry e, MigrationTable table) {
+Map<String, Object?> _rule(
+  MigrationEntry e,
+  MigrationTable table,
+  Map<String, String> renamed,
+) {
   final (:match, :switchOver) = e.kind == 'manual'
       ? inferMatch(e)
       : (match: 'uses', switchOver: e.kind == 'enumToClass' ? e.topName : null);
@@ -186,6 +201,7 @@ Map<String, Object?> _rule(MigrationEntry e, MigrationTable table) {
     if (e.kind == 'argument' && e.reads.isNotEmpty) 'fields': e.reads,
     if (e.kind == 'rewrite') 'receiver': ?(e.fields['on'] as String?),
     if (e.kind == 'rewrite' && e.fields['static'] == true) 'throughClass': true,
+    if (e.kind != 'rename') 'renamedTo': ?renamed[e.topName],
     'exception': ?e.exception,
     if (e.kind == 'argument' || e.kind == 'rename') 'to': ?e.to,
     if (e.types.isNotEmpty) 'types': e.types,

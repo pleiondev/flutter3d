@@ -137,6 +137,10 @@ final class _Scan extends RecursiveAstVisitor<void> {
         into(byMember, r.member!, r);
       } else {
         into(byType, r.type, r);
+        if (r.renamedTo case final renamed?
+            when r.kind == MigrationKind.manual) {
+          into(byType, renamed, r);
+        }
       }
       if (r.switchOver case final over?) into(bySwitch, over, r);
       for (final m in r.members) {
@@ -379,22 +383,20 @@ final class _Scan extends RecursiveAstVisitor<void> {
       if (!_ownedAs(element, rule)) return false;
       final enclosing = element.enclosingElement;
       if (enclosing is InterfaceElement &&
-          _isOrExtends(enclosing.thisType, rule.type)) {
+          _isOfRule(enclosing.thisType, rule)) {
         return true;
       }
       if (element is ConstructorElement &&
-          element.enclosingElement.name == rule.type &&
-          node.name == rule.type) {
+          _named(element.enclosingElement.name, rule) &&
+          _named(node.name, rule)) {
         return true;
       }
-      return receiver != null && _isOrExtends(receiver, rule.type);
+      return receiver != null && _isOfRule(receiver, rule);
     }
     // Gone: a member nothing declares any more, on a receiver that still
     // resolves to the type, or a static one named through the class.
     final on = _classNamed(node) ?? receiver;
-    return on != null &&
-        _isOrExtends(on, rule.type) &&
-        _ownedAs(on.element, rule);
+    return on != null && _isOfRule(on, rule) && _ownedAs(on.element, rule);
   }
 
   /// The class [node] is named through as a static member:
@@ -447,6 +449,15 @@ final class _Scan extends RecursiveAstVisitor<void> {
     }
     return null;
   }
+
+  /// Whether [type] is [rule]'s class, by its name at either release.
+  static bool _isOfRule(InterfaceType type, MigrationRule rule) =>
+      _isOrExtends(type, rule.type) ||
+      (rule.renamedTo != null && _isOrExtends(type, rule.renamedTo!));
+
+  /// Whether [name] is [rule]'s class, by its name at either release.
+  static bool _named(String? name, MigrationRule rule) =>
+      name != null && (name == rule.type || name == rule.renamedTo);
 
   static bool _isOrExtends(InterfaceType type, String name) =>
       type.element.name == name ||
@@ -888,7 +899,38 @@ final class _Scan extends RecursiveAstVisitor<void> {
         _add(rule, node);
       }
     }
+    _renameCombinators(node);
     super.visitImportDirective(node);
+  }
+
+  /// A class renamed since the release, named in a `show` or `hide` of an
+  /// engine library that exports it under its new name only: `dart fix`
+  /// renames every use and leaves the combinator, which then hides the
+  /// class it renamed the uses to.
+  void _renameCombinators(ImportDirective node) {
+    final library = node.libraryImport?.importedLibrary;
+    final uri = node.uri.stringValue ?? '';
+    if (library == null || !uri.startsWith('package:')) return;
+    if (!ownedPackage(uri.substring(8).split('/').first)) return;
+    for (final combinator in node.combinators) {
+      final names = switch (combinator) {
+        ShowCombinator(:final shownNames) => shownNames,
+        HideCombinator(:final hiddenNames) => hiddenNames,
+      };
+      for (final name in names) {
+        if (library.exportNamespace.get2(name.name) != null) continue;
+        for (final rule in classRenames[name.name] ?? const <MigrationRule>[]) {
+          final to = rule.to;
+          if (to == null || library.exportNamespace.get2(to) == null) continue;
+          _add(
+            rule,
+            name,
+            edits: <MigrationEdit>[MigrationEdit(name.offset, name.length, to)],
+          );
+          break;
+        }
+      }
+    }
   }
   // ------------------------------------------------------------- internal
 
@@ -1348,7 +1390,7 @@ final class _Scan extends RecursiveAstVisitor<void> {
     bool manual(MigrationRule r) =>
         r.kind == MigrationKind.manual &&
         r.match == MigrationMatch.uses &&
-        r.type == type &&
+        _named(type, r) &&
         _ownedAs(element, r);
     return <MigrationRule>[
       for (final r in byType[type] ?? const <MigrationRule>[])
@@ -1374,7 +1416,7 @@ final class _Scan extends RecursiveAstVisitor<void> {
       for (final a in unmatched)
         for (final r in byMember[a.name.lexeme] ?? const <MigrationRule>[])
           if (r.kind == MigrationKind.manual &&
-              _manualRulesOfCallType(node) == r.type)
+              _named(_manualRulesOfCallType(node), r))
             r,
     ];
     if (rules.isEmpty) return;
@@ -1406,7 +1448,7 @@ final class _Scan extends RecursiveAstVisitor<void> {
     for (final r in byMember[member] ?? const <MigrationRule>[]) {
       if (r.kind == MigrationKind.manual &&
           r.match == MigrationMatch.uses &&
-          r.type == type &&
+          _named(type, r) &&
           _ownedAs(name.type.element, r)) {
         _add(r, name);
       }
@@ -1537,7 +1579,7 @@ final class _Scan extends RecursiveAstVisitor<void> {
           final aboutAField =
               rule.member == null || rule.members.contains(rule.member);
           if (aboutAField &&
-              _isOrExtends(on, rule.type) &&
+              _isOfRule(on, rule) &&
               _ownedAs(on.element, rule)) {
             _assigned(node, field, rule);
           }
@@ -1558,9 +1600,10 @@ final class _Scan extends RecursiveAstVisitor<void> {
         final element = constructorName.type.element;
         return element is InterfaceElement &&
             _ownedAs(element, rule) &&
-            _isOrExtends(element.thisType, rule.type) &&
+            _isOfRule(element.thisType, rule) &&
             (member == null ||
-                member == (constructorName.name?.name ?? rule.type));
+                member == (constructorName.name?.name ?? rule.type) ||
+                member == constructorName.name?.name);
       case MethodInvocation(:final methodName, :final realTarget):
         final element = methodName.element;
         final enclosing = element?.enclosingElement;
@@ -1578,9 +1621,7 @@ final class _Scan extends RecursiveAstVisitor<void> {
                     final InterfaceType type => type,
                     _ => null,
                   };
-        return on != null &&
-            _isOrExtends(on, rule.type) &&
-            _ownedAs(on.element, rule);
+        return on != null && _isOfRule(on, rule) && _ownedAs(on.element, rule);
     }
     return false;
   }

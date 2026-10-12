@@ -21871,3 +21871,21 @@ entries:
       `count` on a list of events is gone with the drained buffer:
       `events.count<CollectibleTaken>()` is
       `events.whereType<CollectibleTaken>().length`.
+
+  - id: corpus-game-SettingsCubit-state
+    package: flutter3d_game
+    symbol: SettingsCubit.state
+    kind: rewrite
+    template: '{target}.value'
+    guidance: >-
+      `GameSettingsController` is a `ValueListenable`: its `value` is what a
+      cubit's `state` was.
+
+  - id: corpus-game-SettingsCubit-close
+    package: flutter3d_game
+    symbol: SettingsCubit.close
+    kind: rewrite
+    template: '{target}.dispose()'
+    guidance: >-
+      `GameSettingsController` is a `ChangeNotifier`: `dispose()` is what a
+      cubit's `close()` was.

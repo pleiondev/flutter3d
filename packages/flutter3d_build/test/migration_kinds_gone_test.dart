@@ -1,6 +1,6 @@
 // Names 1.0 took away where `dart fix` cannot follow them: a class renamed
 // inside a creation the analyzer reads as no type at all (`const Shade()`),
-// a class renamed whose old name is the Dart SDK's too (`Match`), which the
+// a class renamed in an import's `show`; a class renamed whose old name is the Dart SDK's too (`Match`), which the
 // engine's import shadowed; a static member that is gone (`Board.table()`), rewritten through its
 // class rather than through an instance; a top-level function gone with all
 // its arguments handed on (`srgbColor(…)`); an extension's member gone
@@ -27,6 +27,7 @@ void main() {
     expect(appliedOf(report), <String>[
       'kinds-Shade',
       'kinds-Shade',
+      'kinds-Shade',
       'kinds-Board-table',
       'kinds-srgbColor',
       'kinds-srgbColor',
@@ -34,15 +35,16 @@ void main() {
       'kinds-Mode-touch',
       'kinds-Match',
       'kinds-Match',
+      'kinds-Ledger-total',
     ]);
     expect(manualOf(report), <String>[
-      'kinds-roster:2',
-      'kinds-oldHelperGone:19',
-      'kinds-roster:20',
-      'kinds-Shelf:23',
-      'kinds-Shelf:26',
-      'kinds-Dial-constructor:30',
-      'kinds-Dial-constructor:32',
+      'kinds-roster:3',
+      'kinds-oldHelperGone:20',
+      'kinds-roster:21',
+      'kinds-Shelf:24',
+      'kinds-Shelf:27',
+      'kinds-Dial-constructor:31',
+      'kinds-Dial-constructor:33',
     ]);
   });
 }

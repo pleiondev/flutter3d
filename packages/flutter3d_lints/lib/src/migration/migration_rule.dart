@@ -98,6 +98,7 @@ final class MigrationRule {
     this.types = const <String>[],
     this.receiver,
     this.throughClass = false,
+    this.renamedTo,
   });
 
   /// A rule from the plain data `flutter3d_build`'s `lintsRules` writes:
@@ -139,6 +140,7 @@ final class MigrationRule {
       types: strings(json['types']),
       receiver: json['receiver'] as String?,
       throughClass: (json['throughClass'] as bool?) ?? false,
+      renamedTo: json['renamedTo'] as String?,
     );
   }
 
@@ -225,4 +227,9 @@ final class MigrationRule {
   /// now: only a use named through the class is rewritten, since a use
   /// through an instance is already 1.0 code.
   final bool throughClass;
+
+  /// [type]'s name in the release migrated to, where a `rename` entry
+  /// renamed the class: `dart fix` renames the uses first, so the code the
+  /// scan reads names the new class.
+  final String? renamedTo;
 }

@@ -150,6 +150,13 @@ final class KindMatch {
   const KindMatch();
 }
 
+// 0.8: `class Ledger { int get total; }`; `KindLedger` with `sum` since.
+
+final class KindLedger {
+  const KindLedger(this.sum);
+  final int sum;
+}
+
 // ----------------------------------------------------------- parameters
 // 0.8: `Gauge(double reading, [double scale = 1])` and
 // `Sieve([int coarse = 4, int fine = 1])`, optional positional arguments

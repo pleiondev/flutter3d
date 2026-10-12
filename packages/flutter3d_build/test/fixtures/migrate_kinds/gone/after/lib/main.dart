@@ -1,4 +1,5 @@
 import 'package:flutter3d_kinds/flutter3d_kinds.dart';
+import 'package:flutter3d_kinds/flutter3d_kinds.dart' as kinds show KindShade;
 // TODO(flutter3d-1.0): The roster was one game's; copy it into your own code. See https://flutter3d.pleion.dev/reference/migrating-to-1.0/#kinds-roster
 import 'package:flutter3d_kinds/roster.dart';
 
@@ -40,3 +41,7 @@ Dial dial() => Dial(
     );
 
 KindMatch pick(List<KindMatch> all) => all.first;
+
+final Object prefixed = kinds.KindShade();
+
+int sum(KindLedger ledger) => ledger.sum;

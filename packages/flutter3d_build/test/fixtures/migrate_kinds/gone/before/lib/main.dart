@@ -1,4 +1,5 @@
 import 'package:flutter3d_kinds/flutter3d_kinds.dart';
+import 'package:flutter3d_kinds/flutter3d_kinds.dart' as kinds show Shade;
 import 'package:flutter3d_kinds/roster.dart';
 
 const Object shade = Shade();
@@ -33,3 +34,7 @@ Dial dial() => Dial(
     );
 
 Match pick(List<Match> all) => all.first;
+
+final Object prefixed = kinds.KindShade();
+
+int sum(KindLedger ledger) => ledger.total;

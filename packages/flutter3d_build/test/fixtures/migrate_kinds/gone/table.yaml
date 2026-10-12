@@ -64,3 +64,13 @@ entries:
     symbol: Match
     kind: rename
     to: KindMatch
+  - id: kinds-Ledger
+    package: flutter3d_kinds
+    symbol: Ledger
+    kind: rename
+    to: KindLedger
+  - id: kinds-Ledger-total
+    package: flutter3d_kinds
+    symbol: Ledger.total
+    kind: rewrite
+    template: '{target}.sum'
