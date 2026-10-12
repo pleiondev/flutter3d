@@ -19,13 +19,14 @@ final Uri site = Uri.parse(
 /// A reading now and one a minute, in °C. No answer, or not the one asked
 /// for, and the last reading stands.
 Stream<num?> readings() async* {
-  for (num? last; ;) {
+  for (num? last; ; await Future<void>.delayed(const Duration(minutes: 1))) {
     try {
       final answer = jsonDecode((await http.get(site)).body);
-      if (answer case {'current': {'temperature_2m': num t}}) last = t;
-    } on Exception {}
+      if (answer case {'current': {'temperature_2m': final num t}}) last = t;
+    } on Exception {
+      // Kept: the last reading stands.
+    }
     yield last;
-    await Future<void>.delayed(const Duration(minutes: 1));
   }
 }
 
