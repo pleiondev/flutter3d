@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **Breaking: the effects' colours are `LinearColor`s.** `Elements.sun`'s
+  and `LiquidLook.sun`'s `light`, `SeabedLook.sun`'s, `sky`'s `zenith` and
+  `horizon`, `LiquidLook.glow` and `Liquid.glow`. The generated
+  `LiquidParameters` and `SeabedParameters` are over a `MaterialParameters`
+  and keep vectors, the in-place buffers the shader reads.
 - **Breaking: `ElementsViewPlugin` is `flutter3d_effects.elements` by
   default**,
   where it was `elements.view`: `elements` is an area of the engine's

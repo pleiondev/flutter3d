@@ -27,8 +27,7 @@ const waveHeight = ParameterKey<double>(
 const tint = ParameterKey<LinearColor>('tint', ParameterType.color);
 const rim = ParameterKey<double>('rim', ParameterType.float);
 
-MaterialParameterSchema _schema() =>
-    MaterialParameterSchema.fromProgram(parseMaterial(_source));
+MaterialParameterSchema _schema() => parseMaterial(_source).schema;
 
 void main() {
   group('the schema from a .f3dmat', () {
@@ -182,10 +181,10 @@ void main() {
   group('a node overrides its material', () {
     test("the node's values win over its material's, for that node only", () {
       final material = RenderMaterial(
-        parameters: <String, Float32List>{
+        parameters: MaterialParameters.over(<String, Float32List>{
           'waveHeight': Float32List.fromList(<double>[0.25]),
           'tint': Float32List.fromList(<double>[1, 1, 1]),
-        },
+        }),
       );
       final node = MeshNode(_mesh(), material)
         ..parameters = (MaterialParameters()..set(waveHeight, 2.0));
@@ -200,19 +199,22 @@ void main() {
     });
 
     test('a node without overrides reads its material as it is', () {
-      final material = RenderMaterial();
+      final material = RenderMaterial()..parameters['waveHeight'] = <double>[1];
       final node = MeshNode(_mesh(), material);
+      // The material's own floats, not a merged copy of them.
       expect(
-        identical(node.parametersFor(material), material.parameters),
-        isTrue,
+        node.parametersFor(material)['waveHeight'],
+        same(material.parameters['waveHeight']),
       );
     });
   });
 
-  test('a material made over its own map edits what the encoder binds', () {
-    final material = RenderMaterial();
-    MaterialParameters.over(material.parameters).set(waveHeight, 1.5);
-    expect(material.parameters['waveHeight'], <double>[1.5]);
+  test('a material made over a map edits what the encoder binds', () {
+    final held = <String, Float32List>{};
+    final material = RenderMaterial(parameters: MaterialParameters.over(held));
+    material.parameters.set(waveHeight, 1.5);
+    expect(held['waveHeight'], <double>[1.5]);
+    expect(material.parameters.uniforms['waveHeight'], <double>[1.5]);
   });
 }
 

@@ -16,6 +16,7 @@ import 'package:flutter3d_shaders/backend.dart'
         MaterialCompileException,
         MaterialCompileRequest,
         MaterialCompilerRegistry,
+        MaterialStageBudget,
         MaterialStageSource;
 import 'package:flutter3d_shaders/flutter3d_shaders.dart'
     show EngineBundleStamp, MissingShaderStageException;
@@ -25,6 +26,7 @@ import 'package:flutter3d_shaders/translate.dart'
         PackedStage,
         WgslSectionException,
         encodeWebGlSection,
+        resolveIncludes,
         translateGlsl,
         wgslSectionDocument;
 
@@ -168,10 +170,10 @@ ShaderBundle runtimeMaterialBundle(
     );
   }
   final fullscreen = program.kind == MaterialStageKind.fullscreen;
-  final vertexName = program.vertexStageName;
-  final vertexNames = <String>[
-    if (vertexName != null) ...<String>[vertexName, '${vertexName}Skinned'],
-  ];
+  final vertexStages = emitMaterialVertexStages(
+    specializeMaterial(program, MaterialVariant(name)),
+  );
+  final vertexNames = vertexStages.keys.toList();
   final material = encodeMaterialSection(<String, String>{
     name: source,
     for (final vertex in vertexNames) vertex: source,
@@ -206,6 +208,29 @@ ShaderBundle runtimeMaterialBundle(
     };
   }
 
+  // The binding budget, on every backend that can be handed the engine's
+  // headers, counted from the GLSL the emitter writes: the WebGPU section
+  // counted it alone before, so a stage over WebGL2's sixteen units was
+  // made here and failed to link at its first draw.
+  if (engineSources != null && !fullscreen) {
+    final specialised = specializeMaterial(program, MaterialVariant(name));
+    final glsl = <String, String>{
+      name: emitMaterialFragment(specialised),
+      ...vertexStages,
+    };
+    for (final MapEntry(key: stage, value: text) in glsl.entries) {
+      final String resolved;
+      try {
+        resolved = resolveIncludes(text, engineSources, from: from);
+      } on GlslTranslateException catch (error) {
+        throw RuntimeShadersException('$from: ${error.message}');
+      }
+      if (MaterialStageBudget.problemOfGlsl(stage, resolved)
+          case final problem?) {
+        throw RuntimeShadersException('$from: $problem');
+      }
+    }
+  }
   final compiler = kind == null ? null : compilers?.forBackend(kind);
   if (compiler != null) {
     if (!compiler.compilesAtRunTime) {
@@ -230,15 +255,9 @@ ShaderBundle runtimeMaterialBundle(
               fragment: true,
               glsl: emitMaterialFragment(specialised),
             ),
-            for (final stage in vertexNames)
-              MaterialStageSource(
-                name: stage,
-                fragment: false,
-                glsl: emitMaterialVertex(
-                  specialised,
-                  skinned: stage.endsWith('Skinned'),
-                ),
-              ),
+            for (final MapEntry(key: stage, value: glsl)
+                in vertexStages.entries)
+              MaterialStageSource(name: stage, fragment: false, glsl: glsl),
           ],
           options: <String, Object?>{
             'webGpuHost': ?webGpuHost,
@@ -279,12 +298,9 @@ ShaderBundle runtimeMaterialBundle(
       try {
         webgl = translateGlsl(glsl, engineSources, from: from, fragment: true);
         vertex = <String, String>{
-          for (final stage in vertexNames)
+          for (final MapEntry(key: stage, value: glsl) in vertexStages.entries)
             stage: translateGlsl(
-              emitMaterialVertex(
-                specialised,
-                skinned: stage.endsWith('Skinned'),
-              ),
+              glsl,
               engineSources,
               from: from,
               fragment: false,
@@ -727,6 +743,20 @@ final class RuntimeShaders extends PluginRegistry {
         'render step "${step.name}" is a ${program.kind} source; a render '
         'step\'s stage is a "fullscreen" one',
       );
+    }
+    // A data step has no way yet to say what a texture of the stage's own
+    // is bound to (a `reads:` key is for a later version), and drawn as it
+    // was, it drew with the sampler unbound: refused, saying so.
+    final own = <String>[
+      for (final slot in program.textures)
+        if (slot.bindingName != 'scene_texture') slot.name,
+    ];
+    if (own.isNotEmpty) {
+      _store.statuses[step.name] =
+          'render step "${step.name}" samples ${own.join(', ')}, and a step '
+          'from data has no way to name a texture for it: sample only '
+          '`scene`, or add the stage from Dart with FullscreenEffect.material';
+      return;
     }
     final ShaderBundle bundle;
     try {

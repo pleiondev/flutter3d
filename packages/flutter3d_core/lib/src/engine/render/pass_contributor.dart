@@ -254,8 +254,8 @@ final class FullscreenDraw {
   ///
   /// **An effect reading a buffer of *data* rather than colour wants
   /// [SamplerDescriptor.nearestClamp], and two of them were not asking for it.**
-  /// The surface buffer holds an octahedral normal in `rg` and a window depth
-  /// in `a`; the average of two octahedral normals is not the encoding of any
+  /// The surface buffer holds an octahedral normal in `rg` and the depth
+  /// along the view axis in metres in `a`; the average of two octahedral normals is not the encoding of any
   /// normal, which is the sentence `ssao.frag` opens with to explain why
   /// reading that buffer switches multisampling off — and the pass that says
   /// it was itself sampling the buffer bilinearly. Per-slot overrides live in

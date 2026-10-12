@@ -42,10 +42,17 @@ abstract final class FramePassNames {
 /// error here instead of a graph error at run time — the graph checks names it
 /// is given, but it cannot check the ones it never receives.
 abstract final class FrameResourceIds {
-  /// The scene's HDR colour, before any post.
+  /// The scene's HDR colour, before any post: linear, unbounded and before
+  /// exposure, in the renderer's light scale, whose unit is
+  /// `FrameContext.nitsPerHdrUnit` nits ("Frame resources a stage reads" in
+  /// `docs/CONTRACTS.md`).
   static const ResourceId hdrColor = ResourceId('hdr_color');
 
-  /// World normal and depth, the second attachment of the scene pass.
+  /// The second attachment of the scene pass: the world normal,
+  /// octahedral-encoded, in `rg`, the perceptual roughness in `b`, and the
+  /// depth along the view axis in metres in `a`; all zero where nothing was
+  /// drawn. A debug view may take `rgb` over. Frozen within 1.x ("Frame
+  /// resources a stage reads" in `docs/CONTRACTS.md`).
   static const ResourceId surfaceBuffer = ResourceId('surface_buffer');
 
   /// Each surface's own colour, sRGB in eight bits, the scene pass's third
@@ -89,9 +96,12 @@ abstract final class FrameResourceIds {
   /// `R7`. Produced only while `RenderSettings.localExposure` is on.
   static const ResourceId localExposure = ResourceId('local_exposure');
 
-  /// How far each pixel moved on screen since the last frame, in UV units,
-  /// now minus then — `R1`. Red and green; produced only while temporal
-  /// anti-aliasing is on.
+  /// How far each pixel moved on screen since the last frame, in UV units
+  /// (nought to one from the top left), now minus then — `R1`. Red and
+  /// green; zero where nothing was drawn. Produced while
+  /// `RenderStep.velocity` is on and something reads it: temporal
+  /// anti-aliasing, motion blur, or a placed node whose read switches the
+  /// producer on.
   ///
   /// The HDR format because it holds signed fractions, and there is no
   /// two-channel float format in `TextureFormat` to be smaller with.

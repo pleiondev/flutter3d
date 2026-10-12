@@ -153,8 +153,8 @@ final class _Thins extends ParticleAffector {
     // Faded out over the last tenth of its life, where a plume cut short by
     // the view's budget ends, so its top is not a hard edge.
     final end = math.min(1.0, (1.0 - life) / 0.1);
-    particle.color.w = tau == null
-        ? particle.color.w * end
+    particle.linearRgba.w = tau == null
+        ? particle.linearRgba.w * end
         : (1.0 - math.exp(-tau)) * end;
   }
 }
@@ -223,7 +223,7 @@ final class _Glows extends ParticleAffector {
     final y = 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
     final scale = y > 0 ? nits * _emissiveGain / _particleNits / y : 0.0;
     final alpha = life < 0.12 ? life / 0.12 : (1.0 - life) / 0.88;
-    particle.color.setValues(
+    particle.linearRgba.setValues(
       color.r * scale,
       color.g * scale,
       color.b * scale,

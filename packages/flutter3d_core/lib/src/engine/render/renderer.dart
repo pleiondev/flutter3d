@@ -7,7 +7,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show LightType, LinearColorVector;
+    show LightType, LinearColorVector, MaterialParameters;
 import 'package:flutter3d_hardware/backend.dart' show SynchronousBufferReadback;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
@@ -463,6 +463,10 @@ final class Renderer with RenderServices {
   final Expando<Float32List> _slotDefaults = Expando<Float32List>(
     'slot default',
   );
+
+  /// The floats each `lighttype` member of a material is bound at, by the
+  /// member's name: one per name, written with the code before each draw.
+  final Map<String, Float32List> _lightTypeCodes = <String, Float32List>{};
   final Set<_ViewState> _allViewStates = <_ViewState>{};
 
   /// How many [render] calls a view's state outlives the last one that drew
@@ -1300,7 +1304,7 @@ final class Renderer with RenderServices {
     depthWrite: false,
     depthCompare: CompareFunction.lessEqual,
     parameterBlock: _planarInfo.name,
-    parameters: _planarInfo.members,
+    parameters: MaterialParameters.over(_planarInfo.members),
     extraTextures: <String, TextureHandle>{},
   );
 

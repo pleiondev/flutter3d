@@ -179,9 +179,12 @@ final class TrackElements {
     _elements
       ..sun(
         along: -sky.directionToSun,
-        light: _rgb(sky.sunColor.scaled(sky.sunIntensity)),
+        light: _rgb(sky.sunColor.scaled(sky.sunIntensity)).toLinearColor(),
       )
-      ..sky(zenith: _rgb(sky.zenith), horizon: _rgb(sky.horizon));
+      ..sky(
+        zenith: _rgb(sky.zenith).toLinearColor(),
+        horizon: _rgb(sky.horizon).toLinearColor(),
+      );
     // The race's world — its gravity, air and wind — so the spray, the fires
     // and the water fall and drift as the cars do: one gravity in a race.
     if (cars.isNotEmpty) {

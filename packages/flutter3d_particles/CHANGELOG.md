@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `Particle.color` is `Particle.linearRgba`.** The same
+  `Vector4`, written in place by every affector, under a name that says it
+  is a linear RGBA buffer rather than a colour value.
 - **Breaking: an affector and an emitter take one context.**
   `ParticleAffector.apply` takes a `ParticleStep` (new: the particle and
   `dt`) and `ParticleEmitter.emit` a `ParticleBirth` (new: the particle,

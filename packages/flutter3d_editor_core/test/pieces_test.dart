@@ -316,8 +316,8 @@ void main() {
         'looks for first', () {
       final spawn = tintFor('player_spawn');
 
-      expect(spawn.y, greaterThan(spawn.x));
-      expect(spawn.y, greaterThan(spawn.z));
+      expect(spawn.g, greaterThan(spawn.r));
+      expect(spawn.g, greaterThan(spawn.b));
     });
 
     test('and a light wears its own colour', () {
@@ -326,8 +326,8 @@ void main() {
       ).where((Handle it) => it.kind == Piece.light);
 
       expect(
-        handles.single.tint.x,
-        greaterThan(handles.single.tint.z),
+        handles.single.tint.r,
+        greaterThan(handles.single.tint.b),
         reason: 'an orange lamp is not marked orange',
       );
     });
@@ -339,7 +339,7 @@ void main() {
 
       final tint = handlesOf(level).single.tint;
 
-      expect(tint.length, greaterThan(0.1));
+      expect(Vector3(tint.r, tint.g, tint.b).length, greaterThan(0.1));
     });
   });
 }

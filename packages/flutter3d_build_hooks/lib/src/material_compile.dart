@@ -46,6 +46,7 @@ import 'package:flutter3d_shaders/backend.dart'
         MaterialCompileException,
         MaterialCompileRequest,
         MaterialCompilerRegistry,
+        MaterialStageBudget,
         MaterialStageSource;
 import 'package:flutter3d_shaders/compile.dart';
 
@@ -250,24 +251,16 @@ ShaderBundle compileMaterial(
     );
   }
   final specialised = specializeMaterial(program, MaterialVariant(name));
-  final vertexName = program.vertexStageName;
 
   // The stages the source becomes: the fragment stage under the material's
-  // name, and with a `vertex` block its two vertex stages — version 2.
+  // name, and with a `vertex` block its vertex stages — the plain and the
+  // skinned from version 2, the instanced and the lightmapped from 3.
   final stages = <_Stage>[
     (name: name, fragment: true, glsl: emitMaterialFragment(specialised)),
-    if (vertexName != null) ...<_Stage>[
-      (
-        name: vertexName,
-        fragment: false,
-        glsl: emitMaterialVertex(specialised),
-      ),
-      (
-        name: '${vertexName}Skinned',
-        fragment: false,
-        glsl: emitMaterialVertex(specialised, skinned: true),
-      ),
-    ],
+    for (final MapEntry(key: stage, value: glsl) in emitMaterialVertexStages(
+      specialised,
+    ).entries)
+      (name: stage, fragment: false, glsl: glsl),
   ];
 
   Never refused(String what, String message) =>
@@ -312,6 +305,16 @@ ShaderBundle compileMaterial(
       );
     } on GlslTranslateException catch (error) {
       refused('the WebGL2 translation of ${stage.name}', error.message);
+    }
+  }
+  // The budget, counted from the GLSL every backend's path has: before,
+  // only the WebGPU section counted, and only where its compilers were
+  // installed, so a stage over WebGL2's sixteen units shipped and failed to
+  // link on a phone's browser. Mutation: skip this and
+  // `material_budget_test.dart`'s stage of seventeen textures builds.
+  for (final MapEntry(key: stage, value: glsl) in resolved.entries) {
+    if (MaterialStageBudget.problemOfGlsl(stage, glsl) case final problem?) {
+      refused('the binding budget', problem);
     }
   }
 

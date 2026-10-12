@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: the editor's tints are `LinearColor`s.** `Handle.tint`,
+  `Placeable.tint`, `PaletteEntry.tint`, `Look.tint`, `Part.color`,
+  `tintFor`, `Looks.tintFor` and `atLeast`.
 - **A gizmo mark's `tint` is a `LinearColor`**, the one colour type, where
   it was a vector.
 - **A plugin's pieces are published under its namespace.**

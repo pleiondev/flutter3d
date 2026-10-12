@@ -17,6 +17,64 @@
   `SamplerAddressMode`, which `SamplerDescriptor` already took, and
   `TextureWrap.mirroredRepeat` is `SamplerAddressMode.mirror`. `migrate`
   renames both. Files keep their own words for a wrap.
+- **A lighting model written in the material language sees a plugin's
+  light type.** Version 3's `light` block reads `lightKind` and
+  `lightParams` (new inputs), names a type with `lighttype tube =
+  acme.tube;` and reads `tube` as one for a light of it; such a block
+  gathers through the material's own loop, which hands it the lights code
+  16 and up that the engine's stages skip. `LightingModel.lightTypeMembers`,
+  `MaterialBindings.lightTypes`, `MaterialProgram.lightTypes` and
+  `readsLightRow`, and `LightTypes.codeNamed` are new; the renderer fills
+  each type's code.
+- **A material's `vertex` block is drawn on instanced and lightmapped draws
+  too.** From material language version 3 the build and `RuntimeShaders`
+  emit `<name>VertexInstanced` and `<name>VertexLightmapped`
+  (`emitMaterialVertex(instanced:, lightmapped:)` and
+  `emitMaterialVertexStages`, new), the block reads the instance's four
+  numbers as `instance`, `MaterialBindings.vertexVariants` (new) lists the
+  halves, `BundledMaterials` lists only those its bundle carries, and the
+  depth and shadow passes draw an instanced caster through the material's
+  instanced half. A version 2 source keeps the engine's stages for those
+  draws.
+- **A full-screen stage written in the material language binds what it
+  declares.** `FullscreenEffect.material(materials, stage, …)` (new) seeds
+  its `MaterialParams` at the source's defaults as
+  `FullscreenEffect.parameters` (new), sets `readsSurface` from a
+  `sceneDepth` read, and refuses a texture of its own that `textures` does
+  not name; `MaterialBindings.textureBindings` (new) lists them. A render
+  step from data that samples a texture of its own is refused with a
+  status rather than drawn unbound.
+- **The binding budget is counted on every backend.** The build and
+  `RuntimeShaders` count each stage from the GLSL the emitter wrote
+  (`MaterialStageBudget.problemOfGlsl` and `countGlslBindings`, new, in
+  `flutter3d_shaders`), where only the WebGPU section writer counted, and
+  only where glslang and naga were installed. A lighting model of a
+  plugin's own has a share that holds for all of 1.x:
+  `MaterialStageBudget.materialTextures` (3) and `materialUniformBlocks` (4).
+- **The frame resources a stage reads have a contract.** CONTRACTS'
+  "Frame resources a stage reads" freezes within 1.x what `hdr_color`,
+  `surface_buffer`, `velocity` and `frame` hold, and `FrameContext.nitsPerHdrUnit`
+  (new) gives the light scale `hdr_color` is in, so a stage adds light in
+  nits. The docs of `FrameResourceIds.surfaceBuffer` and `velocity` and of
+  `FullscreenDraw` said three different things and now say that one.
+- **The material language grows by version.** `MaterialInput.since` (now
+  a required argument) and `materialBuiltinVersions` say the version each
+  input and builtin arrived in, and a source of an older `f3dmat N` neither
+  reads one nor loses a name to it. The block names a material cannot use
+  are frozen (`materialReservedBlockNames`) with the shape the engine keeps
+  for later ones (`isEngineBlockName`: `F3d…`, `…Info`) rather than read off
+  the live table, so a block the engine adds in a minor refuses no material.
+- **Breaking: a material's parameters are a `MaterialParameters`.**
+  `RenderMaterial.parameters` (and its constructor's `parameters:`) was a
+  `Map<String, Float32List>`; it is the one shape a material's parameters
+  have, the same type `Material3D` and a level's `LevelMaterial` hold.
+  Indexing reads the bound floats and writes through the schema's check;
+  `MaterialParameters.over(map)` wraps a map a caller still writes.
+  `BundledMaterials.parameters` answers one checked against the source's
+  schema, `BundledMaterials.schema` is a method of the bundle (the
+  `BundledMaterialSchemas` extension is gone), and a parsed source's schema
+  is `MaterialProgram.schema`. The types themselves moved to
+  `flutter3d_foundation`.
 - **Breaking: a decoder, a writer and the renderer's services take one
   context each.** `ModelDecoder.handles` takes a `ModelProbe` (new: the
   file's name and bytes) and `decode` a `ModelDecodeContext` (new: the

@@ -1629,6 +1629,10 @@ const Map<String, String> notAVersionedFormat = <String, String>{
   'packages/flutter3d_core/lib/src/formats/material_language/material_parser.dart#materialLanguageUpdatesVersion':
       'the `.f3dmat` version that brought a material\'s own version, one '
       '`f3dmatFormat` already lists; its fixture is v3/rim_glow.f3dmat',
+  'packages/flutter3d_core/lib/src/formats/material_language/material_ast.dart#materialLanguageVariantsVersion':
+      'the `.f3dmat` version from which a vertex block has its instanced '
+      'and lightmapped halves, 3, one `f3dmatFormat` already lists; its '
+      'fixture is v3/rim_glow.f3dmat',
   'packages/flutter3d_core/lib/src/formats/material_language/material_ast.dart#firstMaterialVersion':
       'a material\'s own version counts its parameters\' changes, written '
       'inside the `.f3dmat` file and beside an instance in a level, and is '

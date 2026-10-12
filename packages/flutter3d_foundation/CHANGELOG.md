@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **`MaterialParameters` and its schema live here.** `MaterialParameters`,
+  `ParameterKey`, `ParameterType`, `ParameterDeclaration`,
+  `MaterialParameterSchema` and `MaterialParameterException` moved from
+  `flutter3d_core`, so a level's material, which may not import the
+  engine, holds the same type the renderer does. New: `MaterialParameters.of`
+  (numbers by name, copied and checked), `[]` (the bound floats, for a hot
+  path that writes in place), `[]=`, `names`, `isNotEmpty`, `copy` and
+  `adopt` (a hot reload's new schema, in place).
 - **Breaking: a crash reporter takes one `CrashContext`.** A
   `CrashReporter` is handed a `CrashContext` (new) with the `error`, its
   `stackTrace` and the `record` the log kept, so a minor can tell a

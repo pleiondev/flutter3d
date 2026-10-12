@@ -1,3 +1,5 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -88,9 +90,10 @@ final class Handle {
   final Vector3 center;
   final Vector3 size;
 
-  /// What to draw it in. A light wears its own colour, which is the fastest way
-  /// to see that a room is lit orange because somebody made it orange.
-  final Vector3 tint;
+  /// What to draw it in, linear. A light wears its own colour, which is the
+  /// fastest way to see that a room is lit orange because somebody made it
+  /// orange.
+  final LinearColor tint;
 
   /// Whether the *document* gave this a size of its own.
   ///
@@ -124,7 +127,7 @@ List<Handle> handlesOf(Level level, {Looks looks = Looks.none}) => <Handle>[
       index: i,
       center: level.brushes[i].center,
       size: level.brushes[i].size,
-      tint: Vector3(1.0, 0.45, 0.05),
+      tint: const LinearColor(1.0, 0.45, 0.05),
     ),
   for (var i = 0; i < level.lights.length; i++)
     Handle(
@@ -133,14 +136,7 @@ List<Handle> handlesOf(Level level, {Looks looks = Looks.none}) => <Handle>[
       center: level.lights[i].position,
       size: Vector3.all(gizmoSize),
       // Its own colour, brightened so a dim lamp is still visible as a mark.
-      tint: atLeast(
-        Vector3(
-          level.lights[i].color.r,
-          level.lights[i].color.g,
-          level.lights[i].color.b,
-        ),
-        0.35,
-      ),
+      tint: atLeast(level.lights[i].color, 0.35),
     ),
   for (var i = 0; i < level.entities.length; i++)
     Handle(
@@ -170,8 +166,8 @@ List<Handle> handlesOf(Level level, {Looks looks = Looks.none}) => <Handle>[
 /// The one exception is anything with `spawn` in its name, which is green,
 /// because where the player starts is the one thing an editor is always looking
 /// for.
-Vector3 tintFor(String type) {
-  if (type.contains('spawn')) return Vector3(0.35, 1.0, 0.4);
+LinearColor tintFor(String type) {
+  if (type.contains('spawn')) return const LinearColor(0.35, 1.0, 0.4);
   var hash = 0;
   for (final unit in type.codeUnits) {
     hash = (hash * 31 + unit) & 0x7fffffff;
@@ -181,17 +177,17 @@ Vector3 tintFor(String type) {
 
 /// A saturated colour at [hue], which is the whole of the colour wheel this
 /// needs: the marks are small and want to be told apart, not shaded.
-Vector3 _fromHue(double hue) {
+LinearColor _fromHue(double hue) {
   final sector = hue * 6.0;
   final rise = sector - sector.floorToDouble();
   final fall = 1.0 - rise;
   return switch (sector.floor() % 6) {
-    0 => Vector3(1.0, rise, 0.0),
-    1 => Vector3(fall, 1.0, 0.0),
-    2 => Vector3(0.0, 1.0, rise),
-    3 => Vector3(0.0, fall, 1.0),
-    4 => Vector3(rise, 0.0, 1.0),
-    _ => Vector3(1.0, 0.0, fall),
+    0 => LinearColor(1.0, rise, 0.0),
+    1 => LinearColor(fall, 1.0, 0.0),
+    2 => LinearColor(0.0, 1.0, rise),
+    3 => LinearColor(0.0, fall, 1.0),
+    4 => LinearColor(rise, 0.0, 1.0),
+    _ => LinearColor(1.0, 0.0, fall),
   };
 }
 
@@ -201,13 +197,13 @@ Vector3 _fromHue(double hue) {
 /// needs the same brightening for a palette row's swatch, and a colour that
 /// reads as black in one place and is nudged up in the other is a colour that
 /// looks like two different bugs.
-Vector3 atLeast(Vector3 color, double floor) {
+LinearColor atLeast(LinearColor color, double floor) {
   final brightest = <double>[
-    color.x,
-    color.y,
-    color.z,
+    color.r,
+    color.g,
+    color.b,
   ].reduce((double a, double b) => a > b ? a : b);
-  if (brightest >= floor) return color.clone();
-  if (brightest < 1e-6) return Vector3.all(floor);
-  return color * (floor / brightest);
+  if (brightest >= floor) return color;
+  if (brightest < 1e-6) return LinearColor(floor, floor, floor, color.a);
+  return color.scaled(floor / brightest);
 }

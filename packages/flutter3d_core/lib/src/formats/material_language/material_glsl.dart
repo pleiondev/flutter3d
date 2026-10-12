@@ -60,12 +60,17 @@ String emitMaterialFragment(MaterialProgram program) {
   // Version 2's lit path: the hooks, the switches, or both. Without any of
   // them a lit material adds `lit` up exactly as version 1 did, so every
   // stage written before them compiles to the same text.
+  // Version 3: a light block that reads the light's row gathers its lights
+  // through the material's own loop, which hands it a plugin's light type
+  // rather than skipping it as the engine's does.
+  final rowAware = light != null && program.readsLightRow;
   final hooked =
       light != null &&
       (program.ambient != null ||
           program.composite != null ||
           !state.environment ||
-          !state.directional);
+          !state.directional ||
+          rowAware);
   final readsScene = program.readsSceneDepth;
   final readsViewDepth = readsScene || program.inputsUsed.contains('viewDepth');
   final out = StringBuffer()
@@ -146,6 +151,17 @@ String emitMaterialFragment(MaterialProgram program) {
     // The `light` block is `ShadeLight`, which `AccumulateLights` multiplies
     // by the light's radiance, n·l and visibility; the visibility is the
     // shadow, as every lit model of the engine's has it.
+    if (rowAware) {
+      out
+        ..writeln('// The row of the light being shaded, which the material\'s')
+        ..writeln('// loop sets before each call — version 3.')
+        ..writeln('float f3d_light_kind = 0.0;')
+        ..writeln('vec4 f3d_light_params = vec4(0.0);');
+      for (final name in program.lightTypes.keys) {
+        out.writeln('float f3d_is_$name = 0.0;');
+      }
+      out.writeln();
+    }
     out
       ..writeln('// The material\'s light block, run once per light.')
       ..writeln('vec3 ShadeLight(Surface s, LightSample light) {');
@@ -181,7 +197,9 @@ String emitMaterialFragment(MaterialProgram program) {
       ..writeln('}')
       ..writeln();
   }
-  if (light != null && !state.directional) {
+  if (rowAware) {
+    _materialRowLights(out, program, directional: state.directional);
+  } else if (light != null && !state.directional) {
     // `directional off`: `AccumulateLights` with the sun left out. A
     // directional light always takes one of the draw's eight slots —
     // `LightBuffer` ranks only the lights with a position into the list —
@@ -235,7 +253,7 @@ String emitMaterialFragment(MaterialProgram program) {
         's.emissive;',
       );
   } else if (light != null) {
-    final direct = state.directional
+    final direct = state.directional && !rowAware
         ? 'AccumulateLights(s)'
         : 'MaterialLights(s)';
     final indirect = !state.environment
@@ -366,8 +384,20 @@ String _blockInstance(String block) =>
 /// `FrameInfo` to such a stage — scene, pre-draw, shadow — with the matrix
 /// that pass draws through.
 ///
-/// Throws an [ArgumentError] for a program without a `vertex` block.
-String emitMaterialVertex(MaterialProgram program, {bool skinned = false}) {
+/// With [instanced] (version 3) it is the instanced half,
+/// `mesh_instanced.vert`'s inputs in its order (the layout
+/// `MeshVertexLayouts.instanced` draws), the block run on the vertex after
+/// the instance's transform; with [lightmapped], `mesh_lightmapped.vert`'s,
+/// the vertex colour carrying the lightmap's coordinate.
+///
+/// Throws an [ArgumentError] for a program without a `vertex` block, or for
+/// more than one of [skinned], [instanced] and [lightmapped].
+String emitMaterialVertex(
+  MaterialProgram program, {
+  bool skinned = false,
+  bool instanced = false,
+  bool lightmapped = false,
+}) {
   final vertex =
       program.vertex ??
       (throw ArgumentError.value(
@@ -375,6 +405,18 @@ String emitMaterialVertex(MaterialProgram program, {bool skinned = false}) {
         'program',
         'has no vertex block',
       ));
+  if (<bool>[skinned, instanced, lightmapped].where((b) => b).length > 1) {
+    throw ArgumentError(
+      'a vertex stage is one of skinned, instanced and lightmapped',
+    );
+  }
+  final engineFile = skinned
+      ? 'mesh_skinned.vert'
+      : instanced
+      ? 'mesh_instanced.vert'
+      : lightmapped
+      ? 'mesh_lightmapped.vert'
+      : 'mesh.vert';
   final writes = <String>{
     for (final statement in vertex)
       if (statement is MaterialOutput) statement.output.name,
@@ -385,7 +427,7 @@ String emitMaterialVertex(MaterialProgram program, {bool skinned = false}) {
     ..writeln()
     ..writeln('// Generated from the vertex block of a material written in')
     ..writeln('// the material language, version 2. The source is the thing')
-    ..writeln('// to edit. `mesh${skinned ? '_skinned' : ''}.vert` with the')
+    ..writeln('// to edit. `$engineFile` with the')
     ..writeln('// block between the engine\'s answer and the varyings.')
     ..writeln()
     ..writeln('in vec3 position;')
@@ -393,9 +435,26 @@ String emitMaterialVertex(MaterialProgram program, {bool skinned = false}) {
     ..writeln('in vec2 texcoord;')
     ..writeln('in vec4 tangent;')
     ..writeln('in vec4 color;')
-    ..writeln()
-    ..writeln('#include <lib/morph.glsl>')
     ..writeln();
+  if (instanced) {
+    // `mesh_instanced.vert`'s inputs in its order: the instance index the
+    // morph reads, then the rows, the colour and the four numbers.
+    out
+      ..writeln('#include <lib/morph_instanced.glsl>')
+      ..writeln()
+      ..writeln('#include <lib/instance_index.glsl>')
+      ..writeln()
+      ..writeln('in vec4 i_row0;')
+      ..writeln('in vec4 i_row1;')
+      ..writeln('in vec4 i_row2;')
+      ..writeln('in vec4 i_color;')
+      ..writeln('in vec4 i_data;')
+      ..writeln();
+  } else {
+    out
+      ..writeln('#include <lib/morph.glsl>')
+      ..writeln();
+  }
   if (skinned) {
     out
       ..writeln('in vec4 joints;')
@@ -470,9 +529,45 @@ String emitMaterialVertex(MaterialProgram program, {bool skinned = false}) {
     ..writeln('  vec3 morphed_normal = normal;')
     ..writeln('  vec4 morphed_tangent = tangent;')
     ..writeln(
-      '  ApplyMorph(morphed_position, morphed_normal, morphed_tangent);',
+      instanced
+          ? '  ApplyMorphInstanced(F3dInstanceIndex(), morphed_position, '
+                'morphed_normal, morphed_tangent);'
+          : '  ApplyMorph(morphed_position, morphed_normal, morphed_tangent);',
     );
-  if (skinned) {
+  // Version 3's `instance`, and white for `color` on a lightmapped draw,
+  // whose attribute holds the lightmap's coordinate. An older source's
+  // stage is written as it always was.
+  final variants = program.languageVersion >= materialLanguageVariantsVersion;
+  if (variants) {
+    out.writeln('  vec4 f3d_instance = ${instanced ? 'i_data' : 'vec4(0.0)'};');
+  }
+  if (lightmapped) out.writeln('  vec4 f3d_color = vec4(1.0);');
+  if (instanced) {
+    out
+      ..writeln('  mat4 f3d_instance_matrix = mat4(')
+      ..writeln('      vec4(i_row0.x, i_row1.x, i_row2.x, 0.0),')
+      ..writeln('      vec4(i_row0.y, i_row1.y, i_row2.y, 0.0),')
+      ..writeln('      vec4(i_row0.z, i_row1.z, i_row2.z, 0.0),')
+      ..writeln('      vec4(i_row0.w, i_row1.w, i_row2.w, 1.0));')
+      ..writeln('  mat3 f3d_instance_rotation = mat3(f3d_instance_matrix);')
+      ..writeln(
+        '  vec3 f3d_position = (f3d_instance_matrix * '
+        'vec4(morphed_position, 1.0)).xyz;',
+      )
+      ..writeln(
+        '  vec3 f3d_object_normal = normalize(f3d_instance_rotation * '
+        'morphed_normal);',
+      )
+      ..writeln(
+        '  vec3 f3d_tangent = f3d_instance_rotation * morphed_tangent.xyz;',
+      )
+      ..writeln(
+        '  bool f3d_mirrored = (determinant(mat3(frame_info.model)) < 0.0) !=',
+      )
+      ..writeln(
+        '                      (determinant(f3d_instance_rotation) < 0.0);',
+      );
+  } else if (skinned) {
     out
       ..writeln('  mat4 skin = SkinMatrix();')
       ..writeln('  mat3 f3d_skin_rotation = mat3(skin);')
@@ -510,8 +605,15 @@ String emitMaterialVertex(MaterialProgram program, {bool skinned = false}) {
     ..writeln('  vec3 f3d_out_normal = f3d_normal;')
     ..writeln()
     ..writeln('  // The material\'s vertex block.');
-  _statements(out, vertex, (_) => throw StateError('a vertex block returns'));
-  out.writeln();
+  final block = StringBuffer();
+  _statements(block, vertex, (_) => throw StateError('a vertex block returns'));
+  out
+    ..write(
+      lightmapped
+          ? block.toString().replaceAll(RegExp(r'\bcolor\b'), 'f3d_color')
+          : block,
+    )
+    ..writeln();
   if (writes.contains('position')) {
     out.writeln(
       '  f3d_out_world = (frame_info.model * vec4(f3d_out_position, '
@@ -527,9 +629,15 @@ String emitMaterialVertex(MaterialProgram program, {bool skinned = false}) {
       '                   f3d_mirrored ? -morphed_tangent.w : '
       'morphed_tangent.w);',
     )
-    ..writeln('  v_color = color;')
-    ..writeln('  v_lightmap_uv = vec2(0.0);')
-    ..writeln('  v_instance = vec4(0.0);')
+    ..writeln(
+      '  v_color = ${instanced
+          ? 'color * i_color'
+          : lightmapped
+          ? 'vec4(1.0)'
+          : 'color'};',
+    )
+    ..writeln('  v_lightmap_uv = ${lightmapped ? 'color.xy' : 'vec2(0.0)'};')
+    ..writeln('  v_instance = ${variants ? 'f3d_instance' : 'vec4(0.0)'};')
     ..writeln(
       projectsWorld
           ? '  gl_Position = material_vertex_info.view_projection * '
@@ -687,6 +795,11 @@ MaterialBindings describeMaterial(MaterialProgram program) {
         program.kind == MaterialStageKind.fullscreen &&
         program.inputsUsed.contains('sceneDepth'),
     vertexShaderName: program.vertexStageName,
+    textureBindings: <String>[
+      for (final slot in program.textures) slot.bindingName,
+    ],
+    vertexVariants: materialVertexVariants(program),
+    lightTypes: program.lightTypes,
   );
 }
 
@@ -711,9 +824,27 @@ final class MaterialBindings {
     this.readsSurfaceBuffer = false,
     this.vertexShaderName,
     this.slots = MaterialSlotTable.none,
+    this.textureBindings = const <String>[],
+    this.vertexVariants = const <VertexStageVariant>{},
+    this.lightTypes = const <String, String>{},
   });
 
+  /// The source's `lighttype` declarations, version 3: each name its light
+  /// block reads to the light type's name. See `LightingModel.lightTypeMembers`.
+  final Map<String, String> lightTypes;
+
+  /// The instanced and lightmapped halves of the source's own vertex
+  /// stage: both for a version 3 source with a `vertex` block, none for an
+  /// older one, whose instanced and lightmapped draws keep the engine's.
+  final Set<VertexStageVariant> vertexVariants;
+
   final String name;
+
+  /// The binding name of each texture the source declares, in declaration
+  /// order: the engine's slots it reads and its own. For a full-screen stage
+  /// the picture is `scene_texture`, and every other name is one a caller
+  /// binds (`FullscreenEffect.material` refuses one left unnamed).
+  final List<String> textureBindings;
 
   /// What the stage binds beyond the engine's own: its uniform blocks and
   /// its own textures (D21). The [LightingModel] made here carries it.
@@ -770,11 +901,17 @@ final class MaterialBindings {
   /// stage the language made is drawn in the depth and shadow passes too —
   /// `LightingModel.vertexStageInDepthPasses`. Naming another stage keeps
   /// those passes on the engine's, as a stage written by hand always was.
+  ///
+  /// [vertexVariants] are the instanced and lightmapped halves the bundle
+  /// carries; null says every half a version 3 source's own vertex stage
+  /// has (`<name>VertexInstanced`, `<name>VertexLightmapped`), which is what
+  /// the build and `RuntimeShaders` make.
   LightingModel lightingModel({
     required String label,
     required String shaderName,
     String? vertexShaderName,
     bool vertexStageMorphs = true,
+    Set<VertexStageVariant>? vertexVariants,
   }) {
     if (kind != MaterialStageKind.surface) {
       throw StateError(
@@ -796,6 +933,13 @@ final class MaterialBindings {
       usesSceneDepth: usesSceneDepth,
       vertexStageInDepthPasses:
           vertex != null && vertex == this.vertexShaderName,
+      vertexVariants: vertex != null && vertex == this.vertexShaderName
+          ? vertexVariants ?? this.vertexVariants
+          : const <VertexStageVariant>{},
+      lightTypeMembers: <String, String>{
+        for (final MapEntry(key: name, value: type) in lightTypes.entries)
+          materialLightTypeMember(name): type,
+      },
       slots: slots,
     );
   }
@@ -906,4 +1050,158 @@ String _number(double value) {
   }
   final text = value.toString();
   return text.contains('.') || text.contains('e') ? text : '$text.0';
+}
+
+/// The halves of [program]'s own vertex stage besides the plain and the
+/// skinned one: the instanced and the lightmapped, for a version 3 source
+/// with a `vertex` block, by the name each is built under.
+Map<VertexStageVariant, String> materialVertexVariantStages(
+  MaterialProgram program,
+) => switch (program.vertexStageName) {
+  final vertex?
+      when program.languageVersion >= materialLanguageVariantsVersion =>
+    <VertexStageVariant, String>{
+      for (final variant in <VertexStageVariant>[
+        VertexStageVariant.instanced,
+        VertexStageVariant.lightmapped,
+      ])
+        variant: '$vertex${variant.suffix}',
+    },
+  _ => const <VertexStageVariant, String>{},
+};
+
+/// [materialVertexVariantStages]'s variants.
+Set<VertexStageVariant> materialVertexVariants(MaterialProgram program) =>
+    materialVertexVariantStages(program).keys.toSet();
+
+/// Every vertex stage [program]'s `vertex` block becomes, by the name each
+/// is built and looked up under, with its GLSL: `<name>Vertex`, its
+/// skinned half and, from version 3, its instanced and lightmapped halves
+/// ([materialVertexVariantStages]). Empty for a program without the block.
+/// [program] is specialised already, as the build hands it over.
+Map<String, String> emitMaterialVertexStages(MaterialProgram program) =>
+    switch (program.vertexStageName) {
+      null => const <String, String>{},
+      final vertex => <String, String>{
+        vertex: emitMaterialVertex(program),
+        '${vertex}Skinned': emitMaterialVertex(program, skinned: true),
+        for (final MapEntry(key: variant, value: stage)
+            in materialVertexVariantStages(program).entries)
+          stage: emitMaterialVertex(
+            program,
+            instanced: variant == VertexStageVariant.instanced,
+            lightmapped: variant == VertexStageVariant.lightmapped,
+          ),
+      },
+    };
+
+/// `MaterialLights` for a `light` block that reads the light's row —
+/// version 3: every light the draw has (the directional ones left out
+/// unless [directional]), each row read whole into `f3d_light_kind` and
+/// `f3d_light_params` before the block runs, and a plugin's light type
+/// (code 16 and up), which `SampleLight` skips, handed to the block with
+/// its direction, n·l and its colour times its intensity: the block brings
+/// the falloff, from `lightParams`. No shadow is read for one; the engine's
+/// shadow rows are for its own types.
+void _materialRowLights(
+  StringBuffer out,
+  MaterialProgram program, {
+  required bool directional,
+}) {
+  out
+    ..writeln(
+      '// A light\'s row, as `SampleLight` reads it: the slots, then the',
+    )
+    ..writeln('// list, its cell\'s when the draw is clustered.')
+    ..writeln('void F3dLightRow(int index, out vec4 position, out vec4 color,')
+    ..writeln('                 out vec4 direction, out vec4 cone) {')
+    ..writeln('  if (index < kMaxLights) {')
+    ..writeln('    position = frag_info.light_position[index];')
+    ..writeln('    color = frag_info.light_color[index];')
+    ..writeln('    direction = frag_info.light_direction[index];')
+    ..writeln('    cone = frag_info.light_cone[index];')
+    ..writeln('    return;')
+    ..writeln('  }')
+    ..writeln('  int slot = index - kMaxLights;')
+    ..writeln('  bool clustered = Clustered();')
+    ..writeln(
+      '  float listRow = clustered ? ClusterRow(slot) : LightListRow(slot);',
+    )
+    ..writeln('  float v = (listRow + 0.5) * light_list_info.list.z;')
+    ..writeln('  float u = light_list_info.list.y;')
+    ..writeln(
+      '  position = textureLod(light_list_texture, vec2(0.5 * u, v), 0.0);',
+    )
+    ..writeln(
+      '  color = textureLod(light_list_texture, vec2(1.5 * u, v), 0.0);',
+    )
+    ..writeln(
+      '  direction = textureLod(light_list_texture, vec2(2.5 * u, v), 0.0);',
+    )
+    ..writeln('  cone = textureLod(light_list_texture, vec2(3.5 * u, v), 0.0);')
+    ..writeln(
+      '  color.w *= clustered ? (InSlots(listRow) ? 0.0 : 1.0) : '
+      'LightListScale(slot);',
+    )
+    ..writeln('}')
+    ..writeln()
+    ..writeln('vec3 MaterialLights(Surface s) {')
+    ..writeln('  vec3 total = vec3(0.0);')
+    ..writeln('  int count = LightCount();')
+    ..writeln('  for (int i = 0; i < kTotalLights; i++) {')
+    ..writeln('    if (i >= count) break;');
+  if (!directional) {
+    out.writeln(
+      '    if (i < kMaxLights && frag_info.light_position[i].w < 0.5) '
+      'continue;',
+    );
+  }
+  out
+    ..writeln('    vec4 row_position;')
+    ..writeln('    vec4 row_color;')
+    ..writeln('    vec4 row_direction;')
+    ..writeln('    vec4 row_cone;')
+    ..writeln(
+      '    F3dLightRow(i, row_position, row_color, row_direction, row_cone);',
+    )
+    ..writeln('    f3d_light_kind = row_position.w;')
+    ..writeln('    f3d_light_params = row_cone;');
+  for (final name in program.lightTypes.keys) {
+    out.writeln(
+      '    f3d_is_$name = abs(f3d_light_kind - '
+      '${_blockInstance(materialParametersBlock)}.'
+      '${materialLightTypeMember(name)}) < 0.5 ? 1.0 : 0.0;',
+    );
+  }
+  out
+    ..writeln('    if (f3d_light_kind > 15.5) {')
+    ..writeln('      LightSample own;')
+    ..writeln('      own.integrated = 0.0;')
+    ..writeln('      own.ltc = vec3(0.0);')
+    ..writeln('      own.l = normalize(row_position.xyz - v_world_position);')
+    ..writeln('      own.h = normalize(own.l + s.v);')
+    ..writeln('      own.n_dot_l = max(dot(s.n, own.l), 0.0);')
+    ..writeln('      own.n_dot_h = max(dot(s.n, own.h), 0.0);')
+    ..writeln('      own.v_dot_h = max(dot(s.v, own.h), 0.0);')
+    ..writeln('      own.radiance = row_color.rgb * row_color.w;')
+    ..writeln('      if (own.n_dot_l <= 0.0) continue;')
+    ..writeln('      total += ShadeLight(s, own) * own.radiance * own.n_dot_l;')
+    ..writeln('      continue;')
+    ..writeln('    }')
+    ..writeln('    LightSample light = SampleLight(i, s);')
+    ..writeln('    if (light.n_dot_l <= 0.0) continue;')
+    ..writeln('    light_transmittance = vec3(1.0);')
+    ..writeln('    float visibility = LightHasShadow(i)')
+    ..writeln('        ? LightVisibility(s, light, i) *')
+    ..writeln('              PointShadowFactor(v_world_position, s.n, i)')
+    ..writeln('        : 1.0;')
+    ..writeln('    if (visibility <= 0.0) continue;')
+    ..writeln(
+      '    total += ShadeLight(s, light) * light.radiance * light.n_dot_l * '
+      'visibility * light_transmittance;',
+    )
+    ..writeln('  }')
+    ..writeln('  return total;')
+    ..writeln('}')
+    ..writeln();
 }

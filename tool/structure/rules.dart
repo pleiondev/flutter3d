@@ -200,6 +200,7 @@ List<Rule> get allRules => <Rule>[
     name: 'a break in a published API is labelled and versioned',
     run: _apiBreaksLabelled,
   ),
+  (name: 'the shader ABI only grows', run: _shaderAbiOnlyGrows),
   (
     name: 'every deprecation names its versions and its replacement',
     run: _deprecationsDated,
@@ -4965,6 +4966,51 @@ List<Finding> _schemaSnapshotsCurrent() => _snapshotsCurrent(
   program: 'api_snapshot:schema_snapshot',
   update: 'dart run api_snapshot:schema_snapshot --update',
 );
+
+/// The shader ABI of `flutter3d_shaders` (`api/flutter3d_shaders.abi`)
+/// holds every line of the base recorded at 1.0.0-rc.1
+/// (`tool/api/abi_base/flutter3d_shaders.abi`).
+///
+/// **The API snapshot cannot see it.** It writes `uniformBlocks = …` and
+/// `stageBindings = …` for a constant too long to list, and the manifest
+/// test compares the entry points with a JSON in the same tree, which moves
+/// with them. So a stage dropped, a member removed or reordered, a block
+/// whose offset moved or a vertex input renumbered passed every check, and
+/// a plugin bundle built against 1.0 would have read the wrong offsets. The
+/// file is one fact a line, kept current by the package's own test
+/// (`shader_abi_test.dart`); this rule reads only text.
+///
+/// Mutation: delete a member line from the package's `.abi`, or change an
+/// offset, and this names the line.
+List<Finding> _shaderAbiOnlyGrows() {
+  final root = repositoryRoot.path;
+  const current = 'packages/flutter3d_shaders/api/flutter3d_shaders.abi';
+  const base = 'tool/api/abi_base/flutter3d_shaders.abi';
+  final files = <String, File>{
+    for (final path in <String>[current, base]) path: File('$root/$path'),
+  };
+  final missing = <Finding>[
+    for (final MapEntry(:key, :value) in files.entries)
+      if (!value.existsSync())
+        Finding(
+          key,
+          'is missing: the shader ABI is checked line by line against '
+          'its base',
+        ),
+  ];
+  if (missing.isNotEmpty) return missing;
+  final have = files[current]!.readAsLinesSync().toSet();
+  return <Finding>[
+    for (final line in files[base]!.readAsLinesSync())
+      if (line.isNotEmpty && !line.startsWith('#') && !have.contains(line))
+        Finding(
+          current,
+          'no longer has `$line`, which 1.0.0-rc.1 recorded: a minor may add '
+          'to the shader ABI, never drop or change it. Put it back, or, in a '
+          'major, record a new base',
+        ),
+  ];
+}
 
 /// Runs `tool/api`'s [program] with `--check --brief` and reads its lines.
 List<Finding> _snapshotsCurrent({

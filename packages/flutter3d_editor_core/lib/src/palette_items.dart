@@ -1,5 +1,6 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'editor_pieces.dart';
 import 'gizmos.dart';
@@ -30,7 +31,8 @@ final class Placeable {
   /// exit and a level with three are both worth noticing before playing it.
   final int count;
 
-  final Vector3 tint;
+  /// What the row and the gizmo are drawn in, linear.
+  final LinearColor tint;
 
   /// What a placed entity starts with when the level has none of its type yet
   /// to copy: a plugin's palette entry's defaults (`PaletteEntry.properties`).
@@ -110,23 +112,23 @@ List<Placeable> paletteOf(
         count: byMaterial[name]!,
         // The colour it is actually painted, which says more about what a row
         // will put down than any word does.
-        tint: atLeast(
-          level.materials[name]?.storedBaseColor.xyz ?? Vector3.all(0.7),
-          0.25,
-        ),
+        tint: atLeast(switch (level.materials[name]?.storedBaseColor) {
+          final stored? => LinearColor(stored.r, stored.g, stored.b),
+          null => const LinearColor(0.7, 0.7, 0.7),
+        }, 0.25),
       ),
     Placeable(
       kind: Piece.light,
       what: paletteLight,
       count: level.lights.length,
-      tint: Vector3(1.0, 0.9, 0.5),
+      tint: const LinearColor(1.0, 0.9, 0.5),
     ),
     for (final type in counts.keys.toList()..sort())
       Placeable(
         kind: Piece.entity,
         what: type,
         count: counts[type]!,
-        tint: entries[type]?.tint?.clone() ?? tintFor(type),
+        tint: entries[type]?.tint ?? tintFor(type),
         properties: entries[type]?.properties ?? const <String, Object?>{},
         label: entries[type]?.label,
       ),

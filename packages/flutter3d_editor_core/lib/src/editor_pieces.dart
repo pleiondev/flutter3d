@@ -115,9 +115,9 @@ final class PaletteEntry {
   /// What the row says, or null for [type].
   final String? label;
 
-  /// The colour the row and the gizmo are drawn in, or null for the colour
-  /// the type's name picks.
-  final Vector3? tint;
+  /// The colour the row and the gizmo are drawn in, linear, or null for the
+  /// colour the type's name picks.
+  final LinearColor? tint;
 
   /// The properties a placed one starts with when the level has none of its
   /// type to copy.
@@ -516,10 +516,7 @@ final class EditorPieces extends EditorRegistry {
           PaletteEntry(
             kind.type,
             label: kind.label,
-            tint: switch (kind.tint) {
-              final LinearColor tint => Vector3(tint.r, tint.g, tint.b),
-              null => null,
-            },
+            tint: kind.tint,
             properties: <String, Object?>{
               for (final component in _store.hints.componentsOf(kind.type))
                 for (final field in component.fields)

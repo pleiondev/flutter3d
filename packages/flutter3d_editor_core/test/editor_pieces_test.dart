@@ -444,7 +444,7 @@ void main() {
             PaletteEntry(
               'raft',
               label: 'Raft',
-              tint: Vector3(0.2, 0.4, 0.8),
+              tint: const LinearColor(0.2, 0.4, 0.8),
               properties: const <String, Object?>{'buoyancy': 2.0},
             ),
           );
@@ -457,8 +457,7 @@ void main() {
       ).singleWhere((Placeable it) => it.what == 'raft');
       expect(raft.count, 0);
       expect(raft.label, 'Raft');
-      // `Vector3` is float32, so 0.8 comes back to float32's precision.
-      expect(raft.tint.z, closeTo(0.8, 1e-7));
+      expect(raft.tint.b, 0.8);
 
       // Mutation: drop `it.properties` from `Editing.place`. The raft lands
       // with no buoyancy, and the plugin's defaults reach nothing.

@@ -135,7 +135,7 @@ final class WaterRun {
       water.setEdge(side, NativeEdgeFlow.free);
     }
     // The sun the water glints with, as the scene's.
-    elements.sun(along: sun.along, light: sun.light);
+    elements.sun(along: sun.along, light: sun.light.toLinearColor());
     _build();
     bonfire = Bonfire(elements, _device);
   }

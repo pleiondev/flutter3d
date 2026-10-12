@@ -3,6 +3,8 @@
 /// `SceneBindingSpec` into nodes.
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show MaterialParameters;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show
         PluginException,
@@ -12,7 +14,6 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
         SceneBindingRegistry,
         SceneBindingSpec;
 
-import '../render/material_parameters.dart';
 import 'scene_node.dart';
 
 /// What a [SceneNodeKind] is told about one entity's component: one object

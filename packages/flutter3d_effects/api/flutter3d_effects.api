@@ -55,8 +55,8 @@ final class Elements
   void draw(double dt, {required Vector3 eye, double pixel = 0.001, CameraNode? camera, double aspect = 16 / 9})
   void remove(Object thing)
   void restoreElements(Map<String, Object?> saved)
-  void sky({required Vector3 zenith, required Vector3 horizon})
-  void sun({required Vector3 along, required Vector3 light})
+  void sky({required LinearColor zenith, required LinearColor horizon})
+  void sun({required Vector3 along, required LinearColor light})
   void update(double dt, {required Vector3 eye, double pixel = 0.001, List<NativeEvent>? events, CameraNode? camera, double aspect = 16 / 9})
 
 final class ElementsQuality
@@ -123,13 +123,13 @@ final class HearingScale
   final double slowest
 
 final class Liquid
-  Liquid copyWith({NativeLiquidProperties? properties, LiquidOptics? optics, NativeLiquidHeat? heat, Vector3? glow, bool? atAirTemperature, bool clearGlow = false})
+  Liquid copyWith({NativeLiquidProperties? properties, LiquidOptics? optics, NativeLiquidHeat? heat, LinearColor? glow, bool? atAirTemperature, bool clearGlow = false})
   NativeLiquidHeat heatIn(NativeWorld world)
   const Liquid({required this.properties, required this.optics, required this.heat, this.glow, this.atAirTemperature = false})
+  final LinearColor? glow
   final LiquidOptics optics
   final NativeLiquidHeat heat
   final NativeLiquidProperties properties
-  final Vector3? glow
   final bool atAirTemperature
   static Liquid water({double? temperature})
 
@@ -146,14 +146,14 @@ typedef LiquidLayerMesh = ({LiquidLayer layer, MeshData mesh});
 final class LiquidLook
   factory LiquidLook.of(ByteData bundle)
   final RenderMaterial material
-  set glow(Vector3 value)
+  set glow(LinearColor value)
   set optics(LiquidOptics value)
   set wind(double speed)
   static Future<LiquidLook> load({required GraphicsDevice device, required Renderer renderer, required ByteData bundle})
   static const String asset = 'packages/flutter3d_effects/assets/liquid.f3dshaders'
   static const String model = 'Liquid'
-  void sky({required Vector3 zenith, required Vector3 horizon})
-  void sun({required Vector3 along, required Vector3 light})
+  void sky({required LinearColor zenith, required LinearColor horizon})
+  void sun({required Vector3 along, required LinearColor light})
   void update({required double seconds, required Vector3 eye, double pixel = 0.001})
 
 final class LiquidOptics
@@ -163,7 +163,7 @@ final class LiquidOptics
   final Vector3 backscatter
   static final LiquidOptics pureWater
 
-extension type LiquidParameters(Map<String, Float32List> parameters)
+extension type LiquidParameters(MaterialParameters parameters)
   Vector3 get absorb
   Vector3 get eye
   Vector3 get glow
@@ -186,7 +186,7 @@ extension type LiquidParameters(Map<String, Float32List> parameters)
   set time(double value)
   set toSun(Vector3 value)
   set zenith(Vector3 value)
-  static Map<String, Float32List> defaults()
+  static MaterialParameters defaults()
   static const String materialName = 'Liquid'
 
 final class LiquidView
@@ -241,10 +241,10 @@ final class SeabedLook
   static Future<SeabedLook> load({required GraphicsDevice device, required Renderer renderer, required ByteData bundle})
   static const String asset = 'packages/flutter3d_effects/assets/seabed.f3dshaders'
   static const String model = 'Seabed'
-  void sun({required Vector3 along, required Vector3 light})
+  void sun({required Vector3 along, required LinearColor light})
   void update({required double seconds, required Vector3 eye, required double level})
 
-extension type SeabedParameters(Map<String, Float32List> parameters)
+extension type SeabedParameters(MaterialParameters parameters)
   Vector3 get absorb
   Vector3 get eye
   Vector3 get scatter
@@ -261,7 +261,7 @@ extension type SeabedParameters(Map<String, Float32List> parameters)
   set sunColor(Vector3 value)
   set time(double value)
   set toSun(Vector3 value)
-  static Map<String, Float32List> defaults()
+  static MaterialParameters defaults()
   static const String materialName = 'Seabed'
 
 MeshData jetMesh(Jet jet, {int sides = 14})

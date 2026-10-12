@@ -134,8 +134,8 @@ final class RiverWater {
       // would lay out its stretches ahead of when the game does.
       _course = Course(seed: game.course.seed) {
     elements
-      ..sun(along: -_toSun, light: _sunLight)
-      ..sky(zenith: _zenith, horizon: _horizon);
+      ..sun(along: -_toSun, light: _sunLight.toLinearColor())
+      ..sky(zenith: _zenith.toLinearColor(), horizon: _horizon.toLinearColor());
   }
 
   final RiverGame _game;

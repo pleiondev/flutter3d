@@ -13,7 +13,13 @@ Future<void> main() async {
 
   Future<void> run(String name, Map<String, Object?> arguments) async {
     final tool = modelTools.firstWhere((ModelTool t) => t.name == name);
-    final answer = await tool.run(session, arguments);
+    final answer = await tool.run(
+      SessionToolCall<ModelSession>(
+        name: name,
+        arguments: arguments,
+        session: session,
+      ),
+    );
     if (!answer.did) {
       throw StateError('$name refused: ${answer.says}');
     }

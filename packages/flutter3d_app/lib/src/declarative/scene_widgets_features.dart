@@ -40,7 +40,7 @@ final class Material3D extends StatefulWidget {
     this.alphaMode,
     this.alphaCutoff,
     this.doubleSided,
-    this.parameters = const <String, List<double>>{},
+    this.parameters,
     this.name,
     this.onCreated,
     this.children = const <Widget>[],
@@ -77,9 +77,14 @@ final class Material3D extends StatefulWidget {
   final bool? doubleSided;
 
   /// Values for the `uniform`s of a material written in the language — `P8`:
-  /// written into `Material.parameters` on every build. A name not given is
-  /// left as the material has it.
-  final Map<String, List<double>> parameters;
+  /// each one set is written into `RenderMaterial.parameters` on every
+  /// build. A name not given is left as the material has it.
+  ///
+  /// A [MaterialParameters], the one shape a material's parameters have
+  /// (since 1.0; it was a map of names to numbers, which
+  /// `MaterialParameters.of` takes). Give it the bundle's schema
+  /// (`BundledMaterials.schema`) to have a misspelt name refused here.
+  final MaterialParameters? parameters;
   final String? name;
 
   /// Called once with the material, when it is made.
@@ -125,8 +130,10 @@ class _Material3DState extends State<Material3D> {
     if (widget.alphaMode case final v?) m.alphaMode = v;
     if (widget.alphaCutoff case final v?) m.alphaCutoff = v;
     if (widget.doubleSided case final v?) m.doubleSided = v;
-    for (final MapEntry(:key, :value) in widget.parameters.entries) {
-      m.parameters[key] = Float32List.fromList(value);
+    if (widget.parameters case final given?) {
+      for (final MapEntry(:key, :value) in given.uniforms.entries) {
+        m.parameters[key] = value;
+      }
     }
   }
 

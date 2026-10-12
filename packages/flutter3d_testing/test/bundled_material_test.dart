@@ -66,7 +66,12 @@ Future<Vector3> _center(
     ..add(
       MeshNode(
         DeviceMesh.upload(device, CuboidShape().build()),
-        RenderMaterial(lighting: lighting)..parameters.addAll(parameters),
+        RenderMaterial(
+          lighting: lighting,
+          parameters: MaterialParameters.over(<String, Float32List>{
+            ...parameters,
+          }),
+        ),
       ),
     );
   final drawing =

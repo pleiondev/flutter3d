@@ -3,16 +3,20 @@
 ///
 /// **A class per material, generated from its source.** A `uniform` reaches
 /// the shader as a member of `MaterialParams`, which the engine fills from
-/// `RenderMaterial.parameters` — a map from a member's name to its floats. A game
-/// writing `parameters['tiem']![0] = t` compiles and moves nothing; one
-/// writing `SeabedParameters(material.parameters).time = t` does not compile
-/// when the name is wrong, and says what type the member is. The map stays:
-/// it is what the renderer binds, and what a data plugin, which has no Dart
-/// to generate, writes.
+/// `RenderMaterial.parameters` — a `MaterialParameters`, by a member's name.
+/// A game writing `parameters['tiem']![0] = t` compiles and moves nothing;
+/// one writing `SeabedParameters(material.parameters).time = t` does not
+/// compile when the name is wrong, and says what type the member is.
 ///
-/// Each class is an extension type over that very map, so it costs nothing
-/// and writes through: one `SeabedParameters` over a material's parameters and
-/// the material is moved.
+/// Each class is an extension type over those very values, so it costs
+/// nothing and writes through, in place: one `SeabedParameters` over a
+/// material's parameters and the material is moved, with nothing allocated
+/// on a hot path that moves a time every frame.
+///
+/// **A `vec3` or `vec4` uniform is a vector here, colour or not.** The
+/// language has no colour type, so a `uniform vec3 sunColor` is read and
+/// written as the linear RGB(A) buffer the shader reads, a `Vector3` over
+/// the bound floats: the accessor's doc says so where the name is a colour.
 library;
 
 import 'package:flutter3d_core/formats.dart';
@@ -36,16 +40,19 @@ String generateMaterialAccessors(
       '/// Typed accessors for the uniforms of the materials written in',
     )
     ..writeln('/// the material language — one per material, over the')
-    ..writeln('/// `RenderMaterial.parameters` map the renderer binds.')
+    ..writeln('/// `RenderMaterial.parameters` the renderer binds.')
     ..writeln('library;')
     ..writeln()
     ..writeln("import 'dart:typed_data';")
     ..writeln()
+    ..writeln("import 'package:flutter3d_foundation/flutter3d_foundation.dart'")
+    ..writeln('    show MaterialParameters;')
     ..writeln("import 'package:vector_math/vector_math.dart';");
   for (final program in programs) {
     final uniforms = <MaterialParameter>[
+      // A `lighttype`'s member is the renderer's to fill, not the game's.
       for (final parameter in program.parameters)
-        if (parameter.uniform) parameter,
+        if (parameter.uniform && !parameter.name.startsWith('f3d_')) parameter,
     ];
     if (uniforms.isEmpty) continue;
     final type = materialAccessorName(program.name);
@@ -60,20 +67,18 @@ String generateMaterialAccessors(
       ..writeln(
         '/// Over [parameters], which it reads and writes in place: the',
       )
-      ..writeln(
-        '/// map a `RenderMaterial` is drawn with, or a `FullscreenEffect`\'s',
-      )
-      ..writeln(
-        '/// `MaterialParams`. A member the map lacks is added at nought.',
-      )
-      ..writeln('extension type $type(Map<String, Float32List> parameters) {')
+      ..writeln('/// values a `RenderMaterial` is drawn with, or a full-screen')
+      ..writeln('/// stage\'s. A member they lack is added at nought.')
+      ..writeln('extension type $type(MaterialParameters parameters) {')
       ..writeln('  /// The material\'s name in its bundle.')
       ..writeln("  static const String materialName = '${program.name}';")
       ..writeln()
-      ..writeln('  /// Every uniform at its declared default, a fresh map each')
+      ..writeln(
+        '  /// Every uniform at its declared default, fresh values each',
+      )
       ..writeln('  /// call — what `BundledMaterials.parameters` starts from.')
-      ..writeln('  static Map<String, Float32List> defaults() =>')
-      ..writeln('      <String, Float32List>{');
+      ..writeln('  static MaterialParameters defaults() =>')
+      ..writeln('      MaterialParameters.over(<String, Float32List>{');
     for (final uniform in uniforms) {
       out.writeln(
         "        '${uniform.name}': Float32List.fromList(<double>"
@@ -81,7 +86,7 @@ String generateMaterialAccessors(
       );
     }
     out
-      ..writeln('      };')
+      ..writeln('      });')
       ..writeln();
     for (final uniform in uniforms) {
       final name = _member(uniform.name);
@@ -90,6 +95,18 @@ String generateMaterialAccessors(
       out.writeln(
         '  /// `uniform ${uniform.type} $name`, $defaults by default.',
       );
+      if (width > 2 && _colorName.hasMatch(uniform.name)) {
+        out
+          ..writeln('  ///')
+          ..writeln(
+            '  /// A colour: the linear RGB${width == 4 ? 'A' : ''} the shader '
+            'reads, as a vector over',
+          )
+          ..writeln(
+            '  /// the bound floats, written in place (the language has no '
+            'colour type).',
+          );
+      }
       switch (width) {
         case 1:
           out
@@ -116,11 +133,20 @@ String generateMaterialAccessors(
     }
     out
       ..writeln('  Float32List _at(String name, int length) =>')
-      ..writeln('      parameters[name] ??= Float32List(length);')
+      ..writeln('      parameters[name] ??')
+      ..writeln(
+        '      (parameters..setNamed(name, Float32List(length)))[name]!;',
+      )
       ..writeln('}');
   }
   return out.toString();
 }
+
+/// A uniform whose name says it is a colour: `sunColor`, `tint`, `glow`.
+final RegExp _colorName = RegExp(
+  r'(colou?r|tint|glow|albedo|emissive|zenith|horizon)',
+  caseSensitive: false,
+);
 
 /// The accessor type for material [name]: its name with `Parameters` after it.
 String materialAccessorName(String name) => '${name}Parameters';

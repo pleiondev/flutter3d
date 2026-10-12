@@ -33,7 +33,7 @@ final class ParticleColorGradient extends ParticleAffector {
   @override
   void apply(ParticleStep step) {
     final particle = step.particle;
-    gradient.sampleInto(particle.color, particle.life);
+    gradient.sampleInto(particle.linearRgba, particle.life);
   }
 }
 

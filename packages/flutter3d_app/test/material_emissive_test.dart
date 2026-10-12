@@ -25,7 +25,7 @@ void main() {
       LevelMaterial(
         baseColor: LinearColor.fromSrgb(0.75, 0.13, 0.10),
         roughness: 0.6,
-        emissive: 0.5,
+        emissiveStrength: 0.5,
       ),
       const <String, TextureHandle?>{},
       name: 'hazard',
@@ -64,7 +64,7 @@ void main() {
       LevelMaterial(
         baseColor: LinearColor.fromSrgb(0.95, 0.95, 0.85),
         albedo: 'exit.png',
-        emissive: 0.7,
+        emissiveStrength: 0.7,
       ),
       const <String, TextureHandle?>{},
     );
@@ -73,5 +73,23 @@ void main() {
       0.7 * RenderMaterial.defaultEmissiveStrength,
     );
     expect(material.albedoSampler, SamplerDescriptor.trilinearRepeat);
+  });
+
+  test('a level material with a glow colour of its own glows in it', () {
+    // Mutation: ignore `LevelMaterial.emissive` in `materialFrom` and the
+    // surface glows in its paint, whatever colour the level asked for.
+    final material = LevelLoader.materialFrom(
+      LevelMaterial(
+        baseColor: LinearColor.fromSrgb(0.5, 0.5, 0.5),
+        emissive: const LinearColor(0.0, 0.25, 1.0),
+        emissiveStrength: 1.5,
+      ),
+      const <String, TextureHandle?>{},
+    );
+    expect(material.emissive, const LinearColor(0.0, 0.25, 1.0));
+    expect(
+      material.emissiveStrength,
+      1.5 * RenderMaterial.defaultEmissiveStrength,
+    );
   });
 }

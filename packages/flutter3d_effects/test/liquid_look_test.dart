@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter3d_core/formats.dart' show parseMaterial;
 import 'package:flutter3d_effects/flutter3d_effects.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -27,7 +29,7 @@ void main() {
   test('the shipped bundle is the water material, and it moves', () {
     final look = LiquidLook.of(waterBundle());
     expect(
-      look.material.parameters.keys,
+      look.material.parameters.names,
       containsAll(<String>[
         'time',
         'chop',
@@ -45,7 +47,7 @@ void main() {
     look
       ..update(seconds: 2.5, eye: Vector3(1.0, 2.0, 3.0))
       ..wind = 5.0
-      ..sun(along: Vector3(0.0, -2.0, 0.0), light: Vector3(2.0, 2.0, 2.0));
+      ..sun(along: Vector3(0.0, -2.0, 0.0), light: LinearColor(2.0, 2.0, 2.0));
     // Held as 32-bit floats, as the material's block is.
     expect(look.material.parameters['time'], <double>[2.5]);
     expect(look.material.parameters['eye'], <double>[1.0, 2.0, 3.0]);

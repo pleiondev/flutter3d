@@ -141,14 +141,14 @@ final class RenderMaterial {
     this.depthWrite,
     this.depthCompare,
     this.parameterBlock = 'MaterialParams',
-    Map<String, Float32List>? parameters,
+    MaterialParameters? parameters,
     Map<String, TextureHandle>? extraTextures,
     this.blendMode = MaterialBlendMode.alpha,
     this.depthLayer = 0,
     this.effectsDepth = false,
     this.physicalMaterial,
   }) : _baseColor = baseColor, // ignore: prefer_initializing_formals
-       parameters = parameters ?? <String, Float32List>{},
+       parameters = parameters ?? MaterialParameters(),
        textureTransforms =
            textureTransforms ?? <MaterialMap, TextureTransform>{},
        extraTextures = extraTextures ?? const <String, TextureHandle>{};
@@ -180,14 +180,8 @@ final class RenderMaterial {
     name: name,
     lighting: LightingModel.polyline,
     doubleSided: true,
-    parameters: <String, Float32List>{
-      'viewport': Float32List.fromList(<double>[
-        viewportWidth,
-        viewportHeight,
-        0,
-        0,
-      ]),
-    },
+    parameters: MaterialParameters()
+      ..setNamed('viewport', <double>[viewportWidth, viewportHeight, 0, 0]),
   );
 
   /// The material an `ImpostorNode` is drawn with — `C4`.
@@ -241,14 +235,19 @@ final class RenderMaterial {
   /// where that distinction is spelled out.
   ///
   /// Every uniform in this engine is a float vector, a matrix or an array of
-  /// either, so a `Float32List` is the only value there is. An integer or a
-  /// boolean is encoded as a float, the same way the built-in shaders do it.
+  /// either, so floats are the only value there is. An integer or a boolean
+  /// is encoded as a float, the same way the built-in shaders do it.
   ///
-  /// **A map of the material's own, empty by default and open to additions**
-  /// — `P8`. It was a shared constant, so a material made without parameters
-  /// could not be given any: a model's surfaces, handed a material written
-  /// in the language after loading, had nowhere to put its uniforms.
-  final Map<String, Float32List> parameters;
+  /// **Values of the material's own, empty by default and open to
+  /// additions** — `P8`. A material from `BundledMaterials.material` checks
+  /// them against its source's schema, so a misspelt name or a value of the
+  /// wrong width is refused where it is set rather than drawn as nought.
+  ///
+  /// **[MaterialParameters] since 1.0**, the one shape a material's
+  /// parameters have (the widget's and the level's are the same type). It
+  /// was a `Map<String, Float32List>`: indexing reads and writes as it did,
+  /// and `MaterialParameters.over(map)` wraps a map a caller still holds.
+  final MaterialParameters parameters;
 
   /// Textures an application's own shader samples, by slot name.
   ///
@@ -537,10 +536,7 @@ final class RenderMaterial {
       RenderMaterial(
           name: name,
           parameterBlock: parameterBlock,
-          parameters: <String, Float32List>{
-            for (final entry in parameters.entries)
-              entry.key: Float32List.fromList(entry.value),
-          },
+          parameters: parameters.copy(),
           extraTextures: Map<String, TextureHandle>.of(extraTextures),
           lighting: lighting,
           baseColor: baseColor,

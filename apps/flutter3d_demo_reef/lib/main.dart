@@ -198,7 +198,7 @@ class _ReefScreenState extends State<ReefScreen>
               renderer: renderer,
               bundle: await rootBundle.load(LiquidLook.asset),
             )
-            ..sun(along: _sunAlong, light: _sunLight)
+            ..sun(along: _sunAlong, light: _sunLight.toLinearColor())
             // Open sea over sand: clear and blue-green.
             ..optics = LiquidOptics.pureWater;
       final floor =
@@ -207,7 +207,7 @@ class _ReefScreenState extends State<ReefScreen>
               renderer: renderer,
               bundle: await rootBundle.load(SeabedLook.asset),
             )
-            ..sun(along: _sunAlong, light: _sunLight)
+            ..sun(along: _sunAlong, light: _sunLight.toLinearColor())
             ..optics = LiquidOptics.pureWater;
       final scene = Scene()
         ..ambientIntensity = 0.5 * LightNode.defaultIntensity
@@ -250,7 +250,7 @@ class _ReefScreenState extends State<ReefScreen>
                 ),
               ),
             )
-            ..sun(along: _sunAlong, light: _sunLight);
+            ..sun(along: _sunAlong, light: _sunLight.toLinearColor());
       final run = ReefRun(
         device: device,
         scene: scene,

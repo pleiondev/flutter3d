@@ -264,6 +264,35 @@ void main() {
       expect(impeller.shaders.statuses['Glow'], refusal.message);
     });
 
+    test('a render step from data that samples a texture of its own is '
+        'refused, saying so', () {
+      // Mutation: drop the refusal and the step draws with `lut_texture`
+      // unbound: WebGPU throws at the next frame, Impeller crashes.
+      final steps = Renderer.create(device: FakeBackend()).renderSteps;
+      final cpu = _shaders('cpu');
+      cpu.shaders.addRenderStep(
+        RuntimeRenderStep(
+          name: 'glow.grade',
+          anchor: RenderAnchor.afterTonemap,
+          present: true,
+          shaders: const <String, String>{
+            RuntimeRenderStep.materialStage: '''
+f3dmat 3
+fullscreen Grade {
+  texture lut = lut_texture;
+  fragment { return vec4(sample(scene, uv).rgb * sample(lut, uv).r, 1.0); }
+}
+''',
+          },
+        ),
+        steps,
+      );
+      expect(
+        cpu.shaders.statuses['glow.grade'],
+        allOf(contains('lut'), contains('FullscreenEffect.material')),
+      );
+    });
+
     test('a render step is the renderer\'s, and off where it has no stage', () {
       // Mutation: skip the step when the backend has no stage. A plugin
       // list could not say why the haze is not drawn, and the frame would

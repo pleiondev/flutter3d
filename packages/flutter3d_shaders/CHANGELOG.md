@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **The budget counts GLSL, and names a plugin model's share.**
+  `MaterialStageBudget.problemOfGlsl` and `countGlslBindings` (new) count a
+  stage's textures and blocks from its GLSL after `#ifdef`, which every
+  backend's path has; `MaterialStageBudget.materialTextures` and
+  `materialUniformBlocks` (new) are what a lighting model of a plugin's own
+  may bind of its own in every 1.x.
 - **A stage over WebGPU's binding budget is refused when it is built.**
   `MaterialStageBudget` (16 textures, 16 samplers, 12 uniform blocks a
   stage, the engine's and a material's together) is what every WebGPU

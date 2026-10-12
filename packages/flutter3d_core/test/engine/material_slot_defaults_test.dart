@@ -9,6 +9,8 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show MaterialParameters;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart' show ShaderHandle;
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:test/test.dart';
@@ -97,9 +99,9 @@ void main() {
     final drawn = _draw(
       RenderMaterial(
         lighting: _model,
-        parameters: <String, Float32List>{
+        parameters: MaterialParameters.over(<String, Float32List>{
           'shift': Float32List.fromList(<double>[0.25]),
-        },
+        }),
       ),
     );
     final strands = drawn.blocks.lastWhere((b) => b.block == 'Strands');

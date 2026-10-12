@@ -564,10 +564,10 @@ material Paint {
     ({Scene scene, engine.RenderMaterial material}) waving() {
       final material = engine.RenderMaterial(
         name: 'grass',
-        parameters: <String, Float32List>{
+        parameters: MaterialParameters.over(<String, Float32List>{
           'wind': Float32List.fromList(<double>[0.3]),
           'tint': Float32List.fromList(<double>[0.1, 0.4, 0.5]),
-        },
+        }),
       );
       final scene = Scene()
         ..add(

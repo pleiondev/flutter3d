@@ -145,9 +145,9 @@ final class PaletteRow extends StatelessWidget {
             decoration: BoxDecoration(
               color: Color.fromARGB(
                 255,
-                (it.tint.x * 255).round().clamp(0, 255),
-                (it.tint.y * 255).round().clamp(0, 255),
-                (it.tint.z * 255).round().clamp(0, 255),
+                (it.tint.r * 255).round().clamp(0, 255),
+                (it.tint.g * 255).round().clamp(0, 255),
+                (it.tint.b * 255).round().clamp(0, 255),
               ),
               borderRadius: BorderRadius.circular(2),
             ),

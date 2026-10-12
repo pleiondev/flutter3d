@@ -33,6 +33,7 @@
 /// a kernel written in the language.
 library;
 
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
@@ -113,6 +114,9 @@ final class MaterialProgramStage extends CpuFragmentShader {
       // block, by radiance, n·l and shadow, then ambient and lightmap under
       // the occlusion, then the emissive — `materialLitInput` — or as the
       // version 2 hooks and switches say, through `composeMaterialLit`.
+      // Version 3: the row of the light being shaded, which a block that
+      // reads it gathers through `_rowLights`.
+      var row = (kind: 0.0, params: Vector4.zero());
       Vector3 shade(Surface s, LightSample light) {
         final half = (light.direction + s.view)..normalize();
         final answer = evaluateMaterialLight(
@@ -129,6 +133,20 @@ final class MaterialProgramStage extends CpuFragmentShader {
               'nDotL': <double>[light.nDotL],
               'nDotH': <double>[light.nDotH],
               'vDotH': <double>[light.vDotH],
+              'lightKind': <double>[row.kind],
+              'lightParams': <double>[
+                row.params.x,
+                row.params.y,
+                row.params.z,
+                row.params.w,
+              ],
+              for (final name in program.lightTypes.keys)
+                name: <double>[
+                  switch (uniforms[materialLightTypeMember(name)]) {
+                    final code? when (row.kind - code[0]).abs() < 0.5 => 1.0,
+                    _ => 0.0,
+                  },
+                ],
             },
             uniforms: uniforms,
             sample: sample,
@@ -137,7 +155,16 @@ final class MaterialProgramStage extends CpuFragmentShader {
         return Vector3(answer[0], answer[1], answer[2]);
       }
 
-      final direct = program.state.directional
+      final direct = program.readsLightRow
+          ? _rowLights(
+              s,
+              bindings,
+              c,
+              shade,
+              directional: program.state.directional,
+              onRow: (kind, params) => row = (kind: kind, params: params),
+            )
+          : program.state.directional
           ? accumulateLights(s, bindings, c, shade: shade, shadowed: true)
           : _withoutDirectional(s, bindings, c, shade);
       final lightmap = sampleLightmap(v, bindings, c);
@@ -242,6 +269,96 @@ Vector3 _withoutDirectional(
   return total;
 }
 
+/// `MaterialLights` in the emitted GLSL for a `light` block that reads the
+/// light's row — version 3: each row read whole and handed to [onRow]
+/// before the block runs, and a plugin's light type (code 16 and up), which
+/// `sampleLight` skips, shaded with its direction, n·l and its colour times
+/// its intensity, the falloff the block's own.
+Vector3 _rowLights(
+  Surface s,
+  ShaderBindings b,
+  FragmentContext c,
+  Vector3 Function(Surface s, LightSample light) shade, {
+  required bool directional,
+  required void Function(double kind, Vector4 params) onRow,
+}) {
+  var total = Vector3.zero();
+  final count = lightCount(b, s.world);
+  for (var i = 0; i < count; i++) {
+    final (:position, :color, :cone) = _lightRow(b, i, s.world);
+    if (!directional && i < CpuMeshLayout.maxLights && position.w < 0.5) {
+      continue;
+    }
+    onRow(position.w, cone);
+    if (position.w > 15.5) {
+      final toLight = (Vector3(position.x, position.y, position.z) - s.world)
+        ..normalize();
+      final nDotL = s.normal.dot(toLight);
+      if (nDotL <= 0.0) continue;
+      final half = (toLight + s.view)..normalize();
+      final LightSample own = (
+        direction: toLight,
+        radiance: Vector3(color.x, color.y, color.z)..scale(color.w),
+        nDotL: nDotL,
+        nDotH: math.max(s.normal.dot(half), 0.0),
+        vDotH: math.max(s.view.dot(half), 0.0),
+        ltc: null,
+        corners: null,
+      );
+      final response = shade(s, own);
+      total += Vector3(
+        response.x * own.radiance.x,
+        response.y * own.radiance.y,
+        response.z * own.radiance.z,
+      )..scale(nDotL);
+      continue;
+    }
+    final light = sampleLight(b, i, s);
+    if (light == null) continue;
+    var visibility = 1.0;
+    shadowTransmittance.setValues(1.0, 1.0, 1.0);
+    if (i < CpuMeshLayout.maxLights) {
+      visibility = shadowFactor(s, b, i, light.nDotL, c);
+      visibility *= pointShadowFactor(b, s.world, s.normal, i, c);
+    }
+    if (visibility <= 0.0) continue;
+    final response = shade(s, light);
+    total += Vector3(
+      response.x * light.radiance.x * shadowTransmittance.x,
+      response.y * light.radiance.y * shadowTransmittance.y,
+      response.z * light.radiance.z * shadowTransmittance.z,
+    )..scale(light.nDotL * visibility);
+  }
+  return total;
+}
+
+/// Light [index]'s row as `sampleLight` reads it: the slots, then the list,
+/// its cell's when the draw is clustered.
+({Vector4 position, Vector4 color, Vector4 cone}) _lightRow(
+  ShaderBindings b,
+  int index,
+  Vector3 world,
+) {
+  if (index < CpuMeshLayout.maxLights) {
+    return (
+      position: b.vec4('FragInfo', 'light_position', Vector4.zero(), at: index),
+      color: b.vec4('FragInfo', 'light_color', Vector4.zero(), at: index),
+      cone: b.vec4('FragInfo', 'light_cone', Vector4.zero(), at: index),
+    );
+  }
+  final slot = index - CpuMeshLayout.maxLights;
+  final fromCell = clustered(b);
+  final row = fromCell
+      ? clusterRow(b, world, slot)
+      : lightListRow(b, slot).round();
+  return (
+    position: lightListTexel(b, row, 0),
+    color: lightListTexel(b, row, 1)
+      ..w *= fromCell ? (inSlots(b, row) ? 0.0 : 1.0) : lightListScale(b, slot),
+    cone: lightListTexel(b, row, 3),
+  );
+}
+
 /// The opaque scene's depth behind fragment [c], from `scene_depth_texture`
 /// through `SceneDepthInfo` as the emitted stage reads it; the sky where
 /// nothing was drawn, or where the draw was handed no buffer.
@@ -265,15 +382,32 @@ double _sceneDepthAt(ShaderBindings bindings, FragmentContext c) {
 /// of the model transform, which is the skinned pose's for a skinned draw,
 /// as the GLSL has it.
 final class MaterialVertexStage extends CpuVertexShaderByIndex {
-  const MaterialVertexStage(this.program, {this.skinned = false});
+  const MaterialVertexStage(
+    this.program, {
+    this.skinned = false,
+    this.instanced = false,
+    this.lightmapped = false,
+  });
 
   final MaterialProgram program;
 
   /// Whether this is the skinned half.
   final bool skinned;
 
+  /// Whether this is the instanced half — version 3: the block runs on the
+  /// vertex after the instance's transform, and reads its four numbers.
+  final bool instanced;
+
+  /// Whether this is the lightmapped half — version 3: `color` reads white,
+  /// the attribute holding the lightmap's coordinate.
+  final bool lightmapped;
+
   static const MeshVertexShader _plain = MeshVertexShader();
   static const MeshSkinnedVertexShader _skinned = MeshSkinnedVertexShader();
+  static const MeshInstancedVertexShader _instanced =
+      MeshInstancedVertexShader();
+  static const MeshLightmappedVertexShader _lightmapped =
+      MeshLightmappedVertexShader();
 
   @override
   int get varyingCount => CpuMeshLayout.varyings;
@@ -290,13 +424,14 @@ final class MaterialVertexStage extends CpuVertexShaderByIndex {
     ShaderBindings bindings,
     Float32List out,
   ) {
-    final clip = (skinned ? _skinned : _plain).runAt(
-      vertexIndex,
-      instanceIndex,
-      a,
-      bindings,
-      out,
-    );
+    final CpuVertexShaderByIndex engine = skinned
+        ? _skinned
+        : instanced
+        ? _instanced
+        : lightmapped
+        ? _lightmapped
+        : _plain;
+    final clip = engine.runAt(vertexIndex, instanceIndex, a, bindings, out);
     final model = bindings.mat4('FrameInfo', 'model');
     final mvp = bindings.mat4('FrameInfo', 'mvp');
     final world = Vector3(
@@ -338,12 +473,20 @@ final class MaterialVertexStage extends CpuVertexShaderByIndex {
             a[CpuMeshLayout.texcoord],
             a[CpuMeshLayout.texcoord + 1],
           ],
-          'color': <double>[
-            a[CpuMeshLayout.color],
-            a[CpuMeshLayout.color + 1],
-            a[CpuMeshLayout.color + 2],
-            a[CpuMeshLayout.color + 3],
-          ],
+          'color': lightmapped
+              ? const <double>[1.0, 1.0, 1.0, 1.0]
+              : <double>[
+                  a[CpuMeshLayout.color],
+                  a[CpuMeshLayout.color + 1],
+                  a[CpuMeshLayout.color + 2],
+                  a[CpuMeshLayout.color + 3],
+                ],
+          'instance': instanced
+              ? <double>[
+                  for (var i = 0; i < 4; i++)
+                    out[CpuMeshLayout.varyingInstance + i],
+                ]
+              : const <double>[0.0, 0.0, 0.0, 0.0],
           'origin': <double>[origin.x, origin.y, origin.z],
         },
         uniforms: uniforms,
@@ -538,6 +681,20 @@ CpuStage materialLanguageCompiler(String stage, String source) {
   }
   if (vertex != null && stage == '${vertex}Skinned') {
     return CpuStage.vertex(MaterialVertexStage(specialised, skinned: true));
+  }
+  // Version 3: the instanced and lightmapped halves.
+  for (final MapEntry(key: variant, value: name) in materialVertexVariantStages(
+    program,
+  ).entries) {
+    if (stage == name) {
+      return CpuStage.vertex(
+        MaterialVertexStage(
+          specialised,
+          instanced: variant == VertexStageVariant.instanced,
+          lightmapped: variant == VertexStageVariant.lightmapped,
+        ),
+      );
+    }
   }
   if (program.name != stage) {
     throw MaterialBundleException(

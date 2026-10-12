@@ -704,7 +704,10 @@ final class LevelLoader {
     List<LevelIssue> issues,
   ) {
     if (source.parameters.isEmpty) return;
-    var values = source.parameters;
+    var values = <String, List<double>>{
+      for (final MapEntry(:key, :value) in source.parameters.uniforms.entries)
+        key: value,
+    };
     if (program != null) {
       try {
         values = program.lift(values, from: source.materialVersion ?? 1);
@@ -736,7 +739,17 @@ final class LevelLoader {
         );
         continue;
       }
-      material.parameters[key] = Float32List.fromList(value);
+      try {
+        material.parameters[key] = value;
+      } on MaterialParameterException catch (error) {
+        issues.add(
+          LevelIssue(
+            Severity.warning,
+            '"$key" is left out: ${error.message}',
+            where: 'material "$name"',
+          ),
+        );
+      }
     }
   }
 

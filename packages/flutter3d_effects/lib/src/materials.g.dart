@@ -3,37 +3,40 @@
 
 /// Typed accessors for the uniforms of the materials written in
 /// the material language — one per material, over the
-/// `RenderMaterial.parameters` map the renderer binds.
+/// `RenderMaterial.parameters` the renderer binds.
 library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show MaterialParameters;
 import 'package:vector_math/vector_math.dart';
 
 /// The uniforms of the material `Liquid`, from `assets_src/liquid.f3dmat`, typed.
 ///
 /// Over [parameters], which it reads and writes in place: the
-/// map a `RenderMaterial` is drawn with, or a `FullscreenEffect`'s
-/// `MaterialParams`. A member the map lacks is added at nought.
-extension type LiquidParameters(Map<String, Float32List> parameters) {
+/// values a `RenderMaterial` is drawn with, or a full-screen
+/// stage's. A member they lack is added at nought.
+extension type LiquidParameters(MaterialParameters parameters) {
   /// The material's name in its bundle.
   static const String materialName = 'Liquid';
 
-  /// Every uniform at its declared default, a fresh map each
+  /// Every uniform at its declared default, fresh values each
   /// call — what `BundledMaterials.parameters` starts from.
-  static Map<String, Float32List> defaults() => <String, Float32List>{
-    'time': Float32List.fromList(<double>[0.0]),
-    'chop': Float32List.fromList(<double>[1.0]),
-    'eye': Float32List.fromList(<double>[0.0, 10.0, 0.0]),
-    'pixel': Float32List.fromList(<double>[0.001]),
-    'toSun': Float32List.fromList(<double>[-0.35, 0.7, 0.6]),
-    'sunColor': Float32List.fromList(<double>[2.0, 1.95, 1.85]),
-    'zenith': Float32List.fromList(<double>[0.22, 0.42, 0.78]),
-    'horizon': Float32List.fromList(<double>[0.68, 0.79, 0.92]),
-    'absorb': Float32List.fromList(<double>[0.264, 0.0565, 0.0106]),
-    'scatter': Float32List.fromList(<double>[0.0023, 0.0166, 0.151]),
-    'glow': Float32List.fromList(<double>[0.0, 0.0, 0.0]),
-  };
+  static MaterialParameters defaults() =>
+      MaterialParameters.over(<String, Float32List>{
+        'time': Float32List.fromList(<double>[0.0]),
+        'chop': Float32List.fromList(<double>[1.0]),
+        'eye': Float32List.fromList(<double>[0.0, 10.0, 0.0]),
+        'pixel': Float32List.fromList(<double>[0.001]),
+        'toSun': Float32List.fromList(<double>[-0.35, 0.7, 0.6]),
+        'sunColor': Float32List.fromList(<double>[2.0, 1.95, 1.85]),
+        'zenith': Float32List.fromList(<double>[0.22, 0.42, 0.78]),
+        'horizon': Float32List.fromList(<double>[0.68, 0.79, 0.92]),
+        'absorb': Float32List.fromList(<double>[0.264, 0.0565, 0.0106]),
+        'scatter': Float32List.fromList(<double>[0.0023, 0.0166, 0.151]),
+        'glow': Float32List.fromList(<double>[0.0, 0.0, 0.0]),
+      });
 
   /// `uniform float time`, 0.0 by default.
   double get time => _at('time', 1)[0];
@@ -61,16 +64,25 @@ extension type LiquidParameters(Map<String, Float32List> parameters) {
   set toSun(Vector3 value) => _at('toSun', 3).setAll(0, value.storage);
 
   /// `uniform vec3 sunColor`, 2.0, 1.95, 1.85 by default.
+  ///
+  /// A colour: the linear RGB the shader reads, as a vector over
+  /// the bound floats, written in place (the language has no colour type).
   Vector3 get sunColor => Vector3.array(_at('sunColor', 3));
 
   set sunColor(Vector3 value) => _at('sunColor', 3).setAll(0, value.storage);
 
   /// `uniform vec3 zenith`, 0.22, 0.42, 0.78 by default.
+  ///
+  /// A colour: the linear RGB the shader reads, as a vector over
+  /// the bound floats, written in place (the language has no colour type).
   Vector3 get zenith => Vector3.array(_at('zenith', 3));
 
   set zenith(Vector3 value) => _at('zenith', 3).setAll(0, value.storage);
 
   /// `uniform vec3 horizon`, 0.68, 0.79, 0.92 by default.
+  ///
+  /// A colour: the linear RGB the shader reads, as a vector over
+  /// the bound floats, written in place (the language has no colour type).
   Vector3 get horizon => Vector3.array(_at('horizon', 3));
 
   set horizon(Vector3 value) => _at('horizon', 3).setAll(0, value.storage);
@@ -86,35 +98,40 @@ extension type LiquidParameters(Map<String, Float32List> parameters) {
   set scatter(Vector3 value) => _at('scatter', 3).setAll(0, value.storage);
 
   /// `uniform vec3 glow`, 0.0, 0.0, 0.0 by default.
+  ///
+  /// A colour: the linear RGB the shader reads, as a vector over
+  /// the bound floats, written in place (the language has no colour type).
   Vector3 get glow => Vector3.array(_at('glow', 3));
 
   set glow(Vector3 value) => _at('glow', 3).setAll(0, value.storage);
 
   Float32List _at(String name, int length) =>
-      parameters[name] ??= Float32List(length);
+      parameters[name] ??
+      (parameters..setNamed(name, Float32List(length)))[name]!;
 }
 
 /// The uniforms of the material `Seabed`, from `assets_src/seabed.f3dmat`, typed.
 ///
 /// Over [parameters], which it reads and writes in place: the
-/// map a `RenderMaterial` is drawn with, or a `FullscreenEffect`'s
-/// `MaterialParams`. A member the map lacks is added at nought.
-extension type SeabedParameters(Map<String, Float32List> parameters) {
+/// values a `RenderMaterial` is drawn with, or a full-screen
+/// stage's. A member they lack is added at nought.
+extension type SeabedParameters(MaterialParameters parameters) {
   /// The material's name in its bundle.
   static const String materialName = 'Seabed';
 
-  /// Every uniform at its declared default, a fresh map each
+  /// Every uniform at its declared default, fresh values each
   /// call — what `BundledMaterials.parameters` starts from.
-  static Map<String, Float32List> defaults() => <String, Float32List>{
-    'time': Float32List.fromList(<double>[0.0]),
-    'chop': Float32List.fromList(<double>[1.0]),
-    'eye': Float32List.fromList(<double>[0.0, 10.0, 0.0]),
-    'level': Float32List.fromList(<double>[0.0]),
-    'toSun': Float32List.fromList(<double>[-0.35, 0.7, 0.6]),
-    'sunColor': Float32List.fromList(<double>[2.0, 1.95, 1.85]),
-    'absorb': Float32List.fromList(<double>[0.264, 0.0565, 0.0106]),
-    'scatter': Float32List.fromList(<double>[0.0023, 0.0166, 0.151]),
-  };
+  static MaterialParameters defaults() =>
+      MaterialParameters.over(<String, Float32List>{
+        'time': Float32List.fromList(<double>[0.0]),
+        'chop': Float32List.fromList(<double>[1.0]),
+        'eye': Float32List.fromList(<double>[0.0, 10.0, 0.0]),
+        'level': Float32List.fromList(<double>[0.0]),
+        'toSun': Float32List.fromList(<double>[-0.35, 0.7, 0.6]),
+        'sunColor': Float32List.fromList(<double>[2.0, 1.95, 1.85]),
+        'absorb': Float32List.fromList(<double>[0.264, 0.0565, 0.0106]),
+        'scatter': Float32List.fromList(<double>[0.0023, 0.0166, 0.151]),
+      });
 
   /// `uniform float time`, 0.0 by default.
   double get time => _at('time', 1)[0];
@@ -142,6 +159,9 @@ extension type SeabedParameters(Map<String, Float32List> parameters) {
   set toSun(Vector3 value) => _at('toSun', 3).setAll(0, value.storage);
 
   /// `uniform vec3 sunColor`, 2.0, 1.95, 1.85 by default.
+  ///
+  /// A colour: the linear RGB the shader reads, as a vector over
+  /// the bound floats, written in place (the language has no colour type).
   Vector3 get sunColor => Vector3.array(_at('sunColor', 3));
 
   set sunColor(Vector3 value) => _at('sunColor', 3).setAll(0, value.storage);
@@ -157,5 +177,6 @@ extension type SeabedParameters(Map<String, Float32List> parameters) {
   set scatter(Vector3 value) => _at('scatter', 3).setAll(0, value.storage);
 
   Float32List _at(String name, int length) =>
-      parameters[name] ??= Float32List(length);
+      parameters[name] ??
+      (parameters..setNamed(name, Float32List(length)))[name]!;
 }

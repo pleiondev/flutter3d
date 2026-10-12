@@ -63,6 +63,7 @@ final class LightingModel {
     this.vertexStageInDepthPasses = false,
     this.slots = MaterialSlotTable.none,
     this.vertexVariants = const <VertexStageVariant>{},
+    this.lightTypeMembers = const <String, String>{},
   }) : assert(
          !usesMetallicRoughnessMap || usesMaterialMaps,
          'the metallic-roughness map is one of the material maps, so a model '
@@ -399,6 +400,14 @@ final class LightingModel {
   /// lightmapped one through `<name>Lightmapped`. Without them both keep the
   /// engine's stages, as before. Ignored when [vertexShaderName] is null.
   final Set<VertexStageVariant> vertexVariants;
+
+  /// The members of the stage's `MaterialParams` that hold a light type's
+  /// code, each to the type's name (`acme.tube`) — a `lighttype`
+  /// declaration of the material language, version 3. The renderer fills
+  /// each on every draw with the code it gave that type
+  /// (`LightTypes.codeNamed`), minus one where no hook packs it, since codes
+  /// are handed out per renderer and no stage could be compiled with one.
+  final Map<String, String> lightTypeMembers;
 
   /// What the stage binds beyond the engine's own blocks and samplers: its
   /// uniform blocks — `MaterialParams` and blocks of its own — and its own

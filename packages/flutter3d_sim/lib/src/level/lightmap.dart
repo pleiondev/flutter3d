@@ -265,7 +265,8 @@ final class Lightmap {
       mix(entry.key);
       // The stored numbers, as this hash has always read them: a lightmap
       // baked before the colour was linear is still the level's.
-      mix(entry.value.storedBaseColor.toString());
+      final stored = entry.value.storedBaseColor;
+      mix(Vector4(stored.r, stored.g, stored.b, stored.a).toString());
       mix(entry.value.albedo ?? '');
     }
     return hash;

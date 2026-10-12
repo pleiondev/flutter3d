@@ -17,9 +17,17 @@ final class Particle {
   final Vector3 position = Vector3.zero();
   final Vector3 velocity = Vector3.zero();
 
-  /// Linear RGB and an alpha that behaves as brightness, since these are drawn
-  /// additively.
-  final Vector4 color = Vector4.zero();
+  /// The particle's colour as a linear RGBA buffer: linear RGB, and an alpha
+  /// that behaves as brightness, since these are drawn additively.
+  ///
+  /// **A vector written in place, not a `LinearColor`, on purpose.** Every
+  /// affector writes it every step for every particle, and the draw copies
+  /// it straight into the instance buffer; an immutable colour would be an
+  /// allocation per particle per step. The name says what the four numbers
+  /// are: `LinearColor(p.linearRgba.x, …)` reads one, and
+  /// `p.linearRgba.setValues(c.r, c.g, c.b, c.a)` writes one. Named `color`
+  /// before 1.0.
+  final Vector4 linearRgba = Vector4.zero();
 
   /// How far the quad is turned about the view axis, in radians.
   ///

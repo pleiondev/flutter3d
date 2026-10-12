@@ -43,6 +43,9 @@ final class MaterialCompilerRegistry
 
 abstract final class MaterialStageBudget
   static String? problem(String stage, {required int textures, required int samplers, required int uniformBlocks})
+  static String? problemOfGlsl(String stage, String glsl)
+  static const int materialTextures = 3
+  static const int materialUniformBlocks = 4
   static const int samplers = 16
   static const int textures = 16
   static const int uniformBlocks = 12
@@ -118,6 +121,8 @@ List<StageMismatch> checkBundleAgreement({required Map<String, String> vertex, r
 
 List<StageMismatch> checkStageAgreement({required StageInterface vertex, required StageInterface fragment, List<StageVariable>? attributes})
 
+({int textures, int uniformBlocks}) countGlslBindings(String glsl, {Set<String> defines = const <String>{}})
+
 String? pairedFragmentStage(String vertex, Set<String> fragments)
 
 void requireBundleAgreement({required Map<String, String> vertex, required Map<String, String> fragment})
@@ -152,6 +157,9 @@ final class GlslTranslateException extends Flutter3dFormatException
 
 abstract final class MaterialStageBudget
   static String? problem(String stage, {required int textures, required int samplers, required int uniformBlocks})
+  static String? problemOfGlsl(String stage, String glsl)
+  static const int materialTextures = 3
+  static const int materialUniformBlocks = 4
   static const int samplers = 16
   static const int textures = 16
   static const int uniformBlocks = 12
@@ -235,6 +243,8 @@ List<StageMismatch> checkBundleAgreement({required Map<String, String> vertex, r
 void checkStd140Offsets(String name, PreparedStage prepared, Map<String, Map<String, int>> offsets)
 
 CompiledStage compileStage(String glsl, {required String name, bool fragment = false, bool compute = false, ShaderStageKind? kind, ShaderTarget target = ShaderTarget.wgsl})
+
+({int textures, int uniformBlocks}) countGlslBindings(String glsl, {Set<String> defines = const <String>{}})
 
 const String cubeDimension = 'cube'
 
@@ -962,6 +972,9 @@ final class GlslTranslateException extends Flutter3dFormatException
 
 abstract final class MaterialStageBudget
   static String? problem(String stage, {required int textures, required int samplers, required int uniformBlocks})
+  static String? problemOfGlsl(String stage, String glsl)
+  static const int materialTextures = 3
+  static const int materialUniformBlocks = 4
   static const int samplers = 16
   static const int textures = 16
   static const int uniformBlocks = 12
@@ -1022,6 +1035,8 @@ Map<String, int> assignVaryingLocations(Iterable<Set<String>> stages)
 List<StageMismatch> checkBundleAgreement({required Map<String, String> vertex, required Map<String, String> fragment})
 
 void checkStd140Offsets(String name, PreparedStage prepared, Map<String, Map<String, int>> offsets)
+
+({int textures, int uniformBlocks}) countGlslBindings(String glsl, {Set<String> defines = const <String>{}})
 
 const String cubeDimension = 'cube'
 

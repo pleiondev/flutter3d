@@ -266,7 +266,9 @@ renderer looks the same here.
 - **A reflection probe's `intensity` is a ratio**, the light it measured times
   it, and so has no unit.
 - **Exposure is in EV100**, which turns those absolute values into an image.
-  The renderer's own scale, in which shaders work, is hidden.
+  The renderer's own scale, in which shaders work, is not an API value
+  anywhere but one: a stage that adds light to `hdr_color` reads it as
+  `FrameContext.nitsPerHdrUnit` ("Frame resources a stage reads" below).
 
 Before 1.0, light intensity was in an engine unit where 1.0 was
 1843.2 cd/m² of luminance and π times that in lux. (The reference camera
@@ -427,6 +429,17 @@ keeps, and a draw binds by it; `uniformBlocks` gives every block's members,
 offsets and sizes as std140 laid them out. Both are generated after every
 shader change and both only grow in a minor.
 
+**Checked, not only promised.** `packages/flutter3d_shaders/api/flutter3d_shaders.abi`
+holds the whole ABI one fact a line: each entry point and its kind, each
+stage's blocks and samplers, each member with its offset, byte length,
+element count and type, and each engine vertex stage's inputs in order.
+The package's test keeps it current (`dart run tool/abi_snapshot.dart`
+writes it), and the structure rule *the shader ABI only grows* fails on any
+line of the base recorded at 1.0.0-rc.1 (`tool/api/abi_base/`) that is
+gone: a dropped stage, a removed or reordered member, a moved offset, a
+renumbered vertex input. Adding lines is a minor; a base is recorded again
+only at a major.
+
 ### The defines
 
 The engine's GLSL is compiled with these, each set by the stage that
@@ -477,7 +490,12 @@ material leaves unset is bound at the default its source declares
 own vertex stage and its instanced and lightmapped variants alike — and a
 texture it names none for at a white texel, so a material written before a
 model grew a member draws the same on every backend. The render check
-`render.lit model defaults` holds each backend to it.
+`render.lit model defaults` holds each backend to it. **A full-screen stage
+too**: `FullscreenEffect.material` binds its `MaterialParams` at the
+source's defaults (`FullscreenEffect.parameters`), the surface buffer when
+it reads `sceneDepth`, and refuses a texture of its own that nothing names;
+a render step from data that samples a texture of its own is refused until
+the format can name one.
 
 **The budget.** One stage binds at most 16 textures, 16 samplers and 12
 uniform blocks, the engine's bindings and the material's own together
@@ -485,12 +503,32 @@ uniform blocks, the engine's bindings and the material's own together
 texture and a sampler, and the tightest of the four backends. A lit model's
 stage carries the engine's lighting bindings (the shadow maps, the
 irradiance, the light list, the material maps it reads), so its own
-textures and blocks get what those leave. The WebGPU section writer every
-build and `RuntimeShaders` call refuses a stage over the budget, naming the
-stage and the count, so the material fails on its author's machine and not
-at its first draw on a device. A WebGPU device is opened with the adapter's
+textures and blocks get what those leave: **3 textures and 4 uniform blocks
+of its own (`MaterialParams` included), in every 1.x**
+(`MaterialStageBudget.materialTextures` and `materialUniformBlocks`). The
+engine's bindings in a material-language lit stage with every feature on
+stay within the budget less that share, which a test holds; a later lit
+feature packs into a texture the stage already reads rather than taking a
+material's room. Every build and every `RuntimeShaders` call that has the
+engine's headers counts each stage from the GLSL it emitted, on every
+backend, and refuses one over the budget, naming the stage and the count
+(`MaterialStageBudget.problemOfGlsl`); the WebGPU section writer counts its
+packed stages too. The material fails on its author's machine and not at
+its first draw on a phone's browser. A WebGPU device is opened with the adapter's
 own stage limits, which may be higher; a bundle counts only on the
 minimums.
+
+### How the material language grows
+
+A new input, builtin or reserved name arrives with a new `f3dmat <N>`, and
+a source of an older `N` keeps every name it had: each input carries the
+version it arrived in (`MaterialInput.since`) and each builtin too
+(`materialBuiltinVersions`), and a name is taken from a declaration or a
+`let` only where the source's version has it. The block names a material
+cannot use are frozen at 1.0.0 (`materialReservedBlockNames`) together with
+a shape the engine keeps for later blocks, `F3d…` and `…Info`, which a
+material's own block was never allowed; a block the engine adds in a minor
+is named in that shape, so `uniform(Hair)` stays a material's to use.
 
 ### Light codes
 
@@ -501,11 +539,17 @@ the engine's later types take codes below 16. A light type of a plugin's own
 (`LightTypeHook`, registered with `LightTypes`) takes a code from 16 up,
 handed out once per renderer in registration order, and its hook fills the
 row. **The engine's lit stages skip a light whose code is 16 or more**; a
-lighting model of the plugin's own reads the code and the row in its
-`light` block (the inputs `lightKind` and `lightParams`, the row's last
-`vec4`) and computes its own falloff. The skip and the two inputs are part
-of the next shader change of the backends, which is where the engine's
-stages are compiled.
+lighting model of the plugin's own written in the material language reads
+the code and the row in its `light` block, from version 3: `lightKind` (the
+code) and `lightParams` (the row's last `vec4`). Such a block gathers its
+lights through the material's own loop, which hands it a plugin's light
+with the direction to it, n·l and its colour times its intensity, and no
+falloff or shadow of the engine's: the block computes its own from
+`lightParams`. Because codes are handed out per renderer, a material names
+its types instead, `lighttype tube = acme.tube;`, and its block reads `tube`
+as one for a light of that type; the renderer fills the code
+(`LightTypes.codeNamed`, `LightingModel.lightTypeMembers`), minus one where
+no hook packs the type.
 
 ### Vertex layouts
 
@@ -516,7 +560,13 @@ instance's rows, colour and four numbers in a second buffer stepped per
 instance (`MeshVertexLayouts.instanced`); its lightmapped half,
 `<name>Lightmapped`, the level's baked coordinate. A material lists the
 halves it ships (`LightingModel.vertexVariants`); the others are drawn
-through the engine's.
+through the engine's. A `vertex` block written in the material language
+ships all four from version 3 (`<name>VertexInstanced`,
+`<name>VertexLightmapped`), each with the engine's inputs in the engine's
+order, and the depth and shadow passes draw an instanced caster through its
+instanced half; an older source's instanced and lightmapped draws keep the
+engine's stages, as they always had. These layouts are frozen within 1.x:
+a stage built against 1.0 reads the same attributes at the same places.
 
 ### Decal stages
 
@@ -605,6 +655,23 @@ declare has the same members in the same order. Each mismatch is a
 `StageMismatch` naming both stages and what each declares, and the writer
 refuses the bundle with them: a build error with names, not a crash on one
 backend at the first draw.
+
+### Frame resources a stage reads
+
+A render node or a full-screen stage of a plugin's reads the frame's
+resources by name (`FrameResourceIds`). Their encodings are part of the
+contract and frozen within 1.x: a minor may add a resource, never change
+what the channels of one hold.
+
+| Resource | What it holds |
+|---|---|
+| `hdr_color` | The scene's light, linear, unbounded and **before exposure**, in the renderer's light scale: one unit is `FrameContext.nitsPerHdrUnit` nits (1 843.2), so a stage adding light of `L` nits adds `L / nitsPerHdrUnit`. Alpha is not read. |
+| `surface_buffer` | `rg` the world normal of the nearest opaque surface, octahedral-encoded (`EncodeOctahedral` in `lib/color.glsl`: the normal over its L1 norm, the lower hemisphere folded over the diagonals, then `* 0.5 + 0.5`), `b` its perceptual roughness, `a` its depth along the view axis in metres. All four are **zero where nothing was drawn**. A debug view (`RenderSettings.debugView`) may take `rgb` over; `a` stays the depth. Read it nearest: a filter averages two encoded normals into a third that is none of them. |
+| `velocity` | `rg` how far the pixel moved on screen since the last frame, **now minus then, in UV units** (nought to one from the top left); zero where nothing was drawn and on a view with no past. Produced while `RenderStep.velocity` is on and something reads it, a placed node's read included. |
+| `frame` | The finished picture, display-referred sRGB after tone mapping: what an effect at `afterTonemap` and after it reads and writes. |
+
+The full-screen inputs of the material language read the same encodings
+(`sceneDepth` is the surface buffer's `a`, a million where it is zero).
 
 ## Names
 

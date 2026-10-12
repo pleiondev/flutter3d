@@ -366,6 +366,70 @@ final class LogRecord
   final String source
   final int sequence
 
+final class MaterialParameterException extends Flutter3dFormatException
+  String toString()
+  const MaterialParameterException(this.message)
+  final String message
+
+final class MaterialParameterSchema
+  Iterable<ParameterDeclaration> get declarations
+  Iterable<String> get names
+  MaterialParameterSchema(Iterable<ParameterDeclaration> declarations)
+  ParameterDeclaration? operator [](String name)
+
+final class MaterialParameters
+  Float32List? named(String name)
+  Float32List? operator [](String name)
+  Iterable<String> get names
+  Map<String, Float32List> get uniforms
+  MaterialParameterSchema? get schema
+  MaterialParameters copy()
+  MaterialParameters({MaterialParameterSchema? schema})
+  MaterialParameters.over(Map<String, Float32List> values, {MaterialParameterSchema? schema})
+  String toString()
+  T? valueOf<T extends Object>(ParameterKey<T> key)
+  bool get isEmpty
+  bool get isNotEmpty
+  factory MaterialParameters.of(Map<String, List<double>> values, {MaterialParameterSchema? schema})
+  int get version
+  void adopt(MaterialParameterSchema schema)
+  void operator []=(String name, List<double> value)
+  void remove(String name)
+  void set<T extends Object>(ParameterKey<T> key, T value)
+  void setNamed(String name, Object value)
+
+final class ParameterDeclaration
+  String toString()
+  const ParameterDeclaration(this.name, {required this.components, required this.defaultValue, this.isUniform = true, this.unit})
+  final List<double> defaultValue
+  final String name
+  final Unit? unit
+  final bool isUniform
+  final int components
+
+final class ParameterKey<T extends Object>
+  String toString()
+  bool operator ==(Object other)
+  const ParameterKey(this.name, this.type, {this.unit})
+  final ParameterType<T> type
+  final String name
+  final Unit? unit
+  int get hashCode
+
+abstract base class ParameterType<T extends Object>
+  String toString()
+  abstract T read(Float32List floats)
+  abstract void write(T value, Float32List out)
+  const ParameterType(this.name, this.components)
+  final String name
+  final int components
+  static const ParameterType<LinearColor> color = _ColorType()
+  static const ParameterType<LinearColor> colorWithAlpha = _ColorAlphaType()
+  static const ParameterType<Vector2> vec2 = _Vector2Type()
+  static const ParameterType<Vector3> vec3 = _Vector3Type()
+  static const ParameterType<Vector4> vec4 = _Vector4Type()
+  static const ParameterType<double> float = _FloatType()
+
 abstract base mixin class PlacedEvent
   Vector3? get direction
   abstract Vector3 get at

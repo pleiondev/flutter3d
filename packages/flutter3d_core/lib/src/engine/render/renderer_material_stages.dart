@@ -69,14 +69,36 @@ extension _MaterialStages on Renderer {
   /// Binds the pipeline of [node]'s material's vertex stage and [fragment] —
   /// a depth pre-draw or a shadow pass drawing a caster whose material moves
   /// its geometry — and returns the stage, or null, binding nothing, for a
-  /// caster drawn through the engine's stage: every other one, and every
-  /// instanced one.
+  /// caster drawn through the engine's stage: every other one, and an
+  /// instanced one whose material lists no instanced half of its own.
+  ///
+  /// **An instanced caster casts the shadow it draws.** A material's
+  /// instanced half (version 3) moves each instance in the scene, so the
+  /// depth and shadow passes draw it through that half too, with the
+  /// instanced layout; before it, grass that swayed in the scene cast the
+  /// shadow of grass standing still.
   ShaderHandle? _bindDepthPassStage(
     PassEncoder pass,
     MeshNode node,
     ShaderHandle fragment,
   ) {
-    if (node is InstancedMeshNode) return null;
+    if (node is InstancedMeshNode) {
+      final material = node.material;
+      final own = _movesInDepthPasses(material)
+          ? _materialVariantStage(
+              material.lighting,
+              VertexStageVariant.instanced,
+            )
+          : null;
+      if (own == null) return null;
+      pass.bindPipeline(
+        _pipelineCache.putIfAbsent(
+          'depth/${own.name}+${fragment.name}',
+          () => device.createPipeline(own, fragment, layout: _kInstancedLayout),
+        ),
+      );
+      return own;
+    }
     final own = _depthPassVertexStage(
       node.material,
       skinned: node.skeleton != null,
@@ -118,7 +140,8 @@ extension _MaterialStages on Renderer {
     // Through the slot table where the model has one (D21), so a vertex
     // stage reads the blocks of its own, defaults included, as the
     // fragment stage does.
-    final values = node?.parametersFor(material) ?? material.parameters;
+    final values =
+        node?.parametersFor(material) ?? material.parameters.uniforms;
     if (parameters &&
         (values.isNotEmpty || material.lighting.slots.blocks.isNotEmpty)) {
       _bindMaterialBlocks(pass, stage, material, values);

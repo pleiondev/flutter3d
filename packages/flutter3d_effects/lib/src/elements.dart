@@ -7,7 +7,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_elements/flutter3d_elements.dart';
-import 'package:flutter3d_foundation/flutter3d_foundation.dart' show RigidPose;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor, RigidPose;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
@@ -76,7 +77,9 @@ final class Liquid {
   final NativeLiquidProperties properties;
   final LiquidOptics optics;
   final NativeLiquidHeat heat;
-  final Vector3? glow;
+
+  /// The light the liquid gives off itself, linear, or null for none.
+  final LinearColor? glow;
 
   /// Whether [heat]'s temperature is the air's of the world the liquid is
   /// in rather than its own: read by [Elements.addWater], which then pours
@@ -95,7 +98,7 @@ final class Liquid {
     NativeLiquidProperties? properties,
     LiquidOptics? optics,
     NativeLiquidHeat? heat,
-    Vector3? glow,
+    LinearColor? glow,
     bool? atAirTemperature,
     bool clearGlow = false,
   }) => Liquid(
@@ -387,21 +390,21 @@ final class Elements {
     _scene = value;
   }
 
-  ({Vector3 along, Vector3 light})? _sun;
-  ({Vector3 zenith, Vector3 horizon})? _sky;
+  ({Vector3 along, LinearColor light})? _sun;
+  ({LinearColor zenith, LinearColor horizon})? _sky;
 
   /// The sun every water is lit by: the direction its light travels, and
   /// its colour times its intensity.
-  void sun({required Vector3 along, required Vector3 light}) {
-    _sun = (along: along.clone(), light: light.clone());
+  void sun({required Vector3 along, required LinearColor light}) {
+    _sun = (along: along.clone(), light: light);
     for (final w in _waters) {
       w.look.sun(along: along, light: light);
     }
   }
 
-  /// The sky every water mirrors.
-  void sky({required Vector3 zenith, required Vector3 horizon}) {
-    _sky = (zenith: zenith.clone(), horizon: horizon.clone());
+  /// The sky every water mirrors, linear.
+  void sky({required LinearColor zenith, required LinearColor horizon}) {
+    _sky = (zenith: zenith, horizon: horizon);
     for (final w in _waters) {
       w.look.sky(zenith: zenith, horizon: horizon);
     }
