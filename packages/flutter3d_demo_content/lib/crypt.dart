@@ -693,7 +693,15 @@ final class CryptWorld {
   static int seedOf(String name) {
     var h = 0x811c9dc5;
     for (final unit in name.codeUnits) {
-      h = ((h ^ unit) * 0x01000193) & 0xFFFFFFFF;
+      // FNV-1a's multiply in two 16-bit halves: the whole product needs
+      // 57 bits, which a JavaScript number rounds, and the web then seeded
+      // a different level from the VM. Each half's product stays under 2^53.
+      final x = h ^ unit;
+      final lo = x & 0xFFFF;
+      final hi = x >> 16;
+      h =
+          (lo * 0x01000193 + ((hi * 0x01000193) & 0xFFFF) * 0x10000) &
+          0xFFFFFFFF;
     }
     return h;
   }

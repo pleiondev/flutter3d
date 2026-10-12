@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **A save names its standing colliders the same on every platform.** The
+  key was the shape's type name and each number's text, which a web build
+  writes differently, so the same world saved to different bytes under
+  dart2js. It is a kind number and each float's bits now; a save written
+  before still restores on the VM that wrote it.
 - **Breaking: the core's results are classes.** `PhysicsStart`,
   `NativeEvent`, `NativeContact`, `NativeHit`, `NativeCharacterMove`,
   `NativeWheelState` and `NativeShallowInfo` are final classes with the

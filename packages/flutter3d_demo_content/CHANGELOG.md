@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **The crypt is furnished the same on the web.** `CryptWorld.seedOf`
+  multiplies in 16-bit halves, so a JavaScript build no longer rounds the
+  hash and seeds other crates and barrels than the VM.
 - **The strategy map's halls are lit and broken by what strikes them.** A
   fire arrow is a body loosed at the timber nearest the shooter, and its
   flame is held where the core says it struck timber; a ram's stone breaks

@@ -520,11 +520,45 @@ final class NativeDynamics extends RigidDynamics with WorldMirror {
       : x.$3.compareTo(y.$3);
 
   /// What tells a standing collider in a world staged again: its shape's
-  /// kind and size, and where it stands, to the float.
+  /// kind and size, and where it stands, to the bit.
+  ///
+  /// **The same text on every platform.** It was the shape's `runtimeType`
+  /// and each number's `toString`, and a web build writes both differently
+  /// (a minified type name, `2` for `2.0`), so a save, and the digest of
+  /// it, differed between the VM and dart2js. A stable kind and each
+  /// float's bits read the same everywhere.
   static String _keyOf(CollisionShape shape, Vector3 at) {
+    final half = shape.boundsHalfExtents;
+    return '${_kindOf(shape)} ${_bitsOf(half.x)} ${_bitsOf(half.y)} '
+        '${_bitsOf(half.z)} ${_bitsOf(at.x)} ${_bitsOf(at.y)} ${_bitsOf(at.z)}';
+  }
+
+  /// [_keyOf] as saves before rc.1 wrote it, so a standing collider in one
+  /// is still found on the VM that wrote it.
+  static String _legacyKeyOf(CollisionShape shape, Vector3 at) {
     final half = shape.boundsHalfExtents;
     return '${shape.runtimeType} ${half.x} ${half.y} ${half.z} '
         '${at.x} ${at.y} ${at.z}';
+  }
+
+  /// A shape's kind as a number no build renames: a shape of a game's own
+  /// is one kind whatever its class.
+  static int _kindOf(CollisionShape shape) => switch (shape) {
+    CollisionBox() => 0,
+    CollisionSphere() => 1,
+    CollisionCapsule() => 2,
+    CollisionWedge() => 3,
+    CollisionHeightfield() => 4,
+    _ => 5,
+  };
+
+  static final ByteData _scratch = ByteData(8);
+
+  /// The 64 bits of [value], in hex.
+  static String _bitsOf(double value) {
+    _scratch.setFloat64(0, value);
+    return '${_scratch.getUint32(0).toRadixString(16).padLeft(8, '0')}'
+        '${_scratch.getUint32(4).toRadixString(16).padLeft(8, '0')}';
   }
 
   /// Back to what [saveState] wrote. **The world's colliders first**: the
@@ -668,12 +702,15 @@ final class NativeDynamics extends RigidDynamics with WorldMirror {
     // Every collider that could stand, by what tells it; two alike in one
     // place are taken in the world's order.
     final byKey = <String, List<Collider>>{};
+    // A save written before the keys were the same on every platform names
+    // a collider the old way.
+    final legacy = <String, String>{};
     for (final collider in <Collider>[...world.statics, ...world.movers]) {
       if (collider.kind == ColliderKind.trigger) continue;
       if (_byCollider.containsKey(collider)) continue;
-      (byKey[_keyOf(collider.shape, collider.position)] ??= <Collider>[]).add(
-        collider,
-      );
+      final key = _keyOf(collider.shape, collider.position);
+      (byKey[key] ??= <Collider>[]).add(collider);
+      legacy[_legacyKeyOf(collider.shape, collider.position)] ??= key;
     }
     _standing.clear();
     for (final entry in saved) {
@@ -691,7 +728,7 @@ final class NativeDynamics extends RigidDynamics with WorldMirror {
         final int moving,
       ]) {
         final handle = NativeBody(raw);
-        final alike = byKey[key];
+        final alike = byKey[key] ?? byKey[legacy[key]];
         if (alike == null || alike.isEmpty || !native.contains(handle)) {
           continue;
         }

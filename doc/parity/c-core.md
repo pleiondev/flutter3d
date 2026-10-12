@@ -27,7 +27,8 @@ core and the games over it.
 ## The table
 
 `tool/digest_platforms.sh tapes vm dart2js dart2wasm`, run from
-`packages/flutter3d_physics_native` on 2026-10-12 at `82b03ec80`. The
+`packages/flutter3d_physics_native` on 2026-10-13, on top of `1a171e87f`
+with the two fixes below. The
 reference column is this Mac (Apple clang, ARM64, the library the package's
 hook builds); a cell that agrees with it reads "=".
 
@@ -44,47 +45,55 @@ hook builds); a cell that agrees with it reads "=".
 | racing, 800 | `646a606b` | to measure | to measure | to measure | to measure | = | = |
 | racing, 900 | `526cce31` | to measure | to measure | to measure | to measure | = | = |
 | racing, 1 000 | `de0f4cdf` | to measure | to measure | to measure | to measure | = | = |
-| shooter, start | `9668a5c4` | to measure | to measure | to measure | to measure | `80b3f6be` | = |
-| shooter, 100 | `30df01c3` | to measure | to measure | to measure | to measure | `ecacde0a` | = |
-| shooter, 200 | `b85e2381` | to measure | to measure | to measure | to measure | `a1e6db78` | = |
-| shooter, 300 | `85aeb5e3` | to measure | to measure | to measure | to measure | `bae76e2f` | = |
-| shooter, 400 | `b7e914d7` | to measure | to measure | to measure | to measure | `61a0758b` | = |
-| shooter, 500 | `ce6e922b` | to measure | to measure | to measure | to measure | `ecba9253` | = |
-| shooter, 600 | `d6cc77a1` | to measure | to measure | to measure | to measure | `d20da751` | = |
-| shooter, 700 | `8736077d` | to measure | to measure | to measure | to measure | `fe4675b1` | = |
-| shooter, 800 | `96c56352` | to measure | to measure | to measure | to measure | `59f3638e` | = |
-| shooter, 900 | `9e6c874b` | to measure | to measure | to measure | to measure | `935752d7` | = |
-| shooter, 1 000 | `55f6d44e` | to measure | to measure | to measure | to measure | `ac51ce3a` | = |
+| shooter, start | `1609f295` | to measure | to measure | to measure | to measure | = | = |
+| shooter, 100 | `61209dbe` | to measure | to measure | to measure | to measure | = | = |
+| shooter, 200 | `f45d5fdc` | to measure | to measure | to measure | to measure | = | = |
+| shooter, 300 | `0a096294` | to measure | to measure | to measure | to measure | = | = |
+| shooter, 400 | `cff9df36` | to measure | to measure | to measure | to measure | = | = |
+| shooter, 500 | `94ee7399` | to measure | to measure | to measure | to measure | = | = |
+| shooter, 600 | `c933e8cc` | to measure | to measure | to measure | to measure | = | = |
+| shooter, 700 | `12f45368` | to measure | to measure | to measure | to measure | = | = |
+| shooter, 800 | `2ca39afb` | to measure | to measure | to measure | to measure | = | = |
+| shooter, 900 | `ed68f54a` | to measure | to measure | to measure | to measure | = | = |
+| shooter, 1 000 | `9112d28f` | to measure | to measure | to measure | to measure | = | = |
 
-**dart2wasm agrees with the native library on all 22 digests**: the core
-compiled to WebAssembly by clang steps both worlds to the bits the ARM64
-library does. **dart2js agrees on the racing tape and not on the shooter's,
-from before the first step**, and the core is not why: the same WebAssembly
-core agrees under dart2wasm. Two things on the Dart side differ under
-dart2js, where every number is a double:
+**dart2js and dart2wasm agree with the native library on all 22 digests.**
+The core compiled to WebAssembly by clang steps both worlds to the bits the
+ARM64 library does, and the game compiled to JavaScript stages and saves
+them as the VM does.
 
-1. **The crypt is staged with other wood.** `CryptWorld.seedOf`
-   (`packages/flutter3d_demo_content/lib/crypt.dart`) is FNV-1a with the
-   multiply `(h ^ unit) * 0x01000193`, whose product needs 56 bits; under
-   dart2js it is rounded to 53, so `seedOf('crypt')` is 1555578911 on the VM
-   and 2200777500 in JavaScript, and the crates and barrels the seed places
-   differ (17 pieces against 16). The multiply wants splitting into 16-bit
-   halves, as a hash that must agree across platforms does.
-2. **The dynamics' save names its standing colliders in text.**
+That took two fixes on the Dart side, where under dart2js every number is a
+double. The first run (2026-10-12, `82b03ec80`) agreed on the racing tape
+and not on the shooter's, from before the first step:
+
+1. **The crypt was staged with other wood.** `CryptWorld.seedOf`
+   (`packages/flutter3d_demo_content/lib/crypt.dart`) is FNV-1a, and its
+   multiply `(h ^ unit) * 0x01000193` needs 57 bits; dart2js rounded it to
+   53, so `seedOf('crypt')` was 1555578911 on the VM and 2200777500 in
+   JavaScript, and the seed placed 17 crates and barrels against 16. The
+   multiply is now done in two 16-bit halves, each product under 2^53, and
+   both platforms answer 1555578911.
+2. **The dynamics' save named its standing colliders in text.**
    `NativeDynamics._keyOf` (`packages/flutter3d_physics_native/lib/src/native_dynamics.dart`)
-   writes `'${shape.runtimeType} ${half.x} …'`: `CollisionBox 7.0 0.5 7.0 …`
-   on the VM and `CollisionBox 7 0.5 7 …` under dart2js, where `7.0` prints
-   as `7` — and a minified release build names the type something else
-   again. Two worlds in the same state then save to different bytes, and a
-   save written by one cannot be matched by key in the other. The key wants
-   the floats' bits and a kind number in place of the text.
+   wrote `'${shape.runtimeType} ${half.x} …'`: `CollisionBox 7.0 0.5 7.0 …`
+   on the VM and `CollisionBox 7 0.5 7 …` under dart2js, and a minified
+   release build names the type something else again. The key is now a
+   kind number and each float's 64 bits in hex. A save written before still
+   restores on the VM that wrote it: the old key is looked up when the new
+   one names nothing.
+
+**The shooter's VM digests moved with the second fix, and only because of
+it.** The digest is of the run's whole save, and the save carries each
+standing collider's key, so a new spelling of the key is a new digest for
+the same world. Played again with the old key and the new `seedOf`, the VM
+gives the eleven shooter digests of the first run exactly (`9668a5c4` to
+`55f6d44e`): the seed's answer on the VM did not change, and no step did.
+The racing tape's digests did not move, so its save carries no such key.
 
 P3's rule for a mismatch is `-ffp-contract=off` on every target and a
-retry, then an architecture field in `WireHello` if it still differs. Neither
-applies here: the core already builds with `-ffp-contract=off`, and the
-difference is in Dart code that a fix makes portable. The dart2js column is
-to be measured again once both are fixed; until then rollback between a
-dart2js build and any other is not proven for the shooter.
+retry, then an architecture field in `WireHello` if it still differs.
+Neither was needed: the core already builds with `-ffp-contract=off`, and
+the difference was in Dart code the fixes made portable.
 
 ## To measure
 
