@@ -128,21 +128,48 @@ void main() {
 
   test('a scheme taken twice is refused, naming who holds it', () {
     final decoders = ModelDecoders();
-    decoders.forPlugin(_Scope('pak', 0)).addSource('pak', _pak);
+    decoders.forPlugin(_Scope('pak.archive', 0)).addSource('pak', _pak);
 
     // Mutation: let the second replace the first. Which archive a path
     // read from would depend on the install order, silently.
     expect(
-      () => decoders.forPlugin(_Scope('other', 1)).addSource('pak', _pak),
+      () => decoders.forPlugin(_Scope('pak.cache', 1)).addSource('pak', _pak),
       throwsA(
         isA<ArgumentError>().having(
           (e) => e.message,
           'message',
-          contains('plugin "pak"'),
+          contains('plugin "pak.archive"'),
         ),
       ),
     );
     expect(() => decoders.addSource('C', _pak), throwsArgumentError);
+  });
+
+  test('a plugin\'s scheme is in its namespace, and never one the engine '
+      'reads', () {
+    final decoders = ModelDecoders();
+    final frost = decoders.forPlugin(_Scope('acme_frost', 0));
+    expect(() => frost.addSource('acme-frost', _pak), returnsNormally);
+    expect(() => frost.addSource('acme-frost-pak', _pak), returnsNormally);
+    // Mutation: drop the namespace check from `addSource`. A plugin takes
+    // `https` and every such load goes to it instead of the fallback, or
+    // takes `hub` before the engine adds it and stops the application.
+    for (final scheme in <String>['https', 'hub', 'pak', 'acme-frost.x']) {
+      expect(
+        () => frost.addSource(scheme, _pak),
+        throwsA(
+          isA<PluginException>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('"$scheme"'), contains('acme-frost')),
+          ),
+        ),
+        reason: scheme,
+      );
+    }
+    // The application names its own schemes, the engine's among them.
+    expect(() => decoders.addSource('https', _pak), returnsNormally);
+    expect(AssetSources.reservedSchemes, contains('hub'));
   });
 
   test('a path with a registered scheme goes to its source without the '

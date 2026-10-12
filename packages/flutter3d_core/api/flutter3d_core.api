@@ -522,6 +522,7 @@ final class AssetSources
   List<String> get schemes
   bool handles(String path)
   static String? schemeOf(String path)
+  static const Set<String> reservedSchemes = <String>{'asset', 'blob', 'data', 'f3d', 'file', 'http', 'https', 'hub', 'package'}
   void add(String scheme, AssetSourceFactory make)
   void remove(String scheme)
 
@@ -6230,6 +6231,7 @@ final class AssetSources
   List<String> get schemes
   bool handles(String path)
   static String? schemeOf(String path)
+  static const Set<String> reservedSchemes = <String>{'asset', 'blob', 'data', 'f3d', 'file', 'http', 'https', 'hub', 'package'}
   void add(String scheme, AssetSourceFactory make)
   void remove(String scheme)
 
