@@ -143,9 +143,11 @@ abstract base class PeerWire
 
 final class RollbackSession<S>
   ({int step, S after})? get agreedEnd
-  RollbackSession({required this.wire, required this.captureLocalFrame, required this.applyAndStep, required this.save, required this.restore, int? localSlot, this.players = 2, this.inputDelay = 2, this.maxRollbackFrames = 8, this.redundancy = 8, this.maxStepsAhead = 600, this.endsAt, this.onSettled, this.onMessage})
+  RollbackSession({required this.wire, required this.captureLocalFrame, required this.applyAndStep, required this.save, required this.restore, int? localSlot, this.players = 2, this.inputDelay = 2, this.maxRollbackFrames = 8, this.redundancy = 8, this.maxStepsAhead = 600, this.endsAt, this.onSettled, this.onMessage, Duration Function()? elapsed})
+  RollbackStats get stats
   bool get isConnected
   bool get isResimulating
+  final Duration Function() elapsed
   final Map<String, Object?> Function() captureLocalFrame
   final PeerWire wire
   final S Function() save
@@ -168,6 +170,23 @@ final class RollbackSession<S>
   void advance()
   void dispose()
   void receive(int from, Map<String, Object?> message)
+
+final class RollbackStats
+  Map<String, Object?> toJson()
+  String toString()
+  const RollbackStats({required this.steps, required this.rollbacks, required this.stepsRerun, required this.settledOnGuess, required this.droppedCorrections, required this.droppedEarly, required this.resimulationP50, required this.resimulationP99, required this.resimulationMax})
+  double get droppedCorrectionShare
+  factory RollbackStats.fromJson(Map<String, Object?> json)
+  final Duration resimulationMax
+  final Duration resimulationP50
+  final Duration resimulationP99
+  final int droppedCorrections
+  final int droppedEarly
+  final int rollbacks
+  final int settledOnGuess
+  final int steps
+  final int stepsRerun
+  static const Duration histogramLimit = Duration(milliseconds: 50)
 
 final class SimulationObserver
   ObserverMode? get mode
