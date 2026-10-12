@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1
 
+- **A check and a backend's own section are classes.**
+  `ConformanceCheck({name, run})` and `OwnShaderSection({id, bytes, sdk})`
+  are final classes with value equality where they were records, so either
+  can carry more in a minor. A record literal becomes a constructor call.
+- **The honesty check runs in the shader-free tier.** Its five probes that
+  bind to a stage are skipped on a device without `DebugLine`, and the check
+  declines naming them once every other feature has answered honestly. It
+  probes `texture1D` and `depthBiasClamp`. `decline` names the device by
+  `backendName`.
+- **The check that compared each capability getter with itself is gone.**
 - **A backend runs the tier it has reached.** `runDeviceConformance(checks:)`
   takes the checks to run, `conformanceChecks` when left out: a backend
   that does not draw yet runs every check but `shaderChecks`, and adds them

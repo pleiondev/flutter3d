@@ -241,15 +241,15 @@ Future<void> checkViewsDrawnInOnePass(GraphicsDevice device) async {
 
 /// The three, as checks.
 List<ConformanceCheck> get xrChecks => <ConformanceCheck>[
-  (
+  ConformanceCheck(
     name: 'two views drawn a pass each land in their own layers',
     run: checkViewsDrawnPerLayer,
   ),
-  (
+  ConformanceCheck(
     name: 'two views copied into a runtime image land in their own layers',
     run: checkViewsCopiedIntoLayers,
   ),
-  (
+  ConformanceCheck(
     name: 'two views drawn in one multiview pass land in both layers',
     run: checkViewsDrawnInOnePass,
   ),

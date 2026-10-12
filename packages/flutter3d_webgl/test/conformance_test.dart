@@ -29,7 +29,7 @@ void main() {
     },
     // The same sources the device was built with, as the section a packed
     // bundle would carry. No SDK: the section is text the browser compiles.
-    ownShaders: () async => (
+    ownShaders: () async => OwnShaderSection(
       id: ShaderBundle.webglSection,
       bytes: encodeWebGlSection(
         vertex: webGlEngineShaders.vertex,

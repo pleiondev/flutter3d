@@ -46,7 +46,7 @@ class _ConformanceAppState extends State<ConformanceApp> {
     // carry: the asset is the F3SB container the build hook writes, so its
     // `impellerc` section is read out of it (the one the device loaded by
     // asset path) and stamped with the SDK this process runs on.
-    Future<OwnShaderSection?> ownShaders() async => (
+    Future<OwnShaderSection?> ownShaders() async => OwnShaderSection(
       id: ShaderBundle.impellerSection,
       bytes: impellerSectionOf(
         ShaderBundle.decode(

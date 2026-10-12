@@ -481,11 +481,20 @@ Future<void> checkKernelBlur(GraphicsDevice device) async {
 
 /// The four, as checks.
 List<ConformanceCheck> get kernelChecks => <ConformanceCheck>[
-  (name: 'a prefix sum kernel gives the same bytes', run: checkKernelPrefixSum),
-  (
+  ConformanceCheck(
+    name: 'a prefix sum kernel gives the same bytes',
+    run: checkKernelPrefixSum,
+  ),
+  ConformanceCheck(
     name: 'a particle step kernel gives the same bytes',
     run: checkKernelParticleStep,
   ),
-  (name: 'a skinning kernel gives the same bytes', run: checkKernelSkin),
-  (name: 'a blur kernel gives the same bytes', run: checkKernelBlur),
+  ConformanceCheck(
+    name: 'a skinning kernel gives the same bytes',
+    run: checkKernelSkin,
+  ),
+  ConformanceCheck(
+    name: 'a blur kernel gives the same bytes',
+    run: checkKernelBlur,
+  ),
 ];

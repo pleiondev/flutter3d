@@ -1,5 +1,25 @@
 ## 1.0.0-rc.1
 
+- **A handle says its shape once.** `TextureHandle.type` and
+  `sliceCount` are read from `dimension`, and `StorageBuffer.hostReadable`
+  from `usage`; `wrapTexture(type:)` and `wrapStorageBuffer(hostReadable:)`
+  are still read when the newer field is absent, and throw an
+  `ArgumentError` when the two disagree.
+- **A 1D texture and a depth-bias clamp have their features.**
+  `DeviceFeature.texture1D` and `DeviceFeature.depthBiasClamp`;
+  `TextureDescriptor.checkFeatures` asks for the first, and the new
+  `DepthBias.checkFeatures(features, backend:)` for `depthBias` and, for a
+  non-zero clamp, the second. Both shapes were refused untyped before.
+- **A release may come while submitted work still reads the handle.**
+  `GraphicsDevice` states it for every `release…` member and `dispose`: the
+  device defers destruction until the work is done, and `releaseTexture`'s
+  doc no longer says the opposite.
+- **The defaults name their own feature.** `readQueryResults` refuses the
+  feature of the set's type (a timestamp set no longer names occlusion), and
+  `beginTransferPass` opens a pass whose copies refuse by their features
+  rather than refusing `bufferCopy` itself.
+- **A recording says it did not trace a multiview pass.** A view mask is
+  listed in `RecordingDevice.unrecorded` instead of traced as one view.
 - **`GraphicsDevice.backendId`: one name a backend is matched by.**
   `backendName` is for people ("WebGL2", "the software rasteriser"); the
   id is what a `MaterialCompiler`'s `backend` and a plugin manifest give,

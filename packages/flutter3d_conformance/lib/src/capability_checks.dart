@@ -936,7 +936,7 @@ Future<void> checkCapabilitiesAreHonest(GraphicsDevice device) async {
 /// Every backend runs these. The honesty check declines only on a device
 /// with no stages yet, for the probes that need one.
 List<ConformanceCheck> get capabilityChecks => <ConformanceCheck>[
-  (
+  ConformanceCheck(
     name: 'every capability a device reports is honest',
     run: checkCapabilitiesAreHonest,
   ),

@@ -15,11 +15,11 @@ void main() {
       backend: 'fake',
       makeDevice: ({required int width, required int height}) => FakeBackend(),
       checks: <ConformanceCheck>[
-        (
+        ConformanceCheck(
           name: 'the first',
           run: (GraphicsDevice device) async => _ran.add('the first'),
         ),
-        (
+        ConformanceCheck(
           name: 'the second',
           run: (GraphicsDevice device) async => _ran.add('the second'),
         ),

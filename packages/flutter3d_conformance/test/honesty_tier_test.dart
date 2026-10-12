@@ -2,7 +2,6 @@
 // yet is told which features could not be asked, and is not blamed for
 // them.
 import 'package:flutter3d_conformance/flutter3d_conformance.dart';
-import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:test/test.dart';
 
@@ -44,4 +43,3 @@ void main() {
     );
   });
 }
-
