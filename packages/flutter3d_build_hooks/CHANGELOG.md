@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **A material over the binding budget does not build, on any backend.**
+  Each stage is counted from its GLSL before the sections are written, where
+  only the WebGPU section counted, and only with glslang and naga installed.
 - **Breaking: a generated material accessor is over a `MaterialParameters`**,
   the shape `RenderMaterial.parameters` has, and its `defaults()` answers
   one. A `vec3` or `vec4` uniform whose name says it is a colour says in

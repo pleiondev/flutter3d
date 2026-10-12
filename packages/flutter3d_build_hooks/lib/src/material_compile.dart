@@ -46,6 +46,7 @@ import 'package:flutter3d_shaders/backend.dart'
         MaterialCompileException,
         MaterialCompileRequest,
         MaterialCompilerRegistry,
+        MaterialStageBudget,
         MaterialStageSource;
 import 'package:flutter3d_shaders/compile.dart';
 
@@ -312,6 +313,16 @@ ShaderBundle compileMaterial(
       );
     } on GlslTranslateException catch (error) {
       refused('the WebGL2 translation of ${stage.name}', error.message);
+    }
+  }
+  // The budget, counted from the GLSL every backend's path has: before,
+  // only the WebGPU section counted, and only where its compilers were
+  // installed, so a stage over WebGL2's sixteen units shipped and failed to
+  // link on a phone's browser. Mutation: skip this and
+  // `material_budget_test.dart`'s stage of seventeen textures builds.
+  for (final MapEntry(key: stage, value: glsl) in resolved.entries) {
+    if (MaterialStageBudget.problemOfGlsl(stage, glsl) case final problem?) {
+      refused('the binding budget', problem);
     }
   }
 

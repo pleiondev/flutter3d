@@ -3,6 +3,8 @@
 /// `SceneBindingSpec` into nodes.
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show MaterialParameters;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show
         PluginException,
@@ -11,9 +13,6 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
         BindingInterpolation,
         SceneBindingRegistry,
         SceneBindingSpec;
-
-import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show MaterialParameters;
 
 import 'scene_node.dart';
 

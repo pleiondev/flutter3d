@@ -27,6 +27,19 @@ abstract final class MaterialStageBudget {
   /// Uniform blocks in one stage.
   static const int uniformBlocks = 12;
 
+  /// Textures a lighting model of a plugin's own may bind of its own,
+  /// through all of 1.x: what the engine's bindings in a material-language
+  /// lit stage leave it with every feature on (`binding_budget_test.dart`
+  /// holds the engine to it). A minor that wants one more texture in the lit
+  /// headers packs it into one the stage already reads instead, so a
+  /// material at this edge builds in every 1.x.
+  static const int materialTextures = 3;
+
+  /// Uniform blocks a lighting model of a plugin's own may declare of its
+  /// own through all of 1.x, `MaterialParams` included; see
+  /// [materialTextures].
+  static const int materialUniformBlocks = 4;
+
   /// Why a stage named [stage] that binds [textures] textures, [samplers]
   /// samplers and [uniformBlocks] uniform blocks is over the budget, or null
   /// when it is within it.
@@ -56,4 +69,83 @@ abstract final class MaterialStageBudget {
     }
     return null;
   }
+
+  /// Why [stage], whose GLSL with its includes resolved is [glsl], is over
+  /// the budget, or null when it is within it: the same answer [problem]
+  /// gives, counted from the source every backend's path has, so the build
+  /// and `RuntimeShaders` refuse it on every backend and not only where a
+  /// WGSL compiler is installed. Counted as declared, after `#ifdef`, which
+  /// the engine's headers keep in step with what the compiler keeps.
+  static String? problemOfGlsl(String stage, String glsl) {
+    final (:textures, :uniformBlocks) = countGlslBindings(glsl);
+    return problem(
+      stage,
+      textures: textures,
+      samplers: textures,
+      uniformBlocks: uniformBlocks,
+    );
+  }
+}
+
+/// The distinct textures and uniform blocks [glsl] declares (its includes
+/// already resolved), after `#define`, `#undef`, `#ifdef`, `#ifndef`,
+/// `#else` and `#endif` are applied with [defines] set to begin with. A
+/// directive it does not read (`#if <expression>`) is taken as true, which
+/// counts more rather than fewer.
+({int textures, int uniformBlocks}) countGlslBindings(
+  String glsl, {
+  Set<String> defines = const <String>{},
+}) {
+  final defined = <String>{...defines};
+  // One entry per open conditional: whether its branch is live, and
+  // whether the enclosing one was.
+  final open = <({bool live, bool outer})>[];
+  var live = true;
+  final kept = StringBuffer();
+  final directive = RegExp(r'^\s*#\s*(\w+)\s*(\w*)');
+  for (final line in glsl.split('\n')) {
+    final match = directive.firstMatch(line);
+    if (match == null) {
+      if (live) kept.writeln(line);
+      continue;
+    }
+    final word = match.group(2)!;
+    switch (match.group(1)) {
+      case 'ifdef' || 'ifndef':
+        final holds = defined.contains(word) == (match.group(1) == 'ifdef');
+        open.add((live: holds, outer: live));
+        live = live && holds;
+      case 'if':
+        open.add((live: true, outer: live));
+      case 'else':
+        if (open.isNotEmpty) {
+          final top = open.removeLast();
+          open.add((live: !top.live, outer: top.outer));
+          live = top.outer && !top.live;
+        }
+      case 'endif':
+        if (open.isNotEmpty) live = open.removeLast().outer;
+      case 'define' when live:
+        defined.add(word);
+      case 'undef' when live:
+        defined.remove(word);
+      default:
+        break;
+    }
+  }
+  final text = kept
+      .toString()
+      .replaceAll(RegExp(r'/\*.*?\*/', dotAll: true), '')
+      .replaceAll(RegExp(r'//[^\n]*'), '');
+  final textures = <String>{
+    for (final m in RegExp(
+      r'\buniform\s+(?:(?:highp|mediump|lowp)\s+)?(?:sampler|texture)\w*\s+(\w+)',
+    ).allMatches(text))
+      m.group(1)!,
+  };
+  final blocks = <String>{
+    for (final m in RegExp(r'\buniform\s+(\w+)\s*\{').allMatches(text))
+      m.group(1)!,
+  };
+  return (textures: textures.length, uniformBlocks: blocks.length);
 }

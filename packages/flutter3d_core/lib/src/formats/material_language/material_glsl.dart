@@ -687,6 +687,9 @@ MaterialBindings describeMaterial(MaterialProgram program) {
         program.kind == MaterialStageKind.fullscreen &&
         program.inputsUsed.contains('sceneDepth'),
     vertexShaderName: program.vertexStageName,
+    textureBindings: <String>[
+      for (final slot in program.textures) slot.bindingName,
+    ],
   );
 }
 
@@ -711,9 +714,16 @@ final class MaterialBindings {
     this.readsSurfaceBuffer = false,
     this.vertexShaderName,
     this.slots = MaterialSlotTable.none,
+    this.textureBindings = const <String>[],
   });
 
   final String name;
+
+  /// The binding name of each texture the source declares, in declaration
+  /// order: the engine's slots it reads and its own. For a full-screen stage
+  /// the picture is `scene_texture`, and every other name is one a caller
+  /// binds (`FullscreenEffect.material` refuses one left unnamed).
+  final List<String> textureBindings;
 
   /// What the stage binds beyond the engine's own: its uniform blocks and
   /// its own textures (D21). The [LightingModel] made here carries it.

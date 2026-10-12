@@ -483,7 +483,12 @@ material leaves unset is bound at the default its source declares
 own vertex stage and its instanced and lightmapped variants alike — and a
 texture it names none for at a white texel, so a material written before a
 model grew a member draws the same on every backend. The render check
-`render.lit model defaults` holds each backend to it.
+`render.lit model defaults` holds each backend to it. **A full-screen stage
+too**: `FullscreenEffect.material` binds its `MaterialParams` at the
+source's defaults (`FullscreenEffect.parameters`), the surface buffer when
+it reads `sceneDepth`, and refuses a texture of its own that nothing names;
+a render step from data that samples a texture of its own is refused until
+the format can name one.
 
 **The budget.** One stage binds at most 16 textures, 16 samplers and 12
 uniform blocks, the engine's bindings and the material's own together
@@ -491,10 +496,18 @@ uniform blocks, the engine's bindings and the material's own together
 texture and a sampler, and the tightest of the four backends. A lit model's
 stage carries the engine's lighting bindings (the shadow maps, the
 irradiance, the light list, the material maps it reads), so its own
-textures and blocks get what those leave. The WebGPU section writer every
-build and `RuntimeShaders` call refuses a stage over the budget, naming the
-stage and the count, so the material fails on its author's machine and not
-at its first draw on a device. A WebGPU device is opened with the adapter's
+textures and blocks get what those leave: **3 textures and 4 uniform blocks
+of its own (`MaterialParams` included), in every 1.x**
+(`MaterialStageBudget.materialTextures` and `materialUniformBlocks`). The
+engine's bindings in a material-language lit stage with every feature on
+stay within the budget less that share, which a test holds; a later lit
+feature packs into a texture the stage already reads rather than taking a
+material's room. Every build and every `RuntimeShaders` call that has the
+engine's headers counts each stage from the GLSL it emitted, on every
+backend, and refuses one over the budget, naming the stage and the count
+(`MaterialStageBudget.problemOfGlsl`); the WebGPU section writer counts its
+packed stages too. The material fails on its author's machine and not at
+its first draw on a phone's browser. A WebGPU device is opened with the adapter's
 own stage limits, which may be higher; a bundle counts only on the
 minimums.
 

@@ -20,10 +20,16 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show MaterialParameters;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show RenderAnchor;
 
+import '../../formats/material_language/material_ast.dart'
+    show MaterialStageKind, materialParametersBlock;
+import '../../formats/material_language/material_bundle.dart'
+    show BundledMaterials;
 import 'frame_graph.dart';
 import 'frame_plan.dart';
 import 'pass_contributor.dart';
@@ -51,6 +57,7 @@ final class FullscreenEffect extends RenderNode {
     this.sourceSlot = 'scene_texture',
     this.sampler = SamplerDescriptor.linearClamp,
     this.readsSurface = false,
+    this.parameters,
   }) : defaultAnchor = RenderAnchor.afterScene,
        _target = FrameResourceIds.hdrColor;
 
@@ -69,8 +76,82 @@ final class FullscreenEffect extends RenderNode {
     this.sourceSlot = 'scene_texture',
     this.sampler = SamplerDescriptor.linearClamp,
     this.readsSurface = false,
+    this.parameters,
   }) : defaultAnchor = RenderAnchor.beforePresent,
        _target = FrameResourceIds.frame;
+
+  /// A full-screen stage written in the material language, from the
+  /// bundle [materials] that carries it under [stage]: every block it
+  /// declares bound at the source's defaults ([parameters], unless one is
+  /// given), [readsSurface] set when the body reads `sceneDepth`, and each
+  /// texture of its own bound from [textures] by the name its source binds
+  /// it under. Over `frame` when [present], over `hdr_color` otherwise, as
+  /// [FullscreenEffect.present] and [FullscreenEffect.overlay] are.
+  ///
+  /// **Nothing it declares is left unbound.** A full-screen stage made with
+  /// the plain constructors bound only what the caller listed, so a
+  /// `uniform float strength = 0.5;` or a `sceneDepth` read without
+  /// `readsSurface` drew with a block or a sampler unbound: WebGPU threw at
+  /// the next frame, Impeller crashed on the sampler, WebGL2 read zeros.
+  ///
+  /// Throws an [ArgumentError] when [stage] is not a full-screen stage of
+  /// the bundle, or when a texture of its own has no handle in [textures],
+  /// naming each.
+  factory FullscreenEffect.material(
+    BundledMaterials materials,
+    String stage, {
+    required String name,
+    required ShaderHandle shader,
+    bool present = false,
+    bool enabled = true,
+    Map<String, TextureHandle> textures = const <String, TextureHandle>{},
+    MaterialParameters? parameters,
+    SamplerDescriptor sampler = SamplerDescriptor.linearClamp,
+  }) {
+    final bindings = materials.stages[stage];
+    if (bindings == null || bindings.kind != MaterialStageKind.fullscreen) {
+      throw ArgumentError.value(
+        stage,
+        'stage',
+        bindings == null
+            ? 'bundle "${materials.bundle.name}" has no stage of that name'
+            : 'is a ${bindings.kind} source, not a full-screen stage',
+      );
+    }
+    final unnamed = <String>[
+      for (final binding in bindings.textureBindings)
+        if (binding != 'scene_texture' && !textures.containsKey(binding))
+          binding,
+    ];
+    if (unnamed.isNotEmpty) {
+      throw ArgumentError.value(
+        textures,
+        'textures',
+        '"$stage" samples ${unnamed.join(', ')}, which nothing binds: hand '
+            'each a texture by that name',
+      );
+    }
+    final values = parameters ?? materials.parameters(stage);
+    return present
+        ? FullscreenEffect.present(
+            name: name,
+            shader: shader,
+            enabled: enabled,
+            textures: textures,
+            sampler: sampler,
+            readsSurface: bindings.readsSurfaceBuffer,
+            parameters: values,
+          )
+        : FullscreenEffect.overlay(
+            name: name,
+            shader: shader,
+            enabled: enabled,
+            textures: textures,
+            sampler: sampler,
+            readsSurface: bindings.readsSurfaceBuffer,
+            parameters: values,
+          );
+  }
 
   /// What this pass is called, in `FrameResult.passes` and `skipped`.
   ///
@@ -106,6 +187,13 @@ final class FullscreenEffect extends RenderNode {
   /// Mutable for the reason [enabled] is: an effect that could not change its
   /// own numbers between frames would be a constant with a pass around it.
   Map<String, Map<String, Float32List>> uniforms;
+
+  /// The `MaterialParams` of a stage written in the material language, or
+  /// null: bound as that block on every draw, over whatever [uniforms] says
+  /// of it, so a value set here (`parameters['strength']![0] = 0.8`) is the
+  /// next frame's. [FullscreenEffect.material] seeds it at the source's
+  /// defaults, so a declared block is never left unbound.
+  final MaterialParameters? parameters;
 
   /// The sampler slot the picture is bound to.
   ///
@@ -173,7 +261,13 @@ final class FullscreenEffect extends RenderNode {
             ),
           ...textures,
         },
-        uniforms: uniforms,
+        uniforms: switch (parameters) {
+          null => uniforms,
+          final own => <String, Map<String, Float32List>>{
+            ...uniforms,
+            materialParametersBlock: own.uniforms,
+          },
+        },
         sampler: sampler,
       ),
     );

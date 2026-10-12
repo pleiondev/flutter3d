@@ -1,5 +1,20 @@
 ## 1.0.0-rc.1
 
+- **A full-screen stage written in the material language binds what it
+  declares.** `FullscreenEffect.material(materials, stage, …)` (new) seeds
+  its `MaterialParams` at the source's defaults as
+  `FullscreenEffect.parameters` (new), sets `readsSurface` from a
+  `sceneDepth` read, and refuses a texture of its own that `textures` does
+  not name; `MaterialBindings.textureBindings` (new) lists them. A render
+  step from data that samples a texture of its own is refused with a
+  status rather than drawn unbound.
+- **The binding budget is counted on every backend.** The build and
+  `RuntimeShaders` count each stage from the GLSL the emitter wrote
+  (`MaterialStageBudget.problemOfGlsl` and `countGlslBindings`, new, in
+  `flutter3d_shaders`), where only the WebGPU section writer counted, and
+  only where glslang and naga were installed. A lighting model of a
+  plugin's own has a share that holds for all of 1.x:
+  `MaterialStageBudget.materialTextures` (3) and `materialUniformBlocks` (4).
 - **The frame resources a stage reads have a contract.** CONTRACTS'
   "Frame resources a stage reads" freezes within 1.x what `hdr_color`,
   `surface_buffer`, `velocity` and `frame` hold, and `FrameContext.nitsPerHdrUnit`
