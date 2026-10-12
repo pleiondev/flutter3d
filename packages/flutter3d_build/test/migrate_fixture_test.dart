@@ -82,19 +82,23 @@ void main() {
   );
 }
 
-/// Whether the analyzer's [line] points into a declaration the migration
-/// marked with a `TODO(flutter3d-1.0)`: the TODO sits at most three lines
-/// above, past the declaration's doc comment.
+/// Whether the analyzer's [line] points at a use the migration marked with
+/// a `TODO(flutter3d-1.0)`: the TODO sits at most three lines above, not
+/// counting a doc comment or an annotation between them. The corpus counts
+/// by the same rule (`tool/corpus_errors.py`).
 bool _underManualTodo(String line, Directory project) {
   final at = RegExp(r'• (\S+):(\d+):\d+ •').firstMatch(line);
   if (at == null) return false;
   final file = File('${project.path}/${at.group(1)}');
   if (!file.existsSync()) return false;
   final lines = file.readAsLinesSync();
-  final index = int.parse(at.group(2)!) - 1;
-  return lines
-      .sublist((index - 3).clamp(0, lines.length), index)
-      .any((String l) => l.contains('TODO(flutter3d-1.0)'));
+  var seen = 0;
+  for (var i = int.parse(at.group(2)!) - 2; i >= 0 && seen < 3; i--) {
+    final text = lines[i].trim();
+    if (text.contains('TODO(flutter3d-1.0)')) return true;
+    if (!text.startsWith('///') && !text.startsWith('@')) seen++;
+  }
+  return false;
 }
 
 void _copy(Directory from, Directory to) {

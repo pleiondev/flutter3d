@@ -17,7 +17,12 @@
 # 3. `dart run flutter3d_build:migrate --lints-from <this repo>` on each.
 # 4. `flutter analyze` on each. The line per project says how many errors are
 #    left; the release needs zero. Warnings and infos (a TODO the migration
-#    left, an unused import) are not counted.
+#    left, an unused import) are not counted, and neither is an error the
+#    migration answered with a TODO: one under a `// TODO(flutter3d-1.0)`
+#    it wrote, at most three lines above the use past a doc comment or an
+#    annotation (`corpus_errors.py`, the rule `migrate_fixture_test` holds
+#    the fixture to). Such a use is the migration's report to its reader,
+#    who has something to write there; the count beside it says how many.
 #
 #    A page's blocks are fragments: they name a `world` or a `device` an
 #    earlier block made, so they have errors before any migration. A page
@@ -85,6 +90,11 @@ errors_of() {
   grep '^ *error ' "$1" | sed -E 's/:[0-9]+:[0-9]+ •/ •/' | sort || true
 }
 
+# The errors of project $2's report $1 the migration left no TODO at.
+unanswered_of() {
+  python3 -I "$repo/packages/flutter3d_build/tool/corpus_errors.py" "$1" "$2"
+}
+
 overrides="$scratch/pubspec_overrides.yaml"
 {
   echo "dependency_overrides:"
@@ -122,14 +132,19 @@ for project in "$corpus"/$only/; do
   if [ -f "$reports/$name.baseline.txt" ]; then
     # Only what the migration added: an error the page had at the tag is
     # the page's own, and stays in <name>.baseline.txt.
+    unanswered_of "$reports/$name.analyze.txt" "$project" \
+      > "$reports/$name.unanswered.txt"
     comm -13 <(errors_of "$reports/$name.baseline.txt") \
-      <(errors_of "$reports/$name.analyze.txt") > "$reports/$name.new-errors.txt"
+      <(errors_of "$reports/$name.unanswered.txt") > "$reports/$name.new-errors.txt"
     errors="$(wc -l < "$reports/$name.new-errors.txt" | tr -d ' ')"
     before="$(errors_of "$reports/$name.baseline.txt" | wc -l | tr -d ' ')"
     echo "$name: $errors errors the migration added ($before at $tag); $changed"
   else
-    errors="$(grep -c '^ *error ' "$reports/$name.analyze.txt" || true)"
-    echo "$name: $errors errors; $changed"
+    unanswered_of "$reports/$name.analyze.txt" "$project" \
+      > "$reports/$name.unanswered.txt"
+    errors="$(wc -l < "$reports/$name.unanswered.txt" | tr -d ' ')"
+    todo="$(( $(grep -c '^ *error ' "$reports/$name.analyze.txt" || true) - errors ))"
+    echo "$name: $errors errors ($todo more under a TODO the migration wrote); $changed"
   fi
   total=$((total + errors))
 done

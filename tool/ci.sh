@@ -520,6 +520,16 @@ done
 step "build web (wasm)" in_dir apps/flutter3d_demo_dungeon \
   flutter build web --wasm --release
 
+# **The 0.8.5 corpus, migrated and analysed.** Every app, every package's
+# example and the Dart of the site's guide pages at the tag `v0.8.5`, each
+# moved by `flutter3d migrate` onto this tree and analysed: an error the
+# migration neither fixed nor marked with its TODO is a break the migration
+# table does not carry, and fails the step. Tens of minutes, most of them
+# `dart fix` resolving each project; it needs the tag in the checkout (a
+# fetch with tags), and reports land in the scratch directory it names.
+step "migrate the 0.8.5 corpus" bash -c \
+  'packages/flutter3d_build/tool/migrate_corpus.sh "$(mktemp -d)"'
+
 # **The benchmarks, compiled rather than run.**
 #
 # `qa-13` of `doc/model-editor-plan.md` asks for the modeller's numbers to be an
