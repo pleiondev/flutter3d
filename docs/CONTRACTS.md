@@ -266,7 +266,9 @@ renderer looks the same here.
 - **A reflection probe's `intensity` is a ratio**, the light it measured times
   it, and so has no unit.
 - **Exposure is in EV100**, which turns those absolute values into an image.
-  The renderer's own scale, in which shaders work, is hidden.
+  The renderer's own scale, in which shaders work, is not an API value
+  anywhere but one: a stage that adds light to `hdr_color` reads it as
+  `FrameContext.nitsPerHdrUnit` ("Frame resources a stage reads" below).
 
 Before 1.0, light intensity was in an engine unit where 1.0 was
 1843.2 cd/m² of luminance and π times that in lux. (The reference camera
@@ -612,6 +614,23 @@ declare has the same members in the same order. Each mismatch is a
 `StageMismatch` naming both stages and what each declares, and the writer
 refuses the bundle with them: a build error with names, not a crash on one
 backend at the first draw.
+
+### Frame resources a stage reads
+
+A render node or a full-screen stage of a plugin's reads the frame's
+resources by name (`FrameResourceIds`). Their encodings are part of the
+contract and frozen within 1.x: a minor may add a resource, never change
+what the channels of one hold.
+
+| Resource | What it holds |
+|---|---|
+| `hdr_color` | The scene's light, linear, unbounded and **before exposure**, in the renderer's light scale: one unit is `FrameContext.nitsPerHdrUnit` nits (1 843.2), so a stage adding light of `L` nits adds `L / nitsPerHdrUnit`. Alpha is not read. |
+| `surface_buffer` | `rg` the world normal of the nearest opaque surface, octahedral-encoded (`EncodeOctahedral` in `lib/color.glsl`: the normal over its L1 norm, the lower hemisphere folded over the diagonals, then `* 0.5 + 0.5`), `b` its perceptual roughness, `a` its depth along the view axis in metres. All four are **zero where nothing was drawn**. A debug view (`RenderSettings.debugView`) may take `rgb` over; `a` stays the depth. Read it nearest: a filter averages two encoded normals into a third that is none of them. |
+| `velocity` | `rg` how far the pixel moved on screen since the last frame, **now minus then, in UV units** (nought to one from the top left); zero where nothing was drawn and on a view with no past. Produced while `RenderStep.velocity` is on and something reads it, a placed node's read included. |
+| `frame` | The finished picture, display-referred sRGB after tone mapping: what an effect at `afterTonemap` and after it reads and writes. |
+
+The full-screen inputs of the material language read the same encodings
+(`sceneDepth` is the surface buffer's `a`, a million where it is zero).
 
 ## Names
 

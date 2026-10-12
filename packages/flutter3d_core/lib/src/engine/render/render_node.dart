@@ -28,6 +28,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
 import 'package:vector_math/vector_math.dart' as vm;
 
 import '../scene/projection.dart' show jitterOffset;
+import 'engine_light_units.dart' show nitsPerEngineUnit;
 import 'frame_graph.dart';
 import 'frame_resources.dart';
 import 'frame_view.dart';
@@ -127,6 +128,13 @@ abstract base class FrameContext {
 
   /// How many frames the renderer has drawn before this one.
   final int frameIndex;
+
+  /// Nits in one unit of `hdr_color` and of every light value a shader
+  /// works in: what a stage that adds light in nits divides by, and what
+  /// one that reports the picture in nits multiplies by. `hdr_color` is
+  /// linear and before exposure. Frozen within 1.x ("Frame resources a stage
+  /// reads" in `docs/CONTRACTS.md`).
+  double get nitsPerHdrUnit => nitsPerEngineUnit;
 
   /// Seconds since the renderer drew its first frame — the clock an
   /// animated effect reads.

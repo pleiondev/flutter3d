@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **The frame resources a stage reads have a contract.** CONTRACTS'
+  "Frame resources a stage reads" freezes within 1.x what `hdr_color`,
+  `surface_buffer`, `velocity` and `frame` hold, and `FrameContext.nitsPerHdrUnit`
+  (new) gives the light scale `hdr_color` is in, so a stage adds light in
+  nits. The docs of `FrameResourceIds.surfaceBuffer` and `velocity` and of
+  `FullscreenDraw` said three different things and now say that one.
 - **The material language grows by version.** `MaterialInput.since` (now
   a required argument) and `materialBuiltinVersions` say the version each
   input and builtin arrived in, and a source of an older `f3dmat N` neither
