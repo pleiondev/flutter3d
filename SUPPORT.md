@@ -49,7 +49,13 @@ What sits behind each level:
   `macos` job resolves, analyses and runs the structure scan, and its `pacing`
   job plays a recorded run through Impeller and fails on a frame over 50 ms;
   that job reports and does not block yet, because no hosted runner has shown
-  it can drive the GPU.
+  it can drive the GPU. The nightly (`.github/workflows/nightly.yml`) runs
+  what a hosted runner cannot on the self-hosted `impeller` runner, one Mac
+  with a GPU and a Galaxy A55 on USB: the Impeller goldens, conformance on
+  Metal, the sample plugin's render checks and pacing on the Mac, then the
+  shooter, the platformer and the racing game on the A55, where a p99 over
+  33.3 ms turns the night red; README's nightly badge counts the green nights
+  in a row and says "stale" after 48 hours without a run.
 - **iOS, Metal.** CI builds four demos with `flutter build ios --no-codesign`.
   They run clean in the simulator; no physical device has run them.
 - **Android, Vulkan.** CI builds four demos as APKs. The platformer has been

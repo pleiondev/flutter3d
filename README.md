@@ -12,6 +12,7 @@ a virtual laboratory or a device's digital twin, and
 learning platform over LTI 1.3.
 
 [![CI](https://github.com/pleiondev/flutter3d/actions/workflows/ci.yml/badge.svg)](https://github.com/pleiondev/flutter3d/actions/workflows/ci.yml)
+[![nightly](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/pleiondev/flutter3d/badges/nightly.json)](https://github.com/pleiondev/flutter3d/actions/workflows/nightly.yml)
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 
 On pub.dev: 60 packages, published by
