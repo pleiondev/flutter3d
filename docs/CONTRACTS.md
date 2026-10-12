@@ -40,9 +40,26 @@ pretending otherwise.
   camera, rounded to whole metres, whenever the camera is more than
   `LoopSettings.originShift` from it (1000 m unless set; `null` turns it
   off). Within
-  that kilometre float32 keeps about a tenth of a millimetre. The shift
-  happens between steps, so a recording replays it only when the run
-  makes the same move itself.
+  that kilometre float32 places a point to about a tenth of a millimetre.
+  The shift happens between steps, so a recording replays it only when
+  the run makes the same move itself.
+  **The precision a twin gets: ± 0.02 mm at 5 km from the site origin,
+  physics in float32 relative to the shifted origin.** A crate dropped
+  until it rests, beside a bob on a hinge in the C core or a crate sliding
+  to a stop in the Dart one (which has no joints), stepped for ten seconds
+  at 60 Hz 5 km out along each axis and along all three, stays within
+  0.02 mm of the same scene stepped at the origin in both physics cores,
+  the Dart one under both profiles (measured: 0.006 mm in the C core,
+  0.0004 mm in the Dart one). `far_origin_test.dart` in
+  `flutter3d_physics_native` and `far_origin_physics_test.dart` in
+  `flutter3d_sim` hold that bound. It assumes the scene is placed relative
+  to the shifted origin, through `toVector3Relative`. A body placed in
+  float32 at 5 km before the origin moved keeps the rounding it was placed
+  with, up to a quarter of a millimetre, and a hinge's swing drifts by it:
+  within 4 mm after ten seconds. A scene a kilometre from the shifted
+  origin, as when the camera watches it from that far, stays within 2 mm
+  over five seconds.
+  Without the shift the same scene at 5 km is out by up to 41 mm.
 
 ### Three spaces
 
