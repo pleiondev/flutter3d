@@ -2,7 +2,7 @@
 
 An independent implementation of a real-time 3D engine for Flutter, written
 from the geometry layer up. It does not fork, bind or wrap another engine, and
-it is not affiliated with the Flutter team.
+it is not affiliated with Google or the Flutter project.
 
 Homepage: **<https://flutter3d.pleion.dev>** · API reference:
 **<https://flutter3d.pleion.dev/docs>** · Source:
@@ -194,8 +194,8 @@ the obvious alternative does not work.
 | Materials | `.mtl` through a resolver: `newmtl`, `Kd`, `Ks`, `Ns`, `d`, `Tr`, `map_Kd` |
 | Robustness | unknown directives, malformed faces and missing libraries go to `warnings` instead of failing the file |
 
-The test model is the [Utah teapot](https://github.com/mauricelam/Teapot)
-(`flutter3d_samples`): `v` and `f` only, 1202 vertices, 2256 triangles, no
+The test model is the [Utah teapot](https://en.wikipedia.org/wiki/Utah_teapot)
+(`flutter3d_samples`, tessellated by its `tool/make_teapot.py`): `v` and `f` only, 1202 vertices, 2256 triangles, no
 normals and no materials, which is exactly the case that needs normal
 generation.
 
@@ -400,7 +400,7 @@ with three lights and one with a single light both report one pipeline.
 
 Part of [flutter3d](https://github.com/pleiondev/flutter3d), an independent
 implementation of a 3D engine for Flutter. It is not a fork or a binding of
-another engine, and it is not affiliated with the Flutter team. It has four
+another engine, and it is not affiliated with Google or the Flutter project. It has four
 switchable rendering backends: Impeller via Flutter GPU, WebGL2, WebGPU and a
 software rasteriser. It loads glTF, OBJ and `.f3d`, and has six lighting models,
 shadows, bloom, skinning, animation, BVH culling and picking, plus a

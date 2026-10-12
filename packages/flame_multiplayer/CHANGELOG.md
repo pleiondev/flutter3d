@@ -1,4 +1,11 @@
-## 0.3.0
+## 1.0.0-rc.1
+
+**The version jumps from 0.1.0 to 1.0.0-rc.1.** This package now stands on
+`flutter3d_net`, which is on the engine's 1.0 line, and pub asks a package
+that depends on a pre-release to be one itself. It also joins the engine's
+number, so `^1.0.0-rc.1` means the same thing here as on every sibling, and
+from 1.0.0 it follows strict semver with them. The 0.2.0 and 0.3.0 entries
+were never published; everything below up to 0.1.0 ships in this release.
 
 - **The observer is exported**: `ObserverFeed`, `SimulationObserver`,
   `ObserverFilter`, `ObserverMode` and `ObserverSnapshot`, from

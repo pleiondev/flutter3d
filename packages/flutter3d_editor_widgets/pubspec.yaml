@@ -1,5 +1,5 @@
 name: flutter3d_editor_widgets
-description: "Shared editor controls — a number field, a colour field, a section label, a range slider, an enum dropdown, a texture slot row, a texture path field, a colour swatch field and the FieldRow they assemble into, so far — over EditorWidgetsTheme, so the modeller and the level editor stop keeping their own copies."
+description: "Shared editor controls over EditorWidgetsTheme: number, colour and texture fields, sliders, dropdowns and the FieldRow they make, so the modeller and level editor share them."
 version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev

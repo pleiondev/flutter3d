@@ -45553,6 +45553,37 @@ precision highp samplerCube;
 // though it were a staircase.
 //
 // `flutter3d_cpu`'s `SmaaEdgesShader` is this, line for line.
+//
+// SMAA is the method of Jimenez, Echevarria, Sousa and Gutierrez, "SMAA:
+// Enhanced Subpixel Morphological Antialiasing", Eurographics 2012. These
+// three passes were written for this engine from the paper and follow the
+// conventions of its reference implementation (https://github.com/iryoku/smaa),
+// which carries this notice:
+//
+// Copyright (C) 2013 Jorge Jimenez (jorge@iryoku.com)
+// Copyright (C) 2013 Jose I. Echevarria (joseignacioechevarria@gmail.com)
+// Copyright (C) 2013 Belen Masia (bmasia@unizar.es)
+// Copyright (C) 2013 Fernando Navarro (fernandn@microsoft.com)
+// Copyright (C) 2013 Diego Gutierrez (diegog@unizar.es)
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+// sell copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions: The above copyright
+// notice and this permission notice shall be included in all copies or
+// substantial portions of the Software. As clarification, there is no
+// requirement that the copyright notice and permission be included in binary
+// distributions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+// IN THE SOFTWARE.
 precision highp float;
 
 in vec2 v_uv;
@@ -45621,6 +45652,11 @@ precision highp samplerCube;
 // left's. Orthogonal edges only; no diagonal search, no corner rounding.
 //
 // `flutter3d_cpu`'s `SmaaWeightsShader` is this, line for line.
+//
+// SMAA: Jimenez, Echevarria, Sousa and Gutierrez, Eurographics 2012. The
+// reference implementation's notice (MIT, Copyright (C) 2013 Jorge Jimenez,
+// Jose I. Echevarria, Belen Masia, Fernando Navarro and Diego Gutierrez) is
+// in full in `smaa_edges.frag` beside this file.
 precision highp float;
 
 in vec2 v_uv;
@@ -45742,6 +45778,11 @@ precision highp samplerCube;
 // taps, each pulled that fraction of a texel towards its side.
 //
 // `flutter3d_cpu`'s `SmaaBlendShader` is this, line for line.
+//
+// SMAA: Jimenez, Echevarria, Sousa and Gutierrez, Eurographics 2012. The
+// reference implementation's notice (MIT, Copyright (C) 2013 Jorge Jimenez,
+// Jose I. Echevarria, Belen Masia, Fernando Navarro and Diego Gutierrez) is
+// in full in `smaa_edges.frag` beside this file.
 precision highp float;
 
 in vec2 v_uv;

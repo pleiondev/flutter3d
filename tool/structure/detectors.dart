@@ -3525,7 +3525,183 @@ List<Finding> proveDetectorsWork() {
     'it does what the promise asks',
   );
 
+  // The engine's number is a major.minor: a patch of one package stays on
+  // it, a pre-release under a final release and another minor do not.
+  for (final (version, engine) in const <(String, String)>[
+    ('1.0.0-rc.1', '1.0.0-rc.1'),
+    ('1.0.1', '1.0.0'),
+    ('1.0.1', '1.0.0-rc.1'),
+  ]) {
+    quiet(
+      'the engine number',
+      onEngineNumber(version, engine),
+      '$version beside $engine',
+      'a patch goes to the one package that needs it',
+    );
+  }
+  for (final (version, engine) in const <(String, String)>[
+    ('1.0.0-rc.1', '1.0.0'),
+    ('1.1.0', '1.0.0'),
+    ('0.5.0', '1.0.0-rc.1'),
+    ('2.0.0', '1.0.0'),
+  ]) {
+    fires(
+      'the engine number',
+      !onEngineNumber(version, engine),
+      '$version beside $engine',
+    );
+  }
+
+  // A policy document's revision line. The SECURITY.md of 0.x said "nothing
+  // is published to pub.dev yet" for months after 0.4.0 went up, and ROADMAP
+  // described a quarter that had closed.
+  final today = DateTime.utc(2026, 10, 12);
+  quiet(
+    'a revision line',
+    revisionProblemsIn(
+      '# Roadmap\n\nRevised 2026-10-12, for the 1.0.0-rc.1 tree.\n',
+      version: '1.0.0-rc.1',
+      today: today,
+    ).isEmpty,
+    'a line with today and the version the packages carry',
+    'it is the revision the rule asks for',
+  );
+  fires(
+    'a revision line',
+    revisionProblemsIn(
+      '# Roadmap\n\nRevised 8 September 2026.\n',
+      version: '1.0.0-rc.1',
+      today: today,
+    ).isNotEmpty,
+    'a date in words and no version',
+  );
+  fires(
+    'a revision line',
+    revisionProblemsIn(
+      'Revised 2026-10-12, for the 1.0.0-rc.1 tree.\n',
+      version: '1.0.0-rc.2',
+      today: today,
+    ).isNotEmpty,
+    'the version before the one the packages carry',
+  );
+  fires(
+    'a revision line',
+    revisionProblemsIn(
+      'Revised 2026-10-12, for the 1.0.0-rc.1 tree.\n',
+      version: '1.0.0',
+      today: today,
+    ).isNotEmpty,
+    'a candidate where the release is out (a prefix is not the version)',
+  );
+  fires(
+    'a revision line',
+    revisionProblemsIn(
+      'Revised 2026-11-30, for the 1.0.0-rc.1 tree.\n',
+      version: '1.0.0-rc.1',
+      today: today,
+    ).isNotEmpty,
+    'a date after today',
+  );
+  fires(
+    'a revision line',
+    revisionProblemsIn(
+      'Revised 2026-02-30, for the 1.0.0-rc.1 tree.\n',
+      version: '1.0.0-rc.1',
+      today: today,
+    ).isNotEmpty,
+    'a date that does not exist',
+  );
+  quiet(
+    'a revision line',
+    revisionProblemsIn(
+      'Text first.\n\nRevised 2026-10-01, for the 1.0.0-rc.1 tree.\n',
+      version: '1.0.0-rc.1',
+      today: today,
+    ).isEmpty,
+    'an older date on the same version',
+    'a document is revised for a version, not on a timer',
+  );
+  quiet(
+    'a revision line',
+    revisionProblemsIn(
+      'Revised 2026-10-12, for the `1.0.0-rc.1` tree.\n',
+      version: '1.0.0-rc.1',
+      today: today,
+    ).isEmpty,
+    'the version written as code',
+    'markdown may set the version in backticks',
+  );
+
   return broken;
+}
+
+// ------------------------------------------------------- the engine's number
+
+/// Whether a package at [version] is on the engine's number [engine].
+///
+/// **The number is a major.minor, not a full version** (decided by Dmitrii
+/// on 2026-10-12). A patch goes to the one package that needs it, so
+/// `flutter3d_impeller` can be 1.0.1 beside the rest at 1.0.0, typically
+/// after a Flutter release changed `flutter_gpu`, and every sibling's
+/// `^1.0.0` still reaches it. Holding every package to the same full
+/// version would force 60 uploads for one fix. Off the number is a package
+/// another minor or major apart, or one the engine's caret cannot reach
+/// (a pre-release under a final release).
+bool onEngineNumber(String version, String engine) {
+  if (version == engine) return true;
+  final (v, e) = (parseVersion(version), parseVersion(engine));
+  return v != null &&
+      e != null &&
+      v.major == e.major &&
+      v.minor == e.minor &&
+      caretAdmits(engine, version);
+}
+
+// ------------------------------------------------------- a policy's revision
+
+/// What is wrong with the revision line of a policy document such as
+/// SECURITY.md or ROADMAP.md, or nothing.
+///
+/// The line reads `Revised YYYY-MM-DD, for the <version> tree.` The date has
+/// to exist and not be after [today]; the version has to be [version], the
+/// one the engine's packages carry, exactly. So a version bump turns the rule
+/// red until somebody rereads both documents and moves the line, which is the
+/// moment both go stale: a support window, a scope and a plan are all
+/// written for one release.
+List<String> revisionProblemsIn(
+  String text, {
+  required String version,
+  required DateTime today,
+}) {
+  // The version may be written as code, `1.0.0-rc.1`, or plain.
+  final line = RegExp(
+    r'^Revised ((\d{4})-(\d{2})-(\d{2})), for the `?([^\s`]+)`? tree\.',
+    multiLine: true,
+  ).firstMatch(text);
+  if (line == null) {
+    const why = 'saying when it was last reread and for which release';
+    return <String>[
+      'has no line "Revised YYYY-MM-DD, for the $version tree." $why',
+    ];
+  }
+  final written = line.group(1)!;
+  final (year, month, day) = (
+    int.parse(line.group(2)!),
+    int.parse(line.group(3)!),
+    int.parse(line.group(4)!),
+  );
+  final date = DateTime.utc(year, month, day);
+  final exists = date.year == year && date.month == month && date.day == day;
+  final said = line.group(5);
+  const reread = 'reread it for this release and move the line';
+  return <String>[
+    if (!exists)
+      'is revised on $written, a date that does not exist'
+    else if (date.isAfter(today))
+      'is revised on $written, after today',
+    if (said != version)
+      'was revised for $said, and the packages are at $version: $reread',
+  ];
 }
 
 // ------------------------------------------------------------- a test's minute

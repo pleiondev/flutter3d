@@ -1,8 +1,8 @@
 name: flutter3d_elements
 description: >-
   Water, fire and bodies in a world of the physics core's, stepped with no
-  renderer: flames held to bodies, waters poured and fed, the game's objects
-  followed in, plugin elements over the world's fields, and their events.
+  renderer: flames held to bodies, waters poured and fed, plugin elements
+  over the world's fields, and their events.
 version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev

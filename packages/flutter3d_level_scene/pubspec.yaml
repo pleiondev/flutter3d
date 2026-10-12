@@ -1,5 +1,5 @@
 name: flutter3d_level_scene
-description: "A flutter3d level document turned into a scene: brushes into meshes, level materials into engine materials, lights, probes, decals, mirrors and camera screens into nodes. Plain Dart."
+description: "A flutter3d level document turned into a scene: brushes into meshes, level materials into engine ones, lights, probes, decals, mirrors and camera screens into nodes."
 version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev

@@ -122,6 +122,10 @@ List<Rule> get allRules => <Rule>[
   ),
   (name: 'the documents agree on how many rules there are', run: _ruleCount),
   (
+    name: 'SECURITY and ROADMAP are revised for the release the packages carry',
+    run: _policiesRevised,
+  ),
+  (
     name: 'the conformance suite says how many checks it runs',
     run: _conformanceCheckCount,
   ),
@@ -1270,6 +1274,50 @@ List<Finding> _listsAgree() {
     );
   }
   return found;
+}
+
+/// SECURITY.md and ROADMAP.md each say when they were last reread and for
+/// which release, and that release is the one `flutter3d`'s pubspec carries.
+///
+/// **Both had gone stale where a reader looks first.** SECURITY.md said
+/// "nothing is published to pub.dev yet" with 0.8.x on pub.dev, and named
+/// none of the parts that talk to a network or load code; ROADMAP.md
+/// described a quarter of 0.7.0 work under a tree at 1.0.0-rc.1. A date alone
+/// would not have caught either, because nobody knows how old is too old.
+/// The version does: a support window, a security scope and a plan are each
+/// written for one release, so moving the version without rereading them is
+/// the mistake, and [revisionProblemsIn] makes it red.
+///
+/// Mutation: move `flutter3d` to the next candidate, or delete the line from
+/// either document, and this names the file.
+List<Finding> _policiesRevised() {
+  final engine = packages['flutter3d'];
+  if (engine == null) {
+    return <Finding>[const Finding('flutter3d', 'is not there')];
+  }
+  final version = _pubspecVersionText(
+    File('${engine.path}/pubspec.yaml').readAsStringSync(),
+  );
+  if (version == null) {
+    return <Finding>[
+      const Finding('packages/flutter3d/pubspec.yaml', 'has no version'),
+    ];
+  }
+  final now = DateTime.now().toUtc();
+  final today = DateTime.utc(now.year, now.month, now.day);
+  return <Finding>[
+    for (final name in const <String>['SECURITY.md', 'ROADMAP.md'])
+      if (File('${repositoryRoot.path}/$name') case final file)
+        if (!file.existsSync())
+          Finding(name, 'is not there')
+        else
+          for (final problem in revisionProblemsIn(
+            file.readAsStringSync(),
+            version: version,
+            today: today,
+          ))
+            Finding(name, problem),
+  ];
 }
 
 /// How many rules the documents say there are, against how many there are.
@@ -5253,13 +5301,14 @@ List<Finding> _breaksHaveMigrations() {
     );
   }
 
-  // A published package off the engine's number is named with its own.
+  // A published package off the engine's number is named with its own. The
+  // number is a major.minor ([onEngineNumber] says why).
   if (index >= 0) {
     for (final MapEntry(key: name, value: dir) in _publishedPackages.entries) {
       final now = _pubspecVersionText(
         File('${dir.path}/pubspec.yaml').readAsStringSync(),
       );
-      if (now == null || now == table.to) continue;
+      if (now == null || onEngineNumber(now, table.to)) continue;
       if (table.versions[name] != '^$now') {
         found.add(
           Finding(

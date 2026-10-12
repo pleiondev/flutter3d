@@ -1,5 +1,5 @@
 name: flame_flutter3d_audio
-description: "Sound for a Flame game bridged to flutter3d: the game's audio scene as a component, silent until the player's first input, and loops that play for as long as their component lives."
+description: "Sound for a Flame game bridged to flutter3d: the game's audio scene as a component, silent until the player's first input, and loops that last as long as their component."
 version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev

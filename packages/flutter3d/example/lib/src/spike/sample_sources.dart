@@ -87,10 +87,12 @@ final List<SceneSource> kSources = <SceneSource>[
   const ModelFileSource('f3d: Animated', '$_samples/f3d/BoxAnimated.f3d'),
   const ModelFileSource('f3d: Rigged', '$_samples/f3d/RiggedFigure.f3d'),
 
-  // Not a conformance asset: a generated model with a base colour, a
+  // Not a conformance asset: a scanned model with a base colour, a
   // metallic-roughness map, a normal map and no tangents of its own, which is
   // the combination the material pipeline is least often exercised against.
-  const ModelFileSource('maps: Chest', 'assets/models/fantasy_chest.glb'),
+  // Khronos' Avocado (Microsoft, CC0) with its tangents taken out and its
+  // maps at 512 px; `assets/models/LICENSES.md` has the steps.
+  const ModelFileSource('maps: Avocado', 'assets/models/avocado.glb'),
 ];
 
 /// Surface of revolution from an arbitrary profile: a vase silhouette.
