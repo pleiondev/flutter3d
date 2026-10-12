@@ -21,15 +21,23 @@ import 'play_session.dart' show buildTargets;
 /// is null, and [_told] is how they say so.
 typedef EditorTool = OfferedTool<EditorSession, Answer>;
 
+/// An [EditorTool] whose body reads the session and the arguments as two
+/// values, the way every tool here is written.
+EditorTool _tool(
+  ToolSpec spec,
+  FutureOr<Answer> Function(
+    EditorSession session,
+    Map<String, Object?> arguments,
+  )
+  run,
+) => EditorTool(spec, (call) => run(call.session, call.arguments));
+
 /// A tool whose answer is a sentence and nothing to look at.
 EditorTool _told(
   ToolSpec tool,
   FutureOr<Answer> Function(EditorSession, Map<String, Object?>) run,
-) => EditorTool(tool, (
-  EditorSession session,
-  Map<String, Object?> arguments,
-) async {
-  final answer = await run(session, arguments);
+) => EditorTool(tool, (call) async {
+  final answer = await run(call.session, call.arguments);
   return Answer(did: answer.did, says: answer.says, png: null);
 });
 
@@ -357,7 +365,7 @@ final Expando<OpenCapture> _openCaptures = Expando<OpenCapture>('open capture');
 /// Capture files opened in the editor: a frame saved by
 /// `render.saveCapture`, or attached to a bug report.
 List<EditorTool> get _captureTools => <EditorTool>[
-  EditorTool(
+  _tool(
     mcpTool(
       name: 'capture_open',
       description:
@@ -1362,7 +1370,7 @@ List<EditorTool> get editorTools => <EditorTool>[
   ..._playTools,
   ..._renderTools,
   ..._captureTools,
-  EditorTool(
+  _tool(
     mcpTool(
       name: 'screenshot',
       description:
@@ -1413,7 +1421,7 @@ List<EditorTool> get editorTools => <EditorTool>[
     (EditorSession session, Map<String, Object?> arguments) =>
         session.report(_point(arguments, 'from'), _point(arguments, 'at')),
   ),
-  EditorTool(
+  _tool(
     mcpTool(
       name: 'optimizeLights',
       description:

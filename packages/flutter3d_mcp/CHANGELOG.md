@@ -1,5 +1,18 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a tool's body takes one call object.** `ProjectToolRun`, what
+  `McpTools.addTool` takes, is a function of a `ToolCall` (new: the
+  `arguments` and the published `name`), and `OfferedTool.run` of a
+  `SessionToolCall` (new: the same with the `session`), where they took
+  the arguments' map and the session as parameters; `OfferedTool.runOn`
+  (new) runs a tool outside a server. A minor can hand a tool progress,
+  cancellation or the project's root as members of the call; a parameter
+  added to the function would break every tool written against 1.0.
+- **Breaking: the application's tools may not take an area of the
+  engine as their namespace.** `addTool(tool, run, namespace: 'game')` is
+  refused, as `level` or any of `PluginManifest.reservedAreas` and `f3d`
+  are: the servers' own tools there would shadow the application's. Name
+  them after the application.
 - **Breaking: `Answer` is a class, and `PictureAnswer` is gone into it.**
   `Answer(did:, says:, png:)` has the record's `did` and `says` and the
   picture a drawing tool hands back. A record never gains a field, which

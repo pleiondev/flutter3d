@@ -177,7 +177,7 @@ void main() {
       Future<Answer>.value(
         editorTools
             .firstWhere((EditorTool it) => it.name == name)
-            .run(session, arguments),
+            .runOn(session, arguments),
       );
 
   test('a plugin command is a tool, its arguments its schema', () async {
@@ -193,14 +193,21 @@ void main() {
     // Only the argument without a default is required.
     expect(schema['required'], <String>['type']);
 
-    final result = await tool.run(<String, Object?>{'type': 'boat', 'by': 2});
+    final result = await tool.run(
+      ToolCall(
+        name: tool.name,
+        arguments: <String, Object?>{'type': 'boat', 'by': 2},
+      ),
+    );
     expect(result.isError, isFalse);
     expect(session.editing.level.entities.single.position.y, 2.0);
     // The same command, the same history: one undo takes it back.
     session.editing.history.undo();
     expect(session.editing.level.entities.single.position.y, 0.0);
 
-    final refused = await tool.run(<String, Object?>{});
+    final refused = await tool.run(
+      ToolCall(name: tool.name, arguments: const <String, Object?>{}),
+    );
     expect(refused.isError, isTrue);
 
     sharing.cancel();

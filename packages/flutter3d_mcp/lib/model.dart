@@ -44,7 +44,9 @@ export 'package:flutter3d_mcp/kit.dart'
     show
         AnsweredCall,
         Answer,
+        SessionToolCall,
         ToolAudio,
+        ToolCall,
         ToolContent,
         ToolHints,
         ToolImage,

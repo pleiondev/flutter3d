@@ -31,7 +31,7 @@ Future<void> _call(
   String name,
   Map<String, Object?> arguments,
 ) async {
-  final Answer answer = await _toolNamed(name).run(session, arguments);
+  final Answer answer = await _toolNamed(name).runOn(session, arguments);
   if (!answer.did) {
     throw StateError('$name refused: ${answer.says}');
   }

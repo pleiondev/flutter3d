@@ -1016,7 +1016,10 @@ void main() {
       expect(session.history.topStepAuthor, StepAuthor.agent);
 
       final undoTool = modelTools.firstWhere((ModelTool t) => t.name == 'undo');
-      final firstUndo = await undoTool.run(session, const <String, Object?>{});
+      final firstUndo = await undoTool.runOn(
+        session,
+        const <String, Object?>{},
+      );
       expect(firstUndo.did, isTrue, reason: firstUndo.says);
       expect(firstUndo.says, contains('undid assign a material'));
 
@@ -1026,7 +1029,10 @@ void main() {
       // call actually refuses on.
       expect(session.history.topStepAuthor, StepAuthor.person);
 
-      final secondUndo = await undoTool.run(session, const <String, Object?>{});
+      final secondUndo = await undoTool.runOn(
+        session,
+        const <String, Object?>{},
+      );
       expect(secondUndo.did, isFalse);
       expect(secondUndo.says, contains("is a person's own"));
       expect(secondUndo.says, contains('an agent does not undo'));

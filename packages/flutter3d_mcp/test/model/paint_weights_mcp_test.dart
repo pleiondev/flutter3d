@@ -21,7 +21,7 @@ Future<Answer> _call(
   ModelSession session,
   String name,
   Map<String, Object?> arguments,
-) async => _toolNamed(name).run(session, arguments);
+) async => _toolNamed(name).runOn(session, arguments);
 
 ModelSession _skinnedSession() {
   final mesh = EditMesh.cuboid();

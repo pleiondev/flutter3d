@@ -44,7 +44,7 @@ void main() {
       Future<Answer>.value(
         editorTools
             .firstWhere((EditorTool it) => it.name == name)
-            .run(session, arguments),
+            .runOn(session, arguments),
       );
 
   test('an agent opens, edits, undoes and saves the pendulum', () async {

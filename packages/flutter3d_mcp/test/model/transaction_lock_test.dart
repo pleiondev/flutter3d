@@ -46,7 +46,7 @@ void main() {
 
         final call = toolNamed(
           'rename',
-        ).run(session, <String, Object?>{'id': 1, 'to': 'agent-renamed'});
+        ).runOn(session, <String, Object?>{'id': 1, 'to': 'agent-renamed'});
 
         await Future<void>.value();
         // Still the name a person gave it — the tool call is waiting, not
@@ -67,7 +67,7 @@ void main() {
         final session = sessionWithOneBlock();
         final answer = await toolNamed(
           'rename',
-        ).run(session, <String, Object?>{'id': 1, 'to': 'agent-renamed'});
+        ).runOn(session, <String, Object?>{'id': 1, 'to': 'agent-renamed'});
 
         expect(answer.did, isTrue);
         expect(session.project[1]!.name, 'agent-renamed');
@@ -82,7 +82,7 @@ void main() {
 
         final call = toolNamed(
           'rename',
-        ).run(session, <String, Object?>{'id': 1, 'to': 'agent-renamed'});
+        ).runOn(session, <String, Object?>{'id': 1, 'to': 'agent-renamed'});
 
         // The drag itself moves the object, several times, the way a pointer
         // dragged across several frames does — all still inside the one

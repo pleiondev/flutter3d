@@ -42,7 +42,7 @@ void main() {
     var called = false;
     final extra = ModelPictureTool(
       ToolSpec(name: 'ui.test', description: 'a stand-in UI tool'),
-      (ModelSession session, Map<String, Object?> arguments) async {
+      (SessionToolCall<ModelSession> call) async {
         called = true;
         return Answer(did: true, says: 'did the thing', png: null);
       },

@@ -50,7 +50,7 @@ void main() {
     };
     final set = await _tool(
       'setAnimationGraph',
-    ).run(session, <String, Object?>{'graphName': 'hero', 'graph': graph});
+    ).runOn(session, <String, Object?>{'graphName': 'hero', 'graph': graph});
     expect(set.did, isTrue, reason: set.says);
     // Kept as it will be written: the entry, first by default, named.
     expect(session.history.project.animationGraphs['hero'], <String, Object?>{
@@ -58,7 +58,7 @@ void main() {
       'entry': 'idle',
     });
 
-    final wrong = await _tool('setAnimationGraph').run(
+    final wrong = await _tool('setAnimationGraph').runOn(
       session,
       <String, Object?>{
         'graphName': 'hero',
@@ -75,12 +75,12 @@ void main() {
 
     final removed = await _tool(
       'removeAnimationGraph',
-    ).run(session, <String, Object?>{'graphName': 'hero'});
+    ).runOn(session, <String, Object?>{'graphName': 'hero'});
     expect(removed.did, isTrue);
     expect(session.history.project.animationGraphs, isEmpty);
     final again = await _tool(
       'removeAnimationGraph',
-    ).run(session, <String, Object?>{'graphName': 'hero'});
+    ).runOn(session, <String, Object?>{'graphName': 'hero'});
     expect(again.did, isFalse);
     expect(again.says, contains('there is no animation graph "hero"'));
   });

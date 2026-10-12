@@ -6,16 +6,21 @@ import 'dart:async';
 
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 
+import 'tool_call.dart';
 import 'tool_spec.dart';
 
-/// What calling a project tool does: its arguments in, a result out.
+/// What calling a project tool does: one [ToolCall] in, a result out.
 ///
 /// **A [ToolResult] rather than a server's own answer type**, because a
 /// plugin's tool is offered by every server of the project and each of them
 /// speaks a different answer: the editor's carries a picture, the
 /// modeller's a selection. A result is what all of them send in the end.
-typedef ProjectToolRun =
-    FutureOr<ToolResult> Function(Map<String, Object?> arguments);
+///
+/// **A [ToolCall] rather than the arguments alone**, so a minor can hand
+/// the tool more (progress, cancellation, the project's root) as members
+/// of the call, where a second parameter would break every tool a plugin
+/// wrote against 1.0.
+typedef ProjectToolRun = FutureOr<ToolResult> Function(ToolCall call);
 
 /// One tool a plugin, or the application, added to a project's [McpTools].
 final class ProjectTool {
@@ -96,7 +101,7 @@ abstract base class McpToolRegistry extends PluginRegistry {
 ///         'properties': {'strength': {'type': 'number'}},
 ///       },
 ///     ),
-///     (Map<String, Object?> arguments) => ToolResult.text('blew'),
+///     (ToolCall call) => ToolResult.text('blew ${call.arguments['strength']}'),
 ///   );
 /// }
 /// ```
@@ -118,8 +123,10 @@ abstract base class McpToolRegistry extends PluginRegistry {
 /// simulation's and the modeller's servers all offer the same plugin tools
 /// beside their own. [ProjectMcpServer] offers them alone, for a project
 /// with no other server running. The application's own tools go through the
-/// root with a namespace it names: `tools.addTool(tool, run, namespace:
-/// 'game')`.
+/// root with a namespace it names after itself: `tools.addTool(tool, run,
+/// namespace: 'acme_racer')`. An area of the engine's
+/// (`PluginManifest.reservedAreas`, `game` among them) is refused there as
+/// it is to a plugin.
 ///
 /// **Ordered as every registry is**: the application's first, then each
 /// plugin's in install order, and within one owner as they were added.
@@ -205,8 +212,8 @@ final class McpTools extends McpToolRegistry {
         throw ArgumentError.value(
           tool.name,
           'tool',
-          'the application names the namespace its tools go under: '
-              'addTool(tool, run, namespace: \'game\')',
+          'the application names the namespace its tools go under, its own '
+              'name: addTool(tool, run, namespace: \'acme_racer\')',
         );
       }
       if (!_namespacePattern.hasMatch(namespace)) {
@@ -215,6 +222,18 @@ final class McpTools extends McpToolRegistry {
           'namespace',
           'a namespace is lower case letters, digits, "_", "." and "-", '
               'starting with a letter, as a plugin id is',
+        );
+      }
+      // The servers' own tools are offered beside the application's, so an
+      // area of theirs would shadow its tools, now or in a minor.
+      if (PluginManifest.reservedAreas.contains(namespace) ||
+          namespace == PluginManifest.reservedNamespace) {
+        throw ArgumentError.value(
+          namespace,
+          'namespace',
+          'names one of the engine\'s own areas, whose tools would shadow '
+              'the application\'s; name the tools after the application '
+              '(\'acme_racer\')',
         );
       }
       space = namespace;

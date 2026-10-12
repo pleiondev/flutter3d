@@ -119,7 +119,7 @@ void main() {
     final moveBy = editorTools.firstWhere(
       (EditorTool it) => it.name == 'moveBy',
     );
-    final refused = await moveBy.run(session, <String, Object?>{
+    final refused = await moveBy.runOn(session, <String, Object?>{
       'by': 'sideways',
     });
     expect(refused.did, isFalse);
@@ -134,7 +134,7 @@ void main() {
     ) async {
       final answer = await editorTools
           .firstWhere((EditorTool it) => it.name == 'generate')
-          .run(session, arguments);
+          .runOn(session, arguments);
       return Answer(did: answer.did, says: answer.says);
     }
 
@@ -229,7 +229,7 @@ void main() {
     ) async {
       final answer = await editorTools
           .firstWhere((EditorTool it) => it.name == tool)
-          .run(session, arguments);
+          .runOn(session, arguments);
       return Answer(did: answer.did, says: answer.says);
     }
 
@@ -303,7 +303,7 @@ void main() {
     );
     final made = await editorTools
         .firstWhere((EditorTool it) => it.name == 'generate_level')
-        .run(session, <String, Object?>{
+        .runOn(session, <String, Object?>{
           'seed': 7,
           'rules': <String, Object?>{'columns': 3, 'rows': 3},
         });
@@ -325,7 +325,7 @@ void main() {
     ) async {
       final answer = await editorTools
           .firstWhere((EditorTool it) => it.name == tool)
-          .run(session, arguments);
+          .runOn(session, arguments);
       return Answer(did: answer.did, says: answer.says);
     }
 
@@ -470,7 +470,7 @@ void main() {
     final optimize = editorTools.firstWhere(
       (EditorTool it) => it.name == 'optimizeLights',
     );
-    final answer = await optimize.run(session, <String, Object?>{
+    final answer = await optimize.runOn(session, <String, Object?>{
       'views': <Object?>[
         <String, Object?>{
           'from': <double>[1.5, 1.6, 1.5],

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dart_mcp/server.dart';
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
@@ -13,6 +14,17 @@ import 'model_session.dart';
 /// `flutter3d_mcp/kit.dart`'s [OfferedTool] for why a pair rather than a table and
 /// a switch.
 typedef ModelTool = OfferedTool<ModelSession, Answer>;
+
+/// A [ModelTool] whose body reads the session and the arguments as two values,
+/// the way every tool here is written.
+ModelTool _tool(
+  ToolSpec spec,
+  FutureOr<Answer> Function(
+    ModelSession session,
+    Map<String, Object?> arguments,
+  )
+  run,
+) => ModelTool(spec, (call) => run(call.session, call.arguments));
 
 Future<Answer> Function(ModelSession, Map<String, Object?>) _sync(
   Answer Function(ModelSession, Map<String, Object?>) body,
@@ -261,7 +273,7 @@ Map<String, Schema> get _targetSchema => <String, Schema>{
 /// holds this list to that name list, both ways round — a command added there
 /// without a tool here is a failing test, not a silent gap.
 List<ModelTool> get _commandTools => <ModelTool>[
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'rename',
       description:
@@ -277,7 +289,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('rename'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'setTransform',
       description:
@@ -295,7 +307,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('setTransform'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'moveBy',
       description:
@@ -309,7 +321,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('moveBy'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'rotateBy',
       description:
@@ -332,7 +344,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('rotateBy'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'scaleBy',
       description:
@@ -352,7 +364,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('scaleBy'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'setParent',
       description:
@@ -371,7 +383,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('setParent'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'setOrigin',
       description:
@@ -400,7 +412,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('setOrigin'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'applyTransform',
       description:
@@ -416,7 +428,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('applyTransform'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'addPrimitive',
       description:
@@ -446,7 +458,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('addPrimitive'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'addLathe',
       description:
@@ -478,7 +490,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('addLathe'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'addSocket',
       description:
@@ -497,7 +509,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('addSocket'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'setParametric',
       description:
@@ -537,7 +549,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('setParametric'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'bakeToMesh',
       description:
@@ -553,7 +565,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('bakeToMesh'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'deleteObjects',
       description:
@@ -563,7 +575,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('deleteObjects'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'duplicateObjects',
       description:
@@ -573,7 +585,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('duplicateObjects'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'extrude',
       description:
@@ -591,7 +603,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('extrude'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'loopCut',
       description:
@@ -610,7 +622,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('loopCut'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'bevelEdges',
       description:
@@ -632,7 +644,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('bevelEdges'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'insetFaces',
       description:
@@ -657,7 +669,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('insetFaces'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'bridgeLoops',
       description:
@@ -670,7 +682,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('bridgeLoops'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'slideEdges',
       description:
@@ -690,7 +702,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('slideEdges'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'deleteElements',
       description:
@@ -700,7 +712,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('deleteElements'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'transformElements',
       description:
@@ -722,7 +734,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('transformElements'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'mergeByDistance',
       description:
@@ -740,7 +752,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('mergeByDistance'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'dissolveEdges',
       description:
@@ -750,7 +762,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('dissolveEdges'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'triangulate',
       description:
@@ -760,7 +772,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('triangulate'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'recalculateNormals',
       description:
@@ -778,7 +790,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('recalculateNormals'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'markSeam',
       description:
@@ -794,7 +806,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('markSeam'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'unwrap',
       description:
@@ -818,7 +830,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('unwrap'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'separate',
       description:
@@ -828,7 +840,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('separate'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'selectAll',
       description: 'Select everything there is, at the current level.',
@@ -836,7 +848,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('selectAll'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'selectNone',
       description: 'Clear the selection at the current level.',
@@ -844,7 +856,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('selectNone'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'invertSelection',
       description:
@@ -854,7 +866,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('invertSelection'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'growSelection',
       description: 'Extend the mesh selection to everything touching it.',
@@ -862,7 +874,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('growSelection'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'shrinkSelection',
       description: 'Pull the mesh selection in from its own boundary.',
@@ -870,7 +882,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('shrinkSelection'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'selectLinked',
       description:
@@ -880,7 +892,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('selectLinked'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'selectEdgeLoop',
       description: 'Select the loop of edges that runs through one edge.',
@@ -893,7 +905,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('selectEdgeLoop'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'selectEdgeRing',
       description:
@@ -908,7 +920,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('selectEdgeRing'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'selectByMaterial',
       description:
@@ -927,7 +939,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('selectByMaterial'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'selectFacing',
       description:
@@ -959,7 +971,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
   // which `tools_test.dart`'s own "a command exists that this server cannot
   // call" caught — closed here, since `ux-19` is the row about an agent being
   // able to reach the state it edits.
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'setObjectVisible',
       description:
@@ -976,7 +988,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('setObjectVisible'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'setObjectLocked',
       description:
@@ -993,7 +1005,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('setObjectLocked'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'buildTopology',
       description:
@@ -1018,7 +1030,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('buildTopology'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'selectNear',
       description:
@@ -1038,7 +1050,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('selectNear'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'setLightTransform',
       description:
@@ -1056,7 +1068,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('setLightTransform'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'addMaterial',
       description:
@@ -1080,7 +1092,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('addMaterial'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'removeMaterial',
       description:
@@ -1096,7 +1108,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('removeMaterial'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'duplicateMaterial',
       description:
@@ -1111,7 +1123,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('duplicateMaterial'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'setMaterialField',
       description:
@@ -1140,7 +1152,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('setMaterialField'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'setTexture',
       description:
@@ -1178,7 +1190,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('setTexture'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'addImage',
       description:
@@ -1196,7 +1208,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('addImage'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'assignMaterial',
       description:
@@ -1216,7 +1228,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('assignMaterial'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'setMaterialGraph',
       description:
@@ -1247,7 +1259,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('setMaterialGraph'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'bakeTextureGraph',
       description:
@@ -1269,7 +1281,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('bakeTextureGraph'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'linkMaterialFile',
       description:
@@ -1297,7 +1309,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('linkMaterialFile'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'embedMaterial',
       description:
@@ -1314,7 +1326,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('embedMaterial'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'addModifier',
       description:
@@ -1389,7 +1401,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('addModifier'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'setModifierField',
       description:
@@ -1417,7 +1429,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('setModifierField'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'toggleModifier',
       description: 'Flip whether a modifier on an object\'s stack runs.',
@@ -1431,7 +1443,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('toggleModifier'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'toggleModifierExport',
       description:
@@ -1449,7 +1461,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('toggleModifierExport'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'reorderModifier',
       description: 'Move a modifier to a different position in the stack.',
@@ -1468,7 +1480,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('reorderModifier'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'removeModifier',
       description: 'Drop a modifier from an object\'s own modifier stack.',
@@ -1482,7 +1494,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('removeModifier'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'applyModifier',
       description:
@@ -1501,7 +1513,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('applyModifier'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'applyJobResult',
       description:
@@ -1529,7 +1541,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
   // `ux-48` and `ux-49` landed their commands without the tools beside them,
   // so an agent could read `modelCommandNames` and find four names it had no
   // way to call. The four below close that.
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'setPanorama',
       description:
@@ -1548,7 +1560,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('setPanorama'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'linkToSource',
       description:
@@ -1567,7 +1579,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('linkToSource'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'unlinkSource',
       description:
@@ -1582,7 +1594,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('unlinkSource'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'reimport',
       description:
@@ -1603,7 +1615,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('reimport'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'applyClipResult',
       description:
@@ -1683,7 +1695,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('applyClipResult'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'applySimulationCache',
       description:
@@ -1718,7 +1730,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('applySimulationCache'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'bakeSimulationToShapes',
       description:
@@ -1739,7 +1751,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('bakeSimulationToShapes'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'setProfileLimits',
       description:
@@ -1761,7 +1773,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('setProfileLimits'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'setShapeWeight',
       description:
@@ -1779,7 +1791,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('setShapeWeight'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'addShapeFromMesh',
       description:
@@ -1796,7 +1808,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('addShapeFromMesh'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'renameShape',
       description: 'Rename one of an object\'s own shape keys.',
@@ -1811,7 +1823,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('renameShape'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'deleteShape',
       description:
@@ -1830,7 +1842,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('deleteShape'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'keyShape',
       description:
@@ -1849,7 +1861,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('keyShape'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'addShapeDriver',
       description:
@@ -1885,7 +1897,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('addShapeDriver'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'removeShapeDriver',
       description: 'Remove one of an object\'s own shape drivers.',
@@ -1899,7 +1911,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('removeShapeDriver'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'setShapeDriverField',
       description:
@@ -1926,7 +1938,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('setShapeDriverField'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'addSkeleton',
       description:
@@ -1942,7 +1954,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('addSkeleton'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'bindSkin',
       description:
@@ -1961,7 +1973,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('bindSkin'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'addJoint',
       description:
@@ -1983,7 +1995,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('addJoint'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'removeJoint',
       description:
@@ -2002,7 +2014,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('removeJoint'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'renameJoint',
       description:
@@ -2021,7 +2033,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('renameJoint'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'reparentJoint',
       description:
@@ -2041,7 +2053,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('reparentJoint'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'setRestPose',
       description:
@@ -2062,7 +2074,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('setRestPose'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'bendJoint',
       description:
@@ -2092,7 +2104,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('bendJoint'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'mirrorJoints',
       description:
@@ -2122,7 +2134,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('mirrorJoints'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'setRig',
       description:
@@ -2220,7 +2232,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('setRig'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'setKey',
       description:
@@ -2250,7 +2262,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('setKey'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'moveKeys',
       description:
@@ -2270,7 +2282,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('moveKeys'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'deleteKeys',
       description:
@@ -2288,7 +2300,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('deleteKeys'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'setInterpolation',
       description:
@@ -2306,7 +2318,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('setInterpolation'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'setTangent',
       description:
@@ -2330,7 +2342,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('setTangent'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'fillHoles',
       description:
@@ -2341,7 +2353,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('fillHoles'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'poseJoint',
       description:
@@ -2365,7 +2377,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('poseJoint'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'extractRootMotion',
       description:
@@ -2384,7 +2396,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('extractRootMotion'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'bakeRootMotionIntoClip',
       description:
@@ -2403,7 +2415,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('bakeRootMotionIntoClip'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'addClip',
       description:
@@ -2419,7 +2431,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('addClip'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'setAnimationGraph',
       description:
@@ -2457,7 +2469,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('setAnimationGraph'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'removeAnimationGraph',
       description:
@@ -2472,7 +2484,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('removeAnimationGraph'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'addLight',
       description:
@@ -2491,7 +2503,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('addLight'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'removeLight',
       description:
@@ -2507,7 +2519,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('removeLight'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'setLightField',
       description:
@@ -2537,7 +2549,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('setLightField'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'setEnvironment',
       description:
@@ -2556,7 +2568,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('setEnvironment'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'setSceneLightingField',
       description:
@@ -2591,7 +2603,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('setSceneLightingField'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'addNode',
       description:
@@ -2624,7 +2636,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('addNode'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'link',
       description:
@@ -2645,7 +2657,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('link'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'unlink',
       description: 'Take whatever is wired into a node\'s input back off it.',
@@ -2660,7 +2672,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('unlink'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'setNodeField',
       description:
@@ -2689,7 +2701,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('setNodeField'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'moveNode',
       description:
@@ -2707,7 +2719,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('moveNode'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'removeNode',
       description:
@@ -2726,7 +2738,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('removeNode'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'addLod',
       description:
@@ -2750,7 +2762,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('addLod'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'setLodRatio',
       description:
@@ -2771,7 +2783,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
     ),
     _command('setLodRatio'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'regenerateLods',
       description:
@@ -2800,7 +2812,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
 /// `CommandJournal` is worth writing from the one place that runs every
 /// command already.
 List<ModelTool> get modelTools => <ModelTool>[
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'list',
       description:
@@ -2816,7 +2828,7 @@ List<ModelTool> get modelTools => <ModelTool>[
           Answer(did: true, says: session.listing()),
     ),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'describe',
       description:
@@ -2861,7 +2873,7 @@ List<ModelTool> get modelTools => <ModelTool>[
       );
     }),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'describe_type',
       description:
@@ -2895,7 +2907,7 @@ List<ModelTool> get modelTools => <ModelTool>[
       ),
     ),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'listMaterials',
       description:
@@ -2912,7 +2924,7 @@ List<ModelTool> get modelTools => <ModelTool>[
           Answer(did: true, says: session.listMaterials()),
     ),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'select',
       description:
@@ -2951,7 +2963,7 @@ List<ModelTool> get modelTools => <ModelTool>[
     }),
   ),
   ..._aimableCommandTools,
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'batch',
       description:
@@ -2990,7 +3002,7 @@ List<ModelTool> get modelTools => <ModelTool>[
       ]);
     },
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'amend',
       description:
@@ -3029,7 +3041,7 @@ List<ModelTool> get modelTools => <ModelTool>[
       return session.amend(command);
     },
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'undo',
       description:
@@ -3041,7 +3053,7 @@ List<ModelTool> get modelTools => <ModelTool>[
       (ModelSession session, Map<String, Object?> arguments) => session.undo(),
     ),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'redo',
       description: 'Put back the change that undo just took away.',
@@ -3051,7 +3063,7 @@ List<ModelTool> get modelTools => <ModelTool>[
       (ModelSession session, Map<String, Object?> arguments) => session.redo(),
     ),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'check',
       description:
@@ -3064,7 +3076,7 @@ List<ModelTool> get modelTools => <ModelTool>[
           Answer(did: true, says: session.check()),
     ),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'save',
       description:
@@ -3090,7 +3102,7 @@ List<ModelTool> get modelTools => <ModelTool>[
       };
     }),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'export',
       description:
@@ -3131,7 +3143,7 @@ List<ModelTool> get modelTools => <ModelTool>[
       };
     }),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'import',
       description:
@@ -3195,7 +3207,7 @@ List<ModelTool> get modelTools => <ModelTool>[
       );
     },
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'journal',
       description:
@@ -3220,7 +3232,7 @@ List<ModelTool> get modelTools => <ModelTool>[
       };
     }),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'cleanup',
       description:
@@ -3234,7 +3246,7 @@ List<ModelTool> get modelTools => <ModelTool>[
           session.cleanup(),
     ),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'makeGameReady',
       description:
@@ -3260,7 +3272,7 @@ List<ModelTool> get modelTools => <ModelTool>[
       return session.prepareForGame(profile);
     }),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'buildFrom',
       description:
@@ -3309,7 +3321,7 @@ List<ModelTool> get modelTools => <ModelTool>[
       );
     }),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'inspect',
       description:
@@ -3347,7 +3359,7 @@ List<ModelTool> get modelTools => <ModelTool>[
 // pipeline scenario `rig_pipeline_mcp_test.dart` drives end to end, and
 // splitting it out would cost that continuity for no reader's benefit.
 List<ModelTool> get _rigPipelineTools => <ModelTool>[
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'autoRig',
       description:
@@ -3467,7 +3479,7 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
       );
     },
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'paintWeights',
       description:
@@ -3543,7 +3555,7 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
     ),
     _command('paintWeights'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'sculptStroke',
       description:
@@ -3600,7 +3612,7 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
     ),
     _command('sculptStroke'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'subdivideMesh',
       description:
@@ -3625,7 +3637,7 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
     ),
     _command('subdivideMesh'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'drawQuad',
       description:
@@ -3660,7 +3672,7 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
     _command('drawQuad'),
   ),
 
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'retopologize',
       description:
@@ -3680,7 +3692,7 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
     ),
     _command('retopologize'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'bakeMaps',
       description:
@@ -3721,7 +3733,7 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
     ),
     _command('bakeMaps'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'paintStroke',
       description:
@@ -3783,7 +3795,7 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
     ),
     _command('paintStroke'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'adoptTexture',
       description:
@@ -3807,7 +3819,7 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
     ),
     _command('adoptTexture'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'paintVertexColour',
       description:
@@ -3850,7 +3862,7 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
     ),
     _command('paintVertexColour'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'packAtlas',
       description:
@@ -3878,7 +3890,7 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
     ),
     _command('packAtlas'),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'retargetClip',
       description:
@@ -3952,7 +3964,7 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
       );
     }),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'bakeIk',
       description:
@@ -4017,7 +4029,7 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
       );
     }),
   ),
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'bakeDrivers',
       description:
@@ -4098,7 +4110,7 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
   // must not have: an agent reading the list has to decide which of two
   // identical entries it wants, and every sentence written about either has
   // to be kept true of both.
-  ModelTool(
+  _tool(
     mcpTool(
       name: 'validateRig',
       description:

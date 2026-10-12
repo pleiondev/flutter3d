@@ -50,9 +50,9 @@ Registration shareCommands(
                   '${command.bareName}.',
           inputSchema: commandInputSchema(command),
         ),
-        (Map<String, Object?> arguments) {
+        (ToolCall call) {
           final read = pieces.readCommand(<String, Object?>{
-            ...arguments,
+            ...call.arguments,
             'command': name,
           });
           if (read == null) {

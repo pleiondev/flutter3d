@@ -906,8 +906,8 @@ final class {{class}} extends Flutter3dPlugin {
           },
           hints: ToolHints.reads,
         ),
-        (Map<String, Object?> arguments) =>
-            ToolResult.text('hello, ${arguments['who'] ?? 'agent'}'),
+        (ToolCall call) =>
+            ToolResult.text('hello, ${call.arguments['who'] ?? 'agent'}'),
       );
   }
 }
@@ -933,7 +933,12 @@ void main() {
     );
     final hello = tools.named('{{name}}.hello');
     expect(hello, isNotNull);
-    final result = await hello!.run(<String, Object?>{'who': 'test'});
+    final result = await hello!.run(
+      const ToolCall(
+        name: '{{name}}.hello',
+        arguments: <String, Object?>{'who': 'test'},
+      ),
+    );
     expect(result.text, 'hello, test');
 
     loop.plugins.disable('{{name}}');

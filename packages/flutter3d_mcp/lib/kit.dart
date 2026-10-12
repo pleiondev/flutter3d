@@ -14,5 +14,6 @@ export 'src/kit/loopback_http.dart';
 export 'src/kit/project_root.dart';
 export 'src/kit/project_server.dart';
 export 'src/kit/project_tools.dart';
+export 'src/kit/tool_call.dart';
 export 'src/kit/tool_spec.dart';
 export 'src/kit/tool_table.dart';
