@@ -6059,6 +6059,68 @@ List<Finding> _hooksTakeOneContext() {
       ),
     );
   }
+  found.addAll(_hooksTakeNoBareValue());
+  return found;
+}
+
+/// Every hook, callback and typedef the rule above reads that takes one
+/// parameter takes a context, not a value that cannot gain members (a
+/// number, a string, a `Map`, a list, bytes, a vector, a type parameter),
+/// or it is named in [hookValueParameters] with the reason.
+///
+/// **Why counting was not enough.** Counting parameters let
+/// `ProjectToolRun`, a function of one `Map` of arguments, through: one
+/// parameter, and one that can never carry a
+/// cancellation, a progress report or the project's root, because a `Map`
+/// of an agent's arguments is not the engine's to add to. A hook whose one
+/// parameter is a type of the engine's own grows by that type's members;
+/// one handed a value grows only by a second parameter, which is a break.
+///
+/// An entry is a key as the rule above writes it (`Type.member`, a
+/// callback's field, a typedef's name) or `Type` for every member of a
+/// type; a type [hookParametersAllowed] names whole is allowed here too, for
+/// its reason. One that names nothing a snapshot declares fails.
+///
+/// Mutation: make `ProjectToolRun` take `Map<String, Object?> arguments`
+/// again, regenerate the snapshot, and this names it.
+List<Finding> _hooksTakeNoBareValue() {
+  final found = <Finding>[];
+  final seen = <String>{};
+  for (final entry in _publishedSnapshots.entries) {
+    final hooks = wideHooksIn(entry.value);
+    for (final (:type, :member, :parameter, :callback) in hooks.value) {
+      final key = member.isEmpty ? type : '$type.$member';
+      seen.add(key);
+      if (hookValueParameters.containsKey(key) ||
+          hookValueParameters.containsKey(type) ||
+          (!callback && hookParametersAllowed.containsKey(type))) {
+        continue;
+      }
+      found.add(
+        Finding(
+          '${entry.key}/api/${entry.key}.api',
+          '`$key` hands an outside author one `$parameter`, a value that '
+              'cannot gain members, so a minor can hand it nothing more without '
+              'a second parameter. Give it a context object, or say in '
+              '`hookValueParameters` why it needs none',
+        ),
+      );
+    }
+    for (final w in hooks.value) {
+      seen.add(w.type);
+    }
+  }
+  for (final name in hookValueParameters.keys) {
+    if (seen.contains(name)) continue;
+    found.add(
+      Finding(
+        'tool/structure/repository.dart',
+        '`hookValueParameters` names `$name`, and no hook, callback or '
+            'typedef a snapshot declares hands it a single value. Take the '
+            'entry out',
+      ),
+    );
+  }
   return found;
 }
 
