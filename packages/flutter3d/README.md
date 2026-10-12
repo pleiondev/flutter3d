@@ -2,7 +2,7 @@
 
 An independent implementation of a real-time 3D engine for Flutter, written
 from the geometry layer up. It does not fork, bind or wrap another engine, and
-it is not affiliated with the Flutter team.
+it is not affiliated with Google or the Flutter project.
 
 Homepage: **<https://flutter3d.pleion.dev>** · API reference:
 **<https://flutter3d.pleion.dev/docs>** · Source:
@@ -400,7 +400,7 @@ with three lights and one with a single light both report one pipeline.
 
 Part of [flutter3d](https://github.com/pleiondev/flutter3d), an independent
 implementation of a 3D engine for Flutter. It is not a fork or a binding of
-another engine, and it is not affiliated with the Flutter team. It has four
+another engine, and it is not affiliated with Google or the Flutter project. It has four
 switchable rendering backends: Impeller via Flutter GPU, WebGL2, WebGPU and a
 software rasteriser. It loads glTF, OBJ and `.f3d`, and has six lighting models,
 shadows, bloom, skinning, animation, BVH culling and picking, plus a

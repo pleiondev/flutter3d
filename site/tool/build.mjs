@@ -495,7 +495,8 @@ gtag('config', 'G-6F6VZ4H7CF');
       </p>
       <p class="foot-legal">
         An independent implementation of a 3D engine for Flutter, not affiliated
-        with the Flutter team.<br>
+        with or endorsed by Google or the Flutter project. Flutter is a
+        trademark of Google LLC.<br>
         © 2026 Dmitrii Zolotov. Released under the
         <a href="${GITHUB}/blob/main/LICENSE" rel="noopener">MIT licence</a>.
         This site sets no cookies and runs no analytics —
