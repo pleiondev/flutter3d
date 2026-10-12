@@ -277,6 +277,8 @@ extension _ScenePasses on Renderer {
           near: camera.projection.near,
           far: _DepthConvention._finiteFar(camera.projection),
         );
+        // This view's cells, so this view's list.
+        _lightListEpoch++;
         // Settled now, before any draw chooses its lights: a view whose
         // cells outgrow the list texture draws through each draw's own tail,
         // and that tail has an edge the fade has to be on for. Settled later,

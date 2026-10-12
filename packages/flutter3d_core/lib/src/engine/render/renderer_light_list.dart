@@ -72,6 +72,23 @@ extension _LightList on Renderer {
     if (_clustersActive && !_clusterRowsFit(lights)) {
       _clustersActive = false;
     }
+
+    // **Once a view, not once a draw.** Every lit draw asks, and the rows
+    // are the view's, not the draw's: the same table, the same cells. With
+    // the cells in, writing and comparing them is thousands of rows, and
+    // done per draw it was most of a frame of 270 lit draws.
+    // [_lightListEpoch] advances wherever the rows can change between two
+    // asks — see the field.
+    if (_lightListTexture != null &&
+        identical(lights, _lightListBuiltFrom) &&
+        _clustersActive == _lightListBuiltClustered &&
+        _lightListEpoch == _lightListBuiltEpoch) {
+      return _lightListTexture;
+    }
+    // Forgotten until the list is in place: a device that refuses the
+    // upload leaves the old texture, and the next draw asks again.
+    _lightListBuiltFrom = null;
+
     final rowCount = _clustersActive
         ? count + LightClusters.headerRows + _lightClusters.entryRows
         : count;
@@ -80,6 +97,7 @@ extension _LightList on Renderer {
       _lightListScratch = Float32List(length);
     }
     final rows = Float32List.sublistView(_lightListScratch, 0, length);
+    _lightListBuilds++;
     for (var i = 0; i < count; i++) {
       lights.writeCandidateRow(i, rows, i * _kLightRowFloats);
       _writeShadowRow(lights.candidates[i], rows, i * _kLightRowFloats);
@@ -90,7 +108,7 @@ extension _LightList on Renderer {
       _clusterEntryRow = count + LightClusters.headerRows;
     }
     if (_lightListTexture != null && _sameRows(rows, _lightListUploaded)) {
-      return _lightListTexture;
+      return _builtFrom(lights);
     }
 
     final previous = _lightListTexture;
@@ -105,6 +123,14 @@ extension _LightList on Renderer {
     // After the new one is made rather than before: a device that refuses the
     // upload leaves the frame with the texture it had rather than with none.
     if (previous != null) _destroyAfterFrame(previous);
+    return _builtFrom(lights);
+  }
+
+  /// Notes what the list now in place was built from, and returns it.
+  TextureHandle? _builtFrom(LightBuffer lights) {
+    _lightListBuiltFrom = lights;
+    _lightListBuiltClustered = _clustersActive;
+    _lightListBuiltEpoch = _lightListEpoch;
     return _lightListTexture;
   }
 
