@@ -194,22 +194,16 @@ final class NullDevice extends GraphicsDevice {
   @override
   TextureHandle createTexture(TextureDescriptor descriptor) {
     // A volume is filled by `writeTexture` alone, so it is refused by that
-    // first; the layered shapes a pass can draw into are refused by their
-    // own feature.
-    final shape = switch (descriptor.dimension) {
-      TextureDimension.d2 => null,
-      TextureDimension.d2Array => DeviceFeature.textureArrays,
-      TextureDimension.cube => DeviceFeature.cubeTextures,
-      TextureDimension.cubeArray => DeviceFeature.cubeArrayTextures,
-      _ => DeviceFeature.textureWrites,
-    };
-    if (shape != null) throw refuse(shape);
-    if (descriptor.usage.contains(TextureUsage.storage)) {
-      throw refuse(DeviceFeature.storageTextures);
+    // first; the layered shapes a pass can draw into, a storage usage and
+    // more than one sample are refused by the feature the descriptor names.
+    final dimension = descriptor.dimension;
+    if (dimension != TextureDimension.d2 &&
+        dimension != TextureDimension.d2Array &&
+        dimension != TextureDimension.cube &&
+        dimension != TextureDimension.cubeArray) {
+      throw refuse(DeviceFeature.textureWrites);
     }
-    if (descriptor.sampleCount > 1) {
-      throw refuse(DeviceFeature.offscreenMultisample);
-    }
+    descriptor.checkFeatures(features, backend: name);
     return _make(
       width: descriptor.width,
       height: descriptor.height,
@@ -220,17 +214,16 @@ final class NullDevice extends GraphicsDevice {
     );
   }
 
-  /// Refused: a storage buffer by compute, which it needs and this device
-  /// does not have, and any other by `DeviceFeature.buffers`.
+  /// Refused by the feature the descriptor names first: `buffers`, which
+  /// this device does not report.
   @override
   StorageBuffer createBuffer(
     BufferDescriptor descriptor, {
     ByteData? contents,
-  }) => throw refuse(
-    descriptor.usage.contains(BufferUsage.storage)
-        ? DeviceFeature.compute
-        : DeviceFeature.buffers,
-  );
+  }) {
+    descriptor.checkFeatures(features, backend: name);
+    throw refuse(DeviceFeature.buffers);
+  }
 
   @override
   TransferEncoder beginTransferPass({String? label}) => NullTransfer(this);

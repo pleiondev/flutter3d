@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **A device is opened with the adapter's own stage-binding limits.**
+  `requestDevice` asked for no `requiredLimits`, so the device kept
+  WebGPU's minimum of 16 textures and 16 samplers a stage whatever the
+  adapter had; it now asks for the adapter's sampled textures, samplers
+  and uniform buffers a stage (`webgpuRequiredLimits`).
 - **A plugin's lit model fits the guaranteed 8 dynamic uniform buffers.**
   The blocks of a material's own (`MaterialParams` and every
   `uniform(Name) …` block) are packed into one binding of their group when

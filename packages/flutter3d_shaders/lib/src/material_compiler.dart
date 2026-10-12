@@ -6,21 +6,39 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show CapabilityException, Registration;
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show ShaderStageKind;
 
 /// One stage a `.f3dmat` source becomes, as GLSL the engine's emitter wrote:
 /// the fragment stage, and a `vertex` block's two vertex stages.
 final class MaterialStageSource {
+  /// A stage of [kind]; without one, a fragment stage when [fragment] is
+  /// true and a vertex stage otherwise.
   const MaterialStageSource({
     required this.name,
-    required this.fragment,
+    bool fragment = false,
+    ShaderStageKind? kind,
     required this.glsl,
-  });
+  }) : assert(
+         kind == null || !fragment || identical(kind, ShaderStageKind.fragment),
+         'a stage named fragment and given another kind',
+       ),
+       kind =
+           kind ??
+           (fragment ? ShaderStageKind.fragment : ShaderStageKind.vertex),
+       fragment = kind == null
+           ? fragment
+           : identical(kind, ShaderStageKind.fragment);
 
   /// The entry point's name: the material's, or `<name>Vertex` and
   /// `<name>VertexSkinned` for its vertex stages.
   final String name;
 
-  /// Whether this is a fragment stage.
+  /// What the stage runs as.
+  final ShaderStageKind kind;
+
+  /// Whether this is a fragment stage: [kind] is
+  /// [ShaderStageKind.fragment].
   final bool fragment;
 
   /// The stage as GLSL 4.60, its `#include`s of the engine's headers left
@@ -119,8 +137,10 @@ final class MaterialCompileException extends CapabilityException {
 abstract base class MaterialCompiler {
   const MaterialCompiler();
 
-  /// The backend's name, as its `GraphicsDevice` gives it — `webgpu`,
-  /// `vulkan`.
+  /// The backend's id, exactly as its `GraphicsDevice.backendId` gives it:
+  /// `webgpu`, `vulkan`. [MaterialCompilerRegistry.forBackend] compares it
+  /// as written; the engine's four are `cpu`, `webgl`, `webgpu` and
+  /// `impeller`.
   String get backend;
 
   /// The key of the section this compiler writes in a `ShaderBundle`, and
@@ -173,6 +193,7 @@ final class MaterialCompilerRegistry {
   };
 
   /// The compiler for [backend] — the one registered last — or null.
+  /// [backend] is a backend id, compared exactly.
   MaterialCompiler? forBackend(String backend) {
     for (final compiler in _compilers.reversed) {
       if (compiler.backend == backend) return compiler;

@@ -46,6 +46,9 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
   @override
   String get backendName => 'the software rasteriser';
 
+  @override
+  String get backendId => 'cpu';
+
   // Debug groups, labels and loss: the inherited defaults are the truth
   // here. There is no debugger to show a group to, a label is kept for
   // `labelOf`, nothing can take a CPU away, and a pipeline links in the
@@ -846,31 +849,21 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
     final d = descriptor;
     final format = d.format;
     switch (d.dimension) {
-      case TextureDimension.d2Array:
-        features.require(DeviceFeature.textureArrays, backend: cpuBackendName);
-      case TextureDimension.d3:
-        features.require(DeviceFeature.texture3D, backend: cpuBackendName);
-      case TextureDimension.cube:
-        features.require(DeviceFeature.cubeTextures, backend: cpuBackendName);
-      case TextureDimension.cubeArray:
-        features.require(
-          DeviceFeature.cubeArrayTextures,
-          backend: cpuBackendName,
-        );
-      case TextureDimension.d1 || TextureDimension.d2:
+      case TextureDimension.d1 ||
+          TextureDimension.d2 ||
+          TextureDimension.d2Array ||
+          TextureDimension.d3 ||
+          TextureDimension.cube ||
+          TextureDimension.cubeArray:
         break;
       default:
         throw UnsupportedError(
           'the software rasteriser cannot allocate a ${d.dimension} texture',
         );
     }
-    if (d.sampleCount > 1) {
-      features.require(
-        DeviceFeature.offscreenMultisample,
-        backend: cpuBackendName,
-        reason: 'it draws one sample a pixel',
-      );
-    }
+    // The shape, a storage usage and the sample count, by the feature each
+    // names; the format is this device's own question, below.
+    d.checkFeatures(features, backend: cpuBackendName);
     if (format.isCompressed) {
       features.require(
         _compressionFamily(format),
@@ -887,7 +880,6 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
       );
     }
     if (d.usage.contains(TextureUsage.storage)) {
-      features.require(DeviceFeature.storageTextures, backend: cpuBackendName);
       if (!support.storage) {
         throw ArgumentError.value(
           format,
@@ -1128,32 +1120,11 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
     BufferDescriptor descriptor, {
     ByteData? contents,
   }) {
-    features.require(DeviceFeature.buffers, backend: cpuBackendName);
-    final usage = descriptor.usage;
-    // Either feature takes a storage buffer. Without both, the refusal names
-    // the one the buffer was shaped for: the copy usages of `standardStorage`
-    // are a compute pass's buffer (what `createStorageBuffer` made before
-    // 1.0), a bare storage usage a render stage's. Conformance probes each
+    // Either feature takes a storage buffer, and the descriptor's refusal
+    // names the one the buffer was shaped for. Conformance probes each
     // feature with its own shape, and WebGL2 and Impeller answer the same.
-    if (usage.contains(BufferUsage.storage) &&
-        !features.has(DeviceFeature.renderStageStorage) &&
-        !features.has(DeviceFeature.compute)) {
-      features.require(
-        usage.contains(BufferUsage.standardStorage)
-            ? DeviceFeature.compute
-            : DeviceFeature.renderStageStorage,
-        backend: cpuBackendName,
-        reason: 'a storage buffer needs compute or render-stage storage',
-      );
-    }
-    if (usage.contains(BufferUsage.indirect) &&
-        !features.has(DeviceFeature.indirectDispatch)) {
-      features.require(
-        DeviceFeature.indirectDraw,
-        backend: cpuBackendName,
-        reason: 'an indirect buffer needs indirect draws or dispatches',
-      );
-    }
+    descriptor.checkFeatures(features, backend: cpuBackendName);
+    final usage = descriptor.usage;
     if (descriptor.lengthInBytes > limits.maxBufferSize) {
       throw ArgumentError.value(
         descriptor.lengthInBytes,

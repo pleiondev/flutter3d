@@ -49,6 +49,9 @@ final class GpuRenderBackend extends GraphicsDevice {
   @override
   String get backendName => 'Impeller';
 
+  @override
+  String get backendId => 'impeller';
+
   /// [frame] — a texture this device made, such as `FrameResult.frame` — as
   /// a `dart:ui` image over the same allocation, without a copy. What a
   /// widget that composites the engine's frame itself paints.
@@ -1154,6 +1157,8 @@ final class GpuRenderBackend extends GraphicsDevice {
         reason: 'flutter_gpu cannot bind a texture as storage',
       );
     }
+    // Whatever else the descriptor's fields need, by the feature each names.
+    descriptor.checkFeatures(features, backend: impellerBackendName);
     final format = descriptor.format;
     if (!format.isMirrored) throw unmirroredFormat(format);
     final width = descriptor.width;
@@ -1401,6 +1406,7 @@ final class GpuRenderBackend extends GraphicsDevice {
         reason: 'flutter_gpu has no indirect draw to read the arguments',
       );
     }
+    descriptor.checkFeatures(features, backend: impellerBackendName);
     final length = descriptor.lengthInBytes;
     if (contents != null && contents.lengthInBytes > length) {
       throw ArgumentError(

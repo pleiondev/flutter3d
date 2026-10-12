@@ -20,6 +20,13 @@
 /// [EngineBundleStamp.previousProjectAsset] for an application hot-reloading
 /// across the rebuild. Anything older is removed.
 ///
+/// **Every registered backend's compiler too** (D26). A backend from
+/// outside the engine registers its `MaterialCompiler` in the
+/// [MaterialCompilerRegistry] a build is handed, and the build asks it for
+/// its section of the engine's bundle and of every plugin material's, as it
+/// asks `impellerc`, the WebGL2 translator and naga for the engine's three.
+/// A project whose only GPU backend is such a one gets its bundle.
+///
 /// **A plugin's materials too** (D19). A package that marks plugins and keeps
 /// `.f3dmat` sources under its own `assets_src/` has each compiled into
 /// [EngineBundleStamp.projectMaterialAsset], so a plugin's material reaches
@@ -36,6 +43,13 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter3d_build_hooks/flutter3d_build_hooks.dart';
 import 'package:flutter3d_core/flutter3d_core.dart' show F3dDocument;
 import 'package:flutter3d_hardware/shader_bundle.dart';
+import 'package:flutter3d_shaders/backend.dart'
+    show
+        MaterialCompileException,
+        MaterialCompileRequest,
+        MaterialCompiler,
+        MaterialCompilerRegistry,
+        MaterialStageSource;
 import 'package:flutter3d_shaders/compile.dart';
 import 'package:flutter3d_shaders/flutter3d_shaders.dart'
     show EngineBundleStamp, ShaderStageNeed;
@@ -44,12 +58,33 @@ import 'layout.dart';
 import 'plugin_discovery.dart';
 
 /// The packages whose presence means the application loads the engine's
-/// bundle: the GPU backends.
+/// bundle: the engine's GPU backends. A backend from outside is known by the
+/// compiler it registers instead.
 const Set<String> _backendPackages = <String>{
   'flutter3d_impeller',
   'flutter3d_webgl',
   'flutter3d_webgpu',
 };
+
+/// The sections the engine writes itself, with tools of its own or none at
+/// all: a registered compiler for one of them is not asked here.
+const Set<String> _engineSections = <String>{
+  ShaderBundle.impellerSection,
+  ShaderBundle.webglSection,
+  ShaderBundle.webgpuSection,
+  ShaderBundle.materialSection,
+  ShaderBundle.kernelSection,
+};
+
+/// The compilers [registry] holds for backends outside the engine, by
+/// backend id in order: each writes a section of its own.
+List<MaterialCompiler> _outsideCompilers(MaterialCompilerRegistry? registry) =>
+    <MaterialCompiler>[
+      for (final backend in registry?.backends.toList() ?? const <String>[])
+        if (registry!.forBackend(backend) case final compiler?
+            when !_engineSections.contains(compiler.bundleSection))
+          compiler,
+    ]..sort((a, b) => a.backend.compareTo(b.backend));
 
 /// What one call to [runShaderBuild] did.
 final class ShaderBuildReport {
@@ -66,7 +101,9 @@ final class ShaderBuildReport {
   });
 
   /// Whether the application loads the engine's bundle at all: false for a
-  /// project no GPU backend is a dependency of, which this step leaves alone.
+  /// project with no GPU backend, neither one of the engine's among its
+  /// dependencies nor one from outside with a compiler registered, which
+  /// this step leaves alone.
   final bool ran;
 
   /// The stages the project's engine bundle holds, in the manifest's order.
@@ -106,8 +143,10 @@ final class ShaderBuildReport {
             '${materials.isEmpty ? '' : ', ${materials.length} plugin material${materials.length == 1 ? '' : 's'}'}';
 }
 
-/// Which backends' sections a build writes: Impeller's for a native target,
-/// the web's two for a browser, all three when the build cannot tell.
+/// Which of the engine's backends' sections a build writes: Impeller's for a
+/// native target, the web's two for a browser, all three when the build
+/// cannot tell. A registered backend from outside gets its section for
+/// every target.
 ///
 /// An open set like every other: a minor may add a target.
 final class ShaderBuildTarget {
@@ -208,7 +247,8 @@ Iterable<String> _modelNeeds(AssetLayout layout) sync* {
 
 /// Writes the project's engine bundle and its plugins' material bundles
 /// under `flutter3d_generated/shaders/`, when a GPU backend is among
-/// [plugins]' dependencies.
+/// [plugins]' dependencies or [registry] holds a compiler for one from
+/// outside the engine.
 ///
 /// [full] writes every stage whatever is declared, as `--full-shaders` asks;
 /// the manifest's `shaders: full` does the same. [compilers] defaults to the
@@ -216,8 +256,15 @@ Iterable<String> _modelNeeds(AssetLayout layout) sync* {
 /// project resolves; both are looked up only when there is something to
 /// write. [engineRevision] defaults to the SDK's own.
 ///
+/// [registry] is the backends' compilers (D26): [compilers]' own when it
+/// has one. Each compiler of a backend outside the engine is handed the
+/// engine's stages as GLSL, with the engine's sources to resolve their
+/// includes and an empty `.f3dmat` source, and writes its section of the
+/// engine's bundle; and it is asked for its section of every plugin
+/// material, as the engine's are.
+///
 /// Throws [MaterialBuildException] when a stage or a material does not
-/// compile, having replaced nothing.
+/// compile, or a registered compiler refuses one, having replaced nothing.
 ShaderBuildReport runShaderBuild(
   Directory projectRoot, {
   required PluginDiscovery plugins,
@@ -227,10 +274,19 @@ ShaderBuildReport runShaderBuild(
   MaterialCompilers? compilers,
   ShaderSet? engine,
   String? engineRevision,
+  MaterialCompilerRegistry? registry,
 }) {
-  if (!plugins.dependencies.any(_backendPackages.contains)) {
+  final compilerRegistry = registry ?? compilers?.registry;
+  final outside = _outsideCompilers(compilerRegistry);
+  // The engine's own sections only for an application that has one of the
+  // engine's GPU backends; one whose only backend is from outside gets that
+  // backend's section and nothing it cannot load.
+  final engineBackends = plugins.dependencies.any(_backendPackages.contains);
+  if (!engineBackends && outside.isEmpty) {
     return const ShaderBuildReport(ran: false);
   }
+  final impeller = engineBackends && target.impeller;
+  final webGl = engineBackends && target.webGl;
   final sink = log ?? stdout;
   final layout = AssetLayout(projectRoot: projectRoot);
   final ShaderSet shaders;
@@ -243,7 +299,17 @@ ShaderBuildReport runShaderBuild(
       source: '',
     );
   }
-  final tools = compilers ?? MaterialCompilers.locate();
+  final tools = switch (compilers) {
+    null => MaterialCompilers.locate(registry: compilerRegistry),
+    final given when given.registry == compilerRegistry => given,
+    final given => MaterialCompilers(
+      impellerc: given.impellerc,
+      sdk: given.sdk,
+      impellerIncludes: given.impellerIncludes,
+      wgsl: given.wgsl,
+      registry: compilerRegistry,
+    ),
+  };
   final revision =
       engineRevision ??
       engineRevisionAt(flutterSdkRootFrom(Platform.resolvedExecutable));
@@ -270,8 +336,9 @@ ShaderBuildReport runShaderBuild(
   final cache = _readCache(cachePath);
 
   final engineHash = _hashOf(shaders.sources);
-  final wgsl = target.webGpu ? tools.wgsl : null;
-  if (target.webGpu && wgsl == null) {
+  final webGpu = engineBackends && target.webGpu;
+  final wgsl = webGpu ? tools.wgsl : null;
+  if (webGpu && wgsl == null) {
     sink.writeln(
       'flutter3d_build: no glslangValidator or naga on PATH, so the shader '
       'bundle carries no WebGPU section; a WebGPU device draws with the '
@@ -283,10 +350,12 @@ ShaderBuildReport runShaderBuild(
     tools.sdk,
     revision,
     'f3sb${ShaderBundle.formatVersion}',
-    if (target.impeller) 'impeller',
-    if (target.webGl) 'webgl',
+    if (impeller) 'impeller',
+    if (webGl) 'webgl',
     // The WGSL document's own version, which `compile.dart` names.
     if (wgsl != null) 'webgpu$sectionVersion',
+    for (final compiler in outside)
+      '${compiler.backend}:${compiler.bundleSection}',
     ...stages,
   ].join(' ');
 
@@ -305,7 +374,7 @@ ShaderBuildReport runShaderBuild(
               ShaderBundleStage(name, fragment: shaders.stages[name]!.fragment),
           ],
           sections: <String, ByteData>{
-            if (target.impeller)
+            if (impeller)
               ShaderBundle.impellerSection: _impeller(
                 stages,
                 shaders,
@@ -314,10 +383,11 @@ ShaderBuildReport runShaderBuild(
                   '${projectRoot.path}/.dart_tool/flutter3d_build/shaders',
                 ),
               ),
-            if (target.webGl)
-              ShaderBundle.webglSection: _webgl(stages, shaders),
+            if (webGl) ShaderBundle.webglSection: _webgl(stages, shaders),
             if (wgsl != null)
               ShaderBundle.webgpuSection: _webgpu(stages, shaders, wgsl),
+            for (final compiler in outside)
+              compiler.bundleSection: _outside(compiler, stages, shaders),
           },
         );
     final bytes = bundle.encode();
@@ -374,6 +444,42 @@ ShaderBuildReport runShaderBuild(
   );
   sink.writeln('flutter3d_build: ${report.summary}');
   return report;
+}
+
+/// [compiler]'s section of the engine's bundle of [stages]: the stages as
+/// the engine's GLSL, their includes left for the engine's sources to
+/// resolve, as a material's stages are handed to it.
+ByteData _outside(
+  MaterialCompiler compiler,
+  List<String> stages,
+  ShaderSet shaders,
+) {
+  try {
+    return compiler
+        .compile(
+          MaterialCompileRequest(
+            name: 'flutter3d',
+            from: '${shaders.root}/flutter3d.shaderbundle.json',
+            source: '',
+            stages: <MaterialStageSource>[
+              for (final name in stages)
+                MaterialStageSource(
+                  name: name,
+                  fragment: shaders.stages[name]!.fragment,
+                  glsl: shaders.sources[shaders.stages[name]!.file]!,
+                ),
+            ],
+            engineSources: shaders.sources,
+          ),
+        )
+        .section;
+  } on MaterialCompileException catch (error) {
+    throw MaterialBuildException(
+      'the ${compiler.backend} compiler refused the engine\'s stages: '
+      '${error.message}',
+      source: '${shaders.root}/flutter3d.shaderbundle.json',
+    );
+  }
 }
 
 /// `impellerc`'s bundle of [stages].

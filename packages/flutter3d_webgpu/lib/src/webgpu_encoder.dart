@@ -285,6 +285,8 @@ abstract base class WebGpuRecorder extends PassEncoder {
       if (state.usesMinMax) {
         _device.features.require(DeviceFeature.minMaxBlend, backend: _backend);
       }
+      // Whatever else the state needs, by the feature it names.
+      state.checkFeatures(_device.features, backend: _backend);
     }
     _blends[attachment] = state;
   }
@@ -426,12 +428,13 @@ abstract base class WebGpuRecorder extends PassEncoder {
     return true;
   }
 
-  void _landBlock(WebGpuBlock block, ByteData data) => _blocks.putIfAbsent(
-    block.group,
-    () => <int, WebGpuSlice>{},
-  )[block.binding] = _device.uniformArena.write(
-    block.isPacked ? _packed(block, data) : data,
-  );
+  void _landBlock(WebGpuBlock block, ByteData data) =>
+      _blocks.putIfAbsent(
+        block.group,
+        () => <int, WebGpuSlice>{},
+      )[block.binding] = _device.uniformArena.write(
+        block.isPacked ? _packed(block, data) : data,
+      );
 
   /// The whole binding a packed block of a material's own shares with the
   /// others (`packMaterialBlocks`): [data] laid in at the block's place,
@@ -440,8 +443,7 @@ abstract base class WebGpuRecorder extends PassEncoder {
   ByteData _packed(WebGpuBlock block, ByteData data) {
     final key = (block.group, block.binding);
     final whole = switch (_packs[key]) {
-      final Uint8List kept when kept.length == block.bindingSizeInBytes =>
-        kept,
+      final Uint8List kept when kept.length == block.bindingSizeInBytes => kept,
       _ => _packs[key] = Uint8List(block.bindingSizeInBytes),
     };
     whole.setRange(

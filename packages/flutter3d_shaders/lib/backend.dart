@@ -18,6 +18,8 @@
 /// - [ShaderTarget] and `compileStage` (`package:flutter3d_shaders/compile.dart`,
 ///   which needs glslang and naga on the machine): a stage's SPIR-V and its
 ///   text in the backend's language;
+/// - [MaterialStageBudget]: the textures, samplers and uniform blocks one
+///   stage may bind, the engine's and a material's together;
 /// - [StageInterface] and [checkStageAgreement]: the varyings, attributes and
 ///   blocks two stages of a pipeline must agree on.
 ///
@@ -36,6 +38,7 @@ library;
 export 'src/material_compiler.dart';
 export 'src/shader_target.dart';
 export 'src/stage_bindings.dart';
+export 'src/stage_budget.dart';
 export 'src/stage_interface.dart';
 // The layout record is `UniformMemberLayout` from flutter3d_hardware, which
 // the table names; it has no second declaration here.

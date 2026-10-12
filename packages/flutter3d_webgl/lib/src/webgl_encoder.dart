@@ -1802,23 +1802,13 @@ void webglGateBlend(WebGlDevice device, BlendState? state) {
       reason: 'WEBGL_blend_func_extended was not granted',
     );
   }
+  // Whatever else the state needs, by the feature it names.
+  state.checkFeatures(device.features, backend: webglBackendName);
 }
 
 /// The sampler features a bind names. A border colour is refused always.
 void webglGateSampler(WebGlDevice device, SamplerDescriptor? sampler) {
   if (sampler == null || !sampler.usesExtendedState) return;
-  if (sampler.compare != null) {
-    device.features.require(
-      DeviceFeature.samplerCompare,
-      backend: webglBackendName,
-    );
-  }
-  if (sampler.lodMinClamp != 0 || sampler.lodMaxClamp != 32) {
-    device.features.require(
-      DeviceFeature.samplerLodClamp,
-      backend: webglBackendName,
-    );
-  }
   if (sampler.borderColor != null) {
     // TODO(webgl): border colours — WebGL2 has no CLAMP_TO_BORDER (it is
     // OpenGL ES 3.2, and no WebGL extension exposes it).
@@ -1828,6 +1818,8 @@ void webglGateSampler(WebGlDevice device, SamplerDescriptor? sampler) {
       reason: 'WebGL2 has no CLAMP_TO_BORDER',
     );
   }
+  // The rest by the feature each field names, as the sampler answers it.
+  sampler.checkFeatures(device.features, backend: webglBackendName);
 }
 
 /// Depth bias, and a refusal of the one part of it GL cannot do: a clamp.

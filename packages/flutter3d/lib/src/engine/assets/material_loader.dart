@@ -89,6 +89,17 @@ Future<MaterialDocument> loadMaterialDocument(
 /// [name] is what the material is called once bound, the file's own name by
 /// default. A level passes the name its surfaces use for it, because that is
 /// the one a tool addresses it by (`ext.flutter3d.material.set`).
+///
+/// **Parameters are lifted to the material's own version** (D45). [programs]
+/// are the materials written in the material language this engine draws
+/// with, by name (`HotMaterials.programs`, or `parseMaterial` of each
+/// source). When the model the material is drawn with is one of them, the
+/// values the file sets were written for its `materialVersion` (1 when it
+/// names none) and are carried to the program's own version through its
+/// `updates` (`MaterialProgram.lift`), so a value renamed in a later version
+/// reaches the member it is now called. A value for a parameter the program
+/// no longer has is left out, and a file from a newer version of the
+/// material keeps its values as written; each says so in [warnings].
 Future<RenderMaterial> bindMaterial(
   MaterialDocument document, {
   required GraphicsDevice device,
@@ -97,6 +108,7 @@ Future<RenderMaterial> bindMaterial(
   LightingModel lighting = LightingModel.pbr,
   List<String>? warnings,
   ImageDecoder decodeImage = defaultImageDecoder,
+  Map<String, MaterialProgram> programs = const <String, MaterialProgram>{},
 }) async {
   // Keyed on the path **and on whether it carries a chain**, for the reason
   // spelled out where a model does the same: the chain is part of the texture,
@@ -201,13 +213,14 @@ Future<RenderMaterial> bindMaterial(
     }
   }
 
+  final model =
+      document.lighting ??
+      (surface.lightingModel ??
+              (surface.unlit ? LightingModel.unlit : lighting))
+          .withLayers(surface.extensions);
   return RenderMaterial(
     name: name ?? surface.name,
-    lighting:
-        document.lighting ??
-        (surface.lightingModel ??
-                (surface.unlit ? LightingModel.unlit : lighting))
-            .withLayers(surface.extensions),
+    lighting: model,
     baseColor: surface.baseColor,
     metallic: surface.metallic,
     roughness: surface.roughness,
@@ -244,13 +257,58 @@ Future<RenderMaterial> bindMaterial(
     sheenMap: sheen?.texture,
     sheenMapSampler: sheen?.sampler,
     parameterBlock: document.parameterBlock,
-    parameters: document.parameters,
+    parameters: _liftedParameters(
+      document,
+      programs[model.shaderName],
+      warnings,
+    ),
     extraTextures: extra,
     physicalMaterial: surface.physicalMaterial,
   );
 }
 
+/// [document]'s parameter values carried to [program]'s version, or as
+/// written when it is drawn with no program or sets none — see
+/// [bindMaterial].
+Map<String, Float32List> _liftedParameters(
+  MaterialDocument document,
+  MaterialProgram? program,
+  List<String>? warnings,
+) {
+  final written = document.parameters;
+  if (program == null || written.isEmpty) return written;
+  final from = document.surface.materialVersion ?? 1;
+  final Map<String, List<double>> lifted;
+  try {
+    lifted = program.lift(<String, List<double>>{
+      for (final MapEntry(:key, :value) in written.entries) key: value,
+    }, from: from);
+  } on MaterialVersionException catch (error) {
+    warnings?.add(
+      'its parameter values cannot be carried to this build\'s '
+      '${error.material}, so the material keeps its own: ${error.message}',
+    );
+    return written;
+  }
+  final declared = <String>{
+    for (final parameter in program.parameters) parameter.name,
+  };
+  for (final key in lifted.keys) {
+    if (!declared.contains(key)) {
+      warnings?.add(
+        'it gives "$key", which ${program.name} at version '
+        '${program.version} does not have, so it is left out',
+      );
+    }
+  }
+  return <String, Float32List>{
+    for (final MapEntry(:key, :value) in lifted.entries)
+      if (declared.contains(key)) key: Float32List.fromList(value),
+  };
+}
+
 /// Reads and binds in one call, which is what an application usually wants.
+/// [programs] lifts the parameters as [bindMaterial] says.
 Future<RenderMaterial> loadMaterial(
   AssetSource source, {
   required GraphicsDevice device,
@@ -258,6 +316,7 @@ Future<RenderMaterial> loadMaterial(
   LightingModel lighting = LightingModel.pbr,
   List<String>? warnings,
   ImageDecoder decodeImage = defaultImageDecoder,
+  Map<String, MaterialProgram> programs = const <String, MaterialProgram>{},
 }) async {
   final document = await loadMaterialDocument(source, decoders: decoders);
   warnings?.addAll(document.warnings);
@@ -268,6 +327,7 @@ Future<RenderMaterial> loadMaterial(
     lighting: lighting,
     warnings: warnings,
     decodeImage: decodeImage,
+    programs: programs,
   );
 }
 

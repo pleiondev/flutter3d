@@ -20674,3 +20674,67 @@ entries:
     guidance: >-
       The pad's defaults are added to a map, whose buttons are the table
       `defaultBindings()` returned.
+
+  - id: af3-hardware-StageBindings-class
+    package: flutter3d_hardware
+    symbol: StageBindings
+    kind: recordToClass
+    fields:
+      blocks: blocks
+      samplers: samplers
+    wave: 4
+    guidance: >-
+      `StageBindings` is a class with the same `blocks` and `samplers`, so a
+      binding kind can be added to it later. A literal `(blocks: …,
+      samplers: …)` becomes `StageBindings(blocks: …, samplers: …)`, and
+      either field may be left out for an empty set.
+
+  - id: af3-hardware-UniformMemberLayout-class
+    package: flutter3d_hardware
+    symbol: UniformMemberLayout
+    kind: recordToClass
+    fields:
+      offset: offset
+      byteLength: byteLength
+      elements: elements
+      type: type
+    wave: 4
+    guidance: >-
+      `UniformMemberLayout` is a class with the same four fields, so a
+      layout can carry a stride later. A literal `(offset: …, byteLength: …,
+      elements: …, type: …)` becomes `UniformMemberLayout(offset: …, …)`,
+      and `elements` may be left out for a member that is not an array.
+
+  - id: af3-shaders-RequiredShader-class
+    package: flutter3d_shaders
+    symbol: RequiredShader
+    kind: recordToClass
+    fields:
+      name: name
+      fragment: fragment
+    wave: 4
+    guidance: >-
+      `RequiredShader` is a class with the same `name` and `fragment`, and a
+      `kind` beside them that can say a stage other than vertex or fragment.
+      A literal `(name: …, fragment: …)` becomes `RequiredShader(name: …,
+      fragment: …)`.
+
+  - id: af3-hardware-ShaderBundleStage-kind
+    package: flutter3d_hardware
+    symbol: ShaderBundleStage.ShaderBundleStage
+    kind: none
+    wave: 4
+    reason: >-
+      `fragment:` is optional now, beside a new `kind:`, so every call that
+      passed it compiles and means what it did; a stage given neither is a
+      vertex stage.
+
+  - id: af3-hardware-ShaderBundle-formatVersion
+    package: flutter3d_hardware
+    symbol: ShaderBundle.formatVersion
+    kind: none
+    reason: >-
+      A bundle is version 2 now, which writes each stage's kind as a code;
+      `decode` still reads version 1, and a bundle is a build artifact the
+      build writes again, so no code has to change.
+    wave: 4

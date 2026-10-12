@@ -337,18 +337,19 @@ abstract base mixin class RenderServices {
   /// callers do not use is an extension point nobody has checked, and the first
   /// plugin to try it finds out what it cannot express.
   ///
-  /// **Where the fragment stage comes from differs per backend**, and all three
-  /// answers are worth having in one place, because the question arrives as
-  /// "why does my effect work in tests and not on the device":
-  ///
-  ///  * the software rasteriser takes a Dart object — add it to the map handed
-  ///    to `CpuShaderLibrary` alongside `builtinCpuShaders()`;
-  ///  * WebGL compiles GLSL at runtime — put the source in the `ShaderSources`
-  ///    handed to `WebGlDevice.open`;
-  ///  * Impeller compiles ahead of time, so an application ships its own bundle,
-  ///    loads it with `GraphicsDevice.loadShaders` and hands the library to
-  ///    `RendererSteps.addMaterials` — the one entrance for a stage of its own
-  ///    on every backend.
+  /// **Where the fragment stage comes from is the same on every backend**:
+  /// one entrance, so an effect that works in a test works on the device.
+  /// Write the stage as a `.f3dmat` source with a `fullscreen` stage. Each
+  /// backend's `MaterialCompiler`, found in the `MaterialCompilerRegistry`,
+  /// turns it into that backend's section of a shader bundle: in the build,
+  /// for every backend the project ships (Impeller's only way, since
+  /// `impellerc` does not ship with a game), or while the game runs through
+  /// `RuntimeShaders` on the software rasteriser, WebGL2 and WebGPU. Load
+  /// the bundle with `GraphicsDevice.loadShaders` and hand the library to
+  /// `RendererSteps.addMaterials`; the stage the renderer's library then
+  /// answers for the material's name is [FullscreenDraw.fragment]. A
+  /// backend's own shader map is not an entrance for a stage of an
+  /// application's own.
   void drawFullscreen(FullscreenDraw draw);
 }
 

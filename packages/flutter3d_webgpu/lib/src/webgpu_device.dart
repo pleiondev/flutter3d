@@ -41,7 +41,7 @@ import 'dart:ui_web' as ui_web;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show ShaderDiagnostic, UnsupportedCapabilityException;
+    show ShaderDiagnostic;
 import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_shaders/flutter3d_shaders.dart'
@@ -583,6 +583,14 @@ final class WebGpuDevice extends GraphicsDevice
   /// answers from `_gpuDevice.features` — what was granted — rather than from
   /// this list, because the two are not the same thing.
   ///
+  /// **The stage-binding limits are the adapter's own** (M3): a device asked
+  /// for none keeps WebGPU's minimums, 16 sampled textures and 16 samplers a
+  /// stage, and the engine's `Pbr` stage alone binds most of them, so a lit model's
+  /// own textures ran into a pipeline-layout limit the adapter did not have.
+  /// [webgpuRequiredLimits] asks for what the adapter reports, which it
+  /// always grants; what a bundle may count on everywhere is the minimum
+  /// (`MaterialStageBudget`), which the build holds a material to.
+  ///
   /// `GpuFeature.requested` is the list: filtering of 32-bit float textures,
   /// the full-precision depth-stencil format, the three block-compression
   /// families a KTX2 asset arrives in, timestamps, and since 1.0 everything
@@ -621,6 +629,9 @@ final class WebGpuDevice extends GraphicsDevice
           GPUDeviceDescriptor(
             label: 'flutter3d',
             requiredFeatures: gpuStrings(wanted),
+            requiredLimits: gpuRequiredLimits(
+              webgpuRequiredLimits(adapter.limits),
+            ),
           ),
         )
         .toDart;
@@ -1610,6 +1621,9 @@ final class WebGpuDevice extends GraphicsDevice
   @override
   String get backendName => _backend;
 
+  @override
+  String get backendId => 'webgpu';
+
   // -------------------------------------------------- 1.0: loss and labels
 
   /// The device's `lost` promise, as [GraphicsDevice.lost]: one event, never
@@ -2317,6 +2331,7 @@ fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
     if (descriptor.usage.contains(TextureUsage.storage)) {
       features.require(DeviceFeature.storageTextures, backend: _backend);
     }
+    descriptor.checkFeatures(features, backend: _backend);
     return _guard(
       'a texture $descriptor',
       () => webgpuCreateTextureWithDescriptor(
@@ -2361,23 +2376,7 @@ fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
     ByteData? contents,
   }) {
     features.require(DeviceFeature.buffers, backend: _backend);
-    final usage = descriptor.usage;
-    if (usage.contains(BufferUsage.storage) &&
-        !features.has(DeviceFeature.compute) &&
-        !features.has(DeviceFeature.renderStageStorage)) {
-      throw UnsupportedCapabilityException(
-        DeviceFeature.compute,
-        backend: _backend,
-      );
-    }
-    if (usage.contains(BufferUsage.indirect) &&
-        !features.has(DeviceFeature.indirectDraw) &&
-        !features.has(DeviceFeature.indirectDispatch)) {
-      throw UnsupportedCapabilityException(
-        DeviceFeature.indirectDraw,
-        backend: _backend,
-      );
-    }
+    descriptor.checkFeatures(features, backend: _backend);
     if (descriptor.lengthInBytes > limits.maxBufferSize) {
       throw ArgumentError.value(
         descriptor.lengthInBytes,
@@ -2649,3 +2648,16 @@ extension WebGpuDeviceInternals on WebGpuDevice {
     GPURenderPipelineDescriptor Function() descriptor,
   ) => _pipelineForDraw(handle, signature, descriptor);
 }
+
+/// The limits [WebGpuDevice.open] asks a device for: the [adapter]'s own
+/// value of each limit on what one stage binds, so a lit model's own
+/// textures and blocks have the room the adapter has rather than WebGPU's
+/// minimum. An adapter grants every value it reports, so the request never
+/// fails a device that would otherwise open.
+Map<String, int> webgpuRequiredLimits(
+  GPUSupportedLimits adapter,
+) => <String, int>{
+  'maxSampledTexturesPerShaderStage': adapter.maxSampledTexturesPerShaderStage,
+  'maxSamplersPerShaderStage': adapter.maxSamplersPerShaderStage,
+  'maxUniformBuffersPerShaderStage': adapter.maxUniformBuffersPerShaderStage,
+};

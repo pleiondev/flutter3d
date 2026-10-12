@@ -42,6 +42,7 @@ final class WebGlDevice extends GraphicsDevice with EncodedImageUpload, Synchron
   Stream<DeviceLoss> get lost
   String debugCanvasState()
   String debugFramebufferStatus()
+  String get backendId
   String get backendName
   String? debugDrainErrors(String where)
   TextureFormat get defaultColorFormat

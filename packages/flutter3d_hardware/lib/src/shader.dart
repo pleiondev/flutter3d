@@ -27,6 +27,89 @@ import 'dart:typed_data';
 
 import 'graphics_device.dart';
 
+/// What a compiled stage keeps: the uniform blocks and samplers its compiled
+/// function has a slot for, by name.
+///
+/// **A class, so a binding kind can be added in a minor.** Storage buffers,
+/// storage textures and acceleration structures are kinds a later stage may
+/// declare; each arrives as one more named, defaulted field, and a table or a
+/// backend written against 1.0 keeps compiling. Every field defaults to
+/// empty, so a stage that keeps nothing is `const StageBindings()`.
+final class StageBindings {
+  const StageBindings({
+    this.blocks = const <String>{},
+    this.samplers = const <String>{},
+  });
+
+  /// The uniform blocks the compiled stage has a slot for.
+  final Set<String> blocks;
+
+  /// The samplers the compiled stage has a slot for.
+  final Set<String> samplers;
+
+  @override
+  bool operator ==(Object other) =>
+      other is StageBindings &&
+      _sameSet(blocks, other.blocks) &&
+      _sameSet(samplers, other.samplers);
+
+  @override
+  int get hashCode => Object.hash(
+    Object.hashAllUnordered(blocks),
+    Object.hashAllUnordered(samplers),
+  );
+
+  @override
+  String toString() => 'StageBindings(blocks: $blocks, samplers: $samplers)';
+}
+
+bool _sameSet(Set<String> a, Set<String> b) =>
+    a.length == b.length && a.containsAll(b);
+
+/// One member of a uniform block as the compiler lays it out — `H1`: where
+/// it starts, how many bytes it takes, how many elements if it is an array
+/// (one if not), and its reflected type name (`Vector4`, `Matrix4`,
+/// `Float`, ...).
+///
+/// **A class, so a layout can say more in a minor**: an array or matrix
+/// stride arrives as one more named, defaulted field.
+final class UniformMemberLayout {
+  const UniformMemberLayout({
+    required this.offset,
+    required this.byteLength,
+    this.elements = 1,
+    required this.type,
+  });
+
+  /// The member's byte offset from the start of its block.
+  final int offset;
+
+  /// The bytes the member takes, every element included.
+  final int byteLength;
+
+  /// The element count of an array, one for a member that is not one.
+  final int elements;
+
+  /// The compiler's name for the member's type.
+  final String type;
+
+  @override
+  bool operator ==(Object other) =>
+      other is UniformMemberLayout &&
+      offset == other.offset &&
+      byteLength == other.byteLength &&
+      elements == other.elements &&
+      type == other.type;
+
+  @override
+  int get hashCode => Object.hash(offset, byteLength, elements, type);
+
+  @override
+  String toString() =>
+      'UniformMemberLayout(offset: $offset, byteLength: $byteLength, '
+      'elements: $elements, type: $type)';
+}
+
 /// One compiled stage of a pipeline — a vertex or a fragment program.
 ///
 /// Opaque by construction: the engine looks a stage up, hands it to
@@ -36,18 +119,6 @@ import 'graphics_device.dart';
 /// [name] is carried rather than derived because it is the only thing the
 /// engine can say about a stage in an error message, and because a fake in a
 /// test needs something to be recognised by.
-/// What a compiled stage keeps: the uniform blocks and samplers its compiled
-/// function has a slot for, by name.
-typedef StageBindings = ({Set<String> blocks, Set<String> samplers});
-
-/// One member of a uniform block as the compiler lays it out — `H1`.
-typedef UniformMemberLayout = ({
-  int offset,
-  int byteLength,
-  int elements,
-  String type,
-});
-
 ///
 /// ## Who owns a stage
 ///

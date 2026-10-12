@@ -16,9 +16,11 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter3d_backend_null/flutter3d_backend_null.dart';
 import 'package:flutter3d_build/flutter3d_build.dart';
 import 'package:flutter3d_build_hooks/flutter3d_build_hooks.dart';
 import 'package:flutter3d_hardware/shader_bundle.dart';
+import 'package:flutter3d_shaders/backend.dart';
 import 'package:flutter3d_shaders/compile.dart';
 import 'package:flutter3d_shaders/flutter3d_shaders.dart';
 import 'package:test/test.dart';
@@ -83,6 +85,7 @@ done
     bool full = false,
     ShaderBuildTarget target = ShaderBuildTarget.any,
     WgslStageCompiler? wgsl,
+    MaterialCompilerRegistry? registry,
   }) => runShaderBuild(
     project,
     plugins: plugins,
@@ -99,6 +102,7 @@ done
     },
     engine: engine,
     engineRevision: 'abc123',
+    registry: registry,
   );
 
   void manifest(String text) =>
@@ -294,6 +298,67 @@ done
     // The plugin gone, its material goes with it.
     build();
     expect(material.existsSync(), isFalse);
+  });
+
+  group('a backend from outside', () {
+    // The null backend's compiler writes the stage names it was handed, as
+    // JSON, under its own section: what a build asked it for is readable.
+    List<Object?> namesIn(ShaderBundle bundle) =>
+        jsonDecode(
+              utf8.decode(bundle.section(nullSection)!.buffer.asUint8List()),
+            )
+            as List<Object?>;
+
+    test('is asked for its section when it is the only GPU backend', () {
+      // Mutation: decide `ran` from the engine's backend packages alone, and
+      // a project whose one GPU backend is from outside gets no bundle.
+      final report = build(
+        plugins: const PluginDiscovery(
+          plugins: <DiscoveredPlugin>[],
+          readFiles: <String>[],
+          dependencies: <String>{'flutter3d_backend_null'},
+        ),
+        registry: MaterialCompilerRegistry(<MaterialCompiler>[
+          const NullMaterialCompiler(),
+        ]),
+      );
+      expect(report.ran, isTrue);
+      final written = bundle();
+      expect(namesIn(written).toSet(), report.stages.toSet());
+      // The engine's own sections are for the engine's backends.
+      expect(written.section(ShaderBundle.impellerSection), isNull);
+      expect(written.section(ShaderBundle.webglSection), isNull);
+    });
+
+    test('writes its section beside the engine\'s, and a plugin\'s', () {
+      final plugin = Directory('${project.path}/acme')..createSync();
+      File('${plugin.path}/assets_src/glow.f3dmat')
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(_glow);
+      build(
+        plugins: PluginDiscovery(
+          plugins: const <DiscoveredPlugin>[],
+          readFiles: const <String>[],
+          dependencies: const <String>{'flutter3d_impeller', 'acme'},
+          packages: <PluginPackage>[
+            PluginPackage(name: 'acme', root: plugin.path),
+          ],
+        ),
+        registry: MaterialCompilerRegistry(<MaterialCompiler>[
+          const NullMaterialCompiler(),
+        ]),
+      );
+      final written = bundle();
+      expect(written.section(ShaderBundle.impellerSection), isNotNull);
+      expect(namesIn(written), contains('MeshVertex'));
+
+      final material = ShaderBundle.decode(
+        File(
+          '${project.path}/${EngineBundleStamp.projectMaterialAsset('AcmeGlow')}',
+        ).readAsBytesSync().buffer.asByteData(),
+      );
+      expect(namesIn(material), contains('AcmeGlow'));
+    });
   });
 
   test('an unchanged build writes nothing, and one previous bundle stays', () {

@@ -102,7 +102,7 @@ final class ModelWardrobe<K>
 
 AssetUriResolver assetUriResolver(String baseAssetPath, {AssetBundle? bundle})
 
-Future<RenderMaterial> bindMaterial(MaterialDocument document, {required GraphicsDevice device, required AssetUriResolver resolveUri, String? name, LightingModel lighting = LightingModel.pbr, List<String>? warnings, ImageDecoder decodeImage = defaultImageDecoder})
+Future<RenderMaterial> bindMaterial(MaterialDocument document, {required GraphicsDevice device, required AssetUriResolver resolveUri, String? name, LightingModel lighting = LightingModel.pbr, List<String>? warnings, ImageDecoder decodeImage = defaultImageDecoder, Map<String, MaterialProgram> programs = const <String, MaterialProgram>{}})
 
 Future<RenderMaterial> bindSurfaceMaterial(SurfaceMaterial source, {LightingModel lighting = LightingModel.pbr, bool transformsAtSampler = false, required Future<TextureHandle?> Function(int, TextureSampling) textureFor, ({GraphicsDevice device, Future<Rgba8Image?> Function(TextureBinding binding) image})? layerImages})
 
@@ -114,7 +114,7 @@ String generatedMaterialPathFor(String sourcePath)
 
 bool isGeneratedAsset(String key)
 
-Future<RenderMaterial> loadMaterial(AssetSource source, {required GraphicsDevice device, List<MaterialDecoder> decoders = const <MaterialDecoder>[], LightingModel lighting = LightingModel.pbr, List<String>? warnings, ImageDecoder decodeImage = defaultImageDecoder})
+Future<RenderMaterial> loadMaterial(AssetSource source, {required GraphicsDevice device, List<MaterialDecoder> decoders = const <MaterialDecoder>[], LightingModel lighting = LightingModel.pbr, List<String>? warnings, ImageDecoder decodeImage = defaultImageDecoder, Map<String, MaterialProgram> programs = const <String, MaterialProgram>{}})
 
 Future<MaterialDocument> loadMaterialDocument(AssetSource source, {List<MaterialDecoder> decoders = const <MaterialDecoder>[]})
 

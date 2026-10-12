@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **The shader build asks a backend from outside for its section.**
+  `runShaderBuild(registry:)` takes the `MaterialCompilerRegistry` (or the
+  one `MaterialCompilers` carries), and each compiler it holds for a
+  backend outside the engine writes its section of the engine's bundle and
+  of every plugin material's. A project whose only GPU backend is such a
+  one now gets its bundle (`ran` was false), with that section and none of
+  the engine's three.
 - **A web build's shader bundle carries a WebGPU section.** The hook
   writes, beside the WebGL2 sources, the project's stages in WGSL with
   their reflection, made by glslang and naga as `flutter3d_webgpu`'s own

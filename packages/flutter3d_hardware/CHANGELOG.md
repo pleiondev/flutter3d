@@ -1,5 +1,35 @@
 ## 1.0.0-rc.1
 
+- **`GraphicsDevice.backendId`: one name a backend is matched by.**
+  `backendName` is for people ("WebGL2", "the software rasteriser"); the
+  id is what a `MaterialCompiler`'s `backend` and a plugin manifest give,
+  compared exactly: `cpu`, `webgl`, `webgpu` and `impeller` for the
+  engine's four, and the name in lower case by default for any other.
+- **A descriptor says which features its fields need.**
+  `SamplerDescriptor`, `BlendState`, `TextureDescriptor` and
+  `BufferDescriptor` gain `checkFeatures(features, backend:)`, as
+  `RenderPassDescriptor` had: a backend asks the descriptor at its
+  entrance instead of mapping fields to features by hand, so a field a
+  minor adds with its feature is refused by a backend written before it
+  rather than ignored. Each feature is asked for alone: a comparison
+  sampler no longer needs `samplerLodClamp` on the reference null backend
+  and in the `--kind backend` template, which asked for it for any
+  extended sampler.
+- **A stage has a kind, and the bundle writes it.** `ShaderStageKind`
+  (`vertex`, `fragment`, `compute`) is an open class, so mesh, task and
+  ray stages can be added in a minor. `ShaderBundleStage` takes `kind:`
+  beside `fragment:`, which is now derived from it. F3SB version 2 writes a
+  stage's kind as its code, where version 1 wrote 1 for a fragment stage
+  and 0 for any other, so a 1.0 reader took a compute stage for a vertex
+  one; a version 1 bundle still reads as it did, and a kind code this
+  reader does not know is refused as stale.
+- **Breaking: `StageBindings` and `UniformMemberLayout` are classes.** Both
+  were records, and a record cannot gain a field, so no binding kind
+  (storage buffers, storage textures) and no array stride could be added
+  to them in a minor. The fields and their names are the same; a literal
+  `(blocks: …, samplers: …)` becomes `StageBindings(blocks: …, samplers:
+  …)`, each field defaulting to empty, and `UniformMemberLayout.elements`
+  defaults to one. Both compare by value, as the records did.
 - **`RecordingDevice` forwards `createPipelineAsync` and
   `createComputePipelineAsync`** to the device it records, so a device that
   links off the thread still does under the recorder; the pipeline enters

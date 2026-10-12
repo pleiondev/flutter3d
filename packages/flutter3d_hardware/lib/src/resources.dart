@@ -207,6 +207,48 @@ base class TextureDescriptor {
     label,
   );
 
+  /// Throws [UnsupportedCapabilityException] when this texture needs a
+  /// feature [features] lacks: a layered or volume shape (`textureArrays`,
+  /// `texture3D`, `cubeTextures`, `cubeArrayTextures`), a storage usage
+  /// (`storageTextures`) or more than one sample (`offscreenMultisample`).
+  ///
+  /// What the descriptor's own fields need, and only that: whether the
+  /// device creates general textures at all (`textureWrites`) and which
+  /// formats it takes are the device's to answer. **For a backend's
+  /// `createTexture`**, so that a field a minor adds with its feature is
+  /// refused by a backend written before it rather than ignored. [backend]
+  /// names the backend as a person would.
+  void checkFeatures(DeviceFeatures features, {required String backend}) {
+    final shape = switch (dimension) {
+      TextureDimension.d2Array => DeviceFeature.textureArrays,
+      TextureDimension.d3 => DeviceFeature.texture3D,
+      TextureDimension.cube => DeviceFeature.cubeTextures,
+      TextureDimension.cubeArray => DeviceFeature.cubeArrayTextures,
+      _ => null,
+    };
+    if (shape != null) {
+      features.require(
+        shape,
+        backend: backend,
+        reason: 'the texture is a ${dimension.name} texture',
+      );
+    }
+    if (usage.contains(TextureUsage.storage)) {
+      features.require(
+        DeviceFeature.storageTextures,
+        backend: backend,
+        reason: 'the texture is made for storage',
+      );
+    }
+    if (sampleCount > 1) {
+      features.require(
+        DeviceFeature.offscreenMultisample,
+        backend: backend,
+        reason: 'the texture has $sampleCount samples',
+      );
+    }
+  }
+
   @override
   String toString() =>
       'TextureDescriptor(${width}x${height}x$depthOrArrayLayers '
@@ -350,6 +392,45 @@ final class BufferDescriptor {
   final int lengthInBytes;
   final BufferUsage usage;
   final String? label;
+
+  /// Throws [UnsupportedCapabilityException] when this buffer needs a
+  /// feature [features] lacks: a storage usage (`compute` or
+  /// `renderStageStorage`, either one), an indirect usage (`indirectDraw` or
+  /// `indirectDispatch`, either one) or general buffers at all (`buffers`),
+  /// in that order.
+  ///
+  /// Where either of two features takes a usage, the refusal names the one
+  /// the buffer was shaped for: the copy usages of
+  /// [BufferUsage.standardStorage] are a compute pass's buffer, a bare
+  /// storage usage a render stage's. **For a backend's `createBuffer`**, so
+  /// that a usage a minor adds with its feature is refused by a backend
+  /// written before it rather than ignored. [backend] names the backend as
+  /// a person would.
+  void checkFeatures(DeviceFeatures features, {required String backend}) {
+    // The usages first: a storage or indirect buffer is refused by what it
+    // was made for, which says more than `buffers` would.
+    if (usage.contains(BufferUsage.storage) &&
+        !features.has(DeviceFeature.compute) &&
+        !features.has(DeviceFeature.renderStageStorage)) {
+      features.require(
+        usage.contains(BufferUsage.standardStorage)
+            ? DeviceFeature.compute
+            : DeviceFeature.renderStageStorage,
+        backend: backend,
+        reason: 'a storage buffer needs compute or render-stage storage',
+      );
+    }
+    if (usage.contains(BufferUsage.indirect) &&
+        !features.has(DeviceFeature.indirectDraw) &&
+        !features.has(DeviceFeature.indirectDispatch)) {
+      features.require(
+        DeviceFeature.indirectDraw,
+        backend: backend,
+        reason: 'an indirect buffer needs indirect draws or dispatches',
+      );
+    }
+    features.require(DeviceFeature.buffers, backend: backend);
+  }
 }
 
 /// What a query set counts.

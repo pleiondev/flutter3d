@@ -81,10 +81,11 @@ void main() {
     );
 
     final bytes = bundle.encode();
-    // The header still says version 1: a fourth section is not a fourth
-    // format, and a bump here would refuse this bundle to Impeller and WebGL.
+    // The header says version 2, which the stage kind byte moved it to, and
+    // no section ever has: a fourth section is not a fourth format, and a
+    // bump for one would refuse this bundle to Impeller and WebGL.
     expect(bytes.getUint32(4, Endian.little), ShaderBundle.formatVersion);
-    expect(ShaderBundle.formatVersion, 1);
+    expect(ShaderBundle.formatVersion, 2);
 
     final back = ShaderBundle.decode(bytes);
     expect(back.sections.keys.toSet(), <String>{

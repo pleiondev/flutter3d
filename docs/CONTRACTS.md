@@ -455,6 +455,19 @@ texture it names none for at a white texel, so a material written before a
 model grew a member draws the same on every backend. The render check
 `render.lit model defaults` holds each backend to it.
 
+**The budget.** One stage binds at most 16 textures, 16 samplers and 12
+uniform blocks, the engine's bindings and the material's own together
+(`MaterialStageBudget`): WebGPU's guaranteed minimums, where a texture is a
+texture and a sampler, and the tightest of the four backends. A lit model's
+stage carries the engine's lighting bindings (the shadow maps, the
+irradiance, the light list, the material maps it reads), so its own
+textures and blocks get what those leave. The WebGPU section writer every
+build and `RuntimeShaders` call refuses a stage over the budget, naming the
+stage and the count, so the material fails on its author's machine and not
+at its first draw on a device. A WebGPU device is opened with the adapter's
+own stage limits, which may be higher; a bundle counts only on the
+minimums.
+
 ### Light codes
 
 The light row the lit stages read (four `vec4`s a light: position and type
@@ -527,10 +540,20 @@ section, says whether it compiles while a game runs, and takes one
 `MaterialCompileRequest` (the source, the stages the engine's emitter
 wrote as GLSL, the engine's headers, and backend options by name) to a
 `MaterialCompileResult`, or refuses with a `MaterialCompileException` saying
-why. A `MaterialCompilerRegistry` finds it by backend: the build hook asks
-it for every backend it builds, and `RuntimeShaders` for the backend the
-game runs on, before the engine's own three run-time paths. Two backends
-never write one section.
+why. A `MaterialCompilerRegistry` finds it by backend id, exactly: the
+compiler's `backend` is its device's `GraphicsDevice.backendId` (`cpu`,
+`webgl`, `webgpu`, `impeller` for the engine's four; a backend from outside
+gives its own, its name in lower case by default), and
+`RuntimeBackends.normalize` maps only the engine's own names to theirs.
+`RuntimeShaders` asks the compiler of the backend the game runs on, before
+the engine's own three run-time paths. The project's shader build
+(`runShaderBuild`, handed the registry) asks every compiler it holds for a
+backend from outside the engine for its section of the engine's bundle,
+handed the engine's stages as GLSL with the engine's headers and an empty
+source, and of every plugin material's bundle; a project whose only GPU
+backend is from outside gets its bundle with that section alone. The
+engine's three GPU sections are written by the build's own tools. Two
+backends never write one section.
 
 `compileStage` (`package:flutter3d_shaders/compile.dart`, with glslang and
 naga on the machine) hands a backend a stage's SPIR-V and its text in a

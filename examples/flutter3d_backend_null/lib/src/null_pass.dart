@@ -68,14 +68,12 @@ final class NullPass extends PassEncoder with CommandEncoder {
   void setStencilReference(int value) => _need(DeviceFeature.stencil);
 
   /// A blend that reads the constant or a second output, or takes a minimum
-  /// or a maximum, is refused by the feature it needs.
+  /// or a maximum, is refused by the feature it needs: the state answers
+  /// which, so a blend a later release adds is refused here too.
   @override
   void setBlend(BlendState? state, {int attachment = 0}) {
     _open('setBlend');
-    if (state == null) return;
-    if (state.usesBlendColor) _need(DeviceFeature.blendConstant);
-    if (state.usesDualSource) _need(DeviceFeature.dualSourceBlending);
-    if (state.usesMinMax) _need(DeviceFeature.minMaxBlend);
+    state?.checkFeatures(device.features, backend: NullDevice.name);
   }
 
   @override
@@ -123,7 +121,8 @@ final class NullPass extends PassEncoder with CommandEncoder {
 
   /// True, for the reason [bindUniformBlock] gives. A sampler asking for a
   /// comparison, a level clamp or a border is refused by the feature it
-  /// needs, none of which this device reports.
+  /// needs, none of which this device reports; the sampler answers which,
+  /// so a comparison alone is refused by the comparison.
   @override
   bool bindTexture(
     ShaderHandle shader,
@@ -133,11 +132,7 @@ final class NullPass extends PassEncoder with CommandEncoder {
   }) {
     _open('bindTexture');
     debugCheckLive(texture, 'bindTexture');
-    if (sampler != null && sampler.usesExtendedState) {
-      if (sampler.compare != null) _need(DeviceFeature.samplerCompare);
-      if (sampler.borderColor != null) _need(DeviceFeature.samplerBorderColor);
-      _need(DeviceFeature.samplerLodClamp);
-    }
+    sampler?.checkFeatures(device.features, backend: NullDevice.name);
     return true;
   }
 

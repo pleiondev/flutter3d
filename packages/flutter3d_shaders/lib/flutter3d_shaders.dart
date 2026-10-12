@@ -19,14 +19,59 @@
 /// is refused with a [MissingShaderStageException] when it is asked for.
 library;
 
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show ShaderStageKind;
+
 import 'src/stage_need.dart';
 
 export 'src/engine_bundle.dart' show EngineBundleStamp;
 export 'src/shading_constants.dart' show dielectricF0;
 export 'src/stage_need.dart' show MissingShaderStageException, ShaderStageNeed;
 
-/// One entry point the engine requires.
-typedef RequiredShader = ({String name, bool fragment});
+/// One entry point the engine requires: its name and what it runs as.
+///
+/// **A class, so an entry point can say more in a minor** than its name and
+/// kind. The list below names its kind through [fragment], which a vertex
+/// or fragment entry point is enough for; a kind beyond the two goes in
+/// [kind].
+final class RequiredShader {
+  /// An entry point of [kind]; without one, a fragment stage when
+  /// [fragment] is true and a vertex stage otherwise.
+  const RequiredShader({
+    required this.name,
+    bool fragment = false,
+    ShaderStageKind? kind,
+  }) : assert(
+         kind == null || !fragment || identical(kind, ShaderStageKind.fragment),
+         'an entry point named fragment and given another kind',
+       ),
+       kind =
+           kind ??
+           (fragment ? ShaderStageKind.fragment : ShaderStageKind.vertex),
+       fragment = kind == null
+           ? fragment
+           : identical(kind, ShaderStageKind.fragment);
+
+  /// The name the engine asks a bundle for.
+  final String name;
+
+  /// What the entry point runs as.
+  final ShaderStageKind kind;
+
+  /// Whether this is a fragment stage: [kind] is
+  /// [ShaderStageKind.fragment].
+  final bool fragment;
+
+  @override
+  bool operator ==(Object other) =>
+      other is RequiredShader && name == other.name && kind == other.kind;
+
+  @override
+  int get hashCode => Object.hash(name, kind);
+
+  @override
+  String toString() => 'RequiredShader($name, ${kind.name})';
+}
 
 /// Every compute stage, as `shaders/flutter3d.compute.json` lists them —
 /// `H6`. A manifest of its own because neither impellerc nor the WebGL2
@@ -51,109 +96,109 @@ const List<String> computeShaders = <String>[
 /// by `test/manifest_test.dart`, which fails if a shader is added to one and
 /// not the other.
 const List<RequiredShader> requiredShaders = <RequiredShader>[
-  (name: 'BlinnPhong', fragment: true),
-  (name: 'BloomDownsample', fragment: true),
-  (name: 'BloomThreshold', fragment: true),
-  (name: 'BloomUpsample', fragment: true),
-  (name: 'Composite', fragment: true),
-  (name: 'DebugLine', fragment: true),
-  (name: 'DebugLineVertex', fragment: false),
-  (name: 'FullscreenVertex', fragment: false),
-  (name: 'Easu', fragment: true),
-  (name: 'Fxaa', fragment: true),
-  (name: 'SmaaEdges', fragment: true),
-  (name: 'SmaaWeights', fragment: true),
-  (name: 'SmaaBlend', fragment: true),
-  (name: 'LensFlare', fragment: true),
-  (name: 'LocalExposure', fragment: true),
-  (name: 'LocalExposureBlur', fragment: true),
-  (name: 'Lambert', fragment: true),
-  (name: 'Luminance', fragment: true),
-  (name: 'DepthPyramid', fragment: true),
-  (name: 'MeshInstancedVertex', fragment: false),
-  (name: 'MeshLightmappedVertex', fragment: false),
-  (name: 'MeshSkinnedVertex', fragment: false),
-  (name: 'MeshVertex', fragment: false),
-  (name: 'MrtProbe', fragment: true),
-  (name: 'Normals', fragment: true),
-  (name: 'ObjectId', fragment: true),
-  (name: 'Particle', fragment: true),
-  (name: 'ParticleMesh', fragment: true),
-  (name: 'ParticleMeshVertex', fragment: false),
-  (name: 'ParticleTextured', fragment: true),
-  (name: 'ParticleSixWay', fragment: true),
-  (name: 'ParticleSoft', fragment: true),
-  (name: 'ParticleTexturedSoft', fragment: true),
-  (name: 'ParticleSixWaySoft', fragment: true),
-  (name: 'ParticleVertex', fragment: false),
-  (name: 'Pbr', fragment: true),
-  (name: 'PbrLayered', fragment: true),
-  (name: 'PolylineVertex', fragment: false),
-  (name: 'ProbePrefilter', fragment: true),
-  (name: 'PlanarReflection', fragment: true),
-  (name: 'RenderTextureEncode', fragment: true),
-  (name: 'Reflections', fragment: true),
-  (name: 'Ssao', fragment: true),
-  (name: 'Splat', fragment: true),
-  (name: 'SplatHashed', fragment: true),
-  (name: 'SsaoBlur', fragment: true),
-  (name: 'ContactShadow', fragment: true),
-  (name: 'ContactShadowResolve', fragment: true),
-  (name: 'CameraVelocity', fragment: true),
-  (name: 'Velocity', fragment: true),
-  (name: 'Reactive', fragment: true),
-  (name: 'ReactiveSprite', fragment: true),
-  (name: 'TemporalResolve', fragment: true),
-  (name: 'TemporalAccumulate', fragment: true),
-  (name: 'IrradianceConvolve', fragment: true),
-  (name: 'VelocityVertex', fragment: false),
-  (name: 'VelocitySkinnedVertex', fragment: false),
-  (name: 'VelocityInstancedVertex', fragment: false),
-  (name: 'LightShafts', fragment: true),
-  (name: 'VolumetricFog', fragment: true),
-  (name: 'VolumetricFogUpsample', fragment: true),
-  (name: 'DepthOfField', fragment: true),
-  (name: 'DofTileMax', fragment: true),
-  (name: 'VelocityTileMax', fragment: true),
-  (name: 'VelocityNeighborMax', fragment: true),
-  (name: 'MotionBlur', fragment: true),
-  (name: 'ViewportShade', fragment: true),
-  (name: 'OutlineMask', fragment: true),
-  (name: 'HighContrast', fragment: true),
-  (name: 'Decal', fragment: true),
-  (name: 'ShadowDepth', fragment: true),
-  (name: 'ShadowDistance', fragment: true),
-  (name: 'ShadowDepthMasked', fragment: true),
-  (name: 'ShadowDistanceMasked', fragment: true),
-  (name: 'ShadowTransmittance', fragment: true),
-  (name: 'CausticSurface', fragment: true),
-  (name: 'CausticPhotonVertex', fragment: false),
-  (name: 'CausticPhoton', fragment: true),
-  (name: 'ShadowCopy', fragment: true),
-  (name: 'EvsmFilter', fragment: true),
-  (name: 'ShadowTileReset', fragment: true),
-  (name: 'ShadowTileResetVertex', fragment: false),
-  (name: 'Sky', fragment: true),
-  (name: 'SkyCube', fragment: true),
-  (name: 'SkyVertex', fragment: false),
-  (name: 'SkyCubeVertex', fragment: false),
-  (name: 'SkyPhysical', fragment: true),
-  (name: 'SkyPhysicalVertex', fragment: false),
-  (name: 'Toon', fragment: true),
-  (name: 'UnlitOpaque', fragment: true),
-  (name: 'LambertOpaque', fragment: true),
-  (name: 'BlinnPhongOpaque', fragment: true),
-  (name: 'PbrOpaque', fragment: true),
-  (name: 'PbrLayeredOpaque', fragment: true),
-  (name: 'ToonOpaque', fragment: true),
-  (name: 'DepthPredraw', fragment: true),
-  (name: 'Unlit', fragment: true),
-  (name: 'VertexTextureProbe', fragment: true),
-  (name: 'VertexTextureProbeVertex', fragment: false),
-  (name: 'FieldDecay', fragment: true),
-  (name: 'Xray', fragment: true),
-  (name: 'WboitResolve', fragment: true),
-  (name: 'SceneColourCopy', fragment: true),
-  (name: 'ImpostorVertex', fragment: false),
-  (name: 'Impostor', fragment: true),
+  RequiredShader(name: 'BlinnPhong', fragment: true),
+  RequiredShader(name: 'BloomDownsample', fragment: true),
+  RequiredShader(name: 'BloomThreshold', fragment: true),
+  RequiredShader(name: 'BloomUpsample', fragment: true),
+  RequiredShader(name: 'Composite', fragment: true),
+  RequiredShader(name: 'DebugLine', fragment: true),
+  RequiredShader(name: 'DebugLineVertex', fragment: false),
+  RequiredShader(name: 'FullscreenVertex', fragment: false),
+  RequiredShader(name: 'Easu', fragment: true),
+  RequiredShader(name: 'Fxaa', fragment: true),
+  RequiredShader(name: 'SmaaEdges', fragment: true),
+  RequiredShader(name: 'SmaaWeights', fragment: true),
+  RequiredShader(name: 'SmaaBlend', fragment: true),
+  RequiredShader(name: 'LensFlare', fragment: true),
+  RequiredShader(name: 'LocalExposure', fragment: true),
+  RequiredShader(name: 'LocalExposureBlur', fragment: true),
+  RequiredShader(name: 'Lambert', fragment: true),
+  RequiredShader(name: 'Luminance', fragment: true),
+  RequiredShader(name: 'DepthPyramid', fragment: true),
+  RequiredShader(name: 'MeshInstancedVertex', fragment: false),
+  RequiredShader(name: 'MeshLightmappedVertex', fragment: false),
+  RequiredShader(name: 'MeshSkinnedVertex', fragment: false),
+  RequiredShader(name: 'MeshVertex', fragment: false),
+  RequiredShader(name: 'MrtProbe', fragment: true),
+  RequiredShader(name: 'Normals', fragment: true),
+  RequiredShader(name: 'ObjectId', fragment: true),
+  RequiredShader(name: 'Particle', fragment: true),
+  RequiredShader(name: 'ParticleMesh', fragment: true),
+  RequiredShader(name: 'ParticleMeshVertex', fragment: false),
+  RequiredShader(name: 'ParticleTextured', fragment: true),
+  RequiredShader(name: 'ParticleSixWay', fragment: true),
+  RequiredShader(name: 'ParticleSoft', fragment: true),
+  RequiredShader(name: 'ParticleTexturedSoft', fragment: true),
+  RequiredShader(name: 'ParticleSixWaySoft', fragment: true),
+  RequiredShader(name: 'ParticleVertex', fragment: false),
+  RequiredShader(name: 'Pbr', fragment: true),
+  RequiredShader(name: 'PbrLayered', fragment: true),
+  RequiredShader(name: 'PolylineVertex', fragment: false),
+  RequiredShader(name: 'ProbePrefilter', fragment: true),
+  RequiredShader(name: 'PlanarReflection', fragment: true),
+  RequiredShader(name: 'RenderTextureEncode', fragment: true),
+  RequiredShader(name: 'Reflections', fragment: true),
+  RequiredShader(name: 'Ssao', fragment: true),
+  RequiredShader(name: 'Splat', fragment: true),
+  RequiredShader(name: 'SplatHashed', fragment: true),
+  RequiredShader(name: 'SsaoBlur', fragment: true),
+  RequiredShader(name: 'ContactShadow', fragment: true),
+  RequiredShader(name: 'ContactShadowResolve', fragment: true),
+  RequiredShader(name: 'CameraVelocity', fragment: true),
+  RequiredShader(name: 'Velocity', fragment: true),
+  RequiredShader(name: 'Reactive', fragment: true),
+  RequiredShader(name: 'ReactiveSprite', fragment: true),
+  RequiredShader(name: 'TemporalResolve', fragment: true),
+  RequiredShader(name: 'TemporalAccumulate', fragment: true),
+  RequiredShader(name: 'IrradianceConvolve', fragment: true),
+  RequiredShader(name: 'VelocityVertex', fragment: false),
+  RequiredShader(name: 'VelocitySkinnedVertex', fragment: false),
+  RequiredShader(name: 'VelocityInstancedVertex', fragment: false),
+  RequiredShader(name: 'LightShafts', fragment: true),
+  RequiredShader(name: 'VolumetricFog', fragment: true),
+  RequiredShader(name: 'VolumetricFogUpsample', fragment: true),
+  RequiredShader(name: 'DepthOfField', fragment: true),
+  RequiredShader(name: 'DofTileMax', fragment: true),
+  RequiredShader(name: 'VelocityTileMax', fragment: true),
+  RequiredShader(name: 'VelocityNeighborMax', fragment: true),
+  RequiredShader(name: 'MotionBlur', fragment: true),
+  RequiredShader(name: 'ViewportShade', fragment: true),
+  RequiredShader(name: 'OutlineMask', fragment: true),
+  RequiredShader(name: 'HighContrast', fragment: true),
+  RequiredShader(name: 'Decal', fragment: true),
+  RequiredShader(name: 'ShadowDepth', fragment: true),
+  RequiredShader(name: 'ShadowDistance', fragment: true),
+  RequiredShader(name: 'ShadowDepthMasked', fragment: true),
+  RequiredShader(name: 'ShadowDistanceMasked', fragment: true),
+  RequiredShader(name: 'ShadowTransmittance', fragment: true),
+  RequiredShader(name: 'CausticSurface', fragment: true),
+  RequiredShader(name: 'CausticPhotonVertex', fragment: false),
+  RequiredShader(name: 'CausticPhoton', fragment: true),
+  RequiredShader(name: 'ShadowCopy', fragment: true),
+  RequiredShader(name: 'EvsmFilter', fragment: true),
+  RequiredShader(name: 'ShadowTileReset', fragment: true),
+  RequiredShader(name: 'ShadowTileResetVertex', fragment: false),
+  RequiredShader(name: 'Sky', fragment: true),
+  RequiredShader(name: 'SkyCube', fragment: true),
+  RequiredShader(name: 'SkyVertex', fragment: false),
+  RequiredShader(name: 'SkyCubeVertex', fragment: false),
+  RequiredShader(name: 'SkyPhysical', fragment: true),
+  RequiredShader(name: 'SkyPhysicalVertex', fragment: false),
+  RequiredShader(name: 'Toon', fragment: true),
+  RequiredShader(name: 'UnlitOpaque', fragment: true),
+  RequiredShader(name: 'LambertOpaque', fragment: true),
+  RequiredShader(name: 'BlinnPhongOpaque', fragment: true),
+  RequiredShader(name: 'PbrOpaque', fragment: true),
+  RequiredShader(name: 'PbrLayeredOpaque', fragment: true),
+  RequiredShader(name: 'ToonOpaque', fragment: true),
+  RequiredShader(name: 'DepthPredraw', fragment: true),
+  RequiredShader(name: 'Unlit', fragment: true),
+  RequiredShader(name: 'VertexTextureProbe', fragment: true),
+  RequiredShader(name: 'VertexTextureProbeVertex', fragment: false),
+  RequiredShader(name: 'FieldDecay', fragment: true),
+  RequiredShader(name: 'Xray', fragment: true),
+  RequiredShader(name: 'WboitResolve', fragment: true),
+  RequiredShader(name: 'SceneColourCopy', fragment: true),
+  RequiredShader(name: 'ImpostorVertex', fragment: false),
+  RequiredShader(name: 'Impostor', fragment: true),
 ];

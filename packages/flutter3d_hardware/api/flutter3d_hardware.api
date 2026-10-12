@@ -96,12 +96,14 @@ final class BlendState
   static const BlendState additive = …
   static const BlendState alphaBlend = BlendState()
   static const BlendState keepDestination = …
+  void checkFeatures(DeviceFeatures features, {required String backend})
 
 @immutable final class BufferDescriptor
   const BufferDescriptor({required this.lengthInBytes, required this.usage, this.label})
   final BufferUsage usage
   final String? label
   final int lengthInBytes
+  void checkFeatures(DeviceFeatures features, {required String backend})
 
 final class BufferLayout
   const BufferLayout({required this.strideInBytes, required this.attributes, this.stepMode = VertexStepMode.vertex})
@@ -523,6 +525,7 @@ abstract base class GraphicsDevice with TextureAllocator
   StorageBuffer createBuffer(BufferDescriptor descriptor, {ByteData? contents})
   StorageBuffer importBuffer(NativeHandle handle, BufferDescriptor descriptor)
   Stream<DeviceLoss> get lost
+  String get backendId
   String get backendName
   String? labelOf(Object resource)
   TextureHandle importTexture(NativeHandle handle, TextureDescriptor descriptor)
@@ -917,6 +920,7 @@ final class SamplerDescriptor
   static const SamplerDescriptor linearRepeat = …
   static const SamplerDescriptor nearestClamp = …
   static const SamplerDescriptor trilinearRepeat = …
+  void checkFeatures(DeviceFeatures features, {required String backend})
 
 final class ScreenRect
   String toString()
@@ -947,7 +951,7 @@ final class ShaderBundle
   static const String materialSection = 'material'
   static const String webglSection = 'webgl'
   static const String webgpuSection = 'webgpu'
-  static const int formatVersion = 1
+  static const int formatVersion = 2
 
 final class ShaderBundleException extends ResourceException
   String get message
@@ -962,7 +966,8 @@ final class ShaderBundleException extends ResourceException
 
 final class ShaderBundleStage
   String toString()
-  const ShaderBundleStage(this.name, {required this.fragment})
+  const ShaderBundleStage(this.name, {bool fragment = false, ShaderStageKind? kind})
+  final ShaderStageKind kind
   final String name
   final bool fragment
 
@@ -984,6 +989,17 @@ final class ShaderLibraryStack with ShaderLibrary
   ShaderHandle? operator [](String name)
   ShaderLibraryStack(Iterable<ShaderLibrary> libraries)
   final List<ShaderLibrary> libraries
+
+final class ShaderStageKind
+  String toString()
+  final String name
+  final int code
+  static ShaderStageKind? byCode(int code)
+  static ShaderStageKind? byName(String name)
+  static const List<ShaderStageKind> values = <ShaderStageKind>[vertex, fragment, compute]
+  static const ShaderStageKind compute = ShaderStageKind._('compute', 2)
+  static const ShaderStageKind fragment = ShaderStageKind._('fragment', 1)
+  static const ShaderStageKind vertex = ShaderStageKind._('vertex', 0)
 
 final class SharedBuffer
   Future<void> publish()
@@ -1028,7 +1044,13 @@ final class SharingException extends CapabilityException
   static const SharingMode hostCopy = SharingMode._('hostCopy')
   static const SharingMode zeroCopy = SharingMode._('zeroCopy')
 
-typedef StageBindings = ({Set<String> blocks, Set<String> samplers});
+final class StageBindings
+  String toString()
+  bool operator ==(Object other)
+  const StageBindings({this.blocks = const <String>{}, this.samplers = const <String>{}})
+  final Set<String> blocks
+  final Set<String> samplers
+  int get hashCode
 
 enum StencilFace
   values: both, front, back
@@ -1126,6 +1148,7 @@ final class TextureCopyLocation
   final int sampleCount
   final int width
   int get hashCode
+  void checkFeatures(DeviceFeatures features, {required String backend})
 
 final class TextureDimension
   String toString()
@@ -1310,7 +1333,15 @@ abstract base class UniformBlock
   const UniformBlock(this.name)
   final String name
 
-typedef UniformMemberLayout = ({int offset, int byteLength, int elements, String type});
+final class UniformMemberLayout
+  String toString()
+  bool operator ==(Object other)
+  const UniformMemberLayout({required this.offset, required this.byteLength, this.elements = 1, required this.type})
+  final String type
+  final int byteLength
+  final int elements
+  final int offset
+  int get hashCode
 
 final class VertexFormat
   String toString()
@@ -1414,7 +1445,7 @@ final class ShaderBundle
   static const String materialSection = 'material'
   static const String webglSection = 'webgl'
   static const String webgpuSection = 'webgpu'
-  static const int formatVersion = 1
+  static const int formatVersion = 2
 
 final class ShaderBundleException extends ResourceException
   String get message
@@ -1429,9 +1460,21 @@ final class ShaderBundleException extends ResourceException
 
 final class ShaderBundleStage
   String toString()
-  const ShaderBundleStage(this.name, {required this.fragment})
+  const ShaderBundleStage(this.name, {bool fragment = false, ShaderStageKind? kind})
+  final ShaderStageKind kind
   final String name
   final bool fragment
+
+final class ShaderStageKind
+  String toString()
+  final String name
+  final int code
+  static ShaderStageKind? byCode(int code)
+  static ShaderStageKind? byName(String name)
+  static const List<ShaderStageKind> values = <ShaderStageKind>[vertex, fragment, compute]
+  static const ShaderStageKind compute = ShaderStageKind._('compute', 2)
+  static const ShaderStageKind fragment = ShaderStageKind._('fragment', 1)
+  static const ShaderStageKind vertex = ShaderStageKind._('vertex', 0)
 
 Map<String, String> decodeKernelSection(ShaderBundle bundle)
 
@@ -1756,6 +1799,7 @@ final class RecordingDevice extends GraphicsDevice with SynchronousBufferReadbac
   ShaderLibrary get shaders
   StorageBuffer createBuffer(BufferDescriptor descriptor, {ByteData? contents})
   Stream<DeviceLoss> get lost
+  String get backendId
   String get backendName
   String? labelOf(Object resource)
   TextureFormat get defaultColorFormat

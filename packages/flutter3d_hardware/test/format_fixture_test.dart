@@ -22,6 +22,20 @@ import 'package:test/test.dart';
 Uint8List _bytes(String name, int version) =>
     File('test/fixtures/v$version/$name').readAsBytesSync();
 
+/// The offset just past the first occurrence of [text] in [bytes]: where a
+/// stage's kind byte sits after its name.
+int _indexAfter(Uint8List bytes, String text) {
+  final needle = ascii.encode(text);
+  for (var i = 0; i + needle.length <= bytes.length; i++) {
+    var match = true;
+    for (var j = 0; j < needle.length && match; j++) {
+      match = bytes[i + j] == needle[j];
+    }
+    if (match) return i + needle.length;
+  }
+  throw StateError('$text is not in the fixture');
+}
+
 void main() {
   group('.f3dtrace', () {
     test('the version 1 fixture decodes to the frame it recorded', () {
@@ -59,6 +73,61 @@ void main() {
       expect(bundle.sdk, '3.13.0');
       expect(bundle.names, <String>['Glow']);
       expect(decodeMaterialSection(bundle).keys, <String>['Glow']);
+    });
+
+    test('the version 2 fixture says each stage kind', () {
+      final bundle = ShaderBundle.decode(
+        ByteData.sublistView(_bytes('effects.f3shaders', 2)),
+      );
+
+      // Mutation: write `fragment ? 1 : 0` again, and the kernel reads back
+      // as a vertex stage.
+      expect(
+        <String, ShaderStageKind>{
+          for (final stage in bundle.stages) stage.name: stage.kind,
+        },
+        <String, ShaderStageKind>{
+          'Glow': ShaderStageKind.fragment,
+          'Spread': ShaderStageKind.compute,
+        },
+      );
+      expect(decodeMaterialSection(bundle).keys, <String>['Glow']);
+    });
+
+    test('a version 1 bundle reads its stages as it always did', () {
+      final bytes = Uint8List.fromList(_bytes('effects.f3shaders', 1));
+      expect(
+        ShaderBundle.decode(ByteData.sublistView(bytes)).stages.single.kind,
+        ShaderStageKind.fragment,
+      );
+      // A version 1 packer wrote 1 for a fragment stage and 0 for anything
+      // else; any other byte reads as the vertex stage a version 1 reader
+      // took it for, not as a kind version 2 gave that code.
+      bytes[_indexAfter(bytes, 'Glow')] = 2;
+      expect(
+        ShaderBundle.decode(ByteData.sublistView(bytes)).stages.single.kind,
+        ShaderStageKind.vertex,
+      );
+    });
+
+    test('a stage kind this reader does not know is refused as stale', () {
+      final bytes = Uint8List.fromList(_bytes('effects.f3shaders', 2));
+      bytes[_indexAfter(bytes, 'Spread')] = 0xF0;
+
+      // Mutation: read an unknown code as a vertex stage.
+      expect(
+        () => ShaderBundle.decode(ByteData.sublistView(bytes)),
+        throwsA(
+          isA<ShaderBundleException>()
+              .having((ShaderBundleException r) => r.stale, 'stale', isTrue)
+              .having((ShaderBundleException r) => r.name, 'name', 'effects')
+              .having(
+                (ShaderBundleException r) => r.reason,
+                'reason',
+                allOf(contains('"Spread"'), contains('kind 240')),
+              ),
+        ),
+      );
     });
 
     test('every version up to this build has a fixture', () {

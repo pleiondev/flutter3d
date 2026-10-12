@@ -9,9 +9,10 @@
 /// a renderer to it on the VM.
 library;
 
-const Map<String, ({Set<String> blocks, Set<String> samplers})>
-stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
-  'BlinnPhong': (
+import 'package:flutter3d_hardware/flutter3d_hardware.dart' show StageBindings;
+
+const Map<String, StageBindings> stageBindings = <String, StageBindings>{
+  'BlinnPhong': StageBindings(
     blocks: <String>{
       'FogInfo',
       'FragInfo',
@@ -33,7 +34,7 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'shadow_texture',
     },
   ),
-  'BlinnPhongOpaque': (
+  'BlinnPhongOpaque': StageBindings(
     blocks: <String>{
       'FogInfo',
       'FragInfo',
@@ -55,29 +56,29 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'shadow_texture',
     },
   ),
-  'BloomDownsample': (
+  'BloomDownsample': StageBindings(
     blocks: <String>{'BloomInfo'},
     samplers: <String>{'source_texture'},
   ),
-  'BloomThreshold': (
+  'BloomThreshold': StageBindings(
     blocks: <String>{'BloomInfo'},
     samplers: <String>{'source_texture'},
   ),
-  'BloomUpsample': (
+  'BloomUpsample': StageBindings(
     blocks: <String>{'BloomInfo'},
     samplers: <String>{'source_texture'},
   ),
-  'CameraVelocity': (
+  'CameraVelocity': StageBindings(
     blocks: <String>{'CameraVelocityInfo'},
     samplers: <String>{'surface_texture'},
   ),
-  'CausticPhoton': (blocks: <String>{}, samplers: <String>{}),
-  'CausticPhotonVertex': (
+  'CausticPhoton': StageBindings(blocks: <String>{}, samplers: <String>{}),
+  'CausticPhotonVertex': StageBindings(
     blocks: <String>{'CausticInfo'},
     samplers: <String>{'caustic_back', 'caustic_depth', 'caustic_front'},
   ),
-  'CausticSurface': (blocks: <String>{}, samplers: <String>{}),
-  'Composite': (
+  'CausticSurface': StageBindings(blocks: <String>{}, samplers: <String>{}),
+  'Composite': StageBindings(
     blocks: <String>{'CompositeInfo', 'FragCoordInfo'},
     samplers: <String>{
       'ao_texture',
@@ -89,17 +90,20 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'scene_texture',
     },
   ),
-  'ContactShadow': (
+  'ContactShadow': StageBindings(
     blocks: <String>{'ContactShadowInfo', 'FragCoordInfo', 'NoiseInfo'},
     samplers: <String>{'blue_noise_texture', 'surface_texture'},
   ),
-  'ContactShadowResolve': (
+  'ContactShadowResolve': StageBindings(
     blocks: <String>{'ContactShadowResolveInfo'},
     samplers: <String>{'contact_shadow_texture', 'surface_texture'},
   ),
-  'DebugLine': (blocks: <String>{}, samplers: <String>{}),
-  'DebugLineVertex': (blocks: <String>{'LineInfo'}, samplers: <String>{}),
-  'Decal': (
+  'DebugLine': StageBindings(blocks: <String>{}, samplers: <String>{}),
+  'DebugLineVertex': StageBindings(
+    blocks: <String>{'LineInfo'},
+    samplers: <String>{},
+  ),
+  'Decal': StageBindings(
     blocks: <String>{'DecalInfo'},
     samplers: <String>{
       'albedo_texture',
@@ -110,41 +114,44 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'surface_texture',
     },
   ),
-  'DepthOfField': (
+  'DepthOfField': StageBindings(
     blocks: <String>{'DofInfo', 'FragCoordInfo'},
     samplers: <String>{'coc_tile_texture', 'scene_texture', 'surface_texture'},
   ),
-  'DepthPredraw': (
+  'DepthPredraw': StageBindings(
     blocks: <String>{'PredrawInfo'},
     samplers: <String>{'base_color_texture'},
   ),
-  'DepthPyramid': (
+  'DepthPyramid': StageBindings(
     blocks: <String>{'DepthPyramidInfo'},
     samplers: <String>{'surface_texture'},
   ),
-  'DofTileMax': (
+  'DofTileMax': StageBindings(
     blocks: <String>{'DofTileInfo'},
     samplers: <String>{'surface_texture'},
   ),
-  'Easu': (
+  'Easu': StageBindings(
     blocks: <String>{'EasuInfo', 'FragCoordInfo'},
     samplers: <String>{'source_texture'},
   ),
-  'EvsmFilter': (
+  'EvsmFilter': StageBindings(
     blocks: <String>{'EvsmFilterInfo'},
     samplers: <String>{'evsm_source'},
   ),
-  'FieldDecay': (
+  'FieldDecay': StageBindings(
     blocks: <String>{'FieldDecayInfo'},
     samplers: <String>{'field_texture'},
   ),
-  'FullscreenVertex': (blocks: <String>{}, samplers: <String>{}),
-  'Fxaa': (blocks: <String>{'FxaaInfo'}, samplers: <String>{'source_texture'}),
-  'HighContrast': (
+  'FullscreenVertex': StageBindings(blocks: <String>{}, samplers: <String>{}),
+  'Fxaa': StageBindings(
+    blocks: <String>{'FxaaInfo'},
+    samplers: <String>{'source_texture'},
+  ),
+  'HighContrast': StageBindings(
     blocks: <String>{'HighContrastInfo'},
     samplers: <String>{'mask_texture', 'scene_texture', 'surface_texture'},
   ),
-  'Impostor': (
+  'Impostor': StageBindings(
     blocks: <String>{'FogInfo', 'FragInfo', 'LightListInfo', 'PointShadow'},
     samplers: <String>{
       'base_color_texture',
@@ -155,8 +162,11 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'shadow_texture',
     },
   ),
-  'ImpostorVertex': (blocks: <String>{'FrameInfo'}, samplers: <String>{}),
-  'IrradianceConvolve': (
+  'ImpostorVertex': StageBindings(
+    blocks: <String>{'FrameInfo'},
+    samplers: <String>{},
+  ),
+  'IrradianceConvolve': StageBindings(
     blocks: <String>{'ConvolveInfo'},
     samplers: <String>{
       'field_texture',
@@ -165,7 +175,7 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'surface_texture',
     },
   ),
-  'Lambert': (
+  'Lambert': StageBindings(
     blocks: <String>{
       'FogInfo',
       'FragInfo',
@@ -186,7 +196,7 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'shadow_texture',
     },
   ),
-  'LambertOpaque': (
+  'LambertOpaque': StageBindings(
     blocks: <String>{
       'FogInfo',
       'FragInfo',
@@ -207,11 +217,11 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'shadow_texture',
     },
   ),
-  'LensFlare': (
+  'LensFlare': StageBindings(
     blocks: <String>{'LensFlareInfo'},
     samplers: <String>{'bloom_texture'},
   ),
-  'LightShafts': (
+  'LightShafts': StageBindings(
     blocks: <String>{'FragCoordInfo', 'NoiseInfo', 'ShaftInfo'},
     samplers: <String>{
       'blue_noise_texture',
@@ -220,35 +230,35 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'surface_texture',
     },
   ),
-  'LocalExposure': (
+  'LocalExposure': StageBindings(
     blocks: <String>{'LocalExposureInfo'},
     samplers: <String>{'scene_texture'},
   ),
-  'LocalExposureBlur': (
+  'LocalExposureBlur': StageBindings(
     blocks: <String>{'LocalExposureBlurInfo'},
     samplers: <String>{'weight_texture'},
   ),
-  'Luminance': (
+  'Luminance': StageBindings(
     blocks: <String>{'LuminanceInfo'},
     samplers: <String>{'scene_texture'},
   ),
-  'MeshInstancedVertex': (
+  'MeshInstancedVertex': StageBindings(
     blocks: <String>{'FrameInfo', 'MorphInfo', 'MorphInstanceInfo'},
     samplers: <String>{'morph_instance_weights', 'morph_texture'},
   ),
-  'MeshLightmappedVertex': (
+  'MeshLightmappedVertex': StageBindings(
     blocks: <String>{'FrameInfo', 'MorphInfo'},
     samplers: <String>{'morph_texture'},
   ),
-  'MeshSkinnedVertex': (
+  'MeshSkinnedVertex': StageBindings(
     blocks: <String>{'FrameInfo', 'MorphInfo', 'SkinInfo'},
     samplers: <String>{'morph_texture'},
   ),
-  'MeshVertex': (
+  'MeshVertex': StageBindings(
     blocks: <String>{'FrameInfo', 'MorphInfo'},
     samplers: <String>{'morph_texture'},
   ),
-  'MotionBlur': (
+  'MotionBlur': StageBindings(
     blocks: <String>{'FragCoordInfo', 'MotionBlurInfo', 'NoiseInfo'},
     samplers: <String>{
       'blue_noise_texture',
@@ -258,23 +268,26 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'velocity_texture',
     },
   ),
-  'MrtProbe': (blocks: <String>{}, samplers: <String>{}),
-  'Normals': (blocks: <String>{'FogInfo'}, samplers: <String>{}),
-  'ObjectId': (
+  'MrtProbe': StageBindings(blocks: <String>{}, samplers: <String>{}),
+  'Normals': StageBindings(blocks: <String>{'FogInfo'}, samplers: <String>{}),
+  'ObjectId': StageBindings(
     blocks: <String>{'IdInfo'},
     samplers: <String>{'base_color_texture'},
   ),
-  'OutlineMask': (
+  'OutlineMask': StageBindings(
     blocks: <String>{'OutlineMaskInfo'},
     samplers: <String>{'surface_texture'},
   ),
-  'Particle': (blocks: <String>{'FogInfo'}, samplers: <String>{}),
-  'ParticleMesh': (blocks: <String>{'FogInfo'}, samplers: <String>{}),
-  'ParticleMeshVertex': (
+  'Particle': StageBindings(blocks: <String>{'FogInfo'}, samplers: <String>{}),
+  'ParticleMesh': StageBindings(
+    blocks: <String>{'FogInfo'},
+    samplers: <String>{},
+  ),
+  'ParticleMeshVertex': StageBindings(
     blocks: <String>{'ParticleMeshInfo'},
     samplers: <String>{},
   ),
-  'ParticleSixWay': (
+  'ParticleSixWay': StageBindings(
     blocks: <String>{
       'ContributorLightInfo',
       'FogInfo',
@@ -287,7 +300,7 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'six_way_positive',
     },
   ),
-  'ParticleSixWaySoft': (
+  'ParticleSixWaySoft': StageBindings(
     blocks: <String>{
       'ContributorLightInfo',
       'FogInfo',
@@ -302,20 +315,23 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'six_way_positive',
     },
   ),
-  'ParticleSoft': (
+  'ParticleSoft': StageBindings(
     blocks: <String>{'FogInfo', 'SoftParticleInfo'},
     samplers: <String>{'scene_depth_texture'},
   ),
-  'ParticleTextured': (
+  'ParticleTextured': StageBindings(
     blocks: <String>{'FogInfo'},
     samplers: <String>{'particle_texture'},
   ),
-  'ParticleTexturedSoft': (
+  'ParticleTexturedSoft': StageBindings(
     blocks: <String>{'FogInfo', 'SoftParticleInfo'},
     samplers: <String>{'particle_texture', 'scene_depth_texture'},
   ),
-  'ParticleVertex': (blocks: <String>{'ParticleInfo'}, samplers: <String>{}),
-  'Pbr': (
+  'ParticleVertex': StageBindings(
+    blocks: <String>{'ParticleInfo'},
+    samplers: <String>{},
+  ),
+  'Pbr': StageBindings(
     blocks: <String>{
       'FogInfo',
       'FragInfo',
@@ -339,35 +355,7 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'shadow_texture',
     },
   ),
-  'PbrLayered': (
-    blocks: <String>{
-      'FogInfo',
-      'FragInfo',
-      'IrradianceInfo',
-      'LayerInfo',
-      'LightListInfo',
-      'PointShadow',
-    },
-    samplers: <String>{
-      'base_color_texture',
-      'coat_texture',
-      'emissive_texture',
-      'environment_texture',
-      'irradiance_texture',
-      'light_list_texture',
-      'lightmap_texture',
-      'ltc_texture',
-      'metallic_roughness_texture',
-      'normal_texture',
-      'occlusion_texture',
-      'point_shadow_static_texture',
-      'point_shadow_texture',
-      'scene_colour_texture',
-      'shadow_texture',
-      'sheen_texture',
-    },
-  ),
-  'PbrLayeredOpaque': (
+  'PbrLayered': StageBindings(
     blocks: <String>{
       'FogInfo',
       'FragInfo',
@@ -395,7 +383,35 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'sheen_texture',
     },
   ),
-  'PbrOpaque': (
+  'PbrLayeredOpaque': StageBindings(
+    blocks: <String>{
+      'FogInfo',
+      'FragInfo',
+      'IrradianceInfo',
+      'LayerInfo',
+      'LightListInfo',
+      'PointShadow',
+    },
+    samplers: <String>{
+      'base_color_texture',
+      'coat_texture',
+      'emissive_texture',
+      'environment_texture',
+      'irradiance_texture',
+      'light_list_texture',
+      'lightmap_texture',
+      'ltc_texture',
+      'metallic_roughness_texture',
+      'normal_texture',
+      'occlusion_texture',
+      'point_shadow_static_texture',
+      'point_shadow_texture',
+      'scene_colour_texture',
+      'shadow_texture',
+      'sheen_texture',
+    },
+  ),
+  'PbrOpaque': StageBindings(
     blocks: <String>{
       'FogInfo',
       'FragInfo',
@@ -419,27 +435,27 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'shadow_texture',
     },
   ),
-  'PlanarReflection': (
+  'PlanarReflection': StageBindings(
     blocks: <String>{'FogInfo', 'PlanarReflectionInfo'},
     samplers: <String>{'reflection_texture'},
   ),
-  'PolylineVertex': (
+  'PolylineVertex': StageBindings(
     blocks: <String>{'FrameInfo', 'MaterialParams'},
     samplers: <String>{},
   ),
-  'ProbePrefilter': (
+  'ProbePrefilter': StageBindings(
     blocks: <String>{'ProbeInfo'},
     samplers: <String>{'capture_texture'},
   ),
-  'Reactive': (
+  'Reactive': StageBindings(
     blocks: <String>{'ReactiveInfo'},
     samplers: <String>{'surface_texture'},
   ),
-  'ReactiveSprite': (
+  'ReactiveSprite': StageBindings(
     blocks: <String>{'ReactiveInfo'},
     samplers: <String>{'sprite_texture', 'surface_texture'},
   ),
-  'Reflections': (
+  'Reflections': StageBindings(
     blocks: <String>{'FragCoordInfo', 'NoiseInfo', 'ReflectionInfo'},
     samplers: <String>{
       'blue_noise_texture',
@@ -448,58 +464,67 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'surface_texture',
     },
   ),
-  'RenderTextureEncode': (
+  'RenderTextureEncode': StageBindings(
     blocks: <String>{'RenderTextureInfo'},
     samplers: <String>{'source_texture'},
   ),
-  'SceneColourCopy': (
+  'SceneColourCopy': StageBindings(
     blocks: <String>{'SceneCopyInfo'},
     samplers: <String>{'source_texture'},
   ),
-  'ShadowCopy': (
+  'ShadowCopy': StageBindings(
     blocks: <String>{'ShadowCopyInfo'},
     samplers: <String>{'static_shadow_texture'},
   ),
-  'ShadowDepth': (blocks: <String>{}, samplers: <String>{}),
-  'ShadowDepthMasked': (
+  'ShadowDepth': StageBindings(blocks: <String>{}, samplers: <String>{}),
+  'ShadowDepthMasked': StageBindings(
     blocks: <String>{'MaskInfo'},
     samplers: <String>{'base_color_texture'},
   ),
-  'ShadowDistance': (blocks: <String>{'ShadowLight'}, samplers: <String>{}),
-  'ShadowDistanceMasked': (
+  'ShadowDistance': StageBindings(
+    blocks: <String>{'ShadowLight'},
+    samplers: <String>{},
+  ),
+  'ShadowDistanceMasked': StageBindings(
     blocks: <String>{'MaskInfo', 'ShadowLight'},
     samplers: <String>{'base_color_texture'},
   ),
-  'ShadowTileReset': (blocks: <String>{}, samplers: <String>{}),
-  'ShadowTileResetVertex': (blocks: <String>{}, samplers: <String>{}),
-  'ShadowTransmittance': (
+  'ShadowTileReset': StageBindings(blocks: <String>{}, samplers: <String>{}),
+  'ShadowTileResetVertex': StageBindings(
+    blocks: <String>{},
+    samplers: <String>{},
+  ),
+  'ShadowTransmittance': StageBindings(
     blocks: <String>{'TransmittanceInfo'},
     samplers: <String>{'base_color_texture'},
   ),
-  'Sky': (blocks: <String>{}, samplers: <String>{}),
-  'SkyCube': (blocks: <String>{}, samplers: <String>{'sky_texture'}),
-  'SkyCubeVertex': (blocks: <String>{}, samplers: <String>{}),
-  'SkyPhysical': (blocks: <String>{}, samplers: <String>{}),
-  'SkyPhysicalVertex': (blocks: <String>{}, samplers: <String>{}),
-  'SkyVertex': (blocks: <String>{}, samplers: <String>{}),
-  'SmaaBlend': (
+  'Sky': StageBindings(blocks: <String>{}, samplers: <String>{}),
+  'SkyCube': StageBindings(
+    blocks: <String>{},
+    samplers: <String>{'sky_texture'},
+  ),
+  'SkyCubeVertex': StageBindings(blocks: <String>{}, samplers: <String>{}),
+  'SkyPhysical': StageBindings(blocks: <String>{}, samplers: <String>{}),
+  'SkyPhysicalVertex': StageBindings(blocks: <String>{}, samplers: <String>{}),
+  'SkyVertex': StageBindings(blocks: <String>{}, samplers: <String>{}),
+  'SmaaBlend': StageBindings(
     blocks: <String>{'SmaaInfo'},
     samplers: <String>{'blend_texture', 'source_texture'},
   ),
-  'SmaaEdges': (
+  'SmaaEdges': StageBindings(
     blocks: <String>{'SmaaInfo'},
     samplers: <String>{'source_texture'},
   ),
-  'SmaaWeights': (
+  'SmaaWeights': StageBindings(
     blocks: <String>{'SmaaInfo'},
     samplers: <String>{'area_texture', 'edges_texture'},
   ),
-  'Splat': (blocks: <String>{'FogInfo'}, samplers: <String>{}),
-  'SplatHashed': (
+  'Splat': StageBindings(blocks: <String>{'FogInfo'}, samplers: <String>{}),
+  'SplatHashed': StageBindings(
     blocks: <String>{'FogInfo', 'SplatHashInfo'},
     samplers: <String>{'blue_noise_texture'},
   ),
-  'Ssao': (
+  'Ssao': StageBindings(
     blocks: <String>{'NoiseInfo', 'SsaoInfo'},
     samplers: <String>{
       'albedo_texture',
@@ -508,11 +533,11 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'surface_texture',
     },
   ),
-  'SsaoBlur': (
+  'SsaoBlur': StageBindings(
     blocks: <String>{'SsaoBlurInfo'},
     samplers: <String>{'ao_texture', 'surface_texture'},
   ),
-  'TemporalAccumulate': (
+  'TemporalAccumulate': StageBindings(
     blocks: <String>{'AccumulateInfo'},
     samplers: <String>{
       'current_texture',
@@ -520,7 +545,7 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'velocity_texture',
     },
   ),
-  'TemporalResolve': (
+  'TemporalResolve': StageBindings(
     blocks: <String>{'TemporalInfo'},
     samplers: <String>{
       'history_texture',
@@ -529,7 +554,7 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'velocity_texture',
     },
   ),
-  'Toon': (
+  'Toon': StageBindings(
     blocks: <String>{
       'FogInfo',
       'FragInfo',
@@ -551,7 +576,7 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'shadow_texture',
     },
   ),
-  'ToonOpaque': (
+  'ToonOpaque': StageBindings(
     blocks: <String>{
       'FogInfo',
       'FragInfo',
@@ -573,48 +598,48 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'shadow_texture',
     },
   ),
-  'Unlit': (
+  'Unlit': StageBindings(
     blocks: <String>{'FogInfo', 'FragInfo'},
     samplers: <String>{'base_color_texture'},
   ),
-  'UnlitOpaque': (
+  'UnlitOpaque': StageBindings(
     blocks: <String>{'FogInfo', 'FragInfo'},
     samplers: <String>{'base_color_texture'},
   ),
-  'Velocity': (
+  'Velocity': StageBindings(
     blocks: <String>{'VelocityInfo'},
     samplers: <String>{'surface_texture'},
   ),
-  'VelocityInstancedVertex': (
+  'VelocityInstancedVertex': StageBindings(
     blocks: <String>{'FrameInfo', 'MorphInfo', 'PrevFrameInfo'},
     samplers: <String>{'morph_texture'},
   ),
-  'VelocityNeighborMax': (
+  'VelocityNeighborMax': StageBindings(
     blocks: <String>{'NeighborMaxInfo'},
     samplers: <String>{'tile_texture'},
   ),
-  'VelocitySkinnedVertex': (
+  'VelocitySkinnedVertex': StageBindings(
     blocks: <String>{'FrameInfo', 'MorphInfo', 'PrevFrameInfo', 'SkinInfo'},
     samplers: <String>{'morph_texture', 'prev_joint_texture'},
   ),
-  'VelocityTileMax': (
+  'VelocityTileMax': StageBindings(
     blocks: <String>{'TileMaxInfo'},
     samplers: <String>{'velocity_texture'},
   ),
-  'VelocityVertex': (
+  'VelocityVertex': StageBindings(
     blocks: <String>{'FrameInfo', 'MorphInfo', 'PrevFrameInfo'},
     samplers: <String>{'morph_texture'},
   ),
-  'VertexTextureProbe': (blocks: <String>{}, samplers: <String>{}),
-  'VertexTextureProbeVertex': (
+  'VertexTextureProbe': StageBindings(blocks: <String>{}, samplers: <String>{}),
+  'VertexTextureProbeVertex': StageBindings(
     blocks: <String>{'ProbeInfo'},
     samplers: <String>{'probe_texture'},
   ),
-  'ViewportShade': (
+  'ViewportShade': StageBindings(
     blocks: <String>{'ShadeInfo'},
     samplers: <String>{'scene_texture', 'surface_texture'},
   ),
-  'VolumetricFog': (
+  'VolumetricFog': StageBindings(
     blocks: <String>{
       'FragCoordInfo',
       'NoiseInfo',
@@ -630,7 +655,7 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'surface_texture',
     },
   ),
-  'VolumetricFogUpsample': (
+  'VolumetricFogUpsample': StageBindings(
     blocks: <String>{'FogUpsampleInfo'},
     samplers: <String>{
       'ao_texture',
@@ -640,11 +665,11 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'surface_texture',
     },
   ),
-  'WboitResolve': (
+  'WboitResolve': StageBindings(
     blocks: <String>{},
     samplers: <String>{'accumulation_texture', 'revealage_texture'},
   ),
-  'Xray': (
+  'Xray': StageBindings(
     blocks: <String>{'FogInfo', 'FragInfo'},
     samplers: <String>{'base_color_texture'},
   ),

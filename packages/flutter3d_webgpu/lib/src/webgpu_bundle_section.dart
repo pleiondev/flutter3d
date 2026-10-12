@@ -196,7 +196,7 @@ final class WebGpuStage {
   /// from the material language declares the metal-rough map through
   /// `material_maps.glsl` and reads nothing of it, so the map went unbound
   /// and the draw was refused.
-  StageBindings get declared => (
+  StageBindings get declared => StageBindings(
     blocks: <String>{for (final block in blocks) block.name},
     samplers: <String>{for (final sampler in samplers) sampler.name},
   );

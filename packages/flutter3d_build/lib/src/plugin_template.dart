@@ -1098,8 +1098,10 @@ Registration register{{stem}}Backend(
 final class {{stem}}MaterialCompiler extends MaterialCompiler {
   const {{stem}}MaterialCompiler();
 
+  /// The device's `backendId`, which the registry matches exactly: the
+  /// device's name in lower case, its default.
   @override
-  String get backend => {{stem}}Device.name;
+  String get backend => {{stem}}Device.name.toLowerCase();
 
   /// [{{lowerStem}}Section], which no other backend's compiler may take.
   @override
@@ -1319,22 +1321,16 @@ final class {{stem}}Device extends GraphicsDevice {
   @override
   TextureHandle createTexture(TextureDescriptor descriptor) {
     // A volume is filled by `writeTexture` alone, so it is refused by that
-    // first; the layered shapes a pass can draw into are refused by their
-    // own feature.
-    final shape = switch (descriptor.dimension) {
-      TextureDimension.d2 => null,
-      TextureDimension.d2Array => DeviceFeature.textureArrays,
-      TextureDimension.cube => DeviceFeature.cubeTextures,
-      TextureDimension.cubeArray => DeviceFeature.cubeArrayTextures,
-      _ => DeviceFeature.textureWrites,
-    };
-    if (shape != null) throw refuse(shape);
-    if (descriptor.usage.contains(TextureUsage.storage)) {
-      throw refuse(DeviceFeature.storageTextures);
+    // first; the layered shapes a pass can draw into, a storage usage and
+    // more than one sample are refused by the feature the descriptor names.
+    final dimension = descriptor.dimension;
+    if (dimension != TextureDimension.d2 &&
+        dimension != TextureDimension.d2Array &&
+        dimension != TextureDimension.cube &&
+        dimension != TextureDimension.cubeArray) {
+      throw refuse(DeviceFeature.textureWrites);
     }
-    if (descriptor.sampleCount > 1) {
-      throw refuse(DeviceFeature.offscreenMultisample);
-    }
+    descriptor.checkFeatures(features, backend: name);
     return _make(
       width: descriptor.width,
       height: descriptor.height,
@@ -1345,17 +1341,16 @@ final class {{stem}}Device extends GraphicsDevice {
     );
   }
 
-  /// Refused: a storage buffer by compute, which it needs and this device
-  /// does not have, and any other by `DeviceFeature.buffers`.
+  /// Refused by the feature the descriptor names first: `buffers`, which
+  /// this device does not report.
   @override
   StorageBuffer createBuffer(
     BufferDescriptor descriptor, {
     ByteData? contents,
-  }) => throw refuse(
-    descriptor.usage.contains(BufferUsage.storage)
-        ? DeviceFeature.compute
-        : DeviceFeature.buffers,
-  );
+  }) {
+    descriptor.checkFeatures(features, backend: name);
+    throw refuse(DeviceFeature.buffers);
+  }
 
   @override
   TransferEncoder beginTransferPass({String? label}) => {{stem}}Transfer(this);
@@ -1714,14 +1709,12 @@ final class {{stem}}Pass extends PassEncoder with CommandEncoder {
   void setStencilReference(int value) => _need(DeviceFeature.stencil);
 
   /// A blend that reads the constant or a second output, or takes a minimum
-  /// or a maximum, is refused by the feature it needs.
+  /// or a maximum, is refused by the feature it needs: the state answers
+  /// which, so a blend a later release adds is refused here too.
   @override
   void setBlend(BlendState? state, {int attachment = 0}) {
     _open('setBlend');
-    if (state == null) return;
-    if (state.usesBlendColor) _need(DeviceFeature.blendConstant);
-    if (state.usesDualSource) _need(DeviceFeature.dualSourceBlending);
-    if (state.usesMinMax) _need(DeviceFeature.minMaxBlend);
+    state?.checkFeatures(device.features, backend: {{stem}}Device.name);
   }
 
   @override
@@ -1769,7 +1762,8 @@ final class {{stem}}Pass extends PassEncoder with CommandEncoder {
 
   /// True, for the reason [bindUniformBlock] gives. A sampler asking for a
   /// comparison, a level clamp or a border is refused by the feature it
-  /// needs, none of which this device reports.
+  /// needs, none of which this device reports; the sampler answers which,
+  /// so a comparison alone is refused by the comparison.
   @override
   bool bindTexture(
     ShaderHandle shader,
@@ -1779,11 +1773,7 @@ final class {{stem}}Pass extends PassEncoder with CommandEncoder {
   }) {
     _open('bindTexture');
     debugCheckLive(texture, 'bindTexture');
-    if (sampler != null && sampler.usesExtendedState) {
-      if (sampler.compare != null) _need(DeviceFeature.samplerCompare);
-      if (sampler.borderColor != null) _need(DeviceFeature.samplerBorderColor);
-      _need(DeviceFeature.samplerLodClamp);
-    }
+    sampler?.checkFeatures(device.features, backend: {{stem}}Device.name);
     return true;
   }
 
@@ -2116,7 +2106,14 @@ void main() {
     final registration = register{{stem}}Backend(registry, compilers: compilers);
     expect(registry.backendNames, <String>[{{stem}}Device.name]);
     expect(compilers.forBackend({{stem}}Device.name), isA<{{stem}}MaterialCompiler>());
-    expect(await registry.open(width: 8, height: 8), isA<{{stem}}Device>());
+    final device = await registry.open(width: 8, height: 8);
+    expect(device, isA<{{stem}}Device>());
+    // The compiler is found by the id the device gives, exactly.
+    // Mutation: name the compiler "{{stem}}".
+    expect(
+      compilers.forBackend((device as {{stem}}Device).backendId),
+      isA<{{stem}}MaterialCompiler>(),
+    );
 
     registration.cancel();
     expect(registry.backendNames, isEmpty);
