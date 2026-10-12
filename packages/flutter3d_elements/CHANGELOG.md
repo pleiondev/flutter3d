@@ -22,7 +22,7 @@
   snapshot keep what is left.
 - **A body weighed from the catalogue.** `Solid.of(shape, material)` makes
   a solid of a catalogue material, as heat sees it and as dense as the
-  catalogue says, at its reference state or a `MaterialState`; `wall:`
+  catalogue says, at its reference state or a `MatterState`; `wall:`
   makes it hollow, displacing all of its shape and weighing its shell.
   `Solid.at(kelvin)` puts a solid in the world at a temperature of its
   own — a bomb from its melt — which `addBody` sets.

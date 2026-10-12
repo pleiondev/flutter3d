@@ -147,8 +147,8 @@ switched off. The engine hands each to the host among its registries.
 | `EntityKindRegistry` (`flutter3d_sim`) | `EntityKinds` (`flutter3d_sim`) | entity kinds a level may name |
 | `SimulationQueryRegistry` (`flutter3d_sim`) | `SimQueries`, which `EngineLoop` owns | questions a view asks by name, answered where the world is |
 | `EditorRegistry` (`flutter3d_editor_core`) | `EditorPieces` (`flutter3d_editor_core`) | commands (`PluginCommand`), inspector components, palette entries |
-| `McpToolRegistry` (`flutter3d_mcp`) | `McpTools` (`flutter3d_mcp/kit.dart`) | MCP tools, published as `<plugin id>.<tool>` |
-| `MaterialCatalog` (`flutter3d_matter`) | `EngineLoop` installs one with the built-ins (`f3d.*`) | physical materials, as `<plugin id>.<name>`, and the pairs measured between them |
+| `McpToolRegistry` (`flutter3d_mcp`) | `McpTools` (`flutter3d_mcp/kit.dart`) | MCP tools, published as `<namespace>.<tool>` |
+| `MaterialCatalog` (`flutter3d_matter`) | `EngineLoop` installs one with the built-ins (`f3d.*`) | physical materials, as `<namespace>.<name>`, and the pairs measured between them |
 
 A registry needs no slot here to be found: `host.registry<T>()` finds any
 `PluginRegistry` the engine was given. Behaviour-tree leaves, considerations

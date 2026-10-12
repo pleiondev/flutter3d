@@ -605,16 +605,18 @@ background job — `applyJobResult` is refused if `baseVersion` is stale).
 `ambientIntensity` (default 0.3), `shadows` (bool, default false),
 `exposure` (default 1.6), `post: ScenePostSettings` (default).
 
-`ProjectLight` (:53-113): `type`, `color` (Vector3, linear RGB, default
+`ProjectLight` (:29-): `type`, `color` (`LinearColor`, default
 white), `intensity` (default 1.0), `range` (default 0 = unbounded),
 `castsShadow` (default false), `innerConeAngle`/`outerConeAngle` (spot
 only, default 0 / π/4), `transform` (positions the light the same way an
 object's transform positions it).
 
-`ProjectLightType` and `SceneEnvironmentPreset` are deliberately **value
-classes, not enums** (:28-45, :129-154) — same reasoning as
+A light's `type` is `flutter3d_foundation`'s `LightType`, the one the scene
+and a level use (it was `ProjectLightType`). It and `SceneEnvironmentPreset`
+(:111-) are deliberately **value classes, not enums** — same reasoning as
 `LightingModel` — so the list stays open. Current values: light types
-`directional`, `point`, `spot`; environment presets `none`, `studio`,
+`directional`, `point`, `spot`, `area` and a plugin's own
+`LightType.custom`; environment presets `none`, `studio`,
 `daylight`, `sunset` (a fixed built-in set, not an importable panorama).
 
 `ScenePostSettings` (:166-173) currently has exactly one field:

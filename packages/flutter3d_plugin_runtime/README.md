@@ -26,12 +26,13 @@ resolves without the render core, the simulation or the physics.
 
 ```json
 {
-  "format": "f3d.plugin", "version": 3,
+  "format": "f3d.plugin", "version": 4,
   "manifest": {"id": "gusts", "apiVersion": "1.0", "touches": "simulation"},
   "phases": [{"name": "weather", "kind": "step",
               "after": ["physics"], "before": ["elements"]}],
   "events": [{"name": "gust"}],
-  "entityKinds": [{"type": "vent", "requires": ["size"], "collider": "trigger"}],
+  "entityKinds": [{"type": "gusts.vent", "requires": ["size"],
+                   "collider": "trigger"}],
   "wasm": [{"module": "gusts.wasm", "system": "blow", "phase": "weather",
             "fields": [{"name": "wind", "write": true}],
             "events": ["gust"]}]
@@ -59,7 +60,7 @@ final loop = EngineLoop(
 | Key | Read by | Becomes |
 |---|---|---|
 | `manifest` | the runtime | the plugin's `PluginManifest`; keys it does not know are kept |
-| `phases` | the runtime | step or frame phases, ordered by `after`/`before` |
+| `phases` | the runtime | step or frame phases added as `<id>.<name>`, ordered by `after`/`before` |
 | `events` | the runtime | events declared as `<id>.<name>`, published as `PluginDataEvent` |
 | `wasm` | the runtime | Wasm step systems, `WasmSystemSpec` |
 | `expressions` | the runtime | step systems in the expression language, `ExpressionSystemSpec` |
@@ -81,6 +82,15 @@ script's declaration is read as an expression system, its `source` kept for
 its author to rewrite. This build reads expression systems and refuses, by
 name, to install a plugin that brings one: it evaluates no expression
 language yet.
+
+Version 4 files a phase under the plugin, as events and Wasm systems already
+were: `weather` above is added as `gusts.weather`, and an `after`, a
+`before`, a `wasm[].phase` or an `expressions[].phase` naming one of the
+document's own phases means that one (`"phase": "weather"` is
+`gusts.weather`). The engine's phases and other plugins' are named as
+written. Every other name a plugin registers, an entity kind among them, is
+written in its namespace, `gusts.vent`; the install refuses a bare one. A
+version-3 document is lifted on read.
 
 ## Permissions
 

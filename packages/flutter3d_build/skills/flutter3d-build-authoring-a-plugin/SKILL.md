@@ -29,7 +29,7 @@ The kind decides what the plugin may touch, and the host holds it to that.
   rules that publish events. Touches the simulation.
 - **element** — a field of the world stepped in `elements`. Touches the
   simulation.
-- **tool** — an MCP tool published as `<plugin id>.<tool>`. A view plugin.
+- **tool** — an MCP tool published as `<namespace>.<tool>`. A view plugin.
 
 **A view plugin is refused anything in the step**: a step phase, a system in
 one, a subscription to the step channel. If what you are writing changes

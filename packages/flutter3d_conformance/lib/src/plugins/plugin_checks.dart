@@ -255,13 +255,16 @@ Object? _sorted(Object? value) => switch (value) {
 // -------------------------------------------------------------------- switch
 
 /// Every name the plugin adds to the loop — its systems, its phases, the
-/// events, fields and subsystems it declares — is in its namespace, `<namespace>.<name>` (D23), so
-/// a name the engine or another plugin adds later cannot be one it took.
+/// events, fields and subsystems it declares — is in its namespace,
+/// `<namespace>.<name>`, so a name the engine or another plugin adds later
+/// cannot be one it took.
 ///
-/// The registries the renderer fills refuse a name outside the namespace at
-/// install, which [_switch] reports as a refused install; this reads what
-/// the loop holds, which no registry checks name by name. The engine's own
-/// packages register the engine's names and are not held to one.
+/// Every registry a plugin reaches through its host, the loop's and the
+/// renderer's alike, refuses a name outside the namespace at install, which
+/// a refused install reports here as it does in [_switch]. This reads what
+/// the loop holds once it is built, so a registry that stopped asking would
+/// still be caught. The engine's own packages register the engine's names
+/// and are not held to one.
 List<PluginCheckOutcome> _names(PluginSession session) {
   PluginCheckOutcome outcome(bool passed, String says) =>
       PluginCheckOutcome(check: 'names', passed: passed, says: says);

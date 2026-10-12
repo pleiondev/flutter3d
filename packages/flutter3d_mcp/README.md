@@ -36,7 +36,8 @@ The parts every flutter3d MCP server shares, written once:
 
 - `McpTools` is where a project's plugins put their tools. A plugin calls
   `host.registry<McpTools>().addTool(tool, run)` in `install`, and the tool
-  is published as `<plugin id>.<name>`. Every server takes the registry as
+  is published as `<namespace>.<name>`, the plugin's id up to its first
+  dot. Every server takes the registry as
   `projectTools`, offers those tools after its own, and keeps the list up to
   date as plugins are switched on and off. `ProjectMcpServer` offers the
   registry on its own, for a project with no other server running.

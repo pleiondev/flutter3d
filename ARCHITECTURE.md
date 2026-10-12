@@ -2167,7 +2167,8 @@ list of those steps; the binary ones branch on the file's version inside the
 record that changed, which keeps `.f3d`'s views over the bytes. Most lists
 are empty, because most formats are still at the version they shipped
 with. The ones that moved are `.f3drun` ([§9.4](#94-replays)), the data
-plugin document (version 3, `scripts` read as `expressions`) and the
+plugin document (version 4: `scripts` read as `expressions` from 2, a
+phase filed under the plugin from 3) and the
 level, at version 5. Level format 5 writes a light's intensity in candela,
 or lux for the sun, where it was a pre-1.0 unitless multiple (the lift from
 4 multiplies by that unit, 5 790.58, and a light that never named its
@@ -3435,7 +3436,8 @@ them.
   section. Palette: a `PaletteEntry` offers an entity type whether or not the
   level has one, and what it places starts with the entry's properties.
 - **MCP tools.** `McpTools` (`flutter3d_mcp`'s `kit.dart`) publishes a plugin's tool
-  as `<plugin id>.<tool>`. Every `ToolTableServer` takes it as
+  as `<namespace>.<tool>`, the plugin's id up to its first dot. Every
+  `ToolTableServer` takes it as
   `projectTools` and registers those tools after its own, behind the same
   brake and argument check, keeping them in step as plugins are switched
   (the client is told the list changed). A plugin tool that would shadow a
@@ -3471,8 +3473,10 @@ installed through the same host, switched at a step boundary and journalled
 like a compiled one.
 
 - **Data plugins.** A `.f3dplugin` document (`DataPluginDocument`, JSON,
-  `"format": "f3d.plugin"`, version 3, with a fixture at each version)
-  declares loop phases, events (`<id>.<name>`, published as
+  `"format": "f3d.plugin"`, version 4, with a fixture at each version)
+  declares loop phases (added as `<id>.<name>`, and an `after`, `before` or
+  system `phase` naming one of the document's own resolved the same way),
+  events (`<id>.<name>`, published as
   `PluginDataEvent`), Wasm systems and expression systems
   (`ExpressionSystemSpec`), and carries sections the packages that own them
   read through the plugin API's `DataSectionRegistry`: entity kinds
@@ -3698,10 +3702,16 @@ current exemptions, out of the full table in `tool/structure/repository.dart`:
 
 | Enum | Package | Why it stays closed |
 |---|---|---|
-| `ElementLevel` | `flutter3d_mesh` | the three things a half-edge mesh has to point at — vertex, edge, face — and every conversion, grow and shrink in the package switches on exactly these three |
-| `IssueSeverity` | `flutter3d_mesh` | three levels a panel can show and a person can triage; a fourth would be a shade of one of these, not a new kind of answer |
-| `TransformPivot` | `flutter3d_model_core` | the three points a turn or a scale can be about; a fourth is a place the interface would need its own control for |
-| `ProfileTarget` | `flutter3d_model_core` | the three kinds of machine a profile is written for; a fourth is hardware nothing here has been measured against |
+| `WindingOrder` | `flutter3d_hardware` | clockwise or counter-clockwise: the two orientations a triangle has |
+| `FramebufferOrigin` | `flutter3d_hardware` | whether row zero is the top or the bottom: the sign of the y axis |
+| `TextureChannel` | `flutter3d_model_core` | r, g, b and a: the four channels of an RGBA colour |
+| `GltfPrimitiveMode` | `flutter3d_core` | glTF 2.0's seven primitive modes, numbered by the format; a file naming an eighth is not glTF 2.0 |
+
+A tier, a kind or a level is not on that list however small it is today.
+`ElementLevel`, `TransformPivot`, `ProfileTarget` and the severity of an
+`Issue` (`flutter3d_foundation`'s `Severity`, which was `flutter3d_mesh`'s
+`IssueSeverity`) were enums here once and are classes with constants now; the first three
+are recorded in the same file's `openedSets`.
 
 A value a caller *does* need to extend — a game's own weapon, a level's own
 material parameter — is the case `doc/boundary-0.5.0.md` worked through for
