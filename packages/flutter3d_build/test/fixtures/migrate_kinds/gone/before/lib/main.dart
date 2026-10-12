@@ -85,3 +85,5 @@ int counted(Object o) => switch (o) {
 Credit credit() => (title: 't', licence: 'MIT');
 
 String licenseOf(Credit credit) => credit.licence;
+
+final Object prefixedOld = kinds.Shade();

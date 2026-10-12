@@ -350,9 +350,20 @@ final class _Scan extends RecursiveAstVisitor<void> {
       ) when methodName == node && node.element == null) {
         _renameClass(node.token, node);
       }
+      // `engine.Old()`, the same under an import prefix.
+      if (node.parent case MethodInvocation(
+        :final methodName,
+        target: SimpleIdentifier(element: final PrefixElement prefix),
+      ) when methodName == node && node.element == null) {
+        _renameClass(node.token, node, prefix: prefix.name);
+      }
       if (arguments[name] case final rules?) _readOfOldType(node, rules);
-      if (memberRenames[name] case final rules? when node.element == null) {
-        _renameMember(node, rules);
+      if (memberRenames[name] case final rules?) {
+        if (node.element == null) {
+          _renameMember(node, rules);
+        } else {
+          _renameOverridingUse(node, rules);
+        }
       }
       if (movedNames[name] case final rules?
           when node.element == null && !_isQualifiedMember(node)) {
@@ -2045,11 +2056,29 @@ final class _Scan extends RecursiveAstVisitor<void> {
         _add(
           rule,
           node,
-          edits: <MigrationEdit>[MigrationEdit(name.offset, name.length, to)],
+          edits: <MigrationEdit>[
+            MigrationEdit(name.offset, name.length, to),
+            // A field's `this.x` in the class's constructors goes with it.
+            if (node is VariableDeclaration)
+              for (final formal in _fieldFormals(body, name.lexeme))
+                MigrationEdit(formal.offset, formal.length, to),
+          ],
         );
         break;
       }
     }
+  }
+
+  /// The names of the `this.[field]` parameters of [body]'s constructors.
+  static List<Token> _fieldFormals(BlockClassBody body, String field) {
+    final found = <FieldFormalParameter>[];
+    for (final c in body.members.whereType<ConstructorDeclaration>()) {
+      c.parameters.accept(_FieldFormals(found));
+    }
+    return <Token>[
+      for (final f in found)
+        if (f.name.lexeme == field) f.name,
+    ];
   }
 
   /// Whether an engine import that brings [to] hides [old] (or [to]): two
@@ -2094,8 +2123,18 @@ final class _Scan extends RecursiveAstVisitor<void> {
   void _renameMember(SimpleIdentifier node, List<MigrationRule> rules) {
     for (final rule in rules) {
       final to = rule.to;
+      // Or a member of the project's own subtype of the class, whose
+      // declaration `_renameOverrides` renamed (a setter's target, which the
+      // analyzer leaves unresolved).
+      final receiver = _receiverType(node);
+      final ofOwnSubtype =
+          receiver != null &&
+          !_ownedAs(receiver.element, rule) &&
+          _isOfRule(receiver, rule);
       if (to == null ||
-          !(_isMemberOf(node, rule) || _isFieldOfRecordAlias(node, rule))) {
+          !(_isMemberOf(node, rule) ||
+              _isFieldOfRecordAlias(node, rule) ||
+              ofOwnSubtype)) {
         continue;
       }
       _add(
@@ -2104,6 +2143,59 @@ final class _Scan extends RecursiveAstVisitor<void> {
         edits: <MigrationEdit>[MigrationEdit(node.offset, node.length, to)],
       );
       return;
+    }
+  }
+
+  /// A use of the project's own member that overrides a renamed one (a
+  /// fake's `grounded`, which [_renameOverrides] renames to `isGrounded`):
+  /// renamed with its declaration, in the same pass.
+  void _renameOverridingUse(SimpleIdentifier node, List<MigrationRule> rules) {
+    // A named argument for a `this.x` parameter names the field.
+    final element = switch (node.element) {
+      final FieldFormalParameterElement formal => formal.field,
+      final other => other,
+    };
+    final owner = element?.enclosingElement;
+    if (owner is! InterfaceElement || _ownedAs(owner, null)) return;
+    for (final rule in rules) {
+      final to = rule.to;
+      if (to == null ||
+          !_isOfRule(owner.thisType, rule) ||
+          owner.getGetter(to) != null ||
+          owner.getMethod(to) != null) {
+        continue;
+      }
+      _add(
+        rule,
+        node,
+        edits: <MigrationEdit>[MigrationEdit(node.offset, node.length, to)],
+      );
+      return;
+    }
+  }
+
+  /// A named argument for a `this.x` parameter of the project's own class
+  /// whose field `x` overrides a renamed member: renamed with the field.
+  void _renameOverridingArguments(ArgumentList node) {
+    for (final a in node.arguments) {
+      if (a is! NamedArgument) continue;
+      final parameter = a.correspondingParameter;
+      if (parameter is! FieldFormalParameterElement) continue;
+      final owner = parameter.field?.enclosingElement;
+      if (owner is! InterfaceElement || _ownedAs(owner, null)) continue;
+      for (final rule
+          in memberRenames[a.name.lexeme] ?? const <MigrationRule>[]) {
+        final to = rule.to;
+        if (to == null || !_isOfRule(owner.thisType, rule)) continue;
+        _add(
+          rule,
+          a,
+          edits: <MigrationEdit>[
+            MigrationEdit(a.name.offset, a.name.length, to),
+          ],
+        );
+        break;
+      }
     }
   }
 
@@ -2180,6 +2272,7 @@ final class _Scan extends RecursiveAstVisitor<void> {
   @override
   void visitArgumentList(ArgumentList node) {
     _manualArguments(node);
+    if (memberRenames.isNotEmpty) _renameOverridingArguments(node);
     if (valueConversions.isNotEmpty) _convertValues(node);
     if (arguments.isNotEmpty) {
       for (final argument in node.arguments) {
@@ -2498,5 +2591,18 @@ final class _ReadsOf extends RecursiveAstVisitor<void> {
   @override
   void visitSimpleIdentifier(SimpleIdentifier node) {
     if (node.element == element && !node.inDeclarationContext()) found(node);
+  }
+}
+
+/// Collects the `this.x` parameters under the node it visits, whether or
+/// not they carry a default.
+final class _FieldFormals extends RecursiveAstVisitor<void> {
+  _FieldFormals(this.found);
+  final List<FieldFormalParameter> found;
+
+  @override
+  void visitFieldFormalParameter(FieldFormalParameter node) {
+    found.add(node);
+    super.visitFieldFormalParameter(node);
   }
 }

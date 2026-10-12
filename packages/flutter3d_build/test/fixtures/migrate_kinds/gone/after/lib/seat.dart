@@ -9,6 +9,12 @@ final class Cart with Wheel {
 }
 
 final class Barrow with Wheel {
+  Barrow({this.isRolling = false});
+
   @override
-  bool isRolling = false;
+  bool isRolling;
 }
+
+Barrow roll(Barrow barrow) => barrow..isRolling = true;
+
+final Barrow still = Barrow(isRolling: false);

@@ -2,13 +2,15 @@
 // the lints with the resolved code:
 //
 // * a class renamed inside a creation the analyzer reads as no type at all
-//   (`const Shade()`), in an import's `show`, under an import prefix, and
+//   (`const Shade()`), in an import's `show`, under an import prefix (also
+//   as a bare call, `kinds.Shade()`), and
 //   where its old name is the Dart SDK's too (`Match`), which the engine's
 //   import shadowed; where two classes had one old name (`Seat`), the one
 //   whose old class the file did not hide;
 // * a member renamed where `dart fix` did not reach it, a member of a
 //   renamed class met under the new name, and an implementer's declaration
-//   of a renamed member, a getter or a field; a renamed member named in an
+//   of a renamed member, a getter or a field (with its `this.x`, its
+//   named arguments and its uses); a renamed member named in an
 //   object pattern; a renamed field of a record typedef, as a read and as a
 //   label of a record built where the typedef goes;
 // * a name moved to another library, imported from there;
@@ -65,9 +67,12 @@ void main() {
       'kinds-Ledger-count',
       'kinds-Credit-licence',
       'kinds-Credit-licence',
+      'kinds-Shade',
       'kinds-Seat',
       'kinds2-Seat',
       'kinds2-Seat',
+      'kinds-Wheel-rolling',
+      'kinds-Wheel-rolling',
       'kinds-Wheel-rolling',
       'kinds-Wheel-rolling',
     ]);
