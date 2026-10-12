@@ -159,13 +159,16 @@ const Map<String, double> _budgets = <String, double>{
   'normal-mapping': 0.11,
   'cube-shadow-mover': 0.4,
   'cube-shadow-lit': 0.4,
-  'shadow-teapot': 0.3,
+  // 0.274% measured on the teapot tessellated from Newell's patches: its
+  // silhouette and its shadow's edge, which WebGL2 does not multisample.
+  'shadow-teapot': 0.31,
   'spot-shadow': 0.3,
   'cube-shadow-gap': 0.3,
   // 0.080% measured, the teapot's silhouette, against the physical sky an
   // uncoloured one has been since `P5`.
   'sky': 0.1,
-  'teapot-generated-normals': 0.2,
+  // 0.134% measured, the same silhouette without a shadow under it.
+  'teapot-generated-normals': 0.15,
   'view-model-overlay': 0.2,
   'lighting-normals': 0.2,
   'lighting-unlit': 0.2,
@@ -252,14 +255,14 @@ const Map<String, double> _budgets = <String, double>{
   'cascade-walk': 0.04,
   'clearcoat-car-paint': 0.2,
   'easu-half': 0.9,
-  // 0.591% measured, every pixel of it on an edge: WebGL2 already draws
-  // `shadow-teapot`'s silhouette 0.28% apart from Impeller's, and SMAA reads
-  // a slightly different staircase there and moves its neighbours with it.
   'lens-flare': 0.01,
-  // 0.388% measured, on the silhouette: `shadow-teapot`'s 0.28% between
+  // 0.389% measured, on the silhouette: `shadow-teapot`'s 0.27% between
   // WebGL2 and Impeller, magnified by the barrel.
   'lens-distortion': 0.45,
-  'smaa-teapot': 0.65,
+  // 0.579% measured, every pixel of it on an edge: WebGL2 already draws
+  // `shadow-teapot`'s silhouette 0.27% apart from Impeller's, and SMAA reads
+  // a slightly different staircase there and moves its neighbours with it.
+  'smaa-teapot': 0.64,
   'evsm-soft': 0.07,
   // 0.047% measured: the air right round a torch, where the light falls off
   // as one over the distance squared, is shadowed by one unfiltered tap of
