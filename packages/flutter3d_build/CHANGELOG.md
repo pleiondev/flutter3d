@@ -1,5 +1,14 @@
 ## 1.0.0-rc.1
 
+- **`doctor` checks the keys that turn Flutter GPU on.** In a project that
+  reaches `flutter3d_impeller`, `projectPlatformChecks` reads
+  `FLTEnableFlutterGPU` and `FLTEnableImpeller` in each `Info.plist` and
+  `io.flutter.embedding.android.EnableFlutterGPU` in the Android manifest,
+  for the platform folders the project has. A key that is missing, false
+  or only in a comment is a problem, with the line to add and the file to
+  add it to: without it the app opens and draws through the software
+  rasteriser, and nothing fails.
+
 - **`migrate` carries the whole 0.8.5 corpus.** Every app, every package's
   example and the site's pages at v0.8.5 migrate with no error left but at
   a use the migration marked with its TODO (`tool/migrate_corpus.sh`, which

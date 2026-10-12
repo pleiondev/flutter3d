@@ -36,7 +36,10 @@ Each also runs as `dart run flutter3d_build:<name>`, the same code.
 `flutter3d doctor` checks Dart and Flutter against the versions in
 SUPPORT.md and looks for the optional programs: impellerc, glslangValidator
 and naga for building materials, and FBX2glTF, Blender and usdcat for
-conversion.
+conversion. Run in a project, it also reads the shader hook, the asset
+lines, the shader bundle and the keys that turn Flutter GPU on in each
+`Info.plist` and the Android manifest, and names the line to add for each
+one that is missing.
 
 ### The command is a contract
 

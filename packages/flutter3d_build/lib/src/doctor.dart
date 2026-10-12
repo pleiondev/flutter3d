@@ -238,6 +238,7 @@ List<DoctorCheck> runDoctorChecks({
             : engineRevisionAt(flutterRoot),
       ),
     );
+    checks.addAll(projectPlatformChecks(project));
     final behind = dataFilesBehind(project);
     checks.add(
       behind.isEmpty
@@ -372,6 +373,115 @@ List<DoctorCheck> projectShaderChecks(
     );
   }
   return checks;
+}
+
+/// What `doctor` says about the keys that turn Flutter GPU on for an
+/// application (decision 54): `FLTEnableFlutterGPU` and `FLTEnableImpeller`
+/// in `macos/Runner/Info.plist` and `ios/Runner/Info.plist`, and
+/// `io.flutter.embedding.android.EnableFlutterGPU` in Android's manifest.
+///
+/// **A missing key fails nothing, which is why it is a problem here.** The
+/// application opens, Impeller will not start, and `flutter3d_app` draws
+/// through the software rasteriser; the banner and the log line say so,
+/// but only after somebody has wondered why the frame rate is single
+/// figures. Only a project that reaches `flutter3d_impeller` gets a line,
+/// since a browser build reads none of these keys, and only for the
+/// platform folders it has.
+List<DoctorCheck> projectPlatformChecks(Directory project) {
+  final PluginDiscovery discovery;
+  try {
+    discovery = discoverPlugins(project);
+  } on PluginDiscoveryException {
+    return const <DoctorCheck>[];
+  }
+  if (!discovery.dependencies.contains('flutter3d_impeller')) {
+    return const <DoctorCheck>[];
+  }
+  return <DoctorCheck>[
+    for (final (platform, folder) in const <(String, String)>[
+      ('macOS', 'macos'),
+      ('iOS', 'ios'),
+    ])
+      if (File('${project.path}/$folder/Runner/Info.plist') case final plist
+          when plist.existsSync())
+        _plistCheck(platform, '$folder/Runner/Info.plist', plist),
+    if (File('${project.path}/$_androidManifest') case final manifest
+        when manifest.existsSync())
+      _manifestCheck(manifest),
+  ];
+}
+
+const String _androidManifest = 'android/app/src/main/AndroidManifest.xml';
+const String _androidGpuKey = 'io.flutter.embedding.android.EnableFlutterGPU';
+
+/// XML with its comments taken out, so a key a comment quotes is not read
+/// as set.
+String _uncommented(File file) =>
+    file.readAsStringSync().replaceAll(RegExp(r'<!--.*?-->', dotAll: true), '');
+
+DoctorCheck _plistCheck(String platform, String path, File plist) {
+  final text = _uncommented(plist);
+  final wrong = <String>[
+    for (final key in const <String>[
+      'FLTEnableFlutterGPU',
+      'FLTEnableImpeller',
+    ])
+      ?switch (RegExp(
+        '<key>\\s*$key\\s*</key>\\s*<(\\w+)\\s*/>',
+      ).firstMatch(text)?.group(1)) {
+        'true' => null,
+        null => '$key is missing',
+        final value => '$key is $value',
+      },
+  ];
+  final name = 'GPU keys, $platform';
+  if (wrong.isEmpty) {
+    return DoctorCheck(name, DoctorStatus.ok, '$path turns Flutter GPU on');
+  }
+  return DoctorCheck(
+    name,
+    DoctorStatus.problem,
+    '${wrong.join(', ')} in $path: the app draws through the software '
+    'rasteriser',
+    fix:
+        'add `<key>FLTEnableFlutterGPU</key><true/>` and '
+        '`<key>FLTEnableImpeller</key><true/>` inside the top-level <dict> '
+        'of $path',
+  );
+}
+
+DoctorCheck _manifestCheck(File manifest) {
+  final text = _uncommented(manifest);
+  final application = RegExp(
+    r'<application\b.*?</application>',
+    dotAll: true,
+  ).firstMatch(text)?.group(0);
+  // Either order of the two attributes, so match each tag, not a sequence.
+  final on = RegExp(r'<meta-data\b[^>]*>')
+      .allMatches(application ?? '')
+      .map((RegExpMatch tag) => tag.group(0)!)
+      .any(
+        (String tag) =>
+            tag.contains('android:name="$_androidGpuKey"') &&
+            tag.contains('android:value="true"'),
+      );
+  const name = 'GPU key, Android';
+  if (on) {
+    return const DoctorCheck(
+      name,
+      DoctorStatus.ok,
+      '$_androidManifest turns Flutter GPU on',
+    );
+  }
+  return const DoctorCheck(
+    name,
+    DoctorStatus.problem,
+    'EnableFlutterGPU is not set to true in $_androidManifest: the app '
+    'draws through the software rasteriser',
+    fix:
+        'add `<meta-data android:name="$_androidGpuKey" '
+        'android:value="true" />` inside <application> in $_androidManifest',
+  );
 }
 
 DoctorCheck _bundleCheck(

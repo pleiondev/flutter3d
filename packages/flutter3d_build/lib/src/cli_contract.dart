@@ -329,9 +329,12 @@ const String doctorUsage =
     'Checks the Dart and Flutter SDKs against the versions SUPPORT.md '
     'promises, and finds the optional programs: impellerc, glslangValidator '
     'and naga for building materials, FBX2glTF, Blender and usdcat for '
-    'flutter3d convert. Run in a project, it also names the data files '
-    'below the version this build writes, which `flutter3d migrate --data` '
-    'lifts. Exits 1 when a required SDK is too old.\n\n'
+    'flutter3d convert. Run in a project, it also checks the shader hook, '
+    'the asset lines and the shader bundle, the keys that turn Flutter GPU '
+    'on in each Info.plist and the Android manifest, and names the data '
+    'files below the version this build writes, which `flutter3d migrate '
+    '--data` lifts. Exits 1 when a required SDK is too old or a project '
+    'check finds a problem.\n\n'
     '  --json   Print the checks as JSON (format f3d.cli): {"checks": [...]}.';
 
 /// The whole surface, as `flutter3d help --surface` prints it and

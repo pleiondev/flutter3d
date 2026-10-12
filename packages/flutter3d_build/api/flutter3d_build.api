@@ -154,6 +154,8 @@ const String migrateUsage = …
 
 const String pluginsUsage = …
 
+List<DoctorCheck> projectPlatformChecks(Directory project)
+
 List<DoctorCheck> projectShaderChecks(Directory project, {String? dart, String? engineRevision})
 
 Map<String, String> projectTemplate(String name)
