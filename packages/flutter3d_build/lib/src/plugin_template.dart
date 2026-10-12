@@ -50,16 +50,17 @@ final class PluginKind {
   /// A step phase of its own and the rules that run in it.
   static const PluginKind genre = PluginKind._(
     'genre',
-    'a step phase of its own between physics and elements, with a rule '
+    'a step phase of its own between physics and fields, with a rule '
         'that scores and an event it publishes',
     simulates: true,
   );
 
-  /// A field of the world, stepped in the `elements` phase.
+  /// A field of the world and the subsystem that steps it in the `fields`
+  /// phase.
   static const PluginKind element = PluginKind._(
     'element',
-    'a field of the world stepped in the elements phase with Portable '
-        'arithmetic, saved and restored with the run',
+    'a field of the world and a subsystem that steps it in the fields phase '
+        'with Portable arithmetic, saved and restored with the run',
     simulates: true,
   );
 
@@ -147,10 +148,6 @@ Map<String, String> pluginTemplate({
     'camel': '${pascal[0].toLowerCase()}${pascal.substring(1)}',
     'kind': kind.name,
     'about': kind.about,
-    // What the conformance harness casts a captured state back to.
-    'state': kind == PluginKind.element
-        ? 'List<Object?>'
-        : 'Map<String, Object?>',
   };
   String fill(String text) => text.replaceAllMapped(
     RegExp(r'\{\{(\w+)\}\}'),
@@ -158,7 +155,7 @@ Map<String, String> pluginTemplate({
   );
   final (library, unitTest, conformanceTest) = switch (kind) {
     PluginKind.renderStep => (_renderLib, _renderTest, _renderConformance),
-    PluginKind.effect => (_effectLib, _effectTest, _plainConformance),
+    PluginKind.effect => (_effectLib, _effectTest, _viewConformance),
     PluginKind.genre => (_genreLib, _genreTest, _stateConformance),
     PluginKind.element => (_elementLib, _elementTest, _stateConformance),
     _ => (_toolLib, _toolTest, _toolConformance),
@@ -243,7 +240,10 @@ String _pubspec(PluginKind kind) {
     if (kind == PluginKind.renderStep || kind == PluginKind.effect)
       '  flutter3d_core: ^1.0.0-rc.1',
     if (kind == PluginKind.renderStep) '  flutter3d_hardware: ^1.0.0-rc.1',
-    if (kind == PluginKind.element) '  flutter3d_foundation: ^1.0.0-rc.1',
+    if (kind == PluginKind.element) ...<String>[
+      '  flutter3d_fields: ^1.0.0-rc.1',
+      '  flutter3d_foundation: ^1.0.0-rc.1',
+    ],
     if (kind.simulates) '  flutter3d_sim: ^1.0.0-rc.1',
     if (kind == PluginKind.tool) '  flutter3d_mcp: ^1.0.0-rc.1',
   ];
@@ -585,7 +585,7 @@ void main() {
 }
 ''';
 
-const String _plainConformance = r'''
+const String _viewConformance = r'''
 /// flutter3d_conformance's plugin suite. A view plugin keeps nothing a step
 /// reads, so the determinism check is given no world of its own.
 library;
@@ -604,7 +604,7 @@ const String _genreLib = r'''
 /// {{name}}: a genre's rules, in a step phase of their own.
 ///
 /// The phase sits after the bodies have moved and before the world's fields
-/// (`physics` < `{{name}}.rules` < `elements`). Its one rule scores a point
+/// (`physics` < `{{name}}.rules` < `fields`). Its one rule scores a point
 /// every [{{class}}.pointsEvery] steps and publishes [{{pascal}}Scored] on
 /// the step channel, so a replay digests it and a sound or a counter hears it
 /// on the frame channel once.
@@ -637,7 +637,8 @@ final class {{pascal}}Scored extends BusEvent {
 const LoopPhase {{camel}}Rules = LoopPhase.step('{{name}}.rules');
 
 /// The plugin. It touches the simulation: its switch is journalled, and a
-/// replay makes it at the same step.
+/// replay makes it at the same step. Its score is a part of the loop's
+/// snapshots, so a rewind, a rollback and the double-step check carry it.
 final class {{class}} extends Flutter3dPlugin {
   {{class}}({this.pointsEvery = 60});
 
@@ -669,6 +670,13 @@ final class {{class}} extends Flutter3dPlugin {
 
   @override
   void install(PluginHost host) {
+    host.registry<SnapshotRegistry>().add(
+      SnapshotPart.of(
+        id: '{{name}}.score',
+        capture: save,
+        restore: (context) => restore(context.data! as Map<String, Object?>),
+      ),
+    );
     host.loop.addPhase(
       {{camel}}Rules,
       after: const <String>['physics'],
@@ -732,74 +740,85 @@ void main() {
 ''';
 
 const String _stateConformance = r'''
-/// flutter3d_conformance's plugin suite, with the plugin's own state as the
-/// world: a part of the loop's snapshots, which the determinism check steps
-/// each step twice from.
+/// flutter3d_conformance's plugin suite. The plugin's install puts its state
+/// in the loop's snapshots, so the determinism check steps each step twice
+/// from it, as an application's rewind and rollback do.
 library;
 
 import 'package:flutter3d_conformance/plugins.dart';
-import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show SnapshotPart;
-import 'package:flutter3d_sim/flutter3d_sim.dart' show EngineLoop;
 import 'package:{{name}}/{{name}}.dart';
 
 void main() {
-  // The plugin the suite made last, whose state the part reads.
-  late {{class}} plugin;
-  runPluginConformance(
-    () => plugin = {{class}}(),
-    harness: PluginHarness(
-      setUp: (EngineLoop loop) => loop.snapshots.add(
-        SnapshotPart.of(
-          id: '{{name}}.state',
-          capture: () => plugin.save(),
-          restore: (context) => plugin.restore(context.data! as {{state}}),
-        ),
-      ),
-    ),
-  );
+  runPluginConformance({{class}}.new);
 }
 ''';
 
 // ----------------------------------------------------------------- element
 
 const String _elementLib = r'''
-/// {{name}}: a field of the world, stepped in the `elements` phase.
+/// {{name}}: a field of the world and the subsystem that steps it.
 ///
-/// One value per cell, decaying towards nought with a half-life. The
-/// arithmetic is `Portable`'s, never `dart:math`'s: a transcendental from the
-/// platform's library gives different bits on the VM and in a browser, and a
-/// replay checked on a server would part from the player's run.
+/// One value per cell, decaying towards nought with a half-life, stepped in
+/// the `fields` phase. The field is declared with the subsystem that writes
+/// it, so the loop hands the subsystem its values, keeps them in the run's
+/// snapshots and copies them for whatever draws them. The arithmetic is
+/// `Portable`'s, never `dart:math`'s: a transcendental from the platform's
+/// library gives different bits on the VM and in a browser, and a replay
+/// checked on a server would part from the player's run.
 library;
 
-import 'dart:typed_data';
-
+import 'package:flutter3d_fields/flutter3d_fields.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 
-/// The plugin. It touches the simulation, and [save] and [restore] put its
-/// field in a run's snapshot.
-final class {{class}} extends Flutter3dPlugin {
-  {{class}}({int cells = 64, this.halfLife = 2.0})
-    : values = Float64List(cells);
+/// The field: one value per cell of a row of 64, written by the decay.
+///
+/// Named in the plugin's namespace, `{{name}}.`, as every name a plugin
+/// registers is.
+const FieldDeclaration {{camel}}Field = FieldDeclaration(
+  id: '{{name}}.value',
+  quantity: '{{name}}.value',
+  unit: Unit.one,
+  grid: FieldGrid(64, 1, 1),
+  writer: FieldAccess.simulation({{pascal}}Decay.id),
+);
+
+/// The subsystem: every value falls to half in [halfLife] seconds.
+final class {{pascal}}Decay extends Subsystem {
+  const {{pascal}}Decay({this.halfLife = 2.0});
+
+  /// Its id, and its system's name in the loop.
+  static const String id = '{{name}}.decay';
 
   static const double _ln2 = 0.6931471805599453;
-
-  /// The field: one value per cell, written by whoever adds to it.
-  final Float64List values;
 
   /// Seconds for a value to fall to half.
   final double halfLife;
 
-  /// The state a snapshot keeps.
-  List<double> save() => List<double>.of(values);
+  @override
+  SubsystemDeclaration get declaration => const SubsystemDeclaration(
+    id: id,
+    version: 1,
+    writesFields: <String>['{{name}}.value'],
+  );
 
-  /// Puts back what [save] wrote.
-  void restore(List<Object?> state) {
-    for (var i = 0; i < values.length && i < state.length; i++) {
-      values[i] = (state[i]! as num).toDouble();
+  @override
+  void step(SubsystemContext context) {
+    final values = context.field({{camel}}Field.id).values;
+    final keep = Portable.exp(-context.dt * _ln2 / halfLife);
+    for (var i = 0; i < values.length; i++) {
+      values[i] *= keep;
     }
   }
+}
+
+/// The plugin. It touches the simulation, and declares the field and the
+/// subsystem that steps it.
+final class {{class}} extends Flutter3dPlugin {
+  {{class}}({this.halfLife = 2.0});
+
+  /// Seconds for a value to fall to half.
+  final double halfLife;
 
   @override
   PluginManifest get manifest => const PluginManifest(
@@ -814,20 +833,17 @@ final class {{class}} extends Flutter3dPlugin {
 
   @override
   void install(PluginHost host) {
-    host.loop.addSystem('{{name}}.decay', LoopPhase.fields, (
-      LoopContext step,
-    ) {
-      final keep = Portable.exp(-step.dt * _ln2 / halfLife);
-      for (var i = 0; i < values.length; i++) {
-        values[i] *= keep;
-      }
-    });
+    host.registry<FieldRegistry>().declare({{camel}}Field);
+    host.registry<SubsystemRegistry>().register(
+      {{pascal}}Decay(halfLife: halfLife),
+    );
   }
 }
 ''';
 
 const String _elementTest = r'''
-/// {{name}}'s field halves in its half-life, stepped at the world's rate.
+/// {{name}}'s field halves in its half-life, stepped at the world's rate,
+/// and is part of the run's snapshots.
 library;
 
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
@@ -837,22 +853,27 @@ import 'package:test/test.dart';
 
 void main() {
   test('a value halves in one half-life', () {
-    final plugin = {{class}}(halfLife: 2.0);
     final loop = EngineLoop(
       input: InputState(),
-      plugins: <Flutter3dPlugin>[plugin],
+      plugins: <Flutter3dPlugin>[{{class}}(halfLife: 2.0)],
     );
-    plugin.values[0] = 1.0;
+    final field = loop.fields.hostField({{camel}}Field.id)!;
+    field.setValueAt(0, 0, 0, 1.0);
     loop.runSteps((2.0 / loop.stepSeconds).round());
-    expect(plugin.values[0], closeTo(0.5, 1e-9));
+    expect(field.valueAt(0, 0, 0), closeTo(0.5, 1e-4));
   });
 
-  test('restore puts back what save wrote', () {
-    final plugin = {{class}}()..values[3] = 4.0;
-    final saved = plugin.save();
-    plugin.values[3] = 0.0;
-    plugin.restore(saved);
-    expect(plugin.values[3], 4.0);
+  test('a restore puts the field back', () {
+    final loop = EngineLoop(
+      input: InputState(),
+      plugins: <Flutter3dPlugin>[{{class}}()],
+    );
+    final field = loop.fields.hostField({{camel}}Field.id)!;
+    field.setValueAt(3, 0, 0, 4.0);
+    final saved = loop.capture();
+    loop.runSteps(30);
+    loop.restore(saved);
+    expect(field.valueAt(3, 0, 0), 4.0);
   });
 }
 ''';
@@ -870,8 +891,8 @@ library;
 import 'package:flutter3d_mcp/kit.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 
-/// The plugin: a view plugin, since a tool runs between frames, not in a
-/// step.
+/// The plugin: a tooling plugin, since a tool runs between frames, not in a
+/// step, and draws nothing a player sees.
 final class {{class}} extends Flutter3dPlugin {
   const {{class}}();
 
@@ -879,7 +900,7 @@ final class {{class}} extends Flutter3dPlugin {
   PluginManifest get manifest => PluginManifest(
     id: '{{name}}',
     apiVersion: const PluginApiVersion(1, 0),
-    touches: PluginTouches.view,
+    touches: PluginTouches.tooling,
     permissions: <PluginPermission>{PluginPermission.tools},
     description: 'A tool that answers.',
     extra: const <String, Object?>{

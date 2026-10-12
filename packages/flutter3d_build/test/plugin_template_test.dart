@@ -98,13 +98,15 @@ void main() {
           name: _name,
           kind: kind,
         )['lib/$_name.dart']!;
+        // Mutation: give the tool template `touches: view` again. A tool a
+        // game ships without would be counted with what the player sees.
         expect(
           library,
-          contains(
-            kind.simulates
-                ? 'touches: PluginTouches.simulation'
-                : 'touches: PluginTouches.view',
-          ),
+          contains(switch (kind) {
+            _ when kind.simulates => 'touches: PluginTouches.simulation',
+            PluginKind.tool => 'touches: PluginTouches.tooling',
+            _ => 'touches: PluginTouches.view',
+          }),
         );
         expect(library, contains("id: '$_name'"));
         expect(library, contains("'budget'"));
@@ -157,6 +159,41 @@ void main() {
             if (kind.simulates) kind.name,
         ],
         <String>['genre', 'element'],
+      );
+    });
+
+    test('a kind that simulates keeps its state in the loop\'s snapshots '
+        'from its install, not from the conformance test', () {
+      // Mutation: register the snapshot part in the conformance test's
+      // harness again. An application using the plugin rewinds and rolls
+      // back without its state, and the conformance check still passes.
+      for (final kind in <PluginKind>[PluginKind.genre, PluginKind.element]) {
+        final files = pluginTemplate(name: _name, kind: kind);
+        expect(
+          files['test/conformance_test.dart'],
+          allOf(isNot(contains('setUp')), isNot(contains('SnapshotPart'))),
+          reason: '$kind',
+        );
+      }
+      final genre = pluginTemplate(
+        name: _name,
+        kind: PluginKind.genre,
+      )['lib/$_name.dart']!;
+      expect(genre, contains('host.registry<SnapshotRegistry>().add('));
+      // The element is a field and the subsystem that writes it, which the
+      // loop snapshots for it.
+      final element = pluginTemplate(
+        name: _name,
+        kind: PluginKind.element,
+      )['lib/$_name.dart']!;
+      expect(
+        element,
+        allOf(
+          contains('host.registry<FieldRegistry>().declare(myGlowField)'),
+          contains('host.registry<SubsystemRegistry>().register('),
+          contains("writer: FieldAccess.simulation(MyGlowDecay.id)"),
+          isNot(contains('elements')),
+        ),
       );
     });
 
