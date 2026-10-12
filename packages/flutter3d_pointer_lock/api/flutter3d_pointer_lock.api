@@ -14,6 +14,7 @@ final class PointerLock
   Offset drainDelta()
   PointerLock({PointerLockPlatform? platform})
   Stream<CaptureState> get onStateChanged
+  Stream<bool> get onSupportChanged
   bool get isCaptured
   bool get isSupported
   static Future<void> disposeInstance()
@@ -21,6 +22,7 @@ final class PointerLock
 
 abstract base class PointerLockPlatform extends PlatformInterface
   PointerLockPlatform()
+  Stream<bool> get supportChanges
   abstract Future<void> capture()
   abstract Future<void> release()
   abstract Future<void> reset()

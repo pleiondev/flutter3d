@@ -83,6 +83,14 @@ final class PointerLock {
   /// control scheme instead of discovering the gap at the first call.
   bool get isSupported => _platform.isSupported;
 
+  /// Each change of [isSupported], as its new value.
+  ///
+  /// Only a phone or a tablet changes its answer: it can capture while a mouse
+  /// is connected, and it learns that a moment after start. A game that picks
+  /// touch controls from [isSupported] listens here to swap them for the
+  /// mouse when one arrives and back when it leaves.
+  Stream<bool> get onSupportChanged => _platform.supportChanges;
+
   bool get isCaptured => _isCaptured;
 
   /// Capture and release, including releases the application did not ask for.

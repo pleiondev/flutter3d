@@ -10,17 +10,20 @@ library;
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter3d_pointer_lock/flutter3d_pointer_lock.dart';
 import 'package:flutter3d_pointer_lock/src/pointer_lock_method_channel.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('the whitelist is the platforms with a native side, and no more', () {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('a desktop always answers yes, and a platform with no native side '
+      'answers no', () {
     // The list that has to change the day another platform is written, which
-    // is the point: a table nobody updates is one that goes stale. The phones
-    // have no pointer to capture and answer false, so a game shows its touch
-    // controls instead of meeting a `MissingPluginException`.
+    // is the point: a table nobody updates is one that goes stale.
     addTearDown(() => debugDefaultTargetPlatformOverride = null);
-    const written = <TargetPlatform>{
+    const desktops = <TargetPlatform>{
       TargetPlatform.macOS,
       TargetPlatform.windows,
       TargetPlatform.linux,
@@ -29,10 +32,149 @@ void main() {
       debugDefaultTargetPlatformOverride = platform;
       expect(
         MethodChannelPointerLock().isSupported,
-        written.contains(platform),
-        reason: '$platform',
+        desktops.contains(platform),
+        reason: '$platform, before any native side has spoken',
       );
     }
+  });
+
+  for (final platform in <TargetPlatform>[
+    TargetPlatform.android,
+    TargetPlatform.iOS,
+  ]) {
+    group('$platform follows the mouse the native side reports', () {
+      late MethodChannelPointerLock channel;
+      late List<String> calls;
+
+      setUp(() {
+        debugDefaultTargetPlatformOverride = platform;
+        channel = MethodChannelPointerLock();
+        calls = <String>[];
+        // The event channel's own method channel: `listen` and `cancel`.
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(
+              MethodChannel(channel.eventChannel.name),
+              (MethodCall call) async {
+                calls.add(call.method);
+                return null;
+              },
+            );
+      });
+
+      tearDown(() {
+        debugDefaultTargetPlatformOverride = null;
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(
+              MethodChannel(channel.eventChannel.name),
+              null,
+            );
+      });
+
+      Future<void> send(Object? event) async {
+        await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .handlePlatformMessage(
+              channel.eventChannel.name,
+              const StandardMethodCodec().encodeSuccessEnvelope(event),
+              (ByteData? _) {},
+            );
+        await Future<void>.delayed(Duration.zero);
+      }
+
+      test('no until a mouse is reported, yes while one is, no after it '
+          'leaves', () async {
+        final changes = <bool>[];
+        final subscription = channel.supportChanges.listen(changes.add);
+        addTearDown(subscription.cancel);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(calls, contains('listen'), reason: 'nothing subscribed');
+        expect(channel.isSupported, isFalse);
+
+        await send(true);
+        expect(channel.isSupported, isTrue);
+
+        // A repeated answer is not a change.
+        await send(true);
+        await send(false);
+        expect(channel.isSupported, isFalse);
+        expect(changes, <bool>[true, false]);
+      });
+
+      test('the mouse is followed with nobody listening for the change, '
+          'because capture state is listened to anyway', () async {
+        final states = <CaptureState>[];
+        final deltas = <Offset>[];
+        final stateSubscription = channel.stateChanges.listen(states.add);
+        final deltaSubscription = channel.deltas.listen(deltas.add);
+        addTearDown(stateSubscription.cancel);
+        addTearDown(deltaSubscription.cancel);
+        await Future<void>.delayed(Duration.zero);
+
+        await send(true);
+        await send(1);
+        await send(Float64List.fromList(<double>[2.5, -1]));
+        await send(0);
+
+        expect(channel.isSupported, isTrue);
+        expect(states, <CaptureState>[
+          CaptureState.captured,
+          CaptureState.released,
+        ]);
+        expect(deltas, <Offset>[const Offset(2.5, -1)]);
+      });
+
+      test('a PointerLock above it announces the change', () async {
+        final lock = PointerLock(platform: channel);
+        addTearDown(lock.dispose);
+        final changes = <bool>[];
+        final subscription = lock.onSupportChanged.listen(changes.add);
+        addTearDown(subscription.cancel);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(lock.isSupported, isFalse);
+        await send(true);
+        expect(lock.isSupported, isTrue);
+        expect(changes, <bool>[true]);
+      });
+    });
+  }
+
+  test('every platform the package declares has an implementation', () {
+    // pub.dev reads the top-level `platforms:`; Flutter reads
+    // `flutter: plugin: platforms:`. The two have to name the same native
+    // platforms, each with a class some source declares, and the web is the
+    // one left to the conditional export.
+    final pubspec = File('pubspec.yaml').readAsStringSync();
+    final declared = RegExp(
+      r'^platforms:\n((?:  \w+:\n)+)',
+      multiLine: true,
+    ).firstMatch(pubspec)!.group(1)!;
+    expect(
+      RegExp(
+        r'^  (\w+):$',
+        multiLine: true,
+      ).allMatches(declared).map((Match match) => match.group(1)).toSet(),
+      <String>{'android', 'ios', 'linux', 'macos', 'web', 'windows'},
+    );
+    final plugin = pubspec.substring(pubspec.indexOf('\nflutter:\n'));
+    for (final native in <String>[
+      'android',
+      'ios',
+      'linux',
+      'macos',
+      'windows',
+    ]) {
+      expect(
+        RegExp(
+          '^      $native:\\n(?:\\s*#.*\\n)*        \\w*'
+          '(?:pluginClass|package): ',
+          multiLine: true,
+        ).hasMatch(plugin),
+        isTrue,
+        reason: '$native has no plugin entry',
+      );
+    }
+    expect(plugin, isNot(contains('\n      web:')));
   });
 
   test('every native side answers on the channels and the class the package '
@@ -52,8 +194,22 @@ void main() {
     const swift =
         'macos/flutter3d_pointer_lock/Sources/flutter3d_pointer_lock/'
         'Flutter3dPointerLockPlugin.swift';
+    const iosSwift =
+        'ios/flutter3d_pointer_lock/Sources/flutter3d_pointer_lock/'
+        'Flutter3dPointerLockPlugin.swift';
+    const kotlin =
+        'android/src/main/kotlin/dev/flutter3d/flutter3d_pointer_lock/'
+        'Flutter3dPointerLockPlugin.kt';
     final sides = <String, (String, String)>{
       swift: ('Flutter3dPointerLockPlugin', 'class Flutter3dPointerLockPlugin'),
+      iosSwift: (
+        'Flutter3dPointerLockPlugin',
+        'class Flutter3dPointerLockPlugin',
+      ),
+      kotlin: (
+        'Flutter3dPointerLockPlugin',
+        'class Flutter3dPointerLockPlugin',
+      ),
       'windows/include/flutter3d_pointer_lock/'
           'flutter3d_pointer_lock_plugin_c_api.h': (
         'Flutter3dPointerLockPluginCApi',
@@ -75,6 +231,8 @@ void main() {
     }
     for (final path in <String>[
       swift,
+      iosSwift,
+      kotlin,
       'windows/flutter3d_pointer_lock_plugin.cpp',
       'linux/flutter3d_pointer_lock_plugin.cc',
     ]) {
