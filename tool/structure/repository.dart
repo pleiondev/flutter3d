@@ -2164,6 +2164,15 @@ const Map<String, String> hookParametersPending = <String, String>{
       'flutter3d_app: `drawPanel(widget, width, height)`, one panel request',
 };
 
+/// The packages whose whole public API a plugin is written against, and so
+/// what `PluginApiVersion.current` versions with every registry elsewhere
+/// (`docs/CONTRACTS.md`, "The plugin API's number").
+const Set<String> pluginApiPackages = <String>{
+  'flutter3d_fields',
+  'flutter3d_plugin_api',
+  'flutter3d_plugin_runtime',
+};
+
 // The reasons a hook may be handed one value, shared by the entries below.
 const String _stepLength =
     'the step\'s or the frame\'s length in seconds, the one input of an '

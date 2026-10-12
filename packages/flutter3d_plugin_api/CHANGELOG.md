@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **`PluginApiVersion.current` says when it moves.** Its minor moves in
+  the release that adds anything a plugin can call, in this package,
+  `flutter3d_fields`, `flutter3d_plugin_runtime` or a registry another
+  package hands a plugin, and a structure rule holds it to that from the
+  first 1.x release on. A plugin writes the number it was written against
+  as a literal, never `current`.
 - **Breaking: the 0.8 add-on names are the engine's only as exact plugin
   ids.** `PluginManifest.engineNamespaces` holds the packages this
   repository publishes and published at 0.8.5, and no longer the

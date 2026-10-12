@@ -251,6 +251,10 @@ List<Rule> get allRules => <Rule>[
     run: _hooksTakeOneContext,
   ),
   (
+    name: 'the plugin API\'s number moves when the plugin API grows',
+    run: _pluginApiVersionMoves,
+  ),
+  (
     name: 'every exception hangs from Flutter3dException',
     run: _exceptionsHaveTheRoot,
   ),
@@ -6061,6 +6065,71 @@ List<Finding> _hooksTakeOneContext() {
   }
   found.addAll(_hooksTakeNoBareValue());
   return found;
+}
+
+/// `PluginApiVersion.current` moved since the last 1.x release when the
+/// surface a plugin is written against grew or broke: the packages
+/// [pluginApiPackages] names whole, and every registry a plugin is handed
+/// elsewhere.
+///
+/// **What the number is for.** A plugin declares the plugin API it was
+/// written against, and `PluginApiVersion.refusalOn` refuses it where the
+/// engine's is older, naming both. That holds only if a minor that adds a
+/// member to a registry, a hook or a context moves the number; a plugin
+/// declaring `1.0` against a `1.3` that added what it calls would install
+/// on a 1.0 engine and fail at its first call. Nothing said when it moves,
+/// and nothing held it to that.
+///
+/// **From the first 1.x release on.** Before one is tagged there is nothing
+/// to compare against, and the number is 1.0 by definition.
+///
+/// Mutation: add a member to `LoopRegistry`, regenerate the snapshot after
+/// a 1.x tag, and this names it until `current` moves.
+List<Finding> _pluginApiVersionMoves() {
+  final root = repositoryRoot;
+  String? git(List<String> args) {
+    try {
+      final result = Process.runSync('git', args, workingDirectory: root.path);
+      return result.exitCode == 0 ? result.stdout as String : null;
+    } on ProcessException {
+      return null;
+    }
+  }
+
+  final tags = <String>[
+    for (final tag in (git(<String>['tag', '--list', 'v*']) ?? '').split('\n'))
+      if (RegExp(r'^v([1-9]\d*)\.\d+\.\d+$').hasMatch(tag.trim())) tag.trim(),
+  ]..sort((a, b) => compareVersionTexts(b.substring(1), a.substring(1))!);
+  if (tags.isEmpty) return const <Finding>[];
+  final tag = tags.first;
+  final current = _publishedSnapshots;
+  final released = <String, String>{
+    for (final MapEntry(key: name, value: dir) in _publishedPackages.entries)
+      if (git(<String>[
+            'show',
+            '$tag:${dir.path.substring(root.path.length + 1).replaceAll(Platform.pathSeparator, '/')}/api/$name.api',
+          ])
+          case final text?)
+        name: text,
+  };
+  final was = pluginApiVersionIn(released['flutter3d_plugin_api'] ?? '');
+  final now = pluginApiVersionIn(current['flutter3d_plugin_api'] ?? '');
+  if (was == null || now == null || was != now) return const <Finding>[];
+  final changes = pluginApiChanges(
+    released: released,
+    current: current,
+    whole: pluginApiPackages,
+  );
+  if (changes.isEmpty) return const <Finding>[];
+  return <Finding>[
+    Finding(
+      'packages/flutter3d_plugin_api/lib/src/version.dart',
+      'the plugin API changed since $tag (${changes.take(3).map((c) => '`${c.subject}` ${c.what}').join('; ')}'
+          '${changes.length > 3 ? ' and ${changes.length - 3} more' : ''}) and '
+          '`PluginApiVersion.current` is still $now: move it, so a plugin '
+          'written against what was added is refused by an engine without it',
+    ),
+  ];
 }
 
 /// Every hook, callback and typedef the rule above reads that takes one

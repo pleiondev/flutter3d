@@ -1749,6 +1749,45 @@ List<(String, String)> proveApiDetectorsWork() {
       ));
     }
   }
+
+  // The plugin API's number. The traps are a registry in another package
+  // (read), another type there (not read), and the number itself. Mutation:
+  // read every change of every package, and the new `Ab` of `q` counts;
+  // read no registry outside `whole`, and `Cd`'s new member does not.
+  final grown = pluginApiChanges(
+    released: <String, String>{
+      'p':
+          '${lib}final class PluginApiVersion\n'
+          '  static const PluginApiVersion current = PluginApiVersion(1, 0)\n',
+      'q': '${lib}abstract base class Cd extends PluginRegistry\n  void a()\n',
+    },
+    current: <String, String>{
+      'p':
+          '${lib}final class PluginApiVersion\n'
+          '  static const PluginApiVersion current = PluginApiVersion(1, 0)\n'
+          'final class Ef\n',
+      'q':
+          '${lib}abstract base class Cd extends PluginRegistry\n  void a()\n'
+          '  void b()\nfinal class Ab\n',
+    },
+    whole: const <String>{'p'},
+  );
+  final grownNames = <String>{for (final c in grown) c.subject};
+  if (!grownNames.containsAll(<String>{'Ef', 'Cd'}) ||
+      grownNames.contains('Ab')) {
+    broken.add((
+      'plugin API growth',
+      'read $grownNames, where a new type of a whole package and a registry '
+          'elsewhere grew and another type elsewhere does not count',
+    ));
+  }
+  if (pluginApiVersionIn(
+        '${lib}final class PluginApiVersion\n'
+        '  static const PluginApiVersion current = PluginApiVersion(1, 2)\n',
+      ) !=
+      '1.2') {
+    broken.add(('plugin API growth', 'did not read `current` as 1.2'));
+  }
   return broken;
 }
 
@@ -2171,4 +2210,45 @@ wideHooksIn(String snapshot) {
     }
   }
   return (seen: seen, wide: wide, value: value);
+}
+
+// ------------------------------------------------------ the plugin API's number
+
+/// `PluginApiVersion.current` as [snapshot], `flutter3d_plugin_api`'s,
+/// declares it: `1.0`, or null where it declares none.
+String? pluginApiVersionIn(String snapshot) => switch (RegExp(
+  r'static const PluginApiVersion current = PluginApiVersion\((\d+), (\d+)\)',
+).firstMatch(snapshot)) {
+  final Match m => '${m[1]}.${m[2]}',
+  null => null,
+};
+
+/// What grew, or broke, in the surface a plugin is written against between
+/// [released] and [current], snapshots by package: every change in the
+/// packages [whole] names, and elsewhere every change to a type a plugin is
+/// handed from its host, a registry (`extends …Registry`), named in
+/// [current]'s snapshot.
+List<ApiChange> pluginApiChanges({
+  required Map<String, String> released,
+  required Map<String, String> current,
+  required Set<String> whole,
+}) {
+  final changes = <ApiChange>[];
+  for (final MapEntry(key: package, value: now) in current.entries) {
+    final was = released[package];
+    if (was == null) continue;
+    final all = classifyApi(was, now).where((c) => c.bump != Bump.none);
+    if (whole.contains(package)) {
+      changes.addAll(all);
+      continue;
+    }
+    final registries = <String>{
+      for (final library in parseApi(now).values)
+        for (final MapEntry(key: name, value: block)
+            in library.declarations.entries)
+          if (RegExp(r'\bextends\s+\w*Registry\b').hasMatch(block.header)) name,
+    };
+    changes.addAll(all.where((c) => registries.contains(c.subject)));
+  }
+  return changes;
 }
