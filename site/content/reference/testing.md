@@ -4,7 +4,7 @@ description: Four independent golden sets, mutation-checking every new test, det
 
 # Testing
 
-14693 tests across 61 packages and 17 applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer. The README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+14693 tests across 61 packages and 18 applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer. The README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
@@ -44,7 +44,7 @@ description: Four independent golden sets, mutation-checking every new test, det
 | `flutter3d_game_physics` | 45 | | `flutter3d_build_hooks` | 11 |
 | `flutter3d_elements` | 24 | | `flutter3d_level_scene` | 6 |
 | `flutter3d_wgpu` | 3 | | `flutter3d_hub` | 35 |
-| `flutter3d_fields` | 16 | | | |
+| `flutter3d_fields` | 16 | | `apps/flutter3d_playground` | 9 |
 
 The rows sum to 14610 rather than 14693: the remaining 83 live in `packages/*/example/test`, which the count includes and this table does not, among them the two seeds a new project starts from, `packages/flutter3d_app/example` and `packages/flutter3d_game/example`, and the chemistry bench, `packages/flutter3d_education/example`.
 

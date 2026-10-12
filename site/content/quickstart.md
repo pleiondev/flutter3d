@@ -208,8 +208,24 @@ flutter run -d macos
 
 `flutter3d doctor` says the same thing before you run: a bundle "built on another SDK" is a problem it names, with the fix. The web decode worker, if you use one, is compiled from the engine and is rebuilt when you upgrade the engine rather than Flutter.
 
+## Or start from a project kind
+
+The steps above are what `flutter3d create project` does in one command, with an application of one of three kinds already in `lib/main.dart` and a `test/widget_test.dart` that opens it on the software device:
+
+```bash
+dart pub global activate flutter3d_build 1.0.0-rc.1
+flutter3d create project my_viewer --kind viewer   # a model a drag turns, on Flutter3dView
+flutter3d create project my_arcade --kind arcade   # a Flame game over a 3D layer
+flutter3d create project my_scene                  # one lit sphere in a Scene3D
+```
+
+Each analyses clean and builds for the web as it is made; `flutter create --platforms=macos,web .` in the new directory adds the platform folders. The level genres (a platformer, a shooter, a racer, a strategy map) start from the level editor's templates instead, in [your first project](/first-project/).
+
+To try the level format before making anything, the [playground](/playground/) draws a level or a prefab document as you type it.
+
 ## Where to go next
 
+- [The playground](/playground/): a level or a prefab document, drawn in this browser as you edit it
 - [The cookbook](https://github.com/pleiondev/flutter3d/tree/main/examples/cookbook): twenty tasks, one file each
 - [Tutorial: first scene](/core/tutorial/): lights, shadows, a clip, picking, particles and the settings, step by step on the same widgets
 - [Your first project](/first-project/): a game scaffolded from a template, with a level and a body that walks
@@ -220,7 +236,7 @@ flutter run -d macos
 
 ## Working on the engine itself
 
-Everything above uses the packages from pub.dev. To change the engine, run its demos from source or send a change, clone the repository. It is a [pub workspace](https://dart.dev/tools/pub/workspaces): one resolve covers all 61 packages and 17 applications against a single lock file.
+Everything above uses the packages from pub.dev. To change the engine, run its demos from source or send a change, clone the repository. It is a [pub workspace](https://dart.dev/tools/pub/workspaces): one resolve covers all 61 packages and 18 applications against a single lock file.
 
 ```bash
 git clone https://github.com/pleiondev/flutter3d.git
@@ -245,4 +261,4 @@ tool/ci.sh                                   # shaders, analyze, every test
 (cd packages/flutter3d_physics && dart test) # plain Dart, no Flutter needed
 ```
 
-There are 14693 tests across 61 packages and 17 applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, so 96 scenes stay checkable in a headless run. [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md) says how a change is written and tested.
+There are 14693 tests across 61 packages and 18 applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, so 96 scenes stay checkable in a headless run. [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md) says how a change is written and tested.
