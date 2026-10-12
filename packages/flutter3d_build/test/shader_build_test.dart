@@ -359,6 +359,18 @@ done
       );
       expect(namesIn(material), contains('AcmeGlow'));
     });
+
+    test('is never asked for the engine\'s stamp section', () {
+      // Mutation: drop the stamp from the engine's sections, and the build
+      // asks a compiler for the section that holds the revision the bundle
+      // is checked by (this one throws when asked).
+      build(
+        registry: MaterialCompilerRegistry(<MaterialCompiler>[
+          const _StampCompiler(),
+        ]),
+      );
+      expect(bundle().section(EngineBundleStamp.section), isNotNull);
+    });
   });
 
   test('an unchanged build writes nothing, and one previous bundle stays', () {
@@ -453,6 +465,21 @@ String? _noWgslCompilers() {
     }
   }
   return null;
+}
+
+/// A compiler from outside that names the engine's stamp section.
+final class _StampCompiler extends MaterialCompiler {
+  const _StampCompiler();
+
+  @override
+  String get backend => 'stamp';
+
+  @override
+  String get bundleSection => EngineBundleStamp.section;
+
+  @override
+  MaterialCompileResult compile(MaterialCompileRequest request) =>
+      throw StateError('the stamp section was asked of an outside compiler');
 }
 
 final class _Log implements IOSink {

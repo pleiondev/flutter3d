@@ -560,7 +560,7 @@ wrote as GLSL, the engine's headers, and backend options by name) to a
 why. A `MaterialCompilerRegistry` finds it by backend id, exactly: the
 compiler's `backend` is its device's `GraphicsDevice.backendId` (`cpu`,
 `webgl`, `webgpu`, `impeller` for the engine's four; a backend from outside
-gives its own, its name in lower case by default), and
+gives its own, which it should say as a constant), and
 `RuntimeBackends.normalize` maps only the engine's own names to theirs.
 `RuntimeShaders` asks the compiler of the backend the game runs on, before
 the engine's own three run-time paths. The project's shader build
@@ -569,8 +569,17 @@ backend from outside the engine for its section of the engine's bundle,
 handed the engine's stages as GLSL with the engine's headers and an empty
 source, and of every plugin material's bundle; a project whose only GPU
 backend is from outside gets its bundle with that section alone. The
-engine's three GPU sections are written by the build's own tools. Two
-backends never write one section.
+engine's three GPU sections and the `flutter3d.stamp` section are written
+by the build's own tools, and a compiler naming one of them is not asked.
+Two backends never write one section. **In 1.0.0-rc.1 no shipped path hands
+`runShaderBuild` a registry**: the build hook, `flutter3d shaders` and
+`material_build.dart` call it without one, because the build cannot load a
+package's compiler without importing it. So a backend from outside reaches
+its engine stages by shipping its section in a bundle of its own, or by
+compiling at run time (`compilesAtRunTime`), or through a tool of its own
+that calls `runShaderBuild(registry:)`. Discovering compilers from a
+marker in the backend's pubspec, which the `--kind backend` template
+writes, is planned for rc.2.
 
 `compileStage` (`package:flutter3d_shaders/compile.dart`, with glslang and
 naga on the machine) hands a backend a stage's SPIR-V and its text in a
