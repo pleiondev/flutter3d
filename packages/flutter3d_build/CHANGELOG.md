@@ -7,6 +7,10 @@
   test no longer adds the part itself, so an application using the plugin
   rewinds and rolls back with its state. The `tool` plugin touches
   `tooling`, and its tool takes a `ToolCall`.
+- **The shader build never asks an outside compiler for the stamp
+  section.** `flutter3d.stamp` joins the engine's reserved sections.
+- **The backend template says its `backendId` outright**, and its compiler
+  matches it exactly.
 - **`create project --kind viewer` and `--kind arcade`.** `ProjectKind`
   (`scene`, the default, `viewer`, `arcade`; a class with constants, so a
   kind added later breaks no `switch`) is what `createProject(kind:)` and

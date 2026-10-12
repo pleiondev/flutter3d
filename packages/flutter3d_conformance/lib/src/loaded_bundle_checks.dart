@@ -12,7 +12,37 @@ import '../flutter3d_conformance.dart';
 /// GLSL ES for WebGL — and this package has neither. [sdk] is what the header
 /// is stamped with, so a backend that checks it sees its own. Null from a
 /// backend that compiles nothing and answers a bundle with what it has.
-typedef OwnShaderSection = ({String id, ByteData bytes, String sdk});
+///
+/// A class rather than a record, so it can carry more in a minor.
+final class OwnShaderSection {
+  const OwnShaderSection({
+    required this.id,
+    required this.bytes,
+    required this.sdk,
+  });
+
+  /// The section's id in the bundle: the backend's own.
+  final String id;
+
+  /// The section's bytes, as the backend's compiler wrote them.
+  final ByteData bytes;
+
+  /// The SDK the bundle's header is stamped with.
+  final String sdk;
+
+  @override
+  bool operator ==(Object other) =>
+      other is OwnShaderSection &&
+      other.id == id &&
+      other.bytes == bytes &&
+      other.sdk == sdk;
+
+  @override
+  int get hashCode => Object.hash(id, bytes, sdk);
+
+  @override
+  String toString() => 'OwnShaderSection($id, sdk $sdk)';
+}
 
 /// The checks a backend runs with its own shaders packed as a bundle.
 ///
@@ -21,7 +51,7 @@ typedef OwnShaderSection = ({String id, ByteData bytes, String sdk});
 List<ConformanceCheck> loadedBundleChecks(
   Future<OwnShaderSection?> Function() ownShaders,
 ) => <ConformanceCheck>[
-  (
+  ConformanceCheck(
     name: 'a library loaded from bytes answers to the same names',
     run: (GraphicsDevice device) async =>
         checkLoadedLibrary(device, await ownShaders()),

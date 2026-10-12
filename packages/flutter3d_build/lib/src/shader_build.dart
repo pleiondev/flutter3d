@@ -27,6 +27,13 @@
 /// asks `impellerc`, the WebGL2 translator and naga for the engine's three.
 /// A project whose only GPU backend is such a one gets its bundle.
 ///
+/// **Only a caller that hands [runShaderBuild] a registry gets that.** The
+/// build hook, `flutter3d shaders` and `material_build.dart` hand it none
+/// yet: the build cannot load a package's compiler without importing it.
+/// Until compilers are discovered from a pubspec marker, a backend from
+/// outside ships its own section, compiles at run time, or runs this with
+/// its registry from a tool of its own.
+///
 /// **A plugin's materials too** (D19). A package that marks plugins and keeps
 /// `.f3dmat` sources under its own `assets_src/` has each compiled into
 /// [EngineBundleStamp.projectMaterialAsset], so a plugin's material reaches
@@ -67,8 +74,10 @@ const Set<String> _backendPackages = <String>{
 };
 
 /// The sections the engine writes itself, with tools of its own or none at
-/// all: a registered compiler for one of them is not asked here.
+/// all: a registered compiler for one of them is not asked here. The stamp
+/// among them, which holds the revision a device checks the bundle by.
 const Set<String> _engineSections = <String>{
+  EngineBundleStamp.section,
   ShaderBundle.impellerSection,
   ShaderBundle.webglSection,
   ShaderBundle.webgpuSection,

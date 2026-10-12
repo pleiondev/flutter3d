@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **`texture1D` and `depthBiasClamp` are listed**, and a depth bias is
+  checked through `DepthBias.checkFeatures`.
 - **A device is opened with the adapter's own stage-binding limits.**
   `requestDevice` asked for no `requiredLimits`, so the device kept
   WebGPU's minimum of 16 textures and 16 samplers a stage whatever the

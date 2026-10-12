@@ -120,9 +120,6 @@ TextureHandle webglCreateTextureWithDescriptor(
     format: format,
     sampleCount: descriptor.sampleCount,
     storageMode: descriptor.storageMode,
-    type: dimension == TextureDimension.cube
-        ? TextureType.textureCube
-        : TextureType.texture2D,
     dimension: dimension,
     depthOrArrayLayers: layers,
     mipLevelCount: descriptor.mipLevelCount,

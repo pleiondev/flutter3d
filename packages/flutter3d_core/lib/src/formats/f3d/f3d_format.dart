@@ -606,7 +606,7 @@ abstract final class F3dSamplingFlags {
   static const int minLinear = 1 << 1;
   static const int useMipmaps = 1 << 2;
 
-  /// Two bits each, holding a `TextureWrap` code (`f3d_wire.dart`).
+  /// Two bits each, holding a `SamplerAddressMode` code (`f3d_wire.dart`).
   static const int wrapSShift = 3;
   static const int wrapTShift = 5;
   static const int wrapMask = 0x3;

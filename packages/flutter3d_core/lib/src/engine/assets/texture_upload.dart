@@ -461,18 +461,11 @@ bool buildsMipChain(
 /// having built no chain at all. The two decisions have to be made from one
 /// input or they drift.
 SamplerDescriptor samplerOptionsFor(TextureSampling info) {
-  SamplerAddressMode address(TextureWrap wrap) => switch (wrap) {
-    TextureWrap.repeat => SamplerAddressMode.repeat,
-    TextureWrap.clampToEdge => SamplerAddressMode.clampToEdge,
-    TextureWrap.mirroredRepeat => SamplerAddressMode.mirror,
-    _ => throw UnsupportedError('no sampler address mode for $wrap'),
-  };
-
   return SamplerDescriptor(
     minFilter: info.minLinear ? MinMagFilter.linear : MinMagFilter.nearest,
     magFilter: info.magLinear ? MinMagFilter.linear : MinMagFilter.nearest,
     mipFilter: info.useMipmaps ? MipFilter.linear : MipFilter.nearest,
-    widthAddressMode: address(info.wrapS),
-    heightAddressMode: address(info.wrapT),
+    widthAddressMode: info.wrapS,
+    heightAddressMode: info.wrapT,
   );
 }

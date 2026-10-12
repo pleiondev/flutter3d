@@ -4,7 +4,13 @@
 
 library package:flutter3d_conformance/flutter3d_conformance.dart
 
-typedef ConformanceCheck = ({String name, Future<void> Function(GraphicsDevice device) run});
+final class ConformanceCheck
+  String toString()
+  bool operator ==(Object other)
+  const ConformanceCheck({required this.name, required this.run})
+  final Future<void> Function(GraphicsDevice device) run
+  final String name
+  int get hashCode
 
 final class ConformanceDeclinedException extends CapabilityException
   String get message
@@ -69,7 +75,14 @@ abstract final class FuzzTransform
   abstract Set<int> get involves
   const FuzzTransform()
 
-typedef OwnShaderSection = ({String id, ByteData bytes, String sdk});
+final class OwnShaderSection
+  String toString()
+  bool operator ==(Object other)
+  const OwnShaderSection({required this.id, required this.bytes, required this.sdk})
+  final ByteData bytes
+  final String id
+  final String sdk
+  int get hashCode
 
 final class SplitDraw extends FuzzTransform
   FuzzProgram? apply(FuzzProgram program)

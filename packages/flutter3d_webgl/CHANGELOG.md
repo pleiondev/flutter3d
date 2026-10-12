@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **A 1D texture and a depth-bias clamp are refused by their features**,
+  `texture1D` and `depthBiasClamp`, where they were refused with an
+  `UnsupportedError`.
 - **A device opened without sources draws with the project's own stages.**
   `WebGlDevice.open` reads the `webgl` section of the bundle
   `flutter3d_build`'s hook writes (`EngineBundleStamp.projectAsset`), through

@@ -54,18 +54,12 @@ final class TextureHandle {
     required this.format,
     this.sampleCount = 1,
     this.storageMode = StorageMode.devicePrivate,
-    this.type = TextureType.texture2D,
-    TextureDimension? dimension,
-    int? depthOrArrayLayers,
+    required this.type,
+    required this.dimension,
+    required this.depthOrArrayLayers,
     this.mipLevelCount = 1,
     this.usage = TextureUsage.standard,
-  }) : dimension =
-           dimension ??
-           (type == TextureType.textureCube
-               ? TextureDimension.cube
-               : TextureDimension.d2),
-       depthOrArrayLayers =
-           depthOrArrayLayers ?? (type == TextureType.textureCube ? 6 : 1);
+  });
 
   final void Function(TextureHandle)? _release;
 
@@ -89,15 +83,17 @@ final class TextureHandle {
   bool get isDisposed => _disposed;
   bool _disposed = false;
 
-  /// The shape a view of it binds as — derived from [type] for every texture
-  /// made before 1.0, so a handle built the old way answers correctly.
+  /// The shape a view of it binds as. **The one source of truth for the
+  /// shape**: [type] and [sliceCount] are read from it. A backend that wraps
+  /// a texture the pre-1.0 way, with `type:` alone, gets the dimension that
+  /// type means.
   final TextureDimension dimension;
 
   /// Layers, counted as `TextureDescriptor.depthOrArrayLayers` counts them:
   /// six for a cube, six per cube of a cube array, the layer count of an
   /// array, the depth of a 3D texture, one for a 2D texture. A handle that
-  /// does not say gets six when [type] is a cube and one otherwise, so the
-  /// pre-1.0 creators answer the same way the descriptor does.
+  /// does not say gets six when [dimension] is a cube and one otherwise, so
+  /// the pre-1.0 creators answer the same way the descriptor does.
   final int depthOrArrayLayers;
 
   /// Levels counting the base, as the creator was asked for them. One for
@@ -136,10 +132,16 @@ final class TextureHandle {
   /// every other field would be lent out in its place, and nothing about the
   /// resulting picture would say why. Cubes are created directly and never come
   /// from the pool.
+  ///
+  /// Derived from [dimension]: [TextureType.textureCube] for a cube or a cube
+  /// array, and otherwise what the backend named ([TextureType.texture2D]
+  /// unless it said [TextureType.textureExternalOES]). A multisampled texture
+  /// is said by [sampleCount], not here.
   final TextureType type;
 
-  /// How many faces this texture has: six for a cube, one otherwise.
-  int get sliceCount => type == TextureType.textureCube ? 6 : 1;
+  /// How many faces each cube of this texture has: six for a cube or a cube
+  /// array, one otherwise. Read from [dimension].
+  int get sliceCount => _isCube(dimension) ? 6 : 1;
 
   /// What this texture holds, in bytes: every level of [mipLevelCount],
   /// every layer of [depthOrArrayLayers], every sample.
@@ -185,6 +187,13 @@ final class TextureHandle {
 /// backend.dart`. Application code never makes a handle; a device hands one
 /// out. [owner] is the device whose `releaseTexture` the handle's `dispose`
 /// calls.
+///
+/// **Say the shape with [dimension].** [type] is the pre-1.0 way to say it
+/// and is still read when [dimension] is absent: [TextureType.textureCube]
+/// means a cube. When both are given they must agree (a cube type with a
+/// cube or cube-array dimension, any other type with any other dimension),
+/// or this throws an [ArgumentError] rather than make a handle whose two
+/// fields tell the engine two different shapes.
 TextureHandle wrapTexture({
   required Object backend,
   required int width,
@@ -192,23 +201,48 @@ TextureHandle wrapTexture({
   required TextureFormat format,
   int sampleCount = 1,
   StorageMode storageMode = StorageMode.devicePrivate,
-  TextureType type = TextureType.texture2D,
+  TextureType? type,
   TextureDimension? dimension,
   int? depthOrArrayLayers,
   int mipLevelCount = 1,
   TextureUsage usage = TextureUsage.standard,
   TextureAllocator? owner,
-}) => TextureHandle._(
-  owner?.releaseTexture,
-  backend: backend,
-  width: width,
-  height: height,
-  format: format,
-  sampleCount: sampleCount,
-  storageMode: storageMode,
-  type: type,
-  dimension: dimension,
-  depthOrArrayLayers: depthOrArrayLayers,
-  mipLevelCount: mipLevelCount,
-  usage: usage,
-);
+}) {
+  if (type != null &&
+      dimension != null &&
+      (type == TextureType.textureCube) != _isCube(dimension)) {
+    throw ArgumentError(
+      'wrapTexture was told type ${type.name} and dimension '
+          '${dimension.name}, which are two different shapes. Say the shape '
+          'with dimension alone.',
+      'type',
+    );
+  }
+  final shape =
+      dimension ??
+      (type == TextureType.textureCube
+          ? TextureDimension.cube
+          : TextureDimension.d2);
+  return TextureHandle._(
+    owner?.releaseTexture,
+    backend: backend,
+    width: width,
+    height: height,
+    format: format,
+    sampleCount: sampleCount,
+    storageMode: storageMode,
+    type: _isCube(shape)
+        ? TextureType.textureCube
+        : (type == TextureType.textureExternalOES
+              ? TextureType.textureExternalOES
+              : TextureType.texture2D),
+    dimension: shape,
+    depthOrArrayLayers: depthOrArrayLayers ?? (_isCube(shape) ? 6 : 1),
+    mipLevelCount: mipLevelCount,
+    usage: usage,
+  );
+}
+
+bool _isCube(TextureDimension dimension) =>
+    dimension == TextureDimension.cube ||
+    dimension == TextureDimension.cubeArray;

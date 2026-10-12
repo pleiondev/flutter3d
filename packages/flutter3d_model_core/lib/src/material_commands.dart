@@ -899,14 +899,14 @@ SurfaceMaterial? _fieldSet(SurfaceMaterial s, String field, Object? value) {
   }
 }
 
-/// The wrap mode [json] names, [TextureWrap.repeat] for anything else — the
+/// The wrap mode [json] names, [SamplerAddressMode.repeat] for anything else — the
 /// same fallback `_readSampling` in `project_format.dart` gives, because a
 /// sampler that does not say how it wraps is one nothing has ever asked to
 /// wrap unusually.
-TextureWrap _wrapNamed(Object? json) => switch (json) {
-  'clampToEdge' => TextureWrap.clampToEdge,
-  'mirroredRepeat' => TextureWrap.mirroredRepeat,
-  _ => TextureWrap.repeat,
+SamplerAddressMode _wrapNamed(Object? json) => switch (json) {
+  'clampToEdge' => SamplerAddressMode.clampToEdge,
+  'mirroredRepeat' => SamplerAddressMode.mirror,
+  _ => SamplerAddressMode.repeat,
 };
 
 /// Whether [a] and [b] hold the same bytes.

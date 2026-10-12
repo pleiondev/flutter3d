@@ -8,6 +8,8 @@
 library;
 
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show SamplerAddressMode;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_model_core/src/project_wire.dart';
@@ -50,9 +52,11 @@ void main() {
       'mask',
       'blend',
     ]);
-    holds(TextureWrap.values, textureWrapWord, textureWrapOf, <String>[
-      'repeat',
+    // In the order of `SamplerAddressMode.values`; the words are the ones
+    // the project file wrote when the wrap had a type of its own.
+    holds(SamplerAddressMode.values, textureWrapWord, textureWrapOf, <String>[
       'clampToEdge',
+      'repeat',
       'mirroredRepeat',
     ]);
     holds(SelectionMode.values, selectionModeWord, selectionModeOf, <String>[

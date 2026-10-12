@@ -14,7 +14,7 @@
 ///
 /// **Two tiers, and the split is a correction.** This file used to say it was
 /// shader-free as a whole, and that stopped being true the day a check needed a
-/// pipeline: 33 of the 58 link stages and draw. A new
+/// pipeline: 33 of the 57 link stages and draw. A new
 /// backend following the old promise would have met 33 shader checks
 /// it could do nothing about, so the lists say which is which — [coreChecks]
 /// needs clears, uploads and readback alone, [shaderChecks] needs the bundle.
@@ -144,8 +144,8 @@ final class ConformanceFailureException extends CapabilityException {
 /// report it as a skip instead, and both print [reason], because the person
 /// running a device harness is usually not the person who wrote the check.
 ///
-/// [decline] builds one, and stamps the backend's own type on the front so the
-/// line says who declined as well as why.
+/// [decline] builds one, and stamps the backend's name (`backendName`) on the
+/// front so the line says who declined as well as why.
 final class ConformanceDeclinedException extends CapabilityException {
   const ConformanceDeclinedException(this.reason);
   final String reason;
@@ -168,7 +168,7 @@ final class ConformanceDeclinedException extends CapabilityException {
 /// false to supportsOffscreenMsaa, and multisamples nothing" — because it is
 /// read on its own, beside a check name, by somebody holding a phone.
 Never decline(GraphicsDevice device, String why) =>
-    throw ConformanceDeclinedException('${device.runtimeType} $why');
+    throw ConformanceDeclinedException('${device.backendName} $why');
 
 /// Fails the check unless [condition].
 ///
@@ -196,10 +196,31 @@ bool refusesResource(Object? Function() call) {
 }
 
 /// One check: a name and something that throws if the backend is wrong.
-typedef ConformanceCheck = ({
-  String name,
-  Future<void> Function(GraphicsDevice device) run,
-});
+///
+/// **A class, so a check can grow** (the features it needs, a tier) in a
+/// minor, which a record could not. Two checks are equal when they have the
+/// same [name] and the same [run], so a list of checks can be filtered by
+/// another (`shaderChecks.contains`).
+final class ConformanceCheck {
+  const ConformanceCheck({required this.name, required this.run});
+
+  /// What the check holds, as a sentence: the test's description.
+  final String name;
+
+  /// Throws if the backend is wrong; declines through `decline` when it
+  /// cannot be asked.
+  final Future<void> Function(GraphicsDevice device) run;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ConformanceCheck && other.name == name && other.run == run;
+
+  @override
+  int get hashCode => Object.hash(name, run);
+
+  @override
+  String toString() => 'ConformanceCheck($name)';
+}
 
 /// Runs every check against [makeDevice] as ordinary tests.
 ///
@@ -280,20 +301,35 @@ void runDeviceConformance({
 /// uploads and readback only: the answers here are the cheapest ones to get,
 /// and they are the ones worth having first.
 List<ConformanceCheck> get coreChecks => <ConformanceCheck>[
-  (name: 'answers every capability query', run: checkCapabilities),
-  (name: 'the HDR format it names is renderable', run: checkHdrRenderable),
-  (name: 'a clear covers the whole attachment', run: checkClearCoversAll),
-  (name: 'uploaded pixels keep their row order', run: checkRowOrder),
-  (name: 'a cube takes the mip chain it is handed', run: checkCubeMipLevels),
-  (
+  ConformanceCheck(
+    name: 'answers every capability query',
+    run: checkCapabilities,
+  ),
+  ConformanceCheck(
+    name: 'the HDR format it names is renderable',
+    run: checkHdrRenderable,
+  ),
+  ConformanceCheck(
+    name: 'a clear covers the whole attachment',
+    run: checkClearCoversAll,
+  ),
+  ConformanceCheck(
+    name: 'uploaded pixels keep their row order',
+    run: checkRowOrder,
+  ),
+  ConformanceCheck(
+    name: 'a cube takes the mip chain it is handed',
+    run: checkCubeMipLevels,
+  ),
+  ConformanceCheck(
     name: 'a pixel buffer of the wrong size is refused',
     run: checkPixelBufferSize,
   ),
-  (
+  ConformanceCheck(
     name: 'a readback returns the frame before',
     run: checkReadbackReturnsTheFrameBefore,
   ),
-  (
+  ConformanceCheck(
     name: 'a texture region overwrite lands only where it was aimed',
     run: checkTextureOverwriteRegion,
   ),
@@ -306,156 +342,165 @@ List<ConformanceCheck> get coreChecks => <ConformanceCheck>[
 /// nothing else, that it inherits no clipping from the pass before it, and that
 /// a binding made for one pipeline does not follow the next.
 List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
-  (
+  ConformanceCheck(
     name: 'the bundle answers to every name the engine asks for',
     run: checkShaderNames,
   ),
-  (name: 'a stage pair the engine links does link', run: checkLinking),
-  (
+  ConformanceCheck(
+    name: 'a stage pair the engine links does link',
+    run: checkLinking,
+  ),
+  ConformanceCheck(
     name: 'a pass covers the whole of its attachment',
     run: checkPassCoversItsAttachment,
   ),
-  (
+  ConformanceCheck(
     name: 'a pass does not inherit the previous pass\'s scissor',
     run: checkPassDoesNotInheritScissor,
   ),
-  (
+  ConformanceCheck(
     name: 'a readback of a region reads that region',
     run: checkReadbackOfRegion,
   ),
-  (name: 'an instanced draw draws every instance', run: checkInstancedDraw),
-  (
+  ConformanceCheck(
+    name: 'an instanced draw draws every instance',
+    run: checkInstancedDraw,
+  ),
+  ConformanceCheck(
     name: 'a window of the index buffer draws that window',
     run: checkIndexWindowDraw,
   ),
-  (
+  ConformanceCheck(
     name: 'a pipeline the backend refuses skips its draws and is told once',
     run: checkRefusedPipelineSkipsDraws,
   ),
-  (
+  ConformanceCheck(
     name: 'a vertex stage can sample a texture',
     run: checkVertexTextureSampling,
   ),
-  (name: 'a float texture uploads as floats', run: checkFloatTextureUpload),
+  ConformanceCheck(
+    name: 'a float texture uploads as floats',
+    run: checkFloatTextureUpload,
+  ),
   // `S2`: what the evsm shadow filter needs, asked of a device that says it
   // has it.
-  (
+  ConformanceCheck(
     name: 'a device that filters 32-bit floats filters and renders them',
     run: checkFloat32Filtering,
   ),
-  (
+  ConformanceCheck(
     name: 'a field steps in a float target and reads back through a vertex',
     run: checkFloatFieldSteps,
   ),
-  (
+  ConformanceCheck(
     name: 'a buffer is uploaded for its declared use, and draws as it',
     run: checkGeometryUsage,
   ),
-  (
+  ConformanceCheck(
     name: 'a pipeline switch leaves no stale bindings',
     run: checkPipelineSwitchKeepsBindingsApart,
   ),
-  (
+  ConformanceCheck(
     name: 'a cube map answers the face a direction points at',
     run: checkCubeFaces,
   ),
-  (
+  ConformanceCheck(
     name: 'a compressed format it supports samples its colour back',
     run: checkCompressedTextureSamples,
   ),
-  (
+  ConformanceCheck(
     name: 'a pass renders into a cube face and a mip',
     run: checkRenderToCubeFaceAndMip,
   ),
   // The other half of that rule, which the clears above cannot ask about
   // because a clear covers the whole attachment however the viewport is set.
-  (
+  ConformanceCheck(
     name: 'a pass\'s initial viewport covers the level',
     run: checkPassViewportCoversTheLevel,
   ),
   // Two of the 14 rules ARCHITECTURE.md §7.2 states and that no
   // signature can. Both are decisions a new backend has to make deliberately,
   // and neither produces an error when made the other way round.
-  (
+  ConformanceCheck(
     name: 'a null sampler means linear and repeat',
     run: checkNullSamplerRepeats,
   ),
-  (
+  ConformanceCheck(
     name: 'setDepthWrite(false) stops depth writes',
     run: checkDepthWriteIsHonoured,
   ),
   // The half of `bindUniformBlock` that was named as outside this suite for as
   // long as it existed, and under which the two hardware backends drifted
   // apart: a block missing a member the caller wrote.
-  (
+  ConformanceCheck(
     name: 'a block missing a member the caller named is refused',
     run: checkUniformMemberMismatchIsRefused,
   ),
   // `bindTexture`'s own answer since 0.8.0: false for a slot the stage does
   // not declare, on every backend that can tell.
-  (
+  ConformanceCheck(
     name: 'a texture bound to a slot the stage lacks is false',
     run: checkUndeclaredSamplerIsFalse,
   ),
   // The clamp the HAL promises for `SamplerDescriptor.anisotropy`: a request
   // above `maxAnisotropy` is lowered, never refused, on every backend.
-  (
+  ConformanceCheck(
     name: 'a sampler asking for more anisotropy than there is is accepted',
     run: checkAnisotropicSamplerAccepted,
   ),
   // The stencil in the shape the x-ray stage uses it: a mark that leaves the
   // picture alone, then `equal` and `notEqual` reading it back.
-  (
+  ConformanceCheck(
     name: 'a stencil test keeps what it should',
     run: checkStencilKeepsWhatItShould,
   ),
   // The half of the stencil rule that every other pass hides by tidying up
   // after itself. This one deliberately does not.
-  (
+  ConformanceCheck(
     name: 'a pass starts with the stencil test off',
     run: checkPassStartsWithStencilOff,
   ),
   // The two capabilities that differ across the three backends, asked in the
   // direction that matters: what a backend that answers no must do instead.
-  (
+  ConformanceCheck(
     name: 'wireframe is drawn as edges or refused, never filled',
     run: checkWireframeIsDrawnOrRefused,
   ),
-  (
+  ConformanceCheck(
     name: 'every primitive type is assembled as itself or refused',
     run: checkPrimitiveTypesAreDrawnOrRefused,
   ),
   // The four BlendFactor values that read a constant, which for as long as
   // nothing could set one were the enum's dead corner: two backends drew the
   // term as zero and said nothing.
-  (
+  ConformanceCheck(
     name: 'a blend constant reaches the blend, or is refused',
     run: checkBlendColorReachesTheBlend,
   ),
   // The three multisampling fields of the HAL, which nothing held. The one
   // check here a backend may decline — see `decline`, and the software
   // rasteriser, which multisamples nothing and says so.
-  (
+  ConformanceCheck(
     name: 'a multisample resolve resolves',
     run: checkMultisampleResolveResolves,
   ),
   // `gfx-21n`. The number `gfx-50n` made the engine gate on, held to both of
   // its obligations: a second attachment that receives its own output, and a
   // pass past the limit that is refused rather than opened.
-  (
+  ConformanceCheck(
     name: 'the colour attachment limit is honoured in both directions',
     run: checkColorAttachmentLimitIsHonoured,
   ),
   // Picking, drawn and decoded on the software backend alone until now — and
   // the only draw in this suite through the standard five-attribute layout.
-  (
+  ConformanceCheck(
     name: 'an object id survives the draw and the readback',
     run: checkObjectIdDrawsAndDecodes,
   ),
   // `view-14`'s own row: a partial overwrite of a vertex buffer has to draw
   // what a fresh upload of the same bytes would, not merely reach the
   // device somehow.
-  (
+  ConformanceCheck(
     name: 'a geometry overwrite draws what a fresh upload draws',
     run: checkGeometryOverwriteMatchesFreshUpload,
   ),
@@ -463,7 +508,7 @@ List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
   // touches only the bytes it named, leaving what sits before and after it
   // in the buffer alone, and a write past the end is refused rather than
   // accepted.
-  (
+  ConformanceCheck(
     name: 'a geometry overwrite leaves its neighbours untouched',
     run: checkGeometryOverwriteLeavesNeighboursUntouched,
   ),

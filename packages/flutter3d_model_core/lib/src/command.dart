@@ -29,6 +29,8 @@ import 'package:flutter3d_core/flutter3d_core.dart'
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart' show TriangleBvh;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show SamplerAddressMode;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 

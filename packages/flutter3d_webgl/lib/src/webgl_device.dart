@@ -1051,9 +1051,12 @@ final class WebGlDevice extends GraphicsDevice
           reason: 'cube-map arrays are OpenGL ES 3.2, and WebGL2 is ES 3.0',
         );
       case TextureDimension.d1:
-        throw UnsupportedError(
-          'WebGL2 has no 1D texture: OpenGL ES never had one. Make a 2D '
-          'texture one texel high.',
+        throw UnsupportedCapabilityException(
+          DeviceFeature.texture1D,
+          backend: webglBackendName,
+          reason:
+              'OpenGL ES never had a 1D texture; make a 2D texture one '
+              'texel high',
         );
       case TextureDimension.d2:
         break;

@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show SamplerAddressMode;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show LinearColor;
 import 'package:vector_math/vector_math.dart';
@@ -48,52 +50,23 @@ final class SurfaceAlphaMode {
   String toString() => 'SurfaceAlphaMode.$name';
 }
 
-/// A class with constants rather than an enum, so a value added in a minor
-/// release does not break a `switch` written against it: [name] is what a
-/// file or a snapshot writes, and [byName] reads it back.
-final class TextureWrap {
-  const TextureWrap._(this.name);
-
-  static const TextureWrap repeat = TextureWrap._('repeat');
-
-  static const TextureWrap clampToEdge = TextureWrap._('clampToEdge');
-
-  static const TextureWrap mirroredRepeat = TextureWrap._('mirroredRepeat');
-
-  /// Every value this version names, in declaration order. A later version
-  /// appends; nothing is removed or renamed within a major.
-  static const List<TextureWrap> values = <TextureWrap>[
-    repeat,
-    clampToEdge,
-    mirroredRepeat,
-  ];
-
-  /// The value called [name], or null for a name this version does not know,
-  /// which is what a file written by a later version can carry.
-  static TextureWrap? byName(String name) {
-    for (final value in values) {
-      if (value.name == name) return value;
-    }
-    return null;
-  }
-
-  /// The stable name, and the wire name: what a file, a report or a snapshot
-  /// writes for this value. Never renamed within a major.
-  final String name;
-
-  @override
-  String toString() => 'TextureWrap.$name';
-}
-
 /// Filtering and wrapping requested for a texture.
+///
+/// **What a file asked for, not a sampler.** The wrap is the sampler's own
+/// [SamplerAddressMode], and `samplerOptionsFor` derives the
+/// `SamplerDescriptor` a device binds from this. It stays a type of its own
+/// for what a sampler does not hold: [useMipmaps] is a request to build a
+/// chain at upload, [mipLinear] keeps the file's mip filter for a writer to
+/// give back, and its defaults are a file's (linear, repeating), where a
+/// sampler's are the device's (nearest, clamped).
 final class TextureSampling {
   const TextureSampling({
     this.magLinear = true,
     this.minLinear = true,
     this.useMipmaps = true,
     this.mipLinear = true,
-    this.wrapS = TextureWrap.repeat,
-    this.wrapT = TextureWrap.repeat,
+    this.wrapS = SamplerAddressMode.repeat,
+    this.wrapT = SamplerAddressMode.repeat,
   });
 
   final bool magLinear;
@@ -122,8 +95,8 @@ final class TextureSampling {
   /// a decoder and a writer agree the file said.
   final bool mipLinear;
 
-  final TextureWrap wrapS;
-  final TextureWrap wrapT;
+  final SamplerAddressMode wrapS;
+  final SamplerAddressMode wrapT;
 }
 
 /// A reference from a material to one of the document's images.

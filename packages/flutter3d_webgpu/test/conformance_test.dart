@@ -93,7 +93,7 @@ void main() {
     // there is no ahead-of-time artefact for a Flutter version to have moved —
     // which is what `ShaderBundle.webgpuSection` says, and why
     // `webgpu_loaded_shaders.dart` versions the document instead.
-    ownShaders: () async => (
+    ownShaders: () async => OwnShaderSection(
       id: ShaderBundle.webgpuSection,
       bytes: encodeWebGpuSection(
         vertex: webGpuEngineShaders.vertex,

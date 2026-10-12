@@ -131,11 +131,11 @@ Future<void> checkFieldBufferRoundTrip(GraphicsDevice device) async {
 
 /// The field checks, in the order they are run.
 List<ConformanceCheck> get fieldResidenceChecks => <ConformanceCheck>[
-  (
+  ConformanceCheck(
     name: 'a field is held in a 3D texture, or refused by the feature',
     run: checkFieldTexture3D,
   ),
-  (
+  ConformanceCheck(
     name: 'a field in a storage buffer reads back bit for bit',
     run: checkFieldBufferRoundTrip,
   ),

@@ -142,9 +142,9 @@ extension _F3dMaterials on F3dDocument {
   }
 
   TextureSampling _samplingFrom(int flags) {
-    TextureWrap wrap(int shift) {
+    SamplerAddressMode wrap(int shift) {
       final value = (flags >> shift) & F3dSamplingFlags.wrapMask;
-      return textureWrapOf(value) ?? TextureWrap.repeat;
+      return textureWrapOf(value) ?? SamplerAddressMode.repeat;
     }
 
     return TextureSampling(

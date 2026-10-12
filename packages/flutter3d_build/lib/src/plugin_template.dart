@@ -1126,10 +1126,9 @@ Registration register{{stem}}Backend(
 final class {{stem}}MaterialCompiler extends MaterialCompiler {
   const {{stem}}MaterialCompiler();
 
-  /// The device's `backendId`, which the registry matches exactly: the
-  /// device's name in lower case, its default.
+  /// The device's `backendId`, which the registry matches exactly.
   @override
-  String get backend => {{stem}}Device.name.toLowerCase();
+  String get backend => {{stem}}Device.name;
 
   /// [{{lowerStem}}Section], which no other backend's compiler may take.
   @override
@@ -1195,6 +1194,12 @@ final class {{stem}}Device extends GraphicsDevice {
 
   @override
   String get backendName => name;
+
+  /// [name], said outright rather than left to the default: the id a
+  /// compiler and a manifest match is fixed for good, and must not follow a
+  /// later rewording of the name people read.
+  @override
+  String get backendId => name;
 
   /// Little beyond the base contract: texture-to-texture copies, and 32-bit
   /// float targets, which it holds as it holds every other. A capability is

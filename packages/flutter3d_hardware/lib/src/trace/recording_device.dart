@@ -392,9 +392,12 @@ final class RecordingDevice extends GraphicsDevice
   @override
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor) {
     final pass = _nextPass++;
-    // The trace's pass carries face and level but none of the 1.0 fields.
+    // The trace's pass carries face and level but none of the 1.0 fields:
+    // a multiview pass recorded as one view would replay as a single-view
+    // pass with nothing saying so.
     final depth = descriptor.depth;
-    if (descriptor.colors.any((ColorTarget c) => c.layer != 0) ||
+    if (descriptor.viewMask != null ||
+        descriptor.colors.any((ColorTarget c) => c.layer != 0) ||
         depth != null &&
             (depth.layer != 0 ||
                 depth.face != 0 ||
@@ -511,7 +514,7 @@ final class RecordingDevice extends GraphicsDevice
   // ------------------------------------------------------------ since 1.0
   //
   // **Forwarded, and named in [unrecorded] rather than traced.** `TraceEvent`
-  // is sealed and versioned with the trace format; giving every 1.0 call a
+  // is versioned with the trace format; giving every 1.0 call a
   // variant and a codec is its own change. Until then a recording that used
   // any of these says so: [unrecorded] lists each call by name, and a replay
   // of such a trace is known to be incomplete rather than silently so.

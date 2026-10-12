@@ -2,10 +2,13 @@
 ///
 /// **Nothing here names a graphics API.** That is the entire content of this
 /// package: it is what a backend implements and what the engine talks to, so
-/// that neither has to know about the other. Three implement it —
-/// `flutter3d_impeller` over `flutter_gpu`, `flutter3d_webgl` over WebGL2, and
-/// `flutter3d_cpu`, a software rasteriser with no driver under it at all — and
-/// the engine did not change for any of them.
+/// that neither has to know about the other. Four implement it —
+/// `flutter3d_impeller` over `flutter_gpu`, `flutter3d_webgl` over WebGL2,
+/// `flutter3d_webgpu` over the browser's WebGPU, and `flutter3d_cpu`, a
+/// software rasteriser with no driver under it at all — and the engine did
+/// not change for any of them. `flutter3d_wgpu` is a fifth, compute-only
+/// device over wgpu-native, and `examples/flutter3d_backend_null` is the
+/// smallest complete one, for an author starting a backend of their own.
 ///
 /// Two rules hold it in shape, and both are checked rather than intended by
 /// `tool/structure.dart`'s **"the hardware layer names no graphics API"** rule,
@@ -27,7 +30,7 @@
 /// evidence offered for the load-bearing half of the claim led nowhere, in the
 /// file a fourth-backend author reads first.
 ///
-/// When a fourth backend arrives, this package does not change. A translation
+/// When another backend arrives, this package does not change. A translation
 /// file appears in the new backend, and that is all.
 library;
 

@@ -23,6 +23,8 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show SamplerAddressMode;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
@@ -134,7 +136,7 @@ void main() {
       final binding = material.surface.baseColorTexture!;
       expect(binding.imageIndex, 0);
       expect(binding.sampling.useMipmaps, isFalse);
-      expect(binding.sampling.wrapS, TextureWrap.clampToEdge);
+      expect(binding.sampling.wrapS, SamplerAddressMode.clampToEdge);
 
       expect(project.images.single.bytes, <int>[1, 2, 3, 4, 5]);
       expect(project.images.single.name, 'atlas');

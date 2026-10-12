@@ -5285,9 +5285,9 @@ final class TextureHint extends MaterialHintKind
   static const List<String> imageSuffixes = <String>['.png', '.jpg', '.jpeg', '.ktx2']
 
 final class TextureSampling
-  const TextureSampling({this.magLinear = true, this.minLinear = true, this.useMipmaps = true, this.mipLinear = true, this.wrapS = TextureWrap.repeat, this.wrapT = TextureWrap.repeat})
-  final TextureWrap wrapS
-  final TextureWrap wrapT
+  const TextureSampling({this.magLinear = true, this.minLinear = true, this.useMipmaps = true, this.mipLinear = true, this.wrapS = SamplerAddressMode.repeat, this.wrapT = SamplerAddressMode.repeat})
+  final SamplerAddressMode wrapS
+  final SamplerAddressMode wrapT
   final bool magLinear
   final bool minLinear
   final bool mipLinear
@@ -5302,15 +5302,6 @@ final class TextureTransform
   final Vector2 offset
   final Vector2 scale
   final double rotation
-
-final class TextureWrap
-  String toString()
-  final String name
-  static TextureWrap? byName(String name)
-  static const List<TextureWrap> values = <TextureWrap>[repeat, clampToEdge, mirroredRepeat]
-  static const TextureWrap clampToEdge = TextureWrap._('clampToEdge')
-  static const TextureWrap mirroredRepeat = TextureWrap._('mirroredRepeat')
-  static const TextureWrap repeat = TextureWrap._('repeat')
 
 final class ThinLens
   String toString()
@@ -7592,9 +7583,9 @@ final class TextureHint extends MaterialHintKind
   static const List<String> imageSuffixes = <String>['.png', '.jpg', '.jpeg', '.ktx2']
 
 final class TextureSampling
-  const TextureSampling({this.magLinear = true, this.minLinear = true, this.useMipmaps = true, this.mipLinear = true, this.wrapS = TextureWrap.repeat, this.wrapT = TextureWrap.repeat})
-  final TextureWrap wrapS
-  final TextureWrap wrapT
+  const TextureSampling({this.magLinear = true, this.minLinear = true, this.useMipmaps = true, this.mipLinear = true, this.wrapS = SamplerAddressMode.repeat, this.wrapT = SamplerAddressMode.repeat})
+  final SamplerAddressMode wrapS
+  final SamplerAddressMode wrapT
   final bool magLinear
   final bool minLinear
   final bool mipLinear
@@ -7609,15 +7600,6 @@ final class TextureTransform
   final Vector2 offset
   final Vector2 scale
   final double rotation
-
-final class TextureWrap
-  String toString()
-  final String name
-  static TextureWrap? byName(String name)
-  static const List<TextureWrap> values = <TextureWrap>[repeat, clampToEdge, mirroredRepeat]
-  static const TextureWrap clampToEdge = TextureWrap._('clampToEdge')
-  static const TextureWrap mirroredRepeat = TextureWrap._('mirroredRepeat')
-  static const TextureWrap repeat = TextureWrap._('repeat')
 
 final class UniversalBlockFormat
   const UniversalBlockFormat({required this.hasAlpha})

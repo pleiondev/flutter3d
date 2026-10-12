@@ -80,6 +80,9 @@ Future<void> checkPrefixSum(GraphicsDevice device) async {
 /// which hold every placement — the device's own compute, the wgpu
 /// sidecar, the CPU — to the same bytes.
 List<ConformanceCheck> get computeChecks => <ConformanceCheck>[
-  (name: 'a compute pass scans a buffer in place', run: checkPrefixSum),
+  ConformanceCheck(
+    name: 'a compute pass scans a buffer in place',
+    run: checkPrefixSum,
+  ),
   ...kernelChecks,
 ];

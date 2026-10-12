@@ -49,7 +49,7 @@ void main() {
 
       final normal = surface.normalTexture!;
       expect(document.images[normal.imageIndex], 'steel_n.png');
-      expect(normal.sampling.wrapS, TextureWrap.clampToEdge);
+      expect(normal.sampling.wrapS, SamplerAddressMode.clampToEdge);
       expect(
         normal.sampling.useMipmaps,
         isFalse,

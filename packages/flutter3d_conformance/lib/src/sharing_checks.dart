@@ -79,11 +79,11 @@ Future<void> checkZeroCopyRefusedByName(GraphicsDevice device) async {
 
 /// The two, as checks.
 List<ConformanceCheck> get sharingChecks => <ConformanceCheck>[
-  (
+  ConformanceCheck(
     name: 'a shared texture carries the producer\'s pixels by copy',
     run: checkSharedTextureCopies,
   ),
-  (
+  ConformanceCheck(
     name: 'zero copy is refused by name where it is missing',
     run: checkZeroCopyRefusedByName,
   ),

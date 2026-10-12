@@ -89,11 +89,11 @@ Future<void> checkMultiviewFallsBackPerView(GraphicsDevice device) async {
 
 /// The two, as checks.
 List<ConformanceCheck> get multiviewChecks => <ConformanceCheck>[
-  (
+  ConformanceCheck(
     name: 'a pass of two views is refused by name without multiview',
     run: checkMultiviewRefusedByName,
   ),
-  (
+  ConformanceCheck(
     name: 'two views are drawn one pass each where one pass cannot',
     run: checkMultiviewFallsBackPerView,
   ),

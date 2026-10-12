@@ -11,7 +11,7 @@ import 'package:test/test.dart';
 ConformanceCheck _check(String name) =>
     conformanceChecks.firstWhere((c) => c.name == name);
 
-/// [name] run on [device] declines, and the line names the device's type.
+/// [name] run on [device] declines, and the line names the device.
 Future<void> _declines(String name, GraphicsDevice device) async {
   await expectLater(
     _check(name).run(device),
@@ -19,7 +19,7 @@ Future<void> _declines(String name, GraphicsDevice device) async {
       isA<ConformanceDeclinedException>().having(
         (e) => e.reason,
         'reason',
-        startsWith('${device.runtimeType} '),
+        startsWith('${device.backendName} '),
       ),
     ),
     reason: '"$name" on a ${device.runtimeType} that cannot be asked it',

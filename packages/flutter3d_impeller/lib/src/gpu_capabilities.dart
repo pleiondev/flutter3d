@@ -115,6 +115,8 @@ DeviceFeatures impellerFeatures({required bool cubesWork}) {
     // `createTexture` and `writeTexture`: `CommandBuffer
     // .copyBufferToTexture` takes any region of any level of any slice.
     DeviceFeature.textureWrites,
+    // A 1D texture is a 2D one a texel high, made by the same call.
+    DeviceFeature.texture1D,
     // `createBuffer` and `writeBuffer`: a host-visible `DeviceBuffer`,
     // overwritten and flushed in place.
     DeviceFeature.buffers,

@@ -18,6 +18,8 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show SamplerAddressMode;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:vector_math/vector_math.dart';
@@ -68,7 +70,7 @@ ModelProject fixtureProject() {
                     imageIndex: 0,
                     sampling: TextureSampling(
                       useMipmaps: false,
-                      wrapS: TextureWrap.clampToEdge,
+                      wrapS: SamplerAddressMode.clampToEdge,
                     ),
                   ),
                   alphaMode: SurfaceAlphaMode.mask,

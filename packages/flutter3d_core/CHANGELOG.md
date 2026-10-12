@@ -12,6 +12,11 @@
   event the bus carries, with the frame's `result` and the `budget` it went
   over, where it took the two as parameters: one object can gain a field
   in a minor.
+- **One type says how a texture wraps.** `TextureWrap` is gone:
+  `TextureSampling.wrapS` and `wrapT` are the hardware's
+  `SamplerAddressMode`, which `SamplerDescriptor` already took, and
+  `TextureWrap.mirroredRepeat` is `SamplerAddressMode.mirror`. `migrate`
+  renames both. Files keep their own words for a wrap.
 - **Breaking: a decoder, a writer and the renderer's services take one
   context each.** `ModelDecoder.handles` takes a `ModelProbe` (new: the
   file's name and bytes) and `decode` a `ModelDecodeContext` (new: the

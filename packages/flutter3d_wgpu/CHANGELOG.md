@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **`backendId` is `wgpu`.** It followed the display name, `the wgpu
+  sidecar`; an id is fixed for good.
 - **The compute sidecar.** `WgpuSidecar.open` makes a compute-only
   `GraphicsDevice` over wgpu-native through `dart:ffi`: storage buffers,
   RGBA8 textures and storage textures, a bundle's `.f3dmat compute` kernels

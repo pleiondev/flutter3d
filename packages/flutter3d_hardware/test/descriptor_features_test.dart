@@ -85,6 +85,25 @@ void main() {
   });
 
   group('TextureDescriptor', () {
+    test('a 1D texture names its feature', () {
+      // Mutation: `d1` mapped to no feature again, and a device without 1D
+      // textures refuses one untyped, or makes it, with nothing to ask first.
+      const line = TextureDescriptor(
+        width: 4,
+        height: 1,
+        format: TextureFormat.r8g8b8a8UNormInt,
+        dimension: TextureDimension.d1,
+      );
+      line.checkFeatures(
+        DeviceFeatures(<DeviceFeature>[DeviceFeature.texture1D]),
+        backend: 'Null',
+      );
+      expect(
+        () => line.checkFeatures(DeviceFeatures.none, backend: 'Null'),
+        _refusedFor(DeviceFeature.texture1D),
+      );
+    });
+
     test('a shape, a storage usage and samples each name a feature', () {
       expect(
         () => const TextureDescriptor(
@@ -140,6 +159,38 @@ void main() {
           usage: BufferUsage.vertex,
         ).checkFeatures(DeviceFeatures.none, backend: 'Null'),
         _refusedFor(DeviceFeature.buffers),
+      );
+    });
+  });
+
+  group('DepthBias', () {
+    test('a bias needs depthBias, and a clamp needs its own feature', () {
+      // Mutation: `checkFeatures` ignoring the clamp leaves a backend without
+      // one drawing unclamped, or refusing untyped, as WebGL2 used to.
+      const clamped = DepthBias(constant: 1, clamp: 0.01);
+      expect(
+        () => const DepthBias(
+          constant: 1,
+        ).checkFeatures(DeviceFeatures.none, backend: 'Null'),
+        _refusedFor(DeviceFeature.depthBias),
+      );
+      const DepthBias(constant: 1).checkFeatures(
+        DeviceFeatures(<DeviceFeature>[DeviceFeature.depthBias]),
+        backend: 'Null',
+      );
+      expect(
+        () => clamped.checkFeatures(
+          DeviceFeatures(<DeviceFeature>[DeviceFeature.depthBias]),
+          backend: 'Null',
+        ),
+        _refusedFor(DeviceFeature.depthBiasClamp),
+      );
+      clamped.checkFeatures(
+        DeviceFeatures(<DeviceFeature>[
+          DeviceFeature.depthBias,
+          DeviceFeature.depthBiasClamp,
+        ]),
+        backend: 'Null',
       );
     });
   });

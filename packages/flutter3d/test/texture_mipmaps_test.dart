@@ -134,8 +134,8 @@ void main() {
         const TextureSampling(
           magLinear: false,
           minLinear: false,
-          wrapS: TextureWrap.clampToEdge,
-          wrapT: TextureWrap.mirroredRepeat,
+          wrapS: SamplerAddressMode.clampToEdge,
+          wrapT: SamplerAddressMode.mirror,
         ),
       );
 

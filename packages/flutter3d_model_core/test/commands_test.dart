@@ -18,6 +18,8 @@ import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart' show VertexLayout;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show LightType, LinearColor;
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show SamplerAddressMode;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
@@ -2718,7 +2720,9 @@ void main() {
           materialIndex: 0,
           slot: 'albedo',
           imageIndex: 0,
-          sampling: const TextureSampling(wrapS: TextureWrap.clampToEdge),
+          sampling: const TextureSampling(
+            wrapS: SamplerAddressMode.clampToEdge,
+          ),
         ),
         AddImage(bytes: Uint8List.fromList(<int>[1, 2, 3]), imageName: 'atlas'),
         const AssignMaterial(id: 1, to: 0),

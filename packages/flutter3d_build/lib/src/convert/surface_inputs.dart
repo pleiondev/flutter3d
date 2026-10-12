@@ -6,6 +6,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show SamplerAddressMode;
 import 'package:vector_math/vector_math.dart';
 
 import 'materials.dart';
@@ -34,8 +36,8 @@ final class TextureInput extends InputValue {
     this.bytes, {
     this.channel = 'rgb',
     this.scale,
-    this.wrapS = TextureWrap.repeat,
-    this.wrapT = TextureWrap.repeat,
+    this.wrapS = SamplerAddressMode.repeat,
+    this.wrapT = SamplerAddressMode.repeat,
   });
 
   /// The file name it is written under.
@@ -51,8 +53,8 @@ final class TextureInput extends InputValue {
   /// MaterialX `multiply` by a constant), folded into the factor.
   final List<double>? scale;
 
-  final TextureWrap wrapS;
-  final TextureWrap wrapT;
+  final SamplerAddressMode wrapS;
+  final SamplerAddressMode wrapT;
 }
 
 /// An input computed by nodes that are neither a constant nor an image.

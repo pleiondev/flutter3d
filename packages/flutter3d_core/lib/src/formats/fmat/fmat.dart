@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show SamplerAddressMode;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show LinearColor;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart' show FormatSpec;
@@ -265,9 +267,9 @@ String writeFmat(MaterialDocument document, {LightingModels? lightingModels}) {
       if (!sampling.minLinear) 'minLinear': false,
       if (!sampling.useMipmaps) 'mipmaps': false,
       if (!sampling.mipLinear) 'mipLinear': false,
-      if (sampling.wrapS != TextureWrap.repeat)
+      if (sampling.wrapS != SamplerAddressMode.repeat)
         'wrapS': _wrapWord(sampling.wrapS),
-      if (sampling.wrapT != TextureWrap.repeat)
+      if (sampling.wrapT != SamplerAddressMode.repeat)
         'wrapT': _wrapWord(sampling.wrapT),
       if (transform != null) 'transform': _writeTransform(transform),
     };
@@ -526,17 +528,17 @@ TextureSampling _readSampling(Map<String, Object?> json) => TextureSampling(
 
 /// The word a `.fmat` file says for [wrap] — the inverse of [_wrap], spelled
 /// out so a rename of a value does not change what the file says.
-String _wrapWord(TextureWrap wrap) => switch (wrap) {
-  TextureWrap.repeat => 'repeat',
-  TextureWrap.clampToEdge => 'clampToEdge',
-  TextureWrap.mirroredRepeat => 'mirroredRepeat',
+String _wrapWord(SamplerAddressMode wrap) => switch (wrap) {
+  SamplerAddressMode.repeat => 'repeat',
+  SamplerAddressMode.clampToEdge => 'clampToEdge',
+  SamplerAddressMode.mirror => 'mirroredRepeat',
   _ => wrap.name,
 };
 
-TextureWrap _wrap(Object? value) => switch (value) {
-  'clampToEdge' => TextureWrap.clampToEdge,
-  'mirroredRepeat' => TextureWrap.mirroredRepeat,
-  _ => TextureWrap.repeat,
+SamplerAddressMode _wrap(Object? value) => switch (value) {
+  'clampToEdge' => SamplerAddressMode.clampToEdge,
+  'mirroredRepeat' => SamplerAddressMode.mirror,
+  _ => SamplerAddressMode.repeat,
 };
 
 /// Reads the `hints` block, which describes the entries in `parameters`.

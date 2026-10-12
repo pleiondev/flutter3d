@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **`texture1D` and `depthBiasClamp` are listed**, and a depth bias is
+  checked through `DepthBias.checkFeatures`.
 - **A draw rasterises in lists the device keeps.** Every draw made its
   varyings, its attributes and its clip positions, and every triangle its
   window coordinates, a list to interpolate into and, with a mipped texture

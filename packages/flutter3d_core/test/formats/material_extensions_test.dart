@@ -9,6 +9,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show SamplerAddressMode;
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -285,7 +287,7 @@ void main() {
       clearcoat: 1.0,
       clearcoatTexture: TextureBinding(
         imageIndex: 0,
-        sampling: const TextureSampling(wrapS: TextureWrap.clampToEdge),
+        sampling: const TextureSampling(wrapS: SamplerAddressMode.clampToEdge),
       ),
       clearcoatRoughness: 0.125,
       clearcoatRoughnessTexture: const TextureBinding(imageIndex: 0),
@@ -315,7 +317,7 @@ void main() {
     _expectCarPaint(reread.materials.first.extensions);
     expect(
       reread.materials.first.extensions!.clearcoatTexture!.sampling.wrapS,
-      TextureWrap.clampToEdge,
+      SamplerAddressMode.clampToEdge,
     );
     expect(reread.materials.last.extensions, isNull);
   });

@@ -60,10 +60,9 @@ Registration registerNullBackend(
 final class NullMaterialCompiler extends MaterialCompiler {
   const NullMaterialCompiler();
 
-  /// The device's `backendId`, which the registry matches exactly: the
-  /// device's name in lower case, its default.
+  /// The device's `backendId`, which the registry matches exactly.
   @override
-  String get backend => NullDevice.name.toLowerCase();
+  String get backend => NullDevice.name;
 
   /// [nullSection], which no other backend's compiler may take.
   @override

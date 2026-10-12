@@ -142,6 +142,7 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
     DeviceFeature.float32Blendable,
     // Layers, slices and cubes of cubes are lists of the same arrays a 2D
     // texture is; `CpuTexture.plane` addresses all of them.
+    DeviceFeature.texture1D,
     DeviceFeature.textureArrays,
     DeviceFeature.texture3D,
     DeviceFeature.cubeArrayTextures,
@@ -949,9 +950,6 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
         'the software rasteriser cannot allocate a ${d.dimension} texture',
       ),
     };
-    final isCube =
-        d.dimension == TextureDimension.cube ||
-        d.dimension == TextureDimension.cubeArray;
     return wrapTexture(
       owner: this,
       backend: texture,
@@ -959,7 +957,6 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
       height: d.height,
       format: format,
       storageMode: d.storageMode,
-      type: isCube ? TextureType.textureCube : TextureType.texture2D,
       dimension: d.dimension,
       depthOrArrayLayers: d.depthOrArrayLayers,
       mipLevelCount: d.mipLevelCount,

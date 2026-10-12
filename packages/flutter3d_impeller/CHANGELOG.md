@@ -1,5 +1,6 @@
 ## 1.0.0-rc.1
 
+- **`texture1D` is listed**: a 1D texture is a 2D one a texel high.
 - **`releasePipeline` lets go of the linked pipeline.** flutter_gpu has no
   dispose for a `RenderPipeline`, so a pipeline's `dispose` drops the
   backend's reference to it and to the stages it would be linked from, and

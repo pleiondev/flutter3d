@@ -401,8 +401,8 @@ Future<void> checkCubeFaces(GraphicsDevice device) async {
     faces: faces,
   );
   require(
-    cube.type == TextureType.textureCube,
-    'the handle came back as ${cube.type.name} rather than a cube',
+    cube.dimension == TextureDimension.cube,
+    'the handle came back as ${cube.dimension.name} rather than a cube',
   );
   require(
     cube.sliceCount == 6,

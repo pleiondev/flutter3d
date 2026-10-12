@@ -30,9 +30,9 @@ RenderBundle wrapRenderBundle({required Object backend, required RenderBundleDes
 
 ShaderHandle wrapShader({required Object backend, required String name, StageBindings? kept, Map<String, Map<String, UniformMemberLayout>>? layouts, void Function(ShaderHandle handle)? release})
 
-StorageBuffer wrapStorageBuffer({required Object backend, required int lengthInBytes, bool hostReadable = false, GeometryBuffer? asIndices, GeometryBuffer? asVertices, BufferUsage usage = BufferUsage.standardStorage, GraphicsDevice? owner})
+StorageBuffer wrapStorageBuffer({required Object backend, required int lengthInBytes, bool? hostReadable, GeometryBuffer? asIndices, GeometryBuffer? asVertices, BufferUsage? usage, GraphicsDevice? owner})
 
-TextureHandle wrapTexture({required Object backend, required int width, required int height, required TextureFormat format, int sampleCount = 1, StorageMode storageMode = StorageMode.devicePrivate, TextureType type = TextureType.texture2D, TextureDimension? dimension, int? depthOrArrayLayers, int mipLevelCount = 1, TextureUsage usage = TextureUsage.standard, TextureAllocator? owner})
+TextureHandle wrapTexture({required Object backend, required int width, required int height, required TextureFormat format, int sampleCount = 1, StorageMode storageMode = StorageMode.devicePrivate, TextureType? type, TextureDimension? dimension, int? depthOrArrayLayers, int mipLevelCount = 1, TextureUsage usage = TextureUsage.standard, TextureAllocator? owner})
 
 library package:flutter3d_hardware/flutter3d_hardware.dart
 
@@ -257,6 +257,7 @@ final class CullMode
   final int constant
   int get hashCode
   static const DepthBias none = DepthBias()
+  void checkFeatures(DeviceFeatures features, {required String backend})
 
 final class DepthRange
   String toString()
@@ -303,6 +304,7 @@ final class DepthTarget
   static const cubeArrayTextures = DeviceFeature._('cube-array-textures', FeatureStability.stable)
   static const cubeTextures = DeviceFeature._('cube-textures', FeatureStability.stable)
   static const depthBias = DeviceFeature._('depth-bias', FeatureStability.stable)
+  static const depthBiasClamp = DeviceFeature._('depth-bias-clamp', FeatureStability.stable)
   static const depthBounds = DeviceFeature._('depth-bounds', FeatureStability.reserved)
   static const depthClamp = DeviceFeature._('depth-clip-control', FeatureStability.stable)
   static const depthResolve = DeviceFeature._('depth-resolve', FeatureStability.reserved)
@@ -348,6 +350,7 @@ final class DepthTarget
   static const storageTextures = DeviceFeature._('storage-textures', FeatureStability.stable)
   static const subgroups = DeviceFeature._('subgroups', FeatureStability.stable)
   static const synchronousReadback = DeviceFeature._('synchronous-readback', FeatureStability.stable)
+  static const texture1D = DeviceFeature._('1d-textures', FeatureStability.stable)
   static const texture3D = DeviceFeature._('3d-textures', FeatureStability.stable)
   static const textureArrays = DeviceFeature._('2d-array-textures', FeatureStability.stable)
   static const textureCompressionASTC = DeviceFeature._('texture-compression-astc', FeatureStability.stable)

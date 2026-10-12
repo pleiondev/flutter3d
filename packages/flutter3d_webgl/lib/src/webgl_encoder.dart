@@ -1826,20 +1826,13 @@ void webglGateSampler(WebGlDevice device, SamplerDescriptor? sampler) {
 ///
 /// `glPolygonOffsetClamp` is desktop GL 4.6 and an ES extension WebGL does
 /// not expose, so a non-zero [DepthBias.clamp] would be silently unclamped.
-/// Refused by name instead — an [UnsupportedError] rather than an
-/// [UnsupportedCapabilityException], since the device does have depth bias, and a
-/// caller wanting the clamp keeps the slope small instead.
-void webglGateDepthBias(WebGlDevice device, DepthBias bias) {
-  device.features.require(DeviceFeature.depthBias, backend: webglBackendName);
-  if (bias.clamp != 0) {
-    // TODO(webgl): depth-bias clamp — needs EXT_polygon_offset_clamp exposed
-    // to WebGL; until then no non-zero clamp can be honoured.
-    throw UnsupportedError(
-      'WebGL2 cannot clamp a depth bias (DepthBias.clamp ${bias.clamp}): it '
-      'has no polygonOffsetClamp. Pass a clamp of zero.',
-    );
-  }
-}
+/// This device does not list `DeviceFeature.depthBiasClamp`, so the shared
+/// check refuses a clamp by that feature, and a caller wanting the clamp
+/// keeps the slope small instead.
+// TODO(webgl): depth-bias clamp — needs EXT_polygon_offset_clamp exposed to
+// WebGL; until then no non-zero clamp can be honoured.
+void webglGateDepthBias(WebGlDevice device, DepthBias bias) =>
+    bias.checkFeatures(device.features, backend: webglBackendName);
 
 /// `EXT_depth_clamp`, granted or not.
 void webglGateDepthClamp(WebGlDevice device) => device.features.require(
