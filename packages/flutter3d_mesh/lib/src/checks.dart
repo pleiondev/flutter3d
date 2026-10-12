@@ -22,61 +22,12 @@ library;
 
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
 
 import 'package:vector_math/vector_math.dart';
 
 import 'edit_mesh.dart';
 import 'selection.dart';
-
-/// Roughly how much an issue matters.
-///
-/// Three levels is what a panel shows and a person can triage today. The set
-/// is open all the same, because a severity is a tier, and tiers are where a
-/// later release finds it wants one more.
-///
-/// A class with constants rather than an enum, so a value added in a minor
-/// release does not break a `switch` written against it: [name] is what a
-/// file or a snapshot writes, and [byName] reads it back.
-final class IssueSeverity {
-  const IssueSeverity._(this.name);
-
-  /// Worth knowing. A boundary edge on a plane, an n-gon in a file.
-  static const IssueSeverity note = IssueSeverity._('note');
-
-  /// Probably not what somebody meant. Vertices in the same place, a shell
-  /// wound inside out.
-  static const IssueSeverity warning = IssueSeverity._('warning');
-
-  /// Will not survive being drawn or written out. A face with no area.
-  static const IssueSeverity error = IssueSeverity._('error');
-
-  /// Every value this version names, in declaration order. A later version
-  /// appends; nothing is removed or renamed within a major.
-  static const List<IssueSeverity> values = <IssueSeverity>[
-    note,
-    warning,
-    error,
-  ];
-
-  /// The value called [name], or null for a name this version does not know,
-  /// which is what a file written by a later version can carry.
-  static IssueSeverity? byName(String name) {
-    for (final value in values) {
-      if (value.name == name) return value;
-    }
-    return null;
-  }
-
-  /// The stable name, and the wire name: what a file, a report or a snapshot
-  /// writes for this value. Never renamed within a major.
-  final String name;
-
-  /// The position in [values]: stable within a major, appended only.
-  int get index => values.indexOf(this);
-
-  @override
-  String toString() => 'IssueSeverity.$name';
-}
 
 /// A kind of thing a check can find.
 ///
@@ -91,44 +42,44 @@ final class MeshIssueKind {
   /// A stable slug, which is what a report or a tool call carries.
   final String name;
 
-  final IssueSeverity severity;
+  final Severity severity;
 
   /// What the ids of an issue of this kind are.
   final ElementLevel level;
 
   static const MeshIssueKind ngon = MeshIssueKind(
     'ngon',
-    IssueSeverity.note,
+    Severity.note,
     ElementLevel.face,
   );
   static const MeshIssueKind boundaryEdge = MeshIssueKind(
     'boundary-edge',
-    IssueSeverity.note,
+    Severity.note,
     ElementLevel.edge,
   );
   static const MeshIssueKind nonManifoldVertex = MeshIssueKind(
     'non-manifold-vertex',
-    IssueSeverity.warning,
+    Severity.warning,
     ElementLevel.vertex,
   );
   static const MeshIssueKind isolatedVertex = MeshIssueKind(
     'isolated-vertex',
-    IssueSeverity.warning,
+    Severity.warning,
     ElementLevel.vertex,
   );
   static const MeshIssueKind duplicateVertex = MeshIssueKind(
     'duplicate-vertex',
-    IssueSeverity.warning,
+    Severity.warning,
     ElementLevel.vertex,
   );
   static const MeshIssueKind invertedShell = MeshIssueKind(
     'inverted-shell',
-    IssueSeverity.warning,
+    Severity.warning,
     ElementLevel.face,
   );
   static const MeshIssueKind degenerateFace = MeshIssueKind(
     'degenerate-face',
-    IssueSeverity.error,
+    Severity.error,
     ElementLevel.face,
   );
 
@@ -150,7 +101,7 @@ final class MeshIssue {
   /// A sentence for a person, with the count in it.
   final String message;
 
-  IssueSeverity get severity => kind.severity;
+  Severity get severity => kind.severity;
 
   /// The elements as something a viewport can highlight.
   Selection get selection => Selection.of(kind.level, ids);

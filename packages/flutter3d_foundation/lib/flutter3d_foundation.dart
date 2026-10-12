@@ -16,7 +16,10 @@
 ///   [LinearColor], the one colour type, with their crossings into
 ///   `vector_math`'s float32 vectors ([WorldPositionVector],
 ///   [Vector3Foundation], [Vector4Foundation], [LinearColorVector]);
-/// * [Issue] and [IssueSink], how a library reports what it could not do;
+/// * [Issue], [IssueSink] and [Severity], how a library reports what it
+///   could not do and how much it matters;
+/// * [LightType], the kinds of light a scene, a level, a project and a
+///   model file place;
 /// * [FormatSpec] and [FormatDocument], the envelope every JSON file the
 ///   engine writes starts with, and the migrations that lift an old one;
 /// * [Registration], what every registry hands back, and [PlacedEvent],
@@ -37,11 +40,13 @@ export 'src/exceptions.dart';
 export 'src/expressions.dart';
 export 'src/formats.dart';
 export 'src/issues.dart';
+export 'src/light_type.dart';
 export 'src/linear_color.dart';
 export 'src/log.dart';
 export 'src/placed_event.dart';
 export 'src/portable_math.dart';
 export 'src/registration.dart';
+export 'src/rigid_pose.dart';
 export 'src/units.dart';
 export 'src/vectors.dart';
 export 'src/world_position.dart';

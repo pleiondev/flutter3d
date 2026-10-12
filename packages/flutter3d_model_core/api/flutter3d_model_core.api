@@ -50,8 +50,8 @@ final class AddLight extends ModelCommand
   Outcome apply(ModelProject project, ProjectSelection selection)
   String get name
   String get says
-  const AddLight({this.type = ProjectLightType.directional, this.at})
-  final ProjectLightType type
+  const AddLight({this.type = LightType.directional, this.at})
+  final LightType type
   final Vector3? at
 
 final class AddLod extends ModelCommand
@@ -495,15 +495,15 @@ final class ChannelsTextureNode extends TextureNode
   final int? source
 
 final class CheckerTextureNode extends TextureNode
-  CheckerTextureNode({required super.id, Vector4? colorA, Vector4? colorB, this.scale = 8.0})
   Map<String, MaterialHint> get hints
   Map<String, Object?> toJson()
   Map<String, TextureInputSocket> get inputs
   R accept<R>(TextureNodeVisitor<R> visitor)
   String get kind
   TextureValueType get outputType
-  final Vector4 colorA
-  final Vector4 colorB
+  const CheckerTextureNode({required super.id, this.colorA = LinearColor.black, this.colorB = LinearColor.white, this.scale = 8.0})
+  final LinearColor colorA
+  final LinearColor colorB
   final double scale
 
 final class ChoiceHint extends ParamHint
@@ -518,7 +518,7 @@ final class ColorTextureNode extends TextureNode
   String get kind
   TextureValueType get outputType
   const ColorTextureNode({required super.id, required this.value})
-  final Vector4 value
+  final LinearColor value
 
 final class CommandJournal
   CommandJournal()
@@ -688,8 +688,8 @@ final class ExportFormat
 final class ExportIssue
   String toString()
   const ExportIssue(this.severity, this.message, {this.object})
-  final ExportSeverity severity
   final ModelObject? object
+  final Severity severity
   final String message
 
 final class ExportReadiness
@@ -707,14 +707,6 @@ final class ExportRefused extends ExportResult
 
 abstract final class ExportResult
   const ExportResult()
-
-final class ExportSeverity
-  String toString()
-  final String name
-  static ExportSeverity? byName(String name)
-  static const ExportSeverity error = ExportSeverity._('error')
-  static const ExportSeverity warning = ExportSeverity._('warning')
-  static const List<ExportSeverity> values = <ExportSeverity>[warning, error]
 
 final class ExportWritten extends ExportResult
   const ExportWritten(this.files, this.warnings)
@@ -1430,24 +1422,16 @@ final class ProjectFormatException extends Flutter3dFormatException
   final String message
 
 final class ProjectLight
-  ProjectLight copyWith({ProjectLightType? type, Vector3? color, double? intensity, double? range, bool? castsShadow, double? innerConeAngle, double? outerConeAngle, Matrix4? transform})
-  ProjectLight({this.type = ProjectLightType.directional, Vector3? color, this.intensity = 5790.583578, this.range = 0.0, this.castsShadow = false, this.innerConeAngle = 0.0, this.outerConeAngle = math.pi / 4.0, Matrix4? transform})
+  ProjectLight copyWith({LightType? type, LinearColor? color, double? intensity, double? range, bool? castsShadow, double? innerConeAngle, double? outerConeAngle, Matrix4? transform})
+  ProjectLight({this.type = LightType.directional, this.color = LinearColor.white, this.intensity = 5790.583578, this.range = 0.0, this.castsShadow = false, this.innerConeAngle = 0.0, this.outerConeAngle = math.pi / 4.0, Matrix4? transform})
+  final LightType type
+  final LinearColor color
   final Matrix4 transform
-  final ProjectLightType type
-  final Vector3 color
   final bool castsShadow
   final double innerConeAngle
   final double intensity
   final double outerConeAngle
   final double range
-
-final class ProjectLightType
-  String toString()
-  final String name
-  static const List<ProjectLightType> values = <ProjectLightType>[directional, point, spot]
-  static const ProjectLightType directional = ProjectLightType._('directional')
-  static const ProjectLightType point = ProjectLightType._('point')
-  static const ProjectLightType spot = ProjectLightType._('spot')
 
 final class ProjectMaterial
   ProjectMaterial withBake(SurfaceMaterial next)

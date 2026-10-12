@@ -12,7 +12,7 @@ import 'package:flutter/foundation.dart' show listEquals, visibleForTesting;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart' hide Pose;
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 /// What the cutscene changes in the game: what its signals did.
 final class _Stage {

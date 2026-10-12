@@ -965,7 +965,7 @@ tool light.add
   arg faces {"items":{"type":"integer"},"type":"array"}
   arg ids {"items":{"type":"integer"},"type":"array"}
   arg object {"type":"integer"}
-  arg type {"enum":["directional","point","spot"],"type":"string"}
+  arg type {"enum":["directional","point","spot","area"],"type":"string"}
   arg vertices {"items":{"type":"integer"},"type":"array"}
   out {"properties":{"did":{"type":"boolean"},"ids":{"items":{"type":"integer"},"type":"array"},"says":{"type":"string"},"selection":{"properties":{"elements":{"items":{"type":"integer"},"type":"array"},"level":{"type":"string"},"mode":{"type":"string"},"object":{"type":"integer"},"objects":{"items":{"type":"integer"},"type":"array"}},"required":["mode","objects"],"type":"object"}},"required":["did","ids","says","selection"],"type":"object"}
 

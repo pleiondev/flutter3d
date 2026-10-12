@@ -8,6 +8,7 @@ library;
 import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show RigidPose;
 
 import 'package:flutter3d_physics/flutter3d_physics.dart' show CollisionWorld;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
@@ -19,13 +20,13 @@ const Duration _period = Duration(microseconds: 16667);
 
 /// A head that walks and turns a little every step, with numbers no
 /// decimal writes exactly.
-XrPose _headAt(int step) => XrPose(
+RigidPose _headAt(int step) => RigidPose(
   position: Vector3(0.1 * step, 1.6 + math.sin(step / 7), -0.03 * step),
   orientation: Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), step / 11),
 );
 
 /// Where the head is seen at each step, as a system reading [XrPoses].
-List<XrPose?> _heads(EngineLoop loop, int steps) => <XrPose?>[
+List<RigidPose?> _heads(EngineLoop loop, int steps) => <RigidPose?>[
   for (var i = 0; i < steps; i++)
     (loop..runSteps(1)).world.resource<XrPoses>()?.head,
 ];
@@ -72,13 +73,13 @@ void main() {
       expect(input.value, hasLength(7));
       expect(input.kind, ReadingKind.predicted);
       expect(input.sourceTime, 4.5);
-      final back = XrPose.fromInput(
+      final back = XrPoseInput.fromInput(
         ExternalStateInput.fromJson(jsonDecode(jsonEncode(input.toJson()))),
       );
       expect(back, pose);
       expect(
-        () => XrPose.fromComponents(<double>[1, 2, 3]),
-        throwsA(isA<PluginFormatException>()),
+        () => RigidPose.fromComponents(<double>[1, 2, 3]),
+        throwsA(isA<DocumentFormatException>()),
       );
     });
 
@@ -108,7 +109,7 @@ void main() {
         input.feedExternal(_headAt(fed).toInput(XrPoseSources.head));
         if (fed % 3 == 0) {
           input.feedExternal(
-            XrPose.identity().toInput(XrPoseSources.grip(XrHand.right)),
+            RigidPose.identity().toInput(XrPoseSources.grip(XrHand.right)),
           );
         }
         fed++;
@@ -128,7 +129,7 @@ void main() {
       // null; write the pose as floats and the equality below fails.
       expect(_heads(replay, steps), seen);
       final poses = replay.world.resource<XrPoses>()!;
-      expect(poses[XrPoseSources.grip(XrHand.right)], XrPose.identity());
+      expect(poses[XrPoseSources.grip(XrHand.right)], RigidPose.identity());
       expect(poses.sources, contains(XrPoseSources.head));
     });
   });
@@ -190,7 +191,7 @@ void main() {
   group('the room', () {
     final table = XrPlane(
       id: 'table-1',
-      pose: XrPose(
+      pose: RigidPose(
         position: Vector3(0.5, 0.75, -1.0),
         orientation: Quaternion.identity(),
       ),
@@ -216,7 +217,7 @@ void main() {
       // A wall turned a quarter about y is bounded by its turned corners.
       final wall = XrPlane(
         id: 'wall',
-        pose: XrPose(
+        pose: RigidPose(
           position: Vector3.zero(),
           orientation: Quaternion(0.0, math.sqrt1_2, 0.0, math.sqrt1_2),
         ),
@@ -231,7 +232,7 @@ void main() {
     test('a scene mesh is input and back, and collides as its box', () {
       final mesh = XrSceneMesh(
         id: 'sofa',
-        pose: XrPose.identity(),
+        pose: RigidPose.identity(),
         vertices: Float32List.fromList(<double>[0, 0, 0, 2, 0, 0, 0, 0.5, 1]),
         indices: Uint32List.fromList(<int>[0, 1, 2]),
       );
@@ -261,7 +262,7 @@ void main() {
             input.feedExternal(
               XrPlane(
                 id: 'floor',
-                pose: XrPose.identity(),
+                pose: RigidPose.identity(),
                 width: 4,
                 depth: 4,
               ).toInput(),

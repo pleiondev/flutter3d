@@ -2,6 +2,8 @@
 /// trees it has.
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
+
 import '../level/level.dart';
 import '../level/level_issue.dart';
 import '../level/level_rule.dart';
@@ -28,9 +30,7 @@ final class BehaviorsRead extends LevelRule {
     for (final MapEntry(key: name, value: document)
         in level.behaviors.entries) {
       for (final problem in BehaviorTree.read(document, kinds).problems) {
-        out.add(
-          LevelIssue(LevelIssueSeverity.error, 'behaviour "$name": $problem'),
-        );
+        out.add(LevelIssue(Severity.error, 'behaviour "$name": $problem'));
       }
     }
     for (final entity in level.entities) {
@@ -39,7 +39,7 @@ final class BehaviorsRead extends LevelRule {
       if (named is! String || !level.behaviors.containsKey(named)) {
         out.add(
           LevelIssue(
-            LevelIssueSeverity.error,
+            Severity.error,
             '${entity.name ?? entity.type} runs behaviour "$named", which '
             'the level does not have',
           ),

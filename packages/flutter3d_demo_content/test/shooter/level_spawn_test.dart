@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter3d_demo_content/shooter_sample.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LightType, Severity;
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
@@ -305,10 +307,7 @@ void _anotherGameTests() {
         registry: registryOf(<String, MonsterDef>{'ghost': ghost}),
       ).validate(levelWith('ghost'));
 
-      expect(
-        issues.where((i) => i.severity == LevelIssueSeverity.error),
-        isEmpty,
-      );
+      expect(issues.where((i) => i.severity == Severity.error), isEmpty);
     });
 
     test('and refuses one that belongs to a different game', () {
@@ -320,7 +319,7 @@ void _anotherGameTests() {
       ).validate(levelWith('runner'));
 
       expect(
-        issues.where((i) => i.severity == LevelIssueSeverity.error),
+        issues.where((i) => i.severity == Severity.error),
         isNotEmpty,
         reason: 'a monster from somebody else\'s roster validated',
       );
@@ -344,10 +343,7 @@ void _anotherGameTests() {
           EntityDef(type: EntityTypes.playerSpawn, position: Vector3.zero()),
         ],
         lights: <LevelLight>[
-          LevelLight(
-            type: LevelLightType.directional,
-            direction: Vector3(0, -1, 0),
-          ),
+          LevelLight(type: LightType.directional, direction: Vector3(0, -1, 0)),
         ],
       );
 

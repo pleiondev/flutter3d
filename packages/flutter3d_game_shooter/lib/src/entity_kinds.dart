@@ -1,3 +1,4 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
@@ -42,7 +43,7 @@ final class PickupKind extends EntityKind {
     if (what == null) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'has no "gives", so picking it up would do nothing',
           where: scope.describe(entity),
         ),
@@ -52,7 +53,7 @@ final class PickupKind extends EntityKind {
     if (!gifts.knows(what)) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'gives "$what", which nothing knows how to grant',
           where: scope.describe(entity),
         ),
@@ -62,7 +63,7 @@ final class PickupKind extends EntityKind {
     if (amount != null && amount <= 0.0) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.warning,
+          Severity.warning,
           'gives an amount of $amount',
           where: scope.describe(entity),
         ),

@@ -2309,19 +2309,6 @@ final class LightShaftSettings
   final double strength
   final int steps
 
-final class LightType
-  LightType get base
-  String toString()
-  const LightType.custom(this.name, {required LightType base})
-  final String name
-  int get index
-  static LightType? byName(String wireName)
-  static const LightType area = LightType._(3, 'area')
-  static const LightType directional = LightType._(0, 'directional')
-  static const LightType point = LightType._(1, 'point')
-  static const LightType spot = LightType._(2, 'spot')
-  static const List<LightType> values = <LightType>[directional, point, spot, area]
-
 abstract base class LightTypeHook
   abstract LightType get type
   const LightTypeHook()
@@ -3126,21 +3113,13 @@ final class ModelImpostor
 final class ModelLight
   ModelLight({required this.type, this.color = LinearColor.white, this.intensity = 1.0, this.range, this.innerConeAngle = 0.0, double? outerConeAngle, this.name})
   String toString()
+  final LightType type
   final LinearColor color
-  final ModelLightType type
   final String? name
   final double innerConeAngle
   final double intensity
   final double outerConeAngle
   final double? range
-
-final class ModelLightType
-  String toString()
-  final String name
-  static const List<ModelLightType> values = <ModelLightType>[directional, point, spot]
-  static const ModelLightType directional = ModelLightType._('directional')
-  static const ModelLightType point = ModelLightType._('point')
-  static const ModelLightType spot = ModelLightType._('spot')
 
 final class ModelLoadRequest
   const ModelLoadRequest({required this.source, this.format = ModelFormat.auto, this.layout = VertexLayout.standard, this.objNormals = ObjNormals.smooth, this.stlNormals = StlNormals.fromFile, this.decoders = const <ModelDecoder>[]})
@@ -7161,21 +7140,13 @@ final class ModelImpostor
 final class ModelLight
   ModelLight({required this.type, this.color = LinearColor.white, this.intensity = 1.0, this.range, this.innerConeAngle = 0.0, double? outerConeAngle, this.name})
   String toString()
+  final LightType type
   final LinearColor color
-  final ModelLightType type
   final String? name
   final double innerConeAngle
   final double intensity
   final double outerConeAngle
   final double? range
-
-final class ModelLightType
-  String toString()
-  final String name
-  static const List<ModelLightType> values = <ModelLightType>[directional, point, spot]
-  static const ModelLightType directional = ModelLightType._('directional')
-  static const ModelLightType point = ModelLightType._('point')
-  static const ModelLightType spot = ModelLightType._('spot')
 
 final class ModelLoadRequest
   const ModelLoadRequest({required this.source, this.format = ModelFormat.auto, this.layout = VertexLayout.standard, this.objNormals = ObjNormals.smooth, this.stlNormals = StlNormals.fromFile, this.decoders = const <ModelDecoder>[]})

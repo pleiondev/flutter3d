@@ -1,3 +1,4 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
@@ -44,7 +45,7 @@ final class ClimbableKind extends EntityKind {
     if (size.y < 2.0) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.warning,
+          Severity.warning,
           'is ${size.y} m tall, which is a ladder shorter than the runner '
           'climbing it',
           where: scope.describe(entity),

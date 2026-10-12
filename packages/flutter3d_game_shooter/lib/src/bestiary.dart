@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
 
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
@@ -157,7 +158,7 @@ final class MonsterKind extends EntityKind {
     if (kind == null) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'has no "kind", so nothing knows what to spawn',
           where: scope.describe(entity),
         ),
@@ -167,7 +168,7 @@ final class MonsterKind extends EntityKind {
     if (!catalog.containsKey(kind)) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'is a "$kind", which this game has never heard of',
           where: scope.describe(entity),
         ),

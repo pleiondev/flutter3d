@@ -9,6 +9,7 @@
 /// there is no second copy of either.
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -40,7 +41,7 @@ List<ExportIssue> rigIssues(ModelProject project, ProjectProfile profile) {
       if (!objectsById.containsKey(track.objectId)) {
         issues.add(
           ExportIssue(
-            ExportSeverity.error,
+            Severity.error,
             'clip "${clip.name ?? 'unnamed'}" has a track naming object '
             '${track.objectId}, which the project does not have',
           ),
@@ -67,7 +68,7 @@ List<ExportIssue> _skeletonIssues(
   if (skeleton.jointCount > 64) {
     issues.add(
       ExportIssue(
-        ExportSeverity.error,
+        Severity.error,
         'skeleton "$name" has ${skeleton.jointCount} joints; the shader '
         'holds 64',
       ),
@@ -75,7 +76,7 @@ List<ExportIssue> _skeletonIssues(
   } else if (skeleton.jointCount > profile.maxJoints) {
     issues.add(
       ExportIssue(
-        ExportSeverity.warning,
+        Severity.warning,
         'skeleton "$name" has ${skeleton.jointCount} joints, over this '
         "profile's ${profile.maxJoints}",
       ),
@@ -94,7 +95,7 @@ List<ExportIssue> _skeletonIssues(
         (scale.y - scale.z).abs() > tolerance) {
       issues.add(
         ExportIssue(
-          ExportSeverity.warning,
+          Severity.warning,
           'skeleton "$name" joint "${joint.name}" has a non-uniform scale '
           '(${scale.x}, ${scale.y}, ${scale.z}); skinning treats a joint as '
           'rotation and translation only',
@@ -137,7 +138,7 @@ List<ExportIssue> _skeletonIssues(
   if (zeroSum > 0) {
     issues.add(
       ExportIssue(
-        ExportSeverity.warning,
+        Severity.warning,
         'skeleton "$name" has $zeroSum vertices with no weight at all; '
         'they will not move with the rig',
       ),
@@ -146,7 +147,7 @@ List<ExportIssue> _skeletonIssues(
   if (unnormalized > 0) {
     issues.add(
       ExportIssue(
-        ExportSeverity.warning,
+        Severity.warning,
         'skeleton "$name" has $unnormalized vertices whose weights do not '
         'sum to one',
       ),
@@ -155,7 +156,7 @@ List<ExportIssue> _skeletonIssues(
   if (overInfluence > 0) {
     issues.add(
       ExportIssue(
-        ExportSeverity.warning,
+        Severity.warning,
         'skeleton "$name" has $overInfluence vertices with more than '
         "this profile's ${profile.maxInfluences} influences",
       ),
@@ -164,7 +165,7 @@ List<ExportIssue> _skeletonIssues(
   if (outOfRange > 0) {
     issues.add(
       ExportIssue(
-        ExportSeverity.error,
+        Severity.error,
         'skeleton "$name" has $outOfRange weights naming a joint index '
         "outside this skin's ${skeleton.jointCount} joints",
       ),
@@ -174,7 +175,7 @@ List<ExportIssue> _skeletonIssues(
   if (unused > 0) {
     issues.add(
       ExportIssue(
-        ExportSeverity.warning,
+        Severity.warning,
         'skeleton "$name" has $unused joints no vertex is weighted to',
       ),
     );

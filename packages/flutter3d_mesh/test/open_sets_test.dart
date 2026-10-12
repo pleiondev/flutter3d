@@ -27,12 +27,6 @@ void main() {
       (v) => (v as ElementLevel).name,
       ElementLevel.byName,
     ),
-    'IssueSeverity': (
-      IssueSeverity.values,
-      <String>['note', 'warning', 'error'],
-      (v) => (v as IssueSeverity).name,
-      IssueSeverity.byName,
-    ),
     'MeshAttribute': (
       MeshAttribute.values,
       <String>[

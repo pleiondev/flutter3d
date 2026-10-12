@@ -43,7 +43,8 @@ library;
 
 import 'dart:math' as math;
 
-import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Portable, RigidPose;
 import 'package:flutter3d_matter/flutter3d_matter.dart'
     show Confidence, ConstantLaw, InelasticProperties;
 import 'package:vector_math/vector_math.dart';
@@ -546,9 +547,6 @@ final class RagdollBone {
   final RagdollJoint? joint;
 }
 
-/// A bone's pose in world space: where its frame is and how it is turned.
-typedef BonePose = ({Vector3 position, Quaternion orientation});
-
 final class NativeRagdoll {
   /// Made in [world] from [rest], the bones at rest, then moved to [pose],
   /// one pose a bone, moving as [velocity] and [spin] say when they are
@@ -572,7 +570,7 @@ final class NativeRagdoll {
   NativeRagdoll(
     this.world,
     List<RagdollBone> rest, {
-    List<BonePose>? pose,
+    List<RigidPose>? pose,
     List<Vector3>? velocity,
     List<Vector3>? spin,
     JointTissue tissue = JointTissue.human,
@@ -745,7 +743,7 @@ final class NativeRagdoll {
   /// Puts every bone at [pose] — a pose a bone, in world space — moving at
   /// [velocity] and turning at [spin] where they are given, nought where not.
   void place(
-    List<BonePose> pose, {
+    List<RigidPose> pose, {
     List<Vector3>? velocity,
     List<Vector3>? spin,
   }) {
@@ -762,9 +760,9 @@ final class NativeRagdoll {
   }
 
   /// Where bone [index] is now, as its body has it.
-  BonePose poseOf(int index) {
+  RigidPose poseOf(int index) {
     final turn = world.orientationOf(_bodies[index]);
-    return (
+    return RigidPose(
       position:
           world.localPositionOf(_bodies[index]) +
           turnBy(turn, _offsetAt[index]),

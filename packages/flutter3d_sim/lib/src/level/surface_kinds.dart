@@ -1,3 +1,5 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
+
 import 'entity_def.dart';
 import 'entity_kind.dart';
 import 'level_issue.dart';
@@ -57,7 +59,7 @@ abstract base class _SurfaceKind extends EntityKind {
   }
 
   static LevelIssue _error(EntityDef e, LevelScope scope, String message) =>
-      LevelIssue(LevelIssueSeverity.error, message, where: scope.describe(e));
+      LevelIssue(Severity.error, message, where: scope.describe(e));
 }
 
 /// A picture projected onto whatever stands in a box: a scorch, a stain, a

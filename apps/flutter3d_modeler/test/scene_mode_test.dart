@@ -4,6 +4,7 @@
 ///     flutter test test/scene_mode_test.dart
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/scene_mode.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -105,8 +106,8 @@ void main() {
     test('every light is pickable, named by its own index', () {
       final lighting = SceneLighting(
         lights: <ProjectLight>[
-          ProjectLight(type: ProjectLightType.point),
-          ProjectLight(type: ProjectLightType.spot),
+          ProjectLight(type: LightType.point),
+          ProjectLight(type: LightType.spot),
           ProjectLight(),
         ],
       );

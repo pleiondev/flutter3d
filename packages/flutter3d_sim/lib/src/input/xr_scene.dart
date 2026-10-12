@@ -3,6 +3,7 @@
 library;
 
 import 'dart:typed_data';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show RigidPose;
 
 import 'package:flutter3d_physics/flutter3d_physics.dart'
     show Collider, CollisionBox, CollisionWorld;
@@ -88,7 +89,7 @@ final class XrPlane {
   final String id;
 
   /// Its center and turn, in the session's space.
-  final XrPose pose;
+  final RigidPose pose;
 
   /// Its extent along the pose's x, in meters.
   final double width;
@@ -136,7 +137,7 @@ final class XrPlane {
     }
     return XrPlane(
       id: input.source.substring('${XrPoseSources.prefix}plane.'.length),
-      pose: XrPose.fromComponents(input.value.sublist(0, 7)),
+      pose: RigidPose.fromComponents(input.value.sublist(0, 7)),
       width: input.value[7],
       depth: input.value[8],
       orientation:
@@ -196,7 +197,7 @@ final class XrSceneMesh {
   final String id;
 
   /// Where its vertices' space sits in the session's.
-  final XrPose pose;
+  final RigidPose pose;
 
   /// x, y, z of each vertex, in meters.
   final Float32List vertices;
@@ -243,7 +244,7 @@ final class XrSceneMesh {
     }
     return XrSceneMesh(
       id: input.source.substring(prefix.length),
-      pose: XrPose.fromComponents(value.sublist(0, 7)),
+      pose: RigidPose.fromComponents(value.sublist(0, 7)),
       vertices: Float32List.fromList(value.sublist(8, end)),
       indices: Uint32List.fromList(<int>[
         for (final index in value.sublist(end)) index.toInt(),

@@ -1,8 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
-
-import 'head_pose.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show RigidPose;
 
 /// Which eye.
 ///
@@ -113,9 +112,9 @@ final class StereoRig {
   }
 
   /// Points the head where the tracker says it is.
-  void applyHead(HeadPose pose) {
+  void applyHead(RigidPose pose) {
     head
-      ..setRotation(pose.rotation)
+      ..setRotation(pose.orientation)
       ..setPosition(pose.position.x, pose.position.y, pose.position.z);
   }
 

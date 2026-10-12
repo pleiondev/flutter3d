@@ -392,11 +392,11 @@ final class SixWayLayout
   static const SixWayLayout positiveNegative = …
 
 final class SixWayMaterial
-  SixWayMaterial({required this.positive, required this.negative, Vector3? emission, Vector3? ambient})
+  LinearColor ambient
+  LinearColor emission
+  SixWayMaterial({required this.positive, required this.negative, this.emission = LinearColor.black, this.ambient = LinearColor.black})
   final TextureHandle negative
   final TextureHandle positive
-  final Vector3 ambient
-  final Vector3 emission
 
 final class SixWaySheet
   const SixWaySheet({required this.columns, required this.rows, required this.cell, required this.positive, required this.negative})

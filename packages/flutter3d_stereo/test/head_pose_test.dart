@@ -149,7 +149,7 @@ void main() {
 
     test('the payload is the vector then the display rotation', () {
       final pose = decodeSensorEvent(<double>[0.0, 0.0, 0.0, 1.0, 0.0]);
-      expectVector(forwardOf(pose.rotation), Vector3(0.0, -1.0, 0.0));
+      expectVector(forwardOf(pose.orientation), Vector3(0.0, -1.0, 0.0));
       expect(pose.position, Vector3.zero());
     });
 
@@ -157,7 +157,7 @@ void main() {
       final pose = decodeSensorEvent(<double>[0.0, 0.0, 0.0, 90.0]);
       // Scalar reconstructed as one, so this is the flat-on-the-table case
       // again, rolled by the display.
-      expectVector(forwardOf(pose.rotation), Vector3(0.0, -1.0, 0.0));
+      expectVector(forwardOf(pose.orientation), Vector3(0.0, -1.0, 0.0));
     });
 
     test('too few numbers is refused rather than guessed at', () {

@@ -14,7 +14,7 @@ import 'pose.dart';
 final class Tape {
   const Tape({required this.poses, required this.seconds});
 
-  final List<Pose> poses;
+  final List<GhostFrame> poses;
 
   /// What the recorded thing took, in seconds.
   final double seconds;
@@ -34,6 +34,6 @@ final class Tape {
   /// `lapTime` is a racing word, and a document's shape belongs to whoever
   /// keeps the document.
   ///
-  /// [Pose] does serialise, because a place, a facing and a time are nobody's
-  /// vocabulary in particular.
+  /// [GhostFrame] does serialise, because a place, a facing and a time are
+  /// nobody's vocabulary in particular.
 }

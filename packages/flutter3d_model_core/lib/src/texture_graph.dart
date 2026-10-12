@@ -33,7 +33,7 @@ library;
 
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show Flutter3dFormatException;
+    show Flutter3dFormatException, LinearColor;
 import 'package:vector_math/vector_math.dart';
 
 import 'project_wire.dart';
@@ -193,7 +193,7 @@ abstract base class TextureNode {
     };
     return switch (kind) {
       'image' => ImageTextureNode(id: id, imageId: _int(json, id, 'imageId')),
-      'color' => ColorTextureNode(id: id, value: _vec4(json, id, 'value')),
+      'color' => ColorTextureNode(id: id, value: _color(json, id, 'value')),
       'blend' => BlendTextureNode(
         id: id,
         base: _optionalInt(json, 'base'),
@@ -226,8 +226,8 @@ abstract base class TextureNode {
       ),
       'checker' => CheckerTextureNode(
         id: id,
-        colorA: _vec4(json, id, 'colorA'),
-        colorB: _vec4(json, id, 'colorB'),
+        colorA: _color(json, id, 'colorA'),
+        colorB: _color(json, id, 'colorB'),
         scale: _double(json, id, 'scale'),
       ),
       'noise' => NoiseTextureNode(
@@ -318,9 +318,9 @@ double _double(Map<String, Object?> json, int id, String field) =>
       ),
     };
 
-Vector4 _vec4(Map<String, Object?> json, int id, String field) =>
+LinearColor _color(Map<String, Object?> json, int id, String field) =>
     switch (json[field]) {
-      final List<Object?> value when value.length == 4 => Vector4(
+      final List<Object?> value when value.length == 4 => LinearColor(
         (value[0]! as num).toDouble(),
         (value[1]! as num).toDouble(),
         (value[2]! as num).toDouble(),
@@ -357,7 +357,7 @@ T _word<T extends Object>(
       ));
 }
 
-List<double> _vec4Json(Vector4 v) => <double>[v.x, v.y, v.z, v.w];
+List<double> _colorJson(LinearColor c) => <double>[c.r, c.g, c.b, c.a];
 List<double> _vec2Json(Vector2 v) => <double>[v.x, v.y];
 
 /// A texture, or a solid colour, sampled as-is. No inputs.
@@ -393,7 +393,8 @@ final class ImageTextureNode extends TextureNode {
 final class ColorTextureNode extends TextureNode {
   const ColorTextureNode({required super.id, required this.value});
 
-  final Vector4 value;
+  /// Linear RGBA, as a shader uniform reads it.
+  final LinearColor value;
 
   @override
   TextureValueType get outputType => TextureValueType.color;
@@ -410,7 +411,7 @@ final class ColorTextureNode extends TextureNode {
   String get kind => 'color';
 
   @override
-  Map<String, Object?> toJson() => {'value': _vec4Json(value)};
+  Map<String, Object?> toJson() => {'value': _colorJson(value)};
 
   @override
   R accept<R>(TextureNodeVisitor<R> visitor) => visitor.visitColor(this);
@@ -686,16 +687,18 @@ final class UvTransformTextureNode extends TextureNode {
 
 /// A flat two-colour grid, [scale] squares across. No inputs.
 final class CheckerTextureNode extends TextureNode {
-  CheckerTextureNode({
+  const CheckerTextureNode({
     required super.id,
-    Vector4? colorA,
-    Vector4? colorB,
+    this.colorA = LinearColor.black,
+    this.colorB = LinearColor.white,
     this.scale = 8.0,
-  }) : colorA = colorA ?? Vector4(0, 0, 0, 1),
-       colorB = colorB ?? Vector4(1, 1, 1, 1);
+  });
 
-  final Vector4 colorA;
-  final Vector4 colorB;
+  /// The even squares' colour, linear RGBA.
+  final LinearColor colorA;
+
+  /// The odd squares' colour, linear RGBA.
+  final LinearColor colorB;
 
   /// A count of squares across the texture.
   final double scale;
@@ -718,8 +721,8 @@ final class CheckerTextureNode extends TextureNode {
 
   @override
   Map<String, Object?> toJson() => {
-    'colorA': _vec4Json(colorA),
-    'colorB': _vec4Json(colorB),
+    'colorA': _colorJson(colorA),
+    'colorB': _colorJson(colorB),
     'scale': scale,
   };
 

@@ -473,7 +473,7 @@ final class RiverWater {
       _hulls[target] ??= elements.follow(
         () {
           final at = target.scenePosition;
-          return (
+          return RigidPose(
             position: Vector3(at.x, at.y - draft / 2.0, at.z),
             orientation: Quaternion.identity(),
           );

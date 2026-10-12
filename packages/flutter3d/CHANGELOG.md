@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **The facade exports `Severity` and `RigidPose`**, and `LightType` from
+  `flutter3d_foundation`, where it was the core's.
 - **Breaking: the facade exports `ExpressionType`, not `MaterialType`.**
   `MaterialType` is also Flutter's, and a first game imports material
   beside this package with no `hide`.

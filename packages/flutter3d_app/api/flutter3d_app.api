@@ -751,15 +751,15 @@ final class XrAnchor
   XrAnchor({required this.id, required this.pose, this.space = XrSpace.localFloor, this.geo})
   factory XrAnchor.fromEntity(EntityDef entity)
   final GeoOrigin? geo
+  final RigidPose pose
   final String id
-  final XrPose pose
   final XrSpace space
   static const String entityType = 'xr.anchor'
 
 final class XrAnchorRequest
   const XrAnchorRequest({required this.pose, this.space = XrSpace.localFloor, this.geo})
   final GeoOrigin? geo
-  final XrPose pose
+  final RigidPose pose
   final XrSpace space
 
 final class XrCapability extends Capability
@@ -785,8 +785,8 @@ final class XrCapability extends Capability
 
 final class XrCylinderLayer extends XrLayer
   const XrCylinderLayer({required XrSpace space, required this.pose, required this.radius, required this.centralAngle, required this.height, required this.image})
+  final RigidPose pose
   final TextureHandle image
-  final XrPose pose
   final double centralAngle
   final double height
   final double radius
@@ -821,14 +821,14 @@ final class XrFieldOfView
 final class XrFrame
   List<ExternalStateInput> toInputs()
   Map<String, XrControlReading> get controlReadings
-  XrFrame({required this.index, required this.predictedDisplayTime, required this.space, required List<XrView> views, this.predictedDisplayPeriod = 1 / 90, this.shouldRender = true, Map<String, XrPose> poses = const <String, XrPose>{}, List<XrInputSource> inputs = const <XrInputSource>[], List<XrPlane> planes = const <XrPlane>[], List<String> lostPlanes = const <String>[], List<XrSceneMesh> meshes = const <XrSceneMesh>[], this.light, this.depth})
+  XrFrame({required this.index, required this.predictedDisplayTime, required this.space, required List<XrView> views, this.predictedDisplayPeriod = 1 / 90, this.shouldRender = true, Map<String, RigidPose> poses = const <String, RigidPose>{}, List<XrInputSource> inputs = const <XrInputSource>[], List<XrPlane> planes = const <XrPlane>[], List<String> lostPlanes = const <String>[], List<XrSceneMesh> meshes = const <XrSceneMesh>[], this.light, this.depth})
   final EnvironmentDepth? depth
   final List<String> lostPlanes
   final List<XrInputSource> inputs
   final List<XrPlane> planes
   final List<XrSceneMesh> meshes
   final List<XrView> views
-  final Map<String, XrPose> poses
+  final Map<String, RigidPose> poses
   final XrLightEstimate? light
   final XrSpace space
   final bool shouldRender
@@ -868,9 +868,9 @@ final class XrLightEstimate
   void applyTo(Scene scene, {LightNode? main})
 
 final class XrPanel
+  RigidPose pose
   XrLayer layer(XrSpace space, TextureHandle image)
   XrPanel({required this.child, required this.pose, this.width = 1.0, this.height = 0.6, this.pixelWidth = 1024, this.pixelHeight = 614, this.shape = XrPanelShape.quad, this.radius = 1.5})
-  XrPose pose
   final Widget child
   final XrPanelShape shape
   final double height
@@ -897,8 +897,8 @@ final class XrProjectionLayer extends XrLayer
 
 final class XrQuadLayer extends XrLayer
   const XrQuadLayer({required XrSpace space, required this.pose, required this.width, required this.height, required this.image})
+  final RigidPose pose
   final TextureHandle image
-  final XrPose pose
   final double height
   final double width
 
@@ -981,8 +981,8 @@ final class XrSwapchainRequest
 
 final class XrView
   const XrView({required this.index, required this.pose, required this.fov})
+  final RigidPose pose
   final XrFieldOfView fov
-  final XrPose pose
   final int index
 
 String? applicationDirectory({required String appName, required TargetPlatform platform, required Map<String, String> environment, required String temporary})

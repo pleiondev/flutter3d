@@ -1,3 +1,5 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
+
 import '../cinema/sequence.dart';
 import '../world/cutscene.dart';
 import 'entity_def.dart';
@@ -32,7 +34,7 @@ final class CutsceneKind extends EntityKind {
     if (entity.name == null) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'has no name, so nothing can start it',
           where: scope.describe(entity),
         ),
@@ -41,7 +43,7 @@ final class CutsceneKind extends EntityKind {
     for (final problem in _read(entity).problems) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'its sequence: $problem',
           where: scope.describe(entity),
         ),

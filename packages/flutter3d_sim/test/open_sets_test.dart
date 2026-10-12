@@ -27,12 +27,6 @@ void main() {
       (v) => (v as BehaviorStatus).name,
       BehaviorStatus.byName,
     ),
-    'LevelIssueSeverity': (
-      LevelIssueSeverity.values,
-      <String>['error', 'warning'],
-      (v) => (v as LevelIssueSeverity).name,
-      LevelIssueSeverity.byName,
-    ),
     'SaveResolution': (
       SaveResolution.values,
       <String>['inSync', 'keepLocal', 'takeRemote', 'ask'],

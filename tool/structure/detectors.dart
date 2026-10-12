@@ -3294,11 +3294,11 @@ List<Finding> proveDetectorsWork() {
   // pub.dev package also has, or that is allowed with its reason, is not.
   final copies = applicationCopies(
     const <String, Set<String>>{
-      'demo': <String>{'ElementSounds', 'Key', 'RaceState', 'OpenKind'},
+      'demo': <String>{'ElementSounds', 'Link', 'RaceState', 'OpenKind'},
     },
     homes: const <String, String>{
       'ElementSounds': 'flutter3d_game_physics',
-      'Key': 'flutter3d_game',
+      'Link': 'flutter3d_game',
       'OpenKind': 'flutter3d_sim',
     },
     allowed: const <String, String>{'demo: OpenKind': 'waits'},

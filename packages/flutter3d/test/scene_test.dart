@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter3d_core/src/engine/scene/scene_graph.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 

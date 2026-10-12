@@ -1,6 +1,7 @@
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_effects/flutter3d_effects.dart';
 import 'package:flutter3d_elements/flutter3d_elements.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show RigidPose;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -157,8 +158,10 @@ void main() {
     )..fillBasin(from: Vector3.zero(), level: 0.3);
     var x = -2.0;
     final wheel = elements.follow(
-      () =>
-          (position: Vector3(x, 0.3, 0.0), orientation: Quaternion.identity()),
+      () => RigidPose(
+        position: Vector3(x, 0.3, 0.0),
+        orientation: Quaternion.identity(),
+      ),
       shape: const NativeShape.cylinder(0.3, 0.1),
     );
     // A metre a second, slower than a wave runs in water 0.3 m deep,

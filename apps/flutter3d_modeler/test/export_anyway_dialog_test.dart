@@ -6,17 +6,15 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/ui/export_anyway_dialog.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 final _blocked = ExportBlocked(<ExportIssue>[
-  const ExportIssue(ExportSeverity.error, 'Object "arm" has an empty mesh.'),
-  const ExportIssue(
-    ExportSeverity.error,
-    'Object "leg" has a face with no area.',
-  ),
+  const ExportIssue(Severity.error, 'Object "arm" has an empty mesh.'),
+  const ExportIssue(Severity.error, 'Object "leg" has a face with no area.'),
 ]);
 
 Widget _harness(
@@ -86,7 +84,7 @@ void main() {
   ) async {
     final issues = <ExportIssue>[
       for (int i = 0; i < 7; i++)
-        ExportIssue(ExportSeverity.error, 'Issue number $i.'),
+        ExportIssue(Severity.error, 'Issue number $i.'),
     ];
     await tester.pumpWidget(_harness(const Locale('en'), issues, (_) {}));
     await tester.tap(find.text('open'));

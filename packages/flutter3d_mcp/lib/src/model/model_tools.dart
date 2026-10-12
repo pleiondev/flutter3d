@@ -1,5 +1,6 @@
 import 'package:dart_mcp/server.dart';
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 import 'package:flutter3d_mcp/kit.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
@@ -2483,7 +2484,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
         properties: <String, Schema>{
           'type': UntitledSingleSelectEnumSchema(
             description: 'directional (default), point or spot',
-            values: <String>[for (final t in ProjectLightType.values) t.name],
+            values: <String>[for (final t in LightType.values) t.name],
           ),
         },
       ),

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
 import 'package:flutter3d_mcp/kit.dart' show Answer, ProjectRoot;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
@@ -765,7 +766,7 @@ final class ModelSession {
     final readiness = ExportReadiness.check(project);
     if (readiness.issues.isEmpty) return 'no issues';
     final errors = readiness.issues
-        .where((ExportIssue i) => i.severity == ExportSeverity.error)
+        .where((ExportIssue i) => i.severity == Severity.error)
         .length;
     final headline =
         '${readiness.issues.length} '
@@ -837,7 +838,7 @@ final class ModelSession {
     final readiness = ExportReadiness.check(project);
     final errors = <ExportIssue>[
       for (final ExportIssue issue in readiness.issues)
-        if (issue.severity == ExportSeverity.error) issue,
+        if (issue.severity == Severity.error) issue,
     ];
     if (!force && errors.isNotEmpty) {
       return Answer(
@@ -869,7 +870,7 @@ final class ModelSession {
     }
     final warnings = <String>[
       for (final ExportIssue issue in readiness.issues)
-        if (issue.severity == ExportSeverity.warning) issue.message,
+        if (issue.severity == Severity.warning) issue.message,
     ];
     return Answer(
       did: true,
@@ -1776,7 +1777,7 @@ final class ModelSession {
     final issues = rigIssues(project, project.profile);
     if (issues.isEmpty) return 'no rig issues';
     final errors = issues
-        .where((ExportIssue i) => i.severity == ExportSeverity.error)
+        .where((ExportIssue i) => i.severity == Severity.error)
         .length;
     final headline =
         '${issues.length} ${issues.length == 1 ? 'issue' : 'issues'}, '

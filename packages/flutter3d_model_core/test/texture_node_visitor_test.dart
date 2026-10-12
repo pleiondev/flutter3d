@@ -5,14 +5,15 @@
 library;
 
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart';
 
 void main() {
   final nodes = <TextureNode>[
     const ImageTextureNode(id: 1, imageId: 0),
-    ColorTextureNode(id: 2, value: Vector4(1, 1, 1, 1)),
+    ColorTextureNode(id: 2, value: LinearColor(1, 1, 1, 1)),
     const BlendTextureNode(id: 3, factor: 0.5),
     const ChannelsTextureNode(id: 4, channel: TextureChannel.r),
     const LevelsTextureNode(id: 5),

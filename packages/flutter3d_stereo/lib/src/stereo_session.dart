@@ -16,10 +16,10 @@ import 'package:flutter3d_app/flutter3d_app.dart'
         XrSessionState,
         XrSpace,
         XrView;
-import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
-import 'package:flutter3d_sim/flutter3d_sim.dart' show XrPose, XrPoseSources;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Portable, RigidPose;
+import 'package:flutter3d_sim/flutter3d_sim.dart' show XrPoseSources;
 
-import 'head_pose.dart';
 import 'head_tracker.dart';
 import 'stereo_rig.dart';
 import 'stereo_viewer.dart';
@@ -116,28 +116,28 @@ final class HolderXrSession extends XrSession {
     final index = _next++;
     final head = tracker.pose.value;
     final position = head.position + Vector3(0.0, eyeHeight, 0.0);
-    final turn = head.rotation.asRotationMatrix();
+    final turn = head.orientation.asRotationMatrix();
     final shown = screen ?? const StereoScreen(width: 0.1324, height: 0.0745);
     return XrFrame(
       index: index,
       predictedDisplayTime: index * period,
       predictedDisplayPeriod: period,
       space: _space,
-      poses: <String, XrPose>{
-        XrPoseSources.head: XrPose(
+      poses: <String, RigidPose>{
+        XrPoseSources.head: RigidPose(
           position: position,
-          orientation: head.rotation,
+          orientation: head.orientation,
         ),
       },
       views: <XrView>[
         for (final eye in Eye.both)
           XrView(
             index: eye.index,
-            pose: XrPose(
+            pose: RigidPose(
               position:
                   position +
                   turn.transformed(Vector3(_offsetOf(eye), 0.0, 0.0)),
-              orientation: head.rotation,
+              orientation: head.orientation,
             ),
             fov: _fovOf(eye, shown),
           ),
@@ -188,13 +188,15 @@ extension StereoRigSession on StereoRig {
     if (views.isEmpty) return;
     final head =
         frame.poses[XrPoseSources.head] ??
-        XrPose(
+        RigidPose(
           position: views.length > 1
               ? (views[0].pose.position + views[1].pose.position).scaled(0.5)
               : views[0].pose.position,
           orientation: views[0].pose.orientation,
         );
-    applyHead(HeadPose(rotation: head.orientation, position: head.position));
+    applyHead(
+      RigidPose(orientation: head.orientation, position: head.position),
+    );
     final back = head.orientation.asRotationMatrix()..transpose();
     for (final view in views.take(Eye.both.length)) {
       final eye = Eye.both[view.index];

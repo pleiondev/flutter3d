@@ -14,7 +14,7 @@ library;
 import 'package:flutter3d_core/flutter3d_core.dart'
     show EnvironmentDepth, LightNode, OffAxisProjection, Scene;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show Capability, LinearColor, UnsupportedCapabilityException;
+    show Capability, LinearColor, RigidPose, UnsupportedCapabilityException;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show ExternalStateInput;
 import 'package:flutter3d_sim/flutter3d_sim.dart'
@@ -24,7 +24,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart'
         XrControlReading,
         XrHand,
         XrPlane,
-        XrPose,
+        XrPoseInput,
         XrPoseSources,
         XrSceneMesh;
 import 'package:vector_math/vector_math.dart' show Vector3;
@@ -317,7 +317,7 @@ final class XrView {
   final int index;
 
   /// Where the eye is, in the frame's space.
-  final XrPose pose;
+  final RigidPose pose;
 
   /// How wide it sees.
   final XrFieldOfView fov;
@@ -411,7 +411,7 @@ final class XrFrame {
     required List<XrView> views,
     this.predictedDisplayPeriod = 1 / 90,
     this.shouldRender = true,
-    Map<String, XrPose> poses = const <String, XrPose>{},
+    Map<String, RigidPose> poses = const <String, RigidPose>{},
     List<XrInputSource> inputs = const <XrInputSource>[],
     List<XrPlane> planes = const <XrPlane>[],
     List<String> lostPlanes = const <String>[],
@@ -419,7 +419,7 @@ final class XrFrame {
     this.light,
     this.depth,
   }) : views = List<XrView>.unmodifiable(views),
-       poses = Map<String, XrPose>.unmodifiable(poses),
+       poses = Map<String, RigidPose>.unmodifiable(poses),
        inputs = List<XrInputSource>.unmodifiable(inputs),
        planes = List<XrPlane>.unmodifiable(planes),
        lostPlanes = List<String>.unmodifiable(lostPlanes),
@@ -448,7 +448,7 @@ final class XrFrame {
   /// The tracked poses of this frame, by their tape source names
   /// (`XrPoseSources`): the head, each controller's grip and aim, each
   /// hand's joints.
-  final Map<String, XrPose> poses;
+  final Map<String, RigidPose> poses;
 
   /// The controllers and hands, read for this frame.
   final List<XrInputSource> inputs;

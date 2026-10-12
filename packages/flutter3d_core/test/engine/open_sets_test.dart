@@ -3,14 +3,15 @@
 // Each keeps a stable wire name, which is what a file or a tool writes, so a
 // rename of a constant never changes a file.
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 import 'package:test/test.dart';
 
 void main() {
   final sets = <String, (List<Object>, List<String>, String Function(Object))>{
-    'ModelLightType': (
-      ModelLightType.values,
+    'LightType': (
+      LightType.values,
       <String>['directional', 'point', 'spot'],
-      (v) => (v as ModelLightType).name,
+      (v) => (v as LightType).name,
     ),
     'ShadowCastingMode': (
       ShadowCastingMode.values,

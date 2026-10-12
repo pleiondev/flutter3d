@@ -3,17 +3,16 @@
 /// actions a game declares.
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show RigidPose;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show
         Assimilation,
         AssimilationContext,
         ExternalStateInput,
         LoopRegistry,
-        PluginFormatException,
         ReadingKind,
         ReadingQuality,
         Registration;
-import 'package:vector_math/vector_math.dart';
 
 import 'game_action.dart';
 import 'input_state.dart';
@@ -166,64 +165,12 @@ final class XrHandJoint {
   String toString() => 'XrHandJoint.$name';
 }
 
-/// Where a tracked thing is and which way it is turned: a position in
-/// meters and an orientation, in the space a runtime reports it in.
+/// A [RigidPose] as XR input: the seven numbers an [ExternalStateInput]
+/// carries, and back.
 ///
-/// The shape both runtimes hand over (OpenXR's `XrPosef`, WebXR's
-/// `XRRigidTransform`). Immutable: the vectors are copied in and out.
-final class XrPose {
-  /// [position] in meters, turned by [orientation].
-  XrPose({required Vector3 position, required Quaternion orientation})
-    : _position = position.clone(),
-      _orientation = orientation.clone();
-
-  /// At the space's origin, turned nowhere.
-  XrPose.identity()
-    : _position = Vector3.zero(),
-      _orientation = Quaternion.identity();
-
-  final Vector3 _position;
-  final Quaternion _orientation;
-
-  /// Where it is, in meters.
-  Vector3 get position => _position.clone();
-
-  /// Which way it is turned.
-  Quaternion get orientation => _orientation.clone();
-
-  /// The seven numbers an [ExternalStateInput] carries: the position, then
-  /// the quaternion as x, y, z, w.
-  List<double> get components => <double>[
-    _position.x,
-    _position.y,
-    _position.z,
-    _orientation.x,
-    _orientation.y,
-    _orientation.z,
-    _orientation.w,
-  ];
-
-  /// The pose [components] wrote. Throws a [PluginFormatException] for a
-  /// list that is not seven numbers.
-  factory XrPose.fromComponents(List<double> components) {
-    if (components.length != 7) {
-      throw PluginFormatException(
-        'a pose is seven numbers (a position and a quaternion), not '
-        '${components.length}',
-        components,
-      );
-    }
-    return XrPose(
-      position: Vector3(components[0], components[1], components[2]),
-      orientation: Quaternion(
-        components[3],
-        components[4],
-        components[5],
-        components[6],
-      ),
-    );
-  }
-
+/// The pose itself is the engine's one ([RigidPose], `flutter3d_foundation`);
+/// what XR adds is how it goes on the tape.
+extension XrPoseInput on RigidPose {
   /// This pose as input from [source] for the step it is fed to: seven
   /// numbers with no unit (meters and a unit quaternion), predicted for
   /// [displayTime] on the runtime's clock, which goes on the tape as the
@@ -244,33 +191,10 @@ final class XrPose {
     quality: quality,
   );
 
-  /// The pose [input] carries. Throws a [PluginFormatException] for one
+  /// The pose [input] carries. Throws a [DocumentFormatException] for one
   /// that is not seven numbers.
-  factory XrPose.fromInput(ExternalStateInput input) =>
-      XrPose.fromComponents(input.value);
-
-  @override
-  bool operator ==(Object other) =>
-      other is XrPose &&
-      other._position == _position &&
-      other._orientation.x == _orientation.x &&
-      other._orientation.y == _orientation.y &&
-      other._orientation.z == _orientation.z &&
-      other._orientation.w == _orientation.w;
-
-  @override
-  int get hashCode => Object.hash(
-    _position.x,
-    _position.y,
-    _position.z,
-    _orientation.x,
-    _orientation.y,
-    _orientation.z,
-    _orientation.w,
-  );
-
-  @override
-  String toString() => 'XrPose($_position, $_orientation)';
+  static RigidPose fromInput(ExternalStateInput input) =>
+      RigidPose.fromComponents(input.value);
 }
 
 /// The names an XR session's poses go on the tape under, as
@@ -304,7 +228,7 @@ abstract final class XrPoseSources {
 /// what a system reads where the player's head and hands are.
 ///
 /// **Read from the step's input, so a replay reads the same.** A session
-/// feeds each frame's poses as [ExternalStateInput] (see [XrPose.toInput]);
+/// feeds each frame's poses as [ExternalStateInput] (see [RigidPose.toInput]);
 /// they go on the tape with the step that took them, and this assimilation
 /// keeps the latest of each source. A system asks the world for it
 /// (`world.resource<XrPoses>()`), and a recorded session played back gives
@@ -317,7 +241,7 @@ final class XrPoses extends Assimilation {
   /// An empty table.
   XrPoses();
 
-  final Map<String, XrPose> _latest = <String, XrPose>{};
+  final Map<String, RigidPose> _latest = <String, RigidPose>{};
 
   /// The name it is installed under.
   static const String systemName = 'xr.poses';
@@ -328,10 +252,10 @@ final class XrPoses extends Assimilation {
       loop.addAssimilation(systemName, XrPoses());
 
   /// The latest pose from [source], or null before the first.
-  XrPose? operator [](String source) => _latest[source];
+  RigidPose? operator [](String source) => _latest[source];
 
   /// The head's latest pose, or null before the first.
-  XrPose? get head => _latest[XrPoseSources.head];
+  RigidPose? get head => _latest[XrPoseSources.head];
 
   /// Every source that has sent a pose, in the order they first arrived.
   Iterable<String> get sources => _latest.keys;
@@ -342,7 +266,7 @@ final class XrPoses extends Assimilation {
       if (!XrPoseSources.isPose(input.source) || input.value.length != 7) {
         continue;
       }
-      _latest[input.source] = XrPose.fromInput(input);
+      _latest[input.source] = XrPoseInput.fromInput(input);
     }
     context.world.setResource<XrPoses>(this);
   }

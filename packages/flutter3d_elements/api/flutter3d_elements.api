@@ -150,8 +150,6 @@ final class ElementPlugin extends Flutter3dPlugin
   final NativeWorld? Function() world
   void install(PluginHost host)
 
-typedef ElementPose = ({Vector3 position, Quaternion orientation});
-
 final class ElementStep
   ElementStep({required this.fields, required this.dt, this.step = 0, this.resimulated = false, void Function(ElementEvent event)? publish})
   final ElementFields fields
@@ -203,7 +201,7 @@ final class ElementsOverBudget extends BusEvent
 final class ElementsSimulation
   ({WaterBody water, NativeShallowSample sample})? waterAt(Vector3 at)
   ElementsListener? listener
-  Follower follow(ElementPose Function() pose, {required NativeShape shape, ({int layer, int mask})? collides})
+  Follower follow(RigidPose Function() pose, {required NativeShape shape, ({int layer, int mask})? collides})
   List<ElementHook> get elements
   List<NativeEvent> events
   List<TrackedBody> get bodies

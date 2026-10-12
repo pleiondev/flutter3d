@@ -20918,3 +20918,385 @@ entries:
     wave: 4
     guidance: >-
       It throws a `SnapshotFormatException` for a row with no blast or no position, where it answered null; the component codec still leaves such a rocket out of a restore.
+
+  # ---- One type for one concept: a severity, a kind of light, a pose and a
+  # colour.
+
+  - id: rc-mesh-IssueSeverity-severity
+    package: flutter3d_mesh
+    symbol: IssueSeverity
+    kind: moved
+    to: package:flutter3d_foundation/flutter3d_foundation.dart
+    name: Severity
+    wave: 4
+    guidance: >-
+      A mesh check, an export and a level's validation speak one severity, `Severity` from `flutter3d_foundation`, with `note`, `warning` and `error` and the same wire words.
+
+  - id: rc-model_core-ExportSeverity-severity
+    package: flutter3d_model_core
+    symbol: ExportSeverity
+    kind: moved
+    to: package:flutter3d_foundation/flutter3d_foundation.dart
+    name: Severity
+    wave: 4
+    guidance: >-
+      A mesh check, an export and a level's validation speak one severity, `Severity` from `flutter3d_foundation`, with the same `warning` and `error`.
+
+  - id: rc-sim-LevelIssueSeverity-severity
+    package: flutter3d_sim
+    symbol: LevelIssueSeverity
+    kind: moved
+    to: package:flutter3d_foundation/flutter3d_foundation.dart
+    name: Severity
+    wave: 4
+    guidance: >-
+      A mesh check, an export and a level's validation speak one severity, `Severity` from `flutter3d_foundation`, with the same `warning` and `error`.
+
+  - id: rc-core-LightType-foundation
+    package: flutter3d_core
+    symbol: LightType
+    kind: moved
+    to: package:flutter3d_foundation/flutter3d_foundation.dart
+    name: LightType
+    wave: 4
+    guidance: >-
+      `LightType` is `flutter3d_foundation`'s, so a level, a modeller project and a model file hold the same kinds the scene does, `area` and a plugin's own among them; the facades export it as before.
+
+  - id: rc-core-ModelLightType-lighttype
+    package: flutter3d_core
+    symbol: ModelLightType
+    kind: rename
+    to: LightType
+    wave: 4
+    guidance: >-
+      A model file's lights are the scene's kinds, `LightType`, with the same
+      `directional`, `point` and `spot`; the facades export it, and a file
+      that imports only the core imports `flutter3d_foundation` for it.
+
+  - id: rc-sim-LevelLightType-lighttype
+    package: flutter3d_sim
+    symbol: LevelLightType
+    kind: moved
+    to: package:flutter3d_foundation/flutter3d_foundation.dart
+    name: LightType
+    wave: 4
+    guidance: >-
+      A level's lights are the scene's kinds, `LightType` from `flutter3d_foundation`, with the same words, and `area` too.
+
+  - id: rc-model_core-ProjectLightType-lighttype
+    package: flutter3d_model_core
+    symbol: ProjectLightType
+    kind: moved
+    to: package:flutter3d_foundation/flutter3d_foundation.dart
+    name: LightType
+    wave: 4
+    guidance: >-
+      A project's lights are the scene's kinds, `LightType` from `flutter3d_foundation`, with the same words, and `area` too.
+
+  - id: rc-stereo-HeadPose-rigidpose
+    package: flutter3d_stereo
+    symbol: HeadPose
+    kind: moved
+    to: package:flutter3d_foundation/flutter3d_foundation.dart
+    name: RigidPose
+    wave: 4
+    guidance: >-
+      A tracked head is the engine's one pose, `RigidPose` from `flutter3d_foundation`: `orientation` where it said `rotation`, and `RigidPose.identity()` for `HeadPose.still()`.
+
+  - id: rc-stereo-HeadPose-rotation-orientation
+    package: flutter3d_stereo
+    symbol: HeadPose.rotation
+    kind: rename
+    to: orientation
+    wave: 4
+    guidance: >-
+      A pose's turn is `orientation`, as `RigidPose` names it.
+
+  - id: rc-stereo-HeadPose-still-identity
+    package: flutter3d_stereo
+    symbol: HeadPose.still
+    kind: rename
+    to: identity
+    wave: 4
+    guidance: >-
+      A pose at the origin, turned nowhere, is `RigidPose.identity()`.
+
+  - id: rc-sim-Pose-ghostframe
+    package: flutter3d_sim
+    symbol: Pose
+    kind: rename
+    to: GhostFrame
+    wave: 4
+    guidance: >-
+      What a recording keeps of a moment is a frame of a ghost, not a pose
+      of the engine's: `GhostFrame`, the name racing gave it, with the same
+      `time`, `position`, `yaw` and `up`.
+
+  - id: rc-game_racing-GhostFrame-sim
+    package: flutter3d_game_racing
+    symbol: GhostFrame
+    kind: moved
+    to: package:flutter3d_sim/flutter3d_sim.dart
+    wave: 4
+    guidance: >-
+      `GhostFrame` is the simulation's own type now, where racing named it:
+      import `flutter3d_sim`.
+
+  - id: rc-model_core-ProjectLight-linearcolor
+    package: flutter3d_model_core
+    symbol: ProjectLight
+    kind: manual
+    wave: 4
+    guidance: >-
+      A project light's `color` is a `LinearColor`, as `LightNode.color`
+      is: write `LinearColor(r, g, b)` where it took a `Vector3`, and read
+      `.r`, `.g` and `.b` where it read `.x`, `.y` and `.z`.
+
+  - id: rc-model_core-ColorTextureNode-linearcolor
+    package: flutter3d_model_core
+    symbol: ColorTextureNode
+    kind: manual
+    wave: 4
+    guidance: >-
+      A colour node's `value` is a `LinearColor`, linear RGBA as before:
+      write `LinearColor(r, g, b, a)` where it took a `Vector4`.
+
+  - id: rc-model_core-CheckerTextureNode-linearcolor
+    package: flutter3d_model_core
+    symbol: CheckerTextureNode
+    kind: manual
+    wave: 4
+    guidance: >-
+      A checker's `colorA` and `colorB` are `LinearColor`s, black and white
+      by default as before: write `LinearColor(r, g, b, a)` where they took
+      a `Vector4`.
+
+  - id: rc-particles-SixWayMaterial-linearcolor
+    package: flutter3d_particles
+    symbol: SixWayMaterial
+    kind: manual
+    wave: 4
+    guidance: >-
+      A six-way material's `emission` and `ambient` are `LinearColor`s,
+      black by default as before, and can be set in place: write
+      `LinearColor(r, g, b)` where they took a `Vector3`.
+
+  - id: rc-editor_core-viewsAlong-typed
+    package: flutter3d_editor_core
+    symbol: viewsAlong
+    kind: none
+    wave: 4
+    reason: >-
+      Only a type it names moved or was renamed (one severity, one kind of
+      light, one pose, a ghost's frame); that type's own entry carries the
+      fix, and a call needs none.
+
+  - id: rc-mesh-MeshIssue-severity-typed
+    package: flutter3d_mesh
+    symbol: MeshIssue.severity
+    kind: none
+    wave: 4
+    reason: >-
+      Only a type it names moved or was renamed (one severity, one kind of
+      light, one pose, a ghost's frame); that type's own entry carries the
+      fix, and a call needs none.
+
+  - id: rc-mesh-MeshIssueKind-boundaryEdge-typed
+    package: flutter3d_mesh
+    symbol: MeshIssueKind.boundaryEdge
+    kind: none
+    wave: 4
+    reason: >-
+      Only a type it names moved or was renamed (one severity, one kind of
+      light, one pose, a ghost's frame); that type's own entry carries the
+      fix, and a call needs none.
+
+  - id: rc-mesh-MeshIssueKind-degenerateFace-typed
+    package: flutter3d_mesh
+    symbol: MeshIssueKind.degenerateFace
+    kind: none
+    wave: 4
+    reason: >-
+      Only a type it names moved or was renamed (one severity, one kind of
+      light, one pose, a ghost's frame); that type's own entry carries the
+      fix, and a call needs none.
+
+  - id: rc-mesh-MeshIssueKind-duplicateVertex-typed
+    package: flutter3d_mesh
+    symbol: MeshIssueKind.duplicateVertex
+    kind: none
+    wave: 4
+    reason: >-
+      Only a type it names moved or was renamed (one severity, one kind of
+      light, one pose, a ghost's frame); that type's own entry carries the
+      fix, and a call needs none.
+
+  - id: rc-mesh-MeshIssueKind-invertedShell-typed
+    package: flutter3d_mesh
+    symbol: MeshIssueKind.invertedShell
+    kind: none
+    wave: 4
+    reason: >-
+      Only a type it names moved or was renamed (one severity, one kind of
+      light, one pose, a ghost's frame); that type's own entry carries the
+      fix, and a call needs none.
+
+  - id: rc-mesh-MeshIssueKind-isolatedVertex-typed
+    package: flutter3d_mesh
+    symbol: MeshIssueKind.isolatedVertex
+    kind: none
+    wave: 4
+    reason: >-
+      Only a type it names moved or was renamed (one severity, one kind of
+      light, one pose, a ghost's frame); that type's own entry carries the
+      fix, and a call needs none.
+
+  - id: rc-mesh-MeshIssueKind-ngon-typed
+    package: flutter3d_mesh
+    symbol: MeshIssueKind.ngon
+    kind: none
+    wave: 4
+    reason: >-
+      Only a type it names moved or was renamed (one severity, one kind of
+      light, one pose, a ghost's frame); that type's own entry carries the
+      fix, and a call needs none.
+
+  - id: rc-mesh-MeshIssueKind-nonManifoldVertex-typed
+    package: flutter3d_mesh
+    symbol: MeshIssueKind.nonManifoldVertex
+    kind: none
+    wave: 4
+    reason: >-
+      Only a type it names moved or was renamed (one severity, one kind of
+      light, one pose, a ghost's frame); that type's own entry carries the
+      fix, and a call needs none.
+
+  - id: rc-mesh-MeshIssueKind-severity-typed
+    package: flutter3d_mesh
+    symbol: MeshIssueKind.severity
+    kind: none
+    wave: 4
+    reason: >-
+      Only a type it names moved or was renamed (one severity, one kind of
+      light, one pose, a ghost's frame); that type's own entry carries the
+      fix, and a call needs none.
+
+  - id: rc-model_core-AddLight-AddLight-typed
+    package: flutter3d_model_core
+    symbol: AddLight.AddLight
+    kind: none
+    wave: 4
+    reason: >-
+      Only a type it names moved or was renamed (one severity, one kind of
+      light, one pose, a ghost's frame); that type's own entry carries the
+      fix, and a call needs none.
+
+  - id: rc-model_core-AddLight-type-typed
+    package: flutter3d_model_core
+    symbol: AddLight.type
+    kind: none
+    wave: 4
+    reason: >-
+      Only a type it names moved or was renamed (one severity, one kind of
+      light, one pose, a ghost's frame); that type's own entry carries the
+      fix, and a call needs none.
+
+  - id: rc-model_core-ExportIssue-severity-typed
+    package: flutter3d_model_core
+    symbol: ExportIssue.severity
+    kind: none
+    wave: 4
+    reason: >-
+      Only a type it names moved or was renamed (one severity, one kind of
+      light, one pose, a ghost's frame); that type's own entry carries the
+      fix, and a call needs none.
+
+  - id: rc-sim-AtLeastOne-AtLeastOne-typed
+    package: flutter3d_sim
+    symbol: AtLeastOne.AtLeastOne
+    kind: none
+    wave: 4
+    reason: >-
+      Only a type it names moved or was renamed (one severity, one kind of
+      light, one pose, a ghost's frame); that type's own entry carries the
+      fix, and a call needs none.
+
+  - id: rc-sim-AtLeastOne-severity-typed
+    package: flutter3d_sim
+    symbol: AtLeastOne.severity
+    kind: none
+    wave: 4
+    reason: >-
+      Only a type it names moved or was renamed (one severity, one kind of
+      light, one pose, a ghost's frame); that type's own entry carries the
+      fix, and a call needs none.
+
+  - id: rc-sim-LevelIssue-severity-typed
+    package: flutter3d_sim
+    symbol: LevelIssue.severity
+    kind: none
+    wave: 4
+    reason: >-
+      Only a type it names moved or was renamed (one severity, one kind of
+      light, one pose, a ghost's frame); that type's own entry carries the
+      fix, and a call needs none.
+
+  - id: rc-sim-LevelLight-type-typed
+    package: flutter3d_sim
+    symbol: LevelLight.type
+    kind: none
+    wave: 4
+    reason: >-
+      Only a type it names moved or was renamed (one severity, one kind of
+      light, one pose, a ghost's frame); that type's own entry carries the
+      fix, and a call needs none.
+
+  - id: rc-sim-Playback-sampleAt-typed
+    package: flutter3d_sim
+    symbol: Playback.sampleAt
+    kind: none
+    wave: 4
+    reason: >-
+      Only a type it names moved or was renamed (one severity, one kind of
+      light, one pose, a ghost's frame); that type's own entry carries the
+      fix, and a call needs none.
+
+  - id: rc-sim-Tape-poses-typed
+    package: flutter3d_sim
+    symbol: Tape.poses
+    kind: none
+    wave: 4
+    reason: >-
+      Only a type it names moved or was renamed (one severity, one kind of
+      light, one pose, a ghost's frame); that type's own entry carries the
+      fix, and a call needs none.
+
+  - id: rc-stereo-decodeSensorEvent-typed
+    package: flutter3d_stereo
+    symbol: decodeSensorEvent
+    kind: none
+    wave: 4
+    reason: >-
+      Only a type it names moved or was renamed (one severity, one kind of
+      light, one pose, a ghost's frame); that type's own entry carries the
+      fix, and a call needs none.
+
+  - id: rc-stereo-SensorHeadTracker-pose-typed
+    package: flutter3d_stereo
+    symbol: SensorHeadTracker.pose
+    kind: none
+    wave: 4
+    reason: >-
+      Only a type it names moved or was renamed (one severity, one kind of
+      light, one pose, a ghost's frame); that type's own entry carries the
+      fix, and a call needs none.
+
+  - id: rc-stereo-StereoRig-applyHead-typed
+    package: flutter3d_stereo
+    symbol: StereoRig.applyHead
+    kind: none
+    wave: 4
+    reason: >-
+      Only a type it names moved or was renamed (one severity, one kind of
+      light, one pose, a ghost's frame); that type's own entry carries the
+      fix, and a call needs none.

@@ -121,7 +121,7 @@ final class SixWaySmokeDemo extends ShowcaseDemo {
     _blue
       ..setPosition(c, 0.0, s)
       ..intensity = intensity * LightNode.defaultIntensity;
-    _sheet.ambient.setValues(ambient, ambient, ambient);
+    _sheet.ambient = LinearColor(ambient, ambient, ambient);
     // #endregion orbit
 
     // #region swap

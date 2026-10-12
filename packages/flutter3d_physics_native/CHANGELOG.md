@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **A ragdoll's bone pose is `flutter3d_foundation`'s `RigidPose`**, where
+  it was a record of its own.
 - **The cloth, debris, fluid and particle systems speak in classes.**
   `ClothFrame`, `DebrisFrame`, `FluidFrame`, `DebrisBody`, `FluidParticle`,
   `NativeParticle` and the cloth's `ClothBall` were records; a backend

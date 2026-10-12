@@ -8,7 +8,7 @@
 - **The modeller's tools take American spellings (schema 1.1.0).**
   `paint.stroke` and `paint.vertexColor` take `color` and a sample's
   `center`, and `object.setOrigin` takes `boundsCenter`; the British words
-  are still read, so no agent breaks.
+  are still read, so no agent breaks. `light.add` takes an `area` light.
 - **Breaking: `ToolName` takes its hints by name.**
   `ToolName('level.save', hints: ToolHints.destroys)`: an optional
   positional argument could never have a named one beside it.

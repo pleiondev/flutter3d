@@ -4,8 +4,6 @@
 
 library package:flutter3d_physics_native/flutter3d_physics_native.dart
 
-typedef BonePose = ({Vector3 position, Quaternion orientation});
-
 final class ClothBall
   String toString()
   bool operator ==(Object other)
@@ -647,17 +645,17 @@ final class NativePhysics extends PhysicsBackend with JointPhysics, ConstraintPh
   void unjoin(RigidDynamics dynamics, JointHandle joint)
 
 final class NativeRagdoll
-  BonePose poseOf(int index)
   NativeBody bodyOf(int index)
   NativeJoint? jointOf(int index)
-  NativeRagdoll(this.world, List<RagdollBone> rest, {List<BonePose>? pose, List<Vector3>? velocity, List<Vector3>? spin, JointTissue tissue = JointTissue.human, MuscleTone? tone = MuscleTone.human, Vector3? forward, Vector3? up, NativeDynamics? dynamics, int layer = 1, int mask = 0xffffffff})
+  NativeRagdoll(this.world, List<RagdollBone> rest, {List<RigidPose>? pose, List<Vector3>? velocity, List<Vector3>? spin, JointTissue tissue = JointTissue.human, MuscleTone? tone = MuscleTone.human, Vector3? forward, Vector3? up, NativeDynamics? dynamics, int layer = 1, int mask = 0xffffffff})
   RagdollJoint? heldAs(int index)
+  RigidPose poseOf(int index)
   bool get isAsleep
   double get toneLevel
   final List<RagdollBone> bones
   final NativeWorld world
   void dispose()
-  void place(List<BonePose> pose, {List<Vector3>? velocity, List<Vector3>? spin})
+  void place(List<RigidPose> pose, {List<Vector3>? velocity, List<Vector3>? spin})
 
 typedef NativeShallowInfo = ({int substeps, int overruns, bool resting, double energy});
 

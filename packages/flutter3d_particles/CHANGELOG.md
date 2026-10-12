@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `SixWayMaterial.emission` and `ambient` are `LinearColor`s**,
+  black by default, set in place as the vectors were.
 - **Breaking: `ParticleGravity` takes `acceleration:` by name.** An
   optional positional argument could never have had a named one beside
   it.

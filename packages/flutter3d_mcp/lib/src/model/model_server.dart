@@ -29,7 +29,8 @@ const String modelMcpVersion = '1.0.0-rc.1';
 /// 1.1.0 with the American spellings: `paint.stroke` and
 /// `paint.vertexColor` take `color` and a sample's `center`, and
 /// `object.setOrigin` takes `boundsCenter`. The British words are still
-/// read, so no caller breaks.
+/// read, so no caller breaks. `light.add` takes an `area` light, the
+/// scene's fourth kind.
 const String modelMcpSchemaVersion = '1.1.0';
 
 /// What each of the modeller's tools is published as, `area.verb`, and what

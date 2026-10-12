@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `IssueSeverity` is `flutter3d_foundation`'s `Severity`**,
+  with the same three tiers and wire words.
 - **Breaking: a modifier's `fromJson` throws a `ModifierFormatException`.**
   `ArrayModifier`, `BooleanModifier`, `MirrorModifier`, `SmoothModifier`
   and `SubdivisionModifier` say which field is missing where they answered

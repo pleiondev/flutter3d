@@ -907,11 +907,11 @@ _modelCommandReaders =
       ),
       'addLight': (json) => AddLight(
         type: switch (json['type']) {
-          final String type => ProjectLightType.values.firstWhere(
-            (ProjectLightType t) => t.name == type,
-            orElse: () => ProjectLightType.directional,
+          final String type => LightType.values.firstWhere(
+            (LightType t) => t.name == type,
+            orElse: () => LightType.directional,
           ),
-          _ => ProjectLightType.directional,
+          _ => LightType.directional,
         },
         // `ux-23`. Absent is the identity transform a light has always had,
         // which is what a journal written before this existed replays to.

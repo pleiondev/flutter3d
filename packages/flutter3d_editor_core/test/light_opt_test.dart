@@ -259,9 +259,10 @@ void main() {
 
   group('views', () {
     test('are taken along the path a player walked, at eye height', () {
-      final poses = <Pose>[
+      final poses = <GhostFrame>[
         for (var i = 0; i < 20; i++)
-          Pose(time: i / 15.0, yaw: 0.0)..position.setValues(i * 0.5, 0.0, 0.0),
+          GhostFrame(time: i / 15.0, yaw: 0.0)
+            ..position.setValues(i * 0.5, 0.0, 0.0),
       ];
       final views = viewsAlong(poses, count: 3);
       expect(views, hasLength(3));

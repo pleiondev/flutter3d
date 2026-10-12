@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `HeadPose` is `flutter3d_foundation`'s `RigidPose`.** Its
+  turn is `orientation` where it said `rotation`, and
+  `RigidPose.identity()` is `HeadPose.still()`.
 - **New: one lesson player for a flat screen and a holder.**
   `applyLessonStepTo(viewer, step)` and `LessonPlayer.applyCurrentTo(viewer)`
   take any `SceneNode`, a flat viewer's camera or a rig's stage;

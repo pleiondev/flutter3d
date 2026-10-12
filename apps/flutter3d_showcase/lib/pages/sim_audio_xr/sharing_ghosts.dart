@@ -212,7 +212,7 @@ final class SharingGhostsDemo extends ShowcaseDemo {
 
   late final MeshNode _ghostNode;
   late final MeshNode _you;
-  final Pose _at = Pose();
+  final GhostFrame _at = GhostFrame();
   double _clock = 0.0;
   late _Runner _live;
   late InputState _liveInput;
@@ -386,7 +386,7 @@ final class SharingGhostsDemo extends ShowcaseDemo {
     }
     // The ghost is where the original runner was, to the bit, at every
     // sample, and it ends where the run ended.
-    for (final Pose pose in ghost.poses) {
+    for (final GhostFrame pose in ghost.poses) {
       final Vector3 was = _original[(pose.time * 60.0).round()];
       if (pose.position != was) {
         throw StateError(

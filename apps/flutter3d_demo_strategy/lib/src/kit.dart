@@ -472,7 +472,7 @@ final class _Loader {
       ],
       waterLevel: pondLevel,
     );
-    final TextureHandle? texture = uploadRgba8(device, painted);
+    final texture = uploadRgba8(device, painted);
     // Filtered, and between mip levels too. Left to the backend's default the
     // painting is read texel by nearest texel: grass up close turns into a
     // mosaic of eight-centimetre squares, and from up high the far slopes

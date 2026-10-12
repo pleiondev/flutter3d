@@ -135,14 +135,14 @@ List<RagdollBone> figure({Vector3? at}) {
 }
 
 /// [rest] turned by [turn] about the origin and lifted by [lift]: a pose.
-List<BonePose> posed(
-  List<RagdollBone> rest,
-  Quaternion turn,
-  Vector3 lift,
-) => <BonePose>[
-  for (final b in rest)
-    (position: turnBy(turn, b.head) + lift, orientation: turn * b.orientation),
-];
+List<RigidPose> posed(List<RagdollBone> rest, Quaternion turn, Vector3 lift) =>
+    <RigidPose>[
+      for (final b in rest)
+        RigidPose(
+          position: turnBy(turn, b.head) + lift,
+          orientation: turn * b.orientation,
+        ),
+    ];
 
 void main() {
   late CollisionWorld world;

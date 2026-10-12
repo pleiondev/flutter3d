@@ -17,6 +17,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
 
 import 'command.dart';
 import 'credits.dart';
@@ -348,7 +349,7 @@ ExportResult planExport(
   if (!force && !readiness.canExport) {
     return ExportBlocked(<ExportIssue>[
       for (final ExportIssue issue in readiness.issues)
-        if (issue.severity == ExportSeverity.error) issue,
+        if (issue.severity == Severity.error) issue,
     ]);
   }
 

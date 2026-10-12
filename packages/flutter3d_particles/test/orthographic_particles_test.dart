@@ -79,7 +79,7 @@ enum _Stage { disc, sprite, sixWay, mesh }
               : SixWayMaterial(
                   positive: upload(sheet.width, sheet.height, sheet.positive),
                   negative: upload(sheet.width, sheet.height, sheet.negative),
-                  ambient: Vector3(1.0, 1.0, 1.0),
+                  ambient: LinearColor.white,
                 ),
         );
   final renderer = Renderer.create(device: device)

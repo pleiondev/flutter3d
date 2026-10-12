@@ -1,4 +1,5 @@
-import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Portable, Severity;
 import 'package:vector_math/vector_math.dart';
 
 import 'entity_types.dart';
@@ -525,7 +526,7 @@ List<LevelIssue> prefabIssues(Level level) {
       if (!segments.contains(path.split('/').first)) {
         issues.add(
           LevelIssue(
-            LevelIssueSeverity.warning,
+            Severity.warning,
             'the override of "$path" names nothing in prefab "$id", so it '
             'changes nothing',
             where: where,
@@ -560,7 +561,7 @@ List<LevelIssue> prefabIssues(Level level) {
     if (!used.contains(id)) {
       issues.add(
         LevelIssue(
-          LevelIssueSeverity.warning,
+          Severity.warning,
           'prefab "$id" is placed nowhere in the level',
         ),
       );

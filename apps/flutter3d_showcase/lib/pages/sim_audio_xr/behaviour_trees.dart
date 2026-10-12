@@ -12,7 +12,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart' hide Pose;
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 final class BehaviourTreesDemo extends ShowcaseDemo {
   late (ActorSystem, Actor) _run;

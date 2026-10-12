@@ -609,7 +609,7 @@ void main() {
           SceneLighting(
             lights: <ProjectLight>[
               ProjectLight(
-                type: ProjectLightType.point,
+                type: LightType.point,
                 intensity: 80.0 * LightNode.defaultIntensity,
                 transform: Matrix4.translation(Vector3(1.5, 1.5, 1.5)),
               ),

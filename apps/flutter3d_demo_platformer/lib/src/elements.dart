@@ -84,7 +84,7 @@ final class LevelElements {
     final fog = document.fogColor;
     _fog = Vector3(fog.r, fog.g, fog.b);
     for (final light in document.lights) {
-      if (light.type != LevelLightType.directional) continue;
+      if (light.type != LightType.directional) continue;
       // The sun's colour times its strength in the unit this look was
       // tuned in, one pre-1.0 level unit, as the document said it before
       // its lights were in lux.

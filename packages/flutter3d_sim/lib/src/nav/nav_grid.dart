@@ -582,7 +582,7 @@ final class NavGrid {
     if (ambiguous > 0 && issues != null) {
       issues.add(
         LevelIssue(
-          LevelIssueSeverity.warning,
+          Severity.warning,
           '$ambiguous navigation ${ambiguous == 1 ? 'column has' : 'columns '
                     'have'} more than one enclosed surface; the grid keeps the lowest, '
           'so nothing will path across the upper one. First at '

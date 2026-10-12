@@ -20,7 +20,7 @@ final class Playback {
   ///
   /// Returns false before the lap started and after it ended, which is how the
   /// caller knows not to draw anything.
-  bool sampleAt(double time, Pose out) {
+  bool sampleAt(double time, GhostFrame out) {
     final frames = tape.poses;
     if (frames.isEmpty) return false;
     if (time < frames.first.time || time > frames.last.time) return false;

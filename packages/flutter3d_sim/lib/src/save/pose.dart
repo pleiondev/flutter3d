@@ -6,8 +6,8 @@ import 'snapshot.dart';
 /// Where something was at one moment.
 ///
 /// A place, a facing and an up. Enough to draw a body again and no more.
-final class Pose {
-  Pose({this.time = 0.0, this.yaw = 0.0});
+final class GhostFrame {
+  GhostFrame({this.time = 0.0, this.yaw = 0.0});
 
   /// Seconds since the recording started.
   double time;
@@ -24,7 +24,7 @@ final class Pose {
   /// would stand it upright through a turn it was clearly leaning into.
   final Vector3 up = Vector3(0.0, 1.0, 0.0);
 
-  void setFrom(Pose other) {
+  void setFrom(GhostFrame other) {
     time = other.time;
     yaw = other.yaw;
     position.setFrom(other.position);
@@ -46,8 +46,8 @@ final class Pose {
   ///
   /// A pose it cannot read is a pose at the origin at time nought, which a
   /// playback either interpolates through or drops off the end of.
-  factory Pose.fromJson(Map<String, Object?> json) {
-    final pose = Pose(time: json.number('t'), yaw: json.number('y'));
+  factory GhostFrame.fromJson(Map<String, Object?> json) {
+    final pose = GhostFrame(time: json.number('t'), yaw: json.number('y'));
     readVector(json['p'], pose.position);
     // The up is optional: tapes written before there was one still read, which
     // matters in the direction that counts — what is on disk was written by an

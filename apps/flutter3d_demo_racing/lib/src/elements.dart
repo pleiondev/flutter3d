@@ -18,7 +18,8 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_effects/flutter3d_effects.dart';
 import 'package:flutter3d_elements/flutter3d_elements.dart';
-import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Portable, RigidPose;
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
@@ -162,7 +163,9 @@ final class TrackElements {
           sixWay: SixWayMaterial(
             positive: upload(sheet.positive),
             negative: upload(sheet.negative),
-            ambient: Vector3.all(0.45 * sky.ambientIntensity + 0.2),
+            ambient: Vector3.all(
+              0.45 * sky.ambientIntensity + 0.2,
+            ).toLinearColor(),
           ),
           flipbook: Flipbook(columns: 4, rows: 4),
           softness: 0.5,
@@ -568,7 +571,7 @@ final class TrackElements {
           final up = car.visualBasis.getColumn(1);
           final forward = car.visualBasis.getColumn(2);
           final road = car.position - up * car.tuning.rideHeight;
-          return (
+          return RigidPose(
             position:
                 road + right * across + forward * along + up * _tyreRadius,
             orientation: Quaternion.fromRotation(car.visualBasis) * axle,

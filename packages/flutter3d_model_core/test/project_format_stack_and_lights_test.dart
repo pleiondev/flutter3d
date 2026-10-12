@@ -11,6 +11,7 @@
 library;
 
 import 'dart:typed_data';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
@@ -93,7 +94,7 @@ void main() {
   group('the lights', () {
     ModelProject lit() {
       final history = ModelHistory(_cube())
-        ..run(AddLight(type: ProjectLightType.spot, at: Vector3(1.0, 4.0, 2.0)))
+        ..run(AddLight(type: LightType.spot, at: Vector3(1.0, 4.0, 2.0)))
         ..run(const AddLight())
         ..run(const SetEnvironment(SceneEnvironmentPreset.sunset));
       return history.project;
@@ -104,7 +105,7 @@ void main() {
       final after = _reopened(writeProject(before)).project.lighting;
 
       expect(after.lights, hasLength(2));
-      expect(after.lights[0].type, ProjectLightType.spot);
+      expect(after.lights[0].type, LightType.spot);
       expect(
         after.lights[0].transform.getTranslation(),
         before.lighting.lights[0].transform.getTranslation(),
@@ -113,7 +114,7 @@ void main() {
         after.lights[0].outerConeAngle,
         before.lighting.lights[0].outerConeAngle,
       );
-      expect(after.lights[1].type, ProjectLightType.directional);
+      expect(after.lights[1].type, LightType.directional);
       expect(after.environment, SceneEnvironmentPreset.sunset);
       expect(after.exposure, before.lighting.exposure);
       expect(after.post.bloomEnabled, before.lighting.post.bloomEnabled);

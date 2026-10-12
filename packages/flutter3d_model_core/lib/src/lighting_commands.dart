@@ -9,9 +9,9 @@ part of 'command.dart';
 /// Adds a light to the project's own lighting, with nothing lit in
 /// particular.
 final class AddLight extends ModelCommand {
-  const AddLight({this.type = ProjectLightType.directional, this.at});
+  const AddLight({this.type = LightType.directional, this.at});
 
-  final ProjectLightType type;
+  final LightType type;
 
   /// Where to put it, in the scene's own space — `ux-23`.
   ///
@@ -335,13 +335,15 @@ ProjectLight? _lightFieldSet(ProjectLight l, String field, Object? value) {
   switch (field) {
     case 'type':
       if (value is! String) return null;
-      for (final ProjectLightType t in ProjectLightType.values) {
+      for (final LightType t in LightType.values) {
         if (t.name == value) return l.copyWith(type: t);
       }
       return null;
     case 'color':
       return switch (_doubles(value, 3)) {
-        final List<double> c => l.copyWith(color: Vector3(c[0], c[1], c[2])),
+        final List<double> c => l.copyWith(
+          color: LinearColor(c[0], c[1], c[2]),
+        ),
         _ => null,
       };
     case 'intensity':

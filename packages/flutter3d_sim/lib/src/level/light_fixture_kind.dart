@@ -1,3 +1,4 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
 import 'package:vector_math/vector_math.dart';
 
 import '../world/light_fixture.dart';
@@ -46,7 +47,7 @@ final class LightFixtureKind extends EntityKind {
     }
     out.add(
       LevelIssue(
-        LevelIssueSeverity.error,
+        Severity.error,
         'drives the light "$light", which this level does not define',
         where: scope.describe(entity),
       ),

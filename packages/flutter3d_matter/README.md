@@ -18,14 +18,14 @@ moves them.
 - **`PhysicalMaterial`**: one substance, by groups (mechanical, fluid,
   thermal, acoustic, optical, electrical, inelastic), each citing where its
   numbers come from. Every property is a **`PropertyLaw`**: its `value` at
-  the material's reference state, and `at(MaterialState)` for a body that
+  the material's reference state, and `at(MatterState)` for a body that
   is hotter, under pressure or wet. A law is a constant, a table, or a
   formula of the engine's expression language with its unit
   (`exp(-13.2 + 1858.7 [K] / T) * 1 [Pa·s]`). Each value says how it was
   come by (`Confidence.measured`, `handbook`, `estimate`), and an entry
   carries the ids other systems know it by (`externalIds`: CAS, IFC,
   MaterialX).
-- **`MaterialState`**: what one body of a material is like now, an open
+- **`MatterState`**: what one body of a material is like now, an open
   map of namespaced quantities (`f3d.temperature`, `f3d.wetness`,
   `<pluginId>.charring`) and a phase. The material stays the `const`
   reference.
@@ -51,7 +51,7 @@ final moon = WorldProperties.standard.copyWith(
 final water = MaterialCatalog.builtIn().require('f3d.water');
 final viscosity = water.fluid!.viscosity!;
 viscosity.value; // 1.002e-3 Pa·s at 20 °C
-viscosity.at(MaterialState.at(temperature: 353.15)); // at 80 °C
+viscosity.at(MatterState.at(temperature: 353.15)); // at 80 °C
 ```
 
 ## The catalogue

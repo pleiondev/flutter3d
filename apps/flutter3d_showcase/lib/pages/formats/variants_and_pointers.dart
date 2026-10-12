@@ -118,7 +118,7 @@ final class VariantsAndPointersDemo extends ShowcaseDemo {
       surfaces: surfaces,
       materials: materials,
       lights: <ModelLight>[
-        ModelLight(type: ModelLightType.directional, intensity: 110),
+        ModelLight(type: LightType.directional, intensity: 110),
       ],
       nodes: <ModelNode>[
         ModelNode(

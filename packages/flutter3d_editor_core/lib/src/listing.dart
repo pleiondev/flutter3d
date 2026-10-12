@@ -132,7 +132,7 @@ List<ListedPiece> piecesOf(Level level) => <ListedPiece>[
       kind: Piece.light,
       index: i,
       id: level.lights[i].id,
-      what: level.lights[i].type.wireName,
+      what: level.lights[i].type.name,
       at: level.lights[i].position,
       name: level.lights[i].name,
     ),

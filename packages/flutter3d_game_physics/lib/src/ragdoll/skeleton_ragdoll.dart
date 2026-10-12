@@ -24,12 +24,12 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d_core/flutter3d_core.dart' show SceneNode, Skeleton;
-import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Portable, RigidPose;
 import 'package:flutter3d_physics/flutter3d_physics.dart'
     show SegmentMassShares, referenceBodyMass;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show
-        BonePose,
         JointGroup,
         JointTissue,
         MuscleTone,
@@ -366,9 +366,9 @@ final class SkeletonRagdoll {
       _upAtBind = turnBy(facing, Vector3(0.0, 1.0, 0.0));
     }
 
-    final now = <BonePose>[
+    final now = <RigidPose>[
       for (final j in _jointOfBody)
-        (
+        RigidPose(
           position: joints[j].worldMatrix.getTranslation(),
           orientation: _turnOf(joints[j].worldMatrix),
         ),

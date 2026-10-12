@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 394b9a024f65d646
+# table-stamp: cd5f3661f5e5c656
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -36,3 +36,73 @@ transforms:
         newElement:
           uris: ['package:flutter3d_foundation/flutter3d_foundation.dart']
           typedef: 'IssueSink'
+  - title: 'flutter3d 1.0.0-rc.1: rc-mesh-IssueSeverity-severity (IssueSeverity)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_mesh/flutter3d_mesh.dart']
+      enum: 'IssueSeverity'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_foundation/flutter3d_foundation.dart']
+          enum: 'Severity'
+  - title: 'flutter3d 1.0.0-rc.1: rc-model_core-ExportSeverity-severity (ExportSeverity)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      enum: 'ExportSeverity'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_foundation/flutter3d_foundation.dart']
+          enum: 'Severity'
+  - title: 'flutter3d 1.0.0-rc.1: rc-sim-LevelIssueSeverity-severity (LevelIssueSeverity)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      enum: 'LevelIssueSeverity'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_foundation/flutter3d_foundation.dart']
+          enum: 'Severity'
+  - title: 'flutter3d 1.0.0-rc.1: rc-core-LightType-foundation (LightType)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
+      enum: 'LightType'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_foundation/flutter3d_foundation.dart']
+          enum: 'LightType'
+  - title: 'flutter3d 1.0.0-rc.1: rc-sim-LevelLightType-lighttype (LevelLightType)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      enum: 'LevelLightType'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_foundation/flutter3d_foundation.dart']
+          enum: 'LightType'
+  - title: 'flutter3d 1.0.0-rc.1: rc-model_core-ProjectLightType-lighttype (ProjectLightType)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      class: 'ProjectLightType'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_foundation/flutter3d_foundation.dart']
+          class: 'LightType'
+  - title: 'flutter3d 1.0.0-rc.1: rc-stereo-HeadPose-rigidpose (HeadPose)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_stereo/flutter3d_stereo.dart']
+      class: 'HeadPose'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_foundation/flutter3d_foundation.dart']
+          class: 'RigidPose'

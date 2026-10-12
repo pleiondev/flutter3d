@@ -79,8 +79,9 @@ final class EditorSession {
     final (path: inside, :refused) = root.tryResolve(path);
     if (inside == null) return Answer(did: false, says: refused!);
     final file = File(inside);
-    if (!file.existsSync())
+    if (!file.existsSync()) {
       return Answer(did: false, says: 'there is no $path');
+    }
     try {
       experiment = ExperimentEditing.parse(
         file.readAsStringSync(),
@@ -642,8 +643,9 @@ final class EditorSession {
     final (path: source, :refused) = root.tryResolve(path);
     if (source == null) return Answer(did: false, says: refused!);
     final file = File(source);
-    if (!file.existsSync())
+    if (!file.existsSync()) {
       return Answer(did: false, says: 'there is no $path');
+    }
     final ImportResult result;
     try {
       result = await added.importer.import(

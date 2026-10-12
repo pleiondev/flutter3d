@@ -329,7 +329,7 @@ _Raster _evalImage(
 
 _Raster _evalColor(ColorTextureNode node, int size) {
   final raster = _Raster(size, 4);
-  raster.fill(<double>[node.value.x, node.value.y, node.value.z, node.value.w]);
+  raster.fill(<double>[node.value.r, node.value.g, node.value.b, node.value.a]);
   return raster;
 }
 
@@ -449,10 +449,10 @@ _Raster _evalChecker(CheckerTextureNode node, int size) {
       final u = (x + 0.5) / size;
       final cell = (u * node.scale).floor() + (v * node.scale).floor();
       final color = cell.isEven ? node.colorA : node.colorB;
-      raster.set(x, y, 0, color.x);
-      raster.set(x, y, 1, color.y);
-      raster.set(x, y, 2, color.z);
-      raster.set(x, y, 3, color.w);
+      raster.set(x, y, 0, color.r);
+      raster.set(x, y, 1, color.g);
+      raster.set(x, y, 2, color.b);
+      raster.set(x, y, 3, color.a);
     }
   }
   return raster;

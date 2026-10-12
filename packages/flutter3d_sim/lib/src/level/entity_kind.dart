@@ -1,3 +1,4 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -99,7 +100,7 @@ abstract base class EntityKind {
     if (size == null) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'has no "size", so there would be nothing there',
           where: scope.describe(entity),
         ),
@@ -109,7 +110,7 @@ abstract base class EntityKind {
     if (size.x <= 0.0 || size.y <= 0.0 || size.z <= 0.0) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'has a size of ${size.x} x ${size.y} x ${size.z}',
           where: scope.describe(entity),
         ),
@@ -133,7 +134,7 @@ abstract base class EntityKind {
       if (optional) return;
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'has no "target", so it would do nothing',
           where: scope.describe(entity),
         ),
@@ -143,7 +144,7 @@ abstract base class EntityKind {
     if (scope.level.named(target) == null) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'targets "$target", which no entity is named',
           where: scope.describe(entity),
         ),
@@ -162,7 +163,7 @@ abstract base class EntityKind {
     if (scope.keys.contains(wanted)) return;
     out.add(
       LevelIssue(
-        LevelIssueSeverity.error,
+        Severity.error,
         'needs the "$wanted" key, and no ${EntityTypes.key} entity in this '
         'level provides one',
         where: scope.describe(entity),
@@ -176,7 +177,7 @@ abstract base class EntityKind {
     if (travel == null) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'has no "travel" offset, so it has nowhere to go',
           where: scope.describe(entity),
         ),
@@ -186,7 +187,7 @@ abstract base class EntityKind {
     if (travel.length < GeometryTolerance.zeroLength) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.warning,
+          Severity.warning,
           'travels nowhere',
           where: scope.describe(entity),
         ),
@@ -204,7 +205,7 @@ abstract base class EntityKind {
     if (value != null && value.isNotEmpty) return;
     out.add(
       LevelIssue(
-        LevelIssueSeverity.error,
+        Severity.error,
         'has no "$key", so there would be nothing to show',
         where: scope.describe(entity),
       ),

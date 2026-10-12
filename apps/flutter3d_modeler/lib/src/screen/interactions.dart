@@ -404,7 +404,7 @@ extension _Interactions on _ModelerScreenState {
     if (_selectedLight == index) setState(() => _selectedLight = null);
   }
 
-  void _setLightType(int index, ProjectLightType type) =>
+  void _setLightType(int index, LightType type) =>
       _cubit.ran(SetLightField(index: index, field: 'type', value: type.name));
 
   void _setLightIntensity(int index, double value) =>

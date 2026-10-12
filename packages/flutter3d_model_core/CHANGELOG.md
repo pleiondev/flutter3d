@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a project's lights are the scene's `LightType`, its export
+  issues a `Severity`, and its colours `LinearColor`s.**
+  `ProjectLightType` and `ExportSeverity` are gone into the foundation's
+  types; a project holds an area light. `ProjectLight.color`,
+  `ColorTextureNode.value` and `CheckerTextureNode.colorA`/`colorB` are
+  `LinearColor`s, as a light node's colour is.
 - **Breaking: the command arguments' readers throw.** `BrushSample`,
   `PaintMirror`, `PaintSample`, `ShapeDriver`, `SimulationCache`,
   `SkinWeightsBlob`, `JobRequest` and `JobResult` `fromJson` throw a

@@ -246,7 +246,7 @@ final class LevelLoader {
       return (
         null,
         LevelIssue(
-          LevelIssueSeverity.warning,
+          Severity.warning,
           'the lightmap beside the level could not be read and is ignored: '
           '$error',
           where: path,
@@ -287,7 +287,7 @@ final class LevelLoader {
       return (
         null,
         LevelIssue(
-          LevelIssueSeverity.warning,
+          Severity.warning,
           'the visibility table beside the level could not be read and is '
           'ignored: $error',
           where: path,
@@ -542,7 +542,7 @@ final class LevelLoader {
     if (visibility != null && visibility.isStaleFor(level)) {
       loadIssues.add(
         const LevelIssue(
-          LevelIssueSeverity.warning,
+          Severity.warning,
           'the visibility table was baked from different brushes and is '
           'ignored; run bake_visibility again',
         ),
@@ -554,7 +554,7 @@ final class LevelLoader {
     if (lightmap != null && lightmap.isStaleFor(level)) {
       loadIssues.add(
         const LevelIssue(
-          LevelIssueSeverity.warning,
+          Severity.warning,
           'the lightmap was baked from different brushes or lights and is '
           'ignored; run `flutter3d lightmap` again',
         ),
@@ -579,7 +579,7 @@ final class LevelLoader {
         (layout.width != lightmap.width || layout.height != lightmap.height)) {
       loadIssues.add(
         LevelIssue(
-          LevelIssueSeverity.warning,
+          Severity.warning,
           'the lightmap is ${lightmap.width}x${lightmap.height} and this '
           'build plans ${layout.width}x${layout.height} for the same level, '
           'so it is ignored; run `flutter3d lightmap` again',
@@ -599,7 +599,7 @@ final class LevelLoader {
     if (lightmap != null && lightmapTexture == null) {
       loadIssues.add(
         const LevelIssue(
-          LevelIssueSeverity.warning,
+          Severity.warning,
           'the lightmap could not be uploaded and is ignored',
         ),
       );
@@ -711,7 +711,7 @@ final class LevelLoader {
       } on MaterialVersionException catch (error) {
         issues.add(
           LevelIssue(
-            LevelIssueSeverity.warning,
+            Severity.warning,
             'its parameter values cannot be carried to this build\'s '
             '${error.material}, so the material keeps its own: '
             '${error.message}',
@@ -728,7 +728,7 @@ final class LevelLoader {
       if (declared != null && !declared.contains(key)) {
         issues.add(
           LevelIssue(
-            LevelIssueSeverity.warning,
+            Severity.warning,
             'gives "$key", which ${program!.name} at version '
             '${program.version} does not have, so it is left out',
             where: 'material "$name"',
@@ -777,7 +777,7 @@ final class LevelLoader {
     } catch (error) {
       issues.add(
         LevelIssue(
-          LevelIssueSeverity.warning,
+          Severity.warning,
           'could not be read, so the surface falls back to the numbers the '
           'level itself carries: $error',
           where: 'material "$path"',
@@ -787,11 +787,7 @@ final class LevelLoader {
     }
     for (final warning in warnings) {
       issues.add(
-        LevelIssue(
-          LevelIssueSeverity.warning,
-          warning,
-          where: 'material "$path"',
-        ),
+        LevelIssue(Severity.warning, warning, where: 'material "$path"'),
       );
     }
     return material;
@@ -820,9 +816,8 @@ final class LevelLoader {
         // A KTX2 the device does not sample, or a feature of one the reader
         // does not have, is a flat wall with a sentence beside it — the same
         // treatment a missing file gets below.
-        report: (message) => issues.add(
-          LevelIssue(LevelIssueSeverity.warning, message, where: path),
-        ),
+        report: (message) =>
+            issues.add(LevelIssue(Severity.warning, message, where: path)),
       );
       return (texture, bytes);
     } catch (error) {
@@ -832,7 +827,7 @@ final class LevelLoader {
       // flat look the same, and the difference is a file somebody renamed.
       issues.add(
         LevelIssue(
-          LevelIssueSeverity.warning,
+          Severity.warning,
           'could not be loaded, so the surface is untextured: $error',
           where: 'texture "$path"',
         ),

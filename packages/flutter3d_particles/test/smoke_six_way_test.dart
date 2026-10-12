@@ -28,7 +28,7 @@ final SixWaySheet _sheet = bakeSixWay(
 Float32List _render(
   List<LightNode> lights, {
   bool clustered = false,
-  Vector3? ambient,
+  LinearColor ambient = LinearColor.black,
 }) {
   final device = CpuDevice(
     width: _size,
@@ -148,7 +148,7 @@ void main() {
   });
 
   test('ambient reaches every side at once', () {
-    final frame = _render(const <LightNode>[], ambient: Vector3.all(1.0));
+    final frame = _render(const <LightNode>[], ambient: LinearColor.white);
     final left = _band(frame, 0, _size ~/ 2);
     final right = _band(frame, _size ~/ 2, _size);
     expect(left.red, greaterThan(1.0));

@@ -143,7 +143,7 @@ void main() {
       const noLights = SceneLighting();
       final withSpot = SceneLighting(
         lights: <ProjectLight>[
-          ProjectLight(type: ProjectLightType.spot, range: 5.0, intensity: 6.0),
+          ProjectLight(type: LightType.spot, range: 5.0, intensity: 6.0),
         ],
       );
 

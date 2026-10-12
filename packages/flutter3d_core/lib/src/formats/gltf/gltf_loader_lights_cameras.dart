@@ -34,16 +34,16 @@ extension _GltfLightsAndCameras on GltfLoader {
   ) {
     final typeName = light['type'];
     final type = switch (typeName) {
-      'directional' => ModelLightType.directional,
-      'point' => ModelLightType.point,
-      'spot' => ModelLightType.spot,
+      'directional' => LightType.directional,
+      'point' => LightType.point,
+      'spot' => LightType.spot,
       _ => () {
         warnings.add(
           'lights[$index] has ${typeName == null ? 'no' : 'an unknown'} '
           'type${typeName is String ? ' "$typeName"' : ''}; treated as '
           'directional.',
         );
-        return ModelLightType.directional;
+        return LightType.directional;
       }(),
     };
 

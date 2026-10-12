@@ -38,19 +38,19 @@ void main() {
       final lighting = SceneLighting(
         lights: <ProjectLight>[
           ProjectLight(
-            type: ProjectLightType.point,
-            color: Vector3(1.0, 0.35, 0.3),
+            type: LightType.point,
+            color: LinearColor(1.0, 0.35, 0.3),
             intensity: 5.0,
             range: 8.0,
           ),
           ProjectLight(
-            type: ProjectLightType.point,
-            color: Vector3(0.3, 0.4, 1.0),
+            type: LightType.point,
+            color: LinearColor(0.3, 0.4, 1.0),
             intensity: 5.0,
             range: 8.0,
           ),
           ProjectLight(
-            type: ProjectLightType.spot,
+            type: LightType.spot,
             intensity: 4.0,
             outerConeAngle: 0.5,
           ),

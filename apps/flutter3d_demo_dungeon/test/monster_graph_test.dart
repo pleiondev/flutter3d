@@ -14,7 +14,7 @@ import 'package:flutter3d_demo_content/shooter_sample.dart' show Monsters;
 import 'package:flutter3d_demo_dungeon/src/monster_graphs.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart' hide Pose;
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// A graph over [model]'s clips, the machine the dungeon builds for it.

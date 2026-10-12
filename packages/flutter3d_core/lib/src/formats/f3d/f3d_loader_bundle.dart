@@ -19,10 +19,11 @@ extension _F3dBundle on F3dDocument {
           final hasRange = _view.getUint32(o + 40, Endian.little) & 1 != 0;
           return ModelLight(
             type: switch (_view.getUint32(o, Endian.little)) {
-              0 => ModelLightType.directional,
-              2 => ModelLightType.spot,
+              0 => LightType.directional,
+              2 => LightType.spot,
+              3 => LightType.area,
               // A type a later writer added reads as the plainest light.
-              _ => ModelLightType.point,
+              _ => LightType.point,
             },
             color: LinearColor(f(4), f(8), f(12)),
             intensity: f(16),

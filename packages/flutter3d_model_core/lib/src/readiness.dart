@@ -27,6 +27,7 @@ import 'dart:math';
 
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -35,48 +36,11 @@ import 'material.dart';
 import 'project.dart';
 import 'texture_budget.dart';
 
-/// Whether an issue stops the export or spoils the result.
-///
-/// A class with constants rather than an enum, so a value added in a minor
-/// release does not break a `switch` written against it: [name] is what a
-/// file or a snapshot writes, and [byName] reads it back.
-final class ExportSeverity {
-  const ExportSeverity._(this.name);
-
-  /// It will load, and somebody will be disappointed by it: a model over
-  /// budget, a shell inside out, a quad cut the way the exporter felt like.
-  static const ExportSeverity warning = ExportSeverity._('warning');
-
-  /// It will not load, or it will load as nothing: an empty mesh, a face with
-  /// no area.
-  static const ExportSeverity error = ExportSeverity._('error');
-
-  /// Every value this version names, in declaration order. A later version
-  /// appends; nothing is removed or renamed within a major.
-  static const List<ExportSeverity> values = <ExportSeverity>[warning, error];
-
-  /// The value called [name], or null for a name this version does not know,
-  /// which is what a file written by a later version can carry.
-  static ExportSeverity? byName(String name) {
-    for (final value in values) {
-      if (value.name == name) return value;
-    }
-    return null;
-  }
-
-  /// The stable name, and the wire name: what a file, a report or a snapshot
-  /// writes for this value. Never renamed within a major.
-  final String name;
-
-  @override
-  String toString() => 'ExportSeverity.$name';
-}
-
 /// One thing wrong with a project, before it leaves.
 final class ExportIssue {
   const ExportIssue(this.severity, this.message, {this.object});
 
-  final ExportSeverity severity;
+  final Severity severity;
 
   /// A sentence naming what is wrong and what to do, with the count in it.
   final String message;
@@ -157,7 +121,7 @@ final class ExportReadiness {
 
   /// Whether anything here stops the file being written.
   bool get canExport =>
-      issues.every((ExportIssue i) => i.severity != ExportSeverity.error);
+      issues.every((ExportIssue i) => i.severity != Severity.error);
 
   /// The worst of it, in one line, for a status bar.
   ///
@@ -167,7 +131,7 @@ final class ExportReadiness {
   String get says => switch (issues) {
     [] => 'ready to export',
     [final ExportIssue worst, ...final List<ExportIssue> rest] =>
-      '${worst.severity == ExportSeverity.error ? 'will not export' : 'exports with a warning'}'
+      '${worst.severity == Severity.error ? 'will not export' : 'exports with a warning'}'
           ': ${worst.message}'
           '${rest.isEmpty ? '' : ' (and ${rest.length} more)'}',
   };
@@ -183,9 +147,9 @@ final class ExportReadiness {
 /// changed.
 List<ExportIssue> _worstFirst(List<ExportIssue> found) => <ExportIssue>[
   for (final ExportIssue issue in found)
-    if (issue.severity == ExportSeverity.error) issue,
+    if (issue.severity == Severity.error) issue,
   for (final ExportIssue issue in found)
-    if (issue.severity == ExportSeverity.warning) issue,
+    if (issue.severity == Severity.warning) issue,
 ];
 
 /// The whole project against the profile's triangle budget.
@@ -200,7 +164,7 @@ ExportIssue? _budget(ModelProject project) {
   return drawn <= allowed
       ? null
       : ExportIssue(
-          ExportSeverity.warning,
+          Severity.warning,
           'the project draws $drawn triangles and the ${project.profile.name} '
           'profile allows $allowed; it will load and it will cost frames',
         );
@@ -224,7 +188,7 @@ List<ExportIssue> _issuesWith(
   // would send somebody hunting for faces that were never supposed to exist.
   if (object.geometry.triangleCount == 0 && object.geometry is! SocketGeometry)
     ExportIssue(
-      ExportSeverity.error,
+      Severity.error,
       '"${object.name}" has no faces; it would be written as an empty mesh, '
       'which some loaders refuse and the rest draw as nothing',
       object: object,
@@ -343,7 +307,7 @@ ExportIssue? _texelDensityIssue(
   if (ratio < 2.0 && ratio > 0.5) return null;
 
   return ExportIssue(
-    ExportSeverity.warning,
+    Severity.warning,
     '"${object.name}" measures ${actual.round()} texels/m against a '
     '${texelsPerMeter.round()} texels/m profile target — '
     '${ratio >= 1 ? 'about ${ratio.toStringAsFixed(1)}× as dense' : 'about ${(1 / ratio).toStringAsFixed(1)}× as sparse'}, '
@@ -392,7 +356,7 @@ List<ExportIssue> _morphTargetIssues(
   }
   return <ExportIssue>[
     ExportIssue(
-      ExportSeverity.warning,
+      Severity.warning,
       '"${object.name}" morphs ${data.vertexCount} vertices and the profile '
       'allows a $maxTextureSize-pixel texture; the morph texture needs one '
       'column a vertex, so it will not build on that target and the shape '
@@ -435,7 +399,7 @@ List<ExportIssue> _structuralMeshIssues(
   // a model that disappears on some drivers and takes the draw call with it.
   if (checks.degenerateFaces() case final MeshIssue issue)
     ExportIssue(
-      ExportSeverity.error,
+      Severity.error,
       '"${object.name}" has ${_count(issue.ids.length, 'face', 'faces')} '
       'with no area; they have no normal either, and what gets written for '
       'them is arithmetic nothing downstream can use',
@@ -448,7 +412,7 @@ List<ExportIssue> _structuralMeshIssues(
   // the first place.
   if (checks.nonManifoldVertices() case final MeshIssue issue)
     ExportIssue(
-      requireManifold ? ExportSeverity.error : ExportSeverity.warning,
+      requireManifold ? Severity.error : Severity.warning,
       '"${object.name}" has '
       '${_count(issue.ids.length, 'vertex', 'vertices')} where two pieces '
       'of surface meet at a point and are joined nowhere else; the shading '
@@ -461,7 +425,7 @@ List<ExportIssue> _structuralMeshIssues(
   // straight through to the inside of, and it is the far side you see.
   if (checks.invertedShells() case final MeshIssue issue)
     ExportIssue(
-      ExportSeverity.warning,
+      Severity.warning,
       '"${object.name}" has ${_count(issue.ids.length, 'face', 'faces')} in '
       'a closed shell wound inside out; with backface culling on, which is '
       'every engine default, you will see through it to the far side',
@@ -544,7 +508,7 @@ ExportIssue? _wideFaces(ModelObject object, EditMesh mesh) {
   return wide == 0
       ? null
       : ExportIssue(
-          ExportSeverity.warning,
+          Severity.warning,
           '"${object.name}" has ${_count(wide, 'face', 'faces')} with more '
           'than three sides and the target format holds only triangles; the '
           'export will cut them, and it may not cut them the way you would',
@@ -567,7 +531,7 @@ List<ExportIssue> textureBudgetIssues(ModelProject project) {
   final usage = measure(project, budget);
   return <ExportIssue>[
     for (final int index in usage.overs)
-      ExportIssue(ExportSeverity.warning, () {
+      ExportIssue(Severity.warning, () {
         final label = project.images[index].name == null
             ? 'image $index'
             : 'image $index ("${project.images[index].name}")';
@@ -584,7 +548,7 @@ List<ExportIssue> textureBudgetIssues(ModelProject project) {
     // everything is uploaded at once.
     if (usage.totalBytes > budget.maxBytesOnDevice)
       ExportIssue(
-        ExportSeverity.warning,
+        Severity.warning,
         'the project\'s textures cost ${usage.totalBytes} bytes recomputed '
         'as ${budget.targetFormat.name} and the ${project.profile.name} '
         'profile allows ${budget.maxBytesOnDevice}; some of them will not '
@@ -622,7 +586,7 @@ List<ExportIssue> _singleMaterialIssues(int index, ProjectMaterial material) {
         surface.baseColorTexture == null &&
         surface.baseColor.a >= 1.0)
       ExportIssue(
-        ExportSeverity.warning,
+        Severity.warning,
         '$label is set to blend and has no transparency of its own — a '
         'fully opaque colour with no texture to carry alpha — so it costs '
         'the sort and the overdraw a blended surface costs for a result '
@@ -635,7 +599,7 @@ List<ExportIssue> _singleMaterialIssues(int index, ProjectMaterial material) {
     // whichever UVs a loader falls back to, or from nothing at all.
     if (_texCoordSetsOf(surface).any((int set) => set != 0))
       ExportIssue(
-        ExportSeverity.warning,
+        Severity.warning,
         '$label samples a texture coordinate set other than 0; nothing in '
         'this repository decodes any but set 0 today, so that texture will '
         'be read from the wrong UVs once this leaves',
@@ -650,7 +614,7 @@ List<ExportIssue> _singleMaterialIssues(int index, ProjectMaterial material) {
     // give the base PBR half of.
     if (material.fmat != null)
       ExportIssue(
-        ExportSeverity.warning,
+        Severity.warning,
         '$label defers to an external file ("${material.fmat}"); a '
         'glTF/GLB export carries only its own colour, metallic, roughness '
         'and texture slots, so any extraTextures or shader parameters that '

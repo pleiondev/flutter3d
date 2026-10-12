@@ -128,7 +128,7 @@ final class EmberReach extends EditorGizmo {
     GizmoMark.ball(
       context.where,
       radius: context.entity!.number('reach') ?? 2.0,
-      tint: Vector3(1.0, 0.5, 0.1),
+      tint: const LinearColor(1.0, 0.5, 0.1),
       handle: 'reach',
     ),
   ];

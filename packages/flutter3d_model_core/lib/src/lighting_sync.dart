@@ -61,17 +61,10 @@ final class LightingSync {
     _managed.clear();
     for (final ProjectLight light in lighting.lights) {
       final node = LightNode(
-        type: switch (light.type) {
-          ProjectLightType.point => LightType.point,
-          ProjectLightType.spot => LightType.spot,
-          // ProjectLightType is a value class, not a sealed one — see its
-          // own doc comment — so this switch cannot be exhaustive over its
-          // cases. Directional is both the default `ProjectLight` itself
-          // takes and the sensible fallback for a value class that grows a
-          // fourth kind this file has not been taught yet.
-          _ => LightType.directional,
-        },
-        color: light.color.toLinearColor(),
+        // The scene's own kinds: a project holds an area light as the
+        // scene does.
+        type: light.type,
+        color: light.color,
         intensity: light.intensity,
         range: light.range,
         // A directional light casts whatever the project says, as it always
@@ -79,8 +72,7 @@ final class LightingSync {
         // saved project wrote `castsShadow: false` for its sun as a default
         // nobody chose, so passing it through would take the shadow out of
         // every project that exists.
-        castsShadow:
-            light.castsShadow || light.type == ProjectLightType.directional,
+        castsShadow: light.castsShadow || light.type == LightType.directional,
         innerConeAngle: light.innerConeAngle,
         outerConeAngle: light.outerConeAngle,
       )..setLocalMatrix(light.transform);

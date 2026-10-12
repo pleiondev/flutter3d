@@ -12,6 +12,7 @@
 library;
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -25,7 +26,7 @@ void main() {
     final scene = Scene();
     final sync = LightingSync();
     final history = ModelHistory(const ModelProject());
-    history.run(const AddLight(type: ProjectLightType.point));
+    history.run(const AddLight(type: LightType.point));
 
     sync.sync(scene, history.project.lighting);
 
@@ -59,8 +60,8 @@ void main() {
     final scene = Scene();
     final sync = LightingSync();
     final history = ModelHistory(const ModelProject());
-    history.run(const AddLight(type: ProjectLightType.directional));
-    history.run(const AddLight(type: ProjectLightType.spot));
+    history.run(const AddLight(type: LightType.directional));
+    history.run(const AddLight(type: LightType.spot));
 
     sync.sync(scene, history.project.lighting);
 
@@ -90,7 +91,7 @@ void main() {
     final scene = Scene();
     final sync = LightingSync();
     final history = ModelHistory(const ModelProject());
-    history.run(const AddLight(type: ProjectLightType.point));
+    history.run(const AddLight(type: LightType.point));
     history.run(
       SetLightTransform(
         index: 0,

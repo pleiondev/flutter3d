@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `LightType` is `flutter3d_foundation`'s, and `ModelLightType`
+  is gone into it.** A model file's lights are the scene's kinds; `.f3d`
+  writes an area light as code 3, which an older reader takes for a point
+  light, and glTF, which has no area light, refuses one by name. The
+  facades export `LightType` as before.
 - **Breaking: an upload that cannot make its texture throws, saying why.**
   `uploadEncodedImage` throws an `ImageFormatException` for bytes it cannot
   read, the `Ktx2FormatException` of a KTX2 file this build cannot open,

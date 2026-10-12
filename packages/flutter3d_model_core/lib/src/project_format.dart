@@ -68,7 +68,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show Flutter3dFormatException, FormatSpec, LinearColor;
+    show Flutter3dFormatException, FormatSpec, LightType, LinearColor;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -1675,16 +1675,17 @@ bool _isDefaultLighting(SceneLighting lighting) {
       lighting.panorama == null;
 }
 
-/// The word a project file writes for each [ProjectLightType].
+/// The word a project file writes for each [LightType].
 ///
 /// **A wire table, not `type.name`** (docs/CONTRACTS.md, "Words written to a
 /// file come from explicit wire tables"): renaming a constant in a major must
 /// not change a file. The words are the ones every project written so far
 /// carries, so those read unchanged.
-const Map<ProjectLightType, String> _lightTypeWire = <ProjectLightType, String>{
-  ProjectLightType.directional: 'directional',
-  ProjectLightType.point: 'point',
-  ProjectLightType.spot: 'spot',
+const Map<LightType, String> _lightTypeWire = <LightType, String>{
+  LightType.directional: 'directional',
+  LightType.point: 'point',
+  LightType.spot: 'spot',
+  LightType.area: 'area',
 };
 
 /// The word a project file writes for each [SceneEnvironmentPreset], for the
@@ -1708,8 +1709,9 @@ Map<String, Object?> _lightingJson(SceneLighting lighting) => <String, Object?>{
   'lights': <Object?>[
     for (final ProjectLight light in lighting.lights)
       <String, Object?>{
-        'type': _lightTypeWire[light.type]!,
-        'color': <double>[light.color.x, light.color.y, light.color.z],
+        // A plugin's own kind is written as the shape it is lit as.
+        'type': _lightTypeWire[light.type.base]!,
+        'color': <double>[light.color.r, light.color.g, light.color.b],
         'intensity': light.intensity,
         'range': light.range,
         'castsShadow': light.castsShadow,
@@ -1767,7 +1769,7 @@ SceneLighting _readLighting(
       if (type == null) return null;
       return ProjectLight(
         type: type,
-        color: Vector3(r.toDouble(), g.toDouble(), b.toDouble()),
+        color: LinearColor(r.toDouble(), g.toDouble(), b.toDouble()),
         intensity: intensity.toDouble() * intensityUnit,
         range: (entry['range'] as num?)?.toDouble() ?? 0.0,
         castsShadow: entry['castsShadow'] == true,

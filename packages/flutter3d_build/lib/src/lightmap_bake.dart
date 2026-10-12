@@ -31,6 +31,7 @@ library;
 
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
@@ -198,15 +199,15 @@ final class LightmapBaker {
             final double reach;
             final double attenuation;
             switch (light.type) {
-              case LevelLightType.directional:
+              case LightType.directional:
                 toLight
                   ..setFrom(light.direction)
                   ..negate()
                   ..normalize();
                 reach = 1000.0;
                 attenuation = 1.0;
-              case LevelLightType.point:
-              case LevelLightType.spot:
+              case LightType.point:
+              case LightType.spot:
                 // A spot is lit as a point: the level format carries no
                 // cone for it, so the renderer's cone is its own default and
                 // the bake has nothing to read.

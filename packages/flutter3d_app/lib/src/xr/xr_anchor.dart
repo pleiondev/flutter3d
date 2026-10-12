@@ -2,10 +2,10 @@
 library;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show WorldPosition;
+    show RigidPose, WorldPosition;
 import 'package:flutter3d_matter/flutter3d_matter.dart'
     show GeoOrigin, WorldProperties;
-import 'package:flutter3d_sim/flutter3d_sim.dart' show EntityDef, XrPose;
+import 'package:flutter3d_sim/flutter3d_sim.dart' show EntityDef;
 import 'package:vector_math/vector_math.dart' show Quaternion, Vector3;
 
 import 'xr_session.dart';
@@ -21,7 +21,7 @@ final class XrAnchorRequest {
   });
 
   /// Where it goes.
-  final XrPose pose;
+  final RigidPose pose;
 
   /// The space [pose] is in.
   final XrSpace space;
@@ -57,7 +57,7 @@ final class XrAnchor {
   final String id;
 
   /// Where it is now, in [space].
-  final XrPose pose;
+  final RigidPose pose;
 
   /// The space [pose] is in.
   final XrSpace space;
@@ -120,7 +120,10 @@ final class XrAnchor {
     };
     return XrAnchor(
       id: entity.id,
-      pose: XrPose(position: Vector3.copy(entity.position), orientation: turn),
+      pose: RigidPose(
+        position: Vector3.copy(entity.position),
+        orientation: turn,
+      ),
       space: switch (entity.properties['space']) {
         final String name => XrSpace.byName(name) ?? XrSpace.localFloor,
         _ => XrSpace.localFloor,

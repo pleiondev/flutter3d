@@ -16,34 +16,9 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d_core/flutter3d_core.dart' show RenderSettings;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LightType, LinearColor;
 import 'package:vector_math/vector_math.dart';
-
-/// Which kind of light a [ProjectLight] is.
-///
-/// **A value class rather than an enum, for the reason `LightingModel`'s
-/// own class comment gives: this list is not closed.** `LightNode`'s own
-/// `LightType` — a package this one does not depend on — can add a fourth
-/// kind (an area light, a rect light) without this file ever knowing, and a
-/// published package's own enum would break every switch written against
-/// it the day that happens.
-final class ProjectLightType {
-  const ProjectLightType._(this.name);
-
-  final String name;
-
-  static const ProjectLightType directional = ProjectLightType._('directional');
-  static const ProjectLightType point = ProjectLightType._('point');
-  static const ProjectLightType spot = ProjectLightType._('spot');
-
-  static const List<ProjectLightType> values = <ProjectLightType>[
-    directional,
-    point,
-    spot,
-  ];
-
-  @override
-  String toString() => 'ProjectLightType.$name';
-}
 
 /// One light in [SceneLighting.lights], addressed by its position in the
 /// list — the same convention [ProjectMaterial]'s own table uses, and for
@@ -53,21 +28,20 @@ final class ProjectLightType {
 /// right now.
 final class ProjectLight {
   ProjectLight({
-    this.type = ProjectLightType.directional,
-    Vector3? color,
+    this.type = LightType.directional,
+    this.color = LinearColor.white,
     this.intensity = 5790.583578,
     this.range = 0.0,
     this.castsShadow = false,
     this.innerConeAngle = 0.0,
     this.outerConeAngle = math.pi / 4.0,
     Matrix4? transform,
-  }) : color = color ?? Vector3(1.0, 1.0, 1.0),
-       transform = transform ?? Matrix4.identity();
+  }) : transform = transform ?? Matrix4.identity();
 
-  final ProjectLightType type;
+  final LightType type;
 
-  /// Linear RGB, the same space `LightNode.color` is in.
-  final Vector3 color;
+  /// The light's colour, linear, as `LightNode.color` is.
+  final LinearColor color;
 
   /// Lux for a directional light and candela for a point or spot light, as
   /// `LightNode.intensity` is (since version 2 of the file). The default is
@@ -100,8 +74,8 @@ final class ProjectLight {
   final Matrix4 transform;
 
   ProjectLight copyWith({
-    ProjectLightType? type,
-    Vector3? color,
+    LightType? type,
+    LinearColor? color,
     double? intensity,
     double? range,
     bool? castsShadow,
@@ -131,7 +105,7 @@ final class ProjectLight {
 /// panorama — that is `mat-15`'s own concern, one document scene down from
 /// this one, and giving this field an open-ended value now would be
 /// building the bigger feature nobody asked this row for.
-/// A value class rather than an enum, for the reason [ProjectLightType] is
+/// A value class rather than an enum, for the reason [LightType] is
 /// one: a fourth preset is a name this file can add without breaking a
 /// switch a caller already wrote against the first three.
 final class SceneEnvironmentPreset {

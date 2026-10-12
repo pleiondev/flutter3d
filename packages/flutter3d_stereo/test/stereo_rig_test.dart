@@ -12,6 +12,7 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show RigidPose;
 import 'package:flutter3d_stereo/flutter3d_stereo.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -42,8 +43,11 @@ void main() {
       // A quarter turn to the left about the world's up: the left eye swings
       // to where the camera is now looking away from.
       rig.applyHead(
-        HeadPose(
-          rotation: Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), math.pi / 2),
+        RigidPose(
+          orientation: Quaternion.axisAngle(
+            Vector3(0.0, 1.0, 0.0),
+            math.pi / 2,
+          ),
           position: Vector3.zero(),
         ),
       );
@@ -134,8 +138,8 @@ void main() {
     test('facing a direction turns the stage and leaves the head alone', () {
       final rig = inScene();
       rig.applyHead(
-        HeadPose(
-          rotation: Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), 0.3),
+        RigidPose(
+          orientation: Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), 0.3),
           position: Vector3.zero(),
         ),
       );

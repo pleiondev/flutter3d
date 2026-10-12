@@ -7,6 +7,7 @@ library;
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
@@ -57,7 +58,7 @@ void main() {
     final project = ModelProject(
       lighting: SceneLighting(
         lights: <ProjectLight>[
-          ProjectLight(type: ProjectLightType.point, intensity: 5.0),
+          ProjectLight(type: LightType.point, intensity: 5.0),
         ],
       ),
     );

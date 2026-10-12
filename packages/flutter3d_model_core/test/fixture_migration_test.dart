@@ -22,6 +22,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
@@ -183,7 +184,7 @@ void main() {
       // only what a version 1 file holds. Mutation: lift every file, and the
       // 800 cd lamp opens at 4.6 million.
       final light = fixtureOpened(2).lighting.lights.single;
-      expect(light.type, ProjectLightType.point);
+      expect(light.type, LightType.point);
       expect(light.intensity, 800.0);
       expect(light.range, 12.0);
     });

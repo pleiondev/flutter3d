@@ -139,7 +139,17 @@ const Map<String, String> manualAllowlist = <String, String>{
   'rc-core-MaterialVariant-named': _positionalToNamed,
   'rc-hardware-TraceDraw-named': _positionalToNamed,
   'rc-particles-ParticleGravity-named': _positionalToNamed,
+  'rc-model_core-ProjectLight-linearcolor': _vectorToColor,
+  'rc-model_core-ColorTextureNode-linearcolor': _vectorToColor,
+  'rc-model_core-CheckerTextureNode-linearcolor': _vectorToColor,
+  'rc-particles-SixWayMaterial-linearcolor': _vectorToColor,
 };
+
+/// Why a colour that became a `LinearColor` is carried by hand, as the
+/// colour entries above it are.
+const String _vectorToColor =
+    'a colour argument changes type from a vector to a linear colour; no '
+    'kind rewrites an argument\'s type yet';
 
 /// Why a constructor whose optional positional arguments became named is
 /// carried by hand: no kind moves an argument from a position to a name

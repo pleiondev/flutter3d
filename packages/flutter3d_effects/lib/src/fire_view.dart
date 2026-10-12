@@ -10,7 +10,7 @@ import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_elements/flutter3d_elements.dart'
     show FireSteps, SmokePlume;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show LinearColor, LinearColorVector, Portable, Vector3Foundation;
+    show LightType, LinearColor, LinearColorVector, Portable, Vector3Foundation;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';

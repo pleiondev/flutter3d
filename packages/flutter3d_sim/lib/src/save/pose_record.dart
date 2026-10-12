@@ -43,8 +43,8 @@ final class PoseRecordFrame {
 /// **Compact on purpose.** Every [every]th step rather than every step,
 /// millimetres and four decimals of a quaternion rather than full doubles,
 /// and a body that is not there written as one null rather than seven
-/// numbers. The racing ghost's [Pose] would carry one body with a facing and
-/// an up; a crate tumbling end over end has a rotation no yaw can say, so a
+/// numbers. The racing ghost's [GhostFrame] would carry one body with a facing
+/// and an up; a crate tumbling end over end has a rotation no yaw can say, so a
 /// body here is a place and a quaternion, and [track] turns one of them back
 /// into the ghost's [Tape] for anything already drawing ghosts.
 final class PoseRecord {
@@ -179,7 +179,7 @@ final class PoseRecord {
   Tape track(String body) {
     final index = bodies.indexOf(body);
     final rotation = Quaternion.identity();
-    final poses = <Pose>[];
+    final poses = <GhostFrame>[];
     if (index >= 0) {
       for (final frame in frames) {
         if (index >= frame.bodies.length) continue;
@@ -191,7 +191,7 @@ final class PoseRecord {
         // `axisAngle(up, a)` came back facing -a and its ghost ran mirrored.
         final turn = rotation.asRotationMatrix();
         final forward = turn.transformed(Vector3(0.0, 0.0, 1.0));
-        final pose = Pose(
+        final pose = GhostFrame(
           time: frame.step * stepSeconds,
           yaw: Portable.atan2(forward.x, forward.z),
         )..position.setValues(values[0], values[1], values[2]);

@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 394b9a024f65d646
+# table-stamp: cd5f3661f5e5c656
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -383,3 +383,21 @@ transforms:
     changes:
       - kind: 'rename'
         newName: 'GeometryTolerance'
+  - title: 'flutter3d 1.0.0-rc.1: rc-sim-Pose-ghostframe'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'Pose'
+    changes:
+      - kind: 'rename'
+        newName: 'GhostFrame'
+  - title: 'flutter3d 1.0.0-rc.1: rc-game_racing-GhostFrame-sim (GhostFrame)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_racing/flutter3d_game_racing.dart']
+      typedef: 'GhostFrame'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+          typedef: 'GhostFrame'

@@ -10,20 +10,21 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_app/xr_testing.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show RigidPose;
 import 'package:flutter3d_sim/flutter3d_sim.dart' show XrPoseSources;
 import 'package:flutter3d_stereo/flutter3d_stereo.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// A head turned by hand.
 final class _Head extends HeadTracker {
-  final ValueNotifier<HeadPose> notifier = ValueNotifier<HeadPose>(
-    HeadPose.still(),
+  final ValueNotifier<RigidPose> notifier = ValueNotifier<RigidPose>(
+    RigidPose.identity(),
   );
 
   int started = 0;
 
   @override
-  ValueListenable<HeadPose> get pose => notifier;
+  ValueListenable<RigidPose> get pose => notifier;
 
   @override
   Future<void> start() async => started++;
@@ -59,8 +60,8 @@ void main() {
 
     // A quarter turn to the left: the right eye ends up in front of the
     // head, as a person's does.
-    head.notifier.value = HeadPose(
-      rotation: Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), math.pi / 2),
+    head.notifier.value = RigidPose(
+      orientation: Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), math.pi / 2),
       position: Vector3.zero(),
     );
     final frame = await session.waitFrame();
