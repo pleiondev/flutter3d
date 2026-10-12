@@ -107,7 +107,30 @@ final class TextureGraphIssue {
 
 /// One input socket's own declared type and, if [from] is not null, which
 /// node is wired into it.
-typedef TextureInputSocket = ({TextureValueType type, int? from});
+///
+/// **A class, because a node an outside author writes declares its
+/// sockets** ([TextureNode.inputs]): a record could never carry the default
+/// or the label a later inspector wants beside the type.
+final class TextureInputSocket {
+  const TextureInputSocket({required this.type, this.from});
+
+  /// The type the socket takes.
+  final TextureValueType type;
+
+  /// The id of the node wired into it, or null for none.
+  final int? from;
+
+  /// Equal to another with the same fields, as the record it was compared.
+  @override
+  bool operator ==(Object other) =>
+      other is TextureInputSocket && other.type == type && other.from == from;
+
+  @override
+  int get hashCode => Object.hash(type, from);
+
+  @override
+  String toString() => 'TextureInputSocket(type: $type, from: $from)';
+}
 
 /// One node in a [TextureGraph].
 ///
@@ -458,8 +481,8 @@ final class BlendTextureNode extends TextureNode {
 
   @override
   Map<String, TextureInputSocket> get inputs => {
-    'base': (type: TextureValueType.color, from: base),
-    'overlay': (type: TextureValueType.color, from: overlay),
+    'base': TextureInputSocket(type: TextureValueType.color, from: base),
+    'overlay': TextureInputSocket(type: TextureValueType.color, from: overlay),
   };
 
   @override
@@ -511,7 +534,7 @@ final class ChannelsTextureNode extends TextureNode {
 
   @override
   Map<String, TextureInputSocket> get inputs => {
-    'source': (type: TextureValueType.color, from: source),
+    'source': TextureInputSocket(type: TextureValueType.color, from: source),
   };
 
   @override
@@ -563,7 +586,7 @@ final class LevelsTextureNode extends TextureNode {
 
   @override
   Map<String, TextureInputSocket> get inputs => {
-    'source': (type: TextureValueType.scalar, from: source),
+    'source': TextureInputSocket(type: TextureValueType.scalar, from: source),
   };
 
   @override
@@ -599,7 +622,7 @@ final class InvertTextureNode extends TextureNode {
 
   @override
   Map<String, TextureInputSocket> get inputs => {
-    'source': (type: TextureValueType.scalar, from: source),
+    'source': TextureInputSocket(type: TextureValueType.scalar, from: source),
   };
 
   @override
@@ -638,7 +661,7 @@ final class UvTransformTextureNode extends TextureNode {
 
   @override
   Map<String, TextureInputSocket> get inputs => {
-    'source': (type: TextureValueType.color, from: source),
+    'source': TextureInputSocket(type: TextureValueType.color, from: source),
   };
 
   @override
@@ -753,7 +776,7 @@ final class NormalFromHeightTextureNode extends TextureNode {
 
   @override
   Map<String, TextureInputSocket> get inputs => {
-    'height': (type: TextureValueType.scalar, from: height),
+    'height': TextureInputSocket(type: TextureValueType.scalar, from: height),
   };
 
   @override
@@ -793,7 +816,7 @@ final class OutputTextureNode extends TextureNode {
 
   @override
   Map<String, TextureInputSocket> get inputs => {
-    'result': (type: TextureValueType.color, from: result),
+    'result': TextureInputSocket(type: TextureValueType.color, from: result),
   };
 
   @override

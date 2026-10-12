@@ -2117,7 +2117,19 @@ const Map<String, String> nameCollisionAllowed = <String, String>{
 
 /// Members of implementable types that name a record, as `Type.member`,
 /// each with why the record never grows.
-const Map<String, String> recordInContractAllowed = <String, String>{};
+///
+/// **Maths pairs and triples only.** A coordinate has as many components as
+/// its space, and a minor never adds a fourth axis to a 3D dispatch.
+const Map<String, String> recordInContractAllowed = <String, String>{
+  'CpuComputeShader.runWorkgroup':
+      'a workgroup\'s x, y and z: a dispatch has three dimensions',
+  'CpuComputeShader.workgroupSize':
+      'a workgroup\'s x, y and z sizes: a dispatch has three dimensions',
+  'FrameContext.jitter':
+      'a subpixel offset, x and y: the image plane has two axes',
+  'ResourceSize.resolve': 'a width and a height: a 2D resource\'s size',
+  'VesselShape.span': 'an interval\'s two ends along one axis',
+};
 
 /// Constructors that keep optional positional parameters, as `Type.Type`
 /// or `Type.named`, each with why it never grows (E.5).

@@ -133,8 +133,7 @@ const Map<String, ToolName> editorToolNames = <String, ToolName>{
 /// agent's edit and a person's edit land on the document by one route, get one
 /// name in the history, and are undone by the same key. What a server is beyond
 /// its tools is `flutter3d_mcp/kit.dart`'s [ToolTableServer].
-base class EditorMcpServer
-    extends ToolTableServer<EditorSession, PictureAnswer> {
+base class EditorMcpServer extends ToolTableServer<EditorSession, Answer> {
   // `session` is a plain parameter, as `ModelMcpServer`'s is: `toResult`
   // closes over it, and a super parameter cannot be named in the initializer
   // list that forwards it.
@@ -157,7 +156,7 @@ base class EditorMcpServer
                tool.spec.copyWith(outputSchema: editorAnswerSchema),
              ),
          ],
-         toResult: (PictureAnswer answer) => _resultOf(answer, session),
+         toResult: (Answer answer) => _resultOf(answer, session),
        );
 }
 
@@ -182,7 +181,7 @@ const Map<String, Object?> editorAnswerSchema = <String, Object?>{
 
 /// [answer] as a result: the sentence and the picture, and beside them the
 /// machine-readable half [editorAnswerSchema] describes.
-ToolResult _resultOf(PictureAnswer answer, EditorSession session) {
+ToolResult _resultOf(Answer answer, EditorSession session) {
   final ToolResult base = pictureResultOf(answer);
   return ToolResult(
     content: base.content,

@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `TextureInputSocket` is a class.** A node of your own
+  declares `TextureInputSocket(type:, from:)`; the fields read as before.
 - **Breaking: `Key` is `Keyframe`, `BlendMode` is `PaintBlendMode`, and
   `RenderRefusal` is `RenderRefusalException`.** The first two are names
   Flutter's material library exports too, which every file importing both

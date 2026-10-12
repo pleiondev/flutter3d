@@ -571,8 +571,8 @@ final class _Floor with JetObstacle {
   bool reaches(Vector3 center, double distance) => true;
 
   @override
-  ({Vector3 normal, double depth})? touch(Vector3 point, double radius) {
+  ObstacleTouch? touch(Vector3 point, double radius) {
     final d = point.y - radius;
-    return d < 0.0 ? (normal: Vector3(0, 1, 0), depth: -d) : null;
+    return d < 0.0 ? ObstacleTouch(normal: Vector3(0, 1, 0), depth: -d) : null;
   }
 }

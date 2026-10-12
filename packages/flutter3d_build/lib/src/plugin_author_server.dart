@@ -273,7 +273,7 @@ final class PluginWorkshop {
   Answer create(String directory, String name, PluginKind kind) {
     final target = Directory(directory);
     if (target.existsSync() && target.listSync().isNotEmpty) {
-      return (
+      return Answer(
         did: false,
         says:
             '$directory is not empty; a plugin is created into a directory of '
@@ -286,7 +286,7 @@ final class PluginWorkshop {
         ..createSync(recursive: true)
         ..writeAsStringSync(text);
     }
-    return (
+    return Answer(
       did: true,
       says:
           'wrote a $kind plugin into $directory: '
@@ -300,7 +300,7 @@ final class PluginWorkshop {
     final root = Directory(directory).absolute;
     final suite = File('${root.path}/test/conformance_test.dart');
     if (!suite.existsSync()) {
-      return (
+      return Answer(
         did: false,
         says:
             '$directory has no test/conformance_test.dart. A plugin made by '
@@ -324,7 +324,7 @@ final class PluginWorkshop {
     final tests = readJsonReporter(result.stdout);
     if (tests.isEmpty) {
       final why = result.stderr.trim().split('\n').take(12).join('\n');
-      return (
+      return Answer(
         did: false,
         says:
             'the suite reported no tests (exit ${result.exitCode})'
@@ -337,7 +337,7 @@ final class PluginWorkshop {
     final badge = run.earnsBadge
         ? '; the plugin earns the badge ${run.badge}'
         : '';
-    return (
+    return Answer(
       did: true,
       says: <String>[
         '${tests.length - failed} of ${tests.length} passed$badge',
@@ -351,13 +351,16 @@ final class PluginWorkshop {
     final root = Directory(directory).absolute;
     final pubspec = File('${root.path}/pubspec.yaml');
     if (!pubspec.existsSync()) {
-      return (did: false, says: '$directory has no pubspec.yaml');
+      return Answer(did: false, says: '$directory has no pubspec.yaml');
     }
     final Object? document;
     try {
       document = loadYaml(pubspec.readAsStringSync());
     } on YamlException catch (error) {
-      return (did: false, says: 'its pubspec does not read: ${error.message}');
+      return Answer(
+        did: false,
+        says: 'its pubspec does not read: ${error.message}',
+      );
     }
     final name = document is Map ? document['name'] : null;
     final marker = document is Map ? markerOf(document) : null;
@@ -400,7 +403,7 @@ final class PluginWorkshop {
                   '${run.missing.isEmpty ? '' : ' (not run: ${run.missing.join(', ')})'}',
       );
     }
-    return (did: true, says: lines.join('\n'));
+    return Answer(did: true, says: lines.join('\n'));
   }
 }
 

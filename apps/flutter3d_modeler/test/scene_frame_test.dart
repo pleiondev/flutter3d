@@ -71,7 +71,7 @@ void main() {
           // → LightNode/RenderSettings` and this is that call, made against
           // the identical stage a real window would build.
           sync.sync(stage.scene, lighting);
-          return (scene: stage.scene, camera: stage.camera);
+          return FrameSubject(scene: stage.scene, camera: stage.camera);
         },
       );
 

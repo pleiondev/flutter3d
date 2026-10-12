@@ -104,7 +104,11 @@ void main() {
   test('particles, debris, cloth and water run on the CPU', () {
     final particles = NativeParticles(4)
       ..emit(<NativeParticle>[
-        (position: Vector3.zero(), velocity: Vector3(1.0, 0.0, 0.0), life: 1.0),
+        NativeParticle(
+          position: Vector3.zero(),
+          velocity: Vector3(1.0, 0.0, 0.0),
+          life: 1.0,
+        ),
       ])
       ..step(ParticleForces(), 1 / 60, steps: 30);
     expect(particles.read()[0], closeTo(0.5, 1e-5));
@@ -112,7 +116,7 @@ void main() {
     final debris = NativeDebris(1)
       ..setStatics(<DebrisStatic>[DebrisPlane(Vector3(0.0, 1.0, 0.0), 0.0)])
       ..add(<DebrisBody>[
-        (
+        DebrisBody(
           position: Vector3(0.0, 0.5, 0.0),
           velocity: Vector3.zero(),
           radius: 0.1,
@@ -134,7 +138,10 @@ void main() {
     cloth.dispose();
     final water = NativeFluid(8, 0.05)
       ..add(<FluidParticle>[
-        (position: Vector3(0.0, 1.0, 0.0), velocity: Vector3.zero()),
+        FluidParticle(
+          position: Vector3(0.0, 1.0, 0.0),
+          velocity: Vector3.zero(),
+        ),
       ]);
     water.step(
       FluidSettings(

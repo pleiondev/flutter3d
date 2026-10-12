@@ -173,7 +173,54 @@ typedef CoreClothSettings = ClothSettings;
 
 /// What a read gives: the step the points are from, counted from one, and
 /// four floats a point — position xyz, inverse mass.
-typedef ClothFrame = ({int step, Float32List points});
+///
+/// A class rather than a record, so it can carry more in a minor without
+/// breaking a backend that mixes the system in.
+final class ClothFrame {
+  const ClothFrame({required this.step, required this.points});
+
+  /// The step, counted from one.
+  final int step;
+
+  /// Four floats a point: position xyz in metres, inverse mass in 1/kg.
+  final Float32List points;
+
+  /// Equal to another with the same fields, as the record it was compared.
+  @override
+  bool operator ==(Object other) =>
+      other is ClothFrame && other.step == step && other.points == points;
+
+  @override
+  int get hashCode => Object.hash(step, points);
+
+  @override
+  String toString() => 'ClothFrame(step: $step, points: $points)';
+}
+
+/// A ball a cloth falls on.
+///
+/// A class rather than a record, so it can carry more in a minor without
+/// breaking a backend that mixes the system in.
+final class ClothBall {
+  const ClothBall({required this.center, required this.radius});
+
+  /// Where it is, in metres.
+  final Vector3 center;
+
+  /// How big, in metres.
+  final double radius;
+
+  /// Equal to another with the same fields, as the record it was compared.
+  @override
+  bool operator ==(Object other) =>
+      other is ClothBall && other.center == center && other.radius == radius;
+
+  @override
+  int get hashCode => Object.hash(center, radius);
+
+  @override
+  String toString() => 'ClothBall(center: $center, radius: $radius)';
+}
 
 /// A cloth: on the CPU ([NativeCloth]) or the GPU ([GpuCloth]), the same
 /// passes. Visual, not the game's state.
@@ -185,7 +232,7 @@ abstract base mixin class ClothSystem {
   int get pointCount;
 
   /// The balls the cloth falls on, replacing the last: at most 16.
-  void setBalls(List<({Vector3 center, double radius})> balls);
+  void setBalls(List<ClothBall> balls);
 
   /// Puts point [index] at [at], still: how a pinned point is carried.
   void movePoint(int index, Vector3 at);
@@ -253,7 +300,7 @@ int createCoreCloth(ClothMesh mesh) {
   }
 }
 
-c.F32s packClothBalls(List<({Vector3 center, double radius})> balls) {
+c.F32s packClothBalls(List<ClothBall> balls) {
   if (balls.length > c.clothMaxBalls) {
     throw ArgumentError.value(balls.length, 'balls', 'more than 16');
   }
@@ -312,7 +359,7 @@ final class NativeCloth implements ClothSystem {
   int get colorCount => c.f3d_cloth_colour_count(_live);
 
   @override
-  void setBalls(List<({Vector3 center, double radius})> balls) {
+  void setBalls(List<ClothBall> balls) {
     final data = packClothBalls(balls);
     try {
       c.f3d_cloth_set_balls(_live, data, balls.length);
@@ -345,7 +392,7 @@ final class NativeCloth implements ClothSystem {
     try {
       c.f3d_cloth_read(_live, out, n);
       _read = _steps;
-      return (step: _steps, points: out.copy(n * c.clothFloats));
+      return ClothFrame(step: _steps, points: out.copy(n * c.clothFloats));
     } finally {
       out.free();
     }

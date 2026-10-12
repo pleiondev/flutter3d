@@ -42,7 +42,7 @@ FrameBuilder _wall(Vector4 color) => (FrameRequest request) {
   camera.lookAt(Vector3(0.0, 0.0, -1.0));
   scene.add(camera);
 
-  return (scene: scene, camera: camera);
+  return FrameSubject(scene: scene, camera: camera);
 };
 
 /// A directory this test owns and removes, so a run leaves nothing behind.

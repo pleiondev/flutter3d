@@ -228,9 +228,9 @@ const Map<String, ToolName> modelToolNames = <String, ToolName>{
   'validateRig': ToolName('rig.validate', hints: ToolHints.reads),
 };
 
-/// [tool]'s own [Answer], carried into a [PictureAnswer] with a null `png` —
+/// [tool]'s own [Answer], carried into a [Answer] with a null `png` —
 /// every tool in [modelTools] answers this way; [renderTool] (`mcp-06n`) is
-/// the one tool built against [PictureAnswer] directly, since it is the one
+/// the one tool built against [Answer] directly, since it is the one
 /// tool that actually draws. This is the seam that keeps the other hundred or
 /// so tool bodies in `model_tools.dart` untouched: the server answers in one
 /// type because [ToolTableServer] is generic over exactly one, and this is
@@ -241,7 +241,7 @@ ModelPictureTool _picture(ModelTool tool) => ModelPictureTool(tool.spec, (
   Map<String, Object?> arguments,
 ) async {
   final Answer answer = await tool.run(session, arguments);
-  return (did: answer.did, says: answer.says, png: null);
+  return Answer(did: answer.did, says: answer.says, png: null);
 });
 
 /// [tool], with the ids it made recorded around it — `ux-19`.
@@ -262,7 +262,7 @@ ModelPictureTool _watched(ModelPictureTool tool) => ModelPictureTool(
     // targeted call's own selection is reported by the call that made it
     // and by no call after it.
     session.reportedSelection = null;
-    final PictureAnswer answer = await tool.run(session, arguments);
+    final Answer answer = await tool.run(session, arguments);
     _made = session.madeSince(before);
     return answer;
   },
@@ -313,15 +313,15 @@ List<int> _made = const <int>[];
 
 /// [answer] as a result, with `ux-19`'s own machine-readable half beside the
 /// sentence: what the call did, what it made, and what is selected now.
-ToolResult _resultOf(PictureAnswer answer, ModelSession session) {
+ToolResult _resultOf(Answer answer, ModelSession session) {
   final ToolResult base = pictureResultOf(answer);
   return ToolResult(
     content: base.content,
     isError: base.isError,
-    structuredContent: session.structured((
-      did: answer.did,
-      says: answer.says,
-    ), made: _made),
+    structuredContent: session.structured(
+      Answer(did: answer.did, says: answer.says),
+      made: _made,
+    ),
   );
 }
 
@@ -342,7 +342,7 @@ ToolResult _resultOf(PictureAnswer answer, ModelSession session) {
 ///
 /// Everything a server is beyond its tools — registering them, turning an
 /// answer into a result — is `flutter3d_mcp/kit.dart`'s [ToolTableServer].
-base class ModelMcpServer extends ToolTableServer<ModelSession, PictureAnswer> {
+base class ModelMcpServer extends ToolTableServer<ModelSession, Answer> {
   /// [extraTools] is `mcp-16d`'s own door: a caller that already has a live
   /// GUI to drive (`ModelHttpServer.start`, never `bin/model_mcp.dart`'s
   /// stdio path) can offer more tools beside the ones every build gets,
@@ -395,11 +395,11 @@ base class ModelMcpServer extends ToolTableServer<ModelSession, PictureAnswer> {
          // `pictureResultOf`, because the structured half of an answer is
          // read off the session after the call — what is selected now, and
          // what this call made.
-         toResult: (PictureAnswer answer) => _resultOf(answer, session),
+         toResult: (Answer answer) => _resultOf(answer, session),
          // `ux-43`: an argument this server does not take is refused by name
          // rather than ignored, and the refusal travels back the same way an
          // edit's own does — structured, marked as an error, readable.
-         refusal: (String says) => (did: false, says: says, png: null),
+         refusal: (String says) => Answer(did: false, says: says, png: null),
          prompts: modelPrompts,
        );
 }

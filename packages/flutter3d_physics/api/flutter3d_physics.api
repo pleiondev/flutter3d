@@ -474,8 +474,8 @@ final class FreeSurface
   void step(double dt, {required double g, required double depth, FluidSolver solver = const DartFluid()})
 
 final class InsideWalls with JetObstacle
-  ({Vector3 normal, double depth})? touch(Vector3 point, double radius)
   InsideWalls(this.body)
+  ObstacleTouch? touch(Vector3 point, double radius)
   bool reaches(Vector3 center, double distance)
   final LiquidBody body
 
@@ -503,7 +503,7 @@ final class JetDrop
   final double volume
 
 abstract base mixin class JetObstacle
-  abstract ({Vector3 normal, double depth})? touch(Vector3 point, double radius)
+  abstract ObstacleTouch? touch(Vector3 point, double radius)
   abstract bool reaches(Vector3 center, double distance)
 
 abstract base mixin class JetReceiver
@@ -630,8 +630,16 @@ abstract final class Nearly
   static const double same = 1e-9
   static const double still = 1e-6
 
+final class ObstacleTouch
+  String toString()
+  bool operator ==(Object other)
+  const ObstacleTouch({required this.normal, required this.depth})
+  final Vector3 normal
+  final double depth
+  int get hashCode
+
 final class OutsideWalls with JetObstacle
-  ({Vector3 normal, double depth})? touch(Vector3 point, double radius)
+  ObstacleTouch? touch(Vector3 point, double radius)
   OutsideWalls(this.body, {required this.thickness})
   bool reaches(Vector3 center, double distance)
   final LiquidBody body
@@ -738,7 +746,7 @@ final class PipeFlow
   static const int viscosity = 9
 
 final class PlaneObstacle with JetObstacle
-  ({Vector3 normal, double depth})? touch(Vector3 point, double radius)
+  ObstacleTouch? touch(Vector3 point, double radius)
   PlaneObstacle({required Vector3 normal, required this.offset})
   bool reaches(Vector3 center, double distance)
   final Vector3 normal

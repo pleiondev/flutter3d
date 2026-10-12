@@ -6,7 +6,31 @@ import 'package:flutter3d_cpu/testing.dart';
 import 'draw.dart';
 
 /// What a test hands back: the scene to draw and the camera to draw it from.
-typedef FrameSubject = ({Scene scene, CameraNode camera});
+///
+/// **A class, because a test writes the code that returns one**
+/// ([ReplaySubject.frame], a [FrameBuilder]): a record could never gain the
+/// field a later frame needs (a second view, a time), and a class adds it
+/// with a default.
+final class FrameSubject {
+  const FrameSubject({required this.scene, required this.camera});
+
+  /// The scene to draw.
+  final Scene scene;
+
+  /// The camera it is drawn from.
+  final CameraNode camera;
+
+  /// Equal to another with the same fields, as the record it was compared.
+  @override
+  bool operator ==(Object other) =>
+      other is FrameSubject && other.scene == scene && other.camera == camera;
+
+  @override
+  int get hashCode => Object.hash(scene, camera);
+
+  @override
+  String toString() => 'FrameSubject(scene: $scene, camera: $camera)';
+}
 
 /// A drawn frame and the size it was drawn at.
 ///
@@ -17,13 +41,44 @@ typedef FrameSubject = ({Scene scene, CameraNode camera});
 ///
 /// **`drawCalls` travels too**, off the same [FrameResult] every render
 /// already produces — `qa-14`'s own row, a test that wants to know how many
-/// draws a scene cost rather than only what it looked like.
-typedef RenderedFrame = ({
-  Uint8List pixels,
-  int width,
-  int height,
-  int drawCalls,
-});
+/// draws a scene cost rather than only what it looked like. A class, so it
+/// can carry more again without breaking a reader.
+final class RenderedFrame {
+  const RenderedFrame({
+    required this.pixels,
+    required this.width,
+    required this.height,
+    required this.drawCalls,
+  });
+
+  /// RGBA, four bytes a pixel, row by row from the top.
+  final Uint8List pixels;
+
+  /// In pixels.
+  final int width;
+
+  /// In pixels.
+  final int height;
+
+  /// How many draws the frame cost.
+  final int drawCalls;
+
+  /// Equal to another with the same fields, as the record it was compared.
+  @override
+  bool operator ==(Object other) =>
+      other is RenderedFrame &&
+      other.pixels == pixels &&
+      other.width == width &&
+      other.height == height &&
+      other.drawCalls == drawCalls;
+
+  @override
+  int get hashCode => Object.hash(pixels, width, height, drawCalls);
+
+  @override
+  String toString() =>
+      'RenderedFrame(pixels: $pixels, width: $width, height: $height, drawCalls: $drawCalls)';
+}
 
 /// Builds the subject, given the device its meshes have to be uploaded to.
 typedef FrameBuilder = FrameSubject Function(FrameRequest request);

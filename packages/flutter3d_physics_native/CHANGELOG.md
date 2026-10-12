@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **The cloth, debris, fluid and particle systems speak in classes.**
+  `ClothFrame`, `DebrisFrame`, `FluidFrame`, `DebrisBody`, `FluidParticle`,
+  `NativeParticle` and the cloth's `ClothBall` were records; a backend
+  mixes these systems in, and a record never gains a field.
 - **`GpuUnavailable` is `GpuUnavailableException`.** A thrown type says
   so in its name, so `on …Exception` reads as what it catches.
 - **A contact damps by what its bodies are made of.** A body takes a loss

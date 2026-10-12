@@ -109,7 +109,7 @@ final class _Ascent extends ReplaySubject {
       ..setPositionFrom(_follow.eye)
       ..lookAt(_follow.target);
     if (_camera.parent == null) _loaded.scene.add(_camera);
-    return (scene: _loaded.scene, camera: _camera);
+    return FrameSubject(scene: _loaded.scene, camera: _camera);
   }
 }
 

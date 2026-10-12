@@ -56,7 +56,7 @@ void main() {
         build: (FrameRequest request) {
           final stage = ModelerStage.build(device: request.device);
           (stage.subject as MeshNode).material = material;
-          return (scene: stage.scene, camera: stage.camera);
+          return FrameSubject(scene: stage.scene, camera: stage.camera);
         },
       );
 

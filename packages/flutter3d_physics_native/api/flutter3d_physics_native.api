@@ -6,28 +6,56 @@ library package:flutter3d_physics_native/flutter3d_physics_native.dart
 
 typedef BonePose = ({Vector3 position, Quaternion orientation});
 
-typedef ClothFrame = ({int step, Float32List points});
+final class ClothBall
+  String toString()
+  bool operator ==(Object other)
+  const ClothBall({required this.center, required this.radius})
+  final Vector3 center
+  final double radius
+  int get hashCode
+
+final class ClothFrame
+  String toString()
+  bool operator ==(Object other)
+  const ClothFrame({required this.step, required this.points})
+  final Float32List points
+  final int step
+  int get hashCode
 
 abstract base mixin class ClothSystem
   abstract ClothFrame? read({bool wait = true})
   abstract int get pointCount
   abstract void dispose()
   abstract void movePoint(int index, Vector3 at)
-  abstract void setBalls(List<({Vector3 center, double radius})> balls)
+  abstract void setBalls(List<ClothBall> balls)
   abstract void step(ClothSettings settings, double dt)
 
 typedef CoreClothMesh = ClothMesh;
 
 typedef CoreClothSettings = ClothSettings;
 
-typedef DebrisBody = ({Vector3 position, Vector3 velocity, double radius, double mass});
+final class DebrisBody
+  String toString()
+  bool operator ==(Object other)
+  const DebrisBody({required this.position, required this.velocity, required this.radius, required this.mass})
+  final Vector3 position
+  final Vector3 velocity
+  final double mass
+  final double radius
+  int get hashCode
 
 final class DebrisBox extends DebrisStatic
   const DebrisBox(this.center, this.halfExtents)
   final Vector3 center
   final Vector3 halfExtents
 
-typedef DebrisFrame = ({int step, Float32List bodies});
+final class DebrisFrame
+  String toString()
+  bool operator ==(Object other)
+  const DebrisFrame({required this.step, required this.bodies})
+  final Float32List bodies
+  final int step
+  int get hashCode
 
 final class DebrisPlane extends DebrisStatic
   const DebrisPlane(this.normal, this.offset)
@@ -65,9 +93,21 @@ abstract final class FireExposure
   static double fluxAt(Iterable<NativeFire> fires, Vector3 at)
   static double fluxFrom(NativeFire fire, double distanceSquared)
 
-typedef FluidFrame = ({int step, Float32List particles});
+final class FluidFrame
+  String toString()
+  bool operator ==(Object other)
+  const FluidFrame({required this.step, required this.particles})
+  final Float32List particles
+  final int step
+  int get hashCode
 
-typedef FluidParticle = ({Vector3 position, Vector3 velocity});
+final class FluidParticle
+  String toString()
+  bool operator ==(Object other)
+  const FluidParticle({required this.position, required this.velocity})
+  final Vector3 position
+  final Vector3 velocity
+  int get hashCode
 
 final class FluidSettings
   FluidSettings copyWith({Vector3? tankMin, Vector3? tankMax, Vector3? gravity, double? viscosity, double? relaxation, int? substeps, int? iterations, bool clearGravity = false})
@@ -94,7 +134,7 @@ final class GpuCloth with ClothSystem
   int get pointCount
   void dispose()
   void movePoint(int index, Vector3 at)
-  void setBalls(List<({Vector3 center, double radius})> balls)
+  void setBalls(List<ClothBall> balls)
   void step(ClothSettings settings, double dt)
 
 final class GpuDebris with DebrisSystem
@@ -252,7 +292,7 @@ final class NativeCloth implements ClothSystem
   int get pointCount
   void dispose()
   void movePoint(int index, Vector3 at)
-  void setBalls(List<({Vector3 center, double radius})> balls)
+  void setBalls(List<ClothBall> balls)
   void step(ClothSettings settings, double dt)
 
 final class NativeClothRefusal
@@ -569,7 +609,14 @@ final class NativeOutlet
   final double x
   final double z
 
-typedef NativeParticle = ({Vector3 position, Vector3 velocity, double life});
+final class NativeParticle
+  String toString()
+  bool operator ==(Object other)
+  const NativeParticle({required this.position, required this.velocity, required this.life})
+  final Vector3 position
+  final Vector3 velocity
+  final double life
+  int get hashCode
 
 abstract base mixin class NativeParticleCloud
   abstract Float32List read()

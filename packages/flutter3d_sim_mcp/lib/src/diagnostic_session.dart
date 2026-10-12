@@ -1,15 +1,15 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter3d_mcp/kit.dart' show PictureAnswer, ProjectRoot;
+import 'package:flutter3d_mcp/kit.dart' show Answer, ProjectRoot;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'diagnostic_renderer.dart';
 
-PictureAnswer _ok(String says, [Uint8List? png]) =>
-    (did: true, says: says, png: png);
-PictureAnswer _refuse(String says) => (did: false, says: says, png: null);
+Answer _ok(String says, [Uint8List? png]) =>
+    Answer(did: true, says: says, png: png);
+Answer _refuse(String says) => Answer(did: false, says: says, png: null);
 
 /// Which pass a channel not finite, or a pixel darker than it should be, is
 /// actually attributable to — stated once per [DiagnosticView] rather than
@@ -48,7 +48,7 @@ final class DiagnosticSession {
   DiagnosticRenderer? _renderer;
   DiagnosticFrame? _last;
 
-  Future<PictureAnswer> open(String path) async {
+  Future<Answer> open(String path) async {
     try {
       // No genre vocabulary: a frame's own normals, depth and NaNs are not a
       // property of any entity a level might spawn. A level whose entities
@@ -76,7 +76,7 @@ final class DiagnosticSession {
     }
   }
 
-  Future<PictureAnswer> frame({
+  Future<Answer> frame({
     required double atX,
     required double atY,
     required double atZ,
@@ -107,7 +107,7 @@ final class DiagnosticSession {
 
   /// The raw RGBA this view actually holds at ([x], [y]) — unclamped, so a
   /// depth past one metre or a NaN survives, unlike the picture.
-  PictureAnswer pixel(int x, int y) {
+  Answer pixel(int x, int y) {
     final frame = _last;
     if (frame == null) return _refuse('no frame drawn yet — call frame first');
     if (x < 0 || x >= frame.width || y < 0 || y >= frame.height) {
@@ -134,7 +134,7 @@ final class DiagnosticSession {
 
   /// Every pass the frame graph kept for the last frame drawn, in the order
   /// it ran — `FrameResult.passes`, read back rather than recomputed.
-  PictureAnswer passes() {
+  Answer passes() {
     final frame = _last;
     if (frame == null) return _refuse('no frame drawn yet — call frame first');
     return _ok(
@@ -158,7 +158,7 @@ final class DiagnosticSession {
   /// The first pixel in the last frame drawn whose value is not finite, and
   /// which pass is answerable for a channel like that ever reaching the
   /// frame at all.
-  PictureAnswer scanNaN() {
+  Answer scanNaN() {
     final frame = _last;
     if (frame == null) return _refuse('no frame drawn yet — call frame first');
     final hit = frame.firstNonFinite();

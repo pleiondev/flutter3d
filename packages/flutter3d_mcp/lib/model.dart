@@ -43,7 +43,7 @@ library;
 export 'package:flutter3d_mcp/kit.dart'
     show
         AnsweredCall,
-        PictureAnswer,
+        Answer,
         ToolAudio,
         ToolContent,
         ToolHints,

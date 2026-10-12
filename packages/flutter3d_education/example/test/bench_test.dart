@@ -193,7 +193,7 @@ void main() {
         final camera = CameraNode(name: 'eye')
           ..setPosition(0.01, 0.085, 0.255)
           ..lookAt(Vector3(0.01, 0.034, 0));
-        return (scene: bench.scene, camera: camera);
+        return FrameSubject(scene: bench.scene, camera: camera);
       },
     );
     await expectMatchesGolden(frame, 'test/goldens/bench.png');

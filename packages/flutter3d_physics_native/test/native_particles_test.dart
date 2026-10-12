@@ -10,7 +10,7 @@ import 'package:vector_math/vector_math.dart';
 /// A thousand particles thrown every way from a grid above a floor.
 List<NativeParticle> _spray() => <NativeParticle>[
   for (var i = 0; i < 1000; i++)
-    (
+    NativeParticle(
       position: Vector3(
         (i % 10).toDouble(),
         1.0 + (i % 7) * 0.1,
@@ -38,7 +38,11 @@ void main() {
     final p = NativeParticles(2);
     addTearDown(p.dispose);
     p.emit(<NativeParticle>[
-      (position: Vector3.zero(), velocity: Vector3(3.0, 4.0, 0.0), life: 0.49),
+      NativeParticle(
+        position: Vector3.zero(),
+        velocity: Vector3(3.0, 4.0, 0.0),
+        life: 0.49,
+      ),
     ]);
     // It lives thirty steps of a sixtieth, then stays where it died.
     p.step(ParticleForces(), 1 / 60, steps: 60);
@@ -112,7 +116,7 @@ void main() {
       test('emits round and round, as the CPU does', () {
         final onGpu = gpu!.particles(3);
         addTearDown(onGpu.dispose);
-        NativeParticle at(double x) => (
+        NativeParticle at(double x) => NativeParticle(
           position: Vector3(x, 0.0, 0.0),
           velocity: Vector3.zero(),
           life: 1.0,

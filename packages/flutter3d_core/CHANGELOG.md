@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `DrawableGeometry.clusters` is a `ClusteredIndices`.** The
+  same `table` and `indices`, in a class a geometry somebody implements
+  can return when the culling pass later wants more beside them.
 - **Breaking: the material language's types are spelled once.**
   `MaterialType`, `MaterialExpression`, `MaterialConstant`,
   `MaterialConstruct`, `MaterialSwizzle`, `MaterialNegate`,

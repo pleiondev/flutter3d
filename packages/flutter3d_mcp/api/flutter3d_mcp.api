@@ -4,15 +4,23 @@
 
 library package:flutter3d_mcp/editor.dart
 
-typedef Answer = ({bool did, String says});
+final class Answer
+  String toString()
+  bool operator ==(Object other)
+  const Answer({required this.did, required this.says, this.png})
+  final String says
+  final Uint8List? png
+  final bool did
+  int get hashCode
 
-base class EditorMcpServer extends ToolTableServer<EditorSession, PictureAnswer>
+base class EditorMcpServer extends ToolTableServer<EditorSession, Answer>
   EditorMcpServer(super.channel, {required EditorSession session, super.projectTools, super.onProjectCall})
 
 final class EditorSession
   Answer editExperiment(Map<String, Object?> json)
   Answer generate(LevelRecipe recipe)
   Answer openExperiment(String path)
+  Answer optimizeLights({List<LightView>? views, bool apply = true})
   Answer redo()
   Answer removeBehavior(String name)
   Answer removeCutscene(String name)
@@ -29,8 +37,7 @@ final class EditorSession
   Future<Answer> importFile(String path, {Vector3? at})
   Future<Answer> report(Vector3? from, Vector3? at)
   Future<Answer> save(String? path)
-  Future<PictureAnswer> screenshot(Vector3? from, Vector3? at, {String? debugView})
-  PictureAnswer optimizeLights({List<LightView>? views, bool apply = true})
+  Future<Answer> screenshot(Vector3? from, Vector3? at, {String? debugView})
   String experimentListing()
   String get selection
   String listing()
@@ -43,7 +50,7 @@ final class EditorSession
   final ProjectRoot root
   static const String author = 'packages/flutter3d_editor_mcp'
 
-typedef EditorTool = OfferedTool<EditorSession, PictureAnswer>;
+typedef EditorTool = OfferedTool<EditorSession, Answer>;
 
 typedef GameAsk = Future<({Map<String, Object?>? json, String? refused})> Function(String vmService, String method, {Map<String, String> args});
 
@@ -59,8 +66,6 @@ final class LevelView
   static const int width = 320
 
 typedef NewRun = FlutterRun Function(String projectRoot, String? device);
-
-typedef PictureAnswer = ({bool did, String says, Uint8List? png});
 
 final class PieceReport
   String get says
@@ -117,7 +122,14 @@ Registration shareCommands(EditorPieces pieces, McpTools tools, EditorSession se
 
 library package:flutter3d_mcp/flutter3d_mcp.dart
 
-typedef Answer = ({bool did, String says});
+final class Answer
+  String toString()
+  bool operator ==(Object other)
+  const Answer({required this.did, required this.says, this.png})
+  final String says
+  final Uint8List? png
+  final bool did
+  int get hashCode
 
 final class AnsweredCall<A>
   const AnsweredCall({required this.toolName, required this.arguments, required this.answer, required this.elapsed})
@@ -128,13 +140,14 @@ final class AnsweredCall<A>
 
 typedef CommandTarget = ({int? object, String? level, List<int>? elements, List<int>? objects});
 
-base class EditorMcpServer extends ToolTableServer<EditorSession, PictureAnswer>
+base class EditorMcpServer extends ToolTableServer<EditorSession, Answer>
   EditorMcpServer(super.channel, {required EditorSession session, super.projectTools, super.onProjectCall})
 
 final class EditorSession
   Answer editExperiment(Map<String, Object?> json)
   Answer generate(LevelRecipe recipe)
   Answer openExperiment(String path)
+  Answer optimizeLights({List<LightView>? views, bool apply = true})
   Answer redo()
   Answer removeBehavior(String name)
   Answer removeCutscene(String name)
@@ -151,8 +164,7 @@ final class EditorSession
   Future<Answer> importFile(String path, {Vector3? at})
   Future<Answer> report(Vector3? from, Vector3? at)
   Future<Answer> save(String? path)
-  Future<PictureAnswer> screenshot(Vector3? from, Vector3? at, {String? debugView})
-  PictureAnswer optimizeLights({List<LightView>? views, bool apply = true})
+  Future<Answer> screenshot(Vector3? from, Vector3? at, {String? debugView})
   String experimentListing()
   String get selection
   String listing()
@@ -165,7 +177,7 @@ final class EditorSession
   final ProjectRoot root
   static const String author = 'packages/flutter3d_editor_mcp'
 
-typedef EditorTool = OfferedTool<EditorSession, PictureAnswer>;
+typedef EditorTool = OfferedTool<EditorSession, Answer>;
 
 typedef GameAsk = Future<({Map<String, Object?>? json, String? refused})> Function(String vmService, String method, {Map<String, String> args});
 
@@ -206,12 +218,12 @@ final class ModelHttpServer
   Future<void> close()
   String get token
   int get port
-  static Future<ModelHttpServer> start({required ModelSession session, int port = 0, String? token, List<ModelPictureTool> extraTools = const <ModelPictureTool>[], void Function(AnsweredCall<PictureAnswer> call)? onToolCall, void Function(String clientName)? onInitialize, String? Function()? pausedBecause})
+  static Future<ModelHttpServer> start({required ModelSession session, int port = 0, String? token, List<ModelPictureTool> extraTools = const <ModelPictureTool>[], void Function(AnsweredCall<Answer> call)? onToolCall, void Function(String clientName)? onInitialize, String? Function()? pausedBecause})
 
-base class ModelMcpServer extends ToolTableServer<ModelSession, PictureAnswer>
+base class ModelMcpServer extends ToolTableServer<ModelSession, Answer>
   ModelMcpServer(super.channel, {required ModelSession session, List<ModelPictureTool> extraTools = const <ModelPictureTool>[], super.pausedBecause, super.onCall, void Function(String clientName)? onInitialize, super.projectTools, super.onProjectCall})
 
-typedef ModelPictureTool = OfferedTool<ModelSession, PictureAnswer>;
+typedef ModelPictureTool = OfferedTool<ModelSession, Answer>;
 
 final class ModelSession
   Answer amend(ModelCommand to)
@@ -280,8 +292,6 @@ final class PathOutsideRootException extends ResourceException
   final String requested
   final String root
   final String? why
-
-typedef PictureAnswer = ({bool did, String says, Uint8List? png});
 
 final class PieceReport
   String get says
@@ -488,7 +498,7 @@ const Map<String, ToolName> modelToolNames = …
 
 List<ModelTool> get modelTools
 
-ToolResult pictureResultOf(PictureAnswer answer)
+ToolResult pictureResultOf(Answer answer)
 
 const String projectMcpSchemaVersion = '1.0.0'
 
@@ -520,7 +530,14 @@ void writeMcpSessionFile(File file, {required int port, required String token})
 
 library package:flutter3d_mcp/kit.dart
 
-typedef Answer = ({bool did, String says});
+final class Answer
+  String toString()
+  bool operator ==(Object other)
+  const Answer({required this.did, required this.says, this.png})
+  final String says
+  final Uint8List? png
+  final bool did
+  int get hashCode
 
 final class AnsweredCall<A>
   const AnsweredCall({required this.toolName, required this.arguments, required this.answer, required this.elapsed})
@@ -571,8 +588,6 @@ final class PathOutsideRootException extends ResourceException
   final String requested
   final String root
   final String? why
-
-typedef PictureAnswer = ({bool did, String says, Uint8List? png});
 
 base class ProjectMcpServer extends ToolTableServer<McpTools, ToolResult>
   ProjectMcpServer(super.channel, {required McpTools tools, super.pausedBecause, super.onProjectCall, super.onInitialize})
@@ -710,7 +725,7 @@ final class ToolText extends ToolContent
 
 void deleteMcpSessionFile(File file)
 
-ToolResult pictureResultOf(PictureAnswer answer)
+ToolResult pictureResultOf(Answer answer)
 
 const String projectMcpSchemaVersion = '1.0.0'
 
@@ -728,7 +743,14 @@ void writeMcpSessionFile(File file, {required int port, required String token})
 
 library package:flutter3d_mcp/model.dart
 
-typedef Answer = ({bool did, String says});
+final class Answer
+  String toString()
+  bool operator ==(Object other)
+  const Answer({required this.did, required this.says, this.png})
+  final String says
+  final Uint8List? png
+  final bool did
+  int get hashCode
 
 final class AnsweredCall<A>
   const AnsweredCall({required this.toolName, required this.arguments, required this.answer, required this.elapsed})
@@ -743,12 +765,12 @@ final class ModelHttpServer
   Future<void> close()
   String get token
   int get port
-  static Future<ModelHttpServer> start({required ModelSession session, int port = 0, String? token, List<ModelPictureTool> extraTools = const <ModelPictureTool>[], void Function(AnsweredCall<PictureAnswer> call)? onToolCall, void Function(String clientName)? onInitialize, String? Function()? pausedBecause})
+  static Future<ModelHttpServer> start({required ModelSession session, int port = 0, String? token, List<ModelPictureTool> extraTools = const <ModelPictureTool>[], void Function(AnsweredCall<Answer> call)? onToolCall, void Function(String clientName)? onInitialize, String? Function()? pausedBecause})
 
-base class ModelMcpServer extends ToolTableServer<ModelSession, PictureAnswer>
+base class ModelMcpServer extends ToolTableServer<ModelSession, Answer>
   ModelMcpServer(super.channel, {required ModelSession session, List<ModelPictureTool> extraTools = const <ModelPictureTool>[], super.pausedBecause, super.onCall, void Function(String clientName)? onInitialize, super.projectTools, super.onProjectCall})
 
-typedef ModelPictureTool = OfferedTool<ModelSession, PictureAnswer>;
+typedef ModelPictureTool = OfferedTool<ModelSession, Answer>;
 
 final class ModelSession
   Answer amend(ModelCommand to)
@@ -794,8 +816,6 @@ final class ModelSession
   void rebind(ModelHistory next)
 
 typedef ModelTool = OfferedTool<ModelSession, Answer>;
-
-typedef PictureAnswer = ({bool did, String says, Uint8List? png});
 
 final class ToolAudio extends ToolContent
   Map<String, Object?> toJson()

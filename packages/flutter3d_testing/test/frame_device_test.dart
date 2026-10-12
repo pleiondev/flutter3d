@@ -41,7 +41,7 @@ FrameSubject _empty(GraphicsDevice device) {
       RenderMaterial(name: 'box'),
     )..setPosition(0.0, 0.0, -4.0),
   );
-  return (scene: scene, camera: camera);
+  return FrameSubject(scene: scene, camera: camera);
 }
 
 /// Stands still: a genre with nothing in its run but a step count.

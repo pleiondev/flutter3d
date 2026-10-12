@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `Answer` is a class, and `PictureAnswer` is gone into it.**
+  `Answer(did:, says:, png:)` has the record's `did` and `says` and the
+  picture a drawing tool hands back. A record never gains a field, which
+  is why a second answer type existed at all; every tool a plugin writes
+  returns this one, so it can carry more in a minor.
 - **The modeller's tools take American spellings (schema 1.1.0).**
   `paint.stroke` and `paint.vertexColor` take `color` and a sample's
   `center`, and `object.setOrigin` takes `boundsCenter`; the British words

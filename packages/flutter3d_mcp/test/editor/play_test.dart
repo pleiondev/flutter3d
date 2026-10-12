@@ -92,7 +92,7 @@ Future<Answer> _call(
   final answer = await editorTools
       .firstWhere((EditorTool it) => it.name == name)
       .run(session, arguments);
-  return (did: answer.did, says: answer.says);
+  return Answer(did: answer.did, says: answer.says);
 }
 
 /// `play`, answered by the tool as a game coming up.

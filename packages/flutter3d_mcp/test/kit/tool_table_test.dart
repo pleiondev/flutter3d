@@ -24,7 +24,10 @@ base class _Counter extends ToolTableServer<List<String>, Answer> {
             ),
             (List<String> calls, Map<String, Object?> arguments) {
               calls.add('count');
-              return (did: calls.length < 2, says: 'call ${calls.length}');
+              return Answer(
+                did: calls.length < 2,
+                says: 'call ${calls.length}',
+              );
             },
           ),
         ],
@@ -49,7 +52,7 @@ base class _Watched extends ToolTableServer<List<String>, Answer> {
             ),
             (List<String> calls, Map<String, Object?> arguments) {
               calls.add('ping');
-              return (did: true, says: 'pong ${calls.length}');
+              return Answer(did: true, says: 'pong ${calls.length}');
             },
           ),
         ],
@@ -74,7 +77,7 @@ List<OfferedTool<List<String>, Answer>> get _countTool =>
         ),
         (List<String> calls, Map<String, Object?> arguments) {
           calls.add('count');
-          return (did: true, says: 'call ${calls.length}');
+          return Answer(did: true, says: 'call ${calls.length}');
         },
       ),
     ];

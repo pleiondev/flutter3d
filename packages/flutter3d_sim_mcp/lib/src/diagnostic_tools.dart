@@ -7,7 +7,7 @@ import 'mcp_tool.dart';
 
 /// One tool: what an agent is offered, and what calling it does — see
 /// `flutter3d_mcp/kit.dart`'s [OfferedTool].
-typedef DiagnosticTool = OfferedTool<DiagnosticSession, PictureAnswer>;
+typedef DiagnosticTool = OfferedTool<DiagnosticSession, Answer>;
 
 double _number(
   Map<String, Object?> args,

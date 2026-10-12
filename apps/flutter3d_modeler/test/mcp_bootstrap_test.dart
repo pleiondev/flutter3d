@@ -24,8 +24,8 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
+import 'package:flutter3d_mcp/kit.dart' show Answer;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/mcp_bootstrap_io.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -190,7 +190,7 @@ void main() {
             (
               String tool,
               Map<String, Object?> arguments,
-              ({bool did, String says, Uint8List? png}) answer,
+              Answer answer,
               Duration elapsed,
             ) => seen.add((tool: tool, arguments: arguments, did: answer.did)),
       );

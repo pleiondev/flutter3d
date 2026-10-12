@@ -17,9 +17,9 @@ import 'play_session.dart' show buildTargets;
 /// document — see `flutter3d_mcp/kit.dart`'s [OfferedTool] for why a pair rather
 /// than a table and a switch.
 ///
-/// A [PictureAnswer], because one of them draws; every other tool's picture
+/// A [Answer], because one of them draws; every other tool's picture
 /// is null, and [_told] is how they say so.
-typedef EditorTool = OfferedTool<EditorSession, PictureAnswer>;
+typedef EditorTool = OfferedTool<EditorSession, Answer>;
 
 /// A tool whose answer is a sentence and nothing to look at.
 EditorTool _told(
@@ -30,7 +30,7 @@ EditorTool _told(
   Map<String, Object?> arguments,
 ) async {
   final answer = await run(session, arguments);
-  return (did: answer.did, says: answer.says, png: null);
+  return Answer(did: answer.did, says: answer.says, png: null);
 });
 
 /// The point a call's [key] names, or null when it names none. The schema
@@ -106,7 +106,7 @@ Answer Function(EditorSession, Map<String, Object?>) _command(String name) =>
         ...arguments,
       });
       if (command == null) {
-        return (
+        return Answer(
           did: false,
           says:
               '$name cannot be read from those arguments — check the schema '
@@ -150,7 +150,7 @@ List<EditorTool> get _renderTools {
     (EditorSession session, Map<String, Object?> arguments) async {
       final address = at(session, arguments);
       if (address == null) {
-        return (
+        return Answer(
           did: false,
           says: 'no game is running: call play first, or give vmService',
         );
@@ -164,11 +164,11 @@ List<EditorTool> get _renderTools {
         },
       );
       return switch (answer) {
-        (json: final Map<String, Object?> json, refused: null) => (
+        (json: final Map<String, Object?> json, refused: null) => Answer(
           did: true,
           says: const JsonEncoder.withIndent('  ').convert(json),
         ),
-        (json: _, refused: final String? why) => (
+        (json: _, refused: final String? why) => Answer(
           did: false,
           says: why ?? 'the game did not answer',
         ),
@@ -312,17 +312,17 @@ List<EditorTool> get _renderTools {
       (EditorSession session, Map<String, Object?> arguments) async {
         final address = at(session, arguments);
         if (address == null) {
-          return (
+          return Answer(
             did: false,
             says: 'no game is running: call play first, or give vmService',
           );
         }
         final asked = arguments['path'];
         if (asked is! String || asked.isEmpty) {
-          return (did: false, says: 'path names the file to write');
+          return Answer(did: false, says: 'path names the file to write');
         }
         final (:path, :refused) = session.root.tryResolve(asked);
-        if (path == null) return (did: false, says: refused!);
+        if (path == null) return Answer(did: false, says: refused!);
         final answer = await session.play.ask(
           address,
           'ext.flutter3d.render.capture',
@@ -335,13 +335,13 @@ List<EditorTool> get _renderTools {
         return switch (answer) {
           (json: final Map<String, Object?> json, refused: null)
               when json['capture'] is Map<String, Object?> =>
-            (
+            Answer(
               did: true,
               says:
                   'wrote $path, '
                   '${saveCaptureFile(path, json['capture']! as Map<String, Object?>)}',
             ),
-          (json: _, refused: final String? why) => (
+          (json: _, refused: final String? why) => Answer(
             did: false,
             says: why ?? 'the game did not answer with a capture',
           ),
@@ -378,23 +378,27 @@ List<EditorTool> get _captureTools => <EditorTool>[
     (EditorSession session, Map<String, Object?> arguments) async {
       final asked = arguments['path'];
       if (asked is! String || asked.isEmpty) {
-        return (did: false, says: 'path names the file to open', png: null);
+        return Answer(
+          did: false,
+          says: 'path names the file to open',
+          png: null,
+        );
       }
       final (:path, :refused) = session.root.tryResolve(asked);
-      if (path == null) return (did: false, says: refused!, png: null);
+      if (path == null) return Answer(did: false, says: refused!, png: null);
       final (:open, :why) = openCaptureFile(path);
-      if (open == null) return (did: false, says: why!, png: null);
+      if (open == null) return Answer(did: false, says: why!, png: null);
       _openCaptures[session] = open;
       final which = arguments['pass'];
       final pass = which is String ? open.passOf(which) : null;
       if (which is String && pass == null) {
-        return (
+        return Answer(
           did: false,
           says: 'opened $path, but it has no pass "$which"',
           png: null,
         );
       }
-      return (
+      return Answer(
         did: true,
         says: const JsonEncoder.withIndent('  ').convert(open.summary()),
         png: open.picture(pass: pass),
@@ -417,19 +421,22 @@ List<EditorTool> get _captureTools => <EditorTool>[
     (EditorSession session, Map<String, Object?> arguments) {
       final open = _openCaptures[session];
       if (open == null) {
-        return (did: false, says: 'no capture is open: call capture_open');
+        return Answer(
+          did: false,
+          says: 'no capture is open: call capture_open',
+        );
       }
       final index = arguments['index'];
       final draw = index is int ? open.draw(index) : null;
       if (draw == null) {
-        return (
+        return Answer(
           did: false,
           says:
               'the capture has ${open.capture.draws.length} draws; '
               '$index is not one of them',
         );
       }
-      return (
+      return Answer(
         did: true,
         says: const JsonEncoder.withIndent('  ').convert(draw),
       );
@@ -482,7 +489,7 @@ List<EditorTool> get _playTools => <EditorTool>[
     ),
     (EditorSession session, Map<String, Object?> arguments) {
       final lines = arguments['lines'];
-      return (
+      return Answer(
         did: true,
         says: session.play.status(lines: lines is int ? lines : 40),
       );
@@ -1046,7 +1053,7 @@ List<EditorTool> get editorTools => <EditorTool>[
         _ => const <String, Object?>{},
       };
       if (!session.pieces.commandNames.contains(name)) {
-        return (
+        return Answer(
           did: false,
           says:
               'no command is called "$name": the editor knows '
@@ -1058,7 +1065,10 @@ List<EditorTool> get editorTools => <EditorTool>[
         'command': name,
       });
       if (command == null) {
-        return (did: false, says: '$name cannot be read from those arguments');
+        return Answer(
+          did: false,
+          says: '$name cannot be read from those arguments',
+        );
       }
       return session.run(command);
     },
@@ -1073,7 +1083,7 @@ List<EditorTool> get editorTools => <EditorTool>[
       inputSchema: ObjectSchema(),
     ),
     (EditorSession session, Map<String, Object?> arguments) =>
-        (did: true, says: prefabListing(session.editing.level)),
+        Answer(did: true, says: prefabListing(session.editing.level)),
   ),
   _told(
     mcpTool(
@@ -1087,7 +1097,7 @@ List<EditorTool> get editorTools => <EditorTool>[
       inputSchema: ObjectSchema(),
     ),
     (EditorSession session, Map<String, Object?> arguments) =>
-        (did: true, says: session.listing()),
+        Answer(did: true, says: session.listing()),
   ),
   _told(
     mcpTool(
@@ -1325,7 +1335,7 @@ List<EditorTool> get editorTools => <EditorTool>[
       inputSchema: ObjectSchema(),
     ),
     (EditorSession session, Map<String, Object?> arguments) =>
-        (did: true, says: session.validate()),
+        Answer(did: true, says: session.validate()),
   ),
   _told(
     mcpTool(
@@ -1453,7 +1463,7 @@ List<EditorTool> get editorTools => <EditorTool>[
       inputSchema: ObjectSchema(),
     ),
     (EditorSession session, Map<String, Object?> arguments) =>
-        (did: true, says: session.pluginListing()),
+        Answer(did: true, says: session.pluginListing()),
   ),
   _told(
     mcpTool(
@@ -1511,8 +1521,10 @@ List<EditorTool> get _experimentTools => <EditorTool>[
           'expects each probe to read.',
       inputSchema: ObjectSchema(),
     ),
-    (EditorSession session, Map<String, Object?> arguments) =>
-        (did: session.experiment != null, says: session.experimentListing()),
+    (EditorSession session, Map<String, Object?> arguments) => Answer(
+      did: session.experiment != null,
+      says: session.experimentListing(),
+    ),
   ),
   _told(
     mcpTool(

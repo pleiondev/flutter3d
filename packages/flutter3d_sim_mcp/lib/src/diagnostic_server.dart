@@ -38,7 +38,7 @@ const Map<String, ToolName> diagnosticToolNames = <String, ToolName>{
 /// One level, one process, no window — the same shape every server here
 /// settled on, and the same [ToolTableServer] underneath it.
 base class DiagnosticMcpServer
-    extends ToolTableServer<DiagnosticSession, PictureAnswer> {
+    extends ToolTableServer<DiagnosticSession, Answer> {
   DiagnosticMcpServer(
     super.channel, {
     required super.session,

@@ -122,6 +122,7 @@ export 'package:flutter3d/flutter3d.dart'
         ChangedBounds,
         CheckedModelWriter,
         CheckerboardTexture,
+        ClusteredIndices,
         ColorHint,
         ColorTarget,
         ColorToLinear,

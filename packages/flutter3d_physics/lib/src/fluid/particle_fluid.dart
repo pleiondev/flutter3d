@@ -24,9 +24,9 @@ final class PlaneObstacle with JetObstacle {
       normal.dot(center) - offset < distance;
 
   @override
-  ({Vector3 normal, double depth})? touch(Vector3 point, double radius) {
+  ObstacleTouch? touch(Vector3 point, double radius) {
     final d = normal.dot(point) - offset - radius;
-    return d < 0.0 ? (normal: normal, depth: -d) : null;
+    return d < 0.0 ? ObstacleTouch(normal: normal, depth: -d) : null;
   }
 }
 

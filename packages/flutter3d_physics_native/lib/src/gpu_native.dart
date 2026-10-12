@@ -241,7 +241,10 @@ final class GpuDebris with DebrisSystem {
         wait ? 1 : 0,
       );
       if (step == 0) return null;
-      return (step: step, bodies: out.copy(_capacity * c.debrisFloats));
+      return DebrisFrame(
+        step: step,
+        bodies: out.copy(_capacity * c.debrisFloats),
+      );
     } finally {
       out.free();
     }
@@ -314,7 +317,7 @@ final class GpuCloth with ClothSystem {
   int get pointCount => _points;
 
   @override
-  void setBalls(List<({Vector3 center, double radius})> balls) {
+  void setBalls(List<ClothBall> balls) {
     final data = packClothBalls(balls);
     try {
       g.f3d_gpu_cloth_set_balls(_live, _at<Float>(data), balls.length);
@@ -349,7 +352,7 @@ final class GpuCloth with ClothSystem {
         wait ? 1 : 0,
       );
       if (step == 0) return null;
-      return (step: step, points: out.copy(_points * 4));
+      return ClothFrame(step: step, points: out.copy(_points * 4));
     } finally {
       out.free();
     }
@@ -428,7 +431,7 @@ final class GpuFluid with FluidSystem {
         wait ? 1 : 0,
       );
       if (step == 0) return null;
-      return (step: step, particles: out.copy(_count * 4));
+      return FluidFrame(step: step, particles: out.copy(_count * 4));
     } finally {
       out.free();
     }

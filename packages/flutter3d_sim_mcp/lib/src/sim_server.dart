@@ -46,7 +46,7 @@ const Map<String, ToolName> simToolNames = <String, ToolName>{
 /// settled on, and the same [ToolTableServer] underneath. The tools and the
 /// instructions are built from the game the session was given, so the words an
 /// agent reads name that game's own buttons rather than one genre's.
-base class SimMcpServer extends ToolTableServer<SimSession, PictureAnswer> {
+base class SimMcpServer extends ToolTableServer<SimSession, Answer> {
   SimMcpServer(
     super.channel, {
     required super.session,

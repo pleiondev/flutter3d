@@ -13,9 +13,9 @@ import 'package:vector_math/vector_math.dart';
 import 'reading_predicate.dart';
 import 'sim_renderer.dart';
 
-PictureAnswer _ok(String says, [Uint8List? png]) =>
-    (did: true, says: says, png: png);
-PictureAnswer _refuse(String says) => (did: false, says: says, png: null);
+Answer _ok(String says, [Uint8List? png]) =>
+    Answer(did: true, says: says, png: png);
+Answer _refuse(String says) => Answer(did: false, says: says);
 
 /// One level of [game], open for the life of the process, an agent can walk
 /// through blind.
@@ -73,7 +73,7 @@ final class SimSession {
 
   bool get isOpen => _run != null;
 
-  PictureAnswer open(String path) {
+  Answer open(String path) {
     final Level level;
     try {
       final json = jsonDecode(_readInside(path));
@@ -106,7 +106,7 @@ final class SimSession {
   /// ten times that size, matching what ten real frames of the same mouse
   /// delta would do), and every one of [game]'s buttons down for the whole
   /// call when [held] names it true and up otherwise.
-  PictureAnswer step({
+  Answer step({
     required int steps,
     double moveX = 0.0,
     double moveY = 0.0,
@@ -140,7 +140,7 @@ final class SimSession {
   ///
   /// Refused for a game that takes no orders, for a verb it does not know,
   /// and for an argument the verb does not read or that is not a number.
-  PictureAnswer order({
+  Answer order({
     required String verb,
     Map<String, Object?> arguments = const <String, Object?>{},
     int steps = 1,
@@ -190,7 +190,7 @@ final class SimSession {
   ///
   /// Checked before the first step as well as after each one: a claim that
   /// already holds is answered at the step it holds at, with nothing stepped.
-  PictureAnswer expect({
+  Answer expect({
     required Map<String, Object?> predicate,
     required int limit,
     required String path,
@@ -272,7 +272,7 @@ final class SimSession {
   /// the first of them where the path starts: `7.vitality.hp`. A step where
   /// the runs part outside the entities — in the player, in the random
   /// state — says that no component differs there, which is news too.
-  PictureAnswer bisect(String pathA, String pathB, {EntityLayout? layout}) {
+  Answer bisect(String pathA, String pathB, {EntityLayout? layout}) {
     final entityLayout = layout ?? entities;
     final runs = <Demo>[];
     for (final path in <String>[pathA, pathB]) {
@@ -344,8 +344,8 @@ final class SimSession {
       }
       final inLoop = entityLayout?.under(RunLoop.savePath);
       return switch (bisectTapes(a: one, b: two, layout: inLoop)) {
-        TapesAgree() && final agree => (did: true, says: '$agree', png: null),
-        final TapesDiverge parted => (
+        TapesAgree() && final agree => Answer(did: true, says: '$agree'),
+        final TapesDiverge parted => Answer(
           did: true,
           says:
               'the runs agree for ${parted.step - 1} steps and part at step '
@@ -368,7 +368,7 @@ final class SimSession {
   ///
   /// A disagreement is answered with [DigestTrace.divergenceFrom]'s step,
   /// which brackets the defect to the checkpoints either side of it.
-  PictureAnswer verify(String path, {Map<String, Object?>? predicate}) {
+  Answer verify(String path, {Map<String, Object?>? predicate}) {
     final Demo demo;
     try {
       final json = jsonDecode(_readInside(path));
@@ -521,13 +521,13 @@ final class SimSession {
   }
 
   /// How things stand as data: the step, then whatever the game reads out.
-  PictureAnswer snapshot() {
+  Answer snapshot() {
     final run = _run;
     if (run == null) return _refuse('no level open');
     return _ok(jsonEncode(<String, Object?>{'step': _step, ...run.reading}));
   }
 
-  PictureAnswer digest() {
+  Answer digest() {
     final digests = _digests;
     if (digests == null) return _refuse('no level open');
     if (digests.hexDigests.isEmpty) {
@@ -543,7 +543,7 @@ final class SimSession {
   String _readInside(String path) =>
       File(root.resolve(path)).readAsStringSync();
 
-  PictureAnswer writeRun(String path) {
+  Answer writeRun(String path) {
     final recorder = _recorder;
     final digests = _digests;
     if (_run == null || recorder == null || digests == null) {
@@ -579,7 +579,7 @@ final class SimSession {
   /// A PNG from the eye of whoever the input moves, looking where they look —
   /// the one tool here that needs a device, built lazily on first call and
   /// kept for the rest of the run rather than rebuilt every time.
-  Future<PictureAnswer> frame() async {
+  Future<Answer> frame() async {
     final run = _run;
     final path = _levelPath;
     if (run == null || path == null) return _refuse('no level open');

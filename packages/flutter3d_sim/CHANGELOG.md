@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `TelemetrySent`, `BehaviorView` and a cutscene's keys are
+  classes.** `TelemetrySent` is what a `TelemetrySink` an outside author
+  writes returns, `BehaviorView` what a `BehaviorLeaf` is handed, and
+  `CameraKey`, `ActorCue`, `SubtitleCue`, `SignalCue` and `FadeKey` what a
+  sequence is read into: each was a record, which never gains a field.
+  Same fields, read the same way; build one with its constructor.
 - **Breaking: `Tolerance` is `GeometryTolerance`, and `SaveSchema` takes
   `migrations:` by name.** `Tolerance` is a Flutter physics type material
   exports; `dart fix` renames each use. Same constants.

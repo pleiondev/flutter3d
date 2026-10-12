@@ -135,7 +135,7 @@ void main() {
       final answer = await editorTools
           .firstWhere((EditorTool it) => it.name == 'generate')
           .run(session, arguments);
-      return (did: answer.did, says: answer.says);
+      return Answer(did: answer.did, says: answer.says);
     }
 
     const room = <String, Object?>{
@@ -230,7 +230,7 @@ void main() {
       final answer = await editorTools
           .firstWhere((EditorTool it) => it.name == tool)
           .run(session, arguments);
-      return (did: answer.did, says: answer.says);
+      return Answer(did: answer.did, says: answer.says);
     }
 
     const guard = <String, Object?>{
@@ -326,7 +326,7 @@ void main() {
       final answer = await editorTools
           .firstWhere((EditorTool it) => it.name == tool)
           .run(session, arguments);
-      return (did: answer.did, says: answer.says);
+      return Answer(did: answer.did, says: answer.says);
     }
 
     const scene = <String, Object?>{

@@ -449,8 +449,8 @@ final class ModelSession {
       ),
       author: StepAuthor.agent,
     );
-    if (refused != null) return (did: false, says: refused);
-    return (did: true, says: selection);
+    if (refused != null) return Answer(did: false, says: refused);
+    return Answer(did: true, says: selection);
   }
 
   /// Runs [command] through the history, always as `StepAuthor.agent` — every
@@ -466,9 +466,9 @@ final class ModelSession {
       client: client,
     );
     if (refused != null) {
-      return (did: false, says: 'nothing did ${command.says}: $refused');
+      return Answer(did: false, says: 'nothing did ${command.says}: $refused');
     }
-    return (did: true, says: '${command.says} — $selection');
+    return Answer(did: true, says: '${command.says} — $selection');
   }
 
   /// Runs [command] against something named rather than against whatever
@@ -506,7 +506,7 @@ final class ModelSession {
     if (object != null) {
       final ElementLevel? at = _levelNamed(level) ?? _levelOf(was, object);
       if (at == null) {
-        return (
+        return Answer(
           did: false,
           says:
               'naming elements of object $object needs a "level" — vertex, '
@@ -515,7 +515,7 @@ final class ModelSession {
         );
       }
       if (project[object] == null) {
-        return (did: false, says: 'there is no object $object');
+        return Answer(did: false, says: 'there is no object $object');
       }
       history.selection = ProjectSelection(
         mode: SelectionMode.mesh,
@@ -563,7 +563,7 @@ final class ModelSession {
   /// batch can name a different target per entry without a `select` between
   /// them.
   Answer batch(List<Map<String, Object?>> commands) {
-    if (commands.isEmpty) return (did: false, says: 'a batch of nothing');
+    if (commands.isEmpty) return Answer(did: false, says: 'a batch of nothing');
 
     // Read every entry before running any of them: an entry this build cannot
     // even name is not a reason to open a transaction and then unwind it.
@@ -571,7 +571,7 @@ final class ModelSession {
     for (var i = 0; i < commands.length; i++) {
       final ModelCommand? command = modelCommandFromJson(commands[i]);
       if (command == null) {
-        return (
+        return Answer(
           did: false,
           says:
               'entry $i (${commands[i]['name'] ?? 'unnamed'}) is not a '
@@ -613,9 +613,9 @@ final class ModelSession {
       history.recoveryJournal?.rollbackTransaction();
       history.selection = was;
       reportedSelection = null;
-      return (did: false, says: 'nothing was changed — $refused');
+      return Answer(did: false, says: 'nothing was changed — $refused');
     }
-    return (
+    return Answer(
       did: true,
       says:
           'ran ${read.length} ${read.length == 1 ? 'command' : 'commands'} '
@@ -703,9 +703,9 @@ final class ModelSession {
       client: client,
     );
     if (refused != null) {
-      return (did: false, says: 'nothing did ${to.says}: $refused');
+      return Answer(did: false, says: 'nothing did ${to.says}: $refused');
     }
-    return (did: true, says: '${to.says} — $selection');
+    return Answer(did: true, says: '${to.says} — $selection');
   }
 
   /// Runs [body] as one [history] step — a recipe (`mcp-09n`) calling [run]
@@ -739,10 +739,10 @@ final class ModelSession {
   /// always asked for as [StepAuthor.agent].
   Answer undo() {
     final says = history.undoSays;
-    if (says == null) return (did: false, says: 'nothing to undo');
+    if (says == null) return Answer(did: false, says: 'nothing to undo');
     final StepAuthor? topAuthor = history.topStepAuthor;
     if (topAuthor != StepAuthor.agent) {
-      return (
+      return Answer(
         did: false,
         says:
             'the top step ("$says") is a person\'s own, not this session\'s '
@@ -750,14 +750,14 @@ final class ModelSession {
       );
     }
     history.undo(onlyIfAuthoredBy: StepAuthor.agent);
-    return (did: true, says: 'undid $says — $selection');
+    return Answer(did: true, says: 'undid $says — $selection');
   }
 
   Answer redo() {
     final says = history.redoSays;
-    if (says == null) return (did: false, says: 'nothing to redo');
+    if (says == null) return Answer(did: false, says: 'nothing to redo');
     history.redo();
-    return (did: true, says: 'redid $says — $selection');
+    return Answer(did: true, says: 'redid $says — $selection');
   }
 
   /// What is wrong with the project, as an export would see it.
@@ -790,7 +790,7 @@ final class ModelSession {
   Answer save(String? to, {bool includeHistory = false}) {
     final target = to ?? path;
     if (target == null) {
-      return (
+      return Answer(
         did: false,
         says: 'this session has no path of its own — give one',
       );
@@ -799,7 +799,7 @@ final class ModelSession {
       writeProject(project, history: includeHistory ? history : null),
     );
     path = target;
-    return (did: true, says: 'written to $target');
+    return Answer(did: true, says: 'written to $target');
   }
 
   /// Takes the project out to a format a game or another tool reads.
@@ -819,7 +819,7 @@ final class ModelSession {
     final String kind = format ?? _formatFromSuffix(to);
     final ModelWriter? writer = modelWriterNamed(kind);
     if (writer == null) {
-      return (
+      return Answer(
         did: false,
         says: kind == 'gltf'
             ? '".gltf" (JSON plus a separate .bin) is not built; export ".glb" '
@@ -829,7 +829,10 @@ final class ModelSession {
       );
     }
     if (project.objects.isEmpty) {
-      return (did: false, says: 'there is nothing in this project to export');
+      return Answer(
+        did: false,
+        says: 'there is nothing in this project to export',
+      );
     }
     final readiness = ExportReadiness.check(project);
     final errors = <ExportIssue>[
@@ -837,7 +840,7 @@ final class ModelSession {
         if (issue.severity == ExportSeverity.error) issue,
     ];
     if (!force && errors.isNotEmpty) {
-      return (
+      return Answer(
         did: false,
         says:
             '${errors.length} ${errors.length == 1 ? 'thing' : 'things'} in '
@@ -868,7 +871,7 @@ final class ModelSession {
       for (final ExportIssue issue in readiness.issues)
         if (issue.severity == ExportSeverity.warning) issue.message,
     ];
-    return (
+    return Answer(
       did: true,
       says: warnings.isEmpty
           ? 'written to $to'
@@ -906,7 +909,7 @@ final class ModelSession {
   }) async {
     final file = File(from);
     if (!file.existsSync()) {
-      return (did: false, says: 'there is no file at $from');
+      return Answer(did: false, says: 'there is no file at $from');
     }
     final ModelDocument document;
     try {
@@ -919,12 +922,15 @@ final class ModelSession {
         ),
       );
     } catch (error) {
-      return (did: false, says: 'could not read $from: $error');
+      return Answer(did: false, says: 'could not read $from: $error');
     }
     final beforeCount = project.objects.length;
     final report = importInto(project, document, options: options);
     if (report.counts.objects == 0) {
-      return (did: false, says: '$from has nothing this reader could place');
+      return Answer(
+        did: false,
+        says: '$from has nothing this reader could place',
+      );
     }
     var merged = report.project;
     if (weld || fixNormals || triangulate) {
@@ -965,7 +971,7 @@ final class ModelSession {
     // The reader's own warnings, verbatim — a skipped primitive or an
     // undefined material is something the file said while being read, and an
     // agent that is only told the object count has no way to ask about it.
-    return (
+    return Answer(
       did: true,
       says:
           'imported ${report.counts.objects} '
@@ -1019,7 +1025,7 @@ final class ModelSession {
   Answer journal(String to) {
     final CommandJournal j = history.recoveryJournal!;
     File(to).writeAsBytesSync(j.toBytes());
-    return (did: true, says: 'wrote ${j.length} journal lines to $to');
+    return Answer(did: true, says: 'wrote ${j.length} journal lines to $to');
   }
 
   // ------------------------------------------------------------- mcp-09n
@@ -1040,7 +1046,7 @@ final class ModelSession {
         if (object.geometry is EditedGeometry) object.id,
     ];
     if (ids.isEmpty) {
-      return (did: false, says: 'nothing here has a mesh to clean up');
+      return Answer(did: false, says: 'nothing here has a mesh to clean up');
     }
     var didAnything = false;
     _recipe(() {
@@ -1069,7 +1075,7 @@ final class ModelSession {
         if (run(const RecalculateNormals()).did) didAnything = true;
       }
     });
-    return (
+    return Answer(
       did: didAnything,
       says: didAnything
           ? 'cleaned up ${ids.length} ${ids.length == 1 ? 'mesh' : 'meshes'}'
@@ -1093,7 +1099,7 @@ final class ModelSession {
     final TextureBudget? budget = _budgetNamed(profile);
     if (budget == null) return _unknownProfile(profile);
     final bool didAnything = _recipe(() => _makeGameReady(profile, budget));
-    return (
+    return Answer(
       did: didAnything,
       says: didAnything
           ? 'made game ready for $profile'
@@ -1108,7 +1114,7 @@ final class ModelSession {
     _ => null,
   };
 
-  static Answer _unknownProfile(String profile) => (
+  static Answer _unknownProfile(String profile) => Answer(
     did: false,
     says:
         '"$profile" is not a profile this knows; it is desktop, mobile or '
@@ -1177,7 +1183,10 @@ final class ModelSession {
     final TextureBudget? budget = _budgetNamed(profile);
     if (budget == null) return _unknownProfile(profile);
     if (project.objects.isEmpty) {
-      return (did: false, says: 'there is nothing in this project to repair');
+      return Answer(
+        did: false,
+        says: 'there is nothing in this project to repair',
+      );
     }
     final List<String> done = _recipe(() {
       final imported = <int>{
@@ -1242,7 +1251,7 @@ final class ModelSession {
         if (ready) 'made it game ready for $profile',
       ];
     });
-    return (
+    return Answer(
       did: done.isNotEmpty,
       says: done.isEmpty ? 'nothing to repair' : done.join('; '),
     );
@@ -1262,11 +1271,11 @@ final class ModelSession {
   /// back one piece at a time to get out of; checking every entry first
   /// means the transaction below never has a reason to fail midway.
   Answer buildFrom(List<Map<String, Object?>> spec) {
-    if (spec.isEmpty) return (did: false, says: 'nothing to build');
+    if (spec.isEmpty) return Answer(did: false, says: 'nothing to build');
     for (var i = 0; i < spec.length; i++) {
       final Object? kind = spec[i]['kind'];
       if (kind is! String || !AddPrimitive.primitiveKinds.contains(kind)) {
-        return (
+        return Answer(
           did: false,
           says:
               'entry $i: "$kind" is not a shape this builds. It knows '
@@ -1275,11 +1284,11 @@ final class ModelSession {
       }
       final Object? size = spec[i]['size'];
       if (size != null && (size is! num || size <= 0)) {
-        return (did: false, says: 'entry $i needs a positive size');
+        return Answer(did: false, says: 'entry $i needs a positive size');
       }
       final Object? parent = spec[i]['parent'];
       if (parent != null && (parent is! int || parent < 0 || parent >= i)) {
-        return (
+        return Answer(
           did: false,
           says: 'entry $i names a parent this batch has not built yet',
         );
@@ -1318,7 +1327,7 @@ final class ModelSession {
     if (ids.isNotEmpty) {
       history.selection = ProjectSelection(objects: <int>[ids.last]);
     }
-    return (
+    return Answer(
       did: true,
       says: 'built ${ids.length} ${ids.length == 1 ? 'object' : 'objects'}',
     );
@@ -1415,7 +1424,7 @@ final class ModelSession {
       _ => null,
     };
     if (chosen == null) {
-      return (
+      return Answer(
         did: false,
         says: '"$template" is not a rig template; it is humanoid or quadruped',
       );
@@ -1432,7 +1441,7 @@ final class ModelSession {
         if (!markers.containsKey(key)) key,
     ];
     if (missing.isNotEmpty) {
-      return (
+      return Answer(
         did: false,
         says:
             'autoRig(${chosen.name}) is missing markers: '
@@ -1447,7 +1456,7 @@ final class ModelSession {
     Aabb3 box;
     if (bounds != null) {
       if (bounds.length != 6) {
-        return (
+        return Answer(
           did: false,
           says: 'bounds needs 6 numbers: minX minY minZ maxX maxY maxZ',
         );
@@ -1480,7 +1489,10 @@ final class ModelSession {
     }
 
     if (skinObjectId != null && project[skinObjectId] == null) {
-      return (did: false, says: 'there is no object $skinObjectId to skin');
+      return Answer(
+        did: false,
+        says: 'there is no object $skinObjectId to skin',
+      );
     }
 
     final BuiltRig built;
@@ -1508,7 +1520,7 @@ final class ModelSession {
             : worldTransformOf(project, skinObjectId),
       );
     } on ArgumentError catch (error) {
-      return (did: false, says: 'autoRig refused: ${error.message}');
+      return Answer(did: false, says: 'autoRig refused: ${error.message}');
     }
 
     return run(
@@ -1538,15 +1550,21 @@ final class ModelSession {
     String? clipName,
   }) {
     if (sourceClipIndex < 0 || sourceClipIndex >= project.clips.length) {
-      return (did: false, says: 'there is no clip $sourceClipIndex');
+      return Answer(did: false, says: 'there is no clip $sourceClipIndex');
     }
     if (sourceSkeletonIndex < 0 ||
         sourceSkeletonIndex >= project.skeletons.length) {
-      return (did: false, says: 'there is no skeleton $sourceSkeletonIndex');
+      return Answer(
+        did: false,
+        says: 'there is no skeleton $sourceSkeletonIndex',
+      );
     }
     if (targetSkeletonIndex < 0 ||
         targetSkeletonIndex >= project.skeletons.length) {
-      return (did: false, says: 'there is no skeleton $targetSkeletonIndex');
+      return Answer(
+        did: false,
+        says: 'there is no skeleton $targetSkeletonIndex',
+      );
     }
     final sourceSkeleton = project.skeletons[sourceSkeletonIndex];
     final targetSkeleton = project.skeletons[targetSkeletonIndex];
@@ -1560,7 +1578,7 @@ final class ModelSession {
         ? rig.BoneMap(boneMap)
         : rig.autoMap(sourceNames, targetNames);
     if (map.isEmpty) {
-      return (
+      return Answer(
         did: false,
         says:
             'no bone of skeleton $sourceSkeletonIndex maps onto skeleton '
@@ -1610,15 +1628,18 @@ final class ModelSession {
     double fps = 30,
   }) {
     if (clipIndex < 0 || clipIndex >= project.clips.length) {
-      return (did: false, says: 'there is no clip $clipIndex');
+      return Answer(did: false, says: 'there is no clip $clipIndex');
     }
     for (final id in <int>[rootJointId, midJointId, effectorJointId]) {
       if (project[id] == null) {
-        return (did: false, says: 'there is no object $id');
+        return Answer(did: false, says: 'there is no object $id');
       }
     }
     if (target.length != 3 || pole.length != 3) {
-      return (did: false, says: '"target" and "pole" each need 3 numbers');
+      return Answer(
+        did: false,
+        says: '"target" and "pole" each need 3 numbers',
+      );
     }
     final constraint = IkConstraint(
       rootJointId: rootJointId,
@@ -1636,7 +1657,7 @@ final class ModelSession {
         fps: fps,
       );
     } on ArgumentError catch (error) {
-      return (did: false, says: 'bakeIk refused: ${error.message}');
+      return Answer(did: false, says: 'bakeIk refused: ${error.message}');
     }
     final clips = List<ProjectClip>.of(project.clips)..[clipIndex] = baked;
     return run(
@@ -1663,15 +1684,18 @@ final class ModelSession {
     List<Map<String, Object?>>? drivers,
   }) {
     if (clipIndex < 0 || clipIndex >= project.clips.length) {
-      return (did: false, says: 'there is no clip $clipIndex');
+      return Answer(did: false, says: 'there is no clip $clipIndex');
     }
     final target = project[shapeTargetObjectId];
     if (target == null) {
-      return (did: false, says: 'there is no object $shapeTargetObjectId');
+      return Answer(
+        did: false,
+        says: 'there is no object $shapeTargetObjectId',
+      );
     }
     final shapeCount = target.shapeSet.keys.length;
     if (shapeCount == 0) {
-      return (
+      return Answer(
         did: false,
         says: 'object $shapeTargetObjectId has no shape keys to drive',
       );
@@ -1681,7 +1705,7 @@ final class ModelSession {
     if (drivers == null) {
       parsed = target.shapeDrivers;
       if (parsed.isEmpty) {
-        return (
+        return Answer(
           did: false,
           says:
               'bakeDrivers needs at least one driver, and object '
@@ -1690,7 +1714,10 @@ final class ModelSession {
       }
     } else {
       if (drivers.isEmpty) {
-        return (did: false, says: 'bakeDrivers needs at least one driver');
+        return Answer(
+          did: false,
+          says: 'bakeDrivers needs at least one driver',
+        );
       }
       final out = <ShapeDriver>[];
       for (final driver in drivers) {
@@ -1702,7 +1729,7 @@ final class ModelSession {
             jointId is! int ||
             from is! num ||
             to is! num) {
-          return (
+          return Answer(
             did: false,
             says:
                 'each driver needs a "shapeIndex", a "jointId", a "from" '

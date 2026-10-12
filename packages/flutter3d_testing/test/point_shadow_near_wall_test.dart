@@ -77,7 +77,7 @@ void main() {
         final camera = CameraNode(
           projection: const PerspectiveProjection(fovY: 1.0),
         )..setPosition(0.0, 0.0, 6.0);
-        return (scene: scene, camera: camera);
+        return FrameSubject(scene: scene, camera: camera);
       },
     );
 

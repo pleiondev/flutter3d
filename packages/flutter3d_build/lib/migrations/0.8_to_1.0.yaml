@@ -20642,3 +20642,135 @@ entries:
       Only a type it names was renamed (a name Flutter or Dart also
       declares); the type's rename carries its own fix, and a call needs
       none.
+
+  # ---- Records an outside author returns or implements are classes, so
+  # they can grow.
+
+  - id: rc-mcp-Answer-class
+    package: flutter3d_mcp_kit
+    symbol: Answer
+    kind: recordToClass
+    fields:
+      did: did
+      says: says
+    wave: 4
+    guidance: >-
+      `Answer` is a class with the same `did` and `says`, and the `png` a
+      drawing tool hands back: write `Answer(did: true, says: '…')` where a
+      tool built the record `(did: true, says: '…')`.
+
+  - id: rc-mcp-PictureAnswer-rename
+    package: flutter3d_mcp_kit
+    symbol: PictureAnswer
+    kind: rename
+    to: Answer
+    wave: 4
+    guidance: >-
+      `Answer` carries the picture now, as `png`, so there is one answer
+      type: write `Answer(did: …, says: …, png: bytes)`.
+
+  - id: rc-testing-FrameSubject-class
+    package: flutter3d_testing
+    symbol: FrameSubject
+    kind: recordToClass
+    fields:
+      scene: scene
+      camera: camera
+    wave: 4
+    guidance: >-
+      `FrameSubject` is a class with the same `scene` and `camera`: return
+      `FrameSubject(scene: …, camera: …)` where a builder or a replay subject
+      returned the record.
+
+  - id: rc-testing-RenderedFrame-class
+    package: flutter3d_testing
+    symbol: RenderedFrame
+    kind: recordToClass
+    fields:
+      pixels: pixels
+      width: width
+      height: height
+      drawCalls: drawCalls
+    wave: 4
+    guidance: >-
+      `RenderedFrame` is a class with the same `pixels`, `width`, `height`
+      and `drawCalls`: build one with `RenderedFrame(…)` where a test built
+      the record.
+
+  - id: rc-model_core-TextureInputSocket-class
+    package: flutter3d_model_core
+    symbol: TextureInputSocket
+    kind: recordToClass
+    fields:
+      type: type
+      from: from
+    wave: 4
+    guidance: >-
+      `TextureInputSocket` is a class with the same `type` and `from`: a
+      node of your own declares `TextureInputSocket(type: …, from: …)` in
+      `inputs`.
+
+  - id: rc-core-DrawableGeometry-clusters-class
+    package: flutter3d_core
+    symbol: DrawableGeometry.clusters
+    kind: recordToClass
+    fields:
+      table: table
+      indices: indices
+    wave: 4
+    guidance: >-
+      `clusters` is a `ClusteredIndices` with the same `table` and
+      `indices`: a geometry of your own returns `ClusteredIndices(table: …,
+      indices: …)` or null.
+
+  - id: rc-core-DeviceMesh-clusters-class
+    package: flutter3d_core
+    symbol: DeviceMesh.clusters
+    kind: recordToClass
+    fields:
+      table: table
+      indices: indices
+    wave: 4
+    guidance: >-
+      `clusters` is a `ClusteredIndices` with the same `table` and
+      `indices`.
+
+  - id: rc-editor_mcp-EditorTool-answer
+    package: flutter3d_editor_mcp
+    symbol: EditorTool
+    kind: none
+    wave: 4
+    reason: >-
+      Its tools answer an `Answer`, which carries the picture now; the
+      rename of `PictureAnswer` carries the fix, and a tool that reads
+      `did`, `says` or `png` reads them as before.
+
+  - id: rc-model_mcp-ModelPictureTool-answer
+    package: flutter3d_model_mcp
+    symbol: ModelPictureTool
+    kind: none
+    wave: 4
+    reason: >-
+      Its tools answer an `Answer`, which carries the picture now; the
+      rename of `PictureAnswer` carries the fix, and a tool that reads
+      `did`, `says` or `png` reads them as before.
+
+  - id: rc-sim_mcp-DiagnosticTool-answer
+    package: flutter3d_sim_mcp
+    symbol: DiagnosticTool
+    kind: none
+    wave: 4
+    reason: >-
+      Its tools answer an `Answer`, which carries the picture now; the
+      rename of `PictureAnswer` carries the fix, and a tool that reads
+      `did`, `says` or `png` reads them as before.
+
+  - id: rc-sim_mcp-SimTool-answer
+    package: flutter3d_sim_mcp
+    symbol: SimTool
+    kind: none
+    wave: 4
+    reason: >-
+      Its tools answer an `Answer`, which carries the picture now; the
+      rename of `PictureAnswer` carries the fix, and a tool that reads
+      `did`, `says` or `png` reads them as before.

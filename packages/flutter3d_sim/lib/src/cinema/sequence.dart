@@ -30,17 +30,133 @@ import '../math/spline.dart';
 /// the vertical field of view in degrees, forty-five unless the document
 /// says, which is the engine's own lens, so a cutscene that names none cuts
 /// to it without the picture changing size.
-typedef CameraKey = ({int step, Vector3 at, Vector3 look, double fovY});
+///
+/// A class rather than a record, so a key can take another field in a
+/// minor (an easing of its own, a roll) without breaking a reader.
+final class CameraKey {
+  const CameraKey({
+    required this.step,
+    required this.at,
+    required this.look,
+    required this.fovY,
+  });
+
+  /// The step it is reached on.
+  final int step;
+
+  /// Where the eye is, in metres.
+  final Vector3 at;
+
+  /// The point it looks at, in metres.
+  final Vector3 look;
+
+  /// The vertical field of view, in degrees.
+  final double fovY;
+
+  /// Equal to another with the same fields, as the record it was compared.
+  @override
+  bool operator ==(Object other) =>
+      other is CameraKey &&
+      other.step == step &&
+      other.at == at &&
+      other.look == look &&
+      other.fovY == fovY;
+
+  @override
+  int get hashCode => Object.hash(step, at, look, fovY);
+
+  @override
+  String toString() =>
+      'CameraKey(step: $step, at: $at, look: $look, fovY: $fovY)';
+}
 
 /// One subtitle: shown from step [from] up to, not including, step [to].
-typedef SubtitleCue = ({int from, int to, String text});
+///
+/// A class rather than a record, so a key can take another field in a
+/// minor (an easing of its own, a roll) without breaking a reader.
+final class SubtitleCue {
+  const SubtitleCue({required this.from, required this.to, required this.text});
+
+  /// The first step it is shown on.
+  final int from;
+
+  /// The step it is gone by.
+  final int to;
+
+  /// What it says.
+  final String text;
+
+  /// Equal to another with the same fields, as the record it was compared.
+  @override
+  bool operator ==(Object other) =>
+      other is SubtitleCue &&
+      other.from == from &&
+      other.to == to &&
+      other.text == text;
+
+  @override
+  int get hashCode => Object.hash(from, to, text);
+
+  @override
+  String toString() => 'SubtitleCue(from: $from, to: $to, text: $text)';
+}
 
 /// One fade key: how dark the screen is at a step, nought clear and one
 /// black.
-typedef FadeKey = ({int step, double value});
+///
+/// A class rather than a record, so a key can take another field in a
+/// minor (an easing of its own, a roll) without breaking a reader.
+final class FadeKey {
+  const FadeKey({required this.step, required this.value});
+
+  /// The step it is reached on.
+  final int step;
+
+  /// How dark, a fraction: 0 clear, 1 black.
+  final double value;
+
+  /// Equal to another with the same fields, as the record it was compared.
+  @override
+  bool operator ==(Object other) =>
+      other is FadeKey && other.step == step && other.value == value;
+
+  @override
+  int get hashCode => Object.hash(step, value);
+
+  @override
+  String toString() => 'FadeKey(step: $step, value: $value)';
+}
 
 /// One signal: [name] fired, with [data], on [step].
-typedef SignalCue = ({int step, String name, Map<String, Object?> data});
+///
+/// A class rather than a record, so a key can take another field in a
+/// minor (an easing of its own, a roll) without breaking a reader.
+final class SignalCue {
+  const SignalCue({required this.step, required this.name, required this.data});
+
+  /// The step it fires on.
+  final int step;
+
+  /// What the game answers to.
+  final String name;
+
+  /// What the document gave it.
+  final Map<String, Object?> data;
+
+  /// Equal to another with the same fields, as the record it was compared.
+  @override
+  bool operator ==(Object other) =>
+      other is SignalCue &&
+      other.step == step &&
+      other.name == name &&
+      other.data == data;
+
+  @override
+  int get hashCode => Object.hash(step, name, data);
+
+  @override
+  String toString() => 'SignalCue(step: $step, name: $name, data: $data)';
+}
 
 /// What a cutscene tells an actor to do.
 ///
@@ -85,13 +201,50 @@ final class ActorCueKind {
 }
 
 /// One actor's direction from [step] until its next: who, what, and where.
-typedef ActorCue = ({
-  int step,
-  String actor,
-  ActorCueKind kind,
-  Vector3? at,
-  String? clip,
-});
+///
+/// A class rather than a record, so a key can take another field in a
+/// minor (an easing of its own, a roll) without breaking a reader.
+final class ActorCue {
+  const ActorCue({
+    required this.step,
+    required this.actor,
+    required this.kind,
+    this.at,
+    this.clip,
+  });
+
+  /// The step it is given on.
+  final int step;
+
+  /// The actor it directs, by name.
+  final String actor;
+
+  /// What it tells the actor to do.
+  final ActorCueKind kind;
+
+  /// Where, in metres, for a kind that goes or faces somewhere.
+  final Vector3? at;
+
+  /// The gesture [ActorCueKind.play] makes.
+  final String? clip;
+
+  /// Equal to another with the same fields, as the record it was compared.
+  @override
+  bool operator ==(Object other) =>
+      other is ActorCue &&
+      other.step == step &&
+      other.actor == actor &&
+      other.kind == kind &&
+      other.at == at &&
+      other.clip == clip;
+
+  @override
+  int get hashCode => Object.hash(step, actor, kind, at, clip);
+
+  @override
+  String toString() =>
+      'ActorCue(step: $step, actor: $actor, kind: $kind, at: $at, clip: $clip)';
+}
 
 /// What [Sequence.read] made of a document: the sequence, or every problem
 /// with it and where.
@@ -257,7 +410,7 @@ final class Sequence {
             problems.add('$where.t: after the key before it');
             continue;
           }
-          cameraKeys.add((step: step, at: at, look: look, fovY: fovY));
+          cameraKeys.add(CameraKey(step: step, at: at, look: look, fovY: fovY));
         }
       }
     }
@@ -274,7 +427,7 @@ final class Sequence {
         problems.add('$where.to: after from');
         continue;
       }
-      subtitles.add((from: from, to: to, text: text));
+      subtitles.add(SubtitleCue(from: from, to: to, text: text));
     }
 
     final fades = <FadeKey>[];
@@ -291,7 +444,7 @@ final class Sequence {
         problems.add('$where.t: after the key before it');
         continue;
       }
-      fades.add((step: step, value: value));
+      fades.add(FadeKey(step: step, value: value));
     }
 
     final signals = <SignalCue>[];
@@ -305,11 +458,13 @@ final class Sequence {
       if (step == null || name is! String || name.isEmpty || data is! Map) {
         continue;
       }
-      signals.add((
-        step: step,
-        name: name,
-        data: Map<String, Object?>.unmodifiable(data.cast<String, Object?>()),
-      ));
+      signals.add(
+        SignalCue(
+          step: step,
+          name: name,
+          data: Map<String, Object?>.unmodifiable(data.cast<String, Object?>()),
+        ),
+      );
     }
     // Stable, so two signals on one step fire in the order they were written.
     final ordered = <SignalCue>[
@@ -353,13 +508,15 @@ final class Sequence {
           (needsClip && (clip is! String || clip.isEmpty))) {
         continue;
       }
-      cues.add((
-        step: step,
-        actor: actor,
-        kind: kind,
-        at: at,
-        clip: needsClip && clip is String ? clip : null,
-      ));
+      cues.add(
+        ActorCue(
+          step: step,
+          actor: actor,
+          kind: kind,
+          at: at,
+          clip: needsClip && clip is String ? clip : null,
+        ),
+      );
     }
     // Stable, as the signals are.
     final orderedCues = <ActorCue>[

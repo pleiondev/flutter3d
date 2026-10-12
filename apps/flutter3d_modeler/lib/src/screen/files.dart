@@ -245,7 +245,7 @@ extension _FileHandling on _ModelerScreenState {
                 (
                   String tool,
                   Map<String, Object?> arguments,
-                  ({bool did, String says, Uint8List? png}) answer,
+                  answer,
                   Duration elapsed,
                 ) => _cubit.agentToolCalled(
                   AgentToolCall(

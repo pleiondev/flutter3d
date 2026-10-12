@@ -82,7 +82,11 @@ void main() {
     // by the Moon's ½gt², not the Earth's.
     final sparks = NativeParticles(1)
       ..emit(<NativeParticle>[
-        (position: Vector3.zero(), velocity: Vector3.zero(), life: 10.0),
+        NativeParticle(
+          position: Vector3.zero(),
+          velocity: Vector3.zero(),
+          life: 10.0,
+        ),
       ])
       ..step(ParticleForces(world: world), 1.0 / 60.0, steps: 60);
     final y = sparks.read()[1];

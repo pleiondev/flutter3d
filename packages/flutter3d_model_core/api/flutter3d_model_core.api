@@ -2459,7 +2459,13 @@ final class TextureInfo
   final int width
   int get hashCode
 
-typedef TextureInputSocket = ({TextureValueType type, int? from});
+final class TextureInputSocket
+  String toString()
+  bool operator ==(Object other)
+  const TextureInputSocket({required this.type, this.from})
+  final TextureValueType type
+  final int? from
+  int get hashCode
 
 abstract base class TextureNode
   R accept<R>(TextureNodeVisitor<R> visitor)

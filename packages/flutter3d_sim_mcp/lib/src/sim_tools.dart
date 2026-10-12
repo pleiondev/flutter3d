@@ -7,7 +7,7 @@ import 'sim_session.dart';
 
 /// One tool: what an agent is offered, and what calling it does — see
 /// `flutter3d_mcp/kit.dart`'s [OfferedTool].
-typedef SimTool = OfferedTool<SimSession, PictureAnswer>;
+typedef SimTool = OfferedTool<SimSession, Answer>;
 
 double _number(
   Map<String, Object?> args,
@@ -270,7 +270,7 @@ List<SimTool> simToolsFor(HeadlessGame game) => <SimTool>[
         args['b']! as String,
         layout: layout,
       ),
-      (layout: _, refused: final String why) => (
+      (layout: _, refused: final String why) => Answer(
         did: false,
         says: why,
         png: null,

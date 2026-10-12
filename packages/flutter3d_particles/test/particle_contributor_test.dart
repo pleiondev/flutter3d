@@ -215,7 +215,7 @@ final class _FakeMesh extends DrawableGeometry {
   @override
   MeshData? get source => null;
   @override
-  ({MeshClusters table, Uint32List indices})? get clusters => null;
+  ClusteredIndices? get clusters => null;
 }
 
 /// The mesh path, which is a different set of calls from the billboard one.

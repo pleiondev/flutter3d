@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter3d_core/flutter3d_core.dart' show DebugView;
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
-import 'package:flutter3d_mcp/kit.dart' show Answer, PictureAnswer, ProjectRoot;
+import 'package:flutter3d_mcp/kit.dart' show Answer, ProjectRoot;
 import 'package:flutter3d_plugin_api/editor.dart'
     show ComponentHints, FieldHint;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
@@ -12,10 +12,10 @@ import 'level_view.dart';
 import 'play_session.dart';
 
 // What a tool call did, and the sentence to say about it — the one `Answer`
-// every server here shares, and the `PictureAnswer` that carries a PNG
-// beside it. A refusal is an answer, not an exception: `EditorCommand.apply`
-// already decided that.
-export 'package:flutter3d_mcp/kit.dart' show Answer, PictureAnswer;
+// every server here shares, with the PNG a drawing tool carries beside it.
+// A refusal is an answer, not an exception: `EditorCommand.apply` already
+// decided that.
+export 'package:flutter3d_mcp/kit.dart' show Answer;
 
 /// One level document, open, with the editor's own verbs on it.
 ///
@@ -77,18 +77,19 @@ final class EditorSession {
   /// open.
   Answer openExperiment(String path) {
     final (path: inside, :refused) = root.tryResolve(path);
-    if (inside == null) return (did: false, says: refused!);
+    if (inside == null) return Answer(did: false, says: refused!);
     final file = File(inside);
-    if (!file.existsSync()) return (did: false, says: 'there is no $path');
+    if (!file.existsSync())
+      return Answer(did: false, says: 'there is no $path');
     try {
       experiment = ExperimentEditing.parse(
         file.readAsStringSync(),
         path: inside,
       );
     } on Exception catch (error) {
-      return (did: false, says: '$path does not open: $error');
+      return Answer(did: false, says: '$path does not open: $error');
     }
-    return (did: true, says: experimentListing());
+    return Answer(did: true, says: experimentListing());
   }
 
   /// The open experiment, one line per thing in it: its words, substances,
@@ -157,11 +158,14 @@ final class EditorSession {
   Answer editExperiment(Map<String, Object?> json) {
     final open = experiment;
     if (open == null) {
-      return (did: false, says: 'no experiment is open: call experiment.open');
+      return Answer(
+        did: false,
+        says: 'no experiment is open: call experiment.open',
+      );
     }
     final edit = ExperimentEdit.fromJson(json);
     if (edit == null) {
-      return (
+      return Answer(
         did: false,
         says:
             '${json['edit']} cannot be read from those arguments; the edits '
@@ -170,8 +174,8 @@ final class EditorSession {
     }
     final refused = open.run(edit);
     return refused == null
-        ? (did: true, says: edit.says)
-        : (did: false, says: refused);
+        ? Answer(did: true, says: edit.says)
+        : Answer(did: false, says: refused);
   }
 
   /// Takes back the open experiment's last edit, or makes the last undone
@@ -179,12 +183,15 @@ final class EditorSession {
   Answer undoExperiment({bool redo = false}) {
     final open = experiment;
     if (open == null) {
-      return (did: false, says: 'no experiment is open: call experiment.open');
+      return Answer(
+        did: false,
+        says: 'no experiment is open: call experiment.open',
+      );
     }
     final said = redo ? open.redo() : open.undo();
     return said == null
-        ? (did: false, says: 'nothing to ${redo ? 'redo' : 'undo'}')
-        : (did: true, says: '${redo ? 'redid' : 'undid'} $said');
+        ? Answer(did: false, says: 'nothing to ${redo ? 'redo' : 'undo'}')
+        : Answer(did: true, says: '${redo ? 'redid' : 'undid'} $said');
   }
 
   /// Writes the open experiment, to [path] inside [root] or over the file
@@ -192,19 +199,22 @@ final class EditorSession {
   Answer saveExperiment(String? path) {
     final open = experiment;
     if (open == null) {
-      return (did: false, says: 'no experiment is open: call experiment.open');
+      return Answer(
+        did: false,
+        says: 'no experiment is open: call experiment.open',
+      );
     }
     final String to;
     if (path == null) {
       to = open.path!;
     } else {
       final (path: inside, :refused) = root.tryResolve(path);
-      if (inside == null) return (did: false, says: refused!);
+      if (inside == null) return Answer(did: false, says: refused!);
       to = inside;
     }
     File(to).writeAsStringSync('${open.write()}\n');
     if (to == open.path) open.saved();
-    return (did: true, says: 'written to $to');
+    return Answer(did: true, says: 'written to $to');
   }
 
   /// What this editor writes into `generatedBy` when it takes ownership of a
@@ -237,7 +247,7 @@ final class EditorSession {
     final had = editing.level.behaviors.containsKey(name);
     final problems = editing.setBehavior(name, tree);
     if (problems.isNotEmpty) {
-      return (
+      return Answer(
         did: false,
         says: <String>[
           'behaviour $name was not written:',
@@ -245,7 +255,7 @@ final class EditorSession {
         ].join('\n'),
       );
     }
-    return (
+    return Answer(
       did: true,
       says:
           '${had ? 'replaced' : 'wrote'} behaviour $name — an entity runs '
@@ -259,7 +269,7 @@ final class EditorSession {
     final had = editing.cutscenes.containsKey(name);
     final problems = editing.setCutscene(name, sequence, at: at);
     if (problems.isNotEmpty) {
-      return (
+      return Answer(
         did: false,
         says: <String>[
           'cutscene $name was not written:',
@@ -267,7 +277,7 @@ final class EditorSession {
         ].join('\n'),
       );
     }
-    return (
+    return Answer(
       did: true,
       says:
           '${had ? 'replaced' : 'wrote'} cutscene $name — a trigger, button '
@@ -277,13 +287,13 @@ final class EditorSession {
 
   /// Takes the cutscene called [name] out.
   Answer removeCutscene(String name) => editing.removeCutscene(name)
-      ? (did: true, says: 'removed cutscene $name')
-      : (did: false, says: 'there is no cutscene $name — call list');
+      ? Answer(did: true, says: 'removed cutscene $name')
+      : Answer(did: false, says: 'there is no cutscene $name — call list');
 
   /// Takes the behaviour called [name] out.
   Answer removeBehavior(String name) => editing.removeBehavior(name)
-      ? (did: true, says: 'removed behaviour $name')
-      : (did: false, says: 'there is no behaviour $name — call list');
+      ? Answer(did: true, says: 'removed behaviour $name')
+      : Answer(did: false, says: 'there is no behaviour $name — call list');
 
   /// What is selected, said to something that has no mouse.
   ///
@@ -307,13 +317,16 @@ final class EditorSession {
   Answer select(Piece? kind, int? index, {bool also = false}) {
     if (also && kind != null && index != null) {
       editing.toggle(kind, index);
-      return (did: true, says: selection);
+      return Answer(did: true, says: selection);
     }
     editing.select(kind, index);
     if (index != null && editing.piece == null) {
-      return (did: false, says: 'there is no ${kind?.name} $index — call list');
+      return Answer(
+        did: false,
+        says: 'there is no ${kind?.name} $index — call list',
+      );
     }
-    return (did: true, says: selection);
+    return Answer(did: true, says: selection);
   }
 
   /// Runs one editor command through the history, so it can be undone.
@@ -323,7 +336,7 @@ final class EditorSession {
   /// "move by 0.25, 0, 0" rather than the word "undone".
   Answer run(DocumentCommand command) {
     final did = editing.history.run(command);
-    return (
+    return Answer(
       did: did,
       says: did
           ? '${command.says} — $selection'
@@ -343,7 +356,7 @@ final class EditorSession {
   Future<Answer> generateLevel(LevelRules rules, {required int seed}) async {
     final made = await generateLevelOffThread(rules, seed: seed);
     final level = made.level;
-    if (level == null) return (did: false, says: made.says);
+    if (level == null) return Answer(did: false, says: made.says);
     editing.replaceLevel(
       level,
       says: 'generate a level from seed ${made.seed}',
@@ -351,7 +364,7 @@ final class EditorSession {
     final rooms = level.recipes
         .where((LevelRecipe recipe) => recipe.kind == 'room')
         .length;
-    return (
+    return Answer(
       did: true,
       says:
           '${made.says}: $rooms rooms joined by corridors, the player in one '
@@ -364,7 +377,7 @@ final class EditorSession {
       final built = editing.addRecipe(recipe);
       String count(int n, String one, String many) =>
           '$n ${n == 1 ? one : many}';
-      return (
+      return Answer(
         did: true,
         says:
             'added a ${recipe.kind} from seed ${recipe.seed}: it builds '
@@ -375,24 +388,27 @@ final class EditorSession {
             'time',
       );
     } on LevelFormatException catch (e) {
-      return (did: false, says: 'no ${recipe.kind} was added: ${e.message}');
+      return Answer(
+        did: false,
+        says: 'no ${recipe.kind} was added: ${e.message}',
+      );
     }
   }
 
   /// Puts the document back the way it was before the last change.
   Answer undo() {
     final says = editing.history.undoSays;
-    if (says == null) return (did: false, says: 'nothing to undo');
+    if (says == null) return Answer(did: false, says: 'nothing to undo');
     editing.undo();
-    return (did: true, says: 'undid $says — $selection');
+    return Answer(did: true, says: 'undid $says — $selection');
   }
 
   /// Puts back the change [undo] took away.
   Answer redo() {
     final says = editing.history.redoSays;
-    if (says == null) return (did: false, says: 'nothing to redo');
+    if (says == null) return Answer(did: false, says: 'nothing to redo');
     editing.redo();
-    return (did: true, says: 'redid $says — $selection');
+    return Answer(did: true, says: 'redid $says — $selection');
   }
 
   /// What is wrong with the level, as the game would see it.
@@ -431,20 +447,20 @@ final class EditorSession {
   }
 
   /// A picture of the level from [from] looking at [at].
-  Future<PictureAnswer> screenshot(
+  Future<Answer> screenshot(
     Vector3? from,
     Vector3? at, {
     String? debugView,
   }) async {
     final camera = _camera(from, at);
     if (camera == null) {
-      return (did: false, says: 'the level is empty', png: null);
+      return Answer(did: false, says: 'the level is empty', png: null);
     }
     final view = debugView == null
         ? DebugView.off
         : DebugView.byName(debugView);
     if (view == null) {
-      return (
+      return Answer(
         did: false,
         says:
             'there is no debug view "$debugView": '
@@ -455,7 +471,7 @@ final class EditorSession {
     final png = await LevelView.of(
       editing.level,
     ).picture(camera, debugView: view);
-    return (
+    return Answer(
       did: true,
       says:
           'the level from ${_place(camera.from)} looking at '
@@ -476,12 +492,12 @@ final class EditorSession {
   /// not a material.
   Future<Answer> report(Vector3? from, Vector3? at) async {
     final camera = _camera(from, at);
-    if (camera == null) return (did: false, says: 'the level is empty');
+    if (camera == null) return Answer(did: false, says: 'the level is empty');
     final rows = await LevelView.of(editing.level).report(camera);
     final headline =
         'from ${_place(camera.from)} looking at ${_place(camera.at)}, '
         '${LevelView.width}×${LevelView.height}:';
-    return (
+    return Answer(
       did: true,
       says: <String>[headline, for (final row in rows) row.says].join('\n'),
     );
@@ -494,14 +510,14 @@ final class EditorSession {
   /// The picture is the new set's, from the first view; the sentence carries
   /// the moves and the numbers, so an agent can judge the change before
   /// keeping it and undo it after.
-  PictureAnswer optimizeLights({List<LightView>? views, bool apply = true}) {
+  Answer optimizeLights({List<LightView>? views, bool apply = true}) {
     final level = editing.level;
     if (level.lights.isEmpty) {
-      return (did: false, says: 'the level has no lights', png: null);
+      return Answer(did: false, says: 'the level has no lights', png: null);
     }
     final seen = views ?? defaultLightViews(level);
     if (seen.isEmpty) {
-      return (
+      return Answer(
         did: false,
         says: 'no view to judge the lights from — name one, or add a spawn',
         png: null,
@@ -513,10 +529,14 @@ final class EditorSession {
       for (final move in plan.moves) '  $move',
     ].join('\n');
     if (!plan.hasChanges) {
-      return (did: false, says: 'nothing to gain: $said', png: plan.pngs.after);
+      return Answer(
+        did: false,
+        says: 'nothing to gain: $said',
+        png: plan.pngs.after,
+      );
     }
     if (apply) editing.history.run(SetLights(plan.after, why: plan.says));
-    return (
+    return Answer(
       did: apply,
       says: apply
           ? '$said\n(undo puts the old lights back)'
@@ -611,7 +631,7 @@ final class EditorSession {
       final known = <String>[
         for (final importer in pieces.importers) ...importer.importer.suffixes,
       ];
-      return (
+      return Answer(
         did: false,
         says: known.isEmpty
             ? 'no importer is installed; a plugin adds one'
@@ -620,9 +640,10 @@ final class EditorSession {
       );
     }
     final (path: source, :refused) = root.tryResolve(path);
-    if (source == null) return (did: false, says: refused!);
+    if (source == null) return Answer(did: false, says: refused!);
     final file = File(source);
-    if (!file.existsSync()) return (did: false, says: 'there is no $path');
+    if (!file.existsSync())
+      return Answer(did: false, says: 'there is no $path');
     final ImportResult result;
     try {
       result = await added.importer.import(
@@ -634,13 +655,16 @@ final class EditorSession {
         ),
       );
     } on Object catch (error) {
-      return (did: false, says: '${added.name} could not read $path: $error');
+      return Answer(
+        did: false,
+        says: '${added.name} could not read $path: $error',
+      );
     }
     final targets = <String, String>{};
     for (final written in result.files.keys) {
       final (path: inside, :refused) = root.tryResolve(written);
       if (inside == null) {
-        return (
+        return Answer(
           did: false,
           says:
               '${added.name} wanted to write $written: $refused; nothing '
@@ -658,7 +682,7 @@ final class EditorSession {
       for (final command in result.commands)
         if (editing.history.run(command)) command.says,
     ];
-    return (
+    return Answer(
       did: true,
       says: <String>[
         'imported $path with ${added.name}',
@@ -700,13 +724,13 @@ final class EditorSession {
       asked = null;
     } else {
       final (path: inside, :refused) = root.tryResolve(path);
-      if (inside == null) return (did: false, says: refused!);
+      if (inside == null) return Answer(did: false, says: refused!);
       asked = inside;
     }
     final own = root.tryResolve(File(editing.path).absolute.path).path;
     final elsewhere = asked != null && asked != own;
     if (!elsewhere && !editing.canOverwrite) {
-      return (
+      return Answer(
         did: false,
         says:
             '${editing.path} was written by ${editing.generatedBy} and will '
@@ -720,7 +744,7 @@ final class EditorSession {
     editing.saved();
     // Not a copy: the running game plays the original, not the file beside it.
     final game = elsewhere ? null : await play.sendSaved(document);
-    return (
+    return Answer(
       did: true,
       says: game == null ? 'written to $to' : 'written to $to; $game',
     );

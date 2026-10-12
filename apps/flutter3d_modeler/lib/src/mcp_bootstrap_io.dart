@@ -4,7 +4,6 @@
 library;
 
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter3d_mcp/kit.dart' show ProjectRoot;
 import 'package:flutter3d_mcp/model.dart';
@@ -70,7 +69,7 @@ Future<void> startMcpServer({
   void Function(
     String toolName,
     Map<String, Object?> arguments,
-    ({bool did, String says, Uint8List? png}) answer,
+    Answer answer,
     Duration elapsed,
   )?
   onToolCall,
@@ -101,7 +100,7 @@ Future<void> startMcpServer({
           : uiToolsFor(uiActions),
       onToolCall: switch (onToolCall) {
         null => null,
-        final hook => (AnsweredCall<PictureAnswer> call) => hook(
+        final hook => (AnsweredCall<Answer> call) => hook(
           call.toolName,
           call.arguments,
           call.answer,

@@ -45,6 +45,32 @@ abstract base mixin class JetReceiver {
   );
 }
 
+/// Where a parcel is into a [JetObstacle]: the way out and how far.
+///
+/// A class rather than a record, so a touch can say more in a minor (the
+/// surface it hit, its friction) without breaking an obstacle somebody
+/// wrote.
+final class ObstacleTouch {
+  const ObstacleTouch({required this.normal, required this.depth});
+
+  /// The way out, a unit vector in world space.
+  final Vector3 normal;
+
+  /// How far in, in metres.
+  final double depth;
+
+  /// Equal to another with the same fields, as the record it was compared.
+  @override
+  bool operator ==(Object other) =>
+      other is ObstacleTouch && other.normal == normal && other.depth == depth;
+
+  @override
+  int get hashCode => Object.hash(normal, depth);
+
+  @override
+  String toString() => 'ObstacleTouch(normal: $normal, depth: $depth)';
+}
+
 /// Something a stream can run into and along — a wall.
 ///
 /// **Mixed in, not implemented**, outside this library: a `base` type, so a
@@ -53,7 +79,7 @@ abstract base mixin class JetReceiver {
 abstract base mixin class JetObstacle {
   /// Where a parcel of [radius] at [point] (world) is into this obstacle:
   /// the way out and how far, or null when it is clear of it.
-  ({Vector3 normal, double depth})? touch(Vector3 point, double radius);
+  ObstacleTouch? touch(Vector3 point, double radius);
 
   /// Whether anything within [distance] of [center] (world) could touch
   /// this obstacle: false only when it certainly cannot. Asked once a step

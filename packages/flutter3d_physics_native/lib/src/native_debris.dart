@@ -73,12 +73,45 @@ final class DebrisSettings {
 
 /// One ball of debris to add: a radius or mass of nought or less empties
 /// its slot instead.
-typedef DebrisBody = ({
-  Vector3 position,
-  Vector3 velocity,
-  double radius,
-  double mass,
-});
+///
+/// A class rather than a record, so it can carry more in a minor without
+/// breaking a backend that mixes the system in.
+final class DebrisBody {
+  const DebrisBody({
+    required this.position,
+    required this.velocity,
+    required this.radius,
+    required this.mass,
+  });
+
+  /// Where, in metres.
+  final Vector3 position;
+
+  /// How fast, in metres a second.
+  final Vector3 velocity;
+
+  /// In metres.
+  final double radius;
+
+  /// In kilograms.
+  final double mass;
+
+  /// Equal to another with the same fields, as the record it was compared.
+  @override
+  bool operator ==(Object other) =>
+      other is DebrisBody &&
+      other.position == position &&
+      other.velocity == velocity &&
+      other.radius == radius &&
+      other.mass == mass;
+
+  @override
+  int get hashCode => Object.hash(position, velocity, radius, mass);
+
+  @override
+  String toString() =>
+      'DebrisBody(position: $position, velocity: $velocity, radius: $radius, mass: $mass)';
+}
 
 /// A still shape debris lands on.
 abstract final class DebrisStatic {
@@ -104,7 +137,30 @@ final class DebrisBox extends DebrisStatic {
 
 /// What a read gives: the step the bodies are from, counted from one, and
 /// eight floats a slot — position xyz, orientation xyzw, radius.
-typedef DebrisFrame = ({int step, Float32List bodies});
+///
+/// A class rather than a record, so it can carry more in a minor without
+/// breaking a backend that mixes the system in.
+final class DebrisFrame {
+  const DebrisFrame({required this.step, required this.bodies});
+
+  /// The step, counted from one.
+  final int step;
+
+  /// Eight floats a slot: position xyz in metres, orientation xyzw, radius
+  /// in metres.
+  final Float32List bodies;
+
+  /// Equal to another with the same fields, as the record it was compared.
+  @override
+  bool operator ==(Object other) =>
+      other is DebrisFrame && other.step == step && other.bodies == bodies;
+
+  @override
+  int get hashCode => Object.hash(step, bodies);
+
+  @override
+  String toString() => 'DebrisFrame(step: $step, bodies: $bodies)';
+}
 
 /// Debris slots, filled round and round: on the CPU ([NativeDebris]) or the
 /// GPU ([GpuDebris]), the same passes. Visual, not the game's state.
@@ -266,7 +322,7 @@ final class NativeDebris implements DebrisSystem {
     try {
       c.f3d_debris_read(_live, out, n);
       _read = _steps;
-      return (step: _steps, bodies: out.copy(n * c.debrisFloats));
+      return DebrisFrame(step: _steps, bodies: out.copy(n * c.debrisFloats));
     } finally {
       out.free();
     }

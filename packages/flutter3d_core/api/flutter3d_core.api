@@ -720,6 +720,11 @@ final class ClusterIndices
   final GeometryBuffer buffer
   final int count
 
+final class ClusteredIndices
+  const ClusteredIndices({required this.table, required this.indices})
+  final MeshClusters table
+  final Uint32List indices
+
 final class ColorHint extends MaterialHintKind
   const ColorHint({this.channels = 4})
   final int channels
@@ -1078,7 +1083,7 @@ final class DeviceMesh extends DrawableGeometry
   bool get isDisposed
   double get boundingRadius
   factory DeviceMesh.upload(GraphicsDevice device, MeshData mesh, {bool keepSourceData = true})
-  final ({MeshClusters table, Uint32List indices})? clusters
+  final ClusteredIndices? clusters
   final GeometryBuffer indices
   final GeometryBuffer vertices
   final IndexType indexType
@@ -1202,7 +1207,7 @@ final class DrawRecord
   static DrawRecord? fromJson(Map<String, Object?> json)
 
 abstract base class DrawableGeometry with MeshGeometry
-  abstract ({MeshClusters table, Uint32List indices})? get clusters
+  abstract ClusteredIndices? get clusters
   abstract GeometryBuffer get indices
   abstract GeometryBuffer get vertices
   abstract IndexType get indexType

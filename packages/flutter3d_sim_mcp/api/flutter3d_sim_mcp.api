@@ -21,7 +21,7 @@ final class DiagnosticFrame
   final int height
   final int width
 
-base class DiagnosticMcpServer extends ToolTableServer<DiagnosticSession, PictureAnswer>
+base class DiagnosticMcpServer extends ToolTableServer<DiagnosticSession, Answer>
   DiagnosticMcpServer(super.channel, {required super.session, super.projectTools, super.onProjectCall})
 
 final class DiagnosticRenderer
@@ -33,7 +33,7 @@ final class DiagnosticRenderer
   static const int height = 200
   static const int width = 320
 
-typedef DiagnosticTool = OfferedTool<DiagnosticSession, PictureAnswer>;
+typedef DiagnosticTool = OfferedTool<DiagnosticSession, Answer>;
 
 final class DiagnosticView
   String toString()
@@ -106,7 +106,7 @@ final class ReadingPredicateException extends Flutter3dFormatException
   const ReadingPredicateException(this.message)
   final String message
 
-base class SimMcpServer extends ToolTableServer<SimSession, PictureAnswer>
+base class SimMcpServer extends ToolTableServer<SimSession, Answer>
   SimMcpServer(super.channel, {required super.session, super.projectTools, super.onProjectCall})
 
 final class SimRenderer
@@ -117,23 +117,23 @@ final class SimRenderer
   static const int width = DiagnosticRenderer.width
 
 final class SimSession
-  Future<PictureAnswer> frame()
-  PictureAnswer bisect(String pathA, String pathB, {EntityLayout? layout})
-  PictureAnswer digest()
-  PictureAnswer expect({required Map<String, Object?> predicate, required int limit, required String path, double moveX = 0.0, double moveY = 0.0, double lookX = 0.0, double lookY = 0.0, Map<String, bool> held = const <String, bool>{}})
-  PictureAnswer open(String path)
-  PictureAnswer order({required String verb, Map<String, Object?> arguments = const <String, Object?>{}, int steps = 1})
-  PictureAnswer snapshot()
-  PictureAnswer step({required int steps, double moveX = 0.0, double moveY = 0.0, double lookX = 0.0, double lookY = 0.0, Map<String, bool> held = const <String, bool>{}})
-  PictureAnswer verify(String path, {Map<String, Object?>? predicate})
-  PictureAnswer writeRun(String path)
+  Answer bisect(String pathA, String pathB, {EntityLayout? layout})
+  Answer digest()
+  Answer expect({required Map<String, Object?> predicate, required int limit, required String path, double moveX = 0.0, double moveY = 0.0, double lookX = 0.0, double lookY = 0.0, Map<String, bool> held = const <String, bool>{}})
+  Answer open(String path)
+  Answer order({required String verb, Map<String, Object?> arguments = const <String, Object?>{}, int steps = 1})
+  Answer snapshot()
+  Answer step({required int steps, double moveX = 0.0, double moveY = 0.0, double lookX = 0.0, double lookY = 0.0, Map<String, bool> held = const <String, bool>{}})
+  Answer verify(String path, {Map<String, Object?>? predicate})
+  Answer writeRun(String path)
+  Future<Answer> frame()
   SimSession({required this.game, this.entities, ProjectRoot? root})
   bool get isOpen
   final EntityLayout? entities
   final HeadlessGame game
   final ProjectRoot root
 
-typedef SimTool = OfferedTool<SimSession, PictureAnswer>;
+typedef SimTool = OfferedTool<SimSession, Answer>;
 
 Vector3 decodeOctahedralNormal(double r, double g)
 

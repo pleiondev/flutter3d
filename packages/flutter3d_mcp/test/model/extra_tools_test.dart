@@ -44,7 +44,7 @@ void main() {
       ToolSpec(name: 'ui.test', description: 'a stand-in UI tool'),
       (ModelSession session, Map<String, Object?> arguments) async {
         called = true;
-        return (did: true, says: 'did the thing', png: null);
+        return Answer(did: true, says: 'did the thing', png: null);
       },
     );
 

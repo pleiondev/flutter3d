@@ -81,7 +81,7 @@ void main() {
 
     final pixels = await it.device.readback(withSky.frame);
     expect(pixels, isNotNull, reason: 'the frame could not be read back');
-    final RenderedFrame frame = (
+    final RenderedFrame frame = RenderedFrame(
       pixels: pixels.buffer.asUint8List(),
       width: 240,
       height: 160,
