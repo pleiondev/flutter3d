@@ -4054,9 +4054,9 @@ final class RenderListener
   const RenderListener({this.drawn, this.skipped, this.overTime, this.stalled, this.held, this.frameBudget, this.refused})
   factory RenderListener.toBus(EventRegistry bus, {Duration? frameBudget})
   final Duration? frameBudget
+  final void Function(FrameOverTime event)? overTime
   final void Function(FrameResult result)? drawn
   final void Function(FrameResult result)? held
-  final void Function(FrameResult result, Duration budget)? overTime
   final void Function(PipelineRefusedException refusal)? refused
   final void Function(PipelineStall stall)? stalled
   final void Function(SkippedPass pass)? skipped

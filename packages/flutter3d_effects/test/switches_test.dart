@@ -81,8 +81,8 @@ void main() {
     final elements = await _open();
     addTearDown(elements.dispose);
     elements.listener = ElementsListener(
-      caught: (body, made) => caught.add(body),
-      exploded: (at, pushed) => exploded.add(pushed),
+      caught: (e) => caught.add(e.body),
+      exploded: (e) => exploded.add(e.pushed),
     );
     final crate = elements.addBody(
       Solid.box(
@@ -205,8 +205,8 @@ void main() {
       final (elements, crate) = await _burning(seconds: 1.0);
       addTearDown(elements.dispose);
       elements.listener = ElementsListener(
-        seen: (f) => seen.add(f.body),
-        lost: lost.add,
+        seen: (e) => seen.add(e.fire.body),
+        lost: (e) => lost.add(e.body),
       );
       final camera = CameraNode(name: 'eye')
         ..setPosition(0.0, 1.0, 4.0)
@@ -225,9 +225,7 @@ void main() {
     final budgets = <String>[];
     final (elements, _) = await _burning(seconds: 1.0);
     addTearDown(elements.dispose);
-    elements.listener = ElementsListener(
-      budget: (step, wanted, holds) => budgets.add(step),
-    );
+    elements.listener = ElementsListener(budget: (e) => budgets.add(e.step));
     elements.update(1 / 30, eye: Vector3.zero());
     // A crate heated through gives off a hundred kilowatts: its plume
     // stays dark far higher than a phone's puffs reach. Mutation: compare

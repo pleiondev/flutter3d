@@ -180,15 +180,15 @@ final class ElementWetted extends ElementBodyEvent
 final class ElementsListener
   const ElementsListener({this.caught, this.out, this.burntOut, this.wetted, this.burnerOut, this.exploded, this.budget, this.seen, this.lost})
   factory ElementsListener.toBus(EventRegistry bus)
-  final void Function(NativeBody body)? lost
-  final void Function(NativeBody body, TrackedBody? made)? burnerOut
-  final void Function(NativeBody body, TrackedBody? made)? burntOut
-  final void Function(NativeBody body, TrackedBody? made)? caught
-  final void Function(NativeBody body, TrackedBody? made)? out
-  final void Function(NativeBody body, TrackedBody? made)? wetted
-  final void Function(NativeFire fire)? seen
-  final void Function(String step, int wanted, int holds)? budget
-  final void Function(Vector3 at, int pushed)? exploded
+  final void Function(ElementBurnerOut event)? burnerOut
+  final void Function(ElementBurntOut event)? burntOut
+  final void Function(ElementCaught event)? caught
+  final void Function(ElementExploded event)? exploded
+  final void Function(ElementFireLost event)? lost
+  final void Function(ElementFireSeen event)? seen
+  final void Function(ElementOut event)? out
+  final void Function(ElementWetted event)? wetted
+  final void Function(ElementsOverBudget event)? budget
 
 final class ElementsOverBudget extends BusEvent
   String get name

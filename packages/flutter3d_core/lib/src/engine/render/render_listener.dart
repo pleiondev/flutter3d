@@ -39,8 +39,7 @@ final class RenderListener {
       RenderListener(
         drawn: (result) => bus.publish(FrameDrawn(result)),
         skipped: (pass) => bus.publish(FramePassSkipped(pass)),
-        overTime: (result, budget) =>
-            bus.publish(FrameOverTime(result, budget)),
+        overTime: bus.publish,
         stalled: (stall) => bus.publish(FramePipelineStall(stall)),
         refused: (refusal) => bus.publish(FramePipelineRefused(refusal)),
         held: (result) => bus.publish(FrameHeld(result)),
@@ -84,13 +83,14 @@ final class RenderListener {
   final void Function(SkippedPass pass)? skipped;
 
   /// Called when the frame took longer than [frameBudget] on the CPU, with
-  /// the frame and the budget it went over.
+  /// the frame and the budget it went over in one [FrameOverTime], the
+  /// event the bus carries, so what it is told can grow.
   ///
   /// Measured by [FrameResult.cpuMicros], the wall-clock time inside
   /// `Renderer.render`, which already includes [FrameResult.submitMicros];
   /// adding the two would count the submit twice. Not the GPU's time: the
   /// frame is still executing when this number is taken.
-  final void Function(FrameResult result, Duration budget)? overTime;
+  final void Function(FrameOverTime event)? overTime;
 
   /// The CPU time a frame may take before [overTime] is called. Null, the
   /// default, never calls it.
@@ -126,7 +126,7 @@ final class RenderListener {
     if (budget != null &&
         onOverTime != null &&
         result.cpuMicros > budget.inMicroseconds) {
-      onOverTime(result, budget);
+      onOverTime(FrameOverTime(result, budget));
     }
     drawn?.call(result);
   }
