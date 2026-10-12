@@ -193,10 +193,35 @@ List<ApiChange> classifyApi(String before, String after) {
       changes.add(ApiChange(uri, uri, 'the library is gone', Bump.major));
       continue;
     }
+    if (isOutsideSemver(uri)) {
+      // Decision 2 of 2026-10-12: the engine's packages ask for each other
+      // within one minor, so what these libraries change is a minor's.
+      final inside = <ApiChange>[];
+      _classifyLibrary(a, b, inside);
+      changes.addAll(<ApiChange>[
+        for (final c in inside)
+          c.bump == Bump.major
+              ? ApiChange(
+                  c.library,
+                  c.subject,
+                  '${c.what} (a library outside semver: a minor)',
+                  Bump.minor,
+                )
+              : c,
+      ]);
+      continue;
+    }
     _classifyLibrary(a, b, changes);
   }
   return changes;
 }
+
+/// Whether the library [uri] is one of the engine's own, outside semver:
+/// `package:<p>/internal.dart` or `package:<p>/builtin.dart`. The engine's
+/// packages read them and ask for each other within one minor, so a change
+/// here is a minor's (CONTRIBUTING, "The API is a snapshot").
+bool isOutsideSemver(String uri) =>
+    RegExp(r'^package:\w+/(internal|builtin)\.dart$').hasMatch(uri);
 
 /// The largest bump among [changes].
 Bump requiredBump(Iterable<ApiChange> changes) => changes.fold(
@@ -411,6 +436,9 @@ void _classifyDeclaration(String name, ApiBlock a, ApiBlock b, _Add add) {
       continue;
     }
     if (m0 == m1) continue;
+    // A snapshot written before `this._x` carried its type: the type printed
+    // now is no change.
+    if (m0 == withoutPrivateFormalTypes(m1) && m0 != m1) continue;
     final x = splitAnnotations(m0);
     final y = splitAnnotations(m1);
     _classifyAnnotations(
@@ -455,6 +483,17 @@ void _classifyDeclaration(String name, ApiBlock a, ApiBlock b, _Add add) {
     );
   }
 }
+
+/// [line] with the type before each `this._x` dropped, as snapshots printed
+/// a private initializing formal before they named its type:
+/// `T(Sink<String> this._sink)` is `T(this._sink)`.
+String withoutPrivateFormalTypes(String line) => line.replaceAllMapped(
+  RegExp(
+    r'([(\[{,]\s*(?:required\s+|covariant\s+)*)'
+    r'(?:[\w$.]+(?:<[^()]*?>)?\??\s+)(this\._[\w$]+)',
+  ),
+  (Match m) => '${m[1]}${m[2]}',
+);
 
 /// A constant listed as `= …` because its value is too long to list.
 bool _elided(String line) => line.endsWith(' = …');
@@ -1304,6 +1343,36 @@ List<(String, String)> proveApiDetectorsWork() {
     verdict('class Ab\n', 'final class Ab\n'),
     Bump.major,
     'a class made final',
+  );
+  expect(
+    'api classifier',
+    requiredBump(
+      classifyApi(
+        'library package:p/internal.dart\n\nfinal class Ab\n  void f()\n',
+        'library package:p/internal.dart\n\nfinal class Ab\n',
+      ),
+    ),
+    Bump.minor,
+    'a member gone from a library outside semver, which a minor may change',
+  );
+  expect(
+    'api classifier',
+    verdict(
+      'final class Ab\n  Ab(Sink<String> this._s)\n',
+      'final class Ab\n  Ab(Sink<int> this._s)\n',
+    ),
+    Bump.major,
+    'the type of a private field a constructor sets changed',
+  );
+  expect(
+    'api classifier',
+    verdict(
+      'final class Ab\n  Ab(this._s, {required this.n})\n',
+      'final class Ab\n  Ab(Map<String, int> this._s, {required this.n})\n',
+    ),
+    Bump.none,
+    'a snapshot from before private formals carried their type, against one '
+        'after',
   );
   expect(
     'api classifier',

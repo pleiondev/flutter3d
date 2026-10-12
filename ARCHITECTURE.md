@@ -279,7 +279,7 @@ point of §3.3.
 | `flutter3d_game_strategy` | Strategy rules: ground made of samples, a crowd that takes orders, flow fields shared by destination, an economy, a policy that plays a side, fog each side has to walk into |
 | `flutter3d_audio_core` | 3D positioning, voice limits, mix buses, the backend seam; a Doppler shift reckoned against the world's air from `flutter3d_matter` |
 | `flutter3d_audio` | The core re-exported, plus loading and streaming through SoLoud |
-| `flutter3d_app` | What any application on the engine is assembled from: which backend a build draws through, the surface a frame reaches Flutter through, `Flutter3dView` (its options in four final, const groups with a full `copyWith`, `DeviceSettings`, `ViewSettings`, `LoopSettings` and `PluginSettings`, so an option a minor adds lands in one group with a default; the simulation placed inline or in an isolate by `LoopSettings.simulation`; the scene's pipelines warmed a slice at a time once the device is open; a closable banner when the GPU backend would not start and the software rasteriser draws; an `EngineLog` per engine), widgets in the scene (`Scene3D`, sugar on `Flutter3dView`, over `SceneSurface`; every public widget `final`; identity by key, nothing reloaded on a rebuild, a widget gone released; `Mesh3D.onTap`, `Model3D.onTap` with the part hit, `OrbitCamera3D`, `Light3D.sun()` at 15 000 lux and `Light3D.lamp()` at 800 lm in candela), a level loaded into a scene, the scene published to the platform's accessibility layer, and storage. The modeller, the editor and the lessons use it and nothing above it |
+| `flutter3d_app` | What any application on the engine is assembled from: which backend a build draws through, the surface a frame reaches Flutter through, `Flutter3dView` (its options in four final, const groups with a full `copyWith`, `DeviceSettings`, `ViewSettings`, `LoopSettings` and `PluginSettings`, so an option a minor adds lands in one group with a default; the simulation placed inline or in an isolate by `LoopSettings.simulation`; the scene's pipelines warmed a slice at a time once the device is open; a closable banner when the GPU backend would not start and the software rasteriser draws; an `EngineLog` per engine), widgets in the scene (`Scene3D`, sugar on `Flutter3dView` taking the view's four groups whole, over `SceneSurface`; every public widget `final`; identity by key, nothing reloaded on a rebuild, a widget gone released; `Mesh3D.onTap` and `Model3D.onTap`, both handed the `HitResult` with the part hit, `OrbitCamera3D`, `Light3D.sun()` at 15 000 lux and `Light3D.lamp()` at 800 lm in candela), a level loaded into a scene, the scene published to the platform's accessibility layer, and storage. The modeller, the editor and the lessons use it and nothing above it |
 | `flutter3d_stereo` | Stereo rendering: a rig of two eyes under a head, the widget that draws the pair into one frame, and the settings a pair can have |
 | `flutter3d_level_scene` | `LevelScene`, which turns a level into brush meshes, materials, lights, probes, decals, mirrors and screens with no Flutter, and `meshDataOf`. Out of `flutter3d_editor_core` in 1.0.0-rc.1, so the application's level loader and the editor both stand on it and the application resolves no editor. Plain Dart |
 | `flutter3d_editor_core` | The headless half of a level editor: the document being changed and undone, the handles a pointer hits, the palette a level builds out of itself, the project a template becomes; the seeded level generators; and `LightOptimizer`, which finds fewer lights that light a level the way it was lit. Plain Dart |
@@ -390,7 +390,7 @@ a caller for that cannot supply a Flutter SDK.
 
 ### 3.3 Rules that are scanned, not remembered
 
-`tool/structure.dart` walks `packages/` and `apps/` and enforces 91 rules
+`tool/structure.dart` walks `packages/` and `apps/` and enforces 97 rules
 as the first step of CI. All but two read source text in under a second; the
 two snapshot rules run `tool/api` over every published package (its API, and
 the tools it offers agents — see §16), and CI asks for both again by name once
@@ -1250,8 +1250,8 @@ maps ([§6.4](#64-layers-and-lobes-past-metal-rough)). `Pbr` binds thirteen
 samplers and `PbrLayered` sixteen, which is the whole budget.
 
 **Work that can wait shares one allowance.** `RenderSettings.frameWorkBudget`
-is microseconds a frame for work that can be spread over frames; nought, the
-default, is no limit. `FrameWorkBudget` lets a piece of work start when what
+is a `Duration` a frame may give to work that can be spread over frames;
+`Duration.zero`, the default, is no limit. `FrameWorkBudget` lets a piece of work start when what
 the frame has spent plus what a piece has lately cost still fits, so the piece
 that would tip it waits for the next frame; the first piece of a frame always
 runs, so every queue drains even on a device too slow to fit one. Two kinds of
@@ -1274,8 +1274,8 @@ a level.
 instances so a fourth class does not break a caller's `switch`.
 `DeviceClassSelector` calls every browser `web`, and otherwise decides by
 whether the GPU samples a BC format, which every desktop GPU does and almost no
-phone GPU does. A short measured probe frame slower than `desktopMicros`
-(8000) only ever demotes a desktop to a phone: a phone that measures fast on a
+phone GPU does. A short measured probe frame slower than `desktopLimit`
+(8 ms) only ever demotes a desktop to a phone: a phone that measures fast on a
 cool loading screen is still a phone ten minutes later. `DeviceClassPicker`
 remembers the answer through a `DeviceClassMemory` and takes a player's
 override. The class decides which files load
@@ -1290,7 +1290,7 @@ of the screen-space effects, the fog and the shafts, halves the shadow maps from
 tier 2, takes the temporal clip one k-DOP size down and scales a non-zero work
 budget. It only pulls levers down, and full quality hands back the
 application's own settings object. `AdaptiveQuality` (`AdaptiveQualitySettings`,
-off, `budgetMicros` 16667) picks each frame the best-looking row whose estimate
+off, `budget` 16 667 µs) picks each frame the best-looking row whose estimate
 fits: the table's cost, times a load measured on this device that rises with a
 slow frame at once and falls back by an exponential average, times a per-row
 correction learnt from the rows it visits. It keeps a row under 90% of the
@@ -3673,8 +3673,8 @@ storage.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **14693 tests** across 61 packages and 18 applications |
-| Structure rules | 91, `dart run tool/structure.dart`, the first CI step |
+| Unit tests | **14701 tests** across 61 packages and 18 applications |
+| Structure rules | 97, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
 ### 13.1 The published-enum boundary

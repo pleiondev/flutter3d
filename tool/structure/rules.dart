@@ -268,7 +268,7 @@ List<Rule> get allRules => <Rule>[
         File(
           '${repositoryRoot.path}/tool/structure/sdk_names.txt',
         ).readAsStringSync(),
-      );
+      )..removeWhere((String uri, _) => sdkLibrariesKnownOnly.contains(uri));
       return _namingRule(
         (String snapshot, String package) => nameCollisionsIn(snapshot, sdk),
         nameCollisionAllowed,
@@ -289,6 +289,36 @@ List<Rule> get allRules => <Rule>[
       );
     },
   ),
+  (name: 'a facade exports every type its API names', run: _facadesAreClosed),
+  (
+    name: 'a signature names only types a caller can import',
+    run: _signaturesNameImportableTypes,
+  ),
+  (
+    name: 'a type the code throws is one a caller can name',
+    run: _thrownTypesArePublic,
+  ),
+  (
+    name: 'a result a caller reads names no record',
+    run: () => _namingRule(
+      (String snapshot, String package) => recordsInResultsIn(snapshot),
+      recordInResultAllowed,
+    ),
+  ),
+  (
+    name: 'every public class says how it may be extended',
+    run: () => _namingRule(
+      (String snapshot, String package) => plainClassesIn(snapshot),
+      plainClassAllowed,
+    ),
+  ),
+  (
+    name: 'an open set carries values, name and byName',
+    run: () => _namingRule(
+      (String snapshot, String package) => openSetShapeIn(snapshot),
+      openSetShapePending,
+    ),
+  ),
   (
     name: 'a reader throws where it fails, and answers null only for absent',
     run: () => _namingRule(
@@ -297,10 +327,9 @@ List<Rule> get allRules => <Rule>[
     ),
   ),
   (
-    name: 'a constructor takes no optional positional parameters',
+    name: 'a signature takes no optional positional parameters',
     run: () => _namingRule(
-      (String snapshot, String package) =>
-          optionalPositionalConstructorsIn(snapshot),
+      (String snapshot, String package) => optionalPositionalsIn(snapshot),
       optionalPositionalAllowed,
     ),
   ),
@@ -2708,12 +2737,57 @@ List<Finding> _versionsAgree() {
     }
 
     for (final sibling in declared.entries) {
+      // **Within one minor at 1.x** (decision 2 of 2026-10-12): the
+      // `internal.dart` and `builtin.dart` libraries are outside semver and
+      // may change in a minor, so a package of ours asks for a sibling's
+      // `major.minor` and nothing past it — `'>=1.0.0-rc.1 <1.1.0'` — and
+      // a sibling's 1.1 never resolves under a 1.0 that read its internals.
+      final range = RegExp(
+        '^  ${RegExp.escape(sibling.key)}:[ \\t]*'
+        "'>=([0-9][^\\s']*) <([0-9]+)\\.([0-9]+)\\.0'\\s*\$",
+        multiLine: true,
+      ).firstMatch(text);
+      final siblingVersion = parseVersion(sibling.value);
+      if (range != null) {
+        final floor = range.group(1)!;
+        final ceiling = (
+          int.parse(range.group(2)!),
+          int.parse(range.group(3)!),
+        );
+        final within =
+            siblingVersion != null &&
+            ceiling == (siblingVersion.major, siblingVersion.minor + 1) &&
+            (compareVersionTexts(floor, sibling.value) ?? 1) <= 0;
+        if (!within) {
+          found.add(
+            Finding(
+              where,
+              'asks for ${sibling.key} \'>=$floor <${ceiling.$1}.${ceiling.$2}.0\', '
+              'which declares ${sibling.value}: ask for its own major.minor, '
+              'from a floor at or below what it declares',
+            ),
+          );
+        }
+        continue;
+      }
       final match = RegExp(
         '^  ${RegExp.escape(sibling.key)}:[ \\t]*\\^?([0-9][^\\s]*)\\s*\$',
         multiLine: true,
       ).firstMatch(text);
       if (match == null) continue;
       final asked = match.group(1)!;
+      if (siblingVersion != null && siblingVersion.major >= 1) {
+        found.add(
+          Finding(
+            where,
+            'asks for ${sibling.key} ^$asked: a sibling at 1.x is asked for '
+            'within its minor (\'>=${sibling.value} <${siblingVersion.major}.'
+            '${siblingVersion.minor + 1}.0\'), because its internal libraries '
+            'may change in the next one',
+          ),
+        );
+        continue;
+      }
       // Caret-compatible rather than equal, since a patch release moved one
       // package ahead of the set: `^0.4.0` genuinely covers a sibling that
       // declares 0.4.1, and demanding equality would force every dependent to
@@ -5310,6 +5384,22 @@ List<Finding> _breaksHaveMigrations() {
     for (final (line, what) in migrationTableProblems(table)) {
       found.add(Finding('$where:$line', what));
     }
+    final published = <ApiLibrary>[
+      for (final snapshot in _publishedSnapshots.values)
+        ...parseApi(snapshot).values,
+    ];
+    for (final (line, what) in migrationTargetProblems(
+      table,
+      declared: <String>{
+        for (final library in published) ...library.declarations.keys,
+        for (final library in published)
+          for (final export in library.exports.values)
+            for (final m in export.members) m.split(' ').first,
+      },
+      libraries: <String>{for (final library in published) library.uri},
+    )) {
+      found.add(Finding('$where:$line', what));
+    }
   }
 
   // The generated outputs carry the tables' stamp.
@@ -6246,6 +6336,174 @@ List<Finding> _namingRule(
         'tool/structure/repository.dart',
         'an exemption names `$name`, which no snapshot breaks the rule with '
             'any more: take the entry out',
+      ),
+    );
+  }
+  return found;
+}
+
+/// Every type the API of a facade ([facadePackages]) reaches through its
+/// signatures is one the facade exports, or [facadeGapAllowed] says why a
+/// caller never writes it (S1).
+///
+/// **"Two imports, Flutter's and this" has to be true.** `flutter3d_game`
+/// named 207 types it did not export, `GameAction` and `Storage` among
+/// them, and the demos imported the package underneath to write an input
+/// binding. Each such import is a dependency the user never chose.
+///
+/// Mutation: drop `Registration` from `flutter3d`'s show list, regenerate
+/// the snapshot, and this names it.
+List<Finding> _facadesAreClosed() {
+  final snapshots = _publishedSnapshots;
+  final declarations = typeDeclarationsIn(snapshots.values);
+  final found = <Finding>[];
+  final used = <String>{};
+  for (final MapEntry(key: facade, value: together) in facadePackages.entries) {
+    if (together.any((String p) => snapshots[p] == null)) {
+      found.add(Finding(facade, 'is listed as a facade and has no snapshot'));
+      continue;
+    }
+    final exported = <String>{
+      for (final p in together) ...facadeNames(snapshots[p]!, p),
+    };
+    for (final gap in facadeGapsIn(
+      facade: facade,
+      exported: exported,
+      declarations: declarations,
+    )) {
+      final key = '$facade:${gap.subject}';
+      if (facadeGapAllowed.containsKey(key)) {
+        used.add(key);
+        continue;
+      }
+      found.add(
+        Finding('$facade/api/$facade.api', '`${gap.subject}` ${gap.what}'),
+      );
+    }
+  }
+  for (final key in facadeGapAllowed.keys) {
+    if (used.contains(key)) continue;
+    found.add(
+      Finding(
+        'tool/structure/repository.dart',
+        '`facadeGapAllowed` names `$key`, which its facade exports or no '
+            'longer reaches: take the entry out',
+      ),
+    );
+  }
+  return found;
+}
+
+/// Every type a published signature names is one a caller can import: ours,
+/// declared in a published snapshot, or the SDK's (`sdk_names.txt`), or a
+/// third-party type [thirdPartyTypeAllowed] lists for that package with
+/// why it belongs in the contract (A.5, S13).
+///
+/// **Both halves of one hole.** A type of ours that no library exports
+/// (`DiagnosticSession`, `FuzzVertex`) cannot be named by the caller it is
+/// handed to, and a third-party type (`SoLoud`, `VmService`,
+/// `RSAPrivateKey`) makes that package's next major ours. Neither showed in
+/// any rule, because each reads names a snapshot declares.
+///
+/// Mutation: make a public method of `flutter3d_audio` take a `SoLoud`,
+/// regenerate the snapshot, and this names it.
+List<Finding> _signaturesNameImportableTypes() {
+  final snapshots = _publishedSnapshots;
+  // Every name a snapshot declares: an extension is named in its own header.
+  final known = <String>{
+    for (final snapshot in snapshots.values)
+      for (final library in parseApi(snapshot).values)
+        ...library.declarations.keys,
+  };
+  final sdk = sdkNamesFrom(
+    File(
+      '${repositoryRoot.path}/tool/structure/sdk_names.txt',
+    ).readAsStringSync(),
+  );
+  final found = <Finding>[];
+  final used = <String>{};
+  for (final MapEntry(key: package, value: snapshot) in snapshots.entries) {
+    for (final problem in unimportableTypesIn(snapshot, known, sdk)) {
+      final key = '$package:${problem.subject}';
+      if (thirdPartyTypeAllowed.containsKey(key)) {
+        used.add(key);
+        continue;
+      }
+      found.add(
+        Finding(
+          '$package/api/$package.api',
+          '`${problem.subject}` ${problem.what}',
+        ),
+      );
+    }
+  }
+  for (final key in thirdPartyTypeAllowed.keys) {
+    if (used.contains(key)) continue;
+    found.add(
+      Finding(
+        'tool/structure/repository.dart',
+        '`thirdPartyTypeAllowed` names `$key`, which that package\'s '
+            'snapshot no longer names: take the entry out',
+      ),
+    );
+  }
+  return found;
+}
+
+/// Every public type a published package's code throws is one a caller can
+/// name: declared in a published snapshot or the SDK's, or listed in
+/// [thrownTypeAllowed] with why nobody catches it by name (E.6, S15).
+///
+/// Mutation: drop `GpuDeviceException` from `flutter3d_webgpu_web.dart`'s
+/// exports, regenerate the snapshot, and this names it.
+List<Finding> _thrownTypesArePublic() {
+  final snapshots = _publishedSnapshots;
+  final named = <String>{
+    for (final snapshot in snapshots.values)
+      for (final library in parseApi(snapshot).values) ...<String>[
+        ...library.declarations.keys,
+        for (final export in library.exports.values)
+          for (final m in export.members) m.split(' ').first,
+      ],
+    for (final names in sdkNamesFrom(
+      File(
+        '${repositoryRoot.path}/tool/structure/sdk_names.txt',
+      ).readAsStringSync(),
+    ).values)
+      ...names,
+  };
+  final found = <Finding>[];
+  final used = <String>{};
+  for (final MapEntry(key: package, value: dir) in _publishedPackages.entries) {
+    if (!snapshots.containsKey(package)) continue;
+    final lib = Directory('${dir.path}/lib');
+    if (!lib.existsSync()) continue;
+    for (final file in dartFilesIn(lib)) {
+      for (final type in thrownTypesIn(file.readAsStringSync())) {
+        if (named.contains(type)) continue;
+        final key = '$package:$type';
+        if (thrownTypeAllowed.containsKey(key)) {
+          used.add(key);
+          continue;
+        }
+        found.add(
+          Finding(
+            '$package/${relative(file, dir)}',
+            'throws `$type`, which no library of the package exports: a '
+                'caller cannot catch it by name. Export it, or say in '
+                '`thrownTypeAllowed` why nobody catches it',
+          ),
+        );
+      }
+    }
+  }
+  for (final key in thrownTypeAllowed.keys) {
+    if (used.contains(key)) continue;
+    found.add(
+      Finding(
+        'tool/structure/repository.dart',
+        '`thrownTypeAllowed` names `$key`, which that package no longer '
+            'throws unexported: take the entry out',
       ),
     );
   }

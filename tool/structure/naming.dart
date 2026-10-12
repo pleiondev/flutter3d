@@ -212,6 +212,20 @@ Map<String, Set<String>> sdkNamesFrom(String text) {
   return out;
 }
 
+/// The libraries of `sdk_names.txt` the collision rule does not read: a
+/// game does not import them beside ours, so a name they share costs no
+/// `hide`. The rule `a signature names only types a caller can import`
+/// reads them, because a type from any of them is importable.
+const Set<String> sdkLibrariesKnownOnly = <String>{
+  'dart:isolate',
+  'dart:ffi',
+  'dart:developer',
+  'dart:js_interop',
+  'dart:collection',
+  'dart:convert',
+  'package:meta/meta.dart',
+};
+
 /// Each type [snapshot] declares under a name one of the [sdk] libraries
 /// exports too (A.8): a game that imports both reads an ambiguous name, or
 /// silently the other one, and needs a `hide` to say which.
@@ -267,10 +281,14 @@ const Set<String> teardownVerbs = <String>{
   'tearDown',
 };
 
+/// The two of [teardownVerbs] a type may keep.
+const Set<String> standardTeardownVerbs = <String>{'dispose', 'close'};
+
 /// The type-level problems with verbs in [snapshot]: a type with two
-/// teardown verbs, a method named with `make`, `take` or `get`, and an
-/// asynchronous `create` (one that returns a `Future` and is not the
-/// `…Async` variant of a synchronous one).
+/// teardown verbs, or one that is not [standardTeardownVerbs] (a lone
+/// `shutdown` was never flagged), a method named with `make`, `take` or
+/// `get`, an asynchronous `create` (one that returns a `Future` and is not
+/// the `…Async` variant of a synchronous one), and a synchronous `open`.
 List<NamingProblem> verbProblemsIn(String snapshot) {
   final out = <NamingProblem>[];
   for (final library in parseApi(snapshot).values) {
@@ -307,6 +325,17 @@ List<NamingProblem> verbProblemsIn(String snapshot) {
           ));
         }
         final returns = bare.substring(0, bare.indexOf(short)).trim();
+        if (RegExp(r'^open([A-Z]|$)').hasMatch(short) &&
+            parameterListOf(line) != null &&
+            !RegExp(r'(^|\W)(Future|FutureOr|Stream)<').hasMatch(returns)) {
+          out.add((
+            subject: subject,
+            what:
+                'is a synchronous `open`: a device, a session or a file is '
+                'opened, which waits; what is made at once is `create`d, and '
+                'a permissive variant says so in its name',
+          ));
+        }
         if (RegExp(r'^create([A-Z]|$)').hasMatch(short) &&
             !short.endsWith('Async') &&
             RegExp(r'(^|\s)Future<').hasMatch(returns)) {
@@ -317,6 +346,14 @@ List<NamingProblem> verbProblemsIn(String snapshot) {
                 'device or a session is opened (`open…`), bytes are decoded',
           ));
         }
+      }
+      if (ending.length == 1 && !standardTeardownVerbs.contains(ending.first)) {
+        out.add((
+          subject: '$type.${ending.first}',
+          what:
+              'ends the object\'s life with `${ending.first}`: the verb is '
+              '`dispose`, or `close` for a connection or a stream',
+        ));
       }
       if (ending.length > 1) {
         out.add((
@@ -336,9 +373,15 @@ List<NamingProblem> verbProblemsIn(String snapshot) {
 /// The unit suffixes a public name may not carry: an angle is radians and a
 /// time is seconds (docs/CONTRACTS.md), so a name that says otherwise is a
 /// name whose number is in the wrong unit.
+///
+/// **Microseconds too.** A frame-time budget a caller sets is a `Duration`;
+/// four budgets had become `int` microseconds while the rule read only
+/// milliseconds. A measurement the engine reports may stay integral
+/// microseconds (a pass's GPU time), and is listed in `unitSuffixAllowed`.
 final RegExp unitSuffix = RegExp(
-  r'(?:[a-z0-9](?:Deg|Degrees|Millis|Ms|Msec|Millisecond|Milliseconds)$)'
-  r'|^(?:degrees|deg|millis|ms|msec)$',
+  r'(?:[a-z0-9](?:Deg|Degrees|Millis|Ms|Msec|Millisecond|Milliseconds|Micros|'
+  r'Microseconds)$)'
+  r'|^(?:degrees|deg|millis|ms|msec|micros|microseconds)$',
 );
 
 /// Every declared name and parameter in [snapshot] with a unit suffix.
@@ -588,6 +631,338 @@ List<NamingProblem> recordsInContractsIn(
   return out;
 }
 
+/// Each record a public result carries in [snapshot]: a record typedef, and
+/// a field, getter, method or function of any public type whose type or
+/// return type is an inline record, as `Name` or `Type.member` (A.1, S11).
+///
+/// **A result grows too.** A hit that later wants a material, a seat that
+/// later wants a region, a start that later wants a warning: each is a
+/// record nobody can add a field to, wherever it is returned. The rule for
+/// implementable types ([recordsInContractsIn]) read only what an outside
+/// author writes; this reads what every caller reads. A parameter's record
+/// is the caller's to build and is not read here. The maths tuples that
+/// have as many parts as their space are listed in `recordInResultAllowed`.
+List<NamingProblem> recordsInResultsIn(String snapshot) {
+  final out = <NamingProblem>[];
+  final seen = <String>{};
+  void add(String subject) {
+    if (!seen.add(subject)) return;
+    out.add((
+      subject: subject,
+      what:
+          'is a record in what a caller reads: a record never gains a field, '
+          'so the result is frozen at the shape it has. Make it a final '
+          'class with named fields (a recordToClass migration), or say in '
+          '`recordInResultAllowed` why it never grows',
+    ));
+  }
+
+  bool returnsRecord(String line) {
+    final bare = splitAnnotations(
+      line,
+    ).rest.replaceAll(RegExp(r"'(?:[^'\\]|\\.)*'"), "''");
+    final name = memberName(line);
+    final short = name.contains('.') ? name.split('.').last : name;
+    final at = RegExp(
+      '(?:^|[\\s>?)])(?:get\\s+|set\\s+)?${RegExp.escape(short)}'
+      r'(?:\s*<[^()]*>)?\s*(?:\(|=|$)',
+    ).firstMatch(bare);
+    if (at == null) return false;
+    final type = bare.substring(0, at.start + 1).trim();
+    return type.isNotEmpty && namesRecord(type, const <String>{});
+  }
+
+  for (final library in parseApi(snapshot).values) {
+    for (final MapEntry(key: type, value: block)
+        in library.declarations.entries) {
+      final header = splitAnnotations(block.header).rest;
+      if (RegExp(r'^typedef [\w$]+(?:<[^=]*>)? = \(').hasMatch(header)) {
+        add(type);
+        continue;
+      }
+      if (RegExp(
+        r'^(?:(?:abstract|base|final|interface|sealed|mixin)\s+)*'
+        r'(class|enum|mixin|extension|extension type)\s',
+      ).hasMatch(header)) {
+        for (final line in block.members) {
+          if (RegExp(r'^\s*set\s').hasMatch(splitAnnotations(line).rest)) {
+            continue;
+          }
+          if (returnsRecord(line)) {
+            final name = memberName(line);
+            add('$type.${name.contains('.') ? name.split('.').last : name}');
+          }
+        }
+      } else if (!header.startsWith('typedef ') && returnsRecord(header)) {
+        add(type);
+      }
+    }
+  }
+  return out;
+}
+
+/// Each public plain `class` in [snapshot] (S5, decision 3): one with no
+/// `final`, `base`, `sealed` or `interface`.
+///
+/// **A plain class is an interface by accident.** Code outside may
+/// `implements` it, so under the classifier a member it gains in a minor is
+/// a break, and a new option on a widget is a major release. A class says
+/// what it is for: `final` where nobody outside should extend it (a widget,
+/// a value), `base` where an outside author extends it (a Flame component a
+/// game subclasses). The interface rule read only `interface class`.
+List<NamingProblem> plainClassesIn(String snapshot) {
+  final out = <NamingProblem>[];
+  final seen = <String>{};
+  for (final library in parseApi(snapshot).values) {
+    for (final MapEntry(key: type, value: block)
+        in library.declarations.entries) {
+      final bare = splitAnnotations(block.header).rest;
+      if (!RegExp(r'^(?:abstract\s+)?class\s').hasMatch(bare)) continue;
+      if (!seen.add(type)) continue;
+      out.add((
+        subject: type,
+        what:
+            'is a plain class, which code outside may implement, so no member '
+            'can be added in a minor: make it `final` (nobody outside extends '
+            'it) or `base` (an outside author extends it), with a '
+            'subclassModifier migration',
+      ));
+    }
+  }
+  return out;
+}
+
+/// Each open set in [snapshot] that lacks the shape `DeviceFeature` has: a
+/// `final class` with `static const` members of its own type must also
+/// carry `values` and `byName` (CONTRIBUTING, "The API is a snapshot").
+///
+/// **One shape, so a tool reads every set the same way.** A set that names
+/// its lookup `named`, `fromWireName` or nothing at all makes every writer
+/// of a settings file or a tool argument learn it set by set.
+List<NamingProblem> openSetShapeIn(String snapshot) {
+  final out = <NamingProblem>[];
+  final seen = <String>{};
+  for (final library in parseApi(snapshot).values) {
+    for (final MapEntry(key: type, value: block)
+        in library.declarations.entries) {
+      final bare = splitAnnotations(block.header).rest;
+      if (!RegExp(r'^final\s+class\s').hasMatch(bare)) continue;
+      final constants = block.members.where(
+        (String m) => RegExp(
+          '^static\\s+const\\s+${RegExp.escape(type)}\\s',
+        ).hasMatch(splitAnnotations(m).rest),
+      );
+      if (constants.length < 2) continue;
+      final names = <String>{for (final m in block.members) memberName(m)};
+      final missing = <String>[
+        if (!names.contains('values')) '`values`',
+        if (!names.contains('byName')) '`byName`',
+      ];
+      if (missing.isEmpty || !seen.add(type)) continue;
+      out.add((
+        subject: type,
+        what:
+            'is an open set with no ${missing.join(' and ')}: a set of '
+            'constants carries `values`, `name` and `byName`, as '
+            '`DeviceFeature` does',
+      ));
+    }
+  }
+  return out;
+}
+
+// ------------------------------------------------------- what a type names
+
+/// The capitalized identifiers the declaration or member on [line] names as
+/// types: its return type, its parameters' types, its supertypes and type
+/// bounds. Not its annotations, its string literals, its default values or
+/// a constant's value, which a caller never has to write.
+Set<String> typesNamedIn(String line) {
+  var bare = splitAnnotations(
+    line,
+  ).rest.replaceAll(RegExp(r"'(?:[^'\\]|\\.)*'"), "''");
+  if (bare.startsWith('values:')) return <String>{};
+  // A constant's value, and a top-level `=` of a typedef kept.
+  if (!bare.startsWith('typedef ')) {
+    final assign = RegExp(r'^[^(]*?[\w$>?)\]]\s+[\w$]+\s*=\s').firstMatch(bare);
+    if (assign != null) bare = bare.substring(0, assign.end - 2);
+  }
+  // Default values inside a parameter list.
+  bare = bare.replaceAll(
+    RegExp(r'\s=\s*(?:const\s+)?[^,)}\]]*(?:\([^)]*\))?'),
+    '',
+  );
+  return <String>{
+    for (final m in RegExp(
+      r'(?<![\w$])(?:[a-z_$][\w$]*\.)?([A-Z][\w$]*)',
+    ).allMatches(bare))
+      m.group(1)!,
+  };
+}
+
+/// The type parameters [line] declares (`<T extends Object, E>`), which name
+/// no type of anybody's.
+Set<String> typeParametersIn(String line) => <String>{
+  for (final m in RegExp(
+    r'[<,]\s*([A-Z][\w$]*)\s*(?=extends\b|[,>])',
+  ).allMatches(splitAnnotations(line).rest))
+    m.group(1)!,
+};
+
+/// The names the main library of the facade [facade] lets a caller write,
+/// read off its snapshot: its own declarations and every name its
+/// re-exports admit.
+Set<String> facadeNames(String snapshot, String facade) {
+  final library = parseApi(snapshot)['package:$facade/$facade.dart'];
+  if (library == null) return <String>{};
+  return <String>{
+    ...library.declarations.keys,
+    for (final export in library.exports.values)
+      for (final m in export.members)
+        if (!m.startsWith('export ')) m.split(' ').first,
+  };
+}
+
+/// The types of ours the API reachable through [facade] names and the
+/// facade does not export (S1): from its own declarations and every type it
+/// re-exports, through each signature, to the next type, until nothing new
+/// is reached.
+///
+/// [declarations] is every published package's type declarations by name
+/// (a name declared in two packages keeps both blocks). A subject is the
+/// missing type; `what` names the first signature found to name it.
+///
+/// **A type nobody can name is a dependency nobody declared.** A facade
+/// whose `add*` returns a `Registration` it does not export sends its user
+/// to the package underneath, and that import becomes part of what they
+/// wrote against the release.
+List<NamingProblem> facadeGapsIn({
+  required String facade,
+  required Set<String> exported,
+  required Map<String, List<ApiBlock>> declarations,
+}) {
+  final out = <NamingProblem>[];
+  final reached = <String>{...exported};
+  final queue = <String>[...exported];
+  final reported = <String>{};
+  while (queue.isNotEmpty) {
+    final type = queue.removeLast();
+    for (final block in declarations[type] ?? const <ApiBlock>[]) {
+      final generics = typeParametersIn(block.header);
+      for (final line in <String>[block.header, ...block.members]) {
+        final own = <String>{...generics, ...typeParametersIn(line)};
+        for (final named in typesNamedIn(line)) {
+          if (own.contains(named) || !declarations.containsKey(named)) {
+            continue;
+          }
+          if (!exported.contains(named) && reported.add(named)) {
+            final member = identical(line, block.header)
+                ? type
+                : '$type.${memberName(line).split('.').last}';
+            out.add((
+              subject: named,
+              what:
+                  'is named by `$member`, which `package:$facade` exports, '
+                  'and `package:$facade` does not export it: export it, or '
+                  'say in `facadeGapAllowed` why a caller never writes it',
+            ));
+          }
+          if (reached.add(named)) queue.add(named);
+        }
+      }
+    }
+  }
+  return out;
+}
+
+/// Every type a snapshot declares, by name: a class, an enum, a mixin, an
+/// extension type or a typedef, in every library it is listed in.
+Map<String, List<ApiBlock>> typeDeclarationsIn(Iterable<String> snapshots) {
+  final out = <String, List<ApiBlock>>{};
+  for (final snapshot in snapshots) {
+    for (final library in parseApi(snapshot).values) {
+      for (final MapEntry(key: name, value: block)
+          in library.declarations.entries) {
+        final bare = splitAnnotations(block.header).rest;
+        if (!RegExp(
+          r'^(?:(?:abstract|base|final|interface|sealed|mixin)\s+)*'
+          r'(class|enum|mixin|typedef|extension type)\s',
+        ).hasMatch(bare)) {
+          continue;
+        }
+        final blocks = out[name] ??= <ApiBlock>[];
+        if (!blocks.any((ApiBlock b) => b.header == block.header)) {
+          blocks.add(block);
+        }
+      }
+    }
+  }
+  return out;
+}
+
+/// Each type [snapshot]'s signatures name that no published snapshot
+/// declares and no library of [sdk] exports (A.5, S1, S13): a third-party
+/// type in the contract, or one of the package's own types that no library
+/// exports, so nobody can name it. [known] is every type the published
+/// snapshots declare.
+List<NamingProblem> unimportableTypesIn(
+  String snapshot,
+  Set<String> known,
+  Map<String, Set<String>> sdk,
+) {
+  final everywhere = <String>{
+    // The language's own, which no library declares.
+    'Never',
+    for (final names in sdk.values) ...names,
+  };
+  final out = <NamingProblem>[];
+  final seen = <String>{};
+  for (final library in parseApi(snapshot).values) {
+    for (final MapEntry(key: type, value: block)
+        in library.declarations.entries) {
+      final generics = typeParametersIn(block.header);
+      for (final line in <String>[block.header, ...block.members]) {
+        final own = <String>{...generics, ...typeParametersIn(line)};
+        for (final named in typesNamedIn(line)) {
+          if (own.contains(named) ||
+              known.contains(named) ||
+              everywhere.contains(named) ||
+              !seen.add(named)) {
+            continue;
+          }
+          final member = identical(line, block.header)
+              ? type
+              : '$type.${memberName(line).split('.').last}';
+          out.add((
+            subject: named,
+            what:
+                'is named by `$member` and is neither ours to import nor the '
+                'SDK\'s: a third-party type makes its major ours (wrap it, or '
+                'list it in `thirdPartyTypeAllowed` with why it belongs in the '
+                'contract), and a type of ours no library exports cannot be '
+                'named at all (export it)',
+          ));
+        }
+      }
+    }
+  }
+  return out;
+}
+
+/// The types [source] throws by name (`throw FooException(…)`,
+/// `throw const Foo.named(…)`), public ones only: a private type is caught
+/// by nobody outside, which is its own decision.
+///
+/// **A thrown type is API whether or not a library exports it.** A caller
+/// catches it by name (E.6), and `GpuDeviceException` was thrown, named as
+/// the target of a rename, and exported by nobody.
+Set<String> thrownTypesIn(String source) => <String>{
+  for (final m in RegExp(
+    r'\bthrow\s+(?:const\s+)?(?:[a-z_]\w*\.)?([A-Z][\w$]*)\s*[(.<]',
+  ).allMatches(source.replaceAll(RegExp(r'^\s*//.*$', multiLine: true), '')))
+    m.group(1)!,
+};
+
 // -------------------------------------------------------- null as an error
 
 /// The verbs that read or make something, whose failure is an error and
@@ -662,29 +1037,78 @@ List<NamingProblem> nullAsErrorIn(String snapshot) {
 /// passes by counting, and an optional positional and a named parameter
 /// cannot sit in one list: the constructor is frozen at the shape it has.
 /// A named parameter is added with a default and breaks nobody.
-List<NamingProblem> optionalPositionalConstructorsIn(String snapshot) {
+///
+/// **Methods and functions too.** A method's positional list freezes the same
+/// way (`play([int? index])` beside `playLayer(int, {wrap, speed, …})`), and
+/// the first version of this rule read constructors only. The one idiom a
+/// method keeps is the output parameter of the vector maths it wraps
+/// (`readPosition([Vector3? out])`): a list whose every optional parameter is
+/// one of [outputParameterNames] is not read.
+List<NamingProblem> optionalPositionalsIn(String snapshot) {
   final out = <NamingProblem>[];
+  final seen = <String>{};
+  void check(String line, String? type, bool isHeader) {
+    if (!hasOptionalPositional(line)) return;
+    final bare = splitAnnotations(line).rest;
+    final optional = optionalPositionalNamesOf(line);
+    if (optional.isNotEmpty && optional.every(outputParameterNames.contains)) {
+      return;
+    }
+    final name = memberName(line);
+    final short = name.contains('.') ? name.split('.').last : name;
+    final constructor =
+        type != null &&
+        RegExp(
+          '^(?:const\\s+)?(?:factory\\s+)?${RegExp.escape(type)}'
+          r'(?:\.[A-Za-z_$][\w$]*)?\(',
+        ).hasMatch(bare);
+    final subject = type == null || isHeader
+        ? short
+        : '$type.${constructor && short == type ? type : short}';
+    if (!seen.add(subject)) return;
+    out.add((
+      subject: subject,
+      what:
+          'takes optional positional parameters, which a minor can never '
+          'add a named one beside: make them named, with a parameters '
+          'migration',
+    ));
+  }
+
   for (final library in parseApi(snapshot).values) {
     for (final MapEntry(key: type, value: block)
         in library.declarations.entries) {
-      for (final line in block.members) {
-        final bare = splitAnnotations(line).rest;
-        final m = RegExp(
-          '^(?:const\\s+)?(?:factory\\s+)?${RegExp.escape(type)}'
-          r'(?:\.([A-Za-z_$][\w$]*))?\(',
-        ).firstMatch(bare);
-        if (m == null || !hasOptionalPositional(line)) continue;
-        out.add((
-          subject: '$type.${m.group(1) ?? type}',
-          what:
-              'takes optional positional parameters, which a minor can never '
-              'add a named one beside: make them named, with a parameters '
-              'migration',
-        ));
+      final header = splitAnnotations(block.header).rest;
+      if (RegExp(
+        r'^(?:(?:abstract|base|final|interface|sealed|mixin)\s+)*'
+        r'(class|enum|mixin|extension|extension type)\s',
+      ).hasMatch(header)) {
+        for (final line in block.members) {
+          check(line, type, false);
+        }
+      } else if (!header.startsWith('typedef ')) {
+        check(block.header, null, true);
       }
     }
   }
   return out;
+}
+
+/// The names an optional positional parameter may have and still be read as
+/// the maths idiom it is: where to write a result, so a hot loop allocates
+/// nothing.
+const Set<String> outputParameterNames = <String>{'out', 'into'};
+
+/// The names of the optional positional parameters of the signature on
+/// [line].
+List<String> optionalPositionalNamesOf(String line) {
+  final inner = parameterListOf(line);
+  if (inner == null) return const <String>[];
+  final open = inner.indexOf('[');
+  if (open < 0) return const <String>[];
+  return <String>[
+    for (final p in parametersOf('f(${inner.substring(open + 1)})')) p.name,
+  ];
 }
 
 // --------------------------------------------------------------- booleans
@@ -1108,54 +1532,93 @@ List<(String, String)> proveNamingDetectorsWork() {
   );
 
   // Constructors that cannot grow.
-  final positional = optionalPositionalConstructorsIn(
+  final positional = optionalPositionalsIn(
     '${lib}final class ToolName\n'
     '  const ToolName(this.name, [this.hints = const <String>{}])\n'
     '  factory ToolName.parse(String text, [int at = 0])\n'
-    '  void rename(String to, [bool loud = false])\n\n'
-    'final class Pair\n  const Pair(this.a, this.b, {this.c = const [1]})\n',
+    '  void rename(String to, [bool loud = false])\n'
+    '  Vector3 readPosition([Vector3? out])\n'
+    '  Matrix4 worldMatrixOf(int index, [Matrix4? into])\n'
+    '  static const VertexLayout plain = VertexLayout([position])\n\n'
+    'final class Pair\n  const Pair(this.a, this.b, {this.c = const [1]})\n\n'
+    'void lockLandscape([Playing? playing])\n\n'
+    'typedef Hook = void Function([int at]);\n',
   ).map((NamingProblem p) => p.subject).toSet();
   fires(
-    'optional positional constructors',
-    positional.containsAll(<String>{'ToolName.ToolName', 'ToolName.parse'}),
-    'a constructor and a factory with an optional positional list',
+    'optional positionals',
+    positional.containsAll(<String>{
+      'ToolName.ToolName',
+      'ToolName.parse',
+      'ToolName.rename',
+      'lockLandscape',
+    }),
+    'a constructor, a factory, a method and a function with an optional '
+        'positional list',
   );
   quiet(
-    'optional positional constructors',
-    positional.length == 2,
-    'a method, and a list literal inside a named default',
-    'only a constructor is frozen by its positions here',
+    'optional positionals',
+    positional.length == 4,
+    'an `out` and an `into`, a constant\'s list literal, a list literal inside '
+        'a named default',
+    'a result written into the caller\'s vector is the maths idiom, and a '
+        'value is not a signature',
   );
 
   // Verbs.
   final verbs = verbProblemsIn(
     '${lib}final class Lock\n  Future<void> close()\n  void dispose()\n'
     '  Offset takeDelta()\n  static Future<Lock> create()\n'
-    '  Future<Pipe> createPipelineAsync()\n  int get getter\n',
+    '  Future<Pipe> createPipelineAsync()\n  int get getter\n\n'
+    'final class Server\n  Future<void> shutdown()\n'
+    '  static Server openLocal(int port)\n'
+    '  static Future<Server> open(int port)\n'
+    '  Stream<int> openEvents()\n\n'
+    'final class Sink\n  void close()\n\n'
+    'Registry openRegistryFor(Object rules)\n',
   ).map((NamingProblem p) => p.subject).toSet();
   fires(
     'verbs',
-    verbs.containsAll(<String>{'Lock', 'Lock.takeDelta', 'Lock.create'}),
-    'two teardown verbs, a take-prefixed method, an asynchronous create',
+    verbs.containsAll(<String>{
+      'Lock',
+      'Lock.takeDelta',
+      'Lock.create',
+      'Server.shutdown',
+      'Server.openLocal',
+      'openRegistryFor',
+    }),
+    'two teardown verbs, a lone shutdown, a take-prefixed method, an '
+        'asynchronous create, a synchronous open on a type and at the top',
   );
   quiet(
     'verbs',
     !verbs.contains('Lock.createPipelineAsync') &&
-        !verbs.contains('Lock.getter'),
-    'createPipelineAsync, and a getter whose name starts with get',
-    'the …Async variant of a synchronous create is the HAL\'s, and a getter is no verb',
+        !verbs.contains('Lock.getter') &&
+        !verbs.contains('Server.open') &&
+        !verbs.contains('Server.openEvents') &&
+        !verbs.any((String v) => v.startsWith('Sink')),
+    'createPipelineAsync, a getter whose name starts with get, an open that '
+        'waits, an open stream, a lone close',
+    'the …Async variant of a synchronous create is the HAL\'s, a getter is no '
+        'verb, and `close` is a standard teardown',
   );
 
   // Units.
   final units = unitSuffixesIn(
     '${lib}final class Cone\n  const Cone({this.halfAngleDegrees = 25.0})\n'
     '  final double sunElevationDeg\n  void observe(int step, double ms)\n'
-    '  final double fovY\n  final double reloadSeconds\n',
+    '  final double fovY\n  final double reloadSeconds\n'
+    '  final int budgetMicros\n',
   ).map((NamingProblem p) => p.subject).toSet();
   fires(
     'unit suffixes',
-    units.containsAll(<String>{'halfAngleDegrees', 'sunElevationDeg', 'ms'}),
-    'a parameter in degrees, a field in degrees, a parameter in milliseconds',
+    units.containsAll(<String>{
+      'halfAngleDegrees',
+      'sunElevationDeg',
+      'ms',
+      'budgetMicros',
+    }),
+    'a parameter in degrees, a field in degrees, a parameter in milliseconds, '
+        'a budget in microseconds',
   );
   quiet(
     'unit suffixes',
@@ -1241,6 +1704,192 @@ List<(String, String)> proveNamingDetectorsWork() {
     !settings.any((String s) => s.startsWith('GoodSettings')),
     'a final const class whose copyWith clears its nullable field',
     'it is what the rule asks for',
+  );
+
+  // Records in results.
+  final results = recordsInResultsIn(
+    '${lib}typedef PartySeat = ({String host, int seat});\n\n'
+    'typedef Hook = void Function(int at);\n\n'
+    'final class Native\n'
+    '  ({Vector3 point, double depth})? hit(Vector3 from)\n'
+    '  (int, int) get cell\n'
+    '  final List<(String, int)> pairs\n'
+    '  void take(({int a, int b}) pair)\n'
+    '  final void Function(int) onStep\n'
+    '  set pair((int, int) value)\n\n'
+    '(int, int) cellOf(Vector3 at)\n\n'
+    'Native native()\n',
+  ).map((NamingProblem p) => p.subject).toSet();
+  fires(
+    'records in results',
+    results.containsAll(<String>{
+      'PartySeat',
+      'Native.hit',
+      'Native.cell',
+      'Native.pairs',
+      'cellOf',
+    }),
+    'a record typedef, an inline record a method returns, a getter, a field '
+        'and a function',
+  );
+  quiet(
+    'records in results',
+    results.length == 5,
+    'a function typedef, a record parameter, a callback field, a setter, a '
+        'class result',
+    'what a caller builds is not what a caller reads',
+  );
+
+  // What a facade's API names and the facade does not export.
+  const core =
+      'library package:core/core.dart\n\n'
+      'final class Engine\n'
+      '  Registration addStep(RenderNode node, {int limit = Hidden.most, '
+      'Fallback fallback = const Fallback()})\n'
+      '  @Deprecated(\'Use Hidden\') void old()\n'
+      '  static const Engine none = Engine._(Hidden())\n\n'
+      'abstract base class RenderNode\n'
+      '  RenderAnchor get defaultAnchor\n'
+      '  void setup<T extends Shape>(FrameGraphBuilder builder, T shape)\n\n'
+      'final class Registration\n\nfinal class RenderAnchor\n\n'
+      'final class FrameGraphBuilder\n  void declare(ResourceDesc desc)\n\n'
+      'final class ResourceDesc\n\nfinal class Fallback\n\n'
+      'final class Hidden\n\nfinal class Shape\n';
+  const facadeApi =
+      'library package:face/face.dart\n\n'
+      'export package:core/core.dart show Engine, RenderNode\n'
+      '  Engine\n  RenderNode\n';
+  final gaps = facadeGapsIn(
+    facade: 'face',
+    exported: facadeNames(facadeApi, 'face'),
+    declarations: typeDeclarationsIn(<String>[core, facadeApi]),
+  ).map((NamingProblem p) => p.subject).toSet();
+  fires(
+    'facade closure',
+    gaps.containsAll(<String>{
+      'Registration',
+      'RenderAnchor',
+      'FrameGraphBuilder',
+      'ResourceDesc',
+      'Shape',
+      'Fallback',
+    }),
+    'a return type, a getter\'s type, a parameter, a bound, and a type named '
+        'only by a type the facade does not export',
+  );
+  quiet(
+    'facade closure',
+    gaps.length == 6,
+    'a default value, an annotation, a constant\'s value and a type parameter',
+    'a caller never writes those',
+  );
+
+  // Types nobody can import.
+  final unimportable = unimportableTypesIn(
+    'library package:p/p.dart\n\n'
+    'final class SoLoudBackend\n'
+    '  SoLoudBackend({SoLoud? soloud, Duration fade = const Duration()})\n'
+    '  void sign(pc.RSAPrivateKey key, List<Widget> children)\n'
+    '  Future<Map<String, E>> read<E>(Engine engine)\n',
+    <String>{'SoLoudBackend', 'Engine'},
+    <String, Set<String>>{
+      'dart:core': <String>{'Duration', 'List', 'Map', 'String'},
+      'dart:async': <String>{'Future'},
+      'package:flutter/material.dart': <String>{'Widget'},
+    },
+  ).map((NamingProblem p) => p.subject).toSet();
+  fires(
+    'unimportable types',
+    unimportable.containsAll(<String>{'SoLoud', 'RSAPrivateKey'}),
+    'a third-party type, and one behind an import prefix',
+  );
+  quiet(
+    'unimportable types',
+    unimportable.length == 2,
+    'the SDK\'s, ours, and a type parameter',
+    'a caller imports those from where they live',
+  );
+
+  // Thrown types.
+  final thrown = thrownTypesIn(
+    '  if (x) throw GpuDeviceException(what, message);\n'
+    '  throw const FormatException.named(\'bad\');\n'
+    '  throw StateError(\'no\');\n'
+    '  /// throw DocException(1)\n'
+    '  // throw CommentException(1)\n'
+    '  throw _Private();\n'
+    '  throw error;\n'
+    '  throw p.PrefixedException(1);\n',
+  );
+  fires(
+    'thrown types',
+    thrown.containsAll(<String>{
+      'GpuDeviceException',
+      'FormatException',
+      'StateError',
+      'PrefixedException',
+    }),
+    'a throw, a const throw of a named constructor, and one through a prefix',
+  );
+  quiet(
+    'thrown types',
+    thrown.length == 4,
+    'a doc comment, a comment, a private type, a rethrown variable',
+    'none of those is a type a caller catches by a public name',
+  );
+
+  // Plain classes.
+  final plain = plainClassesIn(
+    '${lib}class HudPanel extends StatelessWidget\n\n'
+    'abstract class Shape\n\n'
+    'final class Value\n\nbase class Component3d\n\n'
+    'abstract base class Hook\n\nsealed class Result\n\n'
+    'abstract interface class Marker\n\nmixin class Listener\n\n'
+    'abstract final class Kinds\n',
+  ).map((NamingProblem p) => p.subject).toSet();
+  fires(
+    'plain classes',
+    plain.containsAll(<String>{'HudPanel', 'Shape'}),
+    'a plain class and a plain abstract class',
+  );
+  quiet(
+    'plain classes',
+    plain.length == 2,
+    'final, base, abstract base, sealed, interface, mixin and abstract final '
+        'classes',
+    'each says how it may be extended',
+  );
+
+  // The shape of an open set.
+  final sets = openSetShapeIn(
+    '${lib}final class TonemapCurve\n'
+    '  static const TonemapCurve aces = TonemapCurve._(\'aces\')\n'
+    '  static const TonemapCurve neutral = TonemapCurve._(\'neutral\')\n'
+    '  final String name\n\n'
+    'final class DeviceFeature\n'
+    '  static DeviceFeature byName(String name)\n'
+    '  static const DeviceFeature compute = DeviceFeature._(\'compute\')\n'
+    '  static const DeviceFeature wireframe = DeviceFeature._(\'wireframe\')\n'
+    '  static const List<DeviceFeature> values = <DeviceFeature>[]\n\n'
+    'final class Palette\n'
+    '  static const Palette light = Palette()\n\n'
+    'final class RenderAnchor\n'
+    '  static RenderAnchor named(String name)\n'
+    '  static const RenderAnchor opaque = RenderAnchor._(\'opaque\')\n'
+    '  static const RenderAnchor post = RenderAnchor._(\'post\')\n'
+    '  static const List<RenderAnchor> values = <RenderAnchor>[]\n',
+  ).map((NamingProblem p) => p.subject).toSet();
+  fires(
+    'open set shape',
+    sets.containsAll(<String>{'TonemapCurve', 'RenderAnchor'}),
+    'a set with neither `values` nor `byName`, and one whose lookup is '
+        '`named`',
+  );
+  quiet(
+    'open set shape',
+    sets.length == 2,
+    '`DeviceFeature`, and a class with one constant',
+    'the first is the shape, and one preset is not a set',
   );
 
   // Units in docs.

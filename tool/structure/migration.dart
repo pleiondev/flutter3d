@@ -40,8 +40,9 @@ import 'api.dart';
 /// migration diagnostics and their fixes; `import` into the `migrate`
 /// command's own import rewrite — and `none` into nothing but a line in the
 /// guide, with the reason a caller has nothing to do. `regroup`,
-/// `enumToClass`, `recordToClass`, `nullToThrow`, `argument` and
-/// `hookContext` are carried out by the lints with the resolved code;
+/// `enumToClass`, `recordToClass`, `nullToThrow`, `argument`,
+/// `hookContext` and `subclassModifier` are carried out by the lints with
+/// the resolved code;
 /// `internal` is one diagnostic per import and one line per package in the
 /// guide.
 const Map<String, String?> migrationKinds = <String, String?>{
@@ -51,6 +52,7 @@ const Map<String, String?> migrationKinds = <String, String?>{
   'parameters': 'changes',
   'rewrite': 'template',
   'implementsToWith': null,
+  'subclassModifier': 'to',
   'regroup': 'into',
   'enumToClass': null,
   'recordToClass': 'fields',
@@ -270,6 +272,14 @@ List<(int, String)> migrationTableProblems(MigrationTable table) {
         problems.add((e.line, '`${e.id}` is a ${e.kind} with no `$needs`'));
       }
     }
+    if (e.kind == 'subclassModifier' &&
+        !const <String>{'base', 'final'}.contains(e.fields['to'])) {
+      problems.add((
+        e.line,
+        '`${e.id}` is a subclassModifier to `${e.fields['to']}`: the class '
+            'became `base` or `final`',
+      ));
+    }
     // The import is what an internal entry's diagnostic stands on, so it
     // names what an import brings: a top-level name or a library.
     if (e.kind == 'internal' &&
@@ -305,8 +315,62 @@ List<(int, String)> migrationTableProblems(MigrationTable table) {
       problems.add((e.line, '`${e.id}` names no symbol'));
     }
   }
+  // `none` says no caller has to act; beside another kind for the same
+  // symbol it is false, and the guide shows both rows.
+  final kinds = <String, Set<String>>{};
+  for (final e in table.entries) {
+    if (e.symbol.isEmpty) continue;
+    (kinds['${e.package} ${e.symbol}'] ??= <String>{}).add(e.kind);
+  }
+  for (final e in table.entries) {
+    if (e.kind != 'none') continue;
+    final others = (kinds['${e.package} ${e.symbol}'] ?? const <String>{})
+        .difference(const <String>{'none'});
+    if (others.isEmpty) continue;
+    problems.add((
+      e.line,
+      '`${e.id}` says no caller of `${e.symbol}` has to act, and the same '
+          'symbol has a ${others.join(' and a ')} entry: take the `none` out, '
+          'or fold its reason into the other entry\'s guidance',
+    ));
+  }
   return problems;
 }
+
+/// What `rename` and `moved` entries of [table] point at that a caller
+/// cannot reach (S15): a `rename` whose `to:` names a type no published
+/// snapshot declares, and a `moved` whose `to:` library is in no snapshot.
+/// [declared] is every name the published snapshots declare, and
+/// [libraries] every library URI they list.
+///
+/// **`dart fix` writes what the entry says.** A rename into a type nobody
+/// exports writes a name that does not resolve, and the code it fixed no
+/// longer compiles.
+List<(int, String)> migrationTargetProblems(
+  MigrationTable table, {
+  required Set<String> declared,
+  required Set<String> libraries,
+}) => <(int, String)>[
+  for (final e in table.entries)
+    if (e.kind == 'rename' &&
+        (e.fields['to'] ?? '').isNotEmpty &&
+        !e.symbol.contains('.') &&
+        !declared.contains(e.fields['to']!.split('.').first))
+      (
+        e.line,
+        '`${e.id}` renames `${e.symbol}` to `${e.fields['to']}`, which no '
+            'published library exports: export it, or the fix writes a name '
+            'that does not resolve',
+      )
+    else if (e.kind == 'moved' &&
+        (e.fields['to'] ?? '').startsWith('package:') &&
+        !libraries.contains(e.fields['to']))
+      (
+        e.line,
+        '`${e.id}` moves `${e.symbol}` to `${e.fields['to']}`, which is no '
+            'published library',
+      ),
+];
 
 /// What is wrong with the count of `manual` entries in [tables], as (entry
 /// id or table, what): past [ceiling] with no reason in [allowlist], or an
@@ -983,6 +1047,92 @@ entries:
     ));
   }
 
+  // A `none` beside another kind, and targets nobody can reach.
+  final contradicting = migrationTableProblems(
+    readMigrationTable('''
+format: 1
+from: 0.1.0
+to: 1.0.0
+entries:
+  - id: p-ab-none
+    package: p
+    symbol: Ab
+    kind: none
+    reason: >-
+      Nothing to do.
+  - id: p-ab-moved
+    package: p
+    symbol: Ab
+    kind: moved
+    to: package:p_new/p_new.dart
+  - id: p-cd-none
+    package: p
+    symbol: Cd
+    kind: none
+    reason: >-
+      Nothing to do.
+  - id: p-cd-none-again
+    package: p
+    symbol: Cd
+    kind: none
+    reason: >-
+      Nothing to do here either.
+'''),
+  );
+  if (contradicting.length != 1 ||
+      !contradicting.single.$2.contains('p-ab-none')) {
+    broken.add((
+      'contradicting migration rows',
+      'found $contradicting where only `none` beside `moved` contradicts',
+    ));
+  }
+  final targets = migrationTargetProblems(
+    readMigrationTable('''
+format: 1
+from: 0.1.0
+to: 1.0.0
+entries:
+  - id: p-error
+    package: p
+    symbol: GpuError
+    kind: rename
+    to: GpuException
+  - id: p-old
+    package: p
+    symbol: Old
+    kind: rename
+    to: New
+  - id: p-member
+    package: p
+    symbol: New.old
+    kind: rename
+    to: fresh
+  - id: p-gone-lib
+    package: p
+    symbol: Moved
+    kind: moved
+    to: package:p/nowhere.dart
+  - id: p-lib
+    package: p
+    symbol: Kept
+    kind: moved
+    to: package:p/p.dart
+'''),
+    declared: <String>{'New', 'Kept'},
+    libraries: <String>{'package:p/p.dart'},
+  ).map(((int, String) p) => p.$2).join('\n');
+  if (!targets.contains('p-error') ||
+      !targets.contains('p-gone-lib') ||
+      targets.contains('p-old') ||
+      targets.contains('p-member') ||
+      targets.contains('`p-lib`')) {
+    broken.add((
+      'migration targets',
+      'found "$targets" where only the rename into a type nobody exports and '
+          'the move into a library that is not there are wrong',
+    ));
+  }
+
   const lib = 'library package:p/p.dart\n\n';
   const qlib = 'library package:q/q.dart\n\n';
   final released = <String, String>{
@@ -1108,6 +1258,16 @@ entries:
     symbol: load
     kind: nullToThrow
     exception: NotFound
+  - id: k-base
+    package: p
+    symbol: Component
+    kind: subclassModifier
+    to: base
+  - id: k-sealed
+    package: p
+    symbol: Badge
+    kind: subclassModifier
+    to: sealed
 ''';
   final readKinds = readMigrationTable(kinds);
   final kindProblems = migrationTableProblems(
@@ -1118,6 +1278,7 @@ entries:
     'k-regroup-bare` is a regroup with no `arguments`',
     'names the member `Stage.run`',
     'says "(wave 3)"',
+    'k-sealed` is a subclassModifier to `sealed`',
   ];
   if (kindProblems.length != wantKinds.length ||
       !wantKinds.every(

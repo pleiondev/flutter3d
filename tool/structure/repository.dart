@@ -2033,6 +2033,10 @@ const Map<String, String> hookParametersAllowed = <String, String>{
       'flutter3d_particles: a uniform unit vector written into the caller\'s vector, a maths helper an emitter calls per particle, not a hook it overrides',
   'PassEncoder':
       'flutter3d_hardware: the hardware interface, for GraphicsDevice\'s reason',
+  'WgslModuleCompiler':
+      'flutter3d_webgpu: WGSL text and the name to refuse it under, '
+      'the shape of `GPUDevice.createShaderModule` it stands for, for '
+      'GraphicsDevice\'s reason; mixed into the backend\'s own device',
   'PluginProcessRunner':
       'flutter3d_build: `Process.run`\'s shape (executable, arguments, working directory), for ProcessProbe\'s reason',
   'ProcessProbe':
@@ -2109,6 +2113,21 @@ const Map<String, String> britishSpellingAllowed = <String, String>{};
 /// `dart:io`, which a game imports only to reach the engine underneath
 /// Flutter or the file system, and there a `prefix` is the usual way in.
 const Map<String, String> nameCollisionAllowed = <String, String>{
+  'RenderView':
+      'the frame graph\'s view of one camera; `rendering`\'s is the root of '
+      'the render tree, which a game reaches only through a binding. Found '
+      'when the list grew past `material`, and renamed with a migration '
+      'before 1.0.0 if a game is seen importing both',
+  'AssetManifest':
+      'the build hook\'s list of what an asset bundle holds; `services`\' is '
+      'the runtime manifest a game reads through `AssetManifest.loadFromAssetBundle`, '
+      'from a build tool\'s code nobody imports beside it. Found when the '
+      'list grew past `material`',
+  'LicenseEntry':
+      'a credits screen\'s row; `foundation`\'s is the license registry\'s '
+      'entry, which a credits screen built on ours never names. Found when '
+      'the list grew past `material`, and renamed with a migration before '
+      '1.0.0 if a game is seen importing both',
   'Scene':
       'the engine\'s scene graph, its first type; `dart:ui`\'s is a '
       'compositor layer tree that a widget never names',
@@ -2195,6 +2214,645 @@ const Map<String, String> recordInContractAllowed = <String, String>{
   'VesselShape.span': 'an interval\'s two ends along one axis',
 };
 
+/// The packages a user imports instead of the ones beneath them, each with
+/// the imports it is meant to be read with: together they export every type
+/// their API names (the rule `a facade exports every type its API names`).
+/// `flutter3d_app` is the quickstart's, beside `flutter3d`.
+const Map<String, List<String>> facadePackages = <String, List<String>>{
+  'flutter3d': <String>['flutter3d'],
+  'flutter3d_game': <String>['flutter3d_game'],
+  'flutter3d_app': <String>['flutter3d', 'flutter3d_app'],
+};
+
+/// Types a facade's API names and the facade leaves to the package that
+/// declares it, as `facade:Type`, each with why a caller of the facade never
+/// writes it.
+final Map<String, String> facadeGapAllowed = <String, String>{
+  for (final name in _simulationBehindTheView)
+    'flutter3d_app:$name':
+        'the simulation\'s, reached through the loop, the level and the '
+        'input the view names: an application that writes against it steps '
+        'a world, is a game, and imports `flutter3d_game`, which exports it',
+  for (final name in _physicsBehindTheView)
+    'flutter3d_app:$name':
+        'the physics a loaded level\'s collision world is made of: a game\'s, '
+        'exported by `flutter3d_game`',
+  for (final name in _cpuBehindTheView)
+    'flutter3d_app:$name':
+        'the software device\'s own stage kinds, reached through the stages '
+        'a material compiles to: a backend author\'s, from `flutter3d_cpu`',
+};
+
+const List<String> _simulationBehindTheView = <String>[
+  'ActionDeclaration',
+  'ActionKind',
+  'ActionSet',
+  'Activation',
+  'ActivationOutcome',
+  'Actor',
+  'ActorDirector',
+  'ActorGesture',
+  'ActorStride',
+  'ActorStrides',
+  'ActorStridesRestore',
+  'ActorSystem',
+  'Avoidance',
+  'AxisAction',
+  'Brain',
+  'BrainHurt',
+  'BrainNoise',
+  'BrushSurface',
+  'ButtonPair',
+  'CatchUp',
+  'Damage',
+  'Damageable',
+  'DeterminismCheck',
+  'DualAxisAction',
+  'EcsWorld',
+  'EntityCheck',
+  'EntitySpawn',
+  'EventBus',
+  'Facing',
+  'Fixture',
+  'FlowField',
+  'FrameSpan',
+  'GameAction',
+  'GameRandom',
+  'Health',
+  'Heightfield',
+  'InputTape',
+  'InputTapePlayback',
+  'JumpLink',
+  'JumpReach',
+  'LevelScope',
+  'LightmapFace',
+  'LoopChange',
+  'Mechanism',
+  'MechanismEvents',
+  'MechanismWorld',
+  'Mind',
+  'NavGrid',
+  'NavLattice',
+  'NavMesh',
+  'NavMeshRoute',
+  'NavMeshSettings',
+  'Navigation',
+  'Probe',
+  'ProbeRegion',
+  'ProbeSample',
+  'ProbeSampler',
+  'ProbeSamplers',
+  'PublishedWorlds',
+  'RenderSettingsPatch',
+  'Rider',
+  'SimQueries',
+  'SimulationAnswer',
+  'SimulationQueryRegistry',
+  'Snapshot',
+  'Snapshots',
+  'SpawnContext',
+  'StepDivergence',
+  'StepEventSummary',
+];
+
+const List<String> _physicsBehindTheView = <String>[
+  'CharacterController',
+  'CharacterMove',
+  'CharacterMoved',
+  'CharacterMover',
+  'CharacterPush',
+  'ClothMesh',
+  'ClothSettings',
+  'ClothSimulation',
+  'ClothStep',
+  'Collider',
+  'ColliderKind',
+  'CollisionBox',
+  'CollisionCapsule',
+  'CollisionContext',
+  'CollisionHeightfield',
+  'CollisionListener',
+  'CollisionShape',
+  'CollisionSphere',
+  'CollisionWedge',
+  'ContactFilter',
+  'CustomShape',
+  'DynamicsRequest',
+  'FloatPush',
+  'FluidMedium',
+  'FluidSolver',
+  'ModeRinging',
+  'MovementSettings',
+  'ParcelFlight',
+  'ParticleMotion',
+  'PipeFlow',
+  'RayHit',
+  'RayQuery',
+  'RigidBody',
+  'RigidDynamics',
+  'SweepHit',
+  'SweepQuery',
+  'WedgeUphill',
+  'WindSettings',
+  'WorldRays',
+  'WorldSweeps',
+];
+
+const List<String> _cpuBehindTheView = <String>['CpuVertexShader'];
+
+/// Third-party types a published package names in its API, as
+/// `package:Type`, each with why the type belongs in the contract and its
+/// package's major may become ours (A.5).
+final Map<String, String> thirdPartyTypeAllowed = <String, String>{
+  // The bridges: a package whose whole point is another package's types.
+  for (final type in <String>[
+    'Broadphase',
+    'ButtonComponent',
+    'CollisionCallbacks',
+    'Component',
+    'ComponentEffect',
+    'DragCallbacks',
+    'DragCancelEvent',
+    'DragEndEvent',
+    'DragStartEvent',
+    'DragUpdateEvent',
+    'FlameGame',
+    'HasCollisionDetection',
+    'HasGameReference',
+    'HasVisibility',
+    'JoystickComponent',
+    'OpacityProvider',
+    'OverlayWidgetBuilder',
+    'PointerMoveCallbacks',
+    'PositionComponent',
+    'ReadOnlyPositionProvider',
+    'Sprite',
+    'SpriteAnimation',
+    'SpriteAnimationTicker',
+    'TapCallbacks',
+    'TapCancelEvent',
+    'TapDownEvent',
+    'TapUpEvent',
+    'TextPaint',
+    'Viewfinder',
+    'World',
+  ])
+    'flame_flutter3d:$type':
+        'Flame\'s, and the package is the bridge to Flame: its components '
+        'extend Flame\'s and take Flame\'s events, so its major follows '
+        'Flame\'s by design',
+  for (final type in <String>['TiledMap', 'TiledObject', 'TileLayer'])
+    'flame_flutter3d:$type':
+        'the Tiled map `flame_tiled` reads, which `TiledWorld3d` raises into '
+        '3D; the bridge takes the map a Flame game already loaded',
+  'flame_flutter3d_audio:Component':
+      'Flame\'s: the package is the bridge between Flame\'s components and '
+      'the engine\'s sound',
+  'flame_multiplayer_dashwire:WireConnection':
+      'dashwire\'s: the package is the adapter from dashwire\'s connection '
+      'to the engine\'s transport',
+  'flutter3d_app:Clock':
+      '`package:clock`\'s, the Dart team\'s injectable wall clock, which a '
+      'test of a frame clock overrides; a 1.x major of it is not expected',
+  'flutter3d_audio:SoLoud':
+      'the engine instance of `flutter_soloud` a game already holds, handed '
+      'to the backend that is the adapter over it; the default opens its own',
+  'flutter3d_build:BuildInput':
+      'the build hook\'s input, `package:hooks`\' type: a build hook is '
+      'written against the SDK\'s hook protocol, which defines it',
+  'flutter3d_build:BuildOutputBuilder':
+      'the build hook\'s output, `package:hooks`\' type, as `BuildInput`',
+  'flutter3d_build:Glob':
+      'an asset rule\'s pattern, `package:glob`\'s, the Dart tooling\'s own '
+      'pattern type that `build.yaml` patterns are read with',
+  'flutter3d_build:OS':
+      'the target operating system of `package:code_assets`, the SDK\'s '
+      'hook protocol, which the device classes are chosen by',
+  'flutter3d_editor_play:Event':
+      '`package:vm_service`\'s: the editor\'s play tooling reads a running '
+      'game through the VM service protocol, and is a tool, not a runtime',
+  'flutter3d_editor_play:RPCError': '`package:vm_service`\'s, as `Event`',
+  'flutter3d_editor_play:VmService': '`package:vm_service`\'s, as `Event`',
+  'flutter3d_education:Client':
+      'the HTTP client of `package:http`, which an LMS client takes so a '
+      'test or a platform with its own client passes one',
+  'flutter3d_education:RSAPrivateKey':
+      '`pointycastle`\'s: an LTI tool signs with the key its platform '
+      'registered, read from a PEM it already holds',
+  'flutter3d_education:RSAPublicKey': '`pointycastle`\'s, as `RSAPrivateKey`',
+  'flutter3d_game:Client':
+      'the HTTP client of `package:http`, which the cloud save takes so a '
+      'test or a platform with its own client passes one',
+  'flutter3d_lints:AnalysisRule':
+      'the analyzer plugin API\'s: a lint is written against it',
+  'flutter3d_lints:CompilationUnit': 'the analyzer\'s syntax tree a lint reads',
+  'flutter3d_lints:LintCode': 'the analyzer plugin API\'s, as `AnalysisRule`',
+  'flutter3d_lints:Plugin': 'the analyzer plugin API\'s, as `AnalysisRule`',
+  'flutter3d_lints:RuleContext':
+      'the analyzer plugin API\'s, as `AnalysisRule`',
+  'flutter3d_lints:RuleVisitorRegistry':
+      'the analyzer plugin API\'s, as `AnalysisRule`',
+  'flutter3d_mcp:StreamChannel':
+      '`package:stream_channel`\'s, the Dart team\'s two-way channel the MCP '
+      'transport is written over',
+  'flutter3d_pointer_lock:PlatformInterface':
+      'the federated plugin base of `plugin_platform_interface`, which every '
+      'platform implementation of a Flutter plugin extends',
+  'pad_input:PlatformInterface':
+      'the federated plugin base, as in `flutter3d_pointer_lock`',
+  'flutter3d_net:WebSocketChannel':
+      'the channel `web_socket_channel` opens, which `WebSocketTransport` '
+      'wraps so a caller with its own (a test, a proxy) passes it; the Dart '
+      'team\'s package',
+  'flutter3d_wgpu:CodeConfig':
+      'the native build hook\'s configuration, `package:code_assets`\' type',
+  'flutter3d_wgpu:OS': '`package:code_assets`\' target, as `CodeConfig`',
+};
+
+/// Public types a published package throws and exports from no library, as
+/// `package:Type`, each with why no caller catches it by name.
+const Map<String, String> thrownTypeAllowed = <String, String>{
+  'flutter3d_build:BuildError':
+      '`package:hooks`\' own failure, thrown from the build hook to the SDK\'s '
+      'hook runner, which reports it; no code of a caller\'s catches it',
+};
+
+/// Records a public result carries, as `Name` or `Type.member`, each with
+/// why it never grows.
+///
+/// **Maths tuples, and pairs that are their two halves.** A coordinate has
+/// as many components as its space; an interval has two ends.
+final Map<String, String> recordInResultAllowed = <String, String>{
+  'AtlasCell':
+      'a rectangle in an atlas: x, y, width, height, a fixed mathematical shape',
+  'AvoidanceNeighbor':
+      'the inputs of the velocity-obstacle formula, fixed by the formula',
+  'BakeSample':
+      'one texel of a bake: its pixel and the tangent frame there, a fixed tuple',
+  'BehaviorPathStep':
+      'one step of a debug path through a tree: node, kind, label, status',
+  'BrushFace': 'a brush face\'s plane frame and extent, fixed geometry',
+  'BundleStageSource':
+      'a shader file, its stage and its resolved path, read by the bundle writer',
+  'ButtonPair':
+      'two actions of an axis, negative and positive; an axis has two ends',
+  'ChangedBounds': 'a pixel rectangle: left, top, right, bottom',
+  'ChunkKey': 'integer chunk coordinates, x, y, z',
+  'CommandTarget':
+      'the four ways an MCP command names its target; a new way is a new tool argument, not a field',
+  'ConformanceCheck': 'a name and a function, the shape of a test',
+  'DescribedElement':
+      'an element\'s id and its geometric description, fixed measurements',
+  'DisplacementMap': 'a square height grid and its range',
+  'EffectPlace': 'a point and an optional direction',
+  'FocusPoint': 'a point and the body it is on',
+  'HdrImage':
+      'width, height and the RGB floats, the whole of a decoded HDR image',
+  'Held':
+      'a held voice\'s key, place, gain and rate: the audio mixer\'s own tuple',
+  'ImpostorView': 'an atlas cell\'s index, yaw and rectangle, fixed geometry',
+  'JetSample':
+      'a jet sampled at one point: position, direction, cross axis, width, thickness',
+  'LevelCamera': 'a camera as from and at, two points',
+  'LightSample':
+      'the BRDF terms of one light at one point, fixed by the shading equation',
+  'LightView': 'a light seen as from and at, two points',
+  'LiquidLayerMesh': 'a layer and the mesh made of it, a pair',
+  'LoopState': 'a step number and the snapshot at it, a pair',
+  'MeterRect': 'a rectangle in metres: x, y, width, height',
+  'NativeShallowSample':
+      'the four fields the shallow-water solver keeps per cell; the core\'s cell layout',
+  'OwnShaderSection':
+      'a bundle section\'s id, bytes and SDK, the section\'s own header',
+  'PackedLane': 'an image and the channel packed from it, a pair',
+  'PackedMap': 'a texture and its sampler, a pair',
+  'PackedStage': 'WGSL text and its prepared stage, a pair',
+  'Picked': 'a piece kind and an index, a pair',
+  'PlatformerSnapshotPart': 'a save and a restore function, a pair',
+  'PreparedAttribute':
+      'a vertex attribute: name, location, format; the shader reflection\'s own row',
+  'PreparedBlock': 'a uniform block as the shader reflection reports it',
+  'PreparedMember': 'a block member: name, offset, size',
+  'PreparedSampler': 'a sampler binding as the shader reflection reports it',
+  'QualityScene':
+      'a function type returning a scene, a view and settings to render',
+  'ScreenBounds': 'a screen rectangle: left, top, right, bottom',
+  'ShaderSet':
+      'shader sources by file and the stage map, the bundle writer\'s input',
+  'SixWayChannel': 'an image index and a channel, a pair',
+  'SourceLink': 'a path and a commit hash, a pair',
+  'TraceColorTarget':
+      'a colour attachment as the HAL\'s descriptor has it, mirrored for a trace',
+  'TraceDepthTarget':
+      'a depth attachment as the HAL\'s descriptor has it, mirrored for a trace',
+  'TraceGeometryRange': 'a buffer, an offset and a length',
+  'UvFootprint': 'UV and its screen derivatives, fixed by the sampling formula',
+  'UvSpan': 'one row span of a rasterized UV island with its weights',
+  'VoxelBox': 'integer box bounds, min and max of three axes',
+  'WebGlSectionSources': 'vertex and fragment sources by name, two stages',
+  'WebGpuSectionStages': 'vertex and fragment stages by name, two stages',
+  for (final name in _recordResultsPending)
+    name:
+        'a result from before the rule, a tuple of its own parts read where '
+        'it is made; it becomes a class with a recordToClass migration '
+        'before it is asked to carry more, and leaves the list',
+};
+
+/// Members and functions that return a record, listed when the rule began
+/// reading results; a list that only shrinks.
+const List<String> _recordResultsPending = <String>[
+  'AbsolutePixels.resolve',
+  'ActionInput.shapeDelta',
+  'ActorVisuals.markersPassed',
+  'AddNode.position',
+  'AnimationGraph.passed',
+  'AtmosphereCycle.keys',
+  'Avoidance.velocity',
+  'AxisSettings.shapeDelta',
+  'AxisSettings.shapePair',
+  'BridgeProjector.rayThrough',
+  'BrushGeometry.faceAxes',
+  'CellGridComponent.cellAt',
+  'ColliderRegistry.raycast',
+  'ColorField.hsvToRgb',
+  'ColorField.rgbToHsv',
+  'ColorRoles.confusions',
+  'ColorVision.applyEncoded',
+  'ColorVision.applyLinear',
+  'ColorVision.confusions',
+  'ComputeKernel.workgroupSize',
+  'ConvexHull.faces',
+  'CpuComputeShader.workgroupSize',
+  'CubeLut.domainMax',
+  'CubeLut.domainMin',
+  'CubeLut.lookup',
+  'DiagnosticFrame.firstNonFinite',
+  'EditMesh.compact',
+  'EffectRender.sheet',
+  'Elements.waterAt',
+  'ElementsSimulation.waterAt',
+  'EqualPowerPanner.gains',
+  'FakeBackend.createdCubeRenderTargets',
+  'FakeBackend.overwrites',
+  'FakeBackend.overwrittenTextures',
+  'FakeBackend.readbacks',
+  'FireView.wanted',
+  'Flutter3dFlameWidget.existing',
+  'FrameContext.jitter',
+  'FrameFraction.resolve',
+  'GizmoMark.bounds',
+  'GridMover.cell',
+  'HeatmapTrail.positions',
+  'ImpostorAtlas.pick',
+  'InputFrame.dualAxes',
+  'IrradianceField.readDepth',
+  'LevelRules.perRoom',
+  'LightPlan.pngs',
+  'LightmapLayout.neutralUv',
+  'LightmapLayout.texelOf',
+  'LightmapLayout.uvAt',
+  'LightmapLayout.uvOfPoint',
+  'LiquidView.wanted',
+  'MaterialExtensions.coatMapSources',
+  'MaterialExtensions.sheenMapSources',
+  'MaterialProgram.workgroupSize',
+  'MeshVessel.span',
+  'ModelHistory.authorship',
+  'NativeWorld.charOf',
+  'NativeWorld.linkJoint',
+  'NativeWorld.linkTurn',
+  'NativeWorld.readFires',
+  'NativeWorld.readShallowSurface',
+  'NativeWorld.readTransforms',
+  'NativeWorld.shallowVolume',
+  'NativeWorld.submergedOf',
+  'OrbitController.suggestedDepthRange',
+  'OriginShifted.offset',
+  'ParticleEffects.looks',
+  'ParticleEffects.triggerCounts',
+  'PieceReport.covering',
+  'PieceReport.depth',
+  'PieceReport.screenBox',
+  'PlaytestRun.positions',
+  'Portable.sinCos',
+  'ProjectRoot.tryResolve',
+  'RagdollPart.tailLength',
+  'ResimulationRetraced.trail',
+  'ResourceSize.resolve',
+  'RevolvedVessel.span',
+  'RevolvedVessel.wallDistance',
+  'RollbackSession.agreedEnd',
+  'SolidColorTexture.texel',
+  'StaticMeshShape.triangles',
+  'TemporalClip.axes',
+  'TextureGraph.positions',
+  'TouchButton.pedal',
+  'VesselShape.span',
+  'VesselVolumes.lip',
+  'VoxelHit.before',
+  'WgslKernel.workgroupSize',
+  'WorldPosition.relativeTo',
+  'blockLayoutFor',
+  'bloomSource',
+  'bracketFromTraces',
+  'callGameExtension',
+  'cappedImageSize',
+  'circularWeir',
+  'closestPointOn',
+  'clusterAt',
+  'contributorLight',
+  'cpuTestDevice',
+  'createProject',
+  'curveSamples',
+  'customShapeDirections',
+  'decodeUniversalBlock',
+  'dirtyRectOf',
+  'dirtyTilesBetween',
+  'encodedImageSize',
+  'eventsSince',
+  'fakeFlutterRun',
+  'firstDifferingPath',
+  'generateRsaKeyPair',
+  'hdrSizeOf',
+  'importMeshData',
+  'importSixWay',
+  'indexWindow',
+  'inspectorSections',
+  'isotropicRemesh',
+  'jitterOffset',
+  'mapUv',
+  'markerOf',
+  'mergeAt',
+  'mergeByDistance',
+  'orificeFlow',
+  'overCircularLip',
+  'pixelRay',
+  'polygonEdgesOf',
+  'projectAt',
+  'projectPoint',
+  'renderPost',
+  'resolveIkConstraint',
+  'resolveLookAtConstraint',
+  'selectPlugins',
+  'separateComponents',
+  'splatNoiseOffset',
+  'splitLargeMeshes',
+  'subMesh',
+  'symmetricEigen3',
+  'tangentHandles',
+  'toGltfFilters',
+  'valueRange',
+  'vogelDisc',
+];
+
+/// Public plain classes, each with why it says nothing about who extends
+/// it. Empty: every public class is `final`, `base`, `sealed` or
+/// `interface`.
+const Map<String, String> plainClassAllowed = <String, String>{};
+
+/// Open sets that do not carry `values` and `byName` yet, by name. A list
+/// that only shrinks: each one gains the two in a minor (an addition), and
+/// leaves the list.
+final Map<String, String> openSetShapePending = <String, String>{
+  for (final name in _openSetsWithoutShape)
+    name:
+        'an open set from before the rule; it gains `values` and `byName` in '
+        'a minor (an addition), and leaves the list',
+};
+
+const List<String> _openSetsWithoutShape = <String>[
+  'ActorCueKind',
+  'AmbientOcclusionMethod',
+  'AmmoType',
+  'AnimationBlend',
+  'AnimationComparison',
+  'AnimationParameterType',
+  'AudioBus',
+  'BakeMapKind',
+  'BlendState',
+  'BrushFalloff',
+  'BrushKind',
+  'BufferUsage',
+  'BusChannel',
+  'CloudProvider',
+  'ColorVisionDeficiency',
+  'ColorWriteMask',
+  'CompositePass',
+  'Confidence',
+  'ConversionTarget',
+  'ConvertOutcome',
+  'DebugViewKind',
+  'DebugWipeSide',
+  'DeviceClass',
+  'DeviceClassBudget',
+  'DeviceLossReason',
+  'Difficulty',
+  'DiffuseModel',
+  'Dimension',
+  'DockSide',
+  'DoctorStatus',
+  'DriverAxis',
+  'DualAxisAction',
+  'EdgeSmoothing',
+  'EffectBlend',
+  'EffectDrawing',
+  'EffectSpawn',
+  'ElementCues',
+  'ElementsSteps',
+  'ExpressionBuiltin',
+  'ExpressionType',
+  'Eye',
+  'FieldQuantity',
+  'FireDetail',
+  'FireSteps',
+  'FuelCell',
+  'GameAction',
+  'GamePadButton',
+  'GridSide',
+  'Haptic',
+  'HubCachePolicy',
+  'Igniter',
+  'InputSource',
+  'JointGroup',
+  'JointType',
+  'Jolt',
+  'KeyEase',
+  'LawInput',
+  'LevelBatching',
+  'LightingModel',
+  'LinearColor',
+  'LiquidDetail',
+  'LiquidSteps',
+  'LoopPhase',
+  'MaterialAlphaMode',
+  'MaterialBlend',
+  'MaterialBlendMode',
+  'MaterialPhase',
+  'MaterialStageKind',
+  'MemoryCategory',
+  'MeshIssueKind',
+  'ModelFormat',
+  'MonsterState',
+  'MoverState',
+  'NativeBodyType',
+  'NativeEdgeFlow',
+  'NativeEventKind',
+  'NativeJointType',
+  'NativeLawProperty',
+  'PadButton',
+  'PaintBlendMode',
+  'PaintWeightsMode',
+  'PassSkip',
+  'PhaseKind',
+  'PhotoFilter',
+  'PipelineGeometry',
+  'PluginKind',
+  'PluginPermission',
+  'PluginTouches',
+  'ProjectKind',
+  'RaceMode',
+  'ReadingKind',
+  'ReadingQuality',
+  'RenderAnchor',
+  'RenderProjectView',
+  'RenderShading',
+  'RenderStep',
+  'ResourcePriority',
+  'RigMirrorAxis',
+  'RigTemplate',
+  'SamplerDescriptor',
+  'SceneEnvironmentPreset',
+  'ShaderBuildTarget',
+  'ShaderStageNeed',
+  'ShadowCastingMode',
+  'ShadowFilter',
+  'ShareStatus',
+  'SimulationProfile',
+  'SolidColorTexture',
+  'SortMode',
+  'SplatAxes',
+  'StereoViewer',
+  'SyncOutcome',
+  'TangentMethod',
+  'TelemetryLevel',
+  'TextureBudget',
+  'TextureFamily',
+  'TextureUsage',
+  'TimeLostReason',
+  'TonemapCurve',
+  'ToolHints',
+  'TraceLabeled',
+  'Unit',
+  'UnitType',
+  'UniversalTarget',
+  'UvProjection',
+  'VertexLayout',
+  'ViewportShading',
+  'Voice',
+  'WadingHearing',
+  'WireState',
+];
+
 /// Constructors that keep optional positional parameters, as `Type.Type`
 /// or `Type.named`, each with why it never grows (E.5).
 ///
@@ -2234,6 +2892,30 @@ const Map<String, String> optionalPositionalAllowed = <String, String>{
   'Stockpile.Stockpile': 'the one amount it holds',
   'InMemoryDeviceClassMemory.InMemoryDeviceClassMemory':
       'a test double of one value, the class it answers',
+  // Methods and functions, since the rule read them (S10).
+  'Vector3Foundation.toLinearColor':
+      'a colour\'s alpha after its three channels, as `LinearColor` takes it',
+  'ComputeEncoder.dispatch':
+      'a workgroup count\'s y and z after its x: a dispatch has three '
+      'dimensions, as every GPU API spells it',
+  'DartKernel.dispatch': 'a workgroup count\'s y and z, as `dispatch`',
+  'dispatchIndirectArguments': 'a workgroup count\'s y and z, as `dispatch`',
+  'BoundTexture.sampleCube':
+      'the CPU shading language\'s mirror of GLSL\'s `textureLod`, whose '
+      'level is GLSL\'s own optional argument',
+  'BoundTexture.sampleCubeLayer': 'GLSL\'s `textureLod` on a cube array',
+  'CpuStorageTexture.load': 'GLSL\'s `imageLoad`, whose layer is optional',
+  'CpuStorageTexture.store': 'GLSL\'s `imageStore`, as `load`',
+  'CpuTexture.planeCount': 'a level of a texture, as GLSL\'s `textureSize`',
+  'shadowFactor':
+      'a shading helper the CPU stages call as GLSL\'s would, with the '
+      'fragment context last and optional',
+  'SplatCloud.covarianceOf':
+      'where in the caller\'s output buffer to write: the `out` idiom\'s '
+      'offset',
+  'FakeFlutterTool.kill':
+      'a fake process, which mirrors `Process.kill([signal])` as it '
+      'stands in for one',
   'PluginDependency.PluginDependency':
       'the plugin contract\'s own: made named with the dependency ranges '
       'in that package, which owns the migration',
@@ -2269,10 +2951,47 @@ const Map<String, String> verbAllowed = <String, String>{
       'a value of an open set, not a call: the answer "take the remote copy" '
       'a comparison gives, named as the enum value it was, beside '
       '`keepLocal`',
+  // Found when the rule learned a lone non-standard teardown and a
+  // synchronous `open`; each is renamed (or made to wait) with a migration
+  // before 1.0.0, and leaves the list then.
+  'ToolTableServer.shutdown':
+      'a server\'s teardown beside `LoopbackMcpServer.close`; becomes `close`',
+  'FormatSpec.open':
+      'reads a document a caller already holds; becomes a `read`',
+  'openStrategyLevel': 'builds a level at once; becomes a `create`',
+  'openRegistryFor':
+      'a permissive registry made at once; its name says neither',
+  'SimSession.open': 'a session made at once over a world in memory',
+  'EditorSession.open': 'a session made at once over a document in memory',
+  'EditorSession.openExperiment':
+      'a session made at once over an experiment in memory',
+  'ModelSession.open': 'a session made at once over a model in memory',
+  'ElementsSimulation.open':
+      'a native world made at once, beside the asynchronous loader',
+  'NativeGpu.open': 'a device made at once over a library already loaded',
 };
 
 /// Unit-suffixed names the units rule lets stand.
 const Map<String, String> unitSuffixAllowed = <String, String>{
+  // Measurements the engine reports, which docs/CONTRACTS.md ("Time") lets
+  // be integral microseconds; what a caller sets is a `Duration`.
+  'cpuMicros':
+      'a frame\'s CPU time the engine measured (`FrameResult`, '
+      '`AdaptiveQuality.recordFrame`): a measurement',
+  'gpuMicros': 'a pass\'s GPU time a device reported: a measurement',
+  'submitMicros': 'the time a frame took to submit, as measured',
+  'estimateMicros':
+      'a quality row\'s frame time estimated from measurements, not a setting',
+  'measuredMicros':
+      'the probe frame\'s measured time `DeviceClassSelector.choose` reads',
+  'measureFrameMicros': 'answers a measured frame time: a measurement',
+  'micros':
+      'a time the engine measured (`GpuPassTiming`, `FramePass`, '
+      '`CapturedPass`, a frame handed to `recordFrame`): a measurement',
+  'stepMicroseconds':
+      'a conformance budget for a plugin\'s step, held by the conformance '
+      'suite\'s own check rather than set by an application; it becomes a '
+      '`Duration` with the suite\'s next change of shape',
   'degrees':
       'a value of the editor\'s `NumberUnit`: the widget that shows an angle '
       'to a person in degrees, which is where the contract says the '
@@ -2413,6 +3132,8 @@ const Map<String, String> slowTestsPending = <String, String>{
   'packages/flutter3d_build/test/migration_kinds_record_to_class_test.dart':
       'a migration kind applied to its fixture and the result analysed',
   'packages/flutter3d_build/test/migration_kinds_regroup_test.dart':
+      'a migration kind applied to its fixture and the result analysed',
+  'packages/flutter3d_build/test/migration_kinds_subclass_modifier_test.dart':
       'a migration kind applied to its fixture and the result analysed',
   'packages/flutter3d_demo_content/test/sim_mcp/fixtures/sim_mcp_server.dart':
       'the server the suite starts once in a process of its own, alive long '
