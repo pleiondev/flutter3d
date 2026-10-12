@@ -328,7 +328,7 @@ void _addImports(ResolvedUnitResult unit, Set<String> uris, _Work work) {
 }
 
 /// [source] with [edits] applied from the end, skipping one that overlaps
-/// an edit already taken.
+/// an edit already taken, and one that repeats it.
 String _apply(String source, List<MigrationEdit> edits) {
   final sorted = edits.toList()
     ..sort((MigrationEdit a, MigrationEdit b) {
@@ -337,8 +337,12 @@ String _apply(String source, List<MigrationEdit> edits) {
     });
   var text = source;
   var floor = source.length + 1;
+  // The same insertion asked twice (two calls awaited in one callback make
+  // it `async` twice) is made once.
+  final made = <(int, int, String)>{};
   for (final e in sorted) {
     if (e.offset + e.length > floor) continue;
+    if (!made.add((e.offset, e.length, e.replacement))) continue;
     text = text.replaceRange(e.offset, e.offset + e.length, e.replacement);
     if (e.length > 0) floor = e.offset;
   }

@@ -227,15 +227,22 @@ Future<void> _migrate(
   // of a changed type left in place is a diagnostic `dart fix` answers
   // with any data-driven rename whose old name the value happens to have
   // (a `colour` variable passed where a `LinearColor` goes became `color`).
-  final early = await lintsPass(automaticOnly: true);
-  for (final line in LineSplitter.split('${early.stdout}')) {
-    if (!line.startsWith('{')) continue;
-    final r = jsonDecode(line) as Map<String, Object?>;
-    for (final id in (r['applied']! as List<Object?>).map(
-      (Object? a) => '$a',
-    )) {
-      report.rewritten[id] = (report.rewritten[id] ?? 0) + 1;
+  // Again while a pass rewrote something: a class renamed in one pass is
+  // what lets the next rewrite its arguments.
+  for (var pass = 0; pass < 3; pass++) {
+    final early = await lintsPass(automaticOnly: true);
+    var rewrote = false;
+    for (final line in LineSplitter.split('${early.stdout}')) {
+      if (!line.startsWith('{')) continue;
+      final r = jsonDecode(line) as Map<String, Object?>;
+      for (final id in (r['applied']! as List<Object?>).map(
+        (Object? a) => '$a',
+      )) {
+        report.rewritten[id] = (report.rewritten[id] ?? 0) + 1;
+        rewrote = true;
+      }
     }
+    if (!rewrote || early.exitCode != 0) break;
   }
   await runStep(report, 'dart fix', 'dart', <String>[
     'fix',

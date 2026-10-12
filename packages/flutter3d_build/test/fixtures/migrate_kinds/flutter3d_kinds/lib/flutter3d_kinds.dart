@@ -207,3 +207,10 @@ final class Sieve {
   final int coarse;
   final int fine;
 }
+
+// 0.8: `Tap({int centre = 0})`, the parameter renamed since.
+
+final class Tap {
+  const Tap({this.center = 0});
+  final int center;
+}

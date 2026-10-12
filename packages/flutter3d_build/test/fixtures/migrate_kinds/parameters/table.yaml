@@ -20,3 +20,10 @@ entries:
         index: 0
       - toNamed: fine
         index: 1
+  - id: kinds-Tap-center
+    package: flutter3d_kinds
+    symbol: Tap.Tap
+    kind: parameters
+    changes:
+      - rename: centre
+        to: center

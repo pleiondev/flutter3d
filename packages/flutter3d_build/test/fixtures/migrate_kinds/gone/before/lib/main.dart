@@ -58,4 +58,15 @@ Future<int> loaded(Store store) async {
 
 void forget(Store store) {
   store.load();
+  final held = store.load();
+  print(held);
+}
+
+void test(String name, Object? Function() body) => body();
+
+void checks(Store store) {
+  test('loads', () {
+    print(store.load());
+    print(store.load());
+  });
 }

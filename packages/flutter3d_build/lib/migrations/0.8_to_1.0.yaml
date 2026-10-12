@@ -67,8 +67,10 @@
 #   internal          a name public at `from` that is the owning    flutter3d_lints
 #                     package's own now, with nothing to replace it;
 #                     optional `instead:`. One diagnostic per import
-#                     of the package, one line per package in the
-#                     guide. It names a top-level name or a library.
+#                     of the package naming every such name the file
+#                     uses, a TODO at each use, one line per package
+#                     in the guide. It names a top-level name or a
+#                     library (with the names it took, `members:`).
 #   manual            `guidance:` — the diagnostic and the TODO     flutter3d_lints
 #                     `migrate` leaves at each use (for a library
 #                     gone whole, at its import and at each use of
@@ -4056,7 +4058,7 @@ entries:
     package: flutter3d
     symbol: package:flutter3d/parity_scene.dart
     kind: internal
-    members: [ParityScene, buildParityScene, kParityGrid, parityGrid, paritySettingsFor]
+    members: [ParityScene, buildParityScene, kParityGrid, kParityHeight, kParityWidth, parityGrid, paritySettingsFor]
     wave: 3
     instead: >-
       A backend's own tests import it from
@@ -4609,7 +4611,7 @@ entries:
     package: flutter3d_core
     symbol: package:flutter3d_core/parity_scene.dart
     kind: internal
-    members: [ParityScene, buildParityScene, kParityGrid, parityGrid, paritySettingsFor]
+    members: [ParityScene, buildParityScene, kParityGrid, kParityHeight, kParityWidth, parityGrid, paritySettingsFor]
     wave: 3
     instead: >-
       A backend's own tests import it from
@@ -22016,3 +22018,26 @@ entries:
       and `max` are seconds, and `PacingReport.of(seconds, limit: 0.05)`
       takes seconds where `FramePacing.of(millis, limitMillis: 50)` took
       milliseconds.
+
+  - id: corpus-foundation-LinearColor-as-vector
+    package: flutter3d_foundation
+    symbol: LinearColor
+    kind: rewrite
+    on: LinearColor
+    types: [Vector3, Vector4]
+    template: '{target}.to{type}()'
+    guidance: >-
+      A colour the engine hands out is a `LinearColor` where it was a
+      vector: where code of your own still takes the vector, `toVector3()`
+      or `toVector4()` gives it, with the same linear numbers.
+
+  - id: corpus-webgl-WebGlDevice-open
+    package: flutter3d_webgl
+    symbol: WebGlDevice
+    kind: manual
+    members: [open]
+    async: true
+    guidance: >-
+      `WebGlDevice.open` is asynchronous, as every backend's `open` is: await
+      it, inside an `async` function, and hand on a `Future<GraphicsDevice>`
+      where a device was returned.

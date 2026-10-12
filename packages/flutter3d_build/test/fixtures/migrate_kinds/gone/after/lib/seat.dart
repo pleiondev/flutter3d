@@ -7,3 +7,8 @@ final class Cart with Wheel {
   @override
   bool get isRolling => true;
 }
+
+final class Barrow with Wheel {
+  @override
+  bool isRolling = false;
+}

@@ -1,6 +1,7 @@
 // The `internal` kind: a name the package keeps to itself since 1.0 gets
-// one diagnostic per import of the package that brought it, not one per
-// use, and one line per package in the guide.
+// one diagnostic per import of the package that brought it, naming every
+// such name the file uses, one line per package in the guide, and a TODO on
+// each line of a use, where the analyzer's error stands.
 import 'package:flutter3d_build/src/migrate/guide.dart';
 import 'package:flutter3d_build/src/migrate/lints_table.dart';
 import 'package:test/test.dart';
@@ -25,9 +26,15 @@ void main() {
     expect(guide, contains('0 by hand'));
   });
 
-  test('three uses through one import leave one TODO, on the import', () async {
+  test('three uses through one import leave one TODO on the import, '
+      'listing both names, and one on each line of a use', () async {
     final report = await migrateKindFixture('internal');
-    expect(manualOf(report), <String>['internal-flutter3d_kinds:1']);
+    expect(manualOf(report), <String>[
+      'internal-flutter3d_kinds:1',
+      'internal-flutter3d_kinds:3',
+      'internal-flutter3d_kinds:5',
+      'internal-flutter3d_kinds:5',
+    ]);
     expect(appliedOf(report), isEmpty);
   }, timeout: const Timeout(Duration(minutes: 3)));
 }

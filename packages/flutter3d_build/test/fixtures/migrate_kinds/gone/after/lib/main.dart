@@ -67,4 +67,17 @@ Future<int> loaded(Store store) async {
 void forget(Store store) {
   // TODO(flutter3d-1.0): `load` is asynchronous: await it. See https://flutter3d.pleion.dev/reference/migrating-to-1.0/#kinds-Store-load
   store.load();
+  // TODO(flutter3d-1.0): `load` is asynchronous: await it. See https://flutter3d.pleion.dev/reference/migrating-to-1.0/#kinds-Store-load
+  final held = store.load();
+  // TODO(flutter3d-1.0): `load` is asynchronous: await it. See https://flutter3d.pleion.dev/reference/migrating-to-1.0/#kinds-Store-load
+  print(held);
+}
+
+void test(String name, Object? Function() body) => body();
+
+void checks(Store store) {
+  test('loads', () async {
+    print(await store.load());
+    print(await store.load());
+  });
 }

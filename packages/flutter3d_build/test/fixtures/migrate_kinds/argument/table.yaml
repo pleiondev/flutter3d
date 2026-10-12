@@ -32,3 +32,10 @@ entries:
     to: beam
     template: '{value} * pi / 180'
     imports: ['dart:math show pi']
+  - id: kinds-LinearColor-as-vector
+    package: flutter3d_kinds
+    symbol: LinearColor
+    kind: rewrite
+    on: LinearColor
+    types: [Vector3, Vector4]
+    template: '{target}.to{type}()'

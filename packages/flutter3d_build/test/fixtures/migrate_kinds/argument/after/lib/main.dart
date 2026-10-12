@@ -19,3 +19,7 @@ void dim(Lamp lamp) {
 Lamp relit(Lamp? old) => Lamp(glow: old?.glow ?? LinearColor.fromSrgb(0.5, 0.5, 0.5, 1.0));
 
 Lamp mended() => Lamp.tinted(LinearColor(0.1, 0.2, 0.3));
+
+void shine(Vector3 colour) {}
+
+void glowing(Lamp lamp) => shine(lamp.glow.toVector3());

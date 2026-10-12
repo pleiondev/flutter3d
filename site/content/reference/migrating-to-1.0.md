@@ -222,7 +222,7 @@ carried out:
 
 <!-- migration-table:start -->
 
-*Generated from `flutter3d_build/lib/migrations/` — 1868 entries from 0.8.5 to 1.0.0-rc.1, 306 by hand: 218 `migrate`, 306 by hand, 370 nothing to do, 487 `dart fix`, 380 gone internal, 107 `migrate`, with a TODO.*
+*Generated from `flutter3d_build/lib/migrations/` — 1870 entries from 0.8.5 to 1.0.0-rc.1, 307 by hand: 219 `migrate`, 307 by hand, 370 nothing to do, 487 `dart fix`, 380 gone internal, 107 `migrate`, with a TODO.*
 
 ### `flame_flutter3d`
 
@@ -972,6 +972,7 @@ carried out:
 ### `flutter3d_foundation`
 
 - <a id="corpus-foundation-LinearColor-vector"></a>**`LinearColor`** (by hand). A colour the engine hands out is a `LinearColor`, a value, where it was a vector: `color.scale(f)` changed it in place and is `holder.color = color.scaled(f)` on whatever held it; vector arithmetic on two colours is on `toVector3()` or `toVector4()` of each, or on their channels.
+- <a id="corpus-foundation-LinearColor-as-vector"></a>**`LinearColor`** (`migrate`). `LinearColor` becomes `x.to{type}()`. A colour the engine hands out is a `LinearColor` where it was a vector: where code of your own still takes the vector, `toVector3()` or `toVector4()` gives it, with the same linear numbers.
 - <a id="corpus-foundation-LinearColor-w"></a>**`LinearColor.w`** (`migrate`). `LinearColor.w` becomes `x.a`. A colour the engine hands out is a `LinearColor` where it was a vector: `.w` of it is `.a`.
 - <a id="corpus-foundation-LinearColor-x"></a>**`LinearColor.x`** (`migrate`). `LinearColor.x` becomes `x.r`. A colour the engine hands out is a `LinearColor` where it was a vector: `.x` of it is `.r`.
 - <a id="corpus-foundation-LinearColor-y"></a>**`LinearColor.y`** (`migrate`). `LinearColor.y` becomes `x.g`. A colour the engine hands out is a `LinearColor` where it was a vector: `.y` of it is `.g`.
@@ -1873,6 +1874,7 @@ carried out:
 - <a id="internal-flutter3d_webgl"></a>**11 names were the package's own** (gone internal): they are not exported since 1.0.0-rc.1, and the import of `flutter3d_webgl` that brought them gets one diagnostic for all of them. <a id="webgl-WebGlAttribute"></a>`WebGlAttribute`, <a id="webgl-WebGlBlock"></a>`WebGlBlock`, <a id="webgl-WebGlEncoder"></a>`WebGlEncoder`, <a id="webgl-WebGlLoadedShaderLibrary"></a>`WebGlLoadedShaderLibrary`, <a id="webgl-WebGlProgram"></a>`WebGlProgram`, <a id="webgl-WebGlShader"></a>`WebGlShader`, <a id="webgl-WebGlShaderLibrary"></a>`WebGlShaderLibrary`, <a id="webgl-WebGlTexture"></a>`WebGlTexture`, <a id="webgl-compileWebGlShader"></a>`compileWebGlShader`, <a id="webgl-declarationsOf"></a>`declarationsOf`, <a id="webgl-fragmentOutputNames"></a>`fragmentOutputNames`. An application opens the backend with `openWebGl` and adds it to a `DeviceRegistry` with `registerWebGlBackend`.
 - <a id="webgl-WebGlDevice"></a>**`WebGlDevice`** (by hand). was the WebGL2 backend's own: its handle types (`WebGl*`), its capability gates (`webglGate*`, `webglRefuse*`) or its encoders. None of it is exported since 1.0. An application opens the backend with `openWebGl` and adds it to a `DeviceRegistry` with `registerWebGlBackend`.
 - <a id="webgl-shader-compile-exception"></a>**`WebGlDevice`** (nothing to do). A stage that does not compile, or a pair that does not link, throws `ShaderCompileException` where it threw `StateError`. Nothing that compiled stops compiling; code that caught `StateError` around a pipeline catches the new type.
+- <a id="corpus-webgl-WebGlDevice-open"></a>**`WebGlDevice`** (by hand). `WebGlDevice.open` is asynchronous, as every backend's `open` is: await it, inside an `async` function, and hand on a `Future<GraphicsDevice>` where a device was returned.
 - <a id="4a-webgl-WebGlDevice-create"></a>**`WebGlDevice.create`** (`dart fix`). `WebGlDevice.create` is `open`. Creation and teardown verbs follow one convention in 1.0: create (synchronous), open (a device or a session), load (an asset), decode (bytes), parse (text), dispose (teardown), close (a connection or a stream), and drain for a read that empties what it reads. Opening is asynchronous on every backend, so `WebGlDevice.open` answers a `Future`: put `await` in front of the call, in an `async` function.
 - <a id="2a-webgl-WebGlDevice-createStorageBuffer"></a>**`WebGlDevice.createStorageBuffer`** (`migrate`). `WebGlDevice.createStorageBuffer` becomes `x.createBuffer(BufferDescriptor(lengthInBytes: {0}.lengthInBytes, usage: BufferUsage.standardStorage), contents: {0})`. One call makes every buffer: a storage buffer is `createBuffer` with `BufferUsage.standardStorage`. WebGL2 refuses a storage usage either way, as it refused this call.
 - <a id="f2-webgl-WebGlDevice-open"></a>**`WebGlDevice.open`** (nothing to do). Completes with a `WebGlDevice`, not a nullable one, and `sources` is optional (the engine's shaders by default). A browser without WebGL2 completes it with a `DeviceUnavailableException`; a null check after the call can go.

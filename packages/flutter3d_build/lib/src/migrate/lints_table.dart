@@ -71,6 +71,14 @@ Map<String, String> toNamedOf(MigrationEntry e) => <String, String>{
       '$index': name,
 };
 
+/// A `parameters` entry's named parameters that were renamed, old name to
+/// new: what the scan renames where `dart fix` did not reach the call.
+Map<String, String> renamedParametersOf(MigrationEntry e) => <String, String>{
+  for (final c in e.changes)
+    if ((c['rename'], c['to']) case (final String from, final String to))
+      from: to,
+};
+
 /// Whether [e] is one the plugin's table carries: a `rename` only when it
 /// renames a class, which is all the scan does with one, and a `parameters`
 /// entry only for its positional arguments that became named, which
@@ -84,7 +92,9 @@ bool _carried(MigrationEntry e) =>
             (e.member == null
                 ? RegExp(r'^[A-Z]\w*$').hasMatch(e.to ?? '')
                 : renamedMember(e) != null))) &&
-    (e.kind != 'parameters' || toNamedOf(e).isNotEmpty) &&
+    (e.kind != 'parameters' ||
+        toNamedOf(e).isNotEmpty ||
+        renamedParametersOf(e).isNotEmpty) &&
     (e.kind != 'moved' || (e.member == null && !e.symbol.contains(':')));
 
 /// A member `rename`'s new name, where it stays on its class (`to: name`
@@ -154,6 +164,9 @@ String _message(MigrationEntry e, MigrationTable table) {
     'rename' when e.member != null =>
       '`${e.symbol}` is `${e.topName}.${renamedMember(e)}` in ${table.to}.',
     'rename' => '`${e.topName}` is `${e.to}` in ${table.to}.',
+    'parameters' when toNamedOf(e).isEmpty =>
+      '${renamedParametersOf(e).entries.map((MapEntry<String, String> r) => '`${r.key}:` is `${r.value}:`').join(', ')} '
+          'of `${_callable(e)}` in ${table.to}.',
     'parameters' =>
       '${toNamedOf(e).values.map((String a) => '`$a:`').join(', ')} of '
           '`${_callable(e)}` ${toNamedOf(e).length == 1 ? 'is a named argument' : 'are named arguments'} '
@@ -221,7 +234,8 @@ Map<String, Object?> _rule(
     'into': ?e.into,
     'options': ?e.options,
     if (e.kind == 'recordToClass') 'fields': e.fieldMap,
-    if (e.kind == 'parameters') 'fields': toNamedOf(e),
+    if (e.kind == 'parameters')
+      'fields': <String, String>{...toNamedOf(e), ...renamedParametersOf(e)},
     if (e.kind == 'argument' && e.reads.isNotEmpty) 'fields': e.reads,
     if (e.kind == 'rewrite' || e.kind == 'manual')
       'receiver': ?(e.fields['on'] as String?),

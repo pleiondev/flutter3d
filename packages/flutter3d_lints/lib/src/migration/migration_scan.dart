@@ -135,6 +135,9 @@ final class _Scan extends RecursiveAstVisitor<void> {
           into(toNamedCreations, r.type, r);
           into(toNamedCalls, r.member ?? r.type, r);
           continue;
+        case MigrationKind.rewrite when r.member == null && r.receiver != null:
+          into(valueConversions, r.receiver!, r);
+          continue;
         case MigrationKind.manual when r.type.contains(':'):
           for (final m in r.members) {
             into(goneLibraryNames, m, r);
@@ -206,6 +209,11 @@ final class _Scan extends RecursiveAstVisitor<void> {
 
   /// `rename` rules of a class, by its old name.
   final Map<String, List<MigrationRule>> classRenames =
+      <String, List<MigrationRule>>{};
+
+  /// `rewrite` rules that turn a value of a type the engine hands out now
+  /// into the one a project's own parameter still takes, by that type.
+  final Map<String, List<MigrationRule>> valueConversions =
       <String, List<MigrationRule>>{};
 
   /// `moved` rules by the name that moved.
@@ -507,6 +515,7 @@ final class _Scan extends RecursiveAstVisitor<void> {
             _add(rule, node, edits: edits);
           case null:
             _add(rule, node);
+            if (rule.awaits) _readsOfHeldFuture(node, rule);
         }
       }
       return;
@@ -651,7 +660,11 @@ final class _Scan extends RecursiveAstVisitor<void> {
     if (call.parent is AwaitExpression) return (true, const <MigrationEdit>[]);
     if (call.isCascaded) return null;
     final body = call.thisOrAncestorOfType<FunctionBody>();
-    if (body == null || !body.isAsynchronous) return null;
+    if (body == null) return null;
+    // A test's own callback may become `async`: the runner awaits what it
+    // returns.
+    final makeAsync = !body.isAsynchronous && _isTestCallback(body);
+    if (!body.isAsynchronous && !makeAsync) return null;
     final parent = call.parent;
     final operand = switch (parent) {
       PropertyAccess(:final target) => target == call,
@@ -661,13 +674,53 @@ final class _Scan extends RecursiveAstVisitor<void> {
     };
     return (
       false,
-      operand
-          ? <MigrationEdit>[
-              MigrationEdit(call.offset, 0, '(await '),
-              MigrationEdit(call.end, 0, ')'),
-            ]
-          : <MigrationEdit>[MigrationEdit(call.offset, 0, 'await ')],
+      <MigrationEdit>[
+        if (makeAsync) MigrationEdit(body.offset, 0, 'async '),
+        ...operand
+            ? <MigrationEdit>[
+                MigrationEdit(call.offset, 0, '(await '),
+                MigrationEdit(call.end, 0, ')'),
+              ]
+            : <MigrationEdit>[MigrationEdit(call.offset, 0, 'await ')],
+      ],
     );
+  }
+
+  /// A call that answers a `Future` now, held in a local variable where it
+  /// cannot be awaited: each read of the variable carries the TODO too,
+  /// since the error stands on the read (`device.shaders`, `return
+  /// device`), not on the call.
+  void _readsOfHeldFuture(SimpleIdentifier node, MigrationRule rule) {
+    final call = node.parent;
+    final variable = call?.parent;
+    if (call is! MethodInvocation ||
+        variable is! VariableDeclaration ||
+        variable.initializer != call) {
+      return;
+    }
+    final element = variable.declaredFragment?.element;
+    final body = variable.thisOrAncestorOfType<FunctionBody>();
+    if (element == null || body == null) return;
+    body.accept(_ReadsOf(element, (SimpleIdentifier read) => _add(rule, read)));
+  }
+
+  /// Whether [body] is a block of a closure passed straight to `test`,
+  /// `testWidgets`, `setUp`, `tearDown`, `setUpAll` or `tearDownAll`.
+  static bool _isTestCallback(FunctionBody body) {
+    if (body is! BlockFunctionBody || body.star != null) return false;
+    final closure = body.parent;
+    if (closure is! FunctionExpression) return false;
+    final call = closure.parent?.parent;
+    return call is MethodInvocation &&
+        call.target == null &&
+        const <String>{
+          'test',
+          'testWidgets',
+          'setUp',
+          'tearDown',
+          'setUpAll',
+          'tearDownAll',
+        }.contains(call.methodName.name);
   }
 
   String _text(AstNode node) => source.substring(node.offset, node.end);
@@ -813,8 +866,8 @@ final class _Scan extends RecursiveAstVisitor<void> {
     _renameOverrides(node);
     // A renamed class in a type, as in a creation: before `dart fix`, which
     // picks one rename by name where two classes had it.
-    if (node.element == null && node.importPrefix == null) {
-      _renameClass(node.name, node);
+    if (node.element == null) {
+      _renameClass(node.name, node, prefix: node.importPrefix?.name.lexeme);
     }
     super.visitNamedType(node);
   }
@@ -1082,7 +1135,15 @@ final class _Scan extends RecursiveAstVisitor<void> {
   void _useInternal(MigrationRule rule, String name, AstNode at) {
     (_internalUses[rule.package] ??= <String, MigrationRule>{})[name] ??= rule;
     _firstInternalUse[rule.package] ??= at;
+    if (at is! Directive) {
+      (_internalUseNodes[rule.package] ??= <AstNode>[]).add(at);
+    }
   }
+
+  /// Each use of a package's internal names, by package: where the
+  /// analyzer's error stands, so the TODO stands there too.
+  final Map<String, List<AstNode>> _internalUseNodes =
+      <String, List<AstNode>>{};
 
   /// One finding per import of each package whose internal names the unit
   /// used — or, with no import of it, per import of the engine's, which is
@@ -1132,8 +1193,10 @@ final class _Scan extends RecursiveAstVisitor<void> {
         (ImportDirective d) => ownedPackage(packageOf(d)),
       );
       final at = <AstNode>[...(own.isNotEmpty ? own : engine)];
-      for (final node
-          in at.isEmpty ? <AstNode>[_firstInternalUse[package]!] : at) {
+      for (final node in <AstNode>[
+        ...at.isEmpty ? <AstNode>[_firstInternalUse[package]!] : at,
+        ...?_internalUseNodes[package],
+      ]) {
         _add(rule, node);
       }
     }
@@ -1186,6 +1249,7 @@ final class _Scan extends RecursiveAstVisitor<void> {
   /// stands: `Gauge(r, 2)` is `Gauge(r, scale: 2)`. A call that also passes
   /// one of those names already is a person's to untangle.
   void _toNamed(ArgumentList arguments, MigrationRule rule) {
+    _renameArguments(arguments, rule);
     final positional = <Argument>[
       for (final a in arguments.arguments)
         if (a is! NamedArgument) a,
@@ -1210,6 +1274,20 @@ final class _Scan extends RecursiveAstVisitor<void> {
         for (final (a, name) in moved) MigrationEdit(a.offset, 0, '$name: '),
       ],
     );
+  }
+
+  /// The named arguments of [arguments] the call has no parameter for any
+  /// more whose parameter [rule] renamed (its [MigrationRule.fields] by
+  /// name): `Brush(centre: c)` is `Brush(center: c)` where `dart fix` did
+  /// not reach the call.
+  void _renameArguments(ArgumentList arguments, MigrationRule rule) {
+    final edits = <MigrationEdit>[
+      for (final a in arguments.arguments)
+        if (a is NamedArgument && a.correspondingParameter == null)
+          if (rule.fields[a.name.lexeme] case final to?)
+            MigrationEdit(a.name.offset, a.name.length, to),
+    ];
+    if (edits.isNotEmpty) _add(rule, arguments, edits: edits);
   }
 
   /// The named arguments [MigrationRule.members] of [arguments] moved into
@@ -1601,6 +1679,37 @@ final class _Scan extends RecursiveAstVisitor<void> {
     ];
   }
 
+  /// An argument of a type the engine hands out now (a `LinearColor`) passed
+  /// for a parameter of the project's own that takes the old one (a
+  /// `Vector3`): converted, as a rule's template says, to the old type.
+  void _convertValues(ArgumentList node) {
+    for (final argument in node.arguments) {
+      final value = argument.argumentExpression;
+      final type = value.staticType;
+      final wants = argument.correspondingParameter?.type;
+      if (type is! InterfaceType || wants is! InterfaceType) continue;
+      for (final rule
+          in valueConversions[type.element.name] ?? const <MigrationRule>[]) {
+        final name = wants.element.name;
+        if (name == null || !rule.types.contains(name)) continue;
+        _add(
+          rule,
+          value,
+          edits: <MigrationEdit>[
+            MigrationEdit(
+              value.offset,
+              value.length,
+              rule.template!
+                  .replaceAll('{target}', _operand(value))
+                  .replaceAll('{type}', name),
+            ),
+          ],
+        );
+        break;
+      }
+    }
+  }
+
   /// A named argument the call no longer has a parameter for, of a call a
   /// `manual` rule is about: the TODO stands on that argument, where the
   /// analyzer's error does, and not only above the statement.
@@ -1720,15 +1829,25 @@ final class _Scan extends RecursiveAstVisitor<void> {
     }
   }
 
-  void _renameClass(Token name, AstNode at) {
+  void _renameClass(Token name, AstNode at, {String? prefix}) {
     final rules = classRenames[name.lexeme];
     if (rules == null) return;
     final scope = unit.declaredFragment?.scope;
+    // Under an import prefix, what the prefixed libraries export (their
+    // `show` is renamed with the class).
+    bool inScope(String to) => prefix == null
+        ? scope?.lookup(to).getter is InterfaceElement
+        : unit.directives.whereType<ImportDirective>().any(
+            (ImportDirective d) =>
+                d.prefix?.name == prefix &&
+                d.libraryImport?.importedLibrary?.exportNamespace.get2(to)
+                    is InterfaceElement,
+          );
     final fits = <MigrationRule>[
       for (final r in rules)
         if (r.to case final to?
-            when scope?.lookup(to).getter is InterfaceElement &&
-                !_hiddenFrom(name.lexeme, to))
+            when inScope(to) &&
+                (prefix != null || !_hiddenFrom(name.lexeme, to)))
           r,
     ];
     if (fits case [final rule]) {
@@ -1763,13 +1882,22 @@ final class _Scan extends RecursiveAstVisitor<void> {
     if (body is! BlockClassBody) return;
     final element = type.element;
     if (element is! InterfaceElement || !_ownedAs(element, null)) return;
-    final declared = <String>{
-      for (final m in body.members.whereType<MethodDeclaration>())
-        m.name.lexeme,
-    };
-    for (final member in body.members.whereType<MethodDeclaration>()) {
+    // Each name the class declares, a getter, a method or a field, by its
+    // token.
+    final names = <(Token, AstNode)>[
+      for (final m in body.members)
+        ...switch (m) {
+          MethodDeclaration(:final name) => <(Token, AstNode)>[(name, m)],
+          FieldDeclaration(:final fields) => <(Token, AstNode)>[
+            for (final v in fields.variables) (v.name, v),
+          ],
+          _ => const <(Token, AstNode)>[],
+        },
+    ];
+    final declared = <String>{for (final (n, _) in names) n.lexeme};
+    for (final (name, node) in names) {
       for (final rule
-          in memberRenames[member.name.lexeme] ?? const <MigrationRule>[]) {
+          in memberRenames[name.lexeme] ?? const <MigrationRule>[]) {
         final to = rule.to;
         if (to == null ||
             declared.contains(to) ||
@@ -1778,10 +1906,8 @@ final class _Scan extends RecursiveAstVisitor<void> {
         }
         _add(
           rule,
-          member,
-          edits: <MigrationEdit>[
-            MigrationEdit(member.name.offset, member.name.length, to),
-          ],
+          node,
+          edits: <MigrationEdit>[MigrationEdit(name.offset, name.length, to)],
         );
         break;
       }
@@ -1845,6 +1971,7 @@ final class _Scan extends RecursiveAstVisitor<void> {
   @override
   void visitArgumentList(ArgumentList node) {
     _manualArguments(node);
+    if (valueConversions.isNotEmpty) _convertValues(node);
     if (arguments.isNotEmpty) {
       for (final argument in node.arguments) {
         final name = switch (argument) {
@@ -2151,4 +2278,16 @@ final class _Scan extends RecursiveAstVisitor<void> {
 
   String _todoText(MigrationRule rule) =>
       '// TODO(flutter3d-1.0): ${rule.message} See ${rule.link}';
+}
+
+/// Calls [found] with each read of [element] under the node it visits.
+final class _ReadsOf extends RecursiveAstVisitor<void> {
+  _ReadsOf(this.element, this.found);
+  final Element element;
+  final void Function(SimpleIdentifier read) found;
+
+  @override
+  void visitSimpleIdentifier(SimpleIdentifier node) {
+    if (node.element == element && !node.inDeclarationContext()) found(node);
+  }
 }
