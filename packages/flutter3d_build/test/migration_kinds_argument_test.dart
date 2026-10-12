@@ -1,7 +1,10 @@
 // The `argument` kind: an argument whose parameter changed its name, its
 // type or its unit, rewritten where it is passed and where it is assigned:
 // `Lamp(glow: Vector4(…))` to `Lamp(glow: LinearColor.fromSrgb(…))`,
-// `beamDegrees: 45` to `beam: 45 * pi / 180`.
+// `beamDegrees: 45` to `beam: 45 * pi / 180`, and a colour made a vector
+// only to be passed on, `c.toVector3()`, to the colour itself; and a colour
+// the engine hands out passed or kept where the project's own code takes a
+// vector, `shine(lamp.glow)`, converted to one.
 import 'package:flutter3d_build/src/migrate/guide.dart';
 import 'package:flutter3d_build/src/migrate/lints_table.dart';
 import 'package:test/test.dart';
@@ -33,8 +36,9 @@ void main() {
     );
   });
 
-  test('literal, named and cascaded values are rewritten; a value of '
-      'another shape and a read of the old type keep a TODO', () async {
+  test('literal, named, cascaded and coalesced values are rewritten, and '
+      'a component read through its new name; a value of another shape '
+      'keeps a TODO', () async {
     final report = await migrateKindFixture('argument');
     expect(appliedOf(report), <String>[
       'kinds-Lamp-glow',
@@ -43,10 +47,12 @@ void main() {
       'kinds-Lamp-beamDegrees',
       'kinds-Lamp-glow',
       'kinds-Lamp-tinted',
+      'kinds-Lamp-glow',
+      'kinds-Lamp-glow',
+      'kinds-Lamp-tinted',
+      'kinds-LinearColor-as-vector',
+      'kinds-LinearColor-as-vector',
     ]);
-    expect(manualOf(report), <String>[
-      'kinds-Lamp-glow:13',
-      'kinds-Lamp-glow:14',
-    ]);
+    expect(manualOf(report), <String>['kinds-Lamp-glow:13']);
   });
 }

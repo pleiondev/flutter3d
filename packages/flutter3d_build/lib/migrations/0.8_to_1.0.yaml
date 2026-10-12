@@ -29,7 +29,15 @@
 #                     positional argument n that became named (also
 #                     flutter3d_lints, which writes `name: ` before it)
 #   rewrite          `template:` with `{target}` for the receiver, flutter3d_lints
-#                     `imports:` the libraries it names
+#                     `{0}`, `{1}`… for a call's arguments,
+#                     `{arguments}` for all of them as written and
+#                     `{typeArguments}` for its type arguments;
+#                     `imports:` the libraries it names. A symbol
+#                     with no member is a top-level function; `on:`
+#                     the type a gone extension's member was on;
+#                     `static: true` for a static that is an
+#                     instance's member now, rewritten only where
+#                     it is named through the class
 #   implementsToWith  a type that became a `base mixin class`:      flutter3d_lints
 #                     `implements X` becomes `with X` on a base class
 #   regroup           named arguments that moved into an options    flutter3d_lints
@@ -51,16 +59,22 @@
 #                     with `{value}` for the old one and
 #                     `{components}` for a vector's; `types:` the
 #                     old types it rewrites, `on:` the class's 1.0
-#                     name where it was renamed. A value it cannot
+#                     name where it was renamed, `reads:` a map from
+#                     a member of the old type read off the field to
+#                     the new one's (`{x: r}`). A value it cannot
 #                     write once, and a read used as the old type,
 #                     keep the TODO
 #   internal          a name public at `from` that is the owning    flutter3d_lints
 #                     package's own now, with nothing to replace it;
 #                     optional `instead:`. One diagnostic per import
-#                     of the package, one line per package in the
-#                     guide. It names a top-level name or a library.
+#                     of the package naming every such name the file
+#                     uses, a TODO at each use, one line per package
+#                     in the guide. It names a top-level name or a
+#                     library (with the names it took, `members:`).
 #   manual            `guidance:` — the diagnostic and the TODO     flutter3d_lints
-#                     `migrate` leaves at each use. Their count is
+#                     `migrate` leaves at each use (for a library
+#                     gone whole, at its import and at each use of
+#                     the names `members:` lists). Their count is
 #                     held to a ceiling (`manualCeiling` in
 #                     `tool/structure/migration.dart`): prefer a kind
 #                     above, or allowlist the entry with a reason
@@ -2848,6 +2862,7 @@ entries:
     package: flutter3d_audio
     symbol: package:flutter3d_audio/testing.dart
     kind: manual
+    members: [soundTableIn]
     wave: 3
     guidance: >-
       `soundTableIn` was this repository's check of its demo games' sound
@@ -3143,6 +3158,7 @@ entries:
     package: flutter3d_game_shooter
     symbol: package:flutter3d_game_shooter/sample.dart
     kind: manual
+    members: [Monsters, SampleEntities, Staged, Weapons, agentStartingInventory, sampleArsenal, sampleGifts, sampleLightKinds, sampleRegistry, sampleRules, stage]
     wave: 3
     guidance: >-
       The shipped game's roster (`Monsters`, `Weapons`, `sampleGifts`,
@@ -3159,6 +3175,7 @@ entries:
     package: flutter3d_game_shooter
     symbol: package:flutter3d_game_shooter/staging.dart
     kind: manual
+    members: [ShooterHeadlessGame, Staged, stage, startingInventory]
     wave: 3
     guidance: >-
       `stage()`, `Staged`, `startingInventory` and `ShooterHeadlessGame`
@@ -3330,13 +3347,15 @@ entries:
 
   - id: game-Playing
     package: flutter3d_game
-    symbol: Playing
-    kind: manual
+    symbol: Playing.touch
+    kind: rewrite
+    static: true
+    template: 'Playing.ofPlatform().touch'
     wave: 3
     guidance: >-
-      `Playing` is an object: make one with `Playing.ofPlatform()` where the
-      game starts and read `touch`, `capturesPointer` and `dragLook` from it
-      where the static getters were read. A test constructs
+      `Playing` is an object: `Playing.ofPlatform()` reads the platform the
+      static getters read, so `Playing.touch` is `Playing.ofPlatform().touch`.
+      A game makes one where it starts and passes it on; a test constructs
       `Playing(touch: …, capturesPointer: …)` instead of overriding the
       platform.
 
@@ -3354,6 +3373,8 @@ entries:
     package: flutter3d_game
     symbol: SettingsFile
     kind: manual
+    members: [read, write, clear]
+    async: true
     wave: 3
     guidance: >-
       `read`, `write` and `clear` are asynchronous, because `Storage` is.
@@ -3366,6 +3387,8 @@ entries:
     package: flutter3d_game
     symbol: SaveFile
     kind: manual
+    members: [read, write, clear]
+    async: true
     wave: 3
     guidance: >-
       `read`, `readRecord`, `write`, `writeRecord` and `clear` are
@@ -3376,6 +3399,8 @@ entries:
     package: flutter3d_game
     symbol: DemoFile
     kind: manual
+    members: [read, write, clear]
+    async: true
     wave: 3
     guidance: >-
       `read`, `write` and `clear` are asynchronous, because `Storage` is:
@@ -4031,6 +4056,7 @@ entries:
     package: flutter3d
     symbol: package:flutter3d/parity_scene.dart
     kind: internal
+    members: [ParityScene, buildParityScene, kParityGrid, kParityHeight, kParityWidth, parityGrid, paritySettingsFor]
     wave: 3
     instead: >-
       A backend's own tests import it from
@@ -4583,6 +4609,7 @@ entries:
     package: flutter3d_core
     symbol: package:flutter3d_core/parity_scene.dart
     kind: internal
+    members: [ParityScene, buildParityScene, kParityGrid, kParityHeight, kParityWidth, parityGrid, paritySettingsFor]
     wave: 3
     instead: >-
       A backend's own tests import it from
@@ -10047,6 +10074,7 @@ entries:
     arguments: [zenith, horizon, nadir, sunColor, tint]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 3
     guidance: >-
@@ -10515,11 +10543,14 @@ entries:
   - id: 4a-core-impostorCard
     package: flutter3d_core
     symbol: impostorCard
-    kind: none
+    kind: parameters
     wave: 4
-    reason: >-
-      Only a type its declaration names was renamed; that rename's own fix
-      carries every use.
+    changes:
+      - rename: centre
+        to: center
+    guidance: >-
+      American spelling in identifiers: `impostorCard(centre:)` is
+      `impostorCard(center:)`, the same point.
 
   # mergeSplats changed: SplatCloud mergeSplats(List<SplatCloud> parts, {required Vector3 centre, required double half, required int grid}) -> SplatCloud mergeSplat…
   - id: 4a-core-mergeSplats
@@ -12549,8 +12580,11 @@ entries:
   - id: 4a-particles-ConeEmitter-halfAngle
     package: flutter3d_particles
     symbol: ConeEmitter
-    kind: manual
-    members: [halfAngleDegrees]
+    kind: argument
+    arguments: [halfAngleDegrees]
+    to: halfAngle
+    template: '{value} * pi / 180'
+    imports: ['dart:math show pi']
     wave: 4
     guidance: >-
       `halfAngleDegrees` is `halfAngle`, in radians, as every angle in the
@@ -13167,13 +13201,13 @@ entries:
   - id: 4a-game-Playing-dragLook
     package: flutter3d_game
     symbol: Playing.dragLook
-    kind: rename
-    to: usesDragLook
+    kind: rewrite
+    static: true
+    template: 'Playing.ofPlatform().usesDragLook'
     wave: 4
     guidance: >-
-      A boolean getter reads as a question in 1.0: it starts with is, has,
-      can, uses, supports, did or was, as Effective Dart asks. The value is
-      the same under the new name.
+      `Playing` is an object, and a boolean getter reads as a question in
+      1.0: `Playing.dragLook` is `Playing.ofPlatform().usesDragLook`.
 
   - id: 4a-game_racing-VehicleController-grounded
     package: flutter3d_game_racing
@@ -13958,8 +13992,10 @@ entries:
 
   - id: sim-StepEvents
     package: flutter3d_sim
-    symbol: StepEvents
-    kind: manual
+    symbol: StepEvents.has
+    kind: rewrite
+    on: List
+    template: '{target}.whereType<{typeArguments}>().isNotEmpty'
     wave: 4
     guidance: >-
       `has` and `count` on a drained list are gone with the buffer. Before:
@@ -16635,6 +16671,7 @@ entries:
     arguments: [emissive]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `RenderMaterial.emissive` is a linear `LinearColor`, assigned whole:
@@ -16675,6 +16712,7 @@ entries:
     arguments: [specularColor, sheenColor, attenuationColor]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `specularColor`, `sheenColor` and `attenuationColor` are linear
@@ -16688,6 +16726,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `ModelLight.color` is a linear `LinearColor`; `Vector3(r, g, b)` is
@@ -16700,6 +16739,7 @@ entries:
     arguments: [tint]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `MeshNode.tint` is a `LinearColor` assigned whole:
@@ -16740,6 +16780,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       The colours of `FogSettings`, `LightShaftSettings`,
@@ -16755,6 +16796,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `color` is a linear `LinearColor`; see `f2-core-settings-colours`.
@@ -16766,6 +16808,7 @@ entries:
     arguments: [color, ambient]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `color` and `ambient` are linear `LinearColor`s; see
@@ -16778,6 +16821,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `color` is a linear `LinearColor`; see `f2-core-settings-colours`.
@@ -16804,6 +16848,7 @@ entries:
     arguments: [tint]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `tint` is a linear `LinearColor`, settable now:
@@ -16816,6 +16861,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `LineStripNode(color:)` and `color` are a linear `LinearColor`.
@@ -16827,6 +16873,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       An instance's colour is a linear `LinearColor`:
@@ -16841,6 +16888,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       Takes a linear `LinearColor`; `vector.toLinearColor()` converts.
@@ -16852,6 +16900,7 @@ entries:
     arguments: [zenith, horizon, nadir, sunColor, color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `SkyGradient`'s stops and `sunColor` are linear `LinearColor`s, and the
@@ -16872,6 +16921,7 @@ entries:
     arguments: [sky]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `gather(..., sky:)` and `gatherProbe(..., sky:)` take a linear
@@ -16885,6 +16935,7 @@ entries:
     arguments: [sky]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `sky:` is a linear `LinearColor`; see `f2-core-gather-sky`.
@@ -16979,6 +17030,7 @@ entries:
     arguments: [tint]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `tint` is a linear `LinearColor`: `Vector3(r, g, b)` is
@@ -16991,6 +17043,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `color` is a linear `LinearColor`: `Vector3(r, g, b)` is
@@ -17065,6 +17118,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `ModelLight(color:)` and `ModelLight.color` are a `LinearColor`, in
@@ -17191,6 +17245,7 @@ entries:
     arguments: [tint]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
@@ -17207,6 +17262,7 @@ entries:
     arguments: [tint]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
@@ -17220,6 +17276,7 @@ entries:
     arguments: [tint, color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
@@ -17234,6 +17291,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
@@ -17248,6 +17306,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
@@ -17261,6 +17320,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
@@ -17315,8 +17375,11 @@ entries:
   - id: rc-core-MeshOverlay-colours
     package: flutter3d_core
     symbol: MeshOverlay
-    kind: manual
-    members: [edge, point, ribbon, wash, asDrawn]
+    kind: argument
+    arguments: [color]
+    types: [Vector4]
+    template: 'LinearColor.fromSrgb({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
       `edge`, `point`, `ribbon` and `wash` take a linear `LinearColor` and
@@ -17332,6 +17395,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
@@ -17345,6 +17409,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
@@ -17359,6 +17424,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
@@ -17384,6 +17450,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
@@ -17393,12 +17460,15 @@ entries:
   - id: rc-core-linearFromSrgb
     package: flutter3d_core
     symbol: linearFromSrgb
-    kind: manual
+    kind: rewrite
+    template: 'LinearColor.fromSrgb({arguments}).toVector4()'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
       `linearFromSrgb(r, g, b, a)` is `LinearColor.fromSrgb(r, g, b, a)`, the
       same decoded numbers in the engine's one colour type, which every
-      vertex-colour call now takes.
+      vertex-colour call now takes; `.toVector4()` of it is the vector the
+      function returned, for code of your own that keeps one.
 
   - id: rc-core-SolidColorTexture
     package: flutter3d_core
@@ -17425,6 +17495,7 @@ entries:
     arguments: [lift, gamma, gain]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
@@ -17440,6 +17511,7 @@ entries:
     arguments: [lift, gain]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
@@ -17479,6 +17551,7 @@ entries:
     types: [Vector3, Vector4]
     to: color
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
@@ -18530,6 +18603,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 2
     guidance: >-
@@ -18546,6 +18620,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 2
     guidance: >-
@@ -18560,6 +18635,7 @@ entries:
     arguments: [color, from, to]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 2
     guidance: >-
@@ -18574,6 +18650,7 @@ entries:
     arguments: [_from, _to]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 2
     guidance: >-
@@ -18810,9 +18887,12 @@ entries:
   - id: sim-LevelLight-color
     package: flutter3d_sim
     symbol: LevelLight.color
-    kind: rewrite
-    template: 'Vector3({target}.color.r, {target}.color.g, {target}.color.b)'
-    imports: [package:vector_math/vector_math.dart]
+    kind: argument
+    arguments: [color]
+    types: [Vector3]
+    template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b}
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 2
     guidance: >-
       A level light's colour is a `LinearColor` in linear light, as it always
@@ -18834,9 +18914,12 @@ entries:
   - id: sim-Level-fogColor
     package: flutter3d_sim
     symbol: Level.fogColor
-    kind: rewrite
-    template: 'Vector3({target}.fogColor.r, {target}.fogColor.g, {target}.fogColor.b)'
-    imports: [package:vector_math/vector_math.dart]
+    kind: argument
+    arguments: [fogColor]
+    types: [Vector3]
+    template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b}
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 2
     guidance: >-
       A level's fog colour is a `LinearColor`; read `.r`, `.g`, `.b` where you
@@ -18969,6 +19052,7 @@ entries:
     arguments: [sunColor, zenith, horizon, belowHorizon]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 2
     guidance: >-
@@ -20277,9 +20361,12 @@ entries:
 
   - id: 2s-game-PadPresses-menuButton
     package: flutter3d_game
-    symbol: PadPresses
-    kind: manual
-    members: [offer]
+    symbol: PadPresses.offer
+    kind: argument
+    arguments: [menuButton]
+    types: [PadButton]
+    template: 'GamePadButton({value}.id)'
+    imports: [package:flutter3d_game/flutter3d_game.dart]
     wave: 2
     guidance: >-
       `menuButton:` takes a `GamePadButton`, the game's own: write
@@ -20558,6 +20645,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `color` is a linear `LinearColor`, assigned whole: `color: Vector3(r, g,
@@ -20571,6 +20659,7 @@ entries:
     arguments: [emissive]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `emissive` is a linear `LinearColor`: `Vector3(r, g, b)` is
@@ -20583,6 +20672,7 @@ entries:
     arguments: [emissive]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `emissive` is a linear `LinearColor`, assigned whole: `Vector3(r, g, b)`
@@ -20595,6 +20685,7 @@ entries:
     arguments: [emissive]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `emissive` is a linear `LinearColor`: `Vector3(r, g, b)` is
@@ -21508,6 +21599,7 @@ entries:
     arguments: [color]
     types: [Vector3]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       A project light's `color` is a `LinearColor`, as `LightNode.color`
@@ -21522,6 +21614,7 @@ entries:
     arguments: [value]
     types: [Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       A colour node's `value` is a `LinearColor`, linear RGBA as before:
@@ -21535,6 +21628,7 @@ entries:
     arguments: [colorA, colorB]
     types: [Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       A checker's `colorA` and `colorB` are `LinearColor`s, black and white
@@ -21549,6 +21643,7 @@ entries:
     arguments: [emission, ambient]
     types: [Vector3]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       A six-way material's `emission` and `ambient` are `LinearColor`s,
@@ -21774,3 +21869,363 @@ entries:
       Only a type it names moved or was renamed (one severity, one kind of
       light, one pose, a ghost's frame); that type's own entry carries the
       fix, and a call needs none.
+
+  - id: corpus-game-Playing-capturesPointer
+    package: flutter3d_game
+    symbol: Playing.capturesPointer
+    kind: rewrite
+    static: true
+    template: 'Playing.ofPlatform().capturesPointer'
+    guidance: >-
+      `Playing` is an object: `Playing.capturesPointer` is
+      `Playing.ofPlatform().capturesPointer`.
+
+  - id: corpus-sim-StepEvents-count
+    package: flutter3d_sim
+    symbol: StepEvents.count
+    kind: rewrite
+    on: List
+    template: '{target}.whereType<{typeArguments}>().length'
+    guidance: >-
+      `count` on a list of events is gone with the drained buffer:
+      `events.count<CollectibleTaken>()` is
+      `events.whereType<CollectibleTaken>().length`.
+
+  - id: corpus-game-SettingsCubit-state
+    package: flutter3d_game
+    symbol: SettingsCubit.state
+    kind: rewrite
+    template: '{target}.value'
+    guidance: >-
+      `GameSettingsController` is a `ValueListenable`: its `value` is what a
+      cubit's `state` was.
+
+  - id: corpus-game-SettingsCubit-close
+    package: flutter3d_game
+    symbol: SettingsCubit.close
+    kind: rewrite
+    template: 'Future<void>.sync({target}.dispose)'
+    guidance: >-
+      `GameSettingsController` is a `ChangeNotifier`: `dispose()` is what a
+      cubit's `close()` was, and it answers nothing to await.
+
+  - id: corpus-game-PadInput-addDefaultsTo
+    package: flutter3d_game
+    symbol: PadInput.addDefaultsTo
+    kind: rewrite
+    types: [Bindings]
+    template: 'PadInput.addDefaultsTo(ActionMap(actions: ActionSet.common, buttons: {0})).buttons'
+    imports:
+      - package:flutter3d_game/flutter3d_game.dart
+      - package:flutter3d_sim/flutter3d_sim.dart show ActionSet
+    guidance: >-
+      `PadInput.addDefaultsTo` adds the pad's defaults to an `ActionMap`: an
+      old table goes in as its buttons, and the buttons are the table it
+      returned.
+
+  - id: corpus-foundation-LinearColor-x
+    package: flutter3d_foundation
+    symbol: LinearColor.x
+    kind: rewrite
+    on: LinearColor
+    template: '{target}.r'
+    guidance: >-
+      A colour the engine hands out is a `LinearColor` where it was a vector:
+      `.x` of it is `.r`.
+
+  - id: corpus-foundation-LinearColor-y
+    package: flutter3d_foundation
+    symbol: LinearColor.y
+    kind: rewrite
+    on: LinearColor
+    template: '{target}.g'
+    guidance: >-
+      A colour the engine hands out is a `LinearColor` where it was a vector:
+      `.y` of it is `.g`.
+
+  - id: corpus-foundation-LinearColor-z
+    package: flutter3d_foundation
+    symbol: LinearColor.z
+    kind: rewrite
+    on: LinearColor
+    template: '{target}.b'
+    guidance: >-
+      A colour the engine hands out is a `LinearColor` where it was a vector:
+      `.z` of it is `.b`.
+
+  - id: corpus-foundation-LinearColor-w
+    package: flutter3d_foundation
+    symbol: LinearColor.w
+    kind: rewrite
+    on: LinearColor
+    template: '{target}.a'
+    guidance: >-
+      A colour the engine hands out is a `LinearColor` where it was a vector:
+      `.w` of it is `.a`.
+
+  - id: corpus-foundation-LinearColor-vector
+    package: flutter3d_foundation
+    symbol: LinearColor
+    kind: manual
+    on: LinearColor
+    members: [scale, '-', '+', '*']
+    guidance: >-
+      A colour the engine hands out is a `LinearColor`, a value, where it was
+      a vector: `color.scale(f)` changed it in place and is `holder.color =
+      color.scaled(f)` on whatever held it; vector arithmetic on two colours
+      is on `toVector3()` or `toVector4()` of each, or on their channels.
+
+  - id: corpus-app-Storage-calls
+    package: flutter3d_app
+    symbol: Storage
+    kind: manual
+    members: [read, write, remove]
+    async: true
+    guidance: >-
+      `read`, `write` and `remove` are asynchronous: await them, inside an
+      `async` function. A write the platform refused throws a
+      `StorageException` where it answered `false`.
+
+  - id: corpus-testing-FramePacing-millis
+    package: flutter3d_testing
+    symbol: FramePacing.millis
+    kind: rewrite
+    template: '{target}.seconds.map((double s) => s * 1000).toList()'
+    guidance: >-
+      A pacing report keeps seconds, as every time in the engine is:
+      `millis` is `seconds` times a thousand.
+
+  - id: corpus-testing-FramePacing-limitMillis
+    package: flutter3d_testing
+    symbol: FramePacing.limitMillis
+    kind: rewrite
+    template: '({target}.limit * 1000)'
+    guidance: >-
+      A pacing report keeps seconds: `limitMillis` is `limit` times a
+      thousand.
+
+  - id: corpus-testing-FramePacing-even
+    package: flutter3d_testing
+    symbol: FramePacing.even
+    kind: rename
+    to: isEven
+    guidance: >-
+      A boolean getter reads as a question in 1.0: `even` is `isEven`.
+
+  - id: corpus-testing-FramePacing-seconds
+    package: flutter3d_testing
+    symbol: FramePacing
+    kind: manual
+    members: [p50, p99, max, of]
+    guidance: >-
+      A pacing report keeps seconds where it kept milliseconds: `p50`, `p99`
+      and `max` are seconds, and `PacingReport.of(seconds, limit: 0.05)`
+      takes seconds where `FramePacing.of(millis, limitMillis: 50)` took
+      milliseconds.
+
+  - id: corpus-foundation-LinearColor-as-vector
+    package: flutter3d_foundation
+    symbol: LinearColor
+    kind: rewrite
+    on: LinearColor
+    types: [Vector3, Vector4]
+    template: '{target}.to{type}()'
+    guidance: >-
+      A colour the engine hands out is a `LinearColor` where it was a
+      vector: where code of your own still takes the vector, `toVector3()`
+      or `toVector4()` gives it, with the same linear numbers.
+
+  - id: corpus-webgl-WebGlDevice-open
+    package: flutter3d_webgl
+    symbol: WebGlDevice
+    kind: manual
+    members: [open]
+    async: true
+    guidance: >-
+      `WebGlDevice.open` is asynchronous, as every backend's `open` is: await
+      it, inside an `async` function, and hand on a `Future<GraphicsDevice>`
+      where a device was returned.
+
+  - id: corpus-core-MeshOverlay-asDrawn
+    package: flutter3d_core
+    symbol: MeshOverlay.asDrawn
+    kind: rewrite
+    template: 'LinearColor.fromSrgb({0}.x, {0}.y, {0}.z, {0}.w).toVector4()'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
+    guidance: >-
+      `MeshOverlay.asDrawn(v)` is gone with the vector colours: the overlay
+      takes `LinearColor.fromSrgb(v.x, v.y, v.z, v.w)`.
+
+  - id: corpus-editor_widgets-NumberUnit-metres
+    package: flutter3d_editor_widgets
+    symbol: NumberUnit.metres
+    kind: rewrite
+    template: 'NumberUnit.meters'
+    guidance: >-
+      Public names are spelled the American way: `NumberUnit.metres` is
+      `NumberUnit.meters`, the same unit.
+
+  - id: corpus-model_core-ModelCredit-licence
+    package: flutter3d_model_core
+    symbol: ModelCredit.licence
+    kind: rename
+    to: license
+    guidance: >-
+      Public names are spelled the American way: a credit's `licence` field
+      is `license`, read and built alike.
+
+  - id: corpus-hardware-PassEncoder-setDepthWrite
+    package: flutter3d_hardware
+    symbol: PassEncoder.setDepthWrite
+    kind: parameters
+    changes:
+      - toNamed: enabled
+        index: 0
+    guidance: >-
+      No positional `bool` in 1.0: `setDepthWrite(false)` is
+      `setDepthWrite(enabled: false)`.
+
+  - id: corpus-stereo-HeadPose-constructor
+    package: flutter3d_stereo
+    symbol: HeadPose.HeadPose
+    kind: parameters
+    changes:
+      - rename: rotation
+        to: orientation
+    guidance: >-
+      A pose's turn is `orientation`, as `RigidPose` names it:
+      `HeadPose(rotation: q, position: p)` is
+      `RigidPose(orientation: q, position: p)`.
+
+  - id: corpus-core-buildPolyline-names
+    package: flutter3d_core
+    symbol: buildPolyline
+    kind: parameters
+    changes:
+      - rename: colours
+        to: colors
+      - rename: colour
+        to: color
+    guidance: >-
+      Public names are spelled the American way and say what they hold:
+      `colours:` is `colors:`, `colour:` is `color:`, the same values.
+
+  - id: corpus-core-mergeSplats-names
+    package: flutter3d_core
+    symbol: mergeSplats
+    kind: parameters
+    changes:
+      - rename: centre
+        to: center
+    guidance: >-
+      Public names are spelled the American way and say what they hold:
+      `centre:` is `center:`, the same values.
+
+  - id: corpus-core-parseSplatPly-names
+    package: flutter3d_core
+    symbol: parseSplatPly
+    kind: parameters
+    changes:
+      - rename: colourSpace
+        to: colorSpace
+    guidance: >-
+      Public names are spelled the American way and say what they hold:
+      `colourSpace:` is `colorSpace:`, the same values.
+
+  - id: corpus-core-parseSplatSpz-names
+    package: flutter3d_core
+    symbol: parseSplatSpz
+    kind: parameters
+    changes:
+      - rename: colourSpace
+        to: colorSpace
+    guidance: >-
+      Public names are spelled the American way and say what they hold:
+      `colourSpace:` is `colorSpace:`, the same values.
+
+  - id: corpus-mesh-projectBrush-names
+    package: flutter3d_mesh
+    symbol: projectBrush
+    kind: parameters
+    changes:
+      - rename: centre
+        to: center
+    guidance: >-
+      Public names are spelled the American way and say what they hold:
+      `centre:` is `center:`, the same values.
+
+  - id: corpus-mesh-simplifyMesh-names
+    package: flutter3d_mesh
+    symbol: simplifyMesh
+    kind: parameters
+    changes:
+      - rename: isCancelled
+        to: isCanceled
+    guidance: >-
+      Public names are spelled the American way and say what they hold:
+      `isCancelled:` is `isCanceled:`, the same values.
+
+  - id: corpus-mesh-simplifyMeshWithAttributes-names
+    package: flutter3d_mesh
+    symbol: simplifyMeshWithAttributes
+    kind: parameters
+    changes:
+      - rename: isCancelled
+        to: isCanceled
+    guidance: >-
+      Public names are spelled the American way and say what they hold:
+      `isCancelled:` is `isCanceled:`, the same values.
+
+  - id: corpus-mesh-simplifyMeshWithAttributesMeasured-names
+    package: flutter3d_mesh
+    symbol: simplifyMeshWithAttributesMeasured
+    kind: parameters
+    changes:
+      - rename: isCancelled
+        to: isCanceled
+    guidance: >-
+      Public names are spelled the American way and say what they hold:
+      `isCancelled:` is `isCanceled:`, the same values.
+
+  - id: corpus-mesh-unwrapMesh-names
+    package: flutter3d_mesh
+    symbol: unwrapMesh
+    kind: parameters
+    changes:
+      - rename: isCancelled
+        to: isCanceled
+    guidance: >-
+      Public names are spelled the American way and say what they hold:
+      `isCancelled:` is `isCanceled:`, the same values.
+
+  - id: corpus-model_core-bakeImpostor-names
+    package: flutter3d_model_core
+    symbol: bakeImpostor
+    kind: parameters
+    changes:
+      - rename: centre
+        to: center
+      - rename: fovYRadians
+        to: fovY
+    guidance: >-
+      Public names are spelled the American way and say what they hold:
+      `centre:` is `center:`, `fovYRadians:` is `fovY:`, the same values.
+
+  - id: corpus-testing-replayPacing-limit
+    package: flutter3d_testing
+    symbol: replayPacing
+    kind: argument
+    arguments: [limitMillis]
+    to: limit
+    template: '{value} / 1000'
+    guidance: >-
+      A pacing report keeps seconds: `limitMillis: 50` is `limit: 50 / 1000`.
+
+  - id: corpus-sim-StepEvents-gone
+    package: flutter3d_sim
+    symbol: StepEvents
+    kind: none
+    reason: >-
+      The extension is gone with the drained buffer; its two members' own
+      entries (`sim-StepEvents`, `corpus-sim-StepEvents-count`) rewrite each
+      call to `whereType`.

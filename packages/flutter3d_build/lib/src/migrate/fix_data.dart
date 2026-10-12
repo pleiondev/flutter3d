@@ -300,7 +300,11 @@ typedef FixDataProblem = (String, String);
         if (e.member == null &&
             !e.symbol.contains(':') &&
             (e.kind == 'rename' ||
-                ((e.kind == 'manual' || e.kind == 'none') &&
+                // A gone function a `rewrite` replaces is the lints' to
+                // carry, wherever it was imported from.
+                ((e.kind == 'manual' ||
+                        e.kind == 'none' ||
+                        e.kind == 'rewrite') &&
                     !librariesNow().any(
                       (SnapshotLibrary l) => l.shows(e.topName),
                     ))))
@@ -343,6 +347,9 @@ typedef FixDataProblem = (String, String);
               orElse: () => '',
             );
             if (line.isEmpty) {
+              // A record typedef's field is no member `dart fix` can name;
+              // the lints rename it, as a read and as a label.
+              if (declared.$1.startsWith('typedef ')) continue;
               problems.add((
                 e.id,
                 '`${e.symbol}` is not in the ${table.from} '

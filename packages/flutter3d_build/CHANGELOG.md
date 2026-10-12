@@ -1,5 +1,25 @@
 ## 1.0.0-rc.1
 
+- **`migrate` carries the whole 0.8.5 corpus.** Every app, every package's
+  example and the site's pages at v0.8.5 migrate with no error left but at
+  a use the migration marked with its TODO (`tool/migrate_corpus.sh`, which
+  `tool/ci.sh` now runs, counts by that rule through `corpus_errors.py`).
+  New in the table: a `rewrite` may name a top-level function
+  (`{arguments}`, `{typeArguments}`), a gone extension's member (`on:`), a
+  static that became an instance's member (`static: true`), the old types
+  of a call's first argument (`types:`), or turn a value the engine hands
+  out into the one a project still takes (`on:` with no member); an
+  `argument` may rename a component read (`reads: {x: r}`) and rewrites a
+  `??` or a `?:`; a `manual` entry may say its members became asynchronous
+  (`async: true`); a gone library, manual or internal, may list the names
+  it took (`members:`). The lints now carry `moved` names, member renames
+  and parameter renames, for the places `dart fix` does not reach, and
+  `migrate` runs their own rewrites once before `dart fix`, so a value of a
+  changed type is not met by an unrelated data-driven rename. Eleven
+  functions whose named parameters were renamed while their entries said
+  nothing changed (`impostorCard(centre:)`, the mesh simplifiers'
+  `isCancelled`, …) have `parameters` entries now.
+
 - **A migration table says which positional argument became named.** A
   `parameters` change `toNamed: <name>` with `index: <n>` is written to
   `fix_data.yaml` as the named parameter added with the argument that was
@@ -33,7 +53,7 @@
   `open(width: 1280, height: 720)` rather than the second one twice; the
   lints run again while a pass rewrote something; and the colour, input
   and renamed-class entries are carried out rather than left as TODOs:
-  308 entries are left by hand, down from 361.
+  306 entries are left by hand, down from 361.
 - **`migrate --data` counts a file of a Flutter-owned format at its only
   version as current**, and names one of `f3d.settings`, `f3d.ghost` or
   `f3d.match` below its version with the version it is at, for the game to

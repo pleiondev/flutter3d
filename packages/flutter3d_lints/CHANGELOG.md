@@ -1,5 +1,22 @@
 ## 1.0.0-rc.1
 
+- **The TODO stands where the error does.** A use further down a statement
+  gets its TODO on the line above it; a gone function or class named as a
+  value, each name of a gone library, each use of a name gone internal,
+  each override of a type whose implementers have something to do, and
+  each argument a changed call lost or now takes in another type, carry
+  one. `--automatic` writes only what needs no person.
+- **More is carried out with the resolved code.** A moved name is imported
+  where a project reached it through its own re-export; a renamed member, a
+  renamed named parameter, a class renamed under an import prefix, in a
+  `show` or `hide`, or from a name the Dart SDK also has (`Match`); an
+  implementer's declaration of a renamed member and its uses; a record built
+  where the class it became goes (a return, a closure, a variable, an
+  argument, a list); a renamed field of a record typedef; a call that
+  became asynchronous, awaited in an `async` body (a test's callback, or a
+  function that returns nothing, made `async` for it); a component read off
+  a `LinearColor` the engine hands out (`.x` is `.r`).
+
 - **A positional argument that became named is named for you.** `migrate`
   writes `settings: ` before the second argument of
   `AdaptiveQuality(table, s)`, and the same for each constructor whose

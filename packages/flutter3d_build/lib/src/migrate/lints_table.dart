@@ -60,6 +60,7 @@ const Set<String> lintsKinds = <String>{
   'manual',
   'rename',
   'parameters',
+  'moved',
 };
 
 /// A `parameters` entry's positional arguments that became named, by their
@@ -70,6 +71,17 @@ Map<String, String> toNamedOf(MigrationEntry e) => <String, String>{
       '$index': name,
 };
 
+/// A `parameters` entry's named parameters that were renamed, old name to
+/// new: what the scan renames where `dart fix` did not reach the call.
+Map<String, String> renamedParametersOf(MigrationEntry e) => <String, String>{
+  for (final c in e.changes)
+    if ((c['rename'], c['to']) case (final String from, final String to))
+      from: to
+    // A removed one maps to nothing: a named argument for it is dropped.
+    else if (c['remove'] case final String gone)
+      gone: '',
+};
+
 /// Whether [e] is one the plugin's table carries: a `rename` only when it
 /// renames a class, which is all the scan does with one, and a `parameters`
 /// entry only for its positional arguments that became named, which
@@ -78,11 +90,29 @@ Map<String, String> toNamedOf(MigrationEntry e) => <String, String>{
 bool _carried(MigrationEntry e) =>
     lintsKinds.contains(e.kind) &&
     (e.kind != 'rename' ||
-        (e.member == null &&
-            !e.symbol.contains(':') &&
-            RegExp(r'^[A-Z]\w*$').hasMatch(e.to ?? '') &&
-            RegExp(r'^[A-Z]').hasMatch(e.topName))) &&
-    (e.kind != 'parameters' || toNamedOf(e).isNotEmpty);
+        (!e.symbol.contains(':') &&
+            RegExp(r'^[A-Z]').hasMatch(e.topName) &&
+            (e.member == null
+                ? RegExp(r'^[A-Z]\w*$').hasMatch(e.to ?? '')
+                : renamedMember(e) != null))) &&
+    (e.kind != 'parameters' ||
+        toNamedOf(e).isNotEmpty ||
+        renamedParametersOf(e).isNotEmpty) &&
+    (e.kind != 'moved' || (e.member == null && !e.symbol.contains(':')));
+
+/// A member `rename`'s new name, where it stays on its class (`to: name`
+/// or `to: Type.name` of its own type); null for one that moved to another
+/// type, which a rename of the name alone does not carry.
+String? renamedMember(MigrationEntry e) {
+  final to = e.to;
+  if (e.member == null || to == null || e.member!.contains('.')) return null;
+  final parts = to.split('.');
+  return switch (parts) {
+    [final name] when RegExp(r'^[a-z_$][\w$]*$').hasMatch(name) => name,
+    [final type, final name] when type == e.topName => name,
+    _ => null,
+  };
+}
 
 /// The anchor of [package]'s one line of `internal` names in the guide.
 String internalAnchor(String package) => 'internal-$package';
@@ -110,7 +140,7 @@ String _message(MigrationEntry e, MigrationTable table) {
           'in with `with` and is `base`, `final` or `sealed` itself.',
     'rewrite' when e.text.isEmpty =>
       '`${e.symbol}` is deprecated in ${table.to}; the fix asks the same '
-          'receiver `${_flat(e.template!).replaceAll('{target}.', '').replaceAll('{target}', 'it').replaceAll('{0}', '…')}` '
+          'receiver `${_flat(e.template!).replaceAll('{target}.', '').replaceAll('{target}', 'it').replaceAll('{0}', '…').replaceAll('{arguments}', '…').replaceAll('{typeArguments}', 'T')}` '
           'instead.',
     'internal' =>
       '`${e.symbol}` was ${e.package}\'s own and is not exported since '
@@ -131,7 +161,15 @@ String _message(MigrationEntry e, MigrationTable table) {
       '${e.arguments.map((String a) => '`$a:`').join(', ')} of `${e.symbol}` '
           '${e.to == null ? 'takes a value of another type' : 'is `${e.to}:`'} '
           'in ${table.to}.',
+    'moved' =>
+      '`${e.topName}` is ${e.name == null ? '' : '`${e.name}`, '}imported '
+          'from `${e.to}` in ${table.to}.',
+    'rename' when e.member != null =>
+      '`${e.symbol}` is `${e.topName}.${renamedMember(e)}` in ${table.to}.',
     'rename' => '`${e.topName}` is `${e.to}` in ${table.to}.',
+    'parameters' when toNamedOf(e).isEmpty =>
+      '${renamedParametersOf(e).entries.map((MapEntry<String, String> r) => r.value.isEmpty ? '`${r.key}:` is gone' : '`${r.key}:` is `${r.value}:`').join(', ')} '
+          'of `${_callable(e)}` in ${table.to}.',
     'parameters' =>
       '${toNamedOf(e).values.map((String a) => '`$a:`').join(', ')} of '
           '`${_callable(e)}` ${toNamedOf(e).length == 1 ? 'is a named argument' : 'are named arguments'} '
@@ -142,14 +180,35 @@ String _message(MigrationEntry e, MigrationTable table) {
 
 /// Every rule of the plugin's table, from [tables], as plain data: the
 /// fields of a `MigrationRule`, without the ones at their default.
-List<Map<String, Object?>> lintsRules(List<MigrationTable> tables) =>
-    <Map<String, Object?>>[
-      for (final table in tables)
-        for (final e in table.entries)
-          if (_carried(e)) _rule(e, table),
-    ];
+List<Map<String, Object?>> lintsRules(List<MigrationTable> tables) {
+  // A class's name at the release migrated to, by its old one.
+  final renamed = <String, String>{
+    for (final table in tables)
+      for (final e in table.entries)
+        if (e.kind == 'rename' &&
+            e.member == null &&
+            !e.symbol.contains(':') &&
+            RegExp(r'^[A-Z]\w*$').hasMatch(e.to ?? ''))
+          e.topName: e.to!
+        // A class moved to another library under a new name.
+        else if (e.kind == 'moved' &&
+            e.member == null &&
+            !e.symbol.contains(':') &&
+            e.name != null)
+          e.topName: e.name!,
+  };
+  return <Map<String, Object?>>[
+    for (final table in tables)
+      for (final e in table.entries)
+        if (_carried(e)) _rule(e, table, renamed),
+  ];
+}
 
-Map<String, Object?> _rule(MigrationEntry e, MigrationTable table) {
+Map<String, Object?> _rule(
+  MigrationEntry e,
+  MigrationTable table,
+  Map<String, String> renamed,
+) {
   final (:match, :switchOver) = e.kind == 'manual'
       ? inferMatch(e)
       : (match: 'uses', switchOver: e.kind == 'enumToClass' ? e.topName : null);
@@ -176,15 +235,27 @@ Map<String, Object?> _rule(MigrationEntry e, MigrationTable table) {
     'member': ?(e.kind == 'parameters' ? _calledMember(e) : e.member),
     if (e.template != null) 'template': _flat(e.template!),
     if (e.imports.isNotEmpty) 'imports': e.imports,
+    if (e.kind == 'moved') 'imports': <String>[e.to!],
+    if (e.kind == 'moved') 'to': ?e.name,
     'switchOver': ?switchOver,
     if (match != 'uses') 'match': match,
     if (members.isNotEmpty) 'members': members,
     'into': ?e.into,
     'options': ?e.options,
     if (e.kind == 'recordToClass') 'fields': e.fieldMap,
-    if (e.kind == 'parameters') 'fields': toNamedOf(e),
+    if (e.kind == 'parameters')
+      'fields': <String, String>{...toNamedOf(e), ...renamedParametersOf(e)},
+    if (e.kind == 'argument' && e.reads.isNotEmpty) 'fields': e.reads,
+    if (e.kind == 'rewrite' || e.kind == 'manual')
+      'receiver': ?(e.fields['on'] as String?),
+    if (e.kind == 'rewrite' && e.fields['static'] == true) 'throughClass': true,
+    if (e.kind == 'manual' && e.fields['async'] == true) 'awaits': true,
+    if (e.kind != 'rename' || e.member != null)
+      'renamedTo': ?renamed[e.topName],
     'exception': ?e.exception,
-    if (e.kind == 'argument' || e.kind == 'rename') 'to': ?e.to,
+    if (e.kind == 'argument' || (e.kind == 'rename' && e.member == null))
+      'to': ?e.to,
+    if (e.kind == 'rename' && e.member != null) 'to': ?renamedMember(e),
     if (e.types.isNotEmpty) 'types': e.types,
     if (e.kind == 'internal' && e.instead != null) 'instead': _flat(e.instead!),
     if (e.kind == 'internal' && isLibrary) 'library': true,

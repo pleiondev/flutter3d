@@ -13,3 +13,16 @@ void dim(Lamp lamp) {
   lamp.glow = warm * 0.5;
   print(lamp.glow.x);
 }
+
+Lamp relit(Lamp? old) => Lamp(glow: old?.glow ?? Vector4(0.5, 0.5, 0.5, 1.0));
+
+Lamp mended() => Lamp.tinted(LinearColor(0.1, 0.2, 0.3).toVector3());
+
+void shine(Vector3 colour) {}
+
+void glowing(Lamp lamp) => shine(lamp.glow);
+
+Vector3 seen(Lamp lamp) {
+  final Vector3 c = lamp.glow;
+  return c;
+}

@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 6f93f20c03dcb983
+# table-stamp: c241b6010737fd91
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -145,15 +145,6 @@ transforms:
     changes:
       - kind: 'rename'
         newName: 'isTraced'
-  - title: 'flutter3d 1.0.0-rc.1: 4a-game-Playing-dragLook'
-    date: 2026-10-08
-    element:
-      uris: ['package:flutter3d_game/flutter3d_game.dart']
-      getter: 'dragLook'
-      inClass: 'Playing'
-    changes:
-      - kind: 'rename'
-        newName: 'usesDragLook'
   - title: 'flutter3d 1.0.0-rc.1: 4a-game-GameConfig'
     date: 2026-10-08
     element:

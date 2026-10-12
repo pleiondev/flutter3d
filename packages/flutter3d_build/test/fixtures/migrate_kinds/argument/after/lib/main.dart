@@ -13,6 +13,18 @@ Lamp cellar() => Lamp.tinted(LinearColor(0.1, 0.2, 0.3));
 void dim(Lamp lamp) {
   // TODO(flutter3d-1.0): `glow` is a `LinearColor` assigned whole: `Vector4(r, g, b, a)` is `LinearColor.fromSrgb(r, g, b, a)`, and `.x` is `.r`. See https://flutter3d.pleion.dev/reference/migrating-to-1.0/#kinds-Lamp-glow
   lamp.glow = warm * 0.5;
-  // TODO(flutter3d-1.0): `glow` is a `LinearColor` assigned whole: `Vector4(r, g, b, a)` is `LinearColor.fromSrgb(r, g, b, a)`, and `.x` is `.r`. See https://flutter3d.pleion.dev/reference/migrating-to-1.0/#kinds-Lamp-glow
-  print(lamp.glow.x);
+  print(lamp.glow.r);
+}
+
+Lamp relit(Lamp? old) => Lamp(glow: old?.glow ?? LinearColor.fromSrgb(0.5, 0.5, 0.5, 1.0));
+
+Lamp mended() => Lamp.tinted(LinearColor(0.1, 0.2, 0.3));
+
+void shine(Vector3 colour) {}
+
+void glowing(Lamp lamp) => shine(lamp.glow.toVector3());
+
+Vector3 seen(Lamp lamp) {
+  final Vector3 c = lamp.glow.toVector3();
+  return c;
 }
