@@ -128,6 +128,17 @@ ShaderHandle _anyStage(GraphicsDevice device) {
   return stage!;
 }
 
+/// The features whose probe binds to a stage, [_anyStage]: a device with no
+/// stages yet cannot be asked about them, and the check says so rather than
+/// blame its feature report.
+const Set<DeviceFeature> _stageBound = <DeviceFeature>{
+  DeviceFeature.renderStageStorage,
+  DeviceFeature.samplerCompare,
+  DeviceFeature.samplerLodClamp,
+  DeviceFeature.samplerBorderColor,
+  DeviceFeature.uniformBytes,
+};
+
 TextureHandle _created(GraphicsDevice device, TextureDescriptor descriptor) {
   final texture = device.createTexture(descriptor);
   require(
@@ -225,6 +236,21 @@ final Map<DeviceFeature, _Probe> _probes = <DeviceFeature, _Probe>{
           depthOrArrayLayers: 3,
           format: TextureFormat.r8g8b8a8UNormInt,
           dimension: TextureDimension.d2Array,
+        ),
+      ),
+    ),
+  ),
+  DeviceFeature.texture1D: (
+    needs: const <DeviceFeature>[DeviceFeature.textureWrites],
+    refusalOnly: false,
+    run: (GraphicsDevice d) async => d.releaseTexture(
+      _created(
+        d,
+        const TextureDescriptor(
+          width: 4,
+          height: 1,
+          format: TextureFormat.r8g8b8a8UNormInt,
+          dimension: TextureDimension.d1,
         ),
       ),
     ),
@@ -558,6 +584,15 @@ final Map<DeviceFeature, _Probe> _probes = <DeviceFeature, _Probe>{
       (CommandEncoder p) => p.setDepthBias(const DepthBias(constant: 1)),
     ),
   ),
+  DeviceFeature.depthBiasClamp: (
+    needs: const <DeviceFeature>[DeviceFeature.depthBias],
+    refusalOnly: false,
+    run: (GraphicsDevice d) async => _inPass(
+      d,
+      (CommandEncoder p) =>
+          p.setDepthBias(const DepthBias(constant: 1, clamp: 0.01)),
+    ),
+  ),
   DeviceFeature.colorWriteMask: (
     needs: const <DeviceFeature>[],
     refusalOnly: false,
@@ -818,9 +853,17 @@ final Map<DeviceFeature, bool Function(GraphicsDevice device)> _tables =
 
 /// Walks every feature: a listed one must work, an unlisted one must refuse
 /// with `UnsupportedCapabilityException`, a reserved one must never be listed.
+///
+/// **Shader-free, as its tier promises.** The few probes that bind to a
+/// stage (`_stageBound`) are skipped on a device whose library has no
+/// `DebugLine` yet; every other feature is still walked, a wrong answer
+/// still fails, and only when everything else is right does the check
+/// decline, naming the features it could not ask about.
 Future<void> checkCapabilitiesAreHonest(GraphicsDevice device) async {
   final features = device.features;
   final wrong = <String>[];
+  final hasStage = device.shaders['DebugLine'] != null;
+  final unasked = <String>[];
   for (final feature in DeviceFeature.values) {
     final has = features.has(feature);
     if (feature.stability == FeatureStability.reserved) {
@@ -838,7 +881,11 @@ Future<void> checkCapabilitiesAreHonest(GraphicsDevice device) async {
       continue;
     }
     final probe = _probes[feature];
-    if (probe == null) continue; // in unprobedFeatures, or a stage-bound one
+    if (probe == null) continue; // in unprobedFeatures
+    if (!hasStage && _stageBound.contains(feature)) {
+      unasked.add(feature.name);
+      continue;
+    }
     final missing = probe.needs.where((DeviceFeature n) => !features.has(n));
     if (has) {
       if (probe.refusalOnly || missing.isNotEmpty) continue;
@@ -877,91 +924,20 @@ Future<void> checkCapabilitiesAreHonest(GraphicsDevice device) async {
     wrong.isEmpty,
     'the capability report is not honest:\n  ${wrong.join('\n  ')}',
   );
+  if (unasked.isNotEmpty) {
+    decline(
+      device,
+      'has no DebugLine stage yet, so ${unasked.join(', ')} could not be '
+      'asked; every other feature answered honestly',
+    );
+  }
 }
 
-/// The pre-1.0 getters answer what the feature set and limits say.
-Future<void> checkLegacyGettersForward(GraphicsDevice device) async {
-  final f = device.features;
-  final pairs = <String, (bool, bool)>{
-    'supportsOffscreenMsaa': (
-      device.features.has(DeviceFeature.offscreenMultisample),
-      f.has(DeviceFeature.offscreenMultisample),
-    ),
-    'supportsBlendColor': (
-      device.features.has(DeviceFeature.blendConstant),
-      f.has(DeviceFeature.blendConstant),
-    ),
-    'supportsMipmaps': (
-      device.features.has(DeviceFeature.manualMipmaps),
-      f.has(DeviceFeature.manualMipmaps),
-    ),
-    'supportsCubeTextures': (
-      device.features.has(DeviceFeature.cubeTextures),
-      f.has(DeviceFeature.cubeTextures),
-    ),
-    'supportsRenderToMip': (
-      device.features.has(DeviceFeature.renderToMipLevel),
-      f.has(DeviceFeature.renderToMipLevel),
-    ),
-    'supportsWireframe': (
-      device.features.has(DeviceFeature.wireframe),
-      f.has(DeviceFeature.wireframe),
-    ),
-    'supportsAlphaToCoverage': (
-      device.features.has(DeviceFeature.alphaToCoverage),
-      f.has(DeviceFeature.alphaToCoverage),
-    ),
-    'supportsStencil': (
-      device.features.has(DeviceFeature.stencil),
-      f.has(DeviceFeature.stencil),
-    ),
-    'supportsGpuTimestamps': (
-      device.features.has(DeviceFeature.gpuTimestamps),
-      f.has(DeviceFeature.gpuTimestamps),
-    ),
-    'supportsCompute': (
-      device.features.has(DeviceFeature.compute),
-      f.has(DeviceFeature.compute),
-    ),
-    'supportsFloat32Filtering': (
-      device.features.has(DeviceFeature.float32Filterable) &&
-          device.features.has(DeviceFeature.float32Renderable),
-      f.has(DeviceFeature.float32Filterable) &&
-          f.has(DeviceFeature.float32Renderable),
-    ),
-    'supportsIndependentBlend': (
-      device.features.has(DeviceFeature.independentBlend),
-      f.has(DeviceFeature.independentBlend),
-    ),
-  };
-  final wrong = <String>[
-    for (final MapEntry(key: name, value: (old, now)) in pairs.entries)
-      if (old != now) '$name answers $old where features say $now',
-    if (device.limits.maxSamplerAnisotropy !=
-        device.limits.maxSamplerAnisotropy)
-      'maxAnisotropy is ${device.limits.maxSamplerAnisotropy}, limits say ${device.limits.maxSamplerAnisotropy}',
-    if (device.limits.maxColorAttachments != device.limits.maxColorAttachments)
-      'maxColorAttachments is ${device.limits.maxColorAttachments}, limits say ${device.limits.maxColorAttachments}',
-    for (final format in TextureFormat.values)
-      if (device.textureFormatSupport(format).sampled !=
-          device.textureFormatSupport(format).sampled)
-        'supportsTextureFormat(${format.name}) disagrees with textureFormatSupport',
-  ];
-  require(
-    wrong.isEmpty,
-    'the pre-1.0 capability getters disagree with features:\n  '
-    '${wrong.join('\n  ')}',
-  );
-}
-
-/// Every backend runs these; neither declines.
+/// Every backend runs these. The honesty check declines only on a device
+/// with no stages yet, for the probes that need one.
 List<ConformanceCheck> get capabilityChecks => <ConformanceCheck>[
   (
     name: 'every capability a device reports is honest',
     run: checkCapabilitiesAreHonest,
-  ),
-  (
-    name: 'the pre-1.0 capability getters agree with features',
-    run: checkLegacyGettersForward,
   ),
 ];

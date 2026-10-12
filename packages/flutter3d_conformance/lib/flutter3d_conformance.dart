@@ -144,8 +144,8 @@ final class ConformanceFailureException extends CapabilityException {
 /// report it as a skip instead, and both print [reason], because the person
 /// running a device harness is usually not the person who wrote the check.
 ///
-/// [decline] builds one, and stamps the backend's own type on the front so the
-/// line says who declined as well as why.
+/// [decline] builds one, and stamps the backend's name (`backendName`) on the
+/// front so the line says who declined as well as why.
 final class ConformanceDeclinedException extends CapabilityException {
   const ConformanceDeclinedException(this.reason);
   final String reason;
@@ -168,7 +168,7 @@ final class ConformanceDeclinedException extends CapabilityException {
 /// false to supportsOffscreenMsaa, and multisamples nothing" — because it is
 /// read on its own, beside a check name, by somebody holding a phone.
 Never decline(GraphicsDevice device, String why) =>
-    throw ConformanceDeclinedException('${device.runtimeType} $why');
+    throw ConformanceDeclinedException('${device.backendName} $why');
 
 /// Fails the check unless [condition].
 ///
