@@ -246,11 +246,13 @@ final Map<DeviceFeature, _Probe> _probes = <DeviceFeature, _Probe>{
     run: (GraphicsDevice d) async => d.releaseTexture(
       _created(
         d,
-        const TextureDescriptor(
+        TextureDescriptor(
           width: 4,
           height: 1,
           format: TextureFormat.r8g8b8a8UNormInt,
           dimension: TextureDimension.d1,
+          // A 1D texture is never an attachment, on WebGPU or anywhere.
+          usage: TextureUsage.sampled | TextureUsage.copyDestination,
         ),
       ),
     ),

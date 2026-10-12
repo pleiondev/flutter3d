@@ -1017,11 +1017,6 @@ TextureHandle webgpuCreateTextureWithDescriptor(
     format: d.format,
     sampleCount: d.sampleCount,
     storageMode: d.storageMode,
-    // A multisampled texture is `texture2D` with a sample count, as every
-    // target `createTexture` makes is.
-    type: d.dimension == TextureDimension.cube
-        ? TextureType.textureCube
-        : TextureType.texture2D,
     dimension: d.dimension,
     // Counted as the descriptor counts them: six for a cube.
     depthOrArrayLayers: layers,

@@ -341,9 +341,6 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
         format: descriptor.format,
         sampleCount: descriptor.sampleCount,
         storageMode: descriptor.storageMode,
-        type: descriptor.dimension == TextureDimension.cube
-            ? TextureType.textureCube
-            : TextureType.texture2D,
         dimension: descriptor.dimension,
         depthOrArrayLayers: descriptor.depthOrArrayLayers,
         mipLevelCount: descriptor.mipLevelCount,
