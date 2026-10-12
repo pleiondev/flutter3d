@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **Render nodes are a capability their export names, not an ABI number
+  set aside.** `wasmRenderAbi` is the lowest ABI they can arrive in, one
+  past `wasmPluginAbiMax`; the release that implements them names the ABI
+  they arrived in, as an import's, so a minor that only adds a simulation
+  import takes the next number without them.
 - **Breaking: a Wasm module's save has one shape, whichever runtime wrote
   it.** `globals` holds each mutable global the module exports by its
   export name, where the interpreter wrote every global as a list and the

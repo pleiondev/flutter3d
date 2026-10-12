@@ -323,7 +323,11 @@ exactly.
 `<pluginId>.<kind>` for a plugin's). `version` is that format's own number,
 not the engine's. `requires` names what a reader has to understand to open
 the document at all, a plugin's component namespace for example, so an older
-reader refuses instead of dropping it. `generator` is who wrote it. YAML
+reader refuses instead of dropping it. A save (`f3d.save`) requires the
+namespace of every plugin whose snapshot part or component it holds, and
+the engine restoring it answers that from the plugins it has installed,
+refusing with their names where one is missing (`Snapshot.requires`).
+`generator` is who wrote it. YAML
 configuration says the same with `format: 1`.
 
 The rules a reader keeps:
@@ -361,12 +365,15 @@ changes:
 - **`f3d.rule`** is the id of the rule document: a condition over probe
   readings in the expression language, with a severity, a message and an
   acknowledgement. No other format may take the id.
-- **Wasm plugin ABI 3** (`wasmRenderAbi`) is the ABI of render nodes: a
-  module written for it exports `f3d_render_node`
-  (`wasmRenderNodeExport`), which records encoder commands against the
-  resources its `.f3dplugin` declares. A host reads ABI 1 to 2 until then
-  and refuses a module that says 3 with the range named; a module of ABI 1
-  or 2 that exports a function of that name is not read for it.
+- **Wasm render nodes** are a capability, detected by their export: a
+  module that exports `f3d_render_node` (`wasmRenderNodeExport`) records
+  encoder commands against the resources its `.f3dplugin` declares. The
+  release that implements them names the ABI they arrived in, as an
+  import's (`wasmImportSince`), and from that ABI on a module exporting the
+  name is read as one; no ABI number is set aside, so a minor that only
+  adds a simulation import takes the next number. `wasmRenderAbi` is the
+  lowest they can arrive in, one past the newest ABI a host runs (2 today);
+  a module of an older ABI that exports the name is not read for it.
 
 ### Tools and the command line
 
@@ -641,3 +648,64 @@ rules hold them over every published API snapshot (`tool/structure/naming.dart`)
 - **Every public number says its unit in its doc**, or that it has none (a
   fraction, a ratio, a count). The rule counts the numbers that do not yet,
   per package, and the count only comes down.
+
+## Plugins
+
+What an outside author's plugin may name, take and rely on, beside the
+units and the files above.
+
+### Namespaces (D23)
+
+- **Every name a plugin registers is `<namespace>.<name>`**, its namespace
+  being its id up to the first dot: a component, an event, a phase, a
+  snapshot part, a field, a subsystem, a quantity, an MCP tool, a render
+  step. Bare names and `f3d.` names are the engine's.
+- **The engine's rights go by list, never by prefix.**
+  `PluginManifest.engineNamespaces` is the packages this repository
+  publishes, and published at 0.8.5; the plugins that still carry an id of
+  0.8's never-published `flutter3d_addon_*` packages are the engine's by
+  that exact id alone (`enginePluginIds`), and no plugin from outside may
+  take one of those namespaces.
+- **The engine's areas are frozen at 1.0.0.** `PluginManifest.reservedAreas`
+  (`light`, `level`, `physics` and the rest) cannot be a plugin's
+  namespace, and the set does not grow in a 1.x minor: an area added later
+  would refuse a plugin already installed under that name. An area a minor
+  brings goes under `f3d.`: an MCP tool `f3d.<area>.<tool>`, an event
+  `f3d.<area>.<name>`, a VM extension `ext.flutter3d.f3d.<area>.…`, or a
+  name with an upper-case letter, which no plugin id can have. The
+  application's own MCP tools are refused an area as their namespace too.
+- **A simulation profile's name is its identity** on every tape and hello,
+  so a plugin's profile is `<namespace>.<name>` and bare names are the
+  engine's: a subsystem a plugin registers under a bare profile the engine
+  does not define, or another namespace's, is refused.
+- **An asset scheme is a plugin's namespace with `-` for `_`**, or that and
+  `-<name>` (`acme-frost-pak`), and never one of
+  `AssetSources.reservedSchemes` (`http`, `https`, `file`, `asset`, `data`,
+  `blob`, `package`, `hub`, `f3d`), a set frozen at 1.0.0.
+
+### The plugin API's number
+
+`PluginApiVersion.current` is what a plugin is refused against when it
+needs a newer minor than the engine provides. Its minor moves in the
+release that adds anything a plugin can call: a member of
+`flutter3d_plugin_api`, `flutter3d_fields` or `flutter3d_plugin_runtime`,
+or of a registry another package hands a plugin (`McpTools`,
+`RendererSteps`, `ModelDecoders`). A structure rule compares those
+snapshots with the last 1.x release and fails while the number has not
+moved. A plugin writes the number it was written against as a literal,
+`PluginApiVersion(1, 0)`, never `current`.
+
+### What a plugin may touch
+
+- A plugin's view of the fields writes only a field that plugin declared,
+  and only while it touches the simulation; anything else comes back read
+  only.
+- A hook an outside author implements, and a callback one writes, takes
+  one context object that can gain members; the exceptions, and the hooks
+  handed one value, are named with their reasons in
+  `tool/structure/repository.dart` (`hookParametersAllowed`,
+  `hookValueParameters`).
+- A Wasm module's saved state has one shape whichever runtime wrote it:
+  memory and the exported mutable globals by name, with what only the
+  interpreter reaches kept apart and out of the digest. A runtime that
+  counts no fuel is refused a simulating module under a bit-exact profile.

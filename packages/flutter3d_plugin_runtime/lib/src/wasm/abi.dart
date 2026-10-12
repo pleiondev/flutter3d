@@ -29,18 +29,24 @@ const int wasmPluginAbiMin = 1;
 /// changed: an ABI-1 module runs under ABI 2 as it did.
 const int wasmPluginAbiMax = 2;
 
-/// **Reserved: the ABI that brings render nodes**, one past
-/// [wasmPluginAbiMax]. A module written for it exports
-/// [wasmRenderNodeExport], which records encoder commands against the
-/// resources its `.f3dplugin` declares. No host runs it yet, so a module
-/// that says this ABI is refused with the range named, like any other
-/// number outside it; the release that implements it moves
-/// [wasmPluginAbiMax] here, and ABI 1 and 2 modules run as before.
-const int wasmRenderAbi = 3;
+/// **The lowest ABI render nodes can arrive in**, one past
+/// [wasmPluginAbiMax]: no ABI a host runs today has them.
+///
+/// **A capability detected by its export, not a number set aside.** A
+/// render node is a module that exports [wasmRenderNodeExport], which
+/// records encoder commands against the resources its `.f3dplugin`
+/// declares. The release that implements it names the ABI it arrived in,
+/// as an import's ([wasmImportSince]), and from that ABI on a module that
+/// exports it is read as one. So the next number is free for whatever
+/// comes first: a minor that only adds a simulation import (a field bridge,
+/// a unit) takes it, and render nodes arrive in the ABI after, without the
+/// one waiting for the other. ABI 1 and 2 modules run as before either
+/// way.
+const int wasmRenderAbi = wasmPluginAbiMax + 1;
 
-/// **Reserved: the export of a render node**, from [wasmRenderAbi] on. A
-/// module of an older ABI that exports a function of this name is not
-/// read for it.
+/// **Reserved: the export of a render node.** A module written for an ABI
+/// before the one render nodes arrive in that exports a function of this
+/// name is not read for it, and runs as any other module.
 const String wasmRenderNodeExport = 'f3d_render_node';
 
 /// Why a module that says it was written for [abi], and imports [imports],

@@ -166,26 +166,39 @@ void main() {
       }
     });
 
-    test('the render ABI is reserved, one past the newest, and refused '
-        'until a release implements it', () {
-      // Mutation: raise `wasmPluginAbiMax` without implementing the render
-      // node, and a module that says ABI 3 loads with no render node read;
-      // or move the reservation, and it no longer follows the range.
+    test('render nodes are a capability their export names, and no ABI '
+        'a host runs has them yet', () {
+      // Mutation: set `wasmRenderAbi` to a number of its own again. A minor
+      // that only adds a simulation import could not take the next ABI
+      // without taking render nodes with it.
       expect(wasmRenderAbi, wasmPluginAbiMax + 1);
       expect(wasmRenderNodeExport, 'f3d_render_node');
-      final module = WasmModule.decode(
+      final beyond = WasmModule.decode(
         (ModuleBuilder()..abi(abi: wasmRenderAbi)).build(),
       );
       expect(
         () => WasmRuntime.interpreter.instantiate(
           WasmInstantiation(
-            module,
+            beyond,
             imports: const _Quiet(),
             limits: const WasmLimits(),
           ),
         ),
         _refused('ABI $wasmRenderAbi and this engine runs ABI'),
       );
+      // A module of a running ABI that exports a function of the name is
+      // not read for it, and runs as any other.
+      final m = ModuleBuilder()..abi(abi: wasmPluginAbiMax);
+      m.export(wasmRenderNodeExport, m.function(0, 0, const <int>[]));
+      WasmRuntime.interpreter
+          .instantiate(
+            WasmInstantiation(
+              WasmModule.decode(m.build()),
+              imports: const _Quiet(),
+              limits: const WasmLimits(),
+            ),
+          )
+          .step(WasmStep());
     });
 
     test('a memory starting above the limit is refused', () {
