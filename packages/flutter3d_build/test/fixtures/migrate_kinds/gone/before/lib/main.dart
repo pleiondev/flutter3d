@@ -19,3 +19,17 @@ int later() {
       oldHelperGone();
   return total + Roster.size;
 }
+
+final class MyShelf implements Shelf {
+  final int held = 2;
+
+  @override
+  int count() => held;
+}
+
+Dial dial() => Dial(
+      level: 2,
+      label: 'gain',
+    );
+
+Match pick(List<Match> all) => all.first;

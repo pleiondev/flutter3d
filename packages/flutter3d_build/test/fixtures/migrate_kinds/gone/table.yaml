@@ -46,3 +46,21 @@ entries:
     members: [Roster]
     guidance: >-
       The roster was one game's; copy it into your own code.
+  - id: kinds-Shelf
+    package: flutter3d_kinds
+    symbol: Shelf
+    kind: manual
+    guidance: >-
+      Only code that implements `Shelf` has anything to do: `count` answers
+      a `Future<int>`.
+  - id: kinds-Dial-constructor
+    package: flutter3d_kinds
+    symbol: Dial.Dial
+    kind: manual
+    guidance: >-
+      `label` is gone: a dial shows its level alone.
+  - id: kinds-Match
+    package: flutter3d_kinds
+    symbol: Match
+    kind: rename
+    to: KindMatch

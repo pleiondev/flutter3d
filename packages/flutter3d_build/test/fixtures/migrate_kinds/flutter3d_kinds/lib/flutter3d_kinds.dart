@@ -129,6 +129,27 @@ final class Mode {
   final bool touch;
 }
 
+// 0.8: `abstract interface class Shelf { int count(); }`, asynchronous
+// since.
+
+abstract base class Shelf {
+  const Shelf();
+  Future<int> count();
+}
+
+// 0.8: `Dial({int level = 0, String label = ''})`; the label is gone.
+
+final class Dial {
+  const Dial({this.level = 0});
+  final int level;
+}
+
+// 0.8: `class Match`, which shadowed `dart:core`'s; `KindMatch` since.
+
+final class KindMatch {
+  const KindMatch();
+}
+
 // ----------------------------------------------------------- parameters
 // 0.8: `Gauge(double reading, [double scale = 1])` and
 // `Sieve([int coarse = 4, int fine = 1])`, optional positional arguments

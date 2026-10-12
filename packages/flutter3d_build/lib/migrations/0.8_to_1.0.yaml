@@ -3157,6 +3157,7 @@ entries:
     package: flutter3d_game_shooter
     symbol: package:flutter3d_game_shooter/sample.dart
     kind: manual
+    members: [Monsters, SampleEntities, Staged, Weapons, agentStartingInventory, sampleArsenal, sampleGifts, sampleLightKinds, sampleRegistry, sampleRules, stage]
     wave: 3
     guidance: >-
       The shipped game's roster (`Monsters`, `Weapons`, `sampleGifts`,
@@ -3173,6 +3174,7 @@ entries:
     package: flutter3d_game_shooter
     symbol: package:flutter3d_game_shooter/staging.dart
     kind: manual
+    members: [ShooterHeadlessGame, Staged, stage, startingInventory]
     wave: 3
     guidance: >-
       `stage()`, `Staged`, `startingInventory` and `ShooterHeadlessGame`
@@ -3344,13 +3346,15 @@ entries:
 
   - id: game-Playing
     package: flutter3d_game
-    symbol: Playing
-    kind: manual
+    symbol: Playing.touch
+    kind: rewrite
+    static: true
+    template: 'Playing.ofPlatform().touch'
     wave: 3
     guidance: >-
-      `Playing` is an object: make one with `Playing.ofPlatform()` where the
-      game starts and read `touch`, `capturesPointer` and `dragLook` from it
-      where the static getters were read. A test constructs
+      `Playing` is an object: `Playing.ofPlatform()` reads the platform the
+      static getters read, so `Playing.touch` is `Playing.ofPlatform().touch`.
+      A game makes one where it starts and passes it on; a test constructs
       `Playing(touch: …, capturesPointer: …)` instead of overriding the
       platform.
 
@@ -10061,6 +10065,7 @@ entries:
     arguments: [zenith, horizon, nadir, sunColor, tint]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 3
     guidance: >-
@@ -12563,8 +12568,11 @@ entries:
   - id: 4a-particles-ConeEmitter-halfAngle
     package: flutter3d_particles
     symbol: ConeEmitter
-    kind: manual
-    members: [halfAngleDegrees]
+    kind: argument
+    arguments: [halfAngleDegrees]
+    to: halfAngle
+    template: '{value} * pi / 180'
+    imports: ['dart:math show pi']
     wave: 4
     guidance: >-
       `halfAngleDegrees` is `halfAngle`, in radians, as every angle in the
@@ -13181,13 +13189,13 @@ entries:
   - id: 4a-game-Playing-dragLook
     package: flutter3d_game
     symbol: Playing.dragLook
-    kind: rename
-    to: usesDragLook
+    kind: rewrite
+    static: true
+    template: 'Playing.ofPlatform().usesDragLook'
     wave: 4
     guidance: >-
-      A boolean getter reads as a question in 1.0: it starts with is, has,
-      can, uses, supports, did or was, as Effective Dart asks. The value is
-      the same under the new name.
+      `Playing` is an object, and a boolean getter reads as a question in
+      1.0: `Playing.dragLook` is `Playing.ofPlatform().usesDragLook`.
 
   - id: 4a-game_racing-VehicleController-grounded
     package: flutter3d_game_racing
@@ -13972,8 +13980,10 @@ entries:
 
   - id: sim-StepEvents
     package: flutter3d_sim
-    symbol: StepEvents
-    kind: manual
+    symbol: StepEvents.has
+    kind: rewrite
+    on: List
+    template: '{target}.whereType<{typeArguments}>().isNotEmpty'
     wave: 4
     guidance: >-
       `has` and `count` on a drained list are gone with the buffer. Before:
@@ -16649,6 +16659,7 @@ entries:
     arguments: [emissive]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `RenderMaterial.emissive` is a linear `LinearColor`, assigned whole:
@@ -16689,6 +16700,7 @@ entries:
     arguments: [specularColor, sheenColor, attenuationColor]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `specularColor`, `sheenColor` and `attenuationColor` are linear
@@ -16702,6 +16714,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `ModelLight.color` is a linear `LinearColor`; `Vector3(r, g, b)` is
@@ -16714,6 +16727,7 @@ entries:
     arguments: [tint]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `MeshNode.tint` is a `LinearColor` assigned whole:
@@ -16754,6 +16768,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       The colours of `FogSettings`, `LightShaftSettings`,
@@ -16769,6 +16784,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `color` is a linear `LinearColor`; see `f2-core-settings-colours`.
@@ -16780,6 +16796,7 @@ entries:
     arguments: [color, ambient]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `color` and `ambient` are linear `LinearColor`s; see
@@ -16792,6 +16809,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `color` is a linear `LinearColor`; see `f2-core-settings-colours`.
@@ -16818,6 +16836,7 @@ entries:
     arguments: [tint]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `tint` is a linear `LinearColor`, settable now:
@@ -16830,6 +16849,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `LineStripNode(color:)` and `color` are a linear `LinearColor`.
@@ -16841,6 +16861,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       An instance's colour is a linear `LinearColor`:
@@ -16855,6 +16876,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       Takes a linear `LinearColor`; `vector.toLinearColor()` converts.
@@ -16866,6 +16888,7 @@ entries:
     arguments: [zenith, horizon, nadir, sunColor, color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `SkyGradient`'s stops and `sunColor` are linear `LinearColor`s, and the
@@ -16886,6 +16909,7 @@ entries:
     arguments: [sky]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `gather(..., sky:)` and `gatherProbe(..., sky:)` take a linear
@@ -16899,6 +16923,7 @@ entries:
     arguments: [sky]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `sky:` is a linear `LinearColor`; see `f2-core-gather-sky`.
@@ -16993,6 +17018,7 @@ entries:
     arguments: [tint]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `tint` is a linear `LinearColor`: `Vector3(r, g, b)` is
@@ -17005,6 +17031,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `color` is a linear `LinearColor`: `Vector3(r, g, b)` is
@@ -17079,6 +17106,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `ModelLight(color:)` and `ModelLight.color` are a `LinearColor`, in
@@ -17205,6 +17233,7 @@ entries:
     arguments: [tint]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
@@ -17221,6 +17250,7 @@ entries:
     arguments: [tint]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
@@ -17234,6 +17264,7 @@ entries:
     arguments: [tint, color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
@@ -17248,6 +17279,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
@@ -17262,6 +17294,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
@@ -17275,6 +17308,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
@@ -17346,6 +17380,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
@@ -17359,6 +17394,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
@@ -17373,6 +17409,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
@@ -17398,6 +17435,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
@@ -17407,7 +17445,9 @@ entries:
   - id: rc-core-linearFromSrgb
     package: flutter3d_core
     symbol: linearFromSrgb
-    kind: manual
+    kind: rewrite
+    template: 'LinearColor.fromSrgb({arguments})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
       `linearFromSrgb(r, g, b, a)` is `LinearColor.fromSrgb(r, g, b, a)`, the
@@ -17439,6 +17479,7 @@ entries:
     arguments: [lift, gamma, gain]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
@@ -17454,6 +17495,7 @@ entries:
     arguments: [lift, gain]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
@@ -17493,6 +17535,7 @@ entries:
     types: [Vector3, Vector4]
     to: color
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
@@ -18544,6 +18587,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 2
     guidance: >-
@@ -18560,6 +18604,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 2
     guidance: >-
@@ -18574,6 +18619,7 @@ entries:
     arguments: [color, from, to]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 2
     guidance: >-
@@ -18588,6 +18634,7 @@ entries:
     arguments: [_from, _to]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 2
     guidance: >-
@@ -18824,9 +18871,12 @@ entries:
   - id: sim-LevelLight-color
     package: flutter3d_sim
     symbol: LevelLight.color
-    kind: rewrite
-    template: 'Vector3({target}.color.r, {target}.color.g, {target}.color.b)'
-    imports: [package:vector_math/vector_math.dart]
+    kind: argument
+    arguments: [color]
+    types: [Vector3]
+    template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b}
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 2
     guidance: >-
       A level light's colour is a `LinearColor` in linear light, as it always
@@ -18848,9 +18898,12 @@ entries:
   - id: sim-Level-fogColor
     package: flutter3d_sim
     symbol: Level.fogColor
-    kind: rewrite
-    template: 'Vector3({target}.fogColor.r, {target}.fogColor.g, {target}.fogColor.b)'
-    imports: [package:vector_math/vector_math.dart]
+    kind: argument
+    arguments: [fogColor]
+    types: [Vector3]
+    template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b}
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 2
     guidance: >-
       A level's fog colour is a `LinearColor`; read `.r`, `.g`, `.b` where you
@@ -18983,6 +19036,7 @@ entries:
     arguments: [sunColor, zenith, horizon, belowHorizon]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 2
     guidance: >-
@@ -20572,6 +20626,7 @@ entries:
     arguments: [color]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `color` is a linear `LinearColor`, assigned whole: `color: Vector3(r, g,
@@ -20585,6 +20640,7 @@ entries:
     arguments: [emissive]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `emissive` is a linear `LinearColor`: `Vector3(r, g, b)` is
@@ -20597,6 +20653,7 @@ entries:
     arguments: [emissive]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `emissive` is a linear `LinearColor`, assigned whole: `Vector3(r, g, b)`
@@ -20609,6 +20666,7 @@ entries:
     arguments: [emissive]
     types: [Vector3, Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `emissive` is a linear `LinearColor`: `Vector3(r, g, b)` is
@@ -21522,6 +21580,7 @@ entries:
     arguments: [color]
     types: [Vector3]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       A project light's `color` is a `LinearColor`, as `LightNode.color`
@@ -21536,6 +21595,7 @@ entries:
     arguments: [value]
     types: [Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       A colour node's `value` is a `LinearColor`, linear RGBA as before:
@@ -21549,6 +21609,7 @@ entries:
     arguments: [colorA, colorB]
     types: [Vector4]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       A checker's `colorA` and `colorB` are `LinearColor`s, black and white
@@ -21563,6 +21624,7 @@ entries:
     arguments: [emission, ambient]
     types: [Vector3]
     template: 'LinearColor({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       A six-way material's `emission` and `ambient` are `LinearColor`s,
@@ -21788,3 +21850,24 @@ entries:
       Only a type it names moved or was renamed (one severity, one kind of
       light, one pose, a ghost's frame); that type's own entry carries the
       fix, and a call needs none.
+
+  - id: corpus-game-Playing-capturesPointer
+    package: flutter3d_game
+    symbol: Playing.capturesPointer
+    kind: rewrite
+    static: true
+    template: 'Playing.ofPlatform().capturesPointer'
+    guidance: >-
+      `Playing` is an object: `Playing.capturesPointer` is
+      `Playing.ofPlatform().capturesPointer`.
+
+  - id: corpus-sim-StepEvents-count
+    package: flutter3d_sim
+    symbol: StepEvents.count
+    kind: rewrite
+    on: List
+    template: '{target}.whereType<{typeArguments}>().length'
+    guidance: >-
+      `count` on a list of events is gone with the drained buffer:
+      `events.count<CollectibleTaken>()` is
+      `events.whereType<CollectibleTaken>().length`.

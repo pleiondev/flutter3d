@@ -686,7 +686,10 @@ final class _Scan extends RecursiveAstVisitor<void> {
                 MigrationMatch.subtypes => inClause,
                 MigrationMatch.switches => false,
               };
-              if (wanted) _add(rule, node);
+              if (wanted) {
+                _add(rule, node);
+                if (inClause) _overridesOf(node, rule);
+              }
             // Only the three above are kept by type; the rest have maps of
             // their own.
             case MigrationKind.rewrite ||
@@ -703,7 +706,29 @@ final class _Scan extends RecursiveAstVisitor<void> {
         }
       }
     }
+    _shadowedRename(node);
     super.visitNamedType(node);
+  }
+
+  /// A TODO at each member of the class [type] is a supertype in that
+  /// overrides one of [type]'s, since the signature it overrides is what
+  /// changed: the analyzer's error stands on that member, not on the clause.
+  void _overridesOf(NamedType type, MigrationRule rule) {
+    final element = type.element;
+    final declaration = type.parent?.parent;
+    if (element is! InterfaceElement || declaration is! ClassDeclaration) {
+      return;
+    }
+    final body = declaration.body;
+    if (body is! BlockClassBody) return;
+    for (final member in body.members.whereType<MethodDeclaration>()) {
+      final name = member.name.lexeme;
+      if (element.getMethod(name) != null ||
+          element.getGetter(name) != null ||
+          element.getSetter(name) != null) {
+        _add(rule, member);
+      }
+    }
   }
 
   void _implementsToWith(
@@ -979,6 +1004,7 @@ final class _Scan extends RecursiveAstVisitor<void> {
         _toNamed(node.argumentList, rule);
       }
     }
+    _manualCreation(node);
     super.visitInstanceCreationExpression(node);
   }
 
@@ -1287,12 +1313,160 @@ final class _Scan extends RecursiveAstVisitor<void> {
           (s.expression is ThrowExpression ||
               s.expression is RethrowExpression));
 
+  // ---------------------------------------------- manual calls, by place
+
+  /// The `manual` rules about the call [list] is the arguments of: its
+  /// class's or function's own, or the member of its class it calls (a
+  /// constructor is the member named as the class, `Type.Type`).
+  List<MigrationRule> _manualRulesOfCall(ArgumentList list) {
+    final (
+      String? type,
+      String? member,
+      Element? element,
+    ) = switch (list.parent) {
+      InstanceCreationExpression(:final constructorName) => (
+        constructorName.type.name.lexeme,
+        constructorName.name?.name ?? constructorName.type.name.lexeme,
+        constructorName.type.element,
+      ),
+      MethodInvocation(:final methodName, :final realTarget) =>
+        switch (methodName.element?.enclosingElement) {
+          final InterfaceElement owner => (owner.name, methodName.name, owner),
+          LibraryElement() => (methodName.name, null, methodName.element),
+          _ => switch (realTarget?.staticType) {
+            final InterfaceType t => (
+              t.element.name,
+              methodName.name,
+              t.element,
+            ),
+            _ => (null, null, null),
+          },
+        },
+      _ => (null, null, null),
+    };
+    if (type == null || element == null) return const <MigrationRule>[];
+    bool manual(MigrationRule r) =>
+        r.kind == MigrationKind.manual &&
+        r.match == MigrationMatch.uses &&
+        r.type == type &&
+        _ownedAs(element, r);
+    return <MigrationRule>[
+      for (final r in byType[type] ?? const <MigrationRule>[])
+        if (manual(r) && r.members.isEmpty) r,
+      if (member != null)
+        for (final r in byMember[member] ?? const <MigrationRule>[])
+          if (manual(r)) r,
+    ];
+  }
+
+  /// A named argument the call no longer has a parameter for, of a call a
+  /// `manual` rule is about: the TODO stands on that argument, where the
+  /// analyzer's error does, and not only above the statement.
+  void _manualArguments(ArgumentList node) {
+    final unmatched = <NamedArgument>[
+      for (final a in node.arguments)
+        if (a is NamedArgument && a.correspondingParameter == null) a,
+    ];
+    if (unmatched.isEmpty) return;
+    final rules = <MigrationRule>[
+      ..._manualRulesOfCall(node),
+      // A rule about the parameter itself, `RunTimeline.stepSim`.
+      for (final a in unmatched)
+        for (final r in byMember[a.name.lexeme] ?? const <MigrationRule>[])
+          if (r.kind == MigrationKind.manual &&
+              _manualRulesOfCallType(node) == r.type)
+            r,
+    ];
+    if (rules.isEmpty) return;
+    for (final a in unmatched) {
+      _add(rules.first, a);
+    }
+  }
+
+  /// The class whose constructor or method [list] is passed to, by name.
+  static String? _manualRulesOfCallType(ArgumentList list) =>
+      switch (list.parent) {
+        InstanceCreationExpression(:final constructorName) =>
+          constructorName.type.name.lexeme,
+        MethodInvocation(:final methodName) =>
+          switch (methodName.element?.enclosingElement) {
+            final InterfaceElement owner => owner.name,
+            _ => null,
+          },
+        _ => null,
+      };
+
+  /// A creation of a class whose constructor a `manual` rule is about
+  /// (`Type.Type`, `Type.named`): the analyzer resolves it, so no use of a
+  /// name stands for it elsewhere.
+  void _manualCreation(InstanceCreationExpression node) {
+    final name = node.constructorName;
+    final type = name.type.name.lexeme;
+    final member = name.name?.name ?? type;
+    for (final r in byMember[member] ?? const <MigrationRule>[]) {
+      if (r.kind == MigrationKind.manual &&
+          r.match == MigrationMatch.uses &&
+          r.type == type &&
+          _ownedAs(name.type.element, r)) {
+        _add(r, name);
+      }
+    }
+  }
+
   // -------------------------------------------------------------- rename
 
   /// A class renamed since the release, named by [name] where the analyzer
   /// finds no type ([at] is the creation's type, or the bare call): the new
   /// name, when exactly one rule's new name is in scope here, or a TODO
   /// naming them.
+  /// A class renamed since the release whose old name is also one of the
+  /// Dart SDK's (`Match`): at the release, the import of the engine's
+  /// library shadowed the SDK's name, so in a file that still imports that
+  /// package without a prefix every bare use meant the engine's class. Now
+  /// the analyzer finds the SDK's, and `dart fix` sees nothing to rename.
+  void _shadowedRename(NamedType node) {
+    final rules = classRenames[node.name.lexeme];
+    final element = node.element;
+    if (rules == null ||
+        node.importPrefix != null ||
+        element == null ||
+        element.library?.uri.scheme != 'dart') {
+      return;
+    }
+    final scope = unit.declaredFragment?.scope;
+    for (final rule in rules) {
+      final to = rule.to;
+      if (to == null || scope?.lookup(to).getter is! InterfaceElement) {
+        continue;
+      }
+      final imported = unit.directives.whereType<ImportDirective>().any(
+        (ImportDirective d) =>
+            d.prefix == null &&
+            (d.uri.stringValue ?? '').startsWith('package:${rule.package}/') &&
+            !d.combinators.any(
+              (Combinator c) =>
+                  (c is HideCombinator &&
+                      c.hiddenNames.any(
+                        (SimpleIdentifier n) => n.name == node.name.lexeme,
+                      )) ||
+                  (c is ShowCombinator &&
+                      !c.shownNames.any(
+                        (SimpleIdentifier n) => n.name == node.name.lexeme,
+                      )),
+            ),
+      );
+      if (!imported) continue;
+      _add(
+        rule,
+        node,
+        edits: <MigrationEdit>[
+          MigrationEdit(node.name.offset, node.name.length, to),
+        ],
+      );
+      return;
+    }
+  }
+
   void _renameClass(Token name, AstNode at) {
     final rules = classRenames[name.lexeme];
     if (rules == null) return;
@@ -1322,6 +1496,7 @@ final class _Scan extends RecursiveAstVisitor<void> {
 
   @override
   void visitArgumentList(ArgumentList node) {
+    _manualArguments(node);
     if (arguments.isNotEmpty) {
       for (final argument in node.arguments) {
         final name = switch (argument) {

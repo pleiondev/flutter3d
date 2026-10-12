@@ -300,7 +300,11 @@ typedef FixDataProblem = (String, String);
         if (e.member == null &&
             !e.symbol.contains(':') &&
             (e.kind == 'rename' ||
-                ((e.kind == 'manual' || e.kind == 'none') &&
+                // A gone function a `rewrite` replaces is the lints' to
+                // carry, wherever it was imported from.
+                ((e.kind == 'manual' ||
+                        e.kind == 'none' ||
+                        e.kind == 'rewrite') &&
                     !librariesNow().any(
                       (SnapshotLibrary l) => l.shows(e.topName),
                     ))))

@@ -22,3 +22,21 @@ int later() {
   // TODO(flutter3d-1.0): The roster was one game's; copy it into your own code. See https://flutter3d.pleion.dev/reference/migrating-to-1.0/#kinds-roster
   return total + Roster.size;
 }
+
+// TODO(flutter3d-1.0): Only code that implements `Shelf` has anything to do: `count` answers a `Future<int>`. See https://flutter3d.pleion.dev/reference/migrating-to-1.0/#kinds-Shelf
+final class MyShelf implements Shelf {
+  final int held = 2;
+
+  // TODO(flutter3d-1.0): Only code that implements `Shelf` has anything to do: `count` answers a `Future<int>`. See https://flutter3d.pleion.dev/reference/migrating-to-1.0/#kinds-Shelf
+  @override
+  int count() => held;
+}
+
+// TODO(flutter3d-1.0): `label` is gone: a dial shows its level alone. See https://flutter3d.pleion.dev/reference/migrating-to-1.0/#kinds-Dial-constructor
+Dial dial() => Dial(
+      level: 2,
+      // TODO(flutter3d-1.0): `label` is gone: a dial shows its level alone. See https://flutter3d.pleion.dev/reference/migrating-to-1.0/#kinds-Dial-constructor
+      label: 'gain',
+    );
+
+KindMatch pick(List<KindMatch> all) => all.first;
