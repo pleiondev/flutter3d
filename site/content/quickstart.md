@@ -24,6 +24,8 @@ This takes about fifteen minutes, from a fresh checkout to a lit mesh turning on
 | Platform | macOS and the browser are supported and exercised. Android is played on a real handset (Impeller Vulkan); iOS runs clean in the simulator on Metal; Windows and Linux go through Impeller and are unverified |
 | Impeller | Required. Flutter GPU refuses to start on Skia |
 
+<p>On Impeller, GPU memory goes back through Dart's garbage collector. <code>flutter_gpu</code> has no call that frees a buffer or a texture, so <code>dispose</code> drops the engine's last reference and the memory returns when the collector finds it, not at the call. On a phone, keep a model you will show again rather than loading it twice. <a href="https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md#flutter-gpu">SUPPORT.md</a> has the detail.</p>
+
 ## Resolve the workspace
 
 The repository is a [pub workspace](https://dart.dev/tools/pub/workspaces): one resolve covers all 61 packages and 17 applications against a single lock file. Without it, packages that depend on each other by path drift apart at the first version bump, and the drift only shows up as an unbuildable checkout on somebody else's machine.

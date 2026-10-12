@@ -4,7 +4,7 @@ An independent implementation of a 3D engine on Flutter GPU, a game engine on
 top of it, and four games of different genres built from both. The games are
 there because building them is the only honest test that the engine is one.
 flutter3d is not a fork, a binding or a wrapper around another engine, and it is
-not affiliated with the Flutter team.
+not affiliated with or endorsed by Google or the Flutter project.
 
 [![CI](https://github.com/pleiondev/flutter3d/actions/workflows/ci.yml/badge.svg)](https://github.com/pleiondev/flutter3d/actions/workflows/ci.yml)
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
@@ -15,10 +15,9 @@ with [`flutter3d_game`](https://pub.dev/packages/flutter3d_game) and a
 backend: it is the one facade, re-exporting the renderer, the view and what a
 first game uses of the simulation, the physics and the audio. A program that
 only draws starts with [`flutter3d`](https://pub.dev/packages/flutter3d).
-Forty-eight of
-them are the 1.0.0 set, one number for all; `flame_multiplayer`,
-`flame_multiplayer_dashwire`, `pad_input` and `pointer_lock` keep numbers of
-their own. It goes out first as a release
+All but
+`pad_input` and `pointer_lock` are the 1.0.0 set, one number for all; those
+two keep numbers of their own. It goes out first as a release
 candidate, `1.0.0-rc.1`, so ask for `^1.0.0-rc.1`: that resolves against
 every other and admits 1.0.0 itself, which follows. Until then pub.dev keeps
 0.8.x as the default, and the candidate is opt-in. From 1.0.0 they follow
@@ -28,9 +27,10 @@ supported. [`flutter3d_plugin_api`](https://pub.dev/packages/flutter3d_plugin_ap
 is on the candidate too, on a line of its own that breaks more rarely still;
 [`pad_input`](https://pub.dev/packages/pad_input) and
 [`pointer_lock`](https://pub.dev/packages/pointer_lock) keep a line of their own
-at 0.5.0, since neither names a sibling, and so do
-[`flame_multiplayer`](https://pub.dev/packages/flame_multiplayer) at 0.2.0 and
-its dashwire adapter at 0.1.1. Coming from 0.6.0, several packages were
+at 0.5.0, since neither names a sibling.
+[`flame_multiplayer`](https://pub.dev/packages/flame_multiplayer) and its
+dashwire adapter joined the engine's number at `1.0.0-rc.1`, because they
+stand on `flutter3d_net`'s 1.0 line. Coming from 0.6.0, several packages were
 folded into others, and [`doc/boundary-0.7.0.md`](doc/boundary-0.7.0.md) lists
 which import lines move. To work on the engine itself, see
 [Running](#running), [CONTRIBUTING.md](CONTRIBUTING.md) and
@@ -260,7 +260,7 @@ binary has not got, and binding a slot a compiled shader does not have takes
 the frame down. The message names nothing that leads back to the file that was
 edited.
 
-So `dart run tool/structure.dart` checks it: one of its 84 rules compares
+So `dart run tool/structure.dart` checks it: one of its 85 rules compares
 the bundle against the sources it was built from and says which of them are
 newer. The rule skips when there is no bundle at all, which is every fresh
 checkout and every CI run. `impellerc` is not there to build one, and a rule
@@ -305,6 +305,8 @@ levels, models and templates are generated rather than edited. All of it is in
 
 MIT. See [LICENSE](LICENSE).
 
-Third-party assets keep their own terms, recorded beside them in `LICENSES.md`
-with author, source, licence and what was changed. Everything shipped today is
-CC0 or generated in this repository.
+Third-party material keeps its own terms. [LICENSES.md](LICENSES.md) lists
+all of it, with author, source and licence, and says which notices an
+application has to carry: the LTC tables (BSD-style) and wgpu-native (MIT or
+Apache-2.0). Most assets are CC0 or generated here; a few models in the test
+samples and two demos are CC BY, credited there.

@@ -2,7 +2,7 @@
 
 **An independent implementation of a real-time 3D engine for Flutter**, written
 in this repository from the geometry layer up. It is not a fork, a binding or a
-wrapper around another engine, and it is not affiliated with the Flutter team.
+wrapper around another engine, and it is not affiliated with Google or the Flutter project.
 
 This document states how the system is put together and why each part has the
 shape it does. It is the single design reference for the repository; READMEs say
@@ -390,7 +390,7 @@ a caller for that cannot supply a Flutter SDK.
 
 ### 3.3 Rules that are scanned, not remembered
 
-`tool/structure.dart` walks `packages/` and `apps/` and enforces 84 rules
+`tool/structure.dart` walks `packages/` and `apps/` and enforces 85 rules
 as the first step of CI. All but two read source text in under a second; the
 two snapshot rules run `tool/api` over every published package (its API, and
 the tools it offers agents — see §16), and CI asks for both again by name once
@@ -3670,7 +3670,7 @@ storage.
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
 | Unit tests | **14565 tests** across 61 packages and 17 applications |
-| Structure rules | 84, `dart run tool/structure.dart`, the first CI step |
+| Structure rules | 85, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
 ### 13.1 The published-enum boundary
