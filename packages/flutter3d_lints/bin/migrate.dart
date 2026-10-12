@@ -42,6 +42,8 @@ Applies the flutter3d 1.0 migrations that need the resolved code.
   --rules=<file>  check against the rules in this JSON file (a list of
                   what flutter3d_build's lintsRules writes) instead of
                   the shipped table: how a test runs a table of its own
+  --automatic     carry out only what a rule writes by itself, and leave
+                  no TODO: the pass `migrate` runs before `dart fix`
 ''';
 
 Future<void> main(List<String> args) async {
@@ -53,6 +55,7 @@ Future<void> main(List<String> args) async {
   }
   final dryRun = args.contains('--dry-run');
   final json = args.contains('--json');
+  final automaticOnly = args.contains('--automatic');
   final rulesFile = args
       .where((String a) => a.startsWith('--rules='))
       .map((String a) => a.substring('--rules='.length))
@@ -98,7 +101,7 @@ Future<void> main(List<String> args) async {
       final result = await context.currentSession.getResolvedUnit(path);
       if (result is! ResolvedUnitResult) continue;
       units[path] = result;
-      _scan(result, work, rules);
+      _scan(result, work, rules, automaticOnly: automaticOnly);
     }
   }
   for (final MapEntry(key: path, value: names) in work.hide.entries) {
@@ -171,7 +174,12 @@ String _libraryPathOf(ResolvedUnitResult unit) =>
 
 /// The first pass over [unit]: its findings, and what its library has to
 /// import or hide for it.
-void _scan(ResolvedUnitResult unit, _Work work, List<MigrationRule> rules) {
+void _scan(
+  ResolvedUnitResult unit,
+  _Work work,
+  List<MigrationRule> rules, {
+  bool automaticOnly = false,
+}) {
   final path = unit.path;
   final source = unit.content;
   final isPart = unit.unit.directives.any(
@@ -197,6 +205,7 @@ void _scan(ResolvedUnitResult unit, _Work work, List<MigrationRule> rules) {
       (work.applied[path] ??= <String>[]).add(f.rule.id);
       continue;
     }
+    if (automaticOnly) continue;
     // An earlier run's TODO stays the one TODO.
     final already = source
         .substring(0, f.todo.offset)
@@ -284,7 +293,11 @@ void _addImports(ResolvedUnitResult unit, Set<String> uris, _Work work) {
       uris.where((String u) => !have.contains(u.split(' ').first)).toList()
         ..sort();
   if (missing.isEmpty) return;
-  final at = directives.isEmpty ? 0 : directives.last.end;
+  // After the last import or export: an import after a `part` is an error.
+  final before = directives.where(
+    (Directive d) => d is! PartDirective && d is! PartOfDirective,
+  );
+  final at = before.isEmpty ? 0 : before.last.end;
   final text = missing
       .map((String u) {
         final space = u.indexOf(' ');
@@ -295,7 +308,7 @@ void _addImports(ResolvedUnitResult unit, Set<String> uris, _Work work) {
       .join('\n');
   work.edit(
     unit.path,
-    MigrationEdit(at, 0, directives.isEmpty ? '$text\n' : '\n$text'),
+    MigrationEdit(at, 0, before.isEmpty ? '$text\n' : '\n$text'),
   );
 }
 

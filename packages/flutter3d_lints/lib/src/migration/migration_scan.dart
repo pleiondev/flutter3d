@@ -679,15 +679,19 @@ final class _Scan extends RecursiveAstVisitor<void> {
         if (d.prefix == null) d.uri.stringValue,
     };
     final directives = unit.directives;
-    final at = directives.isEmpty ? 0 : directives.last.end;
+    // After the last import or export: an import after a `part` is an error.
+    final before = directives.where(
+      (Directive d) => d is! PartDirective && d is! PartOfDirective,
+    );
+    final at = before.isEmpty ? 0 : before.last.end;
     return <MigrationEdit>[
       for (final spec in rule.imports)
         if (!already.contains(spec.split(' ').first))
           MigrationEdit(
             at,
             0,
-            "${directives.isEmpty ? '' : '\n'}${_importDirective(spec)}"
-            "${directives.isEmpty ? '\n' : ''}",
+            "${before.isEmpty ? '' : '\n'}${_importDirective(spec)}"
+            "${before.isEmpty ? '\n' : ''}",
           ),
     ];
   }
@@ -1835,6 +1839,21 @@ final class _Scan extends RecursiveAstVisitor<void> {
   /// and in parentheses where it is an operand. Null where [value] has no
   /// components this can write without evaluating it twice.
   String? _valueText(String template, Expression value) {
+    // A colour turned into a vector only to be passed on as one, where the
+    // template makes it a colour again with the same numbers: the colour.
+    if (template == 'LinearColor({components})' &&
+        value is MethodInvocation &&
+        (value.methodName.name == 'toVector3' ||
+            value.methodName.name == 'toVector4') &&
+        value.argumentList.arguments.isEmpty) {
+      final target = value.realTarget;
+      final type = target?.staticType;
+      if (target != null &&
+          type is InterfaceType &&
+          type.element.name == 'LinearColor') {
+        return _text(target);
+      }
+    }
     final parts = template.contains('{components}') ? _components(value) : '';
     if (parts == null) return null;
     final text = template.replaceAll('{components}', parts);

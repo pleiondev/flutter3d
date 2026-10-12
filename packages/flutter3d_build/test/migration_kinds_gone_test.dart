@@ -44,12 +44,12 @@ void main() {
     ]);
     expect(manualOf(report), <String>[
       'kinds-roster:3',
-      'kinds-oldHelperGone:20',
-      'kinds-roster:21',
-      'kinds-Shelf:24',
-      'kinds-Shelf:27',
-      'kinds-Dial-constructor:33',
+      'kinds-oldHelperGone:22',
+      'kinds-roster:23',
+      'kinds-Shelf:26',
+      'kinds-Shelf:29',
       'kinds-Dial-constructor:35',
+      'kinds-Dial-constructor:37',
     ]);
   });
 }

@@ -2,6 +2,8 @@ import 'package:flutter3d_kinds/flutter3d_kinds.dart';
 import 'package:flutter3d_kinds/flutter3d_kinds.dart' as kinds show Shade;
 import 'package:flutter3d_kinds/roster.dart';
 
+part 'piece.dart';
+
 const Object shade = Shade();
 
 final List<Object> both = <Object>[const Shade(), KindShade()];

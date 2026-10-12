@@ -93,6 +93,10 @@ final class LinearColor {
   static const LinearColor white = LinearColor(1, 1, 1);
 }
 
+extension LinearColorVector on LinearColor {
+  Vector3 toVector3() => Vector3(r, g, b);
+}
+
 final class Lamp {
   Lamp({this.glow = LinearColor.white, this.beam = 0.5});
   Lamp.tinted(LinearColor color) : glow = color, beam = 0.5;

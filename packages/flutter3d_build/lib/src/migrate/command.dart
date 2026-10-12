@@ -204,6 +204,39 @@ Future<void> _migrate(
     'get',
   ], project);
   if (got.exitCode != 0) return;
+  Future<ProcessResult> lintsPass({bool automaticOnly = false}) =>
+      lintsFrom == null
+      ? runStep(report, 'flutter3d_lints:migrate', 'dart', <String>[
+          'pub',
+          'global',
+          'run',
+          'flutter3d_lints:migrate',
+          '--json',
+          if (automaticOnly) '--automatic',
+          project.path,
+        ], project)
+      : runStep(report, 'flutter3d_lints:migrate', 'dart', <String>[
+          'run',
+          'flutter3d_lints:migrate',
+          '--json',
+          if (automaticOnly) '--automatic',
+          project.path,
+        ], Directory(lintsFrom));
+
+  // What the lints write by themselves goes first, with no TODO: a value
+  // of a changed type left in place is a diagnostic `dart fix` answers
+  // with any data-driven rename whose old name the value happens to have
+  // (a `colour` variable passed where a `LinearColor` goes became `color`).
+  final early = await lintsPass(automaticOnly: true);
+  for (final line in LineSplitter.split('${early.stdout}')) {
+    if (!line.startsWith('{')) continue;
+    final r = jsonDecode(line) as Map<String, Object?>;
+    for (final id in (r['applied']! as List<Object?>).map(
+      (Object? a) => '$a',
+    )) {
+      report.rewritten[id] = (report.rewritten[id] ?? 0) + 1;
+    }
+  }
   await runStep(report, 'dart fix', 'dart', <String>[
     'fix',
     '--apply',
@@ -213,21 +246,7 @@ Future<void> _migrate(
   // a rewrite can make a name resolve that the next one needs (a class
   // renamed in a creation, then its colour arguments), up to three passes.
   for (var pass = 0; pass < 3; pass++) {
-    final lints = lintsFrom == null
-        ? await runStep(report, 'flutter3d_lints:migrate', 'dart', <String>[
-            'pub',
-            'global',
-            'run',
-            'flutter3d_lints:migrate',
-            '--json',
-            project.path,
-          ], project)
-        : await runStep(report, 'flutter3d_lints:migrate', 'dart', <String>[
-            'run',
-            'flutter3d_lints:migrate',
-            '--json',
-            project.path,
-          ], Directory(lintsFrom));
+    final lints = await lintsPass();
     // What is left by hand is what the last pass found.
     report.manual.clear();
     var rewrote = false;

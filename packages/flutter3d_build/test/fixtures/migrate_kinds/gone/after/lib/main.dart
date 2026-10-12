@@ -4,6 +4,8 @@ import 'package:flutter3d_kinds/flutter3d_kinds.dart' as kinds show KindShade;
 import 'package:flutter3d_kinds/roster.dart';
 import 'package:flutter3d_kinds/tools.dart';
 
+part 'piece.dart';
+
 const Object shade = KindShade();
 
 final List<Object> both = <Object>[const KindShade(), KindShade()];
