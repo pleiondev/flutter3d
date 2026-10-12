@@ -147,6 +147,7 @@ const NAV = [
       { file: 'gallery.md', url: '/gallery/', title: 'Gallery', kind: 'demo' },
       { file: 'quickstart.md', url: '/quickstart/', title: 'Quickstart' },
       { file: 'first-project.md', url: '/first-project/', title: 'Your first project', kind: 'guide' },
+      { file: 'playground.md', url: '/playground/', title: 'Playground', kind: 'demo' },
       { file: 'download.md', url: '/download/', title: 'Download the editors' },
     ],
   },

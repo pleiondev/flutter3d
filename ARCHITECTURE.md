@@ -213,7 +213,7 @@ copy, and is the bridge into the widget tree.
 
 ## 3. The package map
 
-61 packages and 17 applications in one pub workspace, with the
+61 packages and 18 applications in one pub workspace, with the
 packages' examples beside them — one `flutter pub get` for the repository.
 
 ### 3.1 The layering rule
@@ -3673,7 +3673,7 @@ storage.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **14652 tests** across 61 packages and 17 applications |
+| Unit tests | **14668 tests** across 61 packages and 18 applications |
 | Structure rules | 91, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
