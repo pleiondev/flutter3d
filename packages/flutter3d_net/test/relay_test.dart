@@ -127,8 +127,8 @@ void main() {
         restore: toyA.restore,
         inputDelay: 2,
         maxRollbackFrames: 16,
-        onSettled: (step, after, _) =>
-            digestsA.observe(step + 1, after.toJson()),
+        onSettled: (settled) =>
+            digestsA.observe(settled.step + 1, settled.after.toJson()),
       );
       sessionB = RollbackSession<Snapshot>(
         wire: transportB,
@@ -139,8 +139,8 @@ void main() {
         restore: toyB.restore,
         inputDelay: 2,
         maxRollbackFrames: 16,
-        onSettled: (step, after, _) =>
-            digestsB.observe(step + 1, after.toJson()),
+        onSettled: (settled) =>
+            digestsB.observe(settled.step + 1, settled.after.toJson()),
       );
 
       // A real socket introduces real, if small, scheduling delay — steps

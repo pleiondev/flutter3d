@@ -9,6 +9,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart'
         EngineLoop,
         IsolateSimulation,
         LocalSimulation,
+        SeatInput,
         SimulationHandle,
         SimulationSetup;
 
@@ -48,8 +49,7 @@ Future<PlacedSimulation> placeSimulation(
     final apply = placement.applyInput;
     final local = LocalSimulation(
       loop,
-      applyInput: (int seat, Object? input) =>
-          apply?.call(SeatInput(seat: seat, input: input)),
+      applyInput: (SeatInput input) => apply?.call(input),
     );
     return PlacedSimulation._(local, null, local.dispose);
   }

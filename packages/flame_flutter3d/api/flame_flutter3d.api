@@ -149,13 +149,18 @@ base class CharacterBodyComponent extends Object3dComponent with CollisionCallba
   void shiftScene(Vector3 by)
   void update(double dt)
 
+final class ChunkDrop<C>
+  const ChunkDrop({required this.index, required this.chunk})
+  final C chunk
+  final int index
+
 final class ChunkStreamer<C>
   C? operator [](int index)
   ChunkStreamer({required this.build, required this.drop})
   Iterable<C> get chunks
   Iterable<int> get indices
   final C Function(int index) build
-  final void Function(int index, C chunk) drop
+  final void Function(ChunkDrop<C> dropped) drop
   void clear()
   void cover(int from, int to)
 
@@ -263,6 +268,11 @@ final class Flutter3dFlameWidget extends StatelessWidget
   final void Function(Renderer renderer)? onRendererReady
   final void Function(double dt)? onTick
 
+final class GridArrival
+  const GridArrival({required this.column, required this.row})
+  final int column
+  final int row
+
 enum GridHeading
   values: none, up, down, left, right
   GridHeading get opposite
@@ -279,7 +289,7 @@ base class GridMover extends Component with FixedStepUpdate
   final CellGridComponent grid
   final bool Function(int column, int row)? passable
   final bool wraps
-  final void Function(int column, int row)? onArrive
+  final void Function(GridArrival arrival)? onArrive
   void fixedUpdate(double step)
   void onMount()
   void update(double dt)
@@ -614,11 +624,16 @@ base class Taps3dComponent extends PositionComponent with TapCallbacks, HasGameR
   void onTapDown(TapDownEvent event)
   void onTapUp(TapUpEvent event)
 
+final class TiledSpawn
+  const TiledSpawn({required this.object, required this.at})
+  final TiledObject object
+  final Vector2 at
+
 base class TiledWorld3d extends PositionComponent
   Future<void> onLoad()
   TiledWorld3d({required this.map, required this.device, required this.scene, required this.plane, required this.material, this.cell = 1.0, this.spawn, super.position})
   final BridgePlane plane
-  final Component? Function(TiledObject object, Vector2 at)? spawn
+  final Component? Function(TiledSpawn spawn)? spawn
   final GraphicsDevice device
   final Map<String, CellGridComponent> grids
   final Scene scene

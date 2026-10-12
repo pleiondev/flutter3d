@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **`countGlslBindings` answers a `GlslBindingCount`** (new), a class
+  with `textures` and `uniformBlocks`, rather than a record that could
+  never count one more kind of binding.
 - **The budget counts GLSL, and names a plugin model's share.**
   `MaterialStageBudget.problemOfGlsl` and `countGlslBindings` (new) count a
   stage's textures and blocks from its GLSL after `#ifdef`, which every

@@ -39,7 +39,7 @@ void main() {
   });
 
   ModelWardrobe<_Part> wardrobe({
-    void Function(ModelInstance, _Part)? onDressed,
+    void Function(ModelDressed<_Part> dressed)? onDressed,
   }) => ModelWardrobe<_Part>(
     device: device,
     scene: scene,
@@ -80,7 +80,7 @@ void main() {
 
   test('onDressed sees every instance with its part', () {
     final seen = <_Part>[];
-    final closet = wardrobe(onDressed: (_, part) => seen.add(part));
+    final closet = wardrobe(onDressed: (dressed) => seen.add(dressed.key));
     closet
       ..dress(_wearer(scene, 'a'), _Part.jet)
       ..dress(_wearer(scene, 'b'), _Part.jet)

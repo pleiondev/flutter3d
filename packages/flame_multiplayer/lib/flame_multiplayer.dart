@@ -51,6 +51,7 @@ export 'package:flutter3d_net/flutter3d_net.dart'
         ObserverFeed,
         ObserverFilter,
         ObserverMode,
+        ObserverRestore,
         ObserverSnapshot,
         PeerBytes,
         PeerBytesDelivery,
@@ -61,6 +62,7 @@ export 'package:flutter3d_net/flutter3d_net.dart'
         PeerSendBytes,
         PeerWire,
         RollbackSession,
+        SettledStep,
         SimulationObserver,
         WireHello,
         WireState;

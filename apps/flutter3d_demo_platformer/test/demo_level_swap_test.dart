@@ -143,9 +143,9 @@ void main() {
       timeline: timeline,
       prepare: run.prepareEdit,
       rebuild: (Level next) => run.installEdit(),
-      present: (Level next, LevelDiff diff) => run.announceEdit(),
-      swapped: (Level next, int step) =>
-          demo.levelSwapped(next, stepsAgo: rewind.step - step),
+      present: (_) => run.announceEdit(),
+      swapped: (swap) =>
+          demo.levelSwapped(swap.next, stepsAgo: rewind.step - swap.step),
     ).applyWhenReady(_lowered(run.level!.loaded.level));
     _live(run, input, loop, demo, from: edited, to: end);
     final arrived = _bytes(run.level!.sim.save());

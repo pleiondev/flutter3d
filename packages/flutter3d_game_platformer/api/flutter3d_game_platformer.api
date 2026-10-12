@@ -342,6 +342,11 @@ abstract final class PlatformerActions
   static const GameAction dash = GameAction('dash')
   static const GameAction dropThrough = GameAction('dropThrough')
 
+final class PlatformerDressing
+  const PlatformerDressing({required this.level, required this.staged})
+  final Level level
+  final PlatformerStaged staged
+
 abstract final class PlatformerEntities
   static const String breakable = 'breakable'
   static const String checkpoint = 'checkpoint'
@@ -364,7 +369,7 @@ final class PlatformerHeadlessGame extends HeadlessGame
   String get name
   const PlatformerHeadlessGame({this.extra = const <EntityKind>[], this.dress})
   final List<EntityKind> extra
-  final void Function(double dt)? Function(Level level, PlatformerStaged staged)? dress
+  final void Function(double dt)? Function(PlatformerDressing dressing)? dress
 
 final class PlatformerKeyKind extends EntityKind
   bool get mustBeReachable

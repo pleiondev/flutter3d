@@ -41,10 +41,10 @@ Level _level({double wallAt = 5.0, double fog = 0.0}) =>
   return (
     live: LiveLevel(
       level: _level(),
-      present: (next, diff) => calls.add('present fog=${diff.fog}'),
+      present: (change) => calls.add('present fog=${change.diff.fog}'),
       rebuild: (next) => calls.add('rebuild ${next.brushes.single.center.x}'),
       timeline: timeline,
-      swapped: (next, step) => calls.add('swapped $step'),
+      swapped: (swap) => calls.add('swapped ${swap.step}'),
       prepare: prepares || prepareFails != null
           ? (next) async {
               await Future<void>.delayed(Duration.zero);

@@ -63,7 +63,7 @@ final class ModelWardrobe<K> {
   /// Called after each node is dressed, with the instance and the key: for
   /// what a game does to a model once it is on, recolouring a part to tell
   /// two roles apart, say.
-  final void Function(ModelInstance instance, K key)? onDressed;
+  final void Function(ModelDressed<K> dressed)? onDressed;
 
   final Map<K, ModelAsset> _assets = <K, ModelAsset>{};
   final Map<SceneNode, K> _worn = <SceneNode, K>{};
@@ -137,6 +137,22 @@ final class ModelWardrobe<K> {
     );
     final offset = look.offset;
     if (offset != null) instance.root.translate(offset.x, offset.y, offset.z);
-    onDressed?.call(instance, key);
+    onDressed?.call(ModelDressed<K>(instance: instance, key: key));
   }
+}
+
+/// What [ModelWardrobe.onDressed] is told: the model just put on a node,
+/// and the key it was worn for.
+///
+/// **One object, so a minor can say more** (the node it went on, whether it
+/// replaced another model) without breaking a game written against 1.0.
+final class ModelDressed<K> {
+  /// [instance], worn for [key].
+  const ModelDressed({required this.instance, required this.key});
+
+  /// The model as it was put on.
+  final ModelInstance instance;
+
+  /// The part it plays.
+  final K key;
 }

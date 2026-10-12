@@ -30,7 +30,7 @@ final class SimulationSetup {
 
   /// Hands an input submitted for a seat to the game: what
   /// [LocalSimulation.applyInput] is.
-  final void Function(int seat, Object? input) applyInput;
+  final void Function(SeatInput input) applyInput;
 
   /// How many steps of captures are kept for `rewindTo`; nought keeps none.
   final int history;

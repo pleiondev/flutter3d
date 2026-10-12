@@ -450,6 +450,7 @@ export 'package:flutter3d/flutter3d.dart'
         ModelDecoder,
         ModelDecoders,
         ModelDocument,
+        ModelDressed,
         ModelFormat,
         ModelImpostor,
         ModelInstance,

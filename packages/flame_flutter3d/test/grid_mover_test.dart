@@ -41,7 +41,7 @@ Future<(PositionComponent, GridMover)> _walker(
   CellGridComponent maze,
   Vector2 at, {
   bool wraps = false,
-  void Function(int, int)? onArrive,
+  void Function(GridArrival arrival)? onArrive,
 }) async {
   final mover = GridMover(
     grid: maze,
@@ -68,7 +68,7 @@ void main() {
       game,
       grid,
       Vector2(1.4, 1.6),
-      onArrive: (c, r) => arrived.add((c, r)),
+      onArrive: (cell) => arrived.add((cell.column, cell.row)),
     );
     expect(body.position, Vector2(1.5, 1.5), reason: 'stood in its cell');
 

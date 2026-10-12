@@ -91,9 +91,9 @@ void main() {
           applyAndStep: (frames) => at = _step(at, frames),
           save: () => List<int>.of(at),
           restore: (state) => at = List<int>.of(state),
-          onSettled: (step, after, frames) {
-            settled[seat.slot][step + 1] = after;
-            if (seat.slot == 0) tape.settled(step, after, frames);
+          onSettled: (s) {
+            settled[seat.slot][s.step + 1] = s.after;
+            if (seat.slot == 0) tape.settled(s);
           },
           onMessage: seat.slot == 0 ? tape.hear : null,
         ),

@@ -63,9 +63,9 @@ final class _Party {
           save: () => List<int>.of(states[slot]),
           restore: (state) => states[slot] = List<int>.of(state),
           // The host hands what settles to the tape, and hears who watches.
-          onSettled: (step, after, frames) {
-            settled[slot][step + 1] = after;
-            if (slot == 0) tape.settled(step, after, frames);
+          onSettled: (s) {
+            settled[slot][s.step + 1] = s.after;
+            if (slot == 0) tape.settled(s);
           },
           onMessage: slot == 0 ? tape.hear : null,
         ),

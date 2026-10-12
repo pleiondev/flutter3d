@@ -106,7 +106,7 @@ void main() {
       wire: party.wire(1),
       simulation: copy.simulationVersion,
       filter: const ObserverFilter(probes: <String>{'tank.half'}),
-      restore: (start, step) => copy.rewindTo(step, state: start),
+      restore: (restore) => copy.rewindTo(restore.step, state: restore.start),
       replay: (input) {
         copy.playback = InputTapePlayback(
           InputTape(seed: 0, frames: <InputFrame>[input]),

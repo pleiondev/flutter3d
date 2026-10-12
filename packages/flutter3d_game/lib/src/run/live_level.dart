@@ -59,11 +59,12 @@ final class LiveLevel {
     rebuild(next);
   }
 
-  /// Told the step [timeline] swapped [next] in before, right after the swap
-  /// and before [present]: what a [DemoRecording] needs to write the edit
-  /// into the run. The step is decided inside `RunTimeline.swapLevel` — the
-  /// last keyframe — so nothing outside the swap can know it otherwise.
-  final void Function(Level next, int step)? swapped;
+  /// Told the step [timeline] swapped the next level in before, right after
+  /// the swap and before [present]: what a [DemoRecording] needs to write
+  /// the edit into the run. The step is decided inside
+  /// `RunTimeline.swapLevel` — the last keyframe — so nothing outside the
+  /// swap can know it otherwise.
+  final void Function(LevelSwapped swap)? swapped;
 
   /// Builds ahead what [rebuild] and [present] will swap in, for a game
   /// whose level cannot be made synchronously: textures to upload, meshes,
@@ -71,9 +72,10 @@ final class LiveLevel {
   /// level that will not build leaves the one being played untouched.
   final Future<void> Function(Level next)? prepare;
 
-  /// Patches the running scene to [next]'s look. [diff] names what changed,
-  /// so a presenter can touch one lamp rather than rebuild them all.
-  final void Function(Level next, LevelDiff diff) present;
+  /// Patches the running scene to the next level's look. Its
+  /// [LevelPresent.diff] names what changed, so a presenter can touch one
+  /// lamp rather than rebuild them all.
+  final void Function(LevelPresent change) present;
 
   /// Replaces what the simulation reads — colliders, spawns, the ground —
   /// with [next]'s. Called inside `RunTimeline.swapLevel` when there is a
@@ -117,12 +119,12 @@ final class LiveLevel {
         () => _rebuild(next),
         levelDigest: next.digestHex,
       );
-      swapped?.call(next, swappedAt);
+      swapped?.call(LevelSwapped(next: next, step: swappedAt));
     } else {
       _rebuild(next);
       swappedAt = null;
     }
-    present(next, change);
+    present(LevelPresent(next: next, diff: change));
     level = next;
     return LevelApplied(
       diff: change,
@@ -130,6 +132,37 @@ final class LiveLevel {
       rebuiltInPlace: !change.isPresentationOnly && swappedAt == null,
     );
   }
+}
+
+/// What [LiveLevel.present] is handed: the level to show, and what changed.
+///
+/// **One object, so a minor can say more** (the step the picture catches up
+/// at) without breaking a presenter written against 1.0.
+final class LevelPresent {
+  /// [next], changed from the level before as [diff] says.
+  const LevelPresent({required this.next, required this.diff});
+
+  /// The level being swapped in.
+  final Level next;
+
+  /// What changed from the level being played.
+  final LevelDiff diff;
+}
+
+/// What [LiveLevel.swapped] is told: the level the timeline swapped in, and
+/// the step it swapped it in before.
+///
+/// **One object, so a minor can say more** without breaking a listener
+/// written against 1.0.
+final class LevelSwapped {
+  /// [next], swapped in before [step].
+  const LevelSwapped({required this.next, required this.step});
+
+  /// The level swapped in.
+  final Level next;
+
+  /// The step the timeline branched at.
+  final int step;
 }
 
 /// What one [LiveLevel.apply] did.

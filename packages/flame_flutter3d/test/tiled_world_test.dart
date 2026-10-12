@@ -66,9 +66,9 @@ void main() {
       scene: game.scene,
       plane: BridgePlane.ground(),
       material: (_) => engine.RenderMaterial(),
-      spawn: (object, at) {
-        spawned[object.name] = at.clone();
-        return player = PositionComponent(position: at);
+      spawn: (spawn) {
+        spawned[spawn.object.name] = spawn.at.clone();
+        return player = PositionComponent(position: spawn.at);
       },
     );
     await game.add(level);
@@ -91,7 +91,7 @@ void main() {
     final mover = GridMover(
       grid: walls,
       speed: 4.0,
-      onArrive: (c, r) => dots.setCell(c, r, alive: false),
+      onArrive: (cell) => dots.setCell(cell.column, cell.row, alive: false),
     )..wanted = GridHeading.right;
     await player!.add(mover);
     await game.ready();

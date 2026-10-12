@@ -62,9 +62,9 @@ extension ArcadeGameCrafts on ArcadeGame {
   /// Gives a craft that has just been dressed its role's accent colour: the
   /// kit draws every craft in one palette, and its orange accent material
   /// (`metalRed`) is what tells the three roles apart.
-  void _paintAccent(ModelInstance instance, CraftRole role) {
-    final (r, g, b) = _looks[role]!.accent;
-    instance.root.traverse((SceneNode node) {
+  void _paintAccent(ModelDressed<CraftRole> dressed) {
+    final (r, g, b) = _looks[dressed.key]!.accent;
+    dressed.instance.root.traverse((SceneNode node) {
       if (node is MeshNode && node.material.name == 'metalRed') {
         node.material.baseColor = LinearColor.fromSrgb(r, g, b, 1.0);
       }

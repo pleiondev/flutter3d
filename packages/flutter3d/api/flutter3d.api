@@ -71,6 +71,11 @@ extension ModelAssetInstantiate on ModelAsset
   ModelInstance instantiate(Scene scene, {SceneNode? parent, String? name, bool shareMaterials = true})
   ModelInstance instantiateFitted(Scene scene, {required double length, int axis = 2, bool onGround = false, SceneNode? parent, String? name, bool shareMaterials = true})
 
+final class ModelDressed<K>
+  const ModelDressed({required this.instance, required this.key})
+  final K key
+  final ModelInstance instance
+
 final class ModelInstance
   ModelInstance({required this.root, required this.nodes, required this.meshes, required this.skeletons, required this.player, this.variants = const <String>[], List<(MeshNode, ModelPart)> drawn = const <(MeshNode, ModelPart)>[], Map<String, int> this._slots = const <String, int>{}, RenderMaterial Function(RenderMaterial)? materialFor, PointerTargets? pointerTargets})
   ModelSwap adopt(ModelAsset next)
@@ -108,7 +113,7 @@ final class ModelWardrobe<K>
   final GraphicsDevice device
   final Map<K, ModelLook> looks
   final Scene scene
-  final void Function(ModelInstance instance, K key)? onDressed
+  final void Function(ModelDressed<K> dressed)? onDressed
   int get wearers
   void dress(SceneNode visual, K key)
   void forget(SceneNode visual)

@@ -56,7 +56,8 @@ SimulationSetup _counting(Object? arguments) {
   loop.queries.add('test.count', (_) => count);
   return SimulationSetup(
     loop: loop,
-    applyInput: (_, value) => input.tune('test.add', (value! as num) * 1.0),
+    applyInput: (SeatInput seated) =>
+        input.tune('test.add', (seated.input! as num) * 1.0),
   );
 }
 

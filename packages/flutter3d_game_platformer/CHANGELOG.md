@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **`PlatformerHeadlessGame.dress` takes a `PlatformerDressing`** (new:
+  the level and its staging), where it took the two as parameters.
 - **Breaking: the platformer's hooks take the engine's contexts.**
   `Runner.applyDamage` takes a `Damage`, every entity kind's `validate`
   and `spawn` an `EntityCheck` and an `EntitySpawn`, the plugin's

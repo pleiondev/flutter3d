@@ -20,13 +20,8 @@ final class PartyRace {
     required this.localInput,
     int inputDelay = 3,
     int maxRollbackFrames = 20,
-    void Function(
-      int step,
-      Snapshot after,
-      Map<int, Map<String, Object?>> frames,
-    )?
-    onSettled,
-    void Function(int from, Map<String, Object?> message)? onMessage,
+    void Function(SettledStep<Snapshot> settled)? onSettled,
+    void Function(PeerMessage message)? onMessage,
   }) : assert(cars >= 2, 'a party is at least two'),
        // ignore: prefer_initializing_formals
        _sim = sim {

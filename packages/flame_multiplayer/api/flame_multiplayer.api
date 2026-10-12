@@ -36,8 +36,8 @@ final class PartyTape<S>
   final Object? Function(S state) encode
   final PeerWire wire
   final int host
-  void hear(int from, Map<String, Object?> message)
-  void settled(int step, S after, Map<int, Map<String, Object?>> frames)
+  void hear(PeerMessage heard)
+  void settled(SettledStep<S> settled)
 
 final class PartyTapeWatcher<S>
   PartyTapeWatcher({required this.wire, required this.decode, required this.restore, required this.applyAndStep})
@@ -71,13 +71,14 @@ final class PredictingClient<S>
   void advance()
   void receive(int from, Map<String, Object?> message)
 
-export package:flutter3d_net/flutter3d_net.dart show LoopbackPair, LoopbackParty, LoopbackWire, ObserverFeed, ObserverFilter, ObserverMode, ObserverSnapshot, PeerBytes, PeerBytesDelivery, PeerDelivery, PeerMessage, PeerRoom, PeerSend, PeerSendBytes, PeerWire, RollbackSession, SimulationObserver, WireHello, WireState
+export package:flutter3d_net/flutter3d_net.dart show LoopbackPair, LoopbackParty, LoopbackWire, ObserverFeed, ObserverFilter, ObserverMode, ObserverRestore, ObserverSnapshot, PeerBytes, PeerBytesDelivery, PeerDelivery, PeerMessage, PeerRoom, PeerSend, PeerSendBytes, PeerWire, RollbackSession, SettledStep, SimulationObserver, WireHello, WireState
   LoopbackPair
   LoopbackParty
   LoopbackWire
   ObserverFeed
   ObserverFilter
   ObserverMode
+  ObserverRestore
   ObserverSnapshot
   PeerBytes
   PeerBytesDelivery
@@ -88,6 +89,7 @@ export package:flutter3d_net/flutter3d_net.dart show LoopbackPair, LoopbackParty
   PeerSendBytes
   PeerWire
   RollbackSession
+  SettledStep
   SimulationObserver
   WireHello
   WireState

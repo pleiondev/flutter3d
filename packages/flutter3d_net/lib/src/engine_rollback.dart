@@ -50,9 +50,8 @@ final class EngineRollback {
     int maxRollbackFrames = 8,
     int redundancy = 8,
     bool Function(LoopState after)? endsAt,
-    void Function(int step, LoopState after, Map<int, Map<String, Object?>>)?
-    onSettled,
-    void Function(int from, Map<String, Object?> message)? onMessage,
+    void Function(SettledStep<LoopState> settled)? onSettled,
+    void Function(PeerMessage message)? onMessage,
   }) {
     session = RollbackSession<LoopState>(
       wire: wire,

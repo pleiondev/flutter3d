@@ -238,7 +238,8 @@ extension RiverGameStaging on RiverGame {
     );
   }
 
-  void _dropStretch(int index, _Stretch stretch) {
+  void _dropStretch(ChunkDrop<_Stretch> dropped) {
+    final stretch = dropped.chunk;
     stretch.valley.removeFromParent();
     stretch.water.removeFromParent();
     for (final component in <Component>[

@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **Breaking: the world helpers' callbacks take one object each.**
+  `ChunkStreamer.drop` takes a `ChunkDrop` (the index and the piece),
+  `GridMover.onArrive` a `GridArrival` (the column and the row) and
+  `TiledWorld3d.spawn` a `TiledSpawn` (the object and its middle), all
+  new. `migrate` wraps an old function.
 - **Breaking: every component and effect is a `base class`, and
   `Flutter3dFlameWidget` a `final` one.** A game still extends
   `Object3dComponent`, `RigidBodyComponent`, `TransparentFlameGame` and the

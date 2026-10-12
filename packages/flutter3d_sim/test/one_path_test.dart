@@ -177,9 +177,9 @@ void main() {
       final applied = <Object?>[];
       final handle = LocalSimulation(
         loop,
-        applyInput: (seat, value) {
-          applied.add(value);
-          input.tune('test.$value', 1.0);
+        applyInput: (SeatInput seated) {
+          applied.add(seated.input);
+          input.tune('test.${seated.input}', 1.0);
         },
       );
       handle
@@ -209,7 +209,7 @@ void main() {
       final applied = <Object?>[];
       final handle = LocalSimulation(
         loop,
-        applyInput: (_, value) => applied.add(value),
+        applyInput: (SeatInput seated) => applied.add(seated.input),
       );
       handle.submit('during');
       loop.runSteps(2);
@@ -222,7 +222,7 @@ void main() {
     test('answers a question by name, and refuses one it does not know', () {
       final loop = EngineLoop(input: InputState());
       loop.queries.add('test.count', (question) => question.world.length);
-      final handle = LocalSimulation(loop, applyInput: (_, _) {});
+      final handle = LocalSimulation(loop, applyInput: (_) {});
       loop.world.spawn();
       expect(handle.ask('test.count'), completion(1));
       expect(

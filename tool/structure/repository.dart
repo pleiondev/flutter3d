@@ -2138,29 +2138,11 @@ const Map<String, String> hookParametersAllowed = <String, String>{
 /// author hears, and so grow, are listed here with the package whose owner
 /// gives each one event object; the ones that are a function of their
 /// inputs have their reason in [hookParametersAllowed].
-const Map<String, String> hookParametersPending = <String, String>{
-  'Actor': 'flutter3d_sim: `onDamage(amount, from)`, one damage event',
-  'ActorAnimations':
-      'flutter3d_game: `write(actor, graph, wish)`, one animation-write context',
-  'ChunkStreamer': 'flame_flutter3d: `drop(index, chunk)`, one chunk event',
-  'EngineRollback':
-      'flutter3d_net: `onSettled` and `onMessage`, as RollbackSession\'s',
-  'GridMover': 'flame_flutter3d: `onArrive(column, row)`, one arrival event',
-  'LiveLevel':
-      'flutter3d_game: `present(next, diff)` and `swapped(next, step)`, one swap event each',
-  'LocalSimulation':
-      'flutter3d_sim: `applyInput(seat, input)`, one seat-input context, with SimulationSetup',
-  'ModelWardrobe': 'flutter3d: `onDressed(instance, key)`, one dressing event',
-  'PlatformerHeadlessGame':
-      'flutter3d_game_platformer: `dress(level, staged)`, one staging context',
-  'RollbackSession':
-      'flutter3d_net: `onSettled(step, after, frames)` and `onMessage(from, message)`, one event each',
-  'SimulationObserver':
-      'flutter3d_net: `restore(start, step)`, one restore context',
-  'SimulationSetup':
-      'flutter3d_sim: `applyInput(seat, input)`, as LocalSimulation\'s',
-  'TiledWorld3d': 'flame_flutter3d: `spawn(object, at)`, one spawn context',
-};
+///
+/// **Empty at 1.0.0-rc.1**: every callback that was here takes one event or
+/// context object. It stays so a later finding has its place, never as a
+/// home for a new hook.
+const Map<String, String> hookParametersPending = <String, String>{};
 
 /// The packages whose whole public API a plugin is written against, and so
 /// what `PluginApiVersion.current` versions with every registry elsewhere

@@ -99,7 +99,7 @@ _stage({double? wallAt, double scale = 1.0}) {
   );
   final animations = ActorAnimations(
     events: events.bus,
-    write: (actor, graph, wish) => graph.parameters.setFloat('speed', 1.0),
+    write: (write) => write.graph.parameters.setFloat('speed', 1.0),
   )..attach(walker, _walking(), scale: scale);
   system.strides = animations;
   return (
@@ -250,7 +250,7 @@ void main() {
       'needs it', () {
     ActorAnimations made(_Heard events) => ActorAnimations(
       events: events.bus,
-      write: (actor, graph, wish) => graph.parameters.setFloat('speed', 1.0),
+      write: (write) => write.graph.parameters.setFloat('speed', 1.0),
       graphFor: (actor) => actor.yaw == 0.0 ? null : _walking(),
     );
     final live = _stage(wallAt: 2.5);
@@ -328,7 +328,7 @@ void main() {
       )..rootNode = 0;
     }
 
-    double walked(void Function(Actor, AnimationGraph, Vector3) write) {
+    double walked(void Function(ActorAnimationWrite write) write) {
       final world = CollisionWorld()
         ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(40.0, 1.0, 40.0));
       final system = ActorSystem(world: world, random: GameRandom(1));
@@ -344,17 +344,17 @@ void main() {
     }
 
     expect(
-      walked((actor, graph, wish) {
-        final v = actor.body!.velocity;
-        graph.parameters.setFloat('speed', Vector2(v.x, v.z).length);
+      walked((write) {
+        final v = write.actor.body!.velocity;
+        write.graph.parameters.setFloat('speed', Vector2(v.x, v.z).length);
       }),
       closeTo(0.0, 1e-3),
       reason: 'asked from its velocity, it never leaves its idle',
     );
     expect(
       walked(
-        (actor, graph, wish) =>
-            graph.parameters.setFloat('speed', 1.5 * wish.length),
+        (write) =>
+            write.graph.parameters.setFloat('speed', 1.5 * write.wish.length),
       ),
       greaterThan(1.0),
     );

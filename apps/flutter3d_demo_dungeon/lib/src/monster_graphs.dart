@@ -509,7 +509,7 @@ final class MonsterClips {
       },
     );
     return ActorAnimations(
-      write: graphs.step,
+      write: (write) => graphs.step(write.actor, write.graph, write.wish),
       graphFor: (actor) =>
           switch (_documents[const DungeonMonsters().modelFor(actor)]) {
             final document? => graphs.graphOver(actor, document),

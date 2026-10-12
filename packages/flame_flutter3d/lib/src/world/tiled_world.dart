@@ -57,7 +57,7 @@ base class TiledWorld3d extends PositionComponent {
 
   /// Makes the game's component for an object, placed at its middle in
   /// metres from this component's corner; null leaves it out.
-  final Component? Function(TiledObject object, Vector2 at)? spawn;
+  final Component? Function(TiledSpawn spawn)? spawn;
 
   /// Each tile layer's grid, by the layer's name.
   final Map<String, CellGridComponent> grids = <String, CellGridComponent>{};
@@ -80,7 +80,9 @@ base class TiledWorld3d extends PositionComponent {
           await add(grid);
         case final ObjectGroup objects:
           for (final object in objects.objects) {
-            final made = spawn?.call(object, _middleOf(object));
+            final made = spawn?.call(
+              TiledSpawn(object: object, at: _middleOf(object)),
+            );
             if (made != null) await add(made);
           }
         default:
@@ -134,4 +136,20 @@ base class TiledWorld3d extends PositionComponent {
     final num n => n.toDouble(),
     _ => null,
   };
+}
+
+/// What [TiledWorld3d.spawn] is handed: an object of the map and where its
+/// middle is.
+///
+/// **One object, so a minor can say more** (the layer it is on) without
+/// breaking a game written against 1.0.
+final class TiledSpawn {
+  /// [object], with its middle [at].
+  const TiledSpawn({required this.object, required this.at});
+
+  /// The object, as Tiled wrote it: its name, class and properties.
+  final TiledObject object;
+
+  /// Its middle, in metres from the world component's corner.
+  final Vector2 at;
 }

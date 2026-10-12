@@ -134,7 +134,8 @@ Staged stage(
 /// [stage] does them, so a run the game recorded replays there as it was
 /// played.
 PlatformerHeadlessGame headlessPlatformer() => PlatformerHeadlessGame(
-  dress: (Level level, PlatformerStaged genre) {
+  dress: (PlatformerDressing dressing) {
+    final PlatformerDressing(:level, staged: genre) = dressing;
     if (genre.dynamics is! NativeDynamics) return null;
     final elements = RunElements.build(level, genre.mechanisms, genre.runner);
     if (elements == null) return null;

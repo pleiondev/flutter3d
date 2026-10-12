@@ -78,7 +78,7 @@ final class NetRace {
       maxRollbackFrames: maxRollbackFrames,
       onSettled: onSettled == null
           ? null
-          : (step, after, _) => onSettled(step, after),
+          : (settled) => onSettled(settled.step, settled.after),
     );
   }
 

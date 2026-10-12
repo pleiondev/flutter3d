@@ -241,6 +241,23 @@ final class ObserverFeed {
   void close() => _listening.cancel();
 }
 
+/// What [SimulationObserver.restore] is handed: the feed's state to start
+/// the tape from, and the step it was taken after.
+///
+/// **One object, so a minor can say more** (the simulation it was taken
+/// on, the probes in it) without breaking an observer written against 1.0.
+final class ObserverRestore {
+  /// [start], taken after [step] steps.
+  const ObserverRestore({required this.start, required this.step});
+
+  /// The feed's state, as `EngineLoop.rewindTo(step, state: start)` takes
+  /// it.
+  final Snapshot start;
+
+  /// How many steps the feed had run when it took [start].
+  final int step;
+}
+
 /// A machine watching an authoritative simulation an [ObserverFeed] sends.
 ///
 /// [join] says it is here, with the simulation it runs and what it wants;
@@ -271,10 +288,10 @@ final class SimulationObserver {
   /// The probes it wants readings of.
   final ObserverFilter filter;
 
-  /// Puts this machine's simulation where the feed's is, for the tape:
-  /// [start] taken after [step] steps, as `EngineLoop.rewindTo(step, state:
-  /// start)` takes it.
-  final void Function(Snapshot start, int step)? restore;
+  /// Puts this machine's simulation where the feed's is, for the tape: the
+  /// [ObserverRestore.start] taken after [ObserverRestore.step] steps, as
+  /// `EngineLoop.rewindTo(step, state: start)` takes it.
+  final void Function(ObserverRestore restore)? restore;
 
   /// Runs one step on [input], for the tape.
   final void Function(InputFrame input)? replay;
@@ -345,7 +362,12 @@ final class SimulationObserver {
     _next = (message['from'] as int?) ?? 0;
     final state = message['state'];
     if (mode == ObserverMode.tape && state is Map) {
-      restore?.call(Snapshot.fromJson(state.cast<String, Object?>()), _next!);
+      restore?.call(
+        ObserverRestore(
+          start: Snapshot.fromJson(state.cast<String, Object?>()),
+          step: _next!,
+        ),
+      );
     } else if (state != null) {
       _show(PublishedState.fromWire(state));
     }

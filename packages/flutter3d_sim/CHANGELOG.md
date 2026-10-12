@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `Actor.onDamage` is handed the `Damage`.** It took the
+  amount and who dealt it as two parameters; one object can tell a target
+  more in a minor without breaking a handler. `migrate` wraps an old one.
+- **A simulation's `applyInput` takes one `SeatInput`** (new here, moved
+  from `flutter3d_app`, which still exports it), the seat and the input
+  together: `LocalSimulation` and `SimulationSetup` took the two as
+  parameters.
 - **A snapshot names the plugins whose state it holds, and is refused
   where one is missing.** `Snapshot.requires` (new) lists the namespace of
   every plugin that added a part to the capture, or registered a component

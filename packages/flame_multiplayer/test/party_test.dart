@@ -62,7 +62,7 @@ void main() {
           applyAndStep: (frames) => at = _step(at, frames),
           save: () => List<int>.of(at),
           restore: (state) => at = List<int>.of(state),
-          onSettled: (step, after, _) => settled[slot][step + 1] = after,
+          onSettled: (s) => settled[slot][s.step + 1] = s.after,
         ),
       );
     }

@@ -40,9 +40,9 @@ final class ActorAnimations extends ActorStrides {
   /// declares [AnimationMarkerPassed] on it with its codec.
   EventRegistry? events;
 
-  /// Puts what [actor]'s brain decided — and where it wished to go this
+  /// Puts what an actor's brain decided — and where it wished to go this
   /// step — into its graph's parameters, and where its goals look and stand.
-  final void Function(Actor actor, AnimationGraph graph, Vector3 wish)? write;
+  final void Function(ActorAnimationWrite write)? write;
 
   /// The graph [actor] is animated by, asked once on its first step; null
   /// for one that is not.
@@ -79,7 +79,7 @@ final class ActorAnimations extends ActorStrides {
     final animated = _animated[actor] ?? _made(actor);
     if (animated == null) return null;
     final graph = animated.graph;
-    write?.call(actor, graph, wish);
+    write?.call(ActorAnimationWrite(actor: actor, graph: graph, wish: wish));
     graph.evaluate(dt);
     for (final passed in graph.passed) {
       events?.publish(AnimationMarkerPassed(actor, passed.state, passed.name));
@@ -158,6 +158,30 @@ final class ActorAnimations extends ActorStrides {
       }
     }
   }
+}
+
+/// What [ActorAnimations.write] is handed each step for an actor with a
+/// graph: the actor, its graph and where it wished to go.
+///
+/// **One object, so a minor can say more** (the step's length, the state
+/// the graph is in) without breaking a game written against 1.0. Made
+/// afresh for each actor each step; a writer does not keep it.
+final class ActorAnimationWrite {
+  /// [actor]'s [graph], with the [wish] its brain made this step.
+  const ActorAnimationWrite({
+    required this.actor,
+    required this.graph,
+    required this.wish,
+  });
+
+  /// The actor being stepped.
+  final Actor actor;
+
+  /// The graph whose parameters to write.
+  final AnimationGraph graph;
+
+  /// Where the actor wished to go this step, in metres a second.
+  final Vector3 wish;
 }
 
 /// [actor]'s animation passed marker [name] in [state] this step.

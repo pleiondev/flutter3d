@@ -47,7 +47,7 @@ LiveLevel _live(DungeonRun run, RunTimeline timeline) => LiveLevel(
   timeline: timeline,
   prepare: run.prepareEdit,
   rebuild: (Level next) => run.installEdit(),
-  present: (Level next, LevelDiff diff) => run.installEdit(),
+  present: (_) => run.installEdit(),
 );
 
 /// Plays [steps] steps of the level that is up through a loop, the way

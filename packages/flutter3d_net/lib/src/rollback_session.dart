@@ -168,13 +168,12 @@ final class RollbackSession<S> {
   /// correction can touch it — with the state it ended in and the frames it
   /// ran on: what machines are compared by, and what a spectator is fed
   /// (see `flame_multiplayer`'s `PartyTape`).
-  final void Function(int step, S after, Map<int, Map<String, Object?>> frames)?
-  onSettled;
+  final void Function(SettledStep<S> settled)? onSettled;
 
   /// Told of every message on the wire that is not a rollback's frames — a
   /// spectator saying it is there, a game's own. A convenience: the game may
   /// as well listen to the wire itself, which hears every message too.
-  final void Function(int from, Map<String, Object?> message)? onMessage;
+  final void Function(PeerMessage message)? onMessage;
 
   /// The clock [stats] times a step run again by: a monotonic stopwatch
   /// started with the first session unless the session is handed another,
@@ -300,7 +299,7 @@ final class RollbackSession<S> {
     // slot one, takes every frame from slot nought for its own and drops it.
     final sender = players == 2 && localSlot != wire.slot ? 1 - from : from;
     if (message[PeerWire.engineKey] != messageKind) {
-      onMessage?.call(sender, message);
+      onMessage?.call(PeerMessage(from: sender, message: message));
       return;
     }
     final frames = message['frames'];
@@ -392,7 +391,13 @@ final class RollbackSession<S> {
       // The state a step leaving ended in is the one the next began in.
       final next = _history[s + 1];
       if (next == null) continue;
-      onSettled?.call(s, next.before, _history[s]!.frames);
+      onSettled?.call(
+        SettledStep<S>(
+          step: s,
+          after: next.before,
+          frames: _history[s]!.frames,
+        ),
+      );
       final ends = endsAt;
       if (_agreedEnd == null && ends != null && ends(next.before)) {
         _agreedEnd = (step: s, after: next.before);
@@ -408,6 +413,30 @@ final class RollbackSession<S> {
   static bool _same(Map<String, Object?> a, Map<String, Object?> b) =>
       a.length == b.length &&
       a.entries.every((e) => b.containsKey(e.key) && b[e.key] == e.value);
+}
+
+/// What [RollbackSession.onSettled] is told of a step as it leaves the
+/// window: its number, the state it ended in and the frames it ran on.
+///
+/// **One object, so a minor can say more** (how many times the step was run
+/// again, whether a slot's frame was a guess) without breaking a listener
+/// written against 1.0.
+final class SettledStep<S> {
+  /// [step], ending in [after], run on [frames].
+  const SettledStep({
+    required this.step,
+    required this.after,
+    required this.frames,
+  });
+
+  /// The step's number.
+  final int step;
+
+  /// The state the step ended in: the one the next began in.
+  final S after;
+
+  /// Every slot's frame the step ran on, by slot.
+  final Map<int, Map<String, Object?>> frames;
 }
 
 /// What a [RollbackSession] has done, read at one moment: how many steps it

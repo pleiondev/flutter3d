@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `ModelWardrobe.onDressed` takes a `ModelDressed`** (new: the
+  instance and the key), where it took the two as parameters. `migrate`
+  wraps an old function.
 - **The facade exports every type its API names.** `Registration`,
   `RenderAnchor`, `FrameGraphBuilder`, `ShadowProducerContext`,
   `SettingsSlot`, `LodPolicy`, `SkinningHook`, `ComputeStep`, `SrgbColor`,

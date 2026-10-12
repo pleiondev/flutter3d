@@ -62,6 +62,7 @@ import 'actor_components.dart';
 import 'actor_hurt.dart';
 import 'actor_strides.dart';
 import 'brain.dart';
+import 'damageable.dart';
 import 'health.dart';
 
 export 'actor_hurt.dart';
@@ -334,8 +335,8 @@ final class ActorSystem {
     if (brain != null) entities.set(made, Thinking(brain));
 
     final actor = Actor(entities, made, name: name)
-      ..onDamage = (double amount, Object? from) =>
-          hurt(_handles[made.index]!, amount, from: from);
+      ..onDamage = (Damage damage) =>
+          hurt(_handles[made.index]!, damage.amount, from: damage.from);
     _handles[made.index] = actor;
     body?.collider.userData = actor;
     return actor;

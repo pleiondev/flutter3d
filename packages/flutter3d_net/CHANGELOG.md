@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **Breaking: the rollback's and the observer's callbacks take one object
+  each.** `RollbackSession.onSettled` and `EngineRollback`'s take a
+  `SettledStep` (new: the step, the state it ended in, the frames), and
+  their `onMessage` the wire's `PeerMessage`; `SimulationObserver.restore`
+  takes an `ObserverRestore` (new: the start and its step). A field added
+  to one breaks nobody, where a parameter added to the call broke every
+  listener.
 - **Breaking: `PartySeat` is a class** with the same fields, so a seat
   can later carry more of what the relay said.
 - **A rollback says what it costs.** `RollbackSession.stats` reads a

@@ -151,7 +151,8 @@ _play(
     // doc on `onSettled`. Digesting the live present instead would compare
     // two sides' still-open guesses and call an ordinary, temporary
     // disagreement a desync.
-    onSettled: (step, after, _) => digestsA.observe(step + 1, after.toJson()),
+    onSettled: (settled) =>
+        digestsA.observe(settled.step + 1, settled.after.toJson()),
   );
   sessionB = RollbackSession<Snapshot>(
     wire: transports.$2,
@@ -163,7 +164,8 @@ _play(
     restore: toyB.restore,
     inputDelay: 2,
     maxRollbackFrames: 16,
-    onSettled: (step, after, _) => digestsB.observe(step + 1, after.toJson()),
+    onSettled: (settled) =>
+        digestsB.observe(settled.step + 1, settled.after.toJson()),
   );
 
   // A tail beyond `steps` with no more meaningful change, purely so the
@@ -313,8 +315,10 @@ void main() {
           applyFrames: (frames) => pending
             ..clear()
             ..addAll(frames),
-          onSettled: (step, after, _) =>
-              digests[slot].observe(step + 1, after.state.toJson()),
+          onSettled: (settled) => digests[slot].observe(
+            settled.step + 1,
+            settled.after.state.toJson(),
+          ),
         ),
       );
     }

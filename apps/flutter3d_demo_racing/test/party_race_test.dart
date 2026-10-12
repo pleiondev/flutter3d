@@ -52,8 +52,8 @@ void main() {
           cars: cars,
           localInput: input,
           maxRollbackFrames: 24,
-          onSettled: (step, after, _) =>
-              settled[car][step] = StateDigest.of(after.toJson()),
+          onSettled: (s) =>
+              settled[car][s.step] = StateDigest.of(s.after.toJson()),
         ),
         input: input,
       ));

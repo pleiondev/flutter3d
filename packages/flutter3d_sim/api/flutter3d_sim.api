@@ -68,7 +68,7 @@ final class Actor with Damageable, Rider
   Facing? get facing
   Health? get health
   Vector3? get position
-  bool Function(double amount, Object? from)? onDamage
+  bool Function(Damage damage)? onDamage
   bool applyDamage(Damage damage)
   bool eyeLevel(Vector3 out)
   bool get exists
@@ -1848,7 +1848,7 @@ final class LocalSimulation extends SimulationHandle
   Registration onPublished(void Function(PublishedState state) listener)
   SimulationVersion get simulation
   final EngineLoop loop
-  final void Function(int seat, Object? input) applyInput
+  final void Function(SeatInput input) applyInput
   void submit(Object? input, {int seat = 0})
 
 final class LogTime extends TimeSource
@@ -2631,6 +2631,11 @@ final class Scoring
   void clear()
   void restore(Map<String, Object?> from)
 
+final class SeatInput
+  const SeatInput({required this.seat, required this.input})
+  final Object? input
+  final int seat
+
 final class Sequence
   ActorCue? cueFor(String actor, int step)
   String? subtitleAt(int step)
@@ -2797,7 +2802,7 @@ final class SimulationSetup
   SimulationSetup({required this.loop, required this.applyInput, this.history = 0})
   final EngineLoop loop
   final int history
-  final void Function(int seat, Object? input) applyInput
+  final void Function(SeatInput input) applyInput
 
 final class SimulationVersionFormatException extends Flutter3dFormatException
   String toString()

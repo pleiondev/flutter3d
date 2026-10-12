@@ -24698,3 +24698,88 @@ entries:
       file could not be written, where it answered `false`: replace a check
       of the answer with `try { await storage.write(…); } on
       StorageException catch (e) { … }`.
+
+  - id: hook-sim-Actor-onDamage-event
+    package: flutter3d_sim
+    symbol: Actor
+    kind: argument
+    arguments: [onDamage]
+    template: '(damage) => ({value})(damage.amount, damage.from)'
+    guidance: >-
+      `Actor.onDamage` is handed the `Damage` itself, where it took the
+      amount and who dealt it as two parameters: `(amount, from) => ...` is
+      `(damage) => ...` reading `damage.amount` and `damage.from`. A minor
+      can tell a target more (what kind of harm, where it landed) through
+      one object, where a third parameter would break every handler.
+      `migrate` wraps the old function,
+      `(damage) => (old)(damage.amount, damage.from)`, which runs as it did.
+
+  - id: hook-multiplayer-RollbackSession-onSettled-event
+    package: flame_multiplayer
+    symbol: RollbackSession
+    kind: argument
+    arguments: [onSettled]
+    template: '(settled) => ({value})(settled.step, settled.after)'
+    guidance: >-
+      `onSettled` is handed one `SettledStep`, with the step, the state it
+      ended in and the frames it ran on, where it took the step and the
+      state as parameters: `(step, after) => ...` is `(settled) => ...`
+      reading `settled.step` and `settled.after`. `migrate` wraps the old
+      function, `(settled) => (old)(settled.step, settled.after)`, which
+      runs as it did. `onMessage` is new and takes a `PeerMessage`.
+
+  - id: hook-flame_flutter3d-ChunkStreamer-drop-event
+    package: flame_flutter3d
+    symbol: ChunkStreamer
+    kind: argument
+    arguments: [drop]
+    template: '(dropped) => ({value})(dropped.index, dropped.chunk)'
+    guidance: >-
+      `drop` is handed one `ChunkDrop`, the piece and its index, where it
+      took the two as parameters: `(index, chunk) => ...` is
+      `(dropped) => ...` reading `dropped.index` and `dropped.chunk`.
+      `migrate` wraps the old function,
+      `(dropped) => (old)(dropped.index, dropped.chunk)`, which runs as it
+      did.
+
+  - id: hook-flame_flutter3d-GridMover-onArrive-event
+    package: flame_flutter3d
+    symbol: GridMover
+    kind: argument
+    arguments: [onArrive]
+    template: '(arrival) => ({value})(arrival.column, arrival.row)'
+    guidance: >-
+      `onArrive` is handed one `GridArrival`, the cell reached, where it took
+      its column and row as parameters: `(column, row) => ...` is
+      `(arrival) => ...` reading `arrival.column` and `arrival.row`.
+      `migrate` wraps the old function,
+      `(arrival) => (old)(arrival.column, arrival.row)`, which runs as it
+      did. `passable` keeps its two parameters: it is a function of the
+      cell, not an event.
+
+  - id: hook-flame_flutter3d-TiledWorld3d-spawn-context
+    package: flame_flutter3d
+    symbol: TiledWorld3d
+    kind: argument
+    arguments: [spawn]
+    template: '(spawn) => ({value})(spawn.object, spawn.at)'
+    guidance: >-
+      `spawn` is handed one `TiledSpawn`, the object and its middle, where it
+      took the two as parameters: `(object, at) => ...` is `(spawn) => ...`
+      reading `spawn.object` and `spawn.at`. `migrate` wraps the old
+      function, `(spawn) => (old)(spawn.object, spawn.at)`, which runs as it
+      did.
+
+  - id: hook-flutter3d-ModelWardrobe-onDressed-event
+    package: flutter3d
+    symbol: ModelWardrobe
+    kind: argument
+    arguments: [onDressed]
+    template: '(dressed) => ({value})(dressed.instance, dressed.key)'
+    guidance: >-
+      `onDressed` is handed one `ModelDressed`, the model put on and the key
+      it plays, where it took the two as parameters:
+      `(instance, key) => ...` is `(dressed) => ...` reading
+      `dressed.instance` and `dressed.key`. `migrate` wraps the old
+      function, `(dressed) => (old)(dressed.instance, dressed.key)`, which
+      runs as it did.

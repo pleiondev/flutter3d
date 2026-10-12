@@ -109,8 +109,9 @@ final class Actor with Damageable, Rider {
   /// counts deaths and stops corpses blocking corridors.
   ///
   /// A closure rather than a reference to the system, because that file already
-  /// imports this one and naming it here would close a cycle.
-  bool Function(double amount, Object? from)? onDamage;
+  /// imports this one and naming it here would close a cycle. Handed the
+  /// [Damage] itself, so what a minor adds to it reaches the system too.
+  bool Function(Damage damage)? onDamage;
 
   /// Takes damage, if there is anything here to hurt.
   ///
@@ -119,10 +120,8 @@ final class Actor with Damageable, Rider {
   /// radius, and "nothing happened" is the honest answer for a lamp post.
   @override
   bool applyDamage(Damage damage) {
-    final amount = damage.amount;
-    final from = damage.from;
     if (health == null) return false;
-    return onDamage?.call(amount, from) ?? health!.damage(amount);
+    return onDamage?.call(damage) ?? health!.damage(damage.amount);
   }
 
   @override

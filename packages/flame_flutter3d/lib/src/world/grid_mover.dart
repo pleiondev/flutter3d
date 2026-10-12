@@ -74,7 +74,7 @@ base class GridMover extends Component with FixedStepUpdate {
   final bool wraps;
 
   /// Told the cell whose middle has just been reached.
-  final void Function(int column, int row)? onArrive;
+  final void Function(GridArrival arrival)? onArrive;
 
   /// The way it is going; none while it stands.
   GridHeading heading = GridHeading.none;
@@ -158,7 +158,22 @@ base class GridMover extends Component with FixedStepUpdate {
       _column = c;
       _row = r;
       at.setFrom(grid.centerOf(c, r));
-      onArrive?.call(c, r);
+      onArrive?.call(GridArrival(column: c, row: r));
     }
   }
+}
+
+/// What [GridMover.onArrive] is told: the cell whose middle was reached.
+///
+/// **One object, so a minor can say more** (the heading it came in on)
+/// without breaking a game written against 1.0.
+final class GridArrival {
+  /// The cell at [column] and [row].
+  const GridArrival({required this.column, required this.row});
+
+  /// The cell's column.
+  final int column;
+
+  /// The cell's row.
+  final int row;
 }

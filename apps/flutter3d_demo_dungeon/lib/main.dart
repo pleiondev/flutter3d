@@ -1135,7 +1135,7 @@ class _GameScreenState extends State<GameScreen>
         timeline: _timeline,
         prepare: run.prepareEdit,
         rebuild: (Level next) => run.installEdit(),
-        present: (Level next, LevelDiff diff) => run.installEdit(),
+        present: (_) => run.installEdit(),
       ),
     );
   }

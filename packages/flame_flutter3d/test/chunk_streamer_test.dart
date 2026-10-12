@@ -18,7 +18,7 @@ void main() {
         built.add(index);
         return 'piece $index';
       },
-      drop: (index, chunk) => dropped.add((index, chunk)),
+      drop: (gone) => dropped.add((gone.index, gone.chunk)),
     );
   });
 

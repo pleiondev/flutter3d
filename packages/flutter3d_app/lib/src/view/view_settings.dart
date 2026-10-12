@@ -11,7 +11,7 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart'
-    show InputState, SimulationFactory, WorldTiming;
+    show InputState, SeatInput, SimulationFactory, WorldTiming;
 
 import '../surface/scene_surface.dart' show FramePresenter;
 import 'flutter3d_view.dart' show Flutter3dEngine, ViewResolution;
@@ -373,23 +373,6 @@ final class PluginSettings {
     formats: formats ?? this.formats,
     registries: registries ?? this.registries,
   );
-}
-
-/// What `SimulationPlacement.inline`'s `applyInput` is told: one input a
-/// game submitted, and the [seat] it came from.
-///
-/// **One object, so a later minor can say more** (the step it was submitted
-/// at, the player behind the seat) without breaking a handler.
-final class SeatInput {
-  /// [input] from [seat].
-  const SeatInput({required this.seat, required this.input});
-
-  /// The seat that submitted it: nought for a game of one.
-  final int seat;
-
-  /// What was submitted, as `Flutter3dEngine.simulation.submit` was handed
-  /// it.
-  final Object? input;
 }
 
 /// What `DeviceSettings.onDeviceLost` is told: the [engine] whose device

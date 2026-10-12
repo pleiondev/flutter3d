@@ -57,7 +57,7 @@ void _addPlate(EngineLoop loop) {
 SimulationSetup _plate(Object? _) {
   final loop = EngineLoop(input: InputState());
   _addPlate(loop);
-  return SimulationSetup(loop: loop, applyInput: (_, _) {});
+  return SimulationSetup(loop: loop, applyInput: (_) {});
 }
 
 /// The view, and under it what [ProbeBuilder] makes of the plate's probe

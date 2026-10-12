@@ -7,7 +7,13 @@
 library;
 
 import 'package:flutter3d_net/flutter3d_net.dart'
-    show LoopbackParty, PeerSend, PeerWire, RollbackSession;
+    show
+        LoopbackParty,
+        PeerMessage,
+        PeerSend,
+        PeerWire,
+        RollbackSession,
+        SettledStep;
 
 /// The party's settled steps, sent to whoever only watches — a spectator
 /// played the tape rather than taking part in the rollback.
@@ -34,7 +40,8 @@ final class PartyTape<S> {
   bool get _hosting => wire.slot == host;
 
   /// Hands a settled step on — wire this to [RollbackSession.onSettled].
-  void settled(int step, S after, Map<int, Map<String, Object?>> frames) {
+  void settled(SettledStep<S> settled) {
+    final SettledStep<S>(:step, :after, :frames) = settled;
     _last = (step: step, after: after);
     if (!_hosting || !_anybodyWatching) return;
     wire.send(
@@ -50,9 +57,10 @@ final class PartyTape<S> {
   }
 
   /// A message that is a spectator saying it is there — the rollback's
-  /// own messages pass through untouched; call this for every one.
-  void hear(int from, Map<String, Object?> message) {
-    if (!_hosting || message['watching'] != true) return;
+  /// own messages pass through untouched; call this for every one (wire it
+  /// to [RollbackSession.onMessage]).
+  void hear(PeerMessage heard) {
+    if (!_hosting || heard.message['watching'] != true) return;
     _anybodyWatching = true;
     final last = _last;
     if (last == null) return;

@@ -23,7 +23,7 @@ SimulationSetup pendulumSimulation(Object? arguments) {
     profile: SimulationProfile.accurate,
   );
   PendulumLab.install(loop);
-  return SimulationSetup(loop: loop, applyInput: (_, _) {});
+  return SimulationSetup(loop: loop, applyInput: (_) {});
 }
 
 /// A pendulum released at [releasedAt] from the vertical: a rod of

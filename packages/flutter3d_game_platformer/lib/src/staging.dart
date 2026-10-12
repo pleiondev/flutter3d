@@ -192,11 +192,7 @@ final class PlatformerHeadlessGame extends HeadlessGame {
 
   /// What the host's game hangs on each run of a level, and what steps it
   /// after each of the simulation's steps — or null for nothing.
-  final void Function(double dt)? Function(
-    Level level,
-    PlatformerStaged staged,
-  )?
-  dress;
+  final void Function(double dt)? Function(PlatformerDressing dressing)? dress;
 
   @override
   SimulationVersion get simulation => platformerSimulationVersion;
@@ -230,8 +226,27 @@ final class PlatformerHeadlessGame extends HeadlessGame {
       input: input,
       registry: registry(),
     );
-    return _PlatformerRun(staged, dress?.call(level, staged));
+    return _PlatformerRun(
+      staged,
+      dress?.call(PlatformerDressing(level: level, staged: staged)),
+    );
   }
+}
+
+/// What [PlatformerHeadlessGame.dress] is handed for each run: the level
+/// and how the genre staged it.
+///
+/// **One object, so a minor can say more** (the run's seed, the tool
+/// playing it) without breaking a host written against 1.0.
+final class PlatformerDressing {
+  /// [level], as [staged].
+  const PlatformerDressing({required this.level, required this.staged});
+
+  /// The level the run plays.
+  final Level level;
+
+  /// The genre's staging of it, before the run's first step.
+  final PlatformerStaged staged;
 }
 
 /// A staged platformer run, answering what a blind tool asks of one.

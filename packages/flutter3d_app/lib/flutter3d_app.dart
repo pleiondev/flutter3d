@@ -82,6 +82,7 @@ export 'package:flutter3d_sim/flutter3d_sim.dart'
         LevelVisibility,
         Lightmap,
         LightmapLayout,
+        SeatInput,
         ShadowCasting,
         SimulationFactory,
         SimulationHandle,
@@ -124,7 +125,6 @@ export 'src/view/view_settings.dart'
         DeviceSettings,
         LoopSettings,
         PluginSettings,
-        SeatInput,
         SimulationPlacement,
         ViewSettings;
 export 'src/widget_surface/widget_surface.dart';

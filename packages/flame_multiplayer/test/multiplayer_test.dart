@@ -246,8 +246,7 @@ void main() {
             inputDelay: 3,
             maxRollbackFrames: 20,
             endsAt: (after) => (after['steps']! as int) >= 300,
-            onSettled: (step, after, _) =>
-                settled[slot][step] = jsonEncode(after),
+            onSettled: (s) => settled[slot][s.step] = jsonEncode(s.after),
           ),
       ];
 

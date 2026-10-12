@@ -5,7 +5,7 @@
 library package:flutter3d_net/flutter3d_net.dart
 
 final class EngineRollback
-  EngineRollback({required this.loop, required PeerWire wire, required Map<String, Object?> Function() captureLocalFrame, required this.applyFrames, int? localSlot, int players = 2, int inputDelay = 2, int maxRollbackFrames = 8, int redundancy = 8, bool Function(LoopState after)? endsAt, void Function(int step, LoopState after, Map<int, Map<String, Object?>>)? onSettled, void Function(int from, Map<String, Object?> message)? onMessage})
+  EngineRollback({required this.loop, required PeerWire wire, required Map<String, Object?> Function() captureLocalFrame, required this.applyFrames, int? localSlot, int players = 2, int inputDelay = 2, int maxRollbackFrames = 8, int redundancy = 8, bool Function(LoopState after)? endsAt, void Function(SettledStep<LoopState> settled)? onSettled, void Function(PeerMessage message)? onMessage})
   final EngineLoop loop
   final void Function(Map<int, Map<String, Object?>> frames) applyFrames
   late final RollbackSession<LoopState> session
@@ -65,6 +65,11 @@ final class ObserverMode
   static const List<ObserverMode> values = <ObserverMode>[tape, poses]
   static const ObserverMode poses = ObserverMode._('poses')
   static const ObserverMode tape = ObserverMode._('tape')
+
+final class ObserverRestore
+  const ObserverRestore({required this.start, required this.step})
+  final Snapshot start
+  final int step
 
 final class ObserverSnapshot
   String toString()
@@ -167,9 +172,9 @@ final class RollbackSession<S>
   final int players
   final int redundancy
   final void Function(Map<int, Map<String, Object?>> frames) applyAndStep
+  final void Function(PeerMessage message)? onMessage
   final void Function(S state) restore
-  final void Function(int from, Map<String, Object?> message)? onMessage
-  final void Function(int step, S after, Map<int, Map<String, Object?>> frames)? onSettled
+  final void Function(SettledStep<S> settled)? onSettled
   int droppedCorrections
   int droppedEarly
   int get step
@@ -196,6 +201,12 @@ final class RollbackStats
   final int stepsRerun
   static const Duration histogramLimit = Duration(milliseconds: 50)
 
+final class SettledStep<S>
+  const SettledStep({required this.step, required this.after, required this.frames})
+  final Map<int, Map<String, Object?>> frames
+  final S after
+  final int step
+
 final class SimulationObserver
   ObserverMode? get mode
   SimulationObserver({required this.wire, required this.simulation, this.filter = ObserverFilter.everything, this.restore, this.replay, this.show, this.readings, this.wantsTape = true})
@@ -206,8 +217,8 @@ final class SimulationObserver
   final bool wantsTape
   final void Function(InputFrame input)? replay
   final void Function(List<ProbeReading> readings)? readings
+  final void Function(ObserverRestore restore)? restore
   final void Function(PublishedState state)? show
-  final void Function(Snapshot start, int step)? restore
   int? get next
   void close()
   void join()

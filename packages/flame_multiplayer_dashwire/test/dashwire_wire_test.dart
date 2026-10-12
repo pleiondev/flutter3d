@@ -82,8 +82,7 @@ void main() {
           save: () => List<int>.of(games[slot]),
           restore: (state) => games[slot].setAll(0, state),
           maxRollbackFrames: 30,
-          onSettled: (step, after, _) =>
-              settled[slot][step] = jsonEncode(after),
+          onSettled: (s) => settled[slot][s.step] = jsonEncode(s.after),
         ),
     ];
     for (var i = 0; i < 300; i++) {

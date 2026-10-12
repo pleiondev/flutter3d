@@ -609,11 +609,6 @@ final class SceneWidgetsMount
   void dispose()
   void update(List<Widget> children)
 
-final class SeatInput
-  const SeatInput({required this.seat, required this.input})
-  final Object? input
-  final int seat
-
 @immutable final class SemanticObject
   const SemanticObject({required this.id, required this.label, required this.bounds, this.hint, this.selected = false, this.onTap})
   final Object id
@@ -1106,7 +1101,7 @@ export package:flutter3d_physics/flutter3d_physics.dart show CollisionWorld, Phy
   CollisionWorld
   PhysicsBackend
 
-export package:flutter3d_sim/flutter3d_sim.dart show Brush, DisplayTime, EngineLoop, EntityDef, EntityKind, EntityRegistry, FrameCadence, HeightfieldTiles, InputAction, InputState, Level, LevelMaterial, LevelVisibility, Lightmap, LightmapLayout, ShadowCasting, SimulationFactory, SimulationHandle, TileLevelChooser, TimeSource, WorldTiming, XrHand
+export package:flutter3d_sim/flutter3d_sim.dart show Brush, DisplayTime, EngineLoop, EntityDef, EntityKind, EntityRegistry, FrameCadence, HeightfieldTiles, InputAction, InputState, Level, LevelMaterial, LevelVisibility, Lightmap, LightmapLayout, SeatInput, ShadowCasting, SimulationFactory, SimulationHandle, TileLevelChooser, TimeSource, WorldTiming, XrHand
   Brush
   DisplayTime
   EngineLoop
@@ -1122,6 +1117,7 @@ export package:flutter3d_sim/flutter3d_sim.dart show Brush, DisplayTime, EngineL
   LevelVisibility
   Lightmap
   LightmapLayout
+  SeatInput
   ShadowCasting
   SimulationFactory
   SimulationHandle

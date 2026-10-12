@@ -54,15 +54,16 @@ final class LocalSimulation extends SimulationHandle {
   /// The loop this handle drives.
   final EngineLoop loop;
 
-  /// Hands [input], submitted for [seat], to the game, to be put into the
-  /// loop's `InputState`: called at the start of the next live step for
-  /// every submission since the last, in the order they were made.
-  final void Function(int seat, Object? input) applyInput;
+  /// Hands one submission, its input and the seat it came from, to the
+  /// game, to be put into the loop's `InputState`: called at the start of
+  /// the next live step for every submission since the last, in the order
+  /// they were made.
+  final void Function(SeatInput input) applyInput;
 
   late final Registration _publishing;
   late final Registration _input;
   late final Registration _stepEnd;
-  final List<(int, Object?)> _pending = <(int, Object?)>[];
+  final List<SeatInput> _pending = <SeatInput>[];
   bool _appliedThisStep = false;
   final List<void Function(PublishedState state)> _listeners =
       <void Function(PublishedState state)>[];
@@ -83,7 +84,7 @@ final class LocalSimulation extends SimulationHandle {
   @override
   void submit(Object? input, {int seat = 0}) {
     if (_disposed) return;
-    _pending.add((seat, input));
+    _pending.add(SeatInput(seat: seat, input: input));
   }
 
   @override
@@ -164,10 +165,10 @@ final class LocalSimulation extends SimulationHandle {
   void _applyPending() {
     _appliedThisStep = true;
     if (_pending.isEmpty) return;
-    final submitted = List<(int, Object?)>.of(_pending);
+    final submitted = List<SeatInput>.of(_pending);
     _pending.clear();
-    for (final (seat, input) in submitted) {
-      applyInput(seat, input);
+    for (final input in submitted) {
+      applyInput(input);
     }
   }
 
@@ -176,4 +177,20 @@ final class LocalSimulation extends SimulationHandle {
       listener(state);
     }
   }
+}
+
+/// What a simulation's `applyInput` is told: one input a game submitted,
+/// and the [seat] it came from.
+///
+/// **One object, so a later minor can say more** (the step it was submitted
+/// at, the player behind the seat) without breaking a handler.
+final class SeatInput {
+  /// [input] from [seat].
+  const SeatInput({required this.seat, required this.input});
+
+  /// The seat that submitted it: nought for a game of one.
+  final int seat;
+
+  /// What was submitted, as `SimulationHandle.submit` was handed it.
+  final Object? input;
 }

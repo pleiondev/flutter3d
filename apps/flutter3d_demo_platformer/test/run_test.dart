@@ -329,7 +329,7 @@ LiveLevel _live(PlatformerRun run, RunTimeline timeline) => LiveLevel(
   timeline: timeline,
   prepare: run.prepareEdit,
   rebuild: (Level next) => run.installEdit(),
-  present: (Level next, LevelDiff diff) => run.announceEdit(),
+  present: (_) => run.announceEdit(),
 );
 
 /// Plays [steps] steps of the level that is up through the run's own loop

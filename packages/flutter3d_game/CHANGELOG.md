@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **A live level's and an actor's animation callbacks take one object
+  each.** `LiveLevel.present` takes a `LevelPresent` (the next level and
+  the diff), `LiveLevel.swapped` a `LevelSwapped` (the level and the step)
+  and `ActorAnimations.write` an `ActorAnimationWrite` (the actor, its
+  graph and its wish), all new, so a minor can hand them more.
 - **The facade exports every type its API names**: `GameAction`,
   `InputAction`, `Storage`, `EngineLog`, `TimeSource`, `XrSettings`,
   `WorldTiming`, `Flutter3dPlugin`, `PhysicsBackend`, `AudioBus` and the

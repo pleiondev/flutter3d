@@ -527,7 +527,8 @@ class _GameScreenState extends State<GameScreen> {
   /// An edit that took effect before this demo began — within a keyframe of
   /// the level loading — cannot go into it, and the demo starts again from
   /// now, in the level it was loaded as, with the edit at its first step.
-  void _recordSwap(Level next, int step) {
+  void _recordSwap(LevelSwapped swap) {
+    final LevelSwapped(:next, :step) = swap;
     final demo = _demo;
     final sim = _sim;
     if (demo == null || sim == null) return;
@@ -677,7 +678,7 @@ class _GameScreenState extends State<GameScreen> {
         timeline: _timeline,
         prepare: run.prepareEdit,
         rebuild: (Level next) => run.installEdit(),
-        present: (Level next, LevelDiff diff) => run.announceEdit(),
+        present: (_) => run.announceEdit(),
         swapped: _recordSwap,
       ),
     );
