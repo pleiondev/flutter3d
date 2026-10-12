@@ -209,43 +209,52 @@ Future<void> _migrate(
     '--apply',
   ], project);
 
-  // 5. What needs the resolved code.
-  final lints = lintsFrom == null
-      ? await runStep(report, 'flutter3d_lints:migrate', 'dart', <String>[
-          'pub',
-          'global',
-          'run',
-          'flutter3d_lints:migrate',
-          '--json',
-          project.path,
-        ], project)
-      : await runStep(report, 'flutter3d_lints:migrate', 'dart', <String>[
-          'run',
-          'flutter3d_lints:migrate',
-          '--json',
-          project.path,
-        ], Directory(lintsFrom));
-  for (final line in LineSplitter.split('${lints.stdout}')) {
-    if (!line.startsWith('{')) continue;
-    final r = jsonDecode(line) as Map<String, Object?>;
-    for (final m
-        in (r['manual']! as List<Object?>).cast<Map<String, Object?>>()) {
-      report.manual.add((
-        file: '${r['file']}',
-        line: m['line']! as int,
-        id: '${m['id']}',
-        message: '${m['message']}',
-        link: '${m['link']}',
-      ));
+  // 5. What needs the resolved code. Again while a pass rewrote something:
+  // a rewrite can make a name resolve that the next one needs (a class
+  // renamed in a creation, then its colour arguments), up to three passes.
+  for (var pass = 0; pass < 3; pass++) {
+    final lints = lintsFrom == null
+        ? await runStep(report, 'flutter3d_lints:migrate', 'dart', <String>[
+            'pub',
+            'global',
+            'run',
+            'flutter3d_lints:migrate',
+            '--json',
+            project.path,
+          ], project)
+        : await runStep(report, 'flutter3d_lints:migrate', 'dart', <String>[
+            'run',
+            'flutter3d_lints:migrate',
+            '--json',
+            project.path,
+          ], Directory(lintsFrom));
+    // What is left by hand is what the last pass found.
+    report.manual.clear();
+    var rewrote = false;
+    for (final line in LineSplitter.split('${lints.stdout}')) {
+      if (!line.startsWith('{')) continue;
+      final r = jsonDecode(line) as Map<String, Object?>;
+      for (final m
+          in (r['manual']! as List<Object?>).cast<Map<String, Object?>>()) {
+        report.manual.add((
+          file: '${r['file']}',
+          line: m['line']! as int,
+          id: '${m['id']}',
+          message: '${m['message']}',
+          link: '${m['link']}',
+        ));
+      }
+      report.hidden.addAll(
+        (r['hidden']! as List<Object?>).map((Object? h) => '$h'),
+      );
+      for (final id in (r['applied']! as List<Object?>).map(
+        (Object? a) => '$a',
+      )) {
+        report.rewritten[id] = (report.rewritten[id] ?? 0) + 1;
+        rewrote = true;
+      }
     }
-    report.hidden.addAll(
-      (r['hidden']! as List<Object?>).map((Object? h) => '$h'),
-    );
-    for (final id in (r['applied']! as List<Object?>).map(
-      (Object? a) => '$a',
-    )) {
-      report.rewritten[id] = (report.rewritten[id] ?? 0) + 1;
-    }
+    if (!rewrote || lints.exitCode != 0) break;
   }
 
   // 6. Dependencies the new imports need. `dart fix` may have added some

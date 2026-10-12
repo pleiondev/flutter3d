@@ -1,0 +1,33 @@
+format: 1
+from: 0.8.5
+to: 1.0.0-rc.1
+date: 2026-10-08
+guide: https://flutter3d.pleion.dev/reference/migrating-to-1.0/
+entries:
+  - id: kinds-Lamp-glow
+    package: flutter3d_kinds
+    symbol: Lamp.glow
+    kind: argument
+    arguments: [glow]
+    types: [Vector4]
+    template: 'LinearColor.fromSrgb({components})'
+    imports: [package:flutter3d_kinds/flutter3d_kinds.dart]
+    guidance: >-
+      `glow` is a `LinearColor` assigned whole: `Vector4(r, g, b, a)` is
+      `LinearColor.fromSrgb(r, g, b, a)`, and `.x` is `.r`.
+  - id: kinds-Lamp-tinted
+    package: flutter3d_kinds
+    symbol: Lamp.tinted
+    kind: argument
+    arguments: [color]
+    types: [Vector3]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_kinds/flutter3d_kinds.dart]
+  - id: kinds-Lamp-beamDegrees
+    package: flutter3d_kinds
+    symbol: Lamp
+    kind: argument
+    arguments: [beamDegrees]
+    to: beam
+    template: '{value} * pi / 180'
+    imports: ['dart:math show pi']

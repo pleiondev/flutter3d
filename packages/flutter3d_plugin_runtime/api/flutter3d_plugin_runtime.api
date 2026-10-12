@@ -270,3 +270,7 @@ const int wasmPluginAbi = wasmPluginAbiMax
 const int wasmPluginAbiMax = 2
 
 const int wasmPluginAbiMin = 1
+
+const int wasmRenderAbi = 3
+
+const String wasmRenderNodeExport = 'f3d_render_node'

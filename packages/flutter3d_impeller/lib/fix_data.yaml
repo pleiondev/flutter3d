@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 47edc75972c45131
+# table-stamp: 0d9bdff0e6f7e29b
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -38,7 +38,7 @@ transforms:
         argumentValue:
           expression: '1280'
       - kind: 'addParameter'
-        index: 0
+        index: 1
         name: 'height'
         style: required_named
         argumentValue:

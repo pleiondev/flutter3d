@@ -182,10 +182,14 @@ void _scan(ResolvedUnitResult unit, _Work work, List<MigrationRule> rules) {
   for (final f in scanForMigrations(unit.unit, source, rules)) {
     if (f.automatic) {
       for (final e in f.edits) {
-        final import = RegExp(r"import '([^']+)';").firstMatch(e.replacement);
+        final import = RegExp(
+          r"import '([^']+)'( show [^;]+)?;",
+        ).firstMatch(e.replacement);
         if (import != null && e.length == 0) {
           // Asked of the library, which the second pass writes once.
-          (work.imports[library] ??= <String>{}).add(import.group(1)!);
+          (work.imports[library] ??= <String>{}).add(
+            '${import.group(1)}${import.group(2) ?? ''}',
+          );
         } else {
           work.edit(path, e);
         }
@@ -267,16 +271,28 @@ void _hideNewNames(ResolvedUnitResult unit, Set<String> names, _Work work) {
   }
 }
 
-/// Adds the imports [uris] to library [unit] that it does not have.
+/// Adds the imports [uris] to library [unit] that it does not have. Each is
+/// a URI, or a URI and a `show` list (`dart:math show pi`); one imported
+/// under a prefix does not count, since the template names it bare.
 void _addImports(ResolvedUnitResult unit, Set<String> uris, _Work work) {
   final directives = unit.unit.directives;
   final have = <String?>{
-    for (final d in directives.whereType<ImportDirective>()) d.uri.stringValue,
+    for (final d in directives.whereType<ImportDirective>())
+      if (d.prefix == null) d.uri.stringValue,
   };
-  final missing = uris.where((String u) => !have.contains(u)).toList()..sort();
+  final missing =
+      uris.where((String u) => !have.contains(u.split(' ').first)).toList()
+        ..sort();
   if (missing.isEmpty) return;
   final at = directives.isEmpty ? 0 : directives.last.end;
-  final text = missing.map((String u) => "import '$u';").join('\n');
+  final text = missing
+      .map((String u) {
+        final space = u.indexOf(' ');
+        return space < 0
+            ? "import '$u';"
+            : "import '${u.substring(0, space)}'${u.substring(space)};";
+      })
+      .join('\n');
   work.edit(
     unit.path,
     MigrationEdit(at, 0, directives.isEmpty ? '$text\n' : '\n$text'),

@@ -10,6 +10,16 @@
   views without shadows, which its unlit and normals pictures never read;
   the sun's cascades, keyed again for every view, were most of the work.
   The atlases are the same bytes.
+- **`migrate` leaves the 0.8.5 site pages compiling.** Two parameters
+  added in one migration entry each get a place, so `dart fix` writes
+  `open(width: 1280, height: 720)` rather than the second one twice; the
+  lints run again while a pass rewrote something; and the colour, input
+  and renamed-class entries are carried out rather than left as TODOs:
+  308 entries are left by hand, down from 361.
+- **`migrate --data` counts a file of a Flutter-owned format at its only
+  version as current**, and names one of `f3d.settings`, `f3d.ghost` or
+  `f3d.match` below its version with the version it is at, for the game to
+  lift on read.
 - **A twin's USD arrives with the ids it binds its elements by.** Custom
   attributes (declared `custom`, under `userProperties:`, or in a prim's
   `customData`) ride the level: an instance's on its row under

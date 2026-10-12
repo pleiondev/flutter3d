@@ -29,6 +29,20 @@ const int wasmPluginAbiMin = 1;
 /// changed: an ABI-1 module runs under ABI 2 as it did.
 const int wasmPluginAbiMax = 2;
 
+/// **Reserved: the ABI that brings render nodes**, one past
+/// [wasmPluginAbiMax]. A module written for it exports
+/// [wasmRenderNodeExport], which records encoder commands against the
+/// resources its `.f3dplugin` declares. No host runs it yet, so a module
+/// that says this ABI is refused with the range named, like any other
+/// number outside it; the release that implements it moves
+/// [wasmPluginAbiMax] here, and ABI 1 and 2 modules run as before.
+const int wasmRenderAbi = 3;
+
+/// **Reserved: the export of a render node**, from [wasmRenderAbi] on. A
+/// module of an older ABI that exports a function of this name is not
+/// read for it.
+const String wasmRenderNodeExport = 'f3d_render_node';
+
 /// Why a module that says it was written for [abi], and imports [imports],
 /// cannot run here; null when it can.
 ///

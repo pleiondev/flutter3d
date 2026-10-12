@@ -14,7 +14,7 @@ const String guideEnd = '<!-- migration-table:end -->';
 String howCarriedOut(MigrationEntry e) => switch (e.kind) {
   'rename' || 'moved' || 'parameters' => '`dart fix`',
   'rewrite' || 'implementsToWith' || 'import' => '`migrate`',
-  'regroup' || 'recordToClass' => '`migrate`',
+  'regroup' || 'recordToClass' || 'argument' => '`migrate`',
   // Each leaves a TODO beside what it wrote: a throw where a value used to
   // fall through, a `try` around what used to answer null.
   'enumToClass' || 'nullToThrow' => '`migrate`, with a TODO',
@@ -48,8 +48,34 @@ String _what(MigrationEntry e, MigrationTable table) => switch (e.kind) {
   'nullToThrow' =>
     '`${e.symbol}` throws `${e.exception}` where it returned null: a null '
         'check beside a call becomes `try … on ${e.exception}`.',
+  'argument' => _argument(e),
   _ => '',
 };
+
+/// An `argument` entry in the guide's words: the value as it was passed,
+/// and as it is passed now, with `x` for the value (or its components).
+String _argument(MigrationEntry e) {
+  final type = e.types.firstOrNull;
+  final parts = switch (type) {
+    'Vector2' => 'x, y',
+    'Vector3' => 'x, y, z',
+    'Vector4' => 'x, y, z, w',
+    _ => 'x',
+  };
+  final value = type == null ? 'x' : '$type($parts)';
+  final written = e.template == null
+      ? value
+      : e.template!
+            .replaceAll(RegExp(r'\s+'), ' ')
+            .replaceAll('{components}', parts)
+            .replaceAll('{value}', value)
+            .trim();
+  if (e.arguments case [final only]) {
+    return '`$only: $value` of `${e.symbol}` is `${e.to ?? only}: $written`.';
+  }
+  return '${e.arguments.map((String a) => '`$a:`').join(', ')} of '
+      '`${e.symbol}`: `$value` is `$written`.';
+}
 
 /// The Markdown between [guideStart] and [guideEnd]: every table, newest
 /// first, since a reader on the last candidate wants the last table.

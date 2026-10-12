@@ -2,7 +2,8 @@
 /// migration tables: the entries the analyzer plugin and `dart run
 /// flutter3d_lints:migrate` check a resolved project against — `rewrite`,
 /// `implementsToWith`, `regroup`, `enumToClass`, `recordToClass`,
-/// `nullToThrow`, `internal` and `manual`.
+/// `nullToThrow`, `argument`, `internal` and `manual` — and the `rename`s
+/// of a class, for the creation `dart fix` cannot reach (`const Old()`).
 ///
 /// The plugin cannot read this package's YAML (it does not depend on it, and
 /// the analysis server runs it apart from any project), so the table is
@@ -53,9 +54,21 @@ const Set<String> lintsKinds = <String>{
   'enumToClass',
   'recordToClass',
   'nullToThrow',
+  'argument',
   'internal',
   'manual',
+  'rename',
 };
+
+/// Whether [e] is one the plugin's table carries: a `rename` only when it
+/// renames a class, which is all the scan does with one.
+bool _carried(MigrationEntry e) =>
+    lintsKinds.contains(e.kind) &&
+    (e.kind != 'rename' ||
+        (e.member == null &&
+            !e.symbol.contains(':') &&
+            RegExp(r'^[A-Z]\w*$').hasMatch(e.to ?? '') &&
+            RegExp(r'^[A-Z]').hasMatch(e.topName)));
 
 /// The anchor of [package]'s one line of `internal` names in the guide.
 String internalAnchor(String package) => 'internal-$package';
@@ -88,6 +101,11 @@ String _message(MigrationEntry e, MigrationTable table) {
     'nullToThrow' when e.text.isEmpty =>
       '`$callable` throws `${e.exception}` in ${table.to} where it returned '
           'null.',
+    'argument' when e.text.isEmpty =>
+      '${e.arguments.map((String a) => '`$a:`').join(', ')} of `${e.symbol}` '
+          '${e.to == null ? 'takes a value of another type' : 'is `${e.to}:`'} '
+          'in ${table.to}.',
+    'rename' => '`${e.topName}` is `${e.to}` in ${table.to}.',
     _ => firstSentence(e.text),
   };
 }
@@ -98,7 +116,7 @@ List<Map<String, Object?>> lintsRules(List<MigrationTable> tables) =>
     <Map<String, Object?>>[
       for (final table in tables)
         for (final e in table.entries)
-          if (lintsKinds.contains(e.kind)) _rule(e, table),
+          if (_carried(e)) _rule(e, table),
     ];
 
 Map<String, Object?> _rule(MigrationEntry e, MigrationTable table) {
@@ -106,7 +124,7 @@ Map<String, Object?> _rule(MigrationEntry e, MigrationTable table) {
       ? inferMatch(e)
       : (match: 'uses', switchOver: e.kind == 'enumToClass' ? e.topName : null);
   final members = <String>[
-    if (e.kind == 'regroup')
+    if (e.kind == 'regroup' || e.kind == 'argument')
       ...e.arguments
     else
       for (final m in (e.fields['members'] as List<Object?>?) ?? const []) '$m',
@@ -116,7 +134,13 @@ Map<String, Object?> _rule(MigrationEntry e, MigrationTable table) {
     'id': e.id,
     'kind': e.kind,
     'package': e.package,
-    'type': e.kind == 'recordToClass' ? (e.to ?? e.topName) : e.topName,
+    // A record's class, and the class an argument is passed to, go by
+    // their 1.0 names where those changed: the scan reads 1.0 code.
+    'type': switch (e.kind) {
+      'recordToClass' => e.to ?? e.topName,
+      'argument' => (e.fields['on'] as String?) ?? e.topName,
+      _ => e.topName,
+    },
     'member': ?e.member,
     if (e.template != null) 'template': _flat(e.template!),
     if (e.imports.isNotEmpty) 'imports': e.imports,
@@ -127,6 +151,8 @@ Map<String, Object?> _rule(MigrationEntry e, MigrationTable table) {
     'options': ?e.options,
     if (e.kind == 'recordToClass') 'fields': e.fieldMap,
     'exception': ?e.exception,
+    if (e.kind == 'argument' || e.kind == 'rename') 'to': ?e.to,
+    if (e.types.isNotEmpty) 'types': e.types,
     if (e.kind == 'internal' && e.instead != null) 'instead': _flat(e.instead!),
     if (e.kind == 'internal' && isLibrary) 'library': true,
     'message': _message(e, table),

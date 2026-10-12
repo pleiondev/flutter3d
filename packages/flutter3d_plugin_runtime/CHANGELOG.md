@@ -19,6 +19,11 @@
   name with a `PluginException`, as every registry does.
 - **`wasm.trapped` is declared once for the engine** and kept, rather than
   by the first module that needed it and withdrawn with it.
+- **Render nodes have a reserved ABI.** `wasmRenderAbi` (3) and
+  `wasmRenderNodeExport` (`f3d_render_node`) name the Wasm plugin ABI that
+  brings render nodes. No host runs it yet: a module that says ABI 3 is
+  refused with the range named, as before, and ABI 1 and 2 modules are
+  unchanged.
 - **The runtime depends on the plugin API alone.** `entityKinds`,
   `materials` and `renderSteps` are sections like `effects`, read by the
   package that owns what they install through the plugin API's

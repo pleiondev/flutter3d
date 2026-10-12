@@ -335,6 +335,22 @@ reading through `FormatSpec.aliases`. `Flutter3dView` builds the registry
 from `coreFormats` and `simFormats` and the formats it is handed
 (`gameFormats` from `flutter3d_game`), and a plugin asks the loop for it.
 
+### Reserved names
+
+Two contracts of 1.0 have a name in rc.1 and no implementation; the
+release that implements them adds them, and nothing written against rc.1
+changes:
+
+- **`f3d.rule`** is the id of the rule document: a condition over probe
+  readings in the expression language, with a severity, a message and an
+  acknowledgement. No other format may take the id.
+- **Wasm plugin ABI 3** (`wasmRenderAbi`) is the ABI of render nodes: a
+  module written for it exports `f3d_render_node`
+  (`wasmRenderNodeExport`), which records encoder commands against the
+  resources its `.f3dplugin` declares. A host reads ABI 1 to 2 until then
+  and refuses a module that says 3 with the range named; a module of ABI 1
+  or 2 that exports a function of that name is not read for it.
+
 ### Tools and the command line
 
 MCP tools and VM service extensions are snapshotted (`api/*.mcp`,

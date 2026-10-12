@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1
 
+- **More of the move to 1.0 is written for you.** A colour passed as a
+  `Vector3` or `Vector4` where 1.0 takes a `LinearColor` becomes one, as
+  `LinearColor(r, g, b)` or `LinearColor.fromSrgb(r, g, b, a)` by how that
+  colour was encoded, in an argument and in an assignment; a parameter
+  that was renamed or changed its unit is rewritten (`arcDegrees: 100` to
+  `arc: 100 * pi / 180`); a static member that is gone is rewritten through
+  its class (`DesktopInput.defaultBindings()`); and a class renamed in a
+  `const` creation, which `dart fix` cannot resolve, takes its new name. A
+  value it cannot write once, and a read used as the old type, keep the
+  TODO.
 - **Code written against 0.8 is told what 1.0 changed, at each use.** Two
   more warnings come from the migration table:
   - `flutter3d_migrate` has a quick fix. It rewrites a deprecated capability

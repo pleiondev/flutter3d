@@ -117,6 +117,54 @@ void main() {
     expect(declared.difference(known), isEmpty, reason: 'declared, not listed');
   });
 
+  test('a format out of reach is listed at the version its package writes', () {
+    // Mutation: bump `GameSettings.formatVersion` without the list, and a
+    // current settings file reads as behind (or a behind one as current).
+    final written = <String, int?>{
+      for (final away in formatsOutOfReach)
+        for (final file
+            in Directory('${_repository.path}/packages/${away.package}/lib')
+                .listSync(recursive: true)
+                .whereType<File>()
+                .where((File f) => f.path.endsWith('.dart')))
+          for (final spec in formatSpecsIn(file.readAsStringSync()))
+            if (spec.id == away.id) away.id: spec.version,
+    };
+    expect(<String, int?>{
+      for (final away in formatsOutOfReach) away.id: away.version,
+    }, written);
+  });
+
+  test('a file of a format out of reach at its current version is current; '
+      'one behind is named with the version it is at', () {
+    // Mutation: report every out-of-reach file as not carried, and the
+    // current ones are counted as left behind.
+    final files = <String, String>{
+      'input/keys.actions.json':
+          '{"format": "f3d.actions", "version": 1, "buttons": {}}\n',
+      'settings/game.settings.json':
+          '{"format": "f3d.settings", "version": 1}\n',
+      'tracks/oval.track.json': '{"format": "f3d.track", "version": 1}\n',
+    };
+    for (final MapEntry(key: path, value: text) in files.entries) {
+      File('${scratch.path}/$path')
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(text);
+    }
+    final report = migrateData(scratch);
+    expect(report.current, <String, int>{'f3d.actions': 1, 'f3d.track': 1});
+    expect(report.notCarried.map((n) => n.path), <String>[
+      'settings/game.settings.json',
+    ]);
+    expect(
+      report.notCarried.single.why,
+      startsWith('f3d.settings v1, below v2:'),
+    );
+    for (final MapEntry(key: path, value: text) in files.entries) {
+      expect(File('${scratch.path}/$path').readAsStringSync(), text);
+    }
+  });
+
   test('the oldest fixture of every format comes out as the expected file, '
       'byte for byte', () {
     // Mutation: drop the envelope from `currentDocument`, or skip the level
