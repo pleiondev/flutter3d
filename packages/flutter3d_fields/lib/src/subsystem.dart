@@ -75,6 +75,12 @@ final class SubsystemDeclaration {
   /// while the plugin is, leaves it null. A solver added in a minor names
   /// the profile that switches it on, so the default profile's simulation
   /// stays the one its tapes were recorded on.
+  ///
+  /// **A plugin's profile is in its namespace** (`acme.warming`): a profile
+  /// is one simulation to every tape and hello by its name alone, and bare
+  /// names are the engine's. A plugin from outside that names a bare profile
+  /// the engine does not define, or another namespace's, is refused when
+  /// it registers the subsystem.
   final List<SimulationProfile>? switchedOnBy;
 
   /// Whether it runs under [profile].

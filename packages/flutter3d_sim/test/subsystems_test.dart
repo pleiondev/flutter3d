@@ -101,10 +101,13 @@ List<int> _digests(EngineLoop loop, {int steps = 30}) => <int>[
 ];
 
 final class _Acme extends Flutter3dPlugin {
-  _Acme({this.touches = PluginTouches.simulation, this.subsystem});
+  _Acme({this.touches = PluginTouches.simulation, this.subsystem, this.views});
 
   final PluginTouches touches;
   final Subsystem? subsystem;
+
+  /// Where it keeps the view of the fields it was handed, under its id.
+  final Map<String, FieldRegistry>? views;
 
   @override
   PluginManifest get manifest => PluginManifest(
@@ -115,7 +118,8 @@ final class _Acme extends Flutter3dPlugin {
 
   @override
   void install(PluginHost host) {
-    host.registry<FieldRegistry>().declare(_water());
+    final fields = host.registry<FieldRegistry>()..declare(_water());
+    views?['acme'] = fields;
     host.registry<SubsystemRegistry>().register(subsystem ?? _soak());
   }
 }
@@ -351,6 +355,63 @@ void main() {
       );
     });
 
+    test('is switched on by a profile in its namespace, or the engine\'s', () {
+      // Mutation: drop the profile check from `register`. A plugin's `fast`
+      // and a later release's `fast` with other flags would be one
+      // simulation to every tape.
+      SimulationProfile named(String name) => SimulationProfile(
+        name,
+        isBitExact: true,
+        usesDoublePrecision: false,
+        allowsAdaptiveSteps: false,
+      );
+      for (final profile in <SimulationProfile>[
+        _wet,
+        SimulationProfile.deterministic,
+      ]) {
+        expect(
+          () => _loop(
+            plugins: <Flutter3dPlugin>[
+              _Acme(
+                subsystem: _soak(switchedOnBy: <SimulationProfile>[profile]),
+              ),
+            ],
+          ),
+          returnsNormally,
+          reason: profile.name,
+        );
+      }
+      for (final name in <String>['fast', 'other.wet']) {
+        expect(
+          () => _loop(
+            plugins: <Flutter3dPlugin>[
+              _Acme(
+                subsystem: _soak(
+                  switchedOnBy: <SimulationProfile>[named(name)],
+                ),
+              ),
+            ],
+          ),
+          throwsA(
+            isA<PluginException>().having(
+              (PluginException e) => e.message,
+              'message',
+              allOf(contains('"$name"'), contains('acme.')),
+            ),
+          ),
+          reason: name,
+        );
+      }
+      // The application names its own profiles as it likes.
+      final loop = _loop()..fields.declare(_water());
+      expect(
+        () => loop.subsystems.register(
+          _soak(switchedOnBy: <SimulationProfile>[named('fast')]),
+        ),
+        returnsNormally,
+      );
+    });
+
     test('that touches only the view is refused a subsystem', () {
       expect(
         () => _loop(
@@ -359,5 +420,62 @@ void main() {
         throwsA(isA<PluginException>()),
       );
     });
+
+    test('writes only a field it declared, and only while it simulates', () {
+      // Mutation: hand a plugin's view the values `hostField` holds. A view
+      // plugin, or another plugin, writes `acme.water` from a frame system,
+      // past the soak that declared it its writer.
+      final views = <String, FieldRegistry>{};
+      final loop = _loop(
+        plugins: <Flutter3dPlugin>[
+          _Acme(views: views),
+          _Peeks('meddler', PluginTouches.simulation, views),
+          _Peeks('glance', PluginTouches.view, views),
+        ],
+      );
+      expect(views['acme']!.hostField('acme.water')!.isWritable, isTrue);
+      expect(views['meddler']!.hostField('acme.water')!.isWritable, isFalse);
+      expect(views['glance']!.hostField('acme.water')!.isWritable, isFalse);
+      // The application's own view writes any; a plugin that simulates
+      // writes its own field, and one that touches only the view does not.
+      expect(loop.fields.hostField('acme.water')!.isWritable, isTrue);
+      expect(views['glance']!.hostField('glance.sky')!.isWritable, isFalse);
+      expect(views['meddler']!.hostField('meddler.sky')!.isWritable, isTrue);
+      // Read, it is the same values.
+      loop.runSteps(1);
+      expect(
+        views['meddler']!.hostField('acme.water')!.valueAt(0, 0, 0),
+        closeTo(0.1, 1e-6),
+      );
+    });
   });
+}
+
+/// A plugin that declares a field of its own and keeps the view of the
+/// fields it was handed, by its id.
+final class _Peeks extends Flutter3dPlugin {
+  _Peeks(this.id, this.touches, this.views);
+
+  final String id;
+  final PluginTouches touches;
+  final Map<String, FieldRegistry> views;
+
+  @override
+  PluginManifest get manifest => PluginManifest(
+    id: id,
+    apiVersion: PluginApiVersion.current,
+    touches: touches,
+  );
+
+  @override
+  void install(PluginHost host) {
+    final fields = views[id] = host.registry<FieldRegistry>();
+    fields.declare(
+      _water(
+        id: '$id.sky',
+        writer: FieldAccess.frame('$id.paint'),
+        readers: const <FieldAccess>[],
+      ),
+    );
+  }
 }

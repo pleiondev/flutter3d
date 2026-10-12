@@ -2805,8 +2805,9 @@ final class SimulationVersionFormatException extends Flutter3dFormatException
 
 final class Snapshot
   Map<String, Object?> toJson()
-  const Snapshot(this.data)
+  const Snapshot(this.data, {this.requires = const <String>[]})
   factory Snapshot.fromJson(Map<String, Object?> json)
+  final List<String> requires
   final Map<String, Object?> data
   static const FormatSpec format = FormatSpec(id: 'f3d.save', version: formatVersion, suffixes: <String>['.save.json'], fixture: 'test/fixtures/v<N>/save.json', migrations: _migrations)
   static const String versionKey = 'version'

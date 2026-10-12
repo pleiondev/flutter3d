@@ -1,5 +1,22 @@
 ## 1.0.0-rc.1
 
+- **A snapshot names the plugins whose state it holds, and is refused
+  where one is missing.** `Snapshot.requires` (new) lists the namespace of
+  every plugin that added a part to the capture, or registered a component
+  a body holds; `toJson` writes it in the envelope's `requires`, and
+  `Snapshots.restore` refuses, naming them, a snapshot requiring a plugin
+  the engine has not installed, where it skipped that state and the next
+  save was written without it. A snapshot of the engine's and the
+  application's own state requires nothing and is written as it was.
+- **Through a plugin's view, `FieldRegistry.hostField` writes only the
+  plugin's own field.** Another plugin's or the engine's comes back
+  `readOnly`, and every field does to a plugin that touches only the view
+  or tooling: a frame system could otherwise write the simulation past
+  the field's declared writer.
+- **A subsystem a plugin registers is switched on by a profile in its
+  namespace, or the engine's.** One named by a bare profile the engine
+  does not define (`fast`), or by another namespace's, is refused with a
+  `PluginException`.
 - **Breaking: every hook a game implements takes one context.** A
   parameter added to a hook would have broken every game written against
   1.0; a member added to its context breaks none. `Brain.onHurt` and
