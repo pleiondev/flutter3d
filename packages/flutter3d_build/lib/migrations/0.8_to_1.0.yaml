@@ -24532,3 +24532,19 @@ entries:
       The call is unchanged and so are the numbers it answers; only their
       type is, a `LinearColor` whose channels are `r`, `g` and `b`, which is
       what a gizmo's and a palette row's `tint` now take as they are.
+
+  - id: fixr-core-MaterialInput-since
+    package: flutter3d_core
+    symbol: MaterialInput.MaterialInput
+    kind: parameters
+    changes:
+      - add: since
+        named: true
+        required: true
+        value: 1
+    guidance: >-
+      An input says the material language version it arrived in, so a
+      source of an older version neither reads it nor loses a name to it:
+      every input a version 1 source could read is `since: 1`, which is what
+      the fix writes. Give an input a translator of your own adds the version
+      that brings it.

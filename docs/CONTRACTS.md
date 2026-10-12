@@ -496,6 +496,18 @@ at its first draw on a device. A WebGPU device is opened with the adapter's
 own stage limits, which may be higher; a bundle counts only on the
 minimums.
 
+### How the material language grows
+
+A new input, builtin or reserved name arrives with a new `f3dmat <N>`, and
+a source of an older `N` keeps every name it had: each input carries the
+version it arrived in (`MaterialInput.since`) and each builtin too
+(`materialBuiltinVersions`), and a name is taken from a declaration or a
+`let` only where the source's version has it. The block names a material
+cannot use are frozen at 1.0.0 (`materialReservedBlockNames`) together with
+a shape the engine keeps for later blocks, `F3d…` and `…Info`, which a
+material's own block was never allowed; a block the engine adds in a minor
+is named in that shape, so `uniform(Hair)` stays a material's to use.
+
 ### Light codes
 
 The light row the lit stages read (four `vec4`s a light: position and type

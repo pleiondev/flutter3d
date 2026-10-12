@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **The material language grows by version.** `MaterialInput.since` (now
+  a required argument) and `materialBuiltinVersions` say the version each
+  input and builtin arrived in, and a source of an older `f3dmat N` neither
+  reads one nor loses a name to it. The block names a material cannot use
+  are frozen (`materialReservedBlockNames`) with the shape the engine keeps
+  for later ones (`isEngineBlockName`: `F3d…`, `…Info`) rather than read off
+  the live table, so a block the engine adds in a minor refuses no material.
 - **Breaking: a material's parameters are a `MaterialParameters`.**
   `RenderMaterial.parameters` (and its constructor's `parameters:`) was a
   `Map<String, Float32List>`; it is the one shape a material's parameters

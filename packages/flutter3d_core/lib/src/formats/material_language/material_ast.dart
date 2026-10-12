@@ -121,13 +121,23 @@ const String materialOwnTexturePrefix = 'material_';
 /// struct written twice — so an input here is a field both already have, never
 /// something one side would have to compute.
 final class MaterialInput {
-  const MaterialInput(this.name, this.type, this.glsl);
+  const MaterialInput(this.name, this.type, this.glsl, {required this.since});
 
   final String name;
   final ExpressionType type;
 
   /// The GLSL that reads it, given a `Surface s` in scope.
   final String glsl;
+
+  /// The language version it arrived in: a source of an older `f3dmat N`
+  /// neither reads it nor has the name taken from it.
+  ///
+  /// **How a minor adds an input without refusing a source that parsed
+  /// before.** A name is refused for a declaration or a `let` only where the
+  /// source's version has the input, so `let tangent = …` in an `f3dmat 3`
+  /// file stays legal when a later version adds a `tangent` input. Required,
+  /// so no entry of any list can be added without saying it.
+  final int since;
 }
 
 /// Every input, and the single list of them.
@@ -137,22 +147,22 @@ final class MaterialInput {
 /// zero for an input it had not heard of would draw a material that is subtly
 /// wrong on one backend only.
 const List<MaterialInput> materialInputs = <MaterialInput>[
-  MaterialInput('albedo', ExpressionType.vec3, 's.albedo'),
-  MaterialInput('alpha', ExpressionType.float, 's.alpha'),
-  MaterialInput('normal', ExpressionType.vec3, 's.n'),
-  MaterialInput('view', ExpressionType.vec3, 's.v'),
-  MaterialInput('nDotV', ExpressionType.float, 's.n_dot_v'),
-  MaterialInput('metallic', ExpressionType.float, 's.metallic'),
-  MaterialInput('roughness', ExpressionType.float, 's.roughness'),
-  MaterialInput('occlusion', ExpressionType.float, 's.occlusion'),
-  MaterialInput('emissive', ExpressionType.vec3, 's.emissive'),
-  MaterialInput('ambient', ExpressionType.vec3, 's.ambient'),
-  MaterialInput('uv', ExpressionType.vec2, 'v_texcoord'),
-  MaterialInput('world', ExpressionType.vec3, 'v_world_position'),
+  MaterialInput('albedo', ExpressionType.vec3, 's.albedo', since: 1),
+  MaterialInput('alpha', ExpressionType.float, 's.alpha', since: 1),
+  MaterialInput('normal', ExpressionType.vec3, 's.n', since: 1),
+  MaterialInput('view', ExpressionType.vec3, 's.v', since: 1),
+  MaterialInput('nDotV', ExpressionType.float, 's.n_dot_v', since: 1),
+  MaterialInput('metallic', ExpressionType.float, 's.metallic', since: 1),
+  MaterialInput('roughness', ExpressionType.float, 's.roughness', since: 1),
+  MaterialInput('occlusion', ExpressionType.float, 's.occlusion', since: 1),
+  MaterialInput('emissive', ExpressionType.vec3, 's.emissive', since: 1),
+  MaterialInput('ambient', ExpressionType.vec3, 's.ambient', since: 1),
+  MaterialInput('uv', ExpressionType.vec2, 'v_texcoord', since: 1),
+  MaterialInput('world', ExpressionType.vec3, 'v_world_position', since: 1),
   // `P8`: an instance's own four numbers, `InstancedMeshNode.setInstanceData`
   // — nought for a draw that is not instanced. The emitted stage declares
   // the varying only when the source reads it.
-  MaterialInput('instance', ExpressionType.vec4, 'v_instance'),
+  MaterialInput('instance', ExpressionType.vec4, 'v_instance', since: 1),
 ];
 
 /// What the `light` block reads about the one light it is shading for, on
@@ -162,11 +172,11 @@ const List<MaterialInput> materialInputs = <MaterialInput>[
 /// struct written twice, as the surface inputs are. Read only inside the
 /// block: outside it there is no one light to read them of.
 const List<MaterialInput> materialLightInputs = <MaterialInput>[
-  MaterialInput('lightDir', ExpressionType.vec3, 'light.l'),
-  MaterialInput('halfDir', ExpressionType.vec3, 'light.h'),
-  MaterialInput('nDotL', ExpressionType.float, 'light.n_dot_l'),
-  MaterialInput('nDotH', ExpressionType.float, 'light.n_dot_h'),
-  MaterialInput('vDotH', ExpressionType.float, 'light.v_dot_h'),
+  MaterialInput('lightDir', ExpressionType.vec3, 'light.l', since: 1),
+  MaterialInput('halfDir', ExpressionType.vec3, 'light.h', since: 1),
+  MaterialInput('nDotL', ExpressionType.float, 'light.n_dot_l', since: 1),
+  MaterialInput('nDotH', ExpressionType.float, 'light.n_dot_h', since: 1),
+  MaterialInput('vDotH', ExpressionType.float, 'light.v_dot_h', since: 1),
 ];
 
 /// What a fragment body of version 2 reads of the scene behind it — item 9
@@ -181,9 +191,19 @@ const List<MaterialInput> materialLightInputs = <MaterialInput>[
 /// `sceneDepth - viewDepth` is the thickness of what lies between;
 /// `scenePosition` is where, in the world, that opaque surface is.
 const List<MaterialInput> materialSceneInputs = <MaterialInput>[
-  MaterialInput('sceneDepth', ExpressionType.float, 'f3d_scene_depth'),
-  MaterialInput('viewDepth', ExpressionType.float, 'f3d_view_depth'),
-  MaterialInput('scenePosition', ExpressionType.vec3, 'f3d_scene_position'),
+  MaterialInput(
+    'sceneDepth',
+    ExpressionType.float,
+    'f3d_scene_depth',
+    since: 2,
+  ),
+  MaterialInput('viewDepth', ExpressionType.float, 'f3d_view_depth', since: 2),
+  MaterialInput(
+    'scenePosition',
+    ExpressionType.vec3,
+    'f3d_scene_position',
+    since: 2,
+  ),
 ];
 
 /// What a `vertex` block reads — version 2.
@@ -195,13 +215,23 @@ const List<MaterialInput> materialSceneInputs = <MaterialInput>[
 /// transform's translation — where the object stands, so a field of grass
 /// sways out of step blade by blade.
 const List<MaterialInput> materialVertexInputs = <MaterialInput>[
-  MaterialInput('position', ExpressionType.vec3, 'f3d_position'),
-  MaterialInput('objectNormal', ExpressionType.vec3, 'f3d_object_normal'),
-  MaterialInput('world', ExpressionType.vec3, 'f3d_world'),
-  MaterialInput('normal', ExpressionType.vec3, 'f3d_normal'),
-  MaterialInput('uv', ExpressionType.vec2, 'texcoord'),
-  MaterialInput('color', ExpressionType.vec4, 'color'),
-  MaterialInput('origin', ExpressionType.vec3, 'frame_info.model[3].xyz'),
+  MaterialInput('position', ExpressionType.vec3, 'f3d_position', since: 2),
+  MaterialInput(
+    'objectNormal',
+    ExpressionType.vec3,
+    'f3d_object_normal',
+    since: 2,
+  ),
+  MaterialInput('world', ExpressionType.vec3, 'f3d_world', since: 2),
+  MaterialInput('normal', ExpressionType.vec3, 'f3d_normal', since: 2),
+  MaterialInput('uv', ExpressionType.vec2, 'texcoord', since: 2),
+  MaterialInput('color', ExpressionType.vec4, 'color', since: 2),
+  MaterialInput(
+    'origin',
+    ExpressionType.vec3,
+    'frame_info.model[3].xyz',
+    since: 2,
+  ),
 ];
 
 /// What a `vertex` block may write, with `out name = value;` — version 2.
@@ -212,16 +242,16 @@ const List<MaterialInput> materialVertexInputs = <MaterialInput>[
 /// world-space normal the surface is lit by. What the block does not write
 /// keeps the engine's own answer.
 const List<MaterialInput> materialVertexOutputs = <MaterialInput>[
-  MaterialInput('position', ExpressionType.vec3, 'f3d_out_position'),
-  MaterialInput('world', ExpressionType.vec3, 'f3d_out_world'),
-  MaterialInput('normal', ExpressionType.vec3, 'f3d_out_normal'),
+  MaterialInput('position', ExpressionType.vec3, 'f3d_out_position', since: 2),
+  MaterialInput('world', ExpressionType.vec3, 'f3d_out_world', since: 2),
+  MaterialInput('normal', ExpressionType.vec3, 'f3d_out_normal', since: 2),
 ];
 
 /// What an `ambient` block reads on top of [materialInputs] — version 2:
 /// the level's baked light at this fragment, which the engine's own ambient
 /// adds to the hemisphere.
 const List<MaterialInput> materialAmbientInputs = <MaterialInput>[
-  MaterialInput('lightmap', ExpressionType.vec3, 'f3d_lightmap'),
+  MaterialInput('lightmap', ExpressionType.vec3, 'f3d_lightmap', since: 2),
 ];
 
 /// What a `composite` block reads on top of [materialInputs] — version 2:
@@ -229,8 +259,8 @@ const List<MaterialInput> materialAmbientInputs = <MaterialInput>[
 /// `ambient` block (or the engine's own ambient) gave, neither yet under the
 /// occlusion.
 const List<MaterialInput> materialCompositeInputs = <MaterialInput>[
-  MaterialInput('direct', ExpressionType.vec3, 'f3d_direct'),
-  MaterialInput('indirect', ExpressionType.vec3, 'f3d_indirect'),
+  MaterialInput('direct', ExpressionType.vec3, 'f3d_direct', since: 2),
+  MaterialInput('indirect', ExpressionType.vec3, 'f3d_indirect', since: 2),
 ];
 
 /// What a `fullscreen` stage's fragment body reads — version 2: where on the
@@ -239,17 +269,22 @@ const List<MaterialInput> materialCompositeInputs = <MaterialInput>[
 /// drawn. The picture itself is the texture `scene`, read with
 /// `sample(scene, uv)`.
 const List<MaterialInput> materialFullscreenInputs = <MaterialInput>[
-  MaterialInput('uv', ExpressionType.vec2, 'v_uv'),
-  MaterialInput('sceneDepth', ExpressionType.float, 'f3d_scene_depth'),
+  MaterialInput('uv', ExpressionType.vec2, 'v_uv', since: 2),
+  MaterialInput(
+    'sceneDepth',
+    ExpressionType.float,
+    'f3d_scene_depth',
+    since: 2,
+  ),
 ];
 
 /// What a `compute` stage's kernel reads — version 2: the texel of its
 /// target this invocation writes, the target's size in texels, and the
 /// texel's centre as nought to one.
 const List<MaterialInput> materialComputeInputs = <MaterialInput>[
-  MaterialInput('cell', ExpressionType.vec2, 'f3d_cell'),
-  MaterialInput('size', ExpressionType.vec2, 'f3d_size'),
-  MaterialInput('uv', ExpressionType.vec2, 'f3d_uv'),
+  MaterialInput('cell', ExpressionType.vec2, 'f3d_cell', since: 2),
+  MaterialInput('size', ExpressionType.vec2, 'f3d_size', since: 2),
+  MaterialInput('uv', ExpressionType.vec2, 'f3d_uv', since: 2),
 ];
 
 /// What a source is — version 2 adds the two kinds after `material`.
@@ -452,6 +487,7 @@ const MaterialInput materialLitInput = MaterialInput(
   'lit',
   ExpressionType.vec3,
   'lit',
+  since: 1,
 );
 
 /// The builtins a material may call, the sixteen versions 1 and 2 have:
@@ -480,6 +516,29 @@ const List<ExpressionBuiltin> materialBuiltins = <ExpressionBuiltin>[
   ExpressionBuiltin.sin,
   ExpressionBuiltin.cos,
 ];
+
+/// The language version each of [materialBuiltins] arrived in, by name:
+/// all sixteen are version 1's. A builtin a later version adds is written
+/// here with that version, and a source of an older one neither calls it
+/// nor has the name taken from a `let` or a parameter of its own.
+const Map<String, int> materialBuiltinVersions = <String, int>{
+  'dot': 1,
+  'length': 1,
+  'normalize': 1,
+  'mix': 1,
+  'clamp': 1,
+  'smoothstep': 1,
+  'step': 1,
+  'pow': 1,
+  'min': 1,
+  'max': 1,
+  'abs': 1,
+  'sqrt': 1,
+  'floor': 1,
+  'fract': 1,
+  'sin': 1,
+  'cos': 1,
+};
 
 /// The expression language's [ExpressionVisitor], with a method for each
 /// kind a material adds: its inputs, parameters and `let`s, and `sample`.

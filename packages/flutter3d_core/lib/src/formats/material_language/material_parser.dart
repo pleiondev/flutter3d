@@ -100,6 +100,7 @@ library;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show
         Expression,
+        ExpressionBuiltin,
         ExpressionConstant,
         ExpressionScope,
         ExpressionSyntax,
@@ -109,7 +110,6 @@ import 'package:flutter3d_foundation/internal.dart'
     show ExpressionParser, ExpressionToken, tokenizeExpression;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show Flutter3dFormatException, FormatSpec;
-import 'package:flutter3d_shaders/backend.dart' show uniformBlocks;
 
 import 'material_ast.dart';
 
@@ -283,12 +283,89 @@ const Set<String> _vertexReservedNames = <String>{
   'SkinMatrix',
 };
 
-/// Every uniform block one of the engine's own shaders declares. A
-/// material's block cannot take one of these names: [uniformBlocks] is keyed
-/// by shader, so the names are gathered from every shader's table.
-final Set<String> _engineBlockNames = <String>{
-  for (final blocks in uniformBlocks.values) ...blocks.keys,
+/// Every uniform block one of the engine's own shaders declared at 1.0.0,
+/// which a material's block cannot be named: **frozen**, not read off the
+/// live table, so a block the engine adds in a minor takes no name from a
+/// material that built before. A block the engine adds after 1.0.0 is named
+/// in [isEngineBlockName]'s reserved shape instead, which a material's
+/// block was never allowed (`material_language_versions_test.dart` holds
+/// the engine to that).
+const Set<String> materialReservedBlockNames = <String>{
+  'AccumulateInfo',
+  'BloomInfo',
+  'CameraVelocityInfo',
+  'CausticInfo',
+  'CompositeInfo',
+  'ContactShadowInfo',
+  'ContactShadowResolveInfo',
+  'ContributorLightInfo',
+  'ConvolveInfo',
+  'DecalInfo',
+  'DepthPyramidInfo',
+  'DofInfo',
+  'DofTileInfo',
+  'EasuInfo',
+  'EvsmFilterInfo',
+  'FieldDecayInfo',
+  'FogInfo',
+  'FogUpsampleInfo',
+  'FragCoordInfo',
+  'FragInfo',
+  'FrameInfo',
+  'FxaaInfo',
+  'HighContrastInfo',
+  'IdInfo',
+  'IrradianceInfo',
+  'LayerInfo',
+  'LensFlareInfo',
+  'LightListInfo',
+  'LineInfo',
+  'LocalExposureBlurInfo',
+  'LocalExposureInfo',
+  'LuminanceInfo',
+  'MaskInfo',
+  'MaterialParams',
+  'MorphInfo',
+  'MorphInstanceInfo',
+  'MotionBlurInfo',
+  'NeighborMaxInfo',
+  'NoiseInfo',
+  'OutlineMaskInfo',
+  'ParticleInfo',
+  'ParticleMeshInfo',
+  'PlanarReflectionInfo',
+  'PointShadow',
+  'PredrawInfo',
+  'PrevFrameInfo',
+  'ProbeInfo',
+  'ReactiveInfo',
+  'ReflectionInfo',
+  'RenderTextureInfo',
+  'SceneCopyInfo',
+  'ShadeInfo',
+  'ShadowCopyInfo',
+  'ShadowLight',
+  'ShaftInfo',
+  'SixWayInfo',
+  'SkinInfo',
+  'SmaaInfo',
+  'SoftParticleInfo',
+  'SplatHashInfo',
+  'SsaoBlurInfo',
+  'SsaoInfo',
+  'TemporalInfo',
+  'TileMaxInfo',
+  'TransmittanceInfo',
+  'VelocityInfo',
+  'VolumeFogInfo',
 };
+
+/// Whether [name] is one of the engine's block names, or in the shape the
+/// engine keeps for the blocks it adds later: `F3d…` or `…Info`.
+bool isEngineBlockName(String name) =>
+    materialReservedBlockNames.contains(name) ||
+    name.startsWith('F3d') ||
+    name.endsWith('Info');
 
 /// Names a version 2 stage declares besides [_reservedNames]: the blocks and
 /// samplers a full-screen stage, a compute kernel and the scene's depth are
@@ -1050,11 +1127,12 @@ final class _Parser extends ExpressionParser {
           named,
         );
       }
-      if (_engineBlockNames.contains(named.text) ||
+      if (isEngineBlockName(named.text) ||
           !RegExp(r'^[A-Z][A-Za-z0-9]*$').hasMatch(named.text)) {
         fail(
           '"${named.text}" cannot name a material\'s block: a block is named '
-          'in PascalCase, and not as one of the engine\'s own',
+          'in PascalCase, not as one of the engine\'s own, and not in the '
+          'shape the engine keeps for later ones (F3d…, …Info)',
           named,
         );
       }
@@ -1159,20 +1237,37 @@ final class _Parser extends ExpressionParser {
   ///
   /// A version 1 file keeps the set it always had — the surface's, the
   /// light's and `lit` — so a name it bound then binds now.
-  List<MaterialInput> takenInputs() => switch (kind) {
-    MaterialStageKind.fullscreen => materialFullscreenInputs,
-    MaterialStageKind.compute => materialComputeInputs,
-    _ => <MaterialInput>[
-      ...materialInputs,
-      ...materialLightInputs,
-      materialLitInput,
-      if (version >= materialLanguageStagesVersion)
+  ///
+  /// An input arrives with the version that adds it ([MaterialInput.since]),
+  /// so one a later version adds never takes a name from an older source.
+  List<MaterialInput> takenInputs() => <MaterialInput>[
+    for (final input in switch (kind) {
+      MaterialStageKind.fullscreen => materialFullscreenInputs,
+      MaterialStageKind.compute => materialComputeInputs,
+      _ => <MaterialInput>[
+        ...materialInputs,
+        ...materialLightInputs,
+        materialLitInput,
         ...switch (block) {
           null => _surfaceVersion2Inputs,
           final body => body.inputs,
         },
-    ],
-  };
+      ],
+    })
+      if (input.since <= version) input,
+  ];
+
+  /// The builtin called [name] in this source's version: one a later
+  /// version adds ([materialBuiltinVersions]) is neither called nor takes a
+  /// name from an older source.
+  @override
+  ExpressionBuiltin? builtinNamed(String name) =>
+      switch (super.builtinNamed(name)) {
+        final builtin?
+            when (materialBuiltinVersions[builtin.name] ?? 1) <= version =>
+          builtin,
+        _ => null,
+      };
 
   /// A name may not shadow an input, a builtin or an earlier declaration.
   ///
@@ -1392,7 +1487,7 @@ final class _Parser extends ExpressionParser {
           _ => fragmentBlock,
         };
     for (final input in body.inputs) {
-      if (input.name == name) {
+      if (input.name == name && input.since <= version) {
         inputsUsed.add(name);
         if (name == 'sceneDepth' || name == 'scenePosition') sceneAt ??= token;
         return MaterialInputRef(input);
