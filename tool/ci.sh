@@ -11,7 +11,10 @@
 #
 #   * The Impeller half of the golden set. Those 96 scenes render through
 #     flutter_gpu and need a real device, so they run from
-#     packages/flutter3d/tool/golden.sh on a machine with a GPU. The software
+#     packages/flutter3d/tool/golden.sh on a machine with a GPU: every night
+#     in .github/workflows/nightly.yml, on the self-hosted `impeller` runner,
+#     with the conformance harness, the plugin's GPU checks and pacing on the
+#     Galaxy A55 beside them. The software
 #     half runs here, and cross_backend_test.dart compares the two committed
 #     reference sets with no device at all — which is the question that
 #     actually matters.
@@ -23,6 +26,9 @@
 #   * Frame pacing. tool/pacing.sh plays a recorded run through Impeller and
 #     fails on any frame over 50 ms, which needs a GPU; .github/workflows/ci.yml
 #     runs it in a macOS job of its own, and its report lives in doc/pacing/.
+#     The nightly holds the A55 to p99 ≤ 33.3 ms on three demos.
+#   * Builds of every application. .github/workflows/ci.yml's `build` job
+#     builds what tool/build_apps.sh --matrix prints, one runner a cell.
 #   * The Android and iOS builds. They are compiled, but not by this script:
 #     .github/workflows/ci.yml has a job apiece, because one wants an Android
 #     toolchain and the other only builds on macOS, and a script that asked a

@@ -124,7 +124,20 @@ jobs:
           command -v naga || cargo install naga-cli --version 30.0.1 --locked
           naga --version
 
+      # **The browser steps in `tool/ci.sh` drive Chrome**, a dozen of them:
+      # the WebGL, WebGPU and pointer-lock suites, the physics core as
+      # WebAssembly on one thread and on four workers. The runner image
+      # carries Chrome and nothing here installs it, so this says which one
+      # the steps get, and stops the job before forty minutes of suites when
+      # the image stops carrying it.
+      - name: chrome
+        run: google-chrome --version
+
+      # `FLUTTER3D_BENCH_OUT`: `tool/benchmarks.sh` writes the warm frame's
+      # allocation counts there, for the artefact below.
       - run: tool/ci.sh
+        env:
+          FLUTTER3D_BENCH_OUT: build/bench
 
       # **A failed screenshot is an argument about a picture, and the picture
       # is on the runner.** When a golden fails, the only thing that reaches
@@ -179,6 +192,17 @@ jobs:
           name: bench-mesh
           path: build/bench/bench-mesh.txt
           retention-days: 90
+
+      # The frame's allocations on the software backend, which `tool/ci.sh`
+      # holds to a baseline within a margin: the counts themselves, per commit,
+      # so a drift inside the margin can be seen before it crosses it.
+      - if: success() || failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: bench-frame-allocations
+          path: build/bench/frame-allocations.txt
+          retention-days: 90
+          if-no-files-found: ignore
 
   # **A Dart SDK with no Flutter beside it, which is the machine six packages
   # promise to run on.**
@@ -497,7 +521,7 @@ jobs:
 
       # The comparison's own suite runs in `check`, in `tool/ci.sh`'s loop
       # over `tool/`; this job is the half that needs the engine.
-      - run: dart run godot_check:godot_check --godot=$HOME/godot/godot
+      - run: dart run godot_check:godot_check --godot="$HOME/godot/godot"
 
   # **A second operating system, because half of what this repository does is
   # macOS-only and nothing compiled it.** `tool/golden.sh` runs `flutter run -d
@@ -762,3 +786,51 @@ jobs:
       - if: steps.key.outputs.signed == 'yes'
         run: flutter build apk --release
         working-directory: apps/flutter3d_demo_${{ matrix.demo }}
+
+  # **Every application built, each on a platform it has a folder for.** The
+  # jobs above build the games for Android, iOS, Linux and Windows and the
+  # dungeon for the web; the editor, the modeller, the lesson viewers, the
+  # labs and five of the demos were built by nobody but the person who last
+  # ran them. `tool/build_apps.sh --matrix` reads `apps/` and prints one cell
+  # per application — the web where it has a `web/` folder, so every demo the
+  # site serves is built the way the site builds it, otherwise macOS — and
+  # the job below builds what it prints. A list on disk rather than in this
+  # file, so the next application is built the day it is committed; one with
+  # no platform folder fails the plan unless the script names its reason.
+  build-plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: plan
+        run: echo "matrix=$(tool/build_apps.sh --matrix)" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: build-plan
+    strategy:
+      # Every cell, whichever fails, for the reason the desktop matrix gives.
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.build-plan.outputs.matrix) }}
+    name: build ${{ matrix.app }} (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      # impellerc for the engine's bundle, which every application that draws
+      # declares as an asset; the web needs it too, since the asset is
+      # declared whichever backend runs.
+      - run: flutter precache --${{ matrix.target == 'web' && 'linux' || matrix.target }}
+      - run: (cd packages/flutter3d_impeller && dart run bin/build_shader_bundle.dart)
+
+      - run: tool/build_apps.sh ${{ matrix.app }} ${{ matrix.target }}
