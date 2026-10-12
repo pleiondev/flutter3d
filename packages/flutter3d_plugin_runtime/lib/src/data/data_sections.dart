@@ -53,6 +53,12 @@ final class DataSections extends DataSectionRegistry {
         'is a key the runtime reads itself; a section takes a name of its own',
       );
     }
+    // A section's name is a key of the document, which the engine's own
+    // sections share: a plugin's is in its namespace (D23).
+    if (scope?.manifest.nameProblem(name, what: 'the data section')
+        case final problem?) {
+      throw PluginException(problem);
+    }
     if (this[name] != null) {
       throw ArgumentError.value(
         name,

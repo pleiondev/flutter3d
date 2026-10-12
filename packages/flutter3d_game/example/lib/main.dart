@@ -58,7 +58,7 @@ final class Landed extends BusEvent {
   const Landed(this.speed);
 
   /// The name it is declared under, prefixed with the genre's.
-  static const String eventName = 'seed.landed';
+  static const String eventName = 'flutter3d_game_example.landed';
 
   /// How it is written down and read back.
   static const EventCodec<Landed> codec = EventCodec<Landed>.of(
@@ -97,7 +97,7 @@ final class WalkGenre extends GenrePlugin<LevelWalk> {
   static const String id = 'flutter3d_game_example.walk';
 
   /// The name of the genre's step system.
-  static const String stepSystem = 'seed.step';
+  static const String stepSystem = 'flutter3d_game_example.step';
 
   /// What the walk reads: the loop's input.
   final InputState input;

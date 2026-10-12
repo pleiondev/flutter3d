@@ -56,7 +56,7 @@ final class _Wind extends Flutter3dPlugin {
 
   @override
   void install(PluginHost host) {
-    host.loop.addSystem('wind', LoopPhase.fields, (_) => toy.x += 0.25);
+    host.loop.addSystem('wind.blow', LoopPhase.fields, (_) => toy.x += 0.25);
   }
 }
 

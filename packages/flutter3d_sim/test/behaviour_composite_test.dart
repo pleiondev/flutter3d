@@ -203,10 +203,10 @@ void main() {
       final kinds = BehaviorKinds();
       final scope = _Scope('tactics');
       final registry = BehaviorKindsRegistry(kinds).forPlugin(scope)
-        ..composite('firstSuccess', (p) => const _FirstSuccess())
-        ..leaf('hold', (p) => const _Hold());
+        ..composite('tactics.firstSuccess', (p) => const _FirstSuccess())
+        ..leaf('tactics.hold', (p) => const _Hold());
       expect(registry, isA<BehaviorKindsRegistry>());
-      expect(kinds.compositeBuilder('firstSuccess'), isNotNull);
+      expect(kinds.compositeBuilder('tactics.firstSuccess'), isNotNull);
 
       for (final registration in scope.tracked.reversed) {
         registration.cancel();
@@ -215,8 +215,8 @@ void main() {
       // Mutation: do not hand the registration to the scope. Nothing is
       // tracked, and both kinds stay after the plugin is gone.
       expect(scope.tracked, hasLength(2));
-      expect(kinds.compositeBuilder('firstSuccess'), isNull);
-      expect(kinds.leafBuilder('hold'), isNull);
+      expect(kinds.compositeBuilder('tactics.firstSuccess'), isNull);
+      expect(kinds.leafBuilder('tactics.hold'), isNull);
     });
 
     test('a replaced standard kind comes back when the plugin goes', () {

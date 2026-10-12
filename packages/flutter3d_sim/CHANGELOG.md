@@ -4,6 +4,13 @@
   reads the probes again and publishes the state as it stands, outside a
   step, so a scrub to a keyframe or a return to the present reaches the
   view before the next step.
+- **Every name a plugin registers is in its namespace.** A component
+  codec's id, an event, a loop phase, a system, an assimilation, a snapshot
+  part (or the plugin's own id), a new entity kind (the level format's own
+  words aside), a new behavior kind, a probe quantity and a question from a
+  plugin outside the engine are refused at install unless they are
+  `<namespace>.<name>`, with a `PluginException` naming both. Two plugins
+  that both register `health` can no longer meet in a save file.
 - **A plugin that touches only tooling is held to it.** The loop refuses a
   `PluginTouches.tooling` plugin a step phase, a step system, a step
   subscription and a subsystem, whether or not its profile runs it.

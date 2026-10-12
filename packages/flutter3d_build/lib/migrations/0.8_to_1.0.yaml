@@ -20338,3 +20338,22 @@ entries:
     reason: >-
       It returns the same box under its new name, `FittedCuboid`; the
       rename of the type carries the fix, and a call needs none.
+
+  - id: 4z-plugin_api-PluginManifest-nameProblem
+    package: flutter3d_plugin_api
+    symbol: PluginManifest.nameProblem
+    kind: none
+    wave: 4
+    reason: >-
+      Every registry a plugin reaches through its host now asks it: a
+      component codec, an event, a loop phase or system, a snapshot part, a
+      data section, a world field, an entity kind, a behavior kind, a probe
+      sampler, a question, an element's event kind and switch. A plugin from
+      outside the engine that registers a bare name (`health`) is refused at
+      install with a `PluginException` naming the name and the namespace it
+      belongs in (`acme.health`), so a name the engine adds in a minor never
+      meets one a plugin took. The engine is the packages this repository
+      publishes (`PluginManifest.engineNamespaces`), not anything starting
+      `flutter3d_`, and a plugin id may not be one of the engine's areas
+      (`PluginManifest.reservedAreas`). No call changes; the names a plugin
+      registers do, and the refusal says which.

@@ -99,7 +99,9 @@ abstract base class ComponentCodec<T extends Object> {
     int version,
   }) = _FunctionCodec<T>;
 
-  /// The component's stable name in files and messages.
+  /// The component's stable name in files and messages. A plugin's is in
+  /// its namespace, `<namespace>.<name>` (`PluginManifest.nameProblem`): a
+  /// bare one is refused when the plugin registers the codec.
   String get id;
 
   /// The shape [encode] writes now. 1 for a codec that never changed.
@@ -420,7 +422,8 @@ abstract base class SnapshotPart {
     int? Function()? digest,
   }) = _FunctionPart;
 
-  /// The part's stable name in a snapshot: a plugin's id, or `'world'`.
+  /// The part's stable name in a snapshot: a plugin's id or a name in its
+  /// namespace (`<namespace>.<name>`), or `'world'`.
   String get id;
 
   /// The shape [capture] writes now.

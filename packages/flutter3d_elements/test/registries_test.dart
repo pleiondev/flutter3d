@@ -95,4 +95,27 @@ void main() {
       expect(steps.isOn('frost'), isFalse);
     });
   });
+
+  test('a plugin from outside names its kinds and switches in its '
+      'namespace', () {
+    // Mutation: drop the `nameProblem` call from either registry — two
+    // outside plugins that both bring `frozen` meet in one engine.
+    final kinds = ElementEventKinds().forPlugin(_Scope('acme_frost'));
+    expect(
+      () => kinds.add(const NativeEventKind.plugin(0x10001, 'frozen')),
+      throwsA(isA<PluginException>()),
+    );
+    kinds.add(const NativeEventKind.plugin(0x10001, 'acme_frost.frozen'));
+    final switches = ElementSwitches().forPlugin(_Scope('acme_frost'));
+    expect(
+      () => switches.declare(const ElementSwitch('frost')),
+      throwsA(isA<PluginException>()),
+    );
+    switches.declare(const ElementSwitch('acme_frost.frost'));
+    // A plugin element is filed under the elements' own namespace, where
+    // its switch is the hook's id.
+    ElementSwitches()
+        .forPlugin(_Scope('flutter3d_elements.frost'))
+        .declare(const ElementSwitch('frost'));
+  });
 }

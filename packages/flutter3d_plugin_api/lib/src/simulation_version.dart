@@ -42,7 +42,19 @@ final class SimulationVersion {
     this.plugins = const <String, int>{},
     this.profile = SimulationProfile.deterministic,
     this.subsystems = const <String, int>{},
+    this.extra = const <String, Object?>{},
   });
+
+  /// The keys [toJson] writes; [fromJson] keeps any other in [extra].
+  static const Set<String> _known = <String>{
+    'engine',
+    'genre',
+    'genreVersion',
+    'otherGenres',
+    'plugins',
+    'profile',
+    'subsystems',
+  };
 
   /// The engine's simulation: the fixed step, the input, the physics and
   /// everything in `flutter3d_sim` that moves a body. 1 is 1.0.0's.
@@ -109,6 +121,18 @@ final class SimulationVersion {
   /// were subsystems.
   final Map<String, int> subsystems;
 
+  /// Keys a newer build wrote that this one does not know, kept as they
+  /// were read and written back.
+  ///
+  /// **A dimension of the simulation's identity a minor may add.** A newer
+  /// build that composes the simulation from something this one has no
+  /// field for writes it under a key of its own. Dropping it would read
+  /// that simulation as this build's and replay or match across the two;
+  /// kept, it is compared by [==] and [refusalOn], so the run or the hello
+  /// is refused with the key named rather than silently changed. Empty for
+  /// everything this build writes.
+  final Map<String, Object?> extra;
+
   /// What a file written before simulations had numbers is read as: version
   /// 1 of the engine and of whatever genre is [running] — the simulation
   /// 1.0.0 shipped, which is the only one such a file can come from.
@@ -130,6 +154,7 @@ final class SimulationVersion {
     plugins: Map<String, int>.unmodifiable(plugins),
     profile: profile,
     subsystems: subsystems,
+    extra: extra,
   );
 
   /// This version run under [profile] instead of its own.
@@ -141,6 +166,7 @@ final class SimulationVersion {
     plugins: plugins,
     profile: profile,
     subsystems: subsystems,
+    extra: extra,
   );
 
   /// This version with [subsystems] in place of its own.
@@ -153,6 +179,7 @@ final class SimulationVersion {
         plugins: plugins,
         profile: profile,
         subsystems: Map<String, int>.unmodifiable(subsystems),
+        extra: extra,
       );
 
   /// This version with [name] at [version] played beside [genre] — or as
@@ -169,6 +196,7 @@ final class SimulationVersion {
           plugins: plugins,
           profile: profile,
           subsystems: subsystems,
+          extra: extra,
         )
       : SimulationVersion(
           engine: engine,
@@ -181,6 +209,7 @@ final class SimulationVersion {
           plugins: plugins,
           profile: profile,
           subsystems: subsystems,
+          extra: extra,
         );
 
   /// "engine 1, platformer 2, fire 3" — the words a refusal uses, and
@@ -216,6 +245,8 @@ final class SimulationVersion {
       'subsystems': <String, Object?>{
         for (final id in (subsystems.keys.toList()..sort())) id: subsystems[id],
       },
+    for (final MapEntry(:key, :value) in extra.entries)
+      if (!_known.contains(key)) key: value,
   };
 
   /// Reads what [toJson] wrote. A number that is not one is refused with a
@@ -329,6 +360,10 @@ final class SimulationVersion {
       plugins: Map<String, int>.unmodifiable(read),
       profile: profile,
       subsystems: Map<String, int>.unmodifiable(running),
+      extra: Map<String, Object?>.unmodifiable(<String, Object?>{
+        for (final entry in json.entries)
+          if (!_known.contains(entry.key)) entry.key: entry.value,
+      }),
     );
   }
 
@@ -344,6 +379,21 @@ final class SimulationVersion {
       return 'the run was played on the ${profile.name} profile and this '
           'simulation runs the ${running.profile.name} one; the same input '
           'plays out differently here, so it is not replayed';
+    }
+    // A key this build does not know is a part of the simulation it has no
+    // field for, which a newer build wrote: compared as written, and a
+    // difference is refused with the key named.
+    if (!_sameExtra(extra, running.extra)) {
+      final keys = <String>[
+        for (final key in <String>{...extra.keys, ...running.extra.keys})
+          if (!extra.containsKey(key) ||
+              !running.extra.containsKey(key) ||
+              !_sameValue(extra[key], running.extra[key]))
+            key,
+      ]..sort();
+      return 'the run and this simulation differ in ${keys.join(', ')}, a '
+          'part of the simulation newer than this build — update flutter3d '
+          'to replay it';
     }
     if (genre != running.genre ||
         !_sameNames(otherGenres, running.otherGenres)) {
@@ -449,7 +499,31 @@ final class SimulationVersion {
       (genre == null || other.genreVersion == genreVersion) &&
       _samePlugins(other.otherGenres, otherGenres) &&
       _samePlugins(other.plugins, plugins) &&
-      _samePlugins(other.subsystems, subsystems);
+      _samePlugins(other.subsystems, subsystems) &&
+      _sameExtra(other.extra, extra);
+
+  static bool _sameExtra(Map<String, Object?> a, Map<String, Object?> b) =>
+      a.length == b.length &&
+      a.entries.every(
+        (entry) =>
+            b.containsKey(entry.key) && _sameValue(entry.value, b[entry.key]),
+      );
+
+  /// Whether two values read from JSON are the same: maps by their entries,
+  /// lists by their items, in order.
+  static bool _sameValue(Object? a, Object? b) => switch ((a, b)) {
+    (final Map<Object?, Object?> a, final Map<Object?, Object?> b) =>
+      a.length == b.length &&
+          a.entries.every(
+            (e) => b.containsKey(e.key) && _sameValue(e.value, b[e.key]),
+          ),
+    (final List<Object?> a, final List<Object?> b) =>
+      a.length == b.length &&
+          <int>[
+            for (var i = 0; i < a.length; i++) i,
+          ].every((i) => _sameValue(a[i], b[i])),
+    _ => a == b,
+  };
 
   static bool _sameNames(Map<String, int> a, Map<String, int> b) =>
       a.length == b.length && a.keys.every(b.containsKey);
@@ -475,6 +549,9 @@ final class SimulationVersion {
       for (final entry in subsystems.entries)
         Object.hash(entry.key, entry.value),
     ]),
+    // By key only: equal versions have equal keys, and a value read from
+    // JSON has no hash of its contents.
+    Object.hashAllUnordered(extra.keys),
   );
 
   @override

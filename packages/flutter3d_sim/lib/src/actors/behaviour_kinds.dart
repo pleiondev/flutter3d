@@ -360,6 +360,15 @@ final class BehaviorKindsRegistry extends PluginRegistry {
     void Function() register,
   ) {
     final previous = table[kind];
+    // A new kind a plugin brings is in its namespace (D23); replacing one
+    // that is already here — the standard `goTo` — names it as it is, and
+    // a composite the reader owns is refused below for what it is.
+    if (previous == null && !BehaviorKinds.composites.contains(kind)) {
+      if (_scope?.manifest.nameProblem(kind, what: 'the behavior kind')
+          case final problem?) {
+        throw PluginException(problem);
+      }
+    }
     try {
       register();
     } on ArgumentError catch (error) {

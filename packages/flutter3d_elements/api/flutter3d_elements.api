@@ -230,7 +230,7 @@ final class ElementsSimulation
   void step(double dt, {List<NativeEvent>? events, int step = 0, bool resimulated = false})
 
 final class ElementsSimulationPlugin extends Flutter3dPlugin
-  ElementsSimulationPlugin(this.simulation, {this.id = 'elements'})
+  ElementsSimulationPlugin(this.simulation, {this.id = 'flutter3d_elements'})
   PluginManifest get manifest
   final ElementsSimulation simulation
   final String id

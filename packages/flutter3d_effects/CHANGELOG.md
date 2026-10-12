@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `ElementsViewPlugin` is `flutter3d_effects.elements` by
+  default**,
+  where it was `elements.view`: `elements` is an area of the engine's
+  events, which no plugin id may take.
 - **Breaking: colours in are `LinearColor`s.** `Blackbody.color` answers
   one; `SeabedLook.under` takes the floor's neighbour's colour as one, and
   `FireView.watch` its `fresh` and `charred` (still blended through their

@@ -14,7 +14,7 @@ description: Four independent golden sets, mutation-checking every new test, det
 | `pad_input` | 73 | | `flutter3d_core` | 1090 |
 | `apps/flutter3d_lab_pendulum` | 21 | | `apps/flutter3d_demo_reef` | 4 |
 | `apps/flutter3d_lab_incident` | 13 | | `flutter3d_game_shooter` | 86 |
-| `flutter3d_audio_core` | 98 | | `flutter3d_plugin_api` | 67 |
+| `flutter3d_audio_core` | 98 | | `flutter3d_plugin_api` | 73 |
 | `flutter3d_audio` | 7 | | `flutter3d_game_racing` | 249 |
 | `flutter3d_webgl` | 92 | | `flutter3d_game_platformer` | 242 |
 | `flutter3d_hardware` | 142 | | `apps/flutter3d_demo_platformer` | 228 |
@@ -35,14 +35,14 @@ description: Four independent golden sets, mutation-checking every new test, det
 | `apps/flutter3d_lesson_viewer` | 61 | | `apps/flutter3d_stereo_lesson_viewer` | 6 |
 | `flame_flutter3d` | 141 | | `apps/flutter3d_showcase` | 90 |
 | `flame_multiplayer` | 23 | | `flame_multiplayer_dashwire` | 6 |
-| `flutter3d_plugin_runtime` | 71 | | `flutter3d_lints` | 13 |
+| `flutter3d_plugin_runtime` | 77 | | `flutter3d_lints` | 13 |
 | `flutter3d_conformance` | 25 | | `flutter3d_camera` | 31 |
 | `flutter3d_education` | 71 | | `flutter3d_game_kit` | 38 |
-| `flutter3d_foundation` | 64 | | `flutter3d_matter` | 60 |
+| `flutter3d_foundation` | 64 | | `flutter3d_matter` | 61 |
 | `flutter3d_game_ui` | 150 | | `flutter3d_mcp` | 294 |
 | `flutter3d_post` | 40 | | `flutter3d_demo_content` | 319 |
 | `flutter3d_game_physics` | 45 | | `flutter3d_build_hooks` | 11 |
-| `flutter3d_elements` | 23 | | `flutter3d_level_scene` | 6 |
+| `flutter3d_elements` | 24 | | `flutter3d_level_scene` | 6 |
 | `flutter3d_wgpu` | 3 | | `flutter3d_hub` | 35 |
 | `flutter3d_fields` | 16 | | | |
 

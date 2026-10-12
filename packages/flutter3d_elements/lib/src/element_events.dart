@@ -129,6 +129,10 @@ final class ElementEventKinds extends PluginRegistry {
 
   Registration _add(NativeEventKind kind, PluginScope? scope) {
     final owner = scope?.manifest.id ?? 'app';
+    if (scope?.manifest.nameProblem(kind.name, what: 'the element event')
+        case final problem?) {
+      throw PluginException(problem);
+    }
     if (!kind.isPlugin) {
       throw ArgumentError.value(
         kind.code,

@@ -1317,7 +1317,10 @@ final class ElementsSimulation {
 /// The simulation half of the elements in a loop; `ElementsViewPlugin` draws
 /// it. A server replaying a run installs this one alone.
 final class ElementsSimulationPlugin extends Flutter3dPlugin {
-  ElementsSimulationPlugin(this.simulation, {this.id = 'elements'});
+  /// Named after the package by default, so what it registers is the
+  /// engine's: `elements` is an area of the engine's events, which no
+  /// plugin id may take (`PluginManifest.reservedAreas`).
+  ElementsSimulationPlugin(this.simulation, {this.id = 'flutter3d_elements'});
 
   final ElementsSimulation simulation;
   final String id;

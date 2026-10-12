@@ -1,5 +1,24 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `.f3dplugin` version 4 files a phase under the plugin.** A
+  phase a document declares is added to the loop as `<id>.<name>`, as its
+  events and Wasm systems already were, and so is every `after`, `before`,
+  `wasm[].phase` and `expressions[].phase` that names one of the
+  document's own phases; the engine's and other plugins' are named as
+  written. A version-3 phase already written as `<id>.<name>` is lifted to
+  `<name>`, so it is not filed twice. An entity type a document declares is
+  in its namespace (`glow.vent`), as every name a plugin registers is.
+- **Breaking: `DataPluginDocument.sections` holds `DataPluginSection`s**
+  (new), a class with `reader` and `section`, where it held a record, so a
+  later minor can say more of a section read.
+- **Breaking: `WasmModule` no longer shows the interpreter's compiled
+  code.** `functions`, `data`, `functionTypes` and `globals` were of types
+  the package does not export; a runtime from outside compiles `bytes`.
+- **A data section and a world field a plugin adds are in its
+  namespace.** `DataSections` and `WorldFields.add` refuse a plugin's bare
+  name with a `PluginException`, as every registry does.
+- **`wasm.trapped` is declared once for the engine** and kept, rather than
+  by the first module that needed it and withdrawn with it.
 - **The runtime depends on the plugin API alone.** `entityKinds`,
   `materials` and `renderSteps` are sections like `effects`, read by the
   package that owns what they install through the plugin API's

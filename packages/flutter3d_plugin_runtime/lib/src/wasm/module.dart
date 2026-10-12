@@ -130,25 +130,26 @@ final class DataSegment {
 final class WasmModule {
   WasmModule._({
     required this.bytes,
-    required this.functionTypes,
+    required this._functionTypes,
     required this.imports,
     required this.importNames,
-    required this.functions,
+    required this._functions,
     required this.memoryMin,
     required this.memoryMax,
-    required this.globals,
+    required this._globals,
     required this.functionExports,
     required this.globalExports,
     required this.memoryExport,
     required this.start,
-    required this.data,
+    required this._data,
   });
 
   /// The bytes it was decoded from, for a runtime that compiles them itself.
   final Uint8List bytes;
 
-  /// Every function's signature by function index: the imports first.
-  final List<FunctionType> functionTypes;
+  // What the interpreter runs, read through [WasmModuleInternals]: the
+  // compiled code is this package's own shape, not part of its API.
+  final List<FunctionType> _functionTypes;
 
   /// The host function behind each imported function, by function index.
   final List<int> imports;
@@ -157,8 +158,7 @@ final class WasmModule {
   /// module asks the host for, checked against its ABI when it starts.
   final List<String> importNames;
 
-  /// The module's own functions, from function index `imports.length` on.
-  final List<CompiledFunction> functions;
+  final List<CompiledFunction> _functions;
 
   /// The memory's starting pages, or null for a module with no memory.
   final int? memoryMin;
@@ -166,7 +166,7 @@ final class WasmModule {
   /// The most pages the module says its memory may grow to, if it says.
   final int? memoryMax;
 
-  final List<ModuleGlobal> globals;
+  final List<ModuleGlobal> _globals;
 
   /// Exported functions, by export name.
   final Map<String, int> functionExports;
@@ -180,7 +180,7 @@ final class WasmModule {
   /// The start function's index, if there is one.
   final int? start;
 
-  final List<DataSegment> data;
+  final List<DataSegment> _data;
 
   /// `f3d_abi`'s function index.
   int get abiFunction => functionExports['f3d_abi']!;
@@ -191,6 +191,25 @@ final class WasmModule {
   /// Reads and checks [bytes]. Throws [WasmException] with a sentence naming
   /// the section, the instruction or the import that is not ABI 1.
   static WasmModule decode(Uint8List bytes) => _Decoder(bytes).decode();
+}
+
+/// The compiled parts of a [WasmModule] the runtimes in this package read.
+///
+/// Not exported: their types are the interpreter's own, which may change
+/// in any release, so a runtime from outside compiles [WasmModule.bytes]
+/// itself.
+extension WasmModuleInternals on WasmModule {
+  /// Every function's signature by function index: the imports first.
+  List<FunctionType> get functionTypes => _functionTypes;
+
+  /// The module's own functions, from function index `imports.length` on.
+  List<CompiledFunction> get functions => _functions;
+
+  /// Each global's starting value and whether it may change.
+  List<ModuleGlobal> get globals => _globals;
+
+  /// The bytes copied into memory at instantiation.
+  List<DataSegment> get data => _data;
 }
 
 Never _refuse(String message) => throw WasmException(message);

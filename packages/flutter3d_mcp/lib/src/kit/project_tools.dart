@@ -76,8 +76,13 @@ abstract base class McpToolRegistry extends PluginRegistry {
 /// two plugins can each have a `reset` and neither shadows the other or a
 /// server's own. The namespace is `PluginManifest.namespace`, the plugin's
 /// id up to its first dot, as every other name a plugin registers is in: the
-/// editor half of a package (`wind.editor`) publishes under `wind.` too. Switching the plugin off withdraws its tools; a running
-/// server hears it and tells its client the list changed.
+/// editor half of a package (`wind.editor`) publishes under `wind.` too.
+/// No plugin from outside the engine may take one of the servers' areas
+/// (`light`, `level`, …) as its namespace, which `PluginManifest.idProblem`
+/// refuses at install (`PluginManifest.reservedAreas`), so a tool a server
+/// adds to its area in a minor never shadows a plugin's. Switching the
+/// plugin off withdraws its tools; a running server hears it and tells its
+/// client the list changed.
 ///
 /// ```dart
 /// void install(PluginHost host) {

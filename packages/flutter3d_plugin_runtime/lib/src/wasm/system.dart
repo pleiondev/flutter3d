@@ -399,11 +399,16 @@ WasmSystem installWasmSystem(
   final manifest = host.manifest;
   final id = manifest.id;
   if (!host.events.declared.any((d) => d.name == WasmTrapped.eventName)) {
-    host.events.declare<WasmTrapped>(
-      WasmTrapped.eventName,
-      description: 'A Wasm system trapped and was switched off.',
-      codec: WasmTrapped.codec,
-    );
+    // The runtime's own event, in the engine's `wasm` area rather than the
+    // plugin's namespace, declared once for the engine and kept: it outlives
+    // the first module that needed it, which every later module shares.
+    host.events
+        .forPlugin(const _RuntimeScope())
+        .declare<WasmTrapped>(
+          WasmTrapped.eventName,
+          description: 'A Wasm system trapped and was switched off.',
+          codec: WasmTrapped.codec,
+        );
   }
   final fields = <WorldField>[];
   if (spec.fields.isNotEmpty) {
@@ -460,6 +465,24 @@ WasmSystem installWasmSystem(
     before: spec.before,
   );
   return system;
+}
+
+/// The runtime itself as a plugin scope: what it registers for the engine
+/// on behalf of every module, under the engine's names, and never withdraws.
+final class _RuntimeScope extends PluginScope {
+  const _RuntimeScope();
+
+  @override
+  PluginManifest get manifest => const PluginManifest(
+    id: 'flutter3d_plugin_runtime',
+    apiVersion: PluginApiVersion.current,
+  );
+
+  @override
+  int get rank => -1;
+
+  @override
+  void track(Registration registration) {}
 }
 
 /// A plugin that is one Wasm system, for code that loads a module without a

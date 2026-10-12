@@ -1186,6 +1186,7 @@ final class EngineLoop extends LoopRegistry {
     PluginScope? scope,
   ) {
     final phase = named.current;
+    _refuseOutside(scope, phase.name, 'the ${phase.kind.name} phase');
     final after = afterNamed.map(LoopPhase.currentName).toList();
     final before = beforeNamed.map(LoopPhase.currentName).toList();
     for (final existing in _phases) {
@@ -1235,6 +1236,7 @@ final class EngineLoop extends LoopRegistry {
     PluginScope? scope,
   ) {
     final phase = named.current;
+    _refuseOutside(scope, name, 'the system');
     final existing = _systems.where((s) => s.name == name).firstOrNull;
     if (existing != null) {
       throw ArgumentError.value(
@@ -1329,6 +1331,16 @@ final class EngineLoop extends LoopRegistry {
     _stepRuns = runsOf(PhaseKind.step);
     _frameRuns = runsOf(PhaseKind.frame);
     _ordered = true;
+  }
+}
+
+/// Throws a [PluginException] when [scope]'s plugin may not register [name]
+/// as [what]: a name outside its namespace (D23,
+/// `PluginManifest.nameProblem`). The application, with no scope, names
+/// what it likes.
+void _refuseOutside(PluginScope? scope, String name, String what) {
+  if (scope?.manifest.nameProblem(name, what: what) case final problem?) {
+    throw PluginException(problem);
   }
 }
 

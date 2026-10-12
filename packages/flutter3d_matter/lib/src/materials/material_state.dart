@@ -39,6 +39,10 @@ final class MaterialState {
 
   /// A state at [temperature], K, and [pressure], Pa, in [phase], with
   /// [also] beside them.
+  ///
+  /// Throws a [MaterialFormatException] for an id in [also] that is not
+  /// `<namespace>.<name>`, which [MaterialState.fromJson] would refuse: a
+  /// state that saves is one that loads.
   factory MaterialState.at({
     double temperature = standardAirTemperature,
     double pressure = standardAtmosphere,
@@ -46,7 +50,8 @@ final class MaterialState {
     Map<String, Quantity> also = const <String, Quantity>{},
   }) => MaterialState(
     quantities: Map<String, Quantity>.unmodifiable(<String, Quantity>{
-      ...also,
+      for (final MapEntry(:key, :value) in also.entries)
+        checkedQuantityId(key): value,
       temperatureId: Quantity(temperature, Unit.kelvin),
       pressureId: Quantity(pressure, Unit.pascal),
     }),
@@ -90,10 +95,13 @@ final class MaterialState {
       quantities[pressureId]?.valueIn(Unit.pascal) ?? standardAtmosphere;
 
   /// This state with [id] holding [value], every other quantity as it was.
+  ///
+  /// Throws a [MaterialFormatException] for an [id] that is not
+  /// `<namespace>.<name>`, as [MaterialState.fromJson] does.
   MaterialState withQuantity(String id, Quantity value) => MaterialState(
     quantities: Map<String, Quantity>.unmodifiable(<String, Quantity>{
       ...quantities,
-      id: value,
+      checkedQuantityId(id): value,
     }),
     phase: phase,
   );

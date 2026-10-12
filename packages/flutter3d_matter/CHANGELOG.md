@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **A state that saves is one that loads.** `MaterialState.withQuantity`
+  and `MaterialState.at(also:)` refuse an id that is not
+  `<namespace>.<name>` with the `MaterialFormatException` `fromJson` gives
+  it, so a body's state can no longer be saved with a quantity it then
+  fails to read back.
 - **`lorenzNumber`, the Wiedemann–Franz law's constant.** 2.44 × 10⁻⁸
   W·Ω/K², the Sommerfeld value: a metal whose heat its electrons carry
   conducts k = L·T/ρ, which the native core reads for a material that

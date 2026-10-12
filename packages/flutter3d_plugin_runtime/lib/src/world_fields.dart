@@ -77,9 +77,14 @@ final class WorldFields extends PluginRegistry {
   final PluginScope? _scope;
 
   /// Adds [field]. Throws an [ArgumentError] naming both owners when a field
-  /// of that name is already here.
+  /// of that name is already here, and a [PluginException] when a plugin
+  /// adds one outside its namespace (`PluginManifest.nameProblem`).
   Registration add(WorldField field) {
     final scope = _scope;
+    if (scope?.manifest.nameProblem(field.name, what: 'the world field')
+        case final problem?) {
+      throw PluginException(problem);
+    }
     final owner = scope == null
         ? 'the application'
         : 'plugin "${scope.manifest.id}"';

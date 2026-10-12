@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `ElementsSimulationPlugin` and `ElementPlugin` are the
+  engine's by name.** `ElementsSimulationPlugin` is `flutter3d_elements` by
+  default and an
+  `ElementPlugin` `flutter3d_elements.<hook id>`, where they were
+  `elements` and `element.<hook id>`: `elements` is an area of the
+  engine's events, which no plugin id may take. `ElementEventKinds` and
+  `ElementSwitches` refuse a plugin's kind or switch outside its
+  namespace.
 - **The heat on a body, from the field.** `ElementFields.radiantFluxOn` and
   `FieldQuantity.radiantFlux` (W/m²): each fire's radiant heat, Modak's
   point source at the middle of its flame, on the point of the body a ray
