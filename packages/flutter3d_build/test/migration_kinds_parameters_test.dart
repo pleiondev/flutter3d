@@ -77,6 +77,8 @@ void main() {
     );
   });
 
+  // Six seconds with the migrator compiled; a cold `dart run` compiles it
+  // first, which is what the three minutes are for.
   test('a positional argument is named where it stands; a call that '
       'passes the name as well keeps a TODO', () async {
     final report = await migrateKindFixture('parameters');

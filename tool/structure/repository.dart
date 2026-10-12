@@ -2385,6 +2385,8 @@ const Map<String, String> slowTestsPending = <String, String>{
       'a migration kind applied to its fixture and the result analysed',
   'packages/flutter3d_build/test/migration_kinds_null_to_throw_test.dart':
       'a migration kind applied to its fixture and the result analysed',
+  'packages/flutter3d_build/test/migration_kinds_parameters_test.dart':
+      'a migration kind applied to its fixture and the result analysed',
   'packages/flutter3d_build/test/migration_kinds_record_to_class_test.dart':
       'a migration kind applied to its fixture and the result analysed',
   'packages/flutter3d_build/test/migration_kinds_regroup_test.dart':
