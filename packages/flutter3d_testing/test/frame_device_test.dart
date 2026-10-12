@@ -54,7 +54,7 @@ final class _Still extends GenrePlugin<List<int>> {
   );
 
   @override
-  String get systemName => 'still.step';
+  String get systemName => 'test.still.step';
 
   @override
   void stepSimulation(GenreStepContext<List<int>> step) {

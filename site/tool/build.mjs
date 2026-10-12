@@ -147,6 +147,7 @@ const NAV = [
       { file: 'gallery.md', url: '/gallery/', title: 'Gallery', kind: 'demo' },
       { file: 'quickstart.md', url: '/quickstart/', title: 'Quickstart' },
       { file: 'first-project.md', url: '/first-project/', title: 'Your first project', kind: 'guide' },
+      { file: 'download.md', url: '/download/', title: 'Download the editors' },
     ],
   },
   {
@@ -269,6 +270,7 @@ const NAV = [
       { file: 'reference/glossary.md', url: '/reference/glossary/', title: 'Glossary' },
       { file: 'reference/tuning.md', url: '/reference/tuning/', title: 'The knobs' },
       { file: 'reference/pitfalls.md', url: '/reference/pitfalls/', title: 'Pitfalls' },
+      { file: 'reference/what-1.0-is.md', url: '/reference/what-1.0-is/', title: 'What 1.0 is, and why migrate' },
       { file: 'reference/migrating-to-1.0.md', url: '/reference/migrating-to-1.0/', title: 'Migrating from 0.8' },
       { file: 'reference/testing.md', url: '/reference/testing/', title: 'Testing' },
       { file: 'reference/packages.md', url: '/reference/packages/', title: 'Package index' },
@@ -495,7 +497,8 @@ gtag('config', 'G-6F6VZ4H7CF');
       </p>
       <p class="foot-legal">
         An independent implementation of a 3D engine for Flutter, not affiliated
-        with the Flutter team.<br>
+        with or endorsed by Google or the Flutter project. Flutter is a
+        trademark of Google LLC.<br>
         © 2026 Dmitrii Zolotov. Released under the
         <a href="${GITHUB}/blob/main/LICENSE" rel="noopener">MIT licence</a>.
         This site sets no cookies and runs no analytics —

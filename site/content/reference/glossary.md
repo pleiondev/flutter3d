@@ -9,7 +9,7 @@ Every word below is a type or a file in this repository, not a general graphics 
 ## Drawing
 
 <dl class="keys">
-  <div><dt>Backend</dt><dd>One implementation of <code>flutter3d_hardware</code>. There are four: <code>flutter3d_impeller</code> on the GPU, <code>flutter3d_webgl</code> in a browser, <code>flutter3d_cpu</code> in plain Dart, and <code>flutter3d_webgpu</code> in a browser that hands out an adapter. An application depends on exactly one by name</dd></div>
+  <div><dt>Backend</dt><dd>One implementation of <code>flutter3d_hardware</code>. There are four: <code>flutter3d_impeller</code> on the GPU, <code>flutter3d_webgl</code> in a browser, <code>flutter3d_cpu</code> in plain Dart, and <code>flutter3d_webgpu</code> in a browser that hands out an adapter. An application usually names none of them: <code>flutter3d_app</code> depends on the ones its platform draws with and opens the first that starts</dd></div>
   <div><dt>HAL</dt><dd>The hardware abstraction layer, <code>flutter3d_hardware</code>: <code>GraphicsDevice</code>, <code>CommandEncoder</code>, formats, handles. It names no graphics API, which is what lets the renderer be written once</dd></div>
   <div><dt>Pass</dt><dd>One <code>beginRenderPass</code> and everything drawn before it is submitted. A frame here is shadows, sky, scene, then post, each in its own command buffer</dd></div>
   <div><dt>Draw item</dt><dd>One mesh, one material, one transform, sorted into the render list by a packed key. Culling decides which nodes become one</dd></div>
@@ -17,6 +17,18 @@ Every word below is a type or a file in this repository, not a general graphics 
   <div><dt>Batch</dt><dd>An <code>InstancedMeshNode</code>: one mesh at many places in one call, a transform and a colour per instance. Culled, sorted and picked as one thing</dd></div>
   <div><dt>Lightmap</dt><dd>A <code>Lightmap</code>: the light a brush level's walls throw on each other, baked by gathering and stored beside the level as RGBM. Sampled at a second coordinate that rides in the vertex colour, so it costs no new layout</dd></div>
   <div><dt>Visibility table</dt><dd>A <code>LevelVisibility</code>: the empty space of a brush level cut into cells, and a bit per pair saying whether they see each other. Baked once, stored beside the level, and used to leave out the rooms behind the walls</dd></div>
+</dl>
+
+## Materials
+
+One material type is for an application: `RenderMaterial` in code and `Material3D` in a widget tree, which makes a `RenderMaterial` and changes it in place. The others below have *material* in their names because they describe a surface or a substance somewhere else in the engine, and an application reaches them only through a file or a decoder.
+
+<dl class="keys">
+  <div><dt><code>RenderMaterial</code></dt><dd>How a surface is drawn: a lighting model, a base colour in linear light, metallic and roughness, emission in nits, the maps. What a <code>MeshNode</code> holds and what you change between frames. <strong>The one to use</strong></dd></div>
+  <div><dt><code>Material3D</code></dt><dd>The widget for a <code>RenderMaterial</code>: the <code>Mesh3D</code>s below it that name no material of their own are drawn with it, and a rebuild writes into the same object, so one <code>Material3D</code> over many meshes stays one batch</dd></div>
+  <div><dt><code>SurfaceMaterial</code></dt><dd>What a model file says about a surface, in the form every decoder produces (glTF's metal-rough; OBJ's Phong approximated). Turned into a <code>RenderMaterial</code> when a <code>ModelAsset</code> is built. Not for applications: read it only to inspect a file</dd></div>
+  <div><dt><code>MaterialDocument</code></dt><dd>A <code>.fmat</code> file: a <code>SurfaceMaterial</code> with images named by path, an optional program and its parameters, so a look is authored once and worn by many models. Not for applications: a tool or an editor writes it, and the loader reads it</dd></div>
+  <div><dt><code>PhysicalMaterial</code></dt><dd>What a thing is made of, not how it looks: density, friction, restitution, how it conducts heat and sound, each number citing its source, in <code>flutter3d_matter</code>'s catalogue. The physics, the audio and the particles read it. Not for drawing: a <code>RenderMaterial</code> may name one by id</dd></div>
 </dl>
 
 ## Lighting and shadows
@@ -94,7 +106,7 @@ A level is JSON. These are its parts, and a game reads all of them through `Leve
   <div><dt>Golden</dt><dd>A reference image a scene is compared against. There are three complete independent sets (Impeller, software and WebGL2), each held to zero differing pixels against its own, with a fourth being recorded for WebGPU</dd></div>
   <div><dt>Parity fixture</dt><dd>One scene drawn by two backends and compared as a grid of average brightness. Answers "do these two draw the same picture", which a golden cannot</dd></div>
   <div><dt>Conformance</dt><dd>The suite a backend has to pass before it counts as one. Split in two: what needs no shaders, and the rest</dd></div>
-  <div><dt>Structure rule</dt><dd>One of 89 scans in <code>tool/structure.dart</code>. They read source text and hold the architecture: that a genre package stays out of another genre, that the documents' numbers are true</dd></div>
+  <div><dt>Structure rule</dt><dd>One of 91 scans in <code>tool/structure.dart</code>. They read source text and hold the architecture: that a genre package stays out of another genre, that the documents' numbers are true</dd></div>
 </dl>
 
 ## Next

@@ -1727,7 +1727,8 @@ export package:flutter3d_physics/flutter3d_physics.dart show Collider, Collision
   CollisionWorld
   RigidDynamics
 
-export package:flutter3d_sim/flutter3d_sim.dart show EngineLoop, EntityDef, InputState, Level, LevelCollision, LevelFormatException, LevelMaterial
+export package:flutter3d_sim/flutter3d_sim.dart show ActionSet, EngineLoop, EntityDef, InputState, Level, LevelCollision, LevelFormatException, LevelMaterial
+  ActionSet
   EngineLoop
   EntityDef
   InputState

@@ -4,7 +4,7 @@ description: Every package in the workspace, what it owns, what it depends on, a
 
 # Package index
 
-58 packages and 17 applications, resolved as one [pub workspace](https://dart.dev/tools/pub/workspaces), so a single `flutter pub get` covers everything against one lock file. Every package but `flutter3d_demo_content`, the demos' own content, is on pub.dev. 50 of them carry the release candidate 1.0.0-rc.1, and any `^1.0.0-rc.1` on one of them resolves against every other and admits 1.0.0 when it follows. From 1.0.0 they follow strict semver, and the candidate already does, and [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md) says which platforms, backends and releases are supported. `pad_input` and `pointer_lock` keep a line of their own at 0.5.0, since neither names a sibling, and so do `flame_multiplayer` at 0.3.0 and `flame_multiplayer_dashwire` at 0.2.0, which stand on `flutter3d_net` and ask for `^1.0.0-rc.1` of it. Four names pub.dev still lists at 0.6.0 are no longer packages here: `flutter3d_backend`, `flutter3d_screens`, `flutter3d_session` and `flutter3d_bridge` were folded into `flutter3d_app` and `flutter3d_game`, and pub.dev marks each of them discontinued in favour of the package that took it in.
+61 packages and 17 applications, resolved as one [pub workspace](https://dart.dev/tools/pub/workspaces), so a single `flutter pub get` covers everything against one lock file. Every package but `flutter3d_demo_content`, the demos' own content, is published, which makes 60 of them on pub.dev. 58 of them carry the release candidate 1.0.0-rc.1, and any `^1.0.0-rc.1` on one of them resolves against every other and admits 1.0.0 when it follows. From 1.0.0 they follow strict semver, and the candidate already does, and [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md) says which platforms, backends and releases are supported. `pad_input` and `pointer_lock` keep a line of their own at 0.5.0, since neither names a sibling. Four names pub.dev still lists at 0.6.0 are no longer packages here: `flutter3d_backend`, `flutter3d_screens`, `flutter3d_session` and `flutter3d_bridge` were folded into `flutter3d_app` and `flutter3d_game`, and pub.dev marks each of them discontinued in favour of the package that took it in.
 
 ## Engine
 
@@ -133,9 +133,9 @@ There is no package for this. The rules about how the repository is arranged (wh
 dart run tool/structure.dart
 ```
 
-89 rules, no device, and all but two read source text in under a second with no `pub get`. The two that do not are the snapshots of the API and of the tools for agents, which parse every published package with the analyzer and so wait for a resolved workspace. They were a `boundaries_test.dart` in each package until thirteen packages of twenty-one turned out to have none, all thirteen clean and not one of them checked. A runner that walks `packages/` covers a package the day it exists.
+91 rules, no device, and all but two read source text in under a second with no `pub get`. The two that do not are the snapshots of the API and of the tools for agents, which parse every published package with the analyzer and so wait for a resolved workspace. They were a `boundaries_test.dart` in each package until thirteen packages of twenty-one turned out to have none, all thirteen clean and not one of them checked. A runner that walks `packages/` covers a package the day it exists.
 
-The detectors prove they fire before a single file is scanned, and a broken detector stops the run rather than letting 89 green scans be reported behind it. See [Testing](/reference/testing/).
+The detectors prove they fire before a single file is scanned, and a broken detector stops the run rather than letting 91 green scans be reported behind it. See [Testing](/reference/testing/).
 
 ## Assembling an application
 

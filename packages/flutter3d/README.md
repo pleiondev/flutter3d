@@ -2,7 +2,7 @@
 
 An independent implementation of a real-time 3D engine for Flutter, written
 from the geometry layer up. It does not fork, bind or wrap another engine, and
-it is not affiliated with the Flutter team.
+it is not affiliated with Google or the Flutter project.
 
 Homepage: **<https://flutter3d.pleion.dev>** · API reference:
 **<https://flutter3d.pleion.dev/docs>** · Source:
@@ -104,7 +104,7 @@ What works today:
   `CUBICSPLINE` with authored tangents), slerped rotations, an `AnimationPlayer`
   with play/pause/seek/speed and once/loop/ping-pong, and the decoded node
   hierarchy rebuilt on instantiation so an animated parent carries its subtree;
-- 1756 tests covering projection, scene, sorting, debug draw, raycasting,
+- 1760 tests covering projection, scene, sorting, debug draw, raycasting,
   animation, skinning, lighting, render targets, BVH, LOD, glTF, OBJ and `.f3d`,
   plus a real frame drawn through `flutter3d_cpu`'s software rasteriser for the
   ones that need one, all without a GPU. The geometry the engine is written in
@@ -194,8 +194,8 @@ the obvious alternative does not work.
 | Materials | `.mtl` through a resolver: `newmtl`, `Kd`, `Ks`, `Ns`, `d`, `Tr`, `map_Kd` |
 | Robustness | unknown directives, malformed faces and missing libraries go to `warnings` instead of failing the file |
 
-The test model is the [Utah teapot](https://github.com/mauricelam/Teapot)
-(`flutter3d_samples`): `v` and `f` only, 1202 vertices, 2256 triangles, no
+The test model is the [Utah teapot](https://en.wikipedia.org/wiki/Utah_teapot)
+(`flutter3d_samples`, tessellated by its `tool/make_teapot.py`): `v` and `f` only, 1202 vertices, 2256 triangles, no
 normals and no materials, which is exactly the case that needs normal
 generation.
 
@@ -322,7 +322,7 @@ lib/src/engine/assets/          glTF, OBJ and .f3d decoders, isolate loading, ca
 example/lib/                    the demo, and the frame capture hook
 skills/                         the conventions, as agent skills — see below
 bin/skills.dart                 what copies them into a project that uses this
-test/                           1756 tests, all runnable without a GPU
+test/                           1760 tests, all runnable without a GPU
 ```
 
 The GLSL is not here. Every shader this package draws with lives in
@@ -400,7 +400,7 @@ with three lights and one with a single light both report one pipeline.
 
 Part of [flutter3d](https://github.com/pleiondev/flutter3d), an independent
 implementation of a 3D engine for Flutter. It is not a fork or a binding of
-another engine, and it is not affiliated with the Flutter team. It has four
+another engine, and it is not affiliated with Google or the Flutter project. It has four
 switchable rendering backends: Impeller via Flutter GPU, WebGL2, WebGPU and a
 software rasteriser. It loads glTF, OBJ and `.f3d`, and has six lighting models,
 shadows, bloom, skinning, animation, BVH culling and picking, plus a

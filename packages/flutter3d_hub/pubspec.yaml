@@ -1,8 +1,8 @@
 name: flutter3d_hub
 description: >-
   The model hub's client contract for flutter3d: the reference format
-  `<uuid>@<n>`, the refusals, the cache policy and the server protocol with
-  its version. Plain Dart with no engine behind it.
+  `<uuid>@<n>`, the refusals, the cache policy and the versioned server
+  protocol. Plain Dart with no engine behind it.
 version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev

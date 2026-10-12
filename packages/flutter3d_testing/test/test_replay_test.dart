@@ -59,7 +59,7 @@ final class _WalkGenre extends GenrePlugin<_Walk> {
   );
 
   @override
-  String get systemName => 'walk.step';
+  String get systemName => 'test.walk.step';
 
   @override
   void stepSimulation(GenreStepContext<_Walk> step) {

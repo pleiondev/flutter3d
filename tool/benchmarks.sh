@@ -57,6 +57,15 @@ if [ "$what" != tagged ]; then
   else
     failed+=("frame allocations")
   fi
+  # The counts as a file, when CI asks for one (`FLUTTER3D_BENCH_OUT`, a
+  # directory): ci.yml keeps it as an artefact beside the mesh benchmark's,
+  # so a count that crept up within the margin is a series and not a guess.
+  if [ -n "${FLUTTER3D_BENCH_OUT:-}" ]; then
+    mkdir -p "$FLUTTER3D_BENCH_OUT"
+    # The `per frame:` line and the owners and classes indented under it.
+    awk '/^per frame: / { on = 1; print; next } on && /^  / { print; next } on { exit }' \
+      "$log" > "$FLUTTER3D_BENCH_OUT/frame-allocations.txt"
+  fi
   rm -f "$log"
 fi
 

@@ -1,5 +1,5 @@
 name: flutter3d_lints
-description: "Analyzer rules for code that runs inside a flutter3d fixed step: no wall clock, no unseeded Random, no dart:math transcendental where Portable gives one answer everywhere. An analysis server plugin, for a plugin's own simulation code."
+description: "Analyzer rules for code inside a flutter3d fixed step: no wall clock, no unseeded Random, no dart:math transcendental where Portable gives one answer everywhere."
 version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev

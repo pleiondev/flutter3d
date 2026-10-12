@@ -1,242 +1,247 @@
 ---
-description: Resolve the workspace, build the shader bundle, run the demo, and put your own lit mesh on screen.
+description: A new Flutter app, two packages from pub.dev, the build hook, the platform keys, and a model on screen that you can turn. The checkout comes last.
 ---
 
 # Quickstart
 
-This takes about fifteen minutes, from a fresh checkout to a lit mesh turning on screen. Two of those minutes go on a shader bundle that a fresh checkout does not have and cannot run without.
+From `flutter create` to a model on screen that you can turn with a finger, in about fifteen minutes. Everything here comes from pub.dev; a checkout of this repository is only for working on the engine itself, and that is the last section.
 
 <div class="goal">
 <ul>
-<li>A resolved pub workspace and a built shader bundle</li>
-<li>The engine's own demo running, with every feature switchable</li>
-<li>Your own Flutter app drawing a mesh through <code>Flutter3dView</code></li>
-<li>The same view under a twin fed by a real source and a laboratory on the accurate profile</li>
+<li>A new Flutter app with the engine at <code>^1.0.0-rc.1</code></li>
+<li>The build hook that converts your models and compiles the shaders your app needs</li>
+<li>The two platform keys, and how to tell when they are missing</li>
+<li>A <code>Scene3D</code> with a <code>Model3D</code> in it, on macOS and in Chrome</li>
+<li>What to do after <code>flutter upgrade</code></li>
 </ul>
 </div>
+
+Words that look familiar but mean something specific here are in the [glossary](/reference/glossary/), the materials first among them.
 
 ## Requirements
 
 | | |
 |---|---|
-| Flutter | 3.47.0 stable or newer. The shader bundle format is tied to the SDK version |
-| Dart | 3.12.2 or newer (comes with the SDK above) |
-| Platform | macOS and the browser are supported and exercised. Android is played on a real handset (Impeller Vulkan); iOS runs clean in the simulator on Metal; Windows and Linux go through Impeller and are unverified |
-| Impeller | Required. Flutter GPU refuses to start on Skia |
+| Flutter | 3.44 or newer; CI runs 3.47.0 stable. The shader bundle is compiled for the SDK that builds the app |
+| Dart | 3.12 or newer (comes with the SDK above) |
+| Platform | macOS and the browser are supported and exercised. Android is played on a real handset (Impeller Vulkan); iOS runs clean in the simulator on Metal; Windows and Linux go through Impeller and are unverified. [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md) has the table |
+| Impeller | Required on a device. Flutter GPU refuses to start on Skia, and the view then draws through the software rasteriser and says so |
 
-## Resolve the workspace
+<p>On Impeller, GPU memory goes back through Dart's garbage collector. <code>flutter_gpu</code> has no call that frees a buffer or a texture, so <code>dispose</code> drops the engine's last reference and the memory returns when the collector finds it, not at the call. On a phone, keep a model you will show again rather than loading it twice. <a href="https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md#flutter-gpu">SUPPORT.md</a> has the detail.</p>
 
-The repository is a [pub workspace](https://dart.dev/tools/pub/workspaces): one resolve covers all 61 packages and 17 applications against a single lock file. Without it, packages that depend on each other by path drift apart at the first version bump, and the drift only shows up as an unbuildable checkout on somebody else's machine.
+## Create the app {.step}
+
+```bash
+flutter create my_scene
+cd my_scene
+```
+
+## Add the two packages {.step}
+
+`flutter3d` is the engine. `flutter3d_app` is the view and the widgets that run it, and it depends on the backends your platform draws with (Impeller on a device, WebGPU and WebGL2 in a browser, the software rasteriser when none of them starts), choosing among them at run time.
+
+```bash
+flutter pub add flutter3d:^1.0.0-rc.1 flutter3d_app:^1.0.0-rc.1
+```
+
+<div class="warn">
+<p><strong>Write the constraint.</strong> Until 1.0.0 is out, pub.dev's default version is still 0.8.x, so a plain <code>flutter pub add flutter3d</code> brings 0.8.5, and nothing on this page is true of it. <code>^1.0.0-rc.1</code> asks for the release candidate and admits 1.0.0 when it follows.</p>
+</div>
+
+## Add the build hook {.step}
+
+```bash
+flutter pub add dev:flutter3d_build:^1.0.0-rc.1
+dart run flutter3d_build:init
+flutter clean
+```
+
+`init` writes four things and changes nothing a second time: `hook/build.dart`, which runs `flutter3d_build`'s `buildAssets` on every build; the `dev_dependencies:` line; the `flutter: assets:` entries for `flutter3d_generated/`; and a `.gitignore` line, because that directory is output. From now on everything under `assets_src/` is converted into `flutter3d_generated/` on every build, and a build with nothing changed converts nothing.
+
+The hook also compiles the engine's shaders into your project, with your SDK's own `impellerc`, and only the stages your app needs. On `flutter3d_app`'s example that is 3.7 MB of shaders in a native build against 8.5 MB for all of them (Flutter 3.47.0, 2026-10-11, measured with `flutter3d shaders`). In a browser, `main.dart.js` of the same example is 1,195,037 bytes gzipped, and with the project's shader bundle (587,778 bytes) the page loads 1.78 MB, against 2.46 MB before the selection (2026-10-12, commit `a39605190`). The APK and IPA sizes are measured on the phones for the release and go here when they are.
+
+<div class="note">
+<p><strong>Why <code>flutter clean</code>.</strong> A project that was built once before the hook existed keeps build output that has never heard of it, and Flutter does not always notice that a hook appeared. Cleaning once, right after <code>init</code>, makes the first build run it. You do not need to clean again for a new model; the hook picks those up by itself.</p>
+</div>
+
+`dart run flutter3d_build:flutter3d doctor` (or `flutter3d doctor`, after `dart pub global activate flutter3d_build`) checks the hook, the asset lines and the shader bundle, and says what to change.
+
+## Turn Flutter GPU on for the app {.step}
+
+Flutter GPU and Impeller are enabled **per application**, not per channel, so these keys are yours to add. A browser build needs neither.
+
+macOS and iOS, in `macos/Runner/Info.plist` and `ios/Runner/Info.plist`, inside the top-level `<dict>`:
+
+```xml
+<key>FLTEnableFlutterGPU</key>
+<true/>
+<key>FLTEnableImpeller</key>
+<true/>
+```
+
+Android, in `android/app/src/main/AndroidManifest.xml`, inside `<application>`:
+
+```xml
+<meta-data
+    android:name="io.flutter.embedding.android.EnableFlutterGPU"
+    android:value="true" />
+```
+
+<div class="warn">
+<p><strong>Missing keys do not fail.</strong> The app opens and draws through the software rasteriser, because that is what <code>flutter3d_app</code> falls back to when Impeller will not start. The view shows a banner that begins <em>Drawing with</em> and says the GPU backend would not start, which can be closed, and the console has a <code>flutter3d_app:</code> line naming the backend that refused and why. If you see either, these keys are why.</p>
+</div>
+
+## Put a model in {.step}
+
+Any `.glb` will do. The robot the [cookbook](https://github.com/pleiondev/flutter3d/tree/main/examples/cookbook) uses is CC0:
+
+```bash
+mkdir -p assets_src/models
+curl -L -o assets_src/models/robot.glb \
+  https://raw.githubusercontent.com/pleiondev/flutter3d/main/examples/cookbook/assets_src/models/RobotExpressive.glb
+```
+
+Replace `lib/main.dart`:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_app/flutter3d_app.dart';
+
+void main() => runApp(const MaterialApp(home: Robot()));
+
+class Robot extends StatelessWidget {
+  const Robot({super.key});
+
+  @override
+  Widget build(BuildContext context) => Scene3D(
+    children: <Widget>[
+      // Turned by a drag, moved in and out by a pinch or the wheel.
+      const OrbitCamera3D(distance: 6.0),
+      // 15 000 lux from high up, casting shadows.
+      const Light3D.sun(),
+      // A path under assets_src/: the hook converts it, and Model3D reads
+      // what it wrote.
+      Model3D(
+        source: 'assets_src/models/robot.glb',
+        animation: 'Walking',
+      ),
+      // A material, as a widget: the meshes below it are drawn with it.
+      Material3D(
+        baseColor: LinearColor.fromSrgb(0.55, 0.6, 0.55),
+        roughness: 0.9,
+        children: const <Widget>[
+          Mesh3D(shape: PlaneShape(width: 12, depth: 12)),
+        ],
+      ),
+    ],
+  );
+}
+```
+
+```bash
+flutter run -d macos
+flutter run -d chrome
+```
+
+`Scene3D` is a `Flutter3dView` underneath: it opens the device, makes the renderer and the loop, and owns the frame clock, focus, pausing when the route is covered or the app goes to the background, and teardown. Its children become nodes of an ordinary `Scene`, and a rebuild that keeps a widget's key keeps its node, so anything you set on the node by hand survives it.
+
+There are widgets for groups (`Node3D`), shapes (`Mesh3D`, with `onTap`), models with their animation (`Model3D`, with `onTap` for the part that was hit), lights (`Light3D.sun`, `Light3D.lamp`), cameras (`Camera3D`, `OrbitCamera3D`), reflection probes (`ReflectionProbe3D`), decals (`Decal3D`), mirrors (`Mirror3D`) and particles (`Particles3D`). The [cookbook](https://github.com/pleiondev/flutter3d/tree/main/examples/cookbook) has twenty of them put to work, one task to a file.
+
+<div class="note">
+<p><strong>One material type.</strong> In a widget tree it is <code>Material3D</code>, and in code it is <code>RenderMaterial</code>, the object a <code>Material3D</code> makes and every mesh draws with. The engine has three other types with <em>material</em> in their names; the <a href="/reference/glossary/#materials">glossary</a> says what each is for and why an application does not draw with any of them.</p>
+</div>
+
+<div class="note">
+<p><strong>The viewer widget arrives in rc.2.</strong> A model viewer in one widget, with its own camera, lights and loading state, is part of <code>1.0.0-rc.2</code>. In rc.1 the four lines above are the viewer.</p>
+</div>
+
+## Without widgets {.step}
+
+The same scene can be built in code: hand `Flutter3dView` an `onCreated`, and add nodes to the engine's scene once the device is open.
+
+```dart
+Flutter3dView(
+  onCreated: (Flutter3dEngine engine) => engine.scene.add(
+    // A shape builds its mesh on the CPU; the device uploads it.
+    MeshNode(
+      DeviceMesh.upload(engine.device, const SphereShape(radius: 1.0).build()),
+      RenderMaterial(
+        baseColor: LinearColor.fromSrgb(0.9, 0.42, 0.28),
+        roughness: 0.35,
+      ),
+    ),
+  ),
+  // After the loop has stepped and before the frame is drawn.
+  onFrame: (Flutter3dEngine engine, FrameInfo frame) {},
+)
+```
+
+The view makes an empty scene with a light, and a camera at `(0, 1, 5)` looking at the origin, unless you hand it a `scene` and a `camera` of your own. Its other options come in four groups: `view: ViewSettings(settings: ...)` is what every frame is drawn with, `plugins: PluginSettings(plugins: [...])` go into its loop, `loop: LoopSettings(...)` holds the step rate, the input and where the simulation runs, and a `device` or `renderer` you hand it in `device: DeviceSettings(...)` is borrowed and left alone when the view goes. The [core tutorial](/core/tutorial/) walks through the rest.
+
+`Flutter3dView` is built on `SceneSurface`, which draws a scene that somebody else has set up: a device opened (`openDevice`), a `Renderer.create` over it, a loop stepped, and focus, lifecycle and teardown all the caller's. That stays public for a host with its own frame clock, and [the frame](/core/rendering/) describes what the renderer does with a scene either way.
+
+## A twin or a laboratory {.step}
+
+The same view starts a twin and a laboratory; what changes is where the simulation's time and input come from. `TimeSource` comes from `flutter3d_sim`, and `SimulationPlacement` from `flutter3d_app`.
+
+- **A clock of your own.** `time:` is how many seconds each frame hands the loop. `TimeSource.scaled(10)` runs ten minutes of the model in one, `TimeSource.manual()` moves only when your button calls `advance`, and `TimeSource.log(...)` replays a recording at the pace it was taken. The fixed step stays the loop's, so a run at a tenth of real speed is the same run.
+- **Readings as input.** A twin feeds what its source says into the step's input (`InputState.feedExternal` from `EngineLoop.onStepInput`), and an `Assimilation` decides what the model makes of it. The readings are then on the run's tape, so a `RunTimeline` scrubs the history without asking the source again. `packages/flutter3d_app/example/lib/twin_main.dart` polls a REST endpoint in its own code and does exactly this.
+- **Probes, not the world.** A `Probe` on an entity publishes a quantity every step, and `ProbeBuilder(published: engine.published, probe: ...)` shows it beside the view, the same whether the simulation runs in the view's loop or in an isolate.
+- **The accurate profile.** The view's own loop runs the deterministic profile a game is played on. A laboratory that demonstrates builds its loop on `SimulationProfile.accurate` in a top-level function and hands it to `loop: LoopSettings(simulation: SimulationPlacement.isolate(...))`; `packages/flutter3d_education/example/lib/pendulum_main.dart` measures a pendulum's period that way, within 1e-4 of its series over 100 swings. A laboratory a server verifies by replaying the student's run stays on the deterministic profile.
+
+## In a browser {.step}
+
+A browser build needs no keys and no step of its own. The hook writes the project's bundle for the web too: its WebGL2 section always, and its WebGPU section where `glslangValidator` and `naga` are installed (without them the WebGPU device loads the engine's compiled table, which costs the page more). The view tries WebGPU first and falls back to WebGL2 where the browser has no adapter to give. `flutter build web --release` is what the [playable demos](/platformer/demo/) are built with.
+
+A large model decodes on the page's thread unless you give it a worker. The worker is opt-in: compile it once with `dart run flutter3d_core:decode_worker web/flutter3d_decode_worker.js` and call `WebDecodeWorker.use(Uri.parse('flutter3d_decode_worker.js'))` before `runApp`. Without the script, or where the browser will not start a worker, decoding stays on the page, as it always did, and `WebDecodeWorker.inPlaceReason` says why. The script is compiled from the engine's decoders, so build it again after you upgrade the engine.
+
+## After `flutter upgrade` {.step}
+
+The shader bundle is compiled for one SDK, and Impeller refuses a bundle built on another. The hook compiles it again for the SDK that runs the build, so after an upgrade the next build normally does it for you. If the hook's output was cached from before and the app stops at start with a `ShaderBundleException` whose message says the bundle is stale, run:
+
+```bash
+flutter clean
+flutter run -d macos
+```
+
+`flutter3d doctor` says the same thing before you run: a bundle "built on another SDK" is a problem it names, with the fix. The web decode worker, if you use one, is compiled from the engine and is rebuilt when you upgrade the engine rather than Flutter.
+
+## Where to go next
+
+- [The cookbook](https://github.com/pleiondev/flutter3d/tree/main/examples/cookbook): twenty tasks, one file each
+- [Tutorial: first scene](/core/tutorial/): lights, shadows, a clip, picking, particles and the settings, step by step on the same widgets
+- [Your first project](/first-project/): a game scaffolded from a template, with a level and a body that walks
+- [Glossary](/reference/glossary/): what each word here names
+- [The asset pipeline](/reference/asset-pipeline/): what the hook does with your models, textures and materials
+- [Pitfalls](/reference/pitfalls/): the conditions without which Flutter GPU renders nothing and reports no error
+- [Coming from 0.8](/reference/migrating-to-1.0/): one command moves a project
+
+## Working on the engine itself
+
+Everything above uses the packages from pub.dev. To change the engine, run its demos from source or send a change, clone the repository. It is a [pub workspace](https://dart.dev/tools/pub/workspaces): one resolve covers all 61 packages and 17 applications against a single lock file.
 
 ```bash
 git clone https://github.com/pleiondev/flutter3d.git
 cd flutter3d
 flutter pub get
-```
 
-## Build the shader bundles
-
-There are two: the engine's canonical bundle, which every application links,
-and a separate one belonging to the engine's demo, which the demo loads at
-runtime and names as an asset.
-
-<div class="note">
-<p>The engine's own bundle no longer needs this step. <code>packages/flutter3d_impeller/hook/build.dart</code> (<code>ap-06</code> in <code>doc/asset-pipeline-plan.md</code>) builds it during <code>flutter build</code> and <code>flutter run</code>, so after a fresh checkout and <code>flutter pub get</code>, <code>flutter run -d macos</code> in any of the three games below draws a frame with no shader step in between. The step stays here only for the one bundle the hook does not cover.</p>
-</div>
-
-```bash
+# The engine demo's own bundle, which it loads at runtime and names as an
+# asset. Every other app's bundle is built by its hook.
 (cd packages/flutter3d/example && ./tool/build_shaders.sh)
+
+(cd packages/flutter3d/example && flutter run -d macos)      # the engine demo
+(cd apps/flutter3d_demo_dungeon && flutter run -d macos)     # the shooter
+(cd apps/flutter3d_demo_platformer && flutter run -d chrome) # the platformer
+(cd examples/cookbook && flutter run -d macos -t lib/campfire.dart)
 ```
 
-<div class="warn">
-<p>That bundle is still generated, gitignored and tied to the Flutter version. A fresh checkout has none, and the symptom is a missing-asset error at startup, not a build failure. Run the script again after <code>flutter upgrade</code>. It has not moved onto the hook because it is the demo's own bundle, separate from the canonical one <code>ap-06</code> covers; that entry's "Not done" says why.</p>
-</div>
-
-A project of your own does not link the whole canonical bundle. Its build hook (`flutter3d_build`'s `buildAssets`) compiles the stages the project needs, for the SDK that builds it, into `flutter3d_generated/shaders/` ([the engine's shaders](/reference/asset-pipeline/#shaders)). On `flutter3d_app`'s example that is 3.7 MB with 95 of 105 stages, against 8.5 MB for all of them; the WebGL2 sources of the same set are 0.40 MB gzipped, against 0.84 MB (Flutter 3.47.0, 2026-10-11, measured with `flutter3d shaders`). The release sizes of the whole application are measured on hardware for the release.
-
-The script calls `impellerc` directly instead of going through Native Assets, and prints the compiled binding table on the way out. Read that table once. The compiler drops a uniform block or a sampler whose result never reaches the output, so what a shader *declares* and what it actually *binds* are different lists.
-
-## Run something
+The demo bundle is gitignored and tied to the Flutter version: a fresh checkout has none, and the symptom is a missing-asset error at startup. Run the script again after `flutter upgrade`. It calls `impellerc` directly and prints the compiled binding table on the way out. Read that table once: the compiler drops a uniform block or a sampler whose result never reaches the output, so what a shader *declares* and what it actually *binds* are different lists.
 
 ```bash
-# The engine's demo: a model browser with every feature switchable.
-# Needs the shader step above; it is the one bundle that still asks for it.
-(cd packages/flutter3d/example && flutter run -d macos)
-
-# The shooter
-(cd apps/flutter3d_demo_dungeon && flutter run -d macos)
-
-# The platformer
-(cd apps/flutter3d_demo_platformer && flutter run -d macos)
-
-# The racing game
-(cd apps/flutter3d_demo_racing && flutter run -d macos)
-
-# Any of them in a browser: the same command, a different device. No shader
-# bundle is involved, because the WebGL backend translates the same GLSL and
-# the browser compiles it.
-(cd apps/flutter3d_demo_platformer && flutter run -d chrome)
-```
-
-The starting points for your own application are smaller, and each is one `Flutter3dView`:
-
-```bash
-# A lit cube you can turn: the smallest application.
-(cd packages/flutter3d_app/example && flutter run -d macos)
-
-# A digital twin: a tank of water on a real site, the air temperature polled
-# from Open-Meteo, the history on a tape you scrub, the clock at 1x, 10x or 30x.
-(cd packages/flutter3d_app/example && flutter run -d macos -t lib/twin_main.dart)
-
-# A laboratory: a pendulum on the accurate profile, stepped by hand, its
-# measured period beside the one the series gives.
-(cd packages/flutter3d_education/example && flutter run -d macos -t lib/pendulum_main.dart)
-
-# The seed of a game: a level to walk through, what the editor scaffolds from.
-(cd packages/flutter3d_game/example && flutter run -d macos)
-```
-
-<div class="note">
-<p>To produce something you can hand out, build it with <code>flutter build web --release</code>. That is how the <a href="/platformer/demo/">playable demos</a> on this site are built. Leave out <code>--wasm</code> for now: the dart2wasm build of the WebGL backend throws on its first frame, and <code>site/tool/demos.sh</code> records the details.</p>
-</div>
-
-<div class="note">
-<p>Flutter GPU and Impeller are enabled <strong>per application</strong> through <code>Info.plist</code>, not per channel. Every app in this repository sets <code>FLTEnableFlutterGPU</code> and <code>FLTEnableImpeller</code> for itself, and a new one that skips them fails to initialise the shader library and renders nothing. On Android the key is <code>io.flutter.embedding.android.EnableFlutterGPU</code> in <code>AndroidManifest.xml</code>.</p>
-</div>
-
-## Run the tests
-
-```bash
-tool/ci.sh                                  # shaders, analyze, every test
+tool/ci.sh                                   # shaders, analyze, every test
 (cd packages/flutter3d_game && flutter test)
 (cd packages/flutter3d_physics && dart test) # plain Dart, no Flutter needed
 ```
 
-There are 14640 tests across 61 packages and 17 applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, so 96 scenes stay checkable in a headless run.
-
-## Your own application
-
-A new app needs two engine packages in its pubspec: `flutter3d`, the engine, and `flutter3d_app`, which picks this platform's backends and wraps an engine in a widget.
-
-<div class="note">
-<p>The 1.0.0 set goes out first as a release candidate, <code>1.0.0-rc.1</code>, on <a href="https://pub.dev/publishers/pleion.dev/packages">pub.dev</a>. pub.dev keeps 0.8.x as the default until 1.0.0, so the candidate is opt-in: the <code>^1.0.0-rc.1</code> lines below ask for it, and they admit 1.0.0 too when it follows. Skip 0.7.0: installed from pub.dev, its Impeller build hook fails before the first test, and on macOS and iOS an unlit material crashes the first frame. If you are moving a project from 0.6.0, several packages were folded into others; <code>doc/boundary-0.7.0.md</code> in the repository lists which import lines move.</p>
-</div>
-
-```yaml
-name: my_game
-publish_to: 'none'
-
-environment:
-  sdk: ^3.12.2
-
-dependencies:
-  flutter:
-    sdk: flutter
-
-  # The engine, and the widget that runs it. flutter3d_app depends on the
-  # backends this platform draws with (Impeller on a device, WebGL2 and
-  # WebGPU in a browser, the software rasteriser when neither starts) and
-  # chooses among them at run time.
-  flutter3d: ^1.0.0-rc.1
-  flutter3d_app: ^1.0.0-rc.1
-
-  vector_math: ^2.2.0
-```
-
-Then put a `Flutter3dView` where the picture goes. It opens the device, makes the renderer and the loop, and owns the frame clock, focus, pausing when the route is covered or the app goes to the background, and teardown. `onCreated` is called once the device is open, with the engine: the scene to fill, the device to upload to, the loop to add systems and plugins to.
-
-```dart
-import 'package:flutter/material.dart';
-import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_app/flutter3d_app.dart';
-
-/// How far the ball has turned, in radians.
-var spin = 0.0;
-
-void main() => runApp(
-  MaterialApp(
-    home: Scaffold(
-      body: Flutter3dView(
-        onCreated: (Flutter3dEngine engine) {
-          // A shape is a value that builds `MeshData` on the CPU; the device
-          // turns that into buffers. The two steps stay apart because bounds,
-          // culling and picking need the first one and no device at all.
-          engine.scene.add(
-            MeshNode(
-              DeviceMesh.upload(
-                engine.device,
-                const SphereShape(radius: 1.0).build(),
-              ),
-              RenderMaterial(
-                baseColor: LinearColor.fromSrgb(0.9, 0.42, 0.28),
-                roughness: 0.35,
-              ),
-            ),
-          );
-        },
-        // Called after the loop has stepped, before the frame is drawn.
-        onFrame: (Flutter3dEngine engine, FrameInfo frame) {
-          spin += frame.seconds * 0.5;
-          engine.scene.meshes.first.setRotationYawPitchRoll(spin, 0.0, 0.0);
-        },
-      ),
-    ),
-  ),
-);
-```
-
-The view makes an empty scene with a light, and a camera at `(0, 1, 5)` looking at the origin, unless you hand it a `scene` and a `camera` of your own. Its other options come in four groups: `view: ViewSettings(settings: ...)` is what every frame is drawn with, `plugins: PluginSettings(plugins: [...])` go into its loop, `loop: LoopSettings(...)` holds the step rate, the input and where the simulation runs, and a `device` or `renderer` you hand it in `device: DeviceSettings(...)` is borrowed and left alone when the view goes. The [core tutorial](/core/tutorial/) walks through the rest.
-
-### A twin or a laboratory
-
-The same view starts a twin and a laboratory; what changes is where the simulation's time and input come from. `TimeSource` and `SimulationPlacement` below come from `flutter3d_sim` and `flutter3d_app`.
-
-- **A clock of your own.** `time:` is how many seconds each frame hands the loop. `TimeSource.scaled(10)` runs ten minutes of the model in one, `TimeSource.manual()` moves only when your button calls `advance`, and `TimeSource.log(...)` replays a recording at the pace it was taken. The fixed step stays the loop's, so a run at a tenth of real speed is the same run.
-- **Readings as input.** A twin feeds what its source says into the step's input (`InputState.feedExternal` from `EngineLoop.onStepInput`), and an `Assimilation` decides what the model makes of it. The readings are then on the run's tape, so a `RunTimeline` scrubs the history without asking the source again. `packages/flutter3d_app/example/lib/twin_main.dart` polls a REST endpoint in its own code and does exactly this.
-- **Probes, not the world.** A `Probe` on an entity publishes a quantity every step, and `ProbeBuilder(published: engine.published, probe: ...)` shows it beside the view, the same whether the simulation runs in the view's loop or in an isolate.
-- **The accurate profile.** The view's own loop runs the deterministic profile a game is played on. A laboratory that demonstrates builds its loop on `SimulationProfile.accurate` in a top-level function and hands it to `loop: LoopSettings(simulation: SimulationPlacement.isolate(...))`; `packages/flutter3d_education/example/lib/pendulum_main.dart` measures a pendulum's period that way, within 1e-4 of its series over a hundred swings. A laboratory a server verifies by replaying the student's run stays on the deterministic profile.
-
-### Or write the scene as widgets
-
-`flutter3d_app` has the same scene as widgets. `Scene3D` is a `Flutter3dView` underneath, and its children become nodes of an ordinary `Scene`. A rebuild that keeps a widget's key keeps its node, so anything you set on the node imperatively survives it.
-
-```dart
-import 'package:flutter/material.dart';
-import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_app/flutter3d_app.dart';
-
-Widget ball({required bool polished}) => Scene3D(
-  children: <Widget>[
-    Camera3D(position: Vector3(0.0, 1.2, 3.5), target: Vector3.zero()),
-    Light3D.point(position: Vector3(2.0, 2.5, 2.0), range: 20.0),
-    // Every Mesh3D below without a material of its own is drawn with this
-    // one. A rebuild writes the new values into the same material object.
-    Material3D(
-      key: const ValueKey<String>('ball'),
-      baseColor: polished
-          ? LinearColor.fromSrgb(0.25, 0.45, 0.9)
-          : LinearColor.fromSrgb(0.9, 0.42, 0.28),
-      roughness: polished ? 0.1 : 0.35,
-      children: const <Widget>[Mesh3D(shape: SphereShape(radius: 1.0))],
-    ),
-  ],
-);
-```
-
-There are widgets for groups (`Node3D`), models with their animation (`Model3D`), lights, cameras, reflection probes (`ReflectionProbe3D`), decals (`Decal3D`), mirrors (`Mirror3D`, whose child meshes are its surfaces) and particles (`Particles3D`). `Contributor3D` adds any pass contributor for as long as it is in the tree. `example/lib/widgets_main.dart` is the runnable version of the snippet above.
-
-If your game already has its own loop and renderer, `SceneWidgets.mount` builds the same widgets into a scene you draw yourself, without a screen. The golden runner draws the `widget-scene` reference that way, on all four backends.
-
-### The low level underneath
-
-`Flutter3dView` is built on `SceneSurface`, which draws a scene that somebody else has set up: a device opened (`openDevice`, or a backend's own `open`), a `Renderer.create` over it, a loop stepped, and focus, lifecycle and teardown all the caller's. That stays public for a host that has its own frame clock or draws several engines into one widget tree, and [the frame](/core/rendering/) describes what the renderer does with a scene either way. [Assembling an application](/core/session/) covers what the shipped games add on top: `flutter3d_game`'s run, levels and settings.
-
-## Where to go next
-
-- [Your first project](/first-project/): a project of your own, scaffolded from a template, in a directory that is not this one
-- [Core: what core is](/core/): the shape of the engine and which package owns what
-- [The frame](/core/rendering/): what the renderer does with a scene
-- [Tutorial: first scene](/core/tutorial/): the whole application, step by step
-- [Assembling an application](/core/session/): the device, frame surface and level lifecycle the shipped games use
-- [The asset pipeline](/reference/asset-pipeline/): converting your own models and textures on every build, instead of committing what a script produced once
-- [Pitfalls](/reference/pitfalls/): the conditions without which Flutter GPU renders nothing and reports no error
+There are 14644 tests across 61 packages and 17 applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, so 96 scenes stay checkable in a headless run. [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md) says how a change is written and tested.

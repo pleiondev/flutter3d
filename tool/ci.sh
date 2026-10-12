@@ -11,7 +11,10 @@
 #
 #   * The Impeller half of the golden set. Those 96 scenes render through
 #     flutter_gpu and need a real device, so they run from
-#     packages/flutter3d/tool/golden.sh on a machine with a GPU. The software
+#     packages/flutter3d/tool/golden.sh on a machine with a GPU: every night
+#     in .github/workflows/nightly.yml, on the self-hosted `impeller` runner,
+#     with the conformance harness, the plugin's GPU checks and pacing on the
+#     Galaxy A55 beside them. The software
 #     half runs here, and cross_backend_test.dart compares the two committed
 #     reference sets with no device at all — which is the question that
 #     actually matters.
@@ -23,20 +26,51 @@
 #   * Frame pacing. tool/pacing.sh plays a recorded run through Impeller and
 #     fails on any frame over 50 ms, which needs a GPU; .github/workflows/ci.yml
 #     runs it in a macOS job of its own, and its report lives in doc/pacing/.
+#     The nightly holds the A55 to p99 ≤ 33.3 ms on three demos.
+#   * Builds of every application. .github/workflows/ci.yml's `build` job
+#     builds what tool/build_apps.sh --matrix prints, one runner a cell.
 #   * The Android and iOS builds. They are compiled, but not by this script:
 #     .github/workflows/ci.yml has a job apiece, because one wants an Android
 #     toolchain and the other only builds on macOS, and a script that asked a
 #     Linux developer for both would be a script that fails for everybody. The
 #     web build below is here rather than there for the opposite reason —
 #     anything that runs `flutter` can do it.
+#
+# Two ways to run part of it:
+#
+#   tool/ci.sh --dry-run             every step's name and command, run none
+#   tool/ci.sh --only 'tool|root'    the steps whose name matches, the rest
+#                                    named as skipped
+#
+# `--dry-run` is how a change to this file, or to the workflow that calls it,
+# is proved to resolve without forty minutes of suites; `--only` is the step
+# that went red, run again by its own name.
 set -uo pipefail
 cd "$(dirname "$0")/.."
+
+DRY_RUN=false
+ONLY=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dry-run) DRY_RUN=true; shift ;;
+    --only) ONLY="$2"; shift 2 ;;
+    *) echo "unknown argument: $1" >&2; exit 2 ;;
+  esac
+done
 
 FAILED=()
 step() {
   local name="$1"; shift
+  if [[ -n "$ONLY" ]] && ! [[ "$name" =~ $ONLY ]]; then
+    [[ "$DRY_RUN" == true ]] || echo "── $name (skipped: not --only)"
+    return
+  fi
   echo ""
   echo "── $name"
+  if [[ "$DRY_RUN" == true ]]; then
+    echo "   $*"
+    return
+  fi
   if ! "$@"; then
     FAILED+=("$name")
   fi
@@ -256,15 +290,8 @@ done
 # `--flat-dart` prints the list the rules are held to, so there is one list.
 FLAT_DART="$(dart run tool/structure.dart --flat-dart)"
 
-# **What this loop does not cover, said here because here is where somebody
-# would look for it.** It walks `packages/`, and the six programs under `tool/`
-# carry suites of their own that nothing in this script runs: `convert_asset`
-# (13), `skills` (13), `init` (18), `tutorial` (29), `godot_check` (11) and
-# `webgpu_spike` (which needs `flutter test`, not `dart test` — its fixtures
-# reach for `flutter_test`, so a loop over `tool/` would want the same split
-# this one has). `godot_check`'s run in the `godot` job in
-# .github/workflows/ci.yml; the other five are a hole, found on 2026-09-17 and
-# left named rather than quietly half-fixed.
+# It walks `packages/`; the programs under `tool/` have a loop of their own
+# below, after the services.
 # The addons were packages one directory down, in `packages/addons/`, until
 # 1.0.0-rc.1 merged them into `flutter3d_game_kit`, `flutter3d_game_ui`,
 # `flutter3d_camera` and `flutter3d_post`, which this loop walks like the
@@ -345,11 +372,32 @@ step "test cloud/lti/server" in_dir cloud/lti/server dart test
 # **The release dashboard judges the same scripts this one runs**, so a change
 # to how it reads a result is a change to what "green" means on its page.
 step "analyze tool/release_dashboard" in_dir tool/release_dashboard dart analyze --fatal-infos
-step "test tool/release_dashboard" in_dir tool/release_dashboard dart test
 
-# **The API snapshot tool decides what counts as a break**, so its fixtures —
-# normalisation, re-exports, modifiers — run where the rule it feeds does.
-step "test tool/api" in_dir tool/api dart test
+# **Every program under `tool/` with a suite, found the way the packages
+# are.** Until 1.0.0-rc.1 this script named two of them and a comment named
+# the five it did not run — `convert_asset`, `skills`, `init`, `tutorial`,
+# `godot_check` — as a hole. The first run of the loop found two of the five
+# red: a skill that taught a class renamed at 1.0, and `init`'s pubspec
+# still expecting 0.7.1. A loop rather than a list, so the next program is
+# run the day it is committed. `dart test` unless the pubspec names the
+# Flutter SDK (`webgpu_spike`, whose fixtures reach for `flutter_test`).
+for suite in tool/*/; do
+  [ -f "$suite/pubspec.yaml" ] || continue
+  [ -n "$(find "$suite/test" -name '*_test.dart' -print -quit 2>/dev/null)" ] || continue
+  if grep -q 'sdk: flutter' "$suite/pubspec.yaml"; then
+    step "test tool/$(basename "$suite")" in_dir "$suite" flutter test
+  else
+    step "test tool/$(basename "$suite")" in_dir "$suite" dart test
+  fi
+done
+
+# **The root's own suite**: the structure rules under `dart test`, which a
+# check that only knows to call `dart test` at the root asks the same
+# questions the first step of this script does, and the tests of the release
+# scripts beside this one (`pacing.sh --fail-on`, the build matrix, the
+# nightly badge, the release checklist). The rules run twice in one job for
+# that, a few minutes, and the alternative is a root suite nothing runs.
+step "test root" dart test
 
 # **Five test files that nothing had ever run.** `flutter3d_webgl` marks them
 # `@TestOn('browser')` — the conformance suite, the parity comparison against
@@ -405,15 +453,11 @@ step "test flutter3d_app (browser)" in_dir packages/flutter3d_app flutter test -
 # above: the editor's other tests reach `dart:io`.
 step "test flutter3d_editor (browser)" in_dir apps/flutter3d_editor flutter test --platform chrome test/disk_web_test.dart
 
-# **The WebGPU spike, which the loops above cannot reach.** It is a workspace
-# member under `tool/` rather than a package or an application — see its own
-# README for why — so nothing named by a wildcard finds it, and a spike nobody
-# runs is a spike whose answer nobody can trust. Both platforms: the VM run holds
-# the translation tables and the README's count, and the browser run compiles the
-# `dart:js_interop` half and draws the triangle where the machine has a GPU. Under
-# two seconds apiece, and the browser run reports rather than fails where there is
-# no WebGPU.
-step "test webgpu_spike" in_dir tool/webgpu_spike flutter test
+# **The WebGPU spike in the browser.** Its VM run is in the loop over `tool/`
+# above, which holds the translation tables and the README's count; this
+# compiles the `dart:js_interop` half and draws the triangle where the machine
+# has a GPU. Under two seconds, and it reports rather than fails where there
+# is no WebGPU.
 step "test webgpu_spike (browser)" in_dir tool/webgpu_spike flutter test --platform chrome
 
 # **The simulation is platform-agnostic Dart, and that is exactly why it needed
@@ -467,12 +511,14 @@ done
 
 # The examples written as from outside the repository: the outside sample
 # plugin, which holds the default simulation to a racing tape recorded
-# before fields and subsystems, and earns the plugin suite's badge; and the
+# before fields and subsystems, and earns the plugin suite's badge; the
 # reference backend, `flutter3d_backend_null`, which passes the conformance
 # suite on published libraries alone and is what `flutter3d create plugin
-# --kind backend` copies. The structure rule "the repository lists agree
-# with the workspace" holds every one of them to the workspace and to this
-# loop.
+# --kind backend` copies; and the cookbook, whose test builds each of its
+# twenty recipes and draws a frame of it on the software rasteriser. The
+# structure rule "the repository lists agree with the workspace" holds every
+# one of them to the workspace and to this loop, and the `analyze` step
+# above reads them as it reads every member.
 for example in examples/*/; do
   [ -n "$(find "$example/test" -name '*_test.dart' -print -quit 2>/dev/null)" ] || continue
   step "test $(basename "$example")" in_dir "$example" flutter test
@@ -563,6 +609,10 @@ step "benchmark frame allocations (cpu)" bash tool/benchmarks.sh allocations
 step "benchmarks" bash tool/benchmarks.sh tagged
 
 echo ""
+if [[ "$DRY_RUN" == true ]]; then
+  echo "dry run: nothing was run"
+  exit 0
+fi
 if [ ${#FAILED[@]} -eq 0 ]; then
   echo "all green"
   exit 0

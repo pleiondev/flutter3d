@@ -110,6 +110,11 @@ dev_dependencies:
   integration_test:
     sdk: flutter
 
+  # `tool/pacing.sh --demo platformer`: the host half of
+  # `integration_test/pacing_test.dart`, run through `flutter drive`.
+  flutter_driver:
+    sdk: flutter
+
   # Only the tests use it, and only to draw a frame without a GPU. Three bugs
   # shipped that every simulation test passed and a single rendered frame would
   # have caught — see `test/frame_test.dart`.

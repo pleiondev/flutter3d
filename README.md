@@ -4,42 +4,96 @@ An independent implementation of a 3D engine on Flutter GPU, a game engine on
 top of it, and four games of different genres built from both. The games are
 there because building them is the only honest test that the engine is one.
 flutter3d is not a fork, a binding or a wrapper around another engine, and it is
-not affiliated with the Flutter team.
+not affiliated with Google or the Flutter team.
+
+It is a game engine first. The same fixed step, probes and time source carry
+a virtual laboratory or a device's digital twin, and
+[`flutter3d_education`](packages/flutter3d_education) carries a lesson into a
+learning platform over LTI 1.3.
 
 [![CI](https://github.com/pleiondev/flutter3d/actions/workflows/ci.yml/badge.svg)](https://github.com/pleiondev/flutter3d/actions/workflows/ci.yml)
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 
-On pub.dev: 52 packages, published by
-[pleion.dev](https://pub.dev/publishers/pleion.dev/packages). Start a game
-with [`flutter3d_game`](https://pub.dev/packages/flutter3d_game) and a
-backend: it is the one facade, re-exporting the renderer, the view and what a
-first game uses of the simulation, the physics and the audio. A program that
-only draws starts with [`flutter3d`](https://pub.dev/packages/flutter3d).
-Forty-eight of
-them are the 1.0.0 set, one number for all; `flame_multiplayer`,
-`flame_multiplayer_dashwire`, `pad_input` and `pointer_lock` keep numbers of
-their own. It goes out first as a release
-candidate, `1.0.0-rc.1`, so ask for `^1.0.0-rc.1`: that resolves against
-every other and admits 1.0.0 itself, which follows. Until then pub.dev keeps
-0.8.x as the default, and the candidate is opt-in. From 1.0.0 they follow
-strict semver, and the candidate already does: a break waits for a major,
-and [SUPPORT.md](SUPPORT.md) says which platforms, backends and releases are
-supported. [`flutter3d_plugin_api`](https://pub.dev/packages/flutter3d_plugin_api)
-is on the candidate too, on a line of its own that breaks more rarely still;
-[`pad_input`](https://pub.dev/packages/pad_input) and
-[`pointer_lock`](https://pub.dev/packages/pointer_lock) keep a line of their own
-at 0.5.0, since neither names a sibling, and so do
-[`flame_multiplayer`](https://pub.dev/packages/flame_multiplayer) at 0.2.0 and
-its dashwire adapter at 0.1.1. Coming from 0.6.0, several packages were
-folded into others, and [`doc/boundary-0.7.0.md`](doc/boundary-0.7.0.md) lists
-which import lines move. To work on the engine itself, see
-[Running](#running), [CONTRIBUTING.md](CONTRIBUTING.md) and
+On pub.dev: 60 packages, published by
+[pleion.dev](https://pub.dev/publishers/pleion.dev/packages). An application
+that draws starts with two of them,
+[`flutter3d`](https://pub.dev/packages/flutter3d), the engine, and
+[`flutter3d_app`](https://pub.dev/packages/flutter3d_app), the view and the
+widgets that run it. A game starts with
+[`flutter3d_game`](https://pub.dev/packages/flutter3d_game) instead: it is
+the one facade, re-exporting the renderer, the view and what a first game
+uses of the simulation, the physics and the audio. 58 of them are at
+`1.0.0-rc.1`, one number for all, and it goes out first as that release
+candidate, so ask for `^1.0.0-rc.1`: that resolves against every other and
+admits 1.0.0 itself, which follows. Until then pub.dev keeps 0.8.x as the
+default, and a plain `flutter pub add flutter3d` brings 0.8.5. From 1.0.0
+they follow strict semver, and the candidate already does: a break waits
+for a major, and [SUPPORT.md](SUPPORT.md) says which platforms, backends and
+releases are supported.
+[`flutter3d_plugin_api`](https://pub.dev/packages/flutter3d_plugin_api) is on
+the candidate too, with an API version of its own that breaks more rarely
+still; [`pad_input`](https://pub.dev/packages/pad_input) and
+[`pointer_lock`](https://pub.dev/packages/pointer_lock) keep a line of their
+own at 0.5.0, since neither names a sibling. To work on the engine itself,
+see [Running](#running), [CONTRIBUTING.md](CONTRIBUTING.md) and
 [SECURITY.md](SECURITY.md).
 
-The documentation at <https://flutter3d.pleion.dev> has guides, tutorials for
-three of the four genres, and the generated API reference. The model editor runs in a
-browser at <https://models.pleion.dev>, with its own
+The documentation at <https://flutter3d.pleion.dev> has the
+[quickstart](https://flutter3d.pleion.dev/quickstart/), guides, tutorials
+for three of the four genres, a page for
+[laboratories and lessons](https://flutter3d.pleion.dev/education/), and the
+generated API reference. [`examples/cookbook`](examples/cookbook) is twenty
+tasks, one file each. The model editor runs in a browser at
+<https://models.pleion.dev>, with its own
 [tutorial](https://models.pleion.dev/learn/modeler/).
+
+## A first scene from pub.dev
+
+```bash
+flutter create my_scene && cd my_scene
+flutter pub add flutter3d:^1.0.0-rc.1 flutter3d_app:^1.0.0-rc.1
+flutter pub add dev:flutter3d_build:^1.0.0-rc.1
+dart run flutter3d_build:init   # the build hook, the assets line, .gitignore
+flutter clean
+```
+
+Then a `Scene3D` with a `Model3D` from `assets_src/`, and the two Info.plist
+keys on macOS and iOS. The
+[quickstart](https://flutter3d.pleion.dev/quickstart/) walks through it, and
+what to do after `flutter upgrade`.
+
+## An agent in two minutes
+
+The level editor and the model editor are MCP servers too, plain Dart over
+stdio, one document per process. Add the package to your project:
+
+```bash
+flutter pub add dev:flutter3d_mcp:^1.0.0-rc.1
+```
+
+and give your agent's host the two servers:
+
+```json
+{
+  "mcpServers": {
+    "flutter3d-level": {
+      "command": "dart",
+      "args": ["run", "flutter3d_mcp:editor_mcp", "assets/levels/first.json"]
+    },
+    "flutter3d-model": {
+      "command": "dart",
+      "args": ["run", "flutter3d_mcp:model_mcp", "assets_src/crate.f3dproj"]
+    }
+  }
+}
+```
+
+A project path that does not exist yet starts a fresh one, so the first
+thing to ask for can be "a crate with rounded edges". The model editor's
+`render` tool hands the agent a picture of what it did, and every edit
+either one makes lands in the same undo history a person's would. The
+tools are listed in the
+[`flutter3d_mcp` README](packages/flutter3d_mcp/README.md).
 
 ## What is here
 
@@ -208,7 +262,7 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-There are 14640 tests across 61 packages and 17 applications. The
+There are 14644 tests across 61 packages and 17 applications. The
 only ones that need a GPU are the Impeller half of the golden set. The other
 half is rendered by the software backend, which is what makes 96 scenes
 checkable in a headless run.
@@ -260,7 +314,7 @@ binary has not got, and binding a slot a compiled shader does not have takes
 the frame down. The message names nothing that leads back to the file that was
 edited.
 
-So `dart run tool/structure.dart` checks it: one of its 89 rules compares
+So `dart run tool/structure.dart` checks it: one of its 91 rules compares
 the bundle against the sources it was built from and says which of them are
 newer. The rule skips when there is no bundle at all, which is every fresh
 checkout and every CI run. `impellerc` is not there to build one, and a rule

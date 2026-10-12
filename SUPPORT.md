@@ -166,9 +166,14 @@ breaks. A minor adds. A break comes only in a major, after a deprecation.
 Every public name is covered, with no experimental exceptions, and the
 snapshot in each package's `api/` is what a release is compared against.
 
-**The engine ships under one number.** The 49 packages of the shelf
-carry the same version, now the release candidate `1.0.0-rc.1`, and ask for
-`^1.0.0-rc.1` of each other. Among them are the packages the candidate
+**The engine ships under one major.minor.** The 58 packages of the shelf
+share a major and a minor, now the release candidate `1.0.0-rc.1`, and ask
+for `^1.0.0-rc.1` of each other. A minor or a major moves all of them
+together. A patch goes only to the package that needs it, so after 1.0.0
+`flutter3d_impeller` can be at 1.0.1 beside the rest at 1.0.0: every
+sibling's `^1.0.0` reaches it, and nobody downloads 57 unchanged packages
+for one fix. So read the shelf's number as `1.0`, and each package's own
+patch from its CHANGELOG. Among them are the packages the candidate
 brings: the game parts (`flutter3d_game_kit`, `flutter3d_game_physics`,
 `flutter3d_game_ui`, `flutter3d_camera`), `flutter3d_build_hooks`, the post-processing families (`flutter3d_post`), the
 foundation types every package shares (`flutter3d_foundation`), what a world
@@ -183,20 +188,22 @@ packages keep lines of their own that break more rarely than the engine:
 for now) and the file format schemas. Wasm plugin ABI 1 (`wasmPluginAbi` in
 `flutter3d_plugin_runtime`) is numbered on its own as well: a module states
 the ABI it was written for, and only a change to what a module may import or
-export moves it. `pad_input`, `pointer_lock`,
-`flame_multiplayer` and `flame_multiplayer_dashwire` were never on the shelf
-and keep their own lines below 1.0.
+export moves it. `flame_multiplayer` and `flame_multiplayer_dashwire`
+joined the shelf's number at `1.0.0-rc.1`, because they stand on
+`flutter3d_net` and break with it. `pad_input` and `pointer_lock` name no
+sibling and keep their own lines below 1.0.
 
 **Which releases get fixes:**
 
 - The newest minor gets every fix, as a patch.
 - The minor before it gets fixes for crashes, data loss and security
   problems for three months after its successor is released.
-- One minor a year is a long-term support (LTS) release, and gets those same
-  fixes for 18 months from its release. Its CHANGELOG says so when it ships,
-  and this file lists it. None is named yet.
-- A major before the current one gets nothing once its last LTS window
-  closes.
+- A major before the current one is treated as the minor before: its last
+  minor gets those fixes for three months after the next major ships, and
+  then nothing.
+
+No release gets a longer window today. If one ever does, it is named here
+and in its CHANGELOG on the day it ships, with the date its fixes stop.
 
 **Deprecations.** A deprecated name stays until the next major, and at least
 six months after the release that deprecated it: a major that comes sooner
@@ -223,10 +230,20 @@ goes in, and its replacement, and a structure rule checks the wording.
 `flutter_gpu` is reached only from `flutter3d_impeller`. The hardware layer
 and the engine name no graphics API, and structure rules hold both. When a
 Flutter release changes `flutter_gpu`, the repair is a patch of
-`flutter3d_impeller`, and no other package's API changes. If that repair
+`flutter3d_impeller` alone (1.0.1 beside the rest at 1.0.0, as "Versions"
+above allows), and no other package's API or version changes. If that repair
 cannot compile against the older Flutter, the patch raises
 `flutter3d_impeller`'s own Flutter floor, which is the one exception to the
 rule above, and its CHANGELOG says so.
+
+**On Impeller, GPU memory returns through Dart's garbage collector.**
+`flutter_gpu` has no call that frees a buffer or a texture, so `dispose` on
+the Impeller backend drops the engine's last reference and the memory goes
+back when the collector finds the object, not at the call. WebGL2 and WebGPU
+free at `dispose`; the CPU backend's buffers are ordinary Dart memory. A scene that loads and drops large models on a
+phone can therefore hold more GPU memory for a while than it uses; keep
+models you will need again rather than reloading them. A request to
+`flutter_gpu` for a native dispose is to be filed and linked here.
 
 A capability Impeller does not have yet is in the hardware interface anyway.
 The Impeller device leaves it out of `features`, and a call to it throws

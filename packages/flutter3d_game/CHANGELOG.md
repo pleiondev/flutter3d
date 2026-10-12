@@ -17,6 +17,9 @@
   overrides it; a member added to a context breaks none. The ones asked per
   actor or fixture per frame are reused by the visuals that ask, so a frame
   allocates none.
+- **The facade exports `ActionSet`**, which `ActionMap.actions` and
+  `DesktopInput.defaultActionMap` name: a game declares its actions
+  without importing `flutter3d_sim`.
 - **The facade exports `Severity` and `RigidPose`** beside `LightType`.
 - **Breaking: the facade exports `ExpressionType`, not `MaterialType`.**
   `MaterialType` is also Flutter's, and a first game imports material

@@ -114,6 +114,14 @@ dev_dependencies:
   integration_test:
     sdk: flutter
 
+  # `tool/pacing.sh --demo racing`: the host half of
+  # `integration_test/pacing_test.dart`, run through `flutter drive`, and
+  # `replayPacing`, which times the frames.
+  flutter_driver:
+    sdk: flutter
+  flutter3d_testing:
+    path: ../../packages/flutter3d_testing
+
   # Only the tests use it, and only to draw a frame without a GPU. The
   # platformer shipped three bugs that every simulation test passed and a single
   # rendered frame would have caught.

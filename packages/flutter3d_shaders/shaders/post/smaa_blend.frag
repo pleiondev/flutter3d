@@ -9,6 +9,11 @@
 // taps, each pulled that fraction of a texel towards its side.
 //
 // `flutter3d_cpu`'s `SmaaBlendShader` is this, line for line.
+//
+// SMAA: Jimenez, Echevarria, Sousa and Gutierrez, Eurographics 2012. The
+// reference implementation's notice (MIT, Copyright (C) 2013 Jorge Jimenez,
+// Jose I. Echevarria, Belen Masia, Fernando Navarro and Diego Gutierrez) is
+// in full in `smaa_edges.frag` beside this file.
 precision highp float;
 
 in vec2 v_uv;

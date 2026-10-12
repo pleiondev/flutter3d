@@ -1,8 +1,8 @@
 name: flutter3d_effects
 description: >-
-  The elements' water and fire, drawn: a water surface lit as water is,
-  a waterfall as one sheet with its spray, bubbles and froth, flames,
-  smoke, embers and firelight, and a liquid in a vessel as meshes.
+  The elements' water and fire, drawn: a lit water surface, a waterfall
+  with its spray, bubbles and froth, flames, smoke, embers and firelight,
+  and a liquid in a vessel.
 version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev

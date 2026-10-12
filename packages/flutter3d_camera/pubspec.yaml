@@ -1,5 +1,5 @@
 name: flutter3d_camera
-description: "Virtual cameras for flutter3d games: priorities and blends between them (cut, ease, a curve of your own), framing by targets with dead zones and damping, group shots, keeping clear of walls, and impulse shake seeded by the step. A director, and a plugin that places it in the frame phase `camera`."
+description: "Virtual cameras for flutter3d games: priorities and blends, framing by targets with dead zones and damping, group shots, keeping clear of walls, and shake seeded by the step."
 version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev

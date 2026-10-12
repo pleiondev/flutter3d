@@ -1,5 +1,5 @@
 name: flutter3d_core
-description: "The engine's rendering core with no Flutter SDK behind it: scene graph, animation, the render graph, and model/material loading down to the one call each still needs an injected reader or decoder for."
+description: "The engine's rendering core with no Flutter SDK behind it: scene graph, animation, the render graph, and model and material loading over an injected reader or decoder."
 version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev

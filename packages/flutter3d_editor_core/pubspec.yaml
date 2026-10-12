@@ -62,14 +62,13 @@ dependencies:
   flutter3d_physics: ^1.0.0-rc.1
 
   # `ExperimentDocument`, the `f3d.experiment` document the experiment edits
-  # (`experiment_editing.dart`) change and read back through. Plain Dart, a
-  # layer below this one, so the boundary above holds.
+  # (`experiment_editing.dart`) change and read back through, and the tests'
+  # `orderedSteps`, which reads back the lesson the commands build. Plain
+  # Dart, a layer below this one, so the boundary above holds.
   flutter3d_education: ^1.0.0-rc.1
 
 dev_dependencies:
   test: ^1.25.0
-  # `orderedSteps`, which reads back the lesson the commands build.
-  flutter3d_education: ^1.0.0-rc.1
   flutter_lints: ^6.0.0
 
 # **A plain Dart package, and what it may not import is the point.**

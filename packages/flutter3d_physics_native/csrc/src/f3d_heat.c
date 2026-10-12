@@ -2275,31 +2275,94 @@ static f3d_real gasified(const F3dMaterial *m, f3d_real front, f3d_real drawn, f
   return f3d_max(front - drawn, F3D_R(0.0)) / (lv - warming);
 }
 
-/* kg/(m² s) of gas the wood under a front at [front_t] gives off in depth:
- * ρ (1 − χ) ∫ A e^(−E/RT(x)) dx over the parabola from the front's
- * temperature to [under] across [patch]'s depth, by the midpoint rule on
- * eight slices. Nought for a material that does not char. */
+/* 1 − e^(−x) for x ≥ 0, without losing a small x to the subtraction. */
+static f3d_real share_gone(f3d_real x) {
+  if (x < F3D_R(1e-2)) return x * (F3D_R(1.0) - F3D_R(0.5) * x * (F3D_R(1.0) - x / F3D_R(3.0)));
+  return F3D_R(1.0) - natural_exp(-x);
+}
+
+/* The pyrolysis rate A e^(−E/RT), /s, of wood at [t] K. */
+static f3d_real pyrolysis_rate(f3d_real t) {
+  return F3D_PYROLYSIS_A * natural_exp(-F3D_PYROLYSIS_E / (F3D_GAS_CONSTANT * t));
+}
+
+/* Below this rate times the step, a slice's gas over the step is its rate
+ * times the step to within a part in two million: the explicit form,
+ * which keeps the bits of a wood that is merely warm. */
+#define F3D_PYROLYSIS_LINEAR F3D_R(1e-6)
+
+/* The share of its gas a slice of wood at [t] K gives off over [dt], first
+ * order in what is left of it, its rate taken at the temperature it falls
+ * to as it pays for that gas from its own heat: [cooling] K for the whole
+ * of it. Held at the step's start the rate is stiff — near a thousand a
+ * second at a flame's temperature, and a slice gave off many times what it
+ * holds in a step — so the share solves f = 1 − e^(−k(t − f·cooling)·dt):
+ * the left side rises with f and the right falls, one root, found by
+ * halving below what the slice would give off uncooled. Where the cooling
+ * moves the rate by less than a part in ten thousand, that is the share. */
+static f3d_real slice_gasified(f3d_real t, f3d_real cooling, f3d_real dt) {
+  const f3d_real uncooled = share_gone(pyrolysis_rate(t) * dt);
+  const f3d_real moved =
+      uncooled * cooling * F3D_PYROLYSIS_E / (F3D_GAS_CONSTANT * t * t);
+  if (moved < F3D_R(1e-4)) return uncooled;
+  f3d_real lo = F3D_R(0.0), hi = uncooled;
+  for (int k = 0; k < 24; k++) {
+    const f3d_real f = F3D_R(0.5) * (lo + hi);
+    const f3d_real t_f = f3d_max(t - f * cooling, F3D_R(1.0));
+    if (f < share_gone(pyrolysis_rate(t_f) * dt)) {
+      lo = f;
+    } else {
+      hi = f;
+    }
+  }
+  return F3D_R(0.5) * (lo + hi);
+}
+
+/* kg/(m² s) of gas the wood under a front at [front_t] gives off in depth
+ * over a step of [dt]: of the ρ (1 − χ) δ a square metre holds across the
+ * parabola from the front's temperature to [under], [patch]'s depth δ, the
+ * share each of eight slices gives off at its midpoint's temperature
+ * (slice_gasified) — ρ (1 − χ) ∫ A e^(−E/RT(x)) dx by the midpoint rule
+ * where the wood is merely warm. Never more than the layer holds, however
+ * hot the wood or long the step. Nought for a material that does not
+ * char. */
 static f3d_real in_depth_flux(const F3dMaterial *m, f3d_real density, f3d_real front_t,
-                              f3d_real under, f3d_real patch) {
-  if (!(m->char_yield > F3D_R(0.0) && patch > F3D_R(0.0))) return F3D_R(0.0);
-  f3d_real sum = F3D_R(0.0);
+                              f3d_real under, f3d_real patch, f3d_real dt) {
+  if (!(m->char_yield > F3D_R(0.0) && patch > F3D_R(0.0) && dt > F3D_R(0.0))) {
+    return F3D_R(0.0);
+  }
+  const f3d_real cooling = m->specific_heat > F3D_R(0.0)
+                               ? (F3D_R(1.0) - m->char_yield) * F3D_PYROLYSIS_HEAT / m->specific_heat
+                               : F3D_R(0.0);
+  /* Rates where the explicit form holds, shares over the step where it
+   * does not. */
+  f3d_real rates = F3D_R(0.0), shares = F3D_R(0.0);
   for (int k = 0; k < 8; k++) {
     const f3d_real u = (F3D_R(k) + F3D_R(0.5)) / F3D_R(8.0);
     const f3d_real t_x = under + (front_t - under) * (F3D_R(1.0) - u) * (F3D_R(1.0) - u);
-    sum += natural_exp(-F3D_PYROLYSIS_E / (F3D_GAS_CONSTANT * t_x));
+    const f3d_real e = natural_exp(-F3D_PYROLYSIS_E / (F3D_GAS_CONSTANT * t_x));
+    if (F3D_PYROLYSIS_A * e * dt < F3D_PYROLYSIS_LINEAR) {
+      rates += e;
+    } else {
+      shares += slice_gasified(t_x, cooling, dt);
+    }
   }
-  return density * (F3D_R(1.0) - m->char_yield) * F3D_PYROLYSIS_A * sum / F3D_R(8.0) *
-         f3d_sqrt(patch);
+  const f3d_real linear = density * (F3D_R(1.0) - m->char_yield) * F3D_PYROLYSIS_A * rates /
+                          F3D_R(8.0) * f3d_sqrt(patch);
+  if (!(shares > F3D_R(0.0))) return linear;
+  return linear +
+         density * (F3D_R(1.0) - m->char_yield) * shares / F3D_R(8.0) * f3d_sqrt(patch) / dt;
 }
 
 /* Whether a patch of [area] lit now, heat [patch] deep under it, would give
  * off the firepoint's least and so hold a flame (Rasbash): its own flame's
  * flux and [heated] W/m² more from outside, less its radiation and what the
  * solid under it draws, over the heat of gasification, with what the wood
- * gives off in depth. A surface that reaches its ignition temperature with
- * too little heat behind it flashes and does not catch. */
+ * gives off in depth over a step of [dt]. A surface that reaches its
+ * ignition temperature with too little heat behind it flashes and does not
+ * catch. */
 static int holds_flame(const F3dWorld *world, const Heat *h, f3d_real area,
-                       f3d_real patch, f3d_real heated) {
+                       f3d_real patch, f3d_real heated, f3d_real dt) {
   const F3dMaterial *m = &world->slots[h->slot].material;
   const f3d_real ignition = m->ignition_temperature;
   if (!(area > F3D_R(0.0))) return 0;
@@ -2316,7 +2379,7 @@ static int holds_flame(const F3dWorld *world, const Heat *h, f3d_real area,
    * stalks give off theirs at the front (step_entry). */
   const f3d_real top = f3d_max(ignition, skin_of(h));
   const f3d_real depth_gas =
-      bed_depth(world, h) > F3D_R(0.0) ? F3D_R(0.0) : in_depth_flux(m, density, top, under, patch);
+      bed_depth(world, h) > F3D_R(0.0) ? F3D_R(0.0) : in_depth_flux(m, density, top, under, patch, dt);
   f3d_real cap = flame_flux(m, across_of(area), ignition, m->emissivity), flux = F3D_R(0.0);
   for (int k = 0; k < 4; k++) {
     f3d_real surface_t;
@@ -2497,7 +2560,7 @@ static uint32_t step_entry(F3dWorld *world, const F3dSlot *s, Heat *h,
      * — a brand lofted from one — gave off its whole self in a step. */
     const f3d_real top = f3d_max(ignition, skin_of(h));
     const f3d_real in_depth =
-        bed > F3D_R(0.0) ? F3D_R(0.0) : in_depth_flux(m, density, top, under, l->patch);
+        bed > F3D_R(0.0) ? F3D_R(0.0) : in_depth_flux(m, density, top, under, l->patch, dt);
     /* The flame gives back no more than it makes, ṁ''·ΔH_c a square metre:
      * what it makes depends on what it is given, so the two are settled
      * together, a few rounds from the flame's own flux down. */
@@ -2519,8 +2582,7 @@ static uint32_t step_entry(F3dWorld *world, const F3dSlot *s, Heat *h,
       patch_out(l);
       said |= WENT_OUT;
     } else {
-      const f3d_real burnt = f3d_min(flux * area * dt, l->fuel);
-      const f3d_real share = flux > F3D_R(0.0) ? burnt / (flux * area * dt) : F3D_R(0.0);
+      const f3d_real burnt = f3d_min(flux * area * dt, l->fuel);      const f3d_real share = flux > F3D_R(0.0) ? burnt / (flux * area * dt) : F3D_R(0.0);
       const f3d_real released = burnt * m->heat_of_combustion / dt;
       const f3d_real back = f3d_min(fed * area, released);
       power += back - lost * area - share * area * (at_front * lv + in_depth * F3D_PYROLYSIS_HEAT);
@@ -2652,7 +2714,7 @@ static uint32_t step_entry(F3dWorld *world, const F3dSlot *s, Heat *h,
     const f3d_real whole_depth = l->reached > F3D_R(0.0) ? l->reached : thick * thick;
     const f3d_real heated_by = h->exposed != EXPOSED_NONE ? h->exposed_flux : F3D_R(0.0);
     if (f3d_max(was, l->skin) >= ignition &&
-        holds_flame(world, h, open, whole_depth, heated_by)) {
+        holds_flame(world, h, open, whole_depth, heated_by, dt)) {
       /* Its surface reached ignition with heat enough behind it to hold a
        * flame: all of it, as one temperature. */
       light(h, open, whole_depth);
@@ -2671,7 +2733,7 @@ static uint32_t step_entry(F3dWorld *world, const F3dSlot *s, Heat *h,
           : thick > F3D_R(0.0) ? f3d_min(F3D_R(6.0) * alpha * l->exposure, thick * thick)
                                : F3D_R(0.0);
       const f3d_real area = f3d_min(h->exposed_area, open);
-      if (holds_flame(world, h, area, depth, heated_by)) {
+      if (holds_flame(world, h, area, depth, heated_by, dt)) {
         light(h, area, depth);
         said |= CAUGHT;
       }
@@ -2707,7 +2769,7 @@ static uint32_t step_entry(F3dWorld *world, const F3dSlot *s, Heat *h,
               : thick > F3D_R(0.0) ? f3d_min(F3D_R(6.0) * alpha * t_ig * l->exposure, thick * thick)
                                    : F3D_R(0.0);
           const f3d_real area = f3d_min(h->exposed_area, open);
-          if (holds_flame(world, h, area, depth, heated_by)) {
+          if (holds_flame(world, h, area, depth, heated_by, dt)) {
             light(h, area, depth);
             said |= CAUGHT;
           }

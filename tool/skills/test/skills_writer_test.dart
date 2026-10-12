@@ -185,16 +185,17 @@ void main() {
     });
 
     test(
-      'NetSession still has inputDelay, maxRollbackFrames, redundancy and onSettled',
+      'RollbackSession still has inputDelay, maxRollbackFrames, redundancy and onSettled',
       () {
         final source = File(
-          '../../packages/flutter3d_net/lib/src/net_session.dart',
+          '../../packages/flutter3d_net/lib/src/rollback_session.dart',
         ).readAsStringSync();
+        expect(source, contains('final class RollbackSession'));
         expect(source, contains('this.inputDelay = 2,'));
         expect(source, contains('this.maxRollbackFrames = 8,'));
         expect(source, contains('this.redundancy = 8,'));
         expect(source, contains('this.onSettled,'));
-        expect(source, contains('int get droppedCorrections'));
+        expect(source, contains('int droppedCorrections'));
       },
     );
   });

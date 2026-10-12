@@ -122,6 +122,14 @@ List<Rule> get allRules => <Rule>[
   ),
   (name: 'the documents agree on how many rules there are', run: _ruleCount),
   (
+    name: 'the documents agree on how many packages there are',
+    run: _packageCount,
+  ),
+  (
+    name: 'SECURITY and ROADMAP are revised for the release the packages carry',
+    run: _policiesRevised,
+  ),
+  (
     name: 'the conformance suite says how many checks it runs',
     run: _conformanceCheckCount,
   ),
@@ -1272,6 +1280,50 @@ List<Finding> _listsAgree() {
   return found;
 }
 
+/// SECURITY.md and ROADMAP.md each say when they were last reread and for
+/// which release, and that release is the one `flutter3d`'s pubspec carries.
+///
+/// **Both had gone stale where a reader looks first.** SECURITY.md said
+/// "nothing is published to pub.dev yet" with 0.8.x on pub.dev, and named
+/// none of the parts that talk to a network or load code; ROADMAP.md
+/// described a quarter of 0.7.0 work under a tree at 1.0.0-rc.1. A date alone
+/// would not have caught either, because nobody knows how old is too old.
+/// The version does: a support window, a security scope and a plan are each
+/// written for one release, so moving the version without rereading them is
+/// the mistake, and [revisionProblemsIn] makes it red.
+///
+/// Mutation: move `flutter3d` to the next candidate, or delete the line from
+/// either document, and this names the file.
+List<Finding> _policiesRevised() {
+  final engine = packages['flutter3d'];
+  if (engine == null) {
+    return <Finding>[const Finding('flutter3d', 'is not there')];
+  }
+  final version = _pubspecVersionText(
+    File('${engine.path}/pubspec.yaml').readAsStringSync(),
+  );
+  if (version == null) {
+    return <Finding>[
+      const Finding('packages/flutter3d/pubspec.yaml', 'has no version'),
+    ];
+  }
+  final now = DateTime.now().toUtc();
+  final today = DateTime.utc(now.year, now.month, now.day);
+  return <Finding>[
+    for (final name in const <String>['SECURITY.md', 'ROADMAP.md'])
+      if (File('${repositoryRoot.path}/$name') case final file)
+        if (!file.existsSync())
+          Finding(name, 'is not there')
+        else
+          for (final problem in revisionProblemsIn(
+            file.readAsStringSync(),
+            version: version,
+            today: today,
+          ))
+            Finding(name, problem),
+  ];
+}
+
 /// How many rules the documents say there are, against how many there are.
 ///
 /// **Two documents once carried two different wrong answers**, which is what a
@@ -1357,6 +1409,112 @@ List<Finding> _ruleCount() {
   }
 
   found.addAll(_theTestingPageAddsUp(actual));
+  return found;
+}
+
+/// How many packages the documents say there are, against the workspace.
+///
+/// **Five documents, four different numbers, none of them right.** The
+/// README said 52 packages on pub.dev, SUPPORT 58 on the shelf, the
+/// packages page 58 in the workspace with 50 on the candidate, the home page
+/// 45 published, and AGENTS 36, on a day the workspace held 61, 60 of them
+/// published and 58 of those at the candidate's version. Each was right
+/// once, and nothing compared any of them with the tree.
+///
+/// Three numbers, each held by its own phrasings, because they are three
+/// facts: the workspace's packages (and its applications, when the sentence
+/// names both), the ones published (every package without `publish_to:
+/// none`), and the ones on the release line (published, at the version
+/// `flutter3d` carries). A page is held only to a claim it makes, in the
+/// phrasings below; "the two packages it needs" claims nothing.
+///
+/// Shown to fire by putting "52 packages" back into the README's first
+/// paragraph and watching it name the file and the 60 published.
+List<Finding> _packageCount() {
+  final workspace = packages;
+  String? versionOf(Directory package) =>
+      RegExp(r'^version:\s*(\S+)', multiLine: true)
+          .firstMatch(File('${package.path}/pubspec.yaml').readAsStringSync())
+          ?.group(1);
+  bool unpublished(Directory package) => RegExp(
+    r'''^publish_to:\s*['"]?none['"]?\s*$''',
+    multiLine: true,
+  ).hasMatch(File('${package.path}/pubspec.yaml').readAsStringSync());
+  final published = workspace.values.where((p) => !unpublished(p)).toList();
+  final engine = workspace['flutter3d'];
+  final release = engine == null ? null : versionOf(engine);
+  final onTheLine = published.where((p) => versionOf(p) == release).length;
+
+  final claims = <(RegExp, int, String)>[
+    (
+      _countPhrasing('# packages and # applications'),
+      workspace.length,
+      'in the workspace',
+    ),
+    (_countPhrasing('# packages in all'), workspace.length, 'in the workspace'),
+    (_countPhrasing(r'On pub\.dev: # packages'), published.length, 'published'),
+    (
+      _countPhrasing('# packages are to be published'),
+      published.length,
+      'published',
+    ),
+    // Capitalised: "covers all 61 packages" is a sentence about the
+    // workspace, and "All 60 packages on pub.dev" opens one about publishing.
+    (_countPhrasing('All # packages'), published.length, 'published'),
+    (_countPhrasing(r'# of them on pub\.dev'), published.length, 'published'),
+    (_countPhrasing('# of them are at'), onTheLine, 'at $release'),
+    (
+      _countPhrasing('# of them carry the release candidate'),
+      onTheLine,
+      'at $release',
+    ),
+    (_countPhrasing('The # packages of the shelf'), onTheLine, 'at $release'),
+  ];
+  final applications = _countPhrasing('# packages and # applications');
+
+  final found = <Finding>[];
+  for (final page in <File>[
+    for (final name in const <String>[
+      'README.md',
+      'SUPPORT.md',
+      'AGENTS.md',
+      'ARCHITECTURE.md',
+    ])
+      File('${repositoryRoot.path}/$name'),
+    ..._prosePages(),
+  ].where((File f) => f.existsSync())) {
+    final text = page.readAsStringSync();
+    final where = _inRepository(page);
+    for (final (pattern, actual, what) in claims) {
+      for (final match in pattern.allMatches(text)) {
+        final said = match.group(1)!;
+        if (int.tryParse(said) == null) {
+          found.add(_spelledOut(where, match.group(0)!, said));
+        } else if (int.parse(said) != actual) {
+          found.add(
+            Finding(
+              where,
+              'says "${match.group(0)}"; $actual packages are $what',
+            ),
+          );
+        }
+      }
+    }
+    for (final match in applications.allMatches(text)) {
+      final said = match.group(2)!;
+      if (int.tryParse(said) == null) {
+        found.add(_spelledOut(where, match.group(0)!, said));
+      } else if (int.parse(said) != apps.length) {
+        found.add(
+          Finding(
+            where,
+            'says "${match.group(0)}"; the workspace has ${apps.length} '
+            'applications',
+          ),
+        );
+      }
+    }
+  }
   return found;
 }
 
@@ -5253,13 +5411,14 @@ List<Finding> _breaksHaveMigrations() {
     );
   }
 
-  // A published package off the engine's number is named with its own.
+  // A published package off the engine's number is named with its own. The
+  // number is a major.minor ([onEngineNumber] says why).
   if (index >= 0) {
     for (final MapEntry(key: name, value: dir) in _publishedPackages.entries) {
       final now = _pubspecVersionText(
         File('${dir.path}/pubspec.yaml').readAsStringSync(),
       );
-      if (now == null || now == table.to) continue;
+      if (now == null || onEngineNumber(now, table.to)) continue;
       if (table.versions[name] != '^$now') {
         found.add(
           Finding(

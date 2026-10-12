@@ -1,0 +1,6 @@
+# actionlint's view of this repository: the self-hosted runner's own label,
+# which nightly.yml and site.yml run on (a Mac with a GPU and the Galaxy A55
+# attached; see nightly.yml's header).
+self-hosted-runner:
+  labels:
+    - impeller

@@ -11,6 +11,12 @@
   mutable so a contributor that binds every frame keeps one. A parameter
   added later would have broken every decoder, writer and test double
   written against 1.0; a field added to a context breaks none.
+- **The light list is built once a view, not once a draw.** A scene with
+  more than 8 lights puts them, and the view's cells, into one texture
+  every lit draw samples; each of those draws wrote all of its rows again
+  and compared them with the last upload. In a level of 17 lights and 270
+  lit draws that was most of the frame: the platformer's
+  render on a desktop GPU went from 36 ms of encoding to 8.
 - **A backend is matched by its id, exactly.** `RuntimeBackends.normalize`
   maps the engine's four backends by their ids and device names, in any
   case, and leaves every other name as written: `webgpu-dawn` is no longer

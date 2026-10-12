@@ -546,7 +546,7 @@ f 1 \\
     });
 
     test('is split by its g groups', () {
-      // Four `g` records, though the first may precede any face.
+      // One `o` record since the file is generated; the old one had four `g`.
       expect(teapot.surfaces.length, inInclusiveRange(1, 4));
     });
 

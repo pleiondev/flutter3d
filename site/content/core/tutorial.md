@@ -1,54 +1,39 @@
 ---
-description: Thirteen steps from an empty Flutter app to a lit, shadowed, animated scene with picking, particles and a debug overlay.
+description: Twelve steps from flutter create to a lit, shadowed, animated scene with picking, particles and the debug overlay, on the 1.0 widgets.
 ---
 
 # Tutorial: your first scene
 
-Thirteen steps, each one runnable. By the end you have an application that loads a model, lights and shadows it, plays an animation, lets you click on things, and tells you what the frame cost.
+Twelve steps, each one runnable. By the end you have an application that loads a model, lights and shadows it, plays a clip, lets you tap on things, throws sparks where you tapped, and tells you what the frame cost. It is written on `Scene3D` and the widgets under it, and the last steps show the engine those widgets build, for when you want it by hand.
 
 <div class="goal">
 <ul>
-<li>A Flutter desktop app drawing through Flutter GPU</li>
-<li>A scene with generated geometry, a loaded glTF model and three kinds of light</li>
+<li>A Flutter app drawing through Flutter GPU, from packages on pub.dev</li>
+<li>Shapes, a loaded glTF model and three kinds of light</li>
 <li>Cascaded shadows, bloom and tone mapping</li>
-<li>An orbit camera, click-to-select, a particle effect and the debug overlay</li>
+<li>An orbit camera, tap-to-select, particles and the debug overlay</li>
+<li>The scene graph underneath, reached from the same widget</li>
 </ul>
 </div>
 
 ## Create the project {.step}
 
+The [quickstart](/quickstart/) explains each of these lines; here they are in order.
+
 ```bash
-flutter create --platforms=macos,windows,linux my_scene
+flutter create my_scene
 cd my_scene
+flutter pub add flutter3d:^1.0.0-rc.1 flutter3d_app:^1.0.0-rc.1 flutter3d_particles:^1.0.0-rc.1
+flutter pub add dev:flutter3d_build:^1.0.0-rc.1
+dart run flutter3d_build:init
+flutter clean
 ```
 
-Add the engine and a backend to `pubspec.yaml`. Why the backend is named here at all is explained in the [quickstart](/quickstart/).
-
-```yaml
-dependencies:
-  flutter:
-    sdk: flutter
-
-  flutter3d: ^1.0.0-rc.1
-  flutter3d_impeller: ^1.0.0-rc.1
-  flutter3d_particles: ^1.0.0-rc.1
-
-  vector_math: ^2.2.0
-
-flutter:
-  assets:
-    - assets/models/
-```
-
-```bash
-flutter pub get
-```
+The constraint is written out because pub.dev's default is still 0.8.x until 1.0.0. `init` wires the build hook, which converts what you put under `assets_src/` and compiles the shader stages your app needs for the SDK that builds it.
 
 ## Turn Flutter GPU on for this application {.step}
 
-Flutter GPU and Impeller are enabled **per application**, not per channel. An app that skips this fails to initialise the shader library and renders nothing.
-
-In `macos/Runner/Info.plist`:
+Flutter GPU and Impeller are enabled **per application**. In `macos/Runner/Info.plist` (and `ios/Runner/Info.plist`):
 
 ```xml
 <key>FLTEnableFlutterGPU</key>
@@ -57,420 +42,225 @@ In `macos/Runner/Info.plist`:
 <true/>
 ```
 
-On Android the key is `io.flutter.embedding.android.EnableFlutterGPU` in `AndroidManifest.xml`.
+On Android the key is `io.flutter.embedding.android.EnableFlutterGPU` in `AndroidManifest.xml`. Without them the app still opens, through the software rasteriser, with a banner that says so.
 
-<div class="warn">
-<p><code>flutter create</code> generates <code>MACOSX_DEPLOYMENT_TARGET = 10.15</code> and current Xcode will not build it. Raise it to 12.0 in <code>macos/Runner.xcodeproj/project.pbxproj</code>.</p>
-</div>
+## A first scene {.step}
 
-## The shader bundle {.step}
-
-Nothing to build. The compiled bundle rides inside `flutter3d_impeller`: the package's `.pubignore` takes back the repository's `*.shaderbundle` exclusion, so the published archive carries one, and the backend loads it from `packages/flutter3d_impeller/assets/shaders/flutter3d.shaderbundle` without your project declaring an asset of its own. You installed it three blocks ago.
-
-Two cases do want the builder. A checkout of this repository has no bundle at all, because it is generated and gitignored, so it is built once and again after every SDK change:
-
-```bash
-(cd packages/flutter3d_impeller && ./tool/build_shaders.sh)
-```
-
-And a package of your own that adds shaders, a lighting model the engine does not ship, builds its own bundle into itself from its own root:
-
-```bash
-dart run flutter3d_impeller:build_shaders
-```
-
-The format is tied to the Flutter version, which is why a `flutter upgrade` can stop shaders loading. A hosted install answers that by upgrading `flutter3d_impeller` to a version built against the new SDK; a checkout answers it by running the script again.
-
-## Open a device and create a renderer {.step}
-
-The device is asynchronous and everything that uploads anything needs it, so it lives as a field rather than being rebuilt where it is wanted.
+`Scene3D` opens the device, makes the renderer and the loop, and draws its children. A `Material3D` is the material the meshes below it are drawn with.
 
 ```dart
-import 'dart:async';
-
-import 'package:flutter/material.dart' hide Material;
-import 'package:flutter/scheduler.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_impeller/flutter3d_impeller.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
+import 'package:flutter3d_app/flutter3d_app.dart';
 
-class SceneScreen extends StatefulWidget {
-  const SceneScreen({super.key});
-  @override
-  State<SceneScreen> createState() => _SceneScreenState();
-}
+void main() => runApp(const MaterialApp(home: Workshop()));
 
-class _SceneScreenState extends State<SceneScreen>
-    with SingleTickerProviderStateMixin {
-  GpuRenderBackend? _device;
-  Renderer? _renderer;
-  Object? _initError;
+class Workshop extends StatefulWidget {
+  const Workshop({super.key});
 
   @override
-  void initState() {
-    super.initState();
-    unawaited(_openGraphics());
-  }
-
-  Future<void> _openGraphics() async {
-    final GpuRenderBackend device;
-    try {
-      // The size is checked, not kept: Impeller sizes its targets per frame.
-      device = await GpuRenderBackend.open(width: 1280, height: 720);
-    } catch (error) {
-      if (mounted) setState(() => _initError = error);
-      return;
-    }
-    if (!mounted) return;
-    _device = device;
-
-    setState(() {
-      try {
-        // The fallbacks a material without a map samples are the renderer's
-        // own unless you pass others: neutral textures instead of per-map
-        // flags, so the shader needs no branch and the engine no bookkeeping
-        // about which maps a material happens to have.
-        _renderer = Renderer.create(device: device);
-      } catch (error) {
-        _initError = error;
-      }
-    });
-  }
+  State<Workshop> createState() => _WorkshopState();
 }
-```
 
-Report `_initError` on screen rather than throwing. The overwhelmingly likely cause is a missing shader bundle, and a message naming `build_shaders.sh` saves the next person twenty minutes.
-
-## A scene that is never null {.step}
-
-```dart
-/// Empty until content arrives, and **never null**.
-Scene _scene = Scene();
-```
-
-<div class="warn">
-<p>Copy this line verbatim. The renderer must build its frame targets before anything else has taken device memory, and waiting for a model to load means a dozen textures are uploaded first. On some machines that combination fails to allocate <em>every frame, from the first</em>, and the picture is an error screen. Start with an empty scene and add to it.</p>
-</div>
-
-## Draw a frame {.step}
-
-```dart
-class SceneSurface extends StatelessWidget {
-  const SceneSurface({
-    super.key,
-    required this.renderer,
-    required this.scene,
-    required this.view,
-    required this.settings,
-  });
-
-  final Renderer renderer;
-  final Scene scene;
-  final RenderView view;
-  final RenderSettings settings;
-
+class _WorkshopState extends State<Workshop> {
   @override
-  Widget build(BuildContext context) {
-    final dpr = MediaQuery.devicePixelRatioOf(context);
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final frame = renderer.render(
-          width: (constraints.maxWidth * dpr).round().clamp(1, 8192),
-          height: (constraints.maxHeight * dpr).round().clamp(1, 8192),
-          scene: scene,
-          views: <RenderView>[view],
-          settings: settings,
-        );
-        // The widget that shows a frame, for the one backend this page
-        // names directly. An application that opens whichever backend a
-        // build ends up with calls `presentFrame` from `flutter3d_app`
-        // instead — see [Assembling an application](/core/session/).
-        return GpuFrameImage(
-          frame: frame.frame,
-          fit: BoxFit.fill,
-          quality: FilterQuality.none,
-        );
-      },
-    );
-  }
-}
-```
-
-Drive it from a `Ticker` so the frame is rebuilt each vsync:
-
-```dart
-late final Ticker _ticker;
-Duration _lastTick = Duration.zero;
-double _elapsed = 0.0;
-
-void _startTicking() {
-  _ticker = createTicker((Duration now) {
-    final dt = _lastTick == Duration.zero
-        ? 1.0 / 60.0
-        : (now - _lastTick).inMicroseconds / 1e6;
-    _lastTick = now;
-    _elapsed += dt;
-    if (mounted) setState(() {});
-  })..start();
-}
-```
-
-## Geometry, a material and a light {.step}
-
-```dart
-void _buildScene(GraphicsDevice device) {
-  final scene = Scene();
-
-  // A shape is a value that builds MeshData on the CPU; the device turns that
-  // into buffers. Bounds, culling and picking need only the first half.
-  final ground = MeshNode(
-    DeviceMesh.upload(device, const PlaneShape(width: 40, depth: 40).build()),
-    Material(
-      name: 'ground',
-      lighting: LightingModel.pbr,
-      baseColor: Vector4(0.24, 0.26, 0.28, 1.0),
-      roughness: 0.95,
-    ),
-    name: 'ground',
+  Widget build(BuildContext context) => Scene3D(
+    children: <Widget>[
+      Camera3D(position: Vector3(0.0, 3.0, 8.0), target: Vector3.zero()),
+      const Light3D.sun(),
+      Material3D(
+        baseColor: LinearColor.fromSrgb(0.24, 0.26, 0.28),
+        roughness: 0.95,
+        children: const <Widget>[
+          Mesh3D(shape: PlaneShape(width: 40, depth: 40), name: 'ground'),
+        ],
+      ),
+      Material3D(
+        baseColor: LinearColor.fromSrgb(0.9, 0.42, 0.28),
+        metallic: 0.1,
+        roughness: 0.32,
+        children: <Widget>[
+          Mesh3D(
+            shape: const SphereShape(radius: 1.0),
+            position: Vector3(0.0, 1.0, 0.0),
+            name: 'ball',
+          ),
+        ],
+      ),
+    ],
   );
-
-  final ball = MeshNode(
-    DeviceMesh.upload(device, const SphereShape(radius: 1.0).build()),
-    Material(
-      name: 'ball',
-      lighting: LightingModel.pbr,
-      baseColor: Vector4(0.90, 0.42, 0.28, 1.0),
-      metallic: 0.1,
-      roughness: 0.32,
-    ),
-    name: 'ball',
-  )..setPosition(0.0, 1.0, 0.0);
-
-  // Key light: the one that casts shadows. Lux, a hazy sun.
-  final sun = LightNode(type: LightType.directional, intensity: 18500.0)
-    ..castsShadow = true
-    ..setLocalForward(Vector3(-0.4, -1.0, -0.3));
-
-  // Fill, and a spot for shape. Candela, for a camera exposed for daylight.
-  final fill = LightNode(
-    type: LightType.point,
-    color: Vector3(0.4, 0.6, 1.0),
-    intensity: 46300.0,
-    range: 14.0,
-  )..setPosition(-5.0, 3.0, 4.0);
-
-  final spot = LightNode(
-    type: LightType.spot,
-    color: Vector3(1.0, 0.86, 0.7),
-    intensity: 104000.0,
-    range: 20.0,
-    innerConeAngle: 0.25,
-    outerConeAngle: 0.5,
-  )
-    ..setPosition(4.0, 6.0, 2.0)
-    ..setLocalForward(Vector3(-0.5, -1.0, -0.3));
-
-  scene..add(ground)..add(ball)..add(sun)..add(fill)..add(spot);
-  setState(() => _scene = scene);
 }
 ```
 
-Up to **eight** lights of any type. They are packed into `vec4[8]` uniform arrays with the count as a uniform, so switching one on or off never rebuilds a pipeline.
+A shape is a value that builds its mesh on the CPU, and the widget uploads it to the device once. A rebuild handed a new shape object builds it again and uploads only when its vertices differ, so writing `const SphereShape(...)` in `build` costs nothing per frame.
 
-## The camera, and something to turn it with {.step}
+Colours are linear light, what the shader adds up. `LinearColor.fromSrgb` converts a colour you picked by eye.
 
-```dart
-final CameraNode _camera = CameraNode(
-  projection: const PerspectiveProjection(fovY: 1.05, near: 0.1, far: 200.0),
-  name: 'main',
-);
-late final RenderView _view = RenderView(camera: _camera)
-  ..clearColor = LinearColor.fromSrgb(0.05, 0.07, 0.10);
+## Three kinds of light {.step}
 
-late final OrbitController _orbit = OrbitController(_camera, distance: 8.0);
-```
-
-Wire it to gestures, and frame whatever is in the scene:
+Brightness is photometric: lux for the sun, candela for a lamp or a spot. The defaults are lights the default camera (f/4, 1/60 s, ISO 100) shows well.
 
 ```dart
-GestureDetector(
-  onScaleStart: (d) => _lastFocal = d.localFocalPoint,
-  onScaleUpdate: (ScaleUpdateDetails d) {
-    final delta = d.localFocalPoint - _lastFocal;
-    _lastFocal = d.localFocalPoint;
-    _orbit
-      ..rotate(-delta.dx * 0.006, -delta.dy * 0.006)
-      ..zoom(1.0 / d.scale.clamp(0.5, 2.0))
-      ..apply();
-    _orbit.syncProjectionDepth(_camera);
-  },
-  child: sceneSurface,
-);
+// The key light, the one that casts shadows: 15 000 lux, a hazy sun.
+Light3D.sun(direction: Vector3(-0.4, -1.0, -0.3)),
 
-// After the scene is built:
-_orbit
-  ..frameBounds(_scene.computeBounds())
-  ..apply();
+// A household bulb, 800 lumens, warm white. Indoors a hundredth of daylight.
+Light3D.lamp(position: Vector3(-5.0, 3.0, 4.0), range: 14.0),
+
+// A spot, for shape: candela along its axis, inside a cone in radians.
+Light3D(
+  type: LightType.spot,
+  position: Vector3(4.0, 6.0, 2.0),
+  direction: Vector3(-0.5, -1.0, -0.3),
+  color: const LinearColor(1.0, 0.86, 0.7),
+  intensity: 20000.0,
+  range: 20.0,
+  outerConeAngle: 0.5,
+),
 ```
 
-<div class="note">
-<p><code>syncProjectionDepth</code> fits near and far to what is actually framed. Leaving <code>near</code> at a tiny default while <code>far</code> is 200 spends the whole depth buffer on the first metre, and the symptom is z-fighting on surfaces that are nowhere near each other.</p>
-</div>
+A room lit only by bulbs needs the camera opened up, as a photographer would: `RenderSettings(autoExposure: AutoExposureSettings(enabled: true))`, or a `PhysicalCamera` at f/2 and 1/30 s.
 
 ## Shadows, bloom and tone mapping {.step}
 
+What every frame is drawn with is one `RenderSettings`, handed to `Scene3D`:
+
 ```dart
-RenderSettings _settings = const RenderSettings(
-  exposure: 1.6,
+static const RenderSettings look = RenderSettings(
   tonemap: true,
   shadows: ShadowSettings(
-    enabled: true,
-    cascades: 3,       // one to three, side by side in one texture
-    resolution: 1024,  // the atlas is resolution × cascades wide
+    cascades: 3,        // one to three, side by side in one texture
+    resolution: 1024,   // the atlas is resolution × cascades wide
     cascadeSplit: 0.7,
-    bias: 0.0015,
-    normalOffset: 0.02,
   ),
   bloom: BloomSettings(
-    enabled: true,
-    threshold: 1.0,    // display white
-    knee: 0.5,
+    threshold: 1.0,     // display white
     intensity: 0.06,
-    levels: 5,
   ),
-  fog: FogSettings(density: 0.0),
 );
+
+// Scene3D(settings: look, children: ...)
 ```
 
-Three cascades at the default 2048 is a six-thousand-pixel HDR texture and about a hundred megabytes. Three tiles of 1024 cover a scene far better than one of 4096, so prefer a smaller tile *and* cascades.
+Three tiles of 1024 cover a scene far better than one of 4096, so prefer a smaller tile *and* cascades.
+
+## An orbit camera {.step}
+
+Replace the `Camera3D` with one a person can turn:
+
+```dart
+const OrbitCamera3D(distance: 9.0, pitch: 0.4),
+```
+
+A drag swings round the target and tilts short of the poles, a pinch or the scroll wheel moves in and out, and a fling slows by itself. `target:` follows on every build where it changed, so a game can point it at something that moves, and the distance and the angle stay where the person left them.
 
 ## Load a model and play a clip {.step}
 
-Do not await this before the first frame. Draw a placeholder, and swap the model in when it arrives.
+Put a `.glb` under `assets_src/models/`. The quickstart fetches a CC0 robot; any animated model will do.
 
 ```dart
-ModelAsset? _asset;
-AnimationPlayer? _player;
-String? _clip;
-
-Future<void> _loadModel(GraphicsDevice device, Scene scene) async {
-  try {
-    final document = await decodeModelInIsolate(
-      ModelLoadRequest(source: const BundleAssetSource('assets/models/hero.glb')),
-    );
-    final asset = await ModelAsset.fromDocument(
-      document,
-      device: device,
-      name: 'hero',
-    );
-    if (!mounted) return;
-
-    final instance = asset.instantiate(scene, name: 'hero');
-    setState(() {
-      _asset = asset;             // held, so nothing collects it out from under the scene
-      _player = instance.player;  // null when the file has no clips
-    });
-
-    for (final warning in asset.warnings) {
-      debugPrint('model: $warning');
-    }
-  } catch (error) {
-    debugPrint('model: could not load, carrying on without it ($error)');
-  }
-}
+Model3D(
+  source: 'assets_src/models/robot.glb',
+  animation: clip,                    // a field: 'Idle', 'Walking', 'Dance'
+  position: Vector3(3.0, 0.0, 0.0),
+  onLoaded: (ModelInstance robot) =>
+      debugPrint('${robot.meshes.length} meshes'),
+),
 ```
 
-Advance the player **once a frame**, not once a simulation step, an animation should run at whatever the display does:
+The file is read once, when the widget is first built, on a background isolate. `placeholder:` takes a 3D widget to stand in until it is in the scene (the cookbook's `placeholder_while_loading.dart`). A rebuild with another `animation` changes the clip of the instance already in the scene and loads nothing; a different `source` is a different model, so give that one a different key. The model belongs to the widget and is released when the widget goes.
+
+## Tap on something {.step}
+
+A tap on the `Scene3D` is a ray through the camera, and the nearest surface under the finger answers, whether or not it listens. `Mesh3D.onTap` gives where it landed; `Model3D.onTap` gives the part as well.
 
 ```dart
-void _animate(double dt) {
-  final player = _player;
-  if (player == null) return;
+MeshNode? selected;
 
-  const wanted = 'idle';
-  if (wanted != _clip) {
-    player.crossFadeToNamed(wanted, duration: 0.14);
-    _clip = wanted;
-  }
-  player
-    ..speed = 1.0
-    ..update(dt);
-}
+// On the ball:
+onTap: (HitResult hit) => setState(() => selected = null),
+
+// On the robot:
+onTap: (MeshNode part, HitResult hit) => setState(() => selected = part),
+
+// And in Scene3D:
+settings: look.copyWith(highlighted: <SceneNode>[?selected]),
 ```
 
-Non-fatal decoding problems land in `warnings` rather than failing the file, a skipped primitive or an ignored extension explains a model that looks odd but still loaded.
+The `HitResult` is reused by the next tap. Copy anything that has to outlive the callback, as `hit.point.clone()`.
 
-<div class="note">
-<p>There is no <code>hero.glb</code> in this repository; the name stands for whatever animated <code>.glb</code> you have. The shooter, the platformer and the racing game keep theirs under <code>assets_src/models/</code> in their application directories, where the build hook picks them up (the platformer's runner is <code>penguin.glb</code>), and the catch above means a missing file leaves the scene running rather than broken.</p>
-</div>
+## Sparks where you tapped {.step}
 
-## Click on something {.step}
-
-Picking is CPU-side and needs no device: ray/AABB from the BVH, then Möller–Trumbore against triangles for any node that kept its source data.
+`Particles3D` emits at its node's place, simulated between frames and drawn as billboards in one call:
 
 ```dart
-final Raycaster _raycaster = Raycaster();
-final List<SceneNode> _selected = <SceneNode>[];
+import 'package:flutter3d_particles/flutter3d_particles.dart';
 
-void _pick(Offset local, Size size) {
-  // x and y are widget coordinates from the top left, exactly as Flutter
-  // reports a pointer. The Y flip and the aspect ratio live in setFromScreen
-  // rather than here, because those are the two things that get silently
-  // reversed.
-  final hit = _raycaster
-      .setFromScreen(_camera, local.dx, local.dy,
-          width: size.width, height: size.height)
-      .intersectScene(_scene);
-
-  setState(() {
-    _selected
-      ..clear()
-      ..addAll(<SceneNode>[if (hit?.node != null) hit!.node!]);
-    _settings = _settings.copyWith(highlighted: _selected);
-  });
-}
-```
-
-<div class="warn">
-<p>The <code>HitResult</code> is reused by the next call. Copy anything that has to outlive it.</p>
-</div>
-
-## Particles, and the overlay that tells you what happened {.step}
-
-```dart
-final ParticleSystem _particles = ParticleSystem(capacity: 2000);
-
-// once, after the renderer exists
-_renderer?.renderSteps.addContributor(ParticleContributor(_particles));
-
-// once a frame
-_particles.advance(dt);
-
-// when something happens
-_particles.burst(Effects.spark, hit.point, direction: hit.normal);
-```
-
-<div class="note">
-<p><code>Effects</code> is not engine API. <code>burst</code> takes a <code>ParticleEffect</code>, and a game keeps its own catalogue of those as constants; each demo application defines one in its own <code>lib/src/effects.dart</code> (for instance <code>apps/flutter3d_demo_platformer/lib/src/effects.dart</code>), and copying an entry from there is the fastest way to a first effect.</p>
-</div>
-
-Turn on the debug overlay while you are still finding out where things are. All of it is drawn in **one** call.
-
-```dart
-_settings = _settings.copyWith(
-  debug: const DebugDrawSettings(
-    bounds: true,
-    normals: false,
-    lightGizmos: true,
-    axes: true,
-    cameraFrustums: false,
-  ),
+const ParticleEffect sparks = ParticleEffect(
+  count: 1,
+  emitter: ConeEmitter(speed: Range(2.0, 5.0)),
+  lifetime: Range(0.3, 0.6),
+  size: Range(0.03, 0.06),
+  color: LinearColor(1.0, 0.6, 0.2),
+  affectors: <ParticleAffector>[ParticleGravity.world(), ParticleFade()],
 );
+
+// In the scene, at the last tap:
+Particles3D(effect: sparks, perSecond: 200, position: tappedAt),
+```
+
+`perSecond` follows every build, so `0` stops the emitter and lets what is already in the air finish. Each demo application keeps a catalogue of effects in its own `lib/src/effects.dart`, and copying an entry from there is the fastest way to a good one.
+
+## What the frame cost {.step}
+
+`onFrame` is called before every frame with the seconds since the last one and what the renderer answered for the frame before:
+
+```dart
+onFrame: (FrameInfo frame) {
+  if (frame.result case final result?) {
+    debugPrint('${result.drawCalls} draws, ${result.triangles} triangles, '
+        '${result.cpuMicros} µs');
+  }
+},
+```
+
+Turn on the debug overlay while you are still finding out where things are. All of it is drawn in one call:
+
+```dart
+settings: look.copyWith(
+  debug: const DebugDrawSettings(bounds: true, lightGizmos: true, axes: true),
+),
 ```
 
 <div class="why">
 <p>Judging a render by eye does not scale. If a setting looks like it does nothing, capture the same frame with it on and off and diff the two: a zero difference answers the question.</p>
 </div>
+
+## The engine under the widgets {.step}
+
+`Scene3D` hands you what it built once the device is open:
+
+```dart
+onCreated: (Scene3DController scene) {
+  // The scene graph the widgets build into, and a node added by hand: a
+  // shape builds its mesh on the CPU, and the device uploads it.
+  scene.scene.add(
+    MeshNode(
+      DeviceMesh.upload(scene.device, CuboidShape().build()),
+      RenderMaterial(baseColor: LinearColor.fromSrgb(0.3, 0.5, 0.9)),
+      name: 'crate',
+    )..setPosition(-3.0, 0.5, 0.0),
+  );
+
+  // The renderer and the loop, as the Flutter3dView underneath made them:
+  // systems and plugins go into scene.engine.loop.
+  debugPrint('drawing with ${scene.device.runtimeType}');
+},
+```
+
+A property a widget leaves null is left as the node has it, so what you set here survives a rebuild unless the widget says otherwise. `RenderMaterial` is the one material type in code, the same object a `Material3D` makes; the [glossary](/reference/glossary/#materials) names the others and why an application does not draw with them.
+
+For a scene built wholly in code, `Flutter3dView(onCreated: ...)` hands you the same engine with an empty scene, and the [quickstart](/quickstart/#without-widgets) has the shape of it.
 
 ## When nothing appears {.step}
 
@@ -478,20 +268,19 @@ The failures that produce a picture instead of an error, in the order to check t
 
 | Symptom | Cause |
 |---|---|
-| `Failed to initialize ShaderLibrary` | The bundle is missing or stale, or `FLTEnableFlutterGPU` is not in `Info.plist` |
-| Black viewport, no errors at all | `Viewport` and `Scissor` default to a zero-sized rect and the API does not complain |
-| The model is clipped against the near plane | The projection's depth convention: Impeller wants `[0, 1]`, not OpenGL's `[-1, 1]` |
-| Everything is culled away | Y flipped in the projection, which reverses on-screen winding |
-| Draw count goes up, nothing appears | There is no non-indexed draw. Bind an index buffer even for the identity sequence |
-| The scene is all ambient | A light direction that was normalised into a new vector instead of in place |
-| Geometry flickers under load | `HostBuffer.reset()` right after an async `submit()`. Use a ring of ~3 host buffers |
-| Background washes out | A display-referred clear colour going through the sRGB encode twice |
+| A banner saying the GPU backend would not start | `FLTEnableFlutterGPU` or `FLTEnableImpeller` is missing from `Info.plist`, or the Android meta-data; the frames are the software rasteriser's |
+| `ShaderBundleException` naming a stale bundle | The bundle was compiled on another SDK, usually after `flutter upgrade`. `flutter clean` and build again |
+| `MissingShaderStageException` | A lighting model or a material's stage the project's bundle left out; the message names the need to add under `shaders:` |
+| A model that never appears, and a line about `flutter3d_generated` | The hook has not run: `dart run flutter3d_build:init`, then `flutter clean` |
+| `A Mesh3D was given no material` | A `Mesh3D` with no `material:` and no `Material3D` above it |
+| The scene is all ambient, or black | A light far too dim for the camera: lux and candela, not 1.0 |
 
 The full list, with the fix for each, is on the [Pitfalls](/reference/pitfalls/) page.
 
 ## Where to go from here
 
-You now have a renderer, a scene and a loop. What you do not have yet is a *game*: a fixed step, collision, a level, and input that survives a slow frame. That is the [simulation layer](/core/simulation/), and the two genre tutorials build a whole game on top of it:
+You now have a scene, a renderer and a loop. What you do not have yet is a *game*: a fixed step, collision, a level, and input that survives a slow frame. That is the [simulation layer](/core/simulation/), and the genre tutorials build a whole game on top of it:
 
 - [Build a shooter](/shooter/tutorial/): weapons, monsters that path around corners, an inventory, locked doors, saves
 - [Build a platformer](/platformer/tutorial/): a double jump with coyote time, wall slides, ice and conveyors, springs, checkpoints
+- [The cookbook](https://github.com/pleiondev/flutter3d/tree/main/examples/cookbook): twenty tasks, one file each

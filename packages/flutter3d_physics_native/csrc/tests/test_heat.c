@@ -1113,6 +1113,52 @@ static void test_a_thatch_brand_burns_at_its_beds_rate(void) {
   f3d_world_destroy(w);
 }
 
+/* A ball of hard wood a centimetre in radius, as hot as a flame all
+ * through: the wood under its front gives off gas in depth at A e^(−E/RT),
+ * near a thousand a second at 1090 K. Taken at the step's start that rate
+ * gave off the layer under the front many times over, and 63 % of the
+ * ball's fuel went in its first step. Each slice gives off no more than it
+ * holds, at the rate it cools to as it pays for its gas: the ball burns
+ * over many steps, a few per cent of it in the hardest. Not at the cone's
+ * 4.1 g/(m² s) — that is a cold slab's under 18 kW/m²; wood at a flame's
+ * temperature right through has heat enough to gasify all of itself, and
+ * does within seconds. Returns the steps it burnt for. Mutation: the
+ * explicit rate — 63 % in one step. */
+static int hot_ball_burns(F3dMaterialKind kind) {
+  F3dWorld *w = f3d_world_create();
+  F3dMaterial m;
+  f3d_material_preset(kind, &m);
+  const double r = 0.01;
+  const double density = kind == F3D_MATERIAL_OAK ? 706 : 571;
+  const F3dBody ball = f3d_body_create(w, F3D_BODY_FIXED, 0, 2, 0,
+                                       (f3d_real)(density * 4 * 3.14159265358979 * r * r * r / 3));
+  f3d_body_set_shape(w, ball, F3D_SHAPE_SPHERE, (f3d_real)r, 0, 0);
+  CHECK(f3d_body_set_material(w, ball, &m) == 1);
+  f3d_body_set_temperature(w, ball, m.flame_temperature);
+  f3d_real held = 0, fuel = 0;
+  f3d_body_get_fuel(w, ball, &held);
+  fuel = held;
+  double worst = 0;
+  int steps = 0, out = 0;
+  while (fuel > 0 && !out && steps < 3600) {
+    const f3d_real before = fuel;
+    f3d_world_step(w, F3D_R(1.0) / 60);
+    f3d_body_get_fuel(w, ball, &fuel);
+    worst = fmax(worst, (double)(before - fuel) / (double)held);
+    steps++;
+    out = fuel > 0 && !burning(w, ball);
+  }
+  CHECK(!out && !(fuel > 0));
+  CHECK(worst < 0.05);
+  f3d_world_destroy(w);
+  return steps;
+}
+
+static void test_a_hot_ball_of_hard_wood_burns_over_many_steps(void) {
+  CHECK(hot_ball_burns(F3D_MATERIAL_OAK) > 120);
+  CHECK(hot_ball_burns(F3D_MATERIAL_PINE) > 120);
+}
+
 /* A lump of charcoal glows on while it is heated as hard as glowing
  * coals heat one among them, and goes out short of it: a torch's
  * 106 kW/m² keeps it burning, a newspaper fire's 60 does not hold it
@@ -1184,6 +1230,7 @@ int main(void) {
   test_cardboard_catches_as_the_cone_measured();
   test_thatch_creeps_at_rothermels_rate();
   test_a_thatch_brand_burns_at_its_beds_rate();
+  test_a_hot_ball_of_hard_wood_burns_over_many_steps();
   test_charcoal_glows_only_as_hot_as_a_heap();
   test_an_explosion_pushes_by_solid_angle();
   test_materials();
