@@ -19,7 +19,7 @@ StrategySimulation _world() =>
 
 /// A match nothing decides for a while: two soldiers of two sides, far out
 /// of each other's range.
-Match _standoff(StrategySimulation sim) {
+StrategyMatch _standoff(StrategySimulation sim) {
   sim
     ..add(
       StrategyUnit(position: Vector3(5.0, 0.0, 5.0), type: UnitType.soldier),
@@ -31,7 +31,7 @@ Match _standoff(StrategySimulation sim) {
         side: 1,
       ),
     );
-  return Match(simulation: sim, bots: const <Bot>[]);
+  return StrategyMatch(simulation: sim, bots: const <Bot>[]);
 }
 
 /// An event a system publishes, to see where it goes.
@@ -106,7 +106,8 @@ void main() {
   test('stepped by hand through a match, a system is told the step, its dt '
       'and its phase, and publishes onto the match\'s bus', () {
     // Mutation: hand the system the loop phase, another dt, or leave the
-    // simulation's bus unset by `Match.publishTo`, and an expectation fails.
+    // simulation's bus unset by `StrategyMatch.publishTo`, and an expectation
+    // fails.
     final sim = _world();
     final match = _standoff(sim);
     final bus = DirectBus();

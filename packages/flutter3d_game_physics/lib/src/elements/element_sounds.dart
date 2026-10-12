@@ -196,7 +196,7 @@ final class Wader {
 /// "under water" snapshot or a ducking rule reaches the elements as it
 /// reaches the rest of the mix.
 final class ElementSounds {
-  ElementSounds([this.cues = ElementCues.near, this.bus])
+  ElementSounds({this.cues = ElementCues.near, this.bus})
     : _fires = HeldVoices(cues.fire, bus: bus),
       _falls = HeldVoices(cues.falls, bus: bus),
       _washes = HeldVoices(cues.wash, bus: bus);

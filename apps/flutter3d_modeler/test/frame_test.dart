@@ -474,7 +474,7 @@ void main() {
             EditMesh.cuboid().extrudeFace(0, 0.5).toMeshData(),
           );
           stage.frameSubject();
-          return (scene: stage.scene, camera: stage.camera);
+          return FrameSubject(scene: stage.scene, camera: stage.camera);
         },
       );
 
@@ -511,7 +511,7 @@ void main() {
               subject.$2().toMeshData(),
             );
             stage.frameSubject();
-            return (scene: stage.scene, camera: stage.camera);
+            return FrameSubject(scene: stage.scene, camera: stage.camera);
           },
         );
 
@@ -546,7 +546,7 @@ void main() {
               subject.$2().toMeshData(),
             );
             stage.frameSubject();
-            return (scene: stage.scene, camera: stage.camera);
+            return FrameSubject(scene: stage.scene, camera: stage.camera);
           },
         );
 
@@ -680,7 +680,7 @@ void main() {
         );
         final pixels = await it.device.readback(result.frame);
         expect(pixels, isNotNull, reason: 'the frame could not be read back');
-        return (
+        return RenderedFrame(
           pixels: pixels.buffer.asUint8List(),
           width: 240,
           height: 160,
@@ -767,7 +767,7 @@ void main() {
       );
       final pixels = await it.device.readback(result.frame);
       expect(pixels, isNotNull, reason: 'the frame could not be read back');
-      final frame = (
+      final frame = RenderedFrame(
         pixels: pixels.buffer.asUint8List(),
         width: 240,
         height: 160,
@@ -818,7 +818,7 @@ void main() {
           final node = stage.subject as MeshNode;
           node.mesh = DeviceMesh.upload(request.device, rebuilt);
           stage.frameSubject();
-          return (scene: stage.scene, camera: stage.camera);
+          return FrameSubject(scene: stage.scene, camera: stage.camera);
         },
       );
 
@@ -867,7 +867,7 @@ void main() {
               ).toEditMesh().toMeshData(),
             );
             stage.frameSubject();
-            return (scene: stage.scene, camera: stage.camera);
+            return FrameSubject(scene: stage.scene, camera: stage.camera);
           },
         );
 
@@ -936,7 +936,7 @@ void main() {
               )..setPosition(0, -0.5, 0),
             );
             stage.frameSubject();
-            return (scene: stage.scene, camera: stage.camera);
+            return FrameSubject(scene: stage.scene, camera: stage.camera);
           },
         );
 

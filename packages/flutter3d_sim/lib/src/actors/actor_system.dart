@@ -718,7 +718,7 @@ final class ActorSystem {
       ..sub(body.position)
       ..y = 0.0;
     final length = _wish.length;
-    if (length > Tolerance.zeroLength) _wish.scale(1.0 / length);
+    if (length > GeometryTolerance.zeroLength) _wish.scale(1.0 / length);
   }
 
   /// Steers [body] along its route over [mesh] to [point], and says whether
@@ -816,7 +816,7 @@ final class ActorSystem {
       ..sub(_feet)
       ..y = 0.0;
     final length = _wish.length;
-    if (length > Tolerance.zeroLength) _wish.scale(1.0 / length);
+    if (length > GeometryTolerance.zeroLength) _wish.scale(1.0 / length);
   }
 
   final Vector3 _feet = Vector3.zero();
@@ -884,7 +884,7 @@ final class ActorSystem {
     final dx = vx - body.velocity.x;
     final dz = vz - body.velocity.z;
     final gap = math.sqrt(dx * dx + dz * dz);
-    if (gap <= Tolerance.zeroLength) {
+    if (gap <= GeometryTolerance.zeroLength) {
       _wish.setValues(vx / speed, 0.0, vz / speed);
     } else {
       final share = want / speed;
@@ -933,7 +933,7 @@ final class ActorSystem {
     // Straight at it, horizontally. The controller does the sliding, which is
     // what keeps a corner from being a wall.
     _wish.setValues(_toFocus.x, 0.0, _toFocus.z);
-    if (_wish.length2 > Tolerance.zeroLength) _wish.normalize();
+    if (_wish.length2 > GeometryTolerance.zeroLength) _wish.normalize();
   }
 
   /// Jumps when the field's next step from where [body] stands is a link and
@@ -1007,7 +1007,7 @@ final class ActorSystem {
       ..setFrom(point)
       ..sub(_eye);
     final distance = _aim.length;
-    if (distance < Tolerance.sameSurface) return true;
+    if (distance < GeometryTolerance.sameSurface) return true;
     _aim.scale(1.0 / distance);
 
     return !world.raycast(

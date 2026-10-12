@@ -39,9 +39,9 @@ final class _Storage extends Storage {
 
 /// Four metres along x in one second, facing nought.
 Tape _straight() => Tape(
-  poses: <Pose>[
-    Pose(time: 0.0, yaw: 0.0)..position.setValues(0.0, 0.0, 0.0),
-    Pose(time: 1.0, yaw: 0.0)..position.setValues(4.0, 0.0, 0.0),
+  poses: <GhostFrame>[
+    GhostFrame(time: 0.0, yaw: 0.0)..position.setValues(0.0, 0.0, 0.0),
+    GhostFrame(time: 1.0, yaw: 0.0)..position.setValues(4.0, 0.0, 0.0),
   ],
   seconds: 1.0,
 );
@@ -107,9 +107,9 @@ void main() {
       // Mutation: add `lift` to y alone — this fails.
       final tilted = Vector3(1.0, 1.0, 0.0)..normalize();
       final track = Tape(
-        poses: <Pose>[
-          Pose(time: 0.0, yaw: 0.0)..up.setFrom(tilted),
-          Pose(time: 1.0, yaw: 0.0)..up.setFrom(tilted),
+        poses: <GhostFrame>[
+          GhostFrame(time: 0.0, yaw: 0.0)..up.setFrom(tilted),
+          GhostFrame(time: 1.0, yaw: 0.0)..up.setFrom(tilted),
         ],
         seconds: 1.0,
       );

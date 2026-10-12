@@ -83,7 +83,7 @@ final class AbsolutePixels extends ResourceSize
   final int width
 
 final class AdaptiveQuality
-  AdaptiveQuality(this.table, [this.settings = const AdaptiveQualitySettings(), this.policy])
+  AdaptiveQuality(this.table, {this.settings = const AdaptiveQualitySettings(), this.policy})
   QualityRow get row
   QualityRow recordFrame(int micros, {double motion = 0.0})
   RenderSettings apply(RenderSettings full)
@@ -659,7 +659,7 @@ final class CapturedImage
   final int height
   final int width
   int? channelAt(int x, int y, int channel)
-  static CapturedImage? fromJson(Map<String, Object?> json)
+  static CapturedImage fromJson(Map<String, Object?> json)
 
 final class CapturedPass
   CapturedImage? imageOf(String resource)
@@ -676,7 +676,7 @@ final class CapturedPass
   final int drawCalls
   final int micros
   final int triangles
-  static CapturedPass? fromJson(Map<String, Object?> json)
+  static CapturedPass fromJson(Map<String, Object?> json)
 
 final class CellGrid
   CellGrid({required this.columns, required this.rows, this.cell = 1.0})
@@ -719,6 +719,11 @@ final class ClusterIndices
   const ClusterIndices(this.buffer, this.count)
   final GeometryBuffer buffer
   final int count
+
+final class ClusteredIndices
+  const ClusteredIndices({required this.table, required this.indices})
+  final MeshClusters table
+  final Uint32List indices
 
 final class ColorHint extends MaterialHintKind
   const ColorHint({this.channels = 4})
@@ -1078,7 +1083,7 @@ final class DeviceMesh extends DrawableGeometry
   bool get isDisposed
   double get boundingRadius
   factory DeviceMesh.upload(GraphicsDevice device, MeshData mesh, {bool keepSourceData = true})
-  final ({MeshClusters table, Uint32List indices})? clusters
+  final ClusteredIndices? clusters
   final GeometryBuffer indices
   final GeometryBuffer vertices
   final IndexType indexType
@@ -1199,10 +1204,10 @@ final class DrawRecord
   final int passIndex
   final int triangles
   final int vertices
-  static DrawRecord? fromJson(Map<String, Object?> json)
+  static DrawRecord fromJson(Map<String, Object?> json)
 
 abstract base class DrawableGeometry with MeshGeometry
-  abstract ({MeshClusters table, Uint32List indices})? get clusters
+  abstract ClusteredIndices? get clusters
   abstract GeometryBuffer get indices
   abstract GeometryBuffer get vertices
   abstract IndexType get indexType
@@ -1235,7 +1240,7 @@ final class EnumHint extends MaterialHintKind
   final List<EnumHintValue> values
 
 final class EnumHintValue
-  const EnumHintValue(this.value, [String? label])
+  const EnumHintValue(this.value, {String? label})
   final String label
   final String value
 
@@ -2304,19 +2309,6 @@ final class LightShaftSettings
   final double strength
   final int steps
 
-final class LightType
-  LightType get base
-  String toString()
-  const LightType.custom(this.name, {required LightType base})
-  final String name
-  int get index
-  static LightType? byName(String wireName)
-  static const LightType area = LightType._(3, 'area')
-  static const LightType directional = LightType._(0, 'directional')
-  static const LightType point = LightType._(1, 'point')
-  static const LightType spot = LightType._(2, 'spot')
-  static const List<LightType> values = <LightType>[directional, point, spot, area]
-
 abstract base class LightTypeHook
   abstract LightType get type
   const LightTypeHook()
@@ -2498,8 +2490,6 @@ final class MaterialAlphaMode
   static const MaterialAlphaMode mask = MaterialAlphaMode._('mask')
   static const MaterialAlphaMode opaque = MaterialAlphaMode._('opaque')
 
-typedef MaterialBinary = ExpressionBinary;
-
 final class MaterialBindings
   LightingModel lightingModel({required String label, required String shaderName, String? vertexShaderName, bool vertexStageMorphs = true})
   bool get usesMaterialParameters
@@ -2543,8 +2533,8 @@ final class MaterialBlockMember
   Map<String, Object?> toJson()
   bool operator ==(Object other)
   const MaterialBlockMember({required this.name, required this.type, required this.offset, this.defaultValue = const <double>[]})
+  final ExpressionType type
   final List<double> defaultValue
-  final MaterialType type
   final String name
   final int offset
   int get hashCode
@@ -2557,18 +2547,10 @@ final class MaterialBlockSlot
   final String name
   int get size
 
-typedef MaterialBuiltin = ExpressionBuiltin;
-
 final class MaterialBundleException extends Flutter3dFormatException
   String toString()
   const MaterialBundleException(this.message)
   final String message
-
-typedef MaterialCall = ExpressionCall;
-
-typedef MaterialConstant = ExpressionConstant;
-
-typedef MaterialConstruct = ExpressionConstruct;
 
 final class MaterialDocument
   const MaterialDocument({required this.surface, this.images = const <String>[], this.lighting, this.parameterBlock = 'MaterialParams', this.parameters = const <String, Float32List>{}, this.hints = const <String, MaterialHint>{}, this.extraTextures = const <String, TextureBinding>{}, this.warnings = const <String>[], this.unknown = const <String, Object?>{}})
@@ -2581,8 +2563,6 @@ final class MaterialDocument
   final Map<String, TextureBinding> extraTextures
   final String parameterBlock
   final SurfaceMaterial surface
-
-typedef MaterialExpression = Expression;
 
 abstract base class MaterialExpressionVisitor<R> extends ExpressionVisitor<R>
   R visitConditional(ExpressionConditional expression)
@@ -2663,7 +2643,7 @@ abstract final class MaterialHintKind
 
 final class MaterialInput
   const MaterialInput(this.name, this.type, this.glsl)
-  final MaterialType type
+  final ExpressionType type
   final String glsl
   final String name
 
@@ -2675,7 +2655,7 @@ final class MaterialInputRef extends ExpressionVariable
 final class MaterialLet extends MaterialStatement
   R accept<R>(MaterialStatementVisitor<R> visitor)
   const MaterialLet(this.name, this.value)
-  final MaterialExpression value
+  final Expression value
   final String name
 
 final class MaterialLocalRef extends ExpressionVariable
@@ -2695,12 +2675,10 @@ final class MaterialMap
   static const MaterialMap normal = MaterialMap._('normal')
   static const MaterialMap occlusion = MaterialMap._('occlusion')
 
-typedef MaterialNegate = ExpressionNegate;
-
 final class MaterialOutput extends MaterialStatement
   R accept<R>(MaterialStatementVisitor<R> visitor)
   const MaterialOutput(this.output, this.value)
-  final MaterialExpression value
+  final Expression value
   final MaterialInput output
 
 final class MaterialParamRef extends ExpressionVariable
@@ -2711,8 +2689,8 @@ final class MaterialParamRef extends ExpressionVariable
 final class MaterialParameter
   String? get block
   const MaterialParameter(this.name, this.type, this.defaultValue, {this.uniform = false, this._block})
+  final ExpressionType type
   final List<double> defaultValue
-  final MaterialType type
   final String name
   final bool uniform
 
@@ -2781,12 +2759,12 @@ final class MaterialRenameUpdate extends MaterialUpdate
 final class MaterialReturn extends MaterialStatement
   R accept<R>(MaterialStatementVisitor<R> visitor)
   const MaterialReturn(this.value)
-  final MaterialExpression value
+  final Expression value
 
 final class MaterialSample extends Expression
   R accept<R>(ExpressionVisitor<R> visitor)
   const MaterialSample(this.slot, this.uv)
-  final MaterialExpression uv
+  final Expression uv
   final MaterialTextureSlot slot
 
 final class MaterialScaleUpdate extends MaterialUpdate
@@ -2837,8 +2815,6 @@ final class MaterialSurfaceValues
   final Map<String, List<double>> inputs
   final Map<String, List<double>> uniforms
 
-typedef MaterialSwizzle = ExpressionSwizzle;
-
 final class MaterialSyntaxException extends Flutter3dFormatException
   String toString()
   const MaterialSyntaxException(this.message, this.line, this.column)
@@ -2858,15 +2834,13 @@ final class MaterialTextureSlotEntry
   final String binding
   final String name
 
-typedef MaterialType = ExpressionType;
-
 abstract base class MaterialUpdate
   abstract Map<String, List<double>> apply(Map<String, List<double>> values)
   const MaterialUpdate(this.version)
   final int version
 
 final class MaterialVariant
-  const MaterialVariant(this.name, [this.values = const {}])
+  const MaterialVariant(this.name, {this.values = const {}})
   final Map<String, List<double>> values
   final String name
 
@@ -3139,21 +3113,13 @@ final class ModelImpostor
 final class ModelLight
   ModelLight({required this.type, this.color = LinearColor.white, this.intensity = 1.0, this.range, this.innerConeAngle = 0.0, double? outerConeAngle, this.name})
   String toString()
+  final LightType type
   final LinearColor color
-  final ModelLightType type
   final String? name
   final double innerConeAngle
   final double intensity
   final double outerConeAngle
   final double? range
-
-final class ModelLightType
-  String toString()
-  final String name
-  static const List<ModelLightType> values = <ModelLightType>[directional, point, spot]
-  static const ModelLightType directional = ModelLightType._('directional')
-  static const ModelLightType point = ModelLightType._('point')
-  static const ModelLightType spot = ModelLightType._('spot')
 
 final class ModelLoadRequest
   const ModelLoadRequest({required this.source, this.format = ModelFormat.auto, this.layout = VertexLayout.standard, this.objNormals = ObjNormals.smooth, this.stlNormals = StlNormals.fromFile, this.decoders = const <ModelDecoder>[]})
@@ -5598,7 +5564,7 @@ double averageCacheMissRatio(Uint32List indices, {int cacheSize = defaultVertexC
 
 int bloomLevelsFor(BloomSettings settings, {required int frameHeight})
 
-List<List<double>> broadcastArguments(List<List<double>> arguments, MaterialBuiltin builtin)
+List<List<double>> broadcastArguments(List<List<double>> arguments, ExpressionBuiltin builtin)
 
 Uint8List buildIdentityLut({int size = 33})
 
@@ -5822,11 +5788,11 @@ bool looksLikeAsciiStl(Uint8List bytes)
 
 bool looksLikeSpz(Uint8List bytes)
 
-const List<MaterialInput> materialAmbientInputs = <MaterialInput>[MaterialInput('lightmap', MaterialType.vec3, 'f3d_lightmap')]
+const List<MaterialInput> materialAmbientInputs = <MaterialInput>[MaterialInput('lightmap', ExpressionType.vec3, 'f3d_lightmap')]
 
-const List<MaterialBuiltin> materialBuiltins = …
+const List<ExpressionBuiltin> materialBuiltins = …
 
-const List<MaterialInput> materialCompositeInputs = <MaterialInput>[MaterialInput('direct', MaterialType.vec3, 'f3d_direct'), MaterialInput('indirect', MaterialType.vec3, 'f3d_indirect')]
+const List<MaterialInput> materialCompositeInputs = <MaterialInput>[MaterialInput('direct', ExpressionType.vec3, 'f3d_direct'), MaterialInput('indirect', ExpressionType.vec3, 'f3d_indirect')]
 
 const List<MaterialInput> materialComputeInputs = …
 
@@ -5840,7 +5806,7 @@ MaterialExtensions? materialExtensionsFromJson(Map<String, Object?> extensions, 
 
 Map<String, Object?> materialExtensionsToJson(MaterialExtensions e, {required Object? Function(TextureBinding binding) texture})
 
-const List<MaterialInput> materialFullscreenInputs = <MaterialInput>[MaterialInput('uv', MaterialType.vec2, 'v_uv'), MaterialInput('sceneDepth', MaterialType.float, 'f3d_scene_depth')]
+const List<MaterialInput> materialFullscreenInputs = <MaterialInput>[MaterialInput('uv', ExpressionType.vec2, 'v_uv'), MaterialInput('sceneDepth', ExpressionType.float, 'f3d_scene_depth')]
 
 const List<MaterialInput> materialInputs = …
 
@@ -5854,7 +5820,7 @@ const int materialLanguageVersion = 3
 
 const List<MaterialInput> materialLightInputs = …
 
-const MaterialInput materialLitInput = MaterialInput('lit', MaterialType.vec3, 'lit')
+const MaterialInput materialLitInput = MaterialInput('lit', ExpressionType.vec3, 'lit')
 
 const String materialNothingBehind = '1000000.0'
 
@@ -6066,9 +6032,9 @@ const String universalBlockRgba = 'endpoint-weight-4x4-v1/rgba'
 
 Future<PackedMap?> uploadCoatMap(GraphicsDevice device, MaterialExtensions layers, {required Future<Rgba8Image?> Function(TextureBinding binding) image})
 
-Future<TextureHandle?> uploadEncodedImage(GraphicsDevice device, Uint8List encoded, {required ImageDecoder decodeImage, TextureSampling sampling = const TextureSampling(), void Function(String message)? report, int? maxDimension, bool platformDecode = true, TextureCodecs? codecs})
+Future<TextureHandle> uploadEncodedImage(GraphicsDevice device, Uint8List encoded, {required ImageDecoder decodeImage, TextureSampling sampling = const TextureSampling(), void Function(String message)? report, int? maxDimension, bool platformDecode = true, TextureCodecs? codecs})
 
-TextureHandle? uploadRgba8(GraphicsDevice device, Rgba8Image image, {TextureSampling sampling = const TextureSampling()})
+TextureHandle uploadRgba8(GraphicsDevice device, Rgba8Image image, {TextureSampling sampling = const TextureSampling()})
 
 Future<PackedMap?> uploadSheenMap(GraphicsDevice device, MaterialExtensions layers, {required Future<Rgba8Image?> Function(TextureBinding binding) image})
 
@@ -6358,7 +6324,7 @@ final class EnumHint extends MaterialHintKind
   final List<EnumHintValue> values
 
 final class EnumHintValue
-  const EnumHintValue(this.value, [String? label])
+  const EnumHintValue(this.value, {String? label})
   final String label
   final String value
 
@@ -6773,8 +6739,6 @@ final class LightingModels extends PluginRegistry
   Registration register(LightingModel model)
   static final LightingModels shipped
 
-typedef MaterialBinary = ExpressionBinary;
-
 final class MaterialBindings
   LightingModel lightingModel({required String label, required String shaderName, String? vertexShaderName, bool vertexStageMorphs = true})
   bool get usesMaterialParameters
@@ -6810,8 +6774,8 @@ final class MaterialBlockMember
   Map<String, Object?> toJson()
   bool operator ==(Object other)
   const MaterialBlockMember({required this.name, required this.type, required this.offset, this.defaultValue = const <double>[]})
+  final ExpressionType type
   final List<double> defaultValue
-  final MaterialType type
   final String name
   final int offset
   int get hashCode
@@ -6824,18 +6788,10 @@ final class MaterialBlockSlot
   final String name
   int get size
 
-typedef MaterialBuiltin = ExpressionBuiltin;
-
 final class MaterialBundleException extends Flutter3dFormatException
   String toString()
   const MaterialBundleException(this.message)
   final String message
-
-typedef MaterialCall = ExpressionCall;
-
-typedef MaterialConstant = ExpressionConstant;
-
-typedef MaterialConstruct = ExpressionConstruct;
 
 final class MaterialDocument
   const MaterialDocument({required this.surface, this.images = const <String>[], this.lighting, this.parameterBlock = 'MaterialParams', this.parameters = const <String, Float32List>{}, this.hints = const <String, MaterialHint>{}, this.extraTextures = const <String, TextureBinding>{}, this.warnings = const <String>[], this.unknown = const <String, Object?>{}})
@@ -6848,8 +6804,6 @@ final class MaterialDocument
   final Map<String, TextureBinding> extraTextures
   final String parameterBlock
   final SurfaceMaterial surface
-
-typedef MaterialExpression = Expression;
 
 abstract base class MaterialExpressionVisitor<R> extends ExpressionVisitor<R>
   R visitConditional(ExpressionConditional expression)
@@ -6930,7 +6884,7 @@ abstract final class MaterialHintKind
 
 final class MaterialInput
   const MaterialInput(this.name, this.type, this.glsl)
-  final MaterialType type
+  final ExpressionType type
   final String glsl
   final String name
 
@@ -6942,7 +6896,7 @@ final class MaterialInputRef extends ExpressionVariable
 final class MaterialLet extends MaterialStatement
   R accept<R>(MaterialStatementVisitor<R> visitor)
   const MaterialLet(this.name, this.value)
-  final MaterialExpression value
+  final Expression value
   final String name
 
 final class MaterialLocalRef extends ExpressionVariable
@@ -6962,12 +6916,10 @@ final class MaterialMap
   static const MaterialMap normal = MaterialMap._('normal')
   static const MaterialMap occlusion = MaterialMap._('occlusion')
 
-typedef MaterialNegate = ExpressionNegate;
-
 final class MaterialOutput extends MaterialStatement
   R accept<R>(MaterialStatementVisitor<R> visitor)
   const MaterialOutput(this.output, this.value)
-  final MaterialExpression value
+  final Expression value
   final MaterialInput output
 
 final class MaterialParamRef extends ExpressionVariable
@@ -6978,8 +6930,8 @@ final class MaterialParamRef extends ExpressionVariable
 final class MaterialParameter
   String? get block
   const MaterialParameter(this.name, this.type, this.defaultValue, {this.uniform = false, this._block})
+  final ExpressionType type
   final List<double> defaultValue
-  final MaterialType type
   final String name
   final bool uniform
 
@@ -7022,12 +6974,12 @@ final class MaterialRenameUpdate extends MaterialUpdate
 final class MaterialReturn extends MaterialStatement
   R accept<R>(MaterialStatementVisitor<R> visitor)
   const MaterialReturn(this.value)
-  final MaterialExpression value
+  final Expression value
 
 final class MaterialSample extends Expression
   R accept<R>(ExpressionVisitor<R> visitor)
   const MaterialSample(this.slot, this.uv)
-  final MaterialExpression uv
+  final Expression uv
   final MaterialTextureSlot slot
 
 final class MaterialScaleUpdate extends MaterialUpdate
@@ -7073,8 +7025,6 @@ final class MaterialSurfaceValues
   final Map<String, List<double>> inputs
   final Map<String, List<double>> uniforms
 
-typedef MaterialSwizzle = ExpressionSwizzle;
-
 final class MaterialSyntaxException extends Flutter3dFormatException
   String toString()
   const MaterialSyntaxException(this.message, this.line, this.column)
@@ -7094,15 +7044,13 @@ final class MaterialTextureSlotEntry
   final String binding
   final String name
 
-typedef MaterialType = ExpressionType;
-
 abstract base class MaterialUpdate
   abstract Map<String, List<double>> apply(Map<String, List<double>> values)
   const MaterialUpdate(this.version)
   final int version
 
 final class MaterialVariant
-  const MaterialVariant(this.name, [this.values = const {}])
+  const MaterialVariant(this.name, {this.values = const {}})
   final Map<String, List<double>> values
   final String name
 
@@ -7192,21 +7140,13 @@ final class ModelImpostor
 final class ModelLight
   ModelLight({required this.type, this.color = LinearColor.white, this.intensity = 1.0, this.range, this.innerConeAngle = 0.0, double? outerConeAngle, this.name})
   String toString()
+  final LightType type
   final LinearColor color
-  final ModelLightType type
   final String? name
   final double innerConeAngle
   final double intensity
   final double outerConeAngle
   final double? range
-
-final class ModelLightType
-  String toString()
-  final String name
-  static const List<ModelLightType> values = <ModelLightType>[directional, point, spot]
-  static const ModelLightType directional = ModelLightType._('directional')
-  static const ModelLightType point = ModelLightType._('point')
-  static const ModelLightType spot = ModelLightType._('spot')
 
 final class ModelLoadRequest
   const ModelLoadRequest({required this.source, this.format = ModelFormat.auto, this.layout = VertexLayout.standard, this.objNormals = ObjNormals.smooth, this.stlNormals = StlNormals.fromFile, this.decoders = const <ModelDecoder>[]})
@@ -7710,7 +7650,7 @@ final class WrittenFile
 
 List<double> applyBinary(String op, List<double> a, List<double> b)
 
-List<List<double>> broadcastArguments(List<List<double>> arguments, MaterialBuiltin builtin)
+List<List<double>> broadcastArguments(List<List<double>> arguments, ExpressionBuiltin builtin)
 
 List<Rgba8Image> buildMipChain(Rgba8Image base, {bool srgb = false, bool isNormalMap = false, double? alphaTestThreshold})
 
@@ -7862,11 +7802,11 @@ bool looksLikeAsciiStl(Uint8List bytes)
 
 bool looksLikeSpz(Uint8List bytes)
 
-const List<MaterialInput> materialAmbientInputs = <MaterialInput>[MaterialInput('lightmap', MaterialType.vec3, 'f3d_lightmap')]
+const List<MaterialInput> materialAmbientInputs = <MaterialInput>[MaterialInput('lightmap', ExpressionType.vec3, 'f3d_lightmap')]
 
-const List<MaterialBuiltin> materialBuiltins = …
+const List<ExpressionBuiltin> materialBuiltins = …
 
-const List<MaterialInput> materialCompositeInputs = <MaterialInput>[MaterialInput('direct', MaterialType.vec3, 'f3d_direct'), MaterialInput('indirect', MaterialType.vec3, 'f3d_indirect')]
+const List<MaterialInput> materialCompositeInputs = <MaterialInput>[MaterialInput('direct', ExpressionType.vec3, 'f3d_direct'), MaterialInput('indirect', ExpressionType.vec3, 'f3d_indirect')]
 
 const List<MaterialInput> materialComputeInputs = …
 
@@ -7880,7 +7820,7 @@ MaterialExtensions? materialExtensionsFromJson(Map<String, Object?> extensions, 
 
 Map<String, Object?> materialExtensionsToJson(MaterialExtensions e, {required Object? Function(TextureBinding binding) texture})
 
-const List<MaterialInput> materialFullscreenInputs = <MaterialInput>[MaterialInput('uv', MaterialType.vec2, 'v_uv'), MaterialInput('sceneDepth', MaterialType.float, 'f3d_scene_depth')]
+const List<MaterialInput> materialFullscreenInputs = <MaterialInput>[MaterialInput('uv', ExpressionType.vec2, 'v_uv'), MaterialInput('sceneDepth', ExpressionType.float, 'f3d_scene_depth')]
 
 const List<MaterialInput> materialInputs = …
 
@@ -7894,7 +7834,7 @@ const int materialLanguageVersion = 3
 
 const List<MaterialInput> materialLightInputs = …
 
-const MaterialInput materialLitInput = MaterialInput('lit', MaterialType.vec3, 'lit')
+const MaterialInput materialLitInput = MaterialInput('lit', ExpressionType.vec3, 'lit')
 
 const String materialNothingBehind = '1000000.0'
 

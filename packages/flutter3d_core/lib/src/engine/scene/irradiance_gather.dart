@@ -27,8 +27,7 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show LinearColor;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show LinearColor;
 import 'package:vector_math/vector_math.dart';

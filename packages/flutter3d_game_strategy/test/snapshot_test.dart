@@ -1,5 +1,5 @@
-/// `StrategySimulation.save/restore` and `Match.save/restore`, which did not
-/// exist.
+/// `StrategySimulation.save/restore` and `StrategyMatch.save/restore`, which
+/// did not exist.
 ///
 ///     flutter test test/snapshot_test.dart
 ///

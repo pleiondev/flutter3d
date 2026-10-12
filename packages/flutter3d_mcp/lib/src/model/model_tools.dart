@@ -1,5 +1,6 @@
 import 'package:dart_mcp/server.dart';
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 import 'package:flutter3d_mcp/kit.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
@@ -35,6 +36,13 @@ ListSchema _vector(String about, {String unit = 'in metres'}) => ListSchema(
   minItems: 3,
   maxItems: 3,
 );
+
+/// The description of an argument spelled the British way, which a tool
+/// still reads beside the American [american] so that an agent written
+/// against an earlier version keeps working. One of the two is given.
+String _britishAlias(String american) =>
+    'the same as $american, the spelling earlier versions read; $american '
+    'wins when both are given';
 
 /// Sixteen numbers, column-major — `Matrix4.storage` — for the two commands
 /// that take a whole transform rather than a friendlier vector or angle.
@@ -178,7 +186,7 @@ Future<Answer> Function(ModelSession, Map<String, Object?>) _command(
     ...arguments,
   });
   if (command == null) {
-    return (
+    return Answer(
       did: false,
       says:
           '$name cannot be read from those arguments — check the schema '
@@ -375,8 +383,16 @@ List<ModelTool> get _commandTools => <ModelTool>[
         properties: <String, Schema>{
           'id': IntegerSchema(description: 'the object'),
           'to': UntitledSingleSelectEnumSchema(
-            description: 'boundsCentre (default), boundsBottom or worldOrigin',
-            values: <String>[for (final p in OriginPlacement.values) p.wire],
+            description:
+                'boundsCenter (default), boundsBottom or worldOrigin; '
+                'boundsCentre, the spelling earlier versions read, is the '
+                'same as boundsCenter',
+            values: <String>{
+              for (final p in OriginPlacement.values) ...<String>[
+                p.name,
+                p.wire,
+              ],
+            }.toList(),
           ),
         },
         required: <String>['id'],
@@ -2468,7 +2484,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
         properties: <String, Schema>{
           'type': UntitledSingleSelectEnumSchema(
             description: 'directional (default), point or spot',
-            values: <String>[for (final t in ProjectLightType.values) t.name],
+            values: <String>[for (final t in LightType.values) t.name],
           ),
         },
       ),
@@ -2797,7 +2813,7 @@ List<ModelTool> get modelTools => <ModelTool>[
     ),
     _sync(
       (ModelSession session, Map<String, Object?> arguments) =>
-          (did: true, says: session.listing()),
+          Answer(did: true, says: session.listing()),
     ),
   ),
   ModelTool(
@@ -2830,9 +2846,9 @@ List<ModelTool> get modelTools => <ModelTool>[
     ),
     _sync((ModelSession session, Map<String, Object?> arguments) {
       final Object? id = arguments['id'];
-      if (id is! int) return (did: false, says: 'describe needs an "id"');
+      if (id is! int) return Answer(did: false, says: 'describe needs an "id"');
       final Object? elements = arguments['elements'];
-      return (
+      return Answer(
         did: true,
         says: session.describe(
           id,
@@ -2870,7 +2886,7 @@ List<ModelTool> get modelTools => <ModelTool>[
       ),
     ),
     _sync(
-      (ModelSession session, Map<String, Object?> arguments) => (
+      (ModelSession session, Map<String, Object?> arguments) => Answer(
         did: true,
         says: describeType(
           family: arguments['family']! as String,
@@ -2893,7 +2909,7 @@ List<ModelTool> get modelTools => <ModelTool>[
     ),
     _sync(
       (ModelSession session, Map<String, Object?> arguments) =>
-          (did: true, says: session.listMaterials()),
+          Answer(did: true, says: session.listMaterials()),
     ),
   ),
   ModelTool(
@@ -2962,7 +2978,7 @@ List<ModelTool> get modelTools => <ModelTool>[
     (ModelSession session, Map<String, Object?> arguments) async {
       final Object? commands = arguments['commands'];
       if (commands is! List) {
-        return (did: false, says: 'batch needs a list of "commands"');
+        return Answer(did: false, says: 'batch needs a list of "commands"');
       }
       // `mcp-14n`'s own lock — see `_command`'s own copy of this line. A
       // batch opens a transaction of its own, and two open at once is a
@@ -3000,7 +3016,7 @@ List<ModelTool> get modelTools => <ModelTool>[
       final ModelCommand? command = modelCommandFromJson(arguments);
       if (command == null) {
         final Object? name = arguments['name'];
-        return (
+        return Answer(
           did: false,
           says:
               '${name ?? 'that'} cannot be read from those arguments — '
@@ -3045,7 +3061,7 @@ List<ModelTool> get modelTools => <ModelTool>[
     ),
     _sync(
       (ModelSession session, Map<String, Object?> arguments) =>
-          (did: true, says: session.check()),
+          Answer(did: true, says: session.check()),
     ),
   ),
   ModelTool(
@@ -3070,7 +3086,7 @@ List<ModelTool> get modelTools => <ModelTool>[
       if (path is! String) return session.save(null);
       return switch (session.root.tryResolve(path)) {
         (path: final String inside, refused: null) => session.save(inside),
-        (path: _, :final refused) => (did: false, says: refused!),
+        (path: _, :final refused) => Answer(did: false, says: refused!),
       };
     }),
   ),
@@ -3103,7 +3119,7 @@ List<ModelTool> get modelTools => <ModelTool>[
     _sync((ModelSession session, Map<String, Object?> arguments) {
       final to = arguments['to'];
       if (to is! String) {
-        return (did: false, says: 'export needs a "to" path');
+        return Answer(did: false, says: 'export needs a "to" path');
       }
       return switch (session.root.tryResolve(to)) {
         (path: final String inside, refused: null) => session.export(
@@ -3111,7 +3127,7 @@ List<ModelTool> get modelTools => <ModelTool>[
           format: arguments['format'] as String?,
           force: arguments['force'] == true,
         ),
-        (path: _, :final refused) => (did: false, says: refused!),
+        (path: _, :final refused) => Answer(did: false, says: refused!),
       };
     }),
   ),
@@ -3159,14 +3175,13 @@ List<ModelTool> get modelTools => <ModelTool>[
     (ModelSession session, Map<String, Object?> arguments) {
       final from = arguments['from'];
       if (from is! String) {
-        return Future<Answer>.value((
-          did: false,
-          says: 'import needs a "from" path',
-        ));
+        return Future<Answer>.value(
+          Answer(did: false, says: 'import needs a "from" path'),
+        );
       }
       final (path: inside, :refused) = session.root.tryResolve(from);
       if (inside == null) {
-        return Future<Answer>.value((did: false, says: refused!));
+        return Future<Answer>.value(Answer(did: false, says: refused!));
       }
       final unit = arguments['unit'];
       final scale = unit is String ? (_importUnitScale[unit] ?? 1.0) : 1.0;
@@ -3197,11 +3212,11 @@ List<ModelTool> get modelTools => <ModelTool>[
     _sync((ModelSession session, Map<String, Object?> arguments) {
       final to = arguments['to'];
       if (to is! String) {
-        return (did: false, says: 'journal needs a "to" path');
+        return Answer(did: false, says: 'journal needs a "to" path');
       }
       return switch (session.root.tryResolve(to)) {
         (path: final String inside, refused: null) => session.journal(inside),
-        (path: _, :final refused) => (did: false, says: refused!),
+        (path: _, :final refused) => Answer(did: false, says: refused!),
       };
     }),
   ),
@@ -3240,7 +3255,7 @@ List<ModelTool> get modelTools => <ModelTool>[
     _sync((ModelSession session, Map<String, Object?> arguments) {
       final profile = arguments['profile'];
       if (profile is! String) {
-        return (did: false, says: 'makeGameReady needs a "profile"');
+        return Answer(did: false, says: 'makeGameReady needs a "profile"');
       }
       return session.prepareForGame(profile);
     }),
@@ -3287,7 +3302,7 @@ List<ModelTool> get modelTools => <ModelTool>[
     _sync((ModelSession session, Map<String, Object?> arguments) {
       final spec = arguments['spec'];
       if (spec is! List) {
-        return (did: false, says: 'buildFrom needs a "spec" list');
+        return Answer(did: false, says: 'buildFrom needs a "spec" list');
       }
       return session.buildFrom(
         spec.map((Object? e) => Map<String, Object?>.from(e! as Map)).toList(),
@@ -3305,7 +3320,7 @@ List<ModelTool> get modelTools => <ModelTool>[
     ),
     _sync(
       (ModelSession session, Map<String, Object?> arguments) =>
-          (did: true, says: session.inspect()),
+          Answer(did: true, says: session.inspect()),
     ),
   ),
   ..._rigPipelineTools,
@@ -3415,13 +3430,16 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
       final template = arguments['template'];
       final markersJson = arguments['markers'];
       if (template is! String || markersJson is! Map) {
-        return (did: false, says: 'autoRig needs a "template" and "markers"');
+        return Answer(
+          did: false,
+          says: 'autoRig needs a "template" and "markers"',
+        );
       }
       final markers = <String, List<double>>{};
       for (final entry in markersJson.entries) {
         final value = entry.value;
         if (value is! List || value.length != 3) {
-          return (
+          return Answer(
             did: false,
             says: 'marker "${entry.key}" needs a 3-number position',
           );
@@ -3721,18 +3739,23 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
             description: 'one or more brush hits making up this stroke',
             items: ObjectSchema(
               properties: <String, Schema>{
-                'centre': _vector(
+                'center': _vector(
                   'where the brush touched, in the object\'s own space',
                 ),
+                'centre': _vector(_britishAlias('center')),
                 'radius': NumberSchema(
                   description: 'how far the hit reaches, in metres',
                 ),
               },
-              required: <String>['centre', 'radius'],
+              required: <String>['radius'],
             ),
           ),
-          'colour': ListSchema(
+          'color': ListSchema(
             description: 'straight-alpha RGBA, four numbers 0..1',
+            items: NumberSchema(),
+          ),
+          'colour': ListSchema(
+            description: _britishAlias('color'),
             items: NumberSchema(),
           ),
           'layer': IntegerSchema(
@@ -3755,7 +3778,7 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
             description: 'read the mask the other way up',
           ),
         },
-        required: <String>['objectId', 'samples', 'colour'],
+        required: <String>['objectId', 'samples'],
       ),
     ),
     _command('paintStroke'),
@@ -3801,23 +3824,28 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
             description: 'one or more brush hits making up this stroke',
             items: ObjectSchema(
               properties: <String, Schema>{
-                'centre': _vector(
+                'center': _vector(
                   'where the brush touched, in the object\'s own space',
                 ),
+                'centre': _vector(_britishAlias('center')),
                 'radius': NumberSchema(
                   description: 'how far the hit reaches, in metres',
                 ),
               },
-              required: <String>['centre', 'radius'],
+              required: <String>['radius'],
             ),
           ),
-          'colour': ListSchema(
+          'color': ListSchema(
             description: 'straight RGBA, four numbers 0..1',
+            items: NumberSchema(),
+          ),
+          'colour': ListSchema(
+            description: _britishAlias('color'),
             items: NumberSchema(),
           ),
           'strength': NumberSchema(description: 'how hard, 0..1; default 1'),
         },
-        required: <String>['objectId', 'samples', 'colour'],
+        required: <String>['objectId', 'samples'],
       ),
     ),
     _command('paintVertexColour'),
@@ -3899,7 +3927,7 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
       if (sourceClipIndex is! int ||
           sourceSkeletonIndex is! int ||
           targetSkeletonIndex is! int) {
-        return (
+        return Answer(
           did: false,
           says:
               'retargetClip needs "sourceClipIndex", "sourceSkeletonIndex" '
@@ -3971,7 +3999,7 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
           effectorJointId is! int ||
           target is! List ||
           pole is! List) {
-        return (
+        return Answer(
           did: false,
           says:
               'bakeIk needs "clipIndex", "rootJointId", "midJointId", '
@@ -4038,7 +4066,7 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
       final clipIndex = arguments['clipIndex'];
       final shapeTargetObjectId = arguments['shapeTargetObjectId'];
       if (clipIndex is! int || shapeTargetObjectId is! int) {
-        return (
+        return Answer(
           did: false,
           says: 'bakeDrivers needs "clipIndex" and "shapeTargetObjectId"',
         );
@@ -4047,7 +4075,7 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
       List<Map<String, Object?>>? drivers;
       if (driversJson != null) {
         if (driversJson is! List) {
-          return (
+          return Answer(
             did: false,
             says: '"drivers", when given, needs to be a list',
           );
@@ -4083,7 +4111,7 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
     ),
     _sync(
       (ModelSession session, Map<String, Object?> arguments) =>
-          (did: true, says: session.validateRig()),
+          Answer(did: true, says: session.validateRig()),
     ),
   ),
 ];

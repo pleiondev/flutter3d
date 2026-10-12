@@ -20,10 +20,12 @@ extension _F3dWriteBundle on F3dWriter {
       // The type by an explicit number, never the enum's index: a value
       // added or reordered later must not change what a file says.
       view
-        ..setUint32(o, switch (light.type) {
-          ModelLightType.directional => 0,
-          ModelLightType.point => 1,
-          ModelLightType.spot => 2,
+        ..setUint32(o, switch (light.type.base) {
+          LightType.directional => 0,
+          LightType.point => 1,
+          LightType.spot => 2,
+          // Read as a point light by a reader older than the code.
+          LightType.area => 3,
           _ => throw ArgumentError.value(
             light.type,
             'light.type',

@@ -13,6 +13,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_core/src/engine/scene/light_buffer.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show

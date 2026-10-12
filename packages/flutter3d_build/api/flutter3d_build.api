@@ -275,7 +275,7 @@ final class AssetLayout
 
 final class AssetManifest
   AssetRule? ruleFor(String relativePath)
-  const AssetManifest([this.rules = const <AssetRule>[], this.classes = const <DeviceClassBudget>[], this.shaders = ShaderSelection.none])
+  const AssetManifest({this.rules = const <AssetRule>[], this.classes = const <DeviceClassBudget>[], this.shaders = ShaderSelection.none})
   factory AssetManifest.parse(String yamlText)
   final List<AssetRule> rules
   final List<DeviceClassBudget> classes

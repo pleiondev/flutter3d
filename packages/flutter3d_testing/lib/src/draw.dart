@@ -38,7 +38,7 @@ Future<RenderedFrame> drawOnce({
   );
 
   final pixels = await device.readback(result.frame);
-  return (
+  return RenderedFrame(
     pixels: pixels.buffer.asUint8List(),
     width: width,
     height: height,

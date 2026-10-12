@@ -57,4 +57,36 @@ void main() {
       ),
     );
   });
+
+  // Mutation: let a draw, a pass or an image without its names answer null
+  // again, and the three throws here are nulls.
+  test('a part without what it is named by throws; the file skips it', () {
+    expect(
+      () => DrawRecord.fromJson(const <String, Object?>{'pass': 'opaque'}),
+      throwsA(isA<FrameCaptureFormatException>()),
+    );
+    expect(
+      () => CapturedPass.fromJson(const <String, Object?>{}),
+      throwsA(isA<FrameCaptureFormatException>()),
+    );
+    expect(
+      () => CapturedImage.fromJson(const <String, Object?>{'resource': 'c'}),
+      throwsA(isA<FrameCaptureFormatException>()),
+    );
+    final capture = FrameCapture.fromJson(<String, Object?>{
+      'format': FrameCapture.fileFormat,
+      'version': FrameCapture.fileVersion,
+      'width': 1,
+      'height': 1,
+      'passes': <Object?>[
+        <String, Object?>{},
+        <String, Object?>{'name': 'opaque'},
+      ],
+      'draws': <Object?>[
+        <String, Object?>{'pass': 'opaque'},
+      ],
+    });
+    expect(capture.passes.single.name, 'opaque');
+    expect(capture.draws, isEmpty);
+  });
 }

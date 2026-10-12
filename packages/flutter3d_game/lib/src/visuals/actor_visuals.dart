@@ -7,7 +7,7 @@ import 'package:flutter3d_core/flutter3d_core.dart'
     show SceneBinding, SceneBindingContext, SceneBindings, SceneNodeKind;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart' hide Pose;
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'actor_appearance.dart';

@@ -12,7 +12,7 @@ library;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show CompiledExpression, ExpressionScope, ExpressionType, parseExpression;
 import 'package:flutter3d_matter/flutter3d_matter.dart'
-    show MaterialState, Materials;
+    show MatterState, Materials;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:test/test.dart';
@@ -27,7 +27,7 @@ void main() {
   test('loads once, and has no GPU', () async {
     expect(physicsCoreLoaded, isTrue);
     await loadPhysicsCore(url: 'nowhere');
-    expect(NativeGpu.open, throwsA(isA<GpuUnavailable>()));
+    expect(NativeGpu.open, throwsA(isA<GpuUnavailableException>()));
   });
 
   test('a crate falls onto a floor and rests there', () {
@@ -104,7 +104,11 @@ void main() {
   test('particles, debris, cloth and water run on the CPU', () {
     final particles = NativeParticles(4)
       ..emit(<NativeParticle>[
-        (position: Vector3.zero(), velocity: Vector3(1.0, 0.0, 0.0), life: 1.0),
+        NativeParticle(
+          position: Vector3.zero(),
+          velocity: Vector3(1.0, 0.0, 0.0),
+          life: 1.0,
+        ),
       ])
       ..step(ParticleForces(), 1 / 60, steps: 30);
     expect(particles.read()[0], closeTo(0.5, 1e-5));
@@ -112,7 +116,7 @@ void main() {
     final debris = NativeDebris(1)
       ..setStatics(<DebrisStatic>[DebrisPlane(Vector3(0.0, 1.0, 0.0), 0.0)])
       ..add(<DebrisBody>[
-        (
+        DebrisBody(
           position: Vector3(0.0, 0.5, 0.0),
           velocity: Vector3.zero(),
           radius: 0.1,
@@ -134,7 +138,10 @@ void main() {
     cloth.dispose();
     final water = NativeFluid(8, 0.05)
       ..add(<FluidParticle>[
-        (position: Vector3(0.0, 1.0, 0.0), velocity: Vector3.zero()),
+        FluidParticle(
+          position: Vector3(0.0, 1.0, 0.0),
+          velocity: Vector3.zero(),
+        ),
       ]);
     water.step(
       FluidSettings(
@@ -270,7 +277,7 @@ void main() {
         <double>[t],
       ]);
       expect(answer.single, law.at(t));
-      expect(law.at(t), viscosity.at(MaterialState.at(temperature: t)));
+      expect(law.at(t), viscosity.at(MatterState.at(temperature: t)));
     }
     final wave = NativeExpression(
       parseExpression(

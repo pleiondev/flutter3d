@@ -345,22 +345,22 @@ final class NavGrid {
   ) => (
     // A boundary hit exactly is a zero-width overlap, which is not one.
     x0: _clampInt(
-      (((brush.min.x - minX) / cellSize) + Tolerance.gridBias).floor(),
+      (((brush.min.x - minX) / cellSize) + GeometryTolerance.gridBias).floor(),
       0,
       columns - 1,
     ),
     x1: _clampInt(
-      (((brush.max.x - minX) / cellSize) - Tolerance.gridBias).floor(),
+      (((brush.max.x - minX) / cellSize) - GeometryTolerance.gridBias).floor(),
       0,
       columns - 1,
     ),
     z0: _clampInt(
-      (((brush.min.z - minZ) / cellSize) + Tolerance.gridBias).floor(),
+      (((brush.min.z - minZ) / cellSize) + GeometryTolerance.gridBias).floor(),
       0,
       rows - 1,
     ),
     z1: _clampInt(
-      (((brush.max.z - minZ) / cellSize) - Tolerance.gridBias).floor(),
+      (((brush.max.z - minZ) / cellSize) - GeometryTolerance.gridBias).floor(),
       0,
       rows - 1,
     ),
@@ -582,7 +582,7 @@ final class NavGrid {
     if (ambiguous > 0 && issues != null) {
       issues.add(
         LevelIssue(
-          LevelIssueSeverity.warning,
+          Severity.warning,
           '$ambiguous navigation ${ambiguous == 1 ? 'column has' : 'columns '
                     'have'} more than one enclosed surface; the grid keeps the lowest, '
           'so nothing will path across the upper one. First at '
@@ -655,7 +655,7 @@ final class NavGrid {
     var previous = double.negativeInfinity;
 
     for (final top in tops) {
-      if ((top - previous).abs() < Tolerance.sameSurface) continue;
+      if ((top - previous).abs() < GeometryTolerance.sameSurface) continue;
       previous = top;
 
       var ceiling = top + maxHeadroom;
@@ -664,8 +664,8 @@ final class NavGrid {
         final other = solid[b];
         // Entirely at or below the surface, including the brush whose top
         // this is.
-        if (other.max.y <= top + Tolerance.sameSurface) continue;
-        if (other.min.y <= top + Tolerance.sameSurface) {
+        if (other.max.y <= top + GeometryTolerance.sameSurface) continue;
+        if (other.min.y <= top + GeometryTolerance.sameSurface) {
           blocked = true;
           break;
         }

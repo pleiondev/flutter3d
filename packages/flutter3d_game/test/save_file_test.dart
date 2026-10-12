@@ -149,9 +149,11 @@ void main() async {
     final reader = SaveFile(
       appName: 'test',
       storage: storage,
-      schema: SaveSchema(<SaveMigration>[
-        (run) => run..['hearts'] = (run.remove('health')! as num) ~/ 10,
-      ]),
+      schema: SaveSchema(
+        migrations: <SaveMigration>[
+          (run) => run..['hearts'] = (run.remove('health')! as num) ~/ 10,
+        ],
+      ),
     );
 
     final read = await reader.readRecord();
@@ -166,7 +168,7 @@ void main() async {
     final writer = SaveFile(
       appName: 'test',
       storage: storage,
-      schema: SaveSchema(<SaveMigration>[(run) => run]),
+      schema: SaveSchema(migrations: <SaveMigration>[(run) => run]),
     );
     await writer.write('a.json', Snapshot(<String, Object?>{}), step: 12);
 

@@ -19,6 +19,7 @@ import 'package:flutter3d_demo_racing/src/ghost_car.dart';
 import 'package:flutter3d_game_kit/ghost.dart' show Ghost;
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart' show GhostFrame;
 import 'package:flutter_test/flutter_test.dart';
 
 final class _Storage extends Storage {

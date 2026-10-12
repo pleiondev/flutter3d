@@ -1701,18 +1701,11 @@ const Map<String, Set<String>> interfaceClassPending = <String, Set<String>>{
 ///
 /// **A to-do list, not an exemption**, like [interfaceClassPending]: decision
 /// H of `tasks/1.0-arch-review.md` names every thrown type `…Exception`, and
-/// these three belong to the render and HAL work running beside the format
-/// work that brought the rule in. The entry goes when its type is renamed
-/// (the rule fails on an entry no snapshot declares), and a new exception is
-/// named `…Exception` from the start.
-const Map<String, String> exceptionNamePending = <String, String>{
-  'GpuUnavailable':
-      '`flutter3d_app`: what `openDevice` throws when no backend opens; the '
-      'render/app agent renames it with the device-open work',
-  'RenderRefusal':
-      '`flutter3d_model_core`: a picture the modeller cannot draw headless; '
-      'renamed with the render-snapshot work',
-};
+/// the last two (`GpuUnavailable`, `RenderRefusal`) are `…Exception` now.
+/// The entry goes when its type is renamed (the rule fails on an entry no
+/// snapshot declares), and a new exception is named `…Exception` from the
+/// start, so the list stays empty.
+const Map<String, String> exceptionNamePending = <String, String>{};
 
 // ------------------------------------------------- 1.0: closed sets
 
@@ -1846,15 +1839,12 @@ const Map<String, String> openedSets = <String, String>{
   'ElementLevel': 'flutter3d_mesh: a class with constants',
   'ExportFormat': 'flutter3d_model_core: a class with constants',
   'ExportResult': 'flutter3d_model_core: an abstract final hierarchy',
-  'ExportSeverity': 'flutter3d_model_core: a class with constants',
   'FeatureStability': 'flutter3d_hardware: a class with constants',
   'FuzzTransform': 'flutter3d_conformance: an abstract final hierarchy',
   'Geometry': 'flutter3d_model_core: an abstract final hierarchy',
   'GeometryUsage': 'flutter3d_hardware: a class with constants',
   'IndexType': 'flutter3d_hardware: a class with constants',
   'InputAction': 'flutter3d_sim: an abstract final hierarchy',
-  'IssueSeverity': 'flutter3d_mesh: a class with constants',
-  'LevelIssueSeverity': 'flutter3d_sim: a class with constants',
   'LoadAction': 'flutter3d_hardware: a class with constants',
   'LtiLaunchException': 'flutter3d_education: an abstract final hierarchy',
   'LtiMessageType': 'flutter3d_education: a class with constants',
@@ -2093,6 +2083,166 @@ const Map<String, String> hookParametersPending = <String, String>{
 /// Names the naming rules of item 28 let stand, each with the reason. Keyed
 /// by the subject a finding names (`Type.member`, or a bare name).
 const Map<String, String> britishSpellingAllowed = <String, String>{};
+
+/// Public types named as a library in `tool/structure/sdk_names.txt` names
+/// one, with why each stays (A.8 of the API review).
+///
+/// **Only names a first game does not meet.** A name `package:flutter/
+/// material.dart` or `dart:core` exports is never listed: a program that
+/// imports a facade and material would read it as ambiguous, which is the
+/// failure the rule exists for. What is here collides with `dart:ui` or
+/// `dart:io`, which a game imports only to reach the engine underneath
+/// Flutter or the file system, and there a `prefix` is the usual way in.
+const Map<String, String> nameCollisionAllowed = <String, String>{
+  'Scene':
+      'the engine\'s scene graph, its first type; `dart:ui`\'s is a '
+      'compositor layer tree that a widget never names',
+  'FrameInfo':
+      'what a view hands each frame\'s handler; `dart:ui`\'s is a decoded '
+      'image codec\'s frame, reached only through `instantiateImageCodec`',
+  'ResourceHandle':
+      'a borrowed reference to a cached resource; `dart:io`\'s is a socket '
+      'or file handle passed between processes',
+  'Link':
+      'the texture graph command that wires one node into another; '
+      '`dart:io`\'s is a symbolic link, in code that already prefixes '
+      '`dart:io` beside Flutter',
+  'Pipe':
+      'a pipe a liquid flows along between two vessels; `dart:io`\'s is an '
+      'anonymous pipe between processes',
+};
+
+/// Readers that answer null for "not there", as `Type.member` or
+/// `function`, each with what absent means (E.7).
+///
+/// **Absent, skipped, or a word that is not one.** A field a file need not
+/// have, a part a newer build wrote that this one skips rather than refuse
+/// the whole document over, or text a person typed that `double.tryParse`
+/// would answer null for too.
+const Map<String, String> nullAsErrorAllowed = <String, String>{
+  'parseChunkThreshold':
+      'a command-line word that is not a count; the command throws its '
+      'usage exception',
+  'parseDeviceClasses':
+      'a command-line word that names no class; the command falls back to '
+      'every class',
+  'AnimationPath.fromGltf':
+      'a glTF channel path this build does not animate, which a model skips',
+  'readSurface':
+      'a software shader stage, not a reader: null discards the '
+      'fragment',
+  'uploadCoatMap': 'absent: a material with no coat maps binds white',
+  'uploadSheenMap': 'absent: a material with no sheen maps binds white',
+  'EditorCommand.fromJson':
+      'an agent\'s command whose arguments do not read is refused whole, as '
+      'a value the server answers with',
+  'SetLights.fromArguments':
+      'an agent\'s command whose arguments do not read is refused whole',
+  'ExperimentEdit.fromJson':
+      'an agent\'s edit whose arguments do not read is refused whole',
+  'ColorField.parseHex': 'text a person typed that is not six hex digits',
+  'NumberField.parse': 'text a person typed that is not a finite number',
+  'CheckQuestion.fromStepProperties':
+      'the lenient reading of a hand-authored step: no question is a step '
+      'without one; `fromJson` is the strict reader',
+  'HarvestJob.fromSnapshot':
+      'a save must load: a worker whose seam is gone comes back idle',
+  'ActionBinding.fromJson':
+      'a binding shape a newer build wrote, kept by the map rather than read',
+  'ModifierSlot.fromJson':
+      'a modifier kind a newer build wrote, skipped rather than the project '
+      'refused',
+  'ProjectSelection.fromJson':
+      'a stale selection is skipped, not a reason to lose the document',
+  'decodeSectionJson':
+      'answers the JSON value, which may be null; it throws for bytes that '
+      'are not JSON',
+  'EngineBundleStamp.decode':
+      'absent: a bundle written by a build that does not stamp has none',
+  'PublishedActor.read': 'absent: an actor that published no body',
+  'ShadowCasting.fromWireName':
+      'a word that names no mode, as `byName` answers',
+};
+
+/// Members of implementable types that name a record, as `Type.member`,
+/// each with why the record never grows.
+///
+/// **Maths pairs and triples only.** A coordinate has as many components as
+/// its space, and a minor never adds a fourth axis to a 3D dispatch.
+const Map<String, String> recordInContractAllowed = <String, String>{
+  'CpuComputeShader.runWorkgroup':
+      'a workgroup\'s x, y and z: a dispatch has three dimensions',
+  'CpuComputeShader.workgroupSize':
+      'a workgroup\'s x, y and z sizes: a dispatch has three dimensions',
+  'FrameContext.jitter':
+      'a subpixel offset, x and y: the image plane has two axes',
+  'ResourceSize.resolve': 'a width and a height: a 2D resource\'s size',
+  'VesselShape.span': 'an interval\'s two ends along one axis',
+};
+
+/// Constructors that keep optional positional parameters, as `Type.Type`
+/// or `Type.named`, each with why it never grows (E.5).
+///
+/// **A value that is its numbers, or a registry seeded with its first
+/// entries.** A colour's alpha after its three channels is `Color`'s own
+/// shape and no fifth channel comes; a registry grows by `add` or
+/// `register`, never by its constructor; a wrapper of one number has no
+/// second one to take.
+const Map<String, String> optionalPositionalAllowed = <String, String>{
+  'LinearColor.LinearColor': 'r, g, b and an alpha: a colour has no fifth',
+  'LinearColor.fromSrgb': 'r, g, b and an alpha: a colour has no fifth',
+  'SrgbColor.SrgbColor': 'r, g, b and an alpha: a colour has no fifth',
+  'FormatSpecs.FormatSpecs':
+      'a registry seeded with its first specs; it grows by `add`',
+  'FormatRegistry.FormatRegistry':
+      'a registry seeded with its first specs; it grows by `add`',
+  'DataSections.DataSections':
+      'a registry seeded with its first sections; it grows by `register`',
+  'WorldFields.WorldFields':
+      'a registry seeded with its first fields; it grows by `add`',
+  'MaterialCompilerRegistry.MaterialCompilerRegistry':
+      'a registry seeded with its first compilers; it grows by `register`',
+  'EntityKinds.EntityKinds':
+      'a registry seeded with its first kinds; it grows by `add`',
+  'AssetSources.AssetSources':
+      'a registry seeded with its first schemes; it grows by `add`',
+  'Bindings.Bindings':
+      'a table seeded with its first bindings; it grows by `bind`',
+  'Mixer.Mixer':
+      'a table seeded with its first bus volumes; it grows by '
+      'setting one',
+  'MemoryStorage.MemoryStorage':
+      'a store seeded with its first documents; it grows by writing one',
+  'EntityLayout.ecs': 'the path the layout is, segment by segment',
+  'FrameFraction.FrameFraction': 'the one divisor the size is',
+  'InterpolatedAngle.InterpolatedAngle': 'the one angle it starts at',
+  'Stockpile.Stockpile': 'the one amount it holds',
+  'InMemoryDeviceClassMemory.InMemoryDeviceClassMemory':
+      'a test double of one value, the class it answers',
+  'PluginDependency.PluginDependency':
+      'the plugin contract\'s own: made named with the dependency ranges '
+      'in that package, which owns the migration',
+  'PluginFormatException.PluginFormatException':
+      'the plugin contract\'s own: made named in that package with its '
+      'other exceptions',
+};
+
+/// British words a tool still takes beside the American one, as
+/// `server/tool/word`, each with why: a word an agent written against an
+/// earlier version sends, which the tool goes on reading so that no caller
+/// breaks, as an `alias` keeps an old tool name.
+const Map<String, String> britishSchemaAllowed = <String, String>{
+  'flutter3d.model/paint.stroke/colour':
+      'the argument before `color`; read when `color` is not given',
+  'flutter3d.model/paint.stroke/centre':
+      'a sample\'s point before `center`; read when `center` is not given',
+  'flutter3d.model/paint.vertexColor/colour':
+      'the argument before `color`; read when `color` is not given',
+  'flutter3d.model/paint.vertexColor/centre':
+      'a sample\'s point before `center`; read when `center` is not given',
+  'flutter3d.model/object.setOrigin/boundsCentre':
+      'the placement before `boundsCenter`, and the word a journal writes',
+};
 
 /// Verbs the creation and teardown rule lets stand.
 const Map<String, String> verbAllowed = <String, String>{

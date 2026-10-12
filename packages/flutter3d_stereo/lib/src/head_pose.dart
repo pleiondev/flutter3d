@@ -1,27 +1,7 @@
 import 'dart:math' as math;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show RigidPose;
 
 import 'package:vector_math/vector_math.dart';
-
-/// Where the head is, in the space the scene is built in.
-///
-/// A rotation and a position rather than a matrix, because that is the shape
-/// both sources hand over: Android's rotation vector is a quaternion, and
-/// OpenXR's `XrPosef` is a quaternion and a vector. Turning either into a
-/// matrix is what `SceneNode` already does.
-final class HeadPose {
-  const HeadPose({required this.rotation, required this.position});
-
-  HeadPose.still()
-    : rotation = Quaternion.identity(),
-      position = Vector3.zero();
-
-  final Quaternion rotation;
-
-  /// Where the head is, in metres. A phone has no idea, so it stays at the
-  /// origin and only the rotation moves — which is the honest version of
-  /// three-degrees-of-freedom tracking rather than a guessed neck model.
-  final Vector3 position;
-}
 
 /// Android's rotation vector, in the engine's frame.
 ///
@@ -101,7 +81,7 @@ Quaternion headRotationFromSensor(
 ///
 /// The payload the Android side sends, decoded in one place: the rotation
 /// vector's three or four values, then the display rotation in degrees.
-HeadPose decodeSensorEvent(List<double> event) {
+RigidPose decodeSensorEvent(List<double> event) {
   if (event.length < 4) {
     throw ArgumentError(
       'Expected at least three rotation values and a display rotation, got '
@@ -112,8 +92,11 @@ HeadPose decodeSensorEvent(List<double> event) {
   // conversion is here, where the number comes in.
   final displayRotation = event.last.round() * math.pi / 180.0;
   final vector = event.sublist(0, event.length - 1);
-  return HeadPose(
-    rotation: headRotationFromSensor(vector, displayRotation: displayRotation),
+  return RigidPose(
+    orientation: headRotationFromSensor(
+      vector,
+      displayRotation: displayRotation,
+    ),
     position: Vector3.zero(),
   );
 }

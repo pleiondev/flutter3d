@@ -1,3 +1,5 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
+
 import '../level/entity_types.dart';
 import '../level/level.dart';
 import '../level/level_issue.dart';
@@ -36,7 +38,7 @@ final class ExitReachable extends LevelRule {
     }
     out.add(
       LevelIssue(
-        LevelIssueSeverity.error,
+        Severity.error,
         'no walk from the player\'s start reaches '
         '${exits.length == 1 ? 'the exit' : 'any of the ${exits.length} exits'}'
         ', so the level cannot be finished',

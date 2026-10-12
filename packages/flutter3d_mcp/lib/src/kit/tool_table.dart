@@ -71,7 +71,7 @@ final class OfferedPrompt {
 /// written name stays answerable as an alias until the next major release,
 /// so a host config or a prompt that named it keeps working.
 final class ToolName {
-  const ToolName(this.name, [this.hints = ToolHints.writes]);
+  const ToolName(this.name, {this.hints = ToolHints.writes});
 
   /// The published name, `area.verb`.
   final String name;

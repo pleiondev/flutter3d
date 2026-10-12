@@ -43,6 +43,7 @@ import 'param_hint.dart';
 import 'parametric_json.dart';
 import 'project.dart';
 import 'project_animation.dart';
+import 'project_format.dart' show ProjectFormatException;
 import 'project_morphs.dart';
 import 'project_wire.dart';
 import 'scene_lighting.dart';
@@ -591,6 +592,17 @@ final List<String> modelCommandNames = List<String>.unmodifiable(
   _modelCommandReaders.keys,
 );
 
+/// What [read] reads, or null when it throws a [ProjectFormatException]: a
+/// journal entry whose argument does not read back is skipped whole, never
+/// half-built, the rule every reader below keeps.
+T? _readOrNull<T>(T Function() read) {
+  try {
+    return read();
+  } on ProjectFormatException {
+    return null;
+  }
+}
+
 /// Reads a command back out of a journal, or null.
 ///
 /// **Null and not an exception**, for the reason `ProjectSelection.fromJson`
@@ -895,11 +907,11 @@ _modelCommandReaders =
       ),
       'addLight': (json) => AddLight(
         type: switch (json['type']) {
-          final String type => ProjectLightType.values.firstWhere(
-            (ProjectLightType t) => t.name == type,
-            orElse: () => ProjectLightType.directional,
+          final String type => LightType.values.firstWhere(
+            (LightType t) => t.name == type,
+            orElse: () => LightType.directional,
           ),
-          _ => ProjectLightType.directional,
+          _ => LightType.directional,
         },
         // `ux-23`. Absent is the identity transform a light has always had,
         // which is what a journal written before this existed replays to.
@@ -1207,7 +1219,7 @@ _modelCommandReaders =
               final int baseVersion,
               final Map<String, Object?> cacheJson,
             ) =>
-              switch (SimulationCache.fromJson(cacheJson)) {
+              switch (_readOrNull(() => SimulationCache.fromJson(cacheJson))) {
                 final SimulationCache cache => ApplySimulationCache(
                   objectId: objectId,
                   baseVersion: baseVersion,
@@ -1278,11 +1290,12 @@ _modelCommandReaders =
             _ => null,
           },
       'addShapeDriver': (json) => switch ((json['id'], json['driver'])) {
-        (final int id, final Object? driverJson) =>
-          switch (ShapeDriver.fromJson(driverJson)) {
-            final ShapeDriver driver => AddShapeDriver(id: id, driver: driver),
-            null => null,
-          },
+        (final int id, final Object? driverJson) => switch (_readOrNull(
+          () => ShapeDriver.fromJson(driverJson),
+        )) {
+          final ShapeDriver driver => AddShapeDriver(id: id, driver: driver),
+          null => null,
+        },
         _ => null,
       },
       'removeShapeDriver': (json) => switch ((json['id'], json['index'])) {
@@ -1421,8 +1434,8 @@ _modelCommandReaders =
               skinObjectId: json['skinObjectId'] as int?,
               label: label,
             ),
-            final Object? weightsJson => switch (SkinWeightsBlob.fromJson(
-              weightsJson,
+            final Object? weightsJson => switch (_readOrNull(
+              () => SkinWeightsBlob.fromJson(weightsJson),
             )) {
               final SkinWeightsBlob weights => SetRig(
                 jointObjects: jointObjects,
@@ -1486,7 +1499,7 @@ _modelCommandReaders =
       'paintVertexColour': (json) => switch ((
         json['objectId'],
         json['samples'],
-        _doubleListFrom(json['colour']),
+        _doubleListFrom(json['color'] ?? json['colour']),
       )) {
         (
           final int objectId,
@@ -1514,7 +1527,7 @@ _modelCommandReaders =
       'paintStroke': (json) => switch ((
         json['objectId'],
         json['samples'],
-        _doubleListFrom(json['colour']),
+        _doubleListFrom(json['color'] ?? json['colour']),
       )) {
         (
           final int objectId,
@@ -1809,10 +1822,15 @@ List<Vector2>? _points(Object? json) {
 
 /// Where [json] puts an origin, the middle of the bounds by default, or null.
 /// See [_pivot] for why an unknown word is null rather than the default.
+///
+/// The value's [OriginPlacement.name] is read as well as its wire word, so
+/// an agent may write `boundsCenter` where a journal writes `boundsCentre`.
 OriginPlacement? _placement(Object? json) => json == null
     ? OriginPlacement.boundsCenter
     : OriginPlacement.values
-          .where((OriginPlacement each) => each.wire == json)
+          .where(
+            (OriginPlacement each) => each.wire == json || each.name == json,
+          )
           .firstOrNull;
 
 /// The space [json] names, [TransformSpace.global] by default, or null. See

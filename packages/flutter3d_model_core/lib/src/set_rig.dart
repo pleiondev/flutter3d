@@ -71,19 +71,18 @@ final class SkinWeightsBlob {
     ),
   };
 
-  /// A [SkinWeightsBlob] from its own [toJson], or null when a field is
-  /// missing or the wrong shape.
-  static SkinWeightsBlob? fromJson(Object? json) {
-    if (json is! Map<String, Object?>) return null;
-    return switch (json) {
-      {'baseVersion': final int baseVersion, 'data': final String encoded} =>
-        SkinWeightsBlob(
-          baseVersion: baseVersion,
-          data: Float32List.sublistView(base64Decode(encoded)),
-        ),
-      _ => null,
-    };
-  }
+  /// A [SkinWeightsBlob] from its own [toJson]. Throws a
+  /// [ProjectFormatException] when a field is missing or the wrong shape.
+  static SkinWeightsBlob fromJson(Object? json) => switch (json) {
+    {'baseVersion': final int baseVersion, 'data': final String encoded} =>
+      SkinWeightsBlob(
+        baseVersion: baseVersion,
+        data: Float32List.sublistView(base64Decode(encoded)),
+      ),
+    _ => throw const ProjectFormatException(
+      'skin weights name their whole "baseVersion" and their base64 "data"',
+    ),
+  };
 }
 
 /// One history step for a whole auto-rig result. See this file's own library

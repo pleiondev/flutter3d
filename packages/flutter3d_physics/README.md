@@ -97,7 +97,7 @@ verifies by replay stays on `deterministic`.
 
 ## A liquid at its temperature
 
-A `LiquidBody` has a `state` (a `MaterialState`: temperature, pressure),
+A `LiquidBody` has a `state` (a `MatterState`: temperature, pressure),
 and what floats in it reads the liquid's density and viscosity at that
 state through the catalogue's laws (`FluidMedium.at`). Glycerol at 40 °C
 is a fifth as viscous as at 20 °C, so a ball sinks through it nearly five

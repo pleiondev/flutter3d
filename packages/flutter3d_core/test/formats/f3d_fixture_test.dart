@@ -16,6 +16,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 import 'package:test/test.dart';
 
 Uint8List _fixture(int version) =>
@@ -263,7 +264,7 @@ void main() {
     // Minted once with every bundle section; a reader that drops one, or
     // reads one at the wrong offset, fails here.
     final lamp = bundle.lights.single;
-    expect(lamp.type, ModelLightType.spot);
+    expect(lamp.type, LightType.spot);
     expect(lamp.intensity, 100.0);
     expect(lamp.range, 12.0);
     expect(bundle.cameras.single.projection, isA<ModelPerspectiveCamera>());

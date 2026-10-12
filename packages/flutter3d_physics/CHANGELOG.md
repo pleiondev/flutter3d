@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **`JetObstacle.touch` answers an `ObstacleTouch`**, a class with the
+  record's `normal` and `depth`, so an obstacle somebody mixes in can say
+  more in a minor.
 - **A material's loss factor is impact damping.** In a world whose profile
   is not bit-exact (`WorldProperties.profile`), `Dynamics` bounces a
   contact with no more than `restitutionOfLossFactor` of the lossier

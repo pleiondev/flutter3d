@@ -10,6 +10,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d/flutter3d.dart' show LightType;
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
@@ -47,7 +48,7 @@ final class SceneSourcePanel extends StatelessWidget {
   /// The light at this index should be dropped — `RemoveLight`'s own index.
   final ValueChanged<int> onRemove;
 
-  final void Function(int index, ProjectLightType type) onTypeChanged;
+  final void Function(int index, LightType type) onTypeChanged;
   final void Function(int index, double value) onIntensityChanged;
   final void Function(int index, double value) onRangeChanged;
   final void Function(int index, bool value) onShadowChanged;
@@ -56,10 +57,10 @@ final class SceneSourcePanel extends StatelessWidget {
   /// and only offered when [selected] names one.
   final void Function(int index, double outerConeAngle) onConeChanged;
 
-  static String _labelOf(ProjectLightType type) => switch (type) {
-    ProjectLightType.point => 'Point',
-    ProjectLightType.spot => 'Spot',
-    // `ProjectLightType` is a value class, not a sealed one — see its own
+  static String _labelOf(LightType type) => switch (type) {
+    LightType.point => 'Point',
+    LightType.spot => 'Spot',
+    // `LightType` is a value class, not a sealed one — see its own
     // doc comment — so a fourth kind reads as directional here until this
     // switch is taught its name, the same fallback `LightingSync` gives it.
     _ => 'Directional',
@@ -119,17 +120,17 @@ final class SceneSourcePanel extends StatelessWidget {
           SectionLabel(l.sceneSource),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
-            child: DropdownButton<ProjectLightType>(
+            child: DropdownButton<LightType>(
               isExpanded: true,
               value: lights[active].type,
-              items: <DropdownMenuItem<ProjectLightType>>[
-                for (final ProjectLightType type in ProjectLightType.values)
-                  DropdownMenuItem<ProjectLightType>(
+              items: <DropdownMenuItem<LightType>>[
+                for (final LightType type in LightType.values)
+                  DropdownMenuItem<LightType>(
                     value: type,
                     child: Text(_labelOf(type)),
                   ),
               ],
-              onChanged: (ProjectLightType? type) {
+              onChanged: (LightType? type) {
                 if (type != null) onTypeChanged(active, type);
               },
             ),
@@ -144,7 +145,7 @@ final class SceneSourcePanel extends StatelessWidget {
             value: lights[active].range,
             onChanged: (double value) => onRangeChanged(active, value),
           ),
-          if (lights[active].type == ProjectLightType.spot)
+          if (lights[active].type == LightType.spot)
             NumberField(
               label: l.sceneCone,
               value: lights[active].outerConeAngle,

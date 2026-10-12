@@ -50,8 +50,8 @@ final class AddLight extends ModelCommand
   Outcome apply(ModelProject project, ProjectSelection selection)
   String get name
   String get says
-  const AddLight({this.type = ProjectLightType.directional, this.at})
-  final ProjectLightType type
+  const AddLight({this.type = LightType.directional, this.at})
+  final LightType type
   final Vector3? at
 
 final class AddLod extends ModelCommand
@@ -415,17 +415,6 @@ final class BindWeightsJobRequest
   final int maxInfluences
   final int objectId
 
-final class BlendMode
-  String toString()
-  double blendChannel(double top, double bottom)
-  final String name
-  static const BlendMode add = BlendMode._('add', _add)
-  static const BlendMode multiply = BlendMode._('multiply', _multiply)
-  static const BlendMode normal = BlendMode._('normal', _normal)
-  static const BlendMode overlay = BlendMode._('overlay', _overlay)
-  static const BlendMode screen = BlendMode._('screen', _screen)
-  static const List<BlendMode> values = <BlendMode>[normal, multiply, add, overlay, screen]
-
 final class BlendTextureNode extends TextureNode
   Map<String, MaterialHint> get hints
   Map<String, Object?> toJson()
@@ -469,7 +458,7 @@ final class BrushSample
   const BrushSample({required this.center, required this.radius})
   final Vector3 center
   final double radius
-  static BrushSample? fromJson(Object? json)
+  static BrushSample fromJson(Object? json)
 
 final class BudgetUsage
   String toString()
@@ -506,15 +495,15 @@ final class ChannelsTextureNode extends TextureNode
   final int? source
 
 final class CheckerTextureNode extends TextureNode
-  CheckerTextureNode({required super.id, Vector4? colorA, Vector4? colorB, this.scale = 8.0})
   Map<String, MaterialHint> get hints
   Map<String, Object?> toJson()
   Map<String, TextureInputSocket> get inputs
   R accept<R>(TextureNodeVisitor<R> visitor)
   String get kind
   TextureValueType get outputType
-  final Vector4 colorA
-  final Vector4 colorB
+  const CheckerTextureNode({required super.id, this.colorA = LinearColor.black, this.colorB = LinearColor.white, this.scale = 8.0})
+  final LinearColor colorA
+  final LinearColor colorB
   final double scale
 
 final class ChoiceHint extends ParamHint
@@ -529,7 +518,7 @@ final class ColorTextureNode extends TextureNode
   String get kind
   TextureValueType get outputType
   const ColorTextureNode({required super.id, required this.value})
-  final Vector4 value
+  final LinearColor value
 
 final class CommandJournal
   CommandJournal()
@@ -699,8 +688,8 @@ final class ExportFormat
 final class ExportIssue
   String toString()
   const ExportIssue(this.severity, this.message, {this.object})
-  final ExportSeverity severity
   final ModelObject? object
+  final Severity severity
   final String message
 
 final class ExportReadiness
@@ -718,14 +707,6 @@ final class ExportRefused extends ExportResult
 
 abstract final class ExportResult
   const ExportResult()
-
-final class ExportSeverity
-  String toString()
-  final String name
-  static ExportSeverity? byName(String name)
-  static const ExportSeverity error = ExportSeverity._('error')
-  static const ExportSeverity warning = ExportSeverity._('warning')
-  static const List<ExportSeverity> values = <ExportSeverity>[warning, error]
 
 final class ExportWritten extends ExportResult
   const ExportWritten(this.files, this.warnings)
@@ -900,7 +881,7 @@ final class JobRequest
   final Uint8List meshBytes
   final int baseVersion
   final int objectId
-  static JobRequest? fromJson(Map<String, Object?> json)
+  static JobRequest fromJson(Map<String, Object?> json)
 
 final class JobResult
   Map<String, Object?> toJson()
@@ -908,7 +889,7 @@ final class JobResult
   final Uint8List meshBytes
   final int baseVersion
   final int objectId
-  static JobResult? fromJson(Map<String, Object?> json)
+  static JobResult fromJson(Map<String, Object?> json)
 
 final class JournalReplay
   bool get isOk
@@ -916,15 +897,6 @@ final class JournalReplay
   factory JournalReplay.refused(String said)
   final ModelHistory? history
   final String? refused
-
-final class Key
-  Key withTangents({List<double>? inTangent, List<double>? outTangent})
-  Key withTime(double newTime)
-  const Key({required this.time, required this.values, this.inTangent, this.outTangent})
-  final List<double> values
-  final List<double>? inTangent
-  final List<double>? outTangent
-  final double time
 
 final class KeyShape extends ModelCommand
   Map<String, Object?> get arguments
@@ -939,8 +911,8 @@ final class KeyShape extends ModelCommand
 final class KeyTable
   AnimationInterpolation interpolation
   AnimationTrack toAnimationTrack({required int nodeIndex, required AnimationPath path})
-  KeyTable({required this.componentCount, this.interpolation = AnimationInterpolation.linear, List<Key>? keys})
-  List<Key> get keys
+  KeyTable({required this.componentCount, this.interpolation = AnimationInterpolation.linear, List<Keyframe>? keys})
+  List<Keyframe> get keys
   double get duration
   factory KeyTable.fromAnimationTrack(AnimationTrack track)
   final int componentCount
@@ -954,6 +926,15 @@ final class KeyTable
   void setInterpolation(AnimationInterpolation next)
   void setKey(double time, List<double> values, {List<double>? inTangent, List<double>? outTangent})
   void setTangent(int index, {List<double>? inTangent, List<double>? outTangent})
+
+final class Keyframe
+  Keyframe withTangents({List<double>? inTangent, List<double>? outTangent})
+  Keyframe withTime(double newTime)
+  const Keyframe({required this.time, required this.values, this.inTangent, this.outTangent})
+  final List<double> values
+  final List<double>? inTangent
+  final List<double>? outTangent
+  final double time
 
 final class LevelsTextureNode extends TextureNode
   Map<String, MaterialHint> get hints
@@ -1286,12 +1267,23 @@ final class PackAtlas extends ModelCommand
   final List<int> objectIds
   final double margin
 
+final class PaintBlendMode
+  String toString()
+  double blendChannel(double top, double bottom)
+  final String name
+  static const List<PaintBlendMode> values = <PaintBlendMode>[normal, multiply, add, overlay, screen]
+  static const PaintBlendMode add = PaintBlendMode._('add', _add)
+  static const PaintBlendMode multiply = PaintBlendMode._('multiply', _multiply)
+  static const PaintBlendMode normal = PaintBlendMode._('normal', _normal)
+  static const PaintBlendMode overlay = PaintBlendMode._('overlay', _overlay)
+  static const PaintBlendMode screen = PaintBlendMode._('screen', _screen)
+
 final class PaintLayer
   PaintLayer paintTile(int tx, int ty, Uint8List pixels)
-  PaintLayer({required this.tilesX, required this.tilesY, this.blendMode = BlendMode.normal, Map<int, PaintTile>? tiles})
+  PaintLayer({required this.tilesX, required this.tilesY, this.blendMode = PaintBlendMode.normal, Map<int, PaintTile>? tiles})
   PaintTile? tileAt(int tx, int ty)
-  final BlendMode blendMode
   final Map<int, PaintTile> tiles
+  final PaintBlendMode blendMode
   final int tilesX
   final int tilesY
 
@@ -1302,14 +1294,14 @@ final class PaintMirror
   final double plane
   final double tolerance
   final int axis
-  static PaintMirror? fromJson(Object? json)
+  static PaintMirror fromJson(Object? json)
 
 final class PaintSample
   Map<String, Object?> toJson()
   const PaintSample({required this.center, required this.radius})
   final Vector3 center
   final double radius
-  static PaintSample? fromJson(Object? json)
+  static PaintSample fromJson(Object? json)
 
 final class PaintStack
   List<double> pixelAt(int x, int y)
@@ -1430,24 +1422,16 @@ final class ProjectFormatException extends Flutter3dFormatException
   final String message
 
 final class ProjectLight
-  ProjectLight copyWith({ProjectLightType? type, Vector3? color, double? intensity, double? range, bool? castsShadow, double? innerConeAngle, double? outerConeAngle, Matrix4? transform})
-  ProjectLight({this.type = ProjectLightType.directional, Vector3? color, this.intensity = 5790.583578, this.range = 0.0, this.castsShadow = false, this.innerConeAngle = 0.0, this.outerConeAngle = math.pi / 4.0, Matrix4? transform})
+  ProjectLight copyWith({LightType? type, LinearColor? color, double? intensity, double? range, bool? castsShadow, double? innerConeAngle, double? outerConeAngle, Matrix4? transform})
+  ProjectLight({this.type = LightType.directional, this.color = LinearColor.white, this.intensity = 5790.583578, this.range = 0.0, this.castsShadow = false, this.innerConeAngle = 0.0, this.outerConeAngle = math.pi / 4.0, Matrix4? transform})
+  final LightType type
+  final LinearColor color
   final Matrix4 transform
-  final ProjectLightType type
-  final Vector3 color
   final bool castsShadow
   final double innerConeAngle
   final double intensity
   final double outerConeAngle
   final double range
-
-final class ProjectLightType
-  String toString()
-  final String name
-  static const List<ProjectLightType> values = <ProjectLightType>[directional, point, spot]
-  static const ProjectLightType directional = ProjectLightType._('directional')
-  static const ProjectLightType point = ProjectLightType._('point')
-  static const ProjectLightType spot = ProjectLightType._('spot')
 
 final class ProjectMaterial
   ProjectMaterial withBake(SurfaceMaterial next)
@@ -1709,8 +1693,8 @@ final class RenderProjectView
   static const RenderProjectView right = RenderProjectView._('right', math.pi / 2, 0.0)
   static const RenderProjectView top = RenderProjectView._('top', 0.0, _maxPitch)
 
-final class RenderRefusal extends CapabilityException
-  RenderRefusal(this.message)
+final class RenderRefusalException extends CapabilityException
+  RenderRefusalException(this.message)
   String toString()
   final String message
 
@@ -2284,7 +2268,7 @@ final class ShapeDriver
   final double to
   final int jointId
   final int shapeIndex
-  static ShapeDriver? fromJson(Object? json)
+  static ShapeDriver fromJson(Object? json)
 
 final class ShapeDriverCurve
   String toString()
@@ -2323,14 +2307,14 @@ final class SimulationCache
   final List<Float32List> frames
   final int vertexCount
   int get frameCount
-  static SimulationCache? fromJson(Map<String, Object?> json)
+  static SimulationCache fromJson(Map<String, Object?> json)
 
 final class SkinWeightsBlob
   Map<String, Object?> toJson()
   const SkinWeightsBlob({required this.baseVersion, required this.data})
   final Float32List data
   final int baseVersion
-  static SkinWeightsBlob? fromJson(Object? json)
+  static SkinWeightsBlob fromJson(Object? json)
 
 final class SlideEdges extends ModelCommand
   Map<String, Object?> get arguments
@@ -2459,7 +2443,13 @@ final class TextureInfo
   final int width
   int get hashCode
 
-typedef TextureInputSocket = ({TextureValueType type, int? from});
+final class TextureInputSocket
+  String toString()
+  bool operator ==(Object other)
+  const TextureInputSocket({required this.type, this.from})
+  final TextureValueType type
+  final int? from
+  int get hashCode
 
 abstract base class TextureNode
   R accept<R>(TextureNodeVisitor<R> visitor)

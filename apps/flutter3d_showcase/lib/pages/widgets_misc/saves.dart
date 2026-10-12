@@ -24,13 +24,15 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// The game's save data, by version. Version 0 kept health as a number;
 /// version 1 made it a row of hearts; version 2 added a key ring. The
 /// version is the number of migrations, so it cannot move without one.
-final SaveSchema _schema = SaveSchema(<SaveMigration>[
-  (Map<String, Object?> run) {
-    final int health = (run.remove('health') as num? ?? 3).toInt();
-    return run..['hearts'] = <bool>[for (var i = 0; i < health; i++) true];
-  },
-  (Map<String, Object?> run) => run..['keys'] = <String>[],
-]);
+final SaveSchema _schema = SaveSchema(
+  migrations: <SaveMigration>[
+    (Map<String, Object?> run) {
+      final int health = (run.remove('health') as num? ?? 3).toInt();
+      return run..['hearts'] = <bool>[for (var i = 0; i < health; i++) true];
+    },
+    (Map<String, Object?> run) => run..['keys'] = <String>[],
+  ],
+);
 // #endregion schema
 
 /// A storage that is a map, counting its writes.

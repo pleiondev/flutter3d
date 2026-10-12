@@ -7,6 +7,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_elements/flutter3d_elements.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show RigidPose;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
@@ -558,7 +559,7 @@ final class Elements {
 
   /// [ElementsSimulation.follow].
   Follower follow(
-    ElementPose Function() pose, {
+    RigidPose Function() pose, {
     required NativeShape shape,
     ({int layer, int mask})? collides,
   }) => simulation.follow(pose, shape: shape, collides: collides);
@@ -702,7 +703,7 @@ final class ElementsViewPlugin extends Flutter3dPlugin {
   final Elements elements;
 
   /// Where the camera is this frame: origin-local, as the elements'
-  /// positions are (see [ElementPose]).
+  /// positions are (see [RigidPose]).
   final Vector3 Function() eye;
 
   /// The camera, for what comes into its picture; null for none.

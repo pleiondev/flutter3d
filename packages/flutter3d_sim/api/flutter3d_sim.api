@@ -93,7 +93,16 @@ abstract final class ActorCodecs
   static final InPlaceCodec<Thinking> thinking
   static final InPlaceCodec<Vitality> vitality
 
-typedef ActorCue = ({int step, String actor, ActorCueKind kind, Vector3? at, String? clip});
+final class ActorCue
+  String toString()
+  bool operator ==(Object other)
+  const ActorCue({required this.step, required this.actor, required this.kind, this.at, this.clip})
+  final ActorCueKind kind
+  final String actor
+  final String? clip
+  final Vector3? at
+  final int step
+  int get hashCode
 
 final class ActorCueKind
   String toString()
@@ -185,8 +194,8 @@ final class ActorSystem
   void turnTowards(Actor actor, double x, double z, double dt)
 
 final class AtLeastOne extends LevelRule
-  const AtLeastOne(this.type, {this.because, this.severity = LevelIssueSeverity.warning})
-  final LevelIssueSeverity severity
+  const AtLeastOne(this.type, {this.because, this.severity = Severity.warning})
+  final Severity severity
   final String type
   final String? because
   void check(Level level, List<LevelIssue> out)
@@ -318,7 +327,11 @@ final class BehaviorTreeRead
   final BehaviorTree? tree
   final List<String> problems
 
-typedef BehaviorView = ({Actor actor, ActorSystem system, Blackboard board});
+final class BehaviorView
+  const BehaviorView({required this.actor, required this.system, required this.board})
+  final Actor actor
+  final ActorSystem system
+  final Blackboard board
 
 final class BehaviorsRead extends LevelRule
   const BehaviorsRead(this.kinds, {this.property = 'behavior'})
@@ -342,7 +355,7 @@ final class Blackboard
   final List<int> path
   final Map<int, Object?> memory
   final Map<int, double> readyAt
-  static Blackboard? fromJson(Object? data)
+  static Blackboard fromJson(Object? data)
   static final ComponentCodec<Blackboard> codec
   void remove(String key)
   void restart()
@@ -452,7 +465,15 @@ final class ButtonKind extends EntityKind
 
 typedef ButtonPair = ({GameAction negative, GameAction positive});
 
-typedef CameraKey = ({int step, Vector3 at, Vector3 look, double fovY});
+final class CameraKey
+  String toString()
+  bool operator ==(Object other)
+  const CameraKey({required this.step, required this.at, required this.look, required this.fovY})
+  final Vector3 at
+  final Vector3 look
+  final double fovY
+  final int step
+  int get hashCode
 
 final class CameraScreenKind extends _SurfaceKind
   const CameraScreenKind()
@@ -983,7 +1004,13 @@ final class Facing
   double turnRate
   double yaw
 
-typedef FadeKey = ({int step, double value});
+final class FadeKey
+  String toString()
+  bool operator ==(Object other)
+  const FadeKey({required this.step, required this.value})
+  final double value
+  final int step
+  int get hashCode
 
 final class Fixture
   Fixture({required this.entity, required Vector3 size, required this.material, this.collider, Vector3? at, this.mechanism})
@@ -1101,6 +1128,22 @@ abstract base class GenrePlugin<S extends Object> extends Flutter3dPlugin
   void declareEvents(EventRegistry events)
   void install(PluginHost host)
   void uninstall(PluginHost host)
+
+abstract final class GeometryTolerance
+  static const double divisor = 1e-9
+  static const double gridBias = 1e-6
+  static const double sameSurface = 1e-4
+  static const double zeroLength = 1e-6
+
+final class GhostFrame
+  GhostFrame({this.time = 0.0, this.yaw = 0.0})
+  Map<String, Object?> toJson()
+  double time
+  double yaw
+  factory GhostFrame.fromJson(Map<String, Object?> json)
+  final Vector3 position
+  final Vector3 up
+  void setFrom(GhostFrame other)
 
 final class GivenOrder
   String toString()
@@ -1476,26 +1519,18 @@ final class LevelIssue
   String toString()
   bool get isError
   const LevelIssue(this.severity, this.message, {this.where})
-  final LevelIssueSeverity severity
+  final Severity severity
   final String message
   final String? where
-
-final class LevelIssueSeverity
-  String toString()
-  final String name
-  static LevelIssueSeverity? byName(String name)
-  static const LevelIssueSeverity error = LevelIssueSeverity._('error')
-  static const LevelIssueSeverity warning = LevelIssueSeverity._('warning')
-  static const List<LevelIssueSeverity> values = <LevelIssueSeverity>[error, warning]
 
 typedef LevelKit = void Function(LevelSketch sketch, LevelRecipe recipe);
 
 final class LevelLight
   LevelLight withId(String id)
-  LevelLight({String? id, this.type = LevelLightType.point, Vector3? position, Vector3? direction, this.color = LinearColor.white, this.intensity = defaultIntensity, this.range = 0.0, bool? castsShadow, this.name, Map<String, Object?> source = const <String, Object?>{}})
+  LevelLight({String? id, this.type = LightType.point, Vector3? position, Vector3? direction, this.color = LinearColor.white, this.intensity = defaultIntensity, this.range = 0.0, bool? castsShadow, this.name, Map<String, Object?> source = const <String, Object?>{}})
   Map<String, Object?> toJson()
   factory LevelLight.fromJson(Map<String, Object?> json)
-  final LevelLightType type
+  final LightType type
   final LinearColor color
   final String id
   final String? name
@@ -1505,15 +1540,6 @@ final class LevelLight
   final double intensity
   final double range
   static const double defaultIntensity = 5790.583578
-
-final class LevelLightType
-  String toString()
-  final String wireName
-  static LevelLightType? fromWireName(String word)
-  static const LevelLightType directional = LevelLightType._('directional')
-  static const LevelLightType point = LevelLightType._('point')
-  static const LevelLightType spot = LevelLightType._('spot')
-  static const List<LevelLightType> values = <LevelLightType>[directional, point, spot]
 
 final class LevelMaterial
   LevelMaterial({LinearColor? baseColor, this.roughness = 0.85, this.metallic = 0.0, this.emissive = 0.0, this.texelsPerMeter = 1.0, this.albedo, this.normal, this.orm, this.fmat, this.depthLayer = 0, this.parameters = const <String, List<double>>{}, this.materialVersion, this.physicalMaterial, Map<String, Object?> source = const <String, Object?>{}})
@@ -1808,12 +1834,12 @@ final class ManualTime extends TimeSource
   void reset()
 
 final class MaterialStateComponent
-  MaterialStateComponent withState(MaterialState state)
+  MaterialStateComponent withState(MatterState state)
   String toString()
   bool operator ==(Object other)
   const MaterialStateComponent(this.state)
   final Map<String, Object?> unread
-  final MaterialState state
+  final MatterState state
   int get hashCode
   static final ComponentCodec<MaterialStateComponent> codec
 
@@ -2081,7 +2107,7 @@ final class PlatformKind extends EntityKind
 
 final class Playback
   Playback(this.tape)
-  bool sampleAt(double time, Pose out)
+  bool sampleAt(double time, GhostFrame out)
   final Tape tape
 
 final class PlayerSpawnKind extends EntityKind
@@ -2091,16 +2117,6 @@ final class PlayerStart
   const PlayerStart({required this.position, required this.yaw})
   final Vector3 position
   final double yaw
-
-final class Pose
-  Map<String, Object?> toJson()
-  Pose({this.time = 0.0, this.yaw = 0.0})
-  double time
-  double yaw
-  factory Pose.fromJson(Map<String, Object?> json)
-  final Vector3 position
-  final Vector3 up
-  void setFrom(Pose other)
 
 final class PoseRecord
   Map<String, Object?> toJson()
@@ -2503,7 +2519,7 @@ final class SaveResolution
 
 final class SaveSchema
   SaveUpgrade upgrade(Map<String, Object?> run, int from)
-  const SaveSchema([this.migrations = const <SaveMigration>[]])
+  const SaveSchema({this.migrations = const <SaveMigration>[]})
   final List<SaveMigration> migrations
   int get version
 
@@ -2650,7 +2666,14 @@ abstract base class Signal extends Mechanism
   final bool once
   void restore(Map<String, Object?> from)
 
-typedef SignalCue = ({int step, String name, Map<String, Object?> data});
+final class SignalCue
+  String toString()
+  bool operator ==(Object other)
+  const SignalCue({required this.step, required this.name, required this.data})
+  final Map<String, Object?> data
+  final String name
+  final int step
+  int get hashCode
 
 final class SimQueries extends SimulationQueryRegistry
   List<String> get names
@@ -2798,7 +2821,14 @@ final class StepTimeTraceFormatException extends Flutter3dFormatException
   const StepTimeTraceFormatException(this.message)
   final String message
 
-typedef SubtitleCue = ({int from, int to, String text});
+final class SubtitleCue
+  String toString()
+  bool operator ==(Object other)
+  const SubtitleCue({required this.from, required this.to, required this.text})
+  final String text
+  final int from
+  final int to
+  int get hashCode
 
 base class SurfaceTable<T>
   Iterable<String> get names
@@ -2839,7 +2869,7 @@ final class Tape
   bool get isEmpty
   const Tape({required this.poses, required this.seconds})
   double get duration
-  final List<Pose> poses
+  final List<GhostFrame> poses
   final double seconds
 
 sealed class TapeBisection
@@ -2884,7 +2914,14 @@ final class TelemetryReceipt
   final String eraseKey
   final int run
 
-typedef TelemetrySent = ({bool did, String says, TelemetryReceipt? receipt});
+final class TelemetrySent
+  String toString()
+  bool operator ==(Object other)
+  const TelemetrySent({required this.did, required this.says, this.receipt})
+  final String says
+  final TelemetryReceipt? receipt
+  final bool did
+  int get hashCode
 
 abstract base class TelemetrySink
   abstract Future<TelemetrySent> deliver(TelemetryUpload upload)
@@ -2949,12 +2986,6 @@ abstract base class TimeSource
   factory TimeSource.manual()
   factory TimeSource.scaled(double factor)
   void reset()
-
-abstract final class Tolerance
-  static const double divisor = 1e-9
-  static const double gridBias = 1e-6
-  static const double sameSurface = 1e-4
-  static const double zeroLength = 1e-6
 
 final class TrackSample
   Map<String, Object?> toJson()
@@ -3130,9 +3161,9 @@ final class XrPlane
   ExternalStateInput toInput({double? displayTime})
   XrPlane({required this.id, required this.pose, required this.width, required this.depth, this.orientation = XrPlaneOrientation.arbitrary})
   factory XrPlane.fromInput(ExternalStateInput input)
+  final RigidPose pose
   final String id
   final XrPlaneOrientation orientation
-  final XrPose pose
   final double depth
   final double width
   static ExternalStateInput lost(String id, {double? displayTime})
@@ -3149,18 +3180,9 @@ final class XrPlaneOrientation
   static const XrPlaneOrientation horizontalUp = XrPlaneOrientation._('horizontalUp')
   static const XrPlaneOrientation vertical = XrPlaneOrientation._('vertical')
 
-final class XrPose
+extension XrPoseInput on RigidPose
   ExternalStateInput toInput(String source, {double? displayTime, ReadingQuality? quality})
-  List<double> get components
-  Quaternion get orientation
-  String toString()
-  Vector3 get position
-  XrPose({required Vector3 position, required Quaternion orientation})
-  XrPose.identity()
-  bool operator ==(Object other)
-  factory XrPose.fromComponents(List<double> components)
-  factory XrPose.fromInput(ExternalStateInput input)
-  int get hashCode
+  static RigidPose fromInput(ExternalStateInput input)
 
 abstract final class XrPoseSources
   static String aim(XrHand hand)
@@ -3172,8 +3194,8 @@ abstract final class XrPoseSources
 
 final class XrPoses extends Assimilation
   Iterable<String> get sources
-  XrPose? get head
-  XrPose? operator [](String source)
+  RigidPose? get head
+  RigidPose? operator [](String source)
   XrPoses()
   static Registration install(LoopRegistry loop)
   static const String systemName = 'xr.poses'
@@ -3193,9 +3215,9 @@ final class XrSceneMesh
   XrSceneMesh({required this.id, required this.pose, required this.vertices, required this.indices})
   factory XrSceneMesh.fromInput(ExternalStateInput input)
   final Float32List vertices
+  final RigidPose pose
   final String id
   final Uint32List indices
-  final XrPose pose
   static String sourceOf(String id)
 
 Map<String, Object?> applyPrefabOverride(Map<String, Object?> row, Map<String, Object?> keys)

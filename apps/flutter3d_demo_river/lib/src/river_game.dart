@@ -654,7 +654,7 @@ final class RiverGame extends FlameGame
       size: const Range(0.9, 1.2),
       color: _sootThick,
       affectors: <ParticleAffector>[
-        const ParticleGravity(0.6),
+        const ParticleGravity(acceleration: 0.6),
         const ParticleDrag(1.5),
         ParticleColorOverLife(_sootThick, _sootThin),
         const ParticleSizeOverLife(from: 0.5, to: 2.4),

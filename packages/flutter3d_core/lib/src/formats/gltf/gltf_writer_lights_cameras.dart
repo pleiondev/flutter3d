@@ -25,14 +25,14 @@ extension _GltfWriterLightsCameras on GltfWriter {
     if (light.name != null) 'name': light.name,
     // The extension's words, spelled out: a rename of a value must not
     // change what the file says.
-    'type': switch (light.type) {
-      ModelLightType.directional => 'directional',
-      ModelLightType.point => 'point',
-      ModelLightType.spot => 'spot',
+    'type': switch (light.type.base) {
+      LightType.directional => 'directional',
+      LightType.point => 'point',
+      LightType.spot => 'spot',
       _ => throw ArgumentError.value(
         light.type,
         'light.type',
-        'not a type KHR_lights_punctual can hold',
+        'not a type KHR_lights_punctual can hold: it has no area light',
       ),
     },
     // Written whenever it differs from white, rather than always: white is
@@ -42,7 +42,7 @@ extension _GltfWriterLightsCameras on GltfWriter {
       'color': <double>[light.color.r, light.color.g, light.color.b],
     if (light.intensity != 1.0) 'intensity': light.intensity,
     if (light.range != null) 'range': light.range,
-    if (light.type == ModelLightType.spot)
+    if (light.type == LightType.spot)
       'spot': <String, Object?>{
         if (light.innerConeAngle != 0.0) 'innerConeAngle': light.innerConeAngle,
         // math.pi / 4 is the spec default; written back exactly when the

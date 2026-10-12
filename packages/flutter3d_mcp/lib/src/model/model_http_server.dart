@@ -59,7 +59,7 @@ final class ModelHttpServer {
     int port = 0,
     String? token,
     List<ModelPictureTool> extraTools = const <ModelPictureTool>[],
-    void Function(AnsweredCall<PictureAnswer> call)? onToolCall,
+    void Function(AnsweredCall<Answer> call)? onToolCall,
     void Function(String clientName)? onInitialize,
 
     /// `ux-45`: why calls are being refused right now, or null when they are

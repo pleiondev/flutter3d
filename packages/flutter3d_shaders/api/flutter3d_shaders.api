@@ -915,7 +915,7 @@ final class KernelInputs
   final Map<String, KernelTexture> textures
 
 final class KernelPixels extends KernelTexture implements KernelImage
-  KernelPixels(this.width, this.height, [Uint8List? rgba])
+  KernelPixels(this.width, this.height, {Uint8List? rgba})
   final Uint8List rgba
   final int height
   final int width

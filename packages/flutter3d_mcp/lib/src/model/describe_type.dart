@@ -16,6 +16,8 @@
 /// here the day it is written.
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:vector_math/vector_math.dart';
@@ -53,7 +55,7 @@ List<ParametricShape> _shapes() => <ParametricShape>[
 /// One of each texture node, ids all zero for the same reason.
 List<TextureNode> _textureNodes() => <TextureNode>[
   const ImageTextureNode(id: 0, imageId: 0),
-  ColorTextureNode(id: 0, value: Vector4(1, 1, 1, 1)),
+  ColorTextureNode(id: 0, value: LinearColor(1, 1, 1, 1)),
   const BlendTextureNode(id: 0, factor: 0.5),
   const ChannelsTextureNode(id: 0, channel: TextureChannel.r),
   const LevelsTextureNode(id: 0),

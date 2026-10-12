@@ -179,4 +179,21 @@ void main() {
     );
     expect(loaded.entities.queryOf<InFlight>(), isEmpty);
   });
+
+  // Mutation: answer null from `InFlight.fromJson` again, and the reader
+  // gives no reason for the rocket it leaves out.
+  test('a row with no blast is refused by name when read on its own', () {
+    expect(
+      () => InFlight.fromJson(<String, Object?>{
+        'at': <double>[0, 0, 0],
+      }),
+      throwsA(
+        isA<SnapshotFormatException>().having(
+          (SnapshotFormatException e) => e.message,
+          'message',
+          contains('blast'),
+        ),
+      ),
+    );
+  });
 }

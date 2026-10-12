@@ -606,7 +606,7 @@ MaterialHintKind? _hintKind(
       ...switch (choice) {
         final String plain => <EnumHintValue>[EnumHintValue(plain)],
         {'value': final String value, 'label': final String label} =>
-          <EnumHintValue>[EnumHintValue(value, label)],
+          <EnumHintValue>[EnumHintValue(value, label: label)],
         {'value': final String value} => <EnumHintValue>[EnumHintValue(value)],
         _ => const <EnumHintValue>[],
       },

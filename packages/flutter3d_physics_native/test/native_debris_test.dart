@@ -22,7 +22,7 @@ final List<DebrisStatic> _pen = <DebrisStatic>[
 /// A thousand balls of three sizes in ten layers above the pen.
 List<DebrisBody> _pour() => <DebrisBody>[
   for (var i = 0; i < 1000; i++)
-    (
+    DebrisBody(
       position: Vector3(
         -0.85 + (i % 10) * 0.19 + (i % 3) * 0.01,
         0.3 + (i ~/ 100) * 0.25,
@@ -73,7 +73,7 @@ void main() {
     expect(d.capacity, 2);
     d.setStatics(_pen.sublist(0, 1));
     d.add(<DebrisBody>[
-      (
+      DebrisBody(
         position: Vector3(0.0, 0.5, 0.0),
         velocity: Vector3.zero(),
         radius: 0.1,
@@ -148,7 +148,7 @@ void main() {
               DebrisPlane(Vector3(-math.sin(a), math.cos(a), 0.0), 0.0),
             ],
             <DebrisBody>[
-              (
+              DebrisBody(
                 position: Vector3(0.0, 1.0, 0.0),
                 velocity: Vector3.zero(),
                 radius: 0.1,
@@ -160,7 +160,7 @@ void main() {
             _pen.sublist(0, 1),
             <DebrisBody>[
               for (var i = 0; i < 3; i++)
-                (
+                DebrisBody(
                   position: Vector3(0.0, 0.15 + i * 0.35, 0.0),
                   velocity: Vector3.zero(),
                   radius: 0.15 - i * 0.03,
@@ -239,7 +239,7 @@ void main() {
 NativeGpu? _openGpu() {
   try {
     return NativeGpu.open();
-  } on GpuUnavailable {
+  } on GpuUnavailableException {
     return null;
   }
 }

@@ -242,8 +242,8 @@ final class StateDigest {
   /// The cost, stated rather than discovered: two worlds differing only in the
   /// sign of a zero hash the same. Every IEEE operation agrees about them
   /// except division, whose result differs in sign of infinity — and every
-  /// division in this repository is already gated on `Tolerance.divisor`, which
-  /// refuses both zeroes alike.
+  /// division in this repository is already gated on
+  /// `GeometryTolerance.divisor`, which refuses both zeroes alike.
   void _number(num value) {
     _byte(_tagNumber);
     final number = value == 0 ? 0.0 : value.toDouble();

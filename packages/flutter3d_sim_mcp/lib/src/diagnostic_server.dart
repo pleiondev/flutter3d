@@ -26,11 +26,11 @@ const String renderMcpSchemaVersion = '1.0.0';
 /// What each of the diagnostics server's tools is published as, `area.verb`.
 /// The written name stays an alias until 2.0.
 const Map<String, ToolName> diagnosticToolNames = <String, ToolName>{
-  'frame': ToolName('render.frame', ToolHints.reads),
-  'open': ToolName('level.open', ToolHints.writes),
-  'passes': ToolName('render.passes', ToolHints.reads),
-  'pixel': ToolName('render.pixel', ToolHints.reads),
-  'scanNaN': ToolName('render.scanNan', ToolHints.reads),
+  'frame': ToolName('render.frame', hints: ToolHints.reads),
+  'open': ToolName('level.open', hints: ToolHints.writes),
+  'passes': ToolName('render.passes', hints: ToolHints.reads),
+  'pixel': ToolName('render.pixel', hints: ToolHints.reads),
+  'scanNaN': ToolName('render.scanNan', hints: ToolHints.reads),
 };
 
 /// A rendered frame, offered to an agent as a table of tools — `par-02`.
@@ -38,7 +38,7 @@ const Map<String, ToolName> diagnosticToolNames = <String, ToolName>{
 /// One level, one process, no window — the same shape every server here
 /// settled on, and the same [ToolTableServer] underneath it.
 base class DiagnosticMcpServer
-    extends ToolTableServer<DiagnosticSession, PictureAnswer> {
+    extends ToolTableServer<DiagnosticSession, Answer> {
   DiagnosticMcpServer(
     super.channel, {
     required super.session,

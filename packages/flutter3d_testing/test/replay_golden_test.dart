@@ -38,7 +38,7 @@ FrameSubject _emptyScene(FrameRequest request) {
   )..setPositionFrom(Vector3(0.0, 0.0, 5.0));
   camera.lookAt(Vector3.zero());
   scene.add(camera);
-  return (scene: scene, camera: camera);
+  return FrameSubject(scene: scene, camera: camera);
 }
 
 void main() {

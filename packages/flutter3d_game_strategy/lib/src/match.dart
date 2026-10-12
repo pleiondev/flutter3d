@@ -72,9 +72,9 @@ final class Standing {
 /// decided after the step would be answering the previous frame's map, and two
 /// bots doing that would take turns being a step stale — which is a difference
 /// between sides that nobody put there.
-final class Match {
+final class StrategyMatch {
   /// Runs [bots] against each other on [simulation].
-  Match({
+  StrategyMatch({
     required this.simulation,
     required this.bots,
     this.goal = const MatchGoal(),

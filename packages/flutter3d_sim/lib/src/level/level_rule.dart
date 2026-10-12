@@ -1,3 +1,5 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
+
 import 'level.dart';
 import 'level_issue.dart';
 
@@ -38,7 +40,7 @@ final class ExactlyOne extends LevelRule {
     if (count == 1) return;
     out.add(
       LevelIssue(
-        LevelIssueSeverity.error,
+        Severity.error,
         count == 0
             ? 'no $type${because == null ? '' : ': $because'}'
             : 'there are $count $type entities and nothing decides which is '
@@ -50,15 +52,11 @@ final class ExactlyOne extends LevelRule {
 
 /// There should be at least one of a type, or the level is missing something.
 final class AtLeastOne extends LevelRule {
-  const AtLeastOne(
-    this.type, {
-    this.because,
-    this.severity = LevelIssueSeverity.warning,
-  });
+  const AtLeastOne(this.type, {this.because, this.severity = Severity.warning});
 
   final String type;
   final String? because;
-  final LevelIssueSeverity severity;
+  final Severity severity;
 
   @override
   void check(Level level, List<LevelIssue> out) {

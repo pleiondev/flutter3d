@@ -277,7 +277,7 @@ void main() {
               planes: <XrPlane>[
                 XrPlane(
                   id: 'floor',
-                  pose: XrPose.identity(),
+                  pose: RigidPose.identity(),
                   width: 4,
                   depth: 4,
                 ),
@@ -293,7 +293,7 @@ void main() {
         );
         final panel = XrPanel(
           child: const SizedBox(),
-          pose: XrPose.identity(),
+          pose: RigidPose.identity(),
           shape: XrPanelShape.cylinder,
         );
         var drawn = 0;
@@ -372,7 +372,7 @@ void main() {
       await first.start(const XrSessionRequest());
       final anchor = await first.placeAnchor(
         XrAnchorRequest(
-          pose: XrPose(
+          pose: RigidPose(
             position: Vector3(0.4, 0.9, -1.2),
             orientation: Quaternion(0.0, 0.38268343236, 0.0, 0.92387953251),
           ),
@@ -406,7 +406,11 @@ void main() {
         longitude: 0.2269,
         altitude: 40.0,
       );
-      final anchor = XrAnchor(id: 'bench', pose: XrPose.identity(), geo: north);
+      final anchor = XrAnchor(
+        id: 'bench',
+        pose: RigidPose.identity(),
+        geo: north,
+      );
       final world = WorldProperties(geoOrigin: site);
 
       final at = anchor.placeIn(world)!;
@@ -418,7 +422,7 @@ void main() {
       // no place on the Earth.
       expect(anchor.placeIn(WorldProperties()), isNull);
       expect(
-        XrAnchor(id: 'indoor', pose: XrPose.identity()).placeIn(world),
+        XrAnchor(id: 'indoor', pose: RigidPose.identity()).placeIn(world),
         isNull,
       );
     });
@@ -429,7 +433,7 @@ void main() {
       );
       await session.start(const XrSessionRequest());
       await expectLater(
-        session.placeAnchor(XrAnchorRequest(pose: XrPose.identity())),
+        session.placeAnchor(XrAnchorRequest(pose: RigidPose.identity())),
         throwsA(
           isA<UnsupportedCapabilityException>().having(
             (e) => e.feature,

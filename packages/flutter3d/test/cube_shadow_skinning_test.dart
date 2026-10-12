@@ -26,6 +26,7 @@ import 'package:flutter3d_core/src/engine/scene/mesh_node.dart';
 import 'package:flutter3d_core/src/engine/scene/scene.dart';
 import 'package:flutter3d_core/src/engine/scene/scene_node.dart';
 import 'package:flutter3d_core/src/engine/scene/skeleton.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';

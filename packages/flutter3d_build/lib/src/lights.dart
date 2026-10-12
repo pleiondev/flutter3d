@@ -43,7 +43,7 @@ Future<int> runLights(
     return 1;
   }
 
-  final poses = <Pose>[];
+  final poses = <GhostFrame>[];
   for (final path in options.poses) {
     final read = _posesIn(path);
     if (read == null) {
@@ -197,7 +197,7 @@ AssetManifest _manifestAbove(Directory directory) {
 
 /// The poses in the file at [path]: a JSON list of them, or an object with
 /// the list under `poses`. Null when the file holds neither.
-List<Pose>? _posesIn(String path) {
+List<GhostFrame>? _posesIn(String path) {
   final file = File(path);
   if (!file.existsSync()) return null;
   final Object? decoded;
@@ -212,9 +212,9 @@ List<Pose>? _posesIn(String path) {
     _ => null,
   };
   if (rows == null) return null;
-  return <Pose>[
+  return <GhostFrame>[
     for (final row in rows)
-      if (row is Map) Pose.fromJson(row.cast<String, Object?>()),
+      if (row is Map) GhostFrame.fromJson(row.cast<String, Object?>()),
   ];
 }
 

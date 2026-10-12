@@ -10,7 +10,7 @@
 ///
 /// **What it proves.** Each seam a plugin after 1.0 stands on, used the way
 /// somebody else's package would: a quantity added to a body's
-/// `MaterialState` (S1), the contact event heard from the bus (S2), a field
+/// `MatterState` (S1), the contact event heard from the bus (S2), a field
 /// declared and written (S3), and a solver registered as a subsystem with
 /// what it reads and writes (S4), switched on by a profile of its own, so
 /// installing the plugin leaves what the default simulation computes alone:

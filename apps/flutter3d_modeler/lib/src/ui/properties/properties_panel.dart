@@ -424,7 +424,7 @@ class PropertiesPanel extends StatelessWidget {
   final ValueChanged<int> onSelectLight;
   final VoidCallback onAddLight;
   final ValueChanged<int> onRemoveLight;
-  final void Function(int index, ProjectLightType type) onLightTypeChanged;
+  final void Function(int index, LightType type) onLightTypeChanged;
   final void Function(int index, double value) onLightIntensityChanged;
   final void Function(int index, double value) onLightRangeChanged;
   final void Function(int index, bool value) onLightShadowChanged;

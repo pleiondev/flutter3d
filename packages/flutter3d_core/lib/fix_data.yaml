@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: dd501ac03fa77814
+# table-stamp: 738a9d681d9e0807
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -146,66 +146,6 @@ transforms:
         newElement:
           uris: ['package:flutter3d_core/formats.dart']
           class: 'Ktx2SupercompressionScheme'
-  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialBinary)'
-    date: 2026-10-08
-    element:
-      uris: ['package:flutter3d/flutter3d.dart']
-      class: 'MaterialBinary'
-    changes:
-      - kind: 'replacedBy'
-        newElement:
-          uris: ['package:flutter3d_core/formats.dart']
-          class: 'MaterialBinary'
-  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialBuiltin)'
-    date: 2026-10-08
-    element:
-      uris: ['package:flutter3d/flutter3d.dart']
-      class: 'MaterialBuiltin'
-    changes:
-      - kind: 'replacedBy'
-        newElement:
-          uris: ['package:flutter3d_core/formats.dart']
-          class: 'MaterialBuiltin'
-  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialCall)'
-    date: 2026-10-08
-    element:
-      uris: ['package:flutter3d/flutter3d.dart']
-      class: 'MaterialCall'
-    changes:
-      - kind: 'replacedBy'
-        newElement:
-          uris: ['package:flutter3d_core/formats.dart']
-          class: 'MaterialCall'
-  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialConstant)'
-    date: 2026-10-08
-    element:
-      uris: ['package:flutter3d/flutter3d.dart']
-      class: 'MaterialConstant'
-    changes:
-      - kind: 'replacedBy'
-        newElement:
-          uris: ['package:flutter3d_core/formats.dart']
-          class: 'MaterialConstant'
-  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialConstruct)'
-    date: 2026-10-08
-    element:
-      uris: ['package:flutter3d/flutter3d.dart']
-      class: 'MaterialConstruct'
-    changes:
-      - kind: 'replacedBy'
-        newElement:
-          uris: ['package:flutter3d_core/formats.dart']
-          class: 'MaterialConstruct'
-  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialExpression)'
-    date: 2026-10-08
-    element:
-      uris: ['package:flutter3d/flutter3d.dart']
-      class: 'MaterialExpression'
-    changes:
-      - kind: 'replacedBy'
-        newElement:
-          uris: ['package:flutter3d_core/formats.dart']
-          class: 'MaterialExpression'
   - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialInput)'
     date: 2026-10-08
     element:
@@ -246,16 +186,6 @@ transforms:
         newElement:
           uris: ['package:flutter3d_core/formats.dart']
           class: 'MaterialLocalRef'
-  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialNegate)'
-    date: 2026-10-08
-    element:
-      uris: ['package:flutter3d/flutter3d.dart']
-      class: 'MaterialNegate'
-    changes:
-      - kind: 'replacedBy'
-        newElement:
-          uris: ['package:flutter3d_core/formats.dart']
-          class: 'MaterialNegate'
   - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialParamRef)'
     date: 2026-10-08
     element:
@@ -286,16 +216,6 @@ transforms:
         newElement:
           uris: ['package:flutter3d_core/formats.dart']
           class: 'MaterialSample'
-  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialSwizzle)'
-    date: 2026-10-08
-    element:
-      uris: ['package:flutter3d/flutter3d.dart']
-      class: 'MaterialSwizzle'
-    changes:
-      - kind: 'replacedBy'
-        newElement:
-          uris: ['package:flutter3d_core/formats.dart']
-          class: 'MaterialSwizzle'
   - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (ModelOrthographicCamera)'
     date: 2026-10-08
     element:
@@ -1953,3 +1873,83 @@ transforms:
         newElement:
           uris: ['package:flutter3d_core/flutter3d_core.dart']
           function: 'deviceClassPath'
+  - title: 'flutter3d 1.0.0-rc.1: rc-core-MaterialType-rename'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      class: 'MaterialType'
+    changes:
+      - kind: 'rename'
+        newName: 'ExpressionType'
+  - title: 'flutter3d 1.0.0-rc.1: rc-core-MaterialBinary-rename'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      class: 'MaterialBinary'
+    changes:
+      - kind: 'rename'
+        newName: 'ExpressionBinary'
+  - title: 'flutter3d 1.0.0-rc.1: rc-core-MaterialBuiltin-rename'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      class: 'MaterialBuiltin'
+    changes:
+      - kind: 'rename'
+        newName: 'ExpressionBuiltin'
+  - title: 'flutter3d 1.0.0-rc.1: rc-core-MaterialCall-rename'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      class: 'MaterialCall'
+    changes:
+      - kind: 'rename'
+        newName: 'ExpressionCall'
+  - title: 'flutter3d 1.0.0-rc.1: rc-core-MaterialConstant-rename'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      class: 'MaterialConstant'
+    changes:
+      - kind: 'rename'
+        newName: 'ExpressionConstant'
+  - title: 'flutter3d 1.0.0-rc.1: rc-core-MaterialConstruct-rename'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      class: 'MaterialConstruct'
+    changes:
+      - kind: 'rename'
+        newName: 'ExpressionConstruct'
+  - title: 'flutter3d 1.0.0-rc.1: rc-core-MaterialExpression-rename'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      class: 'MaterialExpression'
+    changes:
+      - kind: 'rename'
+        newName: 'Expression'
+  - title: 'flutter3d 1.0.0-rc.1: rc-core-MaterialNegate-rename'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      class: 'MaterialNegate'
+    changes:
+      - kind: 'rename'
+        newName: 'ExpressionNegate'
+  - title: 'flutter3d 1.0.0-rc.1: rc-core-MaterialSwizzle-rename'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      class: 'MaterialSwizzle'
+    changes:
+      - kind: 'rename'
+        newName: 'ExpressionSwizzle'
+  - title: 'flutter3d 1.0.0-rc.1: rc-core-ModelLightType-lighttype'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      enum: 'ModelLightType'
+    changes:
+      - kind: 'rename'
+        newName: 'LightType'

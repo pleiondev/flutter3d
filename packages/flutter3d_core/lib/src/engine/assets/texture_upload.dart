@@ -4,6 +4,8 @@ import 'dart:typed_data';
 // imported below from `ktx2/ktx2.dart`, is the one that maps to a
 // `TextureFormat` — see that file's doc comment for why the two exist.
 import 'package:flutter3d_core/formats.dart' hide Ktx2Texture;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Flutter3dException;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import '../platform/background.dart';
@@ -108,18 +110,25 @@ Rgba8Image fitRgba8Image(Rgba8Image image, {required int maxDimension}) {
 /// PNG of the same dimensions always cost;
 /// a file carrying BC, ETC2 or ASTC blocks is uploaded as those blocks —
 /// the upload that actually shrinks device memory — after
-/// [GraphicsDevice.textureFormatSupport] has said yes, and left out with a
-/// reason through [report] when it says no. Nothing is substituted: a device
-/// without BC7 gets no texture rather than a guess at one, because the guess
-/// would be a decoder this engine does not have.
+/// [GraphicsDevice.textureFormatSupport] has said yes, and refused with a
+/// [DeviceResourceException] naming the format when it says no. Nothing is
+/// substituted: a device without BC7 gets no texture rather than a guess at
+/// one, because the guess would be a decoder this engine does not have.
 ///
 /// [codecs], the image formats plugins brought (`ModelDecoders.textureCodecs`),
 /// are offered the bytes before anything else — D22b.
 ///
-/// [report] hears why an image was left out, in a sentence naming the
-/// format or the feature — a refused supercompression scheme, a family the
-/// device does not sample, a size that is not whole blocks. Null loses the
-/// sentence, which is what every caller did before there was one to lose.
+/// **A refusal throws, and says why** (E.7): an [ImageFormatException] for
+/// bytes nothing here reads (none at all, or an image the decoder refuses),
+/// the [Ktx2FormatException] of a KTX2 file this build cannot open (a
+/// refused supercompression scheme), and a [DeviceResourceException] for a
+/// texture the device cannot hold (a family it does not sample, a size that
+/// is not whole blocks, an allocation it refuses). A loader that keeps "one
+/// texture costs a texture, not the model" catches [Flutter3dException]
+/// and reports the message. It answered null before, which a caller could
+/// not tell from a texture it never asked for.
+///
+/// [report] hears what a plugin's codec says while it decodes.
 ///
 /// **The chain is not a memory saving.** It is an aliasing fix: without it a
 /// minified surface samples one texel out of every several and crawls as the
@@ -145,7 +154,7 @@ Rgba8Image fitRgba8Image(Rgba8Image image, {required int maxDimension}) {
 /// the device's own largest texture is the ceiling ([textureDecodeCap]). A
 /// KTX2 file is not rescaled — its blocks were encoded at their size — but
 /// one that carries a chain starts at the first level that fits.
-Future<TextureHandle?> uploadEncodedImage(
+Future<TextureHandle> uploadEncodedImage(
   GraphicsDevice device,
   Uint8List encoded, {
   required ImageDecoder decodeImage,
@@ -155,7 +164,9 @@ Future<TextureHandle?> uploadEncodedImage(
   bool platformDecode = true,
   TextureCodecs? codecs,
 }) async {
-  if (encoded.isEmpty) return null;
+  if (encoded.isEmpty) {
+    throw const ImageFormatException('there are no bytes to decode');
+  }
   final cap = textureDecodeCap(device, maxDimension: maxDimension);
 
   // A plugin's own image format first (D22b): the first codec that claims
@@ -166,17 +177,18 @@ Future<TextureHandle?> uploadEncodedImage(
     final Rgba8Image? decoded;
     try {
       decoded = await codec.decode(
-        TextureDecodeContext(
-          bytes: encoded,
-          maxDimension: cap,
-          report: report,
-        ),
+        TextureDecodeContext(bytes: encoded, maxDimension: cap, report: report),
       );
+    } on Flutter3dException {
+      rethrow;
     } catch (error) {
-      report?.call('${codec.name} could not read the image: $error');
-      return null;
+      throw ImageFormatException(
+        '${codec.name} could not read the image: $error',
+      );
     }
-    if (decoded == null) return null;
+    if (decoded == null) {
+      throw ImageFormatException('${codec.name} could not read the image');
+    }
     final image = fitRgba8Image(decoded, maxDimension: cap);
     return _uploadRgba8(
       device,
@@ -188,7 +200,7 @@ Future<TextureHandle?> uploadEncodedImage(
   }
 
   if (isKtx2File(encoded)) {
-    return _uploadKtx2(device, sampling, encoded, report, cap);
+    return _uploadKtx2(device, sampling, encoded, cap);
   }
 
   if (platformDecode && device is EncodedImageUpload) {
@@ -211,12 +223,18 @@ Future<TextureHandle?> uploadEncodedImage(
     decoded = decodeImage is SizedImageDecoder
         ? await decodeImage(encoded, maxDimension: cap)
         : await decodeImage(encoded);
-  } catch (_) {
-    // An unsupported or corrupt image should degrade to "no texture", not take
-    // the whole model down with it.
-    return null;
+  } on Flutter3dException {
+    rethrow;
+  } catch (error) {
+    // The decoder's own refusal, in whatever type it threw, as the one this
+    // function promises.
+    throw ImageFormatException('the image could not be decoded: $error');
   }
-  if (decoded == null) return null;
+  if (decoded == null) {
+    throw const ImageFormatException(
+      'the image could not be decoded: the decoder read no image',
+    );
+  }
   // A decoder that ignored the cap is held to it here.
   final image = fitRgba8Image(decoded, maxDimension: cap);
 
@@ -237,7 +255,7 @@ Future<TextureHandle?> uploadEncodedImage(
 /// [image] uploaded through [device], with a mip chain when [sampling] asks
 /// for one — [uploadEncodedImage]'s own tail, for pixels that never were an
 /// encoded file: a map packed from several (`packed_maps.dart`).
-TextureHandle? uploadRgba8(
+TextureHandle uploadRgba8(
   GraphicsDevice device,
   Rgba8Image image, {
   TextureSampling sampling = const TextureSampling(),
@@ -255,10 +273,9 @@ TextureHandle? uploadRgba8(
 /// and [MipChain.build] want, and a second call site building the chain
 /// differently is how two loaders end up with two answers.
 ///
-/// Null when the source and the device disagree about how many bytes that
-/// image is — which degrades to "no texture" rather than taking the whole
-/// model down with it. The size the device wants is the device's to know.
-TextureHandle? _uploadRgba8(
+/// Throws the device's [DeviceResourceException] when it refuses the
+/// texture — the size the device wants is the device's to know.
+TextureHandle _uploadRgba8(
   GraphicsDevice device,
   TextureSampling sampling,
   int width,
@@ -268,33 +285,28 @@ TextureHandle? _uploadRgba8(
   final levels = buildsMipChain(device, sampling, width, height)
       ? MipChain.build(pixels, width, height)
       : null;
-  // The device refuses with a `DeviceResourceException` since 1.0; a loader
-  // keeps its rule that one texture costs a texture, not the model.
-  try {
-    return device.createTextureFromPixels(
-      width: width,
-      height: height,
-      format: TextureFormat.r8g8b8a8UNormInt,
-      pixels: pixels,
-      mipLevels: levels,
-    );
-  } on DeviceResourceException {
-    return null;
-  }
+  return device.createTextureFromPixels(
+    width: width,
+    height: height,
+    format: TextureFormat.r8g8b8a8UNormInt,
+    pixels: pixels,
+    mipLevels: levels,
+  );
 }
 
 /// Routes a KTX2 file to [Ktx2Texture] rather than `dart:ui`, which does not
 /// read the format at all.
 ///
 /// Four outcomes. A parse failure — a supercompression scheme with no Dart
-/// decompressor, a texture array, a truncated file — is a texture left out
-/// with its reason [report]ed, the same degradation a corrupt PNG gets with
-/// a sentence attached. A single-level RGBA8 result, which is what a Basis
+/// decompressor, a texture array, a truncated file — throws its
+/// [Ktx2FormatException], as a corrupt PNG throws its
+/// [ImageFormatException]. A single-level RGBA8 result, which is what a Basis
 /// file without a chain transcodes to, goes through [_uploadRgba8] and earns
 /// a built chain like a PNG. Anything else — a Basis file with its own chain,
 /// or a file in one of the block-compressed formats — is uploaded as it is,
 /// levels and all, once the device has said it samples the format; a device
-/// that does not is the fourth outcome, and it is a reason, not a guess.
+/// that does not is the fourth outcome, a [DeviceResourceException] that
+/// names the format: a reason, not a guess.
 ///
 /// A transcode is a pass over every block of every level in Dart, so on a
 /// platform with isolates it runs on one: a 2048² Basis texture is a quarter
@@ -306,47 +318,44 @@ TextureHandle? _uploadRgba8(
 /// cooked asset for every device family, so which GPU format it becomes is
 /// decided here, from what this device says it samples, and carried into the
 /// transcode.
-Future<TextureHandle?> _uploadKtx2(
+Future<TextureHandle> _uploadKtx2(
   GraphicsDevice device,
   TextureSampling sampling,
   Uint8List encoded,
-  void Function(String message)? report,
   int cap,
 ) async {
-  final Ktx2Texture texture;
-  try {
-    // **A universal-block file needs its target chosen here — `gfx-83n`.**
-    // The block layout is device-agnostic on purpose, so the one thing it
-    // cannot carry is which GPU format it becomes; that comes from the
-    // device, and the device is not reachable from the isolate the transcode
-    // runs on.
-    final universal = universalBlockFormat(encoded);
-    final UniversalTarget? universalTarget;
-    if (universal != null) {
-      universalTarget = chooseUniversalTarget(
-        device,
-        hasAlpha: universal.hasAlpha,
+  Never refuse(String reason) => throw DeviceResourceException(
+    operation: 'uploadEncodedImage',
+    backend: device.backendName,
+    reason: 'KTX2 texture left out: $reason',
+  );
+  // **A universal-block file needs its target chosen here — `gfx-83n`.**
+  // The block layout is device-agnostic on purpose, so the one thing it
+  // cannot carry is which GPU format it becomes; that comes from the
+  // device, and the device is not reachable from the isolate the transcode
+  // runs on.
+  final universal = universalBlockFormat(encoded);
+  final UniversalTarget? universalTarget;
+  if (universal != null) {
+    universalTarget = chooseUniversalTarget(
+      device,
+      hasAlpha: universal.hasAlpha,
+    );
+    if (universalTarget == null) {
+      refuse(
+        'it holds universal blocks with alpha, and this device samples no '
+        'format that carries it',
       );
-      if (universalTarget == null) {
-        report?.call(
-          'KTX2 texture left out: it holds universal blocks with alpha, and '
-          'this device samples no format that carries it.',
-        );
-        return null;
-      }
-    } else {
-      universalTarget = null;
     }
-
-    texture = _isWeb || !isBasisUniversalKtx2(encoded)
-        ? Ktx2Texture.parse(encoded, universalTarget: universalTarget)
-        : await runInBackground(
-            () => Ktx2Texture.parse(encoded, universalTarget: universalTarget),
-          );
-  } on Ktx2FormatException catch (error) {
-    report?.call('KTX2 file left out: ${error.message}');
-    return null;
+  } else {
+    universalTarget = null;
   }
+
+  final texture = _isWeb || !isBasisUniversalKtx2(encoded)
+      ? Ktx2Texture.parse(encoded, universalTarget: universalTarget)
+      : await runInBackground(
+          () => Ktx2Texture.parse(encoded, universalTarget: universalTarget),
+        );
 
   final format = texture.format;
   // A file with a chain starts at its first level that fits the cap — the
@@ -366,11 +375,7 @@ Future<TextureHandle?> _uploadKtx2(
   }
 
   if (!device.textureFormatSupport(format).sampled) {
-    report?.call(
-      'KTX2 texture left out: it is ${format.name}, which this device does '
-      'not sample.',
-    );
-    return null;
+    refuse('it is ${format.name}, which this device does not sample');
   }
   if (format.isCompressed) {
     // flutter_gpu's rule for an allocation, applied before one is attempted
@@ -380,11 +385,10 @@ Future<TextureHandle?> _uploadKtx2(
     // keep out.
     final block = format.blockLayout;
     if (width % block.blockWidth != 0 || height % block.blockHeight != 0) {
-      report?.call(
-        'KTX2 texture left out: ${width}x$height is not whole '
-        '${block.blockWidth}x${block.blockHeight} blocks of ${format.name}.',
+      refuse(
+        '${width}x$height is not whole '
+        '${block.blockWidth}x${block.blockHeight} blocks of ${format.name}',
       );
-      return null;
     }
   }
 
@@ -394,18 +398,13 @@ Future<TextureHandle?> _uploadKtx2(
           levels.length > 1
       ? levels.sublist(1)
       : null;
-  try {
-    return device.createTextureFromPixels(
-      width: width,
-      height: height,
-      format: format,
-      pixels: levels.first,
-      mipLevels: chain,
-    );
-  } on DeviceResourceException catch (refused) {
-    report?.call('KTX2 texture left out: ${refused.reason}.');
-    return null;
-  }
+  return device.createTextureFromPixels(
+    width: width,
+    height: height,
+    format: format,
+    pixels: levels.first,
+    mipLevels: chain,
+  );
 }
 
 /// How many leading levels of a [levelCount]-level chain on a [width] by

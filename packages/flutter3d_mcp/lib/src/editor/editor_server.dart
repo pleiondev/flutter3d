@@ -35,80 +35,86 @@ const String editorMcpSchemaVersion = '1.2.0';
 /// own word, which `EditorCommand.fromJson` reads — stays answerable as an
 /// alias until 2.0.
 const Map<String, ToolName> editorToolNames = <String, ToolName>{
-  'addBrush': ToolName('brush.add', ToolHints.writes),
-  'addLight': ToolName('light.add', ToolHints.writes),
-  'applyOverrides': ToolName('prefab.applyOverrides', ToolHints.writes),
-  'brighten': ToolName('light.brighten', ToolHints.writes),
-  'capture_draw': ToolName('capture.draw', ToolHints.reads),
-  'capture_open': ToolName('capture.open', ToolHints.reads),
-  'command.run': ToolName('command.run', ToolHints.writes),
-  'createPrefab': ToolName('prefab.create', ToolHints.writes),
-  'delete': ToolName('selection.delete', ToolHints.writes),
-  'duplicate': ToolName('selection.duplicate', ToolHints.writes),
-  'experiment.edit': ToolName('experiment.edit', ToolHints.writes),
-  'experiment.list': ToolName('experiment.list', ToolHints.reads),
-  'experiment.open': ToolName('experiment.open', ToolHints.writes),
+  'addBrush': ToolName('brush.add', hints: ToolHints.writes),
+  'addLight': ToolName('light.add', hints: ToolHints.writes),
+  'applyOverrides': ToolName('prefab.applyOverrides', hints: ToolHints.writes),
+  'brighten': ToolName('light.brighten', hints: ToolHints.writes),
+  'capture_draw': ToolName('capture.draw', hints: ToolHints.reads),
+  'capture_open': ToolName('capture.open', hints: ToolHints.reads),
+  'command.run': ToolName('command.run', hints: ToolHints.writes),
+  'createPrefab': ToolName('prefab.create', hints: ToolHints.writes),
+  'delete': ToolName('selection.delete', hints: ToolHints.writes),
+  'duplicate': ToolName('selection.duplicate', hints: ToolHints.writes),
+  'experiment.edit': ToolName('experiment.edit', hints: ToolHints.writes),
+  'experiment.list': ToolName('experiment.list', hints: ToolHints.reads),
+  'experiment.open': ToolName('experiment.open', hints: ToolHints.writes),
   // Writes over the experiment's file, or one at the path it is given.
-  'experiment.save': ToolName('experiment.save', ToolHints.destroys),
-  'experiment.undo': ToolName('experiment.undo', ToolHints.writes),
-  'generate': ToolName('kit.place', ToolHints.writes),
-  'generate_level': ToolName('level.generate', ToolHints.destroys),
+  'experiment.save': ToolName('experiment.save', hints: ToolHints.destroys),
+  'experiment.undo': ToolName('experiment.undo', hints: ToolHints.writes),
+  'generate': ToolName('kit.place', hints: ToolHints.writes),
+  'generate_level': ToolName('level.generate', hints: ToolHints.destroys),
   // Writes the importer's files into the project and places in the level.
-  'asset.import': ToolName('asset.import', ToolHints.writes),
-  'list': ToolName('level.list', ToolHints.reads),
-  'moveBy': ToolName('selection.move', ToolHints.writes),
-  'optimizeLights': ToolName('light.optimize', ToolHints.writes),
-  'place': ToolName('level.place', ToolHints.writes),
-  'placePrefab': ToolName('prefab.place', ToolHints.writes),
-  'plugin.list': ToolName('plugin.list', ToolHints.reads),
-  'play': ToolName('play.start', ToolHints(openWorld: true)),
+  'asset.import': ToolName('asset.import', hints: ToolHints.writes),
+  'list': ToolName('level.list', hints: ToolHints.reads),
+  'moveBy': ToolName('selection.move', hints: ToolHints.writes),
+  'optimizeLights': ToolName('light.optimize', hints: ToolHints.writes),
+  'place': ToolName('level.place', hints: ToolHints.writes),
+  'placePrefab': ToolName('prefab.place', hints: ToolHints.writes),
+  'plugin.list': ToolName('plugin.list', hints: ToolHints.reads),
+  'play': ToolName('play.start', hints: ToolHints(openWorld: true)),
   'play_build': ToolName(
     'play.build',
-    ToolHints(readOnly: true, openWorld: true),
+    hints: ToolHints(readOnly: true, openWorld: true),
   ),
   'play_devices': ToolName(
     'play.devices',
-    ToolHints(readOnly: true, openWorld: true),
+    hints: ToolHints(readOnly: true, openWorld: true),
   ),
-  'play_events': ToolName('play.events', ToolHints.reads),
+  'play_events': ToolName('play.events', hints: ToolHints.reads),
   // Writes over a tape kept under the same name.
-  'play_keep_tape': ToolName('play.keepTape', ToolHints.destroys),
-  'play_send_level': ToolName('play.sendLevel', ToolHints.writes),
-  'play_status': ToolName('play.status', ToolHints.reads),
-  'play_stop': ToolName('play.stop', ToolHints.destroys),
-  'play_swap': ToolName('play.swap', ToolHints.writes),
-  'prefabs': ToolName('prefab.list', ToolHints.reads),
-  'redo': ToolName('history.redo', ToolHints.writes),
-  'removeBehaviour': ToolName('behavior.remove', ToolHints.writes),
-  'removeCutscene': ToolName('cutscene.remove', ToolHints.writes),
+  'play_keep_tape': ToolName('play.keepTape', hints: ToolHints.destroys),
+  'play_send_level': ToolName('play.sendLevel', hints: ToolHints.writes),
+  'play_status': ToolName('play.status', hints: ToolHints.reads),
+  'play_stop': ToolName('play.stop', hints: ToolHints.destroys),
+  'play_swap': ToolName('play.swap', hints: ToolHints.writes),
+  'prefabs': ToolName('prefab.list', hints: ToolHints.reads),
+  'redo': ToolName('history.redo', hints: ToolHints.writes),
+  'removeBehaviour': ToolName('behavior.remove', hints: ToolHints.writes),
+  'removeCutscene': ToolName('cutscene.remove', hints: ToolHints.writes),
   // Writes over whatever file is at the path it is given.
-  'render_capture_save': ToolName('render.saveCapture', ToolHints.destroys),
-  'render_debug_views': ToolName('render.debugViews', ToolHints.reads),
-  'render_draw': ToolName('render.draw', ToolHints.reads),
-  'render_draws': ToolName('render.draws', ToolHints.reads),
-  'render_memory': ToolName('render.memory', ToolHints.reads),
-  'render_pass_output': ToolName('render.passOutput', ToolHints.reads),
-  'render_passes': ToolName('render.passes', ToolHints.reads),
-  'render_pick': ToolName('render.pick', ToolHints.reads),
-  'render_read_pixel': ToolName('render.readPixel', ToolHints.reads),
-  'render_scan_nan': ToolName('render.scanNan', ToolHints.reads),
-  'render_stats': ToolName('render.stats', ToolHints.reads),
-  'report': ToolName('view.report', ToolHints.reads),
-  'resize': ToolName('selection.resize', ToolHints.writes),
-  'revertOverrides': ToolName('prefab.revertOverrides', ToolHints.writes),
-  'save': ToolName('level.save', ToolHints.destroys),
-  'screenshot': ToolName('view.screenshot', ToolHints.reads),
-  'select': ToolName('selection.set', ToolHints.writes),
-  'setBehaviour': ToolName('behavior.set', ToolHints.writes),
-  'setCutscene': ToolName('cutscene.set', ToolHints.writes),
-  'setField': ToolName('selection.setField', ToolHints.writes),
-  'setLights': ToolName('light.replaceAll', ToolHints.writes),
-  'setOverride': ToolName('prefab.setOverride', ToolHints.writes),
-  'setPrefabField': ToolName('prefab.setField', ToolHints.writes),
-  'turn': ToolName('selection.turn', ToolHints.writes),
-  'undo': ToolName('history.undo', ToolHints.writes),
-  'unpackPrefab': ToolName('prefab.unpack', ToolHints.writes),
-  'validate': ToolName('level.validate', ToolHints.reads),
+  'render_capture_save': ToolName(
+    'render.saveCapture',
+    hints: ToolHints.destroys,
+  ),
+  'render_debug_views': ToolName('render.debugViews', hints: ToolHints.reads),
+  'render_draw': ToolName('render.draw', hints: ToolHints.reads),
+  'render_draws': ToolName('render.draws', hints: ToolHints.reads),
+  'render_memory': ToolName('render.memory', hints: ToolHints.reads),
+  'render_pass_output': ToolName('render.passOutput', hints: ToolHints.reads),
+  'render_passes': ToolName('render.passes', hints: ToolHints.reads),
+  'render_pick': ToolName('render.pick', hints: ToolHints.reads),
+  'render_read_pixel': ToolName('render.readPixel', hints: ToolHints.reads),
+  'render_scan_nan': ToolName('render.scanNan', hints: ToolHints.reads),
+  'render_stats': ToolName('render.stats', hints: ToolHints.reads),
+  'report': ToolName('view.report', hints: ToolHints.reads),
+  'resize': ToolName('selection.resize', hints: ToolHints.writes),
+  'revertOverrides': ToolName(
+    'prefab.revertOverrides',
+    hints: ToolHints.writes,
+  ),
+  'save': ToolName('level.save', hints: ToolHints.destroys),
+  'screenshot': ToolName('view.screenshot', hints: ToolHints.reads),
+  'select': ToolName('selection.set', hints: ToolHints.writes),
+  'setBehaviour': ToolName('behavior.set', hints: ToolHints.writes),
+  'setCutscene': ToolName('cutscene.set', hints: ToolHints.writes),
+  'setField': ToolName('selection.setField', hints: ToolHints.writes),
+  'setLights': ToolName('light.replaceAll', hints: ToolHints.writes),
+  'setOverride': ToolName('prefab.setOverride', hints: ToolHints.writes),
+  'setPrefabField': ToolName('prefab.setField', hints: ToolHints.writes),
+  'turn': ToolName('selection.turn', hints: ToolHints.writes),
+  'undo': ToolName('history.undo', hints: ToolHints.writes),
+  'unpackPrefab': ToolName('prefab.unpack', hints: ToolHints.writes),
+  'validate': ToolName('level.validate', hints: ToolHints.reads),
 };
 
 /// A level editor, offered to an agent as a table of tools.
@@ -127,8 +133,7 @@ const Map<String, ToolName> editorToolNames = <String, ToolName>{
 /// agent's edit and a person's edit land on the document by one route, get one
 /// name in the history, and are undone by the same key. What a server is beyond
 /// its tools is `flutter3d_mcp/kit.dart`'s [ToolTableServer].
-base class EditorMcpServer
-    extends ToolTableServer<EditorSession, PictureAnswer> {
+base class EditorMcpServer extends ToolTableServer<EditorSession, Answer> {
   // `session` is a plain parameter, as `ModelMcpServer`'s is: `toResult`
   // closes over it, and a super parameter cannot be named in the initializer
   // list that forwards it.
@@ -151,7 +156,7 @@ base class EditorMcpServer
                tool.spec.copyWith(outputSchema: editorAnswerSchema),
              ),
          ],
-         toResult: (PictureAnswer answer) => _resultOf(answer, session),
+         toResult: (Answer answer) => _resultOf(answer, session),
        );
 }
 
@@ -176,7 +181,7 @@ const Map<String, Object?> editorAnswerSchema = <String, Object?>{
 
 /// [answer] as a result: the sentence and the picture, and beside them the
 /// machine-readable half [editorAnswerSchema] describes.
-ToolResult _resultOf(PictureAnswer answer, EditorSession session) {
+ToolResult _resultOf(Answer answer, EditorSession session) {
   final ToolResult base = pictureResultOf(answer);
   return ToolResult(
     content: base.content,

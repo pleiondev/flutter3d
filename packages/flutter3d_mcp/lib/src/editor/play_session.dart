@@ -113,7 +113,7 @@ final class PlaySession {
     // Refused here, before a running game is let go of: on Windows the id
     // is an argument to `cmd.exe` (`isFlutterDeviceId` says why).
     if (device != null && !isFlutterDeviceId(device)) {
-      return (
+      return Answer(
         did: false,
         says:
             '"$device" is not a device id: call play_devices for the ids '
@@ -122,7 +122,7 @@ final class PlaySession {
     }
     final root = projectRootOf(levelPath);
     if (root == null) {
-      return (
+      return Answer(
         did: false,
         says:
             '$levelPath is not inside a Flutter project, so there is nothing '
@@ -132,9 +132,9 @@ final class PlaySession {
     final running = _run;
     if (running != null && _going(running.state.value)) {
       if (device == null || device == running.device) {
-        return (did: true, says: 'already ${_describe(running)}');
+        return Answer(did: true, says: 'already ${_describe(running)}');
       }
-      return (
+      return Answer(
         did: false,
         says:
             'the game is running on ${running.device ?? 'the default device'}; '
@@ -146,7 +146,7 @@ final class PlaySession {
     final run = _run = newRun(root, device);
     await run.start();
     await _settled(run);
-    return (
+    return Answer(
       did: run.state.value is! PlayStopped,
       says: '${_describe(run)}\n${_tail(run, 12)}'.trim(),
     );
@@ -167,7 +167,7 @@ final class PlaySession {
   Future<Answer> build({String? target, bool release = false}) async {
     final root = projectRootOf(levelPath);
     if (root == null) {
-      return (
+      return Answer(
         did: false,
         says:
             '$levelPath is not inside a Flutter project, so there is nothing '
@@ -175,7 +175,7 @@ final class PlaySession {
       );
     }
     if (_run case final FlutterRun running when _going(running.state.value)) {
-      return (
+      return Answer(
         did: false,
         says:
             'the game is running from this project; call play_stop before '
@@ -184,7 +184,7 @@ final class PlaySession {
     }
     final what = target ?? _hostTarget;
     if (!buildTargets.contains(what)) {
-      return (
+      return Answer(
         did: false,
         says: 'cannot build for $what; one of ${buildTargets.join(', ')}',
       );
@@ -200,7 +200,10 @@ final class PlaySession {
     try {
       result = await runFlutter(arguments, root);
     } on ProcessException catch (error) {
-      return (did: false, says: 'could not start flutter: ${error.message}');
+      return Answer(
+        did: false,
+        says: 'could not start flutter: ${error.message}',
+      );
     }
     final printed = <String>[
       ...const LineSplitter().convert('${result.stdout}'),
@@ -211,7 +214,7 @@ final class PlaySession {
         (String line) => line.contains('Built '),
         orElse: () => '',
       );
-      return (
+      return Answer(
         did: true,
         says:
             'built $root for $what ($mode)${built.isEmpty ? '' : ': ${built.trim()}'}',
@@ -221,7 +224,7 @@ final class PlaySession {
         .where((String line) => line.toLowerCase().contains('error'))
         .toList();
     final shown = errors.isEmpty ? printed : errors;
-    return (
+    return Answer(
       did: false,
       says:
           'flutter build $what failed (exit code ${result.exitCode}):\n'
@@ -234,8 +237,8 @@ final class PlaySession {
   Future<Answer> sendLevel(String document) async {
     final said = await sendSaved(document);
     return said == null
-        ? (did: false, says: 'no game is running: call play first')
-        : (did: !said.startsWith('the running game did not'), says: said);
+        ? Answer(did: false, says: 'no game is running: call play first')
+        : Answer(did: !said.startsWith('the running game did not'), says: said);
   }
 
   /// Where the run is and the last [lines] of its console.
@@ -253,7 +256,10 @@ final class PlaySession {
   Answer events({int since = 0, Set<String>? kinds}) {
     final run = _run;
     if (run == null) {
-      return (did: false, says: 'not running; call play to start the game');
+      return Answer(
+        did: false,
+        says: 'not running; call play to start the game',
+      );
     }
     final before = _postedBefore;
     final read = eventsSince(
@@ -264,7 +270,7 @@ final class PlaySession {
     // A cursor into a run that has since been replaced: whatever that run
     // posted after it went with the run.
     final lost = since < before && !read.restarted ? before - since : 0;
-    return (
+    return Answer(
       did: true,
       says: jsonEncode(<String, Object?>{
         'next': read.next + before,
@@ -285,17 +291,17 @@ final class PlaySession {
   Future<Answer> swap({bool restart = false}) async {
     final run = _run;
     if (run == null || run.state.value is! PlayRunning) {
-      return (did: false, says: 'nothing is running; call play first');
+      return Answer(did: false, says: 'nothing is running; call play first');
     }
     try {
       final said = restart ? await run.hotRestart() : await run.hotSwap();
       final what = restart ? 'hot restart' : 'hot swap';
-      return (
+      return Answer(
         did: true,
         says: said == null || said.isEmpty ? '$what done' : '$what: $said',
       );
     } on StateError catch (error) {
-      return (did: false, says: error.message);
+      return Answer(did: false, says: error.message);
     }
   }
 
@@ -303,20 +309,20 @@ final class PlaySession {
   Future<Answer> stop() async {
     final run = _run;
     if (run == null || !_going(run.state.value)) {
-      return (did: false, says: 'nothing is running');
+      return Answer(did: false, says: 'nothing is running');
     }
     await run.stop();
-    return (did: true, says: 'asked the game to stop');
+    return Answer(did: true, says: 'asked the game to stop');
   }
 
   /// What `play` can be pointed at, one line each, with the id it takes.
   Future<Answer> listDevices() async {
     try {
       final found = await devices();
-      if (found.isEmpty) return (did: true, says: 'no devices');
-      return (did: true, says: found.map((it) => '$it').join('\n'));
+      if (found.isEmpty) return Answer(did: true, says: 'no devices');
+      return Answer(did: true, says: found.map((it) => '$it').join('\n'));
     } on Object catch (error) {
-      return (did: false, says: '$error');
+      return Answer(did: false, says: '$error');
     }
   }
 
@@ -344,10 +350,10 @@ final class PlaySession {
     final address = vmService;
     final root = projectRootOf(levelPath);
     if (address == null || root == null) {
-      return (did: false, says: 'no game is running: call play first');
+      return Answer(did: false, says: 'no game is running: call play first');
     }
     if (!RegExp(r'^[a-z0-9_]+$').hasMatch(name)) {
-      return (
+      return Answer(
         did: false,
         says: 'a tape is named in lowercase letters, digits and underscores',
       );
@@ -355,7 +361,10 @@ final class PlaySession {
     final answer = await ask(address, 'ext.flutter3d.timeline.bugReport');
     final json = answer.json;
     if (json == null) {
-      return (did: false, says: answer.refused ?? 'the game kept nothing');
+      return Answer(
+        did: false,
+        says: answer.refused ?? 'the game kept nothing',
+      );
     }
     final Demo demo;
     try {
@@ -366,7 +375,7 @@ final class PlaySession {
         if (!json.containsKey('run')) 'run': json['start'],
       });
     } on DemoFormatException catch (error) {
-      return (
+      return Answer(
         did: false,
         says: 'the game\'s run is not a .f3drun: ${error.message}',
       );
@@ -375,7 +384,7 @@ final class PlaySession {
     file
       ..parent.createSync(recursive: true)
       ..writeAsStringSync(jsonEncode(demo.toJson()));
-    return (
+    return Answer(
       did: true,
       says:
           'kept ${demo.steps} steps of ${demo.level} as ${file.path}, '

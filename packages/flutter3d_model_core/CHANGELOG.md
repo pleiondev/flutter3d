@@ -1,5 +1,27 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a project's lights are the scene's `LightType`, its export
+  issues a `Severity`, and its colours `LinearColor`s.**
+  `ProjectLightType` and `ExportSeverity` are gone into the foundation's
+  types; a project holds an area light. `ProjectLight.color`,
+  `ColorTextureNode.value` and `CheckerTextureNode.colorA`/`colorB` are
+  `LinearColor`s, as a light node's colour is.
+- **Breaking: the command arguments' readers throw.** `BrushSample`,
+  `PaintMirror`, `PaintSample`, `ShapeDriver`, `SimulationCache`,
+  `SkinWeightsBlob`, `JobRequest` and `JobResult` `fromJson` throw a
+  `ProjectFormatException` naming the field where they answered null; a
+  journal entry whose arguments do not read is still skipped whole.
+- **Breaking: `TextureInputSocket` is a class.** A node of your own
+  declares `TextureInputSocket(type:, from:)`; the fields read as before.
+- **Breaking: `Key` is `Keyframe`, `BlendMode` is `PaintBlendMode`, and
+  `RenderRefusal` is `RenderRefusalException`.** The first two are names
+  Flutter's material library exports too, which every file importing both
+  had to `hide`; a thrown type says so in its name. Same members; `dart
+  fix` renames each use.
+- **A paint command reads `color` and `center`.** `paintStroke` and
+  `paintVertexColour` read `color` and a sample's `center` where they are
+  given, and `colour` and `centre`, the words a journal holds, otherwise;
+  `setOrigin` reads `boundsCenter` as well as `boundsCentre`.
 - **A project says who made it and on what terms, and what its materials
   are made of.** `ModelProject.rights` (a `DocumentAsset` holding the
   copyright, the author and the licence; `copyWith(rights:,

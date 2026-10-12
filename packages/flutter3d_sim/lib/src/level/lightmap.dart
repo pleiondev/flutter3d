@@ -248,7 +248,7 @@ final class Lightmap {
       mix(brush.material);
     }
     for (final light in level.lights) {
-      mix(light.type.wireName);
+      mix(light.type.base.name);
       mix(light.position.toString());
       mix(light.direction.toString());
       // The colour and the strength as this hash has always read them — the

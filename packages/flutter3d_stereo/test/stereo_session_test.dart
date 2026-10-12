@@ -16,14 +16,14 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// A head turned by hand.
 final class _Head extends HeadTracker {
-  final ValueNotifier<HeadPose> notifier = ValueNotifier<HeadPose>(
-    HeadPose.still(),
+  final ValueNotifier<RigidPose> notifier = ValueNotifier<RigidPose>(
+    RigidPose.identity(),
   );
 
   int started = 0;
 
   @override
-  ValueListenable<HeadPose> get pose => notifier;
+  ValueListenable<RigidPose> get pose => notifier;
 
   @override
   Future<void> start() async => started++;
@@ -59,8 +59,8 @@ void main() {
 
     // A quarter turn to the left: the right eye ends up in front of the
     // head, as a person's does.
-    head.notifier.value = HeadPose(
-      rotation: Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), math.pi / 2),
+    head.notifier.value = RigidPose(
+      orientation: Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), math.pi / 2),
       position: Vector3.zero(),
     );
     final frame = await session.waitFrame();

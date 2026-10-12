@@ -98,7 +98,13 @@
 library;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show ExpressionScope, ExpressionSyntax, ExpressionSyntaxException;
+    show
+        Expression,
+        ExpressionConstant,
+        ExpressionScope,
+        ExpressionSyntax,
+        ExpressionSyntaxException,
+        ExpressionType;
 import 'package:flutter3d_foundation/internal.dart'
     show ExpressionParser, ExpressionToken, tokenizeExpression;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
@@ -242,7 +248,7 @@ const Set<String> _reservedNames = <String>{
   'LightVisibility', 'v_texcoord', 'v_world_position', 'AccumulateLights',
   'ShadowFactor', 'ApplyCommonMaps', 'SampleLightmap',
   ...materialTextureBindings,
-  // GLSL: the one builtin the emitter calls that is not a [MaterialBuiltin],
+  // GLSL: the one builtin the emitter calls that is not a [ExpressionBuiltin],
   // and the keywords and type names a declaration cannot reuse.
   'texture', 'in', 'out', 'inout', 'uniform', 'const', 'void', 'bool', 'int',
   'uint', 'true', 'false', 'if', 'else', 'for', 'while', 'do', 'switch',
@@ -326,7 +332,7 @@ final class _Block {
 
   /// The type its `return` must have; null for a `vertex` block, which has
   /// outputs instead.
-  final MaterialType? returns;
+  final ExpressionType? returns;
 
   /// Whether `sample(...)` may be called in it.
   final bool samples;
@@ -360,7 +366,7 @@ final class _Parser extends ExpressionParser {
 
   final List<MaterialParameter> parameters = <MaterialParameter>[];
   final List<MaterialTextureSlot> textures = <MaterialTextureSlot>[];
-  final Map<String, MaterialType> locals = <String, MaterialType>{};
+  final Map<String, ExpressionType> locals = <String, ExpressionType>{};
 
   /// The language version the source declared — 1 without a header.
   int version = materialLanguageFirstVersion;
@@ -399,25 +405,25 @@ final class _Parser extends ExpressionParser {
       ...materialInputs,
       if (version >= materialLanguageStagesVersion) ...materialSceneInputs,
     ],
-    returns: MaterialType.vec4,
+    returns: ExpressionType.vec4,
   );
   final _Block lightBlock = const _Block(
     'light block',
     'light',
     inputs: <MaterialInput>[...materialInputs, ...materialLightInputs],
-    returns: MaterialType.vec3,
+    returns: ExpressionType.vec3,
   );
   final _Block ambientBlock = const _Block(
     'ambient block',
     'ambient',
     inputs: <MaterialInput>[...materialInputs, ...materialAmbientInputs],
-    returns: MaterialType.vec3,
+    returns: ExpressionType.vec3,
   );
   final _Block compositeBlock = const _Block(
     'composite block',
     'composite',
     inputs: <MaterialInput>[...materialInputs, ...materialCompositeInputs],
-    returns: MaterialType.vec3,
+    returns: ExpressionType.vec3,
   );
   final _Block vertexBlock = const _Block(
     'vertex block',
@@ -429,13 +435,13 @@ final class _Parser extends ExpressionParser {
     'full-screen stage',
     'fragment',
     inputs: materialFullscreenInputs,
-    returns: MaterialType.vec4,
+    returns: ExpressionType.vec4,
   );
   final _Block kernelBlock = const _Block(
     'kernel',
     'kernel',
     inputs: materialComputeInputs,
-    returns: MaterialType.vec4,
+    returns: ExpressionType.vec4,
   );
 
   @override
@@ -1191,7 +1197,7 @@ final class _Parser extends ExpressionParser {
     if (builtinNamed(name) != null || name == 'sample') {
       fail('"$name" is a builtin function.', token);
     }
-    if (MaterialType.numeric.values.any((t) => t.name == name)) {
+    if (ExpressionType.numeric.values.any((t) => t.name == name)) {
       fail('"$name" is a type.', token);
     }
     for (final parameter in parameters) {
@@ -1205,9 +1211,9 @@ final class _Parser extends ExpressionParser {
     }
   }
 
-  MaterialType parseType() {
+  ExpressionType parseType() {
     final token = expectToken('name', 'a type');
-    for (final type in MaterialType.numeric.values) {
+    for (final type in ExpressionType.numeric.values) {
       if (type.name == token.text) return type;
     }
     fail(
@@ -1217,9 +1223,9 @@ final class _Parser extends ExpressionParser {
   }
 
   /// A parameter's default: a literal, or a constructor of literals.
-  List<double> parseConstant(MaterialType type) {
+  List<double> parseConstant(ExpressionType type) {
     final expression = parseExpression();
-    if (expression is! MaterialConstant) {
+    if (expression is! ExpressionConstant) {
       fail('a parameter\'s default has to be a constant.');
     }
     if (expression.type != type) {
@@ -1361,14 +1367,14 @@ final class _Parser extends ExpressionParser {
   /// `sample(slot, uv)`, the one call that reads something outside the
   /// material.
   @override
-  MaterialExpression? parseSpecialCall(ExpressionToken name) =>
+  Expression? parseSpecialCall(ExpressionToken name) =>
       name.text == 'sample' ? sampleCall(name) : null;
 
   /// A material's names, in the order a body sees them: its `let`s, its
   /// parameters, then the inputs of the body being read; and a sentence
   /// naming where a name it cannot read here is read instead.
   @override
-  MaterialExpression resolveName(ExpressionToken token) {
+  Expression resolveName(ExpressionToken token) {
     final name = token.text;
     final local = locals[name];
     if (local != null) return MaterialLocalRef(name, local);
@@ -1460,7 +1466,7 @@ final class _Parser extends ExpressionParser {
     return null;
   }
 
-  MaterialExpression sampleCall(ExpressionToken token) {
+  Expression sampleCall(ExpressionToken token) {
     final body = block;
     if (body != null && !body.samples) {
       fail(
@@ -1482,7 +1488,7 @@ final class _Parser extends ExpressionParser {
     sampled.add(slot.name);
     expectToken(',', '"," and the coordinates');
     final uv = parseExpression();
-    if (uv.type != MaterialType.vec2) {
+    if (uv.type != ExpressionType.vec2) {
       fail('sample takes a vec2 of coordinates, not a ${uv.type}.', token);
     }
     expectToken(')', '")" after sample');

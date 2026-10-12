@@ -1,3 +1,4 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show LinearColor;
 import 'package:vector_math/vector_math.dart';
@@ -9,56 +10,11 @@ import 'level_ids.dart';
 
 final Vector3 _origin = Vector3.zero();
 
-/// What kind of light a level places.
-///
-/// **An open set, not an enum** (ARCHITECTURE.md §13.1): a later minor may
-/// add a kind — an area light, a sky portal — and a `switch` written against
-/// three values would stop compiling on it. A `switch` over these ends with
-/// a wildcard.
-///
-/// **Its word in a document is [wireName]**, a table of the format's and
-/// not a Dart identifier, so a rename here never changes what a saved level
-/// says.
-final class LevelLightType {
-  const LevelLightType._(this.wireName);
-
-  /// The sun: parallel rays from [LevelLight.direction], in lux.
-  static const LevelLightType directional = LevelLightType._('directional');
-
-  /// A bulb: light in every direction from [LevelLight.position], in
-  /// candela.
-  static const LevelLightType point = LevelLightType._('point');
-
-  /// A bulb with a cone along [LevelLight.direction], in candela.
-  static const LevelLightType spot = LevelLightType._('spot');
-
-  /// Every type this build knows, in the order the format lists them.
-  static const List<LevelLightType> values = <LevelLightType>[
-    directional,
-    point,
-    spot,
-  ];
-
-  /// The word a level document writes for this type.
-  final String wireName;
-
-  /// The type a document's word names, or null for a word that is not one.
-  static LevelLightType? fromWireName(String word) {
-    for (final type in values) {
-      if (type.wireName == word) return type;
-    }
-    return null;
-  }
-
-  @override
-  String toString() => wireName;
-}
-
 /// A light placed by the level rather than by the renderer.
 final class LevelLight {
   LevelLight({
     String? id,
-    this.type = LevelLightType.point,
+    this.type = LightType.point,
     Vector3? position,
     Vector3? direction,
     this.color = LinearColor.white,
@@ -67,7 +23,7 @@ final class LevelLight {
     bool? castsShadow,
     this.name,
     Map<String, Object?> source = const <String, Object?>{},
-  }) : castsShadow = castsShadow ?? type == LevelLightType.directional,
+  }) : castsShadow = castsShadow ?? type == LightType.directional,
        position = position?.clone() ?? Vector3.zero(),
        direction = direction?.clone() ?? Vector3(0.0, -1.0, 0.0),
        // ignore: prefer_initializing_formals
@@ -76,7 +32,7 @@ final class LevelLight {
            id ??
            LevelIds.derive(<Object?>[
              'light',
-             type.wireName,
+             type.base.name,
              name,
              position?.x ?? 0.0,
              position?.y ?? 0.0,
@@ -93,7 +49,7 @@ final class LevelLight {
   LevelLight withId(String id) =>
       LevelLight.fromJson(<String, Object?>{...toJson(), 'id': id});
 
-  final LevelLightType type;
+  final LightType type;
   final Vector3 position;
   final Vector3 direction;
 
@@ -138,11 +94,11 @@ final class LevelLight {
   factory LevelLight.fromJson(Map<String, Object?> json) {
     final word = json.textOrNull('type');
     final type = word == null
-        ? LevelLightType.point
-        : LevelLightType.fromWireName(word) ??
+        ? LightType.point
+        : LightType.byName(word) ??
               (throw LevelFormatException(
                 'unknown light type "$word"; expected one of '
-                '${LevelLightType.values.map((LevelLightType t) => t.wireName).join(', ')}',
+                '${LightType.values.map((LightType t) => t.name).join(', ')}',
               ));
     final id = json['id'];
     if (id != null && (id is! String || id.isEmpty)) {
@@ -158,7 +114,7 @@ final class LevelLight {
       range: json.numberOr('range', 0.0),
       castsShadow: json.flagOr(
         'castsShadow',
-        fallback: type == LevelLightType.directional,
+        fallback: type == LightType.directional,
       ),
       name: json.textOrNull('name'),
       source: json,
@@ -169,14 +125,16 @@ final class LevelLight {
     WriteThroughField('id', id),
     WriteThroughField(
       'type',
-      type.wireName,
-      whenAbsent: type != LevelLightType.point,
+      // A plugin's own kind is written as the built-in shape it is lit as:
+      // a level names no plugin.
+      type.base.name,
+      whenAbsent: type != LightType.point,
     ),
     WriteThroughField('at', position.toJson(), whenAbsent: position != _origin),
     WriteThroughField(
       'direction',
       direction.toJson(),
-      whenAbsent: type != LevelLightType.point,
+      whenAbsent: type != LightType.point,
     ),
     WriteThroughField(
       'color',
@@ -192,7 +150,7 @@ final class LevelLight {
     WriteThroughField(
       'castsShadow',
       castsShadow,
-      whenAbsent: castsShadow != (type == LevelLightType.directional),
+      whenAbsent: castsShadow != (type == LightType.directional),
     ),
     WriteThroughField('name', name, whenAbsent: name != null),
   ]);

@@ -1684,7 +1684,7 @@ final class RecordedBlendColor extends Recorded
 
 final class RecordedCall extends Recorded
   String toString()
-  const RecordedCall(this.name, [this.arguments])
+  const RecordedCall(this.name, {this.arguments})
   final Object? arguments
   final String name
 
@@ -2038,7 +2038,7 @@ final class TraceDispatch extends TraceEvent
 final class TraceDraw extends TracePassEvent
   Map<String, Object?> toJson(TraceBlobWriter blob)
   String get kind
-  const TraceDraw(super.pass, [this.instanceCount = 1, this.firstIndex = 0, this.indexCount])
+  const TraceDraw(super.pass, {this.instanceCount = 1, this.firstIndex = 0, this.indexCount})
   final int firstIndex
   final int instanceCount
   final int? indexCount

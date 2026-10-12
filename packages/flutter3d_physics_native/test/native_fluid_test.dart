@@ -19,7 +19,7 @@ FluidSettings _tank() => FluidSettings(
 /// A block of [n]³ particles 5 cm apart against the tank's low end.
 List<FluidParticle> _dam(int n) => <FluidParticle>[
   for (var i = 0; i < n * n * n; i++)
-    (
+    FluidParticle(
       position: Vector3(
         -0.475 + (i % n) * 0.05,
         0.025 + (i ~/ (n * n)) * 0.05,
@@ -88,8 +88,11 @@ void main() {
         // Two particles passing each other, too few to push: viscosity
         // alone, point for point every tenth step.
         final pair = <FluidParticle>[
-          (position: Vector3(0.0, 1.0, 0.0), velocity: Vector3(0.0, 0.0, 0.02)),
-          (
+          FluidParticle(
+            position: Vector3(0.0, 1.0, 0.0),
+            velocity: Vector3(0.0, 0.0, 0.02),
+          ),
+          FluidParticle(
             position: Vector3(0.06, 1.0, 0.0),
             velocity: Vector3(0.0, 0.0, -0.02),
           ),
@@ -174,7 +177,7 @@ void main() {
 NativeGpu? _openGpu() {
   try {
     return NativeGpu.open();
-  } on GpuUnavailable {
+  } on GpuUnavailableException {
     return null;
   }
 }

@@ -64,11 +64,11 @@ base class _Server extends ToolTableServer<List<String>, Answer> {
              OfferedTool<List<String>, Answer>(
                _tool(name),
                (List<String> calls, Map<String, Object?> arguments) =>
-                   (did: true, says: name),
+                   Answer(did: true, says: name),
              ),
          ],
          toResult: resultOf,
-         refusal: (String says) => (did: false, says: says),
+         refusal: (String says) => Answer(did: false, says: says),
        );
 }
 

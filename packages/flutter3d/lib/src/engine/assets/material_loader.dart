@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Flutter3dException;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'default_image_decoder.dart';
@@ -131,16 +133,22 @@ Future<RenderMaterial> bindMaterial(
       } catch (_) {
         bytes = null;
       }
-      final uploaded = bytes == null
-          ? null
-          : await uploadEncodedImage(
-              device,
-              bytes,
-              decodeImage: decodeImage,
-              sampling: binding.sampling,
-              report: (message) =>
-                  warnings?.add('${document.images[index]}: $message'),
-            );
+      TextureHandle? uploaded;
+      if (bytes != null) {
+        try {
+          uploaded = await uploadEncodedImage(
+            device,
+            bytes,
+            decodeImage: decodeImage,
+            sampling: binding.sampling,
+            report: (message) =>
+                warnings?.add('${document.images[index]}: $message'),
+          );
+        } on Flutter3dException catch (refused) {
+          // One texture costs a texture, not the material.
+          warnings?.add('${document.images[index]}: ${refused.message}');
+        }
+      }
       if (uploaded == null) {
         warnings?.add(
           '${document.images[index]} could not be read; the '

@@ -129,7 +129,7 @@ final class _Sink extends TelemetrySink {
   @override
   Future<TelemetrySent> deliver(TelemetryUpload upload) async {
     delivered.add(upload);
-    return (
+    return TelemetrySent(
       did: true,
       says: 'taken',
       receipt: const TelemetryReceipt(run: 1, eraseKey: 'k'),

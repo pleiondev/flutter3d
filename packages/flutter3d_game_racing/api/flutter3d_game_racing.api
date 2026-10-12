@@ -137,8 +137,6 @@ extension GhostDocument on GhostTape
   Map<String, Object?> toJson()
   double get lapTime
 
-typedef GhostFrame = Pose;
-
 typedef GhostPlayer = Playback;
 
 final class GhostRecorder

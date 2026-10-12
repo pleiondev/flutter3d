@@ -52,7 +52,7 @@ void main() {
       // drop the edge (play the splash whenever it is wet) — the second
       // frame in the water splashes again.
       final scene = AudioScene(backend: SilentBackend());
-      final sounds = ElementSounds(ElementCues.circuit);
+      final sounds = ElementSounds(cues: ElementCues.circuit);
       sounds.wade(scene, <Wader>[wader(wet: false)], 1 / 60);
       expect(splashes(scene, ElementCues.circuit), 0);
 
@@ -72,7 +72,7 @@ void main() {
       // A car hopping along the edge of a puddle. Mutation: drop the hush —
       // the second entry splashes too.
       final scene = AudioScene(backend: SilentBackend());
-      final sounds = ElementSounds(ElementCues.circuit);
+      final sounds = ElementSounds(cues: ElementCues.circuit);
       for (final wet in <bool>[true, false, true]) {
         sounds.wade(scene, <Wader>[wader(wet: wet)], 1 / 60);
       }
@@ -81,7 +81,7 @@ void main() {
 
     test('a body crawling in makes no splash and no wash', () {
       final scene = AudioScene(backend: SilentBackend());
-      final sounds = ElementSounds(ElementCues.circuit)
+      final sounds = ElementSounds(cues: ElementCues.circuit)
         ..wade(scene, <Wader>[wader(wet: false, speed: 1.0)], 1 / 60)
         ..wade(scene, <Wader>[wader(wet: true, speed: 1.0)], 1 / 60);
       expect(splashes(scene, ElementCues.circuit), 0);
@@ -93,7 +93,7 @@ void main() {
       // same key: they are held apart. Mutation: hold the washes among the
       // falls — the two share key 0 and one voice is held, not two.
       final scene = AudioScene(backend: SilentBackend());
-      final sounds = ElementSounds(ElementCues.circuit)
+      final sounds = ElementSounds(cues: ElementCues.circuit)
         ..hear(scene, falls: <Audible>[_audible(0, 5.0)])
         ..wade(scene, <Wader>[wader(wet: true)], 1 / 60);
       expect(sounds.held, 2);

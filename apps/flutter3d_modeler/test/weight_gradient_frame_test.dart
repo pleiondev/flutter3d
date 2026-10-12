@@ -82,7 +82,7 @@ void main() {
 
         lookFrom(stage.orbit, StandardView.front, seconds: 0.0);
         stage.frameSubject();
-        return (scene: stage.scene, camera: stage.camera);
+        return FrameSubject(scene: stage.scene, camera: stage.camera);
       },
     );
 

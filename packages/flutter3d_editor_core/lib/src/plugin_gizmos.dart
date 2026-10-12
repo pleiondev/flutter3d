@@ -2,6 +2,8 @@
 /// of one of their handles turns into.
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -52,45 +54,41 @@ final class GizmoShape {
 /// of the handle it is, when it can be dragged.
 final class GizmoMark {
   /// A solid box at [center], [size] across.
-  GizmoMark.box(Vector3 center, Vector3 size, {Vector3? tint, this.handle})
+  GizmoMark.box(Vector3 center, Vector3 size, {this.tint, this.handle})
     : shape = GizmoShape.box,
       from = center.clone(),
       to = center.clone(),
-      size = size.clone(),
-      tint = tint?.clone();
+      size = size.clone();
 
   /// The edges of a box at [center], [size] across.
-  GizmoMark.cage(Vector3 center, Vector3 size, {Vector3? tint, this.handle})
+  GizmoMark.cage(Vector3 center, Vector3 size, {this.tint, this.handle})
     : shape = GizmoShape.cage,
       from = center.clone(),
       to = center.clone(),
-      size = size.clone(),
-      tint = tint?.clone();
+      size = size.clone();
 
   /// A ball at [center] of [radius].
   GizmoMark.ball(
     Vector3 center, {
     required double radius,
-    Vector3? tint,
+    this.tint,
     this.handle,
   }) : shape = GizmoShape.ball,
        from = center.clone(),
        to = center.clone(),
-       size = Vector3.all(radius * 2.0),
-       tint = tint?.clone();
+       size = Vector3.all(radius * 2.0);
 
   /// A segment from [from] to [to], [width] thick.
   GizmoMark.line(
     Vector3 from,
     Vector3 to, {
     double width = 0.04,
-    Vector3? tint,
+    this.tint,
     this.handle,
   }) : shape = GizmoShape.line,
        from = from.clone(),
        to = to.clone(),
-       size = Vector3.all(width),
-       tint = tint?.clone();
+       size = Vector3.all(width);
 
   /// How it is drawn.
   final GizmoShape shape;
@@ -105,8 +103,9 @@ final class GizmoMark {
   /// width on every axis.
   final Vector3 size;
 
-  /// The colour it is drawn in, or null for the colour of what it marks.
-  final Vector3? tint;
+  /// The colour it is drawn in, linear, or null for the colour of what it
+  /// marks.
+  final LinearColor? tint;
 
   /// The name of the handle it is, handed back in a [GizmoDrag]; null for a
   /// mark that is only looked at.

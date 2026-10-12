@@ -1,46 +1,15 @@
 import 'dart:math' as math;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show LinearColor;
-
-/// The shape a light's falloff takes — `KHR_lights_punctual`'s own three.
-///
-/// A `final class` with const instances rather than an enum: the extension
-/// defines exactly these three, but another extension (an area light) can
-/// add a fourth in a later release without breaking a `switch` outside.
-/// [name] is its wire name, the extension's own `type`.
-final class ModelLightType {
-  const ModelLightType._(this.name);
-
-  /// The stable name: the `type` the extension writes.
-  final String name;
-
-  /// Parallel rays from one direction, in lux.
-  static const ModelLightType directional = ModelLightType._('directional');
-
-  /// From one point in every direction, in candela.
-  static const ModelLightType point = ModelLightType._('point');
-
-  /// From one point inside a cone, in candela.
-  static const ModelLightType spot = ModelLightType._('spot');
-
-  /// Every type.
-  static const List<ModelLightType> values = <ModelLightType>[
-    directional,
-    point,
-    spot,
-  ];
-
-  @override
-  String toString() => 'ModelLightType.$name';
-}
 
 /// A punctual light, decoded from `KHR_lights_punctual` or held for a
 /// writer to encode into it — `fmt-28`'s own row.
 ///
 /// **Values, not watts.** `intensity` is exactly the number the extension
-/// carries — lux for [ModelLightType.directional], candela for
-/// [ModelLightType.point]/[ModelLightType.spot] — and this class does no
+/// carries — lux for [LightType.directional], candela for
+/// [LightType.point]/[LightType.spot] — and this class does no
 /// unit conversion of its own; a caller feeding it to a renderer with a
 /// different convention does that conversion at the seam, not here.
 final class ModelLight {
@@ -54,13 +23,13 @@ final class ModelLight {
     this.name,
   }) : outerConeAngle = outerConeAngle ?? math.pi / 4;
 
-  final ModelLightType type;
+  final LightType type;
 
   /// Linear RGB, the same convention every other colour in the engine uses.
   /// Alpha is not read.
   final LinearColor color;
 
-  /// Lux for [ModelLightType.directional], candela otherwise. The
+  /// Lux for [LightType.directional], candela otherwise. The
   /// specification's own default when a file omits the key.
   final double intensity;
 
@@ -74,7 +43,7 @@ final class ModelLight {
 
   /// Spot-only: the angle, in radians, inside which a spot is at full
   /// intensity. Meaningless for the other two [type]s and kept anyway,
-  /// since [ModelLightType.point]/[ModelLightType.directional] never read
+  /// since [LightType.point]/[LightType.directional] never read
   /// it and a writer only emits it for a spot.
   final double innerConeAngle;
 

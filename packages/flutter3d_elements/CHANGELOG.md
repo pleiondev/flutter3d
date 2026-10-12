@@ -8,6 +8,8 @@
   engine's events, which no plugin id may take. `ElementEventKinds` and
   `ElementSwitches` refuse a plugin's kind or switch outside its
   namespace.
+- **An element's followed pose is `flutter3d_foundation`'s `RigidPose`**,
+  where it was a record of its own.
 - **The heat on a body, from the field.** `ElementFields.radiantFluxOn` and
   `FieldQuantity.radiantFlux` (W/m²): each fire's radiant heat, Modak's
   point source at the middle of its flame, on the point of the body a ray

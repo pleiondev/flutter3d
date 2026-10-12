@@ -68,7 +68,7 @@ void main() {
     // isolate would have them.
     final rows = <BurningWreck>[
       for (final row in wrecks.published)
-        BurningWreck.fromJson(jsonDecode(jsonEncode(row.toJson())))!,
+        BurningWreck.fromJson(jsonDecode(jsonEncode(row.toJson()))),
     ];
     final scene = Scene();
     final looks = WreckLooks(scene, FakeBackend())..show(rows);

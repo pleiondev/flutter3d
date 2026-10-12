@@ -8,9 +8,10 @@ library;
 
 import 'dart:math' as math;
 
-import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Portable, RigidPose;
 import 'package:flutter3d_matter/flutter3d_matter.dart'
-    show MaterialState, PhysicalMaterial;
+    show MatterState, PhysicalMaterial;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show
@@ -228,7 +229,7 @@ final class Solid {
   factory Solid.of(
     NativeShape shape,
     PhysicalMaterial material, {
-    MaterialState? state,
+    MatterState? state,
     double? wall,
   }) {
     final law = material.mechanical?.density;
@@ -461,14 +462,6 @@ final class Solid {
   double get mass => volume * density;
 }
 
-/// Where something is and how it is turned.
-///
-/// **[position] is origin-local**: single precision, relative to the
-/// elements' world origin (the physics world's `origin`), as every `Vector3`
-/// position in this library is. A place held in double precision is a
-/// `WorldPosition`, narrowed against that origin before it comes here.
-typedef ElementPose = ({Vector3 position, Quaternion orientation});
-
 /// A body in the elements' world, taken in: what the [ElementsListener]'s
 /// callbacks name.
 ///
@@ -491,7 +484,7 @@ final class Follower {
 
   /// The core's kinematic body.
   final NativeBody native;
-  final ElementPose Function() _pose;
+  final RigidPose Function() _pose;
   bool _jumps = false;
 
   /// At the next `Elements.update` it is put where the game has it rather
@@ -1140,7 +1133,7 @@ final class ElementsSimulation {
   /// each [step], it is carried to over the step, and pushes what it meets
   /// there; nothing there moves it back.
   Follower follow(
-    ElementPose Function() pose, {
+    RigidPose Function() pose, {
     required NativeShape shape,
     ({int layer, int mask})? collides,
   }) {

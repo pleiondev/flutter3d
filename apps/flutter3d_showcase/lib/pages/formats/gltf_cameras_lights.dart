@@ -29,7 +29,7 @@ final class GltfCamerasLightsDemo extends ShowcaseDemo {
       ],
       lights: <ModelLight>[
         ModelLight(
-          type: ModelLightType.directional,
+          type: LightType.directional,
           color: LinearColor(1.0, 0.95, 0.85),
           // Lux, as KHR_lights_punctual has a directional light.
           intensity: 13900.0,

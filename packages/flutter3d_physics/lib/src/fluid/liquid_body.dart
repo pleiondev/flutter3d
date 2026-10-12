@@ -123,7 +123,7 @@ final class LiquidBody with JetReceiver {
   /// The state this body of liquid is in — its temperature, its pressure —
   /// or null for the state its media were quoted at. Set by whoever follows
   /// it: a heater, a level's material state, a plugin's.
-  MaterialState? state;
+  MatterState? state;
 
   /// [medium] at [state] (`FluidMedium.at`): what a body floating or sinking
   /// in it is lifted and dragged by. [medium] itself while [state] is null,
@@ -641,7 +641,7 @@ final class InsideWalls with JetObstacle {
       body._reaches(center, distance + body.wallThickness);
 
   @override
-  ({Vector3 normal, double depth})? touch(Vector3 point, double radius) {
+  ObstacleTouch? touch(Vector3 point, double radius) {
     final shape = body.shape;
     if (shape is! RevolvedVessel) return null;
     final q = body._near(point, body.wallThickness + radius);
@@ -662,7 +662,7 @@ final class InsideWalls with JetObstacle {
     // thickness: past that it is the outside's.
     final glass = body.wallThickness > 0.0 ? 0.5 * body.wallThickness : radius;
     if (at.distance <= -radius || at.distance >= glass) return null;
-    return (
+    return ObstacleTouch(
       normal: body.rotation.transformed(-at.normal),
       depth: at.distance + radius,
     );
@@ -685,7 +685,7 @@ final class OutsideWalls with JetObstacle {
       body._reaches(center, distance + thickness);
 
   @override
-  ({Vector3 normal, double depth})? touch(Vector3 point, double radius) {
+  ObstacleTouch? touch(Vector3 point, double radius) {
     final shape = body.shape;
     if (shape is! RevolvedVessel) return null;
     final q = body._near(point, thickness + radius);
@@ -697,7 +697,10 @@ final class OutsideWalls with JetObstacle {
       final clear = shape.radiusAt(shape.floor) + thickness + radius;
       if (r >= clear || r < shape.radiusAt(shape.floor)) return null;
       final out = r > 1e-12 ? Vector3(q.x / r, 0, q.z / r) : Vector3(1, 0, 0);
-      return (normal: body.rotation.transformed(out), depth: clear - r);
+      return ObstacleTouch(
+        normal: body.rotation.transformed(out),
+        depth: clear - r,
+      );
     }
     // The rim's top is glass too, up to its thickness above the mouth.
     final at = shape.wallDistance(
@@ -708,7 +711,7 @@ final class OutsideWalls with JetObstacle {
     if (at == null) return null;
     final clear = thickness + radius;
     if (at.distance < 0.5 * thickness || at.distance >= clear) return null;
-    return (
+    return ObstacleTouch(
       normal: body.rotation.transformed(at.normal),
       depth: clear - at.distance,
     );

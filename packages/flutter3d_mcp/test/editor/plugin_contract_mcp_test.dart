@@ -173,8 +173,8 @@ void main() {
 
   tearDown(() => sandbox.deleteSync(recursive: true));
 
-  Future<PictureAnswer> call(String name, Map<String, Object?> arguments) =>
-      Future<PictureAnswer>.value(
+  Future<Answer> call(String name, Map<String, Object?> arguments) =>
+      Future<Answer>.value(
         editorTools
             .firstWhere((EditorTool it) => it.name == name)
             .run(session, arguments),

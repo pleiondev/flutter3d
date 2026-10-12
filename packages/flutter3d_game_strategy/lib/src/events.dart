@@ -1,14 +1,13 @@
 /// What a step of a match did, on the engine's bus.
 ///
-/// **Published by the [Match], read off its step.** The strategy's step has
-/// no event buffer of its own: what a step did is read off it —
-/// [StrategySimulation.shots], [Match.standing] — and the drawing half reads
-/// exactly that. The match turns the same two readings into events at the
-/// end of its step, onto the bus [Match.publishTo] named (the
+/// **Published by the [StrategyMatch], read off its step.** The strategy's step
+/// has no event buffer of its own: what a step did is read off it —
+/// [StrategySimulation.shots], [StrategyMatch.standing] — and the drawing half
+/// reads exactly that. The match turns the same two readings into events at the
+/// end of its step, onto the bus [StrategyMatch.publishTo] named (the
 /// [StrategyPlugin] points it at the engine's), so a subscriber hears them
-/// without the simulation growing a buffer it would also have to save, and
-/// two runs of one tape publish the same events because they read the same
-/// state.
+/// without the simulation growing a buffer it would also have to save, and two
+/// runs of one tape publish the same events because they read the same state.
 library;
 
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';

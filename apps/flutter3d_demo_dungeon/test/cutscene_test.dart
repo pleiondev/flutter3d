@@ -153,12 +153,15 @@ void main() {
       settings: const RenderSettings(),
     );
     final pixels = await it.device.readback(result.frame);
-    await expectMatchesGolden((
-      pixels: pixels.buffer.asUint8List(),
-      width: width,
-      height: height,
-      drawCalls: result.drawCalls,
-    ), 'test/goldens/cutscene-altar.png');
+    await expectMatchesGolden(
+      RenderedFrame(
+        pixels: pixels.buffer.asUint8List(),
+        width: width,
+        height: height,
+        drawCalls: result.drawCalls,
+      ),
+      'test/goldens/cutscene-altar.png',
+    );
   });
 
   test('the three on the dais start up before they come down', () async {

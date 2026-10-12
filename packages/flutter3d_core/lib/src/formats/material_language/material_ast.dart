@@ -39,14 +39,6 @@ import 'package:flutter3d_foundation/internal.dart'
 import 'package:flutter3d_hardware/flutter3d_hardware.dart'
     show CompareFunction;
 
-/// A type in the material language: the expression language's
-/// [ExpressionType], every one of a material's dimensionless.
-///
-/// `MaterialType.float`, `vec2`, `vec3`, `vec4`, `texture` and `numeric`
-/// read as they always did; nothing switches on them, and [components] is
-/// what every reader actually asks.
-typedef MaterialType = ExpressionType;
-
 /// One declared parameter: a name, a type and the value a variant that says
 /// nothing about it gets.
 ///
@@ -72,7 +64,7 @@ final class MaterialParameter {
   });
 
   final String name;
-  final MaterialType type;
+  final ExpressionType type;
 
   /// As many numbers as [type] has components.
   final List<double> defaultValue;
@@ -130,7 +122,7 @@ final class MaterialInput {
   const MaterialInput(this.name, this.type, this.glsl);
 
   final String name;
-  final MaterialType type;
+  final ExpressionType type;
 
   /// The GLSL that reads it, given a `Surface s` in scope.
   final String glsl;
@@ -143,22 +135,22 @@ final class MaterialInput {
 /// zero for an input it had not heard of would draw a material that is subtly
 /// wrong on one backend only.
 const List<MaterialInput> materialInputs = <MaterialInput>[
-  MaterialInput('albedo', MaterialType.vec3, 's.albedo'),
-  MaterialInput('alpha', MaterialType.float, 's.alpha'),
-  MaterialInput('normal', MaterialType.vec3, 's.n'),
-  MaterialInput('view', MaterialType.vec3, 's.v'),
-  MaterialInput('nDotV', MaterialType.float, 's.n_dot_v'),
-  MaterialInput('metallic', MaterialType.float, 's.metallic'),
-  MaterialInput('roughness', MaterialType.float, 's.roughness'),
-  MaterialInput('occlusion', MaterialType.float, 's.occlusion'),
-  MaterialInput('emissive', MaterialType.vec3, 's.emissive'),
-  MaterialInput('ambient', MaterialType.vec3, 's.ambient'),
-  MaterialInput('uv', MaterialType.vec2, 'v_texcoord'),
-  MaterialInput('world', MaterialType.vec3, 'v_world_position'),
+  MaterialInput('albedo', ExpressionType.vec3, 's.albedo'),
+  MaterialInput('alpha', ExpressionType.float, 's.alpha'),
+  MaterialInput('normal', ExpressionType.vec3, 's.n'),
+  MaterialInput('view', ExpressionType.vec3, 's.v'),
+  MaterialInput('nDotV', ExpressionType.float, 's.n_dot_v'),
+  MaterialInput('metallic', ExpressionType.float, 's.metallic'),
+  MaterialInput('roughness', ExpressionType.float, 's.roughness'),
+  MaterialInput('occlusion', ExpressionType.float, 's.occlusion'),
+  MaterialInput('emissive', ExpressionType.vec3, 's.emissive'),
+  MaterialInput('ambient', ExpressionType.vec3, 's.ambient'),
+  MaterialInput('uv', ExpressionType.vec2, 'v_texcoord'),
+  MaterialInput('world', ExpressionType.vec3, 'v_world_position'),
   // `P8`: an instance's own four numbers, `InstancedMeshNode.setInstanceData`
   // — nought for a draw that is not instanced. The emitted stage declares
   // the varying only when the source reads it.
-  MaterialInput('instance', MaterialType.vec4, 'v_instance'),
+  MaterialInput('instance', ExpressionType.vec4, 'v_instance'),
 ];
 
 /// What the `light` block reads about the one light it is shading for, on
@@ -168,11 +160,11 @@ const List<MaterialInput> materialInputs = <MaterialInput>[
 /// struct written twice, as the surface inputs are. Read only inside the
 /// block: outside it there is no one light to read them of.
 const List<MaterialInput> materialLightInputs = <MaterialInput>[
-  MaterialInput('lightDir', MaterialType.vec3, 'light.l'),
-  MaterialInput('halfDir', MaterialType.vec3, 'light.h'),
-  MaterialInput('nDotL', MaterialType.float, 'light.n_dot_l'),
-  MaterialInput('nDotH', MaterialType.float, 'light.n_dot_h'),
-  MaterialInput('vDotH', MaterialType.float, 'light.v_dot_h'),
+  MaterialInput('lightDir', ExpressionType.vec3, 'light.l'),
+  MaterialInput('halfDir', ExpressionType.vec3, 'light.h'),
+  MaterialInput('nDotL', ExpressionType.float, 'light.n_dot_l'),
+  MaterialInput('nDotH', ExpressionType.float, 'light.n_dot_h'),
+  MaterialInput('vDotH', ExpressionType.float, 'light.v_dot_h'),
 ];
 
 /// What a fragment body of version 2 reads of the scene behind it — item 9
@@ -187,9 +179,9 @@ const List<MaterialInput> materialLightInputs = <MaterialInput>[
 /// `sceneDepth - viewDepth` is the thickness of what lies between;
 /// `scenePosition` is where, in the world, that opaque surface is.
 const List<MaterialInput> materialSceneInputs = <MaterialInput>[
-  MaterialInput('sceneDepth', MaterialType.float, 'f3d_scene_depth'),
-  MaterialInput('viewDepth', MaterialType.float, 'f3d_view_depth'),
-  MaterialInput('scenePosition', MaterialType.vec3, 'f3d_scene_position'),
+  MaterialInput('sceneDepth', ExpressionType.float, 'f3d_scene_depth'),
+  MaterialInput('viewDepth', ExpressionType.float, 'f3d_view_depth'),
+  MaterialInput('scenePosition', ExpressionType.vec3, 'f3d_scene_position'),
 ];
 
 /// What a `vertex` block reads — version 2.
@@ -201,13 +193,13 @@ const List<MaterialInput> materialSceneInputs = <MaterialInput>[
 /// transform's translation — where the object stands, so a field of grass
 /// sways out of step blade by blade.
 const List<MaterialInput> materialVertexInputs = <MaterialInput>[
-  MaterialInput('position', MaterialType.vec3, 'f3d_position'),
-  MaterialInput('objectNormal', MaterialType.vec3, 'f3d_object_normal'),
-  MaterialInput('world', MaterialType.vec3, 'f3d_world'),
-  MaterialInput('normal', MaterialType.vec3, 'f3d_normal'),
-  MaterialInput('uv', MaterialType.vec2, 'texcoord'),
-  MaterialInput('color', MaterialType.vec4, 'color'),
-  MaterialInput('origin', MaterialType.vec3, 'frame_info.model[3].xyz'),
+  MaterialInput('position', ExpressionType.vec3, 'f3d_position'),
+  MaterialInput('objectNormal', ExpressionType.vec3, 'f3d_object_normal'),
+  MaterialInput('world', ExpressionType.vec3, 'f3d_world'),
+  MaterialInput('normal', ExpressionType.vec3, 'f3d_normal'),
+  MaterialInput('uv', ExpressionType.vec2, 'texcoord'),
+  MaterialInput('color', ExpressionType.vec4, 'color'),
+  MaterialInput('origin', ExpressionType.vec3, 'frame_info.model[3].xyz'),
 ];
 
 /// What a `vertex` block may write, with `out name = value;` — version 2.
@@ -218,16 +210,16 @@ const List<MaterialInput> materialVertexInputs = <MaterialInput>[
 /// world-space normal the surface is lit by. What the block does not write
 /// keeps the engine's own answer.
 const List<MaterialInput> materialVertexOutputs = <MaterialInput>[
-  MaterialInput('position', MaterialType.vec3, 'f3d_out_position'),
-  MaterialInput('world', MaterialType.vec3, 'f3d_out_world'),
-  MaterialInput('normal', MaterialType.vec3, 'f3d_out_normal'),
+  MaterialInput('position', ExpressionType.vec3, 'f3d_out_position'),
+  MaterialInput('world', ExpressionType.vec3, 'f3d_out_world'),
+  MaterialInput('normal', ExpressionType.vec3, 'f3d_out_normal'),
 ];
 
 /// What an `ambient` block reads on top of [materialInputs] — version 2:
 /// the level's baked light at this fragment, which the engine's own ambient
 /// adds to the hemisphere.
 const List<MaterialInput> materialAmbientInputs = <MaterialInput>[
-  MaterialInput('lightmap', MaterialType.vec3, 'f3d_lightmap'),
+  MaterialInput('lightmap', ExpressionType.vec3, 'f3d_lightmap'),
 ];
 
 /// What a `composite` block reads on top of [materialInputs] — version 2:
@@ -235,8 +227,8 @@ const List<MaterialInput> materialAmbientInputs = <MaterialInput>[
 /// `ambient` block (or the engine's own ambient) gave, neither yet under the
 /// occlusion.
 const List<MaterialInput> materialCompositeInputs = <MaterialInput>[
-  MaterialInput('direct', MaterialType.vec3, 'f3d_direct'),
-  MaterialInput('indirect', MaterialType.vec3, 'f3d_indirect'),
+  MaterialInput('direct', ExpressionType.vec3, 'f3d_direct'),
+  MaterialInput('indirect', ExpressionType.vec3, 'f3d_indirect'),
 ];
 
 /// What a `fullscreen` stage's fragment body reads — version 2: where on the
@@ -245,17 +237,17 @@ const List<MaterialInput> materialCompositeInputs = <MaterialInput>[
 /// drawn. The picture itself is the texture `scene`, read with
 /// `sample(scene, uv)`.
 const List<MaterialInput> materialFullscreenInputs = <MaterialInput>[
-  MaterialInput('uv', MaterialType.vec2, 'v_uv'),
-  MaterialInput('sceneDepth', MaterialType.float, 'f3d_scene_depth'),
+  MaterialInput('uv', ExpressionType.vec2, 'v_uv'),
+  MaterialInput('sceneDepth', ExpressionType.float, 'f3d_scene_depth'),
 ];
 
 /// What a `compute` stage's kernel reads — version 2: the texel of its
 /// target this invocation writes, the target's size in texels, and the
 /// texel's centre as nought to one.
 const List<MaterialInput> materialComputeInputs = <MaterialInput>[
-  MaterialInput('cell', MaterialType.vec2, 'f3d_cell'),
-  MaterialInput('size', MaterialType.vec2, 'f3d_size'),
-  MaterialInput('uv', MaterialType.vec2, 'f3d_uv'),
+  MaterialInput('cell', ExpressionType.vec2, 'f3d_cell'),
+  MaterialInput('size', ExpressionType.vec2, 'f3d_size'),
+  MaterialInput('uv', ExpressionType.vec2, 'f3d_uv'),
 ];
 
 /// What a source is — version 2 adds the two kinds after `material`.
@@ -265,7 +257,7 @@ const List<MaterialInput> materialComputeInputs = <MaterialInput>[
 ///   `FullscreenEffect` and a plugin's render step draw.
 /// * [compute]: a kernel run once per texel of a storage texture it writes.
 ///
-/// A `final class` with const instances, for [MaterialType]'s reason.
+/// A `final class` with const instances, for [ExpressionType]'s reason.
 final class MaterialStageKind {
   const MaterialStageKind._(this.name);
 
@@ -456,20 +448,9 @@ final class MaterialFileState {
 /// adds to it what is not lighting — a rim, a glow.
 const MaterialInput materialLitInput = MaterialInput(
   'lit',
-  MaterialType.vec3,
+  ExpressionType.vec3,
   'lit',
 );
-
-/// A function the language knows: the expression language's
-/// [ExpressionBuiltin], its type rule and how to compute it.
-///
-/// **One table, read by the emitter and by the evaluator.** A builtin that
-/// existed on one side and not the other is the exact failure this whole row
-/// is against, so neither side has its own list: the emitter writes the
-/// builtin's [ExpressionBuiltin.name], which is GLSL's word for it, and the
-/// software backend calls [ExpressionBuiltin.apply], from the same const
-/// instance. A material calls the ones in [materialBuiltins].
-typedef MaterialBuiltin = ExpressionBuiltin;
 
 /// The builtins a material may call, the sixteen versions 1 and 2 have:
 /// `dot`, `length`, `normalize`, `mix`, `clamp`, `smoothstep`, `step`,
@@ -479,7 +460,7 @@ typedef MaterialBuiltin = ExpressionBuiltin;
 /// word every backend's shading language must have under the same name;
 /// `exp` and `atan2` join when a version of the material language says so.
 /// A name outside this list stays free for a `let`, as it always was.
-const List<MaterialBuiltin> materialBuiltins = <MaterialBuiltin>[
+const List<ExpressionBuiltin> materialBuiltins = <ExpressionBuiltin>[
   ExpressionBuiltin.dot,
   ExpressionBuiltin.length,
   ExpressionBuiltin.normalize,
@@ -498,51 +479,19 @@ const List<MaterialBuiltin> materialBuiltins = <MaterialBuiltin>[
   ExpressionBuiltin.cos,
 ];
 
-/// An expression of a material: the expression language's [Expression].
+/// The expression language's [ExpressionVisitor], with a method for each
+/// kind a material adds: its inputs, parameters and `let`s, and `sample`.
 ///
 /// **One tree, two languages.** A material's expressions are read by the
 /// expression language's parser, so the arithmetic nodes are that
-/// language's own ([MaterialConstant] is [ExpressionConstant], and so on),
-/// and only what a material adds is a kind of its own: [MaterialInputRef],
-/// [MaterialParamRef] and [MaterialLocalRef], which are variables to a
-/// reader that knows only the expression language, and [MaterialSample].
-///
-/// **An open set, read through a visitor** (1.0). A translator — to GLSL, to
-/// WGSL, to the software backend's evaluator, or one a backend from outside
-/// brings — walks the tree with [Expression.accept] and a
-/// [MaterialExpressionVisitor], rather than with a `switch` over the kinds.
-/// A kind a later minor adds (or a plugin's own) arrives at
-/// [ExpressionVisitor.visitUnknown], so a translator written against 1.0
-/// keeps compiling and refuses the node by name instead of breaking.
-/// `materialLanguageVersion` still says which kinds a translator promises
-/// to know.
-typedef MaterialExpression = Expression;
-
-/// A literal, and the one place a `vec3(1.0, 0.0, 0.0)` that is entirely
-/// constant ends up: the parser folds a constructor whose arguments are all
-/// literals, because a parameter is a constant too and folding is what makes a
-/// variant's value reach the shader as a number.
-typedef MaterialConstant = ExpressionConstant;
-
-/// `vec3(...)`, `vec4(...)` and the rest, with arguments that are not all
-/// constant.
-typedef MaterialConstruct = ExpressionConstruct;
-
-/// `.x`, `.rgb`, `.xy` — component indices into the target.
-typedef MaterialSwizzle = ExpressionSwizzle;
-
-/// Unary minus. The only unary operator, because `!` needs a bool type the
-/// material language has not got.
-typedef MaterialNegate = ExpressionNegate;
-
-/// `+ - * /`, with GLSL's broadcasting: a float beside a vector spreads.
-typedef MaterialBinary = ExpressionBinary;
-
-/// A call to one of [materialBuiltins].
-typedef MaterialCall = ExpressionCall;
-
-/// The expression language's [ExpressionVisitor], with a method for each
-/// kind a material adds: its inputs, parameters and `let`s, and `sample`.
+/// language's own ([ExpressionConstant], [ExpressionBinary] and the rest,
+/// with [ExpressionType] for their types), and only what a material adds is
+/// a kind of its own: [MaterialInputRef], [MaterialParamRef] and
+/// [MaterialLocalRef], which are variables to a reader that knows only the
+/// expression language, and [MaterialSample]. A kind a later minor adds (or
+/// a plugin's own) arrives at [ExpressionVisitor.visitUnknown], so a
+/// translator written against 1.0 keeps compiling and refuses the node by
+/// name instead of breaking.
 ///
 /// **This is the visitor of the expression language**, so a translator of
 /// materials is a translator of that language with four methods more; the
@@ -587,7 +536,7 @@ final class MaterialInputRef extends ExpressionVariable {
 
 /// A declared parameter, before a variant has said what it is.
 ///
-/// Kept as a reference through parsing and folded to a [MaterialConstant] by
+/// Kept as a reference through parsing and folded to a [ExpressionConstant] by
 /// [specializeMaterial] — the source is parsed once and every variant is a
 /// fold of the same tree, rather than a parse per variant that could differ in
 /// some other way than the numbers.
@@ -616,16 +565,16 @@ final class MaterialLocalRef extends ExpressionVariable {
 
 /// `sample(slot, uv)`.
 ///
-/// Its own node rather than a [MaterialBuiltin] because it is the one
+/// Its own node rather than a [ExpressionBuiltin] because it is the one
 /// expression that reads something outside the material: a builtin's
 /// [ExpressionBuiltin.apply] takes numbers and returns numbers, and this one
 /// needs whatever the backend binds textures with. A reader that knows only
 /// the expression language meets it at [ExpressionVisitor.visitUnknown].
 final class MaterialSample extends Expression {
-  const MaterialSample(this.slot, this.uv) : super(MaterialType.vec4);
+  const MaterialSample(this.slot, this.uv) : super(ExpressionType.vec4);
 
   final MaterialTextureSlot slot;
-  final MaterialExpression uv;
+  final Expression uv;
 
   @override
   R accept<R>(ExpressionVisitor<R> visitor) =>
@@ -636,7 +585,7 @@ final class MaterialSample extends Expression {
 
 /// One statement of a block: a `let`, a `return`, an `out`.
 ///
-/// **An open set, read through a visitor**, for [MaterialExpression]'s
+/// **An open set, read through a visitor**, for [Expression]'s
 /// reason: a statement kind a later minor adds (or a plugin's own) arrives
 /// at [MaterialStatementVisitor.visitUnknown], and a translator written
 /// against 1.0 refuses it by name rather than breaking.
@@ -670,7 +619,7 @@ final class MaterialLet extends MaterialStatement {
   const MaterialLet(this.name, this.value);
 
   final String name;
-  final MaterialExpression value;
+  final Expression value;
 
   @override
   R accept<R>(MaterialStatementVisitor<R> visitor) => visitor.visitLet(this);
@@ -681,7 +630,7 @@ final class MaterialLet extends MaterialStatement {
 final class MaterialReturn extends MaterialStatement {
   const MaterialReturn(this.value);
 
-  final MaterialExpression value;
+  final Expression value;
 
   @override
   R accept<R>(MaterialStatementVisitor<R> visitor) => visitor.visitReturn(this);
@@ -694,7 +643,7 @@ final class MaterialOutput extends MaterialStatement {
   const MaterialOutput(this.output, this.value);
 
   final MaterialInput output;
-  final MaterialExpression value;
+  final Expression value;
 
   @override
   R accept<R>(MaterialStatementVisitor<R> visitor) => visitor.visitOutput(this);
@@ -967,7 +916,7 @@ final class MaterialProgram {
 /// software backend — which is what they have to be, since a parameter is a
 /// constant folded into the code.
 final class MaterialVariant {
-  const MaterialVariant(this.name, [this.values = const {}]);
+  const MaterialVariant(this.name, {this.values = const {}});
 
   final String name;
 
@@ -1076,109 +1025,108 @@ final class _StatementFolder
 }
 
 /// An expression with a variant's parameters folded in, and every subtree
-/// that is then constant collapsed to a [MaterialConstant].
-final class _Folder extends MaterialExpressionVisitor<MaterialExpression> {
+/// that is then constant collapsed to a [ExpressionConstant].
+final class _Folder extends MaterialExpressionVisitor<Expression> {
   const _Folder(this.variant);
 
   final MaterialVariant variant;
 
   @override
-  MaterialExpression visitConstant(MaterialConstant expression) => expression;
+  Expression visitConstant(ExpressionConstant expression) => expression;
 
   @override
-  MaterialExpression visitInputRef(MaterialInputRef expression) => expression;
+  Expression visitInputRef(MaterialInputRef expression) => expression;
 
   @override
-  MaterialExpression visitLocalRef(MaterialLocalRef expression) => expression;
+  Expression visitLocalRef(MaterialLocalRef expression) => expression;
 
   // A uniform stays a reference: its value arrives with each draw.
   @override
-  MaterialExpression visitParamRef(MaterialParamRef expression) {
+  Expression visitParamRef(MaterialParamRef expression) {
     final parameter = expression.parameter;
     if (parameter.uniform) return expression;
-    return MaterialConstant(
+    return ExpressionConstant(
       variant.values[parameter.name] ?? parameter.defaultValue,
       parameter.type,
     );
   }
 
   @override
-  MaterialExpression visitConstruct(MaterialConstruct expression) {
-    final folded = <MaterialExpression>[
+  Expression visitConstruct(ExpressionConstruct expression) {
+    final folded = <Expression>[
       for (final argument in expression.arguments) argument.accept(this),
     ];
-    if (folded.every((f) => f is MaterialConstant)) {
-      return MaterialConstant(<double>[
-        for (final f in folded) ...(f as MaterialConstant).value,
+    if (folded.every((f) => f is ExpressionConstant)) {
+      return ExpressionConstant(<double>[
+        for (final f in folded) ...(f as ExpressionConstant).value,
       ], expression.type);
     }
-    return MaterialConstruct(folded, expression.type);
+    return ExpressionConstruct(folded, expression.type);
   }
 
   @override
-  MaterialExpression visitSwizzle(MaterialSwizzle expression) {
+  Expression visitSwizzle(ExpressionSwizzle expression) {
     final folded = expression.target.accept(this);
-    if (folded is MaterialConstant) {
-      return MaterialConstant(<double>[
+    if (folded is ExpressionConstant) {
+      return ExpressionConstant(<double>[
         for (final index in expression.components) folded.value[index],
       ], expression.type);
     }
-    return MaterialSwizzle(folded, expression.components, expression.type);
+    return ExpressionSwizzle(folded, expression.components, expression.type);
   }
 
   @override
-  MaterialExpression visitNegate(MaterialNegate expression) {
+  Expression visitNegate(ExpressionNegate expression) {
     final folded = expression.operand.accept(this);
-    if (folded is MaterialConstant) {
-      return MaterialConstant(<double>[
+    if (folded is ExpressionConstant) {
+      return ExpressionConstant(<double>[
         for (final component in folded.value) -component,
       ], folded.type);
     }
-    return MaterialNegate(folded);
+    return ExpressionNegate(folded);
   }
 
   @override
-  MaterialExpression visitBinary(MaterialBinary expression) {
+  Expression visitBinary(ExpressionBinary expression) {
     final a = expression.left.accept(this);
     final b = expression.right.accept(this);
-    if (a is MaterialConstant && b is MaterialConstant) {
-      return MaterialConstant(
+    if (a is ExpressionConstant && b is ExpressionConstant) {
+      return ExpressionConstant(
         applyBinary(expression.op, a.value, b.value),
         expression.type,
       );
     }
-    return MaterialBinary(expression.op, a, b, expression.type);
+    return ExpressionBinary(expression.op, a, b, expression.type);
   }
 
   @override
-  MaterialExpression visitCall(MaterialCall expression) {
-    final folded = <MaterialExpression>[
+  Expression visitCall(ExpressionCall expression) {
+    final folded = <Expression>[
       for (final argument in expression.arguments) argument.accept(this),
     ];
-    if (folded.every((f) => f is MaterialConstant)) {
-      return MaterialConstant(
+    if (folded.every((f) => f is ExpressionConstant)) {
+      return ExpressionConstant(
         expression.builtin.apply(
           broadcastArguments(<List<double>>[
-            for (final f in folded) (f as MaterialConstant).value,
+            for (final f in folded) (f as ExpressionConstant).value,
           ], expression.builtin),
         ),
         expression.type,
       );
     }
-    return MaterialCall(expression.builtin, folded, expression.type);
+    return ExpressionCall(expression.builtin, folded, expression.type);
   }
 
   @override
-  MaterialExpression visitSample(MaterialSample expression) =>
+  Expression visitSample(MaterialSample expression) =>
       MaterialSample(expression.slot, expression.uv.accept(this));
 
   @override
-  MaterialExpression visitUnknown(MaterialExpression expression) =>
-      throw ArgumentError.value(
-        expression,
-        'expression',
-        'not an expression this build of the material language knows',
-      );
+  Expression visitUnknown(Expression expression) => throw ArgumentError.value(
+    expression,
+    'expression',
+    'not an expression this build of the material language knows',
+  );
 }
 
 /// `+ - * /` on two values, with GLSL's broadcasting: the expression
@@ -1195,5 +1143,5 @@ List<double> applyBinary(String op, List<double> a, List<double> b) =>
 /// [broadcastExpressionArguments].
 List<List<double>> broadcastArguments(
   List<List<double>> arguments,
-  MaterialBuiltin builtin,
+  ExpressionBuiltin builtin,
 ) => broadcastExpressionArguments(arguments, builtin);

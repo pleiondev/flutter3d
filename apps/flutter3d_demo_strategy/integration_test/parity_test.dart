@@ -46,7 +46,7 @@ Heightfield _flat() => Heightfield(
   heights: Float32List(41 * 41),
 );
 
-Match _mirror({
+StrategyMatch _mirror({
   double seamOne = 20.0,
   double seamTwo = 20.0,
   double amountOne = 500.0,
@@ -85,7 +85,7 @@ Match _mirror({
     }
     if (policies) bots.add(Bot(side: side, base: base));
   }
-  return Match(
+  return StrategyMatch(
     simulation: sim,
     bots: bots,
     goal: MatchGoal(delivered: target),
@@ -93,7 +93,7 @@ Match _mirror({
 }
 
 DigestTrace _play({double seamTwo = 20.0, int steps = 1200, int every = 30}) {
-  final Match match = _mirror(seamTwo: seamTwo, target: 10000.0);
+  final StrategyMatch match = _mirror(seamTwo: seamTwo, target: 10000.0);
   final trace = DigestTrace(every: every);
   for (var step = 1; step <= steps; step++) {
     match.step(_step);

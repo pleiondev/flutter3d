@@ -27,12 +27,6 @@ void main() {
       (v) => (v as ExportFormat).name,
       ExportFormat.byName,
     ),
-    'ExportSeverity': (
-      ExportSeverity.values,
-      <String>['warning', 'error'],
-      (v) => (v as ExportSeverity).name,
-      ExportSeverity.byName,
-    ),
     'OriginPlacement': (
       OriginPlacement.values,
       <String>['boundsCenter', 'boundsBottom', 'worldOrigin'],

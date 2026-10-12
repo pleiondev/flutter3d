@@ -41,6 +41,16 @@
 library;
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show
+        Expression,
+        ExpressionBinary,
+        ExpressionCall,
+        ExpressionConstant,
+        ExpressionConstruct,
+        ExpressionNegate,
+        ExpressionSwizzle,
+        ExpressionType;
 import 'package:flutter3d_shaders/translate.dart'
     show
         PackedStage,
@@ -463,7 +473,7 @@ PreparedBlock _paramsBlock(
   );
 }
 
-String _type(MaterialType type) => switch (type.components) {
+String _type(ExpressionType type) => switch (type.components) {
   1 => 'f32',
   2 => 'vec2<f32>',
   3 => 'vec3<f32>',
@@ -525,11 +535,11 @@ final class _WgslWriter extends MaterialExpressionVisitor<String> {
   /// The uniform the parameters are bound to.
   final String params;
 
-  String expression(MaterialExpression expression) => expression.accept(this);
+  String expression(Expression expression) => expression.accept(this);
 
   @override
-  String visitConstant(MaterialConstant expression) {
-    final MaterialConstant(:value, :type) = expression;
+  String visitConstant(ExpressionConstant expression) {
+    final ExpressionConstant(:value, :type) = expression;
     if (type.components == 1) return _number(value.single);
     return '${_type(type)}(${value.map(_number).join(', ')})';
   }
@@ -556,29 +566,29 @@ final class _WgslWriter extends MaterialExpressionVisitor<String> {
   }
 
   @override
-  String visitConstruct(MaterialConstruct expression) =>
+  String visitConstruct(ExpressionConstruct expression) =>
       '${_type(expression.type)}'
       '(${expression.arguments.map(this.expression).join(', ')})';
 
   @override
-  String visitSwizzle(MaterialSwizzle expression) {
+  String visitSwizzle(ExpressionSwizzle expression) {
     const letters = 'xyzw';
     return '${this.expression(expression.target)}.'
         '${expression.components.map((i) => letters[i]).join()}';
   }
 
   @override
-  String visitNegate(MaterialNegate expression) =>
+  String visitNegate(ExpressionNegate expression) =>
       '(-(${this.expression(expression.operand)}))';
 
   @override
-  String visitBinary(MaterialBinary expression) =>
+  String visitBinary(ExpressionBinary expression) =>
       '(${this.expression(expression.left)} ${expression.op} '
       '${this.expression(expression.right)})';
 
   @override
-  String visitCall(MaterialCall expression) {
-    final MaterialCall(:builtin, :arguments) = expression;
+  String visitCall(ExpressionCall expression) {
+    final ExpressionCall(:builtin, :arguments) = expression;
     // Spread a float beside a vector for the component-wise builtins, as
     // the GLSL emitter does: WGSL's `clamp`, `min`, `max`, `pow`,
     // `smoothstep` and `step` take no mixed overloads at all.
@@ -586,10 +596,10 @@ final class _WgslWriter extends MaterialExpressionVisitor<String> {
       1,
       (int w, a) => a.type.components > w ? a.type.components : w,
     );
-    String spread(MaterialExpression argument) {
+    String spread(Expression argument) {
       final text = this.expression(argument);
       return builtin.componentWise && width > 1 && argument.type.components == 1
-          ? '${_type(MaterialType.numeric[width]!)}($text)'
+          ? '${_type(ExpressionType.numeric[width]!)}($text)'
           : text;
     }
 
@@ -605,12 +615,11 @@ final class _WgslWriter extends MaterialExpressionVisitor<String> {
   }
 
   @override
-  String visitUnknown(MaterialExpression expression) =>
-      throw ArgumentError.value(
-        expression,
-        'expression',
-        'not an expression this build of the material language knows',
-      );
+  String visitUnknown(Expression expression) => throw ArgumentError.value(
+    expression,
+    'expression',
+    'not an expression this build of the material language knows',
+  );
 }
 
 /// A WGSL float literal: always with a point or an exponent, and a negative

@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **A ragdoll's bone pose is `flutter3d_foundation`'s `RigidPose`**, where
+  it was a record of its own.
+- **The cloth, debris, fluid and particle systems speak in classes.**
+  `ClothFrame`, `DebrisFrame`, `FluidFrame`, `DebrisBody`, `FluidParticle`,
+  `NativeParticle` and the cloth's `ClothBall` were records; a backend
+  mixes these systems in, and a record never gains a field.
+- **`GpuUnavailable` is `GpuUnavailableException`.** A thrown type says
+  so in its name, so `on …Exception` reads as what it catches.
 - **A contact damps by what its bodies are made of.** A body takes a loss
   factor (`f3d_body_set_loss_factor`, `NativeWorld.setLossFactor`), and a
   contact bounces with no more of its approach than a spring and dashpot

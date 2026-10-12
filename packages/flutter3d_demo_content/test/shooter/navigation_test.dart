@@ -9,6 +9,7 @@
 library;
 
 import 'package:flutter3d_demo_content/shooter_sample.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/src/actors/actor_system.dart';
@@ -144,7 +145,7 @@ void main() {
       ], issues: issues);
 
       expect(issues, hasLength(1));
-      expect(issues.single.severity, LevelIssueSeverity.warning);
+      expect(issues.single.severity, Severity.warning);
       expect(issues.single.message, contains('lowest'));
 
       final under = grid.cellAtPoint(0.5, 0.5);

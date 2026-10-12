@@ -49,7 +49,7 @@ final class Staged {
   final MapCamera camera;
 
   /// The sides, the ground under them, and the finishing line.
-  Match get match => start.match;
+  StrategyMatch get match => start.match;
 
   /// The crowd and the ground it walks on.
   StrategySimulation get simulation => start.simulation;

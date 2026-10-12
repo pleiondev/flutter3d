@@ -149,11 +149,11 @@ const Set<String> _ruleKeys = <String>{
 /// one gets — the same object either way, so nothing downstream branches on
 /// whether a file existed.
 final class AssetManifest {
-  const AssetManifest([
+  const AssetManifest({
     this.rules = const <AssetRule>[],
     this.classes = const <DeviceClassBudget>[],
     this.shaders = ShaderSelection.none,
-  ]);
+  });
 
   static const AssetManifest empty = AssetManifest();
 
@@ -250,14 +250,16 @@ final class AssetManifest {
     }
 
     return AssetManifest(
-      <AssetRule>[
+      rules: <AssetRule>[
         if (rulesNode is YamlList)
           for (final ruleNode in rulesNode.nodes) _parseRule(ruleNode),
       ],
-      classesNode == null
+      classes: classesNode == null
           ? const <DeviceClassBudget>[]
           : _parseClasses(classesNode),
-      shadersNode == null ? ShaderSelection.none : _parseShaders(shadersNode),
+      shaders: shadersNode == null
+          ? ShaderSelection.none
+          : _parseShaders(shadersNode),
     );
   }
 

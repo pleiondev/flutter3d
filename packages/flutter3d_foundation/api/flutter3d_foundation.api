@@ -288,10 +288,24 @@ final class FormatSpecs
 
 final class Issue
   String toString()
-  const Issue(this.message)
+  const Issue(this.message, {this.severity = Severity.warning})
+  final Severity severity
   final String message
 
 typedef IssueSink = void Function(Issue issue);
+
+final class LightType
+  LightType get base
+  String toString()
+  const LightType.custom(this.name, {required LightType base})
+  final String name
+  int get index
+  static LightType? byName(String wireName)
+  static const LightType area = LightType._(3, 'area')
+  static const LightType directional = LightType._(0, 'directional')
+  static const LightType point = LightType._(1, 'point')
+  static const LightType spot = LightType._(2, 'spot')
+  static const List<LightType> values = <LightType>[directional, point, spot, area]
 
 final class LinearColor
   LinearColor scaled(double factor)
@@ -393,6 +407,27 @@ final class Registration
 
 abstract base class ResourceException extends Flutter3dException
   const ResourceException()
+
+final class RigidPose
+  List<double> get components
+  Quaternion get orientation
+  RigidPose({required Vector3 position, required Quaternion orientation})
+  RigidPose.identity()
+  String toString()
+  Vector3 get position
+  bool operator ==(Object other)
+  factory RigidPose.fromComponents(List<double> components)
+  int get hashCode
+
+final class Severity
+  String toString()
+  final String name
+  int get index
+  static Severity? byName(String name)
+  static const List<Severity> values = <Severity>[note, warning, error]
+  static const Severity error = Severity._('error')
+  static const Severity note = Severity._('note')
+  static const Severity warning = Severity._('warning')
 
 final class ShaderCompileException extends Flutter3dFormatException
   Map<String, Object?> toJson()
@@ -611,7 +646,7 @@ base class ExpressionParser
 
 final class ExpressionToken
   String toString()
-  const ExpressionToken(this.kind, this.text, this.line, this.column, [this.number])
+  const ExpressionToken(this.kind, this.text, this.line, this.column, {this.number})
   final String kind
   final String text
   final double? number

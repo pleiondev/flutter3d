@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart' show RenderSettings;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show LinearColor;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
@@ -321,10 +322,10 @@ final class LightOptimizer {
   static bool _sameKind(LevelLight a, LevelLight b) =>
       a.type == b.type &&
       switch (a.type) {
-        LevelLightType.point => true,
-        LevelLightType.spot =>
+        LightType.point => true,
+        LightType.spot =>
           a.direction.normalized().dot(b.direction.normalized()) >= 0.9,
-        LevelLightType.directional => false,
+        LightType.directional => false,
         // A kind this optimizer has no rule for is left alone.
         _ => false,
       };
@@ -357,7 +358,7 @@ final class LightOptimizer {
       extra: <String, Object?>{
         'at': _tidied(at),
         'range': _tidy(reach),
-        if (first.type == LevelLightType.spot) 'direction': _tidied(direction),
+        if (first.type == LightType.spot) 'direction': _tidied(direction),
         if (first.castsShadow || second.castsShadow) 'castsShadow': true,
       },
     );
@@ -791,7 +792,7 @@ final class _Problem {
     }
     final shadowViews = !light.castsShadow
         ? 0
-        : light.type == LevelLightType.point
+        : light.type == LightType.point
         ? 6
         : 1;
     return reached * (1.0 + shadowViews).toDouble();

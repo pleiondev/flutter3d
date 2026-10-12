@@ -3,8 +3,8 @@
 library;
 
 import 'package:flutter/widgets.dart' show Widget;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show RigidPose;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart' show TextureHandle;
-import 'package:flutter3d_sim/flutter3d_sim.dart' show XrPose;
 
 import 'xr_session.dart';
 import 'xr_swapchain.dart';
@@ -60,7 +60,7 @@ final class XrQuadLayer extends XrLayer {
   }) : super._(space);
 
   /// Its center and turn; it faces along the pose's +z.
-  final XrPose pose;
+  final RigidPose pose;
 
   /// Metres across.
   final double width;
@@ -87,7 +87,7 @@ final class XrCylinderLayer extends XrLayer {
   }) : super._(space);
 
   /// The cylinder's center and turn; the band is centered on the pose's −z.
-  final XrPose pose;
+  final RigidPose pose;
 
   /// Metres from the axis.
   final double radius;
@@ -162,7 +162,7 @@ final class XrPanel {
   final Widget child;
 
   /// Where it is: a quad's center, a cylinder's axis.
-  XrPose pose;
+  RigidPose pose;
 
   /// Metres across: a quad's width, a cylinder's arc length.
   final double width;

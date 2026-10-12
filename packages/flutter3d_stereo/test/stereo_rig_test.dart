@@ -42,8 +42,11 @@ void main() {
       // A quarter turn to the left about the world's up: the left eye swings
       // to where the camera is now looking away from.
       rig.applyHead(
-        HeadPose(
-          rotation: Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), math.pi / 2),
+        RigidPose(
+          orientation: Quaternion.axisAngle(
+            Vector3(0.0, 1.0, 0.0),
+            math.pi / 2,
+          ),
           position: Vector3.zero(),
         ),
       );
@@ -134,8 +137,8 @@ void main() {
     test('facing a direction turns the stage and leaves the head alone', () {
       final rig = inScene();
       rig.applyHead(
-        HeadPose(
-          rotation: Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), 0.3),
+        RigidPose(
+          orientation: Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), 0.3),
           position: Vector3.zero(),
         ),
       );

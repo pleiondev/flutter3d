@@ -56,8 +56,9 @@ const List<RenderProjectView> renderSheetViews = <RenderProjectView>[
 /// [width] over the column count and half of [height], rounded down — a
 /// width or height that does not divide loses at most a few pixels off the
 /// sheet's own right or bottom edge rather than off any tile.
-/// [RenderRefusal] surfaces from whichever quadrant [renderProject] refuses
-/// first, at the half-size it was actually asked to draw.
+/// [RenderRefusalException] surfaces from whichever quadrant
+/// [renderProject] refuses first, at the half-size it was actually asked to
+/// draw.
 ///
 /// [labels] writes each view's own name into its quadrant. Pass `false` for
 /// a sheet whose quadrants are byte-for-byte what [renderProject] returns.

@@ -12,21 +12,21 @@
 /// `apps/flutter3d_demo_racing/test/demo_test.dart` for the sibling this
 /// mirrors and the reason it lives in the app rather than the package.
 ///
-/// **The tape is the queue's, not the match's.** `Match.step` always asks
-/// every bot to decide before it steps the simulation underneath it, with no
-/// way to tell it not to — so a replay that called `Match.step` again would
-/// ask the far side's bot to decide a second time, on the state its first
-/// decision already produced, and add a second helping of orders to a step
-/// that already has one. `OrderTapePlayback.applyTo` takes an `OrderQueue`,
-/// not a `Match`, and that is the shape the whole mechanism was built to —
-/// the tape already holds everything either side asked for that step, bot
-/// included, so a replay hands it to `StrategySimulation.step` directly
-/// instead of asking `Match.step` to go through the bots a second time. What
-/// is staged, stepped and compared here is the simulation the tape actually
-/// replays, not the match around it — a bot's own head (`Bot.save`) is no
-/// part of a demo for the reason it is part of a save and not this: only
-/// `RunSession` resumes a launch, and only a save needs to remember what a
-/// bot was thinking between two of them.
+/// **The tape is the queue's, not the match's.** `StrategyMatch.step` always
+/// asks every bot to decide before it steps the simulation underneath it, with
+/// no way to tell it not to — so a replay that called `StrategyMatch.step`
+/// again would ask the far side's bot to decide a second time, on the state its
+/// first decision already produced, and add a second helping of orders to a
+/// step that already has one. `OrderTapePlayback.applyTo` takes an
+/// `OrderQueue`, not a `StrategyMatch`, and that is the shape the whole
+/// mechanism was built to — the tape already holds everything either side asked
+/// for that step, bot included, so a replay hands it to
+/// `StrategySimulation.step` directly instead of asking `StrategyMatch.step` to
+/// go through the bots a second time. What is staged, stepped and compared here
+/// is the simulation the tape actually replays, not the match around it — a
+/// bot's own head (`Bot.save`) is no part of a demo for the reason it is part
+/// of a save and not this: only `RunSession` resumes a launch, and only a save
+/// needs to remember what a bot was thinking between two of them.
 library;
 
 import 'dart:convert';
@@ -102,9 +102,9 @@ void main() {
       if (i == 700) expect(command.orderTo(ford + way * 8.0), isTrue);
       // The near side's own policy, the same one the screen asks on the
       // player's behalf every frame; the far side's bot, called directly
-      // rather than through `Match.step`, so the loop below can be repeated
-      // for the replay with only the bot's half missing. The world steps
-      // inside the simulation's step, as it does on the screen.
+      // rather than through `StrategyMatch.step`, so the loop below can be
+      // repeated for the replay with only the bot's half missing. The world
+      // steps inside the simulation's step, as it does on the screen.
       command.restock();
       for (final bot in live.match.bots) {
         bot.step(live.simulation);

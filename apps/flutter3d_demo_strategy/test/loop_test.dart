@@ -153,7 +153,7 @@ void main() {
       poses.bodies.length,
       greaterThanOrEqualTo(start.simulation.units.length),
     );
-    final Pose last = poses.track(name).poses.last;
+    final GhostFrame last = poses.track(name).poses.last;
     expect(last.position.x, closeTo(unit.position.x, 0.002));
     expect(last.position.z, closeTo(unit.position.z, 0.002));
     expect(demo.tape.steps, 4 * matchPoseEvery);

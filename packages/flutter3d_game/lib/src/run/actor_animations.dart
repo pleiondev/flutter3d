@@ -1,6 +1,6 @@
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart' hide Pose;
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../visuals/actor_visuals.dart';

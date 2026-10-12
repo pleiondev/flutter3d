@@ -3,6 +3,7 @@
 /// adds to the engine's `EntityKinds`.
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show
@@ -143,7 +144,7 @@ final class DataEntityKind extends EntityKind {
       if (entity.properties.containsKey(key)) continue;
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'has no "$key", which plugin "$owner" requires of a $type',
           where: scope.describe(entity),
         ),

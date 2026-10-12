@@ -109,8 +109,7 @@ void main() {
         ]),
       );
       final back = SkinWeightsBlob.fromJson(blob.toJson());
-      expect(back, isNotNull);
-      expect(back!.toJson(), blob.toJson());
+      expect(back.toJson(), blob.toJson());
     });
 
     test('SetRig round-trips with a skinObjectId and weights', () {

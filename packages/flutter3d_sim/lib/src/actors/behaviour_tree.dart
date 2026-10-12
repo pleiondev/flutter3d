@@ -81,7 +81,26 @@ final class BehaviorContext {
 }
 
 /// What the overlay may look at outside a step, when there is no mind.
-typedef BehaviorView = ({Actor actor, ActorSystem system, Blackboard board});
+///
+/// **A class, because a leaf an outside author writes takes it**
+/// ([BehaviorLeaf.goal]): a record could never gain the field a later
+/// overlay wants to show, and a class adds it without breaking a leaf.
+final class BehaviorView {
+  const BehaviorView({
+    required this.actor,
+    required this.system,
+    required this.board,
+  });
+
+  /// The actor whose behavior is looked at.
+  final Actor actor;
+
+  /// The actors it lives among.
+  final ActorSystem system;
+
+  /// Its memory, as the last step left it.
+  final Blackboard board;
+}
 
 /// One node on the running path, for whoever draws or prints it.
 typedef BehaviorPathStep = ({

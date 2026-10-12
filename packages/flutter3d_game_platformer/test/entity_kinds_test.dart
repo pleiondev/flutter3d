@@ -19,6 +19,7 @@
 /// `validate` directly would pass with the kind unregistered.
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
@@ -77,17 +78,16 @@ List<LevelIssue> _issuesFor(Map<String, Object?> entity) {
 }
 
 /// The messages of a given severity, so a claim can name the words it expects.
-List<String> _of(List<LevelIssue> issues, LevelIssueSeverity severity) =>
-    <String>[
-      for (final issue in issues)
-        if (issue.severity == severity) issue.message,
-    ];
+List<String> _of(List<LevelIssue> issues, Severity severity) => <String>[
+  for (final issue in issues)
+    if (issue.severity == severity) issue.message,
+];
 
 List<String> _errors(Map<String, Object?> entity) =>
-    _of(_issuesFor(entity), LevelIssueSeverity.error);
+    _of(_issuesFor(entity), Severity.error);
 
 List<String> _warnings(Map<String, Object?> entity) =>
-    _of(_issuesFor(entity), LevelIssueSeverity.warning);
+    _of(_issuesFor(entity), Severity.warning);
 
 /// An entity of [type], at the origin, with whatever else is given.
 Map<String, Object?> _entity(String type, [Map<String, Object?>? properties]) =>

@@ -318,7 +318,8 @@ final class SceneDressing {
           .where((Handle h) => h.kind == drawn.kind && h.index == drawn.index)
           .firstOrNull;
       final mark = drawn.mark;
-      final tint = mark.tint ?? owner?.tint ?? Vector3(1.0, 1.0, 1.0);
+      final tint =
+          mark.tint?.toVector3() ?? owner?.tint ?? Vector3(1.0, 1.0, 1.0);
       final material = engine.RenderMaterial(
         name: 'gizmo',
         baseColor: LinearColor.fromSrgb(tint.x, tint.y, tint.z, 1.0),

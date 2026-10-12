@@ -104,10 +104,13 @@ final class BehaviorBrain extends Brain implements HasBehaviorTree {
 
   /// Where [actor]'s running leaf is taking it, or null. Reads, like
   /// [pathOf].
-  static Vector3? goalOf(Actor actor, ActorSystem system) =>
-      switch ((actor.brain, actor.entities.get<Blackboard>(actor.entity))) {
-        (final HasBehaviorTree brain, final Blackboard board) =>
-          brain.tree.goalOf((actor: actor, system: system, board: board)),
-        _ => null,
-      };
+  static Vector3? goalOf(Actor actor, ActorSystem system) => switch ((
+    actor.brain,
+    actor.entities.get<Blackboard>(actor.entity),
+  )) {
+    (final HasBehaviorTree brain, final Blackboard board) => brain.tree.goalOf(
+      BehaviorView(actor: actor, system: system, board: board),
+    ),
+    _ => null,
+  };
 }

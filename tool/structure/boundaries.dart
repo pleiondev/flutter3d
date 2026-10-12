@@ -391,10 +391,8 @@ List<(String, String, String, String)> undeclaredNames(
 /// cannot tell which without the resolver. An entry no package declares any
 /// more is a finding.
 const Map<String, String> typeNamesDeclaredOutside = <String, String>{
-  'Match': '`dart:core`, the result of a `RegExp`',
   'Expression':
       '`package:analyzer`\'s AST node, which the lints\' migration scan reads',
-  'Key': 'Flutter\'s widget key',
   'Link': 'Flutter\'s `widgets.dart`, a link a screen reader announces',
   'PluginRegistry':
       '`analysis_server_plugin`, which the lints\' analyzer plugin registers '

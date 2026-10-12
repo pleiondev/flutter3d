@@ -30,13 +30,13 @@ void _addPlate(EngineLoop loop) {
   loop.world
     ..set<MaterialStateComponent>(
       plate,
-      MaterialStateComponent(MaterialState.at(temperature: 300)),
+      MaterialStateComponent(MatterState.at(temperature: 300)),
     )
     ..set<Probe>(
       plate,
       Probe(
         id: 'plate.t',
-        quantity: MaterialState.temperatureId,
+        quantity: MatterState.temperatureId,
         unit: Unit.kelvin,
       ),
     );
@@ -46,7 +46,7 @@ void _addPlate(EngineLoop loop) {
       plate,
       MaterialStateComponent(
         state.withQuantity(
-          MaterialState.temperatureId,
+          MatterState.temperatureId,
           Quantity(state.temperature + 1, Unit.kelvin),
         ),
       ),

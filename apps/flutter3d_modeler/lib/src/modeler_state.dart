@@ -405,7 +405,7 @@ final class AgentToolCall {
   /// mutated, by whatever formats a line out of it for the feed.
   final Map<String, Object?> arguments;
 
-  /// Whether it did anything, the same `did` every `Answer`/`PictureAnswer`
+  /// Whether it did anything, the same `did` every `Answer`/`Answer`
   /// in this repository already carries.
   final bool did;
 

@@ -33,7 +33,7 @@ final class ConstantLaw extends PropertyLaw
   bool get dependsOnState
   bool operator ==(Object other)
   const ConstantLaw(super.value, {super.confidence, super.source, super.interval, this.unknown = const <String, Object?>{}})
-  double at(MaterialState state)
+  double at(MatterState state)
   final Map<String, Object?> unknown
   int get hashCode
 
@@ -97,7 +97,7 @@ final class FormulaLaw extends PropertyLaw
   bool get dependsOnState
   bool operator ==(Object other)
   const FormulaLaw(super.value, {required this.expression, this.inputs = standardInputs, super.confidence, super.source, super.interval})
-  double at(MaterialState state)
+  double at(MatterState state)
   factory FormulaLaw.andrade(double value, {required double a, required double b, required String unit, LawInput input = LawInput.temperature, Confidence? confidence, String? source})
   factory FormulaLaw.arrhenius(double value, {required double y0, required double activation, required String unit, LawInput input = LawInput.temperature, Confidence? confidence, String? source})
   factory FormulaLaw.polynomial(double value, {required List<double> coefficients, required String unit, LawInput input = LawInput.temperature, Confidence? confidence, String? source})
@@ -142,7 +142,7 @@ final class LawInput
   String toString()
   bool operator ==(Object other)
   const LawInput(this.id, {this.unit = Unit.one, this.low, this.high, this.fallback})
-  double read(MaterialState state)
+  double read(MatterState state)
   factory LawInput.fromJson(Object? json)
   final String id
   final Unit unit
@@ -150,8 +150,8 @@ final class LawInput
   final double? high
   final double? low
   int get hashCode
-  static const LawInput pressure = LawInput(MaterialState.pressureId, unit: Unit.pascal)
-  static const LawInput temperature = LawInput(MaterialState.temperatureId, unit: Unit.kelvin)
+  static const LawInput pressure = LawInput(MatterState.pressureId, unit: Unit.pascal)
+  static const LawInput temperature = LawInput(MatterState.temperatureId, unit: Unit.kelvin)
 
 base class MaterialCatalog extends PluginRegistry
   ContactProperties contact(PhysicalMaterial a, PhysicalMaterial b)
@@ -212,28 +212,6 @@ final class MaterialPhase
 final class MaterialRegistrationException extends PluginException
   String toString()
   const MaterialRegistrationException(super.message)
-
-final class MaterialState
-  Map<String, Object?> toJson()
-  MaterialState inPhase(MaterialPhase phase)
-  MaterialState withQuantity(String id, Quantity value)
-  MaterialState without(String id)
-  Quantity? operator [](String id)
-  String toString()
-  bool operator ==(Object other)
-  const MaterialState({this.quantities = const <String, Quantity>{}, this.phase})
-  double get pressure
-  double get temperature
-  factory MaterialState.at({double temperature = standardAirTemperature, double pressure = standardAtmosphere, MaterialPhase? phase, Map<String, Quantity> also = const <String, Quantity>{}})
-  factory MaterialState.fromJson(Map<String, Object?> json)
-  final Map<String, Quantity> quantities
-  final MaterialPhase? phase
-  int get hashCode
-  static String checkedQuantityId(String id)
-  static const MaterialState standard = …
-  static const String pressureId = 'f3d.pressure'
-  static const String temperatureId = 'f3d.temperature'
-  static const String wetnessId = 'f3d.wetness'
 
 abstract final class Materials
   static const List<MaterialPair> pairs = …
@@ -478,6 +456,28 @@ abstract final class Materials
   static const PhysicalMaterial xenon = …
   static const PhysicalMaterial zinc = …
 
+final class MatterState
+  Map<String, Object?> toJson()
+  MatterState inPhase(MaterialPhase phase)
+  MatterState withQuantity(String id, Quantity value)
+  MatterState without(String id)
+  Quantity? operator [](String id)
+  String toString()
+  bool operator ==(Object other)
+  const MatterState({this.quantities = const <String, Quantity>{}, this.phase})
+  double get pressure
+  double get temperature
+  factory MatterState.at({double temperature = standardAirTemperature, double pressure = standardAtmosphere, MaterialPhase? phase, Map<String, Quantity> also = const <String, Quantity>{}})
+  factory MatterState.fromJson(Map<String, Object?> json)
+  final Map<String, Quantity> quantities
+  final MaterialPhase? phase
+  int get hashCode
+  static String checkedQuantityId(String id)
+  static const MatterState standard = MatterState(quantities: <String, Quantity>{temperatureId: Quantity(standardAirTemperature, Unit.kelvin), pressureId: Quantity(standardAtmosphere, Unit.pascal)})
+  static const String pressureId = 'f3d.pressure'
+  static const String temperatureId = 'f3d.temperature'
+  static const String wetnessId = 'f3d.wetness'
+
 final class MechanicalProperties extends PropertyGroup
   Map<String, Object?> toJson()
   Map<String, PropertyLaw> get laws
@@ -517,7 +517,7 @@ final class PhysicalMaterial
   List<String> problems()
   Map<String, Object?> toBody()
   Map<String, Object?> toJson()
-  MaterialState get referenceState
+  MatterState get referenceState
   String get namespace
   String toString()
   const PhysicalMaterial({required this.id, required this.name, required this.phase, this.temperature = standardAirTemperature, this.pressure = standardAtmosphere, this.mechanical, this.fluid, this.thermal, this.acoustic, this.optical, this.electrical, this.inelastic, this.externalIds = const <String, String>{}, this.confidence, this.unknown = const <String, Object?>{}})
@@ -566,7 +566,7 @@ abstract base class PropertyLaw
   abstract Map<String, Object?> lawJson()
   abstract String get kind
   abstract bool get dependsOnState
-  abstract double at(MaterialState state)
+  abstract double at(MatterState state)
   const PropertyLaw(this.value, {this.confidence, this.source, this.interval})
   final Confidence? confidence
   final PropertyInterval? interval
@@ -592,7 +592,7 @@ final class TableLaw extends PropertyLaw
   bool get dependsOnState
   bool operator ==(Object other)
   const TableLaw(super.value, {this.input = LawInput.temperature, required this.xs, required this.ys, super.confidence, super.source, super.interval})
-  double at(MaterialState state)
+  double at(MatterState state)
   double interpolate(double x)
   final LawInput input
   final List<double> xs

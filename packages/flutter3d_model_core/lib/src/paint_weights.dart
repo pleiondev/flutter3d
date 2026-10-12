@@ -68,28 +68,29 @@ final class BrushSample {
     'radius': radius,
   };
 
-  /// A [BrushSample] from its own [toJson], or null when a field is missing
-  /// or the wrong shape.
-  static BrushSample? fromJson(Object? json) {
-    if (json is! Map<String, Object?>) return null;
-    return switch (json) {
-      {'center': final Object? centerJson, 'radius': final num radius} =>
-        switch (_doubles(centerJson, 3)) {
-          final List<double> center => BrushSample(
-            center: Vector3(center[0], center[1], center[2]),
-            radius: radius.toDouble(),
-          ),
-          null => null,
-        },
-      _ => null,
-    };
-  }
+  /// A [BrushSample] from its own [toJson]. Throws a
+  /// [ProjectFormatException] when a field is missing or the wrong shape.
+  static BrushSample fromJson(Object? json) => switch (json) {
+    {'center': final Object? centerJson, 'radius': final num radius} =>
+      switch (_doubles(centerJson, 3)) {
+        final List<double> center => BrushSample(
+          center: Vector3(center[0], center[1], center[2]),
+          radius: radius.toDouble(),
+        ),
+        null => throw const ProjectFormatException(
+          'a brush sample\'s "center" is three numbers',
+        ),
+      },
+    _ => throw const ProjectFormatException(
+      'a brush sample names its "center" and its "radius"',
+    ),
+  };
 }
 
 /// How a sample changes a vertex's weight at `paintWeights`' own `joint`.
 ///
 /// A `final class` with `static const` instances rather than an `enum` —
-/// the same choice `BlendMode`/`DriverAxis` already make in this package,
+/// the same choice `PaintBlendMode`/`DriverAxis` already make in this package,
 /// and for the same reason: a fixed, small domain that does not want a
 /// fourth case added by accident.
 final class PaintWeightsMode {
@@ -148,13 +149,15 @@ final class PaintMirror {
     'tolerance': tolerance,
   };
 
-  /// A [PaintMirror] from its own [toJson], or null when a field is missing
-  /// or the wrong shape — [MirrorJoints]' own `jointMirror` reader, repeated
-  /// here rather than shared, since the two commands' readers live in
-  /// different `switch` shapes and neither is worth a third file just to
-  /// hold one map decode.
-  static PaintMirror? fromJson(Object? json) {
-    if (json is! Map<String, Object?>) return null;
+  /// A [PaintMirror] from its own [toJson]. Throws a
+  /// [ProjectFormatException] when a field is missing or the wrong shape —
+  /// [MirrorJoints]' own `jointMirror` reader, repeated here rather than
+  /// shared, since the two commands' readers live in different `switch` shapes
+  /// and neither is worth a third file just to hold one map decode.
+  static PaintMirror fromJson(Object? json) {
+    if (json is! Map<String, Object?>) {
+      throw const ProjectFormatException('a paint mirror is an object');
+    }
     return switch (json) {
       {
         'axis': final int axis,
@@ -169,7 +172,9 @@ final class PaintMirror {
           plane: (json['plane'] as num?)?.toDouble() ?? 0.0,
           tolerance: (json['tolerance'] as num?)?.toDouble() ?? 1e-4,
         ),
-      _ => null,
+      _ => throw const ProjectFormatException(
+        'a paint mirror names its whole "axis" and its "jointMirror"',
+      ),
     };
   }
 }
@@ -451,7 +456,7 @@ final class PaintWeights extends ModelCommand {
 List<BrushSample>? _brushSamplesFrom(List<Object?> json) {
   final out = <BrushSample>[];
   for (final Object? each in json) {
-    final sample = BrushSample.fromJson(each);
+    final sample = _readOrNull(() => BrushSample.fromJson(each));
     if (sample == null) return null;
     out.add(sample);
   }
@@ -465,6 +470,6 @@ List<BrushSample>? _brushSamplesFrom(List<Object?> json) {
 /// nullable return cannot.
 (PaintMirror?, bool) _paintMirrorFrom(Object? json) {
   if (json == null) return (null, true);
-  final mirror = PaintMirror.fromJson(json);
+  final mirror = _readOrNull(() => PaintMirror.fromJson(json));
   return (mirror, mirror != null);
 }

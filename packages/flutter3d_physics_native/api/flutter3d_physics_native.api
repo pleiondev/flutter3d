@@ -4,30 +4,56 @@
 
 library package:flutter3d_physics_native/flutter3d_physics_native.dart
 
-typedef BonePose = ({Vector3 position, Quaternion orientation});
+final class ClothBall
+  String toString()
+  bool operator ==(Object other)
+  const ClothBall({required this.center, required this.radius})
+  final Vector3 center
+  final double radius
+  int get hashCode
 
-typedef ClothFrame = ({int step, Float32List points});
+final class ClothFrame
+  String toString()
+  bool operator ==(Object other)
+  const ClothFrame({required this.step, required this.points})
+  final Float32List points
+  final int step
+  int get hashCode
 
 abstract base mixin class ClothSystem
   abstract ClothFrame? read({bool wait = true})
   abstract int get pointCount
   abstract void dispose()
   abstract void movePoint(int index, Vector3 at)
-  abstract void setBalls(List<({Vector3 center, double radius})> balls)
+  abstract void setBalls(List<ClothBall> balls)
   abstract void step(ClothSettings settings, double dt)
 
 typedef CoreClothMesh = ClothMesh;
 
 typedef CoreClothSettings = ClothSettings;
 
-typedef DebrisBody = ({Vector3 position, Vector3 velocity, double radius, double mass});
+final class DebrisBody
+  String toString()
+  bool operator ==(Object other)
+  const DebrisBody({required this.position, required this.velocity, required this.radius, required this.mass})
+  final Vector3 position
+  final Vector3 velocity
+  final double mass
+  final double radius
+  int get hashCode
 
 final class DebrisBox extends DebrisStatic
   const DebrisBox(this.center, this.halfExtents)
   final Vector3 center
   final Vector3 halfExtents
 
-typedef DebrisFrame = ({int step, Float32List bodies});
+final class DebrisFrame
+  String toString()
+  bool operator ==(Object other)
+  const DebrisFrame({required this.step, required this.bodies})
+  final Float32List bodies
+  final int step
+  int get hashCode
 
 final class DebrisPlane extends DebrisStatic
   const DebrisPlane(this.normal, this.offset)
@@ -65,9 +91,21 @@ abstract final class FireExposure
   static double fluxAt(Iterable<NativeFire> fires, Vector3 at)
   static double fluxFrom(NativeFire fire, double distanceSquared)
 
-typedef FluidFrame = ({int step, Float32List particles});
+final class FluidFrame
+  String toString()
+  bool operator ==(Object other)
+  const FluidFrame({required this.step, required this.particles})
+  final Float32List particles
+  final int step
+  int get hashCode
 
-typedef FluidParticle = ({Vector3 position, Vector3 velocity});
+final class FluidParticle
+  String toString()
+  bool operator ==(Object other)
+  const FluidParticle({required this.position, required this.velocity})
+  final Vector3 position
+  final Vector3 velocity
+  int get hashCode
 
 final class FluidSettings
   FluidSettings copyWith({Vector3? tankMin, Vector3? tankMax, Vector3? gravity, double? viscosity, double? relaxation, int? substeps, int? iterations, bool clearGravity = false})
@@ -94,7 +132,7 @@ final class GpuCloth with ClothSystem
   int get pointCount
   void dispose()
   void movePoint(int index, Vector3 at)
-  void setBalls(List<({Vector3 center, double radius})> balls)
+  void setBalls(List<ClothBall> balls)
   void step(ClothSettings settings, double dt)
 
 final class GpuDebris with DebrisSystem
@@ -121,9 +159,9 @@ final class GpuParticles with NativeParticleCloud
   void emit(List<NativeParticle> particles)
   void step(ParticleForces forces, double dt, {int steps = 1})
 
-final class GpuUnavailable extends CapabilityException
+final class GpuUnavailableException extends CapabilityException
   String toString()
-  const GpuUnavailable(this.message)
+  const GpuUnavailableException(this.message)
   final String message
 
 final class GridSide
@@ -252,7 +290,7 @@ final class NativeCloth implements ClothSystem
   int get pointCount
   void dispose()
   void movePoint(int index, Vector3 at)
-  void setBalls(List<({Vector3 center, double radius})> balls)
+  void setBalls(List<ClothBall> balls)
   void step(ClothSettings settings, double dt)
 
 final class NativeClothRefusal
@@ -536,7 +574,7 @@ final class NativeMaterial
   static NativeMaterial charcoal()
   static NativeMaterial inert()
   static NativeMaterial oak()
-  static NativeMaterial of(PhysicalMaterial material, {MaterialState? state})
+  static NativeMaterial of(PhysicalMaterial material, {MatterState? state})
   static NativeMaterial paper()
   static NativeMaterial paperStack()
   static NativeMaterial paraffin()
@@ -548,7 +586,7 @@ final class NativeMaterial
   static NativeMaterial wood()
 
 final class NativeMaterialTracker
-  List<NativeLawProperty> update(MaterialState state)
+  List<NativeLawProperty> update(MatterState state)
   NativeMaterialTracker(this.world, this.body, this.material, {this.threshold = 1e-3})
   final NativeBody body
   final NativeWorld world
@@ -569,7 +607,14 @@ final class NativeOutlet
   final double x
   final double z
 
-typedef NativeParticle = ({Vector3 position, Vector3 velocity, double life});
+final class NativeParticle
+  String toString()
+  bool operator ==(Object other)
+  const NativeParticle({required this.position, required this.velocity, required this.life})
+  final Vector3 position
+  final Vector3 velocity
+  final double life
+  int get hashCode
 
 abstract base mixin class NativeParticleCloud
   abstract Float32List read()
@@ -600,17 +645,17 @@ final class NativePhysics extends PhysicsBackend with JointPhysics, ConstraintPh
   void unjoin(RigidDynamics dynamics, JointHandle joint)
 
 final class NativeRagdoll
-  BonePose poseOf(int index)
   NativeBody bodyOf(int index)
   NativeJoint? jointOf(int index)
-  NativeRagdoll(this.world, List<RagdollBone> rest, {List<BonePose>? pose, List<Vector3>? velocity, List<Vector3>? spin, JointTissue tissue = JointTissue.human, MuscleTone? tone = MuscleTone.human, Vector3? forward, Vector3? up, NativeDynamics? dynamics, int layer = 1, int mask = 0xffffffff})
+  NativeRagdoll(this.world, List<RagdollBone> rest, {List<RigidPose>? pose, List<Vector3>? velocity, List<Vector3>? spin, JointTissue tissue = JointTissue.human, MuscleTone? tone = MuscleTone.human, Vector3? forward, Vector3? up, NativeDynamics? dynamics, int layer = 1, int mask = 0xffffffff})
   RagdollJoint? heldAs(int index)
+  RigidPose poseOf(int index)
   bool get isAsleep
   double get toneLevel
   final List<RagdollBone> bones
   final NativeWorld world
   void dispose()
-  void place(List<BonePose> pose, {List<Vector3>? velocity, List<Vector3>? spin})
+  void place(List<RigidPose> pose, {List<Vector3>? velocity, List<Vector3>? spin})
 
 typedef NativeShallowInfo = ({int substeps, int overruns, bool resting, double energy});
 

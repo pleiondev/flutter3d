@@ -6,6 +6,8 @@
 library;
 
 import 'dart:convert';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
@@ -45,7 +47,7 @@ TextureGraph oneOfEach() => TextureGraph(
       rotation: 0.7,
     ),
     const NoiseTextureNode(id: 10, seed: 42, scale: 4.0),
-    ColorTextureNode(id: 11, value: Vector4(1, 0, 0, 1)),
+    ColorTextureNode(id: 11, value: LinearColor(1, 0, 0, 1)),
     const OutputTextureNode(id: 12, result: 9),
   ],
 );

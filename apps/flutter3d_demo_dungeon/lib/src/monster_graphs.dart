@@ -6,7 +6,7 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart' hide Pose;
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'monster_looks.dart';

@@ -11,6 +11,7 @@ library;
 import 'dart:io';
 
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 import 'package:flutter3d_mcp/model.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart'
     show ArrayModifier, EditMesh, MirrorModifier, ParametricCuboid, weightsOf;
@@ -468,7 +469,7 @@ void main() {
 
       final lighting = session.project.lighting;
       expect(lighting.lights, hasLength(1));
-      expect(lighting.lights.single.type, ProjectLightType.point);
+      expect(lighting.lights.single.type, LightType.point);
       expect(lighting.lights.single.castsShadow, isTrue);
       expect(lighting.environment, SceneEnvironmentPreset.studio);
       expect(lighting.shadows, isTrue);

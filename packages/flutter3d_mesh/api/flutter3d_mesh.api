@@ -11,7 +11,7 @@ final class ArrayModifier extends Modifier
   final Vector3 offset
   final double? mergeDistance
   final int count
-  static ArrayModifier? fromJson(Map<String, Object?> json)
+  static ArrayModifier fromJson(Map<String, Object?> json)
 
 typedef BakeSample = ({int x, int y, Vector3 position, Vector3 normal, Vector3 tangent, Vector3 bitangent});
 
@@ -32,7 +32,7 @@ final class BooleanModifier extends Modifier
   final CsgOperation operation
   final Matrix4 operandTransform
   final int operandId
-  static BooleanModifier? fromJson(Map<String, Object?> json)
+  static BooleanModifier fromJson(Map<String, Object?> json)
 
 final class BrushFalloff
   String toString()
@@ -260,16 +260,6 @@ final class IdRemap
   final Int32List faces
   final Int32List vertices
 
-final class IssueSeverity
-  String toString()
-  final String name
-  int get index
-  static IssueSeverity? byName(String name)
-  static const IssueSeverity error = IssueSeverity._('error')
-  static const IssueSeverity note = IssueSeverity._('note')
-  static const IssueSeverity warning = IssueSeverity._('warning')
-  static const List<IssueSeverity> values = <IssueSeverity>[note, warning, error]
-
 final class JournalStep
   const JournalStep(this.indices, this.before)
   final Int32List indices
@@ -407,9 +397,9 @@ final class MeshInertia
   final double mass
 
 final class MeshIssue
-  IssueSeverity get severity
   MeshIssue(this.kind, Iterable<int> ids, this.message)
   Selection get selection
+  Severity get severity
   String toString()
   final Int32List ids
   final MeshIssueKind kind
@@ -419,15 +409,15 @@ final class MeshIssueKind
   String toString()
   const MeshIssueKind(this.name, this.severity, this.level)
   final ElementLevel level
-  final IssueSeverity severity
+  final Severity severity
   final String name
-  static const MeshIssueKind boundaryEdge = MeshIssueKind('boundary-edge', IssueSeverity.note, ElementLevel.edge)
-  static const MeshIssueKind degenerateFace = MeshIssueKind('degenerate-face', IssueSeverity.error, ElementLevel.face)
-  static const MeshIssueKind duplicateVertex = MeshIssueKind('duplicate-vertex', IssueSeverity.warning, ElementLevel.vertex)
-  static const MeshIssueKind invertedShell = MeshIssueKind('inverted-shell', IssueSeverity.warning, ElementLevel.face)
-  static const MeshIssueKind isolatedVertex = MeshIssueKind('isolated-vertex', IssueSeverity.warning, ElementLevel.vertex)
-  static const MeshIssueKind ngon = MeshIssueKind('ngon', IssueSeverity.note, ElementLevel.face)
-  static const MeshIssueKind nonManifoldVertex = MeshIssueKind('non-manifold-vertex', IssueSeverity.warning, ElementLevel.vertex)
+  static const MeshIssueKind boundaryEdge = MeshIssueKind('boundary-edge', Severity.note, ElementLevel.edge)
+  static const MeshIssueKind degenerateFace = MeshIssueKind('degenerate-face', Severity.error, ElementLevel.face)
+  static const MeshIssueKind duplicateVertex = MeshIssueKind('duplicate-vertex', Severity.warning, ElementLevel.vertex)
+  static const MeshIssueKind invertedShell = MeshIssueKind('inverted-shell', Severity.warning, ElementLevel.face)
+  static const MeshIssueKind isolatedVertex = MeshIssueKind('isolated-vertex', Severity.warning, ElementLevel.vertex)
+  static const MeshIssueKind ngon = MeshIssueKind('ngon', Severity.note, ElementLevel.face)
+  static const MeshIssueKind nonManifoldVertex = MeshIssueKind('non-manifold-vertex', Severity.warning, ElementLevel.vertex)
 
 final class MeshLayoutPlan
   Float32List rows([Float32List? into])
@@ -488,7 +478,7 @@ final class MirrorModifier extends Modifier
   final bool bisect
   final bool flipUv
   final double? mergeDistance
-  static MirrorModifier? fromJson(Map<String, Object?> json)
+  static MirrorModifier fromJson(Map<String, Object?> json)
 
 abstract final class Modifier
   abstract EditMesh apply(EditMesh base, ModifierContext context)
@@ -498,6 +488,11 @@ abstract final class Modifier
 final class ModifierContext
   const ModifierContext({this.operands = const <int, EditMesh>{}})
   final Map<int, EditMesh> operands
+
+final class ModifierFormatException extends Flutter3dFormatException
+  String toString()
+  const ModifierFormatException(this.message)
+  final String message
 
 final class ModifierStack
   EditMesh evaluate(EditMesh base, ModifierContext context)
@@ -723,7 +718,7 @@ final class SmoothModifier extends Modifier
   final bool preserveVolume
   final double lambda
   final int iterations
-  static SmoothModifier? fromJson(Map<String, Object?> json)
+  static SmoothModifier fromJson(Map<String, Object?> json)
 
 final class StaticMeshShape
   const StaticMeshShape({required this.vertices, required this.triangles})
@@ -736,7 +731,7 @@ final class SubdivisionModifier extends Modifier
   const SubdivisionModifier({required this.levels, int? viewLevels})
   final int levels
   final int viewLevels
-  static SubdivisionModifier? fromJson(Map<String, Object?> json)
+  static SubdivisionModifier fromJson(Map<String, Object?> json)
 
 final class UvProjection
   String toString()

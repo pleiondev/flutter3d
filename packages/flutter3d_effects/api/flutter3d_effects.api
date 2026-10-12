@@ -20,7 +20,7 @@ final class Elements
   ElementsListener? get listener
   ElementsSteps get switches
   Fires get fires
-  Follower follow(ElementPose Function() pose, {required NativeShape shape, ({int layer, int mask})? collides})
+  Follower follow(RigidPose Function() pose, {required NativeShape shape, ({int layer, int mask})? collides})
   LiquidLook waterLookOf(WaterBody water)
   LiquidView viewOf(WaterBody water)
   List<ElementHook> get elements

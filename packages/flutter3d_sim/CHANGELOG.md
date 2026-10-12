@@ -1,5 +1,24 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a level's light is a `LightType` and its issues a
+  `Severity`, from `flutter3d_foundation`.** `LevelLightType` and
+  `LevelIssueSeverity` are gone; a level holds an area light now, and a
+  plugin's own kind is written as the shape it is lit as. `XrPose` is the
+  foundation's `RigidPose`, with `toInput` and `XrPoseInput.fromInput`
+  where XR puts it on the tape.
+- **Breaking: `Pose` is `GhostFrame`**, the name racing gave it: what a
+  recording keeps of a moment, not a pose of the engine's.
+- **Breaking: `Blackboard.fromJson` throws a `SnapshotFormatException`**
+  for a row that is not a board, where it answered null.
+- **Breaking: `TelemetrySent`, `BehaviorView` and a cutscene's keys are
+  classes.** `TelemetrySent` is what a `TelemetrySink` an outside author
+  writes returns, `BehaviorView` what a `BehaviorLeaf` is handed, and
+  `CameraKey`, `ActorCue`, `SubtitleCue`, `SignalCue` and `FadeKey` what a
+  sequence is read into: each was a record, which never gains a field.
+  Same fields, read the same way; build one with its constructor.
+- **Breaking: `Tolerance` is `GeometryTolerance`, and `SaveSchema` takes
+  `migrations:` by name.** `Tolerance` is a Flutter physics type material
+  exports; `dart fix` renames each use. Same constants.
 - **A rewind that stays put can say where it is.** `EngineLoop.republish`
   reads the probes again and publishes the state as it stands, outside a
   step, so a scrub to a keyframe or a return to the present reaches the

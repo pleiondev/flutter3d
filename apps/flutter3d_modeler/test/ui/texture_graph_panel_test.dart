@@ -8,13 +8,13 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d/flutter3d.dart' show LinearColor;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/ui/job_button.dart';
 import 'package:flutter3d_modeler/src/ui/texture_graph_panel.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// A 1×1 black PNG — enough for `Image.memory` to decode into something,
 /// which is all a thumbnail test needs it to do.
@@ -28,7 +28,7 @@ final Uint8List _onePixelPng = base64Decode(
 /// link, an unlinked input, and two different node kinds' own hints.
 TextureGraph _graph() => TextureGraph(
   nodes: <TextureNode>[
-    ColorTextureNode(id: 1, value: Vector4(1, 0, 0, 1)),
+    ColorTextureNode(id: 1, value: LinearColor(1, 0, 0, 1)),
     const OutputTextureNode(id: 2, result: 1, slot: 'albedo'),
     const ChannelsTextureNode(id: 3),
   ],

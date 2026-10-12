@@ -44,7 +44,7 @@ void main() {
     expect(density, isA<FormulaLaw>());
     expect(viscosity.at(water.referenceState), viscosity.value);
     expect(density.at(water.referenceState), density.value);
-    final hot = MaterialState.at(temperature: 353.15);
+    final hot = MatterState.at(temperature: 353.15);
     expect(viscosity.at(hot), lessThan(viscosity.value / 2));
     expect(density.at(hot), lessThan(density.value));
   });

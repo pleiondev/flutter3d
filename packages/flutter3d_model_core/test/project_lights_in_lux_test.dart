@@ -8,6 +8,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart' show LightNode, Scene;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
 
@@ -19,7 +20,7 @@ ModelProject _opened(Uint8List bytes) => switch (readProject(bytes)) {
 ModelProject _withLight(double intensity) => ModelProject(
   lighting: SceneLighting(
     lights: <ProjectLight>[
-      ProjectLight(type: ProjectLightType.point, intensity: intensity),
+      ProjectLight(type: LightType.point, intensity: intensity),
     ],
   ),
 );

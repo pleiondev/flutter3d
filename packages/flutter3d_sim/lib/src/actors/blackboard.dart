@@ -25,6 +25,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
 import 'package:vector_math/vector_math.dart';
 
 import '../ecs/ecs_world.dart';
+import '../save/snapshot.dart' show SnapshotFormatException;
 
 /// How a node came out of its last tick.
 ///
@@ -184,12 +185,15 @@ final class Blackboard {
     decode: (data, _) => fromJson(data),
   );
 
-  /// Reads a board back, or null when [data] is not one.
+  /// Reads a board back. Throws a [SnapshotFormatException] when [data] is
+  /// not one.
   ///
   /// Lenient about the parts: a row with the values and nothing else is a
   /// board that has not decided anything yet, which is what it reads as.
-  static Blackboard? fromJson(Object? data) {
-    if (data is! Map) return null;
+  static Blackboard fromJson(Object? data) {
+    if (data is! Map) {
+      throw const SnapshotFormatException('a blackboard is an object');
+    }
     final values = data['values'];
     final board = Blackboard();
     if (values is Map) {

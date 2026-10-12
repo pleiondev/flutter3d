@@ -352,17 +352,17 @@ final class GizmoDrag
 
 final class GizmoMark
   (Vector3, Vector3) get bounds
-  GizmoMark.ball(Vector3 center, {required double radius, Vector3? tint, this.handle})
-  GizmoMark.box(Vector3 center, Vector3 size, {Vector3? tint, this.handle})
-  GizmoMark.cage(Vector3 center, Vector3 size, {Vector3? tint, this.handle})
-  GizmoMark.line(Vector3 from, Vector3 to, {double width = 0.04, Vector3? tint, this.handle})
+  GizmoMark.ball(Vector3 center, {required double radius, this.tint, this.handle})
+  GizmoMark.box(Vector3 center, Vector3 size, {this.tint, this.handle})
+  GizmoMark.cage(Vector3 center, Vector3 size, {this.tint, this.handle})
+  GizmoMark.line(Vector3 from, Vector3 to, {double width = 0.04, this.tint, this.handle})
   Vector3 get center
   final GizmoShape shape
+  final LinearColor? tint
   final String? handle
   final Vector3 from
   final Vector3 size
   final Vector3 to
-  final Vector3? tint
 
 final class GizmoShape
   String toString()
@@ -845,6 +845,6 @@ Map<String, Uint8List> scaffold({required Template template, required String pro
 
 Vector3 tintFor(String type)
 
-List<LightView> viewsAlong(List<Pose> poses, {int count = 8, int around = 1, double eyeHeight = lightViewEyeHeight})
+List<LightView> viewsAlong(List<GhostFrame> poses, {int count = 8, int around = 1, double eyeHeight = lightViewEyeHeight})
 
 EntityRegistry vocabularyOf(Level level)

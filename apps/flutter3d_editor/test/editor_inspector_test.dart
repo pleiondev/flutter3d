@@ -367,8 +367,8 @@ void main() {
         value: 'opaque',
         hint: MaterialHint(
           EnumHint(<EnumHintValue>[
-            const EnumHintValue('opaque', 'Opaque'),
-            const EnumHintValue('blend', 'Blended'),
+            const EnumHintValue('opaque', label: 'Opaque'),
+            const EnumHintValue('blend', label: 'Blended'),
           ]),
         ),
         onWrite: (Object? it) => written = it,
@@ -393,7 +393,9 @@ void main() {
       _row(
         value: 'shimmer',
         hint: MaterialHint(
-          EnumHint(<EnumHintValue>[const EnumHintValue('opaque', 'Opaque')]),
+          EnumHint(<EnumHintValue>[
+            const EnumHintValue('opaque', label: 'Opaque'),
+          ]),
         ),
       ),
     );

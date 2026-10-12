@@ -450,16 +450,9 @@ final class LevelScene {
   /// The light node a level light becomes.
   static LightNode lightOf(LevelLight light) {
     final node = LightNode(
-      type: switch (light.type) {
-        LevelLightType.directional => LightType.directional,
-        LevelLightType.point => LightType.point,
-        LevelLightType.spot => LightType.spot,
-        final other => throw ArgumentError.value(
-          other,
-          'light.type',
-          'a level light of this type has no light node here',
-        ),
-      },
+      // The scene's own kinds: a level holds an area light as the scene
+      // does.
+      type: light.type,
       color: light.color,
       // Candela or lux in the level since format 5, as the node takes them.
       intensity: light.intensity,
@@ -471,7 +464,7 @@ final class LevelScene {
       name: light.name,
     )..setPositionFrom(light.position);
 
-    if (light.type != LevelLightType.point) {
+    if (light.type != LightType.point) {
       // A light aims along its node's local -Z, the same forward axis a camera
       // uses, so it is pointed rather than given a vector.
       node.lookAt(light.position + light.direction);

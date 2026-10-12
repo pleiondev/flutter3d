@@ -154,8 +154,9 @@ final class NavMeshSettings {
   /// [minIslandArea] in cells.
   int get minIslandCells => _up(minIslandArea / (cellSize * cellSize));
 
-  static int _up(double voxels) => (voxels - Tolerance.gridBias).ceil();
-  static int _down(double voxels) => (voxels + Tolerance.gridBias).floor();
+  static int _up(double voxels) => (voxels - GeometryTolerance.gridBias).ceil();
+  static int _down(double voxels) =>
+      (voxels + GeometryTolerance.gridBias).floor();
 
   /// The numbers themselves, in a fixed order, for a digest.
   List<double> get values => <double>[

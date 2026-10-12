@@ -37,7 +37,7 @@ Heightfield flat() => Heightfield(
 /// replay is: the tape gives every order the two bots gave, so a second run
 /// that still had them would come out right with an empty tape and prove
 /// nothing.
-Match mirror({
+StrategyMatch mirror({
   double seamOne = 20.0,
   double seamTwo = 20.0,
   double amountOne = 500.0,
@@ -76,7 +76,7 @@ Match mirror({
     }
     if (policies) bots.add(Bot(side: side, base: base));
   }
-  return Match(
+  return StrategyMatch(
     simulation: sim,
     bots: bots,
     goal: MatchGoal(delivered: target),
@@ -131,7 +131,7 @@ double _cellsKnown(StrategySimulation sim, int side, {required bool visible}) {
 }
 
 /// Runs [match] to its end, or to [cap] steps, and says how many it took.
-int play(Match match, {int cap = 6000}) {
+int play(StrategyMatch match, {int cap = 6000}) {
   const double dt = 1.0 / 30.0;
   for (var i = 0; i < cap; i++) {
     if (match.standing.isOver) return i;
@@ -141,7 +141,7 @@ int play(Match match, {int cap = 6000}) {
 }
 
 /// Runs [steps] of [match] whether or not it finishes.
-void run(Match match, int steps) {
+void run(StrategyMatch match, int steps) {
   for (var i = 0; i < steps; i++) {
     match.step(1.0 / 30.0);
   }
@@ -361,7 +361,7 @@ void main() {
       // judgement read `delivered[1]` against `delivered[0]` again. The side
       // in front is then invisible to it — both of the sides it looks at are
       // on nought — and a match somebody has won comes back drawn.
-      final three = Match(
+      final three = StrategyMatch(
         simulation: StrategySimulation(
           random: GameRandom(1),
           ground: flat(),
@@ -429,7 +429,7 @@ void main() {
 
     test('is drawn when there was never anything to win', () {
       final sim = StrategySimulation(random: GameRandom(1), ground: flat());
-      final match = Match(simulation: sim, bots: <Bot>[]);
+      final match = StrategyMatch(simulation: sim, bots: <Bot>[]);
 
       match.step(1.0 / 30.0);
 
@@ -439,7 +439,7 @@ void main() {
       // Level between three, too, and the tie is not between the first two: a
       // pass that only remembered the best total without remembering that
       // something had drawn level with it would hand this to side one.
-      final three = Match(
+      final three = StrategyMatch(
         simulation: StrategySimulation(
           random: GameRandom(1),
           ground: flat(),

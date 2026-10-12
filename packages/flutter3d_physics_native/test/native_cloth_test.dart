@@ -82,7 +82,7 @@ void main() {
     final cloth = NativeCloth(_sheet(4));
     expect(
       () => cloth.setBalls(
-        List.filled(17, (center: Vector3.zero(), radius: 1.0)),
+        List.filled(17, ClothBall(center: Vector3.zero(), radius: 1.0)),
       ),
       throwsArgumentError,
     );
@@ -104,73 +104,63 @@ void main() {
         // rigid pendulum, a damped spring in a wind, a rod dropped onto a
         // ball off its top that slides off it, and loose points blown along
         // the floor.
-        final scenes =
-            <
-              (
-                CoreClothMesh,
-                CoreClothSettings,
-                List<({Vector3 center, double radius})>,
-              )
-            >[
-              (
-                CoreClothMesh(
-                  points: <Vector3>[Vector3.zero(), Vector3(1.0, 0.0, 0.0)],
-                  inverseMasses: <double>[0.0, 1.0],
-                  edges: <(int, int)>[(0, 1)],
-                  compliances: <double>[0.0],
-                ),
-                CoreClothSettings(damping: 0.0),
-                <({Vector3 center, double radius})>[],
-              ),
-              (
-                CoreClothMesh(
-                  points: <Vector3>[Vector3.zero(), Vector3(0.0, -1.0, 0.0)],
-                  inverseMasses: <double>[0.0, 1.0],
-                  edges: <(int, int)>[(0, 1)],
-                  compliances: <double>[1e-3],
-                ),
-                CoreClothSettings(
-                  damping: 2.0,
-                  wind: Vector3(3.0, 0.0, 0.0),
-                  drag: 0.5,
-                ),
-                <({Vector3 center, double radius})>[],
-              ),
-              (
-                CoreClothMesh(
-                  points: <Vector3>[
-                    Vector3(0.1, 1.0, 0.0),
-                    Vector3(0.3, 1.0, 0.05),
-                  ],
-                  inverseMasses: <double>[2.0, 2.0],
-                  edges: <(int, int)>[(0, 1)],
-                  compliances: <double>[1e-6],
-                ),
-                CoreClothSettings(floorY: 0.0, friction: 0.2),
-                <({Vector3 center, double radius})>[
-                  (center: Vector3(0.0, 0.3, 0.0), radius: 0.3),
-                ],
-              ),
-              (
-                CoreClothMesh(
-                  points: <Vector3>[
-                    Vector3(0.0, 0.5, 0.0),
-                    Vector3(0.3, 0.2, 0.0),
-                  ],
-                  inverseMasses: <double>[1.0, 1.0],
-                  edges: <(int, int)>[],
-                  compliances: <double>[],
-                ),
-                CoreClothSettings(
-                  floorY: 0.1,
-                  thickness: 0.02,
-                  friction: 0.4,
-                  wind: Vector3(2.0, 0.0, 1.0),
-                  drag: 1.0,
-                ),
-                <({Vector3 center, double radius})>[],
-              ),
-            ];
+        final scenes = <(CoreClothMesh, CoreClothSettings, List<ClothBall>)>[
+          (
+            CoreClothMesh(
+              points: <Vector3>[Vector3.zero(), Vector3(1.0, 0.0, 0.0)],
+              inverseMasses: <double>[0.0, 1.0],
+              edges: <(int, int)>[(0, 1)],
+              compliances: <double>[0.0],
+            ),
+            CoreClothSettings(damping: 0.0),
+            <ClothBall>[],
+          ),
+          (
+            CoreClothMesh(
+              points: <Vector3>[Vector3.zero(), Vector3(0.0, -1.0, 0.0)],
+              inverseMasses: <double>[0.0, 1.0],
+              edges: <(int, int)>[(0, 1)],
+              compliances: <double>[1e-3],
+            ),
+            CoreClothSettings(
+              damping: 2.0,
+              wind: Vector3(3.0, 0.0, 0.0),
+              drag: 0.5,
+            ),
+            <ClothBall>[],
+          ),
+          (
+            CoreClothMesh(
+              points: <Vector3>[
+                Vector3(0.1, 1.0, 0.0),
+                Vector3(0.3, 1.0, 0.05),
+              ],
+              inverseMasses: <double>[2.0, 2.0],
+              edges: <(int, int)>[(0, 1)],
+              compliances: <double>[1e-6],
+            ),
+            CoreClothSettings(floorY: 0.0, friction: 0.2),
+            <ClothBall>[
+              ClothBall(center: Vector3(0.0, 0.3, 0.0), radius: 0.3),
+            ],
+          ),
+          (
+            CoreClothMesh(
+              points: <Vector3>[Vector3(0.0, 0.5, 0.0), Vector3(0.3, 0.2, 0.0)],
+              inverseMasses: <double>[1.0, 1.0],
+              edges: <(int, int)>[],
+              compliances: <double>[],
+            ),
+            CoreClothSettings(
+              floorY: 0.1,
+              thickness: 0.02,
+              friction: 0.4,
+              wind: Vector3(2.0, 0.0, 1.0),
+              drag: 1.0,
+            ),
+            <ClothBall>[],
+          ),
+        ];
         for (final (mesh, settings, balls) in scenes) {
           final cpu = NativeCloth(mesh);
           final onGpu = gpu!.cloth(mesh);
@@ -258,7 +248,7 @@ void main() {
 NativeGpu? _openGpu() {
   try {
     return NativeGpu.open();
-  } on GpuUnavailable {
+  } on GpuUnavailableException {
     return null;
   }
 }

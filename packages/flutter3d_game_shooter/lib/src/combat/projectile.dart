@@ -43,7 +43,14 @@ final class ProjectileSystem {
         ComponentCodec<InFlight>.of(
           id: 'inFlight',
           encode: (value) => value.toJson(),
-          decode: (data, _) => InFlight.fromJson(data),
+          decode: (data, _) {
+            try {
+              return InFlight.fromJson(data);
+            } on SnapshotFormatException {
+              // A rocket the row cannot place is left out of the restore.
+              return null;
+            }
+          },
         ),
       )
       ..register<FiredBy>(

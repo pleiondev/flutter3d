@@ -125,7 +125,7 @@ Future<RenderedFrame> _drawOne(
   );
   final pixels = await shown.device.readback(result.frame);
   scene.remove(camera);
-  return (
+  return RenderedFrame(
     pixels: pixels.buffer.asUint8List(),
     width: _width,
     height: _height,

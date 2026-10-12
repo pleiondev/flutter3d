@@ -27,7 +27,7 @@ const double lightViewEyeHeight = 1.6;
 /// more headings per pose, evenly around, for a path whose facing is not
 /// worth trusting.
 List<LightView> viewsAlong(
-  List<Pose> poses, {
+  List<GhostFrame> poses, {
   int count = 8,
   int around = 1,
 
@@ -37,7 +37,7 @@ List<LightView> viewsAlong(
   if (poses.isEmpty || count <= 0) return const <LightView>[];
   final picked = poses.length <= count
       ? poses
-      : <Pose>[
+      : <GhostFrame>[
           for (var i = 0; i < count; i++)
             poses[(i * (poses.length - 1) / math.max(count - 1, 1)).round()],
         ];

@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: dd501ac03fa77814
+# table-stamp: 738a9d681d9e0807
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -44,3 +44,21 @@ transforms:
     changes:
       - kind: 'rename'
         newName: 'fovY'
+  - title: 'flutter3d 1.0.0-rc.1: rc-stereo-HeadPose-rotation-orientation'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_stereo/flutter3d_stereo.dart']
+      field: 'rotation'
+      inClass: 'HeadPose'
+    changes:
+      - kind: 'rename'
+        newName: 'orientation'
+  - title: 'flutter3d 1.0.0-rc.1: rc-stereo-HeadPose-still-identity'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_stereo/flutter3d_stereo.dart']
+      constructor: 'still'
+      inClass: 'HeadPose'
+    changes:
+      - kind: 'rename'
+        newName: 'identity'

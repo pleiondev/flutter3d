@@ -3,9 +3,10 @@
 library;
 
 import 'dart:async';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show RigidPose;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart' show XrPose, XrPoseSources;
+import 'package:flutter3d_sim/flutter3d_sim.dart' show XrPoseSources;
 import 'package:vector_math/vector_math.dart' show Quaternion, Vector3;
 
 import 'xr_anchor.dart';
@@ -158,7 +159,7 @@ final class FakeXrSession extends XrSession {
   /// −z, two eyes 64 mm apart with a headset's asymmetric angles, in the
   /// session's space.
   static XrFrame standardFrame(FakeXrSession session, int index) {
-    final head = XrPose(
+    final head = RigidPose(
       position: Vector3(0.0, 1.6, 0.0),
       orientation: Quaternion.identity(),
     );
@@ -167,12 +168,12 @@ final class FakeXrSession extends XrSession {
       predictedDisplayTime: session.startTime + index * session.period,
       predictedDisplayPeriod: session.period,
       space: session.request?.space ?? XrSpace.localFloor,
-      poses: <String, XrPose>{XrPoseSources.head: head},
+      poses: <String, RigidPose>{XrPoseSources.head: head},
       views: <XrView>[
         for (final (i, x) in <(int, double)>[(0, -0.032), (1, 0.032)])
           XrView(
             index: i,
-            pose: XrPose(
+            pose: RigidPose(
               position: Vector3(x, 1.6, 0.0),
               orientation: Quaternion.identity(),
             ),

@@ -23,6 +23,15 @@
 /// fast there can still be written by hand and registered under the same name.
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show
+        Expression,
+        ExpressionBinary,
+        ExpressionCall,
+        ExpressionConstant,
+        ExpressionConstruct,
+        ExpressionNegate,
+        ExpressionSwizzle;
 import 'material_ast.dart';
 
 /// What a fragment of the surface being shaded is, for [evaluateMaterial].
@@ -258,7 +267,7 @@ final class _Evaluator extends MaterialExpressionVisitor<List<double>> {
   final Map<String, List<double>> scope = <String, List<double>>{};
 
   @override
-  List<double> visitConstant(MaterialConstant expression) => expression.value;
+  List<double> visitConstant(ExpressionConstant expression) => expression.value;
 
   @override
   List<double> visitInputRef(MaterialInputRef expression) =>
@@ -289,30 +298,30 @@ final class _Evaluator extends MaterialExpressionVisitor<List<double>> {
   }
 
   @override
-  List<double> visitConstruct(MaterialConstruct expression) => <double>[
+  List<double> visitConstruct(ExpressionConstruct expression) => <double>[
     for (final argument in expression.arguments) ...argument.accept(this),
   ];
 
   @override
-  List<double> visitSwizzle(MaterialSwizzle expression) {
+  List<double> visitSwizzle(ExpressionSwizzle expression) {
     final value = expression.target.accept(this);
     return <double>[for (final index in expression.components) value[index]];
   }
 
   @override
-  List<double> visitNegate(MaterialNegate expression) => <double>[
+  List<double> visitNegate(ExpressionNegate expression) => <double>[
     for (final component in expression.operand.accept(this)) -component,
   ];
 
   @override
-  List<double> visitBinary(MaterialBinary expression) => applyBinary(
+  List<double> visitBinary(ExpressionBinary expression) => applyBinary(
     expression.op,
     expression.left.accept(this),
     expression.right.accept(this),
   );
 
   @override
-  List<double> visitCall(MaterialCall expression) => expression.builtin.apply(
+  List<double> visitCall(ExpressionCall expression) => expression.builtin.apply(
     broadcastArguments(<List<double>>[
       for (final argument in expression.arguments) argument.accept(this),
     ], expression.builtin),
@@ -325,10 +334,9 @@ final class _Evaluator extends MaterialExpressionVisitor<List<double>> {
   }
 
   @override
-  List<double> visitUnknown(MaterialExpression expression) =>
-      throw ArgumentError.value(
-        expression,
-        'expression',
-        'not an expression this build of the material language knows',
-      );
+  List<double> visitUnknown(Expression expression) => throw ArgumentError.value(
+    expression,
+    'expression',
+    'not an expression this build of the material language knows',
+  );
 }

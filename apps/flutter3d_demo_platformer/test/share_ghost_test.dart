@@ -303,9 +303,9 @@ void main() {
 
   test('the ghost is drawn where the track was, and nowhere outside it', () {
     final track = Tape(
-      poses: <Pose>[
-        Pose(time: 0.0, yaw: 0.0)..position.setValues(0.0, 0.0, 0.0),
-        Pose(time: 1.0, yaw: 0.0)..position.setValues(4.0, 0.0, 0.0),
+      poses: <GhostFrame>[
+        GhostFrame(time: 0.0, yaw: 0.0)..position.setValues(0.0, 0.0, 0.0),
+        GhostFrame(time: 1.0, yaw: 0.0)..position.setValues(4.0, 0.0, 0.0),
       ],
       seconds: 1.0,
     );

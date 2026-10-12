@@ -11,9 +11,9 @@ import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const List<EnumHintValue> _modes = <EnumHintValue>[
-  EnumHintValue('opaque', 'Opaque'),
-  EnumHintValue('mask', 'Cut out at the threshold'),
-  EnumHintValue('blend', 'Blended'),
+  EnumHintValue('opaque', label: 'Opaque'),
+  EnumHintValue('mask', label: 'Cut out at the threshold'),
+  EnumHintValue('blend', label: 'Blended'),
 ];
 
 Future<void> pump(

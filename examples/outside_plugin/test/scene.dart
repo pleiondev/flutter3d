@@ -47,7 +47,7 @@ void dropBall(EngineLoop loop, {double height = 0.6}) {
   final follower = loop.world.spawn();
   loop.world
     ..set(follower, WorldPosition(ball.position.x, height, ball.position.z))
-    ..set(follower, const MaterialStateComponent(MaterialState.standard));
+    ..set(follower, const MaterialStateComponent(MatterState.standard));
   loop.addSystem('scene.drop', LoopPhase.physics, (LoopContext context) {
     dynamics.step(context.dt);
     ContactEvent.publishAll(dynamics.contacts, context.publish);

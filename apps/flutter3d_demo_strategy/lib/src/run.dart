@@ -13,9 +13,9 @@
 /// boundary.** No genre package in this repository depends on
 /// `flutter3d_game`; a session is what an *application* has, because only an
 /// application knows where a save lives and which side the person at the mouse
-/// is playing. What the package owes one is two methods — `Match.save` and
-/// `Match.restore` — and both were written before there was a session to call
-/// them.
+/// is playing. What the package owes one is two methods — `StrategyMatch.save`
+/// and `StrategyMatch.restore` — and both were written before there was a
+/// session to call them.
 ///
 /// **Restoring happens after the level is whole**, which is `RunSession`'s own
 /// contract and not a habit: [open] returns a fully staged match, and only then
@@ -55,13 +55,14 @@ const WorldTiming strategyWorld = WorldTiming(stepRate: 60.0);
 /// How a match reads to the side watching it, in the words every genre shares.
 ///
 /// **Three answers folded onto two, and the draw is where the folding shows.**
-/// A match can quite properly finish level — `Match` treats that as a real
-/// answer rather than a missing one, because two sides running one policy from
-/// mirrored starts *should* come out equal. [RunOutcome] has no word for it, so
-/// a draw is read here as a loss, and what makes that the right reading is what
-/// the caller does next: `RunSession.advance` clears the save when a run is won
-/// and hands a loss to `onLost`, and a match that ended without this side
-/// crossing the line is a match there is nothing to carry out of either way.
+/// A match can quite properly finish level — `StrategyMatch` treats that as a
+/// real answer rather than a missing one, because two sides running one policy
+/// from mirrored starts *should* come out equal. [RunOutcome] has no word for
+/// it, so a draw is read here as a loss, and what makes that the right reading
+/// is what the caller does next: `RunSession.advance` clears the save when a
+/// run is won and hands a loss to `onLost`, and a match that ended without this
+/// side crossing the line is a match there is nothing to carry out of either
+/// way.
 ///
 /// The screen is not told this. `standingText` in `hud_readout.dart` reads the
 /// [Standing] itself and says "drawn", which is the honest word for a player;

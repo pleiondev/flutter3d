@@ -173,7 +173,7 @@ void main() {
       // The ghost's own player draws it: the pose record reuses the ghost's
       // format rather than standing beside it. Mutation: time the poses in
       // steps rather than seconds and the ghost runs sixty times too fast.
-      final out = Pose();
+      final out = GhostFrame();
       expect(Playback(track).sampleAt(4.5 / 60.0, out), isTrue);
       expect(out.position.x, closeTo(4.5, 0.1));
       expect(_poses().track('nobody').isEmpty, isTrue);

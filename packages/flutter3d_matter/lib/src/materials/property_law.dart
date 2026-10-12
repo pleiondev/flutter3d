@@ -83,7 +83,7 @@ final class PropertyInterval {
   String toString() => 'PropertyInterval($low, $high)';
 }
 
-/// One quantity of a [MaterialState] a law reads: its id, its unit, and the
+/// One quantity of a [MatterState] a law reads: its id, its unit, and the
 /// range the law is valid over.
 ///
 /// **A law does not extrapolate.** The value read is held to [low]…[high]
@@ -100,17 +100,17 @@ final class LawInput {
 
   /// A body's temperature, K.
   static const LawInput temperature = LawInput(
-    MaterialState.temperatureId,
+    MatterState.temperatureId,
     unit: Unit.kelvin,
   );
 
   /// The pressure a body is under, Pa.
   static const LawInput pressure = LawInput(
-    MaterialState.pressureId,
+    MatterState.pressureId,
     unit: Unit.pascal,
   );
 
-  /// The quantity's id in a [MaterialState].
+  /// The quantity's id in a [MatterState].
   final String id;
 
   /// What it measures. [low], [high] and [fallback] are in the coherent SI
@@ -133,14 +133,14 @@ final class LawInput {
 
   /// The value [state] holds, in the coherent unit, held to the valid
   /// range.
-  double read(MaterialState state) {
+  double read(MatterState state) {
     final held = state.quantities[id];
     final double raw = held != null
         ? held.valueIn(Unit.coherent(unit.dimension))
         : fallback ??
               switch (id) {
-                MaterialState.temperatureId => standardAirTemperature,
-                MaterialState.pressureId => standardAtmosphere,
+                MatterState.temperatureId => standardAirTemperature,
+                MatterState.pressureId => standardAtmosphere,
                 _ => 0.0,
               };
     final lowest = low, highest = high;
@@ -166,7 +166,7 @@ final class LawInput {
       throw MaterialFormatException('a law\'s input is an object, not $json');
     }
     final id = switch (json['id']) {
-      final String id => MaterialState.checkedQuantityId(id),
+      final String id => MatterState.checkedQuantityId(id),
       final other => throw MaterialFormatException(
         'a law\'s input names a quantity\'s id, not $other',
       ),
@@ -249,7 +249,7 @@ abstract base class PropertyLaw {
   bool get dependsOnState;
 
   /// The value at [state], in the property's unit.
-  double at(MaterialState state);
+  double at(MatterState state);
 
   /// What the kind writes beside [value] and the common keys.
   Map<String, Object?> lawJson();
@@ -390,7 +390,7 @@ final class ConstantLaw extends PropertyLaw {
   bool get dependsOnState => false;
 
   @override
-  double at(MaterialState state) => value;
+  double at(MatterState state) => value;
 
   @override
   Map<String, Object?> lawJson() => const <String, Object?>{};
@@ -465,7 +465,7 @@ final class TableLaw extends PropertyLaw {
   bool get dependsOnState => true;
 
   @override
-  double at(MaterialState state) => interpolate(input.read(state));
+  double at(MatterState state) => interpolate(input.read(state));
 
   /// The value at [x], in the input's coherent unit, by the formula above.
   double interpolate(double x) {
@@ -688,7 +688,7 @@ final class FormulaLaw extends PropertyLaw {
   bool get dependsOnState => _program.inputs.isNotEmpty;
 
   @override
-  double at(MaterialState state) {
+  double at(MatterState state) {
     final program = _program;
     return program.compiled.evaluate(<List<double>>[
       for (final input in program.inputs) <double>[input.read(state)],

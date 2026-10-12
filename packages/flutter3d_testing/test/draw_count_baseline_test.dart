@@ -36,7 +36,7 @@ Future<RenderedFrame> _scene(int count) => renderFrame(
       );
     }
     final camera = CameraNode()..setPosition(0.0, 0.0, 5.0);
-    return (scene: scene, camera: camera);
+    return FrameSubject(scene: scene, camera: camera);
   },
 );
 
@@ -85,7 +85,7 @@ void main() {
           MeshNode(mesh, material, name: 'b')..setPosition(1.0, 0.0, 0.0),
         );
         final camera = CameraNode()..setPosition(0.0, 0.0, 5.0);
-        return (scene: scene, camera: camera);
+        return FrameSubject(scene: scene, camera: camera);
       },
     );
 

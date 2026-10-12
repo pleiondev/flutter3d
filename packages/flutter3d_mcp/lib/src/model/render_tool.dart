@@ -6,7 +6,7 @@
 /// **A separate file, and its own [OfferedTool] answer type.** Every other
 /// tool in [modelTools] answers with a plain [Answer] — no picture, ever —
 /// and `render` is the one tool a real project's own picture belongs beside.
-/// Rather than migrate a hundred existing tool bodies to a [PictureAnswer]
+/// Rather than migrate a hundred existing tool bodies to a [Answer]
 /// each carrying a null `png`, `model_server.dart` wraps [modelTools] once at
 /// the point they are handed to the server; this file only has to define the
 /// one tool that actually draws.
@@ -26,7 +26,7 @@ import 'package:vector_math/vector_math.dart';
 import 'mcp_tool.dart';
 import 'model_session.dart';
 
-typedef ModelPictureTool = OfferedTool<ModelSession, PictureAnswer>;
+typedef ModelPictureTool = OfferedTool<ModelSession, Answer>;
 
 GraphicsDevice _cpuDevice(int width, int height) => CpuDevice(
   width: width,
@@ -149,7 +149,7 @@ final ModelPictureTool renderTool = ModelPictureTool(
   (ModelSession session, Map<String, Object?> arguments) async {
     final project = session.history.project;
     if (project.objects.isEmpty) {
-      return (
+      return Answer(
         did: false,
         says: 'Nothing to render: the project has no objects yet.',
         png: null,
@@ -176,7 +176,7 @@ final ModelPictureTool renderTool = ModelPictureTool(
       ),
       deviceFactory: _cpuDevice,
     );
-    return (
+    return Answer(
       did: true,
       says: 'Rendered from the ${view.name} view, $size×$size.',
       png: png,
@@ -213,7 +213,7 @@ final ModelPictureTool renderSheetTool = ModelPictureTool(
   (ModelSession session, Map<String, Object?> arguments) async {
     final project = session.history.project;
     if (project.objects.isEmpty) {
-      return (
+      return Answer(
         did: false,
         says: 'Nothing to render: the project has no objects yet.',
         png: null,
@@ -227,7 +227,7 @@ final ModelPictureTool renderSheetTool = ModelPictureTool(
       weightsJoint: _jointNamed(arguments['joint']),
       deviceFactory: _cpuDevice,
     );
-    return (
+    return Answer(
       did: true,
       says: 'Rendered a 2×2 sheet: front, right, top, iso.',
       png: png,
@@ -273,7 +273,7 @@ final ModelPictureTool auditTool = ModelPictureTool(
   ),
   (ModelSession session, Map<String, Object?> arguments) async {
     if (session.history.project.objects.isEmpty) {
-      return (
+      return Answer(
         did: false,
         says: 'Nothing to audit: the project has no objects yet.',
         png: null,
@@ -293,7 +293,7 @@ final ModelPictureTool auditTool = ModelPictureTool(
       views: RenderProjectView.values,
       deviceFactory: _cpuDevice,
     );
-    return (
+    return Answer(
       did: repaired?.did ?? true,
       says: repaired == null
           ? before
@@ -353,7 +353,7 @@ final ModelPictureTool renderSnapshotTool = ModelPictureTool(
   (ModelSession session, Map<String, Object?> arguments) async {
     final project = session.history.project;
     if (project.objects.isEmpty) {
-      return (
+      return Answer(
         did: false,
         says: 'Nothing to render: the project has no objects yet.',
         png: null,
@@ -376,7 +376,7 @@ final ModelPictureTool renderSnapshotTool = ModelPictureTool(
       _ => 1,
     };
     if (width % tiles != 0 || height % tiles != 0) {
-      return (
+      return Answer(
         did: false,
         says:
             'A frame of $width×$height does not divide into $tiles tiles a '
@@ -409,7 +409,7 @@ final ModelPictureTool renderSnapshotTool = ModelPictureTool(
       // import would take off the web with it. This is a server; it has io.
       concurrency: Platform.numberOfProcessors,
     ).run();
-    return (
+    return Answer(
       did: true,
       says:
           'Rendered a snapshot from the ${view.name} view, $width×$height'

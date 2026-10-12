@@ -5,10 +5,10 @@
 /// See `apps/flutter3d_demo_dungeon/test/rollback_cost_test.dart` for why
 /// this prints a number rather than asserting a fixed threshold.
 ///
-/// Measures `Match`, not `MatchSimulation` alone — the same object
+/// Measures `StrategyMatch`, not `MatchSimulation` alone — the same object
 /// `playthrough_test.dart` plays to an ending — since a bot's own head is
-/// part of what a rollback has to restore, and `Match.save`/`restore` is
-/// where that and the simulation are kept in the same document.
+/// part of what a rollback has to restore, and `StrategyMatch.save`/`restore`
+/// is where that and the simulation are kept in the same document.
 library;
 
 import 'dart:io';

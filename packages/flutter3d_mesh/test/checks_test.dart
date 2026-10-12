@@ -5,6 +5,7 @@
 /// the right one, is a check that fails here rather than in somebody's export.
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -87,7 +88,7 @@ void main() {
       // corners and every quad in every model is a complaint.
       final found = MeshChecks(mesh).ngons()!;
       expect(found.ids, hasLength(2));
-      expect(found.severity, IssueSeverity.note);
+      expect(found.severity, Severity.note);
       expect(found.selection.level, ElementLevel.face);
       expect(found.message, contains('2 faces'));
     });
@@ -121,7 +122,7 @@ void main() {
       // rather than the fans, and every corner of every box is reported —
       // three faces meet at each of them and it is one sheet.
       expect(joined.ids, <int>[6]);
-      expect(joined.severity, IssueSeverity.warning);
+      expect(joined.severity, Severity.warning);
 
       final apart = EditMesh.cuboid();
       expect(MeshChecks(apart).nonManifoldVertices(), isNull);
@@ -170,7 +171,7 @@ void main() {
       // count and let the area go, and a face flattened onto a line by a
       // scale of zero passes every check there is.
       expect(found.ids, <int>[0]);
-      expect(found.severity, IssueSeverity.error);
+      expect(found.severity, Severity.error);
     });
 
     test('a face pinched into a figure of eight is found', () {
@@ -377,8 +378,8 @@ void main() {
 
       // Mutation: sort by severity ascending, and a panel showing the first
       // three shows the three that matter least.
-      expect(issues.first.severity, IssueSeverity.warning);
-      expect(issues.last.severity, IssueSeverity.note);
+      expect(issues.first.severity, Severity.warning);
+      expect(issues.last.severity, Severity.note);
       expect(
         issues.map((MeshIssue it) => it.kind.name),
         containsAll(<String>['isolated-vertex', 'ngon', 'boundary-edge']),

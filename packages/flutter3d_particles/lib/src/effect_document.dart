@@ -575,7 +575,9 @@ final class _EffectReader {
         // one. A number is a look.
         return switch (json['acceleration']) {
           null || 'world' => ParticleGravity.world(scale: or('scale', 1.0)),
-          final Object value => ParticleGravity(_number(value, 'acceleration')),
+          final Object value => ParticleGravity(
+            acceleration: _number(value, 'acceleration'),
+          ),
         };
       case 'drag':
         return ParticleDrag(_number(_required(json, 'perSecond'), 'perSecond'));

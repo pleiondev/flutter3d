@@ -15,6 +15,7 @@ import 'dart:io';
 
 import 'package:dart_mcp/client.dart';
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 import 'package:flutter3d_mcp/model.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:stream_channel/stream_channel.dart';
@@ -175,7 +176,7 @@ void main() {
 
     expect(project.lighting.lights, hasLength(1));
     final ProjectLight light = project.lighting.lights.single;
-    expect(light.type, ProjectLightType.point);
+    expect(light.type, LightType.point);
     expect(light.color.r, closeTo(1.0, 1e-6));
     expect(light.color.g, closeTo(0.95, 1e-6));
     expect(light.color.b, closeTo(0.85, 1e-6));

@@ -5,9 +5,9 @@
 ///     flutter test test/plugin_test.dart
 ///
 /// **The step through the loop is the step without it**, to the bit: a
-/// recorded match is `Match.step` called once a step, and the plugin is the
-/// same call made from the loop's physics phase. The second test holds that,
-/// because every order tape this genre has written rests on it.
+/// recorded match is `StrategyMatch.step` called once a step, and the plugin is
+/// the same call made from the loop's physics phase. The second test holds
+/// that, because every order tape this genre has written rests on it.
 library;
 
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
@@ -35,7 +35,7 @@ final class _CampKind extends EntityKind {
 
 /// Two soldiers of two sides inside each other's range, nobody else: a
 /// match the fight decides in a few seconds.
-Match _duel() {
+StrategyMatch _duel() {
   final sim = StrategySimulation(random: GameRandom(3), ground: flat());
   sim
     ..add(
@@ -48,7 +48,7 @@ Match _duel() {
         side: 1,
       ),
     );
-  return Match(simulation: sim, bots: const <Bot>[]);
+  return StrategyMatch(simulation: sim, bots: const <Bot>[]);
 }
 
 void main() {
@@ -74,7 +74,7 @@ void main() {
     expect(plugin.manifest.touches, PluginTouches.simulation);
   });
 
-  test('steps a match to the same bits as Match.step does', () {
+  test('steps a match to the same bits as StrategyMatch.step does', () {
     final plugin = StrategyPlugin();
     final (:loop, kinds: _) = _loopWith(plugin);
     final through = mirror();

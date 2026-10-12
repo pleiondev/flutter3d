@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `GhostFrame` is the simulation's own type**, where this
+  package named the simulation's `Pose` with it.
 - **A game's rules hang on the step through `addSystem`.**
   `RacingSimulation.systems` (sim's `StepSystems`) is replaced by
   `addSystem(name, phase, system, {after, before})`, returning the

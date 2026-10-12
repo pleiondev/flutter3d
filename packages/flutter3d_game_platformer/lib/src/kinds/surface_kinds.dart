@@ -1,3 +1,4 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
@@ -26,7 +27,7 @@ final class OneWayKind extends EntityKind {
     if (size != null && size.y > 0.6) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.warning,
+          Severity.warning,
           'is ${size.y} m thick, and a one-way platform that thick is one a '
           'player lands inside of before they are through it',
           where: scope.describe(entity),
@@ -68,7 +69,7 @@ final class ConveyorKind extends EntityKind {
     if (flow == null) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'has no "flow", so it is a floor that carries nobody anywhere',
           where: scope.describe(entity),
         ),
@@ -78,7 +79,7 @@ final class ConveyorKind extends EntityKind {
     if (flow.length < 1e-6) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.warning,
+          Severity.warning,
           'flows nowhere',
           where: scope.describe(entity),
         ),
@@ -117,7 +118,7 @@ final class CrumblingKind extends EntityKind {
     if (delay != null && delay <= 0.0) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'gives way after $delay seconds, which is a platform nobody can '
           'stand on for long enough to notice',
           where: scope.describe(entity),

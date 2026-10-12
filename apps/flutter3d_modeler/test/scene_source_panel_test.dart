@@ -5,6 +5,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/ui/scene_source_panel.dart';
@@ -18,7 +19,7 @@ Future<void> _pump(
   ValueChanged<int>? onSelect,
   VoidCallback? onAdd,
   ValueChanged<int>? onRemove,
-  void Function(int, ProjectLightType)? onTypeChanged,
+  void Function(int, LightType)? onTypeChanged,
   void Function(int, double)? onIntensityChanged,
   void Function(int, double)? onRangeChanged,
   void Function(int, bool)? onShadowChanged,
@@ -58,8 +59,8 @@ void main() {
     await _pump(
       tester,
       lights: <ProjectLight>[
-        ProjectLight(type: ProjectLightType.point),
-        ProjectLight(type: ProjectLightType.spot),
+        ProjectLight(type: LightType.point),
+        ProjectLight(type: LightType.spot),
       ],
     );
 
@@ -139,14 +140,14 @@ void main() {
   testWidgets('the cone field only appears for a spot light', (tester) async {
     await _pump(
       tester,
-      lights: <ProjectLight>[ProjectLight(type: ProjectLightType.point)],
+      lights: <ProjectLight>[ProjectLight(type: LightType.point)],
       selected: 0,
     );
     expect(find.text('Cone'), findsNothing);
 
     await _pump(
       tester,
-      lights: <ProjectLight>[ProjectLight(type: ProjectLightType.spot)],
+      lights: <ProjectLight>[ProjectLight(type: LightType.spot)],
       selected: 0,
     );
     expect(find.text('Cone'), findsOneWidget);
@@ -185,19 +186,19 @@ void main() {
   });
 
   testWidgets('picking a type from the dropdown reports it', (tester) async {
-    final changes = <(int, ProjectLightType)>[];
+    final changes = <(int, LightType)>[];
     await _pump(
       tester,
-      lights: <ProjectLight>[ProjectLight(type: ProjectLightType.point)],
+      lights: <ProjectLight>[ProjectLight(type: LightType.point)],
       selected: 0,
-      onTypeChanged: (int i, ProjectLightType t) => changes.add((i, t)),
+      onTypeChanged: (int i, LightType t) => changes.add((i, t)),
     );
 
-    await tester.tap(find.byType(DropdownButton<ProjectLightType>));
+    await tester.tap(find.byType(DropdownButton<LightType>));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Spot').last);
     await tester.pumpAndSettle();
 
-    expect(changes, <(int, ProjectLightType)>[(0, ProjectLightType.spot)]);
+    expect(changes, <(int, LightType)>[(0, LightType.spot)]);
   });
 }

@@ -11,6 +11,8 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'project_format.dart' show ProjectFormatException;
+
 /// One bake that fills a [SimulationCache] for one object — what
 /// `ApplySimulationCache` needs to know about whatever produced the frames.
 ///
@@ -104,29 +106,33 @@ final class SimulationCache {
     'frames': <String>[for (final Float32List f in frames) _encodeFrame(f)],
   };
 
-  /// A [SimulationCache] from its own [toJson], or null when a field is
-  /// missing, of the wrong type, or a frame's own length does not match
-  /// `vertexCount` — the same "skip rather than fail the whole file"
-  /// contract [JobRequest.fromJson] already keeps.
-  static SimulationCache? fromJson(Map<String, Object?> json) {
+  /// A [SimulationCache] from its own [toJson]. Throws a
+  /// [ProjectFormatException] when a field is missing, of the wrong type, or
+  /// a frame's own length does not match `vertexCount`; the journal reader
+  /// skips such an entry rather than failing the whole file.
+  static SimulationCache fromJson(Map<String, Object?> json) {
     if (json case {
       'vertexCount': final int vertexCount,
       'frames': final List<Object?> framesJson,
     }) {
-      final frames = <Float32List>[];
-      for (final Object? each in framesJson) {
-        if (each is! String) return null;
-        final Float32List? frame = _decodeFrame(each);
-        if (frame == null) return null;
-        frames.add(frame);
-      }
+      final frames = <Float32List>[
+        for (final Object? each in framesJson)
+          switch (each is String ? _decodeFrame(each) : null) {
+            final Float32List frame => frame,
+            null => throw const ProjectFormatException(
+              'a simulation cache\'s frame is base64 of whole floats',
+            ),
+          },
+      ];
       try {
         return SimulationCache(vertexCount: vertexCount, frames: frames);
-      } on ArgumentError {
-        return null;
+      } on ArgumentError catch (error) {
+        throw ProjectFormatException('a simulation cache does not fit: $error');
       }
     }
-    return null;
+    throw const ProjectFormatException(
+      'a simulation cache names its whole "vertexCount" and its "frames"',
+    );
   }
 }
 

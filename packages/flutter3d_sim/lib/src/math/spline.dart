@@ -126,14 +126,14 @@ final class CatmullRom {
     final u = _toU(s);
     _derivative(u, out);
     var scale = out.length;
-    if (scale < Tolerance.divisor) {
+    if (scale < GeometryTolerance.divisor) {
       // Coincident control points can flatten the derivative to nothing. Step a
       // hair along the curve rather than inventing a direction, so that a
       // duplicated point in the track file is a wobble and not a car facing
       // north for one step.
       _derivative(u + 1e-4, out);
       scale = out.length;
-      if (scale < Tolerance.divisor) {
+      if (scale < GeometryTolerance.divisor) {
         out.setValues(0.0, 0.0, 1.0);
         return;
       }
@@ -153,7 +153,7 @@ final class CatmullRom {
     _secondDerivative(u, _second);
 
     final speed = _first.length;
-    if (speed < Tolerance.divisor) return 0.0;
+    if (speed < GeometryTolerance.divisor) return 0.0;
 
     // Written out rather than through `cross`, which allocates a vector: an AI
     // asks this several times per car per step.

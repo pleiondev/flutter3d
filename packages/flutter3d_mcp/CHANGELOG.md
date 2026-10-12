@@ -1,5 +1,17 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `Answer` is a class, and `PictureAnswer` is gone into it.**
+  `Answer(did:, says:, png:)` has the record's `did` and `says` and the
+  picture a drawing tool hands back. A record never gains a field, which
+  is why a second answer type existed at all; every tool a plugin writes
+  returns this one, so it can carry more in a minor.
+- **The modeller's tools take American spellings (schema 1.1.0).**
+  `paint.stroke` and `paint.vertexColor` take `color` and a sample's
+  `center`, and `object.setOrigin` takes `boundsCenter`; the British words
+  are still read, so no agent breaks. `light.add` takes an `area` light.
+- **Breaking: `ToolName` takes its hints by name.**
+  `ToolName('level.save', hints: ToolHints.destroys)`: an optional
+  positional argument could never have a named one beside it.
 - **A plugin's tools are published under its namespace.**
   `McpTools.addTool` and `declareSchemaVersion` file a plugin's tools under
   `PluginManifest.namespace`, so the editor half of a package (`wind.editor`)

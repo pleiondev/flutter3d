@@ -172,7 +172,7 @@ void main() {
       table.setInterpolation(AnimationInterpolation.linear);
       table.setInterpolation(AnimationInterpolation.cubicSpline);
 
-      // Mutation: have `setInterpolation` rebuild each `Key` and drop its
+      // Mutation: have `setInterpolation` rebuild each `Keyframe` and drop its
       // tangents when switching to linear — this reads null instead of the
       // original values after switching back.
       expect(table.keys.single.inTangent, <double>[9.0]);

@@ -29,6 +29,7 @@ library;
 import 'dart:io';
 
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 import 'package:flutter3d_mcp/model.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:vector_math/vector_math.dart';
@@ -129,7 +130,7 @@ void runCase3Scenario(ModelSession session) {
   // Scene mode: a source, its shadow, an environment and a post setting —
   // T3.4's own four panels (sources/shadows/environment/post), each set
   // through the real command its panel already runs.
-  must(session.run(const AddLight(type: ProjectLightType.point)), 'addLight');
+  must(session.run(const AddLight(type: LightType.point)), 'addLight');
   must(
     session.run(
       SetLightTransform(

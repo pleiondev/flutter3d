@@ -5,7 +5,7 @@
 /// desktop browser has. This page implements the same `HeadTracker`
 /// interface by hand, driven by the pointer instead of a sensor, which is
 /// the honest stand-in: the rig on the other end cannot tell the difference,
-/// because all either one ever hands it is a `HeadPose`.
+/// because all either one ever hands it is a `RigidPose`.
 ///
 /// Quoted by `head_tracking.md` and shown whole in the Source tab.
 library;
@@ -23,18 +23,18 @@ import 'package:flutter3d_stereo/flutter3d_stereo.dart';
 // #region tracker
 /// Turns pointer drags into a head pose, the same shape a sensor would.
 final class _PointerHeadTracker extends HeadTracker {
-  final ValueNotifier<HeadPose> _pose = ValueNotifier<HeadPose>(
-    HeadPose.still(),
+  final ValueNotifier<RigidPose> _pose = ValueNotifier<RigidPose>(
+    RigidPose.identity(),
   );
   double _yaw = 0.0;
 
   @override
-  ValueListenable<HeadPose> get pose => _pose;
+  ValueListenable<RigidPose> get pose => _pose;
 
   void dragBy(double dx) {
     _yaw -= dx * 0.01;
-    _pose.value = HeadPose(
-      rotation: Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), _yaw),
+    _pose.value = RigidPose(
+      orientation: Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), _yaw),
       position: Vector3.zero(),
     );
   }

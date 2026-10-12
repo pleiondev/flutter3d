@@ -25,7 +25,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// none.
 SkySettings levelSky(Level level) {
   final sun = level.lights
-      .where((light) => light.type == LevelLightType.directional)
+      .where((light) => light.type == LightType.directional)
       .firstOrNull;
   return SkySettings(
     enabled: true,

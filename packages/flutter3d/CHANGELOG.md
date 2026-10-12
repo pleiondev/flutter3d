@@ -7,6 +7,11 @@
   names none) through the program's `updates`, as the level loader already
   did. A value the program no longer has is left out, and a file from a
   newer version keeps its values; each is a warning.
+- **The facade exports `Severity` and `RigidPose`**, and `LightType` from
+  `flutter3d_foundation`, where it was the core's.
+- **Breaking: the facade exports `ExpressionType`, not `MaterialType`.**
+  `MaterialType` is also Flutter's, and a first game imports material
+  beside this package with no `hide`.
 - **Exports `WebDecodeWorker`**, so a web application starts the browser's
   decode worker (`WebDecodeWorker.use`) from the one import it loads models
   through.

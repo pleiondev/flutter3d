@@ -23,11 +23,7 @@ library;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-// `Key` hidden: `flutter3d_model_core`'s own is `KeyTable`'s keyframe class,
-// and this file names a widget `Key` instead — `Widget.key`'s own type,
-// which every other panel in this directory gets from `material.dart`
-// without a second thought until a package with a `Key` of its own joins it.
-import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Key;
+import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 import 'theme.dart';
 

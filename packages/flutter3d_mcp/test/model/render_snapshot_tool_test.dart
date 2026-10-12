@@ -31,14 +31,14 @@ ModelSession opened({bool empty = false}) => ModelSession(
   ),
 );
 
-Future<PictureAnswer> snapshot(
+Future<Answer> snapshot(
   ModelSession session,
   Map<String, Object?> arguments,
 ) async => renderSnapshotTool.run(session, arguments);
 
 void main() {
   test('a 96×64 snapshot is a real picture of that size', () async {
-    final PictureAnswer answer = await snapshot(opened(), <String, Object?>{
+    final Answer answer = await snapshot(opened(), <String, Object?>{
       'width': 96,
       'height': 64,
     });
@@ -54,7 +54,7 @@ void main() {
   });
 
   test('and it is not blank: the cube is in shot', () async {
-    final PictureAnswer answer = await snapshot(opened(), <String, Object?>{
+    final Answer answer = await snapshot(opened(), <String, Object?>{
       'width': 96,
       'height': 64,
     });
@@ -70,7 +70,7 @@ void main() {
   });
 
   test('tiles that do not divide the frame are refused by name', () async {
-    final PictureAnswer answer = await snapshot(opened(), <String, Object?>{
+    final Answer answer = await snapshot(opened(), <String, Object?>{
       'width': 100,
       'height': 64,
       'tiles': 3,
@@ -81,7 +81,7 @@ void main() {
   });
 
   test('four tiles stitch back into one frame of the asked size', () async {
-    final PictureAnswer answer = await snapshot(opened(), <String, Object?>{
+    final Answer answer = await snapshot(opened(), <String, Object?>{
       'width': 64,
       'height': 64,
       'tiles': 2,
@@ -94,7 +94,7 @@ void main() {
   });
 
   test('and an empty project refuses rather than drawing nothing', () async {
-    final PictureAnswer answer = await snapshot(
+    final Answer answer = await snapshot(
       opened(empty: true),
       <String, Object?>{},
     );

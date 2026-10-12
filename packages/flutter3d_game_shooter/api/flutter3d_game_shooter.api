@@ -277,7 +277,7 @@ final class InFlight
   final Blast blast
   final Vector3 position
   final Vector3 velocity
-  static InFlight? fromJson(Object? data)
+  static InFlight fromJson(Object? data)
 
 final class Inventory with KeyHolder
   Inventory({Health? health, Arsenal? arsenal, KeyRing? keys, this.maxArmor = 100.0})

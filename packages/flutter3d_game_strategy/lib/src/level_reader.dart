@@ -1,5 +1,5 @@
 /// A strategy map read from a [Level]: the vocabulary a map document uses,
-/// and the pass that turns one into a [Match].
+/// and the pass that turns one into a [StrategyMatch].
 ///
 /// **In the package so that something other than the application can open
 /// a map.** The reader was the strategy demo's own, and a tool that plays a
@@ -9,6 +9,7 @@
 /// do not collide while it still has them.
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -42,7 +43,7 @@ final class StrategyOpening {
   const StrategyOpening({required this.match, required this.mine});
 
   /// The sides, the ground under them and the finishing line.
-  final Match match;
+  final StrategyMatch match;
 
   /// The units side nought opened with.
   final List<StrategyUnit> mine;
@@ -148,7 +149,7 @@ StrategyOpening openStrategyLevel(
   }
 
   return StrategyOpening(
-    match: Match(
+    match: StrategyMatch(
       simulation: simulation,
       bots: <Bot>[
         for (final MapEntry<String, Building> it in halls.entries)
@@ -184,12 +185,12 @@ final LevelValidator strategyLevelValidator = LevelValidator(
     AtLeastOne(
       StrategyLevelTypes.camp,
       because: 'a match with no camps has nobody in it',
-      severity: LevelIssueSeverity.error,
+      severity: Severity.error,
     ),
     AtLeastOne(
       StrategyLevelTypes.resourceNode,
       because: 'a map with nothing to dig cannot be won',
-      severity: LevelIssueSeverity.error,
+      severity: Severity.error,
     ),
   ],
 );
@@ -236,7 +237,7 @@ final class _StockpileKind extends EntityKind {
     if (entity.number('amount') == null) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'has no "amount", so nothing says what this side opens with',
           where: scope.describe(entity),
         ),
@@ -268,7 +269,7 @@ void _requireName(
   if (entity.name != null) return;
   out.add(
     LevelIssue(
-      LevelIssueSeverity.error,
+      Severity.error,
       'has no "name", $because',
       where: scope.describe(entity),
     ),
@@ -280,7 +281,7 @@ void _requireSide(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
   if (side != null && side >= 0) return;
   out.add(
     LevelIssue(
-      LevelIssueSeverity.error,
+      Severity.error,
       side == null
           ? 'has no "side", so nothing says whose it is'
           : 'belongs to side $side, and there is no such side',
@@ -299,7 +300,7 @@ void _requirePositive(
   if (value != null && value > 0.0) return;
   out.add(
     LevelIssue(
-      LevelIssueSeverity.error,
+      Severity.error,
       value == null
           ? 'has no "$key"'
           : 'has a "$key" of $value, which is not a quantity',
@@ -318,7 +319,7 @@ void _requireNamed(
   if (named != null && scope.level.named(named) != null) return;
   out.add(
     LevelIssue(
-      LevelIssueSeverity.error,
+      Severity.error,
       named == null
           ? 'has no "$key", so it has nowhere to go'
           : '"$key" names "$named", which no entity is called',

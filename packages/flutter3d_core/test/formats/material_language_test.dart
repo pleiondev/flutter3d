@@ -81,10 +81,13 @@ void main() {
     );
     final soft = specializeMaterial(
       program,
-      const MaterialVariant('RimSoft', <String, List<double>>{
-        'rimPower': <double>[8],
-        'rimColor': <double>[1, 0, 0],
-      }),
+      const MaterialVariant(
+        'RimSoft',
+        values: <String, List<double>>{
+          'rimPower': <double>[8],
+          'rimColor': <double>[1, 0, 0],
+        },
+      ),
     );
 
     expect(sharp.name, 'RimSharp');
@@ -229,9 +232,12 @@ void main() {
       expect(
         () => specializeMaterial(
           parseMaterial(_rimLight),
-          const MaterialVariant('Typo', <String, List<double>>{
-            'rimPowr': <double>[4],
-          }),
+          const MaterialVariant(
+            'Typo',
+            values: <String, List<double>>{
+              'rimPowr': <double>[4],
+            },
+          ),
         ),
         throwsA(isA<ArgumentError>()),
       );
@@ -384,9 +390,12 @@ material Tint {
       expect(
         () => specializeMaterial(
           parseMaterial(source),
-          const MaterialVariant('T', <String, List<double>>{
-            'tint': <double>[0, 0, 0],
-          }),
+          const MaterialVariant(
+            'T',
+            values: <String, List<double>>{
+              'tint': <double>[0, 0, 0],
+            },
+          ),
         ),
         throwsArgumentError,
       );

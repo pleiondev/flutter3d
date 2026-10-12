@@ -45,7 +45,40 @@ final class ParticleForces {
 }
 
 /// One particle to emit.
-typedef NativeParticle = ({Vector3 position, Vector3 velocity, double life});
+///
+/// A class rather than a record, so it can carry more in a minor without
+/// breaking a backend that mixes the system in.
+final class NativeParticle {
+  const NativeParticle({
+    required this.position,
+    required this.velocity,
+    required this.life,
+  });
+
+  /// Where, in metres.
+  final Vector3 position;
+
+  /// How fast, in metres a second.
+  final Vector3 velocity;
+
+  /// How long it lives, in seconds.
+  final double life;
+
+  /// Equal to another with the same fields, as the record it was compared.
+  @override
+  bool operator ==(Object other) =>
+      other is NativeParticle &&
+      other.position == position &&
+      other.velocity == velocity &&
+      other.life == life;
+
+  @override
+  int get hashCode => Object.hash(position, velocity, life);
+
+  @override
+  String toString() =>
+      'NativeParticle(position: $position, velocity: $velocity, life: $life)';
+}
 
 /// A set of particle slots, filled round and round, that fall, drift,
 /// bounce and die: on the CPU ([NativeParticles]) or the GPU

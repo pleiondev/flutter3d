@@ -66,11 +66,59 @@ final class FluidSettings {
 }
 
 /// One particle to add.
-typedef FluidParticle = ({Vector3 position, Vector3 velocity});
+///
+/// A class rather than a record, so it can carry more in a minor without
+/// breaking a backend that mixes the system in.
+final class FluidParticle {
+  const FluidParticle({required this.position, required this.velocity});
+
+  /// Where, in metres.
+  final Vector3 position;
+
+  /// How fast, in metres a second.
+  final Vector3 velocity;
+
+  /// Equal to another with the same fields, as the record it was compared.
+  @override
+  bool operator ==(Object other) =>
+      other is FluidParticle &&
+      other.position == position &&
+      other.velocity == velocity;
+
+  @override
+  int get hashCode => Object.hash(position, velocity);
+
+  @override
+  String toString() =>
+      'FluidParticle(position: $position, velocity: $velocity)';
+}
 
 /// What a read gives: the step the particles are from, counted from one,
 /// and four floats a particle — position xyz, density over rest density.
-typedef FluidFrame = ({int step, Float32List particles});
+///
+/// A class rather than a record, so it can carry more in a minor without
+/// breaking a backend that mixes the system in.
+final class FluidFrame {
+  const FluidFrame({required this.step, required this.particles});
+
+  /// The step, counted from one.
+  final int step;
+
+  /// Four floats a particle: position xyz in metres, density over rest
+  /// density as a ratio.
+  final Float32List particles;
+
+  /// Equal to another with the same fields, as the record it was compared.
+  @override
+  bool operator ==(Object other) =>
+      other is FluidFrame && other.step == step && other.particles == particles;
+
+  @override
+  int get hashCode => Object.hash(step, particles);
+
+  @override
+  String toString() => 'FluidFrame(step: $step, particles: $particles)';
+}
 
 /// Water as particles: on the CPU ([NativeFluid]) or the GPU
 /// ([GpuFluid]), the same passes. Visual, not the game's state.
@@ -202,7 +250,7 @@ final class NativeFluid implements FluidSystem {
     try {
       c.f3d_fluid_read(live, out, _count);
       _read = _steps;
-      return (step: _steps, particles: out.copy(_count * 4));
+      return FluidFrame(step: _steps, particles: out.copy(_count * 4));
     } finally {
       out.free();
     }

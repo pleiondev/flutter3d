@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `FrameSubject` and `RenderedFrame` are classes.** A replay
+  subject and a frame builder return `FrameSubject(scene:, camera:)`;
+  `RenderedFrame` keeps `pixels`, `width`, `height` and `drawCalls`. Read
+  the same way; a record could not have grown.
 - **A frame and a replay are drawn on the device a test names.**
   `renderFrame`, `testReplay` and `expectReplayMatches` take `device:`, a
   `BackendOpener` (`WebGpuDevice.open`, `GpuRenderBackend.open`, an outside

@@ -49,11 +49,11 @@ StrategyMap _map() =>
 ///
 /// **A cap rather than a `while`, because the failure being guarded against is
 /// a hang and not a wrong answer.** A finishing line the ground cannot pay for
-/// leaves both sides digging an empty map for ever; `Match` has an ending for
-/// exactly that and this is the backstop for the day it stops working, since a
-/// suite that never returns tells nobody which test was to blame. Ten thousand
-/// steps is nearly three minutes of match against a map that is settled in
-/// well under one.
+/// leaves both sides digging an empty map for ever; `StrategyMatch` has an
+/// ending for exactly that and this is the backstop for the day it stops
+/// working, since a suite that never returns tells nobody which test was to
+/// blame. Ten thousand steps is nearly three minutes of match against a map
+/// that is settled in well under one.
 const int _cap = 10000;
 
 /// Plays [match] the way the screen plays it, and says how many steps it took.
@@ -74,7 +74,7 @@ const int _cap = 10000;
 /// **With the map's world round every step**, as the screen plays it: the
 /// stream and the pond that slow whoever wades them, the fires that hurt
 /// whoever stands near them. See `map_world.dart`.
-int _play(Match match, CommandPost command) {
+int _play(StrategyMatch match, CommandPost command) {
   for (var step = 0; step < _cap; step++) {
     if (match.standing.isOver) return step;
     command.restock();

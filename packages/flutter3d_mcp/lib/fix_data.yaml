@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: dd501ac03fa77814
+# table-stamp: 738a9d681d9e0807
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -24,13 +24,11 @@ transforms:
     changes:
       - kind: 'rename'
         newName: 'prepareForGame'
-  - title: 'flutter3d 1.0.0-rc.1: c-sim_mcp-kit-library (PictureAnswer)'
+  - title: 'flutter3d 1.0.0-rc.1: rc-mcp-PictureAnswer-rename'
     date: 2026-10-08
     element:
-      uris: ['package:flutter3d_sim_mcp/flutter3d_sim_mcp.dart']
+      uris: ['package:flutter3d_editor_mcp/flutter3d_editor_mcp.dart', 'package:flutter3d_mcp/editor.dart', 'package:flutter3d_mcp/kit.dart', 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart', 'package:flutter3d_sim_mcp/flutter3d_sim_mcp.dart']
       typedef: 'PictureAnswer'
     changes:
-      - kind: 'replacedBy'
-        newElement:
-          uris: ['package:flutter3d_mcp/kit.dart']
-          typedef: 'PictureAnswer'
+      - kind: 'rename'
+        newName: 'Answer'

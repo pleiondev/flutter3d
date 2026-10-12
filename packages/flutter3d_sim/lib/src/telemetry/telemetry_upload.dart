@@ -208,7 +208,37 @@ final class TelemetryReceipt {
 }
 
 /// The answer to sending one run.
-typedef TelemetrySent = ({bool did, String says, TelemetryReceipt? receipt});
+///
+/// **A class, so the answer can carry more in a minor** (a server's quota, a
+/// retry time): a [TelemetrySink] somebody writes returns one, and a record
+/// it returned could never gain a field.
+final class TelemetrySent {
+  const TelemetrySent({required this.did, required this.says, this.receipt});
+
+  /// Whether the server took the run.
+  final bool did;
+
+  /// The sentence to show about it, taken or refused.
+  final String says;
+
+  /// What the server gave back for a run it took; null for a refusal.
+  final TelemetryReceipt? receipt;
+
+  /// Equal to another answer with the same [did], [says] and [receipt], as
+  /// the record it was compared.
+  @override
+  bool operator ==(Object other) =>
+      other is TelemetrySent &&
+      other.did == did &&
+      other.says == says &&
+      other.receipt == receipt;
+
+  @override
+  int get hashCode => Object.hash(did, says, receipt);
+
+  @override
+  String toString() => 'TelemetrySent(did: $did, says: $says)';
+}
 
 /// Where uploads go. The HTTP one is [HttpTelemetrySink]; a test hands in its
 /// own.
@@ -245,7 +275,7 @@ final class HttpTelemetrySink extends TelemetrySink {
     try {
       answer = await post(endpoint, jsonEncode(upload.toJson()));
     } catch (error) {
-      return (
+      return TelemetrySent(
         did: false,
         says: 'could not reach $endpoint: $error',
         receipt: null,
@@ -255,7 +285,7 @@ final class HttpTelemetrySink extends TelemetrySink {
     try {
       body = jsonDecode(answer.body);
     } on FormatException {
-      return (
+      return TelemetrySent(
         did: false,
         says: '$endpoint answered ${answer.status} with no JSON',
         receipt: null,
@@ -265,18 +295,18 @@ final class HttpTelemetrySink extends TelemetrySink {
         ? body['says'] as String
         : '$endpoint answered ${answer.status}';
     if (answer.status != 201 || body is! Map) {
-      return (did: false, says: says, receipt: null);
+      return TelemetrySent(did: false, says: says, receipt: null);
     }
     final run = body['run'];
     final key = body['eraseKey'];
     if (run is! num || key is! String) {
-      return (
+      return TelemetrySent(
         did: false,
         says: '$endpoint took the run and gave no receipt for it',
         receipt: null,
       );
     }
-    return (
+    return TelemetrySent(
       did: true,
       says: says,
       receipt: TelemetryReceipt(run: run.toInt(), eraseKey: key),
@@ -318,7 +348,7 @@ final class TelemetryUploader {
     );
     final upload = prepared.upload;
     if (upload == null) {
-      return (did: false, says: prepared.says, receipt: null);
+      return TelemetrySent(did: false, says: prepared.says, receipt: null);
     }
     return sink.deliver(upload);
   }

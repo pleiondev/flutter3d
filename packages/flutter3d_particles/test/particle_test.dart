@@ -154,7 +154,9 @@ void main() {
         count: 1,
         lifetime: const Range.exact(10.0),
         emitter: const SphereEmitter(speed: Range.exact(1.0)),
-        affectors: const <ParticleAffector>[ParticleGravity(-10.0)],
+        affectors: const <ParticleAffector>[
+          ParticleGravity(acceleration: -10.0),
+        ],
       );
       system.emit(key, effect, Vector3.zero(), perSecond: perSecond);
       final dt = 1.0 / hz;
@@ -359,7 +361,9 @@ void main() {
         _effect(
           count: 1,
           emitter: const SphereEmitter(speed: Range.exact(0.0)),
-          affectors: const <ParticleAffector>[ParticleGravity(-10.0)],
+          affectors: const <ParticleAffector>[
+            ParticleGravity(acceleration: -10.0),
+          ],
           lifetime: const Range.exact(10.0),
         ),
         Vector3.zero(),

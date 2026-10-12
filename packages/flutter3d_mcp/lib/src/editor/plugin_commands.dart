@@ -61,7 +61,7 @@ Registration shareCommands(
               isError: true,
             );
           }
-          final (:did, :says) = session.run(read);
+          final Answer(:did, :says) = session.run(read);
           return ToolResult.text(says, isError: !did);
         },
         namespace: command.namespace,

@@ -30,9 +30,10 @@
 library;
 
 import 'dart:typed_data';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// A six-way sheet on the device, and what it emits and receives from every
 /// side.
@@ -45,10 +46,9 @@ final class SixWayMaterial {
   SixWayMaterial({
     required this.positive,
     required this.negative,
-    Vector3? emission,
-    Vector3? ambient,
-  }) : emission = emission ?? Vector3.zero(),
-       ambient = ambient ?? Vector3.zero();
+    this.emission = LinearColor.black,
+    this.ambient = LinearColor.black,
+  });
 
   /// Right, top, back and coverage. See the library's own comment.
   final TextureHandle positive;
@@ -58,8 +58,8 @@ final class SixWayMaterial {
 
   /// What the emission channel's full value emits: linear, and not tinted by
   /// the particle's colour, since the heat in a plume of smoke is not grey
-  /// because the smoke is.
-  final Vector3 emission;
+  /// because the smoke is. Read each frame, so it can be changed in place.
+  LinearColor emission;
 
   /// Light arriving evenly from every side, read through the mean of the six
   /// pictures.
@@ -67,8 +67,8 @@ final class SixWayMaterial {
   /// Here rather than taken from the scene. A contributor is handed the lights
   /// but not the scene they came from, and smoke that is the wrong shade in a
   /// dark room is easier to fix with a number beside the effect than by
-  /// changing the room.
-  final Vector3 ambient;
+  /// changing the room. Read each frame, so it can be changed in place.
+  LinearColor ambient;
 }
 
 /// One channel of one source image: [image] counts from nought, [channel] is

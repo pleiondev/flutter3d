@@ -351,8 +351,14 @@ final class ParticleContributor extends PassContributor {
     _sixWayRight.setAll(0, _right.storage);
     _sixWayUp.setAll(0, _up.storage);
     _sixWayForward.setAll(0, _forward.storage);
-    _sixWayEmission.setAll(0, sheet.emission.storage);
-    _sixWayAmbient.setAll(0, sheet.ambient.storage);
+    _sixWayEmission
+      ..[0] = sheet.emission.r
+      ..[1] = sheet.emission.g
+      ..[2] = sheet.emission.b;
+    _sixWayAmbient
+      ..[0] = sheet.ambient.r
+      ..[1] = sheet.ambient.g
+      ..[2] = sheet.ambient.b;
     encoder.bindUniformBlock(stage, 'SixWayInfo', <String, Float32List>{
       'right': _sixWayRight,
       'up': _sixWayUp,

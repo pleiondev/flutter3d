@@ -15,8 +15,8 @@ import 'native_particles.dart';
 final class NativeGpu {
   NativeGpu._();
 
-  /// Throws [GpuUnavailable]: there is no GPU library in the browser.
-  static NativeGpu open() => throw const GpuUnavailable(
+  /// Throws [GpuUnavailableException]: there is no GPU library in the browser.
+  static NativeGpu open() => throw const GpuUnavailableException(
     'there is no GPU library in the browser; the passes run on the CPU',
   );
 

@@ -90,8 +90,8 @@ ModelProject fixtureProject() {
             lighting: SceneLighting(
               lights: <ProjectLight>[
                 ProjectLight(
-                  type: ProjectLightType.point,
-                  color: Vector3(1.0, 0.875, 0.75),
+                  type: LightType.point,
+                  color: LinearColor(1.0, 0.875, 0.75),
                   intensity: 800.0,
                   range: 12.0,
                 ),

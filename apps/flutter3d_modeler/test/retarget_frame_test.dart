@@ -179,7 +179,7 @@ void main() {
           project: posedProject,
         );
         stage.frameSubject();
-        return (scene: stage.scene, camera: stage.camera);
+        return FrameSubject(scene: stage.scene, camera: stage.camera);
       },
     );
 

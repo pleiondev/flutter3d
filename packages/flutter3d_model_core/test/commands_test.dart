@@ -16,6 +16,8 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/flutter3d_core.dart' show rootMotionExtra;
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart' show VertexLayout;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LightType, LinearColor;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
@@ -2702,7 +2704,7 @@ void main() {
         SelectFacing(axis: Vector3(0, 1, 0), within: 30),
         SelectNear(point: Vector3(0, 0.5, 0), radius: 0.25),
         const SelectElements(object: 1, level: 'face', elements: <int>[0, 1]),
-        const AddLight(type: ProjectLightType.point),
+        const AddLight(type: LightType.point),
         const RemoveLight(0),
         const SetLightField(index: 0, field: 'intensity', value: 2.0),
         SetLightTransform(index: 0, to: Matrix4.identity()),
@@ -2730,7 +2732,7 @@ void main() {
           materialIndex: 0,
           graph: TextureGraph(
             nodes: <TextureNode>[
-              ColorTextureNode(id: 1, value: Vector4(1, 0, 0, 1)),
+              ColorTextureNode(id: 1, value: LinearColor(1, 0, 0, 1)),
               const OutputTextureNode(id: 2, result: 1, slot: 'albedo'),
             ],
           ),

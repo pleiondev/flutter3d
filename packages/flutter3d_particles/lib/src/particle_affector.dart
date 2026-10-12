@@ -48,7 +48,7 @@ abstract base class ParticleAffector {
 final class ParticleGravity extends ParticleAffector {
   /// [acceleration], m/s² up y, as a look of its own; or, with none, the
   /// world's gravity downward.
-  const ParticleGravity([this.acceleration]) : scale = 1.0;
+  const ParticleGravity({this.acceleration}) : scale = 1.0;
 
   /// The world's gravity downward times [scale]: a spark's fall made a
   /// little quicker for the eye, say, that stays a multiple of the world's.

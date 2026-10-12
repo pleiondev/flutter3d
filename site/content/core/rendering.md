@@ -796,7 +796,7 @@ Each piece of work asks before it starts, and is allowed when what the frame has
 ```dart
 final quality = AdaptiveQuality(
   QualityTable.of(DeviceClass.desktop),
-  const AdaptiveQualitySettings(enabled: true, budgetMicros: 16667),
+  settings: const AdaptiveQualitySettings(enabled: true, budgetMicros: 16667),
 );
 
 // every frame

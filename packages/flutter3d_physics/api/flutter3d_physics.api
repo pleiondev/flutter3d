@@ -86,7 +86,7 @@ final class ClothMesh
   final int particleCount
   final int rows
   late final double meanRestEdge
-  static double particleMassOf(PhysicalMaterial material, {required double thickness, required double spacing, MaterialState state = MaterialState.standard})
+  static double particleMassOf(PhysicalMaterial material, {required double thickness, required double spacing, MatterState state = MatterState.standard})
 
 final class ClothObstacle
   const ClothObstacle(this.shape, this.position)
@@ -95,7 +95,7 @@ final class ClothObstacle
 
 final class ClothSettings
   ClothSettings copyWith({SimulationProfile? profile, double? gravity, int? substeps, int? iterations, double? distanceCompliance, double? bendCompliance, double? shearCompliance, double? damping, WindSettings? wind, double? collisionThickness, double? friction, bool? selfCollision, double? selfCollisionThickness, double? selfCollisionFriction, bool clearSelfCollisionThickness = false})
-  ClothSettings inWorld(WorldProperties world, {PhysicalMaterial? material, MaterialState state = MaterialState.standard})
+  ClothSettings inWorld(WorldProperties world, {PhysicalMaterial? material, MatterState state = MatterState.standard})
   const ClothSettings({this.gravity = standardGravity, this.substeps = 8, this.iterations = 2, this.distanceCompliance = 0.0, this.bendCompliance = 1e-3, this.shearCompliance = 5e-2, this.damping = 0.02, this.wind = const WindSettings(), this.collisionThickness = 0.01, this.friction = 0.0, this.selfCollision = true, this.selfCollisionThickness, this.selfCollisionFriction = 0.1, this.profile = SimulationProfile.deterministic})
   final SimulationProfile profile
   final WindSettings wind
@@ -404,7 +404,7 @@ final class FloatingBody
   final RigidBody body
 
 final class FluidMedium
-  FluidMedium at(MaterialState state)
+  FluidMedium at(MatterState state)
   FluidMedium copyWith({String? name, double? density, double? viscosity, double? surfaceTension, double? contactAngle})
   String toString()
   const FluidMedium({required this.name, required this.density, required this.viscosity, required this.surfaceTension, this.contactAngle = 0.0, this.material})
@@ -474,8 +474,8 @@ final class FreeSurface
   void step(double dt, {required double g, required double depth, FluidSolver solver = const DartFluid()})
 
 final class InsideWalls with JetObstacle
-  ({Vector3 normal, double depth})? touch(Vector3 point, double radius)
   InsideWalls(this.body)
+  ObstacleTouch? touch(Vector3 point, double radius)
   bool reaches(Vector3 center, double distance)
   final LiquidBody body
 
@@ -503,7 +503,7 @@ final class JetDrop
   final double volume
 
 abstract base mixin class JetObstacle
-  abstract ({Vector3 normal, double depth})? touch(Vector3 point, double radius)
+  abstract ObstacleTouch? touch(Vector3 point, double radius)
   abstract bool reaches(Vector3 center, double distance)
 
 abstract base mixin class JetReceiver
@@ -547,7 +547,7 @@ final class LiquidBody with JetReceiver
   List<LiquidLayer> drawAt(Vector3 point, double amount)
   List<LiquidLayer> get layers
   List<double> layerTops()
-  MaterialState? state
+  MatterState? state
   Spill step(double dt, {required Vector3 gravity, FluidSolver solver = const DartFluid()})
   Vector3 get up
   Vector3 load(Vector3 gravity)
@@ -630,8 +630,16 @@ abstract final class Nearly
   static const double same = 1e-9
   static const double still = 1e-6
 
+final class ObstacleTouch
+  String toString()
+  bool operator ==(Object other)
+  const ObstacleTouch({required this.normal, required this.depth})
+  final Vector3 normal
+  final double depth
+  int get hashCode
+
 final class OutsideWalls with JetObstacle
-  ({Vector3 normal, double depth})? touch(Vector3 point, double radius)
+  ObstacleTouch? touch(Vector3 point, double radius)
   OutsideWalls(this.body, {required this.thickness})
   bool reaches(Vector3 center, double distance)
   final LiquidBody body
@@ -738,7 +746,7 @@ final class PipeFlow
   static const int viscosity = 9
 
 final class PlaneObstacle with JetObstacle
-  ({Vector3 normal, double depth})? touch(Vector3 point, double radius)
+  ObstacleTouch? touch(Vector3 point, double radius)
   PlaneObstacle({required Vector3 normal, required this.offset})
   bool reaches(Vector3 center, double distance)
   final Vector3 normal

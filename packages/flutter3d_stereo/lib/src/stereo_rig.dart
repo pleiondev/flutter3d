@@ -2,8 +2,6 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 
-import 'head_pose.dart';
-
 /// Which eye.
 ///
 /// **A value class rather than an enum, and the rule it follows says why**: an
@@ -113,9 +111,9 @@ final class StereoRig {
   }
 
   /// Points the head where the tracker says it is.
-  void applyHead(HeadPose pose) {
+  void applyHead(RigidPose pose) {
     head
-      ..setRotation(pose.rotation)
+      ..setRotation(pose.orientation)
       ..setPosition(pose.position.x, pose.position.y, pose.position.z);
   }
 

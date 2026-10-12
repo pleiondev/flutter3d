@@ -29,7 +29,7 @@ ModelPictureTool _ui(
   Map<String, Object?> arguments,
 ) async {
   final UiAnswer answer = body(arguments);
-  return (did: answer.did, says: answer.says, png: null);
+  return Answer(did: answer.did, says: answer.says, png: null);
 });
 
 /// The tools, each a thin call into [actions] — see [UiActions] for
@@ -169,7 +169,7 @@ List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
     ),
     (ModelSession session, Map<String, Object?> arguments) async {
       final UiPicture shot = await actions.screenshot();
-      return (
+      return Answer(
         did: shot.did,
         says: shot.says,
         png: shot.png == null ? null : Uint8List.fromList(shot.png!),
@@ -250,7 +250,7 @@ List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
     ),
     (ModelSession session, Map<String, Object?> arguments) async {
       final UiPicture shot = await actions.playScreenshot();
-      return (
+      return Answer(
         did: shot.did,
         says: shot.says,
         png: shot.png == null ? null : Uint8List.fromList(shot.png!),
@@ -289,7 +289,7 @@ List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
         category: arguments['category'] as String?,
         license: arguments['licence'] as String?,
       );
-      return (did: answer.did, says: answer.says, png: null);
+      return Answer(did: answer.did, says: answer.says, png: null);
     },
   ),
   ModelPictureTool(
@@ -313,7 +313,7 @@ List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
       final UiAnswer answer = await actions.galleryInsert(
         arguments['id']! as String,
       );
-      return (did: answer.did, says: answer.says, png: null);
+      return Answer(did: answer.did, says: answer.says, png: null);
     },
   ),
   // `ux-25`: the command palette's own list, and the same door it presses.

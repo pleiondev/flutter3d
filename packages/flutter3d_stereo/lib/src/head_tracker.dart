@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show RigidPose;
 
 import 'head_pose.dart';
 
@@ -24,7 +25,7 @@ abstract base class HeadTracker {
 
   /// The latest pose. A listenable rather than a stream so that a widget can be
   /// rebuilt by it without an application holding a subscription.
-  ValueListenable<HeadPose> get pose;
+  ValueListenable<RigidPose> get pose;
 
   /// Begins following the head. Nothing to begin by default.
   Future<void> start() async {}
@@ -50,14 +51,14 @@ final class SensorHeadTracker extends HeadTracker {
     'dev.flutter3d/stereo/head',
   );
 
-  final ValueNotifier<HeadPose> _pose = ValueNotifier<HeadPose>(
-    HeadPose.still(),
+  final ValueNotifier<RigidPose> _pose = ValueNotifier<RigidPose>(
+    RigidPose.identity(),
   );
 
   StreamSubscription<dynamic>? _subscription;
 
   @override
-  ValueListenable<HeadPose> get pose => _pose;
+  ValueListenable<RigidPose> get pose => _pose;
 
   @override
   Future<void> start() async {

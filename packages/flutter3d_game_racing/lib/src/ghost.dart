@@ -3,14 +3,6 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'vehicle/vehicle_controller.dart';
 
-/// Where a car was at one moment of a recorded lap.
-///
-/// The engine's [Pose]. Named here because a racing game says "ghost frame"
-/// and nothing is gained by making it say something else — but a place, a
-/// facing and an up have nothing to do with racing, and a platformer wanting
-/// to draw a speedrun beside the player wants exactly the same four numbers.
-typedef GhostFrame = Pose;
-
 /// A recorded lap.
 typedef GhostTape = Tape;
 

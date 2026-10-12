@@ -4,7 +4,7 @@
 library;
 
 import 'package:flutter3d_demo_platformer/src/air.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -28,7 +28,7 @@ void main() {
       final level = shippedLevel(asset);
       final sky = levelSky(level);
       final light = level.lights.firstWhere(
-        (l) => l.type == LevelLightType.directional,
+        (l) => l.type == LightType.directional,
       );
       expect(sky.enabled, isTrue);
       expect(sky.resolvedPhysical, isNotNull, reason: '$asset: no air');

@@ -495,7 +495,7 @@ tool view.screenshot
   out {"properties":{"did":{"type":"boolean"},"hasPicture":{"type":"boolean"},"says":{"type":"string"},"selection":{"type":"string"}},"required":["did","hasPicture","says","selection"],"type":"object"}
 
 server flutter3d.model
-  schema 1.0.0
+  schema 1.1.0
   alias addClip -> clip.add
   alias addImage -> image.add
   alias addJoint -> joint.add
@@ -965,7 +965,7 @@ tool light.add
   arg faces {"items":{"type":"integer"},"type":"array"}
   arg ids {"items":{"type":"integer"},"type":"array"}
   arg object {"type":"integer"}
-  arg type {"enum":["directional","point","spot"],"type":"string"}
+  arg type {"enum":["directional","point","spot","area"],"type":"string"}
   arg vertices {"items":{"type":"integer"},"type":"array"}
   out {"properties":{"did":{"type":"boolean"},"ids":{"items":{"type":"integer"},"type":"array"},"says":{"type":"string"},"selection":{"properties":{"elements":{"items":{"type":"integer"},"type":"array"},"level":{"type":"string"},"mode":{"type":"string"},"object":{"type":"integer"},"objects":{"items":{"type":"integer"},"type":"array"}},"required":["mode","objects"],"type":"object"}},"required":["did","ids","says","selection"],"type":"object"}
 
@@ -1451,7 +1451,7 @@ tool object.setOrigin
   says Move an object's own origin without moving the object on screen — the geometry shifts one way, the node the other, so the next rotation turns about the point named here rather than wherever the model happened to be authored around.
   hints writes
   arg id required {"type":"integer"}
-  arg to {"enum":["boundsCentre","boundsBottom","worldOrigin"],"type":"string"}
+  arg to {"enum":["boundsCenter","boundsCentre","boundsBottom","worldOrigin"],"type":"string"}
   out {"properties":{"did":{"type":"boolean"},"ids":{"items":{"type":"integer"},"type":"array"},"says":{"type":"string"},"selection":{"properties":{"elements":{"items":{"type":"integer"},"type":"array"},"level":{"type":"string"},"mode":{"type":"string"},"object":{"type":"integer"},"objects":{"items":{"type":"integer"},"type":"array"}},"required":["mode","objects"],"type":"object"}},"required":["did","ids","says","selection"],"type":"object"}
 
 tool object.setParametric
@@ -1498,12 +1498,13 @@ tool paint.adoptTexture
 tool paint.stroke
   says Paint one stroke onto an object's own texture, as one undo step — `pro-pt-03`.
   hints writes
-  arg colour required {"items":{"type":"number"},"type":"array"}
+  arg color {"items":{"type":"number"},"type":"array"}
+  arg colour {"items":{"type":"number"},"type":"array"}
   arg layer {"type":"integer"}
   arg maskImage {"type":"integer"}
   arg maskInverted {"type":"boolean"}
   arg objectId required {"type":"integer"}
-  arg samples required {"items":{"properties":{"centre":{"items":{"type":"number"},"maxItems":3,"minItems":3,"type":"array"},"radius":{"type":"number"}},"required":["centre","radius"],"type":"object"},"type":"array"}
+  arg samples required {"items":{"properties":{"center":{"items":{"type":"number"},"maxItems":3,"minItems":3,"type":"array"},"centre":{"items":{"type":"number"},"maxItems":3,"minItems":3,"type":"array"},"radius":{"type":"number"}},"required":["radius"],"type":"object"},"type":"array"}
   arg size {"type":"integer"}
   arg strength {"type":"number"}
   out {"properties":{"did":{"type":"boolean"},"ids":{"items":{"type":"integer"},"type":"array"},"says":{"type":"string"},"selection":{"properties":{"elements":{"items":{"type":"integer"},"type":"array"},"level":{"type":"string"},"mode":{"type":"string"},"object":{"type":"integer"},"objects":{"items":{"type":"integer"},"type":"array"}},"required":["mode","objects"],"type":"object"}},"required":["did","ids","says","selection"],"type":"object"}
@@ -1511,9 +1512,10 @@ tool paint.stroke
 tool paint.vertexColor
   says Paint into the mesh's own vertex colour rather than a texture — `pro-pt-06n`.
   hints writes
-  arg colour required {"items":{"type":"number"},"type":"array"}
+  arg color {"items":{"type":"number"},"type":"array"}
+  arg colour {"items":{"type":"number"},"type":"array"}
   arg objectId required {"type":"integer"}
-  arg samples required {"items":{"properties":{"centre":{"items":{"type":"number"},"maxItems":3,"minItems":3,"type":"array"},"radius":{"type":"number"}},"required":["centre","radius"],"type":"object"},"type":"array"}
+  arg samples required {"items":{"properties":{"center":{"items":{"type":"number"},"maxItems":3,"minItems":3,"type":"array"},"centre":{"items":{"type":"number"},"maxItems":3,"minItems":3,"type":"array"},"radius":{"type":"number"}},"required":["radius"],"type":"object"},"type":"array"}
   arg strength {"type":"number"}
   out {"properties":{"did":{"type":"boolean"},"ids":{"items":{"type":"integer"},"type":"array"},"says":{"type":"string"},"selection":{"properties":{"elements":{"items":{"type":"integer"},"type":"array"},"level":{"type":"string"},"mode":{"type":"string"},"object":{"type":"integer"},"objects":{"items":{"type":"integer"},"type":"array"}},"required":["mode","objects"],"type":"object"}},"required":["did","ids","says","selection"],"type":"object"}
 

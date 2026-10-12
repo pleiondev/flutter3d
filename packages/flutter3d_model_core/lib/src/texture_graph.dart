@@ -33,7 +33,7 @@ library;
 
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show Flutter3dFormatException;
+    show Flutter3dFormatException, LinearColor;
 import 'package:vector_math/vector_math.dart';
 
 import 'project_wire.dart';
@@ -107,7 +107,30 @@ final class TextureGraphIssue {
 
 /// One input socket's own declared type and, if [from] is not null, which
 /// node is wired into it.
-typedef TextureInputSocket = ({TextureValueType type, int? from});
+///
+/// **A class, because a node an outside author writes declares its
+/// sockets** ([TextureNode.inputs]): a record could never carry the default
+/// or the label a later inspector wants beside the type.
+final class TextureInputSocket {
+  const TextureInputSocket({required this.type, this.from});
+
+  /// The type the socket takes.
+  final TextureValueType type;
+
+  /// The id of the node wired into it, or null for none.
+  final int? from;
+
+  /// Equal to another with the same fields, as the record it was compared.
+  @override
+  bool operator ==(Object other) =>
+      other is TextureInputSocket && other.type == type && other.from == from;
+
+  @override
+  int get hashCode => Object.hash(type, from);
+
+  @override
+  String toString() => 'TextureInputSocket(type: $type, from: $from)';
+}
 
 /// One node in a [TextureGraph].
 ///
@@ -170,7 +193,7 @@ abstract base class TextureNode {
     };
     return switch (kind) {
       'image' => ImageTextureNode(id: id, imageId: _int(json, id, 'imageId')),
-      'color' => ColorTextureNode(id: id, value: _vec4(json, id, 'value')),
+      'color' => ColorTextureNode(id: id, value: _color(json, id, 'value')),
       'blend' => BlendTextureNode(
         id: id,
         base: _optionalInt(json, 'base'),
@@ -203,8 +226,8 @@ abstract base class TextureNode {
       ),
       'checker' => CheckerTextureNode(
         id: id,
-        colorA: _vec4(json, id, 'colorA'),
-        colorB: _vec4(json, id, 'colorB'),
+        colorA: _color(json, id, 'colorA'),
+        colorB: _color(json, id, 'colorB'),
         scale: _double(json, id, 'scale'),
       ),
       'noise' => NoiseTextureNode(
@@ -295,9 +318,9 @@ double _double(Map<String, Object?> json, int id, String field) =>
       ),
     };
 
-Vector4 _vec4(Map<String, Object?> json, int id, String field) =>
+LinearColor _color(Map<String, Object?> json, int id, String field) =>
     switch (json[field]) {
-      final List<Object?> value when value.length == 4 => Vector4(
+      final List<Object?> value when value.length == 4 => LinearColor(
         (value[0]! as num).toDouble(),
         (value[1]! as num).toDouble(),
         (value[2]! as num).toDouble(),
@@ -334,7 +357,7 @@ T _word<T extends Object>(
       ));
 }
 
-List<double> _vec4Json(Vector4 v) => <double>[v.x, v.y, v.z, v.w];
+List<double> _colorJson(LinearColor c) => <double>[c.r, c.g, c.b, c.a];
 List<double> _vec2Json(Vector2 v) => <double>[v.x, v.y];
 
 /// A texture, or a solid colour, sampled as-is. No inputs.
@@ -370,7 +393,8 @@ final class ImageTextureNode extends TextureNode {
 final class ColorTextureNode extends TextureNode {
   const ColorTextureNode({required super.id, required this.value});
 
-  final Vector4 value;
+  /// Linear RGBA, as a shader uniform reads it.
+  final LinearColor value;
 
   @override
   TextureValueType get outputType => TextureValueType.color;
@@ -387,7 +411,7 @@ final class ColorTextureNode extends TextureNode {
   String get kind => 'color';
 
   @override
-  Map<String, Object?> toJson() => {'value': _vec4Json(value)};
+  Map<String, Object?> toJson() => {'value': _colorJson(value)};
 
   @override
   R accept<R>(TextureNodeVisitor<R> visitor) => visitor.visitColor(this);
@@ -458,8 +482,8 @@ final class BlendTextureNode extends TextureNode {
 
   @override
   Map<String, TextureInputSocket> get inputs => {
-    'base': (type: TextureValueType.color, from: base),
-    'overlay': (type: TextureValueType.color, from: overlay),
+    'base': TextureInputSocket(type: TextureValueType.color, from: base),
+    'overlay': TextureInputSocket(type: TextureValueType.color, from: overlay),
   };
 
   @override
@@ -511,7 +535,7 @@ final class ChannelsTextureNode extends TextureNode {
 
   @override
   Map<String, TextureInputSocket> get inputs => {
-    'source': (type: TextureValueType.color, from: source),
+    'source': TextureInputSocket(type: TextureValueType.color, from: source),
   };
 
   @override
@@ -563,7 +587,7 @@ final class LevelsTextureNode extends TextureNode {
 
   @override
   Map<String, TextureInputSocket> get inputs => {
-    'source': (type: TextureValueType.scalar, from: source),
+    'source': TextureInputSocket(type: TextureValueType.scalar, from: source),
   };
 
   @override
@@ -599,7 +623,7 @@ final class InvertTextureNode extends TextureNode {
 
   @override
   Map<String, TextureInputSocket> get inputs => {
-    'source': (type: TextureValueType.scalar, from: source),
+    'source': TextureInputSocket(type: TextureValueType.scalar, from: source),
   };
 
   @override
@@ -638,7 +662,7 @@ final class UvTransformTextureNode extends TextureNode {
 
   @override
   Map<String, TextureInputSocket> get inputs => {
-    'source': (type: TextureValueType.color, from: source),
+    'source': TextureInputSocket(type: TextureValueType.color, from: source),
   };
 
   @override
@@ -663,16 +687,18 @@ final class UvTransformTextureNode extends TextureNode {
 
 /// A flat two-colour grid, [scale] squares across. No inputs.
 final class CheckerTextureNode extends TextureNode {
-  CheckerTextureNode({
+  const CheckerTextureNode({
     required super.id,
-    Vector4? colorA,
-    Vector4? colorB,
+    this.colorA = LinearColor.black,
+    this.colorB = LinearColor.white,
     this.scale = 8.0,
-  }) : colorA = colorA ?? Vector4(0, 0, 0, 1),
-       colorB = colorB ?? Vector4(1, 1, 1, 1);
+  });
 
-  final Vector4 colorA;
-  final Vector4 colorB;
+  /// The even squares' colour, linear RGBA.
+  final LinearColor colorA;
+
+  /// The odd squares' colour, linear RGBA.
+  final LinearColor colorB;
 
   /// A count of squares across the texture.
   final double scale;
@@ -695,8 +721,8 @@ final class CheckerTextureNode extends TextureNode {
 
   @override
   Map<String, Object?> toJson() => {
-    'colorA': _vec4Json(colorA),
-    'colorB': _vec4Json(colorB),
+    'colorA': _colorJson(colorA),
+    'colorB': _colorJson(colorB),
     'scale': scale,
   };
 
@@ -753,7 +779,7 @@ final class NormalFromHeightTextureNode extends TextureNode {
 
   @override
   Map<String, TextureInputSocket> get inputs => {
-    'height': (type: TextureValueType.scalar, from: height),
+    'height': TextureInputSocket(type: TextureValueType.scalar, from: height),
   };
 
   @override
@@ -793,7 +819,7 @@ final class OutputTextureNode extends TextureNode {
 
   @override
   Map<String, TextureInputSocket> get inputs => {
-    'result': (type: TextureValueType.color, from: result),
+    'result': TextureInputSocket(type: TextureValueType.color, from: result),
   };
 
   @override

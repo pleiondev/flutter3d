@@ -26,9 +26,10 @@ The parts every flutter3d MCP server shares, written once:
   every tool a server offers has a body.
 - `ToolTableServer<S, A>` is a server built from a list of those over one
   session.
-- `Answer` and `PictureAnswer` carry what a call did and the sentence to say
-  about it. `resultOf` and `pictureResultOf` turn a refusal into an error
-  result the agent reads, so the server itself does not fail.
+- `Answer` carries what a call did, the sentence to say about it and, for a
+  tool that draws, the picture. `resultOf` and `pictureResultOf` turn a
+  refusal into an error result the agent reads, so the server itself does
+  not fail.
 - `LoopbackMcpServer` serves any of those servers over `127.0.0.1` HTTP with a
   per-server token, for an application that wants to hand an agent the session
   a person already has open.

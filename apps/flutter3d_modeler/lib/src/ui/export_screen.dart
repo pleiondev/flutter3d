@@ -19,6 +19,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d/flutter3d.dart' show Severity;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -288,7 +289,7 @@ class _IssueRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final AppLocalizations l = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final color = issue.severity == ExportSeverity.error
+    final color = issue.severity == Severity.error
         ? theme.colorScheme.error
         : theme.colorScheme.tertiary;
     return Padding(
@@ -297,7 +298,7 @@ class _IssueRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Icon(
-            issue.severity == ExportSeverity.error
+            issue.severity == Severity.error
                 ? Icons.error_outline
                 : Icons.warning_amber_outlined,
             size: 16,

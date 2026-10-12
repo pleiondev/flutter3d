@@ -281,7 +281,7 @@ void main() async {
       final newer = SaveFile(
         appName: 't',
         storage: _Storage(),
-        schema: SaveSchema(<SaveMigration>[(run) => run]),
+        schema: SaveSchema(migrations: <SaveMigration>[(run) => run]),
       );
       store.document = SaveFile.encode(
         SaveRecord(

@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1
 
+- **One severity, one kind of light and one pose for every package.**
+  `Severity` (`note`, `warning`, `error`) is what a mesh check, an export,
+  a level's validation and an `Issue` (new `severity:`, a warning unless
+  said) report in. `LightType` moved here from the core, so a level, a
+  modeller project and a model file hold the scene's kinds, `area` and a
+  plugin's own among them. `RigidPose` (a position and an orientation,
+  immutable, with `components` and `fromComponents`) is a tracked head,
+  an XR pose, a ragdoll's bone and an element's body.
+- **`ExpressionToken` takes `number:` by name**, so a token can carry more
+  than its number in a minor.
 - **`internal.dart` names the expression bytecode** (`ExpressionBytecode`
   and its version) for `flutter3d_physics_native`, whose C core runs it:
   still internal, not covered by semver for applications, its format

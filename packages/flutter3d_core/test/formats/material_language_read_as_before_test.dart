@@ -17,6 +17,7 @@ library;
 import 'dart:io';
 
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
 
 /// The `.f3dmat` files of the repository, from this package's directory.
@@ -168,11 +169,11 @@ final class _Statements extends MaterialStatementVisitor<String> {
 final class _Tree extends MaterialExpressionVisitor<String> {
   const _Tree();
 
-  String _all(List<MaterialExpression> list) =>
+  String _all(List<Expression> list) =>
       list.map((e) => e.accept(this)).join(', ');
 
   @override
-  String visitConstant(MaterialConstant expression) =>
+  String visitConstant(ExpressionConstant expression) =>
       'const:${expression.type}${expression.value}';
 
   @override
@@ -188,25 +189,25 @@ final class _Tree extends MaterialExpressionVisitor<String> {
       'local:${expression.name}:${expression.type}';
 
   @override
-  String visitConstruct(MaterialConstruct expression) =>
+  String visitConstruct(ExpressionConstruct expression) =>
       'construct:${expression.type}(${_all(expression.arguments)})';
 
   @override
-  String visitSwizzle(MaterialSwizzle expression) =>
+  String visitSwizzle(ExpressionSwizzle expression) =>
       'swizzle:${expression.type}${expression.components}'
       '(${expression.target.accept(this)})';
 
   @override
-  String visitNegate(MaterialNegate expression) =>
+  String visitNegate(ExpressionNegate expression) =>
       'negate:${expression.type}(${expression.operand.accept(this)})';
 
   @override
-  String visitBinary(MaterialBinary expression) =>
+  String visitBinary(ExpressionBinary expression) =>
       'binary:${expression.op}:${expression.type}'
       '(${expression.left.accept(this)}, ${expression.right.accept(this)})';
 
   @override
-  String visitCall(MaterialCall expression) =>
+  String visitCall(ExpressionCall expression) =>
       'call:${expression.builtin.name}:${expression.type}'
       '(${_all(expression.arguments)})';
 
@@ -215,5 +216,5 @@ final class _Tree extends MaterialExpressionVisitor<String> {
       'sample:${expression.slot.name}(${expression.uv.accept(this)})';
 
   @override
-  String visitUnknown(MaterialExpression expression) => '?';
+  String visitUnknown(Expression expression) => '?';
 }

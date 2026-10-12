@@ -167,7 +167,7 @@ final class StrategySimulation {
 
   /// Where an [addSystem] system's `LoopContext.publish` goes when no loop
   /// steps the simulation, until the registration is cancelled.
-  /// `Match.publishTo` points it at the match's bus.
+  /// `StrategyMatch.publishTo` points it at the match's bus.
   Registration publishTo(EventRegistry bus) {
     _bus = bus;
     return Registration(() {

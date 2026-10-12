@@ -43,19 +43,31 @@ final class PaintSample {
     'radius': radius,
   };
 
-  /// A [PaintSample] from its own [toJson], or null.
-  static PaintSample? fromJson(Object? json) {
-    if (json is! Map<String, Object?>) return null;
+  /// A [PaintSample] from its own [toJson]. Throws a
+  /// [ProjectFormatException] when a field is missing or the wrong shape.
+  ///
+  /// `center` is read where it is given and `centre`, the word [toJson]
+  /// writes, otherwise.
+  static PaintSample fromJson(Object? json) {
+    if (json is! Map<String, Object?>) {
+      throw const ProjectFormatException('a paint sample is an object');
+    }
     return switch (json) {
-      {'centre': final Object? centreJson, 'radius': final num radius} =>
-        switch (_doubles(centreJson, 3)) {
-          final List<double> center => PaintSample(
-            center: Vector3(center[0], center[1], center[2]),
-            radius: radius.toDouble(),
-          ),
-          null => null,
-        },
-      _ => null,
+      {'radius': final num radius} => switch (_doubles(
+        json['center'] ?? json['centre'],
+        3,
+      )) {
+        final List<double> center => PaintSample(
+          center: Vector3(center[0], center[1], center[2]),
+          radius: radius.toDouble(),
+        ),
+        null => throw const ProjectFormatException(
+          'a paint sample\'s "center" is three numbers',
+        ),
+      },
+      _ => throw const ProjectFormatException(
+        'a paint sample names its "center" and its "radius"',
+      ),
     };
   }
 }
@@ -330,7 +342,7 @@ PaintLayer _paintInto(
 List<PaintSample>? _paintSamplesFrom(List<Object?> json) {
   final out = <PaintSample>[];
   for (final Object? each in json) {
-    final PaintSample? sample = PaintSample.fromJson(each);
+    final sample = _readOrNull(() => PaintSample.fromJson(each));
     if (sample == null) return null;
     out.add(sample);
   }

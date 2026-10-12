@@ -99,9 +99,9 @@ final class ExpressionToken {
     this.kind,
     this.text,
     this.line,
-    this.column, [
+    this.column, {
     this.number,
-  ]);
+  });
 
   final String kind;
 
@@ -201,7 +201,7 @@ List<ExpressionToken> tokenizeExpression(
       }
       advance(end - at);
       tokens.add(
-        ExpressionToken('number', text, startLine, startColumn, value),
+        ExpressionToken('number', text, startLine, startColumn, number: value),
       );
       continue;
     }

@@ -5,6 +5,42 @@
   case, and leaves every other name as written: `webgpu-dawn` is no longer
   taken for the engine's WebGPU by its prefix, and a compiler registered
   as `Vulkan` is found under `Vulkan`.
+- **Breaking: `LightType` is `flutter3d_foundation`'s, and `ModelLightType`
+  is gone into it.** A model file's lights are the scene's kinds; `.f3d`
+  writes an area light as code 3, which an older reader takes for a point
+  light, and glTF, which has no area light, refuses one by name. The
+  facades export `LightType` as before.
+- **Breaking: an upload that cannot make its texture throws, saying why.**
+  `uploadEncodedImage` throws an `ImageFormatException` for bytes it cannot
+  read, the `Ktx2FormatException` of a KTX2 file this build cannot open,
+  and a `DeviceResourceException` for a texture the device will not hold
+  (a format it does not sample, a size that is not whole blocks);
+  `uploadRgba8` throws the device's refusal. Both answered null, which a
+  caller could not tell from a texture it never asked for. The model,
+  material and level loaders catch `Flutter3dException` and keep "one
+  texture costs a texture, not the model", with the reason in their
+  warnings.
+- **Breaking: a capture's pass, image and draw readers throw.**
+  `CapturedPass.fromJson`, `CapturedImage.fromJson` and
+  `DrawRecord.fromJson` throw a `FrameCaptureFormatException` naming what
+  is missing; `FrameCapture.fromJson` still leaves out a part it cannot
+  read.
+- **Breaking: `DrawableGeometry.clusters` is a `ClusteredIndices`.** The
+  same `table` and `indices`, in a class a geometry somebody implements
+  can return when the culling pass later wants more beside them.
+- **Breaking: the material language's types are spelled once.**
+  `MaterialType`, `MaterialExpression`, `MaterialConstant`,
+  `MaterialConstruct`, `MaterialSwizzle`, `MaterialNegate`,
+  `MaterialBinary`, `MaterialCall` and `MaterialBuiltin` were second names
+  of the expression language's `ExpressionType`, `Expression` and the rest,
+  and `MaterialType` is also a Flutter widget's: a program that imported
+  material and a facade had to `hide` it. The aliases are gone; `dart fix`
+  renames each use.
+- **Breaking: `AdaptiveQuality`, `EnumHintValue` and `MaterialVariant`
+  take named arguments.** `AdaptiveQuality(table, settings:, policy:)`,
+  `EnumHintValue(value, label:)` and `MaterialVariant(name, values:)`: an
+  optional positional list can never take a named argument beside it, so
+  these constructors could not have grown in a minor.
 - **A plugin's lit model draws its defaults where a material sets
   nothing.** `MaterialBlockMember.defaultValue` (new) carries the value a
   member's source declares; the renderer binds every block of a model's

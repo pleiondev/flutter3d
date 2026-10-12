@@ -30,7 +30,7 @@ abstract final class Effects {
     affectors: <ParticleAffector>[
       // Upwards, slightly: smoke off a hot tyre rises, and gravity pulling it
       // down is the difference between smoke and dirt.
-      const ParticleGravity(1.1),
+      const ParticleGravity(acceleration: 1.1),
       const ParticleDrag(2.6),
       const ParticleSizeOverLife(from: 0.6, to: 2.4),
       const ParticleFade(startsAt: 0.2),

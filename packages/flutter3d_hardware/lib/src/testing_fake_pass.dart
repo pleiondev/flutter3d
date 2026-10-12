@@ -71,7 +71,7 @@ final class FakePass extends PassEncoder
 
   void _gated(DeviceFeature feature, String name, [Object? arguments]) {
     features.require(feature, backend: _name);
-    commands.add(RecordedCall(name, arguments));
+    commands.add(RecordedCall(name, arguments: arguments));
   }
 
   void _passOnly(String member) {
@@ -548,7 +548,7 @@ final class FakeTransfer extends TransferEncoder {
 
   void _gated(DeviceFeature feature, String name, Object? arguments) {
     features.require(feature, backend: 'FakeBackend');
-    calls.add(RecordedCall(name, arguments));
+    calls.add(RecordedCall(name, arguments: arguments));
   }
 
   @override

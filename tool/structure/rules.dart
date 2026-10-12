@@ -254,6 +254,57 @@ List<Rule> get allRules => <Rule>[
     ),
   ),
   (
+    name: 'no public name collides with Flutter, Dart or vector_math',
+    run: () {
+      final sdk = sdkNamesFrom(
+        File(
+          '${repositoryRoot.path}/tool/structure/sdk_names.txt',
+        ).readAsStringSync(),
+      );
+      return _namingRule(
+        (String snapshot, String package) => nameCollisionsIn(snapshot, sdk),
+        nameCollisionAllowed,
+      );
+    },
+  ),
+  (
+    name: 'a type an outside author implements names no record',
+    run: () {
+      final typedefs = <String>{
+        for (final snapshot in _publishedSnapshots.values)
+          ...recordTypedefsIn(snapshot),
+      };
+      return _namingRule(
+        (String snapshot, String package) =>
+            recordsInContractsIn(snapshot, typedefs),
+        recordInContractAllowed,
+      );
+    },
+  ),
+  (
+    name: 'a reader throws where it fails, and answers null only for absent',
+    run: () => _namingRule(
+      (String snapshot, String package) => nullAsErrorIn(snapshot),
+      nullAsErrorAllowed,
+    ),
+  ),
+  (
+    name: 'a constructor takes no optional positional parameters',
+    run: () => _namingRule(
+      (String snapshot, String package) =>
+          optionalPositionalConstructorsIn(snapshot),
+      optionalPositionalAllowed,
+    ),
+  ),
+  (
+    name: 'a tool\'s arguments spell in American',
+    run: () => _namingRule(
+      (String snapshot, String package) => britishSchemaWordsIn(snapshot),
+      britishSchemaAllowed,
+      extension: 'mcp',
+    ),
+  ),
+  (
     name: 'a type has one teardown verb, and creation has its own verbs',
     run: () => _namingRule(
       (String snapshot, String package) => verbProblemsIn(snapshot),
@@ -5991,12 +6042,20 @@ List<Finding> _exceptionsHaveTheRoot() {
 /// `copyWith`), regenerate the snapshot, and the rule names it.
 List<Finding> _namingRule(
   List<NamingProblem> Function(String snapshot, String package) detect,
-  Map<String, String> allowed,
-) {
+  Map<String, String> allowed, {
+  String extension = 'api',
+}) {
   final found = <Finding>[];
   final used = <String>{};
-  for (final MapEntry(key: package, value: snapshot)
-      in _publishedSnapshots.entries) {
+  final snapshots = extension == 'api'
+      ? _publishedSnapshots
+      : <String, String>{
+          for (final entry in _publishedPackages.entries)
+            if (File('${entry.value.path}/api/${entry.key}.$extension')
+                case final file when file.existsSync())
+              entry.key: file.readAsStringSync(),
+        };
+  for (final MapEntry(key: package, value: snapshot) in snapshots.entries) {
     for (final problem in detect(snapshot, package)) {
       if (allowed.containsKey(problem.subject)) {
         used.add(problem.subject);
@@ -6004,7 +6063,7 @@ List<Finding> _namingRule(
       }
       found.add(
         Finding(
-          '$package/api/$package.api',
+          '$package/api/$package.$extension',
           '`${problem.subject}` ${problem.what}',
         ),
       );

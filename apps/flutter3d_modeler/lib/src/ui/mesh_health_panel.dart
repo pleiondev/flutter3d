@@ -13,6 +13,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d/flutter3d.dart' show Severity;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 
 import '../../../l10n/app_localizations.dart';
@@ -117,9 +118,9 @@ class _Row extends StatelessWidget {
     // The same three levels the status line and the console paint in, for the
     // same reason: an error is the one row somebody has to notice.
     final Color color = switch (issue.severity) {
-      IssueSeverity.error => theme.colorScheme.error,
-      IssueSeverity.warning => theme.colorScheme.tertiary,
-      IssueSeverity.note => theme.colorScheme.onSurfaceVariant,
+      Severity.error => theme.colorScheme.error,
+      Severity.warning => theme.colorScheme.tertiary,
+      Severity.note => theme.colorScheme.onSurfaceVariant,
       _ => theme.colorScheme.onSurfaceVariant,
     };
     final String? tool = fixToolFor(issue.kind);

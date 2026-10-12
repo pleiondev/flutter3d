@@ -1284,7 +1284,7 @@ extension _ReadyParts on _ModelerScreenState {
                               at + 1,
                               state.project.lighting.lights[at].type.name,
                             ),
-                            // `ProjectLightType` is a class with three const
+                            // `LightType` is a class with three const
                             // members rather than an enum, so this reads the
                             // name it carries — the same string the label
                             // above already shows.

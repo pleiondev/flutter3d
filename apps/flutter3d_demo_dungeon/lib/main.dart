@@ -538,7 +538,10 @@ class _GameScreenState extends State<GameScreen>
       addShooterKeysTo(controls.buttons);
     } else {
       controls.buttons
-        ..bind(InputSource.pad(GamePadButton.triggerRight.id), ShooterActions.fire)
+        ..bind(
+          InputSource.pad(GamePadButton.triggerRight.id),
+          ShooterActions.fire,
+        )
         ..bind(
           InputSource.pad(GamePadButton.shoulderRight.id),
           ShooterActions.fire,
@@ -682,7 +685,7 @@ class _GameScreenState extends State<GameScreen>
   CryptElements? _elements;
   WoodenProps? _woodenProps;
   bool _adopting = false;
-  final ElementSounds _elementSounds = ElementSounds(cryptElementCues);
+  final ElementSounds _elementSounds = ElementSounds(cues: cryptElementCues);
   final Vector3 _elementsEye = Vector3.zero();
 
   /// Loads what the elements are drawn with, and stands them in the level

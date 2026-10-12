@@ -25,7 +25,7 @@ final class Ghost {
   /// the way the game's yaw nought points. In radians.
   final double facing;
 
-  final Pose _at = Pose();
+  final GhostFrame _at = GhostFrame();
 
   /// The default look: translucent and pale, in a colour nothing else wears.
   ///

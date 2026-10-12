@@ -12,17 +12,11 @@ final class Eye
   static const Eye right = Eye._(1, 'right')
   static const List<Eye> both = <Eye>[left, right]
 
-final class HeadPose
-  HeadPose.still()
-  const HeadPose({required this.rotation, required this.position})
-  final Quaternion rotation
-  final Vector3 position
-
 abstract base class HeadTracker
   Future<void> start()
   Future<void> stop()
   HeadTracker()
-  abstract ValueListenable<HeadPose> get pose
+  abstract ValueListenable<RigidPose> get pose
 
 final class HolderXrSession extends XrSession
   Future<XrFrame> waitFrame()
@@ -71,7 +65,7 @@ final class SensorHeadTracker extends HeadTracker
   Future<void> start()
   Future<void> stop()
   SensorHeadTracker()
-  ValueListenable<HeadPose> get pose
+  ValueListenable<RigidPose> get pose
   void dispose()
 
 final class StereoRig
@@ -86,7 +80,7 @@ final class StereoRig
   final double near
   late final List<RenderView> views
   void applyEye(Eye eye, {required OffAxisProjection projection, Vector3? offset, Quaternion? rotation})
-  void applyHead(HeadPose pose)
+  void applyHead(RigidPose pose)
   void dispose()
   void faceYaw(double yawRadians)
   void fitToViewport({required int width, required int height, double fovY = 1.0})
@@ -137,6 +131,6 @@ void applyLessonStep(StereoRig rig, EntityDef step, {Map<String, SceneNode> node
 
 void applyLessonStepTo(SceneNode viewer, EntityDef step, {Map<String, SceneNode> nodes = const <String, SceneNode>{}, Map<String, Vector3> restPositions = const <String, Vector3>{}})
 
-HeadPose decodeSensorEvent(List<double> event)
+RigidPose decodeSensorEvent(List<double> event)
 
 Quaternion headRotationFromSensor(List<double> rotationVector, {double displayRotation = 0.0})

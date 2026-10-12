@@ -54,7 +54,7 @@ const AdaptiveQualitySettings _on = AdaptiveQualitySettings(enabled: true);
 void main() {
   test('no chosen frame is late on a trace that warms and cools', () {
     final table = _table();
-    final controller = AdaptiveQuality(table, _on);
+    final controller = AdaptiveQuality(table, settings: _on);
     var late = 0;
     var lowest = 0;
     for (var t = 0; t < 800; t++) {
@@ -76,7 +76,7 @@ void main() {
 
   test('it waits before climbing, and does not flicker between two rows', () {
     final table = _table();
-    final controller = AdaptiveQuality(table, _on);
+    final controller = AdaptiveQuality(table, settings: _on);
     // Hot enough that full does not fit.
     for (var t = 0; t < 5; t++) {
       controller.recordFrame(_truth(table, controller.index, 350).round());
@@ -103,7 +103,7 @@ void main() {
       motionThreshold: 0.01,
       motionScale: 0.7,
     );
-    final controller = AdaptiveQuality(table, settings);
+    final controller = AdaptiveQuality(table, settings: settings);
     controller.recordFrame(_truth(table, 0, 700).round());
     expect(controller.index, 0);
 

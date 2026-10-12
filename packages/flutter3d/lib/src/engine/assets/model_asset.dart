@@ -1,4 +1,6 @@
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Flutter3dException;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -218,17 +220,20 @@ final class ModelAsset {
       final key = (imageIndex, sampling.useMipmaps);
       if (textureCache.containsKey(key)) return textureCache[key];
 
-      final uploaded = await uploadEncodedImage(
-        device,
-        document.images[imageIndex].bytes,
-        decodeImage: decodeImage,
-        sampling: sampling,
-        report: (message) => warnings.add('images[$imageIndex]: $message'),
-      );
-      if (uploaded == null) {
+      TextureHandle? uploaded;
+      try {
+        uploaded = await uploadEncodedImage(
+          device,
+          document.images[imageIndex].bytes,
+          decodeImage: decodeImage,
+          sampling: sampling,
+          report: (message) => warnings.add('images[$imageIndex]: $message'),
+        );
+      } on Flutter3dException catch (refused) {
+        // One texture costs a texture, not the model.
         warnings.add(
-          'images[$imageIndex] could not be decoded; the material falls back to '
-          'its base colour factor.',
+          'images[$imageIndex] could not be uploaded (${refused.message}); '
+          'the material falls back to its base colour factor.',
         );
       }
       textureCache[key] = uploaded;

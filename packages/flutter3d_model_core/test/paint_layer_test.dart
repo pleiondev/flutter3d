@@ -14,7 +14,7 @@ Uint8List _solidTile(List<int> rgba) {
   return pixels;
 }
 
-PaintLayer _solidLayer(BlendMode mode, List<int> rgba) => PaintLayer(
+PaintLayer _solidLayer(PaintBlendMode mode, List<int> rgba) => PaintLayer(
   tilesX: 1,
   tilesY: 1,
   blendMode: mode,
@@ -27,36 +27,36 @@ void main() {
     const top = <int>[200, 150, 90, 255];
     const bottom = <int>[150, 80, 60, 255];
 
-    Uint8List flattenOf(BlendMode mode) => PaintStack(<PaintLayer>[
-      _solidLayer(BlendMode.normal, bottom),
+    Uint8List flattenOf(PaintBlendMode mode) => PaintStack(<PaintLayer>[
+      _solidLayer(PaintBlendMode.normal, bottom),
       _solidLayer(mode, top),
     ]).flatten();
 
     test('normal passes the top color through', () {
-      final out = flattenOf(BlendMode.normal);
+      final out = flattenOf(PaintBlendMode.normal);
       expect(out.sublist(0, 4), equals(top));
     });
 
     test('multiply is top*bottom per channel', () {
-      final out = flattenOf(BlendMode.multiply);
+      final out = flattenOf(PaintBlendMode.multiply);
       expect(out.sublist(0, 4), equals(<int>[118, 47, 21, 255]));
     });
 
     test('add is top+bottom per channel', () {
-      final out = flattenOf(BlendMode.add);
+      final out = flattenOf(PaintBlendMode.add);
       expect(out.sublist(0, 4), equals(<int>[255, 230, 150, 255]));
     });
 
     test('add clips at 255 rather than wrapping', () {
       final out = PaintStack(<PaintLayer>[
-        _solidLayer(BlendMode.normal, <int>[100, 5, 0, 255]),
-        _solidLayer(BlendMode.add, <int>[200, 10, 0, 255]),
+        _solidLayer(PaintBlendMode.normal, <int>[100, 5, 0, 255]),
+        _solidLayer(PaintBlendMode.add, <int>[200, 10, 0, 255]),
       ]).flatten();
       expect(out.sublist(0, 4), equals(<int>[255, 15, 0, 255]));
     });
 
     test('screen is 1-(1-top)*(1-bottom) per channel', () {
-      final out = flattenOf(BlendMode.screen);
+      final out = flattenOf(PaintBlendMode.screen);
       expect(out.sublist(0, 4), equals(<int>[232, 183, 129, 255]));
     });
   });
@@ -66,16 +66,16 @@ void main() {
 
     test('multiplies where the base is dark', () {
       final out = PaintStack(<PaintLayer>[
-        _solidLayer(BlendMode.normal, <int>[150, 40, 30, 255]),
-        _solidLayer(BlendMode.overlay, top),
+        _solidLayer(PaintBlendMode.normal, <int>[150, 40, 30, 255]),
+        _solidLayer(PaintBlendMode.overlay, top),
       ]).flatten();
       expect(out.sublist(0, 4), equals(<int>[210, 38, 14, 255]));
     });
 
     test('screens where the base is light', () {
       final out = PaintStack(<PaintLayer>[
-        _solidLayer(BlendMode.normal, <int>[150, 200, 220, 255]),
-        _solidLayer(BlendMode.overlay, top),
+        _solidLayer(PaintBlendMode.normal, <int>[150, 200, 220, 255]),
+        _solidLayer(PaintBlendMode.overlay, top),
       ]).flatten();
       expect(out.sublist(0, 4), equals(<int>[210, 197, 201, 255]));
     });
@@ -83,16 +83,16 @@ void main() {
 
   test('a semi-transparent top layer mixes by its own alpha', () {
     final out = PaintStack(<PaintLayer>[
-      _solidLayer(BlendMode.normal, <int>[0, 255, 0, 255]),
-      _solidLayer(BlendMode.normal, <int>[255, 0, 0, 128]),
+      _solidLayer(PaintBlendMode.normal, <int>[0, 255, 0, 255]),
+      _solidLayer(PaintBlendMode.normal, <int>[255, 0, 0, 128]),
     ]).flatten();
     expect(out.sublist(0, 4), equals(<int>[128, 127, 0, 255]));
   });
 
   test('layer order changes the result, not just which layer is on top', () {
-    final bottom = _solidLayer(BlendMode.normal, <int>[255, 0, 0, 255]);
-    final blue = _solidLayer(BlendMode.normal, <int>[0, 0, 255, 128]);
-    final green = _solidLayer(BlendMode.normal, <int>[0, 255, 0, 128]);
+    final bottom = _solidLayer(PaintBlendMode.normal, <int>[255, 0, 0, 255]);
+    final blue = _solidLayer(PaintBlendMode.normal, <int>[0, 0, 255, 128]);
+    final green = _solidLayer(PaintBlendMode.normal, <int>[0, 255, 0, 128]);
 
     final blueOnTop = PaintStack(<PaintLayer>[bottom, green, blue]).flatten();
     final greenOnTop = PaintStack(<PaintLayer>[bottom, blue, green]).flatten();

@@ -4,7 +4,7 @@ part of 'command.dart';
 /// Which algorithm [UnwrapCommand] hands a face's own island to.
 ///
 /// A `final class` with a `static const` instance rather than an `enum`, the
-/// same choice `BlendMode`/`DriverAxis`/`ShapeDriverCurve` already make in
+/// same choice `PaintBlendMode`/`DriverAxis`/`ShapeDriverCurve` already make in
 /// this project's own published packages: a second method later is a second
 /// instance, not a break in an already-shipped enum.
 final class UnwrapMethod {

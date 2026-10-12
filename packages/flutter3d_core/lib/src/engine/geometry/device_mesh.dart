@@ -73,7 +73,23 @@ abstract base class DrawableGeometry with MeshGeometry {
   /// The indices are here as well as the table because the device keeps no
   /// readable copy and [MeshGeometry.source] may have been dropped; a mesh
   /// with clusters keeps its indices either way.
-  ({MeshClusters table, Uint32List indices})? get clusters;
+  ClusteredIndices? get clusters;
+}
+
+/// A mesh's cluster table and the indices it cuts into runs, on the CPU —
+/// what [DrawableGeometry.clusters] hands the culling pass.
+///
+/// **A class, because an outside geometry implements the getter**: a record
+/// could never carry the bounds or cone a later culling test wants beside
+/// the table, and a class takes them with a default.
+final class ClusteredIndices {
+  const ClusteredIndices({required this.table, required this.indices});
+
+  /// The runs, with each one's bounds.
+  final MeshClusters table;
+
+  /// The mesh's indices, in the order [table]'s runs read them.
+  final Uint32List indices;
 }
 
 /// A [MeshData] that has been uploaded to a device.
@@ -151,14 +167,14 @@ final class DeviceMesh extends DrawableGeometry {
       bounds: mesh.computeBounds(),
       source: keepSourceData ? mesh : null,
       clusters: switch (mesh.clusters) {
-        final table? => (table: table, indices: mesh.indices),
+        final table? => ClusteredIndices(table: table, indices: mesh.indices),
         null => null,
       },
     );
   }
 
   @override
-  final ({MeshClusters table, Uint32List indices})? clusters;
+  final ClusteredIndices? clusters;
 
   @override
   final GeometryBuffer vertices;

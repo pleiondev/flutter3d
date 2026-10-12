@@ -124,8 +124,8 @@ const int ghostTapeFormatVersion = 1;
 ///
 /// **Not `f3d.ghost`.** The racing genre's lap (`ghostFormat` in
 /// `flutter3d_game_racing`) is a different body, `lapTime` and frames of a
-/// car; this is any game's tape of `Pose`s, `seconds` and `frames`. One id
-/// for two bodies would let one reader open the other's file and read it
+/// car; this is any game's tape of `GhostFrame`s, `seconds` and `frames`. One
+/// id for two bodies would let one reader open the other's file and read it
 /// wrong, so each keeps its own.
 const FormatSpec ghostTapeFormat = FormatSpec(
   id: 'f3d.ghostTape',
@@ -153,9 +153,9 @@ Tape tapeFromJson(Map<String, Object?> json) {
   final run = ghostTapeFormat.open(json, refuse: DocumentFormatException.new);
   return Tape(
     seconds: (run['seconds']! as num).toDouble(),
-    poses: <Pose>[
+    poses: <GhostFrame>[
       for (final frame in run['frames']! as List<Object?>)
-        Pose.fromJson(frame! as Map<String, Object?>),
+        GhostFrame.fromJson(frame! as Map<String, Object?>),
     ],
   );
 }

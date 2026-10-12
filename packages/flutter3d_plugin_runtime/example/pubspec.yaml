@@ -30,6 +30,11 @@ dependencies:
   # them with.
   flutter3d_hardware:
     path: ../../flutter3d_hardware
+
+  # The light type its own kind is based on, and the colour its gizmo is
+  # drawn in.
+  flutter3d_foundation:
+    path: ../../flutter3d_foundation
   vector_math: ^2.2.0
 
 dev_dependencies:

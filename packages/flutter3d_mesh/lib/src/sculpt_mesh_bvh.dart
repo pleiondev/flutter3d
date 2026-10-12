@@ -83,8 +83,6 @@ final class SculptMeshBvh {
 
   /// The nearest triangle [ray] hits, or null — the same shape
   /// [TriangleBvh.raycast] itself answers with.
-  TriangleHit? raycast(
-    LocalRay ray, {
-    double maxDistance = double.infinity,
-  }) => _bvh.raycast(ray, maxDistance: maxDistance);
+  TriangleHit? raycast(LocalRay ray, {double maxDistance = double.infinity}) =>
+      _bvh.raycast(ray, maxDistance: maxDistance);
 }

@@ -22,6 +22,16 @@
 /// could turn off the surface buffer and lie to every screen-space effect.
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show
+        Expression,
+        ExpressionBinary,
+        ExpressionCall,
+        ExpressionConstant,
+        ExpressionConstruct,
+        ExpressionNegate,
+        ExpressionSwizzle,
+        ExpressionType;
 import '../lighting_model.dart';
 import 'material_ast.dart';
 import 'material_slots.dart';
@@ -336,9 +346,8 @@ void _uniformBlock(
 /// The instance name a block is read through in the emitted stage:
 /// `material_params` for `MaterialParams`, as it always was, and
 /// `f3d_block_<Name>` for a block of the material's own.
-String _blockInstance(String block) => block == materialParametersBlock
-    ? 'material_params'
-    : 'f3d_block_$block';
+String _blockInstance(String block) =>
+    block == materialParametersBlock ? 'material_params' : 'f3d_block_$block';
 
 /// The vertex stage of [program]'s `vertex` block — version 2 — or, with
 /// [skinned], its skinned half: `mesh.vert` and `mesh_skinned.vert` with
@@ -580,7 +589,7 @@ String _emitFullscreen(MaterialProgram program) {
 void _statements(
   StringBuffer out,
   List<MaterialStatement> body,
-  String Function(MaterialExpression value) returns,
+  String Function(Expression value) returns,
 ) {
   final writer = _GlslStatements(returns);
   for (final statement in body) {
@@ -592,7 +601,7 @@ void _statements(
 final class _GlslStatements extends MaterialStatementVisitor<String> {
   const _GlslStatements(this.returns);
 
-  final String Function(MaterialExpression value) returns;
+  final String Function(Expression value) returns;
 
   @override
   String visitLet(MaterialLet statement) =>
@@ -792,7 +801,7 @@ final class MaterialBindings {
   }
 }
 
-String _glsl(MaterialExpression expression) =>
+String _glsl(Expression expression) =>
     expression.accept(const _GlslExpressions());
 
 /// One expression as GLSL text.
@@ -800,9 +809,9 @@ final class _GlslExpressions extends MaterialExpressionVisitor<String> {
   const _GlslExpressions();
 
   @override
-  String visitConstant(MaterialConstant expression) {
-    final MaterialConstant(:value, :type) = expression;
-    if (type == MaterialType.float) return _number(value.single);
+  String visitConstant(ExpressionConstant expression) {
+    final ExpressionConstant(:value, :type) = expression;
+    if (type == ExpressionType.float) return _number(value.single);
     return '${type.name}(${value.map(_number).join(', ')})';
   }
 
@@ -828,31 +837,31 @@ final class _GlslExpressions extends MaterialExpressionVisitor<String> {
   }
 
   @override
-  String visitConstruct(MaterialConstruct expression) =>
+  String visitConstruct(ExpressionConstruct expression) =>
       '${expression.type.name}(${expression.arguments.map(_glsl).join(', ')})';
 
   @override
-  String visitSwizzle(MaterialSwizzle expression) {
+  String visitSwizzle(ExpressionSwizzle expression) {
     const letters = 'xyzw';
     final field = expression.components.map((i) => letters[i]).join();
     return '${_glsl(expression.target)}.$field';
   }
 
   @override
-  String visitNegate(MaterialNegate expression) =>
+  String visitNegate(ExpressionNegate expression) =>
       '-(${_glsl(expression.operand)})';
 
   // Fully parenthesised rather than tracking precedence a second time: the
   // parser already decided the shape, and an emitter that re-derived it
   // could put the brackets somewhere the tree does not mean.
   @override
-  String visitBinary(MaterialBinary expression) =>
+  String visitBinary(ExpressionBinary expression) =>
       '(${_glsl(expression.left)} ${expression.op} '
       '${_glsl(expression.right)})';
 
   @override
-  String visitCall(MaterialCall expression) {
-    final MaterialCall(:builtin, :arguments) = expression;
+  String visitCall(ExpressionCall expression) {
+    final ExpressionCall(:builtin, :arguments) = expression;
     // The language spreads a float beside a vector for every component-wise
     // builtin, and `broadcastArguments` evaluates it that way; GLSL does only
     // for some positions of some of them — `pow(vec3, float)`,
@@ -864,10 +873,10 @@ final class _GlslExpressions extends MaterialExpressionVisitor<String> {
       (int widest, argument) =>
           argument.type.components > widest ? argument.type.components : widest,
     );
-    String spread(MaterialExpression argument) {
+    String spread(Expression argument) {
       final text = _glsl(argument);
       return builtin.componentWise && width > 1 && argument.type.components == 1
-          ? '${MaterialType.numeric[width]!.name}($text)'
+          ? '${ExpressionType.numeric[width]!.name}($text)'
           : text;
     }
 
@@ -879,12 +888,11 @@ final class _GlslExpressions extends MaterialExpressionVisitor<String> {
       'texture(${expression.slot.bindingName}, ${_glsl(expression.uv)})';
 
   @override
-  String visitUnknown(MaterialExpression expression) =>
-      throw ArgumentError.value(
-        expression,
-        'expression',
-        'not an expression this build of the material language knows',
-      );
+  String visitUnknown(Expression expression) => throw ArgumentError.value(
+    expression,
+    'expression',
+    'not an expression this build of the material language knows',
+  );
 }
 
 /// A GLSL float literal, which always has a decimal point.
