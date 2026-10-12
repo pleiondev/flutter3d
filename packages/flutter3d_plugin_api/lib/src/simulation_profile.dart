@@ -19,14 +19,20 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
 ///   tape to replay.
 ///
 /// **Ask a capability, never which profile it is.** A later release, or an
-/// outside package, may add a profile (`SimulationProfile('reference', …)`
-/// is a value like these two), so code that decides something checks
+/// outside package, may add a profile (`SimulationProfile('acme.reference',
+/// …)` is a value like these two), so code that decides something checks
 /// [isBitExact], [usesDoublePrecision] or [allowsAdaptiveSteps]. The
 /// determinism rule in this repository asks [isBitExact], not
 /// `== deterministic`.
 ///
 /// **Written by its [name]**, which is set here and never taken from a Dart
 /// identifier: a file or a hello that carries the profile carries that word.
+///
+/// **Bare names are the engine's** (D23). A profile is one simulation to
+/// every tape and hello by its name alone, so a plugin's is
+/// `<namespace>.<name>` (`acme.warming`), and a later release's `fast`
+/// cannot be one a plugin already gave other flags; a subsystem a plugin
+/// registers under a profile outside its namespace is refused.
 final class SimulationProfile {
   /// A profile called [name] with these capabilities. Two profiles are equal
   /// when their names and capabilities are.

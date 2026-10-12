@@ -205,18 +205,24 @@ final class PluginManifest {
   static final RegExp _idPattern = RegExp(r'^[a-z][a-z0-9_.\-]*$');
 
   /// Why [id] is not a usable name, or null when it is: an id that is not
-  /// lower case letters, digits, `_`, `.` and `-`, or whose [namespace] is
-  /// one of the engine's [reservedAreas] when the plugin is not the
-  /// engine's own.
+  /// lower case letters, digits, `_`, `.` and `-`, or, when the plugin is
+  /// not the engine's own, whose [namespace] is one of the engine's
+  /// [reservedAreas] or the namespace of one of its [enginePluginIds].
   String? get idProblem {
     if (!_idPattern.hasMatch(id)) {
       return 'a plugin id is lower case letters, digits, "_", "." and "-", '
           'starting with a letter; "$id" is not one';
     }
-    if (!isEngine && reservedAreas.contains(namespace)) {
+    if (isEngine) return null;
+    if (reservedAreas.contains(namespace)) {
       return 'plugin "$id" takes the namespace "$namespace", which names one '
           'of the engine\'s own areas (its MCP tools, VM extensions and '
           'events start with it); a plugin names itself after its package';
+    }
+    if (_engineIdNamespaces.contains(namespace)) {
+      return 'plugin "$id" takes the namespace "$namespace", which the '
+          'engine\'s own plugins of that name use; only their exact ids are '
+          'the engine\'s, and a plugin names itself after its package';
     }
     return null;
   }
@@ -239,52 +245,36 @@ final class PluginManifest {
   }
 
   /// Whether this plugin ships with the engine — its [namespace] is one of
-  /// [engineNamespaces] — and so registers the engine's own names, which
-  /// carry no plugin's namespace.
+  /// [engineNamespaces], or its [id] is exactly one of [enginePluginIds] —
+  /// and so registers the engine's own names, which carry no plugin's
+  /// namespace.
   ///
-  /// Decided by the list, never by a prefix: pub.dev reserves no
+  /// Decided by the lists, never by a prefix: pub.dev reserves no
   /// `flutter3d_` prefix, so a package published as `flutter3d_frost` by
   /// somebody else is a plugin from outside and is held to its namespace.
-  bool get isEngine => engineNamespaces.contains(namespace);
+  bool get isEngine =>
+      engineNamespaces.contains(namespace) || enginePluginIds.contains(id);
 
   /// The namespaces of the engine's own plugins: every package this
-  /// repository publishes, and the ones it published under another name
-  /// before 1.0.0 (`flutter3d_addon_camera` is `flutter3d_camera` now, and
-  /// its plugin keeps the id a recorded run names it by). pub.dev gives a
+  /// repository publishes on pub.dev, today or under the name it had at
+  /// 0.8 (`pointer_lock` is `flutter3d_pointer_lock` now). pub.dev gives a
   /// package name to one publisher, so nobody else can ship a plugin under
   /// one of these.
   ///
-  /// Held to the repository's published packages and the migration table's
-  /// renamed ones by a test, so a package added to the engine is added
-  /// here, and a minor that adds one only adds to the list.
+  /// **Only names that were published.** The `flutter3d_addon_*` packages
+  /// of 0.8 never were, so anybody could publish one; their plugins keep
+  /// the ids recorded runs name them by, and those ids alone are the
+  /// engine's ([enginePluginIds]).
+  ///
+  /// Held to the repository's published packages and the 0.8.5 release's
+  /// by a test, so a package added to the engine is added here, and a minor
+  /// that adds one only adds to the list.
   static const Set<String> engineNamespaces = <String>{
     'flame_flutter3d',
     'flame_flutter3d_audio',
     'flame_multiplayer',
     'flame_multiplayer_dashwire',
     'flutter3d',
-    'flutter3d_addon_access',
-    'flutter3d_addon_atmosphere',
-    'flutter3d_addon_camera',
-    'flutter3d_addon_capture',
-    'flutter3d_addon_ghost',
-    'flutter3d_addon_hud',
-    'flutter3d_addon_light',
-    'flutter3d_addon_motion',
-    'flutter3d_addon_party',
-    'flutter3d_addon_photo_mode',
-    'flutter3d_addon_ragdoll',
-    'flutter3d_addon_reactions',
-    'flutter3d_addon_reflections',
-    'flutter3d_addon_screens',
-    'flutter3d_addon_seeded_levels',
-    'flutter3d_addon_shading',
-    'flutter3d_addon_soundtrack',
-    'flutter3d_addon_style',
-    'flutter3d_addon_touch',
-    'flutter3d_addon_world',
-    'flutter3d_addon_wrecks',
-    'flutter3d_addons_standard',
     'flutter3d_app',
     'flutter3d_audio',
     'flutter3d_audio_core',
@@ -349,6 +339,56 @@ final class PluginManifest {
     'pointer_lock',
   };
 
+  /// The exact ids of the engine's own plugins whose namespace is not one
+  /// of [engineNamespaces]: the plugins of 0.8's `flutter3d_addon_*`
+  /// packages, which moved into published packages and kept the ids a
+  /// recorded run names them by (`flutter3d_addon_light.bloom` is drawn by
+  /// `flutter3d_post`).
+  ///
+  /// **The id, not its namespace.** None of those packages was published,
+  /// so a package called `flutter3d_addon_light` could be published by
+  /// anybody; its plugin is from outside, held to its namespace, and
+  /// refused at install while that namespace is one of these ids'
+  /// ([idProblem]). Held to the ids the engine's plugins declare by a
+  /// test; the list only shrinks.
+  static const Set<String> enginePluginIds = <String>{
+    'flutter3d_addon_access.spoken_events',
+    'flutter3d_addon_atmosphere.fog',
+    'flutter3d_addon_atmosphere.light_shafts',
+    'flutter3d_addon_atmosphere.sky',
+    'flutter3d_addon_atmosphere.volumetric_fog',
+    'flutter3d_addon_camera',
+    'flutter3d_addon_light.auto_exposure',
+    'flutter3d_addon_light.bloom',
+    'flutter3d_addon_light.colour_grade',
+    'flutter3d_addon_light.lens_distortion',
+    'flutter3d_addon_light.lens_flare',
+    'flutter3d_addon_light.local_exposure',
+    'flutter3d_addon_light.vignette_and_grain',
+    'flutter3d_addon_motion.depth_of_field',
+    'flutter3d_addon_motion.motion_blur',
+    'flutter3d_addon_motion.temporal_anti_aliasing',
+    'flutter3d_addon_reactions',
+    'flutter3d_addon_reflections.planar',
+    'flutter3d_addon_reflections.probes',
+    'flutter3d_addon_reflections.screen_space',
+    'flutter3d_addon_shading.ambient_occlusion',
+    'flutter3d_addon_shading.contact_shadows',
+    'flutter3d_addon_soundtrack',
+    'flutter3d_addon_style.high_contrast',
+    'flutter3d_addon_style.outlines',
+    'flutter3d_addon_style.toon',
+    'flutter3d_addon_style.viewport_shading',
+  };
+
+  /// The namespaces of [enginePluginIds], which a plugin from outside may
+  /// not take: it would be held to a namespace the engine's own plugins
+  /// register bare names beside.
+  static final Set<String> _engineIdNamespaces = <String>{
+    for (final id in enginePluginIds)
+      id.contains('.') ? id.substring(0, id.indexOf('.')) : id,
+  };
+
   /// The first segments the engine names its own areas by, which no plugin
   /// from outside may take as its [namespace]: the areas of its MCP tools
   /// (`light.add`), of its VM extensions (`ext.flutter3d.render.capture`)
@@ -364,6 +404,14 @@ final class PluginManifest {
   /// lets a minor add to an area without breaking a plugin. Held to the
   /// `.mcp` and `.vm` snapshots and the engine's event names by a test;
   /// [reservedNamespace] is refused separately, for names as well.
+  ///
+  /// **Frozen at 1.0.0.** An area added here later would refuse a plugin
+  /// already installed under that name, which is a break, so a test holds
+  /// the set to the list 1.0.0 shipped. An area a 1.x minor brings goes
+  /// under [reservedNamespace] (`f3d.<area>.<tool>` for an MCP tool,
+  /// `f3d.<area>.<name>` for an event, `ext.flutter3d.f3d.<area>.` for a VM
+  /// extension), or under a name with an upper-case letter, which no plugin
+  /// id can have (`docs/CONTRACTS.md`, "Namespaces").
   static const Set<String> reservedAreas = <String>{
     // The MCP servers' areas.
     'animationGraph', 'asset', 'behavior', 'brush', 'capture', 'clip',

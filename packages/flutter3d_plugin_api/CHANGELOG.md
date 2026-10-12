@@ -1,5 +1,19 @@
 ## 1.0.0-rc.1
 
+- **Breaking: the 0.8 add-on names are the engine's only as exact plugin
+  ids.** `PluginManifest.engineNamespaces` holds the packages this
+  repository publishes and published at 0.8.5, and no longer the
+  `flutter3d_addon_*` names, none of which was ever published; the plugins
+  that still carry one are named one by one in `enginePluginIds` (new),
+  and `isEngine` is true for them alone. A plugin from outside whose
+  namespace is one of those ids' is refused by `idProblem`.
+- **`reservedAreas` is frozen at what 1.0.0 ships.** A test holds it to
+  the list; an area a 1.x minor brings goes under `f3d.`, or under a name
+  with an upper-case letter, which no plugin id can have.
+- **A plugin's simulation profile is named in its namespace.** Bare
+  profile names are the engine's; a subsystem a plugin registers under a
+  bare profile the engine does not define, or another namespace's, is
+  refused (`SimulationProfile`).
 - **`PluginManifest.engineNamespaces` names `flutter3d_pointer_lock`**, the
   name `pointer_lock` is published under from 0.4.3 on. The old name stays
   in the set, so a recorded run that names it still reads as the engine's.
