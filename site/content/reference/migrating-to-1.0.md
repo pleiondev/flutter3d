@@ -222,7 +222,7 @@ carried out:
 
 <!-- migration-table:start -->
 
-*Generated from `flutter3d_build/lib/migrations/` — 1873 entries from 0.8.5 to 1.0.0-rc.1, 306 by hand: 222 `migrate`, 306 by hand, 370 nothing to do, 488 `dart fix`, 380 gone internal, 107 `migrate`, with a TODO.*
+*Generated from `flutter3d_build/lib/migrations/` — 1874 entries from 0.8.5 to 1.0.0-rc.1, 306 by hand: 223 `migrate`, 306 by hand, 370 nothing to do, 488 `dart fix`, 380 gone internal, 107 `migrate`, with a TODO.*
 
 ### `flame_flutter3d`
 
@@ -1303,6 +1303,7 @@ carried out:
 - <a id="hardware-PassEncoder"></a>**`PassEncoder`** (by hand). Code that records a pass is unchanged: `draw` gained the optional `firstIndex` and `indexCount`, and the new members are additions to call. Only an encoder of your own that implements `PassEncoder` has work: it adds the new members, throwing `UnsupportedCapabilityException` for what its backend lacks.
 - <a id="hardware-PassEncoder-base"></a>**`PassEncoder`** (by hand). An `abstract base mixin class` since 1.0: an encoder writes `extends PassEncoder with CommandEncoder` (or `with RenderBundleEncoder`) where it wrote `implements CommandEncoder`. The debug groups (`pushDebugGroup`, `popDebugGroup`, `insertDebugMarker`) have bodies that do nothing.
 - <a id="2a-hardware-PassEncoder-setBlendColor"></a>**`PassEncoder.setBlendColor`** (`migrate`). `PassEncoder.setBlendColor` becomes `x.setBlendColor(LinearColor({0}.x, {0}.y, {0}.z, {0}.w))`. The blend constant is a `LinearColor`, the engine's one colour type: the same four numbers, red, green, blue and alpha. An encoder of your own takes a `LinearColor` in its override.
+- <a id="corpus-hardware-PassEncoder-setDepthWrite"></a>**`PassEncoder.setDepthWrite`** (`migrate`). `PassEncoder.setDepthWrite(x0)` is `PassEncoder.setDepthWrite(enabled: x0)`. No positional `bool` in 1.0: `setDepthWrite(false)` is `setDepthWrite(enabled: false)`.
 - <a id="hardware-PassStateApply"></a>**`PassStateApply`** (`dart fix`). `PassStateApply` is imported from `package:flutter3d_hardware/flutter3d_hardware.dart`.
 - <a id="hardware-PipelineHandle"></a>**`PipelineHandle`** (by hand). A handle has no public constructor since 1.0: a device hands one out. A backend wraps its own object with `wrapPipeline` from `package:flutter3d_hardware/backend.dart`, naming itself as `owner` so the handle's `dispose` gives it back; a test's fake does the same.
 - <a id="2s-hardware-PolygonMode-open"></a>**`PolygonMode`** (`migrate`, with a TODO). `PolygonMode` is a class: a `switch` over it that names every value gains `_ => throw UnimplementedError()`. `PolygonMode` is an open set since 1.0, a class with constants rather than an enum, so a value a later minor adds does not break your code: a `switch` over it needs a `_ =>` case. The constants, `values`, `name` (the same words the enum wrote) and `byName` are there; `index` is not.

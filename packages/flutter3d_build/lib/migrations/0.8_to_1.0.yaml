@@ -22072,3 +22072,14 @@ entries:
     guidance: >-
       Public names are spelled the American way: a credit's `licence` field
       is `license`, read and built alike.
+
+  - id: corpus-hardware-PassEncoder-setDepthWrite
+    package: flutter3d_hardware
+    symbol: PassEncoder.setDepthWrite
+    kind: parameters
+    changes:
+      - toNamed: enabled
+        index: 0
+    guidance: >-
+      No positional `bool` in 1.0: `setDepthWrite(false)` is
+      `setDepthWrite(enabled: false)`.
