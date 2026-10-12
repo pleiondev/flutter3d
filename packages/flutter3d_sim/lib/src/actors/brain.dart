@@ -87,7 +87,7 @@ final class BrainHurt {
   /// The actor's mind; who did it is its [Mind.hurtBy].
   final Mind mind;
 
-  /// How much health it lost.
+  /// How much health it lost, in the units its health counts in.
   final double amount;
 }
 

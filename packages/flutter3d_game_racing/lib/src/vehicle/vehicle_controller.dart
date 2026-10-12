@@ -206,7 +206,7 @@ final class VehiclePlacement {
   /// Which way it faces, in radians about the up axis.
   final double headingYaw;
 
-  /// How far along the track that is, when the caller knows; null to let
-  /// the car work it out.
+  /// How far along the track that is, in meters, when the caller knows;
+  /// null to let the car work it out.
   final double? trackDistance;
 }

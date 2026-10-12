@@ -104,7 +104,8 @@ final class CharacterMove {
   /// The highest step it may climb, m.
   double stepHeight;
 
-  /// The least height of a normal it can stand on.
+  /// The least height of a normal it can stand on, a fraction of the
+  /// normal's unit length: the cosine of the steepest walkable slope.
   double walkableNormalY;
 
   /// Whether it may climb a step: it stood on ground.

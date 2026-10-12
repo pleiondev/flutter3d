@@ -69,7 +69,7 @@ final class RayQuery {
   /// Which way it goes, a unit vector.
   Vector3 direction;
 
-  /// How far it reaches, m.
+  /// How far it reaches, in meters.
   double maxDistance;
 
   /// The hit, written by the call.

@@ -52,7 +52,7 @@ abstract base mixin class Damageable {
 final class Damage {
   const Damage({required this.amount, this.from});
 
-  /// How much health it takes.
+  /// How much health it takes, in the units the health counts in.
   final double amount;
 
   /// Whoever dealt it, as the collider's `userData`; null for damage with

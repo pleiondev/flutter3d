@@ -128,8 +128,8 @@ final class VoiceStart {
   /// Whether it plays round and round until stopped.
   bool loop;
 
-  /// How much of the sound's top end the world takes away, from 0 (clear)
-  /// to 1 (heard through a wall): a backend that can filter turns it into a
+  /// How much of the sound's top end the world takes away, a fraction from
+  /// 0 (clear) to 1 (heard through a wall): a backend that can filter turns it into a
   /// low-pass cutoff, and one that cannot ignores it.
   double muffle;
 }
@@ -162,7 +162,7 @@ final class VoiceUpdate {
   /// and slower, through every gear.
   double rate;
 
-  /// As [VoiceStart.muffle].
+  /// As [VoiceStart.muffle]: a fraction, 0 clear.
   double muffle;
 }
 

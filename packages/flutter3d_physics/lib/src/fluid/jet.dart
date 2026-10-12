@@ -57,7 +57,7 @@ final class JetLanding {
        velocity = velocity ?? Vector3.zero(),
        medium = medium ?? FluidMedium.water;
 
-  /// How much lands, m³.
+  /// How much lands, in cubic meters.
   double volume;
 
   /// Where it lands, in the world.
