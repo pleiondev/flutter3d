@@ -150,11 +150,13 @@ final class KindMatch {
   const KindMatch();
 }
 
-// 0.8: `class Ledger { int get total; }`; `KindLedger` with `sum` since.
+// 0.8: `class Ledger { int get total; int get count; }`; `KindLedger` with
+// `sum` and `tally` since.
 
 final class KindLedger {
-  const KindLedger(this.sum);
+  const KindLedger(this.sum, this.tally);
   final int sum;
+  final int tally;
 }
 
 // ----------------------------------------------------------- parameters

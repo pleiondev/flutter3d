@@ -45,3 +45,5 @@ KindMatch pick(List<KindMatch> all) => all.first;
 final Object prefixed = kinds.KindShade();
 
 int sum(KindLedger ledger) => ledger.sum;
+
+int tallied(KindLedger ledger) => ledger.tally;

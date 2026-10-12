@@ -118,7 +118,11 @@ final class _Scan extends RecursiveAstVisitor<void> {
           }
           continue;
         case MigrationKind.rename:
-          into(classRenames, r.type, r);
+          if (r.member case final member?) {
+            into(memberRenames, member, r);
+          } else {
+            into(classRenames, r.type, r);
+          }
           continue;
         case MigrationKind.parameters:
           into(toNamedCreations, r.type, r);
@@ -194,6 +198,12 @@ final class _Scan extends RecursiveAstVisitor<void> {
 
   /// `rename` rules of a class, by its old name.
   final Map<String, List<MigrationRule>> classRenames =
+      <String, List<MigrationRule>>{};
+
+  /// `rename` rules of a member, by its old name: what `dart fix` leaves
+  /// where the file does not import the library its entry names (the class
+  /// reached through the project's own code).
+  final Map<String, List<MigrationRule>> memberRenames =
       <String, List<MigrationRule>>{};
 
   /// `parameters` rules by the class whose constructor they are about, and
@@ -314,6 +324,9 @@ final class _Scan extends RecursiveAstVisitor<void> {
         _renameClass(node.token, node);
       }
       if (arguments[name] case final rules?) _readOfOldType(node, rules);
+      if (memberRenames[name] case final rules? when node.element == null) {
+        _renameMember(node, rules);
+      }
     }
     final rules = <MigrationRule>[...?byMember[name], ...?byListedMember[name]];
     if (rules.isNotEmpty && !node.inDeclarationContext()) {
@@ -1531,6 +1544,21 @@ final class _Scan extends RecursiveAstVisitor<void> {
     }
     for (final rule in rules) {
       _add(rule, at);
+    }
+  }
+
+  /// A member renamed since the release, met where the analyzer finds
+  /// nothing of its old name on its class: the new name.
+  void _renameMember(SimpleIdentifier node, List<MigrationRule> rules) {
+    for (final rule in rules) {
+      final to = rule.to;
+      if (to == null || !_isMemberOf(node, rule)) continue;
+      _add(
+        rule,
+        node,
+        edits: <MigrationEdit>[MigrationEdit(node.offset, node.length, to)],
+      );
+      return;
     }
   }
 

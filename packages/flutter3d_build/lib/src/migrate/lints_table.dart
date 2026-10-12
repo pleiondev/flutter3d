@@ -78,11 +78,26 @@ Map<String, String> toNamedOf(MigrationEntry e) => <String, String>{
 bool _carried(MigrationEntry e) =>
     lintsKinds.contains(e.kind) &&
     (e.kind != 'rename' ||
-        (e.member == null &&
-            !e.symbol.contains(':') &&
-            RegExp(r'^[A-Z]\w*$').hasMatch(e.to ?? '') &&
-            RegExp(r'^[A-Z]').hasMatch(e.topName))) &&
+        (!e.symbol.contains(':') &&
+            RegExp(r'^[A-Z]').hasMatch(e.topName) &&
+            (e.member == null
+                ? RegExp(r'^[A-Z]\w*$').hasMatch(e.to ?? '')
+                : renamedMember(e) != null))) &&
     (e.kind != 'parameters' || toNamedOf(e).isNotEmpty);
+
+/// A member `rename`'s new name, where it stays on its class (`to: name`
+/// or `to: Type.name` of its own type); null for one that moved to another
+/// type, which a rename of the name alone does not carry.
+String? renamedMember(MigrationEntry e) {
+  final to = e.to;
+  if (e.member == null || to == null || e.member!.contains('.')) return null;
+  final parts = to.split('.');
+  return switch (parts) {
+    [final name] when RegExp(r'^[a-z_$][\w$]*$').hasMatch(name) => name,
+    [final type, final name] when type == e.topName => name,
+    _ => null,
+  };
+}
 
 /// The anchor of [package]'s one line of `internal` names in the guide.
 String internalAnchor(String package) => 'internal-$package';
@@ -131,6 +146,8 @@ String _message(MigrationEntry e, MigrationTable table) {
       '${e.arguments.map((String a) => '`$a:`').join(', ')} of `${e.symbol}` '
           '${e.to == null ? 'takes a value of another type' : 'is `${e.to}:`'} '
           'in ${table.to}.',
+    'rename' when e.member != null =>
+      '`${e.symbol}` is `${e.topName}.${renamedMember(e)}` in ${table.to}.',
     'rename' => '`${e.topName}` is `${e.to}` in ${table.to}.',
     'parameters' =>
       '${toNamedOf(e).values.map((String a) => '`$a:`').join(', ')} of '
@@ -201,9 +218,12 @@ Map<String, Object?> _rule(
     if (e.kind == 'argument' && e.reads.isNotEmpty) 'fields': e.reads,
     if (e.kind == 'rewrite') 'receiver': ?(e.fields['on'] as String?),
     if (e.kind == 'rewrite' && e.fields['static'] == true) 'throughClass': true,
-    if (e.kind != 'rename') 'renamedTo': ?renamed[e.topName],
+    if (e.kind != 'rename' || e.member != null)
+      'renamedTo': ?renamed[e.topName],
     'exception': ?e.exception,
-    if (e.kind == 'argument' || e.kind == 'rename') 'to': ?e.to,
+    if (e.kind == 'argument' || (e.kind == 'rename' && e.member == null))
+      'to': ?e.to,
+    if (e.kind == 'rename' && e.member != null) 'to': ?renamedMember(e),
     if (e.types.isNotEmpty) 'types': e.types,
     if (e.kind == 'internal' && e.instead != null) 'instead': _flat(e.instead!),
     if (e.kind == 'internal' && isLibrary) 'library': true,

@@ -16,10 +16,12 @@ import 'package:test/test.dart';
 import 'migration_kinds_support.dart';
 
 void main() {
-  test('a class rename reaches the plugin table; a member rename does not', () {
+  test('a class rename and a member rename reach the plugin table', () {
     final lints = generateLintsTable([kindTable('gone')], stamp: 's');
     expect(lints, contains('kind: MigrationKind.rename'));
     expect(lints, contains("to: 'KindShade'"));
+    expect(lints, contains("member: 'count'"));
+    expect(lints, contains("to: 'tally'"));
   });
 
   test('the creations are renamed and the static is rewritten', () async {
@@ -36,6 +38,7 @@ void main() {
       'kinds-Match',
       'kinds-Match',
       'kinds-Ledger-total',
+      'kinds-Ledger-count',
     ]);
     expect(manualOf(report), <String>[
       'kinds-roster:3',

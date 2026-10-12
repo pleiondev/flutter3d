@@ -74,3 +74,8 @@ entries:
     symbol: Ledger.total
     kind: rewrite
     template: '{target}.sum'
+  - id: kinds-Ledger-count
+    package: flutter3d_kinds
+    symbol: Ledger.count
+    kind: rename
+    to: tally
