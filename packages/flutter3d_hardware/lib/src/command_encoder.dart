@@ -545,8 +545,9 @@ abstract base mixin class PassEncoder {
   /// `DeviceFeature.renderStageStorage`. False when the stage declares no
   /// such binding.
   ///
-  /// `StageBindings` carries no storage declarations in 1.0. A backend that
-  /// reflects its stages answers from that; one that does not answers true,
+  /// `StageBindings` carries no storage declarations yet (a later minor may
+  /// add them as a binding kind). A backend that reflects its stages answers
+  /// from that reflection; one that does not answers true,
   /// for the reason [bindUniformBlock] gives, or from what its own stages
   /// say they read.
   bool bindStorageBuffer(

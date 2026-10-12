@@ -125,9 +125,11 @@ abstract base mixin class TextureAllocator {
   /// Afterwards the handle is spent. Releasing one twice, or one this
   /// allocator never made, is a caller mistake that a backend may refuse.
   ///
-  /// Nothing here says the GPU has stopped reading. That is the caller's to
-  /// know — see the frames-in-flight ring in the engine's renderer, which is
-  /// what keeps a target from being freed while a pass still samples it.
+  /// **May come while submitted work still reads the texture**: the device
+  /// defers the destruction until that work is done, by the rule
+  /// `GraphicsDevice` states for every `release…` member. The engine's
+  /// frames-in-flight ring keeps a pooled target from being *reused* while a
+  /// pass still samples it; freeing it is the device's to make safe.
   void releaseTexture(TextureHandle texture);
 }
 

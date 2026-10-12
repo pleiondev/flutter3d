@@ -1433,8 +1433,8 @@ final class WebGpuDevice extends GraphicsDevice
   ///
   /// The future completes when the warming has settled. A pipeline the
   /// browser refuses in one of those states is skipped — the state was a
-  /// guess, and a draw that really asks for it builds it and reports why at
-  /// [debugDrainErrors] — while a pair that cannot be recorded at all (two
+  /// guess, and a draw that really asks for it builds it and reports a
+  /// refusal on [pipelineRefusals] — while a pair that cannot be recorded at all (two
   /// fragment stages, a stage from another backend, a layout that misses an
   /// input) completes the future with the error.
   @override
