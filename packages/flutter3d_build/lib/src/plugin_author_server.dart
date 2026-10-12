@@ -421,11 +421,22 @@ String _markerText(String package, Object plugin) {
 /// A tool of the author server.
 typedef PluginAuthorTool = OfferedTool<PluginWorkshop, Answer>;
 
+/// A [PluginAuthorTool] whose body reads the session and the arguments as two values,
+/// the way every tool here is written.
+PluginAuthorTool _tool(
+  ToolSpec spec,
+  FutureOr<Answer> Function(
+    PluginWorkshop session,
+    Map<String, Object?> arguments,
+  )
+  run,
+) => PluginAuthorTool(spec, (call) => run(call.session, call.arguments));
+
 StringSchema _directory(String about) => StringSchema(description: about);
 
 /// The author server's tools, in the order `tools/list` gives them.
 final List<PluginAuthorTool> pluginAuthorTools = <PluginAuthorTool>[
-  PluginAuthorTool(
+  _tool(
     mcpTool(
       name: 'plugin.create',
       description:
@@ -459,7 +470,7 @@ final List<PluginAuthorTool> pluginAuthorTools = <PluginAuthorTool>[
           PluginKind.named(arguments['kind']! as String),
         ),
   ),
-  PluginAuthorTool(
+  _tool(
     mcpTool(
       name: 'plugin.conformance',
       description:
@@ -476,7 +487,7 @@ final List<PluginAuthorTool> pluginAuthorTools = <PluginAuthorTool>[
     (PluginWorkshop workshop, Map<String, Object?> arguments) =>
         workshop.conformance(arguments['directory']! as String),
   ),
-  PluginAuthorTool(
+  _tool(
     mcpTool(
       name: 'plugin.report',
       description:

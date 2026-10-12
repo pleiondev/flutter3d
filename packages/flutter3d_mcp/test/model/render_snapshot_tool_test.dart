@@ -34,7 +34,7 @@ ModelSession opened({bool empty = false}) => ModelSession(
 Future<Answer> snapshot(
   ModelSession session,
   Map<String, Object?> arguments,
-) async => renderSnapshotTool.run(session, arguments);
+) async => renderSnapshotTool.runOn(session, arguments);
 
 void main() {
   test('a 96×64 snapshot is a real picture of that size', () async {

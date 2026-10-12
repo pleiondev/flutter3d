@@ -237,13 +237,11 @@ const Map<String, ToolName> modelToolNames = <String, ToolName>{
 /// type because [ToolTableServer] is generic over exactly one, and this is
 /// where that type is decided rather than in every tool that has no picture
 /// to offer.
-ModelPictureTool _picture(ModelTool tool) => ModelPictureTool(tool.spec, (
-  ModelSession session,
-  Map<String, Object?> arguments,
-) async {
-  final Answer answer = await tool.run(session, arguments);
-  return Answer(did: answer.did, says: answer.says, png: null);
-});
+ModelPictureTool _picture(ModelTool tool) =>
+    ModelPictureTool(tool.spec, (call) async {
+      final Answer answer = await tool.run(call);
+      return Answer(did: answer.did, says: answer.says, png: null);
+    });
 
 /// [tool], with the ids it made recorded around it — `ux-19`.
 ///
@@ -257,13 +255,14 @@ ModelPictureTool _picture(ModelTool tool) => ModelPictureTool(tool.spec, (
 /// it rather than repeating whatever the last edit made.
 ModelPictureTool _watched(ModelPictureTool tool) => ModelPictureTool(
   tool.spec.copyWith(outputSchema: modelAnswerSchema),
-  (ModelSession session, Map<String, Object?> arguments) async {
+  (call) async {
+    final session = call.session;
     final List<int> before = session.objectIds;
     // `ux-20`: cleared here rather than by whoever sets it, so that a
     // targeted call's own selection is reported by the call that made it
     // and by no call after it.
     session.reportedSelection = null;
-    final Answer answer = await tool.run(session, arguments);
+    final Answer answer = await tool.run(call);
     _made = session.madeSince(before);
     return answer;
   },

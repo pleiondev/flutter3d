@@ -12,6 +12,7 @@
 /// one tool that actually draws.
 library;
 
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -27,6 +28,17 @@ import 'mcp_tool.dart';
 import 'model_session.dart';
 
 typedef ModelPictureTool = OfferedTool<ModelSession, Answer>;
+
+/// A [ModelPictureTool] whose body reads the session and the arguments as two values,
+/// the way every tool here is written.
+ModelPictureTool _tool(
+  ToolSpec spec,
+  FutureOr<Answer> Function(
+    ModelSession session,
+    Map<String, Object?> arguments,
+  )
+  run,
+) => ModelPictureTool(spec, (call) => run(call.session, call.arguments));
 
 GraphicsDevice _cpuDevice(int width, int height) => CpuDevice(
   width: width,
@@ -97,7 +109,7 @@ Schema _modeSchema(String about) =>
     UntitledSingleSelectEnumSchema(description: about, values: renderModes);
 
 /// A picture of the project as it stands.
-final ModelPictureTool renderTool = ModelPictureTool(
+final ModelPictureTool renderTool = _tool(
   mcpTool(
     name: 'render',
     description:
@@ -188,7 +200,7 @@ final ModelPictureTool renderTool = ModelPictureTool(
 /// each quadrant carries the name of the view it is, drawn with
 /// `tiny_font.dart` rather than a widget, since this runs in a plain Dart
 /// process with no canvas in it.
-final ModelPictureTool renderSheetTool = ModelPictureTool(
+final ModelPictureTool renderSheetTool = _tool(
   mcpTool(
     name: 'renderSheet',
     description:
@@ -244,7 +256,7 @@ final ModelPictureTool renderSheetTool = ModelPictureTool(
 /// the other four-view sheet never shows is where a generated asset hides
 /// its holes. With `repair` the words carry the audit before, what was done
 /// and the audit after, and the picture is the repaired asset.
-final ModelPictureTool auditTool = ModelPictureTool(
+final ModelPictureTool auditTool = _tool(
   mcpTool(
     name: 'audit',
     description:
@@ -314,7 +326,7 @@ final ModelPictureTool auditTool = ModelPictureTool(
 /// larger than one device can hold is still one image at the end. Folding
 /// the two would make the cheap one carry the expensive one's arguments and
 /// the expensive one inherit the cheap one's cap.
-final ModelPictureTool renderSnapshotTool = ModelPictureTool(
+final ModelPictureTool renderSnapshotTool = _tool(
   mcpTool(
     name: 'renderSnapshot',
     description:

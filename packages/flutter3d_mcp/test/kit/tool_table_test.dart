@@ -22,7 +22,8 @@ base class _Counter extends ToolTableServer<List<String>, Answer> {
               description: 'Counts, and refuses after the first.',
               inputSchema: const <String, Object?>{'type': 'object'},
             ),
-            (List<String> calls, Map<String, Object?> arguments) {
+            (SessionToolCall<List<String>> call) {
+              final calls = call.session;
               calls.add('count');
               return Answer(
                 did: calls.length < 2,
@@ -50,7 +51,8 @@ base class _Watched extends ToolTableServer<List<String>, Answer> {
               description: 'Answers, whatever the watcher does about it.',
               inputSchema: const <String, Object?>{'type': 'object'},
             ),
-            (List<String> calls, Map<String, Object?> arguments) {
+            (SessionToolCall<List<String>> call) {
+              final calls = call.session;
               calls.add('ping');
               return Answer(did: true, says: 'pong ${calls.length}');
             },
@@ -75,7 +77,8 @@ List<OfferedTool<List<String>, Answer>> get _countTool =>
               ObjectSchema(properties: <String, Schema>{'by': IntegerSchema()})
                   as Map<String, Object?>,
         ),
-        (List<String> calls, Map<String, Object?> arguments) {
+        (SessionToolCall<List<String>> call) {
+          final calls = call.session;
           calls.add('count');
           return Answer(did: true, says: 'call ${calls.length}');
         },

@@ -39,6 +39,26 @@ final class AssetSources {
 
   static final RegExp _scheme = RegExp(r'^([a-z][a-z0-9+.\-]+):');
 
+  /// The schemes the platform and the engine read themselves, which a
+  /// plugin from outside may not take: a source registered for one is asked
+  /// before the fallback, so it would take every such load away from the
+  /// engine, and a scheme the engine adds in a minor (`hub`) would stop an
+  /// application at start with "already has a source".
+  ///
+  /// **Frozen at 1.0.0**, as `PluginManifest.reservedAreas` is: a scheme
+  /// the engine brings later goes under `f3d-`.
+  static const Set<String> reservedSchemes = <String>{
+    'asset',
+    'blob',
+    'data',
+    'f3d',
+    'file',
+    'http',
+    'https',
+    'hub',
+    'package',
+  };
+
   /// The schemes known, in the order they were added.
   List<String> get schemes => List<String>.unmodifiable(_byScheme.keys);
 
@@ -109,10 +129,11 @@ abstract base class DecoderRegistry extends PluginRegistry {
 /// application's own first.
 ///
 /// ```dart
+/// // In the plugin `acme_pak`: its scheme is in its namespace.
 /// void install(PluginHost host) {
 ///   host.registry<ModelDecoders>()
 ///     ..addModelDecoder(const PlyDecoder())
-///     ..addSource('pak', PakSource.new);
+///     ..addSource('acme-pak', PakSource.new);
 /// }
 /// ```
 ///
@@ -176,8 +197,27 @@ base class ModelDecoders extends DecoderRegistry {
   /// Makes [make] the source for paths with [scheme]. Throws an
   /// [ArgumentError] for a scheme that is not one, and for one somebody has
   /// already added, naming them.
+  ///
+  /// **A plugin's scheme is in its namespace** (D23): through a plugin's
+  /// view it is the plugin's namespace with each `_` as `-` (a scheme has
+  /// no `_`), or that and `-<name>` — `acme-frost` or `acme-frost-pak` for
+  /// `acme_frost` — and never one of [AssetSources.reservedSchemes]. Throws
+  /// a [PluginException] naming both otherwise. The application's own view
+  /// takes any scheme.
   Registration addSource(String scheme, AssetSourceFactory make) {
     AssetSources().add(scheme, make);
+    if (scope?.manifest case final manifest? when !manifest.isEngine) {
+      final own = manifest.namespace.replaceAll('_', '-');
+      if (AssetSources.reservedSchemes.contains(scheme) ||
+          (scheme != own && !scheme.startsWith('$own-')) ||
+          scheme.contains('.')) {
+        throw PluginException(
+          'plugin "${manifest.id}" added a source for the scheme "$scheme": '
+          'a plugin\'s scheme is "$own" or "$own-<name>", so a scheme the '
+          'engine or another plugin reads cannot be taken from it',
+        );
+      }
+    }
     for (final entry in _store.sources) {
       if (entry.key != scheme) continue;
       throw ArgumentError.value(

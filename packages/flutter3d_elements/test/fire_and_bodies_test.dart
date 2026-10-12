@@ -68,10 +68,7 @@ void main() {
         ignore: fire.body,
       )!;
       expect(hit.body, stander);
-      expect(
-        flux,
-        closeTo(FireExposure.fluxFrom(fire, hit.at * hit.at), 1e-6),
-      );
+      expect(flux, closeTo(FireExposure.fluxFrom(fire, hit.at * hit.at), 1e-6));
       expect(
         flux,
         greaterThan(FireExposure.fluxAt(<NativeFire>[fire], hit.point) - 1e-9),
@@ -125,9 +122,7 @@ void main() {
       final elements = ElementsSimulation.open();
       addTearDown(elements.dispose);
       final out = <NativeBody>[];
-      elements.listener = ElementsListener(
-        burnerOut: (body, made) => out.add(body),
-      );
+      elements.listener = ElementsListener(burnerOut: (e) => out.add(e.body));
       final heap = elements.track(
         elements.addBody(
           Solid.box(

@@ -42,7 +42,7 @@ final class SnapshotFormatException extends Flutter3dFormatException {
 }
 
 final class Snapshot {
-  const Snapshot(this.data);
+  const Snapshot(this.data, {this.requires = const <String>[]});
 
   /// Bumped when an existing field changes meaning.
   static const int formatVersion = 1;
@@ -56,6 +56,18 @@ final class Snapshot {
   /// header would otherwise arrive inside the payload and every restore would
   /// carry a field belonging to the envelope.
   final Map<String, Object?> data;
+
+  /// The namespaces of the plugins whose state [data] holds, a snapshot
+  /// part or a component each registered: what an engine has to have
+  /// installed to restore it whole.
+  ///
+  /// **Refused, never dropped.** An engine restoring a snapshot that
+  /// requires a plugin it does not have refuses it, naming the plugin
+  /// (`Snapshots.restore`), where it would otherwise skip that plugin's
+  /// state and write the next save without it. Written in the envelope's
+  /// `requires` (`docs/CONTRACTS.md`); empty for a snapshot holding only the
+  /// engine's and the application's own state.
+  final List<String> requires;
 
   /// The name the version is written under, which is therefore a name a game
   /// cannot use for a field of its own. The envelope's other keys —
@@ -95,7 +107,7 @@ final class Snapshot {
             '(${FormatSpec.envelopeKeys.join(', ')})',
       );
     }
-    return <String, Object?>{...format.envelope(), ...data};
+    return <String, Object?>{...format.envelope(requires: requires), ...data};
   }
 
   factory Snapshot.fromJson(Map<String, Object?> json) {
@@ -113,14 +125,26 @@ final class Snapshot {
     }
     // Every envelope version up to this one, lifted step by step; the game's
     // own fields are `SaveSchema`'s and pass through untouched, unknown ones
-    // included. A newer version, another format's document or a `requires`
-    // this build does not know is refused by the spec, with the reason.
-    final lifted = format.open(json, refuse: SnapshotFormatException.new);
+    // included. A newer version or another format's document is refused by
+    // the spec, with the reason. `requires` names plugins, which only the
+    // engine restoring it knows it has: it is kept and answered there.
+    final requires = switch (json['requires']) {
+      null => const <String>[],
+      final List<Object?> list when list.every((Object? e) => e is String) =>
+        List<String>.unmodifiable(list),
+      final other => throw SnapshotFormatException(
+        '"requires" must be a list of names, not $other',
+      ),
+    };
+    final lifted = format.open(<String, Object?>{
+      for (final entry in json.entries)
+        if (entry.key != 'requires') entry.key: entry.value,
+    }, refuse: SnapshotFormatException.new);
     return Snapshot(<String, Object?>{
       for (final entry in lifted.entries)
         if (!FormatSpec.envelopeKeys.contains(entry.key))
           entry.key: entry.value,
-    });
+    }, requires: requires);
   }
 
   /// Entry `i` lifts an envelope from version `i + 1` to `i + 2`. Empty while

@@ -251,6 +251,10 @@ List<Rule> get allRules => <Rule>[
     run: _hooksTakeOneContext,
   ),
   (
+    name: 'the plugin API\'s number moves when the plugin API grows',
+    run: _pluginApiVersionMoves,
+  ),
+  (
     name: 'every exception hangs from Flutter3dException',
     run: _exceptionsHaveTheRoot,
   ),
@@ -6056,6 +6060,131 @@ List<Finding> _hooksTakeOneContext() {
         'tool/structure/repository.dart',
         '`hookParametersPending` names `$name`, and no method of it takes more '
             'than one parameter any more. Take the entry out',
+      ),
+    );
+  }
+  found.addAll(_hooksTakeNoBareValue());
+  return found;
+}
+
+/// `PluginApiVersion.current` moved since the last 1.x release when the
+/// surface a plugin is written against grew or broke: the packages
+/// [pluginApiPackages] names whole, and every registry a plugin is handed
+/// elsewhere.
+///
+/// **What the number is for.** A plugin declares the plugin API it was
+/// written against, and `PluginApiVersion.refusalOn` refuses it where the
+/// engine's is older, naming both. That holds only if a minor that adds a
+/// member to a registry, a hook or a context moves the number; a plugin
+/// declaring `1.0` against a `1.3` that added what it calls would install
+/// on a 1.0 engine and fail at its first call. Nothing said when it moves,
+/// and nothing held it to that.
+///
+/// **From the first 1.x release on.** Before one is tagged there is nothing
+/// to compare against, and the number is 1.0 by definition.
+///
+/// Mutation: add a member to `LoopRegistry`, regenerate the snapshot after
+/// a 1.x tag, and this names it until `current` moves.
+List<Finding> _pluginApiVersionMoves() {
+  final root = repositoryRoot;
+  String? git(List<String> args) {
+    try {
+      final result = Process.runSync('git', args, workingDirectory: root.path);
+      return result.exitCode == 0 ? result.stdout as String : null;
+    } on ProcessException {
+      return null;
+    }
+  }
+
+  final tags = <String>[
+    for (final tag in (git(<String>['tag', '--list', 'v*']) ?? '').split('\n'))
+      if (RegExp(r'^v([1-9]\d*)\.\d+\.\d+$').hasMatch(tag.trim())) tag.trim(),
+  ]..sort((a, b) => compareVersionTexts(b.substring(1), a.substring(1))!);
+  if (tags.isEmpty) return const <Finding>[];
+  final tag = tags.first;
+  final current = _publishedSnapshots;
+  final released = <String, String>{
+    for (final MapEntry(key: name, value: dir) in _publishedPackages.entries)
+      name: ?git(<String>[
+        'show',
+        '$tag:${dir.path.substring(root.path.length + 1).replaceAll(Platform.pathSeparator, '/')}/api/$name.api',
+      ]),
+  };
+  final was = pluginApiVersionIn(released['flutter3d_plugin_api'] ?? '');
+  final now = pluginApiVersionIn(current['flutter3d_plugin_api'] ?? '');
+  if (was == null || now == null || was != now) return const <Finding>[];
+  final changes = pluginApiChanges(
+    released: released,
+    current: current,
+    whole: pluginApiPackages,
+  );
+  if (changes.isEmpty) return const <Finding>[];
+  return <Finding>[
+    Finding(
+      'packages/flutter3d_plugin_api/lib/src/version.dart',
+      'the plugin API changed since $tag (${changes.take(3).map((c) => '`${c.subject}` ${c.what}').join('; ')}'
+          '${changes.length > 3 ? ' and ${changes.length - 3} more' : ''}) and '
+          '`PluginApiVersion.current` is still $now: move it, so a plugin '
+          'written against what was added is refused by an engine without it',
+    ),
+  ];
+}
+
+/// Every hook, callback and typedef the rule above reads that takes one
+/// parameter takes a context, not a value that cannot gain members (a
+/// number, a string, a `Map`, a list, bytes, a vector, a type parameter),
+/// or it is named in [hookValueParameters] with the reason.
+///
+/// **Why counting was not enough.** Counting parameters let
+/// `ProjectToolRun`, a function of one `Map` of arguments, through: one
+/// parameter, and one that can never carry a
+/// cancellation, a progress report or the project's root, because a `Map`
+/// of an agent's arguments is not the engine's to add to. A hook whose one
+/// parameter is a type of the engine's own grows by that type's members;
+/// one handed a value grows only by a second parameter, which is a break.
+///
+/// An entry is a key as the rule above writes it (`Type.member`, a
+/// callback's field, a typedef's name) or `Type` for every member of a
+/// type; a type [hookParametersAllowed] names whole is allowed here too, for
+/// its reason. One that names nothing a snapshot declares fails.
+///
+/// Mutation: make `ProjectToolRun` take `Map<String, Object?> arguments`
+/// again, regenerate the snapshot, and this names it.
+List<Finding> _hooksTakeNoBareValue() {
+  final found = <Finding>[];
+  final seen = <String>{};
+  for (final entry in _publishedSnapshots.entries) {
+    final hooks = wideHooksIn(entry.value);
+    for (final (:type, :member, :parameter, :callback) in hooks.value) {
+      final key = member.isEmpty ? type : '$type.$member';
+      seen.add(key);
+      if (hookValueParameters.containsKey(key) ||
+          hookValueParameters.containsKey(type) ||
+          (!callback && hookParametersAllowed.containsKey(type))) {
+        continue;
+      }
+      found.add(
+        Finding(
+          '${entry.key}/api/${entry.key}.api',
+          '`$key` hands an outside author one `$parameter`, a value that '
+              'cannot gain members, so a minor can hand it nothing more without '
+              'a second parameter. Give it a context object, or say in '
+              '`hookValueParameters` why it needs none',
+        ),
+      );
+    }
+    for (final w in hooks.value) {
+      seen.add(w.type);
+    }
+  }
+  for (final name in hookValueParameters.keys) {
+    if (seen.contains(name)) continue;
+    found.add(
+      Finding(
+        'tool/structure/repository.dart',
+        '`hookValueParameters` names `$name`, and no hook, callback or '
+            'typedef a snapshot declares hands it a single value. Take the '
+            'entry out',
       ),
     );
   }

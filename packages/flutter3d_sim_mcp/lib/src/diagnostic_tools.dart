@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dart_mcp/server.dart';
 import 'package:flutter3d_mcp/kit.dart';
 
@@ -8,6 +10,17 @@ import 'mcp_tool.dart';
 /// One tool: what an agent is offered, and what calling it does — see
 /// `flutter3d_mcp/kit.dart`'s [OfferedTool].
 typedef DiagnosticTool = OfferedTool<DiagnosticSession, Answer>;
+
+/// A [DiagnosticTool] whose body reads the session and the arguments as two values,
+/// the way every tool here is written.
+DiagnosticTool _tool(
+  ToolSpec spec,
+  FutureOr<Answer> Function(
+    DiagnosticSession session,
+    Map<String, Object?> args,
+  )
+  run,
+) => DiagnosticTool(spec, (call) => run(call.session, call.arguments));
 
 double _number(
   Map<String, Object?> args,
@@ -32,7 +45,7 @@ const String _viewDescription =
 
 /// The five verbs `par-02` asks for.
 List<DiagnosticTool> get diagnosticTools => <DiagnosticTool>[
-  DiagnosticTool(
+  _tool(
     mcpTool(
       name: 'open',
       description:
@@ -49,7 +62,7 @@ List<DiagnosticTool> get diagnosticTools => <DiagnosticTool>[
     ),
     (session, args) => session.open(args['path']! as String),
   ),
-  DiagnosticTool(
+  _tool(
     mcpTool(
       name: 'frame',
       description:
@@ -81,7 +94,7 @@ List<DiagnosticTool> get diagnosticTools => <DiagnosticTool>[
       view: _view(args),
     ),
   ),
-  DiagnosticTool(
+  _tool(
     mcpTool(
       name: 'pixel',
       description:
@@ -100,7 +113,7 @@ List<DiagnosticTool> get diagnosticTools => <DiagnosticTool>[
     (session, args) =>
         session.pixel((args['x']! as num).toInt(), (args['y']! as num).toInt()),
   ),
-  DiagnosticTool(
+  _tool(
     mcpTool(
       name: 'passes',
       description:
@@ -111,7 +124,7 @@ List<DiagnosticTool> get diagnosticTools => <DiagnosticTool>[
     ),
     (session, args) => session.passes(),
   ),
-  DiagnosticTool(
+  _tool(
     mcpTool(
       name: 'scanNaN',
       description:

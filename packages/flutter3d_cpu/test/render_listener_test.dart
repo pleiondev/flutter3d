@@ -129,7 +129,7 @@ void main() {
     // fires for the day and not for nought.
     final it = _stage();
     final over = <(FrameResult, Duration)>[];
-    void record(FrameResult r, Duration budget) => over.add((r, budget));
+    void record(FrameOverTime e) => over.add((e.result, e.budget));
 
     it.renderer.listener = RenderListener(
       overTime: record,

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dart_mcp/server.dart';
 import 'package:flutter3d_mcp/kit.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
@@ -8,6 +10,13 @@ import 'sim_session.dart';
 /// One tool: what an agent is offered, and what calling it does — see
 /// `flutter3d_mcp/kit.dart`'s [OfferedTool].
 typedef SimTool = OfferedTool<SimSession, Answer>;
+
+/// A [SimTool] whose body reads the session and the arguments as two values,
+/// the way every tool here is written.
+SimTool _tool(
+  ToolSpec spec,
+  FutureOr<Answer> Function(SimSession session, Map<String, Object?> args) run,
+) => SimTool(spec, (call) => run(call.session, call.arguments));
 
 double _number(
   Map<String, Object?> args,
@@ -86,7 +95,7 @@ Schema _predicateSchema(String description) => ObjectSchema(
 ///
 /// Every argument any verb reads is offered as a number; the session refuses
 /// one the named verb does not read.
-SimTool _orderTool(OrderedGame game) => SimTool(
+SimTool _orderTool(OrderedGame game) => _tool(
   mcpTool(
     name: 'order',
     description:
@@ -127,7 +136,7 @@ SimTool _orderTool(OrderedGame game) => SimTool(
 /// as its own arguments — `fire` for the shooter, whatever another game names —
 /// and the two that turn a claim about a run into a file that proves it.
 List<SimTool> simToolsFor(HeadlessGame game) => <SimTool>[
-  SimTool(
+  _tool(
     mcpTool(
       name: 'open',
       description:
@@ -143,7 +152,7 @@ List<SimTool> simToolsFor(HeadlessGame game) => <SimTool>[
     ),
     (session, args) => session.open(args['path']! as String),
   ),
-  SimTool(
+  _tool(
     mcpTool(
       name: 'step',
       description:
@@ -173,7 +182,7 @@ List<SimTool> simToolsFor(HeadlessGame game) => <SimTool>[
     ),
   ),
   if (game case final OrderedGame ordered) _orderTool(ordered),
-  SimTool(
+  _tool(
     mcpTool(
       name: 'expect',
       description:
@@ -209,7 +218,7 @@ List<SimTool> simToolsFor(HeadlessGame game) => <SimTool>[
       held: _held(game, args),
     ),
   ),
-  SimTool(
+  _tool(
     mcpTool(
       name: 'verify',
       description:
@@ -234,7 +243,7 @@ List<SimTool> simToolsFor(HeadlessGame game) => <SimTool>[
       predicate: (args['predicate'] as Map?)?.cast<String, Object?>(),
     ),
   ),
-  SimTool(
+  _tool(
     mcpTool(
       name: 'bisect',
       description:
@@ -277,7 +286,7 @@ List<SimTool> simToolsFor(HeadlessGame game) => <SimTool>[
       ),
     },
   ),
-  SimTool(
+  _tool(
     mcpTool(
       name: 'snapshot',
       description:
@@ -289,7 +298,7 @@ List<SimTool> simToolsFor(HeadlessGame game) => <SimTool>[
     ),
     (session, args) => session.snapshot(),
   ),
-  SimTool(
+  _tool(
     mcpTool(
       name: 'digest',
       description:
@@ -302,7 +311,7 @@ List<SimTool> simToolsFor(HeadlessGame game) => <SimTool>[
     ),
     (session, args) => session.digest(),
   ),
-  SimTool(
+  _tool(
     mcpTool(
       name: 'writeRun',
       description:
@@ -319,7 +328,7 @@ List<SimTool> simToolsFor(HeadlessGame game) => <SimTool>[
     ),
     (session, args) => session.writeRun(args['path']! as String),
   ),
-  SimTool(
+  _tool(
     mcpTool(
       name: 'frame',
       description:

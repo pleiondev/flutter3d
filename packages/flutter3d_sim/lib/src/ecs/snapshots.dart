@@ -30,16 +30,24 @@ import 'ecs_world.dart';
 /// as if it had moved.
 final class Snapshots extends SnapshotRegistry {
   /// A registry whose first part is [world], under `'world'`.
-  Snapshots({EcsWorld? world}) : _scope = null, _parts = <SnapshotPart>[] {
+  Snapshots({EcsWorld? world})
+    : _scope = null,
+      _parts = <SnapshotPart>[],
+      _owners = <SnapshotPart, String>{} {
     if (world != null) add(WorldSnapshotPart(world));
   }
 
   Snapshots._scoped(Snapshots of, PluginScope scope)
     : _scope = scope,
-      _parts = of._parts;
+      _parts = of._parts,
+      _owners = of._owners;
 
   final PluginScope? _scope;
   final List<SnapshotPart> _parts;
+
+  /// The namespace of the plugin that added each part it added; a part the
+  /// application or the engine's own code added has none.
+  final Map<SnapshotPart, String> _owners;
 
   @override
   List<String> get parts => <String>[for (final part in _parts) part.id];
@@ -78,20 +86,78 @@ final class Snapshots extends SnapshotRegistry {
       }
     }
     _parts.add(part);
-    final registration = Registration(() => _parts.remove(part));
+    if (_scope?.manifest.namespace case final owner?) _owners[part] = owner;
+    final registration = Registration(() {
+      _parts.remove(part);
+      _owners.remove(part);
+    });
     _scope?.track(registration);
     return registration;
   }
 
-  /// Every part's state, in registration order.
+  /// Every part's state, in registration order, requiring the plugins whose
+  /// state it holds ([Snapshot.requires]).
   @override
-  Snapshot capture() => Snapshot(<String, Object?>{
+  Snapshot capture() {
+    final data = <String, Object?>{
+      for (final part in _parts)
+        part.id: <String, Object?>{
+          'version': part.version,
+          'data': part.capture(),
+        },
+    };
+    final requires = <String>{
+      for (final part in _parts) ?_owners[part],
+      for (final part in _parts)
+        if (part is WorldSnapshotPart)
+          ..._componentOwners(
+            part.world,
+            (data[part.id]! as Map<String, Object?>)['data'],
+          ),
+    };
+    return Snapshot(data, requires: requires.toList()..sort());
+  }
+
+  /// The namespaces of the plugins whose components or resources [saved],
+  /// a world's capture, holds a value of.
+  static Iterable<String> _componentOwners(EcsWorld world, Object? saved) {
+    if (saved is! Map) return const <String>[];
+    bool holds(Object? rows, String id) =>
+        rows is Map &&
+        switch (rows[id]) {
+          final Map<Object?, Object?> some => some.isNotEmpty,
+          null => false,
+          _ => true,
+        };
+    return <String>{
+      for (final info in world.components.registered)
+        if (info.declaredBy != _byTheApplication &&
+            (holds(saved['components'], info.id) ||
+                holds(saved['resources'], info.id)))
+          _namespaceOf(info.declaredBy),
+    };
+  }
+
+  /// What `ComponentInfo.declaredBy` says for a component nobody's plugin
+  /// registered.
+  static const String _byTheApplication = 'app';
+
+  /// A plugin id's namespace, as `PluginManifest.namespace` reads it.
+  static String _namespaceOf(String id) {
+    final dot = id.indexOf('.');
+    return dot < 0 ? id : id.substring(0, dot);
+  }
+
+  /// The namespaces of the plugins whose state this engine can take back:
+  /// those that added a part, or registered a component, here.
+  Set<String> get _installed => <String>{
+    ..._owners.values,
     for (final part in _parts)
-      part.id: <String, Object?>{
-        'version': part.version,
-        'data': part.capture(),
-      },
-  });
+      if (part is WorldSnapshotPart)
+        for (final info in part.world.components.registered)
+          if (info.declaredBy != _byTheApplication)
+            _namespaceOf(info.declaredBy),
+  };
 
   /// Puts every part back to what [snapshot] holds.
   ///
@@ -102,6 +168,23 @@ final class Snapshots extends SnapshotRegistry {
   /// what was looked for.
   @override
   void restore(covariant Snapshot snapshot) {
+    // Before anything moves: a plugin's state with nobody to take it back
+    // would be skipped, and the next save written without it.
+    if (snapshot.requires.isNotEmpty) {
+      final installed = _installed;
+      final missing = <String>[
+        for (final name in snapshot.requires)
+          if (!installed.contains(name)) name,
+      ];
+      if (missing.isNotEmpty) {
+        throw SnapshotFormatException(
+          'the snapshot holds the state of ${missing.map((n) => '"$n"').join(', ')}, '
+          'which this engine has no plugin of: install '
+          '${missing.length == 1 ? 'it' : 'them'} and restore again, or '
+          'that state would be lost',
+        );
+      }
+    }
     final read = <(SnapshotPart, Object?, int)>[];
     for (final part in _parts) {
       final entry = snapshot.data[part.id];

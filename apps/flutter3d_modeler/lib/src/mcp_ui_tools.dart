@@ -9,6 +9,7 @@
 /// from, out of anything the web build compiles.
 library;
 
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:dart_mcp/server.dart';
@@ -17,6 +18,17 @@ import 'package:flutter3d_mcp/model.dart';
 import 'mcp_tool.dart';
 import 'mcp_ui_actions.dart';
 
+/// A [ModelPictureTool] whose body reads the session and the arguments as two values,
+/// the way every tool here is written.
+ModelPictureTool _tool(
+  ToolSpec spec,
+  FutureOr<Answer> Function(
+    ModelSession session,
+    Map<String, Object?> arguments,
+  )
+  run,
+) => ModelPictureTool(spec, (call) => run(call.session, call.arguments));
+
 /// [body] wrapped the way every tool `ModelMcpServer` offers already is:
 /// an [Answer]-shaped result with no picture, `session` itself unread since
 /// every `ui.*` tool acts on the live screen [actions] already closes over
@@ -24,10 +36,7 @@ import 'mcp_ui_actions.dart';
 ModelPictureTool _ui(
   ToolSpec tool,
   UiAnswer Function(Map<String, Object?> arguments) body,
-) => ModelPictureTool(tool, (
-  ModelSession session,
-  Map<String, Object?> arguments,
-) async {
+) => _tool(tool, (ModelSession session, Map<String, Object?> arguments) async {
   final UiAnswer answer = body(arguments);
   return Answer(did: answer.did, says: answer.says, png: null);
 });
@@ -157,7 +166,7 @@ List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
   // software rasteriser — framed, with no panels, no rail and no dialog —
   // which answers "is the shape right" and cannot answer "did the export
   // screen open" or "is the modifier I added showing in the stack".
-  ModelPictureTool(
+  _tool(
     mcpTool(
       name: 'ui.screenshot',
       description:
@@ -237,7 +246,7 @@ List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
     ),
     (Map<String, Object?> arguments) => actions.playConsole(),
   ),
-  ModelPictureTool(
+  _tool(
     mcpTool(
       name: 'play.screenshot',
       description:
@@ -261,7 +270,7 @@ List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
   // verbs rather than one with a mode argument, for the reason the Play
   // tools are five: a tool list is what an agent learns the application
   // from.
-  ModelPictureTool(
+  _tool(
     mcpTool(
       name: 'gallery.list',
       description:
@@ -292,7 +301,7 @@ List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
       return Answer(did: answer.did, says: answer.says, png: null);
     },
   ),
-  ModelPictureTool(
+  _tool(
     mcpTool(
       name: 'gallery.insert',
       description:

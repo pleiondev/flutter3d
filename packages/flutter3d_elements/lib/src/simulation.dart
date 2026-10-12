@@ -47,6 +47,9 @@ import 'smoke_plume.dart';
 /// [ElementFireSeen], [ElementFireLost]), and `Elements.listener` stays the
 /// one field it is set on. A listener written with callbacks still works,
 /// and is what a game without a bus keeps.
+///
+/// **Each callback takes its event**, the object the bus carries, so what
+/// it is told can grow by a field where a list of parameters could not.
 final class ElementsListener {
   /// Publishes every callback onto [bus] as its event: on the step channel
   /// when `Elements.update` runs inside a fixed step, on the frame channel
@@ -60,16 +63,15 @@ final class ElementsListener {
   }
 
   factory ElementsListener._toBus(EventRegistry bus) => ElementsListener(
-    caught: (body, made) => bus.publish(ElementCaught(body, made)),
-    out: (body, made) => bus.publish(ElementOut(body, made)),
-    burntOut: (body, made) => bus.publish(ElementBurntOut(body, made)),
-    wetted: (body, made) => bus.publish(ElementWetted(body, made)),
-    burnerOut: (body, made) => bus.publish(ElementBurnerOut(body, made)),
-    exploded: (at, pushed) => bus.publish(ElementExploded(at, pushed)),
-    budget: (step, wanted, holds) =>
-        bus.publish(ElementsOverBudget(step, wanted, holds)),
-    seen: (fire) => bus.publish(ElementFireSeen(fire)),
-    lost: (body) => bus.publish(ElementFireLost(body)),
+    caught: bus.publish,
+    out: bus.publish,
+    burntOut: bus.publish,
+    wetted: bus.publish,
+    burnerOut: bus.publish,
+    exploded: bus.publish,
+    budget: bus.publish,
+    seen: bus.publish,
+    lost: bus.publish,
   );
 
   const ElementsListener({
@@ -85,33 +87,33 @@ final class ElementsListener {
   });
 
   /// A body caught fire; its [TrackedBody] when the elements made it.
-  final void Function(NativeBody body, TrackedBody? made)? caught;
+  final void Function(ElementCaught event)? caught;
 
   /// A body's fire went out with fuel left: drowned, doused, or burnt down
   /// below its firepoint.
-  final void Function(NativeBody body, TrackedBody? made)? out;
+  final void Function(ElementOut event)? out;
 
   /// A body burnt all its fuel.
-  final void Function(NativeBody body, TrackedBody? made)? burntOut;
+  final void Function(ElementBurntOut event)? burntOut;
 
   /// A body went into a liquid: a splash.
-  final void Function(NativeBody body, TrackedBody? made)? wetted;
+  final void Function(ElementWetted event)? wetted;
 
   /// A burner went out, under a liquid or out of the fuel it was fed.
-  final void Function(NativeBody body, TrackedBody? made)? burnerOut;
+  final void Function(ElementBurnerOut event)? burnerOut;
 
   /// A charge went off at a point, pushing as many bodies.
-  final void Function(Vector3 at, int pushed)? exploded;
+  final void Function(ElementExploded event)? exploded;
 
   /// A step of the drawing wanted more than it can hold this frame, and
   /// drew less: which ('flames', 'smoke', 'embers', 'drops', 'bubbles'),
   /// how many it wanted, and how many it holds.
-  final void Function(String step, int wanted, int holds)? budget;
+  final void Function(ElementsOverBudget event)? budget;
 
   /// A fire came into the camera's picture, or left it — when
   /// `Elements.update` is given the camera.
-  final void Function(NativeFire fire)? seen;
-  final void Function(NativeBody body)? lost;
+  final void Function(ElementFireSeen event)? seen;
+  final void Function(ElementFireLost event)? lost;
 }
 
 /// The ground under a water: [nx] × [nz] cells [cell] m square, the first
@@ -756,7 +758,9 @@ final class Fires {
         _fed.remove(body);
         world.setBurner(body, null);
         step.publish(NativeEventKind.burnerOut, ElementBody.of(body));
-        _elements.listener?.burnerOut?.call(body, _elements._madeOf(body));
+        _elements.listener?.burnerOut?.call(
+          ElementBurnerOut(body, _elements._madeOf(body)),
+        );
       } else {
         _fed[body] = (rate: fed.rate, left: fed.left - fed.rate * step.dt);
       }
@@ -769,7 +773,7 @@ final class Fires {
   /// A charge going off at [at]; how many bodies it reached.
   int explode(Vector3 at, NativeExplosion explosion) {
     final pushed = _elements.world.explode(at, explosion);
-    _elements.listener?.exploded?.call(at.clone(), pushed);
+    _elements.listener?.exploded?.call(ElementExploded(at, pushed));
     return pushed;
   }
 
@@ -1234,15 +1238,20 @@ final class ElementsSimulation {
     if (l == null) return;
     for (final e in events) {
       final made = _madeOf(e.body);
-      final call = switch (e.kind) {
-        NativeEventKind.ignited => l.caught,
-        NativeEventKind.extinguished => l.out,
-        NativeEventKind.burntOut => l.burntOut,
-        NativeEventKind.wetted => l.wetted,
-        NativeEventKind.burnerOut => l.burnerOut,
-        _ => null,
-      };
-      call?.call(e.body, made);
+      switch (e.kind) {
+        case NativeEventKind.ignited:
+          l.caught?.call(ElementCaught(e.body, made));
+        case NativeEventKind.extinguished:
+          l.out?.call(ElementOut(e.body, made));
+        case NativeEventKind.burntOut:
+          l.burntOut?.call(ElementBurntOut(e.body, made));
+        case NativeEventKind.wetted:
+          l.wetted?.call(ElementWetted(e.body, made));
+        case NativeEventKind.burnerOut:
+          l.burnerOut?.call(ElementBurnerOut(e.body, made));
+        default:
+          break;
+      }
     }
   }
 

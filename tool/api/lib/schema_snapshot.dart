@@ -861,7 +861,7 @@ Map<String, Object?> surfaceOf({
     session: null,
     tools: <OfferedTool<Object?, Object?>>[
       for (final t in tools)
-        OfferedTool<Object?, Object?>(t, (Object? s, Map<String, Object?> a) => null),
+        OfferedTool<Object?, Object?>(t, (SessionToolCall<Object?> c) => null),
     ],
     toResult: (Object? answer) => ToolResult(),
     name: name,

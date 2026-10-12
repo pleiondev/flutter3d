@@ -1,5 +1,17 @@
 ## 1.0.0-rc.1
 
+- **A plugin's asset scheme is in its namespace.** Through a plugin's
+  view, `ModelDecoders.addSource` takes the plugin's namespace with `-`
+  for `_`, or that and `-<name>` (`acme-frost-pak`), and never one of
+  `AssetSources.reservedSchemes` (new: `http`, `https`, `file`, `asset`,
+  `data`, `blob`, `package`, `hub`, `f3d`), refusing any other with a
+  `PluginException`: a registered scheme is asked before the fallback, so
+  a plugin could take every `https` load, or `hub` before the engine adds
+  it. The application names any scheme.
+- **Breaking: `RenderListener.overTime` takes a `FrameOverTime`.** The
+  event the bus carries, with the frame's `result` and the `budget` it went
+  over, where it took the two as parameters: one object can gain a field
+  in a minor.
 - **Breaking: a decoder, a writer and the renderer's services take one
   context each.** `ModelDecoder.handles` takes a `ModelProbe` (new: the
   file's name and bytes) and `decode` a `ModelDecodeContext` (new: the

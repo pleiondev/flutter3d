@@ -256,7 +256,13 @@ final class WasmTrapped extends BusEvent {
 /// latch is in [save], so a rollback to before the trap starts the module
 /// again from the state it had then, and a replay traps at the same step.
 final class WasmSystem {
-  WasmSystem._(this.name, this._plugin, this._spec, this._fields);
+  WasmSystem._(
+    this.name,
+    this._plugin,
+    this._spec,
+    this._fields,
+    this._runtime,
+  );
 
   /// The system's name in the loop: `<plugin id>.<system>`.
   final String name;
@@ -264,6 +270,7 @@ final class WasmSystem {
   final String _plugin;
   final WasmSystemSpec _spec;
   final List<WorldField> _fields;
+  final String _runtime;
   late final WasmInstance _instance;
 
   /// The one step context, set before every step: a step allocates none.
@@ -274,12 +281,32 @@ final class WasmSystem {
   /// What the module did when it trapped, or null while it runs.
   String? get trapped => _trapped;
 
-  /// The module's memory and globals, and whether it has trapped — what a
-  /// snapshot of the run keeps of this system.
+  /// The module's memory and globals, whether it has trapped, and the
+  /// runtime that ran it — what a snapshot of the run keeps of this system.
+  ///
+  /// **The same shape whichever runtime wrote it** (`WasmInstance.save`):
+  /// memory, and the exported mutable globals by name. What only one
+  /// runtime can reach (the interpreter's `internal` globals) and [runtime]
+  /// are kept and left out of [digestible], so a run a browser recorded
+  /// digests as the interpreter's replay of it does.
   Map<String, Object?> save() => <String, Object?>{
     'trapped': _trapped,
+    'runtime': _runtime,
     'module': _instance.save(),
   };
+
+  /// What [save] holds that every runtime writes alike: what a digest of
+  /// the run folds.
+  Map<String, Object?> digestible() => <String, Object?>{
+    'trapped': _trapped,
+    'module': <String, Object?>{
+      for (final MapEntry(:key, :value) in _instance.save().entries)
+        if (key != 'internal') key: value,
+    },
+  };
+
+  /// The runtime this system's module runs on, by its name.
+  String get runtime => _runtime;
 
   /// Puts back what [save] wrote.
   void restore(Map<String, Object?> state) {
@@ -450,7 +477,28 @@ WasmSystem installWasmSystem(
       fields.add(field);
     }
   }
-  final system = WasmSystem._('$id.${spec.system}', id, spec, fields);
+  // A module that runs out of fuel traps only on a runtime that meters it,
+  // and a run a server replays is stepped on the interpreter, which does: a
+  // simulating module on any other would part from its replay at the first
+  // step it overran.
+  if (!runtime.isMetered &&
+      manifest.touches.simulates &&
+      host.profile.isBitExact) {
+    throw WasmException(
+      'plugin "$id" runs its Wasm system "${spec.system}" on the '
+      '${runtime.name} runtime, which counts no fuel, under the bit-exact '
+      'profile "${host.profile.name}": a module that runs out of fuel would '
+      'trap only on the interpreter a replay steps it on. Run it on '
+      'WasmRuntime.interpreter, or declare touches: view',
+    );
+  }
+  final system = WasmSystem._(
+    '$id.${spec.system}',
+    id,
+    spec,
+    fields,
+    runtime.name,
+  );
   system._instance = runtime.instantiate(
     WasmInstantiation(module, imports: _Imports(system), limits: spec.limits),
   );

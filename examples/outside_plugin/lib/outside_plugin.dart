@@ -174,7 +174,9 @@ final class OutsidePlugin extends Flutter3dPlugin {
   @override
   PluginManifest get manifest => const PluginManifest(
     id: pluginId,
-    apiVersion: PluginApiVersion.current,
+    // The plugin API it was written against, as a literal: `current` is
+    // whatever the engine compiling it provides, and says nothing.
+    apiVersion: PluginApiVersion(1, 0),
     description:
         'Contacts warm the air, a solver spreads the heat, and bodies '
         'take it into their material state.',

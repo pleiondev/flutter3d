@@ -63,7 +63,7 @@ base class _Server extends ToolTableServer<List<String>, Answer> {
            for (final name in own)
              OfferedTool<List<String>, Answer>(
                _tool(name),
-               (List<String> calls, Map<String, Object?> arguments) =>
+               (SessionToolCall<List<String>> call) =>
                    Answer(did: true, says: name),
              ),
          ],
@@ -102,19 +102,23 @@ void main() {
     final wind = _Scope('wind', 0);
     tools.forPlugin(heat).addTool(_tool('spread'), (_) => _says('spread'));
     tools.forPlugin(wind).addTool(_tool('gust'), (_) => _says('gust'));
-    tools.addTool(_tool('reset'), (_) => _says('reset'), namespace: 'game');
+    tools.addTool(
+      _tool('reset'),
+      (_) => _says('reset'),
+      namespace: 'acme_racer',
+    );
 
     // Mutation: publish the tool's own name. Two plugins' `reset`s would
     // collide, and nothing in the list says whose a tool is.
     // Mutation: sort by sequence alone. `heat`, added first, would come
     // before the application's and before `wind`, which installs first.
     expect(tools.tools.map((ProjectTool t) => t.name), <String>[
-      'game.reset',
+      'acme_racer.reset',
       'wind.gust',
       'heat.spread',
     ]);
     expect(tools.named('wind.gust')!.owner, 'plugin "wind"');
-    expect(tools.named('game.reset')!.owner, 'the application');
+    expect(tools.named('acme_racer.reset')!.owner, 'the application');
     // Mutation: leave the registration untracked. Switching the plugin off
     // would leave its tool offered.
     expect(heat.kept, hasLength(1));
@@ -199,6 +203,22 @@ void main() {
       () => tools.addTool(_tool('reset'), (_) => _says('')),
       throwsArgumentError,
     );
+    // Mutation: drop the reserved check from the root. The application's
+    // `game.reset` is shadowed by the editor's `game` tools, and so would
+    // `level.reset` be by a tool a minor adds to the level area.
+    for (final area in <String>['game', 'level', 'f3d']) {
+      expect(
+        () => tools.addTool(_tool('reset'), (_) => _says(''), namespace: area),
+        throwsA(
+          isA<ArgumentError>().having(
+            (ArgumentError e) => '${e.message}',
+            'message',
+            allOf(contains('engine'), isNot(contains("'game'"))),
+          ),
+        ),
+        reason: area,
+      );
+    }
     // Mutation: drop the permission check in `addTool`. A plugin that never
     // said it talks to agents would publish a tool anyway, and whoever
     // installed it would not have seen that it can.
@@ -335,10 +355,12 @@ void main() {
       'server\'s own tools pass', () async {
     final tools = McpTools();
     final ran = <String>[];
+    final calls = <ToolCall>[];
     tools.forPlugin(_Scope('wind', 0)).addTool(
       _tool('gust', properties: <String, Schema>{'strength': NumberSchema()}),
-      (Map<String, Object?> arguments) {
+      (ToolCall call) {
         ran.add('gust');
+        calls.add(call);
         return _says('blew');
       },
     );
@@ -382,6 +404,11 @@ void main() {
     );
     expect(blew.isError, isNot(true));
     expect(ran, <String>['gust']);
+    // One call object, named as published, so a minor can hand the tool
+    // more. Mutation: pass the tool's own name — two plugins' `reset`s
+    // could not tell which was called.
+    expect(calls.single.name, 'wind.gust');
+    expect(calls.single.arguments, <String, Object?>{'strength': 2});
 
     await client.shutdown();
   });

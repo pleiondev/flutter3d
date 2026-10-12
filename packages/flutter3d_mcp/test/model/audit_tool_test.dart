@@ -12,8 +12,7 @@ import 'package:flutter3d_mcp/model.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
 
-const String _broken =
-    '../flutter3d_model_core/test/fixtures/broken_asset.glb';
+const String _broken = '../flutter3d_model_core/test/fixtures/broken_asset.glb';
 
 Future<ModelSession> _imported() async {
   final session = ModelSession(ModelHistory(const ModelProject()));
@@ -25,7 +24,7 @@ Future<ModelSession> _imported() async {
 void main() {
   test('an empty project refuses rather than auditing nothing', () async {
     final session = ModelSession(ModelHistory(const ModelProject()));
-    final answer = await auditTool.run(session, const <String, Object?>{});
+    final answer = await auditTool.runOn(session, const <String, Object?>{});
     expect(answer.did, isFalse);
     expect(answer.png, isNull);
   });
@@ -35,7 +34,7 @@ void main() {
     final session = await _imported();
     final before = session.history.project;
 
-    final answer = await auditTool.run(session, const <String, Object?>{});
+    final answer = await auditTool.runOn(session, const <String, Object?>{});
     expect(answer.did, isTrue);
     for (final String check in <String>[
       'units:',
@@ -60,7 +59,7 @@ void main() {
     final before = session.history.project;
     final sizeBefore = AssetAudit.of(before).size;
 
-    final answer = await auditTool.run(session, const <String, Object?>{
+    final answer = await auditTool.runOn(session, const <String, Object?>{
       'repair': true,
     });
     expect(answer.did, isTrue, reason: answer.says);

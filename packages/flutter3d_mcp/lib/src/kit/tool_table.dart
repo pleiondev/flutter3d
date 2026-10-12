@@ -10,6 +10,7 @@ import 'package:stream_channel/stream_channel.dart';
 
 import 'argument_check.dart';
 import 'project_tools.dart';
+import 'tool_call.dart';
 import 'tool_spec.dart';
 
 /// One tool: what an agent is offered, and what calling it does to the
@@ -29,9 +30,20 @@ final class OfferedTool<S, A> {
 
   /// What calling it does to [S]. `FutureOr`, so a tool that decodes a file
   /// and one that renames an object are the same kind of value.
-  final FutureOr<A> Function(S session, Map<String, Object?> arguments) run;
+  ///
+  /// It takes one [SessionToolCall], the session and the arguments
+  /// together, so a later minor can hand a tool more without breaking one
+  /// written against 1.0.
+  final FutureOr<A> Function(SessionToolCall<S> call) run;
 
   String get name => spec.name;
+
+  /// Runs this tool on [session] with [arguments], as a server runs a call
+  /// of it by its own [name]: what a test, or a host that keeps no server,
+  /// calls it by.
+  FutureOr<A> runOn(S session, Map<String, Object?> arguments) => run(
+    SessionToolCall<S>(name: name, arguments: arguments, session: session),
+  );
 
   /// This tool offered as [spec] instead, running the same body.
   OfferedTool<S, A> withSpec(ToolSpec spec) => OfferedTool<S, A>(spec, run);
@@ -580,7 +592,9 @@ base class _Wire<S, A> extends MCPServer with ToolsSupport, PromptsSupport {
       final Stopwatch? stopwatch = _owner.onProjectCall == null
           ? null
           : (Stopwatch()..start());
-      final ToolResult result = await project.run(arguments);
+      final ToolResult result = await project.run(
+        ToolCall(name: project.name, arguments: arguments),
+      );
       stopwatch?.stop();
       try {
         _owner.onProjectCall?.call(
@@ -625,7 +639,13 @@ base class _Wire<S, A> extends MCPServer with ToolsSupport, PromptsSupport {
       final Stopwatch? stopwatch = _owner.onCall == null
           ? null
           : (Stopwatch()..start());
-      final A answer = await offered.run(_owner.session, arguments);
+      final A answer = await offered.run(
+        SessionToolCall<S>(
+          name: spec.name,
+          arguments: arguments,
+          session: _owner.session,
+        ),
+      );
       stopwatch?.stop();
       // **A watcher never fails a call.** `onCall` is somebody else's
       // screen, redrawn beside this server; whatever it does with the news

@@ -374,35 +374,59 @@ final class _Instance extends WasmInstance {
     while (last > 0 && _memory[last - 1] == 0) {
       last--;
     }
+    final exported = savedGlobalsOf(_module);
     return <String, Object?>{
       'pages': _pages,
       // Up to the last byte that is not nought: a fresh megabyte of memory
       // is a few characters, not a megabyte of text.
       'memory': base64Encode(Uint8List.sublistView(_memory, 0, last)),
-      'globals': List<int>.of(_globals),
+      'globals': <String, Object?>{
+        for (final MapEntry(key: name, value: index) in exported.entries)
+          name: _globals[index],
+      },
+      // What the browser cannot reach: the mutable globals the module keeps
+      // to itself, `__stack_pointer` among them. Out of the digest.
+      'internal': <int>[for (final index in _internalGlobals) _globals[index]],
     };
   }
 
-  /// Puts back what [save] wrote.
+  /// The mutable globals no export names, by index.
+  late final List<int> _internalGlobals = <int>[
+    for (var i = 0; i < _globals.length; i++)
+      if (_module.globals[i].mutable &&
+          !savedGlobalsOf(_module).containsValue(i))
+        i,
+  ];
+
+  /// Puts back what [save] wrote, or a browser runtime's save, which has no
+  /// `internal`: the globals the module keeps to itself are then left as
+  /// they are.
   ///
   /// **Everything is checked before anything is replaced**: a state that is
   /// not this module's — pages out of range, memory that is not base64 or
-  /// does not fit its pages, a global that is not a number — is refused
-  /// with a [WasmFormatException] and the module is left as it was, rather
-  /// than wiped and then thrown out of with somebody else's error.
+  /// does not fit its pages, a global that is not a number, globals that are
+  /// not its exported ones — is refused with a [WasmFormatException] and the
+  /// module is left as it was, rather than wiped and then thrown out of with
+  /// somebody else's error.
   @override
   void restore(Map<String, Object?> state) {
     const refused = WasmFormatException('not the state of this Wasm module');
     final pages = state['pages'];
     final memory = state['memory'];
     final globals = state['globals'];
+    final internal = state['internal'];
+    final exported = savedGlobalsOf(_module);
     if (pages is! int ||
         pages < 0 ||
         pages > _maxPages ||
         memory is! String ||
-        globals is! List<Object?> ||
-        globals.length != _globals.length ||
-        globals.any((Object? g) => g is! int)) {
+        globals is! Map<String, Object?> ||
+        globals.length != exported.length ||
+        !exported.keys.every((name) => globals[name] is int) ||
+        (internal != null &&
+            (internal is! List<Object?> ||
+                internal.length != _internalGlobals.length ||
+                internal.any((Object? g) => g is! int)))) {
       throw refused;
     }
     final Uint8List bytes;
@@ -415,6 +439,13 @@ final class _Instance extends WasmInstance {
     _memory = Uint8List(0);
     _setMemory(pages);
     _memory.setRange(0, bytes.length, bytes);
-    _globals.setAll(0, globals.cast<int>());
+    for (final MapEntry(key: name, value: index) in exported.entries) {
+      _globals[index] = globals[name]! as int;
+    }
+    if (internal is List<Object?>) {
+      for (final (i, index) in _internalGlobals.indexed) {
+        _globals[index] = internal[i]! as int;
+      }
+    }
   }
 }

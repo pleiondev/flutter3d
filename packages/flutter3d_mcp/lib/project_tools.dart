@@ -11,4 +11,5 @@
 library;
 
 export 'src/kit/project_tools.dart';
+export 'src/kit/tool_call.dart';
 export 'src/kit/tool_spec.dart';

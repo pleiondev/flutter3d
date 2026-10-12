@@ -1,5 +1,21 @@
 ## 1.0.0-rc.1
 
+- **Render nodes are a capability their export names, not an ABI number
+  set aside.** `wasmRenderAbi` is the lowest ABI they can arrive in, one
+  past `wasmPluginAbiMax`; the release that implements them names the ABI
+  they arrived in, as an import's, so a minor that only adds a simulation
+  import takes the next number without them.
+- **Breaking: a Wasm module's save has one shape, whichever runtime wrote
+  it.** `globals` holds each mutable global the module exports by its
+  export name, where the interpreter wrote every global as a list and the
+  browser its exported ones; the interpreter writes the rest as
+  `internal`, which a digest leaves out and the browser ignores, and
+  `WasmSystem.save` names the `runtime` (new: `WasmSystem.runtime`,
+  `digestible`). A run the browser recorded is replayed by the
+  interpreter to the same digests. A data plugin's snapshot part is at
+  version 2. A simulating module is refused a runtime that counts no
+  fuel under a bit-exact profile, naming both: one that runs out traps
+  only on the interpreter a replay steps it on.
 - **Breaking: a Wasm runtime and its instances take one context per
   call.** `WasmRuntime.instantiate` takes a `WasmInstantiation` (new) with
   the module, its imports and its limits, and `WasmInstance.step` a

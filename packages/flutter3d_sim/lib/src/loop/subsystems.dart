@@ -15,20 +15,26 @@ final class _LoopFields extends FieldRegistry {
     : _scope = null,
       _fields = <FieldDeclaration>[],
       _host = <String, HostField>{},
-      _published = <String, HostField>{};
+      _published = <String, HostField>{},
+      _declaredBy = <String, String>{};
 
   _LoopFields._scoped(_LoopFields of, PluginScope scope)
     : _loop = of._loop,
       _scope = scope,
       _fields = of._fields,
       _host = of._host,
-      _published = of._published;
+      _published = of._published,
+      _declaredBy = of._declaredBy;
 
   final EngineLoop _loop;
   final PluginScope? _scope;
   final List<FieldDeclaration> _fields;
   final Map<String, HostField> _host;
   final Map<String, HostField> _published;
+
+  /// The id of the plugin that declared each field, by the field's id; a
+  /// field the application declared has none.
+  final Map<String, String> _declaredBy;
 
   @override
   Registration declare(FieldDeclaration field) {
@@ -47,6 +53,7 @@ final class _LoopFields extends FieldRegistry {
       );
     }
     _fields.add(field);
+    if (_scope?.manifest.id case final owner?) _declaredBy[field.id] = owner;
     if (field.residence == FieldResidence.host) {
       final values = _host[field.id] = HostField(field);
       if (field.readers.any((r) => r.side != FieldSide.simulation)) {
@@ -57,6 +64,7 @@ final class _LoopFields extends FieldRegistry {
       _fields.remove(field);
       _host.remove(field.id);
       _published.remove(field.id);
+      _declaredBy.remove(field.id);
     });
     _scope?.track(registration);
     return registration;
@@ -66,8 +74,19 @@ final class _LoopFields extends FieldRegistry {
   List<FieldDeclaration> get declared =>
       List<FieldDeclaration>.unmodifiable(_fields);
 
+  /// Through a plugin's view, writable only for a field that plugin
+  /// declared, and only while it simulates: anything else would write the
+  /// simulation past the declared writer and past a view plugin's word that
+  /// it changes nothing a replay checks. The application's own view, and a
+  /// subsystem's context, hand out the values themselves.
   @override
-  HostField? hostField(String id) => _host[id];
+  HostField? hostField(String id) {
+    final values = _host[id];
+    final manifest = _scope?.manifest;
+    if (values == null || manifest == null) return values;
+    final own = _declaredBy[id] == manifest.id;
+    return own && manifest.touches.simulates ? values : values.readOnly;
+  }
 
   @override
   HostField? published(String id) => _published[id]?.readOnly;
@@ -114,6 +133,22 @@ final class _LoopSubsystems extends SubsystemRegistry {
     if (_scope?.manifest.nameProblem(id, what: 'the subsystem')
         case final problem?) {
       throw PluginException(problem);
+    }
+    // A profile is one simulation to every tape and hello by its name, so a
+    // plugin's is named in its namespace, and a bare name is the engine's.
+    if (_scope?.manifest case final manifest? when !manifest.isEngine) {
+      for (final profile
+          in declaration.switchedOnBy ?? const <SimulationProfile>[]) {
+        final problem = profile.name.contains('.')
+            ? manifest.nameProblem(profile.name, what: 'the profile')
+            : SimulationProfile.values.contains(profile)
+            ? null
+            : 'plugin "${manifest.id}" switches the subsystem "$id" on by '
+                  'the profile "${profile.name}", a bare name, which is the '
+                  'engine\'s to give: a profile of the plugin\'s own is '
+                  '"${manifest.namespace}.<name>"';
+        if (problem != null) throw PluginException(problem);
+      }
     }
     // A solver is the simulation's whether or not this profile runs it: a
     // plugin a game ships without may not bring one.

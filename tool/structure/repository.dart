@@ -2081,6 +2081,39 @@ const Map<String, String> hookParametersAllowed = <String, String>{
       'flutter3d_plugin_runtime: the module\'s imports as the ABI declares them (`field_get(field, index)`), mirrored one to one; an import arrives with an ABI version as a member with a default body, never as a parameter',
   'WgslStageCompiler':
       'flutter3d_build_hooks: a test seam with the shape of `compileStage` it stands in for',
+  // Callbacks a `final class` holds, read since the rule reads them: each a
+  // function of its inputs, Flutter's builder shape, or a test seam.
+  'AudioScene.occlusion':
+      'flutter3d_audio_core: how much of a sound is blocked between two points, a function of the points',
+  'ElementHeightfield.heightAt':
+      'flutter3d_elements: the ground\'s height at x and z, a function of them, as GroundHeight',
+  'FakeBackend.answerReadback':
+      'flutter3d_hardware: a test seam with the shape of the readback it answers (texture, region)',
+  'FakeXrSession.frameAt':
+      'flutter3d_app: a test seam, the frame a fake session answers at an index',
+  'GridMover.passable':
+      'flame_flutter3d: whether a cell can be entered, a function of its column and row',
+  'MaterialSurfaceValues.sample':
+      'flutter3d_core: a texture slot sampled at u and v, the shape of the shader builtin it runs in place of, as KernelTexture',
+  'Model3dComponent.openSharedDevice':
+      'flame_flutter3d: a test seam with BackendOpener\'s shape (width, height)',
+  'OverheadFraming.groundHeight':
+      'flutter3d_camera: the ground\'s height at x and z, as GroundHeight',
+  'PendulumLabRun.lengthAt':
+      'flutter3d_education: the pendulum\'s length at a step from the length before, a function of the two',
+  'PlaySession.push':
+      'flutter3d_mcp: a test seam with the shape of the VM service call it stands in for (service, level)',
+  'ProbeBuilder.builder':
+      'flutter3d_app: Flutter\'s builder shape, `(BuildContext, T)`, which every Flutter developer writes',
+  'SpatialQuery.occlusion':
+      'flutter3d_audio_core: as AudioScene.occlusion, read per voice per frame',
+  'StereoHudPanel.builder':
+      'flutter3d_game_ui: Flutter\'s builder shape, as ProbeBuilder.builder',
+  'UniversalTarget.encodeBlock':
+      'flutter3d_core: a test seam with the shape of the block encoder it stands in for (blocks, index)',
+  'ViewCamera.view':
+      'flame_flutter3d: whether an eye sees a target, a line-of-sight test of the two points',
+  'ViewFraming.view': 'flame_flutter3d: as ViewCamera.view',
 };
 
 /// Hooks whose methods still take a list of parameters, by class, with the
@@ -2089,9 +2122,281 @@ const Map<String, String> hookParametersAllowed = <String, String>{
 /// **A to-do list, not an exemption**, like [closedSetPending]: the rule
 /// passes these while they take more than one parameter and fails on an
 /// entry once no method of its class does, so the list only shrinks. A new
-/// hook is not added here; it takes one context from the start. Empty since
-/// 1.0.0-rc.1: every hook takes one context or has its reason above.
-const Map<String, String> hookParametersPending = <String, String>{};
+/// hook is not added here; it takes one context from the start.
+///
+/// **The callbacks a `final class` holds** joined the rule late: its first
+/// version read only types an outside author extends, so a field or a
+/// constructor parameter of a function type of two values (`Model3D.onTap`,
+/// `Flutter3dView.onFrame`) passed unread. Those that are events an outside
+/// author hears, and so grow, are listed here with the package whose owner
+/// gives each one event object; the ones that are a function of their
+/// inputs have their reason in [hookParametersAllowed].
+const Map<String, String> hookParametersPending = <String, String>{
+  'Actor': 'flutter3d_sim: `onDamage(amount, from)`, one damage event',
+  'ActorAnimations':
+      'flutter3d_game: `write(actor, graph, wish)`, one animation-write context',
+  'ChunkStreamer': 'flame_flutter3d: `drop(index, chunk)`, one chunk event',
+  'DeviceSettings':
+      'flutter3d_app: `onDeviceLost(engine, loss)`, one device-loss event',
+  'EngineRollback':
+      'flutter3d_net: `onSettled` and `onMessage`, as RollbackSession\'s',
+  'Flutter3dView':
+      'flutter3d_app: `onBeforeFrame` and `onFrame(engine, frame)`, one frame event',
+  'GridMover': 'flame_flutter3d: `onArrive(column, row)`, one arrival event',
+  'LiveLevel':
+      'flutter3d_game: `present(next, diff)` and `swapped(next, step)`, one swap event each',
+  'LocalSimulation':
+      'flutter3d_sim: `applyInput(seat, input)`, one seat-input context, with SimulationSetup',
+  'Model3D': 'flutter3d_app: `onTap(part, hit)`, one tap event',
+  'ModelWardrobe': 'flutter3d: `onDressed(instance, key)`, one dressing event',
+  'PlatformerHeadlessGame':
+      'flutter3d_game_platformer: `dress(level, staged)`, one staging context',
+  'RollbackSession':
+      'flutter3d_net: `onSettled(step, after, frames)` and `onMessage(from, message)`, one event each',
+  'SimulationObserver':
+      'flutter3d_net: `restore(start, step)`, one restore context',
+  'SimulationPlacement':
+      'flutter3d_app: `applyInput(seat, input)`, as LocalSimulation\'s',
+  'SimulationSetup':
+      'flutter3d_sim: `applyInput(seat, input)`, as LocalSimulation\'s',
+  'TiledWorld3d': 'flame_flutter3d: `spawn(object, at)`, one spawn context',
+  'XrDriver':
+      'flutter3d_app: `drawPanel(widget, width, height)`, one panel request',
+};
+
+/// The packages whose whole public API a plugin is written against, and so
+/// what `PluginApiVersion.current` versions with every registry elsewhere
+/// (`docs/CONTRACTS.md`, "The plugin API's number").
+const Set<String> pluginApiPackages = <String>{
+  'flutter3d_fields',
+  'flutter3d_plugin_api',
+  'flutter3d_plugin_runtime',
+};
+
+// The reasons a hook may be handed one value, shared by the entries below.
+const String _stepLength =
+    'the step\'s or the frame\'s length in seconds, the one input of an '
+    'integrator or a clock; what else a step knows arrives as a member of '
+    'the type that is handed it';
+const String _ownState =
+    'its own saved state handed back, what its own capture wrote; a later '
+    'shape is told apart by the version saved beside it, never by a second '
+    'parameter';
+const String _codec =
+    'the value a codec writes or the document it reads, the one input of a '
+    'conversion; what a later minor hands it (a target version, an entity '
+    'remap) arrives as a member with a default body that calls this one, '
+    'or as a named parameter of the factory';
+const String _ofItsInput =
+    'a function of one number, vector or name with nothing else to be '
+    'handed: a curve, a test, a lookup';
+const String _engineImplements =
+    'a registry, a context or a sink the engine implements and a plugin '
+    'calls by a name or a value; nobody outside implements it';
+const String _valueChanged =
+    'Flutter\'s `ValueChanged` shape: the new value of a control, a progress '
+    'or a flag, heard by the widget that owns it';
+const String _ioSeam =
+    'a file, a URL or a process stood in for by a test, in the shape of the '
+    'call it wraps';
+const String _serverEmbedding =
+    'how a host embeds the server: what the server calls back with its own '
+    'answer, refusal or client name, not a hook a tool implements';
+
+/// Hooks, callbacks and typedefs handed one value that cannot gain members
+/// — a number, a string, a `Map`, a list, bytes, a vector, a type
+/// parameter — each with why it needs no context. Keyed as
+/// [hookParametersAllowed] is.
+///
+/// **Reviewed one by one, not a default.** A hook handed one value grows
+/// only by a second parameter, which breaks it; so the shape that cannot
+/// grow is the exception, and each entry says why that is right here. The
+/// one-parameter hooks that take a type of the engine's own (`LoopContext`,
+/// `Activation`, `Mind`) are not listed: those types grow.
+///
+/// **Decided at rc.1, by the second plugin audit:** `ComponentCodec.encode`
+/// and `EventCodec.encode` stay handed the value, and `SnapshotPart.capture`
+/// and `digest` (handed nothing, which the rule does not read) stay as they
+/// are: a minor that needs to say what a capture is for adds a member with a
+/// default body that calls the old one, which breaks nobody. `PluginSource.read`
+/// stays the path it reads. `ProjectToolRun` and `OfferedTool.run` were
+/// given a `ToolCall`.
+const Map<String, String> hookValueParameters = <String, String>{
+  'Announce': 'flutter3d_game_ui: a sentence to say aloud, $_valueChanged',
+  'AssetSourceFactory':
+      'flutter3d_core: a source made from the rest of a URI after its scheme, $_ioSeam',
+  'AssimilationContext': 'flutter3d_plugin_api: $_engineImplements',
+  'Attenuation':
+      'flutter3d_audio_core: gain as a function of distance, $_ofItsInput',
+  'AudioBackend.preload':
+      'flutter3d_audio_core: a sound loaded by its path, $_ioSeam',
+  'AuthorityServer': 'flame_multiplayer: $_codec',
+  'BakeParticleSystemJobRequest.advancePerFrame':
+      'flutter3d_model_core: $_stepLength',
+  'BatonStream':
+      'flame_multiplayer: one decoded wire message, whose shape is the wire\'s, versioned by the protocol',
+  'BestRun': 'flutter3d_game_kit: $_codec',
+  'Binding3D.materials':
+      'flutter3d_app: a material looked up by its id, $_ofItsInput',
+  'BlendCurve': 'flutter3d_camera: a blend\'s weight at a time, $_ofItsInput',
+  'Breaches.onHole':
+      'flutter3d_sim: the box of the hole a breach opened, a test of its geometry, $_ofItsInput',
+  'BridgeClock.onTick': 'flame_flutter3d: $_stepLength',
+  'BusEffect': 'flutter3d_audio_core: an effect at a mix weight, $_ofItsInput',
+  'CharacterBodyComponent.drive': 'flame_flutter3d: $_stepLength',
+  'ChunkStreamer.build':
+      'flame_flutter3d: a chunk made for its index, $_ofItsInput',
+  'ClothSystem': 'flutter3d_physics_native: $_engineImplements',
+  'CloudSaveStore.fetch': 'flutter3d_game: a save fetched by its key, $_ioSeam',
+  'ColorSwatchField.onWrite': 'flutter3d_editor_widgets: $_valueChanged',
+  'CommandReader': 'flutter3d_editor_core: $_codec',
+  'ComponentCodec': 'flutter3d_plugin_api: $_codec',
+  'ConnectVmService':
+      'flutter3d_editor_play: a VM service at its URI, $_ioSeam',
+  'DataPluginLoader': 'flutter3d_plugin_runtime: $_ioSeam',
+  'DataSection':
+      'flutter3d_plugin_api: a section\'s own body, written back or asked for its resources; $_codec',
+  'DebrisSystem': 'flutter3d_physics_native: $_engineImplements',
+  'DepthRules':
+      'flutter3d_game_kit: a rule for a depth of the dungeon, $_ofItsInput',
+  'DeterminismCheck.restore': 'flutter3d_sim: $_ownState',
+  'DeviceClassMemory.write':
+      'flutter3d_core: a device class remembered by its name, $_ioSeam',
+  'EduDataSource.sample': 'flutter3d_sim: a sample by its index, $_ofItsInput',
+  'EffectAffectorReader': 'flutter3d_particles: $_codec',
+  'EffectEmitterReader': 'flutter3d_particles: $_codec',
+  'ElementHook.restore': 'flutter3d_elements: $_ownState',
+  'EngineLoop.drainLook':
+      'flutter3d_sim: the look delta a frame gathered, written into the caller\'s vector, $_ofItsInput',
+  'EngineRollback.applyFrames':
+      'flutter3d_net: one step\'s inputs by seat, the shape the wire carries, versioned by the protocol',
+  'EnumField.unknownLabel':
+      'flutter3d_editor_widgets: a label for a name, $_ofItsInput',
+  'EnvironmentBuild': 'flutter3d_app: an asset built from its bytes, $_codec',
+  'EventCodec': 'flutter3d_plugin_api: $_codec',
+  'EventDigestSink': 'flutter3d_plugin_api: $_engineImplements',
+  'ExpressionBuiltin':
+      'flutter3d_foundation: a builtin\'s value of its arguments, $_ofItsInput',
+  'FieldRegistry': 'flutter3d_fields: $_engineImplements',
+  'FieldRow': 'flutter3d_editor_widgets: $_valueChanged',
+  'FixedStepUpdate': 'flame_flutter3d: $_stepLength',
+  'Flutter3dFlameWidget.onTick': 'flame_flutter3d: $_stepLength',
+  'Flutter3dView.onPausedChanged': 'flutter3d_app: $_valueChanged',
+  'Flutter3dView.restoreState': 'flutter3d_app: $_ownState',
+  'FluidSystem': 'flutter3d_physics_native: $_engineImplements',
+  'FormatMigration': 'flutter3d_foundation: $_codec',
+  'FormatRefusal':
+      'flutter3d_foundation: a format\'s own exception made from its sentence, $_codec',
+  'GeneratorSource': 'flutter3d_editor_core: $_ioSeam',
+  'GenrePlugin':
+      'flutter3d_sim: the genre\'s own simulation captured, digested or published, $_ownState',
+  'HasFixedStep': 'flame_flutter3d: $_stepLength',
+  'HeadlessRun':
+      'flutter3d_sim: a run stepped by a length or aimed at a point, the driver a test calls; $_stepLength',
+  'HintTextBox.onWrite': 'flutter3d_editor_widgets: $_valueChanged',
+  'ImageDecoder': 'flutter3d_core: $_codec',
+  'ImpulseRule': 'flutter3d_camera: a shake for an event, $_ofItsInput',
+  'InPlaceCodec': 'flutter3d_plugin_api: $_codec',
+  'InstancedPoseComponent.place':
+      'flame_flutter3d: a pose at a point, $_ofItsInput',
+  'KeyEase': 'flutter3d_particles: an easing curve, $_ofItsInput',
+  'Launchable.launch':
+      'flutter3d_game_platformer: a launch at a speed, $_ofItsInput',
+  'LoadedShaderLibrary.refresh':
+      'flutter3d_hardware: a shader bundle reloaded from its bytes, the hardware interface; $_codec',
+  'LoopChange.at':
+      'flutter3d_sim: the same change at another step, a value\'s own copy',
+  'LoopSettings.drainLook':
+      'flutter3d_app: the look delta a frame gathered, as EngineLoop.drainLook',
+  'MaterialUpdate.apply':
+      'flutter3d_core: a material\'s parameters by name, the shape its document writes; $_codec',
+  'Mechanism':
+      'flutter3d_sim: stepped by a length and restored from its own state; $_stepLength',
+  'ModelBuild': 'flutter3d_app: an asset built from its bytes, $_codec',
+  'ModelDocument':
+      'flutter3d_core: a mask looked up by name or index, $_ofItsInput',
+  'ModelMcpServer.onInitialize': 'flutter3d_mcp: $_serverEmbedding',
+  'ModelProjectView.holds':
+      'flutter3d_model_core: a test of an object id, $_ofItsInput',
+  'ModelVisuals.source': 'flutter3d_app: a source for a path, $_ioSeam',
+  'MomentHint.when': 'flutter3d_game_ui: a test of an event, $_ofItsInput',
+  'MorphSink':
+      'flutter3d_core: a frame\'s morph weights, set per frame, for AnimationTarget\'s reason',
+  'Mover': 'flutter3d_sim: for Mechanism\'s reason',
+  'NativeForceField.restoreState': 'flutter3d_physics_native: $_ownState',
+  'NativeParticleCloud.emit': 'flutter3d_physics_native: $_engineImplements',
+  'NumbersRow.onWrite': 'flutter3d_editor_widgets: $_valueChanged',
+  'OcclusionTest':
+      'flutter3d_core: whether a box may be seen, per box per frame, $_ofItsInput',
+  'PagedSplatOctree.onPage':
+      'flutter3d_core: a page index loaded, $_valueChanged',
+  'PartyTape': 'flame_multiplayer: $_codec',
+  'PartyTapeWatcher': 'flame_multiplayer: $_codec',
+  'PathOffers':
+      'flutter3d_editor_widgets: the paths a field offers, $_ofItsInput',
+  'PeerWire.listen':
+      'flutter3d_net: one decoded wire message, as BatonStream\'s; `listenFrom` hands a PeerMessage that grows',
+  'PhotoSaving.add': 'flutter3d_app: a photo\'s bytes, $_ioSeam',
+  'PhotoShelf.open': 'flutter3d_app: a shelf at a path, $_ioSeam',
+  'PlatformerHeadlessGame.dress': 'flutter3d_game_platformer: $_stepLength',
+  'PlatformerSnapshotPart': 'flutter3d_game_platformer: $_ownState',
+  'PlaySession.projectRootOf': 'flutter3d_mcp: a test seam, $_ioSeam',
+  'PluginChange.at': 'flutter3d_plugin_api: for LoopChange.at\'s reason',
+  'PluginHarness.registries':
+      'flutter3d_conformance: the registries for a backend by its name, $_ofItsInput',
+  'PluginSource.read':
+      'flutter3d_plugin_runtime: a plugin\'s file by its path, $_ioSeam',
+  'PngStripWriter.sink': 'flutter3d_cpu: the bytes of a strip, $_ioSeam',
+  'PredictingClient': 'flame_multiplayer: $_codec',
+  'PropertyGroup.writeGroup': 'flutter3d_matter: $_codec',
+  'ResourceCache':
+      'flutter3d_core: a cache\'s key and value types, its load, size and dispose a function of one; $_ofItsInput',
+  'RigidDynamics':
+      'flutter3d_physics: stepped by a length and restored from its own state; $_stepLength',
+  'RollbackSession':
+      'flutter3d_net: a step\'s inputs by seat and its own state handed back; $_ownState',
+  'RunFlutter': 'flutter3d_editor_play: `flutter run`\'s arguments, $_ioSeam',
+  'RunSession':
+      'flutter3d_game: a session over a level type it is generic in, each member a function of the level or its name; $_ofItsInput',
+  'RuntimeShaders': 'flutter3d_core: shaders from bytes or by name, $_codec',
+  'SaveMigration': 'flutter3d_sim: $_codec',
+  'SceneBindingRegistry': 'flutter3d_plugin_api: $_engineImplements',
+  'SettingsSlot': 'flutter3d_core: $_codec',
+  'ShareStrip.onOpen': 'flutter3d_game_ui: a link opened, $_valueChanged',
+  'Signal': 'flutter3d_sim: $_ownState',
+  'SimQuery': 'flutter3d_plugin_api: $_engineImplements',
+  'SimulationFactory':
+      'flutter3d_sim: a simulation made from its configuration document, $_codec',
+  'SimulationObserver.readings':
+      'flutter3d_net: one step\'s readings, $_valueChanged',
+  'SnapshotRegistry': 'flutter3d_plugin_api: $_engineImplements',
+  'Spoken': 'flutter3d_game_ui: a sentence for an event, $_ofItsInput',
+  'StrategySimulation': 'flutter3d_game_strategy: $_stepLength',
+  'SubsystemContext': 'flutter3d_fields: $_engineImplements',
+  'Takeable':
+      'flutter3d_sim: stepped by a length, offered to a taker and restored from its own state; for Mechanism\'s reason',
+  'Tap3dCallbacks':
+      'flame_flutter3d: Flame\'s tap callbacks hand the point in the canvas; `hitAt3d` takes the Tap3dProbe that grows',
+  'TextureBuild': 'flutter3d_app: an asset built from its bytes, $_codec',
+  'TextureCodec.sniff':
+      'flutter3d_core: whether bytes are this codec\'s, $_codec',
+  'TextureDecodeContext': 'flutter3d_core: $_engineImplements',
+  'TexturePathField.onWrite': 'flutter3d_editor_widgets: $_valueChanged',
+  'ToolTableServer': 'flutter3d_mcp: $_serverEmbedding',
+  'UpdatesAtRoot': 'flame_flutter3d: $_stepLength',
+  'VehicleController.restore': 'flutter3d_game_racing: $_ownState',
+  'ViewSettings':
+      'flutter3d_app: a warm-up\'s progress and a failure heard by the view, $_valueChanged',
+  'WasmInstance.restore':
+      'flutter3d_plugin_runtime: a module\'s memory and globals as its own capture wrote them; $_ownState',
+  'XrSession.restoreAnchor':
+      'flutter3d_app: an anchor restored by its id, $_ofItsInput',
+  'RenderBundleEncoder.finish':
+      'flutter3d_hardware: a bundle finished under a label, the hardware interface, for GraphicsDevice\'s reason',
+  'Brain.restore': 'flutter3d_sim: $_ownState',
+  'ActorCorpses.step': 'flutter3d_game: $_stepLength',
+  'ReplaySubject.frame': 'flutter3d_testing: the frame at a step, $_ofItsInput',
+};
 
 // ------------------------------------------------------------ 1.0: naming
 

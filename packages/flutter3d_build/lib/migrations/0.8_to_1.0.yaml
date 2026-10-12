@@ -24410,3 +24410,36 @@ entries:
       What was under `pointer_lock`'s `lib/src/` is under
       `flutter3d_pointer_lock`'s, file for file. Importing it was never the
       public API; the main library above is.
+
+  - id: rc1fix-mcpkit-OfferedTool-run-call
+    package: flutter3d_mcp_kit
+    symbol: OfferedTool
+    kind: argument
+    arguments: [run]
+    template: '(call) => ({value})(call.session, call.arguments)'
+    guidance: >-
+      A tool's body takes one `SessionToolCall`, the session and the
+      arguments together with the name it was called by, where it took the
+      two as parameters: `(session, arguments) => ...` is
+      `(call) => ...` reading `call.session` and `call.arguments`. One call
+      object can be handed more in a minor (progress, cancellation), where a
+      third parameter would break every tool. `migrate` wraps the old body,
+      `(call) => (old)(call.session, call.arguments)`, which runs as it did;
+      a call of `tool.run(session, arguments)` is
+      `tool.runOn(session, arguments)`.
+
+  - id: rc1fix-mcpkit-McpTools-addTool-run
+    package: flutter3d_mcp_kit
+    symbol: McpTools.addTool
+    kind: argument
+    arguments: [run]
+    template: '(call) => ({value})(call.arguments)'
+    guidance: >-
+      A project tool's body, `ProjectToolRun`, takes one `ToolCall` with
+      the `arguments` and the published `name`, where it took the arguments'
+      map: `(arguments) => ...` is `(ToolCall call) => ...` reading
+      `call.arguments`. `migrate` wraps the old body,
+      `(call) => (old)(call.arguments)`, which runs as it did. The
+      application's own tools are refused a namespace that is one of the
+      engine's areas (`game`, `level`, `PluginManifest.reservedAreas`):
+      name them after the application.

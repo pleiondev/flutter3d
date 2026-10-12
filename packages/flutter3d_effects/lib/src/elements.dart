@@ -358,11 +358,11 @@ final class Elements {
       final w = c.w;
       if (w > 0.0 && c.x.abs() <= w && c.y.abs() <= w) {
         now.add(f.body);
-        if (!_inSight.contains(f.body)) l?.seen?.call(f);
+        if (!_inSight.contains(f.body)) l?.seen?.call(ElementFireSeen(f));
       }
     }
     for (final gone in _inSight.difference(now)) {
-      l?.lost?.call(gone);
+      l?.lost?.call(ElementFireLost(gone));
     }
     _inSight
       ..clear()
@@ -645,11 +645,13 @@ final class Elements {
     final l = listener;
     if (l?.budget != null) {
       for (final (step, wanted, holds) in fireView.wanted) {
-        if (wanted > holds) l!.budget!(step, wanted, holds);
+        if (wanted > holds) l!.budget!(ElementsOverBudget(step, wanted, holds));
       }
       for (final w in _waters) {
         for (final (step, wanted, holds) in w.view.wanted) {
-          if (wanted > holds) l!.budget!(step, wanted, holds);
+          if (wanted > holds) {
+            l!.budget!(ElementsOverBudget(step, wanted, holds));
+          }
         }
       }
     }

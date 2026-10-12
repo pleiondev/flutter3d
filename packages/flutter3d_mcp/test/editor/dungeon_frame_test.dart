@@ -21,7 +21,7 @@ Future<({bool did, String says})> _call(
 ]) async {
   final answer = await editorTools
       .firstWhere((EditorTool it) => it.name == name)
-      .run(session, arguments);
+      .runOn(session, arguments);
   return (did: answer.did, says: answer.says);
 }
 

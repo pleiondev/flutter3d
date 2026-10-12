@@ -161,6 +161,61 @@ void main() {
     expect(sky.nameProblem('sky', what: 'a render step'), isNull);
   });
 
+  test('a 0.8 add-on name is the engine\'s only as an exact plugin id', () {
+    // None of the `flutter3d_addon_*` packages was ever published, so
+    // anybody may publish one. Mutation: decide by the namespace again —
+    // a package published as `flutter3d_addon_light` registers bare names
+    // and `f3d.` names with the engine's rights.
+    for (final id in <String>[
+      'flutter3d_addon_light',
+      'flutter3d_addon_light.glare',
+      'flutter3d_addons_standard',
+    ]) {
+      final squatter = _manifest(id);
+      expect(squatter.isEngine, isFalse, reason: id);
+      expect(squatter.nameProblem('glare', what: 'a render step'), isNotNull);
+    }
+    // Held to its namespace, it would sit beside the engine's own plugins
+    // of that name; mutation: drop the check from `idProblem`.
+    expect(
+      _manifest('flutter3d_addon_light.glare').idProblem,
+      contains('"flutter3d_addon_light"'),
+    );
+    expect(_manifest('flutter3d_addons_standard').idProblem, isNull);
+    final bloom = _manifest('flutter3d_addon_light.bloom');
+    expect(bloom.isEngine, isTrue);
+    expect(bloom.idProblem, isNull);
+  });
+
+  test('the engine\'s exact plugin ids are the ones its plugins declare', () {
+    // Mutation: add an id no engine plugin carries — somebody else's is
+    // let through; leave one out — the engine's plugin is refused its own
+    // bare names.
+    // Every 0.8 add-on id an engine package's source names; this package's
+    // own lists are left out, or the test would read its answer.
+    final declared = <String>{
+      for (final package in Directory('../../packages').listSync())
+        if (!package.path.endsWith('/flutter3d_plugin_api'))
+          if (Directory('${package.path}/lib') case final lib
+              when lib.existsSync())
+            for (final file in lib.listSync(recursive: true))
+              if (file is File && file.path.endsWith('.dart'))
+                for (final match in RegExp(
+                  r"'(flutter3d_addons?_[a-z_]+(?:\.[a-z_]+)?)'",
+                ).allMatches(file.readAsStringSync()))
+                  match[1]!,
+    };
+    expect(declared, contains('flutter3d_addon_light.bloom'));
+    expect(PluginManifest.enginePluginIds, unorderedEquals(declared));
+    for (final id in PluginManifest.enginePluginIds) {
+      expect(
+        PluginManifest.engineNamespaces,
+        isNot(contains(_manifest(id).namespace)),
+        reason: '$id is the engine\'s by its namespace already',
+      );
+    }
+  });
+
   test('a package named like the engine\'s is a plugin from outside', () {
     // Mutation: decide engine-ness by the `flutter3d_` prefix again. pub.dev
     // reserves no prefix, so `flutter3d_fake` registers bare names that a
@@ -188,22 +243,25 @@ void main() {
                 if (snapshot.path.endsWith('.api'))
                   snapshot.uri.pathSegments.last.replaceAll('.api', ''),
     };
-    final table = File(
-      '../../packages/flutter3d_build/lib/migrations/0.8_to_1.0.yaml',
-    ).readAsLinesSync();
-    final renamed = <String>{
-      for (final line
-          in table
-              .skipWhile((l) => l != '  renamed:')
-              .skip(1)
-              .takeWhile((l) => l.startsWith('    ')))
-        line.trim().split(':').first,
+    // What 0.8.5 published, renamed since or not. Mutation: take the
+    // migration table's renamed packages again — the `flutter3d_addon_*`
+    // names, never published, come back.
+    final released = <String>{
+      for (final snapshot in Directory(
+        '../../tool/api/baseline/v0.8.5',
+      ).listSync())
+        if (snapshot.path.endsWith('.api'))
+          snapshot.uri.pathSegments.last.replaceAll('.api', ''),
     };
     expect(published, isNotEmpty);
-    expect(renamed, contains('flutter3d_addon_camera'));
+    expect(released, contains('pointer_lock'));
     expect(
       PluginManifest.engineNamespaces,
-      unorderedEquals(<String>{...published, ...renamed}),
+      unorderedEquals(<String>{...published, ...released}),
+    );
+    expect(
+      PluginManifest.engineNamespaces.where((n) => n.contains('_addon')),
+      isEmpty,
     );
   });
 
@@ -260,9 +318,34 @@ void main() {
     // The engine's own servers answer `flutter3d.schema`, under a package's
     // namespace, which no plugin from outside has.
     areas.remove('flutter3d');
+    // A 1.x area is under `f3d.`, which no plugin may take either.
+    areas.remove(PluginManifest.reservedNamespace);
     expect(areas, contains('light'));
     expect(areas, contains('physics'));
     expect(areas.difference(PluginManifest.reservedAreas), isEmpty);
+  });
+
+  test('the reserved areas are the ones 1.0.0 shipped, and only grow under '
+      'f3d', () {
+    // An area added to the set refuses a plugin already installed under
+    // that name: a break in a minor. The engine's next area goes under
+    // `f3d.` instead. Mutation: add `weather` to `reservedAreas` — a plugin
+    // called `weather` that installed yesterday is refused today.
+    const shipped = <String>{
+      'animationGraph', 'asset', 'behavior', 'brush', 'capture', 'clip',
+      'command', 'cutscene', 'experiment', 'game', 'history', 'image', 'joint',
+      'key', 'kit', 'level', 'light', 'lod', 'material', 'mesh', 'modifier',
+      'object', 'paint', 'play', 'plugin', 'prefab', 'project', 'render',
+      'retopology', 'rig', 'run', 'scene', 'sculpt', 'selection', 'shapeDriver',
+      'shapeKey', 'simulation', 'skeleton', 'skin', 'state', 'texture',
+      'textureGraph', 'track', 'type', 'uv', 'view', //
+      'assets', 'cvar', 'timeline', 'version', //
+      'actor', 'animation', 'elements', 'origin', 'physics', 'platformer',
+      'racing', 'sequence', 'shooter', 'strategy', 'wasm', //
+      'audio', 'camera', 'editor', 'effects', 'fields', 'hub', 'input',
+      'matter', 'net', 'particles', 'post', 'sim', 'voxel', 'xr',
+    };
+    expect(PluginManifest.reservedAreas, unorderedEquals(shipped));
   });
 
   test('no plugin from outside takes the engine\'s namespace', () {

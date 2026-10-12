@@ -37,7 +37,7 @@ void main() {
   ) async {
     final answer = await modelTools
         .firstWhere((ModelTool it) => it.name == name)
-        .run(session, arguments);
+        .runOn(session, arguments);
     return (did: answer.did, says: answer.says);
   }
 

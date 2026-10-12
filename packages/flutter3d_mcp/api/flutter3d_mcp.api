@@ -279,10 +279,11 @@ final class OfferedPrompt
   final String text
 
 final class OfferedTool<S, A>
+  FutureOr<A> runOn(S session, Map<String, Object?> arguments)
   OfferedTool<S, A> withSpec(ToolSpec spec)
   String get name
   const OfferedTool(this.spec, this.run)
-  final FutureOr<A> Function(S session, Map<String, Object?> arguments) run
+  final FutureOr<A> Function(SessionToolCall<S> call) run
   final ToolSpec spec
 
 final class PathOutsideRootException extends ResourceException
@@ -344,15 +345,24 @@ final class ProjectTool
   final String owner
   final ToolSpec spec
 
-typedef ProjectToolRun = FutureOr<ToolResult> Function(Map<String, Object?> arguments);
+typedef ProjectToolRun = FutureOr<ToolResult> Function(ToolCall call);
 
 typedef RunFlutterIn = Future<ProcessResult> Function(List<String> arguments, String workingDirectory);
+
+final class SessionToolCall<S> extends ToolCall
+  const SessionToolCall({required super.name, required super.arguments, required this.session})
+  final S session
 
 final class ToolAudio extends ToolContent
   Map<String, Object?> toJson()
   const ToolAudio(this.bytes, {required this.mimeType})
   final String mimeType
   final Uint8List bytes
+
+final class ToolCall
+  const ToolCall({required this.name, required this.arguments})
+  final Map<String, Object?> arguments
+  final String name
 
 abstract base class ToolContent
   abstract Map<String, Object?> toJson()
@@ -575,10 +585,11 @@ final class OfferedPrompt
   final String text
 
 final class OfferedTool<S, A>
+  FutureOr<A> runOn(S session, Map<String, Object?> arguments)
   OfferedTool<S, A> withSpec(ToolSpec spec)
   String get name
   const OfferedTool(this.spec, this.run)
-  final FutureOr<A> Function(S session, Map<String, Object?> arguments) run
+  final FutureOr<A> Function(SessionToolCall<S> call) run
   final ToolSpec spec
 
 final class PathOutsideRootException extends ResourceException
@@ -607,13 +618,22 @@ final class ProjectTool
   final String owner
   final ToolSpec spec
 
-typedef ProjectToolRun = FutureOr<ToolResult> Function(Map<String, Object?> arguments);
+typedef ProjectToolRun = FutureOr<ToolResult> Function(ToolCall call);
+
+final class SessionToolCall<S> extends ToolCall
+  const SessionToolCall({required super.name, required super.arguments, required this.session})
+  final S session
 
 final class ToolAudio extends ToolContent
   Map<String, Object?> toJson()
   const ToolAudio(this.bytes, {required this.mimeType})
   final String mimeType
   final Uint8List bytes
+
+final class ToolCall
+  const ToolCall({required this.name, required this.arguments})
+  final Map<String, Object?> arguments
+  final String name
 
 abstract base class ToolContent
   abstract Map<String, Object?> toJson()
@@ -817,11 +837,20 @@ final class ModelSession
 
 typedef ModelTool = OfferedTool<ModelSession, Answer>;
 
+final class SessionToolCall<S> extends ToolCall
+  const SessionToolCall({required super.name, required super.arguments, required this.session})
+  final S session
+
 final class ToolAudio extends ToolContent
   Map<String, Object?> toJson()
   const ToolAudio(this.bytes, {required this.mimeType})
   final String mimeType
   final Uint8List bytes
+
+final class ToolCall
+  const ToolCall({required this.name, required this.arguments})
+  final Map<String, Object?> arguments
+  final String name
 
 abstract base class ToolContent
   abstract Map<String, Object?> toJson()
@@ -959,13 +988,22 @@ final class ProjectTool
   final String owner
   final ToolSpec spec
 
-typedef ProjectToolRun = FutureOr<ToolResult> Function(Map<String, Object?> arguments);
+typedef ProjectToolRun = FutureOr<ToolResult> Function(ToolCall call);
+
+final class SessionToolCall<S> extends ToolCall
+  const SessionToolCall({required super.name, required super.arguments, required this.session})
+  final S session
 
 final class ToolAudio extends ToolContent
   Map<String, Object?> toJson()
   const ToolAudio(this.bytes, {required this.mimeType})
   final String mimeType
   final Uint8List bytes
+
+final class ToolCall
+  const ToolCall({required this.name, required this.arguments})
+  final Map<String, Object?> arguments
+  final String name
 
 abstract base class ToolContent
   abstract Map<String, Object?> toJson()

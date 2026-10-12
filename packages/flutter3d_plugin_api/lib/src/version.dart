@@ -25,6 +25,18 @@ final class PluginApiVersion implements Comparable<PluginApiVersion> {
   /// 1.0: the manifest, the host, the loop and event registries, and the
   /// typed slots for render steps, decoders, entity kinds, the editor and
   /// MCP tools.
+  ///
+  /// **When it moves.** The minor moves in the release that adds anything a
+  /// plugin can call: a member of `flutter3d_plugin_api`, `flutter3d_fields`
+  /// or `flutter3d_plugin_runtime`, or of a registry another package hands
+  /// a plugin (`McpTools`, `RendererSteps`, `ModelDecoders`). A structure
+  /// rule compares those against the last 1.x release and fails while the
+  /// number has not moved (`docs/CONTRACTS.md`).
+  ///
+  /// **A plugin writes the number it was written against as a literal**,
+  /// `PluginApiVersion(1, 0)`, never `current`: `current` is whatever the
+  /// engine it is compiled with provides, so it always passes and says
+  /// nothing about what the plugin calls.
   static const PluginApiVersion current = PluginApiVersion(1, 0);
 
   final int major;

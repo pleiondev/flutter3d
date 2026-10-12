@@ -59,7 +59,10 @@ void main() {
       ),
     )..step(WasmStep(step: 0, dtFixed: 0));
     final good = instance.save();
-    expect(good['globals'], <int>[7, 9]);
+    expect(good['globals'], <String, Object?>{'a': 7, 'b': 9});
+    // What the browser cannot reach is not written: the interpreter's
+    // `internal` is its own.
+    expect(good.containsKey('internal'), isFalse);
     expect(good['memory'], isNot(''));
 
     Map<String, Object?> damaged(String key, Object? value) =>
@@ -72,10 +75,16 @@ void main() {
       'memory not base64': damaged('memory', 'not*base64!'),
       'memory not text': damaged('memory', 42),
       'memory past its pages': damaged('memory', tooLong),
-      'a global not a number': damaged('globals', <Object?>[1, 'two']),
-      'a global missing': damaged('globals', <Object?>[1, null]),
-      'too few globals': damaged('globals', <Object?>[1]),
-      'globals not a list': damaged('globals', 1),
+      'a global not a number': damaged('globals', <String, Object?>{
+        'a': 1,
+        'b': 'two',
+      }),
+      'a global missing': damaged('globals', <String, Object?>{
+        'a': 1,
+        'b': null,
+      }),
+      'too few globals': damaged('globals', <String, Object?>{'a': 1}),
+      'globals not a map': damaged('globals', <Object?>[7, 9]),
     };
     for (final MapEntry(key: what, value: state) in cases.entries) {
       expect(

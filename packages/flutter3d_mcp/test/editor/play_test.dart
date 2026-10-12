@@ -91,7 +91,7 @@ Future<Answer> _call(
 ]) async {
   final answer = await editorTools
       .firstWhere((EditorTool it) => it.name == name)
-      .run(session, arguments);
+      .runOn(session, arguments);
   return Answer(did: answer.did, says: answer.says);
 }
 

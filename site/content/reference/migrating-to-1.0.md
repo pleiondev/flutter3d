@@ -5,7 +5,7 @@ description: Move a project written against flutter3d 0.8 to 1.0.0-rc.1, with on
 # Migrating from 0.8 to 1.0
 
 1.0 is the release the engine promises to keep: from it on, a break comes
-only in a major version. To get there, 0.8's API changed in 2011 places,
+only in a major version. To get there, 0.8's API changed in 2013 places,
 306 of them left to you; 380 are backend internals no application called.
 The rest a program carries out for you, and three
 tools share the work. All three read one table,
@@ -223,7 +223,7 @@ carried out:
 
 <!-- migration-table:start -->
 
-*Generated from `flutter3d_build/lib/migrations/` — 2011 entries from 0.8.5 to 1.0.0-rc.1, 306 by hand: 348 `migrate`, 306 by hand, 370 nothing to do, 500 `dart fix`, 380 gone internal, 107 `migrate`, with a TODO.*
+*Generated from `flutter3d_build/lib/migrations/` — 2013 entries from 0.8.5 to 1.0.0-rc.1, 306 by hand: 350 `migrate`, 306 by hand, 370 nothing to do, 500 `dart fix`, 380 gone internal, 107 `migrate`, with a TODO.*
 
 ### `flame_flutter3d`
 
@@ -1492,8 +1492,10 @@ carried out:
 - <a id="rc-mcp-Answer-class"></a>**`Answer`** (`migrate`). `Answer` is a class: `.did` is `.did`, `.says` is `.says`; a destructuring pattern is yours to rewrite. `Answer` is a class with the same `did` and `says`, and the `png` a drawing tool hands back: write `Answer(did: true, says: '…')` where a tool built the record `(did: true, says: '…')`.
 - <a id="mcp_kit-LoopbackMcpServer-token"></a>**`LoopbackMcpServer`** (nothing to do). Every signature is as it was. A request presents its token as `Authorization: Bearer <token>` only; one sent as `?token=` is answered 401, and a body over 64 MiB is answered 413.
 - <a id="mcpkit-McpTools-addTool"></a>**`McpTools.addTool`** (by hand). `addTool` takes a `ToolSpec`, and a plugin adding one must list `PluginPermission.tools` in its manifest's `permissions`, or the call throws a `PluginException`. Declare the namespace's schema version with `declareSchemaVersion('1.0.0')` before adding tools.
+- <a id="rc1fix-mcpkit-McpTools-addTool-run"></a>**`McpTools.addTool`** (`migrate`). `run: x` of `McpTools.addTool` is `run: (call) => (x)(call.arguments)`. A project tool's body, `ProjectToolRun`, takes one `ToolCall` with the `arguments` and the published `name`, where it took the arguments' map: `(arguments) => ...` is `(ToolCall call) => ...` reading `call.arguments`. `migrate` wraps the old body, `(call) => (old)(call.arguments)`, which runs as it did. The application's own tools are refused a namespace that is one of the engine's areas (`game`, `level`, `PluginManifest.reservedAreas`): name them after the application.
 - <a id="mcpkit-OfferedPrompt-prompt"></a>**`OfferedPrompt.prompt`** (by hand). The server builds the protocol prompt itself; read `name` and `description` from the `OfferedPrompt`.
 - <a id="mcpkit-OfferedTool"></a>**`OfferedTool`** (by hand). `OfferedTool` takes a `ToolSpec`, not the MCP library's `Tool`. Build it with `ToolSpec(name:, description:, inputSchema: {...})`, or keep the library's schema builders inside your package and convert with `ToolSpec(inputSchema: ObjectSchema(...) as Map<String, Object?>)`.
+- <a id="rc1fix-mcpkit-OfferedTool-run-call"></a>**`OfferedTool`** (`migrate`). `run: x` of `OfferedTool` is `run: (call) => (x)(call.session, call.arguments)`. A tool's body takes one `SessionToolCall`, the session and the arguments together with the name it was called by, where it took the two as parameters: `(session, arguments) => ...` is `(call) => ...` reading `call.session` and `call.arguments`. One call object can be handed more in a minor (progress, cancellation), where a third parameter would break every tool. `migrate` wraps the old body, `(call) => (old)(call.session, call.arguments)`, which runs as it did; a call of `tool.run(session, arguments)` is `tool.runOn(session, arguments)`.
 - <a id="mcpkit-OfferedTool-tool"></a>**`OfferedTool.tool`** (`dart fix`). `OfferedTool.tool` is `OfferedTool.spec`. A tool is a `ToolSpec` now, flutter3d's own type with JSON-map schemas: read `spec.name`, `spec.description`, `spec.inputSchema`.
 - <a id="rc-mcp-PictureAnswer-rename"></a>**`PictureAnswer`** (`dart fix`). `PictureAnswer` is `Answer`. `Answer` carries the picture now, as `png`, so there is one answer type: write `Answer(did: …, says: …, png: bytes)`.
 - <a id="mcpkit-ProjectToolRun"></a>**`ProjectToolRun`** (by hand). A project tool answers a `ToolResult` (`ToolResult.text('...')`, or `ToolResult(content: [ToolText(...), ToolImage(png)], structuredContent: {...})`), not a `CallToolResult`.

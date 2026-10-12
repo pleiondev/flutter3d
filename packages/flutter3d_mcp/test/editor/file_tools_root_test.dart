@@ -38,7 +38,7 @@ void main() {
       Future<Answer>.value(
         editorTools
             .firstWhere((EditorTool it) => it.name == name)
-            .run(session, arguments),
+            .runOn(session, arguments),
       );
 
   test('the root is the project the level belongs to', () {

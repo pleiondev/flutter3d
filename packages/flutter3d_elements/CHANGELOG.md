@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **Breaking: each `ElementsListener` callback takes its event.** `caught`,
+  `out`, `burntOut`, `wetted` and `burnerOut` take the `ElementCaught` (and
+  so on) the bus carries, with its `body` and `made`; `exploded` an
+  `ElementExploded`, `budget` an `ElementsOverBudget`, `seen` an
+  `ElementFireSeen` and `lost` an `ElementFireLost`. One object per
+  callback can gain a field in a minor, where a list of parameters cannot.
 - **Breaking: `ElementsSimulationPlugin` and `ElementPlugin` are the
   engine's by name.** `ElementsSimulationPlugin` is `flutter3d_elements` by
   default and an

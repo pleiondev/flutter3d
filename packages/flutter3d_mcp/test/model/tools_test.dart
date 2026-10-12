@@ -131,7 +131,7 @@ void main() {
       final rename = modelTools.firstWhere(
         (ModelTool it) => it.name == 'rename',
       );
-      final refused = await rename.run(session, <String, Object?>{
+      final refused = await rename.runOn(session, <String, Object?>{
         'id': 'not a number',
         'to': 'anything',
       });
@@ -147,9 +147,9 @@ void main() {
     );
     final rename = modelTools.firstWhere((ModelTool it) => it.name == 'rename');
 
-    await addPrimitive.run(session, <String, Object?>{'kind': 'box'});
+    await addPrimitive.runOn(session, <String, Object?>{'kind': 'box'});
     // Refuses: there is no object 99 yet.
-    await rename.run(session, <String, Object?>{'id': 99, 'to': 'ghost'});
+    await rename.runOn(session, <String, Object?>{'id': 99, 'to': 'ghost'});
 
     final journaled = session.journal(
       '${Directory.systemTemp.createTempSync('model_mcp_test').path}/j.jsonl',
@@ -165,11 +165,11 @@ void main() {
       final session = ModelSession(ModelHistory(const ModelProject()));
       await toolNamed(
         'addPrimitive',
-      ).run(session, <String, Object?>{'kind': 'cylinder'});
+      ).runOn(session, <String, Object?>{'kind': 'cylinder'});
       session.select(objects: <int>[1]);
       final refused = await toolNamed(
         'extrude',
-      ).run(session, <String, Object?>{'distance': 1.0});
+      ).runOn(session, <String, Object?>{'distance': 1.0});
       expect(refused.did, isFalse);
       expect(refused.says, contains('Convert it to a mesh first'));
     });
@@ -178,9 +178,9 @@ void main() {
       final session = ModelSession(ModelHistory(const ModelProject()));
       await toolNamed(
         'addPrimitive',
-      ).run(session, <String, Object?>{'kind': 'box'});
-      await toolNamed('bakeToMesh').run(session, <String, Object?>{'id': 1});
-      final refused = await toolNamed('setParametric').run(
+      ).runOn(session, <String, Object?>{'kind': 'box'});
+      await toolNamed('bakeToMesh').runOn(session, <String, Object?>{'id': 1});
+      final refused = await toolNamed('setParametric').runOn(
         session,
         <String, Object?>{
           'id': 1,
@@ -198,7 +198,7 @@ void main() {
       final session = ModelSession(ModelHistory(const ModelProject()));
       final refused = await toolNamed(
         'save',
-      ).run(session, const <String, Object?>{});
+      ).runOn(session, const <String, Object?>{});
       expect(refused.did, isFalse);
       expect(refused.says, contains('no path of its own'));
     });
@@ -209,7 +209,7 @@ void main() {
         final session = ModelSession(ModelHistory(const ModelProject()));
         final refused = await toolNamed(
           'removeMaterial',
-        ).run(session, <String, Object?>{'index': 4});
+        ).runOn(session, <String, Object?>{'index': 4});
         expect(refused.did, isFalse);
         expect(refused.says, contains('there is no material 4'));
       },
@@ -225,7 +225,7 @@ void main() {
       final session = ModelSession(ModelHistory(const ModelProject()));
       final result = await toolNamed(
         'setProfileLimits',
-      ).run(session, <String, Object?>{'maxJoints': 32, 'maxInfluences': 2});
+      ).runOn(session, <String, Object?>{'maxJoints': 32, 'maxInfluences': 2});
       expect(result.did, isTrue);
       expect(session.history.project.profile.maxJoints, 32);
       expect(session.history.project.profile.maxInfluences, 2);
@@ -236,15 +236,15 @@ void main() {
       final session = ModelSession(ModelHistory(const ModelProject()));
       await toolNamed(
         'addPrimitive',
-      ).run(session, <String, Object?>{'kind': 'box'});
+      ).runOn(session, <String, Object?>{'kind': 'box'});
 
       final addJoint = await toolNamed(
         'addJoint',
-      ).run(session, <String, Object?>{'skeletonIndex': 0, 'objectId': 1});
+      ).runOn(session, <String, Object?>{'skeletonIndex': 0, 'objectId': 1});
       expect(addJoint.did, isFalse);
       expect(addJoint.says, contains('there is no skeleton 0'));
 
-      final mirror = await toolNamed('mirrorJoints').run(
+      final mirror = await toolNamed('mirrorJoints').runOn(
         session,
         <String, Object?>{
           'skeletonIndex': 0,
@@ -261,8 +261,8 @@ void main() {
       final session = ModelSession(ModelHistory(const ModelProject()));
       await toolNamed(
         'addPrimitive',
-      ).run(session, <String, Object?>{'kind': 'box'});
-      await toolNamed('bakeToMesh').run(session, <String, Object?>{'id': 1});
+      ).runOn(session, <String, Object?>{'kind': 'box'});
+      await toolNamed('bakeToMesh').runOn(session, <String, Object?>{'id': 1});
 
       const markers = <String, List<double>>{
         'hips': <double>[0, 1.0, 0],
@@ -278,11 +278,14 @@ void main() {
         'leftAnkle': <double>[0.1, 0.05, 0],
       };
 
-      final rigged = await toolNamed('autoRig').run(session, <String, Object?>{
-        'template': 'humanoid',
-        'markers': markers,
-        'skinObjectId': 1,
-      });
+      final rigged = await toolNamed('autoRig').runOn(
+        session,
+        <String, Object?>{
+          'template': 'humanoid',
+          'markers': markers,
+          'skinObjectId': 1,
+        },
+      );
       expect(rigged.did, isTrue, reason: rigged.says);
       expect(session.history.project.skeletons, hasLength(1));
       expect(session.history.project[1]!.skeletonIndex, 0);
@@ -306,31 +309,32 @@ void main() {
       final session = ModelSession(ModelHistory(const ModelProject()));
       await toolNamed(
         'addPrimitive',
-      ).run(session, <String, Object?>{'kind': 'box'});
-      await toolNamed('bakeToMesh').run(session, <String, Object?>{'id': 1});
+      ).runOn(session, <String, Object?>{'kind': 'box'});
+      await toolNamed('bakeToMesh').runOn(session, <String, Object?>{'id': 1});
 
       final added = await toolNamed(
         'addShapeFromMesh',
-      ).run(session, <String, Object?>{'id': 1, 'shapeName': 'smile'});
+      ).runOn(session, <String, Object?>{'id': 1, 'shapeName': 'smile'});
       expect(added.did, isTrue);
       expect(session.history.project[1]!.shapeSet.keys.single.name, 'smile');
 
-      final weighted = await toolNamed('setShapeWeight').run(
+      final weighted = await toolNamed('setShapeWeight').runOn(
         session,
         <String, Object?>{'id': 1, 'shapeIndex': 0, 'weight': 0.6},
       );
       expect(weighted.did, isTrue);
       expect(session.history.project[1]!.shapeSet.weights, <double>[0.6]);
 
-      final renamed = await toolNamed(
-        'renameShape',
-      ).run(session, <String, Object?>{'id': 1, 'shapeIndex': 0, 'to': 'grin'});
+      final renamed = await toolNamed('renameShape').runOn(
+        session,
+        <String, Object?>{'id': 1, 'shapeIndex': 0, 'to': 'grin'},
+      );
       expect(renamed.did, isTrue);
       expect(session.history.project[1]!.shapeSet.keys.single.name, 'grin');
 
       final deleted = await toolNamed(
         'deleteShape',
-      ).run(session, <String, Object?>{'id': 1, 'shapeIndex': 0});
+      ).runOn(session, <String, Object?>{'id': 1, 'shapeIndex': 0});
       expect(deleted.did, isTrue);
       expect(session.history.project[1]!.shapeSet.keys, isEmpty);
     });
@@ -367,7 +371,7 @@ void main() {
       );
       final session = ModelSession(ModelHistory(project));
 
-      final keyed = await toolNamed('setKey').run(session, <String, Object?>{
+      final keyed = await toolNamed('setKey').runOn(session, <String, Object?>{
         'clipIndex': 0,
         'trackIndex': 0,
         'time': 0.5,
@@ -379,7 +383,7 @@ void main() {
         3,
       );
 
-      final interpolated = await toolNamed('setInterpolation').run(
+      final interpolated = await toolNamed('setInterpolation').runOn(
         session,
         <String, Object?>{
           'clipIndex': 0,
@@ -393,21 +397,24 @@ void main() {
         AnimationInterpolation.step,
       );
 
-      final moved = await toolNamed('moveKeys').run(session, <String, Object?>{
-        'clipIndex': 0,
-        'trackIndex': 0,
-        'indices': <int>[0],
-        'deltaTime': 10.0,
-      });
+      final moved = await toolNamed('moveKeys').runOn(
+        session,
+        <String, Object?>{
+          'clipIndex': 0,
+          'trackIndex': 0,
+          'indices': <int>[0],
+          'deltaTime': 10.0,
+        },
+      );
       expect(moved.did, isTrue);
 
-      final tangented = await toolNamed('setTangent').run(
+      final tangented = await toolNamed('setTangent').runOn(
         session,
         <String, Object?>{'clipIndex': 0, 'trackIndex': 0, 'index': 0},
       );
       expect(tangented.did, isTrue);
 
-      final deleted = await toolNamed('deleteKeys').run(
+      final deleted = await toolNamed('deleteKeys').runOn(
         session,
         <String, Object?>{
           'clipIndex': 0,
@@ -440,7 +447,7 @@ void main() {
         );
         final session = ModelSession(ModelHistory(project));
 
-        final posed = await toolNamed('poseJoint').run(
+        final posed = await toolNamed('poseJoint').runOn(
           session,
           <String, Object?>{
             'joint': 1,
@@ -492,7 +499,7 @@ void main() {
 
       final extracted = await toolNamed(
         'extractRootMotion',
-      ).run(session, <String, Object?>{'clipIndex': 0, 'rootJoint': 1});
+      ).runOn(session, <String, Object?>{'clipIndex': 0, 'rootJoint': 1});
       expect(extracted.did, isTrue);
       final flat = session.history.project.clips.single.tracks.single.track;
       final out = Float32List(3);
@@ -501,7 +508,7 @@ void main() {
 
       final baked = await toolNamed(
         'bakeRootMotionIntoClip',
-      ).run(session, <String, Object?>{'clipIndex': 0, 'rootJoint': 1});
+      ).runOn(session, <String, Object?>{'clipIndex': 0, 'rootJoint': 1});
       expect(baked.did, isTrue);
       final restored = session.history.project.clips.single.tracks.single.track;
       restored.sample(1.0, out);
@@ -523,19 +530,19 @@ void main() {
 
       final skeleton = await toolNamed(
         'addSkeleton',
-      ).run(session, <String, Object?>{'skeletonName': 'rig'});
+      ).runOn(session, <String, Object?>{'skeletonName': 'rig'});
       expect(skeleton.did, isTrue);
       expect(session.history.project.skeletons.single.name, 'rig');
 
       final bound = await toolNamed(
         'bindSkin',
-      ).run(session, <String, Object?>{'objectId': 1, 'skeletonIndex': 0});
+      ).runOn(session, <String, Object?>{'objectId': 1, 'skeletonIndex': 0});
       expect(bound.did, isTrue);
       expect(session.history.project[1]!.skeletonIndex, 0);
 
       final clip = await toolNamed(
         'addClip',
-      ).run(session, <String, Object?>{'clipName': 'idle'});
+      ).runOn(session, <String, Object?>{'clipName': 'idle'});
       expect(clip.did, isTrue);
       expect(session.history.project.clips.single.name, 'idle');
       expect(session.history.project.clips.single.tracks, isEmpty);
@@ -554,25 +561,29 @@ void main() {
             ),
           ),
         );
-        final added = await toolNamed('addNode').run(session, <String, Object?>{
-          'materialIndex': 0,
-          'kind': 'color',
-          'fields': <String, Object?>{
-            'value': <double>[1, 0, 0, 1],
+        final added = await toolNamed('addNode').runOn(
+          session,
+          <String, Object?>{
+            'materialIndex': 0,
+            'kind': 'color',
+            'fields': <String, Object?>{
+              'value': <double>[1, 0, 0, 1],
+            },
           },
-        });
+        );
         expect(added.did, isTrue);
         final colorId =
             session.history.project.materials.single.graph!.nodes.single.id;
 
-        final addedOutput = await toolNamed(
-          'addNode',
-        ).run(session, <String, Object?>{'materialIndex': 0, 'kind': 'output'});
+        final addedOutput = await toolNamed('addNode').runOn(
+          session,
+          <String, Object?>{'materialIndex': 0, 'kind': 'output'},
+        );
         expect(addedOutput.did, isTrue);
         final outputId =
             session.history.project.materials.single.graph!.nodes.last.id;
 
-        final linked = await toolNamed('link').run(session, <String, Object?>{
+        final linked = await toolNamed('link').runOn(session, <String, Object?>{
           'materialIndex': 0,
           'nodeId': outputId,
           'input': 'result',
@@ -580,7 +591,7 @@ void main() {
         });
         expect(linked.did, isTrue);
 
-        final removed = await toolNamed('removeNode').run(
+        final removed = await toolNamed('removeNode').runOn(
           session,
           <String, Object?>{'materialIndex': 0, 'nodeId': colorId},
         );

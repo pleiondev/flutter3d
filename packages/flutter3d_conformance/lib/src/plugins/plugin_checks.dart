@@ -77,14 +77,19 @@ final class PluginSession {
   /// the loop's own snapshots, so a check does not inherit the steps the
   /// previous one ran on anything the loops share. The first loop's capture
   /// is the start; a loop whose snapshots hold nothing is left alone.
-  void rewindWorld(EngineLoop loop) {
+  ///
+  /// A loop built without the plugin ([withPlugin] false) is rewound to the
+  /// start without what the plugin kept: the start requires the plugin
+  /// (`Snapshot.requires`), and the check means to compare the world the
+  /// two loops share, so the plugin's state is left out on purpose here.
+  void rewindWorld(EngineLoop loop, {bool withPlugin = true}) {
     if (!hasWorld(loop)) return;
     final start = _start;
     if (start == null) {
       _start = loop.capture();
       return;
     }
-    loop.restore(start);
+    loop.restore(withPlugin ? start : Snapshot(start.data));
   }
 
   /// A loop with the dependencies, [withPlugin]'s plugin unless false, the
@@ -109,7 +114,7 @@ final class PluginSession {
       profile: harness.profile,
     );
     harness.setUp?.call(loop);
-    rewindWorld(loop);
+    rewindWorld(loop, withPlugin: withPlugin);
     return loop;
   }
 }

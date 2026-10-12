@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **The plugin template's simulation kinds keep their state in the run's
+  snapshots from `install`.** The `genre` plugin adds its score as a
+  snapshot part, and the `element` plugin is a `FieldDeclaration` and the
+  `Subsystem` that steps it, which the loop snapshots; the conformance
+  test no longer adds the part itself, so an application using the plugin
+  rewinds and rolls back with its state. The `tool` plugin touches
+  `tooling`, and its tool takes a `ToolCall`.
 - **`create project --kind viewer` and `--kind arcade`.** `ProjectKind`
   (`scene`, the default, `viewer`, `arcade`; a class with constants, so a
   kind added later breaks no `switch`) is what `createProject(kind:)` and

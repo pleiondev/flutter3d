@@ -51,6 +51,11 @@ abstract base class FieldRegistry extends PluginRegistry {
   ///
   /// For the simulation's own steps: a subsystem is handed its fields by
   /// its context, which holds it to what it declared.
+  ///
+  /// **Read only through a plugin's view**, `HostField.readOnly`, unless
+  /// the plugin declared the field itself and touches the simulation: a
+  /// plugin may not write another's field, or the engine's, past the
+  /// declared writer, and a view or tooling plugin writes none.
   HostField? hostField(String id);
 
   /// The values of the host field called [id] at the end of the last step,

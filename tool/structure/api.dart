@@ -1597,9 +1597,16 @@ List<(String, String)> proveApiDetectorsWork() {
     '  bool t(int a, int b)\n'
     'final class Gh\n'
     '  void m(int a, int b)\n'
+    '  void each(void Function(int a, int b) visit)\n'
+    '  const Gh({this.on, required void Function(Map<String, Object?> a) run})\n'
+    '  final void Function(int a, int b)? on\n'
+    '  final void Function(OpContext c)? fine\n'
     'typedef Ij = void Function(int a, int b)\n'
     'typedef Kl = void Function(int a)\n'
-    'typedef Mn = ({int a, int b})\n',
+    'typedef Mn = ({int a, int b})\n'
+    'abstract base class Pq\n'
+    '  abstract void c(PqContext context)\n'
+    '  abstract void s(List<String> names)\n',
   );
   final wide = <String>{
     for (final w in hooks.wide)
@@ -1615,6 +1622,7 @@ List<(String, String)> proveApiDetectorsWork() {
     'Op.q',
     'Rs.t',
     'Ij',
+    'Gh.on',
   };
   for (final name in fires.difference(wide)) {
     broken.add(('hook shape', 'did not fire on $name: read $wide'));
@@ -1622,8 +1630,8 @@ List<(String, String)> proveApiDetectorsWork() {
   for (final name in wide.difference(fires)) {
     broken.add((
       'hook shape',
-      'fired on $name, which takes one parameter, is no method, or is no '
-          'hook',
+      'fired on $name, which takes one parameter, is no method, is no hook '
+          'or is a final class\'s method',
     ));
   }
   if (!hooks.seen.containsAll(<String>{'Ab', 'Ab.g', 'Cd', 'Ef', 'Kl'}) ||
@@ -1632,6 +1640,21 @@ List<(String, String)> proveApiDetectorsWork() {
       'hook shape',
       'saw ${hooks.seen}, where every hook, its methods and every typedef '
           'are seen and a final class is not',
+    ));
+  }
+  // One value, not a context. Mutation: read every one-parameter hook as
+  // fine again, and `Ab.g`, `Kl`, `Gh.run` and `Pq.s` go quiet; read a
+  // context's name as a value, and `Pq.c` and `Gh.fine` fire.
+  final values = <String>{
+    for (final v in hooks.value)
+      v.member.isEmpty ? v.type : '${v.type}.${v.member}',
+  };
+  const valued = <String>{'Ab.g', 'Kl', 'Gh.run', 'Pq.s', 'Ab.of'};
+  if (!values.containsAll(valued) || values.length != valued.length) {
+    broken.add((
+      'hook values',
+      'read $values, where $valued are handed one value and a context or a '
+          'method of a final class is not',
     ));
   }
 
@@ -1725,6 +1748,45 @@ List<(String, String)> proveApiDetectorsWork() {
         'fired on $name, which is the root, under it, or not an exception',
       ));
     }
+  }
+
+  // The plugin API's number. The traps are a registry in another package
+  // (read), another type there (not read), and the number itself. Mutation:
+  // read every change of every package, and the new `Ab` of `q` counts;
+  // read no registry outside `whole`, and `Cd`'s new member does not.
+  final grown = pluginApiChanges(
+    released: <String, String>{
+      'p':
+          '${lib}final class PluginApiVersion\n'
+          '  static const PluginApiVersion current = PluginApiVersion(1, 0)\n',
+      'q': '${lib}abstract base class Cd extends PluginRegistry\n  void a()\n',
+    },
+    current: <String, String>{
+      'p':
+          '${lib}final class PluginApiVersion\n'
+          '  static const PluginApiVersion current = PluginApiVersion(1, 0)\n'
+          'final class Ef\n',
+      'q':
+          '${lib}abstract base class Cd extends PluginRegistry\n  void a()\n'
+          '  void b()\nfinal class Ab\n',
+    },
+    whole: const <String>{'p'},
+  );
+  final grownNames = <String>{for (final c in grown) c.subject};
+  if (!grownNames.containsAll(<String>{'Ef', 'Cd'}) ||
+      grownNames.contains('Ab')) {
+    broken.add((
+      'plugin API growth',
+      'read $grownNames, where a new type of a whole package and a registry '
+          'elsewhere grew and another type elsewhere does not count',
+    ));
+  }
+  if (pluginApiVersionIn(
+        '${lib}final class PluginApiVersion\n'
+        '  static const PluginApiVersion current = PluginApiVersion(1, 2)\n',
+      ) !=
+      '1.2') {
+    broken.add(('plugin API growth', 'did not read `current` as 1.2'));
   }
   return broken;
 }
@@ -1830,25 +1892,145 @@ int _parameterCount(String inside) {
 /// snapshot line, in the order they appear: `T? Function(Object? data, int
 /// version)` is 2, and a function type nested in another's parameters is
 /// counted too.
-List<int> functionTypeArities(String text) {
-  final arities = <int>[];
+List<int> functionTypeArities(String text) => <int>[
+  for (final f in functionTypesIn(text)) f.parameters,
+];
+
+/// Every function type written in [text], a snapshot line, in the order
+/// they appear: its parameter count, the type of its parameter when it has
+/// exactly one (null otherwise), and the name it is declared under, the
+/// field, getter or parameter that holds it (`''` where nothing names it, a
+/// return type or a type argument).
+List<({int parameters, String? only, String name})> functionTypesIn(
+  String text,
+) {
+  final found = <({int parameters, String? only, String name})>[];
   for (final match in RegExp(r'(?<![\w$])Function\s*\(').allMatches(text)) {
     final open = match.end - 1;
-    var depth = 0;
-    for (var i = open; i < text.length; i++) {
-      final c = text[i];
-      if ('(<{['.contains(c)) depth++;
-      if (')>}]'.contains(c)) depth--;
-      if (depth == 0) {
-        arities.add(_parameterCount(text.substring(open + 1, i)));
-        break;
-      }
-    }
+    final close = _closingOf(text, open);
+    if (close < 0) continue;
+    final inside = text.substring(open + 1, close);
+    final parameters = _parameterCount(inside);
+    found.add((
+      parameters: parameters,
+      only: parameters == 1 ? parameterTypeOf(inside) : null,
+      name: _nameAfter(text, close + 1),
+    ));
   }
-  return arities;
+  return found;
 }
 
-int _larger(int a, int b) => a > b ? a : b;
+/// The index of the bracket that closes the one at [open] in [text], or -1.
+int _closingOf(String text, int open) {
+  var depth = 0;
+  for (var i = open; i < text.length; i++) {
+    final c = text[i];
+    if ('(<{['.contains(c)) depth++;
+    if (')>}]'.contains(c)) depth--;
+    if (depth == 0) return i;
+  }
+  return -1;
+}
+
+/// The name declared after a function type that ends before [from]: the
+/// next identifier, past a `?`, a `get` and any function type the first one
+/// is the return type of. `''` where a `,`, a `)` or a `>` comes first.
+String _nameAfter(String text, int from) {
+  var i = from;
+  while (i < text.length) {
+    final c = text[i];
+    if (c == '?' || c == ' ') {
+      i++;
+      continue;
+    }
+    final word = RegExp(r'^[A-Za-z_$][\w$]*').stringMatch(text.substring(i));
+    if (word == null) return '';
+    if (word == 'Function') {
+      final open = text.indexOf('(', i);
+      final close = open < 0 ? -1 : _closingOf(text, open);
+      if (close < 0) return '';
+      i = close + 1;
+      continue;
+    }
+    if (word == 'get') {
+      i += word.length;
+      continue;
+    }
+    return word;
+  }
+  return '';
+}
+
+/// The type of the one parameter written in [inside], the text between a
+/// parameter list's parentheses: `Map<String, Object?>` for `Map<String,
+/// Object?> arguments`, `int` for a bare `int`, `Foo` for `{required Foo
+/// foo}`. A default value and the `?` of a nullable type are dropped.
+String parameterTypeOf(String inside) {
+  var text = inside.trim();
+  if (text.startsWith('{') || text.startsWith('[')) {
+    text = text.substring(1, text.length - 1).trim();
+  }
+  final assign = text.indexOf('=');
+  if (assign >= 0) text = text.substring(0, assign).trim();
+  text = text.replaceFirst(RegExp(r'^(required|covariant)\s+'), '');
+  if (text.startsWith('this.') || text.startsWith('super.')) return text;
+  // The name is the last word at the top level; a type written alone, as a
+  // function type's parameters may be, is all type.
+  var depth = 0;
+  var lastSpace = -1;
+  for (var i = 0; i < text.length; i++) {
+    final c = text[i];
+    if ('(<{['.contains(c)) depth++;
+    if (')>}]'.contains(c)) depth--;
+    if (c == ' ' && depth == 0) lastSpace = i;
+  }
+  final type = lastSpace < 0 ? text : text.substring(0, lastSpace).trim();
+  return type.endsWith('?') ? type.substring(0, type.length - 1) : type;
+}
+
+/// Whether [type], a parameter's type as [parameterTypeOf] reads it, is a
+/// value that cannot gain members: a number, a string, a flag, a
+/// collection, bytes, a vector, `Object`, a type parameter, a record or a
+/// function. A hook handed one of these can never be handed more without a
+/// second parameter, where a type of the engine's own (`LoopContext`,
+/// `Activation`, `Mind`) grows by members.
+bool isValueParameterType(String type) {
+  final bare = type.trim();
+  if (bare.startsWith('(') || bare.contains('Function')) return true;
+  final name = RegExp(r'^[\w$]+').stringMatch(bare) ?? bare;
+  return _valueTypeNames.contains(name) || RegExp(r'^[A-Z]$').hasMatch(name);
+}
+
+const Set<String> _valueTypeNames = <String>{
+  'int',
+  'double',
+  'num',
+  'bool',
+  'String',
+  'Object',
+  'dynamic',
+  'List',
+  'Map',
+  'Set',
+  'Iterable',
+  'Uint8List',
+  'Uint16List',
+  'Uint32List',
+  'Int32List',
+  'Float32List',
+  'Float64List',
+  'ByteData',
+  'Duration',
+  'DateTime',
+  'Uri',
+  'Vector2',
+  'Vector3',
+  'Vector4',
+  'Matrix3',
+  'Matrix4',
+  'Quaternion',
+  'Aabb3',
+};
 
 /// Whether [header], a snapshot's declaration line, declares a type an
 /// outside author extends or mixes in: an `abstract base class`, an
@@ -1884,60 +2066,189 @@ String memberNameIn(String member) {
   return last.contains('.') ? last.substring(last.lastIndexOf('.') + 1) : last;
 }
 
-/// Every place [snapshot] hands an outside author a list of parameters:
-/// a method of a hook type ([isHookHeader]) that takes more than one, and a
-/// function type with more than one parameter in any member of a hook type
-/// (the `decode` of `ComponentCodec.of`, the callback of a `spawn`) or in a
-/// public typedef. Each is keyed by its type (or typedef) and member;
-/// [seen] is every key a hook declares, so an allowance that names nothing
-/// can be told apart.
+/// Whether [member], a member line of a class an outside author does not
+/// extend, can hold a callback an outside author writes: a constructor or
+/// a factory, whose parameters a caller fills, or a field or getter of a
+/// function type. A method's own callback parameters are the engine's to
+/// call back with; they are not read.
+bool holdsCallback(String member) {
+  var line = splitAnnotations(member).rest;
+  for (final word in <String>[
+    'static ',
+    'external ',
+    'covariant ',
+    'late ',
+    'final ',
+    'const ',
+  ]) {
+    if (line.startsWith(word)) line = line.substring(word.length);
+  }
+  if (line.startsWith('factory ')) return true;
+  final open = line.indexOf('(');
+  if (open < 0) return false;
+  var head = line.substring(0, open).trim();
+  if (head.endsWith('>')) {
+    var depth = 0;
+    for (var i = head.length - 1; i >= 0; i--) {
+      if (head[i] == '>') depth++;
+      if (head[i] == '<') depth--;
+      if (depth == 0) {
+        head = head.substring(0, i).trim();
+        break;
+      }
+    }
+  }
+  final words = head.split(RegExp(r'\s+'));
+  return words.length == 1 || words.last == 'Function';
+}
+
+/// Every place [snapshot] hands an outside author a list of parameters,
+/// and every place it hands one a single value:
+///
+/// - [wide]: a method of a hook type ([isHookHeader]) that takes more than
+///   one parameter, and a function type with more than one in any member of
+///   a hook type (the `decode` of `ComponentCodec.of`, the callback of a
+///   `spawn`), in a public typedef, or in a field, getter or constructor of
+///   any other class (`OfferedTool.run`, a listener's `overTime`).
+/// - [value]: the same places taking exactly one parameter, where that
+///   parameter is a value that cannot gain members
+///   ([isValueParameterType]): `PluginSource.read(String)`, a callback of a
+///   bare `Map`.
+///
+/// A hook type's member is keyed by its type and member name; a callback
+/// another class holds by its type and the field, getter or parameter
+/// holding it; a typedef by its name. [seen] is every key either list
+/// could name, so an allowance that names nothing can be told apart.
 ({
   Set<String> seen,
   List<({String type, String member, int parameters, bool callback})> wide,
+  List<({String type, String member, String parameter, bool callback})> value,
 })
 wideHooksIn(String snapshot) {
   final seen = <String>{};
   final wide =
       <({String type, String member, int parameters, bool callback})>[];
-  for (final library in parseApi(snapshot).values) {
-    for (final MapEntry(key: name, value: block)
-        in library.declarations.entries) {
-      if (block.header.startsWith('typedef ')) {
-        seen.add(name);
-        final most = functionTypeArities(block.header).fold(0, _larger);
-        if (most > 1) {
-          wide.add((type: name, member: '', parameters: most, callback: true));
-        }
-        continue;
-      }
-      if (!isHookHeader(block.header)) continue;
-      seen.add(name);
-      for (final member in block.members) {
-        final method = hookMethodIn(splitAnnotations(member).rest);
-        if (method != null) {
-          seen.add('$name.${method.name}');
-          if (method.parameters > 1) {
-            wide.add((
-              type: name,
-              member: method.name,
-              parameters: method.parameters,
-              callback: false,
-            ));
-          }
-        }
-        final most = functionTypeArities(member).fold(0, _larger);
-        if (most > 1) {
-          final memberName = memberNameIn(member);
-          seen.add('$name.$memberName');
-          wide.add((
-            type: name,
-            member: memberName,
-            parameters: most,
-            callback: true,
-          ));
-        }
+  final value =
+      <({String type, String member, String parameter, bool callback})>[];
+  // [keyedBy] names every callback of [member] where it is given (`''` for
+  // the type alone), and each callback's own field, getter or parameter
+  // names it where it is not.
+  void callbacks(String type, String member, {String? keyedBy}) {
+    for (final f in functionTypesIn(member)) {
+      final name = keyedBy ?? f.name;
+      final key = name.isEmpty ? type : '$type.$name';
+      if (f.parameters > 1) {
+        seen.add(key);
+        wide.add((
+          type: type,
+          member: name,
+          parameters: f.parameters,
+          callback: true,
+        ));
+      } else if (f.only case final only? when isValueParameterType(only)) {
+        seen.add(key);
+        value.add((type: type, member: name, parameter: only, callback: true));
       }
     }
   }
-  return (seen: seen, wide: wide);
+
+  for (final library in parseApi(snapshot).values) {
+    for (final MapEntry(key: name, value: block)
+        in library.declarations.entries) {
+      final header = block.header;
+      if (header.startsWith('typedef ')) {
+        seen.add(name);
+        // A typedef's own function type, and the callbacks it takes, are
+        // all keyed by its name.
+        callbacks(name, header, keyedBy: '');
+        continue;
+      }
+      if (isHookHeader(header)) {
+        seen.add(name);
+        for (final member in block.members) {
+          final rest = splitAnnotations(member).rest;
+          final method = hookMethodIn(rest);
+          if (method != null && method.name != 'Function') {
+            seen.add('$name.${method.name}');
+            if (method.parameters > 1) {
+              wide.add((
+                type: name,
+                member: method.name,
+                parameters: method.parameters,
+                callback: false,
+              ));
+            } else if (method.parameters == 1) {
+              final open = rest.indexOf('(');
+              final close = _closingOf(rest, open);
+              final only = parameterTypeOf(rest.substring(open + 1, close));
+              // A function it takes is read below, as a callback.
+              if (isValueParameterType(only) && !only.contains('Function')) {
+                value.add((
+                  type: name,
+                  member: method.name,
+                  parameter: only,
+                  callback: false,
+                ));
+              }
+            }
+          }
+          // A hook type's callbacks are keyed by the member taking them,
+          // as `ComponentCodec.of`; a field's by the field.
+          final taking = memberNameIn(member);
+          callbacks(
+            name,
+            member,
+            keyedBy: taking == 'Function' ? null : taking,
+          );
+        }
+        continue;
+      }
+      if (!RegExp(r'(^|\s)class\s').hasMatch(header)) continue;
+      for (final member in block.members) {
+        if (holdsCallback(member)) callbacks(name, member);
+      }
+    }
+  }
+  return (seen: seen, wide: wide, value: value);
+}
+
+// ------------------------------------------------------ the plugin API's number
+
+/// `PluginApiVersion.current` as [snapshot], `flutter3d_plugin_api`'s,
+/// declares it: `1.0`, or null where it declares none.
+String? pluginApiVersionIn(String snapshot) => switch (RegExp(
+  r'static const PluginApiVersion current = PluginApiVersion\((\d+), (\d+)\)',
+).firstMatch(snapshot)) {
+  final Match m => '${m[1]}.${m[2]}',
+  null => null,
+};
+
+/// What grew, or broke, in the surface a plugin is written against between
+/// [released] and [current], snapshots by package: every change in the
+/// packages [whole] names, and elsewhere every change to a type a plugin is
+/// handed from its host, a registry (`extends …Registry`), named in
+/// [current]'s snapshot.
+List<ApiChange> pluginApiChanges({
+  required Map<String, String> released,
+  required Map<String, String> current,
+  required Set<String> whole,
+}) {
+  final changes = <ApiChange>[];
+  for (final MapEntry(key: package, value: now) in current.entries) {
+    final was = released[package];
+    if (was == null) continue;
+    final all = classifyApi(was, now).where((c) => c.bump != Bump.none);
+    if (whole.contains(package)) {
+      changes.addAll(all);
+      continue;
+    }
+    final registries = <String>{
+      for (final library in parseApi(now).values)
+        for (final MapEntry(key: name, value: block)
+            in library.declarations.entries)
+          if (RegExp(r'\bextends\s+\w*Registry\b').hasMatch(block.header)) name,
+    };
+    changes.addAll(all.where((c) => registries.contains(c.subject)));
+  }
+  return changes;
 }
