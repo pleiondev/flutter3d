@@ -2587,22 +2587,365 @@ const Map<String, String> recordInContractAllowed = <String, String>{
 /// the imports it is meant to be read with: together they export every type
 /// their API names (the rule `a facade exports every type its API names`).
 /// `flutter3d_app` is the quickstart's, beside `flutter3d`.
-const Map<String, List<String>> facadePackages = <String, List<String>>{
+final Map<String, List<String>> facadePackages = <String, List<String>>{
   'flutter3d': <String>['flutter3d'],
   'flutter3d_game': <String>['flutter3d_game'],
   'flutter3d_app': <String>['flutter3d', 'flutter3d_app'],
+  // A kit is read beside the game facade, which its README tells a game to
+  // import with it: together they name every type the kit's API names.
+  for (final kit in _gameKits) kit: <String>['flutter3d_game', kit],
+};
+
+const List<String> _gameKits = <String>[
+  'flutter3d_game_kit',
+  'flutter3d_game_physics',
+  'flutter3d_game_platformer',
+  'flutter3d_game_racing',
+  'flutter3d_game_shooter',
+  'flutter3d_game_strategy',
+  'flutter3d_game_ui',
+];
+
+/// The facades whose `show` lists are held against the main libraries under
+/// them (the rule `a facade names what it leaves out of the library under
+/// it`): each public name of those libraries is on the list or in
+/// [facadeLeavesOut].
+const Map<String, List<String>> facadeShowListsHeld = <String, List<String>>{
+  'flutter3d': <String>[
+    'flutter3d_core',
+    'flutter3d_hardware',
+    'flutter3d_foundation',
+    'flutter3d_fields',
+    'flutter3d_hub',
+  ],
+};
+
+/// Public names of a library under a facade that its `show` list leaves
+/// out, as `facade:Name`, each with why a caller of the facade never writes
+/// it: they stay public in the package that declares them, one import away.
+final Map<String, String> facadeLeavesOut = <String, String>{
+  for (final name in _coreFormatInternals)
+    'flutter3d:$name':
+        'a file format\'s internals (record layouts, magic numbers, versions, block codecs and sniffers) that the readers and writers this facade exports apply (`F3dDecoder`, `GltfLoader`, `writeKtx2`, `readFmat`, `parseSplatPly`); a tool that reads the bytes itself imports `flutter3d_core`',
+  for (final name in _coreMaterialLanguage)
+    'flutter3d:$name':
+        'the material language\'s tables, expression tree, emitters and evaluators, which a compiler of the language reads (the build hook, a backend, `flutter3d_app/software.dart`); a material author writes source, and the facade gives `parseMaterial`, `specializeMaterial`, `describeMaterial` and `lowerMaterialCompute` over it',
+  for (final name in _coreRendererInternals)
+    'flutter3d:$name':
+        'the renderer\'s own bookkeeping (cluster and shadow slots, sort keys, splat and probe constants, packed maps, field uploads, the scene\'s change epoch), public so the engine\'s other packages and tests reach it; an application drives the frame through `Renderer` and never writes these',
+  for (final name in _coreHelpers)
+    'flutter3d:$name':
+        'a helper the engine\'s readers and passes share (a colour channel\'s curve, a slerp, an eigen solve, a neutral vertex value, a bake check): the facade gives the values they work on and the operations a caller writes (`LinearColor`, `Quaternion`, `withTextureTransform`, `safeRelativeAssetPath`)',
+  for (final name in _hardwareBackendSide)
+    'flutter3d:$name':
+        'the backend\'s side of the hardware layer (an optional upload capability and its sizes, the shader bundle\'s kernel section, the format tables beyond flutter_gpu\'s, which readbacks convert, how a renderer stacks shader libraries): what a backend implements or reads, from `flutter3d_hardware`; an application hands the engine a device and never writes these',
+  for (final name in _foundationBeneath)
+    'flutter3d:$name':
+        'the foundation\'s, beneath what the facade hands a caller: the base a placed event of the elements implements, the deterministic transcendentals the simulation\'s maths is written in, and the registry `migrate --data` fills (an engine registers its formats through `FormatRegistry`, which the facade exports)',
+  for (final name in _hubProtocol)
+    'flutter3d:$name':
+        'the model hub\'s wire protocol, for a server and the client\'s own reader: an application loads a model through `HubAssetSource` with a `HubReference`, and meets the protocol only as a `HubRefusal`',
+};
+
+const List<String> _coreFormatInternals = <String>[
+  'F3dAttributeFlags',
+  'F3dExtrasOwner',
+  'F3dMorphFlags',
+  'F3dRecord',
+  'F3dSamplingFlags',
+  'F3dSection',
+  'GltfAccessorReader',
+  'GltfAccessorType',
+  'GltfPrimitiveMode',
+  'Ktx2ColorModel',
+  'Ktx2GlobalDataField',
+  'Ktx2HeaderField',
+  'Ktx2ImageDescField',
+  'Ktx2IndexField',
+  'Ktx2SupercompressionScheme',
+  'UniversalBlockFormat',
+  'UsdzZip',
+  'chooseUniversalTarget',
+  'decodeImagePure',
+  'decodeSplatPage',
+  'decodeUniversalBlock',
+  'encodeAstc4x4Block',
+  'encodeEtc2Rgb8Block',
+  'encodeSplatOctree',
+  'encodeUniversalBlock',
+  'encodeUniversalBlocks',
+  'f3dFormat',
+  'f3dHeaderBytes',
+  'f3dMagic',
+  'f3dSectionEntryBytes',
+  'f3dSectionEntryBytesV2',
+  'f3dVersion',
+  'f3dWideMagic',
+  'f3dmatFormat',
+  'f3dsplatFormat',
+  'fmatFormat',
+  'fmatVersion',
+  'hdrSizeOf',
+  'isBasisUniversalKtx2',
+  'isBinaryStl',
+  'isKtx2BasisUniversal',
+  'isKtx2File',
+  'isPng',
+  'ktx2HeaderBytes',
+  'ktx2HeaderOffset',
+  'ktx2Identifier',
+  'ktx2IndexBytes',
+  'ktx2IndexOffset',
+  'ktx2LevelIndexEntryBytes',
+  'ktx2LevelIndexOffset',
+  'looksLikeAsciiStl',
+  'looksLikeSpz',
+  'materialExtensionsFromJson',
+  'materialExtensionsToJson',
+  'mergeSplats',
+  'parseMtl',
+  'parseSplatOctree',
+  'parseSplatOctreeIndex',
+  'pipelineFormat',
+  'pipelineVersion',
+  'sniffImageMimeType',
+  'splatChannel',
+  'splatColor',
+  'splatOctreeExtension',
+  'splatOctreeHeaderBytes',
+  'splatOctreeIndexBytes',
+  'splatOctreeNodeBytes',
+  'splatOctreeVersion',
+  'splatOpacity',
+  'splatPageBytesPerSplat',
+  'spzLatestVersion',
+  'surfaceMaterialFromJson',
+  'surfaceMaterialToJson',
+  'toGltfFilters',
+  'transcodeUniversal',
+  'universalBlockFormat',
+  'universalBlockKey',
+  'universalBlockRgb',
+  'universalBlockRgba',
+  'zlibCompress',
+  'zlibInflate',
+];
+
+const List<String> _coreMaterialLanguage = <String>[
+  'MaterialExpressionVisitor',
+  'MaterialInputRef',
+  'MaterialLocalRef',
+  'MaterialParamRef',
+  'MaterialSample',
+  'applyBinary',
+  'broadcastArguments',
+  'checkMaterialSurface',
+  'composeMaterialLit',
+  'emitMaterialVertex',
+  'emitMaterialVertexStages',
+  'evaluateMaterialAmbient',
+  'evaluateMaterialComposite',
+  'evaluateMaterialLight',
+  'evaluateMaterialVertex',
+  'firstMaterialVersion',
+  'isEngineBlockName',
+  'materialAmbientInputs',
+  'materialBuiltinVersions',
+  'materialBuiltins',
+  'materialCompositeInputs',
+  'materialComputeInputs',
+  'materialComputeParameters',
+  'materialComputeTarget',
+  'materialDepthCompareWire',
+  'materialDepthCompares',
+  'materialDepthLayerLimit',
+  'materialFullscreenInputs',
+  'materialInputs',
+  'materialLanguageFirstVersion',
+  'materialLanguageStagesVersion',
+  'materialLanguageUpdatesVersion',
+  'materialLanguageVariantsVersion',
+  'materialLanguageVersion',
+  'materialLightInputs',
+  'materialLightTypeInput',
+  'materialLightTypeMember',
+  'materialLitInput',
+  'materialNothingBehind',
+  'materialOwnTexturePrefix',
+  'materialParametersBlock',
+  'materialReservedBlockNames',
+  'materialSceneInputs',
+  'materialSyntax',
+  'materialTextureBindings',
+  'materialVertexInputs',
+  'materialVertexOutputs',
+  'materialVertexVariantStages',
+  'materialVertexVariants',
+];
+
+const List<String> _coreRendererInternals = <String>[
+  'BufferField',
+  'ClusterDraws',
+  'ClusterIndices',
+  'FrameCaptureBuilder',
+  'FramePassNames',
+  'MeshVertexLayouts',
+  'PackedLane',
+  'PackedMap',
+  'ProbeFace',
+  'SceneShadows',
+  'ShadowAssignment',
+  'ShadowCandidate',
+  'ShadowFaceScheduler',
+  'ShadowSlotAllocator',
+  'Texture3DField',
+  'captureTextureFormats',
+  'captureWordFor',
+  'clusterEye',
+  'decodeOctahedral',
+  'encodeOctahedral',
+  'ensureSphereCapacity',
+  'fitRgba8Image',
+  'gatherProbe',
+  'impostorDecode',
+  'impostorEncode',
+  'irradianceReach',
+  'jitterOffset',
+  'lookAtRightHanded',
+  'maxPayload',
+  'mirrorAcrossPlane',
+  'noteSceneChange',
+  'obliqueNearPlane',
+  'packLanes',
+  'packSceneSpheres',
+  'payloadMask',
+  'planeInEyeSpace',
+  'probeFaceIsMirrored',
+  'probeFaceViewProjection',
+  'radixSortPackedKeys',
+  'radixThreshold',
+  'sceneAncestorWalks',
+  'sceneChangeEpoch',
+  'selectVisibleClusters',
+  'sortKeyBits',
+  'sortSplatKeys',
+  'splatFloatsPerVertex',
+  'splatKeyMax',
+  'splatLeanLimit',
+  'splatLowPass',
+  'splatReach',
+  'splatSortStages',
+  'standardVertices',
+  'textureDecodeCap',
+  'uploadCoatMap',
+  'uploadSheenMap',
+];
+
+const List<String> _coreHelpers = <String>[
+  'animationTrackKey',
+  'escapesAssetBase',
+  'hasConflictingTextureTransforms',
+  'isOrthographic',
+  'linearToSrgb',
+  'neutralColor',
+  'neutralJoints',
+  'neutralTangent',
+  'neutralWeights',
+  'noHit',
+  'sharedTextureTransform',
+  'shortestArcSlerp',
+  'srgbToLinear',
+  'symmetricEigen3',
+];
+
+const List<String> _hardwareBackendSide = <String>[
+  'EncodedImageUpload',
+  'LayeredShaderLibrary',
+  'ShaderLibraryStack',
+  'cappedImageSize',
+  'decodeKernelSection',
+  'encodeKernelSection',
+  'encodedImageSize',
+  'extendedBlendFactors',
+  'extendedBlendOperations',
+  'extendedTextureFormats',
+  'kernelSectionVersion',
+  'materialSectionVersion',
+  'readbackConverts',
+];
+
+const List<String> _foundationBeneath = <String>[
+  'FormatSpecs',
+  'PlacedEvent',
+  'Portable',
+];
+
+const List<String> _hubProtocol = <String>[
+  'HubEndpoint',
+  'HubHello',
+  'HubHelloRequest',
+  'HubModel',
+  'HubProtocol',
+  'HubProtocolVersion',
+  'HubResolveRequest',
+  'HubServer',
+  'hubRefusalFromJson',
+  'hubRefusalToJson',
+];
+
+/// Packages whose types a facade's API names and the facade leaves to that
+/// package, as `facade: {package: why}`: every type the package declares is
+/// excused, with why a caller of the facade that writes one depends on it.
+///
+/// **For a package the facade is written over, not beside.** A kit whose
+/// ragdoll is given the native core's world names the whole of that core's
+/// API through it; listing each of its types by name would say the same
+/// thing fifty times.
+const Map<String, Map<String, String>>
+facadeGapFromAllowed = <String, Map<String, String>>{
+  'flutter3d_game_physics': <String, String>{
+    'flutter3d_physics_native':
+        'the native physics core\'s: a ragdoll is given the `NativeWorld` '
+        'a game opened from it, and a game that uses one depends on it to '
+        'choose that core (the README\'s ragdoll section)',
+    'flutter3d_effects':
+        'the elements\' fires and water, which `elements.dart` hears and '
+        'lights: a game that adds elements imports them',
+    'flutter3d_elements':
+        'the elements\' bodies, steps and events under `flutter3d_effects`\' '
+        '`Elements`, which `elements.dart` hears and lights: a game that '
+        'adds elements imports them',
+    'flutter3d_net':
+        'the relay\'s transport and wire, under a party\'s seat: a game '
+        'that plays over its own socket imports it; a party seated by '
+        '`PartySession` needs only the seat, which `party.dart` exports',
+    'flutter3d_foundation':
+        'the base of the elements\' events, `PlacedEvent`, read through '
+        'the elements a game imports from `flutter3d_effects`',
+    'flutter3d_game_kit':
+        'the world\'s daylight, which `DaylightOnWater` lights the water '
+        'by: the README\'s elements section imports `flutter3d_game_kit/'
+        'world.dart` beside it',
+  },
 };
 
 /// Types a facade's API names and the facade leaves to the package that
 /// declares it, as `facade:Type`, each with why a caller of the facade never
 /// writes it.
 final Map<String, String> facadeGapAllowed = <String, String>{
-  for (final facade in <String>['flutter3d', 'flutter3d_game', 'flutter3d_app'])
+  for (final facade in facadePackages.keys)
     '$facade:WorkgroupSize':
         'read off a parsed compute stage (`MaterialProgram.workgroupSize`), '
         'which `parseMaterial` builds and a caller never writes by hand; a '
         'kernel author imports `flutter3d_shaders/kernel.dart`',
-  for (final facade in <String>['flutter3d', 'flutter3d_app', 'flutter3d_game'])
+  for (final facade in facadePackages.keys)
+    for (final name in <String>['LayeredShaderLibrary', 'ShaderLibraryStack'])
+      '$facade:$name':
+          'how a renderer stacks the shader libraries it was handed, so the '
+          'last added wins a name: `Renderer.renderSteps.addMaterials` keeps '
+          'the stack, and a caller hands it a library and never builds one; '
+          'a backend author imports `flutter3d_hardware`',
+  for (final facade in facadePackages.keys)
     for (final name in _kernelLanguage)
       '$facade:$name':
           'the kernel language\'s (`package:flutter3d_shaders/kernel.dart`), '
@@ -2612,11 +2955,14 @@ final Map<String, String> facadeGapAllowed = <String, String>{
   for (final name in _simulationBehindTheView)
     'flutter3d_app:$name':
         'the simulation\'s, reached through the loop, the level and the '
-        'input the view names: an application that writes against it steps '
-        'a world, is a game, and imports `flutter3d_game`, which exports it',
+        'input the view names: code that writes it steps a world, and '
+        'imports `flutter3d_game`, which exports it, or `flutter3d_sim` '
+        'itself, as the modeller and the lessons do (`flutter3d_education`\'s '
+        '`lab.dart` re-exports what a lab names)',
   for (final name in _physicsBehindTheView)
     'flutter3d_app:$name':
-        'the physics a loaded level\'s collision world is made of: a game\'s, '
+        'the physics a loaded level\'s collision world is made of, its stock '
+        'backend and the obstacles and liquid a jet meets: a simulation\'s, '
         'exported by `flutter3d_game`',
 };
 
@@ -2627,28 +2973,50 @@ const List<String> _simulationBehindTheView = <String>[
   'Activation',
   'ActivationOutcome',
   'Actor',
+  'ActorDied',
   'ActorDirector',
   'ActorGesture',
   'ActorStride',
   'ActorStrides',
   'ActorStridesRestore',
   'ActorSystem',
+  'AtLeastOne',
   'Avoidance',
   'AxisAction',
+  'BehaviorChildren',
+  'BehaviorComposite',
+  'BehaviorCompositeTick',
+  'BehaviorContext',
+  'BehaviorKinds',
+  'BehaviorLeaf',
+  'BehaviorParameters',
+  'BehaviorStatus',
+  'BehaviorView',
+  'BehaviorsRead',
+  'Blackboard',
   'Brain',
   'BrainHurt',
   'BrainNoise',
   'BrushSurface',
+  'ButtonKind',
   'ButtonPair',
   'CatchUp',
+  'CompositeBuilder',
+  'Consideration',
+  'ConsiderationBuilder',
+  'CutsceneKind',
   'Damage',
   'Damageable',
   'DeterminismCheck',
+  'DoorKind',
   'DualAxisAction',
   'EcsWorld',
   'EntityCheck',
   'EntitySpawn',
   'EventBus',
+  'ExactlyOne',
+  'ExitKind',
+  'ExitReachable',
   'Facing',
   'Fixture',
   'FlowField',
@@ -2661,27 +3029,37 @@ const List<String> _simulationBehindTheView = <String>[
   'InputTapePlayback',
   'JumpLink',
   'JumpReach',
+  'LeafBuilder',
   'LevelScope',
+  'LiftKind',
+  'LightBehavior',
+  'LightFixtureKind',
   'LightmapFace',
   'LoopChange',
   'Mechanism',
   'MechanismEvents',
   'MechanismWorld',
   'Mind',
+  'NavArea',
   'NavGrid',
   'NavLattice',
   'NavMesh',
   'NavMeshRoute',
   'NavMeshSettings',
   'Navigation',
+  'OpenKind',
+  'PlatformKind',
+  'PlayerSpawnKind',
   'Probe',
   'ProbeRegion',
   'ProbeSample',
   'ProbeSampler',
   'ProbeSamplers',
   'PublishedWorlds',
+  'ReflectionProbeKind',
   'RenderSettingsPatch',
   'Rider',
+  'SequenceSignal',
   'SimQueries',
   'SimulationAnswer',
   'SimulationQueryRegistry',
@@ -2690,6 +3068,7 @@ const List<String> _simulationBehindTheView = <String>[
   'SpawnContext',
   'StepDivergence',
   'StepEventSummary',
+  'TriggerKind',
 ];
 
 const List<String> _physicsBehindTheView = <String>[
@@ -2714,21 +3093,32 @@ const List<String> _physicsBehindTheView = <String>[
   'CollisionWedge',
   'ContactFilter',
   'CustomShape',
+  'DartPhysics',
   'DynamicsRequest',
   'FloatPush',
   'FluidMedium',
   'FluidSolver',
+  'FreeSurface',
+  'InsideWalls',
+  'JetLanding',
+  'JetReceiver',
+  'LiquidBody',
+  'LiquidLayer',
   'ModeRinging',
   'MovementSettings',
+  'OutsideWalls',
   'ParcelFlight',
   'ParticleMotion',
   'PipeFlow',
+  'PlaneObstacle',
   'RayHit',
   'RayQuery',
   'RigidBody',
   'RigidDynamics',
+  'Spill',
   'SweepHit',
   'SweepQuery',
+  'VesselShape',
   'WedgeUphill',
   'WindSettings',
   'WorldRays',
@@ -2742,6 +3132,7 @@ const List<String> _kernelLanguage = <String>[
   'KernelBindingKind',
   'KernelImage',
   'KernelInputs',
+  'KernelPixels',
   'KernelTexture',
   'WgslKernel',
 ];

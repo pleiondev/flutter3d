@@ -1,5 +1,30 @@
 ## 1.0.0-rc.1
 
+- **What the guides name and the bases' own implementations are
+  exported.** `lowerMaterialCompute` and `MaterialComputeKernel` (a
+  material's `compute` stage, beside `parseMaterial`), `RenderStepAddon`
+  and `LightingModelAddon` (how a post step or a lit model is shipped),
+  `exportToF3d`, `modelFormats`, `optimizeVertexCache`,
+  `SizedImageDecoder`, `parseExpression` with `ExpressionSyntax` and
+  `ExpressionCodec`, `FrameDrawn` and `FramePassSkipped` beside
+  `FrameHeld`, the material updates (`MaterialRenameUpdate`,
+  `MaterialScaleUpdate`, `MaterialRemoveUpdate`), `ModelOrthographicCamera`,
+  `HostSkinningHook` and `LinearBlendSkinning`, `ImmediateTextureSource`,
+  `InMemoryDeviceClassMemory`, the plugin changes (`PluginEnabled`,
+  `PluginDisabled`, `PluginsReordered`), the component codecs
+  (`InPlaceCodec`, `WorldPositionCodec`, `ComponentRestoreContext`), the
+  registries a host hands a plugin (`DataSectionRegistry` with
+  `DataSection` and its four request types, `FormatRegistry`,
+  `VmExtensions`, `VmExtensionHandler`), the property laws
+  (`ConstantLaw`, `FormulaLaw`, `TableLaw`, `LawInput`), the sharing and
+  multiview handles (`SharedTexture`, `SharedBuffer`, `SharingMode`,
+  `SharingException`, `ViewPass`, `ViewPasses`), `PipelineStatistic`,
+  the indirect argument writers and `hardwareFormats`.
+- **The format exceptions thrown from exported API are exported**:
+  `UnitFormatException`, `UnitMismatchException`,
+  `DocumentFormatException`, `ExpressionSyntaxException`,
+  `MaterialVersionException`, `AnimationPointerFormatException`, so a
+  caller catches each by name and not only as `Flutter3dFormatException`.
 - **`RenderStepContext` is exported**, what a render step's `isOn` and
   `switchOff` are handed: the settings, and the frame's views, device and
   quality.

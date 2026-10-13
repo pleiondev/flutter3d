@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **The facade exports the stock implementations of what it exports**:
+  the particle emitters and affectors with their curves and gradients,
+  `ManualTime`, `LogTime`, `IsolateSimulation`, `ContactEvent` and the
+  collision masks (`CollisionLayers`, `Layers`).
 - **The software device's material stages live in `software.dart`**
   (new library). `MaterialProgramStage`, `MaterialVertexStage` and
   `MaterialFullscreenStage` left the main barrel, and with them the

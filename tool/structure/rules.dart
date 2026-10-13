@@ -296,6 +296,10 @@ List<Rule> get allRules => <Rule>[
   ),
   (name: 'a facade exports every type its API names', run: _facadesAreClosed),
   (
+    name: 'a facade names what it leaves out of the library under it',
+    run: _facadeShowListsAreDecided,
+  ),
+  (
     name: 'a signature names only types a caller can import',
     run: _signaturesNameImportableTypes,
   ),
@@ -6568,6 +6572,21 @@ List<Finding> _namingRule(
 List<Finding> _facadesAreClosed() {
   final snapshots = _publishedSnapshots;
   final declarations = typeDeclarationsIn(snapshots.values);
+  final homes = typeHomesIn(snapshots);
+  // Every library's, for [facadeGapFromAllowed], which excuses a type by the
+  // package that declares it wherever in that package it is.
+  final everyHome = <String, Set<String>>{
+    for (final MapEntry(key: package, value: snapshot) in snapshots.entries)
+      for (final library in parseApi(snapshot).values)
+        for (final name in library.declarations.keys) name: <String>{},
+  };
+  for (final MapEntry(key: package, value: snapshot) in snapshots.entries) {
+    for (final library in parseApi(snapshot).values) {
+      for (final name in library.declarations.keys) {
+        everyHome[name]!.add(package);
+      }
+    }
+  }
   final found = <Finding>[];
   final used = <String>{};
   for (final MapEntry(key: facade, value: together) in facadePackages.entries) {
@@ -6602,9 +6621,81 @@ List<Finding> _facadesAreClosed() {
       exported: exported,
       declarations: declarations,
       extensions: extensions,
+      homes: homes,
     )) {
       final key = '$facade:${gap.subject}';
       if (facadeGapAllowed.containsKey(key)) {
+        used.add(key);
+        continue;
+      }
+      final from = <String>[
+        for (final package in everyHome[gap.subject] ?? const <String>{})
+          if (facadeGapFromAllowed[facade]?.containsKey(package) ?? false)
+            '$facade <- $package',
+      ];
+      if (from.isNotEmpty) {
+        used.addAll(from);
+        continue;
+      }
+      found.add(
+        Finding('$facade/api/$facade.api', '`${gap.subject}` ${gap.what}'),
+      );
+    }
+  }
+  for (final key in <String>[
+    ...facadeGapAllowed.keys,
+    for (final MapEntry(key: facade, value: from)
+        in facadeGapFromAllowed.entries)
+      for (final package in from.keys) '$facade <- $package',
+  ]) {
+    if (used.contains(key)) continue;
+    found.add(
+      Finding(
+        'tool/structure/repository.dart',
+        '`facadeGapAllowed` or `facadeGapFromAllowed` names `$key`, which '
+            'its facade exports or no longer reaches: take the entry out',
+      ),
+    );
+  }
+  return found;
+}
+
+/// Every public name of a main library a facade re-exports with a `show`
+/// list ([facadeShowListsHeld]) is on the list, or [facadeLeavesOut] says
+/// why a caller of the facade never writes it (S2).
+///
+/// **The list is hand-kept, so a name added underneath is outside until
+/// somebody asks.** `lowerMaterialCompute` and `MaterialComputeKernel` were
+/// added to the core with the materials guide naming them, and
+/// `RenderStepAddon` with the plugin guide calling it the way an effect is
+/// shipped; the facade exported none of them, and no rule saw it, because
+/// no exported signature names them.
+///
+/// Mutation: take `lowerMaterialCompute` off `flutter3d`'s show list,
+/// regenerate the snapshot, and this names it.
+List<Finding> _facadeShowListsAreDecided() {
+  final snapshots = _publishedSnapshots;
+  final found = <Finding>[];
+  final used = <String>{};
+  for (final MapEntry(key: facade, value: underneath)
+      in facadeShowListsHeld.entries) {
+    final missing = <String>[
+      facade,
+      ...underneath,
+    ].where((String p) => snapshots[p] == null);
+    if (missing.isNotEmpty) {
+      found.add(Finding(facade, 'has no snapshot for ${missing.join(', ')}'));
+      continue;
+    }
+    for (final gap in facadeLeftOutIn(
+      facade: facade,
+      facadeSnapshot: snapshots[facade]!,
+      underneath: <String, String>{
+        for (final p in underneath) p: snapshots[p]!,
+      },
+    )) {
+      final key = '$facade:${gap.subject}';
+      if (facadeLeavesOut.containsKey(key)) {
         used.add(key);
         continue;
       }
@@ -6613,13 +6704,13 @@ List<Finding> _facadesAreClosed() {
       );
     }
   }
-  for (final key in facadeGapAllowed.keys) {
+  for (final key in facadeLeavesOut.keys) {
     if (used.contains(key)) continue;
     found.add(
       Finding(
         'tool/structure/repository.dart',
-        '`facadeGapAllowed` names `$key`, which its facade exports or no '
-            'longer reaches: take the entry out',
+        '`facadeLeavesOut` names `$key`, which its facade exports or the '
+            'library under it no longer declares: take the entry out',
       ),
     );
   }

@@ -1079,33 +1079,56 @@ void unmountWidgetTree(BuildOwner build, RenderObjectToWidgetElement<RenderBox> 
 export package:flutter3d_level_scene/flutter3d_level_scene.dart show LevelBatching
   LevelBatching
 
-export package:flutter3d_particles/flutter3d_particles.dart show Flipbook, FlipbookCell, Particle, ParticleAffector, ParticleBirth, ParticleEffect, ParticleEmitter, ParticleStep, ParticleSystem, Range
+export package:flutter3d_particles/flutter3d_particles.dart show BoxEmitter, ConeEmitter, CurveKey, DriftEmitter, Flipbook, FlipbookCell, GradientKey, KeyEase, Particle, ParticleAffector, ParticleBirth, ParticleColorGradient, ParticleColorOverLife, ParticleCurve, ParticleDrag, ParticleEffect, ParticleEmitter, ParticleFade, ParticleGradient, ParticleGravity, ParticlePlaneCollision, ParticleSizeCurve, ParticleSizeOverLife, ParticleSpin, ParticleStep, ParticleSystem, ParticleTurbulence, ParticleWind, Range, SphereEmitter
+  BoxEmitter
+  ConeEmitter
+  CurveKey
+  DriftEmitter
   Flipbook
   FlipbookCell
+  GradientKey
+  KeyEase
   Particle
   ParticleAffector
   ParticleBirth
+  ParticleColorGradient
+  ParticleColorOverLife
+  ParticleCurve
+  ParticleDrag
   ParticleEffect
   ParticleEmitter
+  ParticleFade
+  ParticleGradient
+  ParticleGravity
+  ParticlePlaneCollision
+  ParticleSizeCurve
+  ParticleSizeOverLife
+  ParticleSpin
   ParticleStep
   ParticleSystem
+  ParticleTurbulence
+  ParticleWind
   Range
+  SphereEmitter
 
-export package:flutter3d_physics/flutter3d_physics.dart show ClothObstacle, CollisionWorld, ContactPhase, JetObstacle, ObstacleTouch, PhysicsBackend, StepContact, SweptContact, WorldMirror
+export package:flutter3d_physics/flutter3d_physics.dart show ClothObstacle, CollisionWorld, ContactPhase, JetObstacle, Layers, ObstacleTouch, PhysicsBackend, StepContact, SweptContact, WorldMirror
   ClothObstacle
   CollisionWorld
   ContactPhase
   JetObstacle
+  Layers
   ObstacleTouch
   PhysicsBackend
   StepContact
   SweptContact
   WorldMirror
 
-export package:flutter3d_sim/flutter3d_sim.dart show ActorHurt, AvoidanceNeighbor, Brush, DisplayTime, EngineLoop, EntityDef, EntityKind, EntityRegistry, FocusPoint, FrameCadence, GameEvent, HeightfieldTiles, InputAction, InputFrame, InputState, InputTapeRecorder, JsonLinearColorWriter, Level, LevelCheck, LevelCollision, LevelIssue, LevelLight, LevelMaterial, LevelRecipe, LevelRule, LevelVisibility, Lightmap, LightmapLayout, LocalSimulation, NavMeshLink, PlayerStart, Prefab, SeatInput, ShadowCasting, SimulationFactory, SimulationHandle, SimulationQuestion, SimulationSetup, TileLevelChooser, TimeSource, WorldTiming, XrControl, XrControlReading, XrHand, XrPlane, XrPlaneOrientation, XrPoseInput, XrSceneMesh
+export package:flutter3d_sim/flutter3d_sim.dart show ActorHurt, AvoidanceNeighbor, Brush, CollisionLayers, ContactEvent, DisplayTime, EngineLoop, EntityDef, EntityKind, EntityRegistry, FocusPoint, FrameCadence, GameEvent, HeightfieldTiles, InputAction, InputFrame, InputState, InputTapeRecorder, IsolateSimulation, JsonLinearColorWriter, Level, LevelCheck, LevelCollision, LevelIssue, LevelLight, LevelMaterial, LevelRecipe, LevelRule, LevelVisibility, Lightmap, LightmapLayout, LocalSimulation, LogTime, ManualTime, NavMeshLink, PlayerStart, Prefab, SeatInput, ShadowCasting, SimulationFactory, SimulationHandle, SimulationQuestion, SimulationSetup, TileLevelChooser, TimeSource, WorldTiming, XrControl, XrControlReading, XrHand, XrPlane, XrPlaneOrientation, XrPoseInput, XrSceneMesh
   ActorHurt
   AvoidanceNeighbor
   Brush
+  CollisionLayers
+  ContactEvent
   DisplayTime
   EngineLoop
   EntityDef
@@ -1119,6 +1142,7 @@ export package:flutter3d_sim/flutter3d_sim.dart show ActorHurt, AvoidanceNeighbo
   InputFrame
   InputState
   InputTapeRecorder
+  IsolateSimulation
   JsonLinearColorWriter
   Level
   LevelCheck
@@ -1132,6 +1156,8 @@ export package:flutter3d_sim/flutter3d_sim.dart show ActorHurt, AvoidanceNeighbo
   Lightmap
   LightmapLayout
   LocalSimulation
+  LogTime
+  ManualTime
   NavMeshLink
   PlayerStart
   Prefab

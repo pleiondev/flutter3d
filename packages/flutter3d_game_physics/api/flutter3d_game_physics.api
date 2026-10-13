@@ -230,6 +230,9 @@ String get physicsTerms
 
 int relayVersionOf(SimulationVersion simulation)
 
+export package:flutter3d_net/flutter3d_net.dart show PartySeat
+  PartySeat
+
 library package:flutter3d_game_physics/party.dart
 
 final class PartySession<G>
@@ -270,6 +273,9 @@ const String partyCodeAlphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 String get physicsTerms
 
 int relayVersionOf(SimulationVersion simulation)
+
+export package:flutter3d_net/flutter3d_net.dart show PartySeat
+  PartySeat
 
 library package:flutter3d_game_physics/ragdoll.dart
 

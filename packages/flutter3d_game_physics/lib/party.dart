@@ -13,6 +13,10 @@
 /// is the game's. This package seats it.
 library;
 
+// The seat `PartySession.open(stage:)` hands the game, so the callback can
+// name it with this import alone; the relay's wire under it stays
+// `flutter3d_net`'s.
+export 'package:flutter3d_net/flutter3d_net.dart' show PartySeat;
 export 'src/party/party_session.dart';
 export 'src/party/relay_terms.dart';
 export 'src/party/room_session.dart';
