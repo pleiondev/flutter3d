@@ -567,10 +567,10 @@ void main() {
       expect(asked.last.quality!.tier, 1);
       expect(_ran(it), contains('eyes'));
 
-      // Outside a frame only the settings are known, and a plan has no
-      // views to give.
+      // A plan asks as a frame does, with the views it plans; outside both
+      // only the settings are known.
       expect(_plan(it, const RenderSettings()).order, isNotEmpty);
-      expect(asked.last.views, isEmpty);
+      expect(asked.last.views, hasLength(1));
       expect(
         eyes.isOn(const RenderStepContext(settings: RenderSettings())),
         isFalse,
