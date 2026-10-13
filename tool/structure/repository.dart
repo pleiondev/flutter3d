@@ -2105,8 +2105,6 @@ const Map<String, String> hookParametersAllowed = <String, String>{
       'flame_flutter3d: whether a cell can be entered, a function of its column and row',
   'MaterialSurfaceValues.sample':
       'flutter3d_core: a texture slot sampled at u and v, the shape of the shader builtin it runs in place of, as KernelTexture',
-  'Model3dComponent.openSharedDevice':
-      'flame_flutter3d: a test seam with BackendOpener\'s shape (width, height)',
   'OverheadFraming.groundHeight':
       'flutter3d_camera: the ground\'s height at x and z, as GroundHeight',
   'Model3D.errorBuilder':

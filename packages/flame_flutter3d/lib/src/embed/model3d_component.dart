@@ -6,10 +6,10 @@ import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/foundation.dart' show protected, visibleForTesting;
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_app/flutter3d_app.dart' show openDevice;
 
 import '../animation/model_animation_component.dart';
 import 'frame_image.dart';
+import 'shared_device.dart';
 
 /// A 3D model drawn into its own rectangle of a plain Flame game: a
 /// [PositionComponent] like any other, with no 3D layer and no host widget.
@@ -50,7 +50,9 @@ import 'frame_image.dart';
 /// and the last one removed closes it. Each keeps its own [Renderer],
 /// because a renderer's targets are sized to what it draws, and two models
 /// of different sizes sharing one would reallocate them twice a frame. A
-/// [device] passed in is used instead and is never closed here.
+/// [device] passed in is used instead and is never closed here. The shared
+/// device is `flutter3d_app`'s `openDevice`; a test opens another through
+/// `package:flame_flutter3d/testing.dart`.
 base class Model3dComponent extends PositionComponent {
   Model3dComponent({
     this.model,
@@ -126,15 +128,6 @@ base class Model3dComponent extends PositionComponent {
   /// component changes shape.
   Aabb3? _framed;
   double _framedAspect = 0.0;
-
-  /// How a game's shared device is opened: `flutter3d_app`'s `openDevice`,
-  /// or a test's software device.
-  @visibleForTesting
-  static Future<GraphicsDevice> Function({
-    required int width,
-    required int height,
-  })
-  openSharedDevice = openDevice;
 
   /// The picture [render] paints, or null before the first frame arrives.
   @visibleForTesting
@@ -214,7 +207,7 @@ base class Model3dComponent extends PositionComponent {
   Future<GraphicsDevice> _acquire() {
     final game = _sharedFrom = findGame()!;
     final shared = _devices[game] ??= _SharedDevice(
-      openSharedDevice(width: 256, height: 256),
+      sharedDeviceOpener(width: 256, height: 256),
     );
     shared.users++;
     return shared.opening;

@@ -402,7 +402,6 @@ base class MeshFlipbookComponent extends Component
 
 base class Model3dComponent extends PositionComponent
   @protected Future<void> buildScene(GraphicsDevice device)
-  @visibleForTesting static Future<GraphicsDevice> Function({required int width, required int height}) openSharedDevice
   @visibleForTesting ui.Image? get frameImage
   Future<void> onLoad()
   GraphicsDevice get device
@@ -709,3 +708,7 @@ base class WrapSpace extends Component
 void addHitboxes3d(DebugDraw lines, Component root, {int circleSegments = 24})
 
 bool shownInFlame(HasVisibility component)
+
+library package:flame_flutter3d/testing.dart
+
+void Function() openSharedDevicesWith(Future<GraphicsDevice> Function({required int width, required int height}) open)

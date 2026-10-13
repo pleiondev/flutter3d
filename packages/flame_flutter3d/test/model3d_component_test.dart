@@ -8,6 +8,7 @@ import 'dart:ui' as ui;
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
+import 'package:flame_flutter3d/testing.dart';
 import 'package:flame_test/flame_test.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d/flutter3d.dart' as f3d show RenderMaterial;
@@ -105,13 +106,15 @@ void main() {
       // Mutation: open a device per component, or forget the count and
       // keep the first device for ever.
       var opened = 0;
-      final saved = Model3dComponent.openSharedDevice;
-      addTearDown(() => Model3dComponent.openSharedDevice = saved);
-      Model3dComponent.openSharedDevice =
-          ({required int width, required int height}) async {
-            opened++;
-            return _device();
-          };
+      addTearDown(
+        openSharedDevicesWith(({
+          required int width,
+          required int height,
+        }) async {
+          opened++;
+          return _device();
+        }),
+      );
 
       final game = await _game();
       final first = _Sphere();

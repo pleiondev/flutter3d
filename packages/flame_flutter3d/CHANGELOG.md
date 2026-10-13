@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `Model3dComponent.openSharedDevice` is gone from the main
+  library.** A game had a global it could change; a test opens the shared
+  device another way with `openSharedDevicesWith` from the new
+  `package:flame_flutter3d/testing.dart`, which returns the function that
+  puts the opener back.
 - **Breaking: the world helpers' callbacks take one object each.**
   `ChunkStreamer.drop` takes a `ChunkDrop` (the index and the piece),
   `GridMover.onArrive` a `GridArrival` (the column and the row) and
