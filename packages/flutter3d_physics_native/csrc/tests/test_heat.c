@@ -1165,9 +1165,13 @@ static int hot_ball_burns(F3dMaterialKind kind) {
 }
 
 static void test_a_hot_ball_of_hard_wood_burns_over_many_steps(void) {
-  /* Over a minute each: before the gas in depth was bounded, 4 to 7 s. */
-  CHECK(hot_ball_burns(F3D_MATERIAL_OAK) > 3600);
-  CHECK(hot_ball_burns(F3D_MATERIAL_PINE) > 3600);
+  /* Minutes each, as Block's regression has it: oak burns out in 15641
+   * steps, pine in 14879, some 4 minutes, its whole sphere burning in at
+   * once where the regression's 7 minutes is a stick's. Held to more than
+   * two minutes and, by the loop, less than ten. Before the gas in depth
+   * was bounded, 4 to 7 s. */
+  CHECK(hot_ball_burns(F3D_MATERIAL_OAK) > 7200);
+  CHECK(hot_ball_burns(F3D_MATERIAL_PINE) > 7200);
 }
 
 /* The most W a box of WOOD [hx] × [hy] × [hz] half-extents and [kg], set to
