@@ -3,6 +3,7 @@ import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'net_race.dart';
+import 'party_report.dart';
 
 /// A race of up to [cars] machines, each driving the car its party slot
 /// names, kept in step by [RollbackSession] — `NetRace` for more than two.
@@ -25,6 +26,7 @@ final class PartyRace {
   }) : assert(cars >= 2, 'a party is at least two'),
        // ignore: prefer_initializing_formals
        _sim = sim {
+    report = PartyRunReport(slot: wire.slot, players: cars);
     session = RollbackSession<Snapshot>(
       wire: wire,
       players: cars,
@@ -34,8 +36,13 @@ final class PartyRace {
       restore: _sim.restore,
       inputDelay: inputDelay,
       maxRollbackFrames: maxRollbackFrames,
-      onSettled: onSettled,
-      onMessage: onMessage,
+      onSettled: (SettledStep<Snapshot> settled) {
+        report.settled(settled);
+        onSettled?.call(settled);
+      },
+      onMessage: (PeerMessage message) {
+        if (!report.hear(wire, message)) onMessage?.call(message);
+      },
     );
   }
 
@@ -46,6 +53,10 @@ final class PartyRace {
   final int cars;
   final InputState localInput;
   late final RollbackSession<Snapshot> session;
+
+  /// This machine's line of the party's report: the session's counts, the
+  /// round trip it measured and the digests of the steps it settled.
+  late final PartyRunReport report;
 
   /// The car this machine drives.
   int get localCarIndex => wire.slot;
@@ -72,5 +83,20 @@ final class PartyRace {
     _sim.step(1.0 / 60.0);
   }
 
-  void advance() => session.advance();
+  void advance() {
+    report.pingIfDue(wire, session.step);
+    session.advance();
+  }
+
+  /// [report] for this race, as `tool/rollback_report.dart` reads it.
+  Map<String, Object?> reportLine({
+    required String machine,
+    required String device,
+    String endedBy = 'time',
+  }) => report.toJson(
+    session: session,
+    machine: machine,
+    device: device,
+    endedBy: endedBy,
+  );
 }

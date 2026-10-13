@@ -82,7 +82,9 @@ final class _NetRaceScreenState extends State<NetRaceScreen> {
   void dispose() {
     _ticker?.cancel();
     _session?.dispose();
-    _party?.dispose();
+    if (_party case final party?) {
+      unawaited(party.writeReport().whenComplete(party.dispose));
+    }
     _codeField.dispose();
     super.dispose();
   }
@@ -216,6 +218,8 @@ final class _NetRaceScreenState extends State<NetRaceScreen> {
     final session = _session;
     if (session != null) widget.onEnded?.call(session);
     await session?.dispose();
+    // The party's line of the rollback report, before its wire is closed.
+    await _party?.writeReport();
     await _party?.dispose();
     if (!mounted) return;
     setState(() {

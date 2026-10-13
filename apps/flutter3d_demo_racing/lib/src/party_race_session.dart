@@ -1,3 +1,7 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:flutter3d_game_physics/party.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
@@ -76,6 +80,32 @@ final class PartyRaceSession {
   );
 
   void advance() => race.advance();
+
+  /// Writes this machine's line of the party's report, as
+  /// `packages/flutter3d_net/tool/rollback_report.dart` reads it, into
+  /// `flutter3d-rollback/machine-<car>.json` under the system's temporary
+  /// directory, and says where; null in a browser, which has no files.
+  ///
+  /// On a phone that directory is the application's own cache, which an
+  /// Android one hands back through `adb exec-out run-as` and the package's
+  /// name, `cat cache/flutter3d-rollback/machine-3.json`. [endedBy] is
+  /// `time` for a race that ran its length.
+  Future<String?> writeReport({String endedBy = 'time'}) async {
+    if (kIsWeb) return null;
+    final car = localCarIndex + 1;
+    final line = race.reportLine(
+      machine: 'car-$car',
+      device: '${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
+      endedBy: endedBy,
+    );
+    final file = File(
+      '${Directory.systemTemp.path}/flutter3d-rollback/machine-$car.json',
+    );
+    await file.parent.create(recursive: true);
+    await file.writeAsString(const JsonEncoder.withIndent('  ').convert(line));
+    debugPrint('rollback report: ${file.path}');
+    return file.path;
+  }
 
   Future<void> dispose() => _party.dispose();
 }

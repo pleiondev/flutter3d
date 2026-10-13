@@ -84,5 +84,33 @@ void main() {
         );
       }
     }
+
+    // Each machine's line of the party's report: what the phones write for
+    // the rollback proof. Mutation: digest the state a step began in, or
+    // answer no ping, and the lines disagree or carry no round trip.
+    final lines = [
+      for (final (index, it) in races.indexed)
+        it.race.reportLine(machine: 'car-${index + 1}', device: 'loopback'),
+    ];
+    for (final (index, line) in lines.indexed) {
+      expect(line['kind'], 'rollback-run');
+      expect(line['slot'], index);
+      expect(line['players'], cars);
+      expect(line['lastStep'], 360);
+      expect(line['stats'], races[index].race.session.stats.toJson());
+      final rtt = line['rttMs']! as Map<String, Object?>;
+      // Six pings each, answered by three machines, some of them lost.
+      expect(rtt['samples'], inInclusiveRange(9, 18));
+      expect(rtt['p50'], isA<double>());
+      final digests = line['digests']! as Map<String, Object?>;
+      final first = lines.first['digests']! as Map<String, Object?>;
+      for (final step in digests.keys.where(first.containsKey)) {
+        expect(digests[step], first[step], reason: 'car $index, step $step');
+      }
+    }
+    expect(
+      (lines.first['digests']! as Map<String, Object?>).keys,
+      containsAll(<String>['100', '200', '300']),
+    );
   });
 }

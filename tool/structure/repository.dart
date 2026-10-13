@@ -594,6 +594,11 @@ const Map<String, Map<String, String>> repeatableStepExempt =
             'an unseeded `Random()` makes the five letters of a room code two '
             'people read to each other before a race; nothing in the race '
             'reads it',
+        'lib/src/party_report.dart':
+            'a `Stopwatch` timing a ping to the other machines and back, '
+            'the round trip the party\'s rollback report writes; the ping '
+            'goes beside the rollback\'s frames and nothing a step runs '
+            'reads the time',
       },
       'flutter3d_demo_sandbox': <String, String>{
         'lib/main.dart': '`DateTime.now()` names a screenshot file',
