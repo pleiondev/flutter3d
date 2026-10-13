@@ -176,15 +176,23 @@ while read -r layer names; do
     printf '  %-30s %-12s uploading\n' "$name" "$version"
     # A version uploaded by a run that stopped before pub.dev listed it is
     # refused as existing; it is up, and this waits for it like the rest.
-    if ! out="$(cd "$dir" && flutter pub publish --force 2>&1)"; then
+    # pub.dev creates only a few new packages in a few minutes; a first upload
+    # refused for that is tried again after a pause, up to an hour.
+    tries=0
+    while :; do
+      out="$(cd "$dir" && flutter pub publish --force 2>&1)" && ok=1 || ok=0
       echo "$out"
-      if ! echo "$out" | grep -Fq "Version $version of package $name already exists"; then
-        plan_b "$name $version" "$n" "$version"
-        exit 1
+      [ "$ok" = 1 ] && break
+      echo "$out" | grep -Fq "Version $version of package $name already exists" && break
+      if echo "$out" | grep -Fq 'rate limit has been reached' && [ "$tries" -lt 12 ]; then
+        tries=$((tries + 1))
+        echo "  $name: pub.dev's limit on new packages, trying again in 5 minutes"
+        sleep 300
+        continue
       fi
-    else
-      echo "$out"
-    fi
+      plan_b "$name $version" "$n" "$version"
+      exit 1
+    done
     uploaded="$uploaded $name=$version"
   done
 
