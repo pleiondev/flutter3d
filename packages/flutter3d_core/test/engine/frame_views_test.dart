@@ -118,6 +118,38 @@ void main() {
     expect(settings.motionBlur.enabled, isFalse);
   });
 
+  test('a plan asks a step\'s switch about the views it plans', () {
+    // Mutation: compile the plan without `frameViews`. A step on only for
+    // a stereo pair is then off in every plan, and the plan disagrees with
+    // the frame it was asked about.
+    final it = _stage();
+    final right = CameraNode()..setPosition(0.064, 0.0, 0.0);
+    it.scene.add(right);
+    final pair = RenderStep(
+      'acme.pair',
+      isOn: (RenderStepContext context) => context.views.length == 2,
+      switchOff: (RenderStepContext context) => context.settings,
+    );
+    it.renderer.renderSteps
+      ..addStep(pair)
+      ..addNode(_Smear(), at: RenderAnchor.afterScene, step: pair);
+    List<String> planned(List<CameraNode> cameras) => <String>[
+      for (final node
+          in it.renderer
+              .planFrame(
+                scene: it.scene,
+                views: <RenderView>[
+                  for (final camera in cameras) RenderView(camera: camera),
+                ],
+                settings: _plain,
+              )
+              .order)
+        node.name,
+    ];
+    expect(planned(<CameraNode>[it.camera]), isNot(contains('acme.smear')));
+    expect(planned(<CameraNode>[it.camera, right]), contains('acme.smear'));
+  });
+
   test('a node reads last frame\'s view-projection of its view', () {
     final it = _stage();
     final smear = _Smear(optional: true);

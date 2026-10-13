@@ -46,7 +46,8 @@ import 'render_settings.dart';
 ///
 /// Outside a frame — [RenderSettings.without] and [RenderSettings.only]
 /// switching a step — only [settings] is known: [views] is empty, and
-/// [device] and [quality] are null.
+/// [device] and [quality] are null. `Renderer.planFrame` asks as a frame
+/// does, with the views it plans at the size of the last frame drawn.
 final class RenderStepContext {
   /// The question about [settings], and what of the frame is known.
   const RenderStepContext({

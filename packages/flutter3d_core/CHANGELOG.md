@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **A plan asks a step's switch what a frame would ask it.**
+  `Renderer.planFrame` hands `RenderStepContext.views` the views it plans,
+  at the size of the last frame drawn, so a step on only for a stereo pair
+  is in the plan of one and out of the plan of a single view, as it is in
+  the frames.
 - **Breaking: what only the renderer can fill is made only by it.**
   `DrawJournal`, `FrameHistory`, `MaterialSortIds` and `HiZOcclusion` lost
   the public constructor the language gave them: the renderer keeps the one

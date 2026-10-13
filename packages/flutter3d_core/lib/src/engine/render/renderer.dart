@@ -4678,6 +4678,14 @@ final class Renderer with RenderServices {
     return _compileFrameGraph(
       views.first,
       settings,
+      // The views a step's switch is asked about, as a frame asks it: at the
+      // size of the last frame drawn, square before the first, since a plan
+      // has no target of its own.
+      frameViews: _frameViewsOf(
+        views,
+        math.max(_targetWidth, 1),
+        math.max(_targetHeight, 1),
+      ),
       // From this plan's own buffer, not the running frame's: a plan that asked
       // the live lights whether a sun exists would answer about a different
       // scene.
