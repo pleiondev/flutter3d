@@ -89,3 +89,6 @@ site/CLAUDE.md
 # cited with its URL in `docs/articles/README.md`, so the checkout carries the
 # citations and not the papers.
 docs/articles/*.pdf
+
+# very_good test runs write this beside the tests.
+.test_optimizer.dart

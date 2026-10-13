@@ -99,7 +99,9 @@ step "structure" dart run tool/structure.dart
 # and it is one commit. Second in the order for the same reason the structure
 # scan is first: it needs no packages resolved and finishes in under two
 # seconds.
-step "format" dart format --output=none --set-exit-if-changed packages apps tool
+# Tracked files only: a test run leaves copies of sources under an ignored
+# `build/`, and those are nobody's style.
+step "format" bash -c 'git ls-files -z -- "packages/*.dart" "apps/*.dart" "tool/*.dart" | xargs -0 dart format --output=none --set-exit-if-changed'
 
 step "pub get" flutter pub get
 
