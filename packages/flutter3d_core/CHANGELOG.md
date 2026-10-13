@@ -1,5 +1,16 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `AssetSource.read` takes an `AssetRead`.** The request
+  (new) carries what a reader asks of one read: `onProgress` with an
+  `AssetProgress` (new), a cancel signal, `AssetCancel` (new), and a byte
+  range, `AssetByteRange` (new), so a minor can ask a source for more
+  without breaking one written against 1.0; `AssetRead.whole` asks for
+  nothing. `AssetRead.readFrom` is how the loaders read: the signal looked
+  at before and after, the whole file reported once it arrived.
+  `decodeModel` and `decodeModelInIsolate` take `read:`, which stays on
+  the calling isolate with the read. `ResourceLoadCanceledException` is
+  also what a canceled read throws. `migrate` gives an override the
+  parameter and hands a call `const AssetRead()`.
 - **Breaking: a `HitResult` is the caller's, and its fields are final.**
   `Raycaster.intersectScene` tests candidates in a scratch of its own and
   hands back a new result for the nearest, so a hit kept, or handed to

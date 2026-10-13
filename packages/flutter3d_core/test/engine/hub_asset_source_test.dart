@@ -18,7 +18,7 @@ final class _PlainSource extends AssetSource {
   String get key => 'plain:model.glb';
 
   @override
-  Future<Uint8List> read() async => Uint8List(0);
+  Future<Uint8List> read(AssetRead request) async => Uint8List(0);
 
   @override
   AssetUriResolver get resolveUri =>
@@ -39,7 +39,7 @@ final class _VersionedSource extends AssetSource {
   String get key => 'store:chair@$version';
 
   @override
-  Future<Uint8List> read() async => Uint8List(0);
+  Future<Uint8List> read(AssetRead request) async => Uint8List(0);
 
   @override
   AssetUriResolver get resolveUri =>
@@ -91,7 +91,7 @@ void main() {
 
     test('reading refuses with offline: this release has no client', () async {
       await expectLater(
-        HubAssetSource(reference).read(),
+        HubAssetSource(reference).read(AssetRead.whole),
         throwsA(
           isA<HubRefusedException>()
               .having((e) => e.reason, 'reason', HubRefusal.offline)

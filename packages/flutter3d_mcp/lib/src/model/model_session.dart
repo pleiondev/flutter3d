@@ -1806,7 +1806,7 @@ final class _FileSource extends AssetSource {
   String get key => file.path;
 
   @override
-  Future<Uint8List> read() => file.readAsBytes();
+  Future<Uint8List> read(AssetRead request) => file.readAsBytes();
 
   @override
   AssetUriResolver get resolveUri => (AssetRequest request) async {

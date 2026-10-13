@@ -173,7 +173,9 @@ void main() {
         // through, as it did.
         TestWidgetsFlutterBinding.ensureInitialized();
         await expectLater(
-          const BundleAssetSource('assets/not_in_this_bundle.f3d').read(),
+          const BundleAssetSource(
+            'assets/not_in_this_bundle.f3d',
+          ).read(AssetRead.whole),
           throwsA(
             isA<AssetNotFoundException>()
                 .having((e) => e.key, 'key', 'assets/not_in_this_bundle.f3d')

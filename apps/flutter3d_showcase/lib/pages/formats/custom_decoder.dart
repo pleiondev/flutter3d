@@ -56,7 +56,7 @@ final class _BytesSource extends AssetSource {
   String get fileName => _fileName;
 
   @override
-  Future<Uint8List> read() async => _bytes;
+  Future<Uint8List> read(AssetRead request) async => _bytes;
 
   @override
   AssetUriResolver get resolveUri =>

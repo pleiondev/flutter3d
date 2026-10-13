@@ -203,6 +203,45 @@ void main() {
     },
   );
 
+  test('load reports what it has read, and a level called off stops before '
+      'the next file and builds nothing', () async {
+    // Mutation: drop `read:` on the way through `load`, and nothing is
+    // reported; drop the check before the sidecars, and the visibility
+    // table is read for a level nobody wants any more.
+    final document = jsonEncode(_levelJson());
+    final seen = <AssetProgress>[];
+    final cancel = AssetCancel();
+    final asked = <String>[];
+    await expectLater(
+      const LevelLoader().load(
+        'levels/wall.level.json',
+        device: device,
+        registry: registry,
+        read: AssetRead(onProgress: seen.add, cancel: cancel),
+        readDocument: (AssetRequest request) async {
+          asked.add(request.uri);
+          // The level is left while its document arrives.
+          cancel.cancel();
+          return document;
+        },
+      ),
+      throwsA(isA<ResourceLoadCanceledException>()),
+    );
+    expect(asked, <String>['levels/wall.level.json']);
+
+    final loaded = await const LevelLoader().load(
+      'levels/wall.level.json',
+      device: device,
+      registry: registry,
+      sidecars: false,
+      read: AssetRead(onProgress: seen.add),
+      readDocument: (AssetRequest request) async => document,
+    );
+    expect(loaded.drawCallCount, greaterThan(0));
+    expect(seen, isNotEmpty);
+    expect(seen.last.received, utf8.encode(document).length);
+  });
+
   test('a device class reads its own light set, and the level itself when '
       'there is none', () async {
     // `N7`. Mutation: read `assetPath` alone in `_classDocument` — the phone

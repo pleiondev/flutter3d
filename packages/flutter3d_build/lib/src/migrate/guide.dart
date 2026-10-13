@@ -73,13 +73,19 @@ String _what(MigrationEntry e, MigrationTable table) => switch (e.kind) {
 /// A `hookContext` entry in the guide's words: what an override takes now,
 /// and where each of its old parameters is read from.
 String _hookContext(MigrationEntry e) {
+  final context = e.fields['context'];
+  if (e.fieldMap.isEmpty) {
+    return '`${e.symbol}` takes one `$context` where it took nothing: an '
+        'override takes it, and a call hands one asking for nothing, '
+        '`const $context()`.';
+  }
   final reads = <String>[
     for (final MapEntry(:key, :value) in e.fieldMap.entries)
       int.tryParse(key) == null
           ? '`$key:` is `.$value`'
           : 'parameter ${int.parse(key) + 1} is `.$value`',
   ].join(', ');
-  return '`${e.symbol}` takes one `${e.fields['context']}`: an override '
+  return '`${e.symbol}` takes one `$context`: an override '
       'reads its old parameters from it ($reads), and a call builds one.';
 }
 

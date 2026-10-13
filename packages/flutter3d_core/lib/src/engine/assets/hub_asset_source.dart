@@ -46,7 +46,7 @@ final class HubAssetSource extends AssetSource {
   int get version => reference.version;
 
   @override
-  Future<Uint8List> read() async => throw HubRefusedException(
+  Future<Uint8List> read(AssetRead request) async => throw HubRefusedException(
     HubRefusal.offline,
     reference: reference,
     detail:

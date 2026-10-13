@@ -200,7 +200,7 @@ final class _Named extends AssetSource {
   String get key => 'file:$path';
 
   @override
-  Future<Uint8List> read() => File(path).readAsBytes();
+  Future<Uint8List> read(AssetRead request) => File(path).readAsBytes();
 
   @override
   AssetUriResolver get resolveUri => fileUriResolverFor(path);

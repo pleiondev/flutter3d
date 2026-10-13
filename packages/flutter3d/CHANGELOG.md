@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **A model load reports its progress and can be called off.**
+  `loadModelAsset`, `loadModelByPath` and `loadMaterialDocument` take
+  `read:`, an `AssetRead` with a progress listener and a cancel signal;
+  `AssetRead`, `AssetProgress`, `AssetCancel` and `AssetByteRange` are
+  exported here.
 - **Breaking: `ModelWardrobe.onDressed` takes a `ModelDressed`** (new: the
   instance and the key), where it took the two as parameters. `migrate`
   wraps an old function.

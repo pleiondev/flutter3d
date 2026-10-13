@@ -34,7 +34,7 @@ final class _FakeAssetSource extends AssetSource {
   final String key;
 
   @override
-  Future<Uint8List> read() async =>
+  Future<Uint8List> read(AssetRead request) async =>
       throw UnsupportedError('not read in this test');
 
   @override

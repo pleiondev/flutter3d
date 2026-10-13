@@ -1675,7 +1675,9 @@ List<(String, String)> proveApiDetectorsWork() {
     'typedef Mn = ({int a, int b})\n'
     'abstract base class Pq\n'
     '  abstract void c(PqContext context)\n'
-    '  abstract void s(List<String> names)\n',
+    '  abstract void s(List<String> names)\n'
+    '  abstract Future<int> r()\n'
+    '  void close()\n',
   );
   final wide = <String>{
     for (final w in hooks.wide)
@@ -1724,6 +1726,17 @@ List<(String, String)> proveApiDetectorsWork() {
       'hook values',
       'read $values, where $valued are handed one value and a context or a '
           'method of a final class is not',
+    ));
+  }
+
+  // Handed nothing. Mutation: read every method with no parameter, and
+  // `Pq.close`, which has a body nobody need write, fires; read none, and
+  // `Pq.r` goes quiet.
+  final bare = <String>{for (final b in hooks.bare) '${b.type}.${b.member}'};
+  if (bare.length != 1 || !bare.contains('Pq.r')) {
+    broken.add((
+      'hooks handed nothing',
+      'read $bare, where only a bodiless method with no parameter is one',
     ));
   }
 
@@ -2192,6 +2205,10 @@ bool holdsCallback(String member) {
 ///   parameter is a value that cannot gain members
 ///   ([isValueParameterType]): `PluginSource.read(String)`, a callback of a
 ///   bare `Map`.
+/// - [bare]: a bodiless method of a hook type that takes no parameter at
+///   all, which every implementation writes and none can be handed more
+///   through: `AssetSource.read()` before it took an `AssetRead`. A method
+///   with a body is left out, since an implementation need not write it.
 ///
 /// A hook type's member is keyed by its type and member name; a callback
 /// another class holds by its type and the field, getter or parameter
@@ -2201,6 +2218,7 @@ bool holdsCallback(String member) {
   Set<String> seen,
   List<({String type, String member, int parameters, bool callback})> wide,
   List<({String type, String member, String parameter, bool callback})> value,
+  List<({String type, String member})> bare,
 })
 wideHooksIn(String snapshot) {
   final seen = <String>{};
@@ -2208,6 +2226,7 @@ wideHooksIn(String snapshot) {
       <({String type, String member, int parameters, bool callback})>[];
   final value =
       <({String type, String member, String parameter, bool callback})>[];
+  final bare = <({String type, String member})>[];
   // [keyedBy] names every callback of [member] where it is given (`''` for
   // the type alone), and each callback's own field, getter or parameter
   // names it where it is not.
@@ -2255,6 +2274,10 @@ wideHooksIn(String snapshot) {
                 parameters: method.parameters,
                 callback: false,
               ));
+            } else if (method.parameters == 0) {
+              if (rest.startsWith('abstract ')) {
+                bare.add((type: name, member: method.name));
+              }
             } else if (method.parameters == 1) {
               final open = rest.indexOf('(');
               final close = _closingOf(rest, open);
@@ -2287,7 +2310,7 @@ wideHooksIn(String snapshot) {
       }
     }
   }
-  return (seen: seen, wide: wide, value: value);
+  return (seen: seen, wide: wide, value: value, bare: bare);
 }
 
 // ------------------------------------------------------ the plugin API's number

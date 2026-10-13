@@ -167,7 +167,7 @@ final class _PageFile extends AssetSource {
   final int _job;
 
   @override
-  Future<Uint8List> read() async => _bytes;
+  Future<Uint8List> read(AssetRead request) async => _bytes;
 
   @override
   AssetUriResolver get resolveUri => (AssetRequest request) {

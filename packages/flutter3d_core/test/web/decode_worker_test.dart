@@ -74,7 +74,7 @@ final class _Bytes extends AssetSource {
   final List<String> asked = <String>[];
 
   @override
-  Future<Uint8List> read() async => files[key]!;
+  Future<Uint8List> read(AssetRead request) async => files[key]!;
 
   @override
   AssetUriResolver get resolveUri => (AssetRequest request) async {

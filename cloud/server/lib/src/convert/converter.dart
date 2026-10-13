@@ -440,7 +440,7 @@ final class _ArchiveEntry extends AssetSource {
   String get key => 'archive:$_path';
 
   @override
-  Future<Uint8List> read() async => _files[_path]!;
+  Future<Uint8List> read(AssetRead request) async => _files[_path]!;
 
   @override
   AssetUriResolver get resolveUri => _resolve;

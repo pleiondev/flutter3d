@@ -500,6 +500,41 @@ final class AntiAliasSettings
   final double contrastThreshold
   final double sharpen
 
+final class AssetByteRange
+  String toString()
+  Uint8List of(Uint8List bytes)
+  bool operator ==(Object other)
+  const AssetByteRange(this.start, {this.end})
+  final int start
+  final int? end
+  int get hashCode
+  int? get length
+
+final class AssetCancel
+  AssetCancel()
+  Future<void> get whenCanceled
+  bool get isCanceled
+  void cancel()
+  void throwIfCanceled(Object? key)
+
+final class AssetProgress
+  String toString()
+  const AssetProgress({required this.received, this.total})
+  double? get fraction
+  final int received
+  final int? total
+
+final class AssetRead
+  Future<Uint8List> readFrom(AssetSource source)
+  bool get isCanceled
+  const AssetRead({this.onProgress, this.cancel, this.range})
+  final AssetByteRange? range
+  final AssetCancel? cancel
+  final void Function(AssetProgress progress)? onProgress
+  static const AssetRead whole = AssetRead()
+  void progress(int received, {int? total})
+  void throwIfCanceled(Object? key)
+
 final class AssetRequest
   String toString()
   const AssetRequest(this.uri)
@@ -509,7 +544,7 @@ abstract base class AssetSource
   String get fileName
   String? get contentHash
   abstract AssetUriResolver get resolveUri
-  abstract Future<Uint8List> read()
+  abstract Future<Uint8List> read(AssetRead request)
   abstract String get key
   const AssetSource()
   int? get version
@@ -1507,7 +1542,7 @@ final class FieldUpload extends RenderNode
 
 final class FileAssetSource extends AssetSource
   AssetUriResolver get resolveUri
-  Future<Uint8List> read()
+  Future<Uint8List> read(AssetRead request)
   String get key
   const FileAssetSource(this.path)
   final String path
@@ -2061,7 +2096,7 @@ abstract base class HostSkinningHook extends SkinningHook
 
 final class HubAssetSource extends AssetSource
   AssetUriResolver get resolveUri
-  Future<Uint8List> read()
+  Future<Uint8List> read(AssetRead request)
   String get key
   String? get contentHash
   const HubAssetSource(this.reference, {this.cache = HubCachePolicy.standard})
@@ -5595,11 +5630,11 @@ Future<Rgba8Image> decodeImagePure(Uint8List encoded)
 
 DecodedImage decodeJpeg(Uint8List bytes)
 
-Future<ModelDocument> decodeModel(ModelLoadRequest request)
+Future<ModelDocument> decodeModel(ModelLoadRequest request, {AssetRead read = AssetRead.whole})
 
 Future<ModelDocument> decodeModelBytes(ModelLoadRequest request, Uint8List bytes, AssetUriResolver resolveUri)
 
-Future<ModelDocument> decodeModelInIsolate(ModelLoadRequest request)
+Future<ModelDocument> decodeModelInIsolate(ModelLoadRequest request, {AssetRead read = AssetRead.whole})
 
 Vector3 decodeOctahedral(double u, double v, [Vector3? out])
 
@@ -6175,6 +6210,41 @@ final class AnimationTrack
   int get keyCount
   void sample(double time, Float32List out)
 
+final class AssetByteRange
+  String toString()
+  Uint8List of(Uint8List bytes)
+  bool operator ==(Object other)
+  const AssetByteRange(this.start, {this.end})
+  final int start
+  final int? end
+  int get hashCode
+  int? get length
+
+final class AssetCancel
+  AssetCancel()
+  Future<void> get whenCanceled
+  bool get isCanceled
+  void cancel()
+  void throwIfCanceled(Object? key)
+
+final class AssetProgress
+  String toString()
+  const AssetProgress({required this.received, this.total})
+  double? get fraction
+  final int received
+  final int? total
+
+final class AssetRead
+  Future<Uint8List> readFrom(AssetSource source)
+  bool get isCanceled
+  const AssetRead({this.onProgress, this.cancel, this.range})
+  final AssetByteRange? range
+  final AssetCancel? cancel
+  final void Function(AssetProgress progress)? onProgress
+  static const AssetRead whole = AssetRead()
+  void progress(int received, {int? total})
+  void throwIfCanceled(Object? key)
+
 final class AssetRequest
   String toString()
   const AssetRequest(this.uri)
@@ -6184,7 +6254,7 @@ abstract base class AssetSource
   String get fileName
   String? get contentHash
   abstract AssetUriResolver get resolveUri
-  abstract Future<Uint8List> read()
+  abstract Future<Uint8List> read(AssetRead request)
   abstract String get key
   const AssetSource()
   int? get version
@@ -7389,6 +7459,12 @@ final class RangeHint extends MaterialHintKind
   final double min
   final double? step
 
+final class ResourceLoadCanceledException extends ResourceException
+  String get message
+  String toString()
+  const ResourceLoadCanceledException(this.key)
+  final Object? key
+
 final class Rgba8Image
   Rgba8Image({required this.width, required this.height, required Uint8List pixels})
   final Uint8List pixels
@@ -7696,7 +7772,7 @@ Future<Rgba8Image> decodeImagePure(Uint8List encoded)
 
 DecodedImage decodeJpeg(Uint8List bytes)
 
-Future<ModelDocument> decodeModel(ModelLoadRequest request)
+Future<ModelDocument> decodeModel(ModelLoadRequest request, {AssetRead read = AssetRead.whole})
 
 Future<ModelDocument> decodeModelBytes(ModelLoadRequest request, Uint8List bytes, AssetUriResolver resolveUri)
 

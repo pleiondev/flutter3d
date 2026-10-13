@@ -11,9 +11,11 @@ import '../platform/decode_worker_web.dart';
 Future<ModelDocument> decodeOnIsolate(
   ModelLoadRequest request,
   developer.TimelineTask task,
+  AssetRead read,
 ) async {
   task.instant('read');
-  final primary = await request.source.read();
+  // Read here, where [read]'s listener lives; only the bytes cross.
+  final primary = await read.readFrom(request.source);
   task.instant('decode');
   return await decodeModelOnWorker(request, primary) ??
       await decodeModelBytes(request, primary, request.source.resolveUri);

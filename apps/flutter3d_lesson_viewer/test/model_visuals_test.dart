@@ -368,7 +368,7 @@ final class _NeverRead extends AssetSource {
   String get key => 'never:$path';
 
   @override
-  Future<Uint8List> read() => Completer<Uint8List>().future;
+  Future<Uint8List> read(AssetRead request) => Completer<Uint8List>().future;
 
   @override
   AssetUriResolver get resolveUri =>
@@ -386,7 +386,7 @@ final class _WaitedFile extends AssetSource {
   String get key => 'waited:$path';
 
   @override
-  Future<Uint8List> read() async {
+  Future<Uint8List> read(AssetRead request) async {
     final waited = Stopwatch()..start();
     while (!File(path).existsSync()) {
       if (waited.elapsed > const Duration(seconds: 30)) {
