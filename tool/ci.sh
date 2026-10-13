@@ -362,7 +362,7 @@ step "analyze cloud/lessons/server" in_dir cloud/lessons/server dart analyze --f
 step "test cloud/lessons/server" in_dir cloud/lessons/server dart test
 
 # **The LTI service, the third of the same kind.** `lti-03`'s own launch
-# endpoint over `flutter3d_education`'s LTI library — outside the workspace like the two above,
+# endpoint over `flutter3d_education_lti`, outside the workspace like the two above,
 # and named here for the same reason: a service nothing runs is a service
 # nobody finds out about until it is deployed.
 step "pub get cloud/lti/server" in_dir cloud/lti/server dart pub get
