@@ -142,7 +142,7 @@ _play(
     wire: transports.$1,
     localSlot: 0,
     captureLocalFrame: () => _sideA(sessionA.step),
-    applyAndStep: (frames) => toyA.step(frames[0]!, frames[1]!),
+    applyAndStep: (step) => toyA.step(step.frames[0]!, step.frames[1]!),
     save: toyA.save,
     restore: toyA.restore,
     inputDelay: 2,
@@ -159,7 +159,7 @@ _play(
     localSlot: 1,
     captureLocalFrame: () => _sideB(sessionB.step),
     // Frames come by slot, the same on both machines: A's is slot nought.
-    applyAndStep: (frames) => toyB.step(frames[0]!, frames[1]!),
+    applyAndStep: (step) => toyB.step(step.frames[0]!, step.frames[1]!),
     save: toyB.save,
     restore: toyB.restore,
     inputDelay: 2,
@@ -312,9 +312,9 @@ void main() {
           captureLocalFrame: () => <String, Object?>{
             'move': (captures++ * (slot + 2)) % 5 - 2,
           },
-          applyFrames: (frames) => pending
+          applyFrames: (step) => pending
             ..clear()
-            ..addAll(frames),
+            ..addAll(step.frames),
           onSettled: (settled) => digests[slot].observe(
             settled.step + 1,
             settled.after.state.toJson(),
@@ -342,7 +342,7 @@ void main() {
     final session = RollbackSession<int>(
       wire: ours,
       captureLocalFrame: () => const <String, Object?>{},
-      applyAndStep: applied.add,
+      applyAndStep: (step) => applied.add(step.frames),
       save: () => applied.length,
       restore: (_) {},
       maxStepsAhead: 10,

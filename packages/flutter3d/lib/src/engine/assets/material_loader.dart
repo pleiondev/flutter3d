@@ -71,12 +71,15 @@ final class MaterialDecodeContext {
 /// Reads the material at [source], with no device involved.
 ///
 /// Split from [bindMaterial] for the reason the model path is: reading is pure
-/// and testable with no Flutter binding, and uploading is neither.
+/// and testable with no Flutter binding, and uploading is neither. [read]
+/// is what the file is read with: progress and a cancel signal
+/// ([AssetRead]).
 Future<MaterialDocument> loadMaterialDocument(
   AssetSource source, {
   List<MaterialDecoder> decoders = const <MaterialDecoder>[],
+  AssetRead read = AssetRead.whole,
 }) async {
-  final bytes = await source.read();
+  final bytes = await read.readFrom(source);
   final fileName = source.fileName;
   for (final decoder in decoders) {
     if (decoder.handles(MaterialProbe(fileName: fileName, bytes: bytes))) {

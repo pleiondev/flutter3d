@@ -102,15 +102,15 @@ void main() {
       // Mutation: leave the GestureDetector's `onTapUp` null, or call the
       // handler of the first mesh registered rather than the one hit.
       final taps = <String>[];
-      HitResult? landed;
+      Tap3D? landed;
       await _pump(tester, _device(), <Widget>[
         Mesh3D(
           shape: CuboidShape(),
           material: _grey,
           name: 'crate',
-          onTap: (HitResult hit) {
+          onTap: (Tap3D tap) {
             taps.add('crate');
-            landed = hit;
+            landed = tap;
           },
         ),
         Mesh3D(
@@ -118,14 +118,35 @@ void main() {
           material: _grey,
           name: 'aside',
           position: Vector3(40.0, 0.0, 0.0),
-          onTap: (HitResult hit) => taps.add('aside'),
+          onTap: (Tap3D tap) => taps.add('aside'),
         ),
       ]);
       await tester.tapAt(_middle);
       expect(taps, <String>['crate']);
       // The default camera stands at z = 5 looking at the cube's +Z face.
-      expect(landed!.point.z, closeTo(0.5, 1e-3));
-      expect(landed!.normal.z, closeTo(1.0, 1e-3));
+      expect(landed!.hit.point.z, closeTo(0.5, 1e-3));
+      expect(landed!.hit.normal.z, closeTo(1.0, 1e-3));
+    });
+
+    testWidgets('hands the pointer with the hit: where in the scene, which '
+        'device, which buttons', (tester) async {
+      // Mutation: build the tap from the hit alone, dropping the details,
+      // and the position and the device are lost.
+      final taps = <Tap3D>[];
+      await _pump(tester, _device(), <Widget>[
+        Mesh3D(shape: CuboidShape(), material: _grey, onTap: taps.add),
+      ]);
+      await tester.tapAt(_middle + const Offset(3.0, -2.0));
+      await tester.tapAt(_middle, kind: PointerDeviceKind.mouse);
+      expect(taps, hasLength(2));
+      // The scene is 160 by 120 in the middle of an 800 by 600 window.
+      expect(taps[0].localPosition, const Offset(83.0, 58.0));
+      expect(taps[0].kind, PointerDeviceKind.touch);
+      expect(taps[0].buttons, kPrimaryButton);
+      expect(taps[1].kind, PointerDeviceKind.mouse);
+      // Each tap its own hit: the second cast did not rewrite the first.
+      expect(taps[0].hit, isNot(same(taps[1].hit)));
+      expect(taps[0].hit.point.x, greaterThan(taps[1].hit.point.x));
     });
 
     testWidgets('on empty space, or on a mesh that does not listen in front '
@@ -142,7 +163,7 @@ void main() {
           shape: CuboidShape(),
           material: _grey,
           name: 'behind',
-          onTap: (HitResult hit) => tapped++,
+          onTap: (Tap3D tap) => tapped++,
         ),
       ]);
       await tester.tapAt(_middle);
@@ -159,7 +180,7 @@ void main() {
               ModelAsset.fromMesh(device, CuboidShape().build(), name: 'hull'),
           onLoaded: (ModelInstance instance) => loaded = instance,
           // The part is the hit's node: one shape for every onTap.
-          onTap: (HitResult hit) => part = hit.node,
+          onTap: (Tap3D tap) => part = tap.hit.node,
         ),
       ]);
       await tester.pump();

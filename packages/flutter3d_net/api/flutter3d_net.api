@@ -7,9 +7,18 @@ library package:flutter3d_net/flutter3d_net.dart
 final class EngineRollback
   EngineRollback({required this.loop, required PeerWire wire, required Map<String, Object?> Function() captureLocalFrame, required this.applyFrames, int? localSlot, int players = 2, int inputDelay = 2, int maxRollbackFrames = 8, int redundancy = 8, bool Function(LoopState after)? endsAt, void Function(SettledStep<LoopState> settled)? onSettled, void Function(PeerMessage message)? onMessage})
   final EngineLoop loop
-  final void Function(Map<int, Map<String, Object?>> frames) applyFrames
+  final void Function(RollbackStep step) applyFrames
   late final RollbackSession<LoopState> session
   void advance()
+
+final class InputStatus
+  String toString()
+  final String name
+  static InputStatus? byName(String name)
+  static const InputStatus confirmed = InputStatus._('confirmed')
+  static const InputStatus disconnected = InputStatus._('disconnected')
+  static const InputStatus predicted = InputStatus._('predicted')
+  static const List<InputStatus> values = <InputStatus>[confirmed, predicted, disconnected]
 
 typedef LoopState = ({int step, Snapshot state});
 
@@ -171,8 +180,8 @@ final class RollbackSession<S>
   final int maxStepsAhead
   final int players
   final int redundancy
-  final void Function(Map<int, Map<String, Object?>> frames) applyAndStep
   final void Function(PeerMessage message)? onMessage
+  final void Function(RollbackStep step) applyAndStep
   final void Function(S state) restore
   final void Function(SettledStep<S> settled)? onSettled
   int droppedCorrections
@@ -200,6 +209,14 @@ final class RollbackStats
   final int steps
   final int stepsRerun
   static const Duration histogramLimit = Duration(milliseconds: 50)
+
+final class RollbackStep
+  InputStatus statusOf(int slot)
+  String toString()
+  const RollbackStep({required this.step, required this.frames, Set<int> predicted = const <int>{}, Set<int> disconnected = const <int>{}, required this.resimulated})
+  final Map<int, Map<String, Object?>> frames
+  final bool resimulated
+  final int step
 
 final class SettledStep<S>
   const SettledStep({required this.step, required this.after, required this.frames})

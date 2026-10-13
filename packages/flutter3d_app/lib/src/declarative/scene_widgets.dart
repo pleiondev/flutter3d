@@ -56,7 +56,11 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/gestures.dart'
-    show PointerScrollEvent, PointerSignalEvent;
+    show
+        PointerDeviceKind,
+        PointerScrollEvent,
+        PointerSignalEvent,
+        kPrimaryButton;
 import 'package:flutter/rendering.dart' show RenderPositionedBox;
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
@@ -89,7 +93,7 @@ abstract interface class _SceneHost {
 
   /// The meshes a tap reaches, and what each does with the hit: a
   /// [Mesh3D.onTap], a [Model3D.onTap] for each of its parts.
-  Map<MeshNode, void Function(HitResult hit)> get tappable;
+  Map<MeshNode, void Function(Tap3D tap)> get tappable;
 
   /// The [OrbitCamera3D]s built, in order; the last is the one gestures
   /// turn.
@@ -103,6 +107,11 @@ abstract interface class _SceneHost {
   /// nought to one: the loop's own under a [Scene3D] whose simulation runs
   /// inline, and one (the newest step, unblended) where it is elsewhere.
   double get alpha;
+
+  /// Where a widget reports what nobody else would hear (a model that
+  /// would not load, with no `onError`): the view's log under a [Scene3D],
+  /// null under a mount, which reports to Flutter's error handler.
+  EngineLog? get log;
 
   /// Told when [tappable] or [orbits] gained their first entry or lost
   /// their last: a [Scene3D] listens for gestures only while something
@@ -318,6 +327,9 @@ class _Scene3DState extends State<Scene3D>
   @override
   SimulationHandle? get simulation => _controller?.engine.simulation;
 
+  @override
+  EngineLog? get log => _controller?.engine.log;
+
   /// A fraction, nought to one: the loop's own when the simulation runs
   /// in it, one otherwise.
   @override
@@ -480,6 +492,14 @@ class _Scene3DScope extends InheritedWidget {
 /// [position], [rotation] and [scale] are applied on every build, and a
 /// property left null is left as the node has it, so a game may move a node
 /// imperatively and the widget will not put it back unless it says where.
+///
+/// **[position] is a place in the world** for a widget directly in
+/// [Scene3D.children] (or a mount's), and in its parent's space below
+/// another widget. The scene's own space starts at `Scene.origin`, which a
+/// view moves near its camera in a world bigger than float32 holds
+/// (`LoopSettings.originShift`); every build converts a root-level
+/// position through `Scene.toScene`, so a rebuild after a shift puts the
+/// node where it stood in the world, not where it stood in the old space.
 abstract base class Spatial3D extends StatefulWidget {
   const Spatial3D({
     super.key,
@@ -490,6 +510,8 @@ abstract base class Spatial3D extends StatefulWidget {
     this.children = const <Widget>[],
   });
 
+  /// Where the node stands: in the world at the root of a scene, in the
+  /// parent's space below another widget. Null leaves it where it is.
   final Vector3? position;
   final Quaternion? rotation;
   final Vector3? scale;
@@ -515,10 +537,25 @@ abstract class _SpatialState<W extends Spatial3D, N extends SceneNode>
   /// Told the node now hangs from another parent, after a keyed reparent.
   void reparented(N node) {}
 
+  /// [position], a place in the world, in the scene's own space: the
+  /// difference from the scene's origin, taken in doubles and narrowed once.
+  /// What a camera's target is converted through, and a root-level node's
+  /// position.
+  Vector3 _inScene(Vector3 position) => _scope!.host.scene.toScene(
+    WorldPosition(position.x, position.y, position.z),
+  );
+
   void _applyAll() {
     final node = _node!;
     final widget = this.widget;
-    if (widget.position case final p?) node.setPositionFrom(p);
+    if (widget.position case final p?) {
+      // Below another widget a position is the parent's space and moves
+      // with it; at the root it is the world's, so an origin the view
+      // shifted since the last build never makes the node jump by the
+      // shift.
+      final atRoot = identical(_parent, _scope!.host.scene.root);
+      node.setPositionFrom(atRoot ? _inScene(p) : p);
+    }
     if (widget.rotation case final r?) node.setRotation(r);
     if (widget.scale case final s?) node.setScale(s.x, s.y, s.z);
     node.isVisible = widget.visible;
@@ -636,12 +673,13 @@ final class Mesh3D extends Spatial3D {
 
   /// Called when a tap on the [Scene3D] lands on this mesh first — the
   /// nearest surface under the finger, through the camera drawn through —
-  /// with where it landed ([HitResult.point], [HitResult.normal]).
+  /// with the [Tap3D]: where it landed ([Tap3D.hit]'s `point` and
+  /// `normal`) and the pointer that tapped.
   ///
   /// A ray cast through the scene's `Raycaster`, so a mesh in front that
   /// does not listen still hides one behind that does. Null listens for
   /// nothing, and a scene where nothing listens takes no tap at all.
-  final void Function(HitResult hit)? onTap;
+  final void Function(Tap3D tap)? onTap;
 
   @override
   State<Mesh3D> createState() => _Mesh3DState();
@@ -757,7 +795,7 @@ class _Mesh3DState extends _SpatialState<Mesh3D, MeshNode> {
     _answerTaps(
       scope.host,
       <MeshNode>[node],
-      widget.onTap == null ? null : (HitResult hit) => widget.onTap?.call(hit),
+      widget.onTap == null ? null : (Tap3D tap) => widget.onTap?.call(tap),
     );
   }
 }
@@ -765,19 +803,22 @@ class _Mesh3DState extends _SpatialState<Mesh3D, MeshNode> {
 /// A light: directional by default, or a point or a spot.
 ///
 /// **Brightness in photometric units** (docs/CONTRACTS.md): [intensity] is
-/// lux for a directional light and candela for the others. The defaults are
-/// lights the default camera (f/4, 1/60 s, ISO 100) shows well:
-/// [sunIlluminance] for a sun, [lampIntensity] — an ordinary 800-lumen bulb —
-/// for a lamp. [Light3D.sun] and [Light3D.lamp] say which one a light is.
+/// lux for a directional light and candela for the others. Left null, it is
+/// chosen by [type], as lights the default camera (f/4, 1/60 s, ISO 100)
+/// shows well: [sunIlluminance] for a directional light, [lampIntensity] —
+/// an ordinary 800-lumen bulb — for a point, and the same [lampLumens]
+/// poured into its cone for a spot. [Light3D.sun], [Light3D.lamp] and
+/// [Light3D.spot] say which one a light is.
 final class Light3D extends Spatial3D {
   const Light3D({
     super.key,
     this.type = LightType.directional,
     this.direction,
     this.color,
-    this.intensity = sunIlluminance,
+    this.intensity,
     this.range = 0.0,
     this.castsShadow,
+    this.innerConeAngle,
     this.outerConeAngle,
     super.position,
     super.children,
@@ -788,10 +829,11 @@ final class Light3D extends Spatial3D {
     super.key,
     required this.direction,
     this.color,
-    this.intensity = sunIlluminance,
+    this.intensity,
     this.castsShadow,
   }) : type = LightType.directional,
        range = 0.0,
+       innerConeAngle = null,
        outerConeAngle = null,
        super(position: null);
 
@@ -800,12 +842,35 @@ final class Light3D extends Spatial3D {
     super.key,
     required super.position,
     this.color,
-    this.intensity = lampIntensity,
+    this.intensity,
     this.range = 0.0,
     this.castsShadow,
   }) : type = LightType.point,
        direction = null,
+       innerConeAngle = null,
        outerConeAngle = null;
+
+  /// A spot at [position], shining along [direction] in a cone of
+  /// half-angle [outerConeAngle] radians, at full strength inside
+  /// [innerConeAngle] and fading to nothing between the two; reaching
+  /// [range] metres, nought unbounded.
+  ///
+  /// [intensity] is candela on the axis. Null pours [lampLumens] into the
+  /// cone (`Photometric.fromLumens` with the spot's outer cone), so a
+  /// narrower cone is brighter on its axis, as a torch focused is. The
+  /// cones default to the engine's: no inner cone, and an outer one of
+  /// π/4.
+  const Light3D.spot({
+    super.key,
+    required super.position,
+    this.direction,
+    this.color,
+    this.intensity,
+    this.range = 0.0,
+    this.innerConeAngle,
+    this.outerConeAngle,
+    this.castsShadow,
+  }) : type = LightType.spot;
 
   /// The sun: a directional light shining along [direction] (null shines
   /// down and a little across, [sunDirection]), [intensity] lux on a
@@ -823,6 +888,7 @@ final class Light3D extends Spatial3D {
     this.castsShadow = true,
   }) : type = LightType.directional,
        range = 0.0,
+       innerConeAngle = null,
        outerConeAngle = null,
        super(position: null);
 
@@ -843,14 +909,19 @@ final class Light3D extends Spatial3D {
     this.castsShadow,
   }) : type = LightType.point,
        direction = null,
+       innerConeAngle = null,
        outerConeAngle = null;
 
   /// What [Light3D.sun] and a directional light shine with by default, in
   /// lux: 15 000, the sun through a thin haze.
   static const double sunIlluminance = 15000.0;
 
+  /// The flux a lamp or a spot puts out by default, in lumens: an ordinary
+  /// household bulb's 800.
+  static const double lampLumens = 800.0;
+
   /// What [Light3D.lamp] and a point light shine with by default, in
-  /// candela: an 800-lumen bulb, `800 / 4π`.
+  /// candela: [lampLumens] over the whole sphere, `800 / 4π`.
   static const double lampIntensity = 63.66197723675813;
 
   /// Which way a directional light — [Light3D.sun] among them — first
@@ -874,9 +945,10 @@ final class Light3D extends Spatial3D {
   final LinearColor? color;
 
   /// How bright the light is: lux for a directional light, candela for a
-  /// point or spot (since 1.0). [sunIlluminance] by default for a
-  /// directional light, [lampIntensity] for a point.
-  final double intensity;
+  /// point or spot (since 1.0). Null takes [type]'s default: [sunIlluminance]
+  /// for a directional light, [lampIntensity] for a point, [lampLumens] in
+  /// its cone for a spot.
+  final double? intensity;
 
   /// How far the light reaches, in metres; nought is unbounded.
   final double range;
@@ -884,7 +956,11 @@ final class Light3D extends Spatial3D {
   /// Null leaves the engine's default: a directional light casts, others not.
   final bool? castsShadow;
 
-  /// A spot's cone, in radians.
+  /// A spot's cone at full strength, in radians from its axis; null leaves
+  /// the engine's (none: the light fades from the axis out).
+  final double? innerConeAngle;
+
+  /// A spot's cone, in radians from its axis; null leaves the engine's.
   final double? outerConeAngle;
 
   @override
@@ -901,15 +977,35 @@ class _Light3DState extends _SpatialState<Light3D, LightNode> {
     return node;
   }
 
+  /// What a light given no intensity shines with, by what it is lit as: a
+  /// plugin's own type takes its base's.
+  double _defaultIntensity(LightNode node) => switch (widget.type.base) {
+    LightType.directional => Light3D.sunIlluminance,
+    LightType.spot => Photometric.fromLumens(
+      Light3D.lampLumens,
+      type: LightType.spot,
+      outerConeAngle: node.outerConeAngle,
+    ),
+    LightType.area => Photometric.fromLumens(
+      Light3D.lampLumens,
+      type: LightType.area,
+    ),
+    // A point, and any base a later release adds: a bulb's candela, the
+    // unit every light but a directional one is measured in.
+    _ => Light3D.lampIntensity,
+  };
+
   @override
   void apply(LightNode node, _Scene3DScope scope) {
     node
       ..type = widget.type
-      ..intensity = widget.intensity
       ..range = widget.range;
     node.color = widget.color ?? LinearColor.white;
     if (widget.castsShadow case final casts?) node.castsShadow = casts;
+    if (widget.innerConeAngle case final cone?) node.innerConeAngle = cone;
     if (widget.outerConeAngle case final cone?) node.outerConeAngle = cone;
+    // After the cones: a spot's default pours its flux into the outer one.
+    node.intensity = widget.intensity ?? _defaultIntensity(node);
     if (widget.direction case final direction?) {
       node.setLocalForward(direction.normalized());
     }
@@ -920,7 +1016,8 @@ class _Light3DState extends _SpatialState<Light3D, LightNode> {
 ///
 /// The [Camera3D] built last is the one drawn through; with none, the scene
 /// has a default five metres back looking at the origin. [target], when
-/// given, is looked at after [position] is applied.
+/// given, is looked at after [position] is applied; it is a place in the
+/// world wherever the camera hangs.
 final class Camera3D extends Spatial3D {
   const Camera3D({
     super.key,
@@ -949,7 +1046,7 @@ class _Camera3DState extends _SpatialState<Camera3D, CameraNode> {
   @override
   void apply(CameraNode node, _Scene3DScope scope) {
     node.projection = widget.projection;
-    if (widget.target case final target?) node.lookAt(target);
+    if (widget.target case final target?) node.lookAt(_inScene(target));
   }
 
   @override
@@ -979,6 +1076,13 @@ abstract interface class _Animated {
 /// [source] or from [load] alike, and is disposed when the widget goes, or as
 /// it arrives when the widget went while it loaded; a loader that hands out
 /// an asset something else keeps instantiates it itself, under a [Node3D].
+/// A widget gone while its [source] is read calls the read off.
+///
+/// **A model that will not load is a value in the tree**, as a Flutter
+/// `Image`'s is: [onError] is told, [errorBuilder] stands in where the
+/// placeholder stood, and with neither the failure goes to the view's
+/// `EngineLog` (Flutter's error handler under `SceneWidgets.mount`) rather
+/// than to the zone, and the placeholder goes.
 final class Model3D extends Spatial3D {
   const Model3D({
     super.key,
@@ -989,6 +1093,9 @@ final class Model3D extends Spatial3D {
     this.playing = true,
     this.speed = 1.0,
     this.onLoaded,
+    this.onProgress,
+    this.onError,
+    this.errorBuilder,
     this.onTap,
     super.position,
     super.rotation,
@@ -1016,15 +1123,52 @@ final class Model3D extends Spatial3D {
   /// Called once with the instance the model became.
   final void Function(ModelInstance instance)? onLoaded;
 
+  /// Told as [source]'s file arrives, the bytes so far and the file's
+  /// length where the source knows it, for a loading bar. A [load] of the
+  /// caller's own reports nothing here.
+  final void Function(AssetProgress progress)? onProgress;
+
+  /// Told once when the model will not load: the file is missing, it is
+  /// not a model, the loader threw. With this and [errorBuilder] both null
+  /// the failure goes to the view's log.
+  final void Function(Model3DFailure failure)? onError;
+
+  /// A 3D widget to stand in place of a model that will not load, as
+  /// [placeholder] stands in while it loads; null leaves nothing there.
+  final Widget Function(BuildContext context, Model3DFailure failure)?
+  errorBuilder;
+
   /// Called when a tap on the [Scene3D] lands on the model first, with the
-  /// hit: the part it landed on ([HitResult.node], one of the instance's
-  /// meshes, named as the file names it) and where ([HitResult.point]).
-  /// The same shape as [Mesh3D.onTap], one object that can say more later;
-  /// see it on what a tap reaches. A model still loading answers nothing.
-  final void Function(HitResult hit)? onTap;
+  /// [Tap3D]: the part it landed on (`tap.hit.node`, one of the instance's
+  /// meshes, named as the file names it), where (`tap.hit.point`) and the
+  /// pointer. The same shape as [Mesh3D.onTap]; see it on what a tap
+  /// reaches. A model still loading answers nothing.
+  final void Function(Tap3D tap)? onTap;
 
   @override
   State<Model3D> createState() => _Model3DState();
+}
+
+/// Why a [Model3D] has no model: what its load threw, and where.
+final class Model3DFailure {
+  const Model3DFailure({
+    required this.error,
+    required this.stackTrace,
+    this.source,
+  });
+
+  /// What the read, the decode or the caller's `load` threw:
+  /// `AssetNotFoundException` for a missing file, a format exception for
+  /// one that is not a model.
+  final Object error;
+
+  final StackTrace stackTrace;
+
+  /// [Model3D.source], or null for a [Model3D.load].
+  final String? source;
+
+  @override
+  String toString() => 'Model3DFailure(${source ?? 'load'}: $error)';
 }
 
 class _Model3DState extends _SpatialState<Model3D, SceneNode>
@@ -1058,15 +1202,67 @@ class _Model3DState extends _SpatialState<Model3D, SceneNode>
       final asset = switch (widget.load) {
         final load? => await load(scope.device),
         null => await ModelAsset.fromDocument(
-          await loadModelAsset(widget.source!),
+          await loadModelAsset(
+            widget.source!,
+            read: AssetRead(
+              onProgress: (AssetProgress progress) {
+                if (mounted) widget.onProgress?.call(progress);
+              },
+              cancel: _cancel,
+            ),
+          ),
           device: scope.device,
         ),
       };
       await turn.ready;
       _place(scope, asset);
+    } catch (error, stackTrace) {
+      _fail(scope, error, stackTrace);
     } finally {
       _turns.remove(turn);
       turn.release();
+    }
+  }
+
+  /// Called off by [dispose]: a model nobody will see is not read on.
+  final AssetCancel _cancel = AssetCancel();
+
+  /// Why the model is not there, once its load failed.
+  Model3DFailure? _failure;
+
+  /// A load that failed: told to [Model3D.onError], stood in for by
+  /// [Model3D.errorBuilder], and reported where somebody will see it when
+  /// the widget has neither. Nothing for a widget gone while it loaded.
+  void _fail(_Scene3DScope scope, Object error, StackTrace stackTrace) {
+    if (!mounted) return;
+    final failure = Model3DFailure(
+      error: error,
+      stackTrace: stackTrace,
+      source: widget.source,
+    );
+    setState(() => _failure = failure);
+    final onError = widget.onError;
+    if (onError != null) {
+      onError(failure);
+    } else if (widget.errorBuilder == null) {
+      final message = 'Model3D could not load ${widget.source ?? 'its model'}';
+      if (scope.host.log case final log?) {
+        log.error(
+          message,
+          source: 'Model3D',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      } else {
+        FlutterError.reportError(
+          FlutterErrorDetails(
+            exception: error,
+            stack: stackTrace,
+            library: 'flutter3d_app',
+            context: ErrorDescription(message),
+          ),
+        );
+      }
     }
   }
 
@@ -1135,7 +1331,7 @@ class _Model3DState extends _SpatialState<Model3D, SceneNode>
     _answerTaps(
       host,
       meshes,
-      widget.onTap == null ? null : (HitResult hit) => widget.onTap?.call(hit),
+      widget.onTap == null ? null : (Tap3D tap) => widget.onTap?.call(tap),
     );
   }
 
@@ -1148,6 +1344,7 @@ class _Model3DState extends _SpatialState<Model3D, SceneNode>
         _answerTaps(host, meshes, null);
       }
     }
+    _cancel.cancel();
     for (final turn in _turns) {
       turn.release();
     }
@@ -1158,13 +1355,24 @@ class _Model3DState extends _SpatialState<Model3D, SceneNode>
     _asset = null;
   }
 
+  /// What stands where the model will be: the placeholder while it loads,
+  /// the error builder's widget once it failed.
+  Widget? _standIn(BuildContext context) => switch (_failure) {
+    final failure? => widget.errorBuilder?.call(context, failure),
+    null => widget.placeholder,
+  };
+
   @override
   Widget build(BuildContext context) => _Scene3DScope(
     host: _scope!.host,
     device: _scope!.device,
     parent: node,
     child: _Children(<Widget>[
-      if (_instance == null) ?widget.placeholder,
+      // Keyed by which it is, so the stand-in for a failure is never the
+      // placeholder's node handed new properties.
+      if (_instance == null)
+        if (_standIn(context) case final shown?)
+          KeyedSubtree(key: ValueKey<bool>(_failure != null), child: shown),
       ...widget.children,
     ]),
   );

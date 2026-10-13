@@ -71,7 +71,8 @@ final class PredictingClient<S>
   void advance()
   void receive(int from, Map<String, Object?> message)
 
-export package:flutter3d_net/flutter3d_net.dart show LoopbackPair, LoopbackParty, LoopbackWire, ObserverFeed, ObserverFilter, ObserverMode, ObserverRestore, ObserverSnapshot, PeerBytes, PeerBytesDelivery, PeerDelivery, PeerMessage, PeerRoom, PeerSend, PeerSendBytes, PeerWire, RollbackSession, SettledStep, SimulationObserver, WireHello, WireState
+export package:flutter3d_net/flutter3d_net.dart show InputStatus, LoopbackPair, LoopbackParty, LoopbackWire, ObserverFeed, ObserverFilter, ObserverMode, ObserverRestore, ObserverSnapshot, PeerBytes, PeerBytesDelivery, PeerDelivery, PeerMessage, PeerRoom, PeerSend, PeerSendBytes, PeerWire, RollbackSession, RollbackStep, SettledStep, SimulationObserver, WireHello, WireState
+  InputStatus
   LoopbackPair
   LoopbackParty
   LoopbackWire
@@ -89,6 +90,7 @@ export package:flutter3d_net/flutter3d_net.dart show LoopbackPair, LoopbackParty
   PeerSendBytes
   PeerWire
   RollbackSession
+  RollbackStep
   SettledStep
   SimulationObserver
   WireHello

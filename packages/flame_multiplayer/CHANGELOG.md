@@ -7,6 +7,9 @@ number, so `^1.0.0-rc.1` means the same thing here as on every sibling, and
 from 1.0.0 it follows strict semver with them. The 0.2.0 and 0.3.0 entries
 were never published; everything below up to 0.1.0 ships in this release.
 
+- **A rollback step's object is exported**: `RollbackStep` and
+  `InputStatus`, which `RollbackSession.applyAndStep` is handed since
+  `flutter3d_net` 1.0.0-rc.1.
 - **A party's tape takes the rollback's objects.** `PartyTape.settled`
   takes a `SettledStep` and `PartyTape.hear` a `PeerMessage`, so each is
   handed to `RollbackSession.onSettled` and `onMessage` as it is;

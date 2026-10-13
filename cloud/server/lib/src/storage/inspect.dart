@@ -222,7 +222,7 @@ final class _Upload extends AssetSource {
   String get key => 'upload:$_name';
 
   @override
-  Future<Uint8List> read() async => _bytes;
+  Future<Uint8List> read(AssetRead request) async => _bytes;
 
   @override
   AssetUriResolver get resolveUri => _embeddedOnly;

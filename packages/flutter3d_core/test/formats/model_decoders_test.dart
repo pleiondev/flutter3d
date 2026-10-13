@@ -43,7 +43,7 @@ final class _Source extends AssetSource {
   String get key => '$from:$path';
 
   @override
-  Future<Uint8List> read() async => Uint8List(0);
+  Future<Uint8List> read(AssetRead request) async => Uint8List(0);
 
   @override
   AssetUriResolver get resolveUri =>

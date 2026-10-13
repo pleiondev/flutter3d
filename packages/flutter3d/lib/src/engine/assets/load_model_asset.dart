@@ -100,6 +100,12 @@ final Set<String> _warnedMissingGenerated = <String>{};
 /// else, and every request made here carries the registered decoders after
 /// its own, so a source in a format a plugin reads (a debug build's fallback
 /// to `assets_src/`) decodes. Null reads exactly as before.
+///
+/// [read] is what the file is read with ([AssetRead]): a listener told as
+/// its bytes arrive, and a cancel signal that stops the load before the
+/// next file is read or decoded, failing it with
+/// `ResourceLoadCanceledException`. A missing class file and the fallback
+/// are read with it too, so one signal stops whichever read is running.
 Future<ModelDocument> loadModelAsset(
   String sourcePath, {
   bool debugMode = kDebugMode,
@@ -107,6 +113,7 @@ Future<ModelDocument> loadModelAsset(
   AssetSource Function(String path) generatedSource = BundleAssetSource.new,
   AssetSource Function(String path) fallbackSource = FileAssetSource.new,
   ModelDecoders? decoders,
+  AssetRead read = AssetRead.whole,
 }) async {
   ModelLoadRequest request(AssetSource source) =>
       decoders?.withDecoders(ModelLoadRequest(source: source)) ??
@@ -114,6 +121,7 @@ Future<ModelDocument> loadModelAsset(
   if (decoders != null && decoders.sources.handles(sourcePath)) {
     return decodeModelInIsolate(
       request(decoders.sourceFor(sourcePath, fallback: generatedSource)),
+      read: read,
     );
   }
   final generatedPath = generatedAssetPathFor(sourcePath);
@@ -121,6 +129,7 @@ Future<ModelDocument> loadModelAsset(
     try {
       return await decodeModelInIsolate(
         request(generatedSource(deviceClassPath(generatedPath, reading))),
+        read: read,
       );
     } catch (error) {
       // No file for this class: the single one below. Anything else is not
@@ -129,7 +138,10 @@ Future<ModelDocument> loadModelAsset(
     }
   }
   try {
-    return await decodeModelInIsolate(request(generatedSource(generatedPath)));
+    return await decodeModelInIsolate(
+      request(generatedSource(generatedPath)),
+      read: read,
+    );
   } catch (error) {
     if (!_isMissing(error)) rethrow;
     return _fallback(
@@ -138,6 +150,7 @@ Future<ModelDocument> loadModelAsset(
       debugMode,
       fallbackSource,
       request,
+      read,
     );
   }
 }
@@ -162,11 +175,14 @@ Future<ModelDocument> loadModelAsset(
 /// plugin added: a path with a scheme one of them registered
 /// (`pak:models/crate.glb`) is read through that source, and the decoders
 /// they registered travel with the request. Null reads exactly as before.
+///
+/// [read] is [loadModelAsset]'s: progress and a cancel signal.
 Future<ModelDocument> loadModelByPath(
   String path, {
   AssetSource Function(String path) bundleSource = BundleAssetSource.new,
   ModelDecoders? decoders,
   DeviceClass? deviceClass,
+  AssetRead read = AssetRead.whole,
 }) {
   if (decoders != null && decoders.sources.handles(path)) {
     return decodeModelInIsolate(
@@ -175,6 +191,7 @@ Future<ModelDocument> loadModelByPath(
           source: decoders.sourceFor(path, fallback: bundleSource),
         ),
       ),
+      read: read,
     );
   }
   return path.startsWith(_sourceDirPrefix)
@@ -183,12 +200,14 @@ Future<ModelDocument> loadModelByPath(
           generatedSource: bundleSource,
           decoders: decoders,
           deviceClass: deviceClass,
+          read: read,
         )
       : decodeModelInIsolate(
           decoders?.withDecoders(
                 ModelLoadRequest(source: bundleSource(path)),
               ) ??
               ModelLoadRequest(source: bundleSource(path)),
+          read: read,
         );
 }
 
@@ -198,6 +217,7 @@ Future<ModelDocument> _fallback(
   bool debugMode,
   AssetSource Function(String path) fallbackSource,
   ModelLoadRequest Function(AssetSource source) request,
+  AssetRead read,
 ) async {
   if (!debugMode || kIsWeb) {
     throw AssetNotFoundException(
@@ -215,5 +235,5 @@ Future<ModelDocument> _fallback(
       'build once to stop seeing this.',
     );
   }
-  return decodeModelInIsolate(request(fallbackSource(sourcePath)));
+  return decodeModelInIsolate(request(fallbackSource(sourcePath)), read: read);
 }

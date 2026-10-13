@@ -33,7 +33,7 @@ final class BundleAssetSource extends AssetSource {
   /// the platform's own `FlutterError` as its cause — readiness review
   /// §2.2.6 — so a caller that catches the engine's root catches this too.
   @override
-  Future<Uint8List> read() => _load(assetPath);
+  Future<Uint8List> read(AssetRead request) => _load(assetPath);
 
   @override
   AssetUriResolver get resolveUri {

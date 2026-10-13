@@ -6200,6 +6200,43 @@ List<Finding> _hooksTakeOneContext() {
     );
   }
   found.addAll(_hooksTakeNoBareValue());
+  found.addAll(_hooksTakeSomething());
+  return found;
+}
+
+/// Every method an implementation of a hook must write takes something: a
+/// bodiless method with no parameter at all is named in
+/// [hookParametersAllowed] with the reason it never grows.
+///
+/// **The hole a count of "more than one" left.** `AssetSource.read()`
+/// took nothing, so the rule above passed it, and it could never be handed
+/// a progress listener or a cancel signal without breaking every source
+/// written against 1.0: no parameters grow as badly as two. A method that
+/// truly never needs anything (`dispose`, a `toJson` of its own state)
+/// says so in the allowlist.
+///
+/// Mutation: give `AssetSource.read` no parameter again, regenerate the
+/// snapshot, and this names it.
+List<Finding> _hooksTakeSomething() {
+  final found = <Finding>[];
+  for (final entry in _publishedSnapshots.entries) {
+    for (final (:type, :member) in wideHooksIn(entry.value).bare) {
+      final key = '$type.$member';
+      if (hookParametersAllowed.containsKey(key) ||
+          hookParametersAllowed.containsKey(type)) {
+        continue;
+      }
+      found.add(
+        Finding(
+          '${entry.key}/api/${entry.key}.api',
+          '`$key` takes no parameter, and every implementation writes it, so '
+              'a minor can never hand it anything: give it one context '
+              'object that can gain members, or say in '
+              '`hookParametersAllowed` why it never needs one',
+        ),
+      );
+    }
+  }
   return found;
 }
 
@@ -6541,10 +6578,30 @@ List<Finding> _facadesAreClosed() {
     final exported = <String>{
       for (final p in together) ...facadeNames(snapshots[p]!, p),
     };
+    // The libraries the facade stands on: its own and those it re-exports
+    // from, whose extensions on a type it exports it should export too.
+    final standsOn = <String>{
+      for (final p in together)
+        for (final library in parseApi(snapshots[p]!).values)
+          if (library.uri == 'package:$p/$p.dart') ...<String>[
+            library.uri,
+            ...library.exports.keys,
+          ],
+    };
+    final extensions = <String>{
+      for (final snapshot in snapshots.values)
+        for (final library in parseApi(snapshot).values)
+          if (standsOn.contains(library.uri))
+            for (final MapEntry(key: name, value: block)
+                in library.declarations.entries)
+              if (RegExp(r'^extension\s+(?!type\b)').hasMatch(block.header))
+                name,
+    };
     for (final gap in facadeGapsIn(
       facade: facade,
       exported: exported,
       declarations: declarations,
+      extensions: extensions,
     )) {
       final key = '$facade:${gap.subject}';
       if (facadeGapAllowed.containsKey(key)) {

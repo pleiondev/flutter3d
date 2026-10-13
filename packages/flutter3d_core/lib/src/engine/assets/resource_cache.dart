@@ -1,7 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show ResourceException;
+import '../../formats/asset_source.dart' show ResourceLoadCanceledException;
 
 import '../render/memory_report.dart' show MemoryCategory;
 import 'memory_budget.dart';
@@ -43,22 +42,6 @@ final class ResourcePriority implements Comparable<ResourcePriority> {
 
   @override
   String toString() => 'ResourcePriority($rank)';
-}
-
-/// A request for a cached resource that was called off before it was
-/// handed over — what [ResourceRequest.handle] completes with after
-/// [ResourceRequest.cancel].
-final class ResourceLoadCanceledException extends ResourceException {
-  const ResourceLoadCanceledException(this.key);
-
-  /// The key that was asked for.
-  final Object? key;
-
-  @override
-  String get message => 'the request for $key was canceled';
-
-  @override
-  String toString() => 'ResourceLoadCanceledException: $message';
 }
 
 /// A borrowed reference to a cached resource.

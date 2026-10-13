@@ -15,39 +15,53 @@ import 'scene_spheres.dart';
 
 part 'raycaster_hit_tests.dart';
 
-/// What a ray hit.
+/// What a ray hit: the mesh, how far along the ray, and where.
 ///
-/// Mutable and reused by [Raycaster]: picking runs on pointer events, and a
-/// fresh result object per candidate mesh is the allocation pattern this engine
-/// avoids everywhere else.
+/// **One per hit, and the caller's.** [Raycaster.intersectScene] fills a
+/// scratch of its own while it tests candidates, which is where the hot
+/// loop allocates nothing, and hands back a new result only for the one it
+/// found, so a result kept, or handed to several listeners, never changes
+/// underneath them. Its fields are final; the vectors are its own copies.
 final class HitResult {
-  MeshNode? node;
+  HitResult._({
+    required this.node,
+    required this.distance,
+    required this.point,
+    required this.normal,
+    required this.uv,
+    required this.triangleIndex,
+    required this.approximate,
+    required WorldPosition origin,
+  }) : _origin = origin;
 
-  /// Distance along the ray, in world units.
-  double distance = 0.0;
+  /// The mesh hit.
+  final MeshNode? node;
+
+  /// Distance along the ray, in meters.
+  final double distance;
 
   /// Where the ray met the surface, in world space.
-  final Vector3 point = Vector3.zero();
+  final Vector3 point;
 
   /// Surface normal at the hit, in world space, unit length.
   ///
   /// Interpolated from the triangle's vertex normals when the mesh has them, so
   /// a smooth-shaded sphere reports a smoothly varying normal rather than the
   /// facet's. Falls back to the geometric normal otherwise.
-  final Vector3 normal = Vector3.zero();
+  final Vector3 normal;
 
   /// Texture coordinate at the hit, zero when the mesh carries none.
-  final Vector2 uv = Vector2.zero();
+  final Vector2 uv;
 
   /// Index of the triangle that was hit, or `-1` for an approximate hit.
-  int triangleIndex = -1;
+  final int triangleIndex;
 
   /// True when the mesh had no CPU-side geometry and the hit is against its
   /// bounding box instead.
   ///
   /// Worth surfacing rather than hiding: a caller placing a decal at the hit
   /// point needs to know the point is on a box, not on the surface.
-  bool approximate = false;
+  final bool approximate;
 
   MeshNode get requireNode => node!;
 
@@ -58,7 +72,28 @@ final class HitResult {
     _origin.y + point.y,
     _origin.z + point.z,
   );
-  WorldPosition _origin = WorldPosition.origin;
+  final WorldPosition _origin;
+
+  @override
+  String toString() =>
+      'HitResult(${node?.name ?? 'none'} at $distance, '
+      'triangle $triangleIndex${approximate ? ', approximate' : ''})';
+}
+
+/// What [Raycaster] writes while it tests candidates, reused from cast to
+/// cast: picking runs on pointer moves, and a result object per candidate
+/// mesh is the allocation this engine avoids everywhere else. Only the
+/// nearest becomes a [HitResult].
+final class _HitScratch {
+  MeshNode? node;
+
+  /// Along the ray, in meters.
+  double distance = 0.0;
+  final Vector3 point = Vector3.zero();
+  final Vector3 normal = Vector3.zero();
+  final Vector2 uv = Vector2.zero();
+  int triangleIndex = -1;
+  bool approximate = false;
 
   void _reset() {
     node = null;
@@ -70,10 +105,16 @@ final class HitResult {
     uv.setZero();
   }
 
-  @override
-  String toString() =>
-      'HitResult(${node?.name ?? 'none'} at $distance, '
-      'triangle $triangleIndex${approximate ? ', approximate' : ''})';
+  HitResult _result(WorldPosition origin) => HitResult._(
+    node: node,
+    distance: distance,
+    point: point.clone(),
+    normal: normal.clone(),
+    uv: uv.clone(),
+    triangleIndex: triangleIndex,
+    approximate: approximate,
+    origin: origin,
+  );
 }
 
 /// Casts rays against a [Scene] on the CPU.
@@ -173,7 +214,7 @@ final class Raycaster {
 
   Float32List _spheres = Float32List(0);
 
-  final HitResult _hit = HitResult();
+  final _HitScratch _hit = _HitScratch();
   final LocalRay _localRay = LocalRay.zero();
   final Vector3 _a = Vector3.zero();
   final Vector3 _b = Vector3.zero();
@@ -241,16 +282,15 @@ final class Raycaster {
 
   /// The nearest mesh the ray hits, or null.
   ///
-  /// The returned object is reused by the next call; copy anything that has to
-  /// outlive it.
+  /// The result is a new object, the caller's to keep: the candidates are
+  /// tested in a scratch of this caster's, and only the nearest is copied
+  /// out.
   HitResult? intersectScene(
     Scene scene, {
     int layerMask = ~0,
     bool visibleOnly = true,
   }) {
-    _hit
-      .._reset()
-      .._origin = scene.origin;
+    _hit._reset();
     var best = maxDistance;
 
     final meshes = scene.meshes;
@@ -294,7 +334,7 @@ final class Raycaster {
       }
     }
 
-    return _hit.node == null ? null : _hit;
+    return _hit.node == null ? null : _hit._result(scene.origin);
   }
 }
 

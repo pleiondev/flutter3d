@@ -315,17 +315,27 @@ void main() {
       expect(caster.intersectScene(scene), isNull);
     });
 
-    test('the result object is reused between casts', () {
-      // Documented behaviour, and the reason picking allocates nothing: a caller
-      // that keeps the object rather than copying what it needs will see it
-      // change underneath them.
-      final scene = Scene()..add(cubeNode());
+    test('a result is the caller\'s: the next cast does not change it', () {
+      // Mutation: hand back the caster's scratch, as before 1.0, and the
+      // first result reads the second cast's distance. A tap handler that
+      // keeps the hit, or two listeners handed one, must see what was hit.
+      final scene = Scene()
+        ..add(cubeNode(name: 'near'))
+        ..add(cubeNode(name: 'far')..setPosition(4.0, 0.0, -3.0));
       final caster = Raycaster()
         ..ray.setFrom(Vector3(0.0, 0.0, 5.0), Vector3(0.0, 0.0, -1.0));
 
-      final first = caster.intersectScene(scene);
-      final second = caster.intersectScene(scene);
-      expect(first, same(second));
+      final first = caster.intersectScene(scene)!;
+      caster.ray.setFrom(Vector3(4.0, 0.0, 5.0), Vector3(0.0, 0.0, -1.0));
+      final second = caster.intersectScene(scene)!;
+      expect(first, isNot(same(second)));
+      expect(first.node!.name, 'near');
+      expect(first.distance, closeTo(4.5, 1e-6));
+      expect(first.point.z, closeTo(0.5, 1e-6));
+      expect(second.node!.name, 'far');
+      expect(second.distance, closeTo(7.5, 1e-6));
+      expect(caster.intersectScene(Scene()), isNull);
+      expect(first.distance, closeTo(4.5, 1e-6));
     });
   });
 

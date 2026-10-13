@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **A hook that took nothing is migrated too.** A `hookContext` entry
+  with no fields gives an override its new parameter and hands a call
+  `const <Context>()`, which asks for nothing; `AssetSource.read` is the
+  first.
 - **The TODO stands where the error does.** A use further down a statement
   gets its TODO on the line above it; a gone function or class named as a
   value, each name of a gone library, each use of a name gone internal,

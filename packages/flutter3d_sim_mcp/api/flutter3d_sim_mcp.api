@@ -33,6 +33,15 @@ final class DiagnosticRenderer
   static const int height = 200
   static const int width = 320
 
+final class DiagnosticSession
+  Answer passes()
+  Answer pixel(int x, int y)
+  Answer scanNaN()
+  DiagnosticSession({ProjectRoot? root})
+  Future<Answer> frame({required double atX, required double atY, required double atZ, required double aimX, required double aimY, required double aimZ, required DiagnosticView view})
+  Future<Answer> open(String path)
+  final ProjectRoot root
+
 typedef DiagnosticTool = OfferedTool<DiagnosticSession, Answer>;
 
 final class DiagnosticView

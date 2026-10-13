@@ -73,7 +73,8 @@ void main() {
             final n = games[slot][2];
             return {'move': (n ~/ (5 + slot * 3)).isEven ? 1 : -1};
           },
-          applyAndStep: (hands) {
+          applyAndStep: (step) {
+            final hands = step.frames;
             final game = games[slot];
             game[0] += (hands[0]?['move'] as int?) ?? 0;
             game[1] += (hands[1]?['move'] as int?) ?? 0;

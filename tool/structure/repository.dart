@@ -2109,6 +2109,8 @@ const Map<String, String> hookParametersAllowed = <String, String>{
       'flame_flutter3d: a test seam with BackendOpener\'s shape (width, height)',
   'OverheadFraming.groundHeight':
       'flutter3d_camera: the ground\'s height at x and z, as GroundHeight',
+  'Model3D.errorBuilder':
+      'flutter3d_app: Flutter\'s builder shape, `(BuildContext, T)`, as `Image.errorBuilder`; the failure is the object that grows',
   'PendulumLabRun.lengthAt':
       'flutter3d_education: the pendulum\'s length at a step from the length before, a function of the two',
   'PlaySession.push':
@@ -2124,6 +2126,65 @@ const Map<String, String> hookParametersAllowed = <String, String>{
   'ViewCamera.view':
       'flame_flutter3d: whether an eye sees a target, a line-of-sight test of the two points',
   'ViewFraming.view': 'flame_flutter3d: as ViewCamera.view',
+  // Hooks handed nothing at all, read since the rule reads them: each ends
+  // what it began, writes or reads its own state, looks up by a type
+  // argument, mirrors a call that takes nothing, or is a command with
+  // nothing to say beyond its name. A minor that needs to hand one more
+  // adds a member with a default body that calls it.
+  'ActionBinding.toJson': 'flutter3d_game: $_writesItself',
+  'ActorCorpses.dispose': 'flutter3d_game: $_endsItself',
+  'ClothSystem.dispose': 'flutter3d_physics_native: $_endsItself',
+  'CommandEncoder.submit':
+      'flutter3d_hardware: the GPU APIs\' own submit, which takes nothing; the hardware interface, for GraphicsDevice\'s reason',
+  'DebrisSystem.dispose': 'flutter3d_physics_native: $_endsItself',
+  'DeviceClassMemory.read': 'flutter3d_core: $_readsItself',
+  'FluidSystem.dispose': 'flutter3d_physics_native: $_endsItself',
+  'HeadlessGame.registry':
+      'flutter3d_game_racing: the registry a headless game was built with, handed back; $_engineImplementsNothing',
+  'HeadlessRun.save': 'flutter3d_sim: $_writesItself',
+  'LoopChange.toJson': 'flutter3d_sim: $_writesItself',
+  'MappedBuffer.unmap':
+      'flutter3d_hardware: the GPU APIs\' own unmap, which takes nothing; the hardware interface, for GraphicsDevice\'s reason',
+  'Mechanism.save': 'flutter3d_game_platformer: $_writesItself',
+  'MouseCapture.capture': 'flutter3d_game: $_platformCall',
+  'MouseCapture.drainDelta': 'flutter3d_game: $_platformCall',
+  'MouseCapture.release': 'flutter3d_game: $_platformCall',
+  'NativeParticleCloud.dispose': 'flutter3d_physics_native: $_endsItself',
+  'NativeParticleCloud.read': 'flutter3d_physics_native: $_readsItself',
+  'PhotoSaving.close': 'flutter3d_app: $_endsItself',
+  'PlayedGame.dispose': 'flutter3d_editor_play: $_endsItself',
+  'PlayedGame.hotRestart': 'flutter3d_editor_play: $_command',
+  'PlayedGame.hotSwap': 'flutter3d_editor_play: $_command',
+  'PlayedGame.start': 'flutter3d_editor_play: $_command',
+  'PlayedGame.stop': 'flutter3d_editor_play: $_command',
+  'PluginChange.toJson': 'flutter3d_plugin_api: $_writesItself',
+  'PluginHost.maybeRegistry': 'flutter3d_plugin_api: $_byTypeArgument',
+  'PluginHost.registry': 'flutter3d_plugin_api: $_byTypeArgument',
+  'PointerLockPlatform.capture': 'flutter3d_pointer_lock: $_platformCall',
+  'PointerLockPlatform.release': 'flutter3d_pointer_lock: $_platformCall',
+  'PointerLockPlatform.reset': 'flutter3d_pointer_lock: $_platformCall',
+  'ProceduralTexture.encode': 'flutter3d_core: $_writesItself',
+  'PropertyGroup.toJson': 'flutter3d_matter: $_writesItself',
+  'PropertyLaw.lawJson': 'flutter3d_matter: $_writesItself',
+  'SimQuery.having': 'flutter3d_plugin_api: $_byTypeArgument',
+  'SimQuery.without': 'flutter3d_plugin_api: $_byTypeArgument',
+  'SimulationBakeRequest.bake':
+      'flutter3d_model_core: a request that holds everything it bakes, run; $_command',
+  'SnapshotPart.capture':
+      'flutter3d_plugin_api: $_writesItself, as `hookValueParameters` decided at rc.1',
+  'SnapshotRegistry.capture': 'flutter3d_plugin_api: $_writesItself',
+  'SnapshotRegistry.digest': 'flutter3d_plugin_api: $_writesItself',
+  'TextureNode.toJson': 'flutter3d_model_core: $_writesItself',
+  'ToolContent.toJson': 'flutter3d_mcp: $_writesItself',
+  'VehicleController.save': 'flutter3d_game_racing: $_writesItself',
+  'WasmInstance.save': 'flutter3d_plugin_runtime: $_writesItself',
+  'WorldMirror.mirror':
+      'flutter3d_physics_native: the native world copied into its Dart mirror as it stands; $_command',
+  'XrSession.end': 'flutter3d_app: $_endsItself',
+  'XrSession.waitFrame':
+      'flutter3d_app: the runtime\'s own frame wait (`xrWaitFrame`, `requestAnimationFrame`), which takes nothing; what grows is the `XrFrame` it answers',
+  'XrSwapchain.release':
+      'flutter3d_app: the runtime\'s own release of an image (`xrReleaseSwapchainImage`); $_endsItself',
 };
 
 /// Hooks whose methods still take a list of parameters, by class, with the
@@ -2179,6 +2240,24 @@ const String _engineImplements =
 const String _valueChanged =
     'Flutter\'s `ValueChanged` shape: the new value of a control, a progress '
     'or a flag, heard by the widget that owns it';
+const String _endsItself =
+    'ends or releases what it began, which it holds; there is nothing a '
+    'caller could hand it';
+const String _writesItself =
+    'its own state written out, or a digest of it: what it writes is what '
+    'it holds, and a later shape is told apart by the version inside it, '
+    'never by a parameter';
+const String _readsItself =
+    'its own state read back, from where it alone keeps it';
+const String _byTypeArgument =
+    'a lookup by its type argument, which is the whole question';
+const String _platformCall =
+    'the platform call it mirrors, which takes nothing';
+const String _command =
+    'a command with nothing to say beyond its name; one that needs more is '
+    'a new member';
+const String _engineImplementsNothing =
+    'nobody outside the engine implements it';
 const String _ioSeam =
     'a file, a URL or a process stood in for by a test, in the shape of the '
     'call it wraps';
@@ -2255,8 +2334,6 @@ const Map<String, String> hookValueParameters = <String, String>{
   'ElementHook.restore': 'flutter3d_elements: $_ownState',
   'EngineLoop.drainLook':
       'flutter3d_sim: the look delta a frame gathered, written into the caller\'s vector, $_ofItsInput',
-  'EngineRollback.applyFrames':
-      'flutter3d_net: one step\'s inputs by seat, the shape the wire carries, versioned by the protocol',
   'EnumField.unknownLabel':
       'flutter3d_editor_widgets: a label for a name, $_ofItsInput',
   'EnvironmentBuild': 'flutter3d_app: an asset built from its bytes, $_codec',
@@ -2341,7 +2418,7 @@ const Map<String, String> hookValueParameters = <String, String>{
   'RigidDynamics':
       'flutter3d_physics: stepped by a length and restored from its own state; $_stepLength',
   'RollbackSession':
-      'flutter3d_net: a step\'s inputs by seat and its own state handed back; $_ownState',
+      'flutter3d_net: the game\'s own state handed back to `restore`; $_ownState',
   'RunFlutter': 'flutter3d_editor_play: `flutter run`\'s arguments, $_ioSeam',
   'RunSession':
       'flutter3d_game: a session over a level type it is generic in, each member a function of the level or its name; $_ofItsInput',
@@ -2525,6 +2602,13 @@ final Map<String, String> facadeGapAllowed = <String, String>{
         'read off a parsed compute stage (`MaterialProgram.workgroupSize`), '
         'which `parseMaterial` builds and a caller never writes by hand; a '
         'kernel author imports `flutter3d_shaders/kernel.dart`',
+  for (final facade in <String>['flutter3d', 'flutter3d_app', 'flutter3d_game'])
+    for (final name in _kernelLanguage)
+      '$facade:$name':
+          'the kernel language\'s (`package:flutter3d_shaders/kernel.dart`), '
+          'named by `SkinningHook.kernels` and a compute step: the author of '
+          'a compute kernel imports the language itself, which the facades '
+          'do not depend on outside their tests',
   for (final name in _simulationBehindTheView)
     'flutter3d_app:$name':
         'the simulation\'s, reached through the loop, the level and the '
@@ -2655,6 +2739,17 @@ const List<String> _physicsBehindTheView = <String>[
   'WorldSweeps',
 ];
 
+const List<String> _kernelLanguage = <String>[
+  'ComputeKernel',
+  'DartKernel',
+  'KernelBinding',
+  'KernelBindingKind',
+  'KernelImage',
+  'KernelInputs',
+  'KernelTexture',
+  'WgslKernel',
+];
+
 const List<String> _cpuBehindTheView = <String>['CpuVertexShader'];
 
 /// Third-party types a published package names in its API, as
@@ -2683,6 +2778,7 @@ final Map<String, String> thirdPartyTypeAllowed = <String, String>{
     'PointerMoveCallbacks',
     'PositionComponent',
     'ReadOnlyPositionProvider',
+    'ShapeHitbox',
     'Sprite',
     'SpriteAnimation',
     'SpriteAnimationTicker',
@@ -2708,6 +2804,10 @@ final Map<String, String> thirdPartyTypeAllowed = <String, String>{
   'flame_multiplayer_dashwire:WireConnection':
       'dashwire\'s: the package is the adapter from dashwire\'s connection '
       'to the engine\'s transport',
+  'flutter3d_conformance:FuzzVertex':
+      'ours, a vertex of a generated fuzz draw: the generator and the shrinker make every one, and a caller hands `FuzzDraw.triangles` back to `copyWith` without writing its name',
+  'flutter3d_webgpu:WebGpuStage':
+      'ours, and unexported on purpose: a WGSL reflection class that changes with what reflection cannot say; `WebGpuSectionStages` carries it from `decodeWebGpuSection` to `WebGpuDevice.open`, and a caller never writes its name',
   'flutter3d_app:Clock':
       '`package:clock`\'s, the Dart team\'s injectable wall clock, which a '
       'test of a frame clock overrides; a 1.x major of it is not expected',

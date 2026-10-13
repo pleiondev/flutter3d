@@ -24876,3 +24876,40 @@ entries:
       target still compiles, and reads back as one. Code that read `spec`
       into a `RenderTargetDescriptor` variable declares it a
       `TextureDescriptor`, or tests `is RenderTargetDescriptor`.
+  - id: core-HitResult
+    package: flutter3d_core
+    symbol: HitResult
+    kind: none
+    reason: >-
+      Reading a hit is unchanged: `node`, `distance`, `triangleIndex` and
+      `approximate` read as before, and only writing them is gone. A hit is
+      the caller's now, a new one per cast, where before 1.0 it was the
+      caster's scratch that the next cast wrote over; a write into it changed
+      nothing the engine read, so there is nothing to carry over. Keep a
+      value of your own in a variable of your own.
+
+  - id: hook-core-AssetSource-read
+    package: flutter3d_core
+    symbol: AssetSource.read
+    kind: hookContext
+    context: AssetRead
+    fields: {}
+    guidance: >-
+      `AssetSource.read` takes one `AssetRead` where it took nothing: what a
+      reader asks of the read, a progress listener, a cancel signal and a
+      byte range, which a minor can add to without breaking a source written
+      against 1.0. A source that cannot report, stop early or read a range
+      ignores the request and reads the whole file, as before. `migrate`
+      gives an override the parameter and hands a call `const AssetRead()`,
+      which asks for nothing (`AssetRead.whole`).
+
+  - id: hook-core-FileAssetSource-read
+    package: flutter3d_core
+    symbol: FileAssetSource.read
+    kind: hookContext
+    context: AssetRead
+    fields: {}
+    guidance: >-
+      `FileAssetSource.read` takes the `AssetRead` every source's `read`
+      takes; a call is handed `const AssetRead()`, which reads the whole
+      file as before.

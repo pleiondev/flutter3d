@@ -47,7 +47,10 @@ library;
 
 export 'package:flutter3d_cpu/flutter3d_cpu.dart'
     show
+        BoundTexture,
         CpuFragmentShader,
+        CpuStorageTexture,
+        CpuTexture,
         CpuVertexShaderByIndex,
         FragmentContext,
         ShaderBindings;
@@ -58,38 +61,74 @@ export 'package:flutter3d_particles/flutter3d_particles.dart'
         Flipbook,
         FlipbookCell,
         Particle,
+        ParticleAffector,
         ParticleBirth,
         ParticleEffect,
         ParticleEmitter,
+        ParticleStep,
         ParticleSystem,
         Range;
 export 'package:flutter3d_physics/flutter3d_physics.dart'
-    show CollisionWorld, PhysicsBackend;
+    show
+        ClothObstacle,
+        CollisionWorld,
+        ContactPhase,
+        JetObstacle,
+        ObstacleTouch,
+        PhysicsBackend,
+        StepContact,
+        SweptContact,
+        WorldMirror;
 export 'package:flutter3d_sim/flutter3d_sim.dart'
     show
+        ActorHurt,
+        AvoidanceNeighbor,
         Brush,
         DisplayTime,
         EngineLoop,
         EntityDef,
         EntityKind,
         EntityRegistry,
+        FocusPoint,
         FrameCadence,
+        GameEvent,
         HeightfieldTiles,
         InputAction,
+        InputFrame,
         InputState,
+        InputTapeRecorder,
+        JsonLinearColorWriter,
         Level,
+        LevelCheck,
+        LevelCollision,
+        LevelIssue,
+        LevelLight,
         LevelMaterial,
+        LevelRecipe,
+        LevelRule,
         LevelVisibility,
         Lightmap,
         LightmapLayout,
+        LocalSimulation,
+        NavMeshLink,
+        PlayerStart,
+        Prefab,
         SeatInput,
         ShadowCasting,
         SimulationFactory,
         SimulationHandle,
+        SimulationQuestion,
+        SimulationSetup,
         TileLevelChooser,
         TimeSource,
         WorldTiming,
-        XrHand;
+        XrControl,
+        XrControlReading,
+        XrHand,
+        XrPlane,
+        XrPlaneOrientation,
+        XrPoseInput,
+        XrSceneMesh;
 
 export 'src/backend_native.dart'
     if (dart.library.js_interop) 'src/backend_web.dart'

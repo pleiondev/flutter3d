@@ -3,6 +3,15 @@
 - **`RenderStepContext` is exported**, what a render step's `isOn` and
   `switchOff` are handed: the settings, and the frame's views, device and
   quality.
+- **The extensions on exported types come with them**: `BundledMaterialLooks`,
+  `SceneRegistry`, the texture-format and pass-state extensions,
+  `JsonLinearColorWriter`, `LevelCollision` (with `PlayerStart`),
+  `XrPoseInput` and `GeneratedTangents`.
+- **One import handles a contact.** `ContactEvent`, `ContactPhase`,
+  `StepContact`, `Dynamics` (with `BodyForce` and `BodyForceContext`),
+  `ManualTime`, `Delivered` and `LoopContext` are exported here, with every
+  other type an exported API names in a typedef's function type or as a
+  generic argument: the facade rule now reads both.
 - **A live level's and an actor's animation callbacks take one object
   each.** `LiveLevel.present` takes a `LevelPresent` (the next level and
   the diff), `LiveLevel.swapped` a `LevelSwapped` (the level and the step)

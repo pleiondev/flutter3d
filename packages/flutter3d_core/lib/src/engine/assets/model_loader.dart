@@ -46,7 +46,15 @@ export 'asset_source.dart';
 ///
 /// Sibling files are requested back over a port, so a `.gltf` referencing an
 /// external `.bin` works exactly as it does synchronously.
-Future<ModelDocument> decodeModelInIsolate(ModelLoadRequest request) async {
+///
+/// [read] is what the model's file is read with: a progress listener, a
+/// cancel signal ([AssetRead]). It stays on this isolate with the read, so
+/// its listener may close over anything; a load canceled before the file
+/// arrives fails with `ResourceLoadCanceledException` and decodes nothing.
+Future<ModelDocument> decodeModelInIsolate(
+  ModelLoadRequest request, {
+  AssetRead read = AssetRead.whole,
+}) async {
   // The web has no isolates: `decodeOnIsolate` there is the browser's decode
   // worker where one is running (`WebDecodeWorker`), and the page itself
   // where not — see `model_isolate_web.dart`.
@@ -60,7 +68,7 @@ Future<ModelDocument> decodeModelInIsolate(ModelLoadRequest request) async {
       arguments: <String, Object?>{'source': request.source.key},
     );
   try {
-    return await decodeOnIsolate(request, task);
+    return await decodeOnIsolate(request, task, read);
   } finally {
     task.finish();
   }

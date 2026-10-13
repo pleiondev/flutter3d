@@ -3,6 +3,22 @@
 - **`RenderStepContext` is exported**, what a render step's `isOn` and
   `switchOff` are handed: the settings, and the frame's views, device and
   quality.
+- **The extensions on exported types are exported with them.**
+  `BundledMaterialLooks`, `SceneRegistry` and the hardware layer's
+  `TextureFormatInfo`, `TextureFormatCompression` (with `TextureBlockLayout`
+  and `TextureSampleKind`), `BlendFactorInfo`, `PassStateApply` and
+  `BindUniformBlockObject`, whose members a caller of the type reads as its
+  own.
+- **`Delivered` and `LoopContext` are exported beside `EventHandler` and
+  `LoopSystem`**, with the other types the exported API names only in a
+  typedef or a generic argument (the plugin manifest's `PluginDependency`,
+  `PluginPermission` and `VersionRange`, `ShaderDiagnostic`, the kernel
+  language's `ComputeKernel` family, and more).
+- **A model load reports its progress and can be called off.**
+  `loadModelAsset`, `loadModelByPath` and `loadMaterialDocument` take
+  `read:`, an `AssetRead` with a progress listener and a cancel signal;
+  `AssetRead`, `AssetProgress`, `AssetCancel` and `AssetByteRange` are
+  exported here.
 - **Breaking: `ModelWardrobe.onDressed` takes a `ModelDressed`** (new: the
   instance and the key), where it took the two as parameters. `migrate`
   wraps an old function.

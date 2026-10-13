@@ -5,6 +5,38 @@
   `flutter3d_core`), which `CpuDevice` loads from a bundle's kernel
   section as it loads any kernel; the second evaluator of the same
   source went with it.
+- **`LevelCollision`, `JsonLinearColorWriter` and `XrPoseInput` are
+  exported** beside the level, the colour and the pose they extend, with
+  `PlayerStart`.
+- **The facade exports what its API names.** `ContactPhase`,
+  `StepContact`, `GameEvent`, `LocalSimulation`, the level's issue and rule
+  types, the XR plane and control readings and the others its exported
+  signatures name only as a generic argument are exported here.
+- **A model that will not load says so in the tree.** `Model3D` takes
+  `onError` and `errorBuilder`, both handed a `Model3DFailure` (new: the
+  error, its stack and the source); with neither, the failure goes to the
+  view's `EngineLog` rather than the zone. `onProgress` hears the file
+  arrive, and a `Model3D` gone while it loads calls its read off.
+- **A plain `Light3D` shines in its own type's unit.** `intensity` is
+  nullable and chosen by type when null: `sunIlluminance` lux for a
+  directional light, `lampIntensity` candela for a point, `lampLumens`
+  (new, 800) poured into its cone for a spot, where every type took
+  15 000. `Light3D.spot` (new) takes `innerConeAngle` and
+  `outerConeAngle`, and the plain constructor takes `innerConeAngle` too.
+- **`LevelLoader.load` takes `read:`.** Every file the level reads is
+  reported to its progress listener, and its cancel signal stops the load
+  before the next file and before the build.
+- **A tap on a `Mesh3D` or a `Model3D` hands a `Tap3D`.** `onTap` takes
+  one `Tap3D` (new): the `hit` (a `HitResult` of its own), the
+  `localPosition` on the scene widget, the pointer's `kind` and its
+  `buttons`, so hover, drag and pressure can join it in a minor without a
+  second callback.
+- **A scene widget's `position` is a place in the world.** `Spatial3D`
+  converts a root-level widget's position, and `Camera3D.target` and
+  `OrbitCamera3D.target` wherever they hang, through `Scene.toScene` on
+  every build, so a rebuild after the view shifted the origin near its
+  camera leaves every node where it stood; a child's position stays its
+  parent's space.
 - **The software backend draws a material's new halves and light rows.**
   `MaterialVertexStage` takes `instanced` and `lightmapped`, and a `light`
   block that reads the light's row (version 3) is handed a plugin's light

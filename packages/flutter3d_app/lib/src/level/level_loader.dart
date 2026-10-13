@@ -77,7 +77,7 @@ final class _LevelMaterialSource extends AssetSource {
   String get key => 'level-material:$path';
 
   @override
-  Future<Uint8List> read() async => _bytes(await fetch(AssetRequest(path)));
+  Future<Uint8List> read(AssetRead request) async => _bytes(await fetch(AssetRequest(path)));
 
   /// Images a material names are relative to the material file, the way a
   /// `.gltf`'s buffers and an `.obj`'s maps already are — so a folder of
@@ -143,6 +143,12 @@ final class LevelLoader {
   /// [deviceClass] reads that class's own document first — see
   /// [_classDocument].
   ///
+  /// [read] hears every file the level reads, the document, its sidecars
+  /// and its textures, as bytes received so far (the total is not known
+  /// ahead), and its cancel signal is looked at before and after each read
+  /// and before the build: a level left while it loads stops at the next
+  /// file with `ResourceLoadCanceledException`.
+  ///
   /// [physics] is the backend the level's collision world is made on
   /// (`CollisionWorld.backend`): the Dart reference unless the game hands
   /// over the one it chose — `usePhysics()` from `flutter3d_physics_native`.
@@ -169,24 +175,50 @@ final class LevelLoader {
     PhysicsBackend physics = const DartPhysics(),
     WorldProperties? gameWorld,
     Map<String, MaterialProgram> programs = const <String, MaterialProgram>{},
+    AssetRead read = AssetRead.whole,
   }) async {
-    final read = readDocument ?? _bundleDocument;
+    // Every file the level reads goes through these two, so [read] hears
+    // each one arrive and its signal is looked at before and after each.
+    var received = 0;
+    void arrived(int bytes) {
+      read.throwIfCanceled(assetPath);
+      received += bytes;
+      read.progress(received);
+    }
+
+    final document = readDocument ?? _bundleDocument;
+    Future<String> text(AssetRequest request) async {
+      read.throwIfCanceled(assetPath);
+      final text = await document(request);
+      arrived(utf8.encode(text).length);
+      return text;
+    }
+
+    final assets = readAsset ?? _bundleAsset;
+    Future<ByteData> bytes(AssetRequest request) async {
+      read.throwIfCanceled(assetPath);
+      final data = await assets(request);
+      arrived(data.lengthInBytes);
+      return data;
+    }
+
     final level = Level.fromJson(
-      jsonDecode(await _classDocument(assetPath, deviceClass, read))
+      jsonDecode(await _classDocument(assetPath, deviceClass, text))
           as Map<String, Object?>,
     );
     final (visibility, issue) = sidecars
-        ? await _sidecarVisibility(assetPath, read)
+        ? await _sidecarVisibility(assetPath, text)
         : (null, null);
     final (lightmap, lightmapIssue) = sidecars
-        ? await _sidecarLightmap(assetPath, readAsset ?? _bundleAsset)
+        ? await _sidecarLightmap(assetPath, bytes)
         : (null, null);
+    read.throwIfCanceled(assetPath);
     return build(
       level,
       device: device,
       registry: registry,
       rules: rules,
-      readAsset: readAsset,
+      readAsset: bytes,
       visibility: visibility,
       lightmap: lightmap,
       issues: <LevelIssue>[?issue, ?lightmapIssue],
@@ -213,6 +245,8 @@ final class LevelLoader {
     if (deviceClass case final DeviceClass reading) {
       try {
         return await read(AssetRequest(deviceClassPath(assetPath, reading)));
+      } on ResourceLoadCanceledException {
+        rethrow;
       } catch (_) {
         // No document for this class: the level's own below.
       }
@@ -236,6 +270,8 @@ final class LevelLoader {
     final ByteData bytes;
     try {
       bytes = await read(AssetRequest(path));
+    } on ResourceLoadCanceledException {
+      rethrow;
     } catch (_) {
       return (null, null);
     }
@@ -274,6 +310,8 @@ final class LevelLoader {
     final String text;
     try {
       text = await read(AssetRequest(path));
+    } on ResourceLoadCanceledException {
+      rethrow;
     } catch (_) {
       return (null, null);
     }

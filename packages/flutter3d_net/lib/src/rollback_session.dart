@@ -143,9 +143,13 @@ final class RollbackSession<S> {
   final Map<String, Object?> Function() captureLocalFrame;
 
   /// Writes every slot's frame into the game and runs one fixed step;
-  /// called again for a step being corrected. An empty frame is a player not
-  /// heard from yet.
-  final void Function(Map<int, Map<String, Object?>> frames) applyAndStep;
+  /// called again for a step being corrected. Handed a [RollbackStep]: the
+  /// step's number, every slot's frame by slot (an empty frame is a player
+  /// not heard from yet), each slot's [InputStatus] — heard, guessed, or
+  /// behind a closed wire — and whether the step is being run again, so a
+  /// game can freeze a player who left, hold back the sound of a predicted
+  /// hit, and show who it is waiting for.
+  final void Function(RollbackStep step) applyAndStep;
 
   final S Function() save;
   final void Function(S state) restore;
@@ -283,7 +287,7 @@ final class RollbackSession<S> {
     }
     _history[_step] = _Ran<S>(save(), frames, guessed);
     _forgetOutsideWindow();
-    applyAndStep(frames);
+    applyAndStep(_stepOf(_step, frames, guessed, resimulated: false));
     _step++;
   }
 
@@ -317,6 +321,24 @@ final class RollbackSession<S> {
     for (final at in steps.keys.toList()..sort()) {
       _receiveOne(sender, at, steps[at]!);
     }
+  }
+
+  /// What [applyAndStep] is handed for step [at]: a slot still on a guess
+  /// is predicted, or disconnected once the wire to it is closed.
+  RollbackStep _stepOf(
+    int at,
+    Map<int, Map<String, Object?>> frames,
+    Set<int> guessed, {
+    required bool resimulated,
+  }) {
+    final gone = wire.state == WireState.closed;
+    return RollbackStep(
+      step: at,
+      frames: frames,
+      predicted: gone ? const <int>{} : guessed,
+      disconnected: gone ? guessed : const <int>{},
+      resimulated: resimulated,
+    );
   }
 
   void _confirm(int slot, int at, Map<String, Object?> frame) {
@@ -367,7 +389,7 @@ final class RollbackSession<S> {
       for (var s = at; s < _step; s++) {
         final h = s == at ? _Ran<S>(ran.before, frames, guessed) : _history[s]!;
         final before = save();
-        applyAndStep(h.frames);
+        applyAndStep(_stepOf(s, h.frames, h.guessed, resimulated: true));
         _history[s] = _Ran<S>(before, h.frames, h.guessed);
         stepsRerun++;
         final to = elapsed();
@@ -413,6 +435,104 @@ final class RollbackSession<S> {
   static bool _same(Map<String, Object?> a, Map<String, Object?> b) =>
       a.length == b.length &&
       a.entries.every((e) => b.containsKey(e.key) && b[e.key] == e.value);
+}
+
+/// Where a slot's frame for a step came from: heard from its machine,
+/// guessed from the last one heard, or from a machine gone.
+///
+/// **An open class with constants, not an enum**: a later minor may add a
+/// status (a spectator's seat, a frame replayed from a tape), and a
+/// `switch` written against three would stop compiling. A `switch` over
+/// this ends with a default.
+final class InputStatus {
+  const InputStatus._(this.name);
+
+  /// Heard from the machine that drives the slot, or this machine's own:
+  /// the step will not be run again for this slot.
+  static const InputStatus confirmed = InputStatus._('confirmed');
+
+  /// Not heard yet: the slot's last heard frame, repeated. The step may be
+  /// run again when the true one comes, so what it starts (a sound, a hit
+  /// marker) may be taken back.
+  static const InputStatus predicted = InputStatus._('predicted');
+
+  /// From a machine whose wire is closed: the last heard frame, repeated
+  /// with nobody left to correct it. A game freezes or hands over that
+  /// player rather than let them run on.
+  static const InputStatus disconnected = InputStatus._('disconnected');
+
+  /// Every status this build knows.
+  static const List<InputStatus> values = <InputStatus>[
+    confirmed,
+    predicted,
+    disconnected,
+  ];
+
+  /// The status written as [name]; null for a word this build does not
+  /// know.
+  static InputStatus? byName(String name) {
+    for (final status in values) {
+      if (status.name == name) return status;
+    }
+    return null;
+  }
+
+  /// Its word in a report or a message.
+  final String name;
+
+  @override
+  String toString() => 'InputStatus.$name';
+}
+
+/// What [RollbackSession.applyAndStep] is handed for one step: its number,
+/// every slot's frame, where each came from, and whether it is a step run
+/// again.
+///
+/// **One object, so a minor can say more** (the step's input delay, a
+/// desync it was checked against) without breaking a step function written
+/// against 1.0.
+final class RollbackStep {
+  /// Step [step], run on [frames]; the slots in [predicted] on a guess,
+  /// those in [disconnected] behind a closed wire, the rest heard.
+  const RollbackStep({
+    required this.step,
+    required this.frames,
+    Set<int> predicted = const <int>{},
+    Set<int> disconnected = const <int>{},
+    required this.resimulated,
+  }) : _predicted = predicted,
+       _disconnected = disconnected;
+
+  /// The step's number, the same on every machine.
+  final int step;
+
+  /// Every slot's frame the step runs on, by slot: the same slot the same
+  /// player on every machine. An empty frame is a player not heard from yet.
+  final Map<int, Map<String, Object?>> frames;
+
+  final Set<int> _predicted;
+  final Set<int> _disconnected;
+
+  /// Whether the step is being run again after a correction: what it
+  /// started the first time was shown already, so a sound or an effect is
+  /// reconciled rather than played twice.
+  final bool resimulated;
+
+  /// Where [slot]'s frame came from. Throws a [RangeError] for a slot the
+  /// game does not have.
+  InputStatus statusOf(int slot) {
+    if (!frames.containsKey(slot)) {
+      throw RangeError.value(slot, 'slot', 'not one of ${frames.keys}');
+    }
+    if (_disconnected.contains(slot)) return InputStatus.disconnected;
+    if (_predicted.contains(slot)) return InputStatus.predicted;
+    return InputStatus.confirmed;
+  }
+
+  @override
+  String toString() =>
+      'RollbackStep($step${resimulated ? ', again' : ''}: '
+      '${[for (final slot in frames.keys) '$slot ${statusOf(slot).name}'].join(', ')})';
 }
 
 /// What [RollbackSession.onSettled] is told of a step as it leaves the

@@ -19,7 +19,7 @@ library;
 
 export 'src/diagnostic_renderer.dart';
 export 'src/diagnostic_server.dart';
-export 'src/diagnostic_session.dart' show describePass;
+export 'src/diagnostic_session.dart' show DiagnosticSession, describePass;
 export 'src/diagnostic_tools.dart';
 export 'src/playtest.dart';
 export 'src/reading_predicate.dart';

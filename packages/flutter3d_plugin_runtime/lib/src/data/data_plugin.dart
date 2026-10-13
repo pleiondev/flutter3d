@@ -119,7 +119,7 @@ final class DataPluginSection {
 ///   "format": "f3d.plugin", "version": 4,
 ///   "manifest": {"id": "gusts", "apiVersion": "1.0", "touches": "simulation"},
 ///   "phases": [{"name": "weather", "kind": "step",
-///               "after": ["physics"], "before": ["elements"]}],
+///               "after": ["physics"], "before": ["fields"]}],
 ///   "events": [{"name": "gust"}],
 ///   "wasm": [{"module": "gusts.wasm", "system": "blow", "phase": "weather",
 ///             "fields": [{"name": "wind", "write": true}],

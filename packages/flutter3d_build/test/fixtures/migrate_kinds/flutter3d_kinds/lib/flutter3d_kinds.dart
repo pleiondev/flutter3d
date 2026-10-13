@@ -237,6 +237,18 @@ abstract base class Sensor {
   void sense(Sensing sensing);
 }
 
+// 0.8: `abstract base class Store` whose `read()` took nothing.
+
+final class Reading {
+  const Reading({this.from = 0});
+  final int from;
+}
+
+abstract base class Store {
+  const Store();
+  Future<int> read(Reading reading);
+}
+
 // 0.8: `Tap({int centre = 0})`, the parameter renamed since.
 
 final class Tap {

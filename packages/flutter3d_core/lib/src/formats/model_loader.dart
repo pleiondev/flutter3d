@@ -161,8 +161,14 @@ final class ModelLoadRequest {
 /// Exposed for tests and for callers that already run off the UI thread; an
 /// application drawing a frame should prefer `decodeModelInIsolate`, which is
 /// `flutter3d`'s and takes the read off the UI thread as well.
-Future<ModelDocument> decodeModel(ModelLoadRequest request) async {
-  final bytes = await request.source.read();
+///
+/// [read] is what the file is read with ([AssetRead]): a progress listener,
+/// a cancel signal.
+Future<ModelDocument> decodeModel(
+  ModelLoadRequest request, {
+  AssetRead read = AssetRead.whole,
+}) async {
+  final bytes = await read.readFrom(request.source);
   return decodeModelBytes(request, bytes, request.source.resolveUri);
 }
 

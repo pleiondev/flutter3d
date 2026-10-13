@@ -34,7 +34,7 @@ final class _BytesSource extends AssetSource {
   String get key => 'memory:$name';
 
   @override
-  Future<Uint8List> read() async => bytes;
+  Future<Uint8List> read(AssetRead request) async => bytes;
 
   @override
   AssetUriResolver get resolveUri => (request) async {

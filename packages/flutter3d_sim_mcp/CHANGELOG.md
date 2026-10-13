@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **`DiagnosticSession` is exported**, which `DiagnosticMcpServer` and a
+  `DiagnosticTool` name.
 - **Breaking: `DiagnosticView` and `PlaytestOutcome` are open sets, and
   `ReadingPredicate` is `abstract final`**, so a view, an ending or a
   predicate a later minor adds breaks no `switch`.

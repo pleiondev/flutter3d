@@ -2994,8 +2994,28 @@ final class _Scan extends RecursiveAstVisitor<void> {
 
   /// A call of a hook that takes one context now: its arguments become the
   /// context's, each named by the field [MigrationRule.fields] maps it to.
+  ///
+  /// A hook that took nothing (its entry maps no fields) is called with
+  /// nothing: the call is handed a context asking for nothing,
+  /// `const Context()`, which is what it read before.
   void _hookCall(ArgumentList arguments, MigrationRule rule) {
     final all = arguments.arguments;
+    if (all.isEmpty && rule.fields.isEmpty) {
+      if (!_hooked.add(arguments.offset)) return;
+      _add(
+        rule,
+        arguments,
+        edits: <MigrationEdit>[
+          MigrationEdit(
+            arguments.leftParenthesis.end,
+            0,
+            'const ${rule.options}()',
+          ),
+          ..._importsFor(rule, <String>{?rule.options}),
+        ],
+      );
+      return;
+    }
     if (all.isEmpty || !_hooked.add(arguments.offset)) return;
     // Already one argument building the context: migrated.
     if (all.length == 1 && _text(all.single).startsWith('${rule.options}(')) {

@@ -16,7 +16,7 @@ part of 'renderer.dart';
 /// application without plugins uses [Renderer.renderSteps] directly.
 ///
 /// ```dart
-/// const glow = RenderStep('soft glow', needs: {RenderStep.bloom});
+/// const glow = RenderStep('acme.soft_glow', needs: {RenderStep.bloom});
 ///
 /// void install(PluginHost host) {
 ///   host.registry<RendererSteps>()

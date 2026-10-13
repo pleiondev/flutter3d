@@ -37,7 +37,7 @@ final class _Named extends AssetSource {
   String get key => 'memory:$name';
 
   @override
-  Future<Uint8List> read() async => Uint8List(0);
+  Future<Uint8List> read(AssetRead request) async => Uint8List(0);
 
   @override
   AssetUriResolver get resolveUri =>

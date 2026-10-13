@@ -32,7 +32,7 @@ class _TapToPickState extends State<TapToPick> {
             Mesh3D(
               shape: CuboidShape(),
               position: Vector3((i - 1) * 1.6, 0.0, 0.0),
-              onTap: (hit) => setState(() => picked = i),
+              onTap: (tap) => setState(() => picked = i),
             ),
           ],
         ),

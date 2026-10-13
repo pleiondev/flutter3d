@@ -1315,7 +1315,7 @@ final class _MemorySource extends AssetSource {
   String get key => 'memory:$path';
 
   @override
-  Future<Uint8List> read() async => bytes;
+  Future<Uint8List> read(AssetRead request) async => bytes;
 
   @override
   AssetUriResolver get resolveUri =>

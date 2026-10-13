@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **A contact's ids read back.** `CollisionWorld.colliderOf(id)` is
+  `idOf` the other way, null once the collider has left, and
+  `RigidDynamics.bodyOfId(id)` (a member with a default body, so every
+  backend has it) is the body, so a game gets from a `ContactEvent` to the
+  collider, its `userData` and its body on either core.
 - **Breaking: a collision listener is told one `CollisionContext`.**
   `CollisionListener.onCollisionStart`, `onCollision` and `onCollisionEnd`
   take a `CollisionContext` (new) with `self` and `other`, where they took

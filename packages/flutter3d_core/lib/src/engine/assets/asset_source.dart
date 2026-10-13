@@ -27,7 +27,7 @@ final class FileAssetSource extends AssetSource {
   String get key => 'file:$path';
 
   @override
-  Future<Uint8List> read() => readFileBytes(path);
+  Future<Uint8List> read(AssetRead request) => readFileBytes(path);
 
   @override
   AssetUriResolver get resolveUri {

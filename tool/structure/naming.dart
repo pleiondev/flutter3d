@@ -787,11 +787,15 @@ Set<String> typesNamedIn(String line) {
     final assign = RegExp(r'^[^(]*?[\w$>?)\]]\s+[\w$]+\s*=\s').firstMatch(bare);
     if (assign != null) bare = bare.substring(0, assign.end - 2);
   }
-  // Default values inside a parameter list.
-  bare = bare.replaceAll(
-    RegExp(r'\s=\s*(?:const\s+)?[^,)}\]]*(?:\([^)]*\))?'),
-    '',
-  );
+  // Default values inside a parameter list. A typedef's `=` is its body,
+  // a function type, which can hold none: everything after it is a type
+  // a caller writes.
+  if (!bare.startsWith('typedef ')) {
+    bare = bare.replaceAll(
+      RegExp(r'\s=\s*(?:const\s+)?[^,)}\]]*(?:\([^)]*\))?'),
+      '',
+    );
+  }
   return <String>{
     for (final m in RegExp(
       r'(?<![\w$])(?:[a-z_$][\w$]*\.)?([A-Z][\w$]*)',
@@ -801,13 +805,64 @@ Set<String> typesNamedIn(String line) {
 }
 
 /// The type parameters [line] declares (`<T extends Object, E>`), which name
-/// no type of anybody's.
-Set<String> typeParametersIn(String line) => <String>{
-  for (final m in RegExp(
-    r'[<,]\s*([A-Z][\w$]*)\s*(?=extends\b|[,>])',
-  ).allMatches(splitAnnotations(line).rest))
-    m.group(1)!,
-};
+/// no type of anybody's: the list after the name a header declares
+/// (`class Box<T>`, `typedef Handler<T> =`), and after a method's or a
+/// generic function type's name (`read<E>(`, `Function<T>(`).
+///
+/// **Only those.** A generic argument (`Stream<ContactEvent>`, `List<E>`)
+/// names a type, and reading every `<Name>` as a declaration hid the types
+/// a facade's members name only as arguments.
+Set<String> typeParametersIn(String line) {
+  final text = splitAnnotations(line).rest;
+  final out = <String>{};
+  void declared(int open) {
+    var depth = 0;
+    var start = open + 1;
+    final parts = <String>[];
+    for (var i = open; i < text.length; i++) {
+      final c = text[i];
+      if (c == '<') depth++;
+      if (c == '>') depth--;
+      if (depth == 1 && c == ',') {
+        parts.add(text.substring(start, i));
+        start = i + 1;
+      }
+      if (depth == 0) {
+        parts.add(text.substring(start, i));
+        break;
+      }
+    }
+    for (final part in parts) {
+      final name = RegExp(r'^\s*([A-Z][\w$]*)').firstMatch(part)?.group(1);
+      if (name != null) out.add(name);
+    }
+  }
+
+  // The header's own: the first `<` after the name a declaration keyword
+  // introduces.
+  final header = RegExp(
+    r'^(?:[a-z]+\s+)*?(?:class|mixin|typedef|enum|type|extension)\s+[\w$]+<',
+  ).firstMatch(text);
+  if (header != null) declared(header.end - 1);
+  // A method's or a function type's own: a name, its list, then `(`.
+  for (final m in RegExp(r'[\w$]+<').allMatches(text)) {
+    final open = m.end - 1;
+    var depth = 0;
+    var close = -1;
+    for (var i = open; i < text.length; i++) {
+      if (text[i] == '<') depth++;
+      if (text[i] == '>') depth--;
+      if (depth == 0) {
+        close = i;
+        break;
+      }
+    }
+    if (close > 0 && text.substring(close + 1).startsWith('(')) {
+      declared(open);
+    }
+  }
+  return out;
+}
 
 /// The names the main library of the facade [facade] lets a caller write,
 /// read off its snapshot: its own declarations and every name its
@@ -836,10 +891,15 @@ Set<String> facadeNames(String snapshot, String facade) {
 /// whose `add*` returns a `Registration` it does not export sends its user
 /// to the package underneath, and that import becomes part of what they
 /// wrote against the release.
+///
+/// [extensions], when given, are the extensions the facade could export: the
+/// ones the libraries it re-exports from declare. An extension elsewhere (a
+/// package the facade does not stand on) is that package's to export.
 List<NamingProblem> facadeGapsIn({
   required String facade,
   required Set<String> exported,
   required Map<String, List<ApiBlock>> declarations,
+  Set<String>? extensions,
 }) {
   final out = <NamingProblem>[];
   final reached = <String>{...exported};
@@ -872,11 +932,33 @@ List<NamingProblem> facadeGapsIn({
       }
     }
   }
+  // An extension on a type the facade exports is part of that type's API
+  // to a caller, who calls its members as the type's own: without it the
+  // members are not there at all.
+  for (final MapEntry(key: name, value: blocks) in declarations.entries) {
+    for (final block in blocks) {
+      final on = RegExp(
+        r'^extension\s+[\w$]+(?:<[^>]*>)?\s+on\s+([A-Z][\w$]*)',
+      ).firstMatch(block.header)?.group(1);
+      if (on == null || !exported.contains(on)) continue;
+      if (extensions != null && !extensions.contains(name)) continue;
+      if (exported.contains(name) || !reported.add(name)) continue;
+      out.add((
+        subject: name,
+        what:
+            'extends `$on`, which `package:$facade` exports, and '
+            '`package:$facade` does not export it, so its members are '
+            'missing from the type there: export it, or say in '
+            '`facadeGapAllowed` why a caller never calls them',
+      ));
+    }
+  }
   return out;
 }
 
 /// Every type a snapshot declares, by name: a class, an enum, a mixin, an
-/// extension type or a typedef, in every library it is listed in.
+/// extension type, a typedef or a named extension, in every library it is
+/// listed in.
 Map<String, List<ApiBlock>> typeDeclarationsIn(Iterable<String> snapshots) {
   final out = <String, List<ApiBlock>>{};
   for (final snapshot in snapshots) {
@@ -886,7 +968,7 @@ Map<String, List<ApiBlock>> typeDeclarationsIn(Iterable<String> snapshots) {
         final bare = splitAnnotations(block.header).rest;
         if (!RegExp(
           r'^(?:(?:abstract|base|final|interface|sealed|mixin)\s+)*'
-          r'(class|enum|mixin|typedef|extension type)\s',
+          r'(class|enum|mixin|typedef|extension type|extension)\s',
         ).hasMatch(bare)) {
           continue;
         }
@@ -1754,11 +1836,19 @@ List<(String, String)> proveNamingDetectorsWork() {
       'final class Registration\n\nfinal class RenderAnchor\n\n'
       'final class FrameGraphBuilder\n  void declare(ResourceDesc desc)\n\n'
       'final class ResourceDesc\n\nfinal class Fallback\n\n'
-      'final class Hidden\n\nfinal class Shape\n';
+      'final class Hidden\n\nfinal class Shape\n\n'
+      'typedef Handler<T extends Shape> = void Function(Delivered<T> event)\n\n'
+      'final class Delivered<T>\n\n'
+      'final class Bus\n'
+      '  Stream<Contact> get contacts\n'
+      '  Map<String, List<Phase>> phases<E extends Shape>(E of)\n\n'
+      'final class Contact\n\nfinal class Phase\n\n'
+      'extension EngineLooks on Engine\n  int get looks\n\n'
+      'extension HiddenLooks on Hidden\n';
   const facadeApi =
       'library package:face/face.dart\n\n'
-      'export package:core/core.dart show Engine, RenderNode\n'
-      '  Engine\n  RenderNode\n';
+      'export package:core/core.dart show Bus, Engine, Handler, RenderNode\n'
+      '  Bus\n  Engine\n  Handler\n  RenderNode\n';
   final gaps = facadeGapsIn(
     facade: 'face',
     exported: facadeNames(facadeApi, 'face'),
@@ -1777,10 +1867,21 @@ List<(String, String)> proveNamingDetectorsWork() {
     'a return type, a getter\'s type, a parameter, a bound, and a type named '
         'only by a type the facade does not export',
   );
+  // Mutation: read a typedef's `=` as a default value, as before, and
+  // `Delivered` goes quiet; read every `<Name>` as a type parameter, and
+  // `Contact` and `Phase` do.
+  fires(
+    'facade closure',
+    gaps.containsAll(<String>{'Delivered', 'Contact', 'Phase', 'EngineLooks'}),
+    'a type a typedef\'s function type names, a type named only as a '
+        'generic argument (`Stream<Contact>`, `List<Phase>`), and an '
+        'extension on an exported type',
+  );
   quiet(
     'facade closure',
-    gaps.length == 6,
-    'a default value, an annotation, a constant\'s value and a type parameter',
+    gaps.length == 10,
+    'a default value, an annotation, a constant\'s value and a type '
+        'parameter, a method\'s own (`<E extends Shape>`) included',
     'a caller never writes those',
   );
 

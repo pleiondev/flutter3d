@@ -40,7 +40,7 @@ final class OrbitCamera3D extends Spatial3D {
     super.children,
   });
 
-  /// The point orbited, in world space; the origin if null.
+  /// The point orbited, a place in the world; the world's origin if null.
   final Vector3? target;
 
   /// How far from [target] the camera starts, in metres.
@@ -104,9 +104,10 @@ class _OrbitCamera3DState extends _SpatialState<OrbitCamera3D, CameraNode>
   CameraNode createNode(_Scene3DScope scope) {
     final camera = CameraNode(projection: widget.projection);
     _target = widget.target?.clone();
+    final scene = scope.host.scene;
     _orbit = OrbitController(
       camera,
-      target: widget.target?.clone(),
+      target: scene.toScene(_world(widget.target)),
       distance: widget.distance,
       yaw: widget.yaw,
       pitch: widget.pitch,
@@ -118,8 +119,27 @@ class _OrbitCamera3DState extends _SpatialState<OrbitCamera3D, CameraNode>
     host.animated.add(this);
     host.orbits.add(this);
     if (host.orbits.length == 1) host.gesturesChanged();
+    // The point orbited is in the scene's space, which a shift moves under
+    // it: it moves by the shift, as the camera node does, so a fling
+    // between builds turns round the same place in the world.
+    _shifts = scene.onOriginShift((OriginShifted shift) {
+      _orbit.target.add(
+        Vector3(
+          shift.from.x - shift.to.x,
+          shift.from.y - shift.to.y,
+          shift.from.z - shift.to.z,
+        ),
+      );
+    });
     return camera;
   }
+
+  Registration? _shifts;
+
+  static WorldPosition _world(Vector3? target) => switch (target) {
+    final t? => WorldPosition(t.x, t.y, t.z),
+    null => WorldPosition.origin,
+  };
 
   @override
   void apply(CameraNode node, _Scene3DScope scope) {
@@ -134,7 +154,7 @@ class _OrbitCamera3DState extends _SpatialState<OrbitCamera3D, CameraNode>
     final same = target == null ? _target == null : target == _target;
     if (!same) {
       _target = target?.clone();
-      _orbit.target.setFrom(target ?? Vector3.zero());
+      scope.host.scene.toScene(_world(target), _orbit.target);
     }
     _orbit.distance = _orbit.distance.clamp(
       widget.minDistance,
@@ -173,6 +193,7 @@ class _OrbitCamera3DState extends _SpatialState<OrbitCamera3D, CameraNode>
 
   @override
   void dispose() {
+    _shifts?.cancel();
     final host = _scope?.host;
     if (host != null) {
       host.cameras.remove(_node);
@@ -184,12 +205,49 @@ class _OrbitCamera3DState extends _SpatialState<OrbitCamera3D, CameraNode>
   }
 }
 
+/// A tap that landed on something in a [Scene3D]: what the ray through the
+/// finger hit, and the pointer that tapped — what [Mesh3D.onTap] and
+/// [Model3D.onTap] are handed.
+///
+/// **One object, so a minor can say more.** Hover, a drag, the pointer's
+/// pressure would each be a field here, not a parameter added to every
+/// handler written against 1.0.
+///
+/// **Yours to keep.** [hit] is a [HitResult] of its own, not a scratch the
+/// next tap rewrites, and nothing here changes after the handler returns.
+final class Tap3D {
+  const Tap3D({
+    required this.hit,
+    required this.localPosition,
+    required this.kind,
+    this.buttons = kPrimaryButton,
+  });
+
+  /// What the ray through the finger hit first: the mesh, the point and
+  /// normal in the world, the distance.
+  final HitResult hit;
+
+  /// Where the tap was, in the scene widget's own logical pixels from its
+  /// top-left corner.
+  final Offset localPosition;
+
+  /// What tapped: a finger, a mouse, a stylus.
+  final PointerDeviceKind kind;
+
+  /// The buttons held, as Flutter's pointer events give them
+  /// ([kPrimaryButton] for a finger or a left click).
+  final int buttons;
+
+  @override
+  String toString() => 'Tap3D($hit at $localPosition, $kind)';
+}
+
 /// Has [nodes] answer a tap with [handler], or no longer answer when it is
 /// null, telling [host] when the first starts listening or the last stops.
 void _answerTaps(
   _SceneHost host,
   Iterable<MeshNode> nodes,
-  void Function(HitResult hit)? handler,
+  void Function(Tap3D tap)? handler,
 ) {
   final before = host.tappable.isEmpty;
   for (final node in nodes) {
@@ -208,8 +266,8 @@ void _answerTaps(
 /// view underneath is never made again.
 mixin _SceneGestures on State<Scene3D> implements _SceneHost {
   @override
-  final Map<MeshNode, void Function(HitResult hit)> tappable =
-      <MeshNode, void Function(HitResult hit)>{};
+  final Map<MeshNode, void Function(Tap3D tap)> tappable =
+      <MeshNode, void Function(Tap3D tap)>{};
 
   @override
   final List<_Orbit> orbits = <_Orbit>[];
@@ -258,7 +316,13 @@ mixin _SceneGestures on State<Scene3D> implements _SceneHost {
     // listen still stands in front of one that does.
     final node = hit?.node;
     if (hit == null || node == null) return;
-    tappable[node]?.call(hit);
+    tappable[node]?.call(
+      Tap3D(
+        hit: hit,
+        localPosition: details.localPosition,
+        kind: details.kind,
+      ),
+    );
   }
 
   Widget _withGestures(Widget view) => Listener(

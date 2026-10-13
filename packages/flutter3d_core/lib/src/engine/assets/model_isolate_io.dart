@@ -9,9 +9,11 @@ import 'package:flutter3d_core/formats.dart';
 Future<ModelDocument> decodeOnIsolate(
   ModelLoadRequest request,
   developer.TimelineTask task,
+  AssetRead read,
 ) async {
   task.instant('read');
-  final primary = await request.source.read();
+  // Read here, where [read]'s listener lives; only the bytes cross.
+  final primary = await read.readFrom(request.source);
   final resolve = request.source.resolveUri;
 
   final requests = ReceivePort();

@@ -53,7 +53,8 @@ final class PartyRace {
   /// The slots a frame has come from, so far.
   final Set<int> heard = <int>{};
 
-  void _applyAndStep(Map<int, Map<String, Object?>> frames) {
+  void _applyAndStep(RollbackStep step) {
+    final frames = step.frames;
     for (var car = 0; car < cars; car++) {
       final frame = frames[car] ?? const <String, Object?>{};
       if (frame.isNotEmpty && car != localCarIndex) heard.add(car);
