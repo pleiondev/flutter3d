@@ -133,6 +133,10 @@ step "shaders" in_dir packages/flutter3d_impeller dart run bin/build_shader_bund
 # without it; the `loaded-shader` golden is what loads it.
 step "example shaders" in_dir packages/flutter3d/example ./tool/build_shaders.sh
 
+# The sample plugin's bundle for its GPU harness, gitignored and declared as
+# an asset the same way: without it `analyze` warns that the asset is missing.
+step "plugin example shaders" in_dir packages/flutter3d_plugin_runtime/example/gpu dart run tool/build_bundle.dart
+
 # The water's material, which `flutter3d_effects`' own hook compiles on every
 # application build — and which `dart test` there, which runs no hook, reads.
 step "effects materials" in_dir packages/flutter3d_effects dart run tool/build_materials.dart
@@ -496,7 +500,9 @@ done
 # The game layer's input files, named for the reason the application layer's
 # are above: the saves, the settings document and the timeline's service
 # extensions beside them reach `dart:io`.
-step "test flutter3d_game (browser)" in_dir packages/flutter3d_game flutter test --platform chrome test/accommodations_test.dart test/bindings_test.dart test/desktop_input_test.dart test/game_config_test.dart test/pad_actions_test.dart test/playing_test.dart test/touch_controls_test.dart test/touch_verbs_test.dart
+step "test flutter3d_game (browser)" in_dir packages/flutter3d_game flutter test --platform chrome test/accommodations_test.dart test/bindings_test.dart test/desktop_input_test.dart test/game_config_test.dart test/pad_actions_test.dart test/playing_test.dart
+# The touch controls moved to the game's widgets with their tests.
+step "test flutter3d_game_ui (browser)" in_dir packages/flutter3d_game_ui flutter test --platform chrome test/touch/touch_controls_test.dart test/touch/touch_verbs_test.dart
 
 # An example with tests, which until `packages/pad_input/example` there was none of.
 # Its tests are the only ones that mount the tool the gamepad's manual acceptance
