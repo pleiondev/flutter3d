@@ -302,6 +302,13 @@ final class NativeElementFields extends ElementFields {
   /// meets another body first — a wall, a crate, a cart between — save the
   /// burning body itself. A body the ray misses altogether is taken at its
   /// middle.
+  ///
+  /// The flame stands as far along its axis as nothing stops it: one longer
+  /// than the room is high turns along the ceiling as a ceiling jet
+  /// (Alpert, SFPE Handbook, "Ceiling jet flows"), and the point source is
+  /// the middle of the column under it. Measured from the middle of the
+  /// whole flame, a fire of a few megawatts in a vault 4 m high sent its
+  /// heat from above the vault's roof, and the roof let none of it through.
   @override
   double radiantFluxOn(ElementBody body) {
     final target = body.native;
@@ -309,7 +316,7 @@ final class NativeElementFields extends ElementFields {
     var total = 0.0;
     for (final fire in world.fires()) {
       if (fire.body == target) continue;
-      final from = FireExposure.middleOf(fire);
+      final from = _standing(fire);
       final toward = middle - from;
       final far = toward.length;
       if (far <= 0.0) {
@@ -323,6 +330,20 @@ final class NativeElementFields extends ElementFields {
       total += FireExposure.fluxFrom(fire, at * at);
     }
     return total;
+  }
+
+  /// The middle of [fire]'s flame as it stands: [FireExposure.middleOf], or,
+  /// where its axis meets a body short of its tip, half the way there.
+  Vector3 _standing(NativeFire fire) {
+    final stop = world.rayCast(
+      fire.at,
+      fire.axis,
+      fire.reach,
+      ignore: fire.body,
+    );
+    return stop == null
+        ? FireExposure.middleOf(fire)
+        : fire.at + fire.axis * (0.5 * stop.at);
   }
 
   /// [water] at [at], or null off its grid (absent).

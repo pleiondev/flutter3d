@@ -107,6 +107,82 @@ void main() {
       );
     });
 
+    test('and from a flame under a ceiling, the part of it standing there', () {
+      // A flame longer than the room is high turns along the ceiling, and
+      // what burns a body beside the fire is the column under it. Mutation:
+      // take the middle of the whole flame — it stands above the stone, and
+      // the stone, between it and the body, lets nothing through.
+      final elements = ElementsSimulation.open();
+      addTearDown(elements.dispose);
+      // A bonfire on a stone block, some 900 kW: a flame metres long.
+      final block = elements.track(
+        elements.addBody(
+          Solid.box(
+            Vector3.all(0.2),
+            material: NativeMaterial.stone(),
+            density: 2700.0,
+          ),
+          at: Vector3(0.0, 0.2, 0.0),
+          type: NativeBodyType.fixed,
+        ),
+      );
+      elements.fires.setBurner(block, NativeBurner.bonfire());
+      final stander = _stander(elements, 1.5);
+      for (var i = 0; i < 30; i++) {
+        elements.step(1 / 60);
+      }
+      final lit = elements.world.fires().single;
+      expect(lit.reach, greaterThan(1.0));
+      // A ceiling low over the block, under the middle of the flame and
+      // short of the stander's head.
+      final low = lit.at.y + 0.3 * lit.reach;
+      final slab = elements.addBody(
+        Solid.box(
+          Vector3(1.0, 0.05, 1.0),
+          material: NativeMaterial.stone(),
+          density: 2700.0,
+        ),
+        at: Vector3(0.0, low + 0.05, 0.0),
+        type: NativeBodyType.fixed,
+      );
+      elements.step(1 / 60);
+
+      final fire = elements.world.fires().single;
+      final whole = FireExposure.middleOf(fire);
+      expect(
+        elements.world
+            .rayCast(
+              whole,
+              (elements.world.localPositionOf(stander) - whole).normalized(),
+              10.0,
+              ignore: fire.body,
+            )
+            ?.body,
+        slab,
+        reason: 'the whole flame\'s middle is above the ceiling',
+      );
+      final ceiling = elements.world.rayCast(
+        fire.at,
+        fire.axis,
+        fire.reach,
+        ignore: fire.body,
+      )!;
+      expect(ceiling.at, lessThan(0.5 * fire.reach));
+      final middle = fire.at + fire.axis * (0.5 * ceiling.at);
+      final hit = elements.world.rayCast(
+        middle,
+        (elements.world.localPositionOf(stander) - middle).normalized(),
+        10.0,
+        ignore: fire.body,
+      )!;
+      expect(hit.body, stander);
+      final flux = NativeElementFields(
+        elements.world,
+      ).radiantFluxOn(ElementBody.of(stander));
+      expect(flux, greaterThan(0.0));
+      expect(flux, closeTo(FireExposure.fluxFrom(fire, hit.at * hit.at), 1e-6));
+    });
+
     test('and a backend that has no fires refuses it by name', () {
       expect(
         () => const _Silent().radiantFluxOn(const ElementBody(1)),

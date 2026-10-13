@@ -20,8 +20,10 @@
   `FieldQuantity.radiantFlux` (W/m²): each fire's radiant heat, Modak's
   point source at the middle of its flame, on the point of the body a ray
   from there meets first, and nothing from a fire something else stands
-  in front of. What a game's character is burnt by, read rather than
-  worked out beside the world.
+  in front of. A flame longer than the room is high is measured from the
+  middle of the column under the ceiling, not from above the roof. What a
+  game's character is burnt by, read rather than worked out beside the
+  world.
 - **A burner fed what was spilt.** `Fires.setBurner(body, burner, fuel:)`
   feeds a burner that many kilograms and no more: it goes out by itself
   when they are burnt, told as `burnerOut`, and `Fires.fuelLeft` and the
