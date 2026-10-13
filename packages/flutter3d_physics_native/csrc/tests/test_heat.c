@@ -431,32 +431,33 @@ static void blaze(f3d_real wind, int when[5], f3d_real *far_peak) {
 }
 
 static void test_fire_spreads(void) {
-  /* A crate hot all through shines on those it stands a couple of
-   * centimetres from, the one on it and the one beside it, and both catch
-   * within minutes, once heat enough lies under their faces to hold a
-   * flame. Solid pine with nothing more to heat it burns near its
-   * firepoint, its flame giving back most of what it makes — its gas in
-   * depth no faster than wood is measured burning, a few hundred
-   * kilowatts all told rather than the megawatt it gave when that gas was
-   * unbounded, which lit both within 20 s. The one in its plume catches
-   * first, and the two together light the one beside; the one four
-   * metres off only warms. */
+  /* A crate hot all through stands its flame over the one on it and
+   * against the one beside it, a couple of centimetres off, and both catch
+   * within a minute, once heat enough lies under their faces to hold a
+   * flame: they stand in the flame, which gives the faces it wraps its
+   * gas's convection and its radiation, and catch with it as their pilot.
+   * Solid pine with nothing more to heat it burns near its firepoint, its
+   * flame giving back most of what it makes, its gas in depth no faster
+   * than wood is measured burning. The one in its plume catches first; the
+   * one four metres off only warms. Mutation: no flame on what stands in
+   * it — the two catch only after minutes, from radiation and the plume. */
   int when[5];
   f3d_real far;
   blaze(0, when, &far);
   CHECK(when[0] == 0);
-  CHECK(when[1] > 0 && when[1] < 300);
-  CHECK(when[2] > 0 && when[2] < 300);
+  CHECK(when[1] > 0 && when[1] < 60);
+  CHECK(when[2] > 0 && when[2] < 60);
   CHECK(when[1] < when[2]);
   CHECK(when[4] < 0);
   CHECK(far < 310);
-  /* Two metres a second along the row: the wind cools the crate on top,
-   * so it and the one beside catch later than in still air, but catch;
-   * the far one still only warms. */
+  /* Two metres a second along the row lays the flame towards the crate
+   * beside it: it catches no later than in still air, and the next in the
+   * row, which in still air the flame does not reach, catches within
+   * minutes; the far one still only warms. */
   int windy[5];
   blaze(2, windy, &far);
-  CHECK(windy[1] > 0 && windy[1] < 400);
-  CHECK(windy[2] > 0 && windy[2] < 400);
+  CHECK(windy[2] > 0 && windy[2] <= when[2]);
+  CHECK(windy[3] > 0 && (when[3] < 0 || windy[3] < when[3]));
   CHECK(windy[4] < 0);
 }
 

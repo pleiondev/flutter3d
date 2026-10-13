@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1
 
+- **Heat crosses a touching face, and a flame heats what stands in it.**
+  Two faces that meet pass heat through their interface — 3.6 kW/(m² K)
+  for two metals, the air across a quarter-millimetre gap otherwise, with
+  the radiation across it — in series with each body's solid over the
+  depth heat lies in; a curved contact keeps Holm's spot. A body standing
+  in or against another's flame takes the flame's convection and
+  radiation on the faces it wraps, and catches there with the flame as its
+  pilot: a 10 cm block of wood against a burning one catches in about two
+  minutes, crates side by side within a minute, and a stone beside them
+  only warms.
 - **Wood hot right through burns no faster than wood is measured
   burning.** The gas the wood under a burning front gives off in depth
   adds no more than the material's `burnRate` to the front's, which the

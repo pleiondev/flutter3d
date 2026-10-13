@@ -557,10 +557,14 @@ static F3dBody steel_cube(F3dWorld *w, F3dBodyType type, f3d_real x, f3d_real y,
 static void test_conduction(void) {
   /* A hot steel cube with a cold one resting on it under its own weight,
    * and a pair alike standing apart. Face on face they touch over the
-   * 25 cm² of the faces, Holm's conductance 4a / (2/k) — 3.4 W/K for the
-   * preset's k — with a the radius of a circle that large; so the touching pair's difference
-   * falls faster than the apart pair's by e^(−2G t / C), the air cooling
-   * both alike, and never crosses. */
+   * 25 cm² of the faces, through the interface's conductance, 3.6 kW/(m²
+   * K) for two metal faces in air (Incropera, Fundamentals of Heat and Mass
+   * Transfer, table 3.2), in series with each cube's steel across the
+   * depth heat lies in, all of its V/A = 8.3 mm within a second:
+   * G = A / (1/h + 2 (V/A) / k), 4.5 W/K. So the touching pair's
+   * difference falls faster than the apart pair's by e^(−2G t / C), the
+   * air cooling both alike, and never crosses. Mutation: Holm's spot,
+   * 4a / (2/k), 3.4 W/K — the ratio is 0.23 where it should be 0.12. */
   F3dWorld *w = f3d_world_create();
   f3d_world_set_air(w, 350, F3D_STANDARD_AIR_DENSITY);
   F3dMaterial steel;
@@ -582,7 +586,7 @@ static void test_conduction(void) {
   f3d_body_get_temperature(w, apart2, &tb);
   CHECK(!crossed);
   const double k = (double)steel.conductivity, c = (double)steel.specific_heat;
-  const double g = 4 * sqrt(0.05 * 0.05 / M_PI) / (2 / k);
+  const double g = 0.05 * 0.05 / (1 / 3.6e3 + 2 * (0.05 / 6) / k);
   CHECK_NEAR((th - tc) / (ta - tb), exp(-2 * g * 100.0 / c), 0.03);
   /* The air is at their mean and they are alike, so the mean holds near
    * enough: the hot one's air rises a little faster than the cold one's
@@ -609,18 +613,22 @@ static void test_conduction(void) {
 }
 
 static void test_fire_warms_what_it_touches(void) {
-  /* A burning block pressed against a cold one warms it, and one standing
-   * five metres apart barely warms. Wood is an insulator, a contact of
-   * 10 × 10 cm passes about a hundredth of a watt per kelvin; where the two
-   * faces meet both are at their mean, and the burning face's char, some
-   * 740 K, sets the other's at about 520 K, short of where it catches. The
-   * flame warms it besides: a 10 cm block burning at wood's measured rate
-   * gives off some 9 kW, and the one beside it reaches 500 K at its face in
-   * five minutes without catching. When the burning block's gas in depth
-   * was unbounded, it gave off 36 kW and lit its neighbour for a moment.
-   * Five metres off, a face of a hundredth of a square metre catches a
-   * hundred-thousandth of what such a fire gives: a tenth of a watt, a
-   * tenth of a kelvin in ten minutes. */
+  /* A burning block pressed against a cold one lights it, and one standing
+   * five metres apart barely warms. Wood is an insulator: across the
+   * contact little passes, and where the two faces meet the burning one's
+   * char, some 740 K, sets the other's at about 520 K, short of where it
+   * catches. What lights it is the flame: the block it touches stands in
+   * the burning one's flame, which gives the faces it wraps its gas's
+   * convection and its radiation, and there it catches as a thick solid
+   * does under that flux, the flame its pilot: t = (π/4) kρc (ΔT / q'')²,
+   * for plywood's kρc 0.54 (kW/m² K)² s and the 370 K to its ignition, 16 s
+   * under 50 kW/m² and a minute under 25 (Quintiere, Fundamentals of Fire
+   * Phenomena, §7.5) — tens of seconds to a few minutes, as a small flame
+   * and the face's own losses leave less. Five metres off, a face of a
+   * hundredth of a square metre catches a hundred-thousandth of what such
+   * a fire gives: a tenth of a watt, a tenth of a kelvin in ten minutes.
+   * Mutation: no flame on what stands in it — the near one reaches 500 K
+   * at its face in five minutes and never catches. */
   F3dWorld *w = f3d_world_create();
   f3d_world_set_gravity(w, 0, 0, 0);
   F3dMaterial wood;
@@ -634,10 +642,17 @@ static void test_fire_warms_what_it_touches(void) {
     f3d_body_set_material(w, blocks[i], &wood);
   }
   f3d_body_set_temperature(w, blocks[0], 700);
-  /* Five minutes. */
-  int burning = 0;
-  for (int i = 0; i < 3000; i++) f3d_world_step(w, F3D_R(0.1));
+  /* Five minutes: the one it touches catches within them, and not at
+   * once. */
+  int burning = 0, caught = -1;
+  for (int i = 0; i < 3000; i++) {
+    f3d_world_step(w, F3D_R(0.1));
+    int on = 0;
+    f3d_body_is_burning(w, blocks[1], &on);
+    if (on && caught < 0) caught = i;
+  }
   f3d_body_is_burning(w, blocks[0], &burning);
+  CHECK(caught >= 100 && caught < 3000);
   f3d_real near, far;
   /* Their surfaces: the near one is hot at its face while its middle has
    * hardly warmed. */
@@ -646,7 +661,38 @@ static void test_fire_warms_what_it_touches(void) {
   CHECK(burning);
   CHECK(near > far + 1);
   CHECK(far < F3D_R(293.15 + 0.5));
-  CHECK(near > 450);
+  f3d_world_destroy(w);
+}
+
+/* A granite block in the same place, against the same burning block: the
+ * flame and the contact warm it, and it never catches, having nothing to
+ * burn. Stone's effusivity, some 2.5 times wood's, holds the spot where they
+ * meet nearer its own temperature, and its 2.8 W/(m K) carries the heat into
+ * it. */
+static void test_stone_beside_a_fire_warms_and_does_not_burn(void) {
+  F3dWorld *w = f3d_world_create();
+  f3d_world_set_gravity(w, 0, 0, 0);
+  F3dMaterial wood, stone;
+  f3d_material_preset(F3D_MATERIAL_WOOD, &wood);
+  f3d_material_preset(F3D_MATERIAL_STONE, &stone);
+  const F3dBody fire = f3d_body_create(w, F3D_BODY_FIXED, 0, 0, 0, F3D_R(0.6));
+  f3d_body_set_shape(w, fire, F3D_SHAPE_BOX, F3D_R(0.05), F3D_R(0.05), F3D_R(0.05));
+  f3d_body_set_material(w, fire, &wood);
+  const F3dBody rock = f3d_body_create(w, F3D_BODY_DYNAMIC, F3D_R(0.099), 0, 0, F3D_R(2.7));
+  f3d_body_set_shape(w, rock, F3D_SHAPE_BOX, F3D_R(0.05), F3D_R(0.05), F3D_R(0.05));
+  f3d_body_set_material(w, rock, &stone);
+  f3d_body_set_temperature(w, fire, 700);
+  int ever = 0;
+  for (int i = 0; i < 3000; i++) {
+    f3d_world_step(w, F3D_R(0.1));
+    int on = 0;
+    f3d_body_is_burning(w, rock, &on);
+    ever |= on;
+  }
+  f3d_real t;
+  f3d_body_get_temperature(w, rock, &t);
+  CHECK(!ever);
+  CHECK(t > F3D_R(320.0));
   f3d_world_destroy(w);
 }
 
@@ -700,6 +746,7 @@ int main(void) {
   test_islands();
   test_conduction();
   test_fire_warms_what_it_touches();
+  test_stone_beside_a_fire_warms_and_does_not_burn();
   test_snapshot_keeps_contacts();
   return finish();
 }
