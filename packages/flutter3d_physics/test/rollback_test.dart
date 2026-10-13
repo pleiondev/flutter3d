@@ -29,11 +29,13 @@ const double dt = 1.0 / 60.0;
   return (dynamics: Dynamics(world: world)..add(ball), ball: ball);
 }
 
-/// The ball's state as bits, so a difference in the last one shows.
+/// The ball's state as bits, so a difference in the last one shows. Read as
+/// 32-bit halves: the browser has no Uint64List, and two halves hold every
+/// bit of a double just the same.
 List<int> bitsOf(RigidBody ball) => Float64List.fromList(<double>[
   ...ball.position.storage,
   ...ball.velocity.storage,
-]).buffer.asUint64List().toList();
+]).buffer.asUint32List().toList();
 
 void main() {
   test('every step taken twice from one save ends in the same bits, '
