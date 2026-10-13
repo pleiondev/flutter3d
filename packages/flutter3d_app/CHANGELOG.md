@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **A scene widget's `position` is a place in the world.** `Spatial3D`
+  converts a root-level widget's position, and `Camera3D.target` and
+  `OrbitCamera3D.target` wherever they hang, through `Scene.toScene` on
+  every build, so a rebuild after the view shifted the origin near its
+  camera leaves every node where it stood; a child's position stays its
+  parent's space.
 - **The software backend draws a material's new halves and light rows.**
   `MaterialVertexStage` takes `instanced` and `lightmapped`, and a `light`
   block that reads the light's row (version 3) is handed a plugin's light

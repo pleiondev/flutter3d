@@ -480,6 +480,14 @@ class _Scene3DScope extends InheritedWidget {
 /// [position], [rotation] and [scale] are applied on every build, and a
 /// property left null is left as the node has it, so a game may move a node
 /// imperatively and the widget will not put it back unless it says where.
+///
+/// **[position] is a place in the world** for a widget directly in
+/// [Scene3D.children] (or a mount's), and in its parent's space below
+/// another widget. The scene's own space starts at `Scene.origin`, which a
+/// view moves near its camera in a world bigger than float32 holds
+/// (`LoopSettings.originShift`); every build converts a root-level
+/// position through `Scene.toScene`, so a rebuild after a shift puts the
+/// node where it stood in the world, not where it stood in the old space.
 abstract base class Spatial3D extends StatefulWidget {
   const Spatial3D({
     super.key,
@@ -490,6 +498,8 @@ abstract base class Spatial3D extends StatefulWidget {
     this.children = const <Widget>[],
   });
 
+  /// Where the node stands: in the world at the root of a scene, in the
+  /// parent's space below another widget. Null leaves it where it is.
   final Vector3? position;
   final Quaternion? rotation;
   final Vector3? scale;
@@ -515,10 +525,25 @@ abstract class _SpatialState<W extends Spatial3D, N extends SceneNode>
   /// Told the node now hangs from another parent, after a keyed reparent.
   void reparented(N node) {}
 
+  /// [position], a place in the world, in the scene's own space: the
+  /// difference from the scene's origin, taken in doubles and narrowed once.
+  /// What a camera's target is converted through, and a root-level node's
+  /// position.
+  Vector3 _inScene(Vector3 position) => _scope!.host.scene.toScene(
+    WorldPosition(position.x, position.y, position.z),
+  );
+
   void _applyAll() {
     final node = _node!;
     final widget = this.widget;
-    if (widget.position case final p?) node.setPositionFrom(p);
+    if (widget.position case final p?) {
+      // Below another widget a position is the parent's space and moves
+      // with it; at the root it is the world's, so an origin the view
+      // shifted since the last build never makes the node jump by the
+      // shift.
+      final atRoot = identical(_parent, _scope!.host.scene.root);
+      node.setPositionFrom(atRoot ? _inScene(p) : p);
+    }
     if (widget.rotation case final r?) node.setRotation(r);
     if (widget.scale case final s?) node.setScale(s.x, s.y, s.z);
     node.isVisible = widget.visible;
@@ -920,7 +945,8 @@ class _Light3DState extends _SpatialState<Light3D, LightNode> {
 ///
 /// The [Camera3D] built last is the one drawn through; with none, the scene
 /// has a default five metres back looking at the origin. [target], when
-/// given, is looked at after [position] is applied.
+/// given, is looked at after [position] is applied; it is a place in the
+/// world wherever the camera hangs.
 final class Camera3D extends Spatial3D {
   const Camera3D({
     super.key,
@@ -949,7 +975,7 @@ class _Camera3DState extends _SpatialState<Camera3D, CameraNode> {
   @override
   void apply(CameraNode node, _Scene3DScope scope) {
     node.projection = widget.projection;
-    if (widget.target case final target?) node.lookAt(target);
+    if (widget.target case final target?) node.lookAt(_inScene(target));
   }
 
   @override

@@ -40,7 +40,7 @@ final class OrbitCamera3D extends Spatial3D {
     super.children,
   });
 
-  /// The point orbited, in world space; the origin if null.
+  /// The point orbited, a place in the world; the world's origin if null.
   final Vector3? target;
 
   /// How far from [target] the camera starts, in metres.
@@ -104,9 +104,10 @@ class _OrbitCamera3DState extends _SpatialState<OrbitCamera3D, CameraNode>
   CameraNode createNode(_Scene3DScope scope) {
     final camera = CameraNode(projection: widget.projection);
     _target = widget.target?.clone();
+    final scene = scope.host.scene;
     _orbit = OrbitController(
       camera,
-      target: widget.target?.clone(),
+      target: scene.toScene(_world(widget.target)),
       distance: widget.distance,
       yaw: widget.yaw,
       pitch: widget.pitch,
@@ -118,8 +119,27 @@ class _OrbitCamera3DState extends _SpatialState<OrbitCamera3D, CameraNode>
     host.animated.add(this);
     host.orbits.add(this);
     if (host.orbits.length == 1) host.gesturesChanged();
+    // The point orbited is in the scene's space, which a shift moves under
+    // it: it moves by the shift, as the camera node does, so a fling
+    // between builds turns round the same place in the world.
+    _shifts = scene.onOriginShift((OriginShifted shift) {
+      _orbit.target.add(
+        Vector3(
+          shift.from.x - shift.to.x,
+          shift.from.y - shift.to.y,
+          shift.from.z - shift.to.z,
+        ),
+      );
+    });
     return camera;
   }
+
+  Registration? _shifts;
+
+  static WorldPosition _world(Vector3? target) => switch (target) {
+    final t? => WorldPosition(t.x, t.y, t.z),
+    null => WorldPosition.origin,
+  };
 
   @override
   void apply(CameraNode node, _Scene3DScope scope) {
@@ -134,7 +154,7 @@ class _OrbitCamera3DState extends _SpatialState<OrbitCamera3D, CameraNode>
     final same = target == null ? _target == null : target == _target;
     if (!same) {
       _target = target?.clone();
-      _orbit.target.setFrom(target ?? Vector3.zero());
+      scope.host.scene.toScene(_world(target), _orbit.target);
     }
     _orbit.distance = _orbit.distance.clamp(
       widget.minDistance,
@@ -173,6 +193,7 @@ class _OrbitCamera3DState extends _SpatialState<OrbitCamera3D, CameraNode>
 
   @override
   void dispose() {
+    _shifts?.cancel();
     final host = _scope?.host;
     if (host != null) {
       host.cameras.remove(_node);
