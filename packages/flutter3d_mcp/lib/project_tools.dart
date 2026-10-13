@@ -12,4 +12,21 @@ library;
 
 // The contract lives in the plugin API, so a plugin that brings tools
 // depends on that alone; this library keeps the import it had.
-export 'package:flutter3d_plugin_api/tools.dart';
+export 'package:flutter3d_plugin_api/tools.dart'
+    show
+        McpToolRegistry,
+        McpTools,
+        ProjectTool,
+        ProjectToolRun,
+        SessionToolCall,
+        ToolAudio,
+        ToolCall,
+        ToolContent,
+        ToolHints,
+        ToolImage,
+        ToolOtherContent,
+        ToolResource,
+        ToolResourceLink,
+        ToolResult,
+        ToolSpec,
+        ToolText;

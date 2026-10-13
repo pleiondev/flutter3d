@@ -211,6 +211,11 @@ const Map<String, String> reexportsAllowed = <String, String>{
   'flame_multiplayer -> flutter3d_net':
       'the wire, the room and the rollback moved from here to the network '
       'core before 1.0, and are still named from here',
+  'flutter3d_mcp -> flutter3d_plugin_api':
+      'the tools\' contract (`tools.dart`), which moved from here to the '
+      'plugin API so a plugin brings tools without the servers; `kit.dart` '
+      'and `project_tools.dart` still name it, so a server written against '
+      'them keeps its one import',
 };
 
 /// Allowed re-exports that admit a whole library rather than a `show`

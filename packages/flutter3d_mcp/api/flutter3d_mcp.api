@@ -421,7 +421,7 @@ Registration shareCommands(EditorPieces pieces, McpTools tools, EditorSession se
 
 void writeMcpSessionFile(File file, {required int port, required String token})
 
-export package:flutter3d_plugin_api/tools.dart (whole library)
+export package:flutter3d_plugin_api/tools.dart show McpToolRegistry, McpTools, ProjectTool, ProjectToolRun, SessionToolCall, ToolAudio, ToolCall, ToolContent, ToolHints, ToolImage, ToolOtherContent, ToolResource, ToolResourceLink, ToolResult, ToolSpec, ToolText
   McpToolRegistry
   McpTools
   ProjectTool
@@ -545,7 +545,7 @@ const String schemaVersionMetaKey = 'flutter3d/schemaVersion'
 
 void writeMcpSessionFile(File file, {required int port, required String token})
 
-export package:flutter3d_plugin_api/tools.dart (whole library)
+export package:flutter3d_plugin_api/tools.dart show McpToolRegistry, McpTools, ProjectTool, ProjectToolRun, SessionToolCall, ToolAudio, ToolCall, ToolContent, ToolHints, ToolImage, ToolOtherContent, ToolResource, ToolResourceLink, ToolResult, ToolSpec, ToolText
   McpToolRegistry
   McpTools
   ProjectTool
@@ -673,7 +673,7 @@ ModelMcpServer? serveModelMcp(List<String> arguments, {McpTools? projectTools})
 
 void writeMcpSessionFile(File file, {required int port, required String token})
 
-export package:flutter3d_plugin_api/tools.dart (whole library)
+export package:flutter3d_plugin_api/tools.dart show McpToolRegistry, McpTools, ProjectTool, ProjectToolRun, SessionToolCall, ToolAudio, ToolCall, ToolContent, ToolHints, ToolImage, ToolOtherContent, ToolResource, ToolResourceLink, ToolResult, ToolSpec, ToolText
   SessionToolCall
   ToolAudio
   ToolCall
@@ -689,7 +689,7 @@ export package:flutter3d_plugin_api/tools.dart (whole library)
 
 library package:flutter3d_mcp/project_tools.dart
 
-export package:flutter3d_plugin_api/tools.dart (whole library)
+export package:flutter3d_plugin_api/tools.dart show McpToolRegistry, McpTools, ProjectTool, ProjectToolRun, SessionToolCall, ToolAudio, ToolCall, ToolContent, ToolHints, ToolImage, ToolOtherContent, ToolResource, ToolResourceLink, ToolResult, ToolSpec, ToolText
   McpToolRegistry
   McpTools
   ProjectTool

@@ -9,7 +9,24 @@
 library;
 
 // The tools' contract, from the plugin API (`tools.dart`).
-export 'package:flutter3d_plugin_api/tools.dart';
+export 'package:flutter3d_plugin_api/tools.dart'
+    show
+        McpToolRegistry,
+        McpTools,
+        ProjectTool,
+        ProjectToolRun,
+        SessionToolCall,
+        ToolAudio,
+        ToolCall,
+        ToolContent,
+        ToolHints,
+        ToolImage,
+        ToolOtherContent,
+        ToolResource,
+        ToolResourceLink,
+        ToolResult,
+        ToolSpec,
+        ToolText;
 export 'src/kit/answers.dart';
 export 'src/kit/argument_check.dart';
 export 'src/kit/loopback_http.dart';
