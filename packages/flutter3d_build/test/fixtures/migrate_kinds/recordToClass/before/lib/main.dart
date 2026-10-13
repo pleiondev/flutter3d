@@ -49,6 +49,4 @@ final List<Frame> grown = <Frame>[
   if (frames.isEmpty) (width: 0, height: 0),
 ];
 
-final Map<String, Frame> named = <String, Frame>{
-  'unit': (width: 1, height: 1),
-};
+final sized = <String, Frame>{'unit': (width: 1, height: 1)};
