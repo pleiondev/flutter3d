@@ -40,6 +40,7 @@ import 'package:flutter3d_foundation/internal.dart'
     show applyExpressionOperator, broadcastExpressionArguments;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart'
     show CompareFunction;
+import 'package:flutter3d_shaders/kernel.dart' show WorkgroupSize;
 
 /// One declared parameter: a name, a type and the value a variant that says
 /// nothing about it gets.
@@ -879,7 +880,7 @@ final class MaterialProgram {
     this.vertex,
     this.ambient,
     this.composite,
-    this.workgroupSize = (8, 8),
+    this.workgroupSize = const WorkgroupSize(8, 8, 1),
     this.version = firstMaterialVersion,
     this.updates = const <MaterialUpdate>[],
     this.lightTypes = const <String, String>{},
@@ -990,9 +991,9 @@ final class MaterialProgram {
   /// `light` block.
   final List<MaterialStatement>? composite;
 
-  /// A [MaterialStageKind.compute] kernel's workgroup, x by y — its
-  /// `workgroup` line, eight by eight without one.
-  final (int, int) workgroupSize;
+  /// A [MaterialStageKind.compute] kernel's workgroup — its `workgroup x
+  /// y` or `workgroup x y z` line, eight by eight by one without one.
+  final WorkgroupSize workgroupSize;
 
   final List<MaterialParameter> parameters;
   final List<MaterialTextureSlot> textures;

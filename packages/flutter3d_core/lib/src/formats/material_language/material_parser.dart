@@ -62,7 +62,9 @@
 /// and two kinds besides `material`: `fullscreen Name { ... fragment {...} }`,
 /// which reads `uv`, `sceneDepth` and the picture as the texture `scene`, and
 /// `compute Name { workgroup 8 8; kernel {...} }`, which reads `cell`,
-/// `size` and `uv` and returns the texel it writes. The site's material
+/// `size` and `uv` and returns the texel it writes: the short form of a
+/// kernel, which `lowerMaterialCompute` writes in the kernel language
+/// (`ComputeKernel`) for every device that computes. The site's material
 /// language page is the reference, with what each backend does with each.
 ///
 /// The `light` block runs once per light inside the engine's light loop and
@@ -110,6 +112,7 @@ import 'package:flutter3d_foundation/internal.dart'
     show ExpressionParser, ExpressionToken, tokenizeExpression;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show Flutter3dFormatException, FormatSpec;
+import 'package:flutter3d_shaders/kernel.dart' show WorkgroupSize;
 
 import 'material_ast.dart';
 
@@ -577,7 +580,7 @@ final class _Parser extends ExpressionParser {
     List<MaterialStatement>? ambient;
     List<MaterialStatement>? composite;
     var state = MaterialFileState.none;
-    var workgroup = (8, 8);
+    var workgroup = const WorkgroupSize(8, 8, 1);
     ExpressionToken? lightAt;
     ExpressionToken? ambientAt;
     ExpressionToken? compositeAt;
@@ -1121,27 +1124,35 @@ final class _Parser extends ExpressionParser {
     }
   }
 
-  /// `workgroup x y;` — a kernel's workgroup size, version 2.
+  /// `workgroup x y;` or `workgroup x y z;` — a kernel's workgroup size,
+  /// version 2, with z one where it is not given.
   ///
-  /// At most 256 invocations in all: WebGPU's own limit, which the other
-  /// backends that run compute meet too.
-  (int, int) parseWorkgroup() {
-    int side() {
+  /// At most 256 invocations in all, and 64 along z: WebGPU's own limits,
+  /// which the other backends that run compute meet too.
+  WorkgroupSize parseWorkgroup() {
+    int side(String axis, int most) {
       final token = expectToken('number', 'a whole number of invocations');
       final value = token.number!;
-      if (value != value.truncateToDouble() || value < 1 || value > 256) {
-        fail('a workgroup side is a whole number from 1 to 256.', where: token);
+      if (value != value.truncateToDouble() || value < 1 || value > most) {
+        fail(
+          'a workgroup\'s $axis is a whole number from 1 to $most.',
+          where: token,
+        );
       }
       return value.toInt();
     }
 
-    final x = side();
-    final y = side();
+    final x = side('x', 256);
+    final y = side('y', 256);
+    final z = current.kind == 'number' ? side('z', 64) : 1;
     expectToken(';', '";" after the workgroup');
-    if (x * y > 256) {
-      fail('a workgroup is at most 256 invocations, and $x by $y is ${x * y}.');
+    if (x * y * z > 256) {
+      fail(
+        'a workgroup is at most 256 invocations, and $x by $y by $z is '
+        '${x * y * z}.',
+      );
     }
-    return (x, y);
+    return WorkgroupSize(x, y, z);
   }
 
   /// The optional `f3dmat <version>` line ahead of `material`.
