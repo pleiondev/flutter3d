@@ -64,8 +64,9 @@ material acme_sample_Hair {
 ''';
 
 /// [hairSource] described as a lighting model.
-final LightingModel hairModel = describeMaterial(parseMaterial(hairSource))
-    .lightingModel(label: 'Hair', shaderName: 'acme_sample_Hair');
+final LightingModel hairModel = describeMaterial(
+  parseMaterial(hairSource),
+).lightingModel(label: 'Hair', shaderName: 'acme_sample_Hair');
 
 /// A decal stage of the plugin's own, with the engine's decal interface.
 const LightingModel decalStage = LightingModel(
