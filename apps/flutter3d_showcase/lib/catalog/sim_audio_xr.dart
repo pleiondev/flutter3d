@@ -498,11 +498,12 @@ const List<Feature> simAudioXrFeatures = <Feature>[
     since: '1.0.0-rc.1',
     evidence: 'A cutscene is a document played in the fixed step.',
     evidenceFile: 'packages/flutter3d_sim/CHANGELOG.md',
-    keywords: <String>['SequencePlayer'],
-    packages: <String>['flutter3d_sim'],
+    keywords: <String>['SequencePlayer', 'SequenceView'],
+    packages: <String>['flutter3d_sim', 'flutter3d_camera'],
     engineFiles: <String>[
       'packages/flutter3d_sim/lib/src/cinema/sequence.dart',
       'packages/flutter3d_sim/lib/src/cinema/sequence_player.dart',
+      'packages/flutter3d_camera/lib/src/sequence_view.dart',
     ],
   ),
   Feature(

@@ -1098,7 +1098,8 @@ export 'package:flutter3d_audio_core/flutter3d_audio_core.dart'
         VoiceUpdate;
 // The camera rig is here too, by name: every genre kit hands a game a
 // camera over it (`FollowCamera`, `ChaseCamera`, `FirstPersonCamera`,
-// `MapCamera`), and a game that sets its framing writes these types.
+// `MapCamera`), and a game that sets its framing writes these types. So is
+// `SequenceView`, the picture of the cutscenes `SequencePlayer` plays.
 export 'package:flutter3d_camera/flutter3d_camera.dart'
     show
         BlendCurve,
@@ -1117,6 +1118,7 @@ export 'package:flutter3d_camera/flutter3d_camera.dart'
         OverheadFraming,
         PhotoCamera,
         RigSettings,
+        SequenceView,
         VirtualCamera;
 export 'package:flutter3d_particles/flutter3d_particles.dart'
     show

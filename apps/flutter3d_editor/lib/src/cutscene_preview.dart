@@ -1,5 +1,6 @@
 import 'package:flutter3d/flutter3d.dart'
     show CameraNode, PerspectiveProjection;
+import 'package:flutter3d_game/flutter3d_game.dart' show SequenceView;
 import 'package:flutter3d_sim/flutter3d_sim.dart' show Sequence;
 import 'package:vector_math/vector_math.dart';
 
@@ -12,9 +13,13 @@ import 'package:vector_math/vector_math.dart';
 /// cannot see by reading the document.
 final class CutscenePreview {
   CutscenePreview(this.sequence)
-    : assert(sequence.hasCamera, 'a scene with no camera has nothing to show');
+    : assert(sequence.hasCamera, 'a scene with no camera has nothing to show'),
+      _view = SequenceView(sequence);
 
   final Sequence sequence;
+
+  /// The camera's path, read off the keys as the game reads it.
+  final SequenceView _view;
 
   final Vector3 _at = Vector3.zero();
   final Vector3 _look = Vector3.zero();
@@ -27,7 +32,7 @@ final class CutscenePreview {
   /// left on the last key.
   bool placeOn(CameraNode camera, double seconds) {
     final step = seconds * sequence.stepsPerSecond;
-    final fovY = sequence.cameraAt(step, _at, _look);
+    final fovY = _view.cameraAt(step, _at, _look);
     camera
       ..setPosition(_at.x, _at.y, _at.z)
       ..lookAt(_look, up: Vector3(0.0, 1.0, 0.0))

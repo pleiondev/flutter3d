@@ -504,8 +504,8 @@
   seconds: `millis`, `meanMillis` and `worstMillis` are `seconds`,
   `meanSeconds` and `worstSeconds`, and `observe` takes seconds; a written
   trace keeps its milliseconds. A cutscene's `CameraKey.fov` is `fovY`, in
-  radians, read from the file's degrees, and `Sequence.cameraAt` returns
-  radians. `CameraRig.extraFov` is `extraFovY`.
+  radians, read from the file's degrees, and `SequenceView.cameraAt` (in
+  `flutter3d_camera`) returns radians. `CameraRig.extraFov` is `extraFovY`.
 - **Breaking: one verb per job.** A read that empties what it reads is
   `drain`: `TriggerVolume.takeOutcome` is `drainOutcome`. `Tunables.take` is
   `readFrom`, `KeyRing.take` is `add`, and `PrefabInstance.make` is `create`,
@@ -906,11 +906,12 @@
   for the game's rate, refusing a document with every problem and where
   it is. `SequencePlayer` has one integer of state: each step it fires the
   signals that step reaches as `SequenceSignal` events, once each and in
-  order, and a restore carries on without firing any twice. The camera
-  runs along curves through its keys, on each key on its step, eased if
-  asked; the subtitles and the fade are read for the frame drawn between
-  two steps. A skip is the rest of it stepped undrawn, which ends where
-  watching it ends.
+  order, and a restore carries on without firing any twice. A skip is the
+  rest of it stepped undrawn, which ends where watching it ends. What a
+  cutscene shows, the camera on its path, the subtitles and the fade, is
+  read off the player by `SequenceView` in `flutter3d_camera`, since a
+  replay or a server steps a cutscene and never draws it: `Sequence` keeps
+  the keys and `hasCamera`, and the player keeps the step.
 
 - **A level keeps its behaviour trees.** `Level.behaviours` holds them by
   name as the documents `BehaviorTree.read` takes, written only when

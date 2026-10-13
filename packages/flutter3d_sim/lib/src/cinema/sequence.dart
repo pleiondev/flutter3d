@@ -18,13 +18,18 @@
 /// data the document gave it — that the game answers. What a cutscene owns
 /// is what is about the picture and nothing else: where the camera is, what
 /// the subtitles say, how dark the screen is.
+///
+/// ## Keys here, the picture in `flutter3d_camera`
+///
+/// This library holds the keys as the document wrote them, in steps, which
+/// is what a replay or a server reads. Turning them into the camera's pose,
+/// the fade and the subtitle of a frame is `SequenceView`'s, in
+/// `flutter3d_camera`: nothing the step computes depends on it.
 library;
 
 import 'dart:math' as math;
 
 import 'package:vector_math/vector_math.dart';
-
-import '../math/spline.dart';
 
 /// One camera key: where the eye is, what it looks at, how wide it sees —
 /// the vertical field of view in degrees, forty-five unless the document
@@ -50,7 +55,8 @@ final class CameraKey {
   /// The point it looks at, in metres.
   final Vector3 look;
 
-  /// The vertical field of view, in degrees.
+  /// The vertical field of view, in radians, read from the document's
+  /// degrees.
   final double fovY;
 
   /// Equal to another with the same fields, as the record it was compared.
@@ -271,8 +277,7 @@ final class Sequence {
     required this.fades,
     required this.signals,
     required this.actorCues,
-  }) : _path = _curve(cameraKeys, (CameraKey k) => k.at),
-       _looks = _curve(cameraKeys, (CameraKey k) => k.look);
+  });
 
   /// How long it runs, in steps.
   final int steps;
@@ -297,16 +302,6 @@ final class Sequence {
   /// In step order, and in document order where two share a step: an
   /// actor's direction at a step is the last of its cues at or before it.
   final List<ActorCue> actorCues;
-
-  final CatmullRom? _path;
-  final CatmullRom? _looks;
-
-  static CatmullRom? _curve(
-    List<CameraKey> keys,
-    Vector3 Function(CameraKey key) of,
-  ) => keys.length < 2
-      ? null
-      : CatmullRom(<Vector3>[for (final key in keys) of(key)], closed: false);
 
   /// Reads [json] for a game stepping [stepsPerSecond] times a second, or
   /// refuses it with every problem and where it is.
@@ -559,73 +554,4 @@ final class Sequence {
 
   /// Whether the cutscene says where the camera is.
   bool get hasCamera => cameraKeys.isNotEmpty;
-
-  /// Where the camera is at [step]: the eye into [at], what it looks at into
-  /// [look], and its vertical field of view, in radians, returned. Before the first
-  /// key it holds the first, after the last the last.
-  ///
-  /// **On the path, at the keys' times.** The eye and the point it looks at
-  /// each run along a curve through their keys, and between two keys they
-  /// cover the curve between them at one speed — or, with [ease], slowing
-  /// into and out of each key — so the camera is at a key on its step
-  /// exactly and never cuts a corner the author did not draw.
-  double cameraAt(double step, Vector3 at, Vector3 look) {
-    final keys = cameraKeys;
-    if (keys.isEmpty) throw StateError('this sequence has no camera');
-    if (keys.length == 1 || step <= keys.first.step) {
-      at.setFrom(keys.first.at);
-      look.setFrom(keys.first.look);
-      return keys.first.fovY;
-    }
-    if (step >= keys.last.step) {
-      at.setFrom(keys.last.at);
-      look.setFrom(keys.last.look);
-      return keys.last.fovY;
-    }
-    var i = 0;
-    while (keys[i + 1].step <= step) {
-      i++;
-    }
-    final a = keys[i];
-    final b = keys[i + 1];
-    var f = (step - a.step) / (b.step - a.step);
-    if (ease) f = f * f * (3.0 - 2.0 * f);
-    double along(CatmullRom curve) {
-      final from = curve.distanceToPoint(i);
-      return from + (curve.distanceToPoint(i + 1) - from) * f;
-    }
-
-    _path!.sampleAt(along(_path), at);
-    _looks!.sampleAt(along(_looks), look);
-    return a.fovY + (b.fovY - a.fovY) * f;
-  }
-
-  /// What the subtitles say at [step], or null: the one that started last
-  /// among those showing.
-  String? subtitleAt(int step) {
-    String? showing;
-    var since = -1;
-    for (final cue in subtitles) {
-      if (cue.from <= step && step < cue.to && cue.from >= since) {
-        showing = cue.text;
-        since = cue.from;
-      }
-    }
-    return showing;
-  }
-
-  /// How dark the screen is at [step], nought to one: straight between two
-  /// keys, held before the first and after the last, nought with none.
-  double fadeAt(double step) {
-    if (fades.isEmpty) return 0.0;
-    if (step <= fades.first.step) return fades.first.value;
-    if (step >= fades.last.step) return fades.last.value;
-    var i = 0;
-    while (fades[i + 1].step <= step) {
-      i++;
-    }
-    final a = fades[i];
-    final b = fades[i + 1];
-    return a.value + (b.value - a.value) * (step - a.step) / (b.step - a.step);
-  }
 }

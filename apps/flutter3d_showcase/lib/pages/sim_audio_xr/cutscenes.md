@@ -53,16 +53,20 @@ This page steps the cutscene by hand, with no `EngineLoop`, so it hands a
 
 ## Step 4: The camera between steps
 
-The picture is drawn between two steps, so the camera is asked for `alpha` of
-the way from the last step to the next. The eye and the point it looks at each
-run along a curve through their keys, and pass through each key on its step
-exactly. The fade and the subtitles are read the same way.
+What the cutscene shows is not part of the simulation. A replay or a server
+needs the step and the signals, never the camera, so the picture is read by a
+`SequenceView` from `flutter3d_camera`, made once for the sequence and asked
+about the player every frame. The picture is drawn between two steps, so
+`cameraOf` takes `alpha`, how far the frame is from the last step to the next.
+The eye and the point it looks at each run along a curve through their keys,
+and pass through each key on its step exactly. The fade and the subtitles are
+read the same way, with `fadeOf` and `subtitleOf`.
 
 {{code camera}}
 
 ## Step 5: The fade
 
-`fade()` is nought for a clear picture and one for black. This page applies it
+`fadeOf` is 0 for a clear picture and 1 for black. This page applies it
 as exposure, so the whole picture darkens.
 
 {{code fade}}

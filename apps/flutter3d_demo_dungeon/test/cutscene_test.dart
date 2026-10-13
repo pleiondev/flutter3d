@@ -127,7 +127,9 @@ void main() {
     final cutscene = level.staged.sim.cutscene!;
     final at = Vector3.zero();
     final look = Vector3.zero();
-    final fovY = cutscene.player.cameraAt(at, look)!;
+    final fovY = SequenceView(
+      cutscene.player.sequence,
+    ).cameraOf(cutscene.player, at, look)!;
     final camera = CameraNode(
       projection: PerspectiveProjection(fovY: fovY, near: 0.05, far: 200.0),
     )..setPositionFrom(at);

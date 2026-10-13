@@ -148,7 +148,11 @@ void main() {
     final it = _Run()..run(2);
     final cutscene = it.sim.cutscene;
     expect(cutscene, isNotNull);
-    expect(cutscene!.player.subtitle, 'Something stirs.');
+    // The room's own cutscene, playing: what it shows is the view's, so the
+    // simulation is asked only for its document and its step.
+    expect(cutscene!.player.sequence.subtitles.single.text, 'Something stirs.');
+    expect(cutscene.player.step, greaterThan(0));
+    expect(cutscene.player.isFinished, isFalse);
     final from = it.player.clone();
     it.run(40, forward: true);
     // Mutation: reading the player's input while a cutscene plays walks

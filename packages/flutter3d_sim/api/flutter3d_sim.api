@@ -2649,10 +2649,7 @@ final class SeatInput
 
 final class Sequence
   ActorCue? cueFor(String actor, int step)
-  String? subtitleAt(int step)
   bool get hasCamera
-  double cameraAt(double step, Vector3 at, Vector3 look)
-  double fadeAt(double step)
   final List<ActorCue> actorCues
   final List<CameraKey> cameraKeys
   final List<FadeKey> fades
@@ -2667,11 +2664,8 @@ final class SequencePlayer with ActorDirector
   EventRegistry? events
   Map<String, Object?> save()
   SequencePlayer(this.sequence, {this.events})
-  String? get subtitle
   bool directs(Actor actor)
   bool get isFinished
-  double fade({double alpha = 1.0})
-  double? cameraAt(Vector3 at, Vector3 look, {double alpha = 1.0})
   final Sequence sequence
   int get remaining
   int get step

@@ -2127,7 +2127,7 @@ export package:flutter3d_audio_core/flutter3d_audio_core.dart show Attenuation, 
   VoiceStart
   VoiceUpdate
 
-export package:flutter3d_camera/flutter3d_camera.dart show BlendCurve, CameraBlend, CameraFraming, CameraRig, CameraShot, ChaseFraming, FirstPersonFraming, FollowFraming, FramedTarget, FramingStep, GroupFraming, LookAtFraming, OrbitFraming, OverheadFraming, PhotoCamera, RigSettings, VirtualCamera
+export package:flutter3d_camera/flutter3d_camera.dart show BlendCurve, CameraBlend, CameraFraming, CameraRig, CameraShot, ChaseFraming, FirstPersonFraming, FollowFraming, FramedTarget, FramingStep, GroupFraming, LookAtFraming, OrbitFraming, OverheadFraming, PhotoCamera, RigSettings, SequenceView, VirtualCamera
   BlendCurve
   CameraBlend
   CameraFraming
@@ -2144,6 +2144,7 @@ export package:flutter3d_camera/flutter3d_camera.dart show BlendCurve, CameraBle
   OverheadFraming
   PhotoCamera
   RigSettings
+  SequenceView
   VirtualCamera
 
 export package:flutter3d_particles/flutter3d_particles.dart show BoxEmitter, ConeEmitter, CurveKey, DriftEmitter, Flipbook, FlipbookCell, GradientKey, KeyEase, LightEmitter, Particle, ParticleAffector, ParticleBirth, ParticleColorGradient, ParticleColorOverLife, ParticleCurve, ParticleDrag, ParticleEffect, ParticleEmitter, ParticleFade, ParticleGlow, ParticleGradient, ParticleGravity, ParticlePlaneCollision, ParticleSizeCurve, ParticleSizeOverLife, ParticleSpin, ParticleStep, ParticleSystem, ParticleTurbulence, ParticleWind, Range, Shown, SphereEmitter

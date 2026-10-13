@@ -430,6 +430,19 @@ class _GameScreenState extends State<GameScreen>
   final Vector3 _eye = Vector3.zero();
   final Vector3 _target = Vector3.zero();
 
+  /// The picture of the cutscene last drawn, kept while its sequence plays
+  /// so its camera curves are made once.
+  SequenceView? _cutsceneView;
+
+  /// The picture of [cutscene]: the one kept, or a new one for a sequence
+  /// that has not been drawn yet.
+  SequenceView _viewOf(Cutscene cutscene) {
+    final sequence = cutscene.player.sequence;
+    final kept = _cutsceneView;
+    if (kept != null && identical(kept.sequence, sequence)) return kept;
+    return _cutsceneView = SequenceView(sequence);
+  }
+
   /// `N8`: the run stopped and a camera to fly — see [PhotoMode]. P.
   final PhotoMode _photo = cryptPhotoMode();
 
@@ -2107,8 +2120,10 @@ class _GameScreenState extends State<GameScreen>
                 ),
               if (_sim?.cutscene case final Cutscene cutscene)
                 CutsceneOverlay(
-                  fade: cutscene.player.fade(alpha: _loop.alpha),
-                  subtitle: cutscene.player.subtitle,
+                  fade: _viewOf(
+                    cutscene,
+                  ).fadeOf(cutscene.player, alpha: _loop.alpha),
+                  subtitle: _viewOf(cutscene).subtitleOf(cutscene.player),
                   skipHint: _playing.touch ? 'Skip' : 'Space to skip',
                   onSkip: () => _skipAsked = true,
                 ),
@@ -2220,11 +2235,12 @@ class _GameScreenState extends State<GameScreen>
 
     // A cutscene with a camera of its own has the view until it ends, drawn
     // between the two steps either side of this frame like everything else.
-    final fovY = _sim?.cutscene?.player.cameraAt(
-      _eye,
-      _target,
-      alpha: _loop.alpha,
-    );
+    final cutscene = _sim?.cutscene;
+    final fovY = cutscene == null
+        ? null
+        : _viewOf(
+            cutscene,
+          ).cameraOf(cutscene.player, _eye, _target, alpha: _loop.alpha);
     if (fovY != null) {
       _camera
         ..projection = PerspectiveProjection(fovY: fovY)

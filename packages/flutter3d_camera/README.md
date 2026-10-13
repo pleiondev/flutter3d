@@ -26,6 +26,7 @@ onto this kept its feel: same rig, same numbers.
 | `FirstPersonFraming` | Out of a head: no smoothing, no walls |
 | `CameraImpulse`, `ImpulseShake` | Decaying gradient noise, felt less with distance, seeded by the step |
 | `ImpulseTable`, `CameraPlugin` | Which events shake the view, and the plugin that runs the director in the frame phase `camera` |
+| `SequenceView` | A cutscene's picture: the camera on its path, the fade and the subtitle of a frame, read off the `SequencePlayer` the simulation steps |
 
 ## Using it
 

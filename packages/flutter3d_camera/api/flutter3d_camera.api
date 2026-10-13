@@ -278,6 +278,16 @@ base class RigSettings
   final double minDistance
   final double nearClearance
 
+final class SequenceView
+  SequenceView(this.sequence)
+  String? subtitleAt(int step)
+  String? subtitleOf(SequencePlayer player)
+  double cameraAt(double step, Vector3 at, Vector3 look)
+  double fadeAt(double step)
+  double fadeOf(SequencePlayer player, {double alpha = 1.0})
+  double? cameraOf(SequencePlayer player, Vector3 at, Vector3 look, {double alpha = 1.0})
+  final Sequence sequence
+
 final class VirtualCamera
   CameraBlend? blendIn
   CameraShot get wanted

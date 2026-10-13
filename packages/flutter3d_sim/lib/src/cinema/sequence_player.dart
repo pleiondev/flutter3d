@@ -2,7 +2,6 @@
 library;
 
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
-import 'package:vector_math/vector_math.dart';
 
 import '../actors/actor.dart';
 import '../actors/actor_system.dart';
@@ -51,8 +50,8 @@ final class SequenceSignal extends GameEvent {
 /// **One integer of state**, the step, and that is what makes a cutscene
 /// something a run can rewind through and a replay can play: [save] is the
 /// step, [restore] puts it back, and everything a cutscene says — which
-/// signals have fired, where the camera is, what the subtitles read — follows
-/// from it and the document.
+/// signals have fired, which actors it holds, and for the view where the
+/// camera is and what the subtitles read — follows from it and the document.
 ///
 /// **Skipped by being played.** A cutscene that moves anything the game
 /// steps — a door its signal opens, an actor its signal sends walking — is
@@ -70,8 +69,10 @@ final class SequenceSignal extends GameEvent {
 /// **In `flutter3d_sim`, though a cutscene looks like the view's**, because
 /// it is played by the step: it directs actors through [ActorDirector],
 /// publishes [SequenceSignal] on the step channel, and a replay steps it as
-/// it steps everything else. What only draws a cutscene — the bars, the
-/// fade, the overlay — is the view's, in `flutter3d_game_ui`.
+/// it steps everything else. What only draws a cutscene is the view's: the
+/// camera's pose, the fade and the subtitle of a frame are read off this
+/// player by `SequenceView`, in `flutter3d_camera`, and the bars and the
+/// overlay are `flutter3d_game_ui`'s.
 final class SequencePlayer with ActorDirector {
   SequencePlayer(this.sequence, {this.events});
 
@@ -107,22 +108,6 @@ final class SequencePlayer with ActorDirector {
       events?.publish(SequenceSignal(cue.name, cue.data));
     }
   }
-
-  /// The moment to draw: [alpha] of the way from the step before this one
-  /// to this one, as a frame between two steps is drawn.
-  double _drawn(double alpha) =>
-      (_step - 1 + alpha).clamp(0.0, sequence.steps.toDouble());
-
-  /// Where the camera is to be drawn from — see [Sequence.cameraAt] — or
-  /// null when the cutscene leaves the camera to the game.
-  double? cameraAt(Vector3 at, Vector3 look, {double alpha = 1.0}) =>
-      sequence.hasCamera ? sequence.cameraAt(_drawn(alpha), at, look) : null;
-
-  /// What the subtitles say now, or null.
-  String? get subtitle => sequence.subtitleAt(_step);
-
-  /// How dark the screen is to be drawn, nought to one.
-  double fade({double alpha = 1.0}) => sequence.fadeAt(_drawn(alpha));
 
   @override
   bool directs(Actor actor) {

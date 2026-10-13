@@ -13,6 +13,10 @@
 /// damping, [GroupFraming] for several subjects at once, and the presets the
 /// engine's games were built from — [ChaseFraming], [OrbitFraming],
 /// [OverheadFraming] and [FirstPersonFraming].
+///
+/// A cutscene's picture is here too: [SequenceView] reads the camera's pose,
+/// the fade and the subtitle of a frame off a `SequencePlayer` that the
+/// simulation steps.
 library;
 
 export 'src/blend.dart';
@@ -23,6 +27,7 @@ export 'src/photo_camera.dart';
 export 'src/plugin.dart';
 export 'src/presets.dart';
 export 'src/rig_tuning.dart';
+export 'src/sequence_view.dart';
 export 'src/shake.dart';
 export 'src/shot.dart';
 export 'src/virtual_camera.dart';

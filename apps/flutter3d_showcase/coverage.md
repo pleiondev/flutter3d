@@ -293,7 +293,7 @@ physical gamepad, a locked pointer or a touchscreen to show anything, and
 | replay-tests | Replays as tests | `testReplay` (shown through its loop: `Demo`, `InputTapePlayback`, `StateDigest`) | `flutter3d_testing` CL 1.0.0 "turns a recorded run into a test that needs no GPU" |
 | navmesh-crowds | Navigation meshes and crowds | `NavMesh.bake/route/rebake`, `JumpReach`, `NavMeshLink`, `Avoidance` | `flutter3d_sim` CL 1.0.0 "A level bakes into a navigation mesh as well as a grid." |
 | behaviour-trees | Behaviour trees | `BehaviorTree.read`, `BehaviorKinds`, `BehaviorBrain`, `Blackboard`, `BehaviorOverlay` | `flutter3d_sim` CL 1.0.0 "Behaviour trees and utility choices as data." |
-| cutscenes | Cutscenes | `Sequence.read`, `SequencePlayer`, `SequenceSignal`, skip by stepping | `flutter3d_sim` CL 1.0.0 "A cutscene is a document played in the fixed step." |
+| cutscenes | Cutscenes | `Sequence.read`, `SequencePlayer`, `SequenceSignal`, skip by stepping, the picture through `flutter3d_camera` `SequenceView` | `flutter3d_sim` CL 1.0.0 "A cutscene is a document played in the fixed step." |
 | sharing-ghosts | Sharing runs and racing ghosts | `ShareBundle`, `RunService` over an in-memory transport, `Playback` | `flutter3d_sim` CL 1.0.0 "A level can be shared behind a short code." |
 | terrain-erosion | Terrain erosion | `erodeThermally`, `erodeHydraulically`, `Heightfield` | `flutter3d_sim` CL 1.0.0 "`erodeThermally` and `erodeHydraulically` shape a `Heightfield`." |
 | playtest-heatmaps | Playtest heatmaps | `resimulate`, `Heatmap.bin`, `HeadlessGame` | `flutter3d_sim` CL 1.0.0 "bins trails into cells" |

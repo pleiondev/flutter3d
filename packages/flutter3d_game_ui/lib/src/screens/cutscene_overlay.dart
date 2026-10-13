@@ -9,8 +9,8 @@ import '../theme/game_ui_theme.dart';
 /// `Sequence` plays.
 ///
 /// **Only what the cutscene says, read every frame.** The fade and the
-/// subtitle come from `SequencePlayer`, which reads them off the step the
-/// simulation reached and the frame's place between two steps; this widget
+/// subtitle come from `SequenceView`, which reads them off the step the
+/// `SequencePlayer` reached and the frame's place between two steps; this widget
 /// keeps nothing of the cutscene, so a rewind or a skip shows what the step
 /// says at once.
 ///

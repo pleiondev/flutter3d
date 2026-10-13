@@ -1,5 +1,16 @@
 ## 1.0.0-rc.1
 
+- **A cutscene's picture is read here.** `SequenceView` (new) is made once
+  for a `Sequence` and turns its keys into what a frame shows: `cameraOf`
+  puts the eye and the point it looks at, in metres, on curves through the
+  keys and returns the vertical field of view in radians, `fadeOf` says how
+  dark the screen is from 0 to 1, and `subtitleOf` what is being said, each
+  for the step a `SequencePlayer` reached and `alpha` of the way to the
+  next. An editor scrubbing a sequence without a player asks by the step
+  with `cameraAt`, `fadeAt` and `subtitleAt`. The player stays in
+  `flutter3d_sim` with the step, the signals and the actors it directs,
+  which is all a replay or a server reads of a cutscene.
+
 - **Breaking: a framing takes one `FramingStep`.** `CameraFraming.frame`
   takes a `FramingStep` (new) with the shot to write into and `dt`, which
   the camera owns and sets before every frame, so a frame allocates none

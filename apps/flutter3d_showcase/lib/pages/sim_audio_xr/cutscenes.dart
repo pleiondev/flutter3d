@@ -10,6 +10,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show listEquals, visibleForTesting;
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_camera/flutter3d_camera.dart' show SequenceView;
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
@@ -48,6 +49,10 @@ final class _Stage {
 
 final class CutscenesDemo extends ShowcaseDemo {
   late final Sequence _sequence;
+
+  /// What the cutscene shows: the camera, the fade and the subtitle of a
+  /// frame, read off the player the step moves.
+  late final SequenceView _view;
   late SequencePlayer _player;
   late _Stage _stage;
 
@@ -60,7 +65,7 @@ final class CutscenesDemo extends ShowcaseDemo {
 
   /// The subtitle showing, for whoever draws text over the picture.
   @visibleForTesting
-  String? get subtitle => _player.subtitle;
+  String? get subtitle => _view.subtitleOf(_player);
 
   // #region document
   /// Seconds in the document; every moment is turned into the step it
@@ -154,6 +159,7 @@ final class CutscenesDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     _sequence = readSequence();
+    _view = SequenceView(_sequence);
     _start();
     MeshNode box(Vector3 at, Vector3 size, Vector4 color, String name) =>
         MeshNode(
@@ -247,7 +253,7 @@ final class CutscenesDemo extends ShowcaseDemo {
     // Drawn between two steps: alpha is how far the frame is past the last.
     final double alpha = _carry * stepsPerSecond;
     final Vector3 eye = Vector3.zero(), look = Vector3.zero();
-    final double? fovY = _player.cameraAt(eye, look, alpha: alpha);
+    final double? fovY = _view.cameraOf(_player, eye, look, alpha: alpha);
     if (fovY != null) {
       context.camera
         ..setPosition(eye.x, eye.y, eye.z)
@@ -261,7 +267,7 @@ final class CutscenesDemo extends ShowcaseDemo {
   /// The fade darkens the whole picture: a fade of one is black.
   @override
   RenderSettings settings(DemoContext context) => RenderSettings(
-    exposure: RenderSettings.defaultExposure * (1.0 - _player.fade()),
+    exposure: RenderSettings.defaultExposure * (1.0 - _view.fadeOf(_player)),
   );
   // #endregion fade
 
@@ -288,6 +294,7 @@ final class CutscenesDemo extends ShowcaseDemo {
     if (frame.drawCalls < 1) throw StateError('nothing reached the frame');
     // #region check
     final Sequence sequence = readSequence();
+    final SequenceView view = SequenceView(sequence);
     // Watched: one step a frame to the end.
     final _Stage seen = _Stage();
     final SequencePlayer watched = _playedTo(sequence, seen);
@@ -318,9 +325,9 @@ final class CutscenesDemo extends ShowcaseDemo {
     }
     // The camera ends on its last key, the fade on clear.
     final Vector3 eye = Vector3.zero(), look = Vector3.zero();
-    if (skipped.cameraAt(eye, look) != 38.0 * math.pi / 180.0 ||
+    if (view.cameraOf(skipped, eye, look) != 38.0 * math.pi / 180.0 ||
         eye.distanceTo(Vector3(1.5, 2.2, 3.0)) > 1e-6 ||
-        skipped.fade() != 0.0) {
+        view.fadeOf(skipped) != 0.0) {
       throw StateError('the camera or the fade did not end where written');
     }
     // #endregion check
