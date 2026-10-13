@@ -13,7 +13,7 @@ The renderer and everything that walks a scene. Import `package:flutter3d/flutte
 
 Depends on `flutter3d_hardware` and nothing below it. **Does not** re-export a backend, an application picks one by name, and that choice stays visible in its pubspec.
 
-→ [The frame](/core/rendering/) · [Scene graph](/core/scene/) · [Geometry](/core/geometry/) · [Assets](/core/assets/)
+→ [The frame](/core/rendering/) · [Scene graph](/core/scene/) · [Geometry](/core/geometry/) · [Assets](/core/assets/) · [The public API, area by area](https://github.com/pleiondev/flutter3d/blob/main/packages/flutter3d/API.md)
 
 ### `flutter3d_core`: the renderer with no Flutter behind it, and what it draws from
 The scene graph, the render graph, materials and animation, and two libraries under them that import on their own. `package:flutter3d_core/geometry.dart` is `VertexLayout`, `MeshData`, `MeshBuilder`, the shape generators a scene is sketched from, `MeshGeometry`, tangents by Lengyel, morph targets and `MorphTexture`, and `Ray` with the intersection arithmetic that reads a triangle. `package:flutter3d_core/formats.dart` is `ModelDocument` and everything a decoder fills in, `SurfaceMaterial`, `MaterialDocument`, `LightingModel`, `AnimationClip` and `AnimationTrack`, the readers and writers for glTF/GLB, OBJ, STL, USDZ, the engine's own `.f3d` and `.fmat`, and the FBX decoder that refuses with a reason. `flutter3d` exports all of it.
@@ -270,7 +270,7 @@ Plugins loaded while the game runs: `.f3dplugin` data plugins (format version 4,
 ### `flutter3d_lints`
 An analysis server plugin with the rules a step is held to, for code outside this repository: no clock, no unseeded `Random`, no `dart:math` transcendental where `Portable` gives one answer everywhere.
 
-→ [Plugin catalogue](/reference/plugins/)
+→ [Plugin catalogue](/reference/plugins/) · [The plugin and extension API](https://github.com/pleiondev/flutter3d/blob/main/packages/flutter3d_plugin_api/API.md)
 
 ## Tools
 
