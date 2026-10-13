@@ -15,6 +15,9 @@ import 'game_event.dart';
 /// the isolate and over the wire as in the step that raised it, and a
 /// view reads a material's properties from its own catalogue
 /// (`MaterialCatalog`) rather than from an object the simulation holds.
+/// Where the world is at hand, the ids read back: `CollisionWorld.colliderOf`
+/// gives the collider and its `userData`, `RigidDynamics.bodyOfId` the
+/// body, on either core.
 ///
 /// **In one order on both cores.** A step publishes its contacts in the
 /// order the dynamics list them — by [bodyA], then [bodyB], then

@@ -307,6 +307,7 @@ final class CollisionWorld
   CharacterMover? characterMover
   Collider add(Collider collider)
   Collider addBox(Vector3 center, Vector3 size, {Object? userData})
+  Collider? colliderOf(int id)
   CollisionWorld({double cellSize = 4.0, this.backend = const DartPhysics(), WorldProperties? properties, MaterialCatalog? materials})
   Iterable<Collider> get movers
   Iterable<Collider> get statics
@@ -888,6 +889,7 @@ final class RigidBody
 abstract base class RigidDynamics
   List<StepContact> get contacts
   Object? saveState()
+  RigidBody? bodyOfId(int id)
   SimulationProfile get profile
   abstract CollisionWorld get world
   abstract List<RigidBody> get bodies

@@ -394,7 +394,7 @@ final class _WaitedFile extends AssetSource {
       }
       await Future<void>.delayed(const Duration(milliseconds: 5));
     }
-    return FileAssetSource(path).read();
+    return FileAssetSource(path).read(request);
   }
 
   @override

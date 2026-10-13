@@ -51,6 +51,15 @@ abstract base class RigidDynamics {
   /// The body a collider belongs to, or null for level geometry.
   RigidBody? bodyOf(Collider collider);
 
+  /// The body whose collider [world] calls [id] (`CollisionWorld.idOf`):
+  /// what a contact event names, read back. Null for level geometry, for a
+  /// body taken out, and for an id the world never handed out. The same on
+  /// every backend, since every backend's bodies are in the one [world].
+  RigidBody? bodyOfId(int id) => switch (world.colliderOf(id)) {
+    final collider? => bodyOf(collider),
+    null => null,
+  };
+
   /// One fixed step of [dt] seconds.
   void step(double dt);
 

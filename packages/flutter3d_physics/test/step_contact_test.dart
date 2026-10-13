@@ -56,6 +56,31 @@ void main() {
     expect(contact.impulse, 2.0);
   });
 
+  test('an id a contact names leads back to the collider and the body, '
+      'and to nothing once it is gone', () {
+    // Mutation: drop the reverse map, or leave a removed collider in it,
+    // and a game cannot get from a contact event to the actor it hit.
+    final world = floored();
+    final dynamics = Dynamics(world: world);
+    final body = ball(dynamics, Vector3(0.0, 0.3, 0.0));
+    for (var i = 0; i < 60 && dynamics.contacts.isEmpty; i++) {
+      dynamics.step(dt);
+    }
+    final contact = dynamics.contacts.first;
+    expect(world.colliderOf(contact.idA), same(contact.a));
+    expect(world.colliderOf(contact.idB), same(body.collider));
+    expect(dynamics.bodyOfId(contact.idB), same(body));
+    // The floor is level geometry: a collider, and no body.
+    expect(dynamics.bodyOfId(contact.idA), isNull);
+    expect(world.colliderOf(9999), isNull);
+    final id = world.idOf(body.collider)!;
+    dynamics.remove(body);
+    expect(world.colliderOf(id), isNull);
+    expect(dynamics.bodyOfId(id), isNull);
+    world.clear();
+    expect(world.colliderOf(contact.idA), isNull);
+  });
+
   test('a ball dropped on the floor begins once, at the speed it fell at, '
       'and then rests on it', () {
     final world = floored();

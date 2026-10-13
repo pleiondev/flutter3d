@@ -208,6 +208,13 @@ final class CollisionWorld {
   /// wanted the same thing all along.
   int? idOf(Collider collider) => _ids[collider];
 
+  /// The collider this world calls [id] ([idOf] the other way), or null
+  /// for an id it never handed out or one whose collider has left: how a
+  /// game gets from a contact event, which carries ids so it can cross the
+  /// isolate and a tape, to the collider it names and its `userData`.
+  Collider? colliderOf(int id) => _byId[id];
+  final Map<int, Collider> _byId = <int, Collider>{};
+
   /// Bumped whenever a collider joins or leaves: a mirror of this world —
   /// the physics core's — asks it to know when to look for new ones without
   /// walking every collider on every query.
@@ -218,6 +225,7 @@ final class CollisionWorld {
   Collider add(Collider collider) {
     fileColliderInWorld(collider, this);
     collider.refreshBounds();
+    _byId[_nextId] = collider;
     _ids[collider] = _nextId++;
     _revision++;
 
@@ -265,7 +273,7 @@ final class CollisionWorld {
   void remove(Collider collider) {
     fileColliderInWorld(collider, null);
     _reporters.remove(collider);
-    _ids.remove(collider);
+    if (_ids.remove(collider) case final id?) _byId.remove(id);
     _revision++;
 
     // Both grids hold indices into their list, so removing from either
@@ -289,6 +297,7 @@ final class CollisionWorld {
     _staticGrid.clear();
     _moverGrid.clear();
     _ids.clear();
+    _byId.clear();
     _overlapping.clear();
     _nextOverlapping.clear();
     _pairA.clear();

@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **The facade exports what its API names.** `ContactPhase`,
+  `StepContact`, `GameEvent`, `LocalSimulation`, the level's issue and rule
+  types, the XR plane and control readings and the others its exported
+  signatures name only as a generic argument are exported here.
 - **A model that will not load says so in the tree.** `Model3D` takes
   `onError` and `errorBuilder`, both handed a `Model3DFailure` (new: the
   error, its stack and the source); with neither, the failure goes to the

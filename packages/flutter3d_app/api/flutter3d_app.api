@@ -1099,8 +1099,11 @@ List<SemanticObject> semanticObjectsFor(List<SceneAnnouncement> announcements, {
 
 void unmountWidgetTree(BuildOwner build, RenderObjectToWidgetElement<RenderBox> element, RenderObjectWithChildMixin<RenderBox> container)
 
-export package:flutter3d_cpu/flutter3d_cpu.dart show CpuFragmentShader, CpuVertexShaderByIndex, FragmentContext, ShaderBindings
+export package:flutter3d_cpu/flutter3d_cpu.dart show BoundTexture, CpuFragmentShader, CpuStorageTexture, CpuTexture, CpuVertexShaderByIndex, FragmentContext, ShaderBindings
+  BoundTexture
   CpuFragmentShader
+  CpuStorageTexture
+  CpuTexture
   CpuVertexShaderByIndex
   FragmentContext
   ShaderBindings
@@ -1108,44 +1111,74 @@ export package:flutter3d_cpu/flutter3d_cpu.dart show CpuFragmentShader, CpuVerte
 export package:flutter3d_level_scene/flutter3d_level_scene.dart show LevelBatching
   LevelBatching
 
-export package:flutter3d_particles/flutter3d_particles.dart show Flipbook, FlipbookCell, Particle, ParticleBirth, ParticleEffect, ParticleEmitter, ParticleSystem, Range
+export package:flutter3d_particles/flutter3d_particles.dart show Flipbook, FlipbookCell, Particle, ParticleAffector, ParticleBirth, ParticleEffect, ParticleEmitter, ParticleStep, ParticleSystem, Range
   Flipbook
   FlipbookCell
   Particle
+  ParticleAffector
   ParticleBirth
   ParticleEffect
   ParticleEmitter
+  ParticleStep
   ParticleSystem
   Range
 
-export package:flutter3d_physics/flutter3d_physics.dart show CollisionWorld, PhysicsBackend
+export package:flutter3d_physics/flutter3d_physics.dart show ClothObstacle, CollisionWorld, ContactPhase, JetObstacle, ObstacleTouch, PhysicsBackend, StepContact, SweptContact, WorldMirror
+  ClothObstacle
   CollisionWorld
+  ContactPhase
+  JetObstacle
+  ObstacleTouch
   PhysicsBackend
+  StepContact
+  SweptContact
+  WorldMirror
 
-export package:flutter3d_sim/flutter3d_sim.dart show Brush, DisplayTime, EngineLoop, EntityDef, EntityKind, EntityRegistry, FrameCadence, HeightfieldTiles, InputAction, InputState, Level, LevelMaterial, LevelVisibility, Lightmap, LightmapLayout, SeatInput, ShadowCasting, SimulationFactory, SimulationHandle, TileLevelChooser, TimeSource, WorldTiming, XrHand
+export package:flutter3d_sim/flutter3d_sim.dart show ActorHurt, AvoidanceNeighbor, Brush, DisplayTime, EngineLoop, EntityDef, EntityKind, EntityRegistry, FocusPoint, FrameCadence, GameEvent, HeightfieldTiles, InputAction, InputFrame, InputState, InputTapeRecorder, Level, LevelCheck, LevelIssue, LevelLight, LevelMaterial, LevelRecipe, LevelRule, LevelVisibility, Lightmap, LightmapLayout, LocalSimulation, NavMeshLink, Prefab, SeatInput, ShadowCasting, SimulationFactory, SimulationHandle, SimulationQuestion, SimulationSetup, TileLevelChooser, TimeSource, WorldTiming, XrControl, XrControlReading, XrHand, XrPlane, XrPlaneOrientation, XrSceneMesh
+  ActorHurt
+  AvoidanceNeighbor
   Brush
   DisplayTime
   EngineLoop
   EntityDef
   EntityKind
   EntityRegistry
+  FocusPoint
   FrameCadence
+  GameEvent
   HeightfieldTiles
   InputAction
+  InputFrame
   InputState
+  InputTapeRecorder
   Level
+  LevelCheck
+  LevelIssue
+  LevelLight
   LevelMaterial
+  LevelRecipe
+  LevelRule
   LevelVisibility
   Lightmap
   LightmapLayout
+  LocalSimulation
+  NavMeshLink
+  Prefab
   SeatInput
   ShadowCasting
   SimulationFactory
   SimulationHandle
+  SimulationQuestion
+  SimulationSetup
   TileLevelChooser
   TimeSource
   WorldTiming
+  XrControl
+  XrControlReading
   XrHand
+  XrPlane
+  XrPlaneOrientation
+  XrSceneMesh
 
 library package:flutter3d_app/native.dart
 
