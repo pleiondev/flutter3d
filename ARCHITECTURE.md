@@ -1749,7 +1749,7 @@ device without it. The pre-1.0 `supportsX` getters are gone: each is a
   already built a pipeline in, so a draw in one of those finds it ready; the
   rest stays the lazy per-state path. `createComputePipelineAsync` builds the
   whole pipeline asynchronously. The other backends link in the calling turn.
-- **The 4 enums in `formats.dart`, and `TextureFormat`**, an open set
+- **The 3 enums in `formats.dart`, and `TextureFormat`**, an open set
   of constants since 1.0 (a format a later minor adds must not break a
   `switch`), plus `SamplerDescriptor`, `RenderTargetDescriptor`, `TextureAllocator` and
   `RenderTargetPool`. Their value names are load-bearing beyond the package:
@@ -1860,21 +1860,23 @@ A backend that gets one of these wrong compiles and draws the wrong thing.
   a draw that exists to mark the stencil blends with `BlendState.keepDestination`
   rather than discarding, and why the software rasteriser runs the fragment stage
   before applying an operation a failing fragment would otherwise have earned.
-- **Ask before requesting what a backend may not have** — `supportsWireframe`,
-  `supportsOffscreenMsaa`, `supportsStencil`, `depthRange`, `framebufferOrigin`, `hdrColorFormat`,
-  `preferredSampleCount`, `supportsMipmaps`, `supportsTextureFormat`,
-  `maxAnisotropy`, `supportsRenderToMip`, `maxColorAttachments`,
-  `supportsCompute`, `supportsGpuTimestamps`, `supportsFloat32Filtering`,
-  `supportsIndependentBlend`, `hdrOutputFormats`, and the storage mode, sample count,
-  type and format a `TextureHandle` carries before asking `readback` for it. A
-  backend refuses loudly rather than substituting something that looks similar.
-  `setBlend`'s attachment index is honoured where `supportsIndependentBlend` is
-  true and ignored elsewhere, attachment zero taking the state, so a caller
+- **Ask before requesting what a backend may not have** — `features.has(…)`
+  for `DeviceFeature.wireframe`, `offscreenMultisample`, `stencil`,
+  `manualMipmaps`, `renderToMipLevel`, `compute`, `gpuTimestamps`,
+  `float32Filterable` and `independentBlend` (the `supportsX` getters that
+  asked these are gone since 1.0), `limits.maxSamplerAnisotropy` and
+  `limits.maxColorAttachments`, `textureFormatSupport(format)`, `depthRange`,
+  `framebufferOrigin`, `hdrColorFormat`, `preferredSampleCount`,
+  `hdrOutputFormats`, and the storage mode, sample count, type and format a
+  `TextureHandle` carries before asking `readback` for it. A backend refuses
+  loudly rather than substituting something that looks similar.
+  `setBlend`'s attachment index is honoured where `independentBlend` is
+  listed and ignored elsewhere, attachment zero taking the state, so a caller
   that wants two attachments blended differently sets attachment zero first and
   the others after it, and draws the same pass on all four backends. A depth
   another pass loads must have been stored, and cannot be
   `StorageMode.deviceTransient`, which on Apple GPUs has no memory to load from.
-  `supportsRenderToMip` is the one that splits a single backend by platform:
+  `renderToMipLevel` is the one that splits a single backend by platform:
   flutter_gpu attaches a cube face everywhere and a mip level below the base
   only on Metal and Vulkan, and the renderer builds a probe's chain where it
   can and no probe where it cannot.
@@ -3673,7 +3675,7 @@ storage.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **14764 tests** across 61 packages and 18 applications |
+| Unit tests | **14778 tests** across 61 packages and 18 applications |
 | Structure rules | 99, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 

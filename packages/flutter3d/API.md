@@ -868,7 +868,10 @@ a minor may change them. An application does not import them.
 (`GraphicsDevice`), physics backends, audio backends, decoders and writers,
 network transports, storage (`Storage`, `BinaryStorage`), XR sessions and
 plugins. These are `abstract base` classes, and a member added in a minor
-arrives with a body.
+arrives with a body. A member they declare never gains a parameter within
+a major; where an input will grow, it arrives as a descriptor field (a
+pipeline's next input is a `PipelineDescriptor` field, read by
+`GraphicsDevice.createPipelineFrom`).
 
 ### Migrating from 0.8
 

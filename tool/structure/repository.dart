@@ -2822,10 +2822,6 @@ final Map<String, String> recordInResultAllowed = <String, String>{
       'shader sources by file and the stage map, the bundle writer\'s input',
   'SixWayChannel': 'an image index and a channel, a pair',
   'SourceLink': 'a path and a commit hash, a pair',
-  'TraceColorTarget':
-      'a colour attachment as the HAL\'s descriptor has it, mirrored for a trace',
-  'TraceDepthTarget':
-      'a depth attachment as the HAL\'s descriptor has it, mirrored for a trace',
   'TraceGeometryRange': 'a buffer, an offset and a length',
   'UvFootprint': 'UV and its screen derivatives, fixed by the sampling formula',
   'UvSpan': 'one row span of a rasterized UV island with its weights',
@@ -3026,7 +3022,6 @@ const List<String> _openSetsWithoutShape = <String>[
   'DebugWipeSide',
   'DeviceClass',
   'DeviceClassBudget',
-  'DeviceLossReason',
   'Difficulty',
   'DiffuseModel',
   'Dimension',
