@@ -1,9 +1,9 @@
+import 'package:flutter3d_education/experiment.dart'
+    show CheckQuestion, ExperimentDocument;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show ResourceException;
 import 'package:flutter3d_sim/flutter3d_sim.dart' show EntityDef;
 
-import '../experiment/check_question.dart';
-import '../experiment/experiment_document.dart';
 import 'ags_client.dart';
 import 'ags_exception.dart';
 import 'ags_score.dart';

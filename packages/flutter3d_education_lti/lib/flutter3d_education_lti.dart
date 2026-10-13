@@ -15,25 +15,25 @@
 /// statement, and each question settled updates the lesson's score.
 library;
 
-export 'src/lti/ags_client.dart';
-export 'src/lti/ags_exception.dart';
-export 'src/lti/ags_score.dart';
-export 'src/lti/check_reporter.dart';
-export 'src/lti/jwk.dart'
+export 'src/ags_client.dart';
+export 'src/ags_exception.dart';
+export 'src/ags_score.dart';
+export 'src/check_reporter.dart';
+export 'src/jwk.dart'
     show
         rsaPrivateKeyFromJwk,
         rsaPrivateKeyToJwk,
         rsaPublicKeyFromJwk,
         rsaPublicKeyToJwk;
-export 'src/lti/lti_launch_claims.dart';
-export 'src/lti/lti_launch_exception.dart';
-export 'src/lti/lti_launch_validator.dart';
-export 'src/lti/lti_platform_config.dart';
-export 'src/lti/lti_tool_credentials.dart';
-export 'src/lti/oidc_login_initiation.dart';
-export 'src/lti/rsa_key_pair.dart';
-export 'src/lti/xapi_client.dart';
-export 'src/lti/xapi_exception.dart';
-export 'src/lti/xapi_lrs_config.dart';
-export 'src/lti/xapi_statement.dart';
-export 'src/lti/xapi_uuid.dart';
+export 'src/lti_launch_claims.dart';
+export 'src/lti_launch_exception.dart';
+export 'src/lti_launch_validator.dart';
+export 'src/lti_platform_config.dart';
+export 'src/lti_tool_credentials.dart';
+export 'src/oidc_login_initiation.dart';
+export 'src/rsa_key_pair.dart';
+export 'src/xapi_client.dart';
+export 'src/xapi_exception.dart';
+export 'src/xapi_lrs_config.dart';
+export 'src/xapi_statement.dart';
+export 'src/xapi_uuid.dart';

@@ -149,7 +149,7 @@ packages:
     flutter3d_addons_standard: flutter3d_post
     flutter3d_editor_mcp: flutter3d_mcp
     flutter3d_lab: flutter3d_education
-    flutter3d_lti: flutter3d_education
+    flutter3d_lti: flutter3d_education_lti
     flutter3d_mcp_kit: flutter3d_mcp
     flutter3d_model_mcp: flutter3d_mcp
     pointer_lock: flutter3d_pointer_lock
@@ -15028,23 +15028,22 @@ entries:
   - id: 4b-lti-library
     kind: import
     from: package:flutter3d_lti/flutter3d_lti.dart
-    to: package:flutter3d_education/lti.dart
+    to: package:flutter3d_education_lti/flutter3d_education_lti.dart
     wave: 4
     guidance: >-
-      `flutter3d_lti` is the `lti.dart` library of `flutter3d_education`,
-      with the API it had;
-      `package:flutter3d_education/flutter3d_education.dart` exports it
-      beside its siblings. It was on pub.dev as `flutter3d_lti`.
+      `flutter3d_lti` is `flutter3d_education_lti`, with the API it had,
+      beside `flutter3d_education` and over its experiment. It was on
+      pub.dev as `flutter3d_lti`.
 
   - id: 4b-lti-src
     kind: import
     from: package:flutter3d_lti/src/
-    to: package:flutter3d_education/src/lti/
+    to: package:flutter3d_education_lti/src/
     wave: 4
     guidance: >-
-      What was under `flutter3d_lti`'s `lib/src/` is under `lib/src/lti/`
-      of `flutter3d_education`. Importing it was never the public API; the
-      main library above is.
+      What was under `flutter3d_lti`'s `lib/src/` is under
+      `flutter3d_education_lti`'s. Importing it was never the public API;
+      the main library above is.
 
   - id: 4b-mcp_kit-project_tools
     kind: import
@@ -24925,3 +24924,269 @@ entries:
       `FileAssetSource.read` takes the `AssetRead` every source's `read`
       takes; a call is handed `const AssetRead()`, which reads the whole
       file as before.
+
+  # The LTI side is a package of its own, `flutter3d_education_lti`, so what
+  # reads an experiment resolves none of its cryptography. Every name of
+  # `flutter3d_lti` moved there whole; the two exceptions and the two
+  # settings classes are carried by their own entries above.
+
+  - id: lti-split-AgsActivityProgress
+    package: flutter3d_lti
+    symbol: AgsActivityProgress
+    kind: moved
+    to: package:flutter3d_education_lti/flutter3d_education_lti.dart
+    guidance: >-
+      `AgsActivityProgress` is `flutter3d_education_lti`'s, under the same name; `migrate`
+      adds the dependency and `dart fix` the import.
+
+  - id: lti-split-AgsClient
+    package: flutter3d_lti
+    symbol: AgsClient
+    kind: moved
+    to: package:flutter3d_education_lti/flutter3d_education_lti.dart
+    guidance: >-
+      `AgsClient` is `flutter3d_education_lti`'s, under the same name; `migrate`
+      adds the dependency and `dart fix` the import.
+
+  - id: lti-split-AgsGradingProgress
+    package: flutter3d_lti
+    symbol: AgsGradingProgress
+    kind: moved
+    to: package:flutter3d_education_lti/flutter3d_education_lti.dart
+    guidance: >-
+      `AgsGradingProgress` is `flutter3d_education_lti`'s, under the same name; `migrate`
+      adds the dependency and `dart fix` the import.
+
+  - id: lti-split-AgsScore
+    package: flutter3d_lti
+    symbol: AgsScore
+    kind: moved
+    to: package:flutter3d_education_lti/flutter3d_education_lti.dart
+    guidance: >-
+      `AgsScore` is `flutter3d_education_lti`'s, under the same name; `migrate`
+      adds the dependency and `dart fix` the import.
+
+  - id: lti-split-LtiClaim
+    package: flutter3d_lti
+    symbol: LtiClaim
+    kind: moved
+    to: package:flutter3d_education_lti/flutter3d_education_lti.dart
+    guidance: >-
+      `LtiClaim` is `flutter3d_education_lti`'s, under the same name; `migrate`
+      adds the dependency and `dart fix` the import.
+
+  - id: lti-split-LtiDeploymentMismatchException
+    package: flutter3d_lti
+    symbol: LtiDeploymentMismatchException
+    kind: moved
+    to: package:flutter3d_education_lti/flutter3d_education_lti.dart
+    guidance: >-
+      `LtiDeploymentMismatchException` is `flutter3d_education_lti`'s, under the same name; `migrate`
+      adds the dependency and `dart fix` the import.
+
+  - id: lti-split-LtiLaunchClaims
+    package: flutter3d_lti
+    symbol: LtiLaunchClaims
+    kind: moved
+    to: package:flutter3d_education_lti/flutter3d_education_lti.dart
+    guidance: >-
+      `LtiLaunchClaims` is `flutter3d_education_lti`'s, under the same name; `migrate`
+      adds the dependency and `dart fix` the import.
+
+  - id: lti-split-LtiLaunchException
+    package: flutter3d_lti
+    symbol: LtiLaunchException
+    kind: moved
+    to: package:flutter3d_education_lti/flutter3d_education_lti.dart
+    guidance: >-
+      `LtiLaunchException` is `flutter3d_education_lti`'s, under the same name; `migrate`
+      adds the dependency and `dart fix` the import.
+
+  - id: lti-split-LtiLaunchValidator
+    package: flutter3d_lti
+    symbol: LtiLaunchValidator
+    kind: moved
+    to: package:flutter3d_education_lti/flutter3d_education_lti.dart
+    guidance: >-
+      `LtiLaunchValidator` is `flutter3d_education_lti`'s, under the same name; `migrate`
+      adds the dependency and `dart fix` the import.
+
+  - id: lti-split-LtiMessageType
+    package: flutter3d_lti
+    symbol: LtiMessageType
+    kind: moved
+    to: package:flutter3d_education_lti/flutter3d_education_lti.dart
+    guidance: >-
+      `LtiMessageType` is `flutter3d_education_lti`'s, under the same name; `migrate`
+      adds the dependency and `dart fix` the import.
+
+  - id: lti-split-LtiNonceMismatchException
+    package: flutter3d_lti
+    symbol: LtiNonceMismatchException
+    kind: moved
+    to: package:flutter3d_education_lti/flutter3d_education_lti.dart
+    guidance: >-
+      `LtiNonceMismatchException` is `flutter3d_education_lti`'s, under the same name; `migrate`
+      adds the dependency and `dart fix` the import.
+
+  - id: lti-split-LtiStateMismatchException
+    package: flutter3d_lti
+    symbol: LtiStateMismatchException
+    kind: moved
+    to: package:flutter3d_education_lti/flutter3d_education_lti.dart
+    guidance: >-
+      `LtiStateMismatchException` is `flutter3d_education_lti`'s, under the same name; `migrate`
+      adds the dependency and `dart fix` the import.
+
+  - id: lti-split-LtiTokenExpiredException
+    package: flutter3d_lti
+    symbol: LtiTokenExpiredException
+    kind: moved
+    to: package:flutter3d_education_lti/flutter3d_education_lti.dart
+    guidance: >-
+      `LtiTokenExpiredException` is `flutter3d_education_lti`'s, under the same name; `migrate`
+      adds the dependency and `dart fix` the import.
+
+  - id: lti-split-LtiTokenInvalidException
+    package: flutter3d_lti
+    symbol: LtiTokenInvalidException
+    kind: moved
+    to: package:flutter3d_education_lti/flutter3d_education_lti.dart
+    guidance: >-
+      `LtiTokenInvalidException` is `flutter3d_education_lti`'s, under the same name; `migrate`
+      adds the dependency and `dart fix` the import.
+
+  - id: lti-split-LtiToolCredentials
+    package: flutter3d_lti
+    symbol: LtiToolCredentials
+    kind: moved
+    to: package:flutter3d_education_lti/flutter3d_education_lti.dart
+    guidance: >-
+      `LtiToolCredentials` is `flutter3d_education_lti`'s, under the same name; `migrate`
+      adds the dependency and `dart fix` the import.
+
+  - id: lti-split-OidcLoginInitiation
+    package: flutter3d_lti
+    symbol: OidcLoginInitiation
+    kind: moved
+    to: package:flutter3d_education_lti/flutter3d_education_lti.dart
+    guidance: >-
+      `OidcLoginInitiation` is `flutter3d_education_lti`'s, under the same name; `migrate`
+      adds the dependency and `dart fix` the import.
+
+  - id: lti-split-OidcLoginRedirect
+    package: flutter3d_lti
+    symbol: OidcLoginRedirect
+    kind: moved
+    to: package:flutter3d_education_lti/flutter3d_education_lti.dart
+    guidance: >-
+      `OidcLoginRedirect` is `flutter3d_education_lti`'s, under the same name; `migrate`
+      adds the dependency and `dart fix` the import.
+
+  - id: lti-split-XapiActivity
+    package: flutter3d_lti
+    symbol: XapiActivity
+    kind: moved
+    to: package:flutter3d_education_lti/flutter3d_education_lti.dart
+    guidance: >-
+      `XapiActivity` is `flutter3d_education_lti`'s, under the same name; `migrate`
+      adds the dependency and `dart fix` the import.
+
+  - id: lti-split-XapiActor
+    package: flutter3d_lti
+    symbol: XapiActor
+    kind: moved
+    to: package:flutter3d_education_lti/flutter3d_education_lti.dart
+    guidance: >-
+      `XapiActor` is `flutter3d_education_lti`'s, under the same name; `migrate`
+      adds the dependency and `dart fix` the import.
+
+  - id: lti-split-XapiClient
+    package: flutter3d_lti
+    symbol: XapiClient
+    kind: moved
+    to: package:flutter3d_education_lti/flutter3d_education_lti.dart
+    guidance: >-
+      `XapiClient` is `flutter3d_education_lti`'s, under the same name; `migrate`
+      adds the dependency and `dart fix` the import.
+
+  - id: lti-split-XapiResult
+    package: flutter3d_lti
+    symbol: XapiResult
+    kind: moved
+    to: package:flutter3d_education_lti/flutter3d_education_lti.dart
+    guidance: >-
+      `XapiResult` is `flutter3d_education_lti`'s, under the same name; `migrate`
+      adds the dependency and `dart fix` the import.
+
+  - id: lti-split-XapiStatement
+    package: flutter3d_lti
+    symbol: XapiStatement
+    kind: moved
+    to: package:flutter3d_education_lti/flutter3d_education_lti.dart
+    guidance: >-
+      `XapiStatement` is `flutter3d_education_lti`'s, under the same name; `migrate`
+      adds the dependency and `dart fix` the import.
+
+  - id: lti-split-XapiVerb
+    package: flutter3d_lti
+    symbol: XapiVerb
+    kind: moved
+    to: package:flutter3d_education_lti/flutter3d_education_lti.dart
+    guidance: >-
+      `XapiVerb` is `flutter3d_education_lti`'s, under the same name; `migrate`
+      adds the dependency and `dart fix` the import.
+
+  - id: lti-split-generateRsaKeyPair
+    package: flutter3d_lti
+    symbol: generateRsaKeyPair
+    kind: moved
+    to: package:flutter3d_education_lti/flutter3d_education_lti.dart
+    guidance: >-
+      `generateRsaKeyPair` is `flutter3d_education_lti`'s, under the same name; `migrate`
+      adds the dependency and `dart fix` the import.
+
+  - id: lti-split-generateUuidV4
+    package: flutter3d_lti
+    symbol: generateUuidV4
+    kind: moved
+    to: package:flutter3d_education_lti/flutter3d_education_lti.dart
+    guidance: >-
+      `generateUuidV4` is `flutter3d_education_lti`'s, under the same name; `migrate`
+      adds the dependency and `dart fix` the import.
+
+  - id: lti-split-rsaPrivateKeyFromJwk
+    package: flutter3d_lti
+    symbol: rsaPrivateKeyFromJwk
+    kind: moved
+    to: package:flutter3d_education_lti/flutter3d_education_lti.dart
+    guidance: >-
+      `rsaPrivateKeyFromJwk` is `flutter3d_education_lti`'s, under the same name; `migrate`
+      adds the dependency and `dart fix` the import.
+
+  - id: lti-split-rsaPrivateKeyToJwk
+    package: flutter3d_lti
+    symbol: rsaPrivateKeyToJwk
+    kind: moved
+    to: package:flutter3d_education_lti/flutter3d_education_lti.dart
+    guidance: >-
+      `rsaPrivateKeyToJwk` is `flutter3d_education_lti`'s, under the same name; `migrate`
+      adds the dependency and `dart fix` the import.
+
+  - id: lti-split-rsaPublicKeyFromJwk
+    package: flutter3d_lti
+    symbol: rsaPublicKeyFromJwk
+    kind: moved
+    to: package:flutter3d_education_lti/flutter3d_education_lti.dart
+    guidance: >-
+      `rsaPublicKeyFromJwk` is `flutter3d_education_lti`'s, under the same name; `migrate`
+      adds the dependency and `dart fix` the import.
+
+  - id: lti-split-rsaPublicKeyToJwk
+    package: flutter3d_lti
+    symbol: rsaPublicKeyToJwk
+    kind: moved
+    to: package:flutter3d_education_lti/flutter3d_education_lti.dart
+    guidance: >-
+      `rsaPublicKeyToJwk` is `flutter3d_education_lti`'s, under the same name; `migrate`
+      adds the dependency and `dart fix` the import.

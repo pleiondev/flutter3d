@@ -64,7 +64,7 @@ talk to a network or load code come after it.
   guesses. A code only tells the relay which sockets to join, and it was
   never meant as a password. A game that needs one belongs behind a relay you run yourself, with your own
   authentication in front of it.
-- **LTI 1.3 and xAPI** (`flutter3d_education`, `lti.dart`).
+- **LTI 1.3 and xAPI** (`flutter3d_education_lti`).
   `LtiLaunchValidator` checks an `id_token`'s signature against the
   platform's JWKS, its issuer, audience and expiry, and the `state` and
   `nonce` of the login that started it. In scope: a launch it accepts and

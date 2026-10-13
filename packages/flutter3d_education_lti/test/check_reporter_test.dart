@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter3d_education/flutter3d_education.dart';
+import 'package:flutter3d_education_lti/flutter3d_education_lti.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart' show EntityDef;
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -82,7 +83,9 @@ final class _Platform {
 
 void main() {
   final pendulum = ExperimentDocument.parse(
-    File('test/fixtures/v1/pendulum.f3d.experiment').readAsStringSync(),
+    File(
+      '../flutter3d_education/test/fixtures/v1/pendulum.f3d.experiment',
+    ).readAsStringSync(),
   );
   final question = pendulum.step('shorten')!.check!;
 

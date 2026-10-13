@@ -10,7 +10,7 @@
 ///
 /// **The families are `abstract base class`, not `sealed`**, so a package can
 /// add its own leaf to one: `flutter3d_sim` has its own format exceptions,
-/// `flutter3d_education/lti.dart` its own resource ones. `base` keeps the hierarchy honest —
+/// `flutter3d_education_lti` its own resource ones. `base` keeps the hierarchy honest —
 /// nothing can `implements` a family and claim to be one without being one —
 /// and a type somebody else defines still lands in exactly one family.
 ///

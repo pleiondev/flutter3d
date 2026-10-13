@@ -14,7 +14,7 @@ import 'lti_platform_config.dart';
 /// One instance per [platform] is meant to live for the process, not per
 /// request: it caches the platform's JWKS keys by `kid` for [jwksCacheTtl]
 /// so a launch does not fetch the keyset every time, the same reasoning
-/// `flutter3d_education/lti.dart`'s only network dependency (`http`) exists for at all.
+/// this package's only network dependency (`http`) exists for at all.
 final class LtiLaunchValidator {
   LtiLaunchValidator({
     required this.platform,

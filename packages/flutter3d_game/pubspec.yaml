@@ -75,7 +75,7 @@ dependencies:
   # `HttpCloudSaves`, a save kept on a server. Not `dart:io`'s client: that
   # one does not exist in a browser, and a web build is where a player is most
   # likely to come back on another device. Already in the workspace for
-  # `flutter3d_education/lti.dart`.
+  # `flutter3d_education_lti`.
   http: ^1.2.0
 
   # The foundation's value types and their crossings into `vector_math`.

@@ -3,7 +3,7 @@
 /// since this file is now the writer as well as the reader.
 library;
 
-import 'package:flutter3d_education/src/lti/jwk.dart';
+import 'package:flutter3d_education_lti/src/jwk.dart';
 import 'package:test/test.dart';
 
 import 'support/test_rsa_key_pair.dart';

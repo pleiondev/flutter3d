@@ -106,9 +106,23 @@ packages:
     source: hosted
     version: "7.0.1"
   flutter3d_education:
-    dependency: "direct main"
+    dependency: "direct overridden"
     description:
       path: "../../../packages/flutter3d_education"
+      relative: true
+    source: path
+    version: "1.0.0-rc.1"
+  flutter3d_education_lti:
+    dependency: "direct main"
+    description:
+      path: "../../../packages/flutter3d_education_lti"
+      relative: true
+    source: path
+    version: "1.0.0-rc.1"
+  flutter3d_fields:
+    dependency: "direct overridden"
+    description:
+      path: "../../../packages/flutter3d_fields"
       relative: true
     source: path
     version: "1.0.0-rc.1"

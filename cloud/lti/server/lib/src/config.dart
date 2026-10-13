@@ -10,7 +10,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter3d_education/lti.dart';
+import 'package:flutter3d_education_lti/flutter3d_education_lti.dart';
 import 'package:pointycastle/export.dart' as pc;
 
 class Config {

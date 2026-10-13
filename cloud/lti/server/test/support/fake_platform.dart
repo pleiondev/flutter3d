@@ -3,13 +3,13 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
-import 'package:flutter3d_education/lti.dart';
+import 'package:flutter3d_education_lti/flutter3d_education_lti.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:pointycastle/export.dart' as pc;
 
 /// A fake LTI platform for this service's own tests — duplicated from
-/// `packages/flutter3d_education/test/lti/support/test_platform.dart` rather than
+/// `packages/flutter3d_education_lti/test/support/test_platform.dart` rather than
 /// imported: a package's `test/` directory is not something another
 /// package can depend on. Kept to only what `app_test.dart` needs.
 final class FakePlatform {

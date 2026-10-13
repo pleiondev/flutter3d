@@ -1,4 +1,4 @@
-import 'package:flutter3d_education/src/lti/rsa_key_pair.dart';
+import 'package:flutter3d_education_lti/src/rsa_key_pair.dart';
 import 'package:pointycastle/export.dart' as pc;
 
 /// A real 2048-bit RSA key pair for a test — shared by `TestPlatform` (the

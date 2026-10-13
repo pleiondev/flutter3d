@@ -1,0 +1,314 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 817beb8ecb27beca
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: 4a-lti-LtiPlatformConfig'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      class: 'LtiPlatformConfig'
+    changes:
+      - kind: 'rename'
+        newName: 'LtiPlatformSettings'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-lti-XapiLrsConfig'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      class: 'XapiLrsConfig'
+    changes:
+      - kind: 'rename'
+        newName: 'XapiLrsSettings'
+  - title: 'flutter3d 1.0.0-rc.1: lti-split-AgsActivityProgress (AgsActivityProgress)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      enum: 'AgsActivityProgress'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart']
+          enum: 'AgsActivityProgress'
+  - title: 'flutter3d 1.0.0-rc.1: lti-split-AgsClient (AgsClient)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      class: 'AgsClient'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart']
+          class: 'AgsClient'
+  - title: 'flutter3d 1.0.0-rc.1: lti-split-AgsGradingProgress (AgsGradingProgress)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      enum: 'AgsGradingProgress'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart']
+          enum: 'AgsGradingProgress'
+  - title: 'flutter3d 1.0.0-rc.1: lti-split-AgsScore (AgsScore)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      class: 'AgsScore'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart']
+          class: 'AgsScore'
+  - title: 'flutter3d 1.0.0-rc.1: lti-split-LtiClaim (LtiClaim)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      class: 'LtiClaim'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart']
+          class: 'LtiClaim'
+  - title: 'flutter3d 1.0.0-rc.1: lti-split-LtiDeploymentMismatchException (LtiDeploymentMismatchException)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      class: 'LtiDeploymentMismatchException'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart']
+          class: 'LtiDeploymentMismatchException'
+  - title: 'flutter3d 1.0.0-rc.1: lti-split-LtiLaunchClaims (LtiLaunchClaims)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      class: 'LtiLaunchClaims'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart']
+          class: 'LtiLaunchClaims'
+  - title: 'flutter3d 1.0.0-rc.1: lti-split-LtiLaunchException (LtiLaunchException)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      class: 'LtiLaunchException'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart']
+          class: 'LtiLaunchException'
+  - title: 'flutter3d 1.0.0-rc.1: lti-split-LtiLaunchValidator (LtiLaunchValidator)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      class: 'LtiLaunchValidator'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart']
+          class: 'LtiLaunchValidator'
+  - title: 'flutter3d 1.0.0-rc.1: lti-split-LtiMessageType (LtiMessageType)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      enum: 'LtiMessageType'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart']
+          enum: 'LtiMessageType'
+  - title: 'flutter3d 1.0.0-rc.1: lti-split-LtiNonceMismatchException (LtiNonceMismatchException)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      class: 'LtiNonceMismatchException'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart']
+          class: 'LtiNonceMismatchException'
+  - title: 'flutter3d 1.0.0-rc.1: lti-split-LtiStateMismatchException (LtiStateMismatchException)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      class: 'LtiStateMismatchException'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart']
+          class: 'LtiStateMismatchException'
+  - title: 'flutter3d 1.0.0-rc.1: lti-split-LtiTokenExpiredException (LtiTokenExpiredException)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      class: 'LtiTokenExpiredException'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart']
+          class: 'LtiTokenExpiredException'
+  - title: 'flutter3d 1.0.0-rc.1: lti-split-LtiTokenInvalidException (LtiTokenInvalidException)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      class: 'LtiTokenInvalidException'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart']
+          class: 'LtiTokenInvalidException'
+  - title: 'flutter3d 1.0.0-rc.1: lti-split-LtiToolCredentials (LtiToolCredentials)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      class: 'LtiToolCredentials'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart']
+          class: 'LtiToolCredentials'
+  - title: 'flutter3d 1.0.0-rc.1: lti-split-OidcLoginInitiation (OidcLoginInitiation)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      class: 'OidcLoginInitiation'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart']
+          class: 'OidcLoginInitiation'
+  - title: 'flutter3d 1.0.0-rc.1: lti-split-OidcLoginRedirect (OidcLoginRedirect)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      class: 'OidcLoginRedirect'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart']
+          class: 'OidcLoginRedirect'
+  - title: 'flutter3d 1.0.0-rc.1: lti-split-XapiActivity (XapiActivity)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      class: 'XapiActivity'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart']
+          class: 'XapiActivity'
+  - title: 'flutter3d 1.0.0-rc.1: lti-split-XapiActor (XapiActor)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      class: 'XapiActor'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart']
+          class: 'XapiActor'
+  - title: 'flutter3d 1.0.0-rc.1: lti-split-XapiClient (XapiClient)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      class: 'XapiClient'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart']
+          class: 'XapiClient'
+  - title: 'flutter3d 1.0.0-rc.1: lti-split-XapiResult (XapiResult)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      class: 'XapiResult'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart']
+          class: 'XapiResult'
+  - title: 'flutter3d 1.0.0-rc.1: lti-split-XapiStatement (XapiStatement)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      class: 'XapiStatement'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart']
+          class: 'XapiStatement'
+  - title: 'flutter3d 1.0.0-rc.1: lti-split-XapiVerb (XapiVerb)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      class: 'XapiVerb'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart']
+          class: 'XapiVerb'
+  - title: 'flutter3d 1.0.0-rc.1: lti-split-generateRsaKeyPair (generateRsaKeyPair)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      function: 'generateRsaKeyPair'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart']
+          function: 'generateRsaKeyPair'
+  - title: 'flutter3d 1.0.0-rc.1: lti-split-generateUuidV4 (generateUuidV4)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      function: 'generateUuidV4'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart']
+          function: 'generateUuidV4'
+  - title: 'flutter3d 1.0.0-rc.1: lti-split-rsaPrivateKeyFromJwk (rsaPrivateKeyFromJwk)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      function: 'rsaPrivateKeyFromJwk'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart']
+          function: 'rsaPrivateKeyFromJwk'
+  - title: 'flutter3d 1.0.0-rc.1: lti-split-rsaPrivateKeyToJwk (rsaPrivateKeyToJwk)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      function: 'rsaPrivateKeyToJwk'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart']
+          function: 'rsaPrivateKeyToJwk'
+  - title: 'flutter3d 1.0.0-rc.1: lti-split-rsaPublicKeyFromJwk (rsaPublicKeyFromJwk)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      function: 'rsaPublicKeyFromJwk'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart']
+          function: 'rsaPublicKeyFromJwk'
+  - title: 'flutter3d 1.0.0-rc.1: lti-split-rsaPublicKeyToJwk (rsaPublicKeyToJwk)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      function: 'rsaPublicKeyToJwk'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_education_lti/flutter3d_education_lti.dart']
+          function: 'rsaPublicKeyToJwk'

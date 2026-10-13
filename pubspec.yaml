@@ -67,6 +67,7 @@ workspace:
   - packages/flutter3d_game_ui
   - packages/flutter3d_mcp
   - packages/flutter3d_education
+  - packages/flutter3d_education_lti
   - packages/flutter3d_education/example
   - packages/flutter3d_net
   - packages/flutter3d_net_webrtc

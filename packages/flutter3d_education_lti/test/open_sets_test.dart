@@ -2,7 +2,7 @@
 // in a minor release must not break an exhaustive `switch` outside. Each
 // keeps the name its enum had, which is what a file, a snapshot or a tool
 // writes, and `byName` reads it back.
-import 'package:flutter3d_education/flutter3d_education.dart';
+import 'package:flutter3d_education_lti/flutter3d_education_lti.dart';
 import 'package:test/test.dart';
 
 /// The values, their names in order, the name of one, and `byName`.

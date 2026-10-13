@@ -1,4 +1,4 @@
-import 'package:flutter3d_education/lti.dart';
+import 'package:flutter3d_education_lti/flutter3d_education_lti.dart';
 import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
 

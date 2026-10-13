@@ -292,6 +292,7 @@ final class PluginManifest {
     'flutter3d_editor_play',
     'flutter3d_editor_widgets',
     'flutter3d_education',
+    'flutter3d_education_lti',
     'flutter3d_effects',
     'flutter3d_elements',
     'flutter3d_fields',
