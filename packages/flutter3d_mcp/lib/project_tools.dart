@@ -10,6 +10,6 @@
 /// desktop is handed that registry as `projectTools`.
 library;
 
-export 'src/kit/project_tools.dart';
-export 'src/kit/tool_call.dart';
-export 'src/kit/tool_spec.dart';
+// The contract lives in the plugin API, so a plugin that brings tools
+// depends on that alone; this library keeps the import it had.
+export 'package:flutter3d_plugin_api/tools.dart';

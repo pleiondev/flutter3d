@@ -3436,7 +3436,9 @@ them.
   the same `inspectorSections`; a plugin's sit before the last, catch-all
   section. Palette: a `PaletteEntry` offers an entity type whether or not the
   level has one, and what it places starts with the entry's properties.
-- **MCP tools.** `McpTools` (`flutter3d_mcp`'s `kit.dart`) publishes a plugin's tool
+- **MCP tools.** `McpTools` (`flutter3d_plugin_api`'s light `tools.dart`,
+  re-exported by `flutter3d_mcp`'s `kit.dart`, so a plugin that brings tools
+  depends on no server) publishes a plugin's tool
   as `<namespace>.<tool>`, the plugin's id up to its first dot. Every
   `ToolTableServer` takes it as
   `projectTools` and registers those tools after its own, behind the same

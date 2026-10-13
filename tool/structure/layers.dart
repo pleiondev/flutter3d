@@ -433,6 +433,38 @@ List<(String, String)> runtimeToolDependencies(
         if (tools.contains(dependency)) (package, dependency),
 ];
 
+/// The run-time dependencies the plugin templates of `flutter3d create
+/// plugin` write, read from [source] (`plugin_template.dart`): the entries
+/// of `_pubspec`'s `dependencies` list, and each `dependencies:` section of
+/// a pubspec written out whole (the backend's).
+///
+/// **A plugin made from a template is a dependency of a game**, so what its
+/// pubspec asks for at run time is what the game resolves. Rule 7 holds the
+/// templates to what it holds the runtime's own packages to.
+Set<String> templateRuntimeDependencies(String source) {
+  final found = <String>{};
+  final list = RegExp(
+    r'final dependencies = <String>\[(.*?)\n  \];',
+    dotAll: true,
+  ).firstMatch(source);
+  if (list != null) {
+    for (final m in RegExp(r"'  ([a-z0-9_]+):").allMatches(list.group(1)!)) {
+      found.add(m.group(1)!);
+    }
+  }
+  for (final section in RegExp(
+    r'\ndependencies:\n((?:  [a-z0-9_]+:.*\n)+)',
+  ).allMatches(source)) {
+    for (final m in RegExp(
+      r'^  ([a-z0-9_]+):',
+      multiLine: true,
+    ).allMatches(section.group(1)!)) {
+      found.add(m.group(1)!);
+    }
+  }
+  return found;
+}
+
 // ------------------------------------------------- a stable package's ground
 
 /// Packages at 1.x whose API names a type of one of this repository's

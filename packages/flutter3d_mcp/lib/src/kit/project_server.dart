@@ -2,8 +2,7 @@
 /// else.
 library;
 
-import 'project_tools.dart';
-import 'tool_spec.dart';
+import 'package:flutter3d_plugin_api/tools.dart';
 import 'tool_table.dart';
 
 /// The version [ProjectMcpServer] tells a client it is: the pubspec's.

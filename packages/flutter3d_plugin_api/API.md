@@ -1024,7 +1024,9 @@ void editor(PluginHost host) => host.registry<EditorPieces>().addComponent(
 
 ### MCP tools
 
-`host.registry<McpTools>()` (`package:flutter3d_mcp/kit.dart`):
+`host.registry<McpTools>()` (`package:flutter3d_plugin_api/tools.dart`, which
+`flutter3d_mcp`'s `kit.dart` re-exports; a plugin that brings tools depends
+on this package alone):
 
 | Member | What it does |
 |---|---|

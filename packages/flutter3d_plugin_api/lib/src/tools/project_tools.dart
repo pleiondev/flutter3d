@@ -64,9 +64,10 @@ final class ProjectTool {
 /// MCP tools, merged into the project's servers as `<namespace>.<tool>`:
 /// the slot [McpTools] fills, `host.registry<McpTools>()`.
 ///
-/// **Declared by the package that fills it.** It was a marker in
-/// `flutter3d_plugin_api` until 1.0.0-rc.1, which named a slot nothing in
-/// the contract used.
+/// **In the plugin API's light `tools.dart`, beside no server.** A plugin
+/// that brings tools depends on this library alone; the servers that offer
+/// them are `flutter3d_mcp`'s, which re-exports it, and a game that ships
+/// the plugin never resolves them.
 abstract base class McpToolRegistry extends PluginRegistry {
   const McpToolRegistry();
 }
@@ -121,7 +122,7 @@ abstract base class McpToolRegistry extends PluginRegistry {
 /// engine gets it among its registries — `EngineLoop(registries: [tools])` —
 /// and each server takes it as `projectTools`, so the editor's, the
 /// simulation's and the modeller's servers all offer the same plugin tools
-/// beside their own. [ProjectMcpServer] offers them alone, for a project
+/// beside their own. `ProjectMcpServer` (`flutter3d_mcp`) offers them alone, for a project
 /// with no other server running. The application's own tools go through the
 /// root with a namespace it names after itself: `tools.addTool(tool, run,
 /// namespace: 'acme_racer')`. An area of the engine's

@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **The tools' contract is the plugin API's.** `McpTools`,
+  `McpToolRegistry`, `ProjectTool`, `ProjectToolRun`, `ToolCall`,
+  `SessionToolCall`, `ToolSpec`, `ToolHints` and `ToolResult` are declared
+  in `package:flutter3d_plugin_api/tools.dart`; `kit.dart` and
+  `project_tools.dart` re-export them, so every import and every type is
+  the one it was.
 - **Breaking: a tool's body takes one call object.** `ProjectToolRun`, what
   `McpTools.addTool` takes, is a function of a `ToolCall` (new: the
   `arguments` and the published `name`), and `OfferedTool.run` of a

@@ -245,7 +245,6 @@ String _pubspec(PluginKind kind) {
       '  flutter3d_foundation: ^1.0.0-rc.1',
     ],
     if (kind.simulates) '  flutter3d_sim: ^1.0.0-rc.1',
-    if (kind == PluginKind.tool) '  flutter3d_mcp: ^1.0.0-rc.1',
   ];
   final devDependencies = <String>[
     '  flutter3d_conformance: ^1.0.0-rc.1',
@@ -888,8 +887,8 @@ const String _toolLib = r'''
 /// client the list changed.
 library;
 
-import 'package:flutter3d_mcp/kit.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
+import 'package:flutter3d_plugin_api/tools.dart';
 
 /// The plugin: a tooling plugin, since a tool runs between frames, not in a
 /// step, and draws nothing a player sees.
@@ -938,8 +937,8 @@ const String _toolTest = r'''
 /// {{name}}'s tool is published under the plugin's id and answers.
 library;
 
-import 'package:flutter3d_mcp/kit.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
+import 'package:flutter3d_plugin_api/tools.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart' show EngineLoop, InputState;
 import 'package:{{name}}/{{name}}.dart';
 import 'package:test/test.dart';
@@ -975,9 +974,9 @@ const String _toolConformance = r'''
 library;
 
 import 'package:flutter3d_conformance/plugins.dart';
-import 'package:flutter3d_mcp/kit.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show PluginRegistry;
+import 'package:flutter3d_plugin_api/tools.dart';
 import 'package:{{name}}/{{name}}.dart';
 
 void main() {

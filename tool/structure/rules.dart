@@ -6915,9 +6915,17 @@ List<Finding> _simulationDrawsNothing() {
 /// player or a learner installs, and the two lesson viewers resolved the
 /// editor's document layer until 1.0.0-rc.1 with no rule to say so.
 ///
+/// **So are the plugin templates** of `flutter3d create plugin`
+/// ([templateRuntimeDependencies]): a plugin made from one is a dependency
+/// of a game, and the tool template depended on the agent servers for
+/// `McpTools` until 1.0.0-rc.1, which put them into every game that shipped
+/// a tool.
+///
 /// Mutation: make `flutter3d_lesson_viewer` depend on
-/// `flutter3d_editor_core` again, and this names it.
+/// `flutter3d_editor_core` again, and this names it; give the tool
+/// template `flutter3d_mcp` again, and this names the template.
 List<Finding> _runtimeIsNoTool() {
+  const template = 'flutter3d_build/lib/src/plugin_template.dart';
   final dependencies = <String, Set<String>>{
     for (final MapEntry(key: name, value: dir) in <String, Directory>{
       ...packages,
@@ -6927,13 +6935,18 @@ List<Finding> _runtimeIsNoTool() {
         File('${dir.path}/pubspec.yaml').readAsStringSync(),
         'dependencies',
       ),
+    template: templateRuntimeDependencies(
+      File('packages/$template').readAsStringSync(),
+    ),
   };
   final found = <Finding>[];
   final allowedNow = <String>{};
   final applications = apps.keys.toSet();
   for (final (package, tool) in runtimeToolDependencies(
     dependencies,
-    runtime: (String name) => applications.contains(name)
+    runtime: (String name) => name == template
+        ? true
+        : applications.contains(name)
         ? isRuntimeApplication(name)
         : isRuntimePackage(name),
     tools: runtimeMayNotDependOn.keys.toSet(),

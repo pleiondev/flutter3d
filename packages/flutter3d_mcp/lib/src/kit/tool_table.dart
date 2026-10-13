@@ -6,12 +6,10 @@ import 'dart:async';
 import 'package:dart_mcp/server.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show Registration;
+import 'package:flutter3d_plugin_api/tools.dart';
 import 'package:stream_channel/stream_channel.dart';
 
 import 'argument_check.dart';
-import 'project_tools.dart';
-import 'tool_call.dart';
-import 'tool_spec.dart';
 
 /// One tool: what an agent is offered, and what calling it does to the
 /// session.

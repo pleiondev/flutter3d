@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **`create plugin --kind tool` depends on the plugin API alone.** The
+  plugin imports `package:flutter3d_plugin_api/tools.dart` for `McpTools`,
+  where it depended on `flutter3d_mcp`, so a game that ships a tool plugin
+  resolves no agent server.
 - **The plugin template's simulation kinds keep their state in the run's
   snapshots from `install`.** The `genre` plugin adds its score as a
   snapshot part, and the `element` plugin is a `FieldDeclaration` and the

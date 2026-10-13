@@ -2879,6 +2879,38 @@ List<Finding> proveDetectorsWork() {
     'only the runtime is held to it, and only against the tools',
   );
 
+  // The plugin templates' run-time dependencies, from both shapes the
+  // template file writes a pubspec in; the dev dependencies are not read.
+  final templateDeps = templateRuntimeDependencies(r"""
+  final dependencies = <String>[
+    '  flutter3d_plugin_api: ^1.0.0-rc.1',
+    if (kind == PluginKind.tool) '  flutter3d_mcp: ^1.0.0-rc.1',
+  ];
+  final devDependencies = <String>[
+    '  flutter3d_conformance: ^1.0.0-rc.1',
+  ];
+const String _backendPubspec = '''
+dependencies:
+  flutter3d_hardware: ^1.0.0-rc.1
+
+dev_dependencies:
+  test: ^1.25.0
+''';
+""");
+  fires(
+    'the runtime is not a tool',
+    templateDeps.contains('flutter3d_mcp') &&
+        templateDeps.contains('flutter3d_hardware'),
+    'a plugin template depending on the agent servers',
+  );
+  quiet(
+    'the runtime is not a tool',
+    !templateDeps.contains('flutter3d_conformance') &&
+        !templateDeps.contains('test'),
+    'a template\'s dev dependencies',
+    'a test may drive a tool; only what a game resolves is asked about',
+  );
+
   // The applications: a demo on an editor's core is found, the modeller on
   // its own document layer is not; and an application on another is in its
   // own layer, which the layers refuse.

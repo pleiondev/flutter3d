@@ -3,7 +3,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'tool_spec.dart';
+import 'package:flutter3d_plugin_api/tools.dart';
 
 /// What a tool call actually did, and the sentence to say about it.
 ///

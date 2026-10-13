@@ -789,8 +789,9 @@ units and the files above.
 needs a newer minor than the engine provides. Its minor moves in the
 release that adds anything a plugin can call: a member of
 `flutter3d_plugin_api`, `flutter3d_fields` or `flutter3d_plugin_runtime`,
-or of a registry another package hands a plugin (`McpTools`,
-`RendererSteps`, `ModelDecoders`). A structure rule compares those
+or of a registry another package hands a plugin (`RendererSteps`,
+`ModelDecoders`); `McpTools` and the tool values are the plugin API's own,
+in `tools.dart`, beside no server. A structure rule compares those
 snapshots with the last 1.x release and fails while the number has not
 moved. A plugin writes the number it was written against as a literal,
 `PluginApiVersion(1, 0)`, never `current`.

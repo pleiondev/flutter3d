@@ -122,6 +122,34 @@ void main() {
         expect(options.contains('flutter3d_lints'), kind.simulates);
       });
 
+      test('$kind puts no tool into the game that ships it', () {
+        // A plugin is a dependency of a game. Mutation: have the tool
+        // template depend on `flutter3d_mcp` for `McpTools` again — every
+        // game that ships it resolves the agent servers.
+        final pubspec = pluginTemplate(
+          name: _name,
+          kind: kind,
+        )['pubspec.yaml']!;
+        final runtime = pubspec.substring(
+          pubspec.indexOf('\ndependencies:'),
+          pubspec.indexOf('\ndev_dependencies:'),
+        );
+        for (final tool in <String>[
+          'flutter3d_mcp',
+          'flutter3d_editor_core',
+          'flutter3d_build',
+          'dart_mcp',
+        ]) {
+          expect(runtime, isNot(contains('  $tool:')), reason: tool);
+        }
+        if (kind == PluginKind.tool) {
+          expect(
+            pluginTemplate(name: _name, kind: kind)['lib/$_name.dart'],
+            contains("import 'package:flutter3d_plugin_api/tools.dart';"),
+          );
+        }
+      });
+
       test('$kind is published under the catalogue\'s topic', () {
         // Mutation: drop the topic. The catalogue, read from pub.dev by
         // topic, never lists the package.

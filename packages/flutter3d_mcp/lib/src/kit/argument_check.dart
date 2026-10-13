@@ -17,8 +17,7 @@
 library;
 
 import 'package:dart_mcp/server.dart';
-
-import 'tool_spec.dart';
+import 'package:flutter3d_plugin_api/tools.dart';
 
 /// Why [arguments] are not a call to [tool], or null when they are.
 String? refuseArguments(ToolSpec tool, Map<String, Object?> arguments) {

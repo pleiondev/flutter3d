@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **New: `tools.dart`, what a plugin hands an agent.** `McpTools`,
+  `McpToolRegistry`, `ProjectTool`, `ProjectToolRun`, `ToolCall`,
+  `SessionToolCall`, `ToolSpec`, `ToolHints`, `ToolResult` and its content
+  types live here, over this package alone, and `flutter3d_mcp` re-exports
+  them under the imports it had. A plugin that brings tools no longer puts
+  the agent servers into the game that ships it.
 - **`PluginApiVersion.current` says when it moves.** Its minor moves in
   the release that adds anything a plugin can call, in this package,
   `flutter3d_fields`, `flutter3d_plugin_runtime` or a registry another
