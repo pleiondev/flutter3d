@@ -168,7 +168,7 @@ void main() {
       '_ledger.takeFrame(deviceLost: _isLost);',
       "'uncapturederror',",
       '_watchBrowser();',
-      'Future<String?> debugDrainErrors([String where = \'\']) =>',
+      'Future<String?> debugDrainErrors({String where = \'\'}) =>',
     ]) {
       expect(source, contains(wired), reason: wired);
     }
