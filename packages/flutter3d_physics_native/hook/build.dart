@@ -10,8 +10,8 @@
 // sources with the same flags.
 //
 // Then, when the application asks for them, the GPU passes, `csrc/gpu/`, as
-// a library of their own, linked with wgpu-native, which `wgpu_native.dart`
-// beside this fetches for the target: the one pinned release the compute
+// a library of their own, linked with wgpu-native, which
+// `tool/hook/wgpu_native.dart` fetches for the target: the one pinned release the compute
 // sidecar links too, from a copy of the same file. An application asks in
 // its pubspec:
 //
@@ -28,7 +28,7 @@ import 'package:hooks/hooks.dart';
 import 'package:logging/logging.dart';
 import 'package:native_toolchain_c/native_toolchain_c.dart';
 
-import 'wgpu_native.dart';
+import '../tool/hook/wgpu_native.dart';
 
 /// The core's sources, as `tool/build_wasm.dart` and the C tests list them.
 const List<String> coreSources = <String>[

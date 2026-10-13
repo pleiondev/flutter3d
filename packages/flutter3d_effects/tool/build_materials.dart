@@ -8,7 +8,7 @@ import 'dart:io';
 import 'package:flutter3d_build_hooks/flutter3d_build_hooks.dart';
 import 'package:flutter3d_core/formats.dart';
 
-import '../hook/material_bundles.dart';
+import 'hook/material_bundles.dart';
 
 void main() {
   try {

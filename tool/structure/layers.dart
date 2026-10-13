@@ -363,8 +363,8 @@ List<(String, String)> simulationImportProblems(
 /// one release, its checksums and the unpacking, in each package that links
 /// wgpu-native, so neither depends on the other for it.
 const List<String> wgpuFetchCopies = <String>[
-  'flutter3d_wgpu/hook/wgpu_native.dart',
-  'flutter3d_physics_native/hook/wgpu_native.dart',
+  'flutter3d_wgpu/tool/hook/wgpu_native.dart',
+  'flutter3d_physics_native/tool/hook/wgpu_native.dart',
 ];
 
 /// The packages of [forbidden] that a package of [stack] resolves at run

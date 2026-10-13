@@ -9,7 +9,7 @@ import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
-import '../hook/material_bundles.dart';
+import '../tool/hook/material_bundles.dart';
 
 GraphicsDevice softwareDevice() => CpuDevice(
   width: 32,

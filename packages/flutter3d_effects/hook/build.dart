@@ -6,7 +6,7 @@ import 'dart:io';
 import 'package:flutter3d_build_hooks/flutter3d_build_hooks.dart';
 import 'package:hooks/hooks.dart';
 
-import 'material_bundles.dart';
+import '../tool/hook/material_bundles.dart';
 
 void main(List<String> arguments) async {
   await build(arguments, (input, output) async {

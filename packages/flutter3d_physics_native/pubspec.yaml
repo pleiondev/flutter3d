@@ -32,7 +32,7 @@ dependencies:
   # `hooks` are what the hook speaks; `logging` is what the builder reports
   # through.
   # When the application asks for the GPU passes (the user define `gpu`),
-  # the hook fetches wgpu-native through `hook/wgpu_native.dart`: the one
+  # the hook fetches wgpu-native through `tool/hook/wgpu_native.dart`: the one
   # pinned release, with its checksums, that the compute sidecar links too.
   # `archive` unpacks the release and `crypto` checks its sha256.
   archive: ^4.2.0

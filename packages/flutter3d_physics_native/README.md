@@ -50,7 +50,7 @@ hooks:
       gpu: true
 ```
 
-Then the hook downloads a pinned wgpu-native release for the target from GitHub, checks the archive against the sha256 written in `hook/wgpu_native.dart` (the same pinned release the compute sidecar of `flutter3d_wgpu` links, from a copy of the same file), and keeps it in the hooks' shared output, so it is fetched once. Only the static library is used, so nothing extra has to be found at run time. If there is no release for the target, no network, or the checksum is wrong, the hook says so and builds the core alone; `NativeGpu.open()` then throws `GpuUnavailableException` and particles run on the CPU.
+Then the hook downloads a pinned wgpu-native release for the target from GitHub, checks the archive against the sha256 written in `tool/hook/wgpu_native.dart` (the same pinned release the compute sidecar of `flutter3d_wgpu` links, from a copy of the same file), and keeps it in the hooks' shared output, so it is fetched once. Only the static library is used, so nothing extra has to be found at run time. If there is no release for the target, no network, or the checksum is wrong, the hook says so and builds the core alone; `NativeGpu.open()` then throws `GpuUnavailableException` and particles run on the CPU.
 
 What it costs: the core alone is about 0.5 MB (`libf3d_physics`, macOS arm64, 2026-10-13); `f3d_gpu`, with wgpu-native in it, is about 11 MB more, and a download at the first build. An application that does not ask pays neither, and one with the compute sidecar too ships a second copy of wgpu-native inside `f3d_wgpu`.
 

@@ -1,9 +1,9 @@
 // Compiles the compute sidecar's C surface in `csrc/` into the code asset
 // `lib/src/wgpu_bindings.dart` binds, with wgpu-native linked in.
 //
-// wgpu-native is the pinned release `wgpu_native.dart` beside this fetches,
+// wgpu-native is the pinned release `tool/hook/wgpu_native.dart` fetches,
 // the one `flutter3d_physics_native` links into its GPU passes too, from a
-// copy of the same file under its own `hook/`. With the
+// copy of the same file under its own `tool/hook/`. With the
 // C compiler the target already uses: Xcode's clang on Apple platforms, the
 // NDK's on Android, MSVC or clang on Windows, the system's on Linux. Where
 // there is no wgpu-native for the target, or no network to fetch it, the
@@ -14,7 +14,7 @@ import 'package:hooks/hooks.dart';
 import 'package:logging/logging.dart';
 import 'package:native_toolchain_c/native_toolchain_c.dart';
 
-import 'wgpu_native.dart';
+import '../tool/hook/wgpu_native.dart';
 
 void main(List<String> args) async {
   await build(args, (input, output) async {
