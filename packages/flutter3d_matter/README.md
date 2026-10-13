@@ -27,10 +27,10 @@ moves them.
   MaterialX).
 - **`MatterState`**: what one body of a material is like now, an open
   map of namespaced quantities (`f3d.temperature`, `f3d.wetness`,
-  `<pluginId>.charring`) and a phase. The material stays the `const`
+  `<namespace>.charring`) and a phase. The material stays the `const`
   reference.
 - **`MaterialCatalog`**: the materials an engine knows, by a namespaced id:
-  `f3d.<name>` for the engine's own (`Materials`), `<pluginId>.<name>` for
+  `f3d.<name>` for the engine's own (`Materials`), `<namespace>.<name>` for
   a plugin's, which it adds through `host.registry<MaterialCatalog>()`;
   `byExternal(space, id)` finds one by another system's id, `contact`
   gives what two of them do where they meet, and `checkMaterialCatalog`

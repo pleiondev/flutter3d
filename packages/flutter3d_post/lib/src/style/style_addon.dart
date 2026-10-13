@@ -73,9 +73,11 @@ final class ViewportShadingAddon extends RenderStepAddon {
 /// model a material picks by the name `Toon`.
 ///
 /// **This package's, and the same constant as `LightingModel.toon`**, which
-/// the kernel keeps as a stable alias for 1.x: its stages are still compiled
-/// into every backend's engine bundle, so a material naming `Toon` draws
-/// whether or not [ToonLightingAddon] is installed. The addon is the model
+/// the kernel keeps as a stable alias for 1.x: its stages are in every
+/// backend's full engine bundle, and in a project's own bundle when the
+/// project or a plugin it depends on asks for `toon`
+/// (`ShaderStageNeed.toon`) in its `shaders:`, so a material
+/// naming `Toon` draws whether or not [ToonLightingAddon] is installed. The addon is the model
 /// registered the way any plugin's is, through `LightingModels`.
 const LightingModel toonLighting = LightingModel('Toon', 'Toon');
 

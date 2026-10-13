@@ -63,7 +63,7 @@ The 7 plugin checks:
   suite, so it takes the median of seven batches and allows the declared
   budget and nothing more.
 - **materials**: every physical material the plugin adds to the engine's
-  `MaterialCatalog` is under its own id (`<pluginId>.<name>`), names a
+  `MaterialCatalog` is under its own id (`<namespace>.<name>`), names a
   `source` for each property group, gives a liquid's or a gas's density and
   viscosity, and keeps every number in SI within what anything real has, so a
   density in g/cm³ or a temperature in °C is caught. Each pair it measures

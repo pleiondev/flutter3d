@@ -152,6 +152,7 @@ tools are listed in the
 | [`apps/flutter3d_demo_racing`](apps/flutter3d_demo_racing) | The third game: a circuit, three rivals and the lap you drove before, drawn beside the one you are driving |
 | [`apps/flutter3d_demo_strategy`](apps/flutter3d_demo_strategy) | A map, two sides and a match played to a finish, with a headless test that plays the recording back. Desktop, web, Android and iOS |
 | [`apps/flutter3d_demo_arcade`](apps/flutter3d_demo_arcade) | Meteor Yard: a top-down ship over a 3D yard, with Flame drawing the ship and the bots and every bridge in `flame_flutter3d` doing real work at once |
+| [`apps/flutter3d_demo_river`](apps/flutter3d_demo_river) | River Sortie: a jet up a river that never ends, a Flame game from end to end with flutter3d drawing it and doing nothing else. macOS, web, Android and iOS |
 | [`apps/flutter3d_demo_sandbox`](apps/flutter3d_demo_sandbox) | A first-person sandbox on `flutter3d_voxel`: walk the hills, dig a block out, put one back from a hotbar of four, and find the world as you left it on the next launch |
 | [`apps/flutter3d_demo_water`](apps/flutter3d_demo_water) | A valley on the physics core's water: a spring, a stream down a plateau, a waterfall that falls as a sheet and drags air into the pond below, stones and a log to throw in, and a bonfire on the bank that burns and spreads by the core's heat. macOS |
 | [`apps/flutter3d_demo_hollow`](apps/flutter3d_demo_hollow) | Cobble Hollow, a stone-age valley: a car on stone rollers, a long-necked crane at the quarry, a river over a waterfall into a lagoon with rafts on it, and a volcano whose red-hot bombs lodge in the thatch and set the village alight. Desktop, web, Android and iOS |
@@ -265,7 +266,7 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-There are 14832 tests across 62 packages and 18 applications. The
+There are 14834 tests across 62 packages and 18 applications. The
 only ones that need a GPU are the Impeller half of the golden set. The other
 half is rendered by the software backend, which is what makes 96 scenes
 checkable in a headless run.

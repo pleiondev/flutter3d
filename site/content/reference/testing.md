@@ -1,17 +1,17 @@
 ---
-description: Four independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 14832 tests need a GPU.
+description: Four independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 14834 tests need a GPU.
 ---
 
 # Testing
 
-14832 tests across 62 packages and 18 applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer. The README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+14834 tests across 62 packages and 18 applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer. The README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
 | `flutter3d` | 1765 | | `apps/flutter3d_demo_sandbox` | 18 |
 | `flutter3d_voxel` | 34 | | `flutter3d_mesh` | 601 |
 | `apps/flutter3d_modeler` | 1753 | | `flutter3d_sim` | 989 |
-| `pad_input` | 73 | | `flutter3d_core` | 1124 |
+| `pad_input` | 73 | | `flutter3d_core` | 1125 |
 | `apps/flutter3d_lab_pendulum` | 21 | | `apps/flutter3d_demo_reef` | 4 |
 | `apps/flutter3d_lab_incident` | 13 | | `flutter3d_game_shooter` | 87 |
 | `flutter3d_audio_core` | 98 | | `flutter3d_plugin_api` | 77 |
@@ -35,7 +35,7 @@ description: Four independent golden sets, mutation-checking every new test, det
 | `apps/flutter3d_lesson_viewer` | 61 | | `apps/flutter3d_stereo_lesson_viewer` | 6 |
 | `flame_flutter3d` | 141 | | `apps/flutter3d_showcase` | 90 |
 | `flame_multiplayer` | 23 | | `flame_multiplayer_dashwire` | 6 |
-| `flutter3d_plugin_runtime` | 82 | | `flutter3d_lints` | 13 |
+| `flutter3d_plugin_runtime` | 83 | | `flutter3d_lints` | 13 |
 | `flutter3d_conformance` | 31 | | `flutter3d_camera` | 31 |
 | `flutter3d_education` | 37 | | `flutter3d_game_kit` | 38 |
 | `flutter3d_foundation` | 72 | | `flutter3d_matter` | 61 |
@@ -47,7 +47,7 @@ description: Four independent golden sets, mutation-checking every new test, det
 | `flutter3d_fields` | 16 | | `apps/flutter3d_playground` | 9 |
 | `flutter3d_education_lti` | 34 | | | |
 
-The rows sum to 14749 rather than 14832: the remaining 83 live in `packages/*/example/test`, which the count includes and this table does not, among them the two seeds a new project starts from, `packages/flutter3d_app/example` and `packages/flutter3d_game/example`, and the chemistry bench, `packages/flutter3d_education/example`.
+The rows sum to 14751 rather than 14834: the remaining 83 live in `packages/*/example/test`, which the count includes and this table does not, among them the two seeds a new project starts from, `packages/flutter3d_app/example` and `packages/flutter3d_game/example`, and the chemistry bench, `packages/flutter3d_education/example`.
 
 `flutter3d_samples` is not in the table and has no `test/` at all: it is test data with two path constants over it, and other packages' decoder tests are what exercise it. `flutter3d_conformance` is missing for a different reason: it is invoked as a script harness rather than through `flutter test`, so it does not surface in a grep of `test(` calls either. See below for what that cost once.
 
@@ -331,7 +331,13 @@ A run that averages sixty frames a second can still stop for a tenth of a second
 tool/pacing.sh                                  # macOS through Impeller, the sample run
 tool/pacing.sh -d <device-id> --label a55       # a phone
 tool/pacing.sh --run path/to/run.f3drun --repeats 5 --budget 2000
+tool/pacing.sh --demo racing -d <device-id> --warm-up 60 --seconds 120 \
+  --fail-on p50=16.7,p99=33.3,over50=0.1,max=100,rssGrowth=1.10,rssEnd=400
 ```
+
+`--demo` picks the game: `shooter` (the dungeon, the default), `platformer` or `racing`, each played by its own application's `integration_test/pacing_test.dart` from its own tape in `site/assets/samples/`. The report of the platformer and the racing is labelled `<device>-<demo>` unless `--label` says otherwise. `--seconds` and `--warm-up` size the run in seconds of play: the tape is looped in as many whole passes as cover them, and the warm-up's passes are played and not counted. Without `--seconds` the run is `--repeats` passes.
+
+`--fail-on` holds the run to thresholds in place of "no frame over 50 ms". `p50`, `p99` and `max` are in milliseconds, `over50` is the share of frames over the line in per cent, `rssGrowth` is the resident memory at the end over the memory 30 s into the run, and `rssEnd` is the resident memory at the end in MB. A value on the line passes. The memory is read once a second while the run plays, through `dumpsys meminfo` on Android and `ps` on macOS; on any other device it is not read, and a memory threshold there fails rather than passing unread.
 
 The script plays a recorded run through the renderer in `apps/flutter3d_demo_dungeon` with `flutter drive --profile`, because `flutter test` on a device builds debug and a JIT frame time is not a frame time. It writes the report to `doc/pacing/<label>.md` (the device's id when there is no `--label`; `--no-report` keeps it out of the tree) and exits non-zero on any frame over the line. `--repeats` plays the tape that many times, three by default. `--budget` sets `RenderSettings.frameWorkBudget`, given in microseconds, and 0, the default, leaves it unlimited. The report keeps the median, the 99th percentile, the worst frame and where on the tape it fell, so a spike can be found again by replaying to it; the macOS report is committed, and the same command runs on the release phone by hand before a release.
 

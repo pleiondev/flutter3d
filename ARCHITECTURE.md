@@ -604,7 +604,7 @@ an `r32g32b32a32Float` atlas, made again only when the depth under it was
 redrawn, and the lit stages read it with one filtered tap bounded by Chebyshev's
 inequality. The depth atlas stays as it was, so static and dynamic casters still
 combine on depth, where a minimum works, and the step that does not combine
-comes after. The filter needs `supportsFloat32Filtering`, which Impeller
+comes after. The filter needs `DeviceFeature.float32Filterable`, which Impeller
 answers false: there the node is skipped as unsupported, the frame counts it in
 `FrameResult.shadowsDenied`, and the 3×3 kernel draws.
 
@@ -779,7 +779,7 @@ a depth test alone paints a node's silhouette over its own visible half — a fa
 limb behind a near one — and one monster's silhouette through the monster in
 front of it. Both draws go through the same node encoder as the lit draw, so a
 skinned monster is skinned three times and a batch is drawn as a batch. A device
-whose `supportsStencil` is false gets no silhouettes and no stencil calls; a
+whose `DeviceFeature.stencil` is false gets no silhouettes and no stencil calls; a
 scene with no layer named gets not one call more than it did before the stage
 existed, which is what keeps every other golden the bytes it was. The dungeon's
 sensor power-up is the consumer.
@@ -798,7 +798,7 @@ entirely by the software rasteriser's surface write — so the three backends
 disagreed about what was left there. A software test renders the same scene
 with `showSurfaceBuffer` twice, silhouettes on and off, and requires the two
 frames to be equal byte for byte. Since 0.8.0 the index is a promise wherever
-`supportsIndependentBlend` is true, which WebGL2 answers only with
+`DeviceFeature.independentBlend` is true, which WebGL2 answers only with
 `OES_draw_buffers_indexed`; a device answering false still ignores it, so the
 silhouette keeps its own stage.
 
@@ -1221,7 +1221,7 @@ against the depth the opaque pass now stores through `DepthTarget.loadAction`
 and `storeAction`, and a `WboitResolve` pass lays the weighted average over the
 scene, so crossing panes come out the same from either side. The test is order
 independence itself: the scene drawn with its transparent draws shuffled is the
-same bytes. A device whose `supportsIndependentBlend` is true draws the list
+same bytes. A device whose `DeviceFeature.independentBlend` is true draws the list
 once with both targets attached; elsewhere it is drawn twice, once per target.
 Under this mode the scene pass does not multisample, transparent draws write no
 depth, and contributors are drawn after the resolve, so a particle in front of a
@@ -1861,21 +1861,21 @@ A backend that gets one of these wrong compiles and draws the wrong thing.
   a draw that exists to mark the stencil blends with `BlendState.keepDestination`
   rather than discarding, and why the software rasteriser runs the fragment stage
   before applying an operation a failing fragment would otherwise have earned.
-- **Ask before requesting what a backend may not have** — `supportsWireframe`,
-  `supportsOffscreenMsaa`, `supportsStencil`, `depthRange`, `framebufferOrigin`, `hdrColorFormat`,
-  `preferredSampleCount`, `supportsMipmaps`, `supportsTextureFormat`,
-  `maxAnisotropy`, `supportsRenderToMip`, `maxColorAttachments`,
-  `supportsCompute`, `supportsGpuTimestamps`, `supportsFloat32Filtering`,
-  `supportsIndependentBlend`, `hdrOutputFormats`, and the storage mode, sample count,
+- **Ask before requesting what a backend may not have** — `DeviceFeature.wireframe`,
+  `DeviceFeature.offscreenMultisample`, `DeviceFeature.stencil`, `depthRange`, `framebufferOrigin`, `hdrColorFormat`,
+  `preferredSampleCount`, `DeviceFeature.manualMipmaps`, `textureFormatSupport`,
+  `maxAnisotropy`, `DeviceFeature.renderToMipLevel`, `maxColorAttachments`,
+  `DeviceFeature.compute`, `DeviceFeature.gpuTimestamps`, `DeviceFeature.float32Filterable`,
+  `DeviceFeature.independentBlend`, `hdrOutputFormats`, and the storage mode, sample count,
   type and format a `TextureHandle` carries before asking `readback` for it. A
   backend refuses loudly rather than substituting something that looks similar.
-  `setBlend`'s attachment index is honoured where `supportsIndependentBlend` is
+  `setBlend`'s attachment index is honoured where `DeviceFeature.independentBlend` is
   true and ignored elsewhere, attachment zero taking the state, so a caller
   that wants two attachments blended differently sets attachment zero first and
   the others after it, and draws the same pass on all four backends. A depth
   another pass loads must have been stored, and cannot be
   `StorageMode.deviceTransient`, which on Apple GPUs has no memory to load from.
-  `supportsRenderToMip` is the one that splits a single backend by platform:
+  `DeviceFeature.renderToMipLevel` is the one that splits a single backend by platform:
   flutter_gpu attaches a cube face everywhere and a mip level below the base
   only on Metal and Vulkan, and the renderer builds a probe's chain where it
   can and no probe where it cannot.
@@ -1973,8 +1973,8 @@ The suite runs headless against the software backend, in Chrome
 (`flutter test --platform chrome`) against WebGL2 and WebGPU, and
 `packages/flutter3d_impeller/tool/conformance.sh` runs it on a live GPU and
 returns an exit code — all four backends, the same list. Since 0.8.0 `conformanceChecks` also takes in
-`computeChecks`, which decline where `supportsCompute` is false, and a device
-answering `supportsFloat32Filtering` with true is held to both halves of it, a
+`computeChecks`, which decline where `DeviceFeature.compute` is false, and a device
+answering `DeviceFeature.float32Filterable` with true is held to both halves of it, a
 bilinear tap between float texels and a float target that renders and samples
 back, while one answering false declines. The fuzzer of [§13](#13-how-correctness-is-held) ships in the
 same package.
@@ -2137,7 +2137,7 @@ the BC1, BC3, ETC2 and ASTC encoders under `formats/ktx2/encode/`;
 Mip chains are built on the CPU by `MipChain.build` and every backend uploads
 the same bytes, because WebGL2 has `glGenerateMipmap`, Impeller has nothing of the
 kind, and a chain generated per backend is two of them agreeing by accident. Ask
-`supportsMipmaps` first: a hand-built chain samples as **black** on OpenGL ES 2
+`DeviceFeature.manualMipmaps` first: a hand-built chain samples as **black** on OpenGL ES 2
 without `GL_APPLE_texture_max_level`.
 
 A chain is not a memory saving — it costs a third more — it is an aliasing fix.
@@ -3058,9 +3058,11 @@ while Android, the browser and this package count it downwards, and the sign is
 flipped in Dart, once, under a test.
 
 `flutter3d_pointer_lock` supplies relative mouse movement, which Flutter surfaces on no
-desktop platform and does not surface in a browser either. Two backends: a method
-channel on macOS, and the browser's own Pointer Lock API through static interop,
-chosen by conditional export the way `pad_input` chooses its gamepad. Three rules
+desktop platform and does not surface in a browser either. A method channel on
+each native platform (macOS, Windows through Raw Input, Linux through an X11
+grab, Android through `requestPointerCapture`, an iPad through
+`prefersPointerLocked`), and the browser's own Pointer Lock API through static
+interop, chosen by conditional export the way `pad_input` chooses its gamepad. Three rules
 matter. A `reset` on construction, because a plugin outlives a hot restart and
 would otherwise strand the cursor with nothing left to ask for it back. Focus loss
 must **release** rather than pause, or a hidden cursor ends up over another
@@ -3677,7 +3679,7 @@ storage.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **14832 tests** across 62 packages and 18 applications |
+| Unit tests | **14834 tests** across 62 packages and 18 applications |
 | Structure rules | 101, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -4161,20 +4163,20 @@ arrangement WebGL2 already had and Impeller cannot have. Two of those
 thirty-three pass by *refusing*, and each refusal is a capability the device
 declares false rather than a check that was quietly skipped:
 
-- **`supportsBlendColor`.** OpenGL, Metal and Vulkan all split the blend
+- **`DeviceFeature.blendConstant`.** OpenGL, Metal and Vulkan all split the blend
   constant into a colour form and an alpha form and `BlendFactor` mirrors that
   split; WebGPU has `"constant"` and `"one-minus-constant"` and nothing else, so
   `BlendFactor.blendAlpha` in the colour equation is a term the hardware
   interface can ask for and this API cannot form. Nothing in the engine, the
   games or the site builds a blend constant, so the contract is untouched.
-- **`supportsWireframe`.** WebGPU has no polygon fill mode at all. A wireframe
+- **`DeviceFeature.wireframe`.** WebGPU has no polygon fill mode at all. A wireframe
   here would be line primitives and an index buffer built for them, which is the
   renderer's decision to make and not a backend's — the same answer WebGL2 gives
   for the same reason.
 **Three capabilities left that list, and between them they are the clearest
 statement in this repository of how a refusal goes wrong.**
 
-`supportsTextureFormat` answered false for every block-compressed format, on the
+`textureFormatSupport` answered false for every block-compressed format, on the
 argument that a WebGPU device gets exactly the features it asked for and this one
 asked for none of the three compression families — which was true, and was a
 description of the device's own request rather than of the API. The families are
@@ -4209,16 +4211,16 @@ is written down rather than papered over.
 `createCubeRenderTarget` answered null for a while on the argument that a cube a
 probe can draw into is only useful beside a chain it can filter into, so the two
 should arrive together — and the conformance suite disagreed, because
-`supportsCubeTextures` answering true is read as a promise that *a pass can name
+`DeviceFeature.cubeTextures` answering true is read as a promise that *a pass can name
 a face*, not merely that a sampler can read one. The backend failed that check
 rather than declining it, which is exactly the difference: a declared capability
 is the only thing that separates a limit from a gap wearing a refusal's clothes.
 Six array layers and a view per face was the whole of the fix.
 
-`supportsRenderToMip` then went on answering false beside the cube it had been
+`DeviceFeature.renderToMipLevel` then went on answering false beside the cube it had been
 paired with, and that is the other failure mode: a refusal that outlives its
 reason, which nobody goes looking behind. Lifting it took no code. WebGPU has no
-`generateMipmap`, and the engine never asks a device for one — `supportsMipmaps`
+`generateMipmap`, and the engine never asks a device for one — `DeviceFeature.manualMipmaps`
 is about uploading a chain built on the host, and a reflection probe convolves
 its own chain in `Renderer._prefilterProbe`, one full-screen pass per face and
 level. A colour target naming a face and a level is `baseArrayLayer` and

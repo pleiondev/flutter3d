@@ -174,7 +174,7 @@ over.
 
 A substance's properties are one entry, `PhysicalMaterial`, in the engine's
 `MaterialCatalog` (`flutter3d_matter`), by an id namespaced as a format's
-is: `f3d.<name>` for the engine's own (`Materials`), `<pluginId>.<name>` for
+is: `f3d.<name>` for the engine's own (`Materials`), `<namespace>.<name>` for
 a plugin's, added through `host.registry<MaterialCatalog>()` or a data
 plugin's `physicalMaterials` list (and `materialPairs`; its `materials`
 is the material language's shaders). Everything that needs a substance — a liquid's
@@ -327,7 +327,7 @@ cache that is the safe answer, and the one place a version is matched
 exactly.
 
 `format` is what the document is (`f3d.<kind>` for the engine's formats,
-`<pluginId>.<kind>` for a plugin's). `version` is that format's own number,
+`<namespace>.<kind>` for a plugin's). `version` is that format's own number,
 not the engine's. `requires` names what a reader has to understand to open
 the document at all, a plugin's component namespace for example, so an older
 reader refuses instead of dropping it. A save (`f3d.save`) requires the

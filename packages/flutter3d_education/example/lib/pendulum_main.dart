@@ -2,11 +2,13 @@
 ///
 ///     flutter run -d macos -t lib/pendulum_main.dart
 ///
-/// **One [Flutter3dView], the simulation placed apart.** The view's own loop
-/// runs the deterministic profile a game is played on; the laboratory asks
-/// for [SimulationProfile.accurate] by building its loop itself, in
+/// **One [Flutter3dView], the simulation placed apart.** The laboratory
+/// runs on [SimulationProfile.accurate], in a loop it builds itself in
 /// [pendulumSimulation], which the view places in an isolate (in the page
-/// on the web) and steps by the view's clock. What the panel shows is what
+/// on the web) and steps by the view's clock. A laboratory that wants the
+/// accurate profile on the view's own loop, inline, says so with
+/// `LoopSettings(profile: SimulationProfile.accurate)`; this one builds its
+/// own so that it can be placed apart. What the panel shows is what
 /// the laboratory's probes published: the angle, and the period measured
 /// from the crossings of the vertical beside the one the series gives.
 ///

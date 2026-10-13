@@ -1,5 +1,5 @@
-/// The four kernels every compute placement is held to, in `.f3dmat
-/// compute`, each against an answer worked out here — 1.0.
+/// The four kernels every compute placement is held to, written in the
+/// kernel language, each against an answer worked out here — 1.0.
 ///
 /// **The same bytes on every placement**, which is the claim a frame graph
 /// that moves a step between the device, the wgpu sidecar and the CPU

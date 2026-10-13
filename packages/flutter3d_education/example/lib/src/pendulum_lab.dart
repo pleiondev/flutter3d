@@ -13,10 +13,10 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// [SimulationProfile.accurate] with the pendulum in it.
 ///
 /// **A top-level function**, because the view places the simulation with
-/// `SimulationPlacement.isolate(pendulumSimulation)`: the view's own loop
-/// runs the deterministic profile a game is played on, and a laboratory
-/// that demonstrates asks for the accurate one by building its own. On the
-/// web the same function runs in the page, stepped the same way.
+/// `SimulationPlacement.isolate(pendulumSimulation)`, and a loop that runs
+/// in an isolate is built there, on the profile it asks for; inline, the
+/// view's own loop would take it from `LoopSettings.profile`. On the web the
+/// same function runs in the page, stepped the same way.
 SimulationSetup pendulumSimulation(Object? arguments) {
   final loop = EngineLoop(
     input: InputState(),

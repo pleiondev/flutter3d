@@ -43,7 +43,7 @@ host.registry<SubsystemRegistry>().register(Diffuse());
 A `FieldDeclaration` says, before anything writes a value:
 
 - **what every cell holds**: a quantity by its namespaced id, as a body's
-  material state names one (`f3d.temperature`, `<pluginId>.charring`), in a
+  material state names one (`f3d.temperature`, `<namespace>.charring`), in a
   `Unit` from `flutter3d_foundation`;
 - **where it stands**: a `FieldGrid` (cells along each axis, values per
   cell) and a `FieldTransform` (the middle of the first cell as a world

@@ -12,7 +12,7 @@
 ///
 /// So: a browser run, over the same shape the VM test asserts, plus the one
 /// thing that is new — which browser backend an ordinary web build draws
-/// through. WebGPU since 0.9.0, WebGL2 where a build passes
+/// through. WebGPU since 1.0.0, WebGL2 where a build passes
 /// `FLUTTER3D_WEBGPU=false`; run it both ways:
 ///
 ///     flutter test --platform chrome test/backend_choice_web_test.dart
