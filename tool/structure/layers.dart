@@ -5,10 +5,11 @@
 /// stands in one layer and depends at run time only on packages in layers
 /// below it, so the foundation knows nothing of the plugin contract, the
 /// physics nothing of the renderer, and the simulation nothing of a screen.
-/// The publishing order in ARCHITECTURE.md §16 is a different list: it is
-/// computed from what the pubspecs say, while this is what they are meant
-/// to say; since the boundary work emptied its list of pending exceptions
-/// (step C of `tasks/1.0-boundaries.md`), the two agree.
+/// The publishing order in ARCHITECTURE.md §16 is a different list with a
+/// different numbering: its steps are turns of the upload, each after
+/// everything its packages need, while a layer here is where a package is
+/// meant to stand. Every dependency goes down in both, and the numbers
+/// differ for many packages; neither is the other's.
 ///
 /// **What the target map leaves to a sentence is said here as a number.**
 /// The map in the task names the layers of the packages the boundary work
@@ -86,6 +87,8 @@ const Map<String, int> packageLayers = <String, int>{
   'flutter3d_conformance_render': 6,
   'flutter3d_net_webrtc': 6,
   'flame_multiplayer': 6,
+  // The LTI side of education, over the experiment it reports on.
+  'flutter3d_education_lti': 6,
   // L7: the game facade, the kits, the genres, and the tools over the
   // editor's core.
   'flutter3d_game': 7,
@@ -402,18 +405,30 @@ List<(String, String, List<String>)> simulationClosureProblems(
   return problems;
 }
 
-/// Whether [package] is part of the runtime a player's game resolves: the
-/// application, the game facade, the widgets, the kits and the genres, the
-/// elements and their views, and the audio.
+/// Whether [package] is part of the runtime a player's game resolves:
+/// every package that is not a tool ([runtimeMayNotDependOn]) or one of
+/// [notRuntime].
+///
+/// **Every package unless it says otherwise.** This was a list of the
+/// runtime's packages until 1.0.0-rc.1, so the stereo view, the Flame
+/// bridges, the network and the demo content could have depended on an
+/// editor with nothing to say so; a package added tomorrow is held to the
+/// rule today.
 bool isRuntimePackage(String package) =>
-    package == 'flutter3d_app' ||
-    package.startsWith('flutter3d_game') ||
-    const <String>{
-      'flutter3d_effects',
-      'flutter3d_elements',
-      'flutter3d_audio',
-      'flutter3d_audio_core',
-    }.contains(package);
+    !runtimeMayNotDependOn.containsKey(package) &&
+    !notRuntime.containsKey(package);
+
+/// Packages that are neither the runtime nor a tool it may not depend on,
+/// each with why: what tests a backend or a game, and what a service runs.
+const Map<String, String> notRuntime = <String, String>{
+  'flutter3d_conformance':
+      'the suite a backend and a plugin are tested against, a dev '
+      'dependency of what it tests',
+  'flutter3d_conformance_render':
+      'the drawn half of the conformance suite, a dev dependency as well',
+  'flutter3d_testing': 'a test helper, a dev dependency of a game',
+  'flutter3d_lints': 'an analyzer plugin, run by the analysis server',
+};
 
 /// The layer every application stands in: one above the highest package's,
 /// so an application may depend on any package and on no other application.

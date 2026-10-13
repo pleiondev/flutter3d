@@ -15,7 +15,7 @@ the plan disagree, the plan was revised later and this file is wrong.
 
 ## Where it stands
 
-60 packages are to be published. In the tree, 58 of them are at
+61 packages are to be published. In the tree, 59 of them are at
 `1.0.0-rc.1`, and `pad_input` and `flutter3d_pointer_lock` stay on their own line at
 0.5.0. pub.dev still has 0.8.x as the newest, and nothing of the candidate
 is published yet. The API shape,
@@ -46,7 +46,7 @@ The tag waits for:
   real source, keeps its history on a tape and scrubs it. A laboratory has
   a named analytic test with a number (a pendulum's period within 1e-4 of
   the series over 100 periods).
-- **Published.** All 60 packages on pub.dev in the layer order, the five
+- **Published.** All 61 packages on pub.dev in the layer order, the five
   names they replaced marked discontinued, and a fresh `flutter create`
   project reaching a first frame on macOS and in Chrome with
   `^1.0.0-rc.1`.

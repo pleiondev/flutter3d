@@ -114,6 +114,7 @@ run on Flutter's native platforms; most of the ones marked that way reach
 | `flutter3d_editor_play` | linux, macos, windows |
 | `flutter3d_editor_widgets` | android, ios, linux, macos, web, windows |
 | `flutter3d_education` | android, ios, linux, macos, web, windows |
+| `flutter3d_education_lti` | android, ios, linux, macos, web, windows |
 | `flutter3d_effects` | android, ios, linux, macos, web, windows |
 | `flutter3d_elements` | android, ios, linux, macos, web, windows |
 | `flutter3d_fields` | android, ios, linux, macos, web, windows |
@@ -172,7 +173,7 @@ breaks. A minor adds. A break comes only in a major, after a deprecation.
 Every public name is covered, with no experimental exceptions, and the
 snapshot in each package's `api/` is what a release is compared against.
 
-**The engine ships under one major.minor.** The 58 packages of the shelf
+**The engine ships under one major.minor.** The 59 packages of the shelf
 share a major and a minor, now the release candidate `1.0.0-rc.1`, and ask
 for `'>=1.0.0-rc.1 <1.1.0'` of each other, one minor, so a 1.1 of one never
 resolves under a 1.0 of another; an application asks with a caret. A minor
@@ -187,8 +188,8 @@ brings: the game parts (`flutter3d_game_kit`, `flutter3d_game_physics`,
 foundation types every package shares (`flutter3d_foundation`), what a world
 is made of (`flutter3d_matter`), the elements' simulation out of the effects
 (`flutter3d_elements`), and
-`flutter3d_mcp` and `flutter3d_education`, which took in five packages of
-the 0.8 shelf. That constraint
+`flutter3d_mcp` and `flutter3d_education`, which took in four packages of
+the 0.8 shelf, and `flutter3d_education_lti`, which is `flutter3d_lti`. That constraint
 admits the final 1.0.0 too, so it stays when 1.0.0 follows. The candidate
 already keeps the promise above. The interface
 packages keep lines of their own that break more rarely than the engine:

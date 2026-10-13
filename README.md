@@ -16,7 +16,7 @@ learning platform over LTI 1.3.
 [![nightly](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/pleiondev/flutter3d/badges/nightly.json)](https://github.com/pleiondev/flutter3d/actions/workflows/nightly.yml)
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 
-On pub.dev: 60 packages, published by
+On pub.dev: 61 packages, published by
 [pleion.dev](https://pub.dev/publishers/pleion.dev/packages). An application
 that draws starts with two of them,
 [`flutter3d`](https://pub.dev/packages/flutter3d), the engine, and
@@ -24,7 +24,7 @@ that draws starts with two of them,
 widgets that run it. A game starts with
 [`flutter3d_game`](https://pub.dev/packages/flutter3d_game) instead: it is
 the one facade, re-exporting the renderer, the view and what a first game
-uses of the simulation, the physics and the audio. 58 of them are at
+uses of the simulation, the physics and the audio. 59 of them are at
 `1.0.0-rc.1`, one number for all, and it goes out first as that release
 candidate, so ask for `^1.0.0-rc.1`: that resolves against every other and
 admits 1.0.0 itself, which follows. Until then pub.dev keeps 0.8.x as the
@@ -142,7 +142,8 @@ tools are listed in the
 | [`packages/flutter3d_sim`](packages/flutter3d_sim) | The simulation with no Flutter in it: `EngineLoop` and its event bus, the fixed step, the level format, entities, navigation, saves, replays and the portable arithmetic that makes a run reproduce on another machine |
 | [`packages/flutter3d_net`](packages/flutter3d_net), [`flutter3d_net_webrtc`](packages/flutter3d_net_webrtc) | Rollback netcode for two peers over `flutter3d_sim`, with the network behind one interface, and that interface over a WebRTC data channel |
 | [`packages/flutter3d_build`](packages/flutter3d_build), [`flutter3d_build_hooks`](packages/flutter3d_build_hooks) | The build hook: model and texture sources converted into what the engine loads, on every build, with a content-hash cache, and `lib/plugins.g.dart` written from the dependencies that are plugins. A package's own hook compiles its materials through `flutter3d_build_hooks`, which brings none of the rest |
-| [`packages/flutter3d_education`](packages/flutter3d_education) | Virtual laboratory simulations a server can replay with no Flutter SDK, the pendulum the first (`lab.dart`), and LTI 1.3 launch and xAPI reporting for a lesson in a learning platform: OIDC login, `id_token` checked against the platform's keys, grades back, statements out (`lti.dart`). The chemistry bench is its example. Plain Dart |
+| [`packages/flutter3d_education`](packages/flutter3d_education) | Virtual laboratory simulations a server can replay with no Flutter SDK, the pendulum the first (`lab.dart`), the experiment document and a lesson's steps. The chemistry bench is its example. Plain Dart |
+| [`packages/flutter3d_education_lti`](packages/flutter3d_education_lti) | LTI 1.3 launch and xAPI reporting for a lesson in a learning platform: OIDC login, `id_token` checked against the platform's keys, grades back, statements out. A package of its own, so what reads an experiment carries no cryptography. Plain Dart |
 | [`packages/flutter3d_voxel`](packages/flutter3d_voxel) | A world of blocks: chunks over a seeded terrain, edits saved as deltas against the seed, greedy meshes to draw, greedy boxes to collide with on either physics backend, and a navigation mesh baked again only where an edit landed. Plain Dart. [README](packages/flutter3d_voxel/README.md) |
 | [`packages/flame_flutter3d`](packages/flame_flutter3d), [`flame_flutter3d_audio`](packages/flame_flutter3d_audio) | A bridge to the Flame engine: Flame draws its layer and flutter3d its own, with transforms, lifecycle, physics contacts, input and actors kept in step between them; and the audio scene as a Flame component |
 | [`packages/flame_multiplayer`](packages/flame_multiplayer), [`flame_multiplayer_dashwire`](packages/flame_multiplayer_dashwire) | Play over a network for a game: rooms of two to eight, rollback in step, an authoritative server with predicting clients, turns, ghosts and spectators from the tape; and a dashwire connection as its wire |
@@ -180,7 +181,7 @@ too.
 
 ## Coming from 0.8
 
-1.0 changed the 0.8 API in 2063 places, 308 of them left to you; 380 are
+1.0 changed the 0.8 API in 2092 places, 308 of them left to you; 380 are
 backend internals no application called. One command does the rest:
 
 ```bash
@@ -264,7 +265,7 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-There are 14822 tests across 61 packages and 18 applications. The
+There are 14830 tests across 62 packages and 18 applications. The
 only ones that need a GPU are the Impeller half of the golden set. The other
 half is rendered by the software backend, which is what makes 96 scenes
 checkable in a headless run.
@@ -316,7 +317,7 @@ binary has not got, and binding a slot a compiled shader does not have takes
 the frame down. The message names nothing that leads back to the file that was
 edited.
 
-So `dart run tool/structure.dart` checks it: one of its 99 rules compares
+So `dart run tool/structure.dart` checks it: one of its 100 rules compares
 the bundle against the sources it was built from and says which of them are
 newer. The rule skips when there is no bundle at all, which is every fresh
 checkout and every CI run. `impellerc` is not there to build one, and a rule

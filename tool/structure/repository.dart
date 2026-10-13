@@ -148,9 +148,11 @@ const Map<String, String> flatDartPackages = <String, String>{
   'flutter3d_education':
       'a server verifies a student\'s submitted lab run the same way it '
       'verifies a game run — by replaying it, in a container with no '
-      'Flutter SDK in it; and `cloud/lti` checks a launch with the LTI '
-      'library beside it, in another. The chemistry bench that draws is '
-      'this package\'s `example/`, an application of its own',
+      'Flutter SDK in it. The chemistry bench that draws is this '
+      'package\'s `example/`, an application of its own',
+  'flutter3d_education_lti':
+      '`cloud/lti` checks a launch and files a grade with it, in a container '
+      'with no Flutter SDK in it',
   'flutter3d_voxel':
       'a sandbox\'s state is its blocks, and a server that holds or checks '
       'one reads the same edits into the same colliders and navigation the '
@@ -473,6 +475,11 @@ const Map<String, String> notARepeatableStep = <String, String>{
   'flutter3d_audio_core': 'display: a mix is recomputed once a frame',
   'pad_input': 'a device, read once a frame',
   'flutter3d_pointer_lock': 'a platform channel',
+  'flutter3d_education_lti':
+      'a cloud tool, not a step: an LTI launch is checked against the wall '
+      'clock its own `exp`/`iat` claims are written in, and an xAPI statement '
+      'or an AGS score carries the moment it was sent; nothing here is a run '
+      'a client and a server must replay to the same frame',
   'flutter3d_build':
       'a build-time tool, not a step: `dart run flutter3d_build:convert` reads a '
       'wall clock to report how long a decode or an encode took a human '
@@ -525,16 +532,6 @@ const String _drawn =
     'draws, aims a camera or names a file for a person; nothing a step runs '
     'reads what it computes';
 
-/// The LTI library's files in `flutter3d_education`, which read the wall
-/// clock: the lab library beside them is a step and is scanned, so the
-/// exemption is by file rather than the whole package's, as it was while
-/// LTI was a package of its own.
-const String _ltiClock =
-    'a cloud tool, not a step: an LTI launch is checked against the wall '
-    'clock its own `exp`/`iat` claims are written in, and an xAPI statement '
-    'or an AGS score carries the moment it was sent — nothing here is a run '
-    'a client and a server must replay to the same frame';
-
 /// Files inside a scanned package that are allowed to be unrepeatable, and why.
 const Map<String, Map<String, String>> repeatableStepExempt =
     <String, Map<String, String>>{
@@ -566,12 +563,6 @@ const Map<String, Map<String, String>> repeatableStepExempt =
             'an edit is not a step and nothing replays it, and an id only '
             'has to differ from the level\'s others; the simulation\'s own '
             '`LevelIds.fresh` takes the generator it is handed',
-      },
-      'flutter3d_education': <String, String>{
-        'lib/src/lti/lti_launch_validator.dart': _ltiClock,
-        'lib/src/lti/ags_client.dart': _ltiClock,
-        'lib/src/lti/ags_score.dart': _ltiClock,
-        'lib/src/lti/xapi_statement.dart': _ltiClock,
       },
       'flutter3d_mcp': <String, String>{
         'lib/src/kit/tool_table.dart':
@@ -919,7 +910,7 @@ boundaryEnumExempt = <String, Map<String, String>>{
         "writes the other's transform: a bridge has two ends, and a write "
         'comes from one of them',
   },
-  'flutter3d_education/lib/src/lti/ags_score.dart': <String, String>{
+  'flutter3d_education_lti/lib/src/ags_score.dart': <String, String>{
     'AgsActivityProgress':
         'closed for good, as `closedForGood` says: the five values of IMS '
         'Assignment and Grade Services 2.0: the specification carries its own '
@@ -1863,8 +1854,8 @@ const Map<String, String> openedSets = <String, String>{
   'IndexType': 'flutter3d_hardware: a class with constants',
   'InputAction': 'flutter3d_sim: an abstract final hierarchy',
   'LoadAction': 'flutter3d_hardware: a class with constants',
-  'LtiLaunchException': 'flutter3d_education: an abstract final hierarchy',
-  'LtiMessageType': 'flutter3d_education: a class with constants',
+  'LtiLaunchException': 'flutter3d_education_lti: an abstract final hierarchy',
+  'LtiMessageType': 'flutter3d_education_lti: a class with constants',
   'MapMode': 'flutter3d_hardware: a class with constants',
   'MaterialHintKind': 'flutter3d_core: an abstract final hierarchy',
   'MaterialMap': 'flutter3d_core: a class with constants',
@@ -2828,13 +2819,14 @@ final Map<String, String> thirdPartyTypeAllowed = <String, String>{
       'game through the VM service protocol, and is a tool, not a runtime',
   'flutter3d_editor_play:RPCError': '`package:vm_service`\'s, as `Event`',
   'flutter3d_editor_play:VmService': '`package:vm_service`\'s, as `Event`',
-  'flutter3d_education:Client':
+  'flutter3d_education_lti:Client':
       'the HTTP client of `package:http`, which an LMS client takes so a '
       'test or a platform with its own client passes one',
-  'flutter3d_education:RSAPrivateKey':
+  'flutter3d_education_lti:RSAPrivateKey':
       '`pointycastle`\'s: an LTI tool signs with the key its platform '
       'registered, read from a PEM it already holds',
-  'flutter3d_education:RSAPublicKey': '`pointycastle`\'s, as `RSAPrivateKey`',
+  'flutter3d_education_lti:RSAPublicKey':
+      '`pointycastle`\'s, as `RSAPrivateKey`',
   'flutter3d_game:Client':
       'the HTTP client of `package:http`, which the cloud save takes so a '
       'test or a platform with its own client passes one',

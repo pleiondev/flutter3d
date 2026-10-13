@@ -213,7 +213,7 @@ copy, and is the bridge into the widget tree.
 
 ## 3. The package map
 
-61 packages and 18 applications in one pub workspace, with the
+62 packages and 18 applications in one pub workspace, with the
 packages' examples beside them — one `flutter pub get` for the repository.
 
 ### 3.1 The layering rule
@@ -271,7 +271,8 @@ point of §3.3.
 | `flutter3d_net` | The network core on the simulation: one `PeerWire`, rooms, `WireHello` and `RollbackSession` for two machines or a party, the relay's WebSocket transport, and parties found by code. Plain Dart |
 | `flutter3d_net_webrtc` | A `flutter3d_net` wire over a WebRTC data channel: rollback peer to peer, with the relay carrying only the handshake |
 | `flutter3d_voxel` | A world of blocks: chunks, a seeded terrain, edits kept as deltas, greedy meshes to draw and boxes to collide with, and the navigation mesh baked again where an edit landed. Plain Dart |
-| `flutter3d_education` | Virtual laboratory simulations built on `flutter3d_sim`'s stepping and recording primitives (`lab.dart`, `edu-04`'s pendulum the first), and LTI 1.3 launch, grade passback and xAPI reporting (`lti.dart`); the chemistry bench is its `example/`. `flutter3d_lab` and `flutter3d_lti` until 1.0.0-rc.1. Plain Dart |
+| `flutter3d_education` | Virtual laboratory simulations built on `flutter3d_sim`'s stepping and recording primitives (`lab.dart`, `edu-04`'s pendulum the first), the experiment document and a lesson's steps; the chemistry bench is its `example/`. `flutter3d_lab` until 1.0.0-rc.1. Plain Dart |
+| `flutter3d_education_lti` | LTI 1.3 launch, grade passback and xAPI reporting, and `CheckReporter`, which carries a lesson's answers to both; what `cloud/lti` serves a launch with. `flutter3d_lti` until 1.0.0-rc.1, then `flutter3d_education`'s `lti.dart`; a package of its own so that what reads an experiment resolves no cryptography. Plain Dart |
 | `flutter3d_game` | What a game adds to an application that is not a widget: keyboard, gamepad and touch input, accessibility settings, the run and its timeline, the settings and their controller, rebinding, the saves, and actor and fixture visuals. Its widgets are `flutter3d_game_ui`'s. Stands on `flutter3d_app` and `flutter3d_sim`. The engine's one facade (`reexportsAllowed` in `tool/structure/boundaries.dart`): re-exports `flutter3d` through a list of every name it exports (a name added to `flutter3d` reaches the facade once somebody lists it) and, by name, from `flutter3d_app` `Flutter3dView`, `Flutter3dEngine` and the level loading, from `flutter3d_sim` the level, `EngineLoop` and `InputState`, from `flutter3d_physics` the collision world, and from `flutter3d_audio_core` the listener, emitters and sound bank; nothing else of them |
 | `flutter3d_game_shooter` | Shooter rules: weapons, hitscan, projectiles, inventory, monsters |
 | `flutter3d_game_platformer` | Platformer rules: runner, coins, hazards, checkpoints |
@@ -390,7 +391,7 @@ a caller for that cannot supply a Flutter SDK.
 
 ### 3.3 Rules that are scanned, not remembered
 
-`tool/structure.dart` walks `packages/` and `apps/` and enforces 99 rules
+`tool/structure.dart` walks `packages/` and `apps/` and enforces 100 rules
 as the first step of CI. All but two read source text in under a second; the
 two snapshot rules run `tool/api` over every published package (its API, and
 the tools it offers agents — see §16), and CI asks for both again by name once
@@ -3676,8 +3677,8 @@ storage.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **14822 tests** across 61 packages and 18 applications |
-| Structure rules | 99, `dart run tool/structure.dart`, the first CI step |
+| Unit tests | **14830 tests** across 62 packages and 18 applications |
+| Structure rules | 100, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
 ### 13.1 The published-enum boundary
@@ -4771,7 +4772,7 @@ constraint on the first moved. `flutter3d_samples` kept a line of its own until
 - **Licence: MIT**, `Copyright (c) 2026 Dmitrii Zolotov`. One `LICENSE` at the root
   and a copy in every package, because pub wants the file inside the archive.
 - `LICENSE`, `CHANGELOG.md`, `README.md`, `repository:` and `homepage:` in all
-  61 packages, the unpublished ones included — `pub publish
+  62 packages, the unpublished ones included — `pub publish
   --dry-run` is what `tool/publish_check.sh` asks of every one of them, so a
   package is ready on the day it is written rather than on release day.
 - **`dart format` is a CI step**, second in the order and reported by
@@ -4792,33 +4793,37 @@ constraint on the first moved. `flutter3d_samples` kept a line of its own until
 (Must 7 of [`tasks/1.0-arch-review.md`](tasks/1.0-arch-review.md)). A
 package stands one layer past the deepest package in its `dependencies:`, so
 everything it needs at run time is on pub.dev before it is uploaded; within a
-layer, the packages go in the order written, which puts a dev dependency in
-the same layer first:
+step, the packages go in the order written, which puts a dev dependency in
+the same step first. A step is a turn of the upload, not a layer: the
+layers of `packageLayers` (`tool/structure/layers.dart`) say where a package
+is meant to stand, the steps only that nothing is uploaded before what it
+needs, so the two numberings differ for many packages and neither is the
+other's:
 
-1. L0: `flutter3d_foundation`, `flutter3d_lints`, `flutter3d_samples`,
+1. `flutter3d_foundation`, `flutter3d_lints`, `flutter3d_samples`,
    `pad_input`, `flutter3d_pointer_lock`
-2. L1: `flutter3d_hardware`, `flutter3d_plugin_api`, `flutter3d_hub`
-3. L2: `flutter3d_matter`, `flutter3d_shaders`, `flutter3d_fields`
-4. L3: `flutter3d_core`, `flutter3d_audio_core`, `flutter3d_cpu`,
+2. `flutter3d_hardware`, `flutter3d_plugin_api`, `flutter3d_hub`
+3. `flutter3d_matter`, `flutter3d_shaders`, `flutter3d_fields`
+4. `flutter3d_core`, `flutter3d_audio_core`, `flutter3d_cpu`,
    `flutter3d_impeller`, `flutter3d_physics`, `flutter3d_webgl`,
    `flutter3d_webgpu`, `flutter3d_wgpu`
-5. L4: `flutter3d_audio`, `flutter3d_sim`
-6. L5: `flutter3d_build_hooks`, `flutter3d_camera`, `flutter3d_conformance`,
+5. `flutter3d_audio`, `flutter3d_sim`
+6. `flutter3d_build_hooks`, `flutter3d_camera`, `flutter3d_conformance`,
    `flutter3d_editor_play`, `flutter3d_editor_widgets`,
    `flutter3d_education`, `flutter3d_level_scene`, `flutter3d_mesh`,
    `flutter3d`, `flutter3d_net`, `flutter3d_particles`,
    `flutter3d_physics_native`, `flutter3d_post`, `flutter3d_voxel`
-7. L6: `flame_multiplayer`, `flutter3d_editor_core`, `flutter3d_elements`,
+7. `flame_multiplayer`, `flutter3d_editor_core`, `flutter3d_elements`,
    `flutter3d_game_platformer`, `flutter3d_game_racing`,
    `flutter3d_game_shooter`, `flutter3d_model_core`, `flutter3d_net_webrtc`,
    `flutter3d_plugin_runtime`, `flutter3d_app`, `flutter3d_testing`,
-   `flutter3d_conformance_render`
-8. L7: `flame_multiplayer_dashwire`, `flutter3d_effects`, `flutter3d_game`,
+   `flutter3d_conformance_render`, `flutter3d_education_lti`
+8. `flame_multiplayer_dashwire`, `flutter3d_effects`, `flutter3d_game`,
    `flutter3d_game_kit`, `flutter3d_game_strategy`, `flutter3d_mcp`,
    `flutter3d_stereo`
-9. L8: `flame_flutter3d`, `flutter3d_build`, `flutter3d_game_physics`,
+9. `flame_flutter3d`, `flutter3d_build`, `flutter3d_game_physics`,
    `flutter3d_game_ui`, `flutter3d_sim_mcp`
-10. L9: `flame_flutter3d_audio`
+10. `flame_flutter3d_audio`
 11. Not published (`publish_to: none`), and never a dependency of the above,
     not even a dev dependency: `flutter3d_demo_content`
 

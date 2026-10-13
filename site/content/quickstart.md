@@ -236,7 +236,7 @@ To try the level format before making anything, the [playground](/playground/) d
 
 ## Working on the engine itself
 
-Everything above uses the packages from pub.dev. To change the engine, run its demos from source or send a change, clone the repository. It is a [pub workspace](https://dart.dev/tools/pub/workspaces): one resolve covers all 61 packages and 18 applications against a single lock file.
+Everything above uses the packages from pub.dev. To change the engine, run its demos from source or send a change, clone the repository. It is a [pub workspace](https://dart.dev/tools/pub/workspaces): one resolve covers all 62 packages and 18 applications against a single lock file.
 
 ```bash
 git clone https://github.com/pleiondev/flutter3d.git
@@ -261,4 +261,4 @@ tool/ci.sh                                   # shaders, analyze, every test
 (cd packages/flutter3d_physics && dart test) # plain Dart, no Flutter needed
 ```
 
-There are 14822 tests across 61 packages and 18 applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, so 96 scenes stay checkable in a headless run. [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md) says how a change is written and tested.
+There are 14830 tests across 62 packages and 18 applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, so 96 scenes stay checkable in a headless run. [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md) says how a change is written and tested.
