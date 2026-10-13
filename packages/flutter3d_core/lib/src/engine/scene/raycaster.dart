@@ -31,8 +31,8 @@ final class HitResult {
     required this.uv,
     required this.triangleIndex,
     required this.approximate,
-    required WorldPosition origin,
-  }) : _origin = origin;
+    required this._origin,
+  });
 
   /// The mesh hit.
   final MeshNode? node;

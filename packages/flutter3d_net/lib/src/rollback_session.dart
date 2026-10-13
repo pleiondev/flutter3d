@@ -497,11 +497,10 @@ final class RollbackStep {
   const RollbackStep({
     required this.step,
     required this.frames,
-    Set<int> predicted = const <int>{},
-    Set<int> disconnected = const <int>{},
+    this._predicted = const <int>{},
+    this._disconnected = const <int>{},
     required this.resimulated,
-  }) : _predicted = predicted,
-       _disconnected = disconnected;
+  });
 
   /// The step's number, the same on every machine.
   final int step;

@@ -6,7 +6,6 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_mcp/kit.dart' show ProjectRoot;
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 /// Which of the renderer's own debug outputs a frame is asked for — the four
 /// ways `RenderSettings` already knows how to answer "why is the frame

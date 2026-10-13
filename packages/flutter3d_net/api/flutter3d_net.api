@@ -213,7 +213,7 @@ final class RollbackStats
 final class RollbackStep
   InputStatus statusOf(int slot)
   String toString()
-  const RollbackStep({required this.step, required this.frames, Set<int> predicted = const <int>{}, Set<int> disconnected = const <int>{}, required this.resimulated})
+  const RollbackStep({required this.step, required this.frames, Set<int> this._predicted = const <int>{}, Set<int> this._disconnected = const <int>{}, required this.resimulated})
   final Map<int, Map<String, Object?>> frames
   final bool resimulated
   final int step

@@ -24,7 +24,6 @@ import 'package:flutter/services.dart' show StringCodec;
 import 'package:flutter3d/flutter3d.dart' as engine show AnimationPose;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_hardware/testing.dart';
-import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
