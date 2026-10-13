@@ -343,8 +343,8 @@ const Map<String, String> simulationMayNotImport = <String, String>{
 /// A step that imports the renderer's core has a scene node within reach,
 /// and a server that replays the run resolves a renderer it never opens;
 /// the elements' simulation was split from its views so that it does not.
-/// The layers already keep the pubspecs right; this reads the sources, so
-/// an import through a dependency of a dependency is caught too.
+/// This reads the sources; [simulationClosureProblems] reads the pubspecs'
+/// closure, since the layers allow a dependency on a lower layer that draws.
 List<(String, String)> simulationImportProblems(
   Map<String, List<String>> imports, {
   required Set<String> forbidden,
@@ -355,6 +355,52 @@ List<(String, String)> simulationImportProblems(
           case final String package when forbidden.contains(package))
         (path, package),
 ];
+
+/// The build hooks' copies of the wgpu-native fetch, under `packages/`:
+/// one release, its checksums and the unpacking, in each package that links
+/// wgpu-native, so neither depends on the other for it.
+const List<String> wgpuFetchCopies = <String>[
+  'flutter3d_wgpu/hook/wgpu_native.dart',
+  'flutter3d_physics_native/hook/wgpu_native.dart',
+];
+
+/// The packages of [forbidden] that a package of [stack] resolves at run
+/// time through [dependencies] (each package's run-time `dependencies:`),
+/// directly or through a dependency of a dependency, as `(package,
+/// forbidden one, the path to it)`.
+///
+/// **The imports are not enough.** A package that imports nothing drawn
+/// still makes a server that replays the run resolve, and build, whatever
+/// its pubspec names: the physics core's hook once depended on the compute
+/// sidecar, and through it on the graphics vocabulary and the shaders.
+List<(String, String, List<String>)> simulationClosureProblems(
+  Map<String, Set<String>> dependencies, {
+  required Set<String> stack,
+  required Set<String> forbidden,
+}) {
+  final problems = <(String, String, List<String>)>[];
+  for (final start in stack.toList()..sort()) {
+    // Breadth first, so the path named is a shortest one.
+    final via = <String, List<String>>{
+      start: <String>[start],
+    };
+    final queue = <String>[start];
+    while (queue.isNotEmpty) {
+      final at = queue.removeAt(0);
+      for (final next
+          in (dependencies[at] ?? const <String>{}).toList()..sort()) {
+        if (via.containsKey(next)) continue;
+        via[next] = <String>[...via[at]!, next];
+        if (forbidden.contains(next)) {
+          problems.add((start, next, via[next]!));
+        } else {
+          queue.add(next);
+        }
+      }
+    }
+  }
+  return problems;
+}
 
 /// Whether [package] is part of the runtime a player's game resolves: the
 /// application, the game facade, the widgets, the kits and the genres, the
@@ -480,6 +526,48 @@ const Map<String, String> unstableDependencyAllowed = <String, String>{};
 /// is published, and what it depends on is what 1.0.0 will.
 int? majorVersionOf(String version) =>
     int.tryParse(RegExp(r'^\s*(\d+)\.\d+\.\d+').firstMatch(version)?[1] ?? '');
+
+/// The version `pubspec.lock` ([lock]) resolves each package at, by name.
+Map<String, String> lockedVersions(String lock) => <String, String>{
+  for (final m in RegExp(
+    r'^  ([a-z0-9_]+):\n(?:    .*\n)*?    version: "([^"]+)"',
+    multiLine: true,
+  ).allMatches(lock))
+    m.group(1)!: m.group(2)!,
+};
+
+/// The names of the types [source] declares at its top level: classes,
+/// mixins, enums, extension types and typedefs, private ones left out.
+Set<String> declaredTypeNames(String source) => <String>{
+  for (final m in RegExp(
+    r'^(?:(?:abstract|base|final|interface|sealed|mixin)\s+)*'
+    r'(?:class|mixin|enum|typedef|extension\s+type)\s+([A-Z]\w*)',
+    multiLine: true,
+  ).allMatches(source))
+    m.group(1)!,
+};
+
+/// The types among [named] (each as `'<package>:<Type>'`, a third-party
+/// type a published package's snapshot names) that a dependency of that
+/// package resolved at 0.x declares, as `(key, '<package> -> <dependency>')`.
+/// [dependencies] is each package's run-time dependencies, [versions] what
+/// the lock resolves, and [typesOf] the types a third-party package
+/// declares, or null when its source is not at hand.
+List<(String, String)> zeroThirdPartyTypes(
+  Iterable<String> named, {
+  required Map<String, Set<String>> dependencies,
+  required Map<String, String> versions,
+  required Set<String>? Function(String package) typesOf,
+}) => <(String, String)>[
+  for (final key in named.toList()..sort())
+    for (final dependency
+        in (dependencies[key.split(':').first] ?? const <String>{}).toList()
+          ..sort())
+      if (versions[dependency] case final String version
+          when majorVersionOf(version) == 0)
+        if (typesOf(dependency)?.contains(key.split(':').last) ?? false)
+          (key, '${key.split(':').first} -> $dependency'),
+];
 
 /// **S6 of `tasks/1.0-seams.md`: nothing at 1.x stands on 0.x.** The
 /// run-time dependencies, as `(package, dependency)`, of every package in

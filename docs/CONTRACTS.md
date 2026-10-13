@@ -810,3 +810,28 @@ moved. A plugin writes the number it was written against as a literal,
   memory and the exported mutable globals by name, with what only the
   interpreter reaches kept apart and out of the digest. A runtime that
   counts no fuel is refused a simulating module under a bit-exact profile.
+
+## A bridge to a package at 0.x
+
+A 1.x package names a type of another package in its API only where that
+type is the point: a Flame component, a `SoLoud` a game already holds. A
+type of a package at 0.x is one whose next minor may change it, so a 1.x
+signature that names it would break with it and no major of ours would
+say so. Three packages do it on purpose, and each is a bridge whose own
+minor follows its counterpart's:
+
+- `flame_flutter3d` takes `tiled`'s `TiledMap`, `TiledObject` and
+  `TileLayer`, the map a Flame game loaded through `flame_tiled`;
+- `flame_multiplayer_dashwire` takes `dashwire`'s `WireConnection`;
+- `flutter3d_lints`' `main.dart` hands the analyzer a `Plugin` of
+  `analysis_server_plugin`. Its rule classes, which extend that package's
+  `AnalysisRule`, are the package's own and not exported.
+
+Each constrains its counterpart to one 0.x minor, and when the counterpart
+moves to its next minor the bridge releases a minor of its own that
+follows it; a user upgrading one upgrades the other. Everything else wraps
+a 0.x type in one of its own (`PadDevice` over `pad_input`, `ToolSpec`
+over `dart_mcp`). A structure rule reads which package declares each
+third-party type a 1.x snapshot names, and a type of a 0.x package needs
+the bridge's entry in `zeroThirdPartyFollows`
+(`tool/structure/repository.dart`) saying so.

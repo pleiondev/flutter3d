@@ -102,7 +102,10 @@ runs it as one step of the whole migration. The guide is at
 
 `package:flutter3d_lints/flutter3d_lints.dart` exports `scanSimulationCode`,
 which takes a parsed or resolved `CompilationUnit` and returns the findings,
-and `simulationRules()`, the rules as the analysis server takes them.
+and the rules' names in `SimulationRules`. The rules as the analysis server
+takes them are this package's own: they extend a class of
+`analysis_server_plugin`, which is at 0.x, and the analyzer loads them
+through `main.dart`.
 
 ## This repository
 

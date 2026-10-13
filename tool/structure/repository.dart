@@ -2840,15 +2840,11 @@ final Map<String, String> thirdPartyTypeAllowed = <String, String>{
   'flutter3d_game:Client':
       'the HTTP client of `package:http`, which the cloud save takes so a '
       'test or a platform with its own client passes one',
-  'flutter3d_lints:AnalysisRule':
-      'the analyzer plugin API\'s: a lint is written against it',
   'flutter3d_lints:CompilationUnit': 'the analyzer\'s syntax tree a lint reads',
-  'flutter3d_lints:LintCode': 'the analyzer plugin API\'s, as `AnalysisRule`',
-  'flutter3d_lints:Plugin': 'the analyzer plugin API\'s, as `AnalysisRule`',
-  'flutter3d_lints:RuleContext':
-      'the analyzer plugin API\'s, as `AnalysisRule`',
-  'flutter3d_lints:RuleVisitorRegistry':
-      'the analyzer plugin API\'s, as `AnalysisRule`',
+  'flutter3d_lints:Plugin':
+      'the analyzer plugin API\'s: `main.dart`\'s `plugin` is what the '
+      'analyzer loads, and the rule classes it registers are the package\'s '
+      'own',
   'flutter3d_mcp:StreamChannel':
       '`package:stream_channel`\'s, the Dart team\'s two-way channel the MCP '
       'transport is written over',
@@ -2861,9 +2857,28 @@ final Map<String, String> thirdPartyTypeAllowed = <String, String>{
       'the channel `web_socket_channel` opens, which `WebSocketTransport` '
       'wraps so a caller with its own (a test, a proxy) passes it; the Dart '
       'team\'s package',
-  'flutter3d_wgpu:CodeConfig':
-      'the native build hook\'s configuration, `package:code_assets`\' type',
-  'flutter3d_wgpu:OS': '`package:code_assets`\' target, as `CodeConfig`',
+};
+
+/// A 1.x package whose signatures name a type of a third-party package
+/// resolved at 0.x, as `'<package> -> <dependency>'`, each with how the
+/// package's own version follows that dependency's (CONTRACTS, "A bridge to
+/// a package at 0.x"). A 0.x minor may change the type, so a 1.x signature
+/// that names it breaks with it unless the package's release follows; an
+/// entry here is the promise that it does. One no longer needed is a
+/// finding.
+const Map<String, String> zeroThirdPartyFollows = <String, String>{
+  'flame_flutter3d -> tiled':
+      'the bridge takes the Tiled map a Flame game already loaded through '
+      '`flame_tiled`, which pins `tiled` to one 0.x minor; a minor of this '
+      'package follows a minor of `tiled` the way it follows Flame\'s',
+  'flame_multiplayer_dashwire -> dashwire':
+      'an adapter over `dashwire`\'s connection and nothing else: its '
+      'constraint is one 0.x minor of `dashwire`, and a minor of this '
+      'package follows each minor of it',
+  'flutter3d_lints -> analysis_server_plugin':
+      'the analyzer loads `main.dart`\'s `plugin`, a `Plugin`; nothing else '
+      'names the plugin API, and a minor of this package follows each minor '
+      'of `analysis_server_plugin` the analyzer ships',
 };
 
 /// Public types a published package throws and exports from no library, as

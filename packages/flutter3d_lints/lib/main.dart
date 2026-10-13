@@ -14,7 +14,7 @@ import 'src/migration/migration_rules.dart';
 import 'src/rules.dart';
 
 /// What the analysis server loads.
-final Flutter3dLintsPlugin plugin = Flutter3dLintsPlugin();
+final Plugin plugin = _Flutter3dLintsPlugin();
 
 /// The rules for code a fixed step runs, registered as warnings, and the
 /// migration diagnostics for code written against flutter3d 0.8.
@@ -26,7 +26,7 @@ final Flutter3dLintsPlugin plugin = Flutter3dLintsPlugin();
 /// off by name. The migration diagnostics are warnings for the same reason:
 /// a project on 1.0 that still uses what 0.8 had is one the plugin should
 /// tell, and one that is done migrating never sees them.
-final class Flutter3dLintsPlugin extends Plugin {
+final class _Flutter3dLintsPlugin extends Plugin {
   @override
   String get name => 'flutter3d_lints';
 

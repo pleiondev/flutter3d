@@ -2879,6 +2879,92 @@ List<Finding> proveDetectorsWork() {
     'only the runtime is held to it, and only against the tools',
   );
 
+  // A third-party type from a package at 0.x: found through the lock's
+  // version and the package's declarations; the same name from a 1.x
+  // package, or a 0.x package that does not declare it, is not.
+  final locked = lockedVersions('''
+packages:
+  tiled:
+    dependency: transitive
+    description:
+      name: tiled
+    source: hosted
+    version: "0.11.1"
+  flame:
+    dependency: transitive
+    source: hosted
+    version: "1.38.2"
+''');
+  fires(
+    'third-party types at 0.x',
+    locked['tiled'] == '0.11.1' && locked['flame'] == '1.38.2',
+    'the versions of a pubspec.lock',
+  );
+  fires(
+    'third-party types at 0.x',
+    declaredTypeNames(
+      'abstract base class Foo {}\nfinal class _Bar {}\nextension type '
+      'Baz(int i) {}\ntypedef Qux = int;',
+    ).difference(<String>{'Foo', 'Baz', 'Qux'}).isEmpty,
+    'the types a library declares, private ones left out',
+  );
+  final zeroX = zeroThirdPartyTypes(
+    <String>['bridge:TiledMap', 'bridge:Component', 'bridge:Other'],
+    dependencies: <String, Set<String>>{
+      'bridge': <String>{'tiled', 'flame'},
+    },
+    versions: locked,
+    typesOf: (String p) => switch (p) {
+      'tiled' => <String>{'TiledMap'},
+      'flame' => <String>{'Component'},
+      _ => null,
+    },
+  );
+  fires(
+    'third-party types at 0.x',
+    zeroX.length == 1 && zeroX.single == ('bridge:TiledMap', 'bridge -> tiled'),
+    'a bridge naming a type of tiled 0.11',
+  );
+  quiet(
+    'third-party types at 0.x',
+    !zeroX.any(((String, String) z) => z.$1 != 'bridge:TiledMap'),
+    'a type of flame 1.38, and one no 0.x dependency declares',
+    'only a type a 0.x package declares is asked about',
+  );
+
+  // The simulation stack's closure: a core whose hook depends on a sidecar
+  // that names the graphics vocabulary is found, with the path; a
+  // dependency that draws nothing is not.
+  final closure = simulationClosureProblems(
+    <String, Set<String>>{
+      'core': <String>{'sidecar', 'maths'},
+      'sidecar': <String>{'graphics'},
+      'maths': <String>{},
+    },
+    stack: <String>{'core'},
+    forbidden: <String>{'graphics'},
+  );
+  fires(
+    'the simulation draws nothing',
+    closure.length == 1 &&
+        closure.single.$2 == 'graphics' &&
+        closure.single.$3.join(' ') == 'core sidecar graphics',
+    'the physics core resolving the graphics vocabulary through its sidecar',
+  );
+  quiet(
+    'the simulation draws nothing',
+    simulationClosureProblems(
+      <String, Set<String>>{
+        'core': <String>{'maths'},
+        'maths': <String>{},
+      },
+      stack: <String>{'core'},
+      forbidden: <String>{'graphics'},
+    ).isEmpty,
+    'a core on its maths',
+    'only a forbidden package in the closure is a finding',
+  );
+
   // The plugin templates' run-time dependencies, from both shapes the
   // template file writes a pubspec in; the dev dependencies are not read.
   final templateDeps = templateRuntimeDependencies(r"""

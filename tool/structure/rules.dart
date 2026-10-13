@@ -6,6 +6,7 @@
 /// first offender says nothing about whether it is one mistake or twenty.
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'api.dart';
@@ -74,6 +75,10 @@ List<Rule> get allRules => <Rule>[
   (
     name: 'the simulation stack imports nothing that draws',
     run: _simulationDrawsNothing,
+  ),
+  (
+    name: 'the copies of the wgpu-native fetch are one file',
+    run: _wgpuFetchesAgree,
   ),
   (
     name: 'the plugin API declares only the contract, within its budget',
@@ -6679,6 +6684,89 @@ List<Finding> _signaturesNameImportableTypes() {
       ),
     );
   }
+  found.addAll(_zeroThirdPartyFollow(used));
+  return found;
+}
+
+/// The allowed third-party types of [used] that come from a package
+/// resolved at 0.x, each held to an entry of [zeroThirdPartyFollows] that
+/// says how the package's version follows that one's.
+///
+/// **An allowed type is not a stable one.** `thirdPartyTypeAllowed` says
+/// why a type belongs in the contract; a 0.x minor of its package may still
+/// change it, and a 1.x signature that names it then breaks without a
+/// major. Which package declares a type is read from its source, through
+/// the workspace's package config; without one (before `pub get`) this
+/// says nothing.
+///
+/// Mutation: name a type of `dart_mcp` (0.x) in `flutter3d_mcp`'s API and
+/// allow it in `thirdPartyTypeAllowed`, and this names it.
+List<Finding> _zeroThirdPartyFollow(Set<String> used) {
+  final config = File('${repositoryRoot.path}/.dart_tool/package_config.json');
+  final lock = File('${repositoryRoot.path}/pubspec.lock');
+  if (!config.existsSync() || !lock.existsSync()) return const <Finding>[];
+  final roots = <String, Directory>{
+    for (final entry
+        in (jsonDecode(config.readAsStringSync())
+                as Map<String, Object?>)['packages']!
+            as List<Object?>)
+      if (entry case {'name': final String name, 'rootUri': final String root})
+        name: Directory.fromUri(
+          config.uri.resolve(root.endsWith('/') ? root : '$root/'),
+        ),
+  };
+  final types = <String, Set<String>?>{};
+  Set<String>? typesOf(String package) => types.putIfAbsent(package, () {
+    final lib = roots[package] == null
+        ? null
+        : Directory('${roots[package]!.path}/lib');
+    if (lib == null || !lib.existsSync()) return null;
+    return <String>{
+      for (final file in lib.listSync(recursive: true))
+        if (file is File && file.path.endsWith('.dart'))
+          ...declaredTypeNames(file.readAsStringSync()),
+    };
+  });
+  final dependencies = <String, Set<String>>{
+    for (final MapEntry(key: name, value: dir) in packages.entries)
+      name: pubspecSection(
+        File('${dir.path}/pubspec.yaml').readAsStringSync(),
+        'dependencies',
+      ),
+  };
+  final found = <Finding>[];
+  final follows = <String>{};
+  for (final (key, edge) in zeroThirdPartyTypes(
+    used,
+    dependencies: dependencies,
+    versions: lockedVersions(lock.readAsStringSync()),
+    typesOf: (String p) => packages.containsKey(p) ? null : typesOf(p),
+  )) {
+    if (zeroThirdPartyFollows.containsKey(edge)) {
+      follows.add(edge);
+      continue;
+    }
+    found.add(
+      Finding(
+        key.split(':').first,
+        'names `${key.split(':').last}` of ${edge.split(' -> ').last}, '
+        'which is at 0.x: a minor of it may change the type and break this '
+        'package\'s 1.x API. Wrap it in a type of the package\'s own, or '
+        'say in `zeroThirdPartyFollows` how this package\'s version follows '
+        'that one\'s',
+      ),
+    );
+  }
+  for (final edge in zeroThirdPartyFollows.keys) {
+    if (follows.contains(edge)) continue;
+    found.add(
+      Finding(
+        'tool/structure/repository.dart',
+        '`zeroThirdPartyFollows` names `$edge`, and that package names no '
+            'type of it at 0.x any more: take the entry out',
+      ),
+    );
+  }
   return found;
 }
 
@@ -6895,6 +6983,56 @@ List<Finding> _simulationDrawsNothing() {
         ),
       );
     }
+  }
+  // What a server that replays a run resolves, not only what it imports.
+  final dependencies = <String, Set<String>>{
+    for (final MapEntry(key: name, value: dir) in packages.entries)
+      name: pubspecSection(
+        File('${dir.path}/pubspec.yaml').readAsStringSync(),
+        'dependencies',
+      ),
+  };
+  for (final (package, forbidden, path) in simulationClosureProblems(
+    dependencies,
+    stack: simulationStack,
+    forbidden: simulationMayNotImport.keys.toSet(),
+  )) {
+    found.add(
+      Finding(
+        package,
+        'resolves $forbidden (${simulationMayNotImport[forbidden]}) at run '
+        'time, through ${path.join(' -> ')}: the simulation draws nothing, '
+        'and a server that replays a run builds what its pubspecs name',
+      ),
+    );
+  }
+  return found;
+}
+
+/// The build hooks that fetch wgpu-native fetch the same release, from the
+/// same bytes: [wgpuFetchCopies], a file each keeps under its own `hook/`
+/// so the physics core does not depend on the compute sidecar for it.
+///
+/// Mutation: bump the release in one copy alone, and this names the other.
+List<Finding> _wgpuFetchesAgree() {
+  final found = <Finding>[];
+  final texts = <String, String>{};
+  for (final path in wgpuFetchCopies) {
+    final file = File('packages/$path');
+    if (!file.existsSync()) {
+      found.add(Finding(path, 'is a copy of the wgpu-native fetch and gone'));
+    } else {
+      texts[path] = file.readAsStringSync();
+    }
+  }
+  if (texts.values.toSet().length > 1) {
+    found.add(
+      Finding(
+        texts.keys.join(' and '),
+        'differ: the hooks would link two wgpu-natives. Copy the one that '
+        'is right over the other',
+      ),
+    );
   }
   return found;
 }

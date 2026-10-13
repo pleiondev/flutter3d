@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **Breaking: the rule classes are the package's own.**
+  `StepReadsNoClock`, `StepTakesSeededRandom`, `StepUsesPortableMath`,
+  `StepPrefixesDartMath`, `simulationRules()` and the plugin class
+  `main.dart` registers them with are no longer exported: they extend
+  classes of `analysis_server_plugin`, which is at 0.x, and a 1.x library
+  naming them would break with its next minor. `flutter3d_lints.dart`
+  exports `scanSimulationCode`, `SimulationFinding`, `SimulationRules` and
+  `machineArithmetic`; the analyzer loads `main.dart`'s `plugin` as before.
 - **A hook that took nothing is migrated too.** A `hookContext` entry
   with no fields gives an override its new parameter and hands a call
   `const <Context>()`, which asks for nothing; `AssetSource.read` is the
