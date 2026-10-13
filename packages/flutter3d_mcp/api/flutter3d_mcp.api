@@ -199,21 +199,6 @@ final class LoopbackMcpServer
   static Future<LoopbackMcpServer> start({required void Function(StreamChannel<String> channel) serve, int port = 0, String? token, int maxBodyBytes = defaultMaxBodyBytes})
   static const int defaultMaxBodyBytes = 64 * 1024 * 1024
 
-abstract base class McpToolRegistry extends PluginRegistry
-  const McpToolRegistry()
-
-final class McpTools extends McpToolRegistry
-  List<ProjectTool> get tools
-  Map<String, String> get schemaVersions
-  McpTools forPlugin(PluginScope scope)
-  McpTools()
-  ProjectTool? named(String name)
-  Registration addTool(ToolSpec tool, ProjectToolRun run, {String? namespace})
-  Registration declareSchemaVersion(String version, {String? namespace})
-  Registration listen(void Function() onChange)
-  static String published(String namespace, String name)
-  static const int maxNameLength = 128
-
 final class ModelHttpServer
   Future<void> close()
   String get token
@@ -338,110 +323,13 @@ final class ProjectRoot
   factory ProjectRoot.around(String? documentPath)
   final String path
 
-final class ProjectTool
-  String get name
-  final ProjectToolRun run
-  final String namespace
-  final String owner
-  final ToolSpec spec
-
-typedef ProjectToolRun = FutureOr<ToolResult> Function(ToolCall call);
-
 typedef RunFlutterIn = Future<ProcessResult> Function(List<String> arguments, String workingDirectory);
-
-final class SessionToolCall<S> extends ToolCall
-  const SessionToolCall({required super.name, required super.arguments, required this.session})
-  final S session
-
-final class ToolAudio extends ToolContent
-  Map<String, Object?> toJson()
-  const ToolAudio(this.bytes, {required this.mimeType})
-  final String mimeType
-  final Uint8List bytes
-
-final class ToolCall
-  const ToolCall({required this.name, required this.arguments})
-  final Map<String, Object?> arguments
-  final String name
-
-abstract base class ToolContent
-  abstract Map<String, Object?> toJson()
-  const ToolContent()
-  factory ToolContent.fromJson(Map<String, Object?> json)
-
-final class ToolHints
-  Map<String, Object?> toJson()
-  bool operator ==(Object other)
-  const ToolHints({this.readOnly = false, this.destructive = false, this.idempotent = false, this.openWorld = false, this.title})
-  factory ToolHints.fromJson(Map<String, Object?> json)
-  final String? title
-  final bool destructive
-  final bool idempotent
-  final bool openWorld
-  final bool readOnly
-  int get hashCode
-  static const ToolHints destroys = ToolHints(destructive: true)
-  static const ToolHints reads = ToolHints(readOnly: true)
-  static const ToolHints writes = ToolHints()
-
-final class ToolImage extends ToolContent
-  Map<String, Object?> toJson()
-  const ToolImage(this.bytes, {this.mimeType = 'image/png'})
-  final String mimeType
-  final Uint8List bytes
 
 final class ToolName
   const ToolName(this.name, {this.hints = ToolHints.writes})
   final String name
   final ToolHints hints
   static final RegExp pattern
-
-final class ToolOtherContent extends ToolContent
-  Map<String, Object?> toJson()
-  String? get type
-  ToolOtherContent(Map<String, Object?> json)
-  final Map<String, Object?> json
-
-final class ToolResource extends ToolContent
-  Map<String, Object?> toJson()
-  const ToolResource({required this.uri, this.mimeType, this.text, this.blob})
-  final String uri
-  final String? mimeType
-  final String? text
-  final Uint8List? blob
-
-final class ToolResourceLink extends ToolContent
-  Map<String, Object?> toJson()
-  const ToolResourceLink({required this.uri, required this.name, this.description, this.mimeType})
-  final String name
-  final String uri
-  final String? description
-  final String? mimeType
-
-final class ToolResult
-  Map<String, Object?> toJson()
-  String get text
-  ToolResult({List<ToolContent> content = const <ToolContent>[], Map<String, Object?>? structuredContent, this.isError = false})
-  factory ToolResult.fromJson(Map<String, Object?> json)
-  factory ToolResult.text(String text, {bool isError = false})
-  final List<ToolContent> content
-  final Map<String, Object?>? structuredContent
-  final bool isError
-
-final class ToolSpec
-  List<String> get required
-  Map<String, Object?> get properties
-  Map<String, Object?> toJson()
-  String toString()
-  ToolSpec copyWith({String? name, String? description, Map<String, Object?>? inputSchema, Map<String, Object?>? outputSchema, ToolHints? hints, Map<String, Object?>? meta})
-  ToolSpec({required this.name, this.description, Map<String, Object?> inputSchema = const <String, Object?>{'type': 'object'}, Map<String, Object?>? outputSchema, this.hints = ToolHints.writes, Map<String, Object?> meta = const <String, Object?>{}})
-  factory ToolSpec.fromJson(Map<String, Object?> json)
-  final Map<String, Object?> inputSchema
-  final Map<String, Object?> meta
-  final Map<String, Object?>? outputSchema
-  final String name
-  final String? description
-  final ToolHints hints
 
 base class ToolTableServer<S, A>
   Future<void> get done
@@ -466,11 +354,6 @@ base class ToolTableServer<S, A>
   final void Function(AnsweredCall<A> call)? onCall
   final void Function(AnsweredCall<ToolResult> call)? onProjectCall
   final void Function(String clientName)? onInitialize
-
-final class ToolText extends ToolContent
-  Map<String, Object?> toJson()
-  const ToolText(this.text)
-  final String text
 
 final ModelPictureTool auditTool
 
@@ -538,6 +421,24 @@ Registration shareCommands(EditorPieces pieces, McpTools tools, EditorSession se
 
 void writeMcpSessionFile(File file, {required int port, required String token})
 
+export package:flutter3d_plugin_api/tools.dart (whole library)
+  McpToolRegistry
+  McpTools
+  ProjectTool
+  ProjectToolRun
+  SessionToolCall
+  ToolAudio
+  ToolCall
+  ToolContent
+  ToolHints
+  ToolImage
+  ToolOtherContent
+  ToolResource
+  ToolResourceLink
+  ToolResult
+  ToolSpec
+  ToolText
+
 library package:flutter3d_mcp/kit.dart
 
 final class Answer
@@ -562,21 +463,6 @@ final class LoopbackMcpServer
   int get port
   static Future<LoopbackMcpServer> start({required void Function(StreamChannel<String> channel) serve, int port = 0, String? token, int maxBodyBytes = defaultMaxBodyBytes})
   static const int defaultMaxBodyBytes = 64 * 1024 * 1024
-
-abstract base class McpToolRegistry extends PluginRegistry
-  const McpToolRegistry()
-
-final class McpTools extends McpToolRegistry
-  List<ProjectTool> get tools
-  Map<String, String> get schemaVersions
-  McpTools forPlugin(PluginScope scope)
-  McpTools()
-  ProjectTool? named(String name)
-  Registration addTool(ToolSpec tool, ProjectToolRun run, {String? namespace})
-  Registration declareSchemaVersion(String version, {String? namespace})
-  Registration listen(void Function() onChange)
-  static String published(String namespace, String name)
-  static const int maxNameLength = 128
 
 final class OfferedPrompt
   const OfferedPrompt({required this.name, required this.description, required this.text})
@@ -611,108 +497,11 @@ final class ProjectRoot
   factory ProjectRoot.around(String? documentPath)
   final String path
 
-final class ProjectTool
-  String get name
-  final ProjectToolRun run
-  final String namespace
-  final String owner
-  final ToolSpec spec
-
-typedef ProjectToolRun = FutureOr<ToolResult> Function(ToolCall call);
-
-final class SessionToolCall<S> extends ToolCall
-  const SessionToolCall({required super.name, required super.arguments, required this.session})
-  final S session
-
-final class ToolAudio extends ToolContent
-  Map<String, Object?> toJson()
-  const ToolAudio(this.bytes, {required this.mimeType})
-  final String mimeType
-  final Uint8List bytes
-
-final class ToolCall
-  const ToolCall({required this.name, required this.arguments})
-  final Map<String, Object?> arguments
-  final String name
-
-abstract base class ToolContent
-  abstract Map<String, Object?> toJson()
-  const ToolContent()
-  factory ToolContent.fromJson(Map<String, Object?> json)
-
-final class ToolHints
-  Map<String, Object?> toJson()
-  bool operator ==(Object other)
-  const ToolHints({this.readOnly = false, this.destructive = false, this.idempotent = false, this.openWorld = false, this.title})
-  factory ToolHints.fromJson(Map<String, Object?> json)
-  final String? title
-  final bool destructive
-  final bool idempotent
-  final bool openWorld
-  final bool readOnly
-  int get hashCode
-  static const ToolHints destroys = ToolHints(destructive: true)
-  static const ToolHints reads = ToolHints(readOnly: true)
-  static const ToolHints writes = ToolHints()
-
-final class ToolImage extends ToolContent
-  Map<String, Object?> toJson()
-  const ToolImage(this.bytes, {this.mimeType = 'image/png'})
-  final String mimeType
-  final Uint8List bytes
-
 final class ToolName
   const ToolName(this.name, {this.hints = ToolHints.writes})
   final String name
   final ToolHints hints
   static final RegExp pattern
-
-final class ToolOtherContent extends ToolContent
-  Map<String, Object?> toJson()
-  String? get type
-  ToolOtherContent(Map<String, Object?> json)
-  final Map<String, Object?> json
-
-final class ToolResource extends ToolContent
-  Map<String, Object?> toJson()
-  const ToolResource({required this.uri, this.mimeType, this.text, this.blob})
-  final String uri
-  final String? mimeType
-  final String? text
-  final Uint8List? blob
-
-final class ToolResourceLink extends ToolContent
-  Map<String, Object?> toJson()
-  const ToolResourceLink({required this.uri, required this.name, this.description, this.mimeType})
-  final String name
-  final String uri
-  final String? description
-  final String? mimeType
-
-final class ToolResult
-  Map<String, Object?> toJson()
-  String get text
-  ToolResult({List<ToolContent> content = const <ToolContent>[], Map<String, Object?>? structuredContent, this.isError = false})
-  factory ToolResult.fromJson(Map<String, Object?> json)
-  factory ToolResult.text(String text, {bool isError = false})
-  final List<ToolContent> content
-  final Map<String, Object?>? structuredContent
-  final bool isError
-
-final class ToolSpec
-  List<String> get required
-  Map<String, Object?> get properties
-  Map<String, Object?> toJson()
-  String toString()
-  ToolSpec copyWith({String? name, String? description, Map<String, Object?>? inputSchema, Map<String, Object?>? outputSchema, ToolHints? hints, Map<String, Object?>? meta})
-  ToolSpec({required this.name, this.description, Map<String, Object?> inputSchema = const <String, Object?>{'type': 'object'}, Map<String, Object?>? outputSchema, this.hints = ToolHints.writes, Map<String, Object?> meta = const <String, Object?>{}})
-  factory ToolSpec.fromJson(Map<String, Object?> json)
-  final Map<String, Object?> inputSchema
-  final Map<String, Object?> meta
-  final Map<String, Object?>? outputSchema
-  final String name
-  final String? description
-  final ToolHints hints
 
 base class ToolTableServer<S, A>
   Future<void> get done
@@ -738,11 +527,6 @@ base class ToolTableServer<S, A>
   final void Function(AnsweredCall<ToolResult> call)? onProjectCall
   final void Function(String clientName)? onInitialize
 
-final class ToolText extends ToolContent
-  Map<String, Object?> toJson()
-  const ToolText(this.text)
-  final String text
-
 void deleteMcpSessionFile(File file)
 
 ToolResult pictureResultOf(Answer answer)
@@ -760,6 +544,24 @@ const String schemaToolName = 'flutter3d.schema'
 const String schemaVersionMetaKey = 'flutter3d/schemaVersion'
 
 void writeMcpSessionFile(File file, {required int port, required String token})
+
+export package:flutter3d_plugin_api/tools.dart (whole library)
+  McpToolRegistry
+  McpTools
+  ProjectTool
+  ProjectToolRun
+  SessionToolCall
+  ToolAudio
+  ToolCall
+  ToolContent
+  ToolHints
+  ToolImage
+  ToolOtherContent
+  ToolResource
+  ToolResourceLink
+  ToolResult
+  ToolSpec
+  ToolText
 
 library package:flutter3d_mcp/model.dart
 
@@ -837,99 +639,6 @@ final class ModelSession
 
 typedef ModelTool = OfferedTool<ModelSession, Answer>;
 
-final class SessionToolCall<S> extends ToolCall
-  const SessionToolCall({required super.name, required super.arguments, required this.session})
-  final S session
-
-final class ToolAudio extends ToolContent
-  Map<String, Object?> toJson()
-  const ToolAudio(this.bytes, {required this.mimeType})
-  final String mimeType
-  final Uint8List bytes
-
-final class ToolCall
-  const ToolCall({required this.name, required this.arguments})
-  final Map<String, Object?> arguments
-  final String name
-
-abstract base class ToolContent
-  abstract Map<String, Object?> toJson()
-  const ToolContent()
-  factory ToolContent.fromJson(Map<String, Object?> json)
-
-final class ToolHints
-  Map<String, Object?> toJson()
-  bool operator ==(Object other)
-  const ToolHints({this.readOnly = false, this.destructive = false, this.idempotent = false, this.openWorld = false, this.title})
-  factory ToolHints.fromJson(Map<String, Object?> json)
-  final String? title
-  final bool destructive
-  final bool idempotent
-  final bool openWorld
-  final bool readOnly
-  int get hashCode
-  static const ToolHints destroys = ToolHints(destructive: true)
-  static const ToolHints reads = ToolHints(readOnly: true)
-  static const ToolHints writes = ToolHints()
-
-final class ToolImage extends ToolContent
-  Map<String, Object?> toJson()
-  const ToolImage(this.bytes, {this.mimeType = 'image/png'})
-  final String mimeType
-  final Uint8List bytes
-
-final class ToolOtherContent extends ToolContent
-  Map<String, Object?> toJson()
-  String? get type
-  ToolOtherContent(Map<String, Object?> json)
-  final Map<String, Object?> json
-
-final class ToolResource extends ToolContent
-  Map<String, Object?> toJson()
-  const ToolResource({required this.uri, this.mimeType, this.text, this.blob})
-  final String uri
-  final String? mimeType
-  final String? text
-  final Uint8List? blob
-
-final class ToolResourceLink extends ToolContent
-  Map<String, Object?> toJson()
-  const ToolResourceLink({required this.uri, required this.name, this.description, this.mimeType})
-  final String name
-  final String uri
-  final String? description
-  final String? mimeType
-
-final class ToolResult
-  Map<String, Object?> toJson()
-  String get text
-  ToolResult({List<ToolContent> content = const <ToolContent>[], Map<String, Object?>? structuredContent, this.isError = false})
-  factory ToolResult.fromJson(Map<String, Object?> json)
-  factory ToolResult.text(String text, {bool isError = false})
-  final List<ToolContent> content
-  final Map<String, Object?>? structuredContent
-  final bool isError
-
-final class ToolSpec
-  List<String> get required
-  Map<String, Object?> get properties
-  Map<String, Object?> toJson()
-  String toString()
-  ToolSpec copyWith({String? name, String? description, Map<String, Object?>? inputSchema, Map<String, Object?>? outputSchema, ToolHints? hints, Map<String, Object?>? meta})
-  ToolSpec({required this.name, this.description, Map<String, Object?> inputSchema = const <String, Object?>{'type': 'object'}, Map<String, Object?>? outputSchema, this.hints = ToolHints.writes, Map<String, Object?> meta = const <String, Object?>{}})
-  factory ToolSpec.fromJson(Map<String, Object?> json)
-  final Map<String, Object?> inputSchema
-  final Map<String, Object?> meta
-  final Map<String, Object?>? outputSchema
-  final String name
-  final String? description
-  final ToolHints hints
-
-final class ToolText extends ToolContent
-  Map<String, Object?> toJson()
-  const ToolText(this.text)
-  final String text
-
 final ModelPictureTool auditTool
 
 void deleteMcpSessionFile(File file)
@@ -964,121 +673,36 @@ ModelMcpServer? serveModelMcp(List<String> arguments, {McpTools? projectTools})
 
 void writeMcpSessionFile(File file, {required int port, required String token})
 
+export package:flutter3d_plugin_api/tools.dart (whole library)
+  SessionToolCall
+  ToolAudio
+  ToolCall
+  ToolContent
+  ToolHints
+  ToolImage
+  ToolOtherContent
+  ToolResource
+  ToolResourceLink
+  ToolResult
+  ToolSpec
+  ToolText
+
 library package:flutter3d_mcp/project_tools.dart
 
-abstract base class McpToolRegistry extends PluginRegistry
-  const McpToolRegistry()
-
-final class McpTools extends McpToolRegistry
-  List<ProjectTool> get tools
-  Map<String, String> get schemaVersions
-  McpTools forPlugin(PluginScope scope)
-  McpTools()
-  ProjectTool? named(String name)
-  Registration addTool(ToolSpec tool, ProjectToolRun run, {String? namespace})
-  Registration declareSchemaVersion(String version, {String? namespace})
-  Registration listen(void Function() onChange)
-  static String published(String namespace, String name)
-  static const int maxNameLength = 128
-
-final class ProjectTool
-  String get name
-  final ProjectToolRun run
-  final String namespace
-  final String owner
-  final ToolSpec spec
-
-typedef ProjectToolRun = FutureOr<ToolResult> Function(ToolCall call);
-
-final class SessionToolCall<S> extends ToolCall
-  const SessionToolCall({required super.name, required super.arguments, required this.session})
-  final S session
-
-final class ToolAudio extends ToolContent
-  Map<String, Object?> toJson()
-  const ToolAudio(this.bytes, {required this.mimeType})
-  final String mimeType
-  final Uint8List bytes
-
-final class ToolCall
-  const ToolCall({required this.name, required this.arguments})
-  final Map<String, Object?> arguments
-  final String name
-
-abstract base class ToolContent
-  abstract Map<String, Object?> toJson()
-  const ToolContent()
-  factory ToolContent.fromJson(Map<String, Object?> json)
-
-final class ToolHints
-  Map<String, Object?> toJson()
-  bool operator ==(Object other)
-  const ToolHints({this.readOnly = false, this.destructive = false, this.idempotent = false, this.openWorld = false, this.title})
-  factory ToolHints.fromJson(Map<String, Object?> json)
-  final String? title
-  final bool destructive
-  final bool idempotent
-  final bool openWorld
-  final bool readOnly
-  int get hashCode
-  static const ToolHints destroys = ToolHints(destructive: true)
-  static const ToolHints reads = ToolHints(readOnly: true)
-  static const ToolHints writes = ToolHints()
-
-final class ToolImage extends ToolContent
-  Map<String, Object?> toJson()
-  const ToolImage(this.bytes, {this.mimeType = 'image/png'})
-  final String mimeType
-  final Uint8List bytes
-
-final class ToolOtherContent extends ToolContent
-  Map<String, Object?> toJson()
-  String? get type
-  ToolOtherContent(Map<String, Object?> json)
-  final Map<String, Object?> json
-
-final class ToolResource extends ToolContent
-  Map<String, Object?> toJson()
-  const ToolResource({required this.uri, this.mimeType, this.text, this.blob})
-  final String uri
-  final String? mimeType
-  final String? text
-  final Uint8List? blob
-
-final class ToolResourceLink extends ToolContent
-  Map<String, Object?> toJson()
-  const ToolResourceLink({required this.uri, required this.name, this.description, this.mimeType})
-  final String name
-  final String uri
-  final String? description
-  final String? mimeType
-
-final class ToolResult
-  Map<String, Object?> toJson()
-  String get text
-  ToolResult({List<ToolContent> content = const <ToolContent>[], Map<String, Object?>? structuredContent, this.isError = false})
-  factory ToolResult.fromJson(Map<String, Object?> json)
-  factory ToolResult.text(String text, {bool isError = false})
-  final List<ToolContent> content
-  final Map<String, Object?>? structuredContent
-  final bool isError
-
-final class ToolSpec
-  List<String> get required
-  Map<String, Object?> get properties
-  Map<String, Object?> toJson()
-  String toString()
-  ToolSpec copyWith({String? name, String? description, Map<String, Object?>? inputSchema, Map<String, Object?>? outputSchema, ToolHints? hints, Map<String, Object?>? meta})
-  ToolSpec({required this.name, this.description, Map<String, Object?> inputSchema = const <String, Object?>{'type': 'object'}, Map<String, Object?>? outputSchema, this.hints = ToolHints.writes, Map<String, Object?> meta = const <String, Object?>{}})
-  factory ToolSpec.fromJson(Map<String, Object?> json)
-  final Map<String, Object?> inputSchema
-  final Map<String, Object?> meta
-  final Map<String, Object?>? outputSchema
-  final String name
-  final String? description
-  final ToolHints hints
-
-final class ToolText extends ToolContent
-  Map<String, Object?> toJson()
-  const ToolText(this.text)
-  final String text
+export package:flutter3d_plugin_api/tools.dart (whole library)
+  McpToolRegistry
+  McpTools
+  ProjectTool
+  ProjectToolRun
+  SessionToolCall
+  ToolAudio
+  ToolCall
+  ToolContent
+  ToolHints
+  ToolImage
+  ToolOtherContent
+  ToolResource
+  ToolResourceLink
+  ToolResult
+  ToolSpec
+  ToolText

@@ -178,7 +178,7 @@ final class ReactionTable
 final class ReactionsPlugin extends Flutter3dPlugin
   PluginManifest get manifest
   Reaction drain()
-  ReactionsPlugin(this.table, {this.id = 'flutter3d_addon_reactions', this.showCorrections = false})
+  ReactionsPlugin(this.table, {this.id = 'flutter3d_game_kit.reactions', this.showCorrections = false})
   final ReactionTable table
   final String id
   final bool showCorrections
@@ -214,7 +214,7 @@ final class Sounding
 
 final class SoundtrackPlugin extends Flutter3dPlugin
   PluginManifest get manifest
-  SoundtrackPlugin(this.cues, {required this.scene, this.id = 'flutter3d_addon_soundtrack', this.playCorrections = false, this.bus})
+  SoundtrackPlugin(this.cues, {required this.scene, this.id = 'flutter3d_game_kit.soundtrack', this.playCorrections = false, this.bus})
   final AudioBus? bus
   final AudioScene Function() scene
   final CueSheet cues
@@ -396,7 +396,7 @@ final class ReactionTable
 final class ReactionsPlugin extends Flutter3dPlugin
   PluginManifest get manifest
   Reaction drain()
-  ReactionsPlugin(this.table, {this.id = 'flutter3d_addon_reactions', this.showCorrections = false})
+  ReactionsPlugin(this.table, {this.id = 'flutter3d_game_kit.reactions', this.showCorrections = false})
   final ReactionTable table
   final String id
   final bool showCorrections
@@ -453,7 +453,7 @@ final class Sounding
 
 final class SoundtrackPlugin extends Flutter3dPlugin
   PluginManifest get manifest
-  SoundtrackPlugin(this.cues, {required this.scene, this.id = 'flutter3d_addon_soundtrack', this.playCorrections = false, this.bus})
+  SoundtrackPlugin(this.cues, {required this.scene, this.id = 'flutter3d_game_kit.soundtrack', this.playCorrections = false, this.bus})
   final AudioBus? bus
   final AudioScene Function() scene
   final CueSheet cues

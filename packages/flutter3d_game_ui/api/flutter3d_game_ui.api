@@ -34,7 +34,7 @@ final class Spoken<T extends BusEvent>
 
 final class SpokenEvents extends Flutter3dPlugin
   PluginManifest get manifest
-  SpokenEvents(List<Spoken<BusEvent>> table, {Announce? announce, this.quietSteps = 60, this.id = 'flutter3d_addon_access.spoken_events'})
+  SpokenEvents(List<Spoken<BusEvent>> table, {Announce? announce, this.quietSteps = 60, this.id = 'flutter3d_game_ui.spoken_events'})
   final List<Spoken<BusEvent>> table
   final String id
   final int quietSteps
@@ -590,7 +590,7 @@ final class Spoken<T extends BusEvent>
 
 final class SpokenEvents extends Flutter3dPlugin
   PluginManifest get manifest
-  SpokenEvents(List<Spoken<BusEvent>> table, {Announce? announce, this.quietSteps = 60, this.id = 'flutter3d_addon_access.spoken_events'})
+  SpokenEvents(List<Spoken<BusEvent>> table, {Announce? announce, this.quietSteps = 60, this.id = 'flutter3d_game_ui.spoken_events'})
   final List<Spoken<BusEvent>> table
   final String id
   final int quietSteps

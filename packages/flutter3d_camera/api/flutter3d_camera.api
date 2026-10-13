@@ -62,7 +62,7 @@ final class CameraImpulse
   final double seconds
 
 final class CameraPlugin extends Flutter3dPlugin
-  CameraPlugin(this.director, {ImpulseTable? impulses, this.id = 'flutter3d_addon_camera', this.realTime = false, this.shakeCorrections = false})
+  CameraPlugin(this.director, {ImpulseTable? impulses, this.id = 'flutter3d_camera', this.realTime = false, this.shakeCorrections = false})
   PluginManifest get manifest
   final CameraDirector director
   final ImpulseTable impulses

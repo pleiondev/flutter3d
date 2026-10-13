@@ -143,11 +143,12 @@ final class ElementOut extends ElementBodyEvent
   static const String eventName = 'elements.out'
 
 final class ElementPlugin extends Flutter3dPlugin
-  ElementPlugin(this.hook, {required this.world, String? id, this.dependsOn})
+  ElementPlugin(ElementHook hook, {required this.id, required this.world, this.dependsOn})
   PluginManifest get manifest
-  final ElementHook hook
+  final ElementHook element
   final List<String>? dependsOn
   final NativeWorld? Function() world
+  final String id
   void install(PluginHost host)
 
 final class ElementStep
