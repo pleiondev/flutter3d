@@ -1,5 +1,5 @@
 /// The per-node and per-triangle intersection tests, and the code that fills
-/// [HitResult] from them.
+/// the scratch a [HitResult] is copied from.
 ///
 /// **A part of `raycaster.dart`, not a file of its own.** These are
 /// [Raycaster]'s methods, reading and writing its private scratch fields

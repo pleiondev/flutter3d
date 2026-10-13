@@ -56,7 +56,11 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/gestures.dart'
-    show PointerScrollEvent, PointerSignalEvent;
+    show
+        PointerDeviceKind,
+        PointerScrollEvent,
+        PointerSignalEvent,
+        kPrimaryButton;
 import 'package:flutter/rendering.dart' show RenderPositionedBox;
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
@@ -89,7 +93,7 @@ abstract interface class _SceneHost {
 
   /// The meshes a tap reaches, and what each does with the hit: a
   /// [Mesh3D.onTap], a [Model3D.onTap] for each of its parts.
-  Map<MeshNode, void Function(HitResult hit)> get tappable;
+  Map<MeshNode, void Function(Tap3D tap)> get tappable;
 
   /// The [OrbitCamera3D]s built, in order; the last is the one gestures
   /// turn.
@@ -661,12 +665,13 @@ final class Mesh3D extends Spatial3D {
 
   /// Called when a tap on the [Scene3D] lands on this mesh first — the
   /// nearest surface under the finger, through the camera drawn through —
-  /// with where it landed ([HitResult.point], [HitResult.normal]).
+  /// with the [Tap3D]: where it landed ([Tap3D.hit]'s `point` and
+  /// `normal`) and the pointer that tapped.
   ///
   /// A ray cast through the scene's `Raycaster`, so a mesh in front that
   /// does not listen still hides one behind that does. Null listens for
   /// nothing, and a scene where nothing listens takes no tap at all.
-  final void Function(HitResult hit)? onTap;
+  final void Function(Tap3D tap)? onTap;
 
   @override
   State<Mesh3D> createState() => _Mesh3DState();
@@ -782,7 +787,7 @@ class _Mesh3DState extends _SpatialState<Mesh3D, MeshNode> {
     _answerTaps(
       scope.host,
       <MeshNode>[node],
-      widget.onTap == null ? null : (HitResult hit) => widget.onTap?.call(hit),
+      widget.onTap == null ? null : (Tap3D tap) => widget.onTap?.call(tap),
     );
   }
 }
@@ -1043,11 +1048,11 @@ final class Model3D extends Spatial3D {
   final void Function(ModelInstance instance)? onLoaded;
 
   /// Called when a tap on the [Scene3D] lands on the model first, with the
-  /// hit: the part it landed on ([HitResult.node], one of the instance's
-  /// meshes, named as the file names it) and where ([HitResult.point]).
-  /// The same shape as [Mesh3D.onTap], one object that can say more later;
-  /// see it on what a tap reaches. A model still loading answers nothing.
-  final void Function(HitResult hit)? onTap;
+  /// [Tap3D]: the part it landed on (`tap.hit.node`, one of the instance's
+  /// meshes, named as the file names it), where (`tap.hit.point`) and the
+  /// pointer. The same shape as [Mesh3D.onTap]; see it on what a tap
+  /// reaches. A model still loading answers nothing.
+  final void Function(Tap3D tap)? onTap;
 
   @override
   State<Model3D> createState() => _Model3DState();
@@ -1161,7 +1166,7 @@ class _Model3DState extends _SpatialState<Model3D, SceneNode>
     _answerTaps(
       host,
       meshes,
-      widget.onTap == null ? null : (HitResult hit) => widget.onTap?.call(hit),
+      widget.onTap == null ? null : (Tap3D tap) => widget.onTap?.call(tap),
     );
   }
 

@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **A tap on a `Mesh3D` or a `Model3D` hands a `Tap3D`.** `onTap` takes
+  one `Tap3D` (new): the `hit` (a `HitResult` of its own), the
+  `localPosition` on the scene widget, the pointer's `kind` and its
+  `buttons`, so hover, drag and pressure can join it in a minor without a
+  second callback.
 - **A scene widget's `position` is a place in the world.** `Spatial3D`
   converts a root-level widget's position, and `Camera3D.target` and
   `OrbitCamera3D.target` wherever they hang, through `Scene.toScene` on

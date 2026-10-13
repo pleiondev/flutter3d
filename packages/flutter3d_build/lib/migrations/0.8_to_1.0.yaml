@@ -24783,3 +24783,15 @@ entries:
       `dressed.instance` and `dressed.key`. `migrate` wraps the old
       function, `(dressed) => (old)(dressed.instance, dressed.key)`, which
       runs as it did.
+
+  - id: core-HitResult
+    package: flutter3d_core
+    symbol: HitResult
+    kind: none
+    reason: >-
+      Reading a hit is unchanged: `node`, `distance`, `triangleIndex` and
+      `approximate` read as before, and only writing them is gone. A hit is
+      the caller's now, a new one per cast, where before 1.0 it was the
+      caster's scratch that the next cast wrote over; a write into it changed
+      nothing the engine read, so there is nothing to carry over. Keep a
+      value of your own in a variable of your own.

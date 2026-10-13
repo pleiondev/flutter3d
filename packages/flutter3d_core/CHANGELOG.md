@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a `HitResult` is the caller's, and its fields are final.**
+  `Raycaster.intersectScene` tests candidates in a scratch of its own and
+  hands back a new result for the nearest, so a hit kept, or handed to
+  two listeners, never changes under them; `node`, `distance`,
+  `triangleIndex` and `approximate` read as before and can no longer be
+  written.
 - **A plugin's asset scheme is in its namespace.** Through a plugin's
   view, `ModelDecoders.addSource` takes the plugin's namespace with `-`
   for `_`, or that and `-<name>` (`acme-frost-pak`), and never one of

@@ -2044,15 +2044,15 @@ final class HighContrastSettings
 
 final class HitResult
   MeshNode get requireNode
-  MeshNode? node
   String toString()
   WorldPosition get position
-  bool approximate
-  double distance
+  final MeshNode? node
   final Vector2 uv
   final Vector3 normal
   final Vector3 point
-  int triangleIndex
+  final bool approximate
+  final double distance
+  final int triangleIndex
 
 abstract base class HostSkinningHook extends SkinningHook
   abstract Float32List? skin(SkinningContext context)

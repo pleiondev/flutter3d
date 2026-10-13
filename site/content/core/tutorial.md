@@ -172,16 +172,16 @@ The file is read once, when the widget is first built, on a background isolate. 
 
 ## Tap on something {.step}
 
-A tap on the `Scene3D` is a ray through the camera, and the nearest surface under the finger answers, whether or not it listens. `Mesh3D.onTap` and `Model3D.onTap` both hand you the `HitResult`: where it landed, and on a model the part it landed on (`hit.node`).
+A tap on the `Scene3D` is a ray through the camera, and the nearest surface under the finger answers, whether or not it listens. `Mesh3D.onTap` and `Model3D.onTap` both hand you a `Tap3D`: its `hit` says where it landed, and on a model the part it landed on (`tap.hit.node`), and the tap says where on the widget it was and what tapped (a finger, a mouse).
 
 ```dart
 MeshNode? selected;
 
 // On the ball:
-onTap: (HitResult hit) => setState(() => selected = null),
+onTap: (Tap3D tap) => setState(() => selected = null),
 
 // On the robot:
-onTap: (HitResult hit) => setState(() => selected = hit.node),
+onTap: (Tap3D tap) => setState(() => selected = tap.hit.node),
 
 // And in Scene3D:
 view: ViewSettings(

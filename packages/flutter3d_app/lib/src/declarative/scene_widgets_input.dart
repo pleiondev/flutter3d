@@ -205,12 +205,49 @@ class _OrbitCamera3DState extends _SpatialState<OrbitCamera3D, CameraNode>
   }
 }
 
+/// A tap that landed on something in a [Scene3D]: what the ray through the
+/// finger hit, and the pointer that tapped — what [Mesh3D.onTap] and
+/// [Model3D.onTap] are handed.
+///
+/// **One object, so a minor can say more.** Hover, a drag, the pointer's
+/// pressure would each be a field here, not a parameter added to every
+/// handler written against 1.0.
+///
+/// **Yours to keep.** [hit] is a [HitResult] of its own, not a scratch the
+/// next tap rewrites, and nothing here changes after the handler returns.
+final class Tap3D {
+  const Tap3D({
+    required this.hit,
+    required this.localPosition,
+    required this.kind,
+    this.buttons = kPrimaryButton,
+  });
+
+  /// What the ray through the finger hit first: the mesh, the point and
+  /// normal in the world, the distance.
+  final HitResult hit;
+
+  /// Where the tap was, in the scene widget's own logical pixels from its
+  /// top-left corner.
+  final Offset localPosition;
+
+  /// What tapped: a finger, a mouse, a stylus.
+  final PointerDeviceKind kind;
+
+  /// The buttons held, as Flutter's pointer events give them
+  /// ([kPrimaryButton] for a finger or a left click).
+  final int buttons;
+
+  @override
+  String toString() => 'Tap3D($hit at $localPosition, $kind)';
+}
+
 /// Has [nodes] answer a tap with [handler], or no longer answer when it is
 /// null, telling [host] when the first starts listening or the last stops.
 void _answerTaps(
   _SceneHost host,
   Iterable<MeshNode> nodes,
-  void Function(HitResult hit)? handler,
+  void Function(Tap3D tap)? handler,
 ) {
   final before = host.tappable.isEmpty;
   for (final node in nodes) {
@@ -229,8 +266,8 @@ void _answerTaps(
 /// view underneath is never made again.
 mixin _SceneGestures on State<Scene3D> implements _SceneHost {
   @override
-  final Map<MeshNode, void Function(HitResult hit)> tappable =
-      <MeshNode, void Function(HitResult hit)>{};
+  final Map<MeshNode, void Function(Tap3D tap)> tappable =
+      <MeshNode, void Function(Tap3D tap)>{};
 
   @override
   final List<_Orbit> orbits = <_Orbit>[];
@@ -279,7 +316,13 @@ mixin _SceneGestures on State<Scene3D> implements _SceneHost {
     // listen still stands in front of one that does.
     final node = hit?.node;
     if (hit == null || node == null) return;
-    tappable[node]?.call(hit);
+    tappable[node]?.call(
+      Tap3D(
+        hit: hit,
+        localPosition: details.localPosition,
+        kind: details.kind ?? PointerDeviceKind.touch,
+      ),
+    );
   }
 
   Widget _withGestures(Widget view) => Listener(

@@ -395,7 +395,7 @@ final class Mesh3D extends Spatial3D
   final bool castsShadow
   final engine.RenderMaterial? material
   final int drawOrder
-  final void Function(HitResult hit)? onTap
+  final void Function(Tap3D tap)? onTap
 
 final class Mirror3D extends Spatial3D
   State<Mirror3D> createState()
@@ -416,8 +416,8 @@ final class Model3D extends Spatial3D
   final Widget? placeholder
   final bool playing
   final double speed
-  final void Function(HitResult hit)? onTap
   final void Function(ModelInstance instance)? onLoaded
+  final void Function(Tap3D tap)? onTap
 
 typedef ModelBuild = Future<ModelAsset> Function(Uint8List bytes);
 
@@ -669,6 +669,14 @@ final class SwappableModel extends _Watched
 final class SwappableTexture extends _Watched
   TextureHandle get texture
   ValueListenable<TextureHandle> get changes
+
+final class Tap3D
+  String toString()
+  const Tap3D({required this.hit, required this.localPosition, required this.kind, this.buttons = kPrimaryButton})
+  final HitResult hit
+  final Offset localPosition
+  final PointerDeviceKind kind
+  final int buttons
 
 final class TerrainTiles
   TerrainTiles({required this.device, required this.tiles, required this.material, required this.chooser, this.metersPerTexture = 8.0, this.skirts = true})

@@ -136,8 +136,8 @@ final class _MountHost implements _SceneHost {
   // A mount draws nothing and so is tapped and dragged by nobody: what a
   // widget registers here is kept and never called.
   @override
-  final Map<MeshNode, void Function(HitResult hit)> tappable =
-      <MeshNode, void Function(HitResult hit)>{};
+  final Map<MeshNode, void Function(Tap3D tap)> tappable =
+      <MeshNode, void Function(Tap3D tap)>{};
 
   @override
   final List<_Orbit> orbits = <_Orbit>[];
