@@ -119,7 +119,9 @@ final class SplatGpuSort {
     }
     final pipelines = _pipelines ??= <ComputePipelineHandle>[
       for (final name in splatSortStages)
-        device.createComputePipeline(device.shaders[name]!),
+        device.createComputePipelineFrom(
+          ComputePipelineDescriptor(shader: device.shaders[name]!),
+        ),
     ];
     final tiles = (count + _tile - 1) ~/ _tile;
     _growScratch(tiles * _tile);

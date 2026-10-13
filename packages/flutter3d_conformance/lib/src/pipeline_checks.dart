@@ -84,7 +84,11 @@ Future<void> checkPipelineSwitchKeepsBindingsApart(
 
     void line(Float32List matrix) {
       pass
-        ..bindPipeline(device.createPipeline(lineVertex!, lineFragment!))
+        ..bindPipeline(
+          device.createPipelineFrom(
+            PipelineDescriptor(vertex: lineVertex!, fragment: lineFragment!),
+          ),
+        )
         ..bindUniformBlock(lineVertex, 'LineInfo', <String, Float32List>{
           'view_projection': matrix,
         })
@@ -96,7 +100,12 @@ Future<void> checkPipelineSwitchKeepsBindingsApart(
     void particle(Float32List matrix) {
       pass
         ..bindPipeline(
-          device.createPipeline(particleVertex!, particleFragment!),
+          device.createPipelineFrom(
+            PipelineDescriptor(
+              vertex: particleVertex!,
+              fragment: particleFragment!,
+            ),
+          ),
         )
         ..bindUniformBlock(
           particleVertex,
@@ -169,8 +178,12 @@ Future<void> checkRefusedPipelineSkipsDraws(GraphicsDevice device) async {
     vertex != null && fragment != null,
     'the debug-line stages are missing, so this cannot draw anything',
   );
-  final drawn = device.createPipeline(vertex!, fragment!);
-  final refused = device.createPipeline(vertex, fragment);
+  final drawn = device.createPipelineFrom(
+    PipelineDescriptor(vertex: vertex!, fragment: fragment!),
+  );
+  final refused = device.createPipelineFrom(
+    PipelineDescriptor(vertex: vertex, fragment: fragment),
+  );
   final refusals = device.pipelineRefusals;
   require(
     refusals.refusalOf(drawn) == null && refusals.refusalOf(refused) == null,

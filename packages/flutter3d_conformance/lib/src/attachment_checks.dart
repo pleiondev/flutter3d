@@ -118,7 +118,11 @@ Future<void> checkColorAttachmentLimitIsHonoured(GraphicsDevice device) async {
     // second call — and a backend that ignored the index would configure the
     // wrong target, which is its own way of failing this.
     ..setBlend(null, attachment: 1)
-    ..bindPipeline(device.createPipeline(vertex!, probe!))
+    ..bindPipeline(
+      device.createPipelineFrom(
+        PipelineDescriptor(vertex: vertex!, fragment: probe!),
+      ),
+    )
     ..bindVertexData(ByteData.sublistView(triangle), 3)
     ..bindIndexData(ByteData.sublistView(indices), IndexType.int16, 3)
     ..draw();

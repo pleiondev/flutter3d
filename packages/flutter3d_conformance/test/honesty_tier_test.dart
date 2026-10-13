@@ -2,8 +2,31 @@
 // yet is told which features could not be asked, and is not blamed for
 // them.
 import 'package:flutter3d_conformance/flutter3d_conformance.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:test/test.dart';
+
+/// Lists nothing, prefers four samples, and answers every call it gates
+/// with something other than a refusal.
+final class _Boaster extends GraphicsDevice {
+  @override
+  DeviceFeatures get features => DeviceFeatures.none;
+
+  @override
+  int get preferredSampleCount => 4;
+
+  @override
+  ShaderLibrary get shaders =>
+      FakeBackend(missingShaders: const <String>{'DebugLine'}).shaders;
+
+  @override
+  TextureFormatSupport textureFormatSupport(TextureFormat format) =>
+      TextureFormatSupport.none;
+
+  @override
+  Never noSuchMethod(Invocation invocation) =>
+      throw StateError('${invocation.memberName} is not refused');
+}
 
 ConformanceCheck _check(String name) =>
     conformanceChecks.firstWhere((c) => c.name == name);
@@ -28,6 +51,25 @@ void main() {
             isNot(contains('sampler-compare')),
             isNot(contains('uniform-bytes')),
             isNot(contains('render-stage-storage')),
+          ),
+        ),
+      ),
+    );
+  });
+
+  test('a sample count and a cube are asked like any feature', () async {
+    // Mutation: drop the sample-count clause, or the cube probe (back in
+    // `unprobedFeatures`), and a device that prefers four samples it cannot
+    // allocate, or makes cubes it does not list, passes.
+    await expectLater(
+      _check(_honesty).run(_Boaster()),
+      throwsA(
+        isA<ConformanceFailureException>().having(
+          (e) => e.message,
+          'message',
+          allOf(
+            contains('preferredSampleCount is 4 without offscreen-multisample'),
+            contains('cube-textures is not reported'),
           ),
         ),
       ),

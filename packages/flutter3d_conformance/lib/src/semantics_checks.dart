@@ -95,7 +95,11 @@ Future<void> checkNullSamplerRepeats(GraphicsDevice device) async {
   pass
     ..setPrimitiveType(PrimitiveType.triangle)
     ..setCullMode(CullMode.none)
-    ..bindPipeline(device.createPipeline(vertex!, fragment!))
+    ..bindPipeline(
+      device.createPipelineFrom(
+        PipelineDescriptor(vertex: vertex!, fragment: fragment!),
+      ),
+    )
     ..bindUniformBlock(vertex, 'ParticleInfo', <String, Float32List>{
       'view_projection': Float32List.fromList(Matrix4.identity().storage),
     })
@@ -193,7 +197,11 @@ Future<void> checkDepthWriteIsHonoured(GraphicsDevice device) async {
     // depth buffer keeps the 1.0 it was cleared to and neither draw is ever
     // rejected by the other.
     ..setDepthWrite(enabled: false)
-    ..bindPipeline(device.createPipeline(vertex!, fragment!));
+    ..bindPipeline(
+      device.createPipelineFrom(
+        PipelineDescriptor(vertex: vertex!, fragment: fragment!),
+      ),
+    );
 
   void triangle(double z, List<double> color) {
     pass
@@ -274,7 +282,12 @@ Future<void> checkUniformMemberMismatchIsRefused(GraphicsDevice device) async {
     ),
   );
   pass.bindPipeline(
-    device.createPipeline(vertex!, device.shaders['Particle'] ?? vertex),
+    device.createPipelineFrom(
+      PipelineDescriptor(
+        vertex: vertex!,
+        fragment: device.shaders['Particle'] ?? vertex,
+      ),
+    ),
   );
 
   // Which kind of backend this is, asked rather than assumed.
@@ -357,7 +370,11 @@ Future<void> checkUndeclaredSamplerIsFalse(GraphicsDevice device) async {
   final pass = device.beginRenderPass(
     RenderPassDescriptor(colors: <ColorTarget>[ColorTarget(texture: target)]),
   );
-  pass.bindPipeline(device.createPipeline(vertex!, fragment!));
+  pass.bindPipeline(
+    device.createPipelineFrom(
+      PipelineDescriptor(vertex: vertex!, fragment: fragment!),
+    ),
+  );
 
   final reflects = !pass.bindUniformBlock(
     vertex,

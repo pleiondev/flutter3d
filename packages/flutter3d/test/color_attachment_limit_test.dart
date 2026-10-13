@@ -157,7 +157,7 @@ void main() {
             ],
           ),
         ),
-        throwsUnsupportedError,
+        throwsA(isA<DeviceResourceException>()),
       );
     });
 

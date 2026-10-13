@@ -86,18 +86,20 @@ extension _VelocityPass on Renderer {
         : name;
     return _pipelineCache.putIfAbsent(
       key,
-      () => device.createPipeline(
-        instanced
-            ? _velocityInstancedVertexShader
-            : skinned
-            ? _velocitySkinnedVertexShader
-            : _velocityVertexShader,
-        fragment,
-        layout: instanced
-            ? _kVelocityInstancedLayout
-            : skinned
-            ? _kVelocitySkinnedLayout
-            : _kVelocityLayout,
+      () => device.createPipelineFrom(
+        PipelineDescriptor(
+          vertex: instanced
+              ? _velocityInstancedVertexShader
+              : skinned
+              ? _velocitySkinnedVertexShader
+              : _velocityVertexShader,
+          fragment: fragment,
+          layout: instanced
+              ? _kVelocityInstancedLayout
+              : skinned
+              ? _kVelocitySkinnedLayout
+              : _kVelocityLayout,
+        ),
       ),
     );
   }

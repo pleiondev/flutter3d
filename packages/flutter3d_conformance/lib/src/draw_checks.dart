@@ -48,7 +48,11 @@ Future<void> checkInstancedDraw(GraphicsDevice device) async {
       ),
     );
     pass
-      ..bindPipeline(device.createPipeline(vertex!, fragment!))
+      ..bindPipeline(
+        device.createPipelineFrom(
+          PipelineDescriptor(vertex: vertex!, fragment: fragment!),
+        ),
+      )
       ..setPrimitiveType(PrimitiveType.triangle)
       ..setCullMode(CullMode.none)
       ..setBlend(BlendState.additive)
@@ -116,7 +120,9 @@ Future<void> checkIndexWindowDraw(GraphicsDevice device) async {
     vertex != null && fragment != null,
     'the debug-line stages are missing, so this cannot draw anything',
   );
-  final pipeline = device.createPipeline(vertex!, fragment!);
+  final pipeline = device.createPipelineFrom(
+    PipelineDescriptor(vertex: vertex!, fragment: fragment!),
+  );
 
   final vertices = Float32List.fromList(<double>[
     -1, -1, 0.5, 1, 0, 0, 1, //
@@ -312,7 +318,11 @@ Future<void> checkGeometryUsage(GraphicsDevice device) async {
     ),
   );
   pass
-    ..bindPipeline(device.createPipeline(vertex!, fragment!))
+    ..bindPipeline(
+      device.createPipelineFrom(
+        PipelineDescriptor(vertex: vertex!, fragment: fragment!),
+      ),
+    )
     ..setPrimitiveType(PrimitiveType.triangle)
     ..setCullMode(CullMode.none)
     ..bindUniformBlock(vertex, 'LineInfo', <String, Float32List>{
@@ -429,7 +439,9 @@ Future<void> checkCubeFaces(GraphicsDevice device) async {
     'the cube-sky stages are missing, so no direction can be pointed at a '
     'face',
   );
-  final pipeline = device.createPipeline(vertex!, fragment!);
+  final pipeline = device.createPipelineFrom(
+    PipelineDescriptor(vertex: vertex!, fragment: fragment!),
+  );
 
   // The six axes, in the order `createCubeTextureFromPixels` documents its
   // faces. Written on all three corners of the triangle, so the interpolated

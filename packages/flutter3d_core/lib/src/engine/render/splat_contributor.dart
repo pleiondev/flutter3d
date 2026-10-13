@@ -769,13 +769,17 @@ final class SplatContributor extends PassContributor {
       ..clearBindings()
       ..bindPipeline(
         hashed
-            ? _hashedPipeline ??= frame.device.createPipeline(
-                vertexShader,
-                fragmentShader,
+            ? _hashedPipeline ??= frame.device.createPipelineFrom(
+                PipelineDescriptor(
+                  vertex: vertexShader,
+                  fragment: fragmentShader,
+                ),
               )
-            : _pipeline ??= frame.device.createPipeline(
-                vertexShader,
-                fragmentShader,
+            : _pipeline ??= frame.device.createPipelineFrom(
+                PipelineDescriptor(
+                  vertex: vertexShader,
+                  fragment: fragmentShader,
+                ),
               ),
       );
     frame.state.invalidatePipeline();
@@ -878,9 +882,8 @@ final class SplatContributor extends PassContributor {
     frame.encoder
       ..clearBindings()
       ..bindPipeline(
-        _reactivePipeline ??= frame.device.createPipeline(
-          vertexShader,
-          fragmentShader,
+        _reactivePipeline ??= frame.device.createPipelineFrom(
+          PipelineDescriptor(vertex: vertexShader, fragment: fragmentShader),
         ),
       )
       ..setState(ReactiveFrame.state)

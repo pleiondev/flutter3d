@@ -164,9 +164,9 @@ final class ConformanceDeclinedException extends CapabilityException {
 /// declined; every check here declines through this, and the package's own
 /// test holds every check file to it.
 ///
-/// [why] is a sentence about the capability, not about the check — "answers
-/// false to supportsOffscreenMsaa, and multisamples nothing" — because it is
-/// read on its own, beside a check name, by somebody holding a phone.
+/// [why] is a sentence about the capability, not about the check — "has no
+/// offscreenMultisample, and multisamples nothing" — because it is read on
+/// its own, beside a check name, by somebody holding a phone.
 Never decline(GraphicsDevice device, String why) =>
     throw ConformanceDeclinedException('${device.backendName} $why');
 

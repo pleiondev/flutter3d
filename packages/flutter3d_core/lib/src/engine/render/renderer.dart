@@ -4097,9 +4097,11 @@ final class Renderer with RenderServices {
     pass.setState(_kFullscreenState.copyWith(viewport: rect, scissor: rect));
 
     pass.bindPipeline(
-      _fullscreenPipelines[draw.fragment] ??= device.createPipeline(
-        _fullscreenVertexShader,
-        draw.fragment,
+      _fullscreenPipelines[draw.fragment] ??= device.createPipelineFrom(
+        PipelineDescriptor(
+          vertex: _fullscreenVertexShader,
+          fragment: draw.fragment,
+        ),
       ),
     );
     pass.bindVertexBuffer(_fullscreenTriangle, 3);
@@ -4913,14 +4915,18 @@ final class Renderer with RenderServices {
       final reset = shaders['ShadowTileReset'];
       final resetVertex = shaders['ShadowTileResetVertex'];
       if (reset != null && resetVertex != null) {
-        _cubeShadowResetPipeline ??= device.createPipeline(resetVertex, reset);
+        _cubeShadowResetPipeline ??= device.createPipelineFrom(
+          PipelineDescriptor(vertex: resetVertex, fragment: reset),
+        );
       }
       final copy = shaders['ShadowCopy'];
       final fullscreen = shaders['FullscreenVertex'];
       if (copy != null &&
           fullscreen != null &&
           scene.meshes.any((node) => node.shadowIsStatic)) {
-        _shadowCopyPipeline ??= device.createPipeline(fullscreen, copy);
+        _shadowCopyPipeline ??= device.createPipelineFrom(
+          PipelineDescriptor(vertex: fullscreen, fragment: copy),
+        );
       }
     },
     for (var frame = 0; frame < _kFramesInFlight; frame++)
@@ -6304,7 +6310,11 @@ final class Renderer with RenderServices {
       // would be inventing the semantics of the general case too.
       pass.setBlend(null, attachment: 1);
 
-      pass.bindPipeline(device.createPipeline(_fullscreenVertexShader, probe));
+      pass.bindPipeline(
+        device.createPipelineFrom(
+          PipelineDescriptor(vertex: _fullscreenVertexShader, fragment: probe),
+        ),
+      );
       pass.bindVertexBuffer(_fullscreenTriangle, 3);
       pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
       pass.draw();
@@ -6550,9 +6560,11 @@ final class Renderer with RenderServices {
     encoder.clearBindings();
 
     encoder.bindPipeline(
-      _debugLinePipeline ??= device.createPipeline(
-        _debugLineVertexShader,
-        _debugLineFragmentShader,
+      _debugLinePipeline ??= device.createPipelineFrom(
+        PipelineDescriptor(
+          vertex: _debugLineVertexShader,
+          fragment: _debugLineFragmentShader,
+        ),
       ),
     );
     encoder.setState(_kDebugLineState);

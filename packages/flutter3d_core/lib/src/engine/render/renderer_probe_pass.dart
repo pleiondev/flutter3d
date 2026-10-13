@@ -377,9 +377,8 @@ extension _ProbePasses on Renderer {
         'the web backend that means re-running tool/generate_shaders.dart.',
       );
     }
-    final pipeline = _probePrefilterPipeline ??= device.createPipeline(
-      _fullscreenVertexShader,
-      shader,
+    final pipeline = _probePrefilterPipeline ??= device.createPipelineFrom(
+      PipelineDescriptor(vertex: _fullscreenVertexShader, fragment: shader),
     );
 
     for (var level = 0; level <= state.levels; level++) {

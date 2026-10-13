@@ -70,7 +70,9 @@ final class FieldPass {
       ..setCullMode(CullMode.none)
       ..setBlend(null)
       ..bindPipeline(
-        _pipelines[kernel] ??= device.createPipeline(vertex, kernel),
+        _pipelines[kernel] ??= device.createPipelineFrom(
+          PipelineDescriptor(vertex: vertex, fragment: kernel),
+        ),
       )
       ..bindTexture(
         kernel,

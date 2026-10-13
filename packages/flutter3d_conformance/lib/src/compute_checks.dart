@@ -50,7 +50,11 @@ Future<void> checkPrefixSum(GraphicsDevice device) async {
     contents: input,
   );
   device.beginComputePass(label: 'prefix sum')
-    ..bindPipeline(device.createComputePipeline(stage!))
+    ..bindPipeline(
+      device.createComputePipelineFrom(
+        ComputePipelineDescriptor(shader: stage!),
+      ),
+    )
     ..bindStorageBuffer(stage, 'Values', buffer)
     ..dispatch(1)
     ..submit();

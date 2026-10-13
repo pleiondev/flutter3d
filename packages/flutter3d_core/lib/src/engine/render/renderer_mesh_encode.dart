@@ -409,10 +409,12 @@ extension _MeshEncode on Renderer {
     };
     if (predraw) {
       encoder.bindPipeline(
-        _predrawPipelines[activeVertexShader] ??= device.createPipeline(
-          activeVertexShader,
-          shaders['DepthPredraw']!,
-          layout: batched ? _kInstancedLayout : null,
+        _predrawPipelines[activeVertexShader] ??= device.createPipelineFrom(
+          PipelineDescriptor(
+            vertex: activeVertexShader,
+            fragment: shaders['DepthPredraw']!,
+            layout: batched ? _kInstancedLayout : null,
+          ),
         ),
       );
       // The tracker describes the lit pipelines, and this replaced one.

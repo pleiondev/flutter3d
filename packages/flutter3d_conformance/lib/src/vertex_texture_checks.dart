@@ -86,7 +86,11 @@ Future<void> checkVertexTextureSampling(GraphicsDevice device) async {
   pass
     ..setPrimitiveType(PrimitiveType.triangle)
     ..setCullMode(CullMode.none)
-    ..bindPipeline(device.createPipeline(vertex!, fragment!))
+    ..bindPipeline(
+      device.createPipelineFrom(
+        PipelineDescriptor(vertex: vertex!, fragment: fragment!),
+      ),
+    )
     ..bindUniformBlock(vertex, 'ProbeInfo', <String, Float32List>{
       'at': Float32List.fromList(<double>[0.5, 0.5, 0.0, 0.0]),
     })
@@ -196,7 +200,11 @@ Future<void> checkFloatTextureUpload(GraphicsDevice device) async {
   pass
     ..setPrimitiveType(PrimitiveType.triangle)
     ..setCullMode(CullMode.none)
-    ..bindPipeline(device.createPipeline(vertex!, fragment!))
+    ..bindPipeline(
+      device.createPipelineFrom(
+        PipelineDescriptor(vertex: vertex!, fragment: fragment!),
+      ),
+    )
     ..bindUniformBlock(vertex, 'ProbeInfo', <String, Float32List>{
       'at': Float32List.fromList(<double>[0.5, 0.5, 0.0, 0.0]),
     })
@@ -288,7 +296,11 @@ Future<void> checkFloat32Filtering(GraphicsDevice device) async {
       )
       ..setPrimitiveType(PrimitiveType.triangle)
       ..setCullMode(CullMode.none)
-      ..bindPipeline(device.createPipeline(vertex!, fragment!))
+      ..bindPipeline(
+        device.createPipelineFrom(
+          PipelineDescriptor(vertex: vertex!, fragment: fragment!),
+        ),
+      )
       ..bindUniformBlock(vertex, 'ProbeInfo', <String, Float32List>{
         'at': Float32List.fromList(<double>[u, 0.5, 0.0, 0.0]),
       })

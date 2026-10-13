@@ -138,9 +138,11 @@ extension _DecalPass on Renderer {
       bound = stage;
       pass
         ..bindPipeline(
-          _fullscreenPipelines[stage] ??= device.createPipeline(
-            _fullscreenVertexShader,
-            stage,
+          _fullscreenPipelines[stage] ??= device.createPipelineFrom(
+            PipelineDescriptor(
+              vertex: _fullscreenVertexShader,
+              fragment: stage,
+            ),
           ),
         )
         ..bindVertexBuffer(_fullscreenTriangle, 3)

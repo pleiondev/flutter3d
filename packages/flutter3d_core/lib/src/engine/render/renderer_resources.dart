@@ -112,10 +112,12 @@ extension _RendererResources on Renderer {
             lightmapped: lightmapped,
             opaque: opaque,
           );
-          return device.createPipeline(
-            stages.vertex,
-            stages.fragment,
-            layout: stages.layout,
+          return device.createPipelineFrom(
+            PipelineDescriptor(
+              vertex: stages.vertex,
+              fragment: stages.fragment,
+              layout: stages.layout,
+            ),
           );
         },
         material: model.shaderName,
@@ -193,10 +195,12 @@ extension _RendererResources on Renderer {
       lightmapped: lightmapped,
       opaque: opaque,
     );
-    final pipeline = await device.createPipelineAsync(
-      stages.vertex,
-      stages.fragment,
-      layout: stages.layout,
+    final pipeline = await device.createPipelineFromAsync(
+      PipelineDescriptor(
+        vertex: stages.vertex,
+        fragment: stages.fragment,
+        layout: stages.layout,
+      ),
     );
     if (generation != _stageGeneration || _pipelineCache.containsKey(key)) {
       pipeline.dispose();

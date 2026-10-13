@@ -78,7 +78,9 @@ Future<void> checkFloatFieldSteps(GraphicsDevice device) async {
         )
         .submit();
 
-    final pipeline = device.createPipeline(fullscreen!, kernel!);
+    final pipeline = device.createPipelineFrom(
+      PipelineDescriptor(vertex: fullscreen!, fragment: kernel!),
+    );
     for (var step = 0; step < 3; step++) {
       device.beginRenderPass(
           RenderPassDescriptor(
@@ -128,7 +130,11 @@ Future<void> checkFloatFieldSteps(GraphicsDevice device) async {
       )
       ..setPrimitiveType(PrimitiveType.triangle)
       ..setCullMode(CullMode.none)
-      ..bindPipeline(device.createPipeline(probeVertex!, probeFragment!))
+      ..bindPipeline(
+        device.createPipelineFrom(
+          PipelineDescriptor(vertex: probeVertex!, fragment: probeFragment!),
+        ),
+      )
       ..bindUniformBlock(probeVertex, 'ProbeInfo', <String, Float32List>{
         'at': Float32List.fromList(<double>[0.5, 0.5, 0.0, 0.0]),
       })

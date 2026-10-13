@@ -242,7 +242,9 @@ Future<void> checkLinking(GraphicsDevice device) async {
     // record does.
     final PipelineHandle pipeline;
     try {
-      pipeline = device.createPipeline(vertex!, fragment!);
+      pipeline = device.createPipelineFrom(
+        PipelineDescriptor(vertex: vertex!, fragment: fragment!),
+      );
     } catch (error) {
       throw ConformanceFailureException(
         '$vertexName + $fragmentName does not link: '

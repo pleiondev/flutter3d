@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **The honesty check asks two more questions**: cubes are probed (a
+  device without `cubeTextures` refuses `createCubeTextureFromPixels` by
+  name since 1.0), and a `preferredSampleCount` above one without
+  `offscreenMultisample` is reported. The border probe clamps an axis to
+  the border, which is what `samplerBorderColor` gates now.
+- **Every check builds its pipelines through the descriptor forms**,
+  `createPipelineFrom` and `createComputePipelineFrom`, and names
+  features rather than the `supportsX` getters in its messages.
 - **A check and a backend's own section are classes.**
   `ConformanceCheck({name, run})` and `OwnShaderSection({id, bytes, sdk})`
   are final classes with value equality where they were records, so either

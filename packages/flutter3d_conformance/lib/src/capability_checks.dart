@@ -18,8 +18,9 @@
 /// ones (refused by `loadShaders`, which needs a bundle compiled with them),
 /// the draw-shaped ones whose positive half needs a pipeline built for the
 /// purpose (their refusal half *is* probed), and the pre-1.0 ones whose
-/// "no" was never a refusal (alpha-to-coverage is ignored, a cube target is
-/// null) and which have checks of their own.
+/// "no" was never a refusal (alpha-to-coverage is ignored, a second
+/// attachment's blend falls back to the first) and which have checks of
+/// their own.
 library;
 
 import 'dart:typed_data';
@@ -52,9 +53,6 @@ const Map<String, String> unprobedFeatures = <String, String>{
       'bound only through a compute stage that declares one',
   'offscreen-multisample': 'held by "a multisample resolve resolves"',
   'manual-mipmaps': 'held by "a cube takes the mip chain it is handed"',
-  'cube-textures':
-      'held by "a cube map answers the face a direction points '
-      'at"; a device without it answers null, not a refusal',
   'alpha-to-coverage': 'a device without it ignores the call, by contract',
   'stencil': 'held by "a stencil test keeps what it should"',
   'gpu-timestamps': 'reported through onGpuTimings, never refused',
@@ -254,6 +252,20 @@ final Map<DeviceFeature, _Probe> _probes = <DeviceFeature, _Probe>{
           // A 1D texture is never an attachment, on WebGPU or anywhere.
           usage: TextureUsage.sampled | TextureUsage.copyDestination,
         ),
+      ),
+    ),
+  ),
+  // The pixels of a cube, which a device without cubes refuses by name
+  // since 1.0 (it answered null before); what a face holds is "a cube map
+  // answers the face a direction points at".
+  DeviceFeature.cubeTextures: (
+    needs: const <DeviceFeature>[],
+    refusalOnly: false,
+    run: (GraphicsDevice d) async => d.releaseTexture(
+      d.createCubeTextureFromPixels(
+        size: 1,
+        format: TextureFormat.r8g8b8a8UNormInt,
+        faces: <ByteData>[for (var i = 0; i < 6; i++) ByteData(4)],
       ),
     ),
   ),
@@ -567,7 +579,11 @@ final Map<DeviceFeature, _Probe> _probes = <DeviceFeature, _Probe>{
         contents: dispatchIndirectArguments(1),
       );
       d.beginComputePass()
-        ..bindPipeline(d.createComputePipeline(stage!))
+        ..bindPipeline(
+          d.createComputePipelineFrom(
+            ComputePipelineDescriptor(shader: stage!),
+          ),
+        )
         ..bindStorageBuffer(stage, 'Values', buffer)
         ..dispatchIndirect(arguments)
         ..submit();
@@ -643,9 +659,13 @@ final Map<DeviceFeature, _Probe> _probes = <DeviceFeature, _Probe>{
   DeviceFeature.samplerBorderColor: (
     needs: const <DeviceFeature>[],
     refusalOnly: false,
+    // An axis clamped to the border: a colour no axis uses needs nothing.
     run: (GraphicsDevice d) async => _sampledBy(
       d,
-      const SamplerDescriptor(borderColor: SamplerBorderColor.opaqueWhite),
+      const SamplerDescriptor(
+        widthAddressMode: SamplerAddressMode.clampToBorder,
+        borderColor: SamplerBorderColor.opaqueWhite,
+      ),
     ),
   ),
   DeviceFeature.uniformBytes: (
@@ -921,6 +941,15 @@ Future<void> checkCapabilitiesAreHonest(GraphicsDevice device) async {
         'than UnsupportedCapabilityException naming it',
       );
     }
+  }
+  // A preference for samples the device cannot allocate is a target the
+  // renderer makes and the backend refuses.
+  if (device.preferredSampleCount > 1 &&
+      !features.has(DeviceFeature.offscreenMultisample)) {
+    wrong.add(
+      'preferredSampleCount is ${device.preferredSampleCount} without '
+      '${DeviceFeature.offscreenMultisample.name}',
+    );
   }
   require(
     wrong.isEmpty,

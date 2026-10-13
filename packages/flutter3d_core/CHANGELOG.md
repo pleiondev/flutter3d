@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **The renderer builds every pipeline through the descriptor forms**,
+  `createPipelineFrom` and `createComputePipelineFrom`, so a backend that
+  reads a descriptor field sees the engine's pipelines through it.
 - **A plugin's asset scheme is in its namespace.** Through a plugin's
   view, `ModelDecoders.addSource` takes the plugin's namespace with `-`
   for `_`, or that and `-<name>` (`acme-frost-pak`), and never one of
