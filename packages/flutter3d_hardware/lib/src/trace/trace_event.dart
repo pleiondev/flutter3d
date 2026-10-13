@@ -61,6 +61,9 @@ final class TraceColorTarget {
   final int? resolveTexture;
   final LoadAction loadAction;
   final StoreAction storeAction;
+
+  /// The colour a clear writes, linear RGBA, unitless; null clears to
+  /// transparent black.
   final Vector4? clearValue;
 
   /// The cube face, mip level and array layer the pass draws into.
@@ -90,6 +93,8 @@ final class TraceDepthTarget {
 
   /// The attachment, by the id the trace created it under.
   final int texture;
+
+  /// The depth a clear writes. A depth from 0 to 1, unitless.
   final double clearValue;
   final LoadAction loadAction;
   final StoreAction storeAction;
