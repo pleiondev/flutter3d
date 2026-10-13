@@ -51,4 +51,16 @@ void main() {
       'kinds-Component-base:31',
     ]);
   }, timeout: const Timeout(Duration(minutes: 3)));
+
+  test('a project named like one of the engine\'s packages has its own '
+      'classes made base all the same', () async {
+    // Mutation: take a class whose package has the engine's prefix for the
+    // engine's, and `flame_flutter3d_example`'s game is left a subclass of
+    // a base class that is not base itself.
+    final report = await migrateKindFixture(
+      'subclassModifier',
+      project: 'flame_flutter3d_example',
+    );
+    expect(appliedOf(report), hasLength(6));
+  }, timeout: const Timeout(Duration(minutes: 3)));
 }

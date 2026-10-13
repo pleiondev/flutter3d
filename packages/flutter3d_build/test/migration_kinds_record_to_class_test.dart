@@ -35,6 +35,10 @@ void main() {
       'kinds-Frame-class',
       'kinds-Frame-class',
       'kinds-Frame-class',
+      // In a collection `for`, a collection `if` and a map's value.
+      'kinds-Frame-class',
+      'kinds-Frame-class',
+      'kinds-Frame-class',
     ]);
     expect(manualOf(report), <String>['kinds-Span-class:11']);
   }, timeout: const Timeout(Duration(minutes: 3)));

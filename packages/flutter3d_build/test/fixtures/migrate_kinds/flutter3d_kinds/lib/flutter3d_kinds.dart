@@ -269,3 +269,53 @@ final class Badge {
   const Badge(this.text);
   final String text;
 }
+
+// ------------------------------------------------- two passes over one
+// 0.8: `Bell({void Function(String what, int times)? onRing})`.
+
+final class Ring {
+  const Ring(this.what, this.times);
+  final String what;
+  final int times;
+}
+
+final class Bell {
+  const Bell({this.onRing});
+  final void Function(Ring ring)? onRing;
+}
+
+// 0.8: `abstract base class Judge` whose `judge(Match match, int score)`
+// an outside class overrides, `Match` renamed since.
+
+final class Judging {
+  const Judging({required this.match, required this.score});
+  final KindMatch match;
+  final int score;
+}
+
+abstract base class Judge {
+  const Judge();
+  void judge(Judging judging);
+}
+
+// A unit of measurement, new in 1.0: the name a board game's piece had.
+
+final class Unit {
+  const Unit(this.symbol);
+  final String symbol;
+}
+
+// 0.8: `Tool(int Function(int from, int to) run)`, its body called with the
+// two; one `Shift` since, and `runOn(from, to)` builds it.
+
+final class Shift {
+  const Shift(this.from, this.to);
+  final int from;
+  final int to;
+}
+
+final class Tool {
+  const Tool(this.run);
+  final int Function(Shift shift) run;
+  int runOn(int from, int to) => run(Shift(from, to));
+}

@@ -86,8 +86,13 @@ done
 
 # An analyzer's errors without their line and column, which a migration
 # moves: what stays the same error when the code around it is rewritten.
+# Each once: without a place, two of one error in a file cannot be told
+# apart, and a page whose fragment had it at the tag has it as its own. The
+# shooter page's `ActorSystem` lacked its `random` at the tag, unseen while
+# the page's imports left the class unresolved; once the migration's imports
+# resolve it, the error the page always had is said a second time.
 errors_of() {
-  grep '^ *error ' "$1" | sed -E 's/:[0-9]+:[0-9]+ •/ •/' | sort || true
+  grep '^ *error ' "$1" | sed -E 's/:[0-9]+:[0-9]+ •/ •/' | sort -u || true
 }
 
 # The errors of project $2's report $1 the migration left no TODO at.

@@ -444,8 +444,19 @@ final class _Scan extends RecursiveAstVisitor<void> {
 
   bool _ownedAs(Element? element, MigrationRule? rule) {
     final package = _packageOf(element);
-    return package != null && ownedPackage(package);
+    return package != null &&
+        package != _scannedPackage &&
+        ownedPackage(package);
   }
+
+  /// The package of the library being migrated. **Its own classes are never
+  /// the engine's**, whatever it is called: a project named
+  /// `flutter3d_demo_arcade` or `flame_flutter3d_example` has a name
+  /// [ownedPackage] takes for the engine's, and without this its own
+  /// subclasses were never given the `base` their engine supertype asks for.
+  late final String? _scannedPackage = _packageOf(
+    unit.declaredFragment?.element,
+  );
 
   /// Whether [node] names member [MigrationRule.member] (or one of
   /// [MigrationRule.members]) of [MigrationRule.type].
@@ -585,6 +596,37 @@ final class _Scan extends RecursiveAstVisitor<void> {
       ArgumentList? argumentList,
       TypeArgumentList? typeArguments,
     ) = switch (parent) {
+      // A field of a function type called (`tool.run(a, b)`): the call is
+      // what the rewrite replaces, and its arguments are the template's.
+      PrefixedIdentifier(
+        :final prefix,
+        :final identifier,
+        parent: final FunctionExpressionInvocation call,
+      )
+          when identifier == node && call.function == parent =>
+        (
+          call,
+          prefix.element is PrefixElement ? null : prefix,
+          false,
+          <AstNode>[...call.argumentList.arguments],
+          call.argumentList,
+          call.typeArguments,
+        ),
+      PropertyAccess(
+        :final target?,
+        :final propertyName,
+        :final operator,
+        parent: final FunctionExpressionInvocation call,
+      )
+          when propertyName == node && call.function == parent =>
+        (
+          call,
+          target,
+          operator.type == TokenType.QUESTION_PERIOD,
+          <AstNode>[...call.argumentList.arguments],
+          call.argumentList,
+          call.typeArguments,
+        ),
       PrefixedIdentifier(:final prefix, :final identifier)
           when identifier == node =>
         (
@@ -638,6 +680,17 @@ final class _Scan extends RecursiveAstVisitor<void> {
       }
     }
     var text = rule.template!;
+    // A call with fewer arguments than the template reads is not the old
+    // call: `tool.run(call)` is 1.0's one-object call where the rewrite is
+    // of `tool.run(session, arguments)`, and is left as it is.
+    final reads = RegExp(
+      r'\{(\d+)\}',
+    ).allMatches(text).map((Match m) => int.parse(m.group(1)!));
+    if (argumentList != null &&
+        reads.isNotEmpty &&
+        args.length <= reads.reduce((int a, int b) => a > b ? a : b)) {
+      return;
+    }
     // A cascade's receiver is not written where the rewrite needs it, and
     // a null-aware access changes the type the rewrite would produce.
     // `{0}` names an argument by its place, which a named one has not.
@@ -1733,10 +1786,20 @@ final class _Scan extends RecursiveAstVisitor<void> {
         _expectedOfReads(declaredFragment.element, parent),
       VariableDeclaration(:final declaredFragment?) =>
         declaredFragment.element.type,
-      // An element of a list literal: the list's element type.
+      // An element of a list literal: the list's element type; through a
+      // collection `for` or `if`, the literal they stand in.
       ListLiteral(:final staticType) => switch (staticType) {
         final InterfaceType list when list.typeArguments.length == 1 =>
           list.typeArguments.single,
+        _ => null,
+      },
+      ForElement() || IfElement() => _elementTypeOf(parent!),
+      // A map entry's value: the map's value type.
+      MapLiteralEntry(:final value) when value == at => switch (_literalOf(
+        parent,
+      )?.staticType) {
+        final InterfaceType map when map.typeArguments.length == 2 =>
+          map.typeArguments.last,
         _ => null,
       },
       _ when at is Expression => _parameterOf(at)?.type,
@@ -1749,6 +1812,24 @@ final class _Scan extends RecursiveAstVisitor<void> {
     }
     return type;
   }
+
+  /// The literal a collection element (a `for`, an `if`, a map entry)
+  /// stands in, through any `for` or `if` around it.
+  static TypedLiteral? _literalOf(AstNode element) {
+    AstNode? at = element.parent;
+    while (at is ForElement || at is IfElement) {
+      at = at!.parent;
+    }
+    return at is TypedLiteral ? at : null;
+  }
+
+  /// The element type of the list or set literal [element] stands in.
+  static DartType? _elementTypeOf(AstNode element) =>
+      switch (_literalOf(element)?.staticType) {
+        final InterfaceType list when list.typeArguments.length == 1 =>
+          list.typeArguments.single,
+        _ => null,
+      };
 
   /// A field of an object pattern a member rename renamed:
   /// `PerspectiveProjection(:final fovYRadians)` is
@@ -2214,14 +2295,23 @@ final class _Scan extends RecursiveAstVisitor<void> {
   void _shadowedRename(NamedType node) {
     final rules = classRenames[node.name.lexeme];
     final element = node.element;
+    // Shadowed by `dart:core`'s (`Match`), or by another of the engine's
+    // packages that took the name since (`Unit`, the foundation's unit of
+    // measurement, which `package:flutter3d` exports where a strategy game
+    // meant its `Unit`, a `StrategyUnit` now).
+    final shadowedBy = element?.library?.uri.scheme == 'dart'
+        ? 'dart'
+        : _packageOf(element);
     if (rules == null ||
         node.importPrefix != null ||
         element == null ||
-        element.library?.uri.scheme != 'dart') {
+        shadowedBy == null ||
+        (shadowedBy != 'dart' && !_ownedAs(element, null))) {
       return;
     }
     final scope = unit.declaredFragment?.scope;
     for (final rule in rules) {
+      if (shadowedBy == rule.package) continue;
       final to = rule.to;
       if (to == null || scope?.lookup(to).getter is! InterfaceElement) {
         continue;
@@ -2644,6 +2734,7 @@ final class _Scan extends RecursiveAstVisitor<void> {
   /// value is of a type the rule rewrites.
   void _argument(Argument argument, MigrationRule rule) {
     final value = argument.argumentExpression;
+    if (_fitsAlready(argument, rule)) return;
     final values = _valuesOfOldType(value, rule);
     if (values.isEmpty) return;
     final edits = <MigrationEdit>[
@@ -2662,6 +2753,22 @@ final class _Scan extends RecursiveAstVisitor<void> {
       edits.addAll(_importsFor(rule));
     }
     if (edits.isNotEmpty) _add(rule, argument, edits: edits);
+  }
+
+  /// Whether [argument] is already what [rule] makes of it: a rule that
+  /// names no old [MigrationRule.types] and keeps the parameter's name
+  /// (`onDressed: f` wrapped into `(dressed) => (f)(…)`, `frameWorkBudget:
+  /// 2000` into a `Duration`) matches its own result again, and the next
+  /// pass of `migrate` wrapped it once more. A value the parameter takes as
+  /// it stands is left alone.
+  bool _fitsAlready(Argument argument, MigrationRule rule) {
+    if (rule.types.isNotEmpty || rule.to != null) return false;
+    final given = argument.argumentExpression.staticType;
+    final wanted = argument.correspondingParameter?.type;
+    final typeSystem = unit.declaredFragment?.element.library.typeSystem;
+    if (given == null || wanted == null || typeSystem == null) return false;
+    if (given is DynamicType || given is InvalidType) return false;
+    return typeSystem.isAssignableTo(given, wanted);
   }
 
   /// The parts of [value] [rule] rewrites: [value] itself when it is of an

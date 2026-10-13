@@ -335,12 +335,32 @@ void _addImports(ResolvedUnitResult unit, Set<String> uris, _Work work) {
 
 /// [source] with [edits] applied from the end, skipping one that overlaps
 /// an edit already taken, and one that repeats it.
+///
+/// **An edit inside the text another one replaces gives way to it.** A
+/// hook's parameters rewritten whole (`(Fixture fixture, Material material)`
+/// to `(FixtureRefreshContext context)`) and the rename of `Material` inside
+/// them used to meet the other way round: the rename was taken, the
+/// parameters skipped, and the reads from the context the same rule put in
+/// the body were kept, so the next pass migrated the hook a second time
+/// over its own half. What the larger edit replaced is the next pass's to
+/// look at again, if anything of it is left.
 String _apply(String source, List<MigrationEdit> edits) {
-  final sorted = edits.toList()
-    ..sort((MigrationEdit a, MigrationEdit b) {
-      final c = b.offset.compareTo(a.offset);
-      return c != 0 ? c : b.length.compareTo(a.length);
-    });
+  bool inside(MigrationEdit e, MigrationEdit f) {
+    if (f.length == 0 || (e.offset == f.offset && e.length == f.length)) {
+      return false;
+    }
+    final end = e.offset + e.length, fEnd = f.offset + f.length;
+    return e.length > 0
+        ? e.offset >= f.offset && end <= fEnd
+        : e.offset > f.offset && e.offset < fEnd;
+  }
+
+  final sorted =
+      edits.where((MigrationEdit e) => !edits.any((f) => inside(e, f))).toList()
+        ..sort((MigrationEdit a, MigrationEdit b) {
+          final c = b.offset.compareTo(a.offset);
+          return c != 0 ? c : b.length.compareTo(a.length);
+        });
   var text = source;
   var floor = source.length + 1;
   // The same insertion asked twice (two calls awaited in one callback make
