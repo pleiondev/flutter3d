@@ -15,7 +15,6 @@ import 'dart:io';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_demo_content/shooter_sample.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
-import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';

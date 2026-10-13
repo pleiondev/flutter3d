@@ -6575,15 +6575,11 @@ List<Finding> _facadesAreClosed() {
   final homes = typeHomesIn(snapshots);
   // Every library's, for [facadeGapFromAllowed], which excuses a type by the
   // package that declares it wherever in that package it is.
-  final everyHome = <String, Set<String>>{
-    for (final MapEntry(key: package, value: snapshot) in snapshots.entries)
-      for (final library in parseApi(snapshot).values)
-        for (final name in library.declarations.keys) name: <String>{},
-  };
+  final everyHome = <String, Set<String>>{};
   for (final MapEntry(key: package, value: snapshot) in snapshots.entries) {
     for (final library in parseApi(snapshot).values) {
       for (final name in library.declarations.keys) {
-        everyHome[name]!.add(package);
+        (everyHome[name] ??= <String>{}).add(package);
       }
     }
   }

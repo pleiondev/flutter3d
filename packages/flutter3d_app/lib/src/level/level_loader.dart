@@ -3,8 +3,6 @@ import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_core/flutter3d_core.dart'
-    show MaterialVersionException;
 import 'package:flutter3d_level_scene/flutter3d_level_scene.dart'
     show LevelBatching, LevelScene;
 import 'package:flutter3d_physics/flutter3d_physics.dart';

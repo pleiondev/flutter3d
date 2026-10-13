@@ -163,6 +163,10 @@ const Map<String, String> reexportsAllowed = <String, String>{
   'flutter3d_game -> flutter3d_camera':
       'the one facade: the rig and the framings every genre kit\'s camera '
       'hands a game, by name',
+  'flutter3d_education -> flutter3d_sim':
+      'a lab\'s and an experiment\'s recording types and probe (`Demo`, '
+      '`DigestTrace`, `DataSourceTrace`, `Divergence`, `Probe`), by name: a '
+      'lab is written with the lab library, `flutter3d_app` and `flutter3d`',
   'flutter3d_game_physics -> flutter3d_net':
       'a party\'s seat, which the game\'s `stage` callback is handed: the '
       'seat alone, by name, and the relay stays `flutter3d_net`\'s',

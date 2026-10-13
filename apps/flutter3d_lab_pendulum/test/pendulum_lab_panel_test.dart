@@ -10,7 +10,6 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_education/lab.dart';
 import 'package:flutter3d_lab_pendulum/src/pendulum_lab_panel.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 GraphicsDevice _device() => CpuDevice(

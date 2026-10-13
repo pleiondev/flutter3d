@@ -1,6 +1,5 @@
 import 'package:flutter3d_game_physics/party.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
-import 'package:flutter3d_net/flutter3d_net.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 

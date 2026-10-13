@@ -1055,29 +1055,6 @@ export 'package:flutter3d_app/flutter3d_app.dart'
 // listener and emitters from the audio. Named, so that a type added to any
 // of the three is this facade's only once it is listed here; a game that
 // needs more of one imports that package and depends on it.
-//
-// The camera rig is here too, by name: every genre kit hands a game a
-// camera over it (`FollowCamera`, `ChaseCamera`, `FirstPersonCamera`,
-// `MapCamera`), and a game that sets its framing writes these types.
-export 'package:flutter3d_camera/flutter3d_camera.dart'
-    show
-        BlendCurve,
-        CameraBlend,
-        CameraFraming,
-        CameraRig,
-        CameraShot,
-        ChaseFraming,
-        FirstPersonFraming,
-        FollowFraming,
-        FramedTarget,
-        FramingStep,
-        GroupFraming,
-        LookAtFraming,
-        OrbitFraming,
-        OverheadFraming,
-        PhotoCamera,
-        RigSettings,
-        VirtualCamera;
 export 'package:flutter3d_audio_core/flutter3d_audio_core.dart'
     show
         Attenuation,
@@ -1109,6 +1086,28 @@ export 'package:flutter3d_audio_core/flutter3d_audio_core.dart'
         VoiceId,
         VoiceStart,
         VoiceUpdate;
+// The camera rig is here too, by name: every genre kit hands a game a
+// camera over it (`FollowCamera`, `ChaseCamera`, `FirstPersonCamera`,
+// `MapCamera`), and a game that sets its framing writes these types.
+export 'package:flutter3d_camera/flutter3d_camera.dart'
+    show
+        BlendCurve,
+        CameraBlend,
+        CameraFraming,
+        CameraRig,
+        CameraShot,
+        ChaseFraming,
+        FirstPersonFraming,
+        FollowFraming,
+        FramedTarget,
+        FramingStep,
+        GroupFraming,
+        LookAtFraming,
+        OrbitFraming,
+        OverheadFraming,
+        PhotoCamera,
+        RigSettings,
+        VirtualCamera;
 export 'package:flutter3d_particles/flutter3d_particles.dart'
     show
         BoxEmitter,

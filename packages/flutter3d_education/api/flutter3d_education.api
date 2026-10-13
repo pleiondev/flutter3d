@@ -95,6 +95,9 @@ const FormatSpec experimentFormat = FormatSpec(id: 'f3d.experiment', version: ex
 
 const int experimentVersion = 1
 
+export package:flutter3d_sim/flutter3d_sim.dart show Probe
+  Probe
+
 library package:flutter3d_education/flutter3d_education.dart
 
 enum AgsActivityProgress
@@ -455,6 +458,13 @@ djwt.RSAPublicKey rsaPublicKeyFromJwk(Map<String, dynamic> jwk)
 
 Map<String, Object?> rsaPublicKeyToJwk(pc.RSAPublicKey key, {required String kid})
 
+export package:flutter3d_sim/flutter3d_sim.dart show DataSourceTrace, Demo, DigestTrace, Divergence
+  DataSourceTrace
+  Demo
+  DigestTrace
+  Divergence
+  Probe
+
 library package:flutter3d_education/lab.dart
 
 final class LabClock
@@ -500,6 +510,12 @@ final class PendulumSimulation
 LabDivergence? firstLabDivergence(DataSourceTrace assignment, DataSourceTrace student, {required String path, double tolerance = 1e-9})
 
 const double labFixedDt = 1.0 / 60.0
+
+export package:flutter3d_sim/flutter3d_sim.dart show DataSourceTrace, Demo, DigestTrace, Divergence
+  DataSourceTrace
+  Demo
+  DigestTrace
+  Divergence
 
 library package:flutter3d_education/lesson.dart
 

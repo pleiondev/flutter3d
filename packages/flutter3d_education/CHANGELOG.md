@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **A lab is written with its own import.** `lab.dart` exports the
+  recording types a lab run is read through (`Demo`, `DigestTrace`,
+  `DataSourceTrace`, `Divergence`) and `experiment.dart` the `Probe` an
+  experiment reads, from `flutter3d_sim`, which a lab's code no longer
+  imports for them.
 - **New: a lesson's answers reach the learning platform** (`CheckReporter`,
   `CheckAnswer`, `CheckDelivery` in `lti.dart`). Each answer to a `check`
   question is an xAPI `answered` statement; each question an answer

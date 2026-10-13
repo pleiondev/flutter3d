@@ -4,8 +4,6 @@ import 'package:flutter3d_app/flutter3d_app.dart' show printIssue;
 import 'package:flutter3d_demo_content/shooter_staging.dart' show Staged;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
-import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'monster_looks.dart';

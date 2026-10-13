@@ -22,7 +22,6 @@ import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart'
     show ChaseBrain, MonsterState;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show startPhysics;
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// The model the dungeon draws [actor] with, which says its kind.
