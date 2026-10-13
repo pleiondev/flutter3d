@@ -37,15 +37,25 @@ final class TubeHook extends LightTypeHook {
 
 /// A lit model of the plugin's own, with a uniform block and a texture of
 /// its own: the slot table every backend binds by.
+///
+/// It reads the plugin's own light too (version 3): `tube` is one while the
+/// block shades a [tubeLight], and `lightParams.w` is the length [TubeHook]
+/// packs, so a longer tube reaches further. The engine's stages skip a light
+/// type of a plugin's own; this block is handed it with its direction and
+/// `nDotL`, which is what lights a box under a tube alone on every backend.
 const String hairSource = '''
-f3dmat 2
+f3dmat 3
 material acme_sample_Hair {
   uniform float gloss = 0.5;
   uniform(Strands) vec3 tint = vec3(0.4, 0.3, 0.2);
   uniform(Strands) float shift = 0.1;
   texture fur;
+  lighttype tube = acme_sample.tube;
 
-  light { return albedo * tint * nDotL; }
+  light {
+    let reach = mix(1.0, 0.5 + 0.25 * lightParams.w, tube);
+    return albedo * tint * nDotL * reach;
+  }
   fragment {
     let strands = sample(fur, uv).rgb;
     return vec4(lit * strands * (gloss + shift), alpha);
@@ -54,9 +64,8 @@ material acme_sample_Hair {
 ''';
 
 /// [hairSource] described as a lighting model.
-final LightingModel hairModel = describeMaterial(
-  parseMaterial(hairSource),
-).lightingModel(label: 'Hair', shaderName: 'acme_sample_Hair');
+final LightingModel hairModel = describeMaterial(parseMaterial(hairSource))
+    .lightingModel(label: 'Hair', shaderName: 'acme_sample_Hair');
 
 /// A decal stage of the plugin's own, with the engine's decal interface.
 const LightingModel decalStage = LightingModel(
