@@ -6578,10 +6578,30 @@ List<Finding> _facadesAreClosed() {
     final exported = <String>{
       for (final p in together) ...facadeNames(snapshots[p]!, p),
     };
+    // The libraries the facade stands on: its own and those it re-exports
+    // from, whose extensions on a type it exports it should export too.
+    final standsOn = <String>{
+      for (final p in together)
+        for (final library in parseApi(snapshots[p]!).values)
+          if (library.uri == 'package:$p/$p.dart') ...<String>[
+            library.uri,
+            ...library.exports.keys,
+          ],
+    };
+    final extensions = <String>{
+      for (final snapshot in snapshots.values)
+        for (final library in parseApi(snapshot).values)
+          if (standsOn.contains(library.uri))
+            for (final MapEntry(key: name, value: block)
+                in library.declarations.entries)
+              if (RegExp(r'^extension\s+(?!type\b)').hasMatch(block.header))
+                name,
+    };
     for (final gap in facadeGapsIn(
       facade: facade,
       exported: exported,
       declarations: declarations,
+      extensions: extensions,
     )) {
       final key = '$facade:${gap.subject}';
       if (facadeGapAllowed.containsKey(key)) {

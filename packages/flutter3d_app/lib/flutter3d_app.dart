@@ -97,8 +97,10 @@ export 'package:flutter3d_sim/flutter3d_sim.dart'
         InputFrame,
         InputState,
         InputTapeRecorder,
+        JsonLinearColorWriter,
         Level,
         LevelCheck,
+        LevelCollision,
         LevelIssue,
         LevelLight,
         LevelMaterial,
@@ -109,6 +111,7 @@ export 'package:flutter3d_sim/flutter3d_sim.dart'
         LightmapLayout,
         LocalSimulation,
         NavMeshLink,
+        PlayerStart,
         Prefab,
         SeatInput,
         ShadowCasting,
@@ -124,6 +127,7 @@ export 'package:flutter3d_sim/flutter3d_sim.dart'
         XrHand,
         XrPlane,
         XrPlaneOrientation,
+        XrPoseInput,
         XrSceneMesh;
 
 export 'src/backend_native.dart'

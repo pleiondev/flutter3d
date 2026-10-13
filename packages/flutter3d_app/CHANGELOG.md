@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **`LevelCollision`, `JsonLinearColorWriter` and `XrPoseInput` are
+  exported** beside the level, the colour and the pose they extend, with
+  `PlayerStart`.
 - **The facade exports what its API names.** `ContactPhase`,
   `StepContact`, `GameEvent`, `LocalSimulation`, the level's issue and rule
   types, the XR plane and control readings and the others its exported

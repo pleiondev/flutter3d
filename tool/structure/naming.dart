@@ -891,10 +891,15 @@ Set<String> facadeNames(String snapshot, String facade) {
 /// whose `add*` returns a `Registration` it does not export sends its user
 /// to the package underneath, and that import becomes part of what they
 /// wrote against the release.
+///
+/// [extensions], when given, are the extensions the facade could export: the
+/// ones the libraries it re-exports from declare. An extension elsewhere (a
+/// package the facade does not stand on) is that package's to export.
 List<NamingProblem> facadeGapsIn({
   required String facade,
   required Set<String> exported,
   required Map<String, List<ApiBlock>> declarations,
+  Set<String>? extensions,
 }) {
   final out = <NamingProblem>[];
   final reached = <String>{...exported};
@@ -927,11 +932,33 @@ List<NamingProblem> facadeGapsIn({
       }
     }
   }
+  // An extension on a type the facade exports is part of that type's API
+  // to a caller, who calls its members as the type's own: without it the
+  // members are not there at all.
+  for (final MapEntry(key: name, value: blocks) in declarations.entries) {
+    for (final block in blocks) {
+      final on = RegExp(
+        r'^extension\s+[\w$]+(?:<[^>]*>)?\s+on\s+([A-Z][\w$]*)',
+      ).firstMatch(block.header)?.group(1);
+      if (on == null || !exported.contains(on)) continue;
+      if (extensions != null && !extensions.contains(name)) continue;
+      if (exported.contains(name) || !reported.add(name)) continue;
+      out.add((
+        subject: name,
+        what:
+            'extends `$on`, which `package:$facade` exports, and '
+            '`package:$facade` does not export it, so its members are '
+            'missing from the type there: export it, or say in '
+            '`facadeGapAllowed` why a caller never calls them',
+      ));
+    }
+  }
   return out;
 }
 
 /// Every type a snapshot declares, by name: a class, an enum, a mixin, an
-/// extension type or a typedef, in every library it is listed in.
+/// extension type, a typedef or a named extension, in every library it is
+/// listed in.
 Map<String, List<ApiBlock>> typeDeclarationsIn(Iterable<String> snapshots) {
   final out = <String, List<ApiBlock>>{};
   for (final snapshot in snapshots) {
@@ -941,7 +968,7 @@ Map<String, List<ApiBlock>> typeDeclarationsIn(Iterable<String> snapshots) {
         final bare = splitAnnotations(block.header).rest;
         if (!RegExp(
           r'^(?:(?:abstract|base|final|interface|sealed|mixin)\s+)*'
-          r'(class|enum|mixin|typedef|extension type)\s',
+          r'(class|enum|mixin|typedef|extension type|extension)\s',
         ).hasMatch(bare)) {
           continue;
         }
@@ -1815,7 +1842,9 @@ List<(String, String)> proveNamingDetectorsWork() {
       'final class Bus\n'
       '  Stream<Contact> get contacts\n'
       '  Map<String, List<Phase>> phases<E extends Shape>(E of)\n\n'
-      'final class Contact\n\nfinal class Phase\n';
+      'final class Contact\n\nfinal class Phase\n\n'
+      'extension EngineLooks on Engine\n  int get looks\n\n'
+      'extension HiddenLooks on Hidden\n';
   const facadeApi =
       'library package:face/face.dart\n\n'
       'export package:core/core.dart show Bus, Engine, Handler, RenderNode\n'
@@ -1843,13 +1872,14 @@ List<(String, String)> proveNamingDetectorsWork() {
   // `Contact` and `Phase` do.
   fires(
     'facade closure',
-    gaps.containsAll(<String>{'Delivered', 'Contact', 'Phase'}),
-    'a type a typedef\'s function type names, and a type named only as a '
-        'generic argument (`Stream<Contact>`, `List<Phase>`)',
+    gaps.containsAll(<String>{'Delivered', 'Contact', 'Phase', 'EngineLooks'}),
+    'a type a typedef\'s function type names, a type named only as a '
+        'generic argument (`Stream<Contact>`, `List<Phase>`), and an '
+        'extension on an exported type',
   );
   quiet(
     'facade closure',
-    gaps.length == 9,
+    gaps.length == 10,
     'a default value, an annotation, a constant\'s value and a type '
         'parameter, a method\'s own (`<E extends Shape>`) included',
     'a caller never writes those',

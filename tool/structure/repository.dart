@@ -2594,6 +2594,13 @@ const Map<String, List<String>> facadePackages = <String, List<String>>{
 /// declares it, as `facade:Type`, each with why a caller of the facade never
 /// writes it.
 final Map<String, String> facadeGapAllowed = <String, String>{
+  for (final facade in <String>['flutter3d', 'flutter3d_app', 'flutter3d_game'])
+    for (final name in _kernelLanguage)
+      '$facade:$name':
+          'the kernel language\'s (`package:flutter3d_shaders/kernel.dart`), '
+          'named by `SkinningHook.kernels` and a compute step: the author of '
+          'a compute kernel imports the language itself, which the facades '
+          'do not depend on outside their tests',
   for (final name in _simulationBehindTheView)
     'flutter3d_app:$name':
         'the simulation\'s, reached through the loop, the level and the '
@@ -2724,6 +2731,17 @@ const List<String> _physicsBehindTheView = <String>[
   'WorldSweeps',
 ];
 
+const List<String> _kernelLanguage = <String>[
+  'ComputeKernel',
+  'DartKernel',
+  'KernelBinding',
+  'KernelBindingKind',
+  'KernelImage',
+  'KernelInputs',
+  'KernelTexture',
+  'WgslKernel',
+];
+
 const List<String> _cpuBehindTheView = <String>['CpuVertexShader'];
 
 /// Third-party types a published package names in its API, as
@@ -2752,6 +2770,7 @@ final Map<String, String> thirdPartyTypeAllowed = <String, String>{
     'PointerMoveCallbacks',
     'PositionComponent',
     'ReadOnlyPositionProvider',
+    'ShapeHitbox',
     'Sprite',
     'SpriteAnimation',
     'SpriteAnimationTicker',
@@ -2777,6 +2796,10 @@ final Map<String, String> thirdPartyTypeAllowed = <String, String>{
   'flame_multiplayer_dashwire:WireConnection':
       'dashwire\'s: the package is the adapter from dashwire\'s connection '
       'to the engine\'s transport',
+  'flutter3d_conformance:FuzzVertex':
+      'ours, a vertex of a generated fuzz draw: the generator and the shrinker make every one, and a caller hands `FuzzDraw.triangles` back to `copyWith` without writing its name',
+  'flutter3d_webgpu:WebGpuStage':
+      'ours, and unexported on purpose: a WGSL reflection class that changes with what reflection cannot say; `WebGpuSectionStages` carries it from `decodeWebGpuSection` to `WebGpuDevice.open`, and a caller never writes its name',
   'flutter3d_app:Clock':
       '`package:clock`\'s, the Dart team\'s injectable wall clock, which a '
       'test of a frame clock overrides; a 1.x major of it is not expected',

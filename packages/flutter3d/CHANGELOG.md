@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **The extensions on exported types are exported with them.**
+  `BundledMaterialLooks`, `SceneRegistry` and the hardware layer's
+  `TextureFormatInfo`, `TextureFormatCompression` (with `TextureBlockLayout`
+  and `TextureSampleKind`), `BlendFactorInfo`, `PassStateApply` and
+  `BindUniformBlockObject`, whose members a caller of the type reads as its
+  own.
 - **`Delivered` and `LoopContext` are exported beside `EventHandler` and
   `LoopSystem`**, with the other types the exported API names only in a
   typedef or a generic argument (the plugin manifest's `PluginDependency`,

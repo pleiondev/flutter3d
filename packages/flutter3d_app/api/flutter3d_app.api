@@ -1134,7 +1134,7 @@ export package:flutter3d_physics/flutter3d_physics.dart show ClothObstacle, Coll
   SweptContact
   WorldMirror
 
-export package:flutter3d_sim/flutter3d_sim.dart show ActorHurt, AvoidanceNeighbor, Brush, DisplayTime, EngineLoop, EntityDef, EntityKind, EntityRegistry, FocusPoint, FrameCadence, GameEvent, HeightfieldTiles, InputAction, InputFrame, InputState, InputTapeRecorder, Level, LevelCheck, LevelIssue, LevelLight, LevelMaterial, LevelRecipe, LevelRule, LevelVisibility, Lightmap, LightmapLayout, LocalSimulation, NavMeshLink, Prefab, SeatInput, ShadowCasting, SimulationFactory, SimulationHandle, SimulationQuestion, SimulationSetup, TileLevelChooser, TimeSource, WorldTiming, XrControl, XrControlReading, XrHand, XrPlane, XrPlaneOrientation, XrSceneMesh
+export package:flutter3d_sim/flutter3d_sim.dart show ActorHurt, AvoidanceNeighbor, Brush, DisplayTime, EngineLoop, EntityDef, EntityKind, EntityRegistry, FocusPoint, FrameCadence, GameEvent, HeightfieldTiles, InputAction, InputFrame, InputState, InputTapeRecorder, JsonLinearColorWriter, Level, LevelCheck, LevelCollision, LevelIssue, LevelLight, LevelMaterial, LevelRecipe, LevelRule, LevelVisibility, Lightmap, LightmapLayout, LocalSimulation, NavMeshLink, PlayerStart, Prefab, SeatInput, ShadowCasting, SimulationFactory, SimulationHandle, SimulationQuestion, SimulationSetup, TileLevelChooser, TimeSource, WorldTiming, XrControl, XrControlReading, XrHand, XrPlane, XrPlaneOrientation, XrPoseInput, XrSceneMesh
   ActorHurt
   AvoidanceNeighbor
   Brush
@@ -1151,8 +1151,10 @@ export package:flutter3d_sim/flutter3d_sim.dart show ActorHurt, AvoidanceNeighbo
   InputFrame
   InputState
   InputTapeRecorder
+  JsonLinearColorWriter
   Level
   LevelCheck
+  LevelCollision
   LevelIssue
   LevelLight
   LevelMaterial
@@ -1163,6 +1165,7 @@ export package:flutter3d_sim/flutter3d_sim.dart show ActorHurt, AvoidanceNeighbo
   LightmapLayout
   LocalSimulation
   NavMeshLink
+  PlayerStart
   Prefab
   SeatInput
   ShadowCasting
@@ -1178,6 +1181,7 @@ export package:flutter3d_sim/flutter3d_sim.dart show ActorHurt, AvoidanceNeighbo
   XrHand
   XrPlane
   XrPlaneOrientation
+  XrPoseInput
   XrSceneMesh
 
 library package:flutter3d_app/native.dart

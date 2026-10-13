@@ -98,6 +98,7 @@ export 'package:flutter3d_core/flutter3d_core.dart'
         BlendPoint,
         BloomSettings,
         BoolCondition,
+        BundledMaterialLooks,
         BundledMaterials,
         CameraNode,
         CapsuleShape,
@@ -436,6 +437,7 @@ export 'package:flutter3d_core/flutter3d_core.dart'
         SceneEncodeRequest,
         SceneNode,
         SceneNodeKind,
+        SceneRegistry,
         SceneTurn,
         ScreenBounds,
         SettingsExtensions,
@@ -725,7 +727,9 @@ export 'package:flutter3d_foundation/flutter3d_foundation.dart'
 export 'package:flutter3d_hardware/flutter3d_hardware.dart'
     show
         BackendOpener,
+        BindUniformBlockObject,
         BlendFactor,
+        BlendFactorInfo,
         BlendOperation,
         BlendState,
         BufferDescriptor,
@@ -778,6 +782,7 @@ export 'package:flutter3d_hardware/flutter3d_hardware.dart'
         NativeHandleKind,
         PassEncoder,
         PassState,
+        PassStateApply,
         PassTimestampWrites,
         PipelineHandle,
         PipelineRefusalReason,
@@ -811,14 +816,18 @@ export 'package:flutter3d_hardware/flutter3d_hardware.dart'
         StorageTextureAccess,
         StoreAction,
         TextureAllocator,
+        TextureBlockLayout,
         TextureCopyLocation,
         TextureDescriptor,
         TextureDimension,
         TextureFormat,
+        TextureFormatCompression,
+        TextureFormatInfo,
         TextureFormatStencil,
         TextureFormatSupport,
         TextureHandle,
         TextureRegion,
+        TextureSampleKind,
         TextureType,
         TextureUsage,
         TransferEncoder,
@@ -933,16 +942,6 @@ export 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
         SnapshotRegistry,
         SnapshotRestoreContext,
         VersionRange;
-export 'package:flutter3d_shaders/kernel.dart'
-    show
-        ComputeKernel,
-        DartKernel,
-        KernelBinding,
-        KernelBindingKind,
-        KernelImage,
-        KernelInputs,
-        KernelTexture,
-        WgslKernel;
 // The simulation, the physics and the audio are not re-exported: a game
 // that steps a level names `flutter3d_sim`, or takes `flutter3d_game`, the
 // one facade, which re-exports what a first game uses of them.

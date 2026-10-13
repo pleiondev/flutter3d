@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **The extensions on exported types come with them**: `BundledMaterialLooks`,
+  `SceneRegistry`, the texture-format and pass-state extensions,
+  `JsonLinearColorWriter`, `LevelCollision` (with `PlayerStart`),
+  `XrPoseInput` and `GeneratedTangents`.
 - **One import handles a contact.** `ContactEvent`, `ContactPhase`,
   `StepContact`, `Dynamics` (with `BodyForce` and `BodyForceContext`),
   `ManualTime`, `Delivered` and `LoopContext` are exported here, with every

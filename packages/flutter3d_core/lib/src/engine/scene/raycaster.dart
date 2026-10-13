@@ -37,7 +37,7 @@ final class HitResult {
   /// The mesh hit.
   final MeshNode? node;
 
-  /// Distance along the ray, in world units.
+  /// Distance along the ray, in meters.
   final double distance;
 
   /// Where the ray met the surface, in world space.
@@ -86,6 +86,8 @@ final class HitResult {
 /// nearest becomes a [HitResult].
 final class _HitScratch {
   MeshNode? node;
+
+  /// Along the ray, in meters.
   double distance = 0.0;
   final Vector3 point = Vector3.zero();
   final Vector3 normal = Vector3.zero();
