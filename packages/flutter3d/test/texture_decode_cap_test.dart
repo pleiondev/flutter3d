@@ -156,16 +156,20 @@ void main() {
         throwsA(isA<DeviceResourceException>()),
       );
       var cpuAsked = false;
-      final handle = await uploadEncodedImage(
-        device,
-        _pngHeader(4, 4),
-        decodeImage: (_) async {
-          cpuAsked = true;
-          return null;
-        },
+      // The CPU decoder reads nothing either, and since 1.0 that is an
+      // `ImageFormatException` rather than a null handle.
+      await expectLater(
+        uploadEncodedImage(
+          device,
+          _pngHeader(4, 4),
+          decodeImage: (_) async {
+            cpuAsked = true;
+            return null;
+          },
+        ),
+        throwsA(isA<ImageFormatException>()),
       );
       expect(cpuAsked, isTrue);
-      expect(handle, isNull);
     },
   );
 

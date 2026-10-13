@@ -266,11 +266,16 @@ void main() {
           skinnedMesh: true,
           shipSkinnedStage: false,
         ),
+        // A `MissingShaderStageException`, the engine's own refusal.
         throwsA(
-          isA<StateError>().having(
-            (StateError e) => e.message,
-            'message',
-            allOf(contains('HalfSizeSkinned'), contains('Halved')),
+          isA<Exception>().having(
+            (Exception e) => '$e',
+            'description',
+            allOf(
+              contains('MissingShaderStageException'),
+              contains('HalfSizeSkinned'),
+              contains('Halved'),
+            ),
           ),
         ),
       );

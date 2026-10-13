@@ -302,9 +302,18 @@ void main() {
   // once asked for, so Metal went on drawing points at whatever size it
   // found), and a WebGL2 compile defines GL_ES. The road to WGSL has none of
   // them, and naga refuses PointSize, which WGSL does not have.
-#if defined(IMPELLER_TARGET_METAL) || defined(IMPELLER_TARGET_OPENGLES) || defined(IMPELLER_TARGET_VULKAN)
+  // One `#ifdef` each, since the WebGPU preparation reads no `#if`; a
+  // target that defines two of them writes the same size twice.
+#ifdef IMPELLER_TARGET_METAL
   gl_PointSize = 1.0;
-#elif defined(GL_ES)
+#endif
+#ifdef IMPELLER_TARGET_OPENGLES
+  gl_PointSize = 1.0;
+#endif
+#ifdef IMPELLER_TARGET_VULKAN
+  gl_PointSize = 1.0;
+#endif
+#ifdef GL_ES
   gl_PointSize = 1.0;
 #endif
 }

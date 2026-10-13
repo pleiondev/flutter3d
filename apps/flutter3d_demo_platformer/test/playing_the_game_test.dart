@@ -179,6 +179,13 @@ void main() {
           const MethodChannel('dev.flutter3d/gamepad/events'),
           (MethodCall call) async => null,
         );
+    // And the mouse capture's event channel, which on a phone carries
+    // whether a mouse is connected: a listener that hears nothing.
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('dev.flutter3d/flutter3d_pointer_lock/events'),
+          (MethodCall call) async => null,
+        );
     // The orientation and system-chrome calls `main()` makes on a phone.
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(

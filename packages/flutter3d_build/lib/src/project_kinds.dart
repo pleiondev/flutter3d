@@ -259,7 +259,7 @@ class _ViewerState extends State<Viewer> {
           child: Flutter3dView(
             camera: _camera,
             onCreated: _open,
-            onBeforeFrame: (_, _) => _orbit.syncProjectionDepth(_camera),
+            onBeforeFrame: (_) => _orbit.syncProjectionDepth(_camera),
             view: ViewSettings(
               placeholder: const ColoredBox(
                 color: Color(0xFF14161A),

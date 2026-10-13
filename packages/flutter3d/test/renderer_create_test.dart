@@ -116,11 +116,16 @@ void main() {
     // the error names it rather than failing later with a blank frame.
     expect(
       () => build(FakeBackend(missingShaders: <String>{'MeshVertex'})),
+      // A `MissingShaderStageException`, which a caller can catch as the
+      // engine's own rather than as a bug.
       throwsA(
-        isA<StateError>().having(
-          (e) => e.message,
-          'message',
-          contains('MeshVertex'),
+        isA<Exception>().having(
+          (e) => '$e',
+          'description',
+          allOf(
+            contains('MissingShaderStageException'),
+            contains('MeshVertex'),
+          ),
         ),
       ),
     );
