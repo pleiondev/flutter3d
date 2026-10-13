@@ -9,15 +9,26 @@
 // for the native targets — but by `tool/build_wasm.dart`, from the same
 // sources with the same flags.
 //
-// Then the GPU passes, `csrc/gpu/`, as a library of their own, linked with
-// wgpu-native, which `flutter3d_wgpu`'s `wgpu_native_hook.dart` fetches for
-// the target — the one pinned release the compute sidecar links too; without
-// it, the core alone.
+// Then, when the application asks for them, the GPU passes, `csrc/gpu/`, as
+// a library of their own, linked with wgpu-native, which `wgpu_native.dart`
+// beside this fetches for the target: the one pinned release the compute
+// sidecar links too, from a copy of the same file. An application asks in
+// its pubspec:
+//
+//     hooks:
+//       user_defines:
+//         flutter3d_physics_native:
+//           gpu: true
+//
+// Without it, or without a wgpu-native for the target, the core alone: no
+// download at build time and no second library in the application, and the
+// particles, debris, cloth and fluid run on the CPU.
 import 'package:code_assets/code_assets.dart';
-import 'package:flutter3d_wgpu/wgpu_native_hook.dart';
 import 'package:hooks/hooks.dart';
 import 'package:logging/logging.dart';
 import 'package:native_toolchain_c/native_toolchain_c.dart';
+
+import 'wgpu_native.dart';
 
 /// The core's sources, as `tool/build_wasm.dart` and the C tests list them.
 const List<String> coreSources = <String>[
@@ -74,6 +85,11 @@ void main(List<String> args) async {
             ],
     ).run(input: input, output: output, logger: logger);
     final code = input.config.code;
+    // From a pubspec the value is a bool; from the command line, text.
+    if (!const <Object?>{true, 'true'}.contains(input.userDefines['gpu'])) {
+      logger.info('the GPU passes were not asked for (user define gpu)');
+      return;
+    }
     final target = wgpuNativeTarget(code);
     if (target == null) {
       logger.info('no wgpu-native for ${code.targetOS}: no GPU passes');

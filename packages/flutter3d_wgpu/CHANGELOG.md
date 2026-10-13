@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `wgpu_native_hook.dart` is no library of this package.** The
+  fetch of the pinned wgpu-native is the build hook's own file,
+  `hook/wgpu_native.dart`; nothing an application imports changes.
 - **The limits say the sidecar draws nothing**: no colour attachment, one
   sample, no vertex buffer, attribute or inter-stage variable, where it
   answered WebGPU's defaults for all of them. A sampler handed to
@@ -13,9 +16,10 @@
   Everything that draws is refused by name. `registerWgpuSidecar` adds it to
   a `DeviceRegistry` as `ComputePlacement.sidecar`. The four conformance
   kernels give the CPU's bytes on it.
-- **The pinned wgpu-native, in one place.** `wgpu_native_hook.dart` is the
-  fetch both this package's build hook and `flutter3d_physics_native`'s
-  use: the release, its checksums and the unpacking.
+- **The pinned wgpu-native, in one file.** `hook/wgpu_native.dart` is the
+  fetch this package's build hook uses: the release, its checksums and the
+  unpacking. `flutter3d_physics_native` keeps a copy under its own `hook/`,
+  held to the same bytes, and does not depend on this package.
 - **Zero copy's first half.** `WgpuSidecar.metalTextureOf` answers the
   `MTLTexture` behind a sidecar texture on Metal. The sidecar does not report
   `DeviceFeature.sharedTextures`, since it cannot import one back, so a

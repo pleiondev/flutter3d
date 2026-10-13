@@ -17,8 +17,7 @@ environment:
 # Declared rather than left to pub.dev's detector: wgpu-native through
 # `dart:ffi` on every native platform, and not the browser, where WebGPU
 # computes for itself. A web build that imports `flutter3d_wgpu.dart` still
-# compiles — the sidecar refuses to open there, saying why — but the build
-# hook's `wgpu_native_hook.dart` reaches `dart:io`, which is what it is for.
+# compiles — the sidecar refuses to open there, saying why.
 platforms:
   android:
   ios:
@@ -36,8 +35,8 @@ dependencies:
   flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
   # Memory for the calls: strings and pointer arrays handed to the C side.
   ffi: ^2.1.0
-  # The build hook, shared with `flutter3d_physics_native`
-  # (`wgpu_native_hook.dart`): `native_toolchain_c` compiles `csrc/` with
+  # The build hook (`hook/wgpu_native.dart`, which `flutter3d_physics_native`
+  # keeps a copy of): `native_toolchain_c` compiles `csrc/` with
   # the target's own C compiler and links the pinned wgpu-native in;
   # `archive` unpacks the release and `crypto` checks its sha256.
   archive: ^4.2.0

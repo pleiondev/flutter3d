@@ -1,5 +1,14 @@
 ## 1.0.0-rc.1
 
+- **Breaking: the GPU passes are built only when the application asks.**
+  The hook builds `f3d_gpu` with wgpu-native linked in when the
+  application's pubspec sets `hooks: user_defines: flutter3d_physics_native:
+  gpu: true`; without it, nothing is downloaded at build time and the
+  application ships the core alone (`NativeGpu.open` throws
+  `GpuUnavailableException`, and the particles, debris, cloth and fluid run
+  on the CPU). The package no longer depends on `flutter3d_wgpu`: an
+  application with the physics core resolves no compute sidecar, and
+  builds and ships one copy of wgpu-native at most.
 - **Heat crosses a touching face, and a flame heats what stands in it.**
   Two faces that meet pass heat through their interface — 3.6 kW/(m² K)
   for two metals, the air across a quarter-millimetre gap otherwise, with
@@ -211,12 +220,10 @@
   from `flutter3d_physics`' `contactSlop`, the same 0.005. The solver's
   numbers and the ABI number are unchanged; the WebAssembly modules are
   rebuilt.
-- **wgpu-native is fetched where the compute sidecar fetches it.** The
-  hook's pinned release, checksums and unpacking moved to
-  `flutter3d_wgpu`'s `wgpu_native_hook.dart`, which this hook imports, so
-  the GPU passes and the sidecar link the same wgpu-native and a bump is one
-  edit. `archive` and `crypto` are no longer this package's dependencies;
-  `flutter3d_wgpu` is, for the hook alone.
+- **wgpu-native is the release the compute sidecar fetches.** The hook's
+  pinned release, checksums and unpacking are `hook/wgpu_native.dart`, a
+  copy of `flutter3d_wgpu`'s that a structure rule holds to the same bytes,
+  so the GPU passes and the sidecar link the same wgpu-native.
 - **`DebrisStatic` and `RagdollJoint` are `abstract final` rather than
   sealed**, so a shape or a joint a later minor adds breaks no `switch` over
   them.

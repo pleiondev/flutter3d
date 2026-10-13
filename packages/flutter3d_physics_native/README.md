@@ -41,7 +41,18 @@ Multibodies (`createMultibody`) hold a tree of bodies in reduced coordinates, so
 
 There is nothing to build by hand. The package's hook compiles `csrc/` with the C compiler the target already uses: Xcode's clang on Apple platforms, the NDK's on Android, MSVC or clang on Windows, the system's on Linux. A game that depends on this package needs no other toolchain.
 
-The GPU passes are a second library, `f3d_gpu`, built from `csrc/gpu/` and linked with wgpu-native. The hook downloads a pinned wgpu-native release for the target from GitHub, checks the archive against the sha256 written in `flutter3d_wgpu`'s `lib/wgpu_native_hook.dart` (the same pinned release the compute sidecar links), and keeps it in the hooks' shared output, so it is fetched once. Only the static library is used, so nothing extra has to be found at run time. If there is no release for the target, no network, or the checksum is wrong, the hook says so and builds the core alone; `NativeGpu.open()` then returns null and particles run on the CPU.
+The GPU passes are a second library, `f3d_gpu`, built from `csrc/gpu/` and linked with wgpu-native, and only when the application asks for them in its pubspec:
+
+```yaml
+hooks:
+  user_defines:
+    flutter3d_physics_native:
+      gpu: true
+```
+
+Then the hook downloads a pinned wgpu-native release for the target from GitHub, checks the archive against the sha256 written in `hook/wgpu_native.dart` (the same pinned release the compute sidecar of `flutter3d_wgpu` links, from a copy of the same file), and keeps it in the hooks' shared output, so it is fetched once. Only the static library is used, so nothing extra has to be found at run time. If there is no release for the target, no network, or the checksum is wrong, the hook says so and builds the core alone; `NativeGpu.open()` then throws `GpuUnavailableException` and particles run on the CPU.
+
+What it costs: the core alone is about 0.5 MB (`libf3d_physics`, macOS arm64, 2026-10-13); `f3d_gpu`, with wgpu-native in it, is about 11 MB more, and a download at the first build. An application that does not ask pays neither, and one with the compute sidecar too ships a second copy of wgpu-native inside `f3d_wgpu`.
 
 The Dart side reaches the core the same way natively and in the browser: through `lib/src/core/`, where every call is a function and every pointer an address. The calls and the layouts of the structs the Dart side fills are generated from `csrc/include/f3d_physics.h`; after changing the header, run
 

@@ -56,9 +56,10 @@ Used by tests that compare pictures. An application does not normally ship
 it, and one that does includes that notice.
 
 **wgpu-native.** Not in the repository. The build hooks of `flutter3d_wgpu`
-and `flutter3d_physics_native` fetch the pinned release (`v29.0.1.1`, in
-`packages/flutter3d_wgpu/lib/wgpu_native_hook.dart`), check its sha256 and
-link it statically. MIT or Apache-2.0.
+and, when an application asks for its GPU passes, `flutter3d_physics_native`
+fetch the pinned release (`v29.0.1.1`, in each package's
+`hook/wgpu_native.dart`), check its sha256 and link it statically. MIT or
+Apache-2.0.
 
 ## Assets in published packages
 

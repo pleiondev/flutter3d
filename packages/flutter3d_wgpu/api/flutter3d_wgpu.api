@@ -10,15 +10,3 @@ abstract final class WgpuSidecar
   static String? adapterName(GraphicsDevice device)
 
 Registration registerWgpuSidecar(DeviceRegistry registry)
-
-library package:flutter3d_wgpu/wgpu_native_hook.dart
-
-Future<Directory?> fetchWgpuNative(String target, Uri shared, void Function(String) say)
-
-const Map<String, String> wgpuNativeArchives = …
-
-List<String> wgpuNativeSystemLibraries(OS os)
-
-String? wgpuNativeTarget(CodeConfig config)
-
-const String wgpuNativeVersion = 'v29.0.1.1'

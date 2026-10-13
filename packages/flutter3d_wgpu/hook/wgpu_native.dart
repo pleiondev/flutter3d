@@ -1,11 +1,13 @@
 /// Fetches wgpu-native for the target a build hook builds for: the one pinned
 /// release every package of the engine that links wgpu-native links.
 ///
-/// **For a build hook, not for an application.** `flutter3d_wgpu`'s hook
-/// links it into the compute sidecar and `flutter3d_physics_native`'s into
-/// its GPU passes, both through this library, so the version, the checksums
-/// and the unpacking are written once: a bump of the release is one edit,
-/// and the two cannot drift onto different wgpu-natives.
+/// **A file of the hook's, in two packages.** `flutter3d_wgpu`'s hook links
+/// it into the compute sidecar and `flutter3d_physics_native`'s into its GPU
+/// passes. Each keeps this file under its own `hook/`, so neither depends on
+/// the other and an application with the physics core resolves no sidecar;
+/// a structure rule holds the two copies to the same bytes, so the release,
+/// the checksums and the unpacking cannot drift apart. A bump of the release
+/// is one edit, copied.
 ///
 /// A pinned release of gfx-rs/wgpu-native, its archive's sha256 checked
 /// against the one written here, unpacked into the hook's shared output so a
