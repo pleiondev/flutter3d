@@ -8,7 +8,7 @@ topics:
   - game-development
   - game-engine
   - level-editor
-  - 3d
+  - graphics
 resolution: workspace
 
 environment:
