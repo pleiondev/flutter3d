@@ -104,7 +104,10 @@ void main() {
       );
       expect(
         stage.skips(everything),
-        containsAll(<String>['bloom: switched off', 'lens flare: switched off']),
+        containsAll(<String>[
+          'bloom: switched off',
+          'lens flare: switched off',
+        ]),
       );
 
       host

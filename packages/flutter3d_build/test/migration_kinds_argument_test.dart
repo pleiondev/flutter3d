@@ -53,6 +53,6 @@ void main() {
       'kinds-LinearColor-as-vector',
       'kinds-LinearColor-as-vector',
     ]);
-    expect(manualOf(report), <String>['kinds-Lamp-glow:13']);
+    expect(manualOf(report), <String>['kinds-Lamp-glow:15']);
   });
 }

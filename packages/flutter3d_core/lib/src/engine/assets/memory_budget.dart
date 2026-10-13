@@ -89,7 +89,8 @@ final class MemoryBudget {
 
   /// Whether [category] or the total is over, which is what a cache holding
   /// [category] has to bring down.
-  bool isOverFor(MemoryCategory category) => isOver(category: category) || isOver();
+  bool isOverFor(MemoryCategory category) =>
+      isOver(category: category) || isOver();
 
   /// Calls [handler] each time a category or the total crosses its limit,
   /// either way, until the registration is canceled.

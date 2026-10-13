@@ -1,12 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart'
-    show
-        DeviceSettings,
-        EngineFrame,
-        Flutter3dView,
-        ListenerPose,
-        ViewSettings;
+    show DeviceSettings, EngineFrame, Flutter3dView, ListenerPose, ViewSettings;
 
 import 'stereo_rig.dart';
 import 'stereo_viewer.dart';

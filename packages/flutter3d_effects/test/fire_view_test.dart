@@ -96,10 +96,7 @@ void main() {
             sootYield: rubber.sootYield / rubber.heatOfCombustion,
           ) /
           FireView.plumeDepth(kw, base, z),
-      closeTo(
-        (0.092 / (rubber.heatOfCombustion / 1e6)) / (0.015 / 15.0),
-        1e-3,
-      ),
+      closeTo((0.092 / (rubber.heatOfCombustion / 1e6)) / (0.015 / 15.0), 1e-3),
     );
     // Higher up, wider and slower, it thins as z^(−2/3) once z₀ is small
     // beside z. Mutation: the plume's speed taken as constant — it thins

@@ -1,3 +1,5 @@
+// dart format off
+// What the migration writes, compared byte for byte: not reformatted.
 import 'package:flutter3d_kinds/flutter3d_kinds.dart';
 
 final Vector4 warm = Vector4(1.0, 0.8, 0.6, 1.0);

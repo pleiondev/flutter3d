@@ -158,7 +158,9 @@ void main() {
       );
       // What a boat lacks is offered at the hint's default.
       expect(
-        pieces.offersFor(Piece.entity, const <String>['buoyancy'], type: 'boat'),
+        pieces.offersFor(Piece.entity, const <String>[
+          'buoyancy',
+        ], type: 'boat'),
         <String, Object?>{'drag': 0.4},
       );
     });

@@ -792,11 +792,9 @@ class _Mesh3DState extends _SpatialState<Mesh3D, MeshNode> {
       ..castsShadow = widget.castsShadow
       ..drawOrder = widget.drawOrder;
     _joinMirror(node);
-    _answerTaps(
-      scope.host,
-      <MeshNode>[node],
-      widget.onTap == null ? null : (Tap3D tap) => widget.onTap?.call(tap),
-    );
+    _answerTaps(scope.host, <MeshNode>[
+      node,
+    ], widget.onTap == null ? null : (Tap3D tap) => widget.onTap?.call(tap));
   }
 }
 

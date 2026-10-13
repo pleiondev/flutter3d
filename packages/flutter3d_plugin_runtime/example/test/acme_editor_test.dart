@@ -82,10 +82,7 @@ void main() {
     expect(editing.history.run(pulled), isTrue);
     expect(editing.level.entities.single.number('reach'), 3.0);
 
-    expect(
-      pieces.assetEntryFor('more.embers')?.name,
-      'acme_sample.embers',
-    );
+    expect(pieces.assetEntryFor('more.embers')?.name, 'acme_sample.embers');
   });
 
   test('an ember list is imported as embers, and a bad line is said', () async {
@@ -123,7 +120,10 @@ void main() {
     expect(loop.plugins.isEnabled('acme_sample.editor'), isTrue);
     // It touches only tooling: a run made with it carries nothing of it.
     expect(AcmeEditorPlugin().manifest.touches, PluginTouches.tooling);
-    expect(loop.simulationVersion.plugins, isNot(contains('acme_sample.editor')));
+    expect(
+      loop.simulationVersion.plugins,
+      isNot(contains('acme_sample.editor')),
+    );
   });
 
   test(

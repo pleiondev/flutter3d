@@ -58,7 +58,9 @@ void main() {
     // passes its own `.fmat` reader would have a plugin's answer first.
     expect(
       decoders
-          .withMaterialDecoders(decoders: const <MaterialDecoder>[_Named('own')])
+          .withMaterialDecoders(
+            decoders: const <MaterialDecoder>[_Named('own')],
+          )
           .map((d) => d.toString()),
       <String>['own', 'early', 'late'],
     );

@@ -79,22 +79,21 @@ final class _Unmetered extends WasmRuntime {
       WasmRuntime.interpreter.instantiate(request);
 }
 
-WasmPlugin _onRuntime(WasmRuntime runtime, PluginTouches touches) =>
-    WasmPlugin(
-      manifest: PluginManifest(
-        id: 'breeze',
-        apiVersion: PluginApiVersion.current,
-        touches: touches,
-      ),
-      spec: const WasmSystemSpec(
-        module: 'breeze.wasm',
-        system: 'blow',
-        phase: 'elements',
-        fields: <WasmFieldSpec>[WasmFieldSpec('heat')],
-      ),
-      bytes: _breeze(),
-      runtime: runtime,
-    );
+WasmPlugin _onRuntime(WasmRuntime runtime, PluginTouches touches) => WasmPlugin(
+  manifest: PluginManifest(
+    id: 'breeze',
+    apiVersion: PluginApiVersion.current,
+    touches: touches,
+  ),
+  spec: const WasmSystemSpec(
+    module: 'breeze.wasm',
+    system: 'blow',
+    phase: 'elements',
+    fields: <WasmFieldSpec>[WasmFieldSpec('heat')],
+  ),
+  bytes: _breeze(),
+  runtime: runtime,
+);
 
 void main() {
   late Float64List heat;
