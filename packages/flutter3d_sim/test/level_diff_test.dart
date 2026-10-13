@@ -155,7 +155,8 @@ void main() {
 
     expect(diff.simulation, isEmpty);
     expect(diff.isEmpty, isTrue);
-  });
+    // The fixtures are files: the browser run has no disk to read them from.
+  }, testOn: 'vm');
 
   test('the next level is the run\'s, the music the picture\'s', () {
     final after = _edited((json) {

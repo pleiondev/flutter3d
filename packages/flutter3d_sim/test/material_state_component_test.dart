@@ -22,6 +22,10 @@ Map<String, Object?> _fixture() =>
         )
         as Map<String, Object?>;
 
+/// The tests that read [_fixture] from disk run where there is a disk; the
+/// browser run keeps the one that does not.
+const String _readsAFile = 'vm';
+
 final ComponentCodec<MaterialStateComponent> _codec =
     MaterialStateComponent.codec;
 
@@ -40,7 +44,7 @@ void main() {
     expect(component.state.phase, MaterialPhase.solid);
     expect(component.unread.keys, <String>['acme.ripeness', 'later.spectrum']);
     expect(_codec.encode(component), _fixture());
-  });
+  }, testOn: _readsAFile);
 
   test('through a save written to disk and read back, untouched', () {
     final loop = EngineLoop(input: InputState());
@@ -54,7 +58,7 @@ void main() {
       _codec.encode(again.world.get<MaterialStateComponent>(plank)!),
       _fixture(),
     );
-  });
+  }, testOn: _readsAFile);
 
   test('through a snapshot and a rewind, untouched', () {
     final loop = EngineLoop(input: InputState());
@@ -67,7 +71,7 @@ void main() {
       _codec.encode(loop.world.get<MaterialStateComponent>(plank)!),
       _fixture(),
     );
-  });
+  }, testOn: _readsAFile);
 
   test('through the wire to a view, untouched', () {
     // Mutation: register it unpublished — the view reads nothing.
@@ -77,7 +81,7 @@ void main() {
     loop.runSteps(1);
     final view = PublishedState.fromWire(loop.published.toWire());
     expect(_codec.encode(view.read(_codec, plank)!), _fixture());
-  });
+  }, testOn: _readsAFile);
 
   test('a value given to an id it could not read replaces what it kept', () {
     final component = _read(_fixture());
@@ -94,7 +98,7 @@ void main() {
       <String, Object?>{'value': 2.0, 'unit': '1'},
     );
     expect(written['since'], 7);
-  });
+  }, testOn: _readsAFile);
 
   test('a document that is not a state is not read', () {
     expect(_codec.decode(ComponentDecodeContext('warm', version: 1)), isNull);
