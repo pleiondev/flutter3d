@@ -1749,13 +1749,13 @@ device without it. The pre-1.0 `supportsX` getters are gone: each is a
   already built a pipeline in, so a draw in one of those finds it ready; the
   rest stays the lazy per-state path. `createComputePipelineAsync` builds the
   whole pipeline asynchronously. The other backends link in the calling turn.
-- **The 4 enums in `formats.dart`, and `TextureFormat`**, an open set
+- **The 3 enums in `formats.dart`, and `TextureFormat`**, an open set
   of constants since 1.0 (a format a later minor adds must not break a
   `switch`), plus `SamplerDescriptor`, `RenderTargetDescriptor`, `TextureAllocator` and
   `RenderTargetPool`. Their value names are load-bearing beyond the package:
   the Impeller translation asserts each maps to the flutter_gpu value of the
   *same name*, which catches a mapping that swapped two entries. That argument
-  reaches the format and seventeen of the enums; `DepthRange` and
+  reaches the format, `WindingOrder` and `CompareFunction`; `DepthRange` and
   `FramebufferOrigin` describe the machine rather than a flutter_gpu type, so
   nothing maps them. They are promised for the other reason — §7.2 has the engine
   ask `depthRange` and `framebufferOrigin` before it projects or reads a frame
@@ -3673,7 +3673,7 @@ storage.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **14800 tests** across 61 packages and 18 applications |
+| Unit tests | **14818 tests** across 61 packages and 18 applications |
 | Structure rules | 99, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
