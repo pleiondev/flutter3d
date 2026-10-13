@@ -57,7 +57,7 @@ final class _Emitter {
     final body = StringBuffer();
     _block(body, kernel.body, 1);
     final out = StringBuffer()
-      ..writeln('// ${kernel.name}, translated from .f3dmat compute.');
+      ..writeln('// ${kernel.name}, translated from the kernel language.');
     for (final b in kernel.bindings) {
       final declaration = switch (b.kind) {
         KBindingKind.buffer =>

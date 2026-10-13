@@ -1,4 +1,4 @@
-/// The tree a `.f3dmat compute` kernel is read into, typed — 1.0.
+/// The tree a kernel language kernel is read into, typed — 1.0.
 ///
 /// **Private to this package**, so it is not frozen with the contract: the
 /// two translators read it, and the public face is `ComputeKernel`. When the
@@ -293,12 +293,16 @@ final class KReturn extends KStmt {
 final class KKernel {
   const KKernel({
     required this.name,
+    required this.languageVersion,
     required this.workgroup,
     required this.bindings,
     required this.body,
   });
 
   final String name;
+
+  /// The kernel language version its source was read as.
+  final int languageVersion;
   final (int, int, int) workgroup;
   final List<KBinding> bindings;
   final List<KStmt> body;

@@ -1,4 +1,4 @@
-/// `.f3dmat compute` on WebGPU: a bundle's kernel section loads as compute
+/// The kernel language on WebGPU: a bundle's kernel section loads as compute
 /// stages, translated to WGSL by `flutter3d_shaders`, with the bindings the
 /// pipeline layout is built from; a reload compiles a kernel in use again.
 ///

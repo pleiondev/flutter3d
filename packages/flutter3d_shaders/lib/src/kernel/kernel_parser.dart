@@ -1,4 +1,4 @@
-/// Reads `.f3dmat compute` source into the typed tree of `kernel_ast.dart`,
+/// Reads kernel language source into the typed tree of `kernel_ast.dart`,
 /// refusing what is not a kernel with the line and column — 1.0.
 ///
 /// ```text
@@ -20,6 +20,7 @@
 library;
 
 import '../kernel_exception.dart';
+import '../kernel_version.dart';
 import 'kernel_ast.dart';
 
 /// Every `compute` block of [source], in order. Other top-level blocks — a
@@ -120,6 +121,9 @@ const Set<String> _reserved = <String>{
   'round',
   'trunc',
   'sqrt',
+  'sin',
+  'cos',
+  'pow',
   'select',
   'read',
   'read_write',
@@ -306,27 +310,72 @@ final class _Parser {
   }
 
   List<KKernel> file() {
+    final version = _header();
     final kernels = <KKernel>[];
     final names = <String>{};
     while (_peek.kind != 'eof') {
       final word = _peek;
       if (word.kind != 'ident') _fail('expected a block, found $word');
-      if (word.text != 'compute') {
-        _skipBlock();
-        continue;
+      switch (word.text) {
+        case 'compute':
+          _at += 1;
+          final kernel = _kernel(version);
+          if (!names.add(kernel.name)) {
+            _fail('a second kernel called "${kernel.name}"', word);
+          }
+          kernels.add(kernel);
+        case 'material' || 'fullscreen':
+          _skipBlock();
+        default:
+          // Refused rather than skipped: a word skipped as a block took the
+          // kernels after it along, and the caller heard of a missing
+          // kernel instead of the word nobody reads.
+          _fail(
+            '"${word.text}" is not a block of the kernel language: a source '
+            'holds "compute" blocks, and the "material" and "fullscreen" '
+            'blocks of a .f3dmat file beside them',
+            word,
+          );
       }
-      _at += 1;
-      final kernel = _kernel();
-      if (!names.add(kernel.name)) {
-        _fail('a second kernel called "${kernel.name}"', word);
-      }
-      kernels.add(kernel);
     }
     return kernels;
   }
 
-  /// A top-level block that is not a kernel: its words up to the brace that
-  /// closes the one it opens.
+  /// The optional version lines ahead of the first block: `kernel <N>`, the
+  /// kernel language's, and before it `f3dmat <N>`, the material
+  /// language's, which a `.f3dmat` file that also holds materials opens
+  /// with. The material reader checks its own; this one reads past it.
+  ///
+  /// Absent, the kernel language is version 1. A newer one is refused with
+  /// both numbers, never read under this build's meaning of its words.
+  int _header() {
+    if (_is('f3dmat') && _tokens[_at + 1].kind == 'int') _at += 2;
+    if (!_is('kernel')) return kernelLanguageFirstVersion;
+    final word = _next();
+    final number = _peek;
+    final value = number.kind == 'int' ? int.tryParse(number.text) : null;
+    if (value == null || value < kernelLanguageFirstVersion) {
+      _fail(
+        '"${number.text}" is not a kernel language version: write a whole '
+        'number from $kernelLanguageFirstVersion, as in "kernel '
+        '$kernelLanguageFirstVersion"',
+        number,
+      );
+    }
+    if (value > kernelLanguageVersion) {
+      _fail(
+        'this source is kernel language version $value, and this build '
+        'reads up to version $kernelLanguageVersion: it needs a newer '
+        'flutter3d',
+        word,
+      );
+    }
+    _at += 1;
+    return value;
+  }
+
+  /// A `material` or `fullscreen` block of a `.f3dmat` file: its words up
+  /// to the brace that closes the one it opens.
   void _skipBlock() {
     while (_peek.kind != 'eof' && !_is('{')) {
       _at += 1;
@@ -341,7 +390,7 @@ final class _Parser {
     } while (depth > 0);
   }
 
-  KKernel _kernel() {
+  KKernel _kernel(int version) {
     final nameToken = _peek;
     final name = _name('the kernel\'s name');
     _bindings = <String, KBinding>{};
@@ -367,6 +416,16 @@ final class _Parser {
           _at += 1;
           if (body != null) _fail('a second kernel body', word);
           body = _block();
+        case 'uniform' || 'param':
+          // Both grammars open with `compute Name {`; this one has no
+          // parameters, the material language's form does.
+          _fail(
+            '"${word.text}" belongs to the material language\'s compute '
+            'form, which returns a texel: read that source with '
+            'parseMaterial and lowerMaterialCompute, which writes it in '
+            'this language',
+            word,
+          );
         default:
           _fail(
             'expected workgroup, buffer, texture, image or kernel, found '
@@ -377,6 +436,7 @@ final class _Parser {
     if (body == null) _fail('"$name" has no kernel body', nameToken);
     return KKernel(
       name: name,
+      languageVersion: version,
       workgroup: workgroup ?? (64, 1, 1),
       bindings: _bindings.values.toList(),
       body: body,
@@ -1080,7 +1140,14 @@ final class _Parser {
           _fail('abs() of ${argument.type}', token);
         }
         return KCall(name, <KExpr>[argument], argument.type);
-      case 'floor' || 'ceil' || 'round' || 'trunc' || 'sqrt':
+      case 'pow':
+        count(2);
+        final type = _same(arguments, token, name);
+        if (type != KType.f32 && type.scalar != KType.f32) {
+          _fail('pow() takes two f32s or two vectors of one size', token);
+        }
+        return KCall(name, _all(arguments, type, token), type);
+      case 'floor' || 'ceil' || 'round' || 'trunc' || 'sqrt' || 'sin' || 'cos':
         count(1);
         var argument = arguments.single;
         if (argument.type.isAbstract) {

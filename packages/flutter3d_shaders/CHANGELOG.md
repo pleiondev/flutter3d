@@ -1,5 +1,18 @@
 ## 1.0.0-rc.1
 
+- **The kernel language has a version, and refuses what it cannot read.**
+  `kernelLanguageVersion` (new, 1) and `kernelLanguageFirstVersion` (new):
+  a source may open with `kernel <N>`, after a `.f3dmat` file's
+  `f3dmat <N>` line, and `ComputeKernel.languageVersion` (new) says which
+  it was written in. A newer source is refused with both versions. A
+  top-level word other than `compute`, `material` or `fullscreen` is
+  refused rather than skipped as a block, which took the kernels after it
+  along, and the material language's `compute` form is named when met.
+- **`WorkgroupSize` (new) is three numbers in a class.**
+  `ComputeKernel.workgroupSize` and `WgslKernel.workgroupSize` answer one
+  rather than a record, as `MaterialProgram.workgroupSize` does.
+- **`sin`, `cos` and `pow` in the kernel language**, on f32s and vectors,
+  the f32 nearest the exact value on the CPU and WGSL's own on the GPU.
 - **A debug-line point is one pixel on Metal too.** The stage wrote its
   point size under a macro `impellerc` never defines, so Metal drew points
   at whatever size it found; it is written under the target macros the

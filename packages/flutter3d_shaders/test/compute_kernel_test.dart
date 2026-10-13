@@ -1,5 +1,6 @@
-// `.f3dmat compute`: read once into one checked tree, translated to WGSL and
-// to Dart, and the Dart kernel computing what WGSL defines.
+// The kernel language: read once into one checked tree, translated to WGSL
+// and to Dart, and the Dart kernel computing what WGSL defines.
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
@@ -53,7 +54,8 @@ void main() {
       // factor where the values belong.
       final kernel = ComputeKernel.parse(_scale);
       expect(kernel.name, 'Scale');
-      expect(kernel.workgroupSize, (64, 1, 1));
+      expect(kernel.workgroupSize, const WorkgroupSize(64, 1, 1));
+      expect(kernel.workgroupSize.invocations, 64);
       expect(kernel.bindings.map((b) => (b.name, b.index, b.writable)), [
         ('values', 0, true),
         ('factor', 1, false),
@@ -62,12 +64,90 @@ void main() {
       expect(kernel.groupsFor(65), 2);
     });
 
-    test('blocks that are not kernels are skipped', () {
+    test('a material or a full-screen stage beside the kernels is skipped', () {
       final kernels = ComputeKernel.parseAll('''
 material Glow { fragment { return vec4(1.0); } }
+fullscreen Fog { fragment { return sample(scene, uv); } }
 $_scale
 ''');
       expect(kernels.single.name, 'Scale');
+    });
+
+    test('any other top-level word is refused rather than skipped', () {
+      // Mutation: skip it as a block, and the kernel after it in a file
+      // that misspells a word disappears without a sentence.
+      expect(
+        () => ComputeKernel.parseAll('shader Glow { }\n$_scale'),
+        _refusedAt(1, '"shader"'),
+      );
+    });
+  });
+
+  group('versions', () {
+    test('the language is at version 1, and a source may say so', () {
+      expect(kernelLanguageVersion, 1);
+      expect(ComputeKernel.parse('kernel 1\n$_scale').name, 'Scale');
+      expect(ComputeKernel.parse(_scale).languageVersion, 1);
+    });
+
+    test('a newer source is refused, naming both versions', () {
+      // Mutation: read past the version line, and a kernel written for a
+      // later language runs under this one's meaning of its words.
+      expect(
+        () => ComputeKernel.parse('kernel 2\n$_scale'),
+        throwsA(
+          isA<ComputeKernelException>()
+              .having((e) => e.line, 'line', 1)
+              .having(
+                (e) => e.reason,
+                'reason',
+                allOf(contains('version 2'), contains('version 1')),
+              ),
+        ),
+      );
+      expect(
+        () => ComputeKernel.parse('kernel 0\n$_scale'),
+        _refusedAt(1, 'not a kernel language version'),
+      );
+    });
+
+    test('a material file\'s version line does not swallow its kernels', () {
+      // Mutation: treat "f3dmat 3" as the start of a block to skip, and the
+      // kernel after it is lost: "expected one kernel and found 0".
+      final kernel = ComputeKernel.parse('f3dmat 3\n$_scale');
+      expect(kernel.name, 'Scale');
+      expect(ComputeKernel.parse('f3dmat 3\nkernel 1\n$_scale').name, 'Scale');
+      expect(
+        () => ComputeKernel.parse('f3dmat 3\nkernel 2\n$_scale'),
+        _refusedAt(2, 'version 2'),
+      );
+    });
+
+    test('the material language\'s compute form is named, not misread', () {
+      expect(
+        () => ComputeKernel.parse('''
+compute Ripples {
+  uniform float time = 0.0;
+  kernel { return vec4(1.0); }
+}
+'''),
+        _refusedAt(2, 'lowerMaterialCompute'),
+      );
+    });
+
+    test('a workgroup is three numbers, one where the source gave fewer', () {
+      const size = WorkgroupSize(8, 4, 1);
+      expect((size.x, size.y, size.z), (8, 4, 1));
+      expect(size, const WorkgroupSize(8, 4, 1));
+      expect(size.hashCode, const WorkgroupSize(8, 4, 1).hashCode);
+      expect(size.invocations, 32);
+      expect('$size', 'WorkgroupSize(8, 4, 1)');
+      expect(
+        ComputeKernel.parse(
+          _scale.replaceAll('workgroup 64', 'workgroup 4, 4, 2'),
+        ).workgroupSize,
+        const WorkgroupSize(4, 4, 2),
+      );
     });
 
     test('a write to a read buffer is refused where it is written', () {
@@ -125,6 +205,37 @@ $_scale
         expect(_eval('let s = 33u; out[0] = 1u << s;'), 2);
       },
     );
+
+    test('sin, cos and pow are the f32 nearest the exact value', () {
+      // Mutation: leave the result a double, and a store of it into an f32
+      // list rounds where the source did not say so.
+      double f32(double v) => (Float32List(1)..[0] = v)[0];
+      expect(
+        _eval('let x = 0.5; out[0] = sin(x);', type: 'f32'),
+        f32(math.sin(f32(0.5))),
+      );
+      expect(
+        _eval('let x = 0.25; out[0] = cos(x);', type: 'f32'),
+        f32(math.cos(f32(0.25))),
+      );
+      expect(
+        _eval('let x = 2.0; out[0] = pow(x, 0.5);', type: 'f32'),
+        f32(math.sqrt(2.0)),
+      );
+      expect(
+        _eval(
+          'let v = sin(vec2(0.0, 0.5)) + pow(vec2(2.0), vec2(3.0)); '
+          'out[0] = v.y;',
+          type: 'f32',
+        ),
+        f32(f32(math.sin(0.5)) + 8.0),
+      );
+      expect(() => _eval('out[0] = sin(1u);'), _refusedAt(5, 'sin()'));
+      expect(
+        () => _eval('out[0] = pow(vec2(1.0), 2.0);', type: 'f32'),
+        _refusedAt(5, 'pow()'),
+      );
+    });
 
     test(
       'round breaks ties to even, and a conversion truncates and clamps',
@@ -223,6 +334,18 @@ compute Copy {
         ),
       );
       expect(wgsl.code, contains('@compute @workgroup_size(64, 1, 1)'));
+      expect(wgsl.workgroupSize, const WorkgroupSize(64, 1, 1));
+    });
+
+    test('sin, cos and pow are WGSL\'s own', () {
+      final wgsl = ComputeKernel.parse('''
+compute Wave {
+  workgroup 1;
+  buffer out: f32[] read_write;
+  kernel { out[0] = pow(sin(out[0]), cos(out[1])); }
+}
+''').toWgsl().code;
+      expect(wgsl, contains('pow(sin(b_out[0i]), cos(b_out[1i]))'));
     });
 
     test('every f32 product and sum goes through f3d_exact', () {
