@@ -708,20 +708,22 @@ final class RunElements {
   static const double harmlessFlux = FireExposure.harmlessFlux;
 
   /// W/m² onto the point of the runner's box nearest each flame, summed
-  /// over the world's fires.
+  /// over [world]'s fires.
   ///
   /// Each fire as Modak's point source (Combustion and Flame 29, 1977): its
   /// radiant share of the power it gives off, spread over a sphere about
-  /// the middle of its flame, q = χ_r Q / 4πR². Close in the point source
+  /// the middle of its flame as it stands, under a ceiling or a ledge that
+  /// stops it ([FireExposure.standingMiddleOf]), q = χ_r Q / 4πR². Close in
+  /// the point source
   /// overstates it without bound, and nothing is heated past what the
   /// flame's own soot radiates, σT⁴: inside the flame that is the flux.
   /// [FireExposure.fluxFrom], measured to the runner's box.
-  static double fluxOnto(Runner runner, List<NativeFire> fires) {
+  static double fluxOnto(Runner runner, NativeWorld world) {
     final body = runner.body;
     final lo = body.position - body.halfExtents;
     final hi = body.position + body.halfExtents;
-    return fires.fold(0.0, (flux, fire) {
-      final source = FireExposure.middleOf(fire);
+    return world.fires().fold(0.0, (flux, fire) {
+      final source = FireExposure.standingMiddleOf(fire, world);
       final near = Vector3(
         source.x.clamp(lo.x, hi.x),
         source.y.clamp(lo.y, hi.y),
@@ -744,7 +746,7 @@ final class RunElements {
   void burn(Runner runner, double dt) {
     final health = runner.health;
     if (health.isDead) return;
-    final share = burnt(fluxOnto(runner, world.fires()), dt);
+    final share = burnt(fluxOnto(runner, world), dt);
     if (share > 0.0) runner.applyDamage(Damage(amount: health.maximum * share));
   }
 

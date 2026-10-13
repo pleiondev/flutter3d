@@ -431,26 +431,33 @@ static void blaze(f3d_real wind, int when[5], f3d_real *far_peak) {
 }
 
 static void test_fire_spreads(void) {
-  /* A crate hot all through shines on those it stands a couple of
-   * centimetres from, the one on it and the one beside it, and both catch
-   * within seconds, once heat enough lies under their faces to hold a
-   * flame. Solid pine with nothing more to heat it burns near its
-   * firepoint, its flame giving back most of what it makes; the one four
-   * metres off only warms. */
+  /* A crate hot all through stands its flame over the one on it and
+   * against the one beside it, a couple of centimetres off, and both catch
+   * within a minute, once heat enough lies under their faces to hold a
+   * flame: they stand in the flame, which gives the faces it wraps its
+   * gas's convection and its radiation, and catch with it as their pilot.
+   * Solid pine with nothing more to heat it burns near its firepoint, its
+   * flame giving back most of what it makes, its gas in depth no faster
+   * than wood is measured burning. The one in its plume catches first; the
+   * one four metres off only warms. Mutation: no flame on what stands in
+   * it — the two catch only after minutes, from radiation and the plume. */
   int when[5];
   f3d_real far;
   blaze(0, when, &far);
   CHECK(when[0] == 0);
   CHECK(when[1] > 0 && when[1] < 60);
   CHECK(when[2] > 0 && when[2] < 60);
+  CHECK(when[1] < when[2]);
   CHECK(when[4] < 0);
   CHECK(far < 310);
   /* Two metres a second along the row lays the flame towards the crate
-   * beside it: it catches no later than in still air, and the far one
-   * still only warms. */
+   * beside it: it catches no later than in still air, and the next in the
+   * row, which in still air the flame does not reach, catches within
+   * minutes; the far one still only warms. */
   int windy[5];
   blaze(2, windy, &far);
   CHECK(windy[2] > 0 && windy[2] <= when[2]);
+  CHECK(windy[3] > 0 && (when[3] < 0 || windy[3] < when[3]));
   CHECK(windy[4] < 0);
 }
 
@@ -1119,10 +1126,13 @@ static void test_a_thatch_brand_burns_at_its_beds_rate(void) {
  * gave off the layer under the front many times over, and 63 % of the
  * ball's fuel went in its first step. Each slice gives off no more than it
  * holds, at the rate it cools to as it pays for its gas: the ball burns
- * over many steps, a few per cent of it in the hardest. Not at the cone's
- * 4.1 g/(m² s) — that is a cold slab's under 18 kW/m²; wood at a flame's
+ * over many steps, a few per cent of it in the hardest. Wood at a flame's
  * temperature right through has heat enough to gasify all of itself, and
- * does within seconds. Returns the steps it burnt for. Mutation: the
+ * its kinetics would in seconds; but its gas in depth comes no faster than
+ * the wood is measured burning, so the ball burns for minutes, as a stick
+ * 2 cm thick does: Block's regression of a crib's sticks, 2.2e-6 D^−0.6
+ * m/s (Babrauskas, SFPE Handbook, "Heat release rates"), takes 7 minutes
+ * through its radius. Returns the steps it burnt for. Mutation: the
  * explicit rate — 63 % in one step. */
 static int hot_ball_burns(F3dMaterialKind kind) {
   F3dWorld *w = f3d_world_create();
@@ -1140,7 +1150,7 @@ static int hot_ball_burns(F3dMaterialKind kind) {
   fuel = held;
   double worst = 0;
   int steps = 0, out = 0;
-  while (fuel > 0 && !out && steps < 3600) {
+  while (fuel > 0 && !out && steps < 36000) {
     const f3d_real before = fuel;
     f3d_world_step(w, F3D_R(1.0) / 60);
     f3d_body_get_fuel(w, ball, &fuel);
@@ -1155,8 +1165,52 @@ static int hot_ball_burns(F3dMaterialKind kind) {
 }
 
 static void test_a_hot_ball_of_hard_wood_burns_over_many_steps(void) {
-  CHECK(hot_ball_burns(F3D_MATERIAL_OAK) > 120);
-  CHECK(hot_ball_burns(F3D_MATERIAL_PINE) > 120);
+  /* Over a minute each: before the gas in depth was bounded, 4 to 7 s. */
+  CHECK(hot_ball_burns(F3D_MATERIAL_OAK) > 3600);
+  CHECK(hot_ball_burns(F3D_MATERIAL_PINE) > 3600);
+}
+
+/* The most W a box of WOOD [hx] × [hy] × [hz] half-extents and [kg], set to
+ * [kelvin] all through, gives off over ten seconds. */
+static double hot_box_peak(f3d_real hx, f3d_real hy, f3d_real hz, f3d_real kg,
+                           f3d_real kelvin) {
+  F3dWorld *w = f3d_world_create();
+  F3dMaterial m;
+  f3d_material_preset(F3D_MATERIAL_WOOD, &m);
+  const F3dBody box = f3d_body_create(w, F3D_BODY_FIXED, 0, 2, 0, kg);
+  f3d_body_set_shape(w, box, F3D_SHAPE_BOX, hx, hy, hz);
+  CHECK(f3d_body_set_material(w, box, &m) == 1);
+  f3d_body_set_temperature(w, box, kelvin);
+  double peak = 0;
+  for (int i = 0; i < 600; i++) {
+    f3d_world_step(w, F3D_R(1.0) / 60);
+    f3d_real q = 0;
+    f3d_body_get_heat_release(w, box, &q);
+    peak = fmax(peak, (double)q);
+  }
+  CHECK(burning(w, box));
+  f3d_world_destroy(w);
+  return peak;
+}
+
+/* A crate of pine boards, 0.8 m on a side and 26 kg, heated through to
+ * 900 K, as a game sets one alight. What wood items of its mass give off
+ * burning is of the order of a megawatt and below: Gross's cribs of
+ * Douglas fir, 4.15 kg at 78 kW and 262 kg at 0.8 MW at their most (J.
+ * Res. NBS 66C, 1962, table 1), and the crate's 3.84 m² at wood's measured
+ * 11 g/(m² s) and 15 MJ/kg, 0.63 MW. Its in-depth gas, at A e^(−E/RT) near
+ * thirty a second at 900 K over a layer as deep as the crate's boards,
+ * gave 20 MW, a flame some 70 m long by Heskestad's length. A board of it,
+ * 2.2 kg, gave 3.5 MW where its 0.24 m² at the same rate gives 40 kW.
+ * Mutation: the gas in depth unbounded by the measured burning rate — 20
+ * and 3.5 MW. */
+static void test_a_crate_heated_through_burns_as_crates_do(void) {
+  const double crate =
+      hot_box_peak(F3D_R(0.4), F3D_R(0.4), F3D_R(0.4), F3D_R(26.0), F3D_R(900.0));
+  CHECK(crate > 2.5e5 && crate < 1.5e6);
+  const double board =
+      hot_box_peak(F3D_R(0.38), F3D_R(0.06), F3D_R(0.016), F3D_R(2.2), F3D_R(900.0));
+  CHECK(board > 1e4 && board < 1.5e5);
 }
 
 /* A lump of charcoal glows on while it is heated as hard as glowing
@@ -1231,6 +1285,7 @@ int main(void) {
   test_thatch_creeps_at_rothermels_rate();
   test_a_thatch_brand_burns_at_its_beds_rate();
   test_a_hot_ball_of_hard_wood_burns_over_many_steps();
+  test_a_crate_heated_through_burns_as_crates_do();
   test_charcoal_glows_only_as_hot_as_a_heap();
   test_an_explosion_pushes_by_solid_angle();
   test_materials();

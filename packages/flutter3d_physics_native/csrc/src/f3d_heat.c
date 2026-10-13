@@ -39,6 +39,9 @@
 #define F3D_GASIFICATION F3D_R(1.81e6)
 #define F3D_CRITICAL_MASS_FLUX F3D_R(2.5e-3)
 #define F3D_FLAME_SPREAD F3D_R(12.9e6)
+/* What a material that says no burning rate is taken to burn at, a
+ * generic wood's 11 g/(m² s), as WOOD below. */
+#define F3D_BURNING_RATE F3D_R(0.011)
 
 /* Wood's char: what is left of what burns, 0.18 (the FDS User's Guide's
  * wood, after its sources); how thick the char stands against the wood it
@@ -475,6 +478,24 @@ static f3d_real gasification_of(const F3dMaterial *m) {
 static f3d_real firepoint_of(const F3dMaterial *m) {
   return m->critical_mass_flux > F3D_R(0.0) ? m->critical_mass_flux
                                              : F3D_CRITICAL_MASS_FLUX;
+}
+
+/* kg/(m² s) the wood under a burning front gives off in depth at the most:
+ * the material's measured burning rate. Its kinetics alone have no such
+ * bound where the wood is hot right through — set so, as a game lights a
+ * crate — since such wood holds heat to gasify much of itself and, at
+ * 900 K, near thirty a second of what it holds: a crate of 26 kg gave
+ * 20 MW. But no wood burns so. What wood is measured giving off burning
+ * (the cone's slabs, Gross's cribs, Babrauskas's furniture, SFPE
+ * Handbook, "Heat release rates") is its gas from the front and from in
+ * depth under its growing char together, tens of grams a second a square
+ * metre at the most; and the front's own share, from the heat that
+ * reaches it, ṁ'' = q''_net / L (Drysdale, An Introduction to Fire
+ * Dynamics, ch. 6, steady burning), is
+ * bounded already, by what a surface wholly in a flame takes. So the gas
+ * in depth adds to the front's no more than the measured rate. */
+static f3d_real burning_rate_of(const F3dMaterial *m) {
+  return m->burn_rate > F3D_R(0.0) ? m->burn_rate : F3D_BURNING_RATE;
 }
 
 static f3d_real spread_of(const F3dMaterial *m) {
@@ -1636,15 +1657,61 @@ static f3d_real effusivity(const F3dWorld *world, const Heat *h) {
   return e > F3D_R(0.0) ? f3d_sqrt(e) : F3D_R(-1.0);
 }
 
+/* m an entry's skin lies over what it holds: the depth heat has reached
+ * under its surface (lay_heat), never past its own thickness V/A. */
+static f3d_real heated_depth(const Heat *h) {
+  const f3d_real thick =
+      h->surface > F3D_R(0.0) ? h->volume / h->surface : F3D_R(0.0);
+  return f3d_min(f3d_sqrt(f3d_max(h->l.reached, F3D_R(0.0))), thick);
+}
+
+/* Conductivities from which a solid conducts as a metal does. */
+#define F3D_METALLIC F3D_R(10.0)
+
+/* Two metal faces in air: 2.75e-4 m² K/W, aluminium's at moderate
+ * pressure with air in the interface (Incropera and DeWitt, Fundamentals
+ * of Heat and Mass Transfer, table 3.2); copper's and stainless steel's
+ * in table 3.1 lie within a factor of five of it. */
+#define F3D_METAL_CONTACT F3D_R(3.6e3)
+
+/* The air between two faces where either is not metal — sawn wood, dressed
+ * stone, under no more than their weight: they touch at a few high points
+ * and the heat crosses the air between, as thick as their roughness. A
+ * quarter of a millimetre, within the 0.1 to 1 mm of a sawn or split face,
+ * 26 to 260 W/(m² K) of air at the room's 0.026 W/(m K) (Incropera and
+ * DeWitt, §3.1.4: a non-metal's contact resistance is its gap's). */
+#define F3D_ROUGH_GAP F3D_R(2.5e-4)
+
+/* W/(m² K) across the interface of two faces of [sa] and [sb] at [ta] and
+ * [tb]: two metals' measured conductance, or the air across the gap their
+ * roughness leaves; and, in parallel, the radiation across that gap,
+ * σ (T₁² + T₂²)(T₁ + T₂) / (1/ε₁ + 1/ε₂ − 1), two grey planes facing,
+ * which past a few hundred kelvin carries as much as the air does. */
+static f3d_real interface_conductance(const F3dSlot *sa, const F3dSlot *sb, f3d_real ta,
+                                      f3d_real tb) {
+  const F3dMaterial *ma = &sa->material, *mb = &sb->material;
+  const f3d_real solid =
+      ma->conductivity >= F3D_METALLIC && mb->conductivity >= F3D_METALLIC
+          ? F3D_METAL_CONTACT
+          : F3D_MAT_AIR_CONDUCTIVITY / F3D_ROUGH_GAP;
+  const f3d_real ea = ma->emissivity, eb = mb->emissivity;
+  const f3d_real grey = ea > F3D_R(0.0) && eb > F3D_R(0.0)
+                            ? F3D_R(1.0) / (F3D_R(1.0) / ea + F3D_R(1.0) / eb - F3D_R(1.0))
+                            : F3D_R(0.0);
+  return solid + grey * F3D_STEFAN_BOLTZMANN * (ta * ta + tb * tb) * (ta + tb);
+}
+
 /* Heat across every contact that touches, each side's part nearest the
  * contact. The two press together with the push the solver gave them this
- * step and touch over the area Hertz gives that push (contact_area). The
- * conductance is Holm's constriction of two bodies meeting over a spot of
- * radius a, G = 4a / (1/k₁ + 1/k₂), a the radius of a circle of that area,
- * between their surfaces; and the exchange is taken implicitly for the
- * pair, each surface moving by its gain over its thermal mass, so it
- * carries the surfaces towards one temperature and never past it. In key
- * order, so the same world passes the same heat. */
+ * step and touch over the area of the faces that meet, or the area Hertz
+ * gives that push for curved ones (contact_area). Between their surfaces
+ * the heat crosses the interface (interface_conductance) and, in series,
+ * each body's own solid: a face's across the depth heat lies in under its
+ * skin, d/(k A) a side; a spot's, Holm's constriction of two bodies
+ * meeting over a circle of radius a, (1/k₁ + 1/k₂) / 4a. The exchange is
+ * taken implicitly for the pair, each surface moving by its gain over its
+ * thermal mass, so it carries the surfaces towards one temperature and
+ * never past it. In key order, so the same world passes the same heat. */
 static void conduct(F3dWorld *world, Heats *hs, f3d_real dt) {
   const f3d_real per_second = (f3d_real)world->s.substeps / dt;
   for (uint32_t i = 0; i < world->s.manifold_count; i++) {
@@ -1688,10 +1755,15 @@ static void conduct(F3dWorld *world, Heats *hs, f3d_real dt) {
                      b->curve,
                      compliance_of(&sa->material) + compliance_of(&sb->material));
     if (!(area > F3D_R(0.0))) continue;
-    const f3d_real spot = f3d_sqrt(area / F3D_PI);
-    const f3d_real g = F3D_R(4.0) * spot /
-                       (F3D_R(1.0) / sa->material.conductivity +
-                        F3D_R(1.0) / sb->material.conductivity);
+    /* Each side's own resistance: a face's, its solid across the depth
+     * heat lies in under its skin; a spot's, Holm's constriction. */
+    const f3d_real ka = sa->material.conductivity, kb = sb->material.conductivity;
+    const f3d_real solid =
+        m->count >= 3
+            ? (heated_depth(a) / ka + heated_depth(b) / kb) / area
+            : (F3D_R(1.0) / ka + F3D_R(1.0) / kb) / (F3D_R(4.0) * f3d_sqrt(area / F3D_PI));
+    const f3d_real g =
+        F3D_R(1.0) / (F3D_R(1.0) / (interface_conductance(sa, sb, ta, tb) * area) + solid);
     const f3d_real gdt = g * dt;
     const f3d_real q = gdt * (tb - ta) /
                        (F3D_R(1.0) + gdt * (sa_k + sb_k));
@@ -1915,6 +1987,8 @@ static int receives(const F3dWorld *world, const Heat *h) {
 typedef struct Bathed {
   Heat *b;
   f3d_real give, area, gas;
+  /* In the flame itself rather than the plume above it. */
+  int flame;
 } Bathed;
 
 typedef struct Near {
@@ -2060,6 +2134,8 @@ static void radiate(F3dWorld *world, Heats *hs, f3d_real dt) {
     const f3d_real base = across_of(f3d_min(a->l.involved, a->surface));
     const f3d_real qc = (F3D_R(1.0) - chi) * q;
     const Plume plume = plume_of(world, q, qc, base);
+    /* Its flame's length, with or without the gravity a plume needs. */
+    const f3d_real tip = alight ? flame_length(q, base) : F3D_R(0.0);
     if (f3d_abs(sent) < F3D_RADIANT_LEAST && plume.top == F3D_R(0.0)) continue;
     /* caught ≤ (r/d)²/2: past this, the largest thing catches less than
      * the least worth sending. */
@@ -2109,8 +2185,49 @@ static void radiate(F3dWorld *world, Heats *hs, f3d_real dt) {
         const f3d_real d = f3d_sqrt(f3d_dot(between, between));
         const f3d_real rb = seen_radius(b);
         const f3d_real tb = skin_of(b);
+        /* In the flame: another body standing in it or against it, at its
+         * side or over it, takes on the faces the flame wraps what a
+         * surface standing in a flame takes — its gas's convection and its
+         * radiation over its thickness (flame_flux), the 20 to 30 kW/m² of
+         * a small wood flame on a wall up to the 50 to 100 of a large one
+         * engulfing a target (Quintiere, Fundamentals of Fire Phenomena,
+         * §8.6; Drysdale, An Introduction to Fire Dynamics, §4.4) — over
+         * the half of it that faces the flame, as far as it stands inside
+         * the flame's width, and no more of it than half the flame's own
+         * side. Not what stands under the fire: a flame rises. It catches
+         * there as any heated spot does, the flame its pilot (step_entry).
+         * Its flame's radiation is in that flux, so the flame's share of
+         * what the fire radiates from its middle passes it by. */
+        int impinged = 0;
+        const f3d_real rise = f3d_dot(between, axis);
+        if (tip > F3D_R(0.0) && b->slot != a->slot && rise >= F3D_R(-0.5) * ra &&
+            rise <= tip + rb) {
+          const f3d_real along = f3d_clamp(rise, F3D_R(0.0), tip);
+          const F3dVec3 off = f3d_sub(between, f3d_scale(axis, along));
+          const f3d_real apart = f3d_sqrt(f3d_dot(off, off));
+          const f3d_real width = F3D_R(0.5) * base;
+          const f3d_real inside = f3d_clamp((width + rb - apart) / (F3D_R(2.0) * rb),
+                                            F3D_R(0.0), F3D_R(1.0));
+          const f3d_real tf = fm->flame_temperature;
+          if (inside > F3D_R(0.0) && tf > tb && width > F3D_R(0.0)) {
+            impinged = 1;
+            const f3d_real area = f3d_min(F3D_R(0.5) * b->surface * inside,
+                                          F3D_R(0.5) * F3D_PI * base * tip);
+            const f3d_real flux = flame_flux(fm, base, tb, sb->material.emissivity);
+            const f3d_real most = held_by(world, b) / b->gain * (tf - tb) / dt;
+            const f3d_real blocked =
+                f3d_min(F3D_R(1.0), rb * rb * inside / (width * width));
+            Bathed bt;
+            bt.b = b;
+            bt.give = f3d_min(f3d_min(flux * area, most), blocked * q);
+            bt.area = area;
+            bt.gas = tf;
+            bt.flame = 1;
+            if (bt.give > F3D_R(0.0)) bathe(&n, bt);
+          }
+        }
         /* In the plume. */
-        if (plume.top > F3D_R(0.0)) {
+        if (!impinged && plume.top > F3D_R(0.0)) {
           const f3d_real along =
               f3d_clamp(f3d_dot(between, axis), F3D_R(0.0), plume.top);
           const F3dVec3 off = f3d_sub(between, f3d_scale(axis, along));
@@ -2135,6 +2252,7 @@ static void radiate(F3dWorld *world, Heats *hs, f3d_real dt) {
             bt.give = f3d_min(want, blocked * qc);
             bt.area = area;
             bt.gas = gas;
+            bt.flame = 0;
             if (bt.give > F3D_R(0.0)) bathe(&n, bt);
           }
         }
@@ -2143,8 +2261,9 @@ static void radiate(F3dWorld *world, Heats *hs, f3d_real dt) {
         const f3d_real share = sb->material.emissivity * caught(rb, d);
         const f3d_real worth =
             f3d_max(F3D_RADIANT_LEAST, F3D_RADIANT_SLOWEST * held_by(world, b));
-        if (f3d_abs(sent) * share < worth) continue;
-        f3d_real got = sent * share * seen(world, a->at, ha, b->at, hb, rb);
+        const f3d_real sends = impinged ? excess : sent;
+        if (f3d_abs(sends) * share < worth) continue;
+        f3d_real got = sends * share * seen(world, a->at, ha, b->at, hb, rb);
         /* Never more, all of them together, than it sends. */
         const f3d_real left = f3d_abs(sent) - f3d_abs(given);
         if (f3d_abs(got) > left) got = sent < F3D_R(0.0) ? -left : left;
@@ -2157,13 +2276,20 @@ static void radiate(F3dWorld *world, Heats *hs, f3d_real dt) {
       }
     }
     /* What the plume gives, shared out when all it is asked for is more
-     * than it carries. */
-    f3d_real asked = F3D_R(0.0);
-    for (uint32_t k = 0; k < n.bathed_count; k++) asked += n.bathed[k].give;
+     * than it carries; and the flame, more than the fire gives off. */
+    f3d_real asked = F3D_R(0.0), wrapped = F3D_R(0.0);
+    for (uint32_t k = 0; k < n.bathed_count; k++) {
+      if (n.bathed[k].flame) {
+        wrapped += n.bathed[k].give;
+      } else {
+        asked += n.bathed[k].give;
+      }
+    }
     const f3d_real scale = asked > qc ? qc / asked : F3D_R(1.0);
+    const f3d_real flame_scale = wrapped > q ? q / wrapped : F3D_R(1.0);
     for (uint32_t k = 0; k < n.bathed_count; k++) {
       Bathed *bt = &n.bathed[k];
-      const f3d_real give = bt->give * scale;
+      const f3d_real give = bt->give * (bt->flame ? flame_scale : scale);
       bt->b->l.heat += give * dt;
       expose(bt->b, EXPOSED_GAS, give / bt->area, bt->area, bt->gas);
     }
@@ -2376,10 +2502,13 @@ static int holds_flame(const F3dWorld *world, const Heat *h, f3d_real area,
   /* The wood under the front no cooler than its layer says: a surface
    * driven past its ignition temperature faster than it could catch holds
    * that much more gas in reach. A porous bed has none in depth: its
-   * stalks give off theirs at the front (step_entry). */
+   * stalks give off theirs at the front (step_entry). No faster than the
+   * material burns, as there. */
   const f3d_real top = f3d_max(ignition, skin_of(h));
   const f3d_real depth_gas =
-      bed_depth(world, h) > F3D_R(0.0) ? F3D_R(0.0) : in_depth_flux(m, density, top, under, patch, dt);
+      bed_depth(world, h) > F3D_R(0.0)
+          ? F3D_R(0.0)
+          : f3d_min(in_depth_flux(m, density, top, under, patch, dt), burning_rate_of(m));
   f3d_real cap = flame_flux(m, across_of(area), ignition, m->emissivity), flux = F3D_R(0.0);
   for (int k = 0; k < 4; k++) {
     f3d_real surface_t;
@@ -2557,10 +2686,14 @@ static uint32_t step_entry(F3dWorld *world, const F3dSlot *s, Heat *h,
      * heat. Not a porous bed's: its stalks' gas is the front's, the
      * warming of each already in L, and there is no solid under a char for
      * a parabola to lie in. Counted again in depth, a bed as hot as a flame
-     * — a brand lofted from one — gave off its whole self in a step. */
+     * — a brand lofted from one — gave off its whole self in a step. And
+     * no faster than the material is measured burning (burning_rate_of):
+     * a body hot right through gave tens of megawatts. */
     const f3d_real top = f3d_max(ignition, skin_of(h));
     const f3d_real in_depth =
-        bed > F3D_R(0.0) ? F3D_R(0.0) : in_depth_flux(m, density, top, under, l->patch, dt);
+        bed > F3D_R(0.0) ? F3D_R(0.0)
+                         : f3d_min(in_depth_flux(m, density, top, under, l->patch, dt),
+                                   burning_rate_of(m));
     /* The flame gives back no more than it makes, ṁ''·ΔH_c a square metre:
      * what it makes depends on what it is given, so the two are settled
      * together, a few rounds from the flame's own flux down. */
@@ -2582,7 +2715,8 @@ static uint32_t step_entry(F3dWorld *world, const F3dSlot *s, Heat *h,
       patch_out(l);
       said |= WENT_OUT;
     } else {
-      const f3d_real burnt = f3d_min(flux * area * dt, l->fuel);      const f3d_real share = flux > F3D_R(0.0) ? burnt / (flux * area * dt) : F3D_R(0.0);
+      const f3d_real burnt = f3d_min(flux * area * dt, l->fuel);
+      const f3d_real share = flux > F3D_R(0.0) ? burnt / (flux * area * dt) : F3D_R(0.0);
       const f3d_real released = burnt * m->heat_of_combustion / dt;
       const f3d_real back = f3d_min(fed * area, released);
       power += back - lost * area - share * area * (at_front * lv + in_depth * F3D_PYROLYSIS_HEAT);

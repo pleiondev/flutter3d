@@ -1,5 +1,27 @@
 ## 1.0.0-rc.1
 
+- **Heat crosses a touching face, and a flame heats what stands in it.**
+  Two faces that meet pass heat through their interface — 3.6 kW/(m² K)
+  for two metals, the air across a quarter-millimetre gap otherwise, with
+  the radiation across it — in series with each body's solid over the
+  depth heat lies in; a curved contact keeps Holm's spot. A body standing
+  in or against another's flame takes the flame's convection and
+  radiation on the faces it wraps, and catches there with the flame as its
+  pilot: a 10 cm block of wood against a burning one catches in about two
+  minutes, crates side by side within a minute, and a stone beside them
+  only warms.
+- **Wood hot right through burns no faster than wood is measured
+  burning.** The gas the wood under a burning front gives off in depth
+  adds no more than the material's `burnRate` to the front's, which the
+  heat that reaches it already bounds. A 26 kg crate set to 900 K gave off
+  20 MW, a flame some 70 m long, and one of its boards 3.5 MW; they give
+  1.3 MW at the most and about 0.3 MW after their char forms, and 46 kW.
+  `burnRate` was checked and no longer read; it is that bound now, and
+  nought takes 11 g/(m² s), a generic wood's.
+- **`FireExposure.standingMiddleOf`.** The middle of a flame as it stands
+  in a world: where its axis meets a ceiling short of its tip, the middle
+  of the column under it, as a flame longer than the room is high turns
+  along the ceiling.
 - **A save names its standing colliders the same on every platform.** The
   key was the shape's type name and each number's text, which a web build
   writes differently, so the same world saved to different bytes under

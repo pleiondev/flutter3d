@@ -100,6 +100,7 @@ final class DebrisSystemStep
 
 abstract final class FireExposure
   static Vector3 middleOf(NativeFire fire)
+  static Vector3 standingMiddleOf(NativeFire fire, NativeWorld world)
   static const double harmlessFlux = 2500.0
   static double burnDoseRate(double flux)
   static double flux({required double radiant, required double sootTemperature, required double distanceSquared})

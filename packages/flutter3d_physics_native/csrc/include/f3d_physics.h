@@ -184,8 +184,11 @@ typedef struct F3dMaterial {
   /* J released per kilogram burnt. */
   f3d_real heat_of_combustion;
   /* kg burnt per second per square metre of surface while alight, as
-   * measured for the material. Checked, no longer read: the step burns at
-   * the rate its heat balance gives, ṁ'' = q''_net / heat_of_gasification. */
+   * measured for the material. The step burns at the rate its heat balance
+   * gives, ṁ'' = q''_net / heat_of_gasification, and reads this only as
+   * the most a charring material's wood gives off in depth on top of that:
+   * a body hot right through burns no faster than the material is measured
+   * burning. Nought takes 11 g / (m² s), a generic wood's. */
   f3d_real burn_rate;
   /* The share of the mass that can burn, nought to one. */
   f3d_real fuel_fraction;
