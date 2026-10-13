@@ -1,33 +1,33 @@
 ---
-description: Four independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 14764 tests need a GPU.
+description: Four independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 14785 tests need a GPU.
 ---
 
 # Testing
 
-14764 tests across 61 packages and 18 applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer. The README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+14785 tests across 61 packages and 18 applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer. The README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
 | `flutter3d` | 1761 | | `apps/flutter3d_demo_sandbox` | 18 |
 | `flutter3d_voxel` | 34 | | `flutter3d_mesh` | 601 |
 | `apps/flutter3d_modeler` | 1753 | | `flutter3d_sim` | 988 |
-| `pad_input` | 73 | | `flutter3d_core` | 1114 |
+| `pad_input` | 73 | | `flutter3d_core` | 1124 |
 | `apps/flutter3d_lab_pendulum` | 21 | | `apps/flutter3d_demo_reef` | 4 |
 | `apps/flutter3d_lab_incident` | 13 | | `flutter3d_game_shooter` | 87 |
 | `flutter3d_audio_core` | 98 | | `flutter3d_plugin_api` | 76 |
 | `flutter3d_audio` | 7 | | `flutter3d_game_racing` | 249 |
 | `flutter3d_webgl` | 92 | | `flutter3d_game_platformer` | 242 |
 | `flutter3d_hardware` | 169 | | `apps/flutter3d_demo_platformer` | 228 |
-| `flutter3d_impeller` | 108 | | `flutter3d_cpu` | 479 |
+| `flutter3d_impeller` | 108 | | `flutter3d_cpu` | 480 |
 | `apps/flutter3d_demo_strategy` | 64 | | `apps/flutter3d_editor` | 307 |
 | `apps/flutter3d_demo_arcade` | 23 | | `apps/flutter3d_demo_racing` | 165 |
 | `flutter3d_pointer_lock` | 34 | | `flutter3d_physics` | 328 |
-| `flutter3d_webgpu` | 267 | | `flutter3d_physics_native` | 252 |
+| `flutter3d_webgpu` | 268 | | `flutter3d_physics_native` | 252 |
 | `flutter3d_effects` | 41 | | `flutter3d_game_strategy` | 151 |
 | `apps/flutter3d_demo_river` | 57 | | `flutter3d_testing` | 54 |
 | `flutter3d_editor_core` | 203 | | `flutter3d_editor_widgets` | 115 |
 | `apps/flutter3d_demo_dungeon` | 175 | | `flutter3d_app` | 261 |
-| `flutter3d_game` | 356 | | `flutter3d_shaders` | 60 |
+| `flutter3d_game` | 356 | | `flutter3d_shaders` | 68 |
 | `flutter3d_particles` | 133 | | `flutter3d_stereo` | 57 |
 | `flutter3d_model_core` | 1201 | | `flutter3d_editor_play` | 40 |
 | `flutter3d_net` | 43 | | `flutter3d_net_webrtc` | 2 |
@@ -41,12 +41,12 @@ description: Four independent golden sets, mutation-checking every new test, det
 | `flutter3d_foundation` | 72 | | `flutter3d_matter` | 61 |
 | `flutter3d_game_ui` | 150 | | `flutter3d_mcp` | 294 |
 | `flutter3d_post` | 40 | | `flutter3d_demo_content` | 319 |
-| `flutter3d_game_physics` | 45 | | `flutter3d_build_hooks` | 11 |
+| `flutter3d_game_physics` | 45 | | `flutter3d_build_hooks` | 12 |
 | `flutter3d_elements` | 24 | | `flutter3d_level_scene` | 6 |
 | `flutter3d_wgpu` | 3 | | `flutter3d_hub` | 35 |
 | `flutter3d_fields` | 16 | | `apps/flutter3d_playground` | 9 |
 
-The rows sum to 14681 rather than 14764: the remaining 83 live in `packages/*/example/test`, which the count includes and this table does not, among them the two seeds a new project starts from, `packages/flutter3d_app/example` and `packages/flutter3d_game/example`, and the chemistry bench, `packages/flutter3d_education/example`.
+The rows sum to 14702 rather than 14785: the remaining 83 live in `packages/*/example/test`, which the count includes and this table does not, among them the two seeds a new project starts from, `packages/flutter3d_app/example` and `packages/flutter3d_game/example`, and the chemistry bench, `packages/flutter3d_education/example`.
 
 `flutter3d_samples` is not in the table and has no `test/` at all: it is test data with two path constants over it, and other packages' decoder tests are what exercise it. `flutter3d_conformance` is missing for a different reason: it is invoked as a script harness rather than through `flutter test`, so it does not surface in a grep of `test(` calls either. See below for what that cost once.
 
