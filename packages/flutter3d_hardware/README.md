@@ -9,6 +9,8 @@ The package contains no implementation. Three implementations exist,
 An engine written against it can be handed a backend as a value, so a software
 renderer can draw the same frame a GPU does and a test can check that it did.
 
+[HAL.md](HAL.md) describes the whole layer, member by member, for engine contributors and backend authors.
+
 ## What is deliberately not here
 
 Anything a backend can decide for itself. There is no device enumeration,
