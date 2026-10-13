@@ -59,7 +59,7 @@ void main() {
           captureLocalFrame: () => <String, Object?>{
             'dx': _input(slot, captures++),
           },
-          applyAndStep: (frames) => at = _step(at, frames),
+          applyAndStep: (step) => at = _step(at, step.frames),
           save: () => List<int>.of(at),
           restore: (state) => at = List<int>.of(state),
           onSettled: (s) => settled[slot][s.step + 1] = s.after,
@@ -112,7 +112,7 @@ void main() {
             captureLocalFrame: () => <String, Object?>{
               'dx': _input(slot, captures++),
             },
-            applyAndStep: (frames) => at = _step(at, frames),
+            applyAndStep: (step) => at = _step(at, step.frames),
             save: () => List<int>.of(at),
             restore: (state) => at = List<int>.of(state),
             onSettled: slot == 0 ? tape.settled : null,

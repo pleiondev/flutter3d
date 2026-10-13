@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a rollback step is handed a `RollbackStep`.**
+  `RollbackSession.applyAndStep` and `EngineRollback.applyFrames` take one
+  `RollbackStep` (new): the `step`, every slot's `frames`, `statusOf(slot)`
+  as an `InputStatus` (new, an open class: `confirmed`, `predicted`,
+  `disconnected`) and whether the step is `resimulated`, where they took
+  the frames alone. A game can freeze a player who left, hold back a
+  predicted hit's sound and show whom it waits for; `(frames) => …` is
+  `(step) => …` reading `step.frames`.
 - **Breaking: the rollback's and the observer's callbacks take one object
   each.** `RollbackSession.onSettled` and `EngineRollback`'s take a
   `SettledStep` (new: the step, the state it ended in, the frames), and

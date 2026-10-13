@@ -234,7 +234,7 @@ List<Map<String, Object?>> _play(_Options o) {
           }
           return held[s];
         },
-        applyAndStep: worlds[s].step,
+        applyAndStep: (step) => worlds[s].step(step.frames),
         save: () => Float64List.fromList(worlds[s].state),
         restore: (saved) => worlds[s].state = Float64List.fromList(saved),
         onSettled: (settled) => traces[s].observe(

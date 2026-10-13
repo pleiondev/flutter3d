@@ -26,7 +26,7 @@ final rollback = EngineRollback(
   wire: seat.wire,
   players: seat.size,
   captureLocalFrame: () => {'move': stick.x.round()},
-  applyFrames: (frames) => game.applyHands(frames),
+  applyFrames: (step) => game.applyHands(step.frames),
 );
 // Once a fixed step, in place of loop.frame:
 rollback.advance();

@@ -45,6 +45,7 @@ library;
 // names the wire, the room and the rollback from this one import.
 export 'package:flutter3d_net/flutter3d_net.dart'
     show
+        InputStatus,
         LoopbackPair,
         LoopbackParty,
         LoopbackWire,
@@ -62,6 +63,7 @@ export 'package:flutter3d_net/flutter3d_net.dart'
         PeerSendBytes,
         PeerWire,
         RollbackSession,
+        RollbackStep,
         SettledStep,
         SimulationObserver,
         WireHello,

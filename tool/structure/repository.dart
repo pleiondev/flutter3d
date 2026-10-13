@@ -2331,8 +2331,6 @@ const Map<String, String> hookValueParameters = <String, String>{
   'ElementHook.restore': 'flutter3d_elements: $_ownState',
   'EngineLoop.drainLook':
       'flutter3d_sim: the look delta a frame gathered, written into the caller\'s vector, $_ofItsInput',
-  'EngineRollback.applyFrames':
-      'flutter3d_net: one step\'s inputs by seat, the shape the wire carries, versioned by the protocol',
   'EnumField.unknownLabel':
       'flutter3d_editor_widgets: a label for a name, $_ofItsInput',
   'EnvironmentBuild': 'flutter3d_app: an asset built from its bytes, $_codec',
@@ -2417,7 +2415,7 @@ const Map<String, String> hookValueParameters = <String, String>{
   'RigidDynamics':
       'flutter3d_physics: stepped by a length and restored from its own state; $_stepLength',
   'RollbackSession':
-      'flutter3d_net: a step\'s inputs by seat and its own state handed back; $_ownState',
+      'flutter3d_net: the game\'s own state handed back to `restore`; $_ownState',
   'RunFlutter': 'flutter3d_editor_play: `flutter run`\'s arguments, $_ioSeam',
   'RunSession':
       'flutter3d_game: a session over a level type it is generic in, each member a function of the level or its name; $_ofItsInput',

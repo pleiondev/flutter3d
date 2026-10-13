@@ -29,8 +29,8 @@ import 'package:test/test.dart';
     localSlot: slot,
     maxRollbackFrames: maxRollbackFrames,
     captureLocalFrame: () => hands(slot, slot == 0 ? a.step : b.step),
-    applyAndStep: (frames) {
-      sums[slot] += frames.values.fold<int>(
+    applyAndStep: (step) {
+      sums[slot] += step.frames.values.fold<int>(
         0,
         (sum, frame) => sum + ((frame['move'] as int?) ?? 0),
       );

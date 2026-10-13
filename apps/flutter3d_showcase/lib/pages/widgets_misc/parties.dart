@@ -59,7 +59,8 @@ final class _Party {
           captureLocalFrame: () => <String, Object?>{
             'dx': pressing ? _press(slot, captures++) : 0,
           },
-          applyAndStep: (frames) => states[slot] = _step(states[slot], frames),
+          applyAndStep: (step) =>
+              states[slot] = _step(states[slot], step.frames),
           save: () => List<int>.of(states[slot]),
           restore: (state) => states[slot] = List<int>.of(state),
           // The host hands what settles to the tape, and hears who watches.

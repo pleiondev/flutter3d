@@ -68,9 +68,9 @@ final class NetRace {
       wire: transport,
       localSlot: localCarIndex,
       captureLocalFrame: () => captureDriverFrame(localInput),
-      applyAndStep: (frames) => _applyAndStep(
-        frames[localCarIndex] ?? const <String, Object?>{},
-        frames[_remoteCarIndex] ?? const <String, Object?>{},
+      applyAndStep: (step) => _applyAndStep(
+        step.frames[localCarIndex] ?? const <String, Object?>{},
+        step.frames[_remoteCarIndex] ?? const <String, Object?>{},
       ),
       save: _sim.save,
       restore: _sim.restore,

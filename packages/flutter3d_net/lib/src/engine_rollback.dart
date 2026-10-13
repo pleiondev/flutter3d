@@ -25,7 +25,8 @@ typedef LoopState = ({int step, Snapshot state});
 ///
 /// **What a game hands it.** [captureLocalFrame] reads this machine's
 /// hands; [applyFrames] writes every slot's frame into the loop's input
-/// before the step runs — by slot, the same player on every machine.
+/// before the step runs — by slot, the same player on every machine — and
+/// is handed the session's [RollbackStep], with each slot's [InputStatus].
 ///
 /// ```dart
 /// final rollback = EngineRollback(
@@ -33,7 +34,7 @@ typedef LoopState = ({int step, Snapshot state});
 ///   wire: seat.wire,
 ///   players: seat.size,
 ///   captureLocalFrame: () => {'move': stick.x.round()},
-///   applyFrames: (frames) => game.applyHands(frames),
+///   applyFrames: (step) => game.applyHands(step.frames),
 /// );
 /// // once a fixed step, in place of loop.frame:
 /// rollback.advance();
@@ -74,8 +75,9 @@ final class EngineRollback {
   final EngineLoop loop;
 
   /// Writes every slot's frame into the loop's input for the step about to
-  /// run.
-  final void Function(Map<int, Map<String, Object?>> frames) applyFrames;
+  /// run: [RollbackStep.frames], with where each came from
+  /// ([RollbackStep.statusOf]) and whether the step is run again.
+  final void Function(RollbackStep step) applyFrames;
 
   /// The rollback itself: its window, its counters, its agreed ending.
   late final RollbackSession<LoopState> session;
@@ -84,8 +86,8 @@ final class EngineRollback {
   /// loop. Once a fixed step.
   void advance() => session.advance();
 
-  void _step(Map<int, Map<String, Object?>> frames) {
-    applyFrames(frames);
-    loop.runSteps(1, resimulated: session.isResimulating);
+  void _step(RollbackStep step) {
+    applyFrames(step);
+    loop.runSteps(1, resimulated: step.resimulated);
   }
 }

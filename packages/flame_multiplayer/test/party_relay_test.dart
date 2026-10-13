@@ -88,7 +88,7 @@ void main() {
           captureLocalFrame: () => <String, Object?>{
             'dx': _input(seat.slot, captures++),
           },
-          applyAndStep: (frames) => at = _step(at, frames),
+          applyAndStep: (step) => at = _step(at, step.frames),
           save: () => List<int>.of(at),
           restore: (state) => at = List<int>.of(state),
           onSettled: (s) {
