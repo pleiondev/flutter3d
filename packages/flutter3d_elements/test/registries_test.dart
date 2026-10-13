@@ -112,8 +112,8 @@ void main() {
       throwsA(isA<PluginException>()),
     );
     switches.declare(const ElementSwitch('acme_frost.frost'));
-    // A plugin element is filed under the elements' own namespace, where
-    // its switch is the hook's id.
+    // The engine's own plugin names its switches bare, as fire and water
+    // are.
     ElementSwitches()
         .forPlugin(_Scope('flutter3d_elements.frost'))
         .declare(const ElementSwitch('frost'));

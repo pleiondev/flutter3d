@@ -9,14 +9,18 @@
   `ElementExploded`, `budget` an `ElementsOverBudget`, `seen` an
   `ElementFireSeen` and `lost` an `ElementFireLost`. One object per
   callback can gain a field in a minor, where a list of parameters cannot.
-- **Breaking: `ElementsSimulationPlugin` and `ElementPlugin` are the
-  engine's by name.** `ElementsSimulationPlugin` is `flutter3d_elements` by
-  default and an
-  `ElementPlugin` `flutter3d_elements.<hook id>`, where they were
-  `elements` and `element.<hook id>`: `elements` is an area of the
-  engine's events, which no plugin id may take. `ElementEventKinds` and
-  `ElementSwitches` refuse a plugin's kind or switch outside its
-  namespace.
+- **Breaking: `ElementsSimulationPlugin` is the engine's by name, and an
+  `ElementPlugin` is its author's.** `ElementsSimulationPlugin` is
+  `flutter3d_elements` by default, where it was `elements`: `elements` is
+  an area of the engine's events, which no plugin id may take.
+  `ElementPlugin(hook, id:, world:)` takes the id of the package that
+  ships the element, and refuses one in an engine namespace, so an
+  element from outside gets no engine rights. A bare hook id is filed in
+  that namespace (`ElementPlugin.element`): `frost` in `acme_frost` runs
+  in the phase `acme_frost.frost` and answers to the switch of that name.
+  A hook whose id has a namespace runs in a phase of that name, not
+  `elements.<id>`. `ElementEventKinds` and `ElementSwitches` refuse a
+  plugin's kind or switch outside its namespace.
 - **An element's followed pose is `flutter3d_foundation`'s `RigidPose`**,
   where it was a record of its own.
 - **The heat on a body, from the field.** `ElementFields.radiantFluxOn` and

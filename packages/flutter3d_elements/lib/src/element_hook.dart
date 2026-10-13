@@ -475,11 +475,14 @@ final class ElementSwitch {
 abstract base class ElementHook {
   const ElementHook();
 
-  /// Lower case, unique among the elements of one world: `'frost'`.
+  /// Lower case, unique among the elements of one world: `'frost'`, or
+  /// `'acme_frost.frost'` in a plugin's namespace.
   String get id;
 
-  /// The step phase this element runs in when installed in a loop.
-  LoopPhase get phase => LoopPhase.step('elements.$id');
+  /// The step phase this element runs in when installed in a loop: [id]
+  /// when it is in a namespace, `elements.<id>` for the engine's own bare
+  /// fire and water.
+  LoopPhase get phase => LoopPhase.step(id.contains('.') ? id : 'elements.$id');
 
   /// The switch it answers to in [ElementsSteps].
   ElementSwitch get switchedBy => ElementSwitch(id);
@@ -547,14 +550,42 @@ Registration installElement(
 /// switch among the engine's [ElementSwitches], its event kinds among the
 /// engine's [ElementEventKinds] — each when the engine has that registry.
 ///
+/// **Filed under the plugin's namespace.** [id] is the plugin's, named after
+/// the package that ships it (`acme_frost`), and the element's names are
+/// in it: a hook whose id is bare (`frost`) runs in the phase
+/// `acme_frost.frost` and answers to the switch `acme_frost.frost`, as
+/// [element] says. A hook that already names itself in the namespace keeps
+/// its names. An id in one of the engine's namespaces is refused: an
+/// element from outside gets no engine rights by its name.
+///
 /// Its view is drawn by the `Elements` that draws the world
-/// (`Elements.addElement(hook, step: false)`), which knows the camera; the
-/// plugin steps it, which is the half a replay holds.
+/// (`Elements.addElement(plugin.element, step: false)`), which knows the
+/// camera; the plugin steps it, which is the half a replay holds.
 final class ElementPlugin extends Flutter3dPlugin {
-  ElementPlugin(this.hook, {required this.world, String? id, this.dependsOn})
-    : _id = id; // ignore: prefer_initializing_formals
+  /// Throws an [ArgumentError] when [id] is in one of the engine's
+  /// namespaces (`PluginManifest.isEngine`).
+  ElementPlugin(
+    ElementHook hook, {
+    required this.id,
+    required this.world,
+    this.dependsOn,
+  }) : element = _Filed.of(hook, id) {
+    if (PluginManifest(id: id, apiVersion: PluginApiVersion.current).isEngine) {
+      throw ArgumentError.value(
+        id,
+        'id',
+        'is in the engine\'s own namespace; an element plugin names itself '
+            'after the package that ships it',
+      );
+    }
+  }
 
-  final ElementHook hook;
+  /// The plugin's id, named after its package.
+  final String id;
+
+  /// The hook as this plugin files it: its id, phase and switch in [id]'s
+  /// namespace. What `Elements.addElement` is handed to draw it.
+  final ElementHook element;
 
   /// The world the element steps over, asked each step.
   final NativeWorld? Function() world;
@@ -562,27 +593,64 @@ final class ElementPlugin extends Flutter3dPlugin {
   /// Plugins that must be on before this one.
   final List<String>? dependsOn;
 
-  final String? _id;
-
   @override
   PluginManifest get manifest => PluginManifest(
-    // Filed under the elements' own namespace by default, where its phase
-    // (`elements.<id>`) and its switch are: the elements keep one element
-    // per id, so two hooks cannot meet there. A plugin given an id of its
-    // own names its hook's phase in that id's namespace.
-    id: _id ?? 'flutter3d_elements.${hook.id}',
+    id: id,
     apiVersion: PluginApiVersion.current,
     dependsOn: dependsOn ?? const <String>[],
-    description: 'the ${hook.id} element, stepped over the world\'s fields',
+    description: 'the ${element.id} element, stepped over the world\'s fields',
   );
 
   @override
   void install(PluginHost host) {
-    installElement(host.loop, hook, world: world);
-    host.maybeRegistry<ElementSwitches>()?.declare(hook.switchedBy);
+    installElement(host.loop, element, world: world);
+    host.maybeRegistry<ElementSwitches>()?.declare(element.switchedBy);
     final kinds = host.maybeRegistry<ElementEventKinds>();
-    if (kinds != null) hook.eventKinds.forEach(kinds.add);
+    if (kinds != null) element.eventKinds.forEach(kinds.add);
   }
+}
+
+/// A hook with its names in a plugin's namespace; everything else is the
+/// hook's own.
+final class _Filed extends ElementHook {
+  _Filed(this._hook, this.id);
+
+  /// [hook] as the plugin [pluginId] files it: itself when its id is
+  /// already in that namespace.
+  static ElementHook of(ElementHook hook, String pluginId) {
+    final dot = pluginId.indexOf('.');
+    final namespace = dot < 0 ? pluginId : pluginId.substring(0, dot);
+    return hook.id.startsWith('$namespace.')
+        ? hook
+        : _Filed(hook, '$namespace.${hook.id}');
+  }
+
+  final ElementHook _hook;
+
+  @override
+  final String id;
+
+  @override
+  ElementSwitch get switchedBy => ElementSwitch(
+    id,
+    onByDefault: _hook.switchedBy.onByDefault,
+    description: _hook.switchedBy.description,
+  );
+
+  @override
+  List<NativeEventKind> get eventKinds => _hook.eventKinds;
+
+  @override
+  void step(ElementStep step) => _hook.step(step);
+
+  @override
+  void view(ElementFrame frame) => _hook.view(frame);
+
+  @override
+  Object? save() => _hook.save();
+
+  @override
+  void restore(Object? saved) => _hook.restore(saved);
 }
 
 /// The switches plugin elements answer to, one per element: what a settings

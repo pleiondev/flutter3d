@@ -3258,7 +3258,8 @@ reads and writes the world's fields (heat, water, wind, forces, through
 `elements` and `rules`. Its arithmetic is `Portable`'s. It has its own view,
 updated once a frame, and its own `save` and `restore` for the snapshot.
 `installElement` puts one into a loop, and `ElementPlugin` makes one a
-plugin. `Elements`' own fire and water are two such hooks, and its update
+plugin under its author's package name, which files a bare hook id in
+that namespace (`frost` in `acme_frost` steps in `acme_frost.frost`). `Elements`' own fire and water are two such hooks, and its update
 makes the same calls in the same order it did. `ElementsSteps` keeps its
 switches for fire, water and sound and gains one per element id, declared
 in `ElementSwitches`, so a plugin element can be switched off like the
