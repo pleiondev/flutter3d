@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **Wood hot right through burns no faster than wood is measured
+  burning.** The gas the wood under a burning front gives off in depth
+  adds no more than the material's `burnRate` to the front's, which the
+  heat that reaches it already bounds. A 26 kg crate set to 900 K gave off
+  20 MW, a flame some 70 m long, and one of its boards 3.5 MW; they give
+  1.3 MW at the most and about 0.3 MW after their char forms, and 46 kW.
+  `burnRate` was checked and no longer read; it is that bound now, and
+  nought takes 11 g/(m² s), a generic wood's.
 - **A save names its standing colliders the same on every platform.** The
   key was the shape's type name and each number's text, which a web build
   writes differently, so the same world saved to different bytes under

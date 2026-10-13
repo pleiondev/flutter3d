@@ -1186,8 +1186,11 @@ final class NativeMaterial {
   final double heatOfCombustion;
 
   /// kg burnt per second per square metre of surface while alight, as
-  /// measured for the material. Checked, no longer read: a fire burns at
-  /// the rate its heat balance gives, ṁ'' = q''_net / [heatOfGasification].
+  /// measured for the material. A fire burns at the rate its heat balance
+  /// gives, ṁ'' = q''_net / [heatOfGasification]; this is read only as the
+  /// most a charring material's wood gives off in depth on top of that, so
+  /// a body hot right through burns no faster than the material is
+  /// measured burning. Nought takes 11 g/(m² s), a generic wood's.
   final double burnRate;
 
   /// The share of the mass that can burn, nought up to but not one.

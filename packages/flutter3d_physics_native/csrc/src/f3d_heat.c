@@ -39,6 +39,9 @@
 #define F3D_GASIFICATION F3D_R(1.81e6)
 #define F3D_CRITICAL_MASS_FLUX F3D_R(2.5e-3)
 #define F3D_FLAME_SPREAD F3D_R(12.9e6)
+/* What a material that says no burning rate is taken to burn at, a
+ * generic wood's 11 g/(m² s), as WOOD below. */
+#define F3D_BURNING_RATE F3D_R(0.011)
 
 /* Wood's char: what is left of what burns, 0.18 (the FDS User's Guide's
  * wood, after its sources); how thick the char stands against the wood it
@@ -475,6 +478,24 @@ static f3d_real gasification_of(const F3dMaterial *m) {
 static f3d_real firepoint_of(const F3dMaterial *m) {
   return m->critical_mass_flux > F3D_R(0.0) ? m->critical_mass_flux
                                              : F3D_CRITICAL_MASS_FLUX;
+}
+
+/* kg/(m² s) the wood under a burning front gives off in depth at the most:
+ * the material's measured burning rate. Its kinetics alone have no such
+ * bound where the wood is hot right through — set so, as a game lights a
+ * crate — since such wood holds heat to gasify much of itself and, at
+ * 900 K, near thirty a second of what it holds: a crate of 26 kg gave
+ * 20 MW. But no wood burns so. What wood is measured giving off burning
+ * (the cone's slabs, Gross's cribs, Babrauskas's furniture, SFPE
+ * Handbook, "Heat release rates") is its gas from the front and from in
+ * depth under its growing char together, tens of grams a second a square
+ * metre at the most; and the front's own share, from the heat that
+ * reaches it, ṁ'' = q''_net / L (Drysdale, An Introduction to Fire
+ * Dynamics, ch. 6, steady burning), is
+ * bounded already, by what a surface wholly in a flame takes. So the gas
+ * in depth adds to the front's no more than the measured rate. */
+static f3d_real burning_rate_of(const F3dMaterial *m) {
+  return m->burn_rate > F3D_R(0.0) ? m->burn_rate : F3D_BURNING_RATE;
 }
 
 static f3d_real spread_of(const F3dMaterial *m) {
@@ -2376,10 +2397,13 @@ static int holds_flame(const F3dWorld *world, const Heat *h, f3d_real area,
   /* The wood under the front no cooler than its layer says: a surface
    * driven past its ignition temperature faster than it could catch holds
    * that much more gas in reach. A porous bed has none in depth: its
-   * stalks give off theirs at the front (step_entry). */
+   * stalks give off theirs at the front (step_entry). No faster than the
+   * material burns, as there. */
   const f3d_real top = f3d_max(ignition, skin_of(h));
   const f3d_real depth_gas =
-      bed_depth(world, h) > F3D_R(0.0) ? F3D_R(0.0) : in_depth_flux(m, density, top, under, patch, dt);
+      bed_depth(world, h) > F3D_R(0.0)
+          ? F3D_R(0.0)
+          : f3d_min(in_depth_flux(m, density, top, under, patch, dt), burning_rate_of(m));
   f3d_real cap = flame_flux(m, across_of(area), ignition, m->emissivity), flux = F3D_R(0.0);
   for (int k = 0; k < 4; k++) {
     f3d_real surface_t;
@@ -2557,10 +2581,14 @@ static uint32_t step_entry(F3dWorld *world, const F3dSlot *s, Heat *h,
      * heat. Not a porous bed's: its stalks' gas is the front's, the
      * warming of each already in L, and there is no solid under a char for
      * a parabola to lie in. Counted again in depth, a bed as hot as a flame
-     * — a brand lofted from one — gave off its whole self in a step. */
+     * — a brand lofted from one — gave off its whole self in a step. And
+     * no faster than the material is measured burning (burning_rate_of):
+     * a body hot right through gave tens of megawatts. */
     const f3d_real top = f3d_max(ignition, skin_of(h));
     const f3d_real in_depth =
-        bed > F3D_R(0.0) ? F3D_R(0.0) : in_depth_flux(m, density, top, under, l->patch, dt);
+        bed > F3D_R(0.0) ? F3D_R(0.0)
+                         : f3d_min(in_depth_flux(m, density, top, under, l->patch, dt),
+                                   burning_rate_of(m));
     /* The flame gives back no more than it makes, ṁ''·ΔH_c a square metre:
      * what it makes depends on what it is given, so the two are settled
      * together, a few rounds from the flame's own flux down. */
@@ -2582,7 +2610,8 @@ static uint32_t step_entry(F3dWorld *world, const F3dSlot *s, Heat *h,
       patch_out(l);
       said |= WENT_OUT;
     } else {
-      const f3d_real burnt = f3d_min(flux * area * dt, l->fuel);      const f3d_real share = flux > F3D_R(0.0) ? burnt / (flux * area * dt) : F3D_R(0.0);
+      const f3d_real burnt = f3d_min(flux * area * dt, l->fuel);
+      const f3d_real share = flux > F3D_R(0.0) ? burnt / (flux * area * dt) : F3D_R(0.0);
       const f3d_real released = burnt * m->heat_of_combustion / dt;
       const f3d_real back = f3d_min(fed * area, released);
       power += back - lost * area - share * area * (at_front * lv + in_depth * F3D_PYROLYSIS_HEAT);
