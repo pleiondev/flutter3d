@@ -384,8 +384,11 @@ final class GpuRenderBackend extends GraphicsDevice {
   TextureFormat get hdrColorFormat => TextureFormat.r16g16b16a16Float;
 
   @override
-  // Four is what this engine's goldens were recorded with.
-  int get preferredSampleCount => 4;
+  // Four is what this engine's goldens were recorded with; one where
+  // flutter_gpu says offscreen multisampling is missing (some OpenGL ES
+  // devices), since a count the device cannot allocate is no preference.
+  int get preferredSampleCount =>
+      features.has(DeviceFeature.offscreenMultisample) ? 4 : 1;
 
   /// Whether cube textures work, probed once — `DeviceFeature.cubeTextures`.
   ///

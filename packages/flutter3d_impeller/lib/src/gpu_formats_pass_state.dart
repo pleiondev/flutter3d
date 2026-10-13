@@ -106,15 +106,6 @@ extension StencilOperationToGpu on StencilOperation {
   };
 }
 
-/// Maps the engine's [StencilFace] to its `package:flutter_gpu` equivalent.
-extension StencilFaceToGpu on StencilFace {
-  gpu.StencilFace toGpu() => switch (this) {
-    StencilFace.both => gpu.StencilFace.both,
-    StencilFace.front => gpu.StencilFace.front,
-    StencilFace.back => gpu.StencilFace.back,
-  };
-}
-
 /// Maps the engine's [StencilState] to a `package:flutter_gpu`
 /// `StencilConfig`, field for field.
 ///

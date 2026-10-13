@@ -127,9 +127,16 @@ void main() {
     ),
     'SamplerAddressMode': (
       SamplerAddressMode.values,
-      <String>['clampToEdge', 'repeat', 'mirror'],
+      <String>['clampToEdge', 'repeat', 'mirror', 'clampToBorder'],
       (v) => (v as SamplerAddressMode).name,
       SamplerAddressMode.byName,
+    ),
+    // A loss reason a log wrote is read back; a minor names finer ones.
+    'DeviceLossReason': (
+      DeviceLossReason.values,
+      <String>['destroyed', 'unknown'],
+      (v) => (v as DeviceLossReason).name,
+      DeviceLossReason.byName,
     ),
     'SamplerBorderColor': (
       SamplerBorderColor.values,

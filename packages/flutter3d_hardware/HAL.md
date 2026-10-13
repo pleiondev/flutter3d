@@ -80,7 +80,7 @@ no `internal.dart`: everything it exports is promised.
 |---|---|
 | add a member with a body to `GraphicsDevice`, `PassEncoder`, `ComputeEncoder`, `TransferEncoder` (a feature-gated one refuses by its feature) | add a member without a body to any type a backend extends |
 | add a named parameter with a default to a descriptor's constructor, and the field behind it | change or remove anything listed in the snapshot |
-| add a constant to an open class: `DeviceFeature`, `TextureFormat`, `TextureDimension`, `ShaderStageKind`, `QueryType`, `NativeHandleKind`, `ComputePlacement`, `StorageMode` and the rest | add a value to one of the five enums that remain (`CompareFunction`, `FramebufferOrigin`, `StencilFace`, `StorageTextureAccess`, `WindingOrder`), each closed for good with its reason in `tool/structure/repository.dart` |
+| add a constant to an open class: `DeviceFeature`, `TextureFormat`, `TextureDimension`, `ShaderStageKind`, `QueryType`, `NativeHandleKind`, `ComputePlacement`, `StorageMode` and the rest | add a value to one of the four enums that remain (`CompareFunction`, `FramebufferOrigin`, `StorageTextureAccess`, `WindingOrder`), each closed for good with its reason in `tool/structure/repository.dart` |
 | turn a reserved `DeviceFeature` stable and give it calls | change what an existing call means to a backend that already implements it |
 | add a field with a default to `StageBindings` or `UniformMemberLayout` (a new binding kind) | change an abstract member's signature, including adding an optional parameter to a member backends override |
 | add a top-level type or function | |
@@ -152,11 +152,14 @@ adds the feature to `features` in the same change.
 | | `String get backendId` | `backendName` in lower case; override with a constant |
 | Refusal builders (`@protected`) | `refuse(DeviceFeature feature, {String? reason})` | an `UnsupportedCapabilityException` naming `backendName` |
 | | `refuseResource(String operation, String reason, {Object? cause})` | a `DeviceResourceException` naming `backendName` |
-| Pipelines | `createPipelineAsync(...)` | `createPipeline` in the calling turn, as a completed future |
+| Pipelines | `createPipelineFrom(PipelineDescriptor)` | `createPipeline` with the descriptor's stages and layout, then `setLabel` with its label |
+| | `createPipelineFromAsync(PipelineDescriptor)` | the same through `createPipelineAsync` |
+| | `createPipelineAsync(...)` | `createPipeline` in the calling turn, as a completed future |
 | | `releasePipeline(PipelineHandle)` | nothing |
 | | `PipelineRefusals get pipelineRefusals` | a record kept by the base class |
 | Compute | `createComputePipeline(ShaderHandle)` | refuses `compute` |
 | | `createComputePipelineAsync(ShaderHandle)` | `createComputePipeline`, as a future |
+| | `createComputePipelineFrom(ComputePipelineDescriptor)`, `createComputePipelineFromAsync(...)` | `createComputePipeline` (or its async twin) with the descriptor's stage, then its label |
 | | `beginComputePass({String? label, PassTimestampWrites? timestampWrites})` | refuses `compute` |
 | | `releaseComputePipeline(ComputePipelineHandle)` | nothing |
 | Buffers | `createBuffer(BufferDescriptor, {ByteData? contents})` | refuses `buffers` |
@@ -270,7 +273,11 @@ differently from the rest:
   clamps `SamplerDescriptor.anisotropy` to it rather than refusing.
 - `maxColorAttachments` refuses: a backend calls
   `descriptor.checkAttachmentLimit(limits.maxColorAttachments, backend:)` in
-  `beginRenderPass`.
+  `beginRenderPass`, which throws a `DeviceResourceException` (a limit is
+  not a feature).
+
+A device that draws nothing (the `wgpu` sidecar) says so in its limits too:
+no colour attachment, one sample, no vertex buffer or attribute.
 
 `textureFormatSupport` answers a `TextureFormatSupport` (`sampled`,
 `filterable`, `renderable`, `blendable`, `multisample`, `resolve`,
@@ -352,9 +359,13 @@ A sampler is a value, never a handle: a `SamplerDescriptor` is handed to every
 `bindTexture`. Fields: `minFilter`, `magFilter` (`MinMagFilter`),
 `mipFilter` (`MipFilter`), `widthAddressMode`, `heightAddressMode`,
 `depthAddressMode` (`SamplerAddressMode`: `clampToEdge`, `repeat`,
-`mirror`), `anisotropy` (1; above 1 only on a trilinear sampler),
-`compare` (`samplerCompare`), `lodMinClamp` and `lodMaxClamp` (0 and 32;
-`samplerLodClamp` when changed), `borderColor` (`samplerBorderColor`).
+`mirror`, `clampToBorder`), `anisotropy` (1; above 1 only on a trilinear
+sampler), `compare` (`samplerCompare`), `lodMinClamp` and `lodMaxClamp` (0
+and 32; `samplerLodClamp` when changed), `borderColor`. **The border is
+per axis**: an axis set to `clampToBorder` reads `borderColor` outside the
+texture (transparent black when it is null), any other axis ignores it, and
+`samplerBorderColor` is asked for exactly when some axis clamps to the
+border (`clampsToBorder`), never for a colour no axis uses.
 Named values: `nearestClamp`, `linearClamp`, `linearRepeat`,
 `trilinearRepeat`. **A null sampler means `linearRepeat`**, not the
 constructor's own defaults. A backend whose API wants an object per
@@ -393,7 +404,11 @@ memory or a semaphore as a file descriptor or a Win32 handle.
 
 `createQuerySet(QueryType, count)` for `occlusion` (`occlusionQuery`),
 `timestamp` (`timestampQuery`) and `pipelineStatistics`
-(`pipelineStatisticsQuery`; `PipelineStatistic` names the counters).
+(`pipelineStatisticsQuery`; `PipelineStatistic` names the counters). **A
+`pipelineStatistics` set reports exactly the five counters
+`PipelineStatistic.values` names at 1.0, in that order, for all of 1.x**:
+the stride an outside backend returns is part of the contract, so a counter
+a minor adds arrives as a new `QueryType` with its own stride.
 A pass names its occlusion set in `RenderPassDescriptor.occlusionQuerySet`
 and its timestamps in `timestampWrites`; `readQueryResults` answers once
 every pass submitted before it has finished, reading zero for a query no pass
@@ -420,13 +435,14 @@ its feature is refused by a backend written before it rather than ignored.
 |---|---|---|
 | `TextureDescriptor.checkFeatures` | `createTexture` | a shape other than 2D (`texture1D`, `textureArrays`, `texture3D`, `cubeTextures`, `cubeArrayTextures`), a storage usage (`storageTextures`), more than one sample (`offscreenMultisample`) |
 | `BufferDescriptor.checkFeatures` | `createBuffer` | a storage usage (`compute` or `renderStageStorage`), an indirect usage (`indirectDraw` or `indirectDispatch`), then `buffers` |
-| `SamplerDescriptor.checkFeatures` | `bindTexture` | `samplerCompare`, `samplerLodClamp`, `samplerBorderColor`, each alone |
+| `SamplerDescriptor.checkFeatures` | `bindTexture` | `samplerCompare`, `samplerLodClamp`, `samplerBorderColor` for an axis set to `clampToBorder`, each alone |
 | `BlendState.checkFeatures` | `setBlend` | `blendConstant`, `minMaxBlend`, `dualSourceBlending` |
 | `DepthBias.checkFeatures` | `setDepthBias` | `depthBias`, and `depthBiasClamp` for a non-zero clamp |
 | `RenderPassDescriptor.checkFeatures` | `beginRenderPass` | `renderToArrayLayer`, `renderToMipLevel`, `occlusionQuery`, `timestampQuery`, `multiview` for a `viewMask` |
 
 `RenderPassDescriptor.checkAttachmentLimit(limit, backend:)` sits beside the
-last one. What a descriptor cannot know (which formats a device holds,
+last one and throws a `DeviceResourceException`, since a limit is not a
+feature. What a descriptor cannot know (which formats a device holds,
 whether it creates general textures at all) is the device's to refuse.
 
 **What grows in a minor**: a descriptor field and the clause in its
@@ -442,6 +458,22 @@ works the vertex inputs out from the shader. `VertexLayoutDescriptor` is a
 list of `BufferLayout`s, each with a `strideInBytes`, a `VertexStepMode`
 (`vertex` or `instance`) and `InputAttribute`s (`name`, `VertexFormat`,
 `offsetInBytes`).
+
+**The descriptor is the entry point that grows.**
+`createPipelineFrom(PipelineDescriptor)` takes the same pair and layout as
+fields (`vertex`, `fragment`, `layout`), with a `label`, and
+`createComputePipelineFrom(ComputePipelineDescriptor)` takes `shader` and
+`label`; each has an async twin. A member a backend overrides can never gain
+a parameter within a major, so **every pipeline input after 1.0
+(specialisation constants, a cache blob, a hint of the pass state, mesh
+stages) lands as a descriptor field** with a default that means what a
+pipeline did before it, never as another `createPipelineX` member. The
+default bodies go through `createPipeline` and `createComputePipeline`, so a
+backend that overrides only those builds the same pipeline through either
+form; a backend overrides the descriptor form to read a field the parameter
+form has no room for, and a field that needs a capability is refused by the
+feature it names. The engine, the conformance suite and the trace replay
+create every pipeline through the descriptor forms.
 
 Everything else a pipeline state object holds in an explicit API is pass
 state here, set on the encoder: `setPrimitiveType`, `setPolygonMode`,
@@ -470,8 +502,10 @@ frame, so each refusal is told once and the rest of the frame draws.
 
 **What grows in a minor**: `BlendFactor`, `BlendOperation`, `PrimitiveType`,
 `PolygonMode`, `CullMode`, `VertexFormat`, `PipelineRefusalReason`
-constants; setters with refusing defaults. **What is frozen**:
-`createPipeline`'s signature and the report-not-throw rule.
+constants; setters with refusing defaults; `PipelineDescriptor` and
+`ComputePipelineDescriptor` fields with defaults. **What is frozen**:
+`createPipeline`'s signature, the descriptors' existing fields and their
+defaults, and the report-not-throw rule.
 
 ## Encoders
 
@@ -729,7 +763,8 @@ work that read it is done. A backend whose submission is synchronous calls
 `whenDone` at once.
 
 **Device loss.** `lost` is a stream of `DeviceLoss` (`reason`:
-`DeviceLossReason.destroyed` or `unknown`, an open class; `message`;
+`DeviceLossReason.destroyed` or `unknown`, an open class whose `byName`
+reads a logged reason back; `message`;
 `isRecoverable`; `restored`); `isLost` is the current state for a late
 subscriber. After a loss every handle is spent. A recoverable loss (a WebGL
 context) is followed by an event with `restored` true, after which the
@@ -856,7 +891,7 @@ What each reports, at this commit. "if …" is decided when the device opens;
 | `cubeArrayTextures` | yes | no | yes | no | no |
 | `cubeTextures` | yes | yes | yes | if a probe cube allocates | no |
 | `depthBias` | yes | yes | yes | no | no |
-| `depthBiasClamp` | no | no | yes | no | no |
+| `depthBiasClamp` | yes | no | yes | no | no |
 | `depthClamp` | yes | if `EXT_depth_clamp` | if adapter | no | no |
 | `dualSourceBlending` | yes | if `WEBGL_blend_func_extended` | if adapter | no | no |
 | `float32Blendable` | yes | if `EXT_color_buffer_float` and `EXT_float_blend` | if adapter | Metal on macOS | no |
@@ -900,7 +935,7 @@ What each reports, at this commit. "if …" is decided when the device opens;
 | `timestampQuery` | yes | if the timer extension counts timestamps | if adapter | no | no |
 | `uniformBytes` | no | yes | yes | yes | no |
 | `viewportBeyondTarget` | yes | yes | no | no | no |
-| `wireframe` | no | no | no | yes | no |
+| `wireframe` | no | no | no | on Metal and Vulkan, not OpenGL ES | no |
 
 The software rasteriser's constructor can withhold any feature
 (`withhold:`), which is how a refusal is exercised with real pixels behind
@@ -922,7 +957,7 @@ a test in `flutter3d_build` holds the template to the example file for file.
 | Helper | Library | What it is for |
 |---|---|---|
 | `FakeBackend` | `testing.dart` | a device that records instead of drawing: `calls`, `passes` (`FakePass`, with `commands` of `Recorded` subtypes), `bindingViolations`, `liveHandles` (what a test made and did not give back), `pipelineBuilds`; switches for missing shaders, refused pipelines, missing features, `lose(DeviceLoss)`, and `finishOldestFrame` to drive `onFrameComplete` |
-| `RecordingDevice` | `trace.dart` | wraps any device and keeps every call as a `TraceEvent`; `Trace.encode` writes it (`.f3dtrace`), `replayTrace(trace, device)` draws it again on any backend; `unrecorded` lists calls it passed through without recording |
+| `RecordingDevice` | `trace.dart` | wraps any device and keeps every call as a `TraceEvent`; `Trace.encode` writes it (`.f3dtrace`), `replayTrace(trace, device)` draws it again on any backend. A created texture keeps its whole `TextureDescriptor` and an attachment its face, level, layer and read-only flags (`TraceColorTarget`, `TraceDepthTarget`, classes that grow with `ColorTarget` and `DepthTarget`); `unrecorded` lists calls it passed through without recording |
 | `renderFrame(device:)` | `flutter3d_testing` | opens a `BackendOpener` at the frame's size, draws the engine's frame, reads the pixels back, disposes the device; the software rasteriser when `device` is left out |
 | `testReplay(device:)`, `expectReplayMatches(device:)` | `flutter3d_testing` | replay a tape and compare goldens on one device opened for the run |
 | `drawOnce` | `flutter3d_testing` | the layer under both, for a test that keeps its own device and renderer |
@@ -945,10 +980,10 @@ declaration.
 | Transient and tile memory | `StorageMode.deviceTransient`, load and store actions per attachment | subpasses and input attachments: descriptor fields and a feature | none |
 | Sparse, aliased and heap memory | none; allocation is the backend's | new members with refusing defaults, a `TextureUsage` bit and a feature | none |
 | Formats | eight-bit, half and full float, integer, packed, BC1, BC3, BC5, BC7, ETC2, ASTC 4x4 and 8x8 (LDR and HDR), depth and stencil; `textureFormatSupport` per format | 16-bit normalised and small integer formats, BC4, BC6H, EAC and other ASTC block sizes: `TextureFormat` constants with new indices; half and packed vertex formats: `VertexFormat` constants; 8-bit indices: an `IndexType` constant | none |
-| Samplers | filters, address modes, anisotropy (clamped), comparison, level clamps, border colour | a level-of-detail bias, a min or max reduction, a mirrored clamp: `SamplerDescriptor` fields with defaults, `SamplerAddressMode` constants, features; a sampler bound apart from its texture: an encoder member with a default and a `StageBindings` field | a border on one axis and the edge on another: `borderColor` applies to every `clampToEdge` axis, so a per-axis border needs a `clampToBorder` address mode and that rule decided before 1.0 |
+| Samplers | filters, address modes, anisotropy (clamped), comparison, level clamps, a border colour per axis (`clampToBorder`) | a level-of-detail bias, a min or max reduction, a mirrored clamp: `SamplerDescriptor` fields with defaults, `SamplerAddressMode` constants, features; a sampler bound apart from its texture: an encoder member with a default and a `StageBindings` field | none |
 | Pipeline state | a stage pair and a vertex layout per pipeline; raster, depth, stencil and blend state set on the pass; `PassState` for a backend that builds state objects | none needed | none |
-| Pipeline compilation | `createPipelineAsync`, `createComputePipelineAsync`, `pipelineRefusals` | a pipeline cache to save and load, a warm-up hint: members with defaults | none, though every new pipeline input arrives as a new entry point while pipeline creation takes bare parameters; a descriptor-taking entry point with a default body would gather them |
-| Specialisation and constants | uniform blocks by member name, uniform bytes (`uniformBytes`) | specialisation constants: a new creation member with a default that refuses when constants are given; immediate data (`immediateData` is reserved) with `maxImmediateDataSize` already in `DeviceLimits` | `createPipeline`'s signature cannot gain a parameter, so the new member has to be a second entry point |
+| Pipeline compilation | `createPipelineFrom` and `createComputePipelineFrom` with their descriptors, the async twins, `pipelineRefusals` | a pipeline cache to save and load, a warm-up hint of the pass state: `PipelineDescriptor` fields with defaults, and members with defaults where the cache is the device's | none |
+| Specialisation and constants | uniform blocks by member name, uniform bytes (`uniformBytes`) | specialisation constants: a `PipelineDescriptor` field whose default body refuses a non-empty set by a feature; immediate data (`immediateData` is reserved) with `maxImmediateDataSize` already in `DeviceLimits` | none |
 | Binding model | by name per stage (`bindTexture`, `bindUniformBlock`, `bindStorageBuffer`, `bindStorageTexture`), reflected in `StageBindings` and `UniformMemberLayout` | bindless resources (`bindlessResources` is reserved) and binding kinds: `StageBindings` fields and encoder members with defaults | none |
 | Render passes | load and store actions, several colour targets, a depth-stencil target, read-only depth, rendering into a face, level or layer, multiview by `viewMask` with a fallback, render bundles | variable rate shading (reserved), depth bounds (reserved) | none |
 | Compute | dispatch, indirect dispatch, storage buffers and textures, workgroup limits, `subgroups`, `shaderF16`, three placements | a second queue (`asyncCompute` is reserved) as a `ComputePlacement` | none |
@@ -959,7 +994,7 @@ declaration.
 | Readback and staging | `readback`, `readBuffer`, `mapBuffer`, transfer copies, synchronous readback for tests | a region readback of another format: a new member with a default, since `readbackFormats` decides for every backend at once | none |
 | Sharing and interop | `NativeHandle` export and import of textures, buffers and fences, `SharedTexture` and `SharedBuffer` with a host-memory fallback | `NativeHandleKind` constants | none |
 | Debugging | debug groups, markers, labels, `RecordingDevice` and replayable traces | a GPU capture trigger: a member with a default | none |
-| Device loss | `lost`, `isLost`, recoverable and restored losses | `DeviceLossReason` constants | none |
+| Device loss | `lost`, `isLost`, recoverable and restored losses, `DeviceLossReason.byName` | `DeviceLossReason` constants | none |
 | Capabilities | `DeviceFeatures`, `DeviceLimits`, `TextureFormatSupport`, reserved features | features, limit fields with defaults | none |
 | Shader code and reflection | GLSL source compiled per backend into bundle sections, SPIR-V and text through `compileStage`, reflection in the bundle and in `flutter3d_shaders` | a stage kind, a section, a payload version | none |
 
@@ -976,7 +1011,8 @@ overrides can never gain a parameter within a major. Growth therefore comes
 as new members with default bodies, new fields on the descriptor classes
 those members take, and new constants of open classes, which is why the
 descriptors (`TextureDescriptor`, `BufferDescriptor`, `SamplerDescriptor`,
-`RenderPassDescriptor`) carry the shape.
+`RenderPassDescriptor`, `PipelineDescriptor`, `ComputePipelineDescriptor`)
+carry the shape.
 
 ## Writing a fifth backend
 

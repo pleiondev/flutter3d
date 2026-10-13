@@ -138,9 +138,21 @@ final class WgpuComputeDevice extends GraphicsDevice
     DeviceFeature.synchronousReadback,
   ]);
 
-  /// WebGPU's guaranteed minimums, which are wgpu's own defaults.
+  /// WebGPU's guaranteed minimums, which are wgpu's own defaults, for what
+  /// it does: buffers, textures and compute. **Nothing for drawing**: no
+  /// colour attachment, one sample, no vertex buffer or attribute, nothing
+  /// between stages, since the sidecar opens no pass, and a caller sizing a
+  /// pass from the limits must not find room on a device that refuses it.
   @override
-  final DeviceLimits limits = DeviceLimits.webgpuDefaults;
+  final DeviceLimits limits = const DeviceLimits(
+    maxColorAttachments: 0,
+    maxColorAttachmentBytesPerSample: 0,
+    maxSampleCount: 1,
+    maxVertexBuffers: 0,
+    maxVertexAttributes: 0,
+    maxVertexBufferArrayStride: 0,
+    maxInterStageShaderVariables: 0,
+  );
 
   @override
   TextureFormatSupport textureFormatSupport(TextureFormat format) =>
@@ -888,6 +900,9 @@ final class _WgpuComputeEncoder extends ComputeEncoder {
     SamplerDescriptor? sampler,
   }) {
     debugCheckLive(texture, 'bindTexture');
+    // A kernel loads texels and samples nothing, but a sampler naming state
+    // this device has no feature for is refused by it, as on every backend.
+    sampler?.checkFeatures(_device.features, backend: _device.backendName);
     final binding = _binding(name, KernelBindingKind.texture);
     if (binding == null) return false;
     _bound[binding.index] = _Bound(texture.backend);

@@ -1005,9 +1005,6 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'closed for good, as `closedForGood` says: never, always and the six '
         'comparisons: every function from less, equal and greater to pass or '
         'fail',
-    'StencilFace':
-        'closed for good, as `closedForGood` says: front, back or both: every '
-        "non-empty set of a triangle's two faces",
     'FramebufferOrigin':
         'closed for good, as `closedForGood` says: whether row zero is the '
         'top or the bottom: the sign of the y axis',
@@ -1797,8 +1794,6 @@ const Map<String, String> closedForGood = <String, String>{
       'done or refused: the two answers a service gives, with the reason '
       'inside the refusal',
   'ShadowCasterFaces':
-      "front, back or both: every non-empty set of a triangle's two faces",
-  'StencilFace':
       "front, back or both: every non-empty set of a triangle's two faces",
   'StorageTextureAccess':
       'read, write, or both: every non-empty set of the two ways to touch a '

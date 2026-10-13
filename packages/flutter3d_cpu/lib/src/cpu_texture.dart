@@ -362,12 +362,9 @@ final class BoundTexture {
     final planes = level.slices ?? <CpuTexture>[level];
     final depth = planes.length;
     final mode = sampler.depthAddressMode;
-    final border = sampler.borderColor;
     Vector4 slice(int i) {
-      if (border != null &&
-          mode == SamplerAddressMode.clampToEdge &&
-          (i < 0 || i >= depth)) {
-        return _borderOf(border);
+      if (mode == SamplerAddressMode.clampToBorder && (i < 0 || i >= depth)) {
+        return _borderOf(sampler.effectiveBorderColor);
       }
       return _sampleLevel(planes[_address(i, depth, mode)], u, v);
     }
@@ -401,18 +398,13 @@ final class BoundTexture {
     final width = texture.width;
     final height = texture.height;
     final depth = texture.depth;
-    final border = sampler.borderColor;
     double passes(int ix, int iy) {
-      final outside = ix < 0 || iy < 0 || ix >= width || iy >= height;
       final double stored;
-      if (outside &&
-          border != null &&
-          ((ix < 0 || ix >= width) &&
-                  sampler.widthAddressMode == SamplerAddressMode.clampToEdge ||
-              (iy < 0 || iy >= height) &&
-                  sampler.heightAddressMode ==
-                      SamplerAddressMode.clampToEdge)) {
-        stored = _borderOf(border).x;
+      if ((ix < 0 || ix >= width) &&
+              sampler.widthAddressMode == SamplerAddressMode.clampToBorder ||
+          (iy < 0 || iy >= height) &&
+              sampler.heightAddressMode == SamplerAddressMode.clampToBorder) {
+        stored = _borderOf(sampler.effectiveBorderColor).x;
       } else {
         final x = _address(ix, width, sampler.widthAddressMode);
         final y = _address(iy, height, sampler.heightAddressMode);
@@ -464,6 +456,12 @@ final class BoundTexture {
     a.w + (b.w - a.w) * t,
   );
 
+  /// Whether an axis of the plane clamps to the border, which only the
+  /// bordered path reads; the depth axis answers in [_sampleVolume].
+  bool get _bordered =>
+      sampler.widthAddressMode == SamplerAddressMode.clampToBorder ||
+      sampler.heightAddressMode == SamplerAddressMode.clampToBorder;
+
   /// Whether the sampler narrows the levels it may read.
   bool get _clampsLod =>
       sampler.lodMinClamp != 0.0 || sampler.lodMaxClamp != 32.0;
@@ -501,15 +499,17 @@ final class BoundTexture {
     );
   }
 
-  /// [_sampleLevel] for a sampler with a border colour: every tap that
-  /// falls outside the texture along a clamped axis reads the border
-  /// instead of the edge texel.
+  /// [_sampleLevel] for a sampler with an axis clamped to its border: every
+  /// tap that falls outside the texture along a
+  /// [SamplerAddressMode.clampToBorder] axis reads the border colour instead
+  /// of a texel, and the other axis addresses as it says.
   Vector4 _sampleBordered(CpuTexture level, double u, double v) {
     final width = level.width;
     final height = level.height;
-    final border = _borderOf(sampler.borderColor!);
-    final clampU = sampler.widthAddressMode == SamplerAddressMode.clampToEdge;
-    final clampV = sampler.heightAddressMode == SamplerAddressMode.clampToEdge;
+    final border = _borderOf(sampler.effectiveBorderColor);
+    final clampU = sampler.widthAddressMode == SamplerAddressMode.clampToBorder;
+    final clampV =
+        sampler.heightAddressMode == SamplerAddressMode.clampToBorder;
     Vector4 tap(int ix, int iy) {
       if (clampU && (ix < 0 || ix >= width)) return border;
       if (clampV && (iy < 0 || iy >= height)) return border;
@@ -539,7 +539,10 @@ final class BoundTexture {
   /// argument checks on every tap of every sample.
   int _address(int i, int size, SamplerAddressMode mode) => switch (mode) {
     SamplerAddressMode.repeat => i % size < 0 ? i % size + size : i % size,
-    SamplerAddressMode.clampToEdge => i < 0 ? 0 : (i >= size ? size - 1 : i),
+    // A border axis reads its colour before it is addressed; what reaches
+    // here is inside the texture, or a compare tap clamped like the edge.
+    SamplerAddressMode.clampToEdge ||
+    SamplerAddressMode.clampToBorder => i < 0 ? 0 : (i >= size ? size - 1 : i),
     SamplerAddressMode.mirror => _mirror(i, size),
     _ => throw UnsupportedError(
       'the software rasteriser has no address mode $mode',
@@ -746,7 +749,7 @@ final class BoundTexture {
   }
 
   Vector4 _sampleLevel(CpuTexture texture, double u, double v) {
-    if (sampler.borderColor != null) return _sampleBordered(texture, u, v);
+    if (_bordered) return _sampleBordered(texture, u, v);
     final width = texture.width;
     final height = texture.height;
     final x = u * width - 0.5;

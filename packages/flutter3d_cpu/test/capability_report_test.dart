@@ -108,6 +108,9 @@ void main() {
       DeviceFeature.indirectFirstInstance,
       DeviceFeature.nonIndexedDraw,
       DeviceFeature.depthBias,
+      // `CpuEncoder._biasOf` caps the offset at the clamp.
+      DeviceFeature.depthBiasClamp,
+      DeviceFeature.texture1D,
       DeviceFeature.colorWriteMask,
       DeviceFeature.depthClamp,
       DeviceFeature.minMaxBlend,
@@ -136,6 +139,10 @@ void main() {
       DeviceFeature.subgroups,
       DeviceFeature.clipDistances,
       DeviceFeature.uniformBytes,
+      DeviceFeature.multiview,
+      DeviceFeature.sharedTextures,
+      DeviceFeature.sharedBuffers,
+      DeviceFeature.sharedFences,
     ];
     for (final f in listed) {
       expect(d.features.has(f), isTrue, reason: f.name);

@@ -48,6 +48,11 @@ extension SamplerAddressModeToGpu on SamplerAddressMode {
     SamplerAddressMode.clampToEdge => gpu.SamplerAddressMode.clampToEdge,
     SamplerAddressMode.repeat => gpu.SamplerAddressMode.repeat,
     SamplerAddressMode.mirror => gpu.SamplerAddressMode.mirror,
+    // Not reached through a bind: the encoder refuses a border axis by
+    // `DeviceFeature.samplerBorderColor` before a sampler is made.
+    SamplerAddressMode.clampToBorder => throw UnsupportedError(
+      'flutter_gpu has no clamp-to-border address mode',
+    ),
     _ => throw UnsupportedError('flutter_gpu has no address mode for $this'),
   };
 }

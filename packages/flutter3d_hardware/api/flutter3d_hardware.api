@@ -204,6 +204,14 @@ final class ComputeExecutors
 
 typedef ComputeOpener = Future<GraphicsDevice> Function();
 
+@immutable final class ComputePipelineDescriptor
+  String toString()
+  bool operator ==(Object other)
+  const ComputePipelineDescriptor({required this.shader, this.label})
+  final ShaderHandle shader
+  final String? label
+  int get hashCode
+
 final class ComputePipelineHandle
   bool get isDisposed
   final Object backend
@@ -428,6 +436,7 @@ final class DepthTarget
 @immutable final class DeviceLossReason
   String toString()
   final String name
+  static DeviceLossReason? byName(String name)
   static const DeviceLossReason destroyed = DeviceLossReason._('destroyed')
   static const DeviceLossReason unknown = DeviceLossReason._('unknown')
   static const List<DeviceLossReason> values = <DeviceLossReason>[destroyed, unknown]
@@ -510,17 +519,21 @@ abstract base class GraphicsDevice with TextureAllocator
   @protected UnsupportedCapabilityException refuse(DeviceFeature feature, {String? reason})
   ComputeEncoder beginComputePass({String? label, PassTimestampWrites? timestampWrites})
   ComputePipelineHandle createComputePipeline(ShaderHandle shader)
+  ComputePipelineHandle createComputePipelineFrom(ComputePipelineDescriptor descriptor)
   Future<ByteData> readBuffer(StorageBuffer buffer)
   Future<ComputePipelineHandle> createComputePipelineAsync(ShaderHandle shader)
+  Future<ComputePipelineHandle> createComputePipelineFromAsync(ComputePipelineDescriptor descriptor)
   Future<List<int>> readQueryResults(QuerySet querySet, {int first = 0, int? count})
   Future<MappedBuffer> mapBuffer(StorageBuffer buffer, MapMode mode, {int offsetInBytes = 0, int? sizeInBytes})
   Future<PipelineHandle> createPipelineAsync(ShaderHandle vertex, ShaderHandle fragment, {VertexLayoutDescriptor? layout})
+  Future<PipelineHandle> createPipelineFromAsync(PipelineDescriptor descriptor)
   GpuFence createFence()
   GpuFence importFence(NativeHandle handle)
   List<TextureFormat> get hdrOutputFormats
   NativeHandle exportBuffer(StorageBuffer buffer, {NativeHandleKind? kind})
   NativeHandle exportFence(GpuFence fence, {NativeHandleKind? kind})
   NativeHandle exportTexture(TextureHandle texture, {NativeHandleKind? kind})
+  PipelineHandle createPipelineFrom(PipelineDescriptor descriptor)
   PipelineRefusals get pipelineRefusals
   QuerySet createQuerySet(QueryType type, int count)
   RenderBundleEncoder createRenderBundleEncoder(RenderBundleDescriptor descriptor)
@@ -745,6 +758,16 @@ extension PassStateApply on PassEncoder
   final int? beginningOfPassIndex
   final int? endOfPassIndex
 
+@immutable final class PipelineDescriptor
+  String toString()
+  bool operator ==(Object other)
+  const PipelineDescriptor({required this.vertex, required this.fragment, this.layout, this.label})
+  final ShaderHandle fragment
+  final ShaderHandle vertex
+  final String? label
+  final VertexLayoutDescriptor? layout
+  int get hashCode
+
 final class PipelineHandle
   String toString()
   bool get isDisposed
@@ -887,7 +910,8 @@ final class SamplerAddressMode
   String toString()
   final String name
   static SamplerAddressMode? byName(String name)
-  static const List<SamplerAddressMode> values = <SamplerAddressMode>[clampToEdge, repeat, mirror]
+  static const List<SamplerAddressMode> values = <SamplerAddressMode>[clampToEdge, repeat, mirror, clampToBorder]
+  static const SamplerAddressMode clampToBorder = SamplerAddressMode._('clampToBorder')
   static const SamplerAddressMode clampToEdge = SamplerAddressMode._('clampToEdge')
   static const SamplerAddressMode mirror = SamplerAddressMode._('mirror')
   static const SamplerAddressMode repeat = SamplerAddressMode._('repeat')
@@ -902,8 +926,10 @@ final class SamplerBorderColor
   static const SamplerBorderColor transparentBlack = SamplerBorderColor._('transparentBlack')
 
 final class SamplerDescriptor
+  SamplerBorderColor get effectiveBorderColor
   SamplerDescriptor withAnisotropy(int anisotropy)
   String toString()
+  bool get clampsToBorder
   bool get usesExtendedState
   bool operator ==(Object other)
   const SamplerDescriptor({this.minFilter = MinMagFilter.nearest, this.magFilter = MinMagFilter.nearest, this.mipFilter = MipFilter.nearest, this.widthAddressMode = SamplerAddressMode.clampToEdge, this.heightAddressMode = SamplerAddressMode.clampToEdge, this.anisotropy = 1, this.depthAddressMode = SamplerAddressMode.clampToEdge, this.compare, this.lodMinClamp = 0, this.lodMaxClamp = 32, this.borderColor})
@@ -1054,9 +1080,6 @@ final class StageBindings
   final Set<String> blocks
   final Set<String> samplers
   int get hashCode
-
-enum StencilFace
-  values: both, front, back
 
 final class StencilOperation
   String toString()
@@ -1780,6 +1803,7 @@ final class RecordingDevice extends GraphicsDevice with SynchronousBufferReadbac
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor)
   ComputeEncoder beginComputePass({String? label, PassTimestampWrites? timestampWrites})
   ComputePipelineHandle createComputePipeline(ShaderHandle shader)
+  ComputePipelineHandle createComputePipelineFrom(ComputePipelineDescriptor descriptor)
   DepthRange get depthRange
   DeviceFeatures get features
   DeviceLimits get limits
@@ -1787,14 +1811,17 @@ final class RecordingDevice extends GraphicsDevice with SynchronousBufferReadbac
   Future<ByteData> readBuffer(StorageBuffer buffer)
   Future<ByteData> readback(TextureHandle texture, {ScreenRect? region})
   Future<ComputePipelineHandle> createComputePipelineAsync(ShaderHandle shader)
+  Future<ComputePipelineHandle> createComputePipelineFromAsync(ComputePipelineDescriptor descriptor)
   Future<List<int>> readQueryResults(QuerySet querySet, {int first = 0, int? count})
   Future<LoadedShaderLibrary> loadShaders(ByteData bytes)
   Future<MappedBuffer> mapBuffer(StorageBuffer buffer, MapMode mode, {int offsetInBytes = 0, int? sizeInBytes})
   Future<PipelineHandle> createPipelineAsync(ShaderHandle vertex, ShaderHandle fragment, {VertexLayoutDescriptor? layout})
+  Future<PipelineHandle> createPipelineFromAsync(PipelineDescriptor descriptor)
   Future<void> overwriteTexture(TextureHandle target, ByteData rgba, {ScreenRect? region, int mipLevel = 0})
   GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage)
   List<TextureFormat> get hdrOutputFormats
   PipelineHandle createPipeline(ShaderHandle vertex, ShaderHandle fragment, {VertexLayoutDescriptor? layout})
+  PipelineHandle createPipelineFrom(PipelineDescriptor descriptor)
   PipelineRefusals get pipelineRefusals
   QuerySet createQuerySet(QueryType type, int count)
   RecordingDevice(this.inner)
@@ -1932,7 +1959,16 @@ final class TraceClearBindings extends TracePassEvent
   String get kind
   const TraceClearBindings(super.pass)
 
-typedef TraceColorTarget = ({int texture, int? resolveTexture, LoadAction loadAction, StoreAction storeAction, Vector4? clearValue, int face, int mipLevel});
+final class TraceColorTarget
+  const TraceColorTarget({required this.texture, this.resolveTexture, this.loadAction = LoadAction.clear, this.storeAction = StoreAction.store, this.clearValue, this.face = 0, this.mipLevel = 0, this.layer = 0})
+  final LoadAction loadAction
+  final StoreAction storeAction
+  final Vector4? clearValue
+  final int face
+  final int layer
+  final int mipLevel
+  final int texture
+  final int? resolveTexture
 
 final class TraceComputeBindPipeline extends TraceEvent
   Map<String, Object?> toJson(TraceBlobWriter blob)
@@ -2013,7 +2049,7 @@ final class TraceCreateTexture extends TraceEvent
   Map<String, Object?> toJson(TraceBlobWriter blob)
   String get kind
   const TraceCreateTexture({required this.id, required this.spec})
-  final RenderTargetDescriptor spec
+  final TextureDescriptor spec
   final int id
 
 final class TraceCreateTextureFromPixels extends TraceEvent
@@ -2027,7 +2063,20 @@ final class TraceCreateTextureFromPixels extends TraceEvent
   final int id
   final int width
 
-typedef TraceDepthTarget = ({int texture, double clearValue, LoadAction loadAction, StoreAction storeAction, LoadAction stencilLoadAction, StoreAction stencilStoreAction, int stencilClearValue});
+final class TraceDepthTarget
+  const TraceDepthTarget({required this.texture, this.clearValue = 1.0, this.loadAction = LoadAction.clear, this.storeAction = StoreAction.dontCare, this.stencilLoadAction = LoadAction.clear, this.stencilStoreAction = StoreAction.dontCare, this.stencilClearValue = 0, this.mipLevel = 0, this.layer = 0, this.face = 0, this.depthReadOnly = false, this.stencilReadOnly = false})
+  final LoadAction loadAction
+  final LoadAction stencilLoadAction
+  final StoreAction stencilStoreAction
+  final StoreAction storeAction
+  final bool depthReadOnly
+  final bool stencilReadOnly
+  final double clearValue
+  final int face
+  final int layer
+  final int mipLevel
+  final int stencilClearValue
+  final int texture
 
 final class TraceDispatch extends TraceEvent
   Map<String, Object?> toJson(TraceBlobWriter blob)

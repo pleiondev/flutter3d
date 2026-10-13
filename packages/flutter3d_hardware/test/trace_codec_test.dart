@@ -101,7 +101,7 @@ List<TraceEvent> _everyEvent() => <TraceEvent>[
     pass: 0,
     label: 'scene',
     colors: <TraceColorTarget>[
-      (
+      TraceColorTarget(
         texture: 1,
         resolveTexture: 2,
         loadAction: LoadAction.load,
@@ -109,9 +109,10 @@ List<TraceEvent> _everyEvent() => <TraceEvent>[
         clearValue: Vector4(0.1, 0.2, 0.3, 1.0),
         face: 2,
         mipLevel: 1,
+        layer: 3,
       ),
     ],
-    depth: (
+    depth: const TraceDepthTarget(
       texture: 1,
       clearValue: 0.5,
       loadAction: LoadAction.load,
@@ -119,6 +120,11 @@ List<TraceEvent> _everyEvent() => <TraceEvent>[
       stencilLoadAction: LoadAction.load,
       stencilStoreAction: StoreAction.store,
       stencilClearValue: 7,
+      mipLevel: 2,
+      layer: 1,
+      face: 4,
+      depthReadOnly: true,
+      stencilReadOnly: true,
     ),
   ),
   const TraceSetViewport(0, _rect),
@@ -192,7 +198,10 @@ List<TraceEvent> _everyEvent() => <TraceEvent>[
     shader: 'Pbr',
     slot: 'base_color_texture',
     texture: 2,
-    sampler: SamplerDescriptor.nearestClamp,
+    sampler: SamplerDescriptor(
+      widthAddressMode: SamplerAddressMode.clampToBorder,
+      borderColor: SamplerBorderColor.opaqueWhite,
+    ),
   ),
   const TraceClearBindings(0),
   const TraceDraw(0, instanceCount: 4, firstIndex: 3, indexCount: 6),
@@ -246,6 +255,62 @@ void main() {
     expect(read.metadata, <String, Object?>{'backend': 'test'});
     expect(read.events.map((e) => e.kind), _everyEvent().map((e) => e.kind));
     expect(Trace(read.events, metadata: read.metadata).encode(), first);
+  });
+
+  test('a texture descriptor reaches the trace whole', () {
+    // Mutation: write only the five fields a pool's target has, as the
+    // trace did. The array reads back as one 2D layer with no chain and no
+    // storage usage, and its replay is a different texture.
+    final spec = TextureDescriptor(
+      width: 4,
+      height: 4,
+      format: TextureFormat.r8g8b8a8UNormInt,
+      dimension: TextureDimension.d2Array,
+      depthOrArrayLayers: 3,
+      mipLevelCount: 2,
+      usage: TextureUsage.storage | TextureUsage.copySource,
+      label: 'atlas',
+    );
+    const target = RenderTargetDescriptor(
+      width: 8,
+      height: 4,
+      format: TextureFormat.r16g16b16a16Float,
+      sampleCount: 4,
+    );
+    final read = Trace.decode(
+      Trace(<TraceEvent>[
+        TraceCreateTexture(id: 0, spec: spec),
+        const TraceCreateTexture(id: 1, spec: target),
+      ]).encode(),
+    ).events.cast<TraceCreateTexture>();
+    expect(read.first.spec, spec);
+    expect(read.first.spec, isNot(isA<RenderTargetDescriptor>()));
+    expect(read.last.spec, target);
+    expect(read.last.spec, isA<RenderTargetDescriptor>());
+  });
+
+  test('an attachment keeps its layer, level, face and read-only flags', () {
+    // Mutation: drop `layer` from the colour target's codec. A pass into
+    // layer three of an array replays into layer zero.
+    final read =
+        Trace.decode(
+              Trace(<TraceEvent>[
+                _everyEvent().whereType<TraceBeginRenderPass>().single,
+              ]).encode(),
+            ).events.single
+            as TraceBeginRenderPass;
+    expect(read.colors.single.layer, 3);
+    final depth = read.depth!;
+    expect(
+      (
+        depth.mipLevel,
+        depth.layer,
+        depth.face,
+        depth.depthReadOnly,
+        depth.stencilReadOnly,
+      ),
+      (2, 1, 4, true, true),
+    );
   });
 
   test('a draw of the whole binding reads back as the whole binding', () {

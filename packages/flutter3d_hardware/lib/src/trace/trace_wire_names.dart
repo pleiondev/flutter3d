@@ -11,6 +11,7 @@ library;
 
 import '../formats.dart';
 import '../geometry_buffer.dart';
+import '../resources.dart';
 import '../sampler.dart';
 import '../vertex_layout_spec.dart';
 import 'trace_format_exception.dart';
@@ -128,6 +129,7 @@ const WireNames<SamplerAddressMode> samplerAddressModeWire =
         SamplerAddressMode.clampToEdge: 'clampToEdge',
         SamplerAddressMode.repeat: 'repeat',
         SamplerAddressMode.mirror: 'mirror',
+        SamplerAddressMode.clampToBorder: 'clampToBorder',
       },
     );
 
@@ -203,6 +205,29 @@ const WireNames<StorageMode> storageModeWire =
       StorageMode.hostVisible: 'hostVisible',
       StorageMode.devicePrivate: 'devicePrivate',
       StorageMode.deviceTransient: 'deviceTransient',
+    });
+
+/// [TextureDimension] in a trace.
+const WireNames<TextureDimension> textureDimensionWire =
+    WireNames<TextureDimension>('TextureDimension', <TextureDimension, String>{
+      TextureDimension.d1: 'd1',
+      TextureDimension.d2: 'd2',
+      TextureDimension.d2Array: 'd2Array',
+      TextureDimension.d3: 'd3',
+      TextureDimension.cube: 'cube',
+      TextureDimension.cubeArray: 'cubeArray',
+    });
+
+/// Each single [TextureUsage] flag in a trace; a set of them is a list of
+/// these words. Final rather than const: a usage compares by its bits, and a
+/// constant map cannot key on such a value.
+final WireNames<TextureUsage> textureUsageFlagWire =
+    WireNames<TextureUsage>('TextureUsage', <TextureUsage, String>{
+      TextureUsage.sampled: 'sampled',
+      TextureUsage.renderTarget: 'renderTarget',
+      TextureUsage.storage: 'storage',
+      TextureUsage.copySource: 'copySource',
+      TextureUsage.copyDestination: 'copyDestination',
     });
 
 /// [VertexStepMode] in a trace.

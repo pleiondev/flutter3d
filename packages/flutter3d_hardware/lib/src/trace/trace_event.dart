@@ -26,7 +26,7 @@ import 'package:vector_math/vector_math.dart' show Vector4;
 import '../formats.dart';
 import '../geometry_buffer.dart';
 import '../render_pass_descriptor.dart';
-import '../render_target_pool.dart';
+import '../resources.dart';
 import '../sampler.dart';
 import '../vertex_layout_spec.dart';
 import 'trace_format_exception.dart';
@@ -36,27 +36,76 @@ import 'trace_wire_names.dart';
 /// A slice of a geometry buffer: which buffer, and which bytes of it.
 typedef TraceGeometryRange = ({int buffer, int offset, int length});
 
-/// One colour attachment, with its textures named by id.
-typedef TraceColorTarget = ({
-  int texture,
-  int? resolveTexture,
-  LoadAction loadAction,
-  StoreAction storeAction,
-  Vector4? clearValue,
-  int face,
-  int mipLevel,
-});
+/// One colour attachment, with its textures named by id: a `ColorTarget`
+/// as a trace writes it.
+///
+/// **A class, not a record, since 1.0**, so a field `ColorTarget` gains in
+/// a minor is a field here with the same default, and a trace written
+/// before it reads as what it was. The defaults are `ColorTarget`'s.
+final class TraceColorTarget {
+  const TraceColorTarget({
+    required this.texture,
+    this.resolveTexture,
+    this.loadAction = LoadAction.clear,
+    this.storeAction = StoreAction.store,
+    this.clearValue,
+    this.face = 0,
+    this.mipLevel = 0,
+    this.layer = 0,
+  });
 
-/// The depth attachment, with its texture named by id.
-typedef TraceDepthTarget = ({
-  int texture,
-  double clearValue,
-  LoadAction loadAction,
-  StoreAction storeAction,
-  LoadAction stencilLoadAction,
-  StoreAction stencilStoreAction,
-  int stencilClearValue,
-});
+  /// The attachment, by the id the trace created it under.
+  final int texture;
+
+  /// Where a multisampled attachment resolves, by id; null for none.
+  final int? resolveTexture;
+  final LoadAction loadAction;
+  final StoreAction storeAction;
+  final Vector4? clearValue;
+
+  /// The cube face, mip level and array layer the pass draws into.
+  final int face;
+  final int mipLevel;
+  final int layer;
+}
+
+/// The depth attachment, with its texture named by id: a `DepthTarget` as
+/// a trace writes it. A class for [TraceColorTarget]'s reason, with
+/// `DepthTarget`'s defaults.
+final class TraceDepthTarget {
+  const TraceDepthTarget({
+    required this.texture,
+    this.clearValue = 1.0,
+    this.loadAction = LoadAction.clear,
+    this.storeAction = StoreAction.dontCare,
+    this.stencilLoadAction = LoadAction.clear,
+    this.stencilStoreAction = StoreAction.dontCare,
+    this.stencilClearValue = 0,
+    this.mipLevel = 0,
+    this.layer = 0,
+    this.face = 0,
+    this.depthReadOnly = false,
+    this.stencilReadOnly = false,
+  });
+
+  /// The attachment, by the id the trace created it under.
+  final int texture;
+  final double clearValue;
+  final LoadAction loadAction;
+  final StoreAction storeAction;
+  final LoadAction stencilLoadAction;
+  final StoreAction stencilStoreAction;
+  final int stencilClearValue;
+
+  /// The mip level, array layer and cube face the pass draws into.
+  final int mipLevel;
+  final int layer;
+  final int face;
+
+  /// Whether the pass only reads depth, or stencil, from the attachment.
+  final bool depthReadOnly;
+  final bool stencilReadOnly;
+}
 
 abstract base class TraceEvent {
   const TraceEvent();
@@ -128,7 +177,7 @@ abstract base class TraceEvent {
       label: j['label'] as String?,
       colors: <TraceColorTarget>[
         for (final c in (j['colors']! as List<Object?>).map(asMap))
-          (
+          TraceColorTarget(
             texture: asInt(c['texture']),
             resolveTexture: c['resolveTexture'] == null
                 ? null
@@ -140,27 +189,14 @@ abstract base class TraceEvent {
                 : vector4FromJson(c['clearValue']),
             face: asInt(c['face']),
             mipLevel: asInt(c['mipLevel']),
+            // Absent from a trace written before 1.0 recorded layers, and
+            // from any attachment at layer zero.
+            layer: c['layer'] == null ? 0 : asInt(c['layer']),
           ),
       ],
       depth: switch (j['depth']) {
         null => null,
-        final Object d => (
-          texture: asInt(asMap(d)['texture']),
-          clearValue: asDouble(asMap(d)['clearValue']),
-          // Absent from a trace written before `R8` let a pass load depth,
-          // and absent means what every pass did then.
-          loadAction: asMap(d)['loadAction'] == null
-              ? LoadAction.clear
-              : loadActionWire.read(asMap(d)['loadAction']),
-          storeAction: asMap(d)['storeAction'] == null
-              ? StoreAction.dontCare
-              : storeActionWire.read(asMap(d)['storeAction']),
-          stencilLoadAction: loadActionWire.read(asMap(d)['stencilLoadAction']),
-          stencilStoreAction: storeActionWire.read(
-            asMap(d)['stencilStoreAction'],
-          ),
-          stencilClearValue: asInt(asMap(d)['stencilClearValue']),
-        ),
+        final Object d => _depthTarget(asMap(d)),
       },
     ),
     'readPixels' => TraceReadPixels(asInt(j['texture'])),
@@ -327,6 +363,29 @@ abstract base class TraceEvent {
   };
 }
 
+/// A depth attachment read back. Every key 1.0 added is written only when
+/// it is not its default, so a trace without them reads as the pass it was.
+TraceDepthTarget _depthTarget(Map<String, Object?> d) => TraceDepthTarget(
+  texture: asInt(d['texture']),
+  clearValue: asDouble(d['clearValue']),
+  // Absent from a trace written before `R8` let a pass load depth, and
+  // absent means what every pass did then.
+  loadAction: d['loadAction'] == null
+      ? LoadAction.clear
+      : loadActionWire.read(d['loadAction']),
+  storeAction: d['storeAction'] == null
+      ? StoreAction.dontCare
+      : storeActionWire.read(d['storeAction']),
+  stencilLoadAction: loadActionWire.read(d['stencilLoadAction']),
+  stencilStoreAction: storeActionWire.read(d['stencilStoreAction']),
+  stencilClearValue: asInt(d['stencilClearValue']),
+  mipLevel: d['mipLevel'] == null ? 0 : asInt(d['mipLevel']),
+  layer: d['layer'] == null ? 0 : asInt(d['layer']),
+  face: d['face'] == null ? 0 : asInt(d['face']),
+  depthReadOnly: d['depthReadOnly'] == true,
+  stencilReadOnly: d['stencilReadOnly'] == true,
+);
+
 TraceGeometryRange _range(Object? json) {
   final m = asMap(json);
   return (
@@ -418,7 +477,11 @@ final class TraceReleaseGeometry extends TraceEvent {
 final class TraceCreateTexture extends TraceEvent {
   const TraceCreateTexture({required this.id, required this.spec});
   final int id;
-  final RenderTargetDescriptor spec;
+
+  /// Everything the texture was made from: its shape, layers, levels,
+  /// samples, usage and label. A `RenderTargetDescriptor` (a pool's
+  /// target) reads back as one, since a backend makes those its own way.
+  final TextureDescriptor spec;
   @override
   String get kind => 'createTexture';
   @override
@@ -602,6 +665,9 @@ final class TraceBeginRenderPass extends TraceEvent {
               : vector4ToJson(c.clearValue!),
           'face': c.face,
           'mipLevel': c.mipLevel,
+          // Since 1.0, written only when set, so a trace of a pass at layer
+          // zero is byte for byte what it was.
+          if (c.layer != 0) 'layer': c.layer,
         },
     ],
     'depth': switch (depth) {
@@ -614,6 +680,11 @@ final class TraceBeginRenderPass extends TraceEvent {
         'stencilLoadAction': loadActionWire.write(d.stencilLoadAction),
         'stencilStoreAction': storeActionWire.write(d.stencilStoreAction),
         'stencilClearValue': d.stencilClearValue,
+        if (d.mipLevel != 0) 'mipLevel': d.mipLevel,
+        if (d.layer != 0) 'layer': d.layer,
+        if (d.face != 0) 'face': d.face,
+        if (d.depthReadOnly) 'depthReadOnly': true,
+        if (d.stencilReadOnly) 'stencilReadOnly': true,
       },
     },
   };

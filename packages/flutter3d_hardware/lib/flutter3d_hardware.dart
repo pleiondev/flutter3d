@@ -82,6 +82,7 @@ export 'src/multiview.dart';
 export 'src/pass_state.dart';
 
 /// A pipeline the backend could not build, and the device's record of them.
+export 'src/pipeline_descriptor.dart';
 export 'src/pipeline_refusal.dart';
 
 /// What a readback may ask for, checked once for every backend.

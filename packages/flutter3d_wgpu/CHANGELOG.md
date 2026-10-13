@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **The limits say the sidecar draws nothing**: no colour attachment, one
+  sample, no vertex buffer, attribute or inter-stage variable, where it
+  answered WebGPU's defaults for all of them. A sampler handed to
+  `bindTexture` is checked by its features.
 - **`backendId` is `wgpu`.** It followed the display name, `the wgpu
   sidecar`; an id is fixed for good.
 - **The compute sidecar.** `WgpuSidecar.open` makes a compute-only

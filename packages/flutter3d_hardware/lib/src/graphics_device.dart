@@ -18,6 +18,7 @@ import 'device_exceptions.dart';
 import 'formats.dart';
 import 'geometry_buffer.dart';
 import 'gpu_timings.dart';
+import 'pipeline_descriptor.dart';
 import 'pipeline_refusal.dart';
 import 'render_target_pool.dart';
 import 'resources.dart';
@@ -527,7 +528,8 @@ abstract base class GraphicsDevice with TextureAllocator {
   // no patch release has to add a member: each backend is its own package on
   // a caret range of this one, and a member added in 0.8.1 would break every
   // backend published before it. A capability that is not built yet answers
-  // false or empty, and its creators throw an [UnsupportedError].
+  // false or empty, and its creators throw `UnsupportedCapabilityException`
+  // naming the [DeviceFeature] it lacks.
   // ------------------------------------------------------------------------
 
   /// Sets where each frame's GPU timings go, a frame or two after it was
@@ -659,15 +661,26 @@ abstract base class GraphicsDevice with TextureAllocator {
   void writeBuffer(StorageBuffer target, int offsetInBytes, ByteData bytes) =>
       throw refuse(DeviceFeature.buffers);
 
-  /// A set of [count] queries of [type] — `DeviceFeature.occlusionQuery` or
-  /// `DeviceFeature.timestampQuery`.
+  /// A set of [count] queries of [type] — `DeviceFeature.occlusionQuery`,
+  /// `DeviceFeature.timestampQuery` or
+  /// `DeviceFeature.pipelineStatisticsQuery`, the feature
+  /// [QueryType.feature] names.
+  ///
+  /// **A [QueryType.pipelineStatistics] set reports exactly the counters
+  /// [PipelineStatistic.values] names at 1.0, in that order, for every 1.x
+  /// release**: the per-query stride an outside backend returns is part of
+  /// the contract. A counter a later minor adds arrives as a new [QueryType]
+  /// with its own stride, never as a sixth value here; this member cannot
+  /// gain a parameter to select counters.
   QuerySet createQuerySet(QueryType type, int count) =>
       throw refuse(type.feature);
 
   /// The results of [count] queries of [querySet] from [first], once every
   /// pass submitted before this call has finished: sample counts for
-  /// occlusion, nanoseconds for timestamps. A query no pass wrote reads zero.
-  /// By default refused by the feature of the set's own type.
+  /// occlusion, nanoseconds for timestamps, and for pipeline statistics one
+  /// value per [PipelineStatistic] per query, in its order. A query no pass
+  /// wrote reads zero. By default refused by the feature of the set's own
+  /// type.
   Future<List<int>> readQueryResults(
     QuerySet querySet, {
     int first = 0,
@@ -784,6 +797,72 @@ abstract base class GraphicsDevice with TextureAllocator {
   Future<ComputePipelineHandle> createComputePipelineAsync(
     ShaderHandle shader,
   ) async => createComputePipeline(shader);
+
+  /// The pipeline [descriptor] describes: **the entry point every pipeline
+  /// input after 1.0 arrives through.**
+  ///
+  /// [createPipeline] cannot gain a parameter within a major (an override has
+  /// to accept every parameter of what it overrides, so a new one would break
+  /// every backend written before it), and a new pipeline input as a second
+  /// member pair (synchronous and asynchronous) per input would leave 1.x with
+  /// a family of them. A field on [PipelineDescriptor] breaks nobody, so
+  /// specialisation constants, a cache blob or a hint of the pass state come
+  /// as fields here, each with a default that means what a pipeline did
+  /// before it.
+  ///
+  /// By default it links through [createPipeline] and gives the pipeline
+  /// [PipelineDescriptor.label] through [setLabel], so a backend that
+  /// overrides only [createPipeline] builds the same pipeline through either
+  /// form. A backend overrides this one to read a field [createPipeline]
+  /// has no room for. The refusal rules are [createPipeline]'s: a pair the
+  /// driver will not build is reported on [pipelineRefusals], not thrown.
+  PipelineHandle createPipelineFrom(PipelineDescriptor descriptor) {
+    final pipeline = createPipeline(
+      descriptor.vertex,
+      descriptor.fragment,
+      layout: descriptor.layout,
+    );
+    if (descriptor.label case final label?) setLabel(pipeline, label);
+    return pipeline;
+  }
+
+  /// [createPipelineFrom] without holding up the caller, as
+  /// [createPipelineAsync] is to [createPipeline]. By default it goes
+  /// through [createPipelineAsync], so a backend that compiles off the
+  /// thread there does so here too.
+  Future<PipelineHandle> createPipelineFromAsync(
+    PipelineDescriptor descriptor,
+  ) async {
+    final pipeline = await createPipelineAsync(
+      descriptor.vertex,
+      descriptor.fragment,
+      layout: descriptor.layout,
+    );
+    if (descriptor.label case final label?) setLabel(pipeline, label);
+    return pipeline;
+  }
+
+  /// The compute pipeline [descriptor] describes, for [createPipelineFrom]'s
+  /// reason. By default it builds through [createComputePipeline] (so a
+  /// device without `DeviceFeature.compute` refuses it as compute) and
+  /// gives it [ComputePipelineDescriptor.label].
+  ComputePipelineHandle createComputePipelineFrom(
+    ComputePipelineDescriptor descriptor,
+  ) {
+    final pipeline = createComputePipeline(descriptor.shader);
+    if (descriptor.label case final label?) setLabel(pipeline, label);
+    return pipeline;
+  }
+
+  /// [createComputePipelineFrom], asynchronously, through
+  /// [createComputePipelineAsync] by default.
+  Future<ComputePipelineHandle> createComputePipelineFromAsync(
+    ComputePipelineDescriptor descriptor,
+  ) async {
+    final pipeline = await createComputePipelineAsync(descriptor.shader);
+    if (descriptor.label case final label?) setLabel(pipeline, label);
+    return pipeline;
+  }
 
   /// Releases a pipeline [createPipeline] made. Does nothing by default: a
   /// backend whose pipelines are reclaimed with their last reference is
@@ -994,6 +1073,15 @@ final class DeviceLossReason {
     destroyed,
     unknown,
   ];
+
+  /// The reason called [name], or null for a name this version does not
+  /// know, which is what a log written by a later version can carry.
+  static DeviceLossReason? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
 
   @override
   String toString() => 'DeviceLossReason.$name';

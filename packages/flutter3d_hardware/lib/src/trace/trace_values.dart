@@ -18,8 +18,10 @@ import '../formats.dart';
 import '../geometry_buffer.dart';
 import '../render_pass_descriptor.dart';
 import '../render_target_pool.dart';
+import '../resources.dart';
 import '../sampler.dart';
 import '../vertex_layout_spec.dart';
+import 'trace_format_exception.dart';
 import 'trace_wire_names.dart';
 
 /// Collects the byte payloads of a trace into one buffer, handing back where
@@ -192,22 +194,71 @@ SamplerDescriptor samplerFromJson(Object? json) {
   );
 }
 
-Map<String, Object?> specToJson(RenderTargetDescriptor s) => <String, Object?>{
+/// A texture's descriptor in a trace. A pool's target writes the five
+/// fields it has, as every trace before 1.0 did; any other descriptor adds
+/// `texture: true` and the rest of its fields, so a reader tells the two
+/// apart and a backend makes each its own way again.
+Map<String, Object?> specToJson(TextureDescriptor s) => <String, Object?>{
   'width': s.width,
   'height': s.height,
   'format': textureFormatWire.write(s.format),
   'sampleCount': s.sampleCount,
   'storageMode': storageModeWire.write(s.storageMode),
+  if (s is! RenderTargetDescriptor) ...<String, Object?>{
+    'texture': true,
+    'dimension': textureDimensionWire.write(s.dimension),
+    'depthOrArrayLayers': s.depthOrArrayLayers,
+    'mipLevelCount': s.mipLevelCount,
+    'usage': <String>[
+      for (final flag in _usageFlags)
+        if (s.usage.contains(flag)) textureUsageFlagWire.write(flag),
+    ],
+    'label': ?s.label,
+  },
 };
 
-RenderTargetDescriptor specFromJson(Object? json) {
+/// The single usage flags, in the order a trace lists them.
+final List<TextureUsage> _usageFlags = <TextureUsage>[
+  TextureUsage.sampled,
+  TextureUsage.renderTarget,
+  TextureUsage.storage,
+  TextureUsage.copySource,
+  TextureUsage.copyDestination,
+];
+
+TextureDescriptor specFromJson(Object? json) {
   final m = asMap(json);
-  return RenderTargetDescriptor(
-    width: asInt(m['width']),
-    height: asInt(m['height']),
-    format: textureFormatWire.read(m['format']),
-    sampleCount: asInt(m['sampleCount']),
-    storageMode: storageModeWire.read(m['storageMode']),
+  final width = asInt(m['width']);
+  final height = asInt(m['height']);
+  final format = textureFormatWire.read(m['format']);
+  final sampleCount = asInt(m['sampleCount']);
+  final storageMode = storageModeWire.read(m['storageMode']);
+  if (m['texture'] != true) {
+    return RenderTargetDescriptor(
+      width: width,
+      height: height,
+      format: format,
+      sampleCount: sampleCount,
+      storageMode: storageMode,
+    );
+  }
+  final flags = (m['usage']! as List<Object?>)
+      .map(textureUsageFlagWire.read)
+      .toList();
+  if (flags.isEmpty) {
+    throw TraceFormatException('a created texture names no usage');
+  }
+  return TextureDescriptor(
+    width: width,
+    height: height,
+    format: format,
+    dimension: textureDimensionWire.read(m['dimension']),
+    depthOrArrayLayers: asInt(m['depthOrArrayLayers']),
+    mipLevelCount: asInt(m['mipLevelCount']),
+    sampleCount: sampleCount,
+    usage: flags.reduce((TextureUsage all, TextureUsage flag) => all | flag),
+    storageMode: storageMode,
+    label: m['label'] as String?,
   );
 }
 

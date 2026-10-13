@@ -95,6 +95,11 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
   ///  * `shaderF16`, `subgroups`, `clipDistances` — shader-language features,
   ///    and a Dart stage has no shader language to have them in.
   ///  * `uniformBytes` — see `uniformBytesRefusal`.
+  ///  * `multiview` — a pass here draws one view; the frame graph's
+  ///    fallback, one pass per view, is what a stereo frame takes.
+  ///  * `sharedTextures`, `sharedBuffers`, `sharedFences` — the textures and
+  ///    buffers are Dart lists with no native handle to export, so a
+  ///    `SharedTexture` here takes the copy through host memory.
   ///
   /// `independentBlend` is a constructor argument, and `withhold` takes any
   /// of these away: a device that refuses something is the only place the
@@ -167,6 +172,8 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
     DeviceFeature.multiDrawIndirect,
     DeviceFeature.baseVertexBaseInstance,
     DeviceFeature.depthBias,
+    // `CpuEncoder._biasOf` caps the offset at the clamp, either sign.
+    DeviceFeature.depthBiasClamp,
     DeviceFeature.colorWriteMask,
     DeviceFeature.depthClamp,
     DeviceFeature.minMaxBlend,

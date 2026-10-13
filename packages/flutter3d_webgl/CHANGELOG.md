@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **An axis clamped to the border is refused by `samplerBorderColor`**;
+  a border colour no axis uses is not refused.
 - **A 1D texture and a depth-bias clamp are refused by their features**,
   `texture1D` and `depthBiasClamp`, where they were refused with an
   `UnsupportedError`.

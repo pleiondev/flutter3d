@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **`depthBiasClamp` is listed.** The rasteriser always capped the offset
+  at the clamp, and the list left it out, so a clamp was refused.
+- **A border is read on `clampToBorder` axes only**, with transparent black
+  when the sampler names no colour; an axis clamped to the edge reads the
+  edge texel whatever `borderColor` says.
 - **`texture1D` and `depthBiasClamp` are listed**, and a depth bias is
   checked through `DepthBias.checkFeatures`.
 - **A draw rasterises in lists the device keeps.** Every draw made its
