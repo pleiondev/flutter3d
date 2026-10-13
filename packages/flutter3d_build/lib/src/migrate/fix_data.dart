@@ -300,6 +300,10 @@ typedef FixDataProblem = (String, String);
         if (e.member == null &&
             !e.symbol.contains(':') &&
             (e.kind == 'rename' ||
+                // A type moved under a new name (`TextureWrap`, which is
+                // the hardware's `SamplerAddressMode`) is a rename that
+                // brings its import: its own fix carries every use.
+                (e.kind == 'moved' && e.name != null) ||
                 // A gone function a `rewrite` replaces is the lints' to
                 // carry, wherever it was imported from.
                 ((e.kind == 'manual' ||

@@ -107,6 +107,7 @@ String textureWrapWord(SamplerAddressMode wrap) => switch (wrap) {
   SamplerAddressMode.repeat => 'repeat',
   SamplerAddressMode.clampToEdge => 'clampToEdge',
   SamplerAddressMode.mirror => 'mirroredRepeat',
+  SamplerAddressMode.clampToBorder => 'clampToBorder',
   _ => wrap.name,
 };
 
@@ -115,6 +116,7 @@ SamplerAddressMode? textureWrapOf(Object? word) => switch (word) {
   'repeat' => SamplerAddressMode.repeat,
   'clampToEdge' => SamplerAddressMode.clampToEdge,
   'mirroredRepeat' => SamplerAddressMode.mirror,
+  'clampToBorder' => SamplerAddressMode.clampToBorder,
   _ => null,
 };
 

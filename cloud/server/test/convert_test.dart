@@ -17,7 +17,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter3d_core/formats.dart' show GlbModelWriter;
+import 'package:flutter3d_core/formats.dart'
+    show GlbModelWriter, ModelWriteContext;
 import 'package:flutter3d_models/src/convert/confinement.dart';
 import 'package:flutter3d_models/src/convert/converter.dart';
 import 'package:flutter3d_models/src/convert/gltf_files.dart';
@@ -344,7 +345,12 @@ void main() {
 
   group('the original "Save to my models" keeps', () {
     Future<Uint8List> glbOfTriangle() async => const GlbModelWriter()
-        .write(await decodeStoredModel(_triangle, 'tri.obj'), baseName: 'tri')
+        .write(
+          ModelWriteContext(
+            document: await decodeStoredModel(_triangle, 'tri.obj'),
+            baseName: 'tri',
+          ),
+        )
         .files
         .single
         .bytes;

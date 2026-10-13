@@ -200,10 +200,7 @@ void main() {
         (b) => b.name == 'MaterialParams',
       );
       final strands = packed.blocks.singleWhere((b) => b.name == 'Strands');
-      expect(
-        (strands.group, strands.binding),
-        (params.group, params.binding),
-      );
+      expect((strands.group, strands.binding), (params.group, params.binding));
       expect(params.offsetInBinding, 0);
       expect(strands.offsetInBinding, params.sizeInBytes);
       expect(
@@ -214,10 +211,10 @@ void main() {
       for (final block in stage.blocks) {
         if (block.name == 'MaterialParams' || block.name == 'Strands') continue;
         final kept = packed.blocks.singleWhere((b) => b.name == block.name);
-        expect((kept.binding, kept.bindingSizeInBytes), (
-          block.binding,
-          block.sizeInBytes,
-        ));
+        expect(
+          (kept.binding, kept.bindingSizeInBytes),
+          (block.binding, block.sizeInBytes),
+        );
       }
       final dynamicBlocks = <(int, int)>{
         for (final b in webGpuEngineShaders.vertex['MeshVertex']!.blocks)
@@ -236,9 +233,7 @@ void main() {
       try {
         final file = File('${scratch.path}/packed.wgsl')
           ..writeAsStringSync(packed.wgsl);
-        final validated = Process.runSync(nagaExecutable, <String>[
-          file.path,
-        ]);
+        final validated = Process.runSync(nagaExecutable, <String>[file.path]);
         expect(
           validated.exitCode,
           0,
@@ -256,7 +251,8 @@ void main() {
   test('a stage with fewer than two blocks of the material\'s own is left '
       'as it is', () {
     const alone = WebGpuStage(
-      wgsl: '@group(1) @binding(3) \nvar<uniform> material_params: '
+      wgsl:
+          '@group(1) @binding(3) \nvar<uniform> material_params: '
           'MaterialParams;\n',
       attributes: <WebGpuAttribute>[],
       blocks: <WebGpuBlock>[

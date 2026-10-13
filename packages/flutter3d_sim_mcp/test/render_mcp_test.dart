@@ -204,9 +204,7 @@ void main() {
     final outside = Directory.systemTemp.createTempSync('diagnostic_outside');
     addTearDown(() => outside.deleteSync(recursive: true));
     File('${outside.path}/secret.json').writeAsStringSync('root:x:0:0');
-    File(
-      '${outside.path}/secret.png',
-    ).writeAsBytesSync(_texel(<int>[1, 2, 3]));
+    File('${outside.path}/secret.png').writeAsBytesSync(_texel(<int>[1, 2, 3]));
 
     // Mutation: open `path` unresolved, as before 1.0. The level parser's
     // error would quote the file back: `root:x:0:0`.

@@ -127,7 +127,10 @@ void main(List<String> args) {
     for (final MapEntry(key: name, value: text) in fixData.files.entries)
       '${homes[name]!.path}/lib/fix_data.yaml': text,
     '${root.path}/packages/flutter3d_lints/lib/src/migration/table.g.dart':
-        generateLintsTable(chain, stamp: stamp),
+        _formatted(
+          generateLintsTable(chain, stamp: stamp),
+          package: '${root.path}/packages/flutter3d_lints',
+        ),
   };
   final guide = File('${root.path}/site/content/reference/migrating-to-1.0.md');
   if (guide.existsSync()) {
@@ -225,3 +228,31 @@ Map<String, Directory> _packages(Directory root) {
 
 String _rel(Directory root, String path) =>
     path.startsWith(root.path) ? path.substring(root.path.length + 1) : path;
+
+/// [source] as `dart format` writes it in [package], at the language version
+/// its pubspec's SDK floor gives: what the repository's format check sees.
+/// A file formatted at the SDK's own newer version splits lines differently,
+/// and the check would call the generated file unformatted.
+String _formatted(String source, {required String package}) {
+  final pubspec = File('$package/pubspec.yaml').readAsStringSync();
+  final floor = RegExp(r'sdk:\s*"?>=?\^?(\d+\.\d+)').firstMatch(pubspec)!;
+  final scratch = Directory.systemTemp.createTempSync('generate_migrations');
+  try {
+    final file = File('${scratch.path}/generated.dart')
+      ..writeAsStringSync(source);
+    final format = Process.runSync('dart', <String>[
+      'format',
+      '--language-version=${floor.group(1)}',
+      file.path,
+    ]);
+    if (format.exitCode != 0) {
+      throw StateError(
+        'dart format refused the generated file:\n'
+        '${format.stderr}',
+      );
+    }
+    return file.readAsStringSync();
+  } finally {
+    scratch.deleteSync(recursive: true);
+  }
+}

@@ -14,7 +14,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
-import 'package:flutter3d_core/formats.dart' show GlbModelWriter;
+import 'package:flutter3d_core/formats.dart'
+    show GlbModelWriter, ModelWriteContext;
 import 'package:flutter3d_models/main.server.options.dart';
 import 'package:flutter3d_models/src/config.dart';
 import 'package:flutter3d_models/src/convert/gltf_files.dart';
@@ -1894,7 +1895,12 @@ void main() {
     // A GLB, written by the engine from the triangle: what the conversion
     // reads, and what saving must keep exactly.
     final glb = const GlbModelWriter()
-        .write(await decodeStoredModel(_triangle, 'tri.obj'), baseName: 'tri')
+        .write(
+          ModelWriteContext(
+            document: await decodeStoredModel(_triangle, 'tri.obj'),
+            baseName: 'tri',
+          ),
+        )
         .files
         .single
         .bytes;

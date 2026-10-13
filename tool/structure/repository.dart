@@ -3906,6 +3906,10 @@ const Map<String, String> slowTestsAllowed = <String, String>{
       'of its own, which runs the build hooks first (the C physics core and '
       'the shader bundle): 2 to 4.5 min a kind the first time on an M3 Pro '
       'on 2026-10-12, 10 to 75 s once the hooks are built',
+  'packages/flutter3d_demo_content/test/sim_mcp/sim_mcp_test.dart':
+      'starts the MCP server once, in `setUpAll`, as a `flutter test` of its '
+      'own that compiles every genre: 45 s for the file alone on an M3 Pro '
+      'on 2026-10-13, and past the minute in `setUpAll` under a full CI run',
 };
 
 /// The widget test that checks `test/flutter_test_config.dart` still does what

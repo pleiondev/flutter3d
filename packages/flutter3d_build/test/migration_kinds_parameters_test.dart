@@ -96,6 +96,6 @@ void main() {
       'kinds-Tap-center',
       'kinds-Tap-center',
     ]);
-    expect(manualOf(report), <String>['kinds-Gauge-named:9']);
+    expect(manualOf(report), <String>['kinds-Gauge-named:11']);
   }, timeout: const Timeout(Duration(minutes: 3)));
 }

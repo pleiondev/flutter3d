@@ -149,7 +149,8 @@ void main() {
       final loop = _loop()..playback = InputTapePlayback(run.tape);
       loop.runSteps(run.steps);
       expect(loop.world.resource<_Tank>()!.level, 1.75);
-    });
+      // The fixture is a file: the browser run has no disk to read it from.
+    }, testOn: 'vm');
   });
 }
 

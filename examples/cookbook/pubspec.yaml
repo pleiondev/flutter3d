@@ -29,8 +29,6 @@ dependencies:
     path: ../../packages/flutter3d_sim
   flutter3d_foundation:
     path: ../../packages/flutter3d_foundation
-  flutter3d_plugin_api:
-    path: ../../packages/flutter3d_plugin_api
 
   # Bodies that fall and collide, for the level with physics.
   flutter3d_physics:

@@ -294,7 +294,10 @@ void main() {
             'two draws bound the same buffer, view and sampler at different '
             'offsets, which is one bind group and two dynamic offsets',
       );
-      expect(await scene.device.debugDrainErrors(where: 'two placements'), isNull);
+      expect(
+        await scene.device.debugDrainErrors(where: 'two placements'),
+        isNull,
+      );
       scene.device.dispose();
     },
   );
@@ -788,7 +791,10 @@ void main() {
       _red,
       reason: 'the second draw was at an equal depth and `less` refused it',
     );
-    expect(await scene.device.debugDrainErrors(where: 'the depth test'), isNull);
+    expect(
+      await scene.device.debugDrainErrors(where: 'the depth test'),
+      isNull,
+    );
     scene.device.dispose();
   });
 
@@ -1021,7 +1027,10 @@ void main() {
         ..submit();
 
       final pixels = await device.readback(target);
-      expect(await device.debugDrainErrors(where: 'the compressed draw'), isNull);
+      expect(
+        await device.debugDrainErrors(where: 'the compressed draw'),
+        isNull,
+      );
       final got = _texel(pixels, 4, 1, 1);
       // BC1 stores 5:6:5, so the endpoint comes back as (140, 69, 206). Eight is
       // the same tolerance the conformance suite allows for the same reason.
@@ -1228,7 +1237,10 @@ void main() {
             ),
           )
           .submit();
-      expect(await scene.device.debugDrainErrors(where: 'a cube chain'), isNull);
+      expect(
+        await scene.device.debugDrainErrors(where: 'a cube chain'),
+        isNull,
+      );
       scene.device.dispose();
     },
   );

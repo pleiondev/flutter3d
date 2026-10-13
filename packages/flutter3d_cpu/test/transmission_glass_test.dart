@@ -196,8 +196,7 @@ void main() {
     final glass = _render(pane: _glass).result;
     expect(
       ran(glass).where(
-        (n) =>
-            <String>{'scene', 'scene color copy', 'transparent'}.contains(n),
+        (n) => <String>{'scene', 'scene color copy', 'transparent'}.contains(n),
       ),
       <String>['scene', 'scene color copy', 'transparent'],
     );
@@ -258,10 +257,7 @@ void main() {
     final ran = frame.result.passes.map((p) => p.name);
     expect(ran, contains('transparent'));
     expect(ran, isNot(contains('scene color copy')));
-    expect(
-      frame.result.skipReasonOf('scene color copy'),
-      PassSkip.switchedOff,
-    );
+    expect(frame.result.skipReasonOf('scene color copy'), PassSkip.switchedOff);
     final left = _at(frame.hdr, _left.x, _left.y);
     final right = _at(frame.hdr, _right.x, _right.y);
     for (var c = 0; c < 3; c++) {

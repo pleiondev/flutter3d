@@ -17,6 +17,8 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 /// The texture format WebGPU calls [format], or null where it has none.
@@ -254,6 +256,13 @@ String gpuAddressMode(SamplerAddressMode mode) => switch (mode) {
   SamplerAddressMode.clampToEdge => 'clamp-to-edge',
   SamplerAddressMode.repeat => 'repeat',
   SamplerAddressMode.mirror => 'mirror-repeat',
+  // WebGPU has no border: refused by the feature that names it.
+  SamplerAddressMode.clampToBorder =>
+    throw const UnsupportedCapabilityException(
+      DeviceFeature.samplerBorderColor,
+      backend: 'WebGPU',
+      reason: 'WebGPU has no "clamp-to-border" address mode',
+    ),
   _ => throw UnsupportedError('WebGPU has no address mode for $mode'),
 };
 

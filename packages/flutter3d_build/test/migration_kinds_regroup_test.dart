@@ -30,6 +30,6 @@ void main() {
       'kinds-View3d-view',
       'kinds-View3d-view',
     ]);
-    expect(manualOf(report), <String>['kinds-View3d-view:13']);
+    expect(manualOf(report), <String>['kinds-View3d-view:15']);
   }, timeout: const Timeout(Duration(minutes: 3)));
 }

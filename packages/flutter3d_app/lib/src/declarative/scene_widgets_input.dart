@@ -317,11 +317,7 @@ mixin _SceneGestures on State<Scene3D> implements _SceneHost {
     final node = hit?.node;
     if (hit == null || node == null) return;
     tappable[node]?.call(
-      Tap3D(
-        hit: hit,
-        localPosition: details.localPosition,
-        kind: details.kind,
-      ),
+      Tap3D(hit: hit, localPosition: details.localPosition, kind: details.kind),
     );
   }
 

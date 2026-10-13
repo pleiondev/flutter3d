@@ -38,10 +38,7 @@ void main() {
     started = '${workspace.path}/table.f3dproj';
 
     final pipe = StreamChannelController<String>(sync: true);
-    server = ModelMcpServer(
-      pipe.local,
-      session: ModelSession.open(started),
-    );
+    server = ModelMcpServer(pipe.local, session: ModelSession.open(started));
 
     client = MCPClient(
       Implementation(name: 'the suite', version: modelMcpVersion),
@@ -97,15 +94,11 @@ void main() {
       ])
         modelToolNames[written]?.name ?? written,
     ]);
-    expect(
-      offered.tools.map((Tool it) => it.name),
-      <String>[
-        for (final tool in server.tools) tool.name,
-        ...server.aliases.keys,
-        schemaToolName,
-      ],
-      reason: 'tools/list and the table this server was built from disagree',
-    );
+    expect(offered.tools.map((Tool it) => it.name), <String>[
+      for (final tool in server.tools) tool.name,
+      ...server.aliases.keys,
+      schemaToolName,
+    ], reason: 'tools/list and the table this server was built from disagree');
     for (final tool in offered.tools) {
       expect(tool.description, isNotEmpty, reason: '${tool.name} says nothing');
     }

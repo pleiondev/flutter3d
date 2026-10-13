@@ -1,0 +1,35 @@
+format: 1
+from: 0.8.5
+to: 1.0.0-rc.1
+date: 2026-10-13
+guide: https://flutter3d.pleion.dev/reference/migrating-to-1.0/
+entries:
+  - id: kinds-Bell-onRing
+    package: flutter3d_kinds
+    symbol: Bell
+    kind: argument
+    arguments: [onRing]
+    template: '(ring) => ({value})(ring.what, ring.times)'
+  - id: kinds-Judge-judge
+    package: flutter3d_kinds
+    symbol: Judge.judge
+    kind: hookContext
+    context: Judging
+    fields:
+      '0': match
+      '1': score
+  - id: kinds-Match
+    package: flutter3d_kinds
+    symbol: Match
+    kind: rename
+    to: KindMatch
+  - id: kinds-board-Unit
+    package: flutter3d_kinds_board
+    symbol: Unit
+    kind: rename
+    to: BoardUnit
+  - id: kinds-Tool-run
+    package: flutter3d_kinds
+    symbol: Tool.run
+    kind: rewrite
+    template: '{target}.runOn({0}, {1})'

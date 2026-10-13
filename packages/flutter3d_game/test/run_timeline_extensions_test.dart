@@ -37,6 +37,13 @@ _startAndConnect() async {
     '-v',
     'test/fixtures/timeline_target.dart',
   ], workingDirectory: Directory.current.path);
+  // Killed however the test ends, a wait below that never finished included.
+  addTearDown(process.kill);
+  var exited = false;
+  final exitCode = process.exitCode.then((code) {
+    exited = true;
+    return code;
+  });
 
   // **Both streams are read for as long as the process lives.** This used to
   // stop reading stdout once the URI turned up and never read stderr at all.
@@ -70,16 +77,21 @@ _startAndConnect() async {
       .transform(const LineSplitter())
       .listen((line) => keep('stderr: $line'));
 
-  final httpUri = await uriFound.future.timeout(
-    const Duration(seconds: 30),
-    onTimeout: () {
-      process.kill();
-      throw StateError(
-        'the fixture never printed a VM service uri within 30s; '
+  // **Waited for by what the fixture says, not by a clock of its own.** This
+  // gave the URI 30 seconds, which was 4 runs in 4 alone and too few under a
+  // full CI run: the nested `flutter test` runs the build hooks and compiles
+  // the engine before it prints anything, and under load that alone took
+  // longer. The fixture is ready when it prints the URI and has failed when
+  // it exits first; how long either may take is the test's own timeout.
+  final httpUri = await Future.any(<Future<String>>[
+    uriFound.future,
+    exitCode.then(
+      (code) => throw StateError(
+        'the fixture exited with $code before it printed a VM service uri; '
         'its last lines:\n${tail.join('\n')}',
-      );
-    },
-  );
+      ),
+    ),
+  ]);
 
   // `package:vm_service` speaks WebSocket; the printed uri is http(s).
   final wsUri = httpUri
@@ -90,6 +102,7 @@ _startAndConnect() async {
     service,
     'ext.flutter3d.timeline.status',
     tail: tail,
+    exited: () => exited,
   );
 
   return (process: process, service: service, isolateId: isolateId);
@@ -109,13 +122,15 @@ _startAndConnect() async {
 ///
 /// [tail] is the fixture's latest output, quoted when nothing turns up, so a
 /// failure here says where the fixture stopped rather than only that it did.
+/// It asks until the fixture answers or [exited]; a fixture that is slow to
+/// start under load is bounded by the test's own timeout, not by a clock here.
 Future<String> _isolateWith(
   VmService service,
   String extension, {
   required List<String> tail,
+  required bool Function() exited,
 }) async {
-  final deadline = DateTime.now().add(const Duration(seconds: 30));
-  while (DateTime.now().isBefore(deadline)) {
+  while (!exited()) {
     final vm = await service.getVM();
     for (final ref in vm.isolates ?? const <IsolateRef>[]) {
       final isolate = await service.getIsolate(ref.id!);
@@ -124,8 +139,8 @@ Future<String> _isolateWith(
     await Future<void>.delayed(const Duration(milliseconds: 100));
   }
   throw StateError(
-    'no isolate registered $extension within 30s; '
-    'the fixture\'s last lines:\n${tail.join('\n')}',
+    'the fixture exited before an isolate registered $extension; '
+    'its last lines:\n${tail.join('\n')}',
   );
 }
 
@@ -238,7 +253,9 @@ void main() {
     final bugReportJson = _decode(bugReport);
     expect(bugReportJson.containsKey('x'), isTrue);
     expect(bugReportJson.containsKey('step'), isTrue);
-  }, timeout: const Timeout(Duration(seconds: 60)));
+    // Three minutes like the rest of the file: the fixture's start is inside
+    // it, and under a full CI run the start alone outlasted a minute.
+  }, timeout: const Timeout(Duration(minutes: 3)));
 
   test('a level sent from outside the process branches the run when it '
       'moves a brush, is refused when it changed on the way, and the next '

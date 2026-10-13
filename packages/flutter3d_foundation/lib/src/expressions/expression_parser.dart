@@ -426,7 +426,10 @@ base class ExpressionParser {
     expectToken(':', '":" and the value when the condition is false');
     final otherwise = parseExpression();
     if (!condition.type.isBoolean) {
-      fail('a condition is a bool, and this is a ${condition.type}.', where: question);
+      fail(
+        'a condition is a bool, and this is a ${condition.type}.',
+        where: question,
+      );
     }
     if (then.type != otherwise.type) {
       fail(
@@ -568,7 +571,10 @@ base class ExpressionParser {
     try {
       unit = Unit.parse(unitToken.text, also: scope.units);
     } on UnitFormatException catch (error) {
-      fail('"[${unitToken.text}]" is not a unit: ${error.reason}.', where: unitToken);
+      fail(
+        '"[${unitToken.text}]" is not a unit: ${error.reason}.',
+        where: unitToken,
+      );
     }
     return ExpressionConstant(<double>[
       number.number! * unit.scale + unit.offset,
@@ -594,7 +600,10 @@ base class ExpressionParser {
     var components = 0;
     for (final part in parts) {
       if (!part.type.isNumeric) {
-        fail('a ${part.type} is not a number and cannot go in a $type.', where: token);
+        fail(
+          'a ${part.type} is not a number and cannot go in a $type.',
+          where: token,
+        );
       }
       components += part.type.components;
     }
@@ -652,7 +661,10 @@ base class ExpressionParser {
     var width = 1;
     for (final part in parts) {
       if (!part.type.isNumeric) {
-        fail('${builtin.name} takes numbers, not a ${part.type}.', where: token);
+        fail(
+          '${builtin.name} takes numbers, not a ${part.type}.',
+          where: token,
+        );
       }
       if (part.type.components > width) width = part.type.components;
     }
@@ -686,7 +698,10 @@ base class ExpressionParser {
   Expression binary(ExpressionToken op, Expression left, Expression right) {
     for (final side in <Expression>[left, right]) {
       if (!side.type.isNumeric) {
-        fail('"${op.text}" works on numbers, not on a ${side.type.name}.', where: op);
+        fail(
+          '"${op.text}" works on numbers, not on a ${side.type.name}.',
+          where: op,
+        );
       }
     }
     final a = left.type.components;
@@ -725,7 +740,10 @@ base class ExpressionParser {
     if (!(equality && bothBool)) {
       for (final side in <Expression>[left, right]) {
         if (!side.type.isNumeric || side.type.components != 1) {
-          fail('"${op.text}" compares two numbers, not a ${side.type}.', where: op);
+          fail(
+            '"${op.text}" compares two numbers, not a ${side.type}.',
+            where: op,
+          );
         }
       }
       if (left.type.dimension != right.type.dimension) {

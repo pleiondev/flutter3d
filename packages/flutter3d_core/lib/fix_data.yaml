@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 7c297d6ab107b1ea
+# table-stamp: 4e94c5df33282d2f
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -186,6 +186,16 @@ transforms:
         newElement:
           uris: ['package:flutter3d_core/formats.dart']
           class: 'MaterialSample'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (ModelOrthographicCamera)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'ModelOrthographicCamera'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          class: 'ModelOrthographicCamera'
   - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (UsdzZip)'
     date: 2026-10-08
     element:
@@ -306,6 +316,16 @@ transforms:
         newElement:
           uris: ['package:flutter3d_core/formats.dart']
           function: 'encodeUniversalBlocks'
+  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (exportToF3d)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'exportToF3d'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/formats.dart']
+          function: 'exportToF3d'
   - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (hasConflictingTextureTransforms)'
     date: 2026-10-08
     element:
@@ -616,6 +636,26 @@ transforms:
         newElement:
           uris: ['package:flutter3d_core/flutter3d_core.dart']
           class: 'FrameCaptureBuilder'
+  - title: 'flutter3d 1.0.0-rc.1: core-ImmediateTextureSource (ImmediateTextureSource)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'ImmediateTextureSource'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          class: 'ImmediateTextureSource'
+  - title: 'flutter3d 1.0.0-rc.1: core-InMemoryDeviceClassMemory (InMemoryDeviceClassMemory)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      class: 'InMemoryDeviceClassMemory'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          class: 'InMemoryDeviceClassMemory'
   - title: 'flutter3d 1.0.0-rc.1: core-PackedLane (PackedLane)'
     date: 2026-10-08
     element:
@@ -966,6 +1006,16 @@ transforms:
         newElement:
           uris: ['package:flutter3d_core/flutter3d_core.dart']
           function: 'lookAtRightHanded'
+  - title: 'flutter3d 1.0.0-rc.1: core-optimizeVertexCache (optimizeVertexCache)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart']
+      function: 'optimizeVertexCache'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_core/flutter3d_core.dart']
+          function: 'optimizeVertexCache'
   - title: 'flutter3d 1.0.0-rc.1: core-packLanes (packLanes)'
     date: 2026-10-08
     element:
@@ -1968,14 +2018,6 @@ transforms:
       - kind: 'renameParameter'
         oldName: 'colourSpace'
         newName: 'colorSpace'
-  - title: 'flutter3d 1.0.0-rc.1: fixh-core-TextureWrap-SamplerAddressMode'
-    date: 2026-10-08
-    element:
-      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
-      enum: 'TextureWrap'
-    changes:
-      - kind: 'rename'
-        newName: 'SamplerAddressMode'
   - title: 'flutter3d 1.0.0-rc.1: fixh-core-TextureWrap-mirroredRepeat'
     date: 2026-10-08
     element:

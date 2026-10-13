@@ -1,3 +1,5 @@
+// dart format off
+// What the migration writes, compared byte for byte: not reformatted.
 import 'package:flutter3d_kinds/flutter3d_kinds.dart';
 import 'package:flutter3d_kinds/flutter3d_kinds.dart' as kinds show Shade;
 import 'package:flutter3d_kinds/roster.dart';

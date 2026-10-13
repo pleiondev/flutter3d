@@ -81,9 +81,7 @@ final class ImageBasedLightingDemo extends ShowcaseDemo {
   @override
   void update(DemoContext context, double dt) {
     // #region use
-    final EnvironmentCube? chosen = source == 0
-        ? _fromSky
-        : _fromPanorama;
+    final EnvironmentCube? chosen = source == 0 ? _fromSky : _fromPanorama;
     _scene
       ..environment = lit ? chosen?.texture : null
       ..environmentLevels = chosen?.levels ?? 0

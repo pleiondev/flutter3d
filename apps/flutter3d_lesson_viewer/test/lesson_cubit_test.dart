@@ -11,8 +11,7 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_lesson_viewer/main.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:flutter3d_stereo/flutter3d_stereo.dart'
-    show applyLessonStepTo;
+import 'package:flutter3d_stereo/flutter3d_stereo.dart' show applyLessonStepTo;
 import 'package:flutter_test/flutter_test.dart';
 
 GraphicsDevice _device() => CpuDevice(

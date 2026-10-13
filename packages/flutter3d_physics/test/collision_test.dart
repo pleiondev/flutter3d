@@ -1003,9 +1003,11 @@ final class _Rays extends WorldRays {
   bool raycast(RayQuery query) {
     queries.add(query);
     final o = query.origin;
+    // Fixed digits: the browser writes 1.0 as "1".
+    String d(double v) => v.toStringAsFixed(1);
     asked.add(
-      '(${o.x}, ${o.y}, ${o.z}) ${query.maxDistance} ${query.mask} '
-      '${query.ignore != null}',
+      '(${d(o.x)}, ${d(o.y)}, ${d(o.z)}) ${d(query.maxDistance)} '
+      '${query.mask} ${query.ignore != null}',
     );
     return false;
   }

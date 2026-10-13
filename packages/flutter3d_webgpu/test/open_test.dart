@@ -158,7 +158,9 @@ void main() {
       expect(device.shaders[vertex], isNotNull);
       expect(device.shaders[fragment], isNotNull);
     }
-    await webgpu.debugDrainErrors(where: 'targets and the stages drawn with them');
+    await webgpu.debugDrainErrors(
+      where: 'targets and the stages drawn with them',
+    );
 
     for (final (String vertex, String fragment) in _pairs) {
       final pipeline = device.createPipeline(

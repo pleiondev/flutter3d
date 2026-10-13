@@ -6,7 +6,6 @@ library;
 /// mechanism, proved on `net_race_test.dart`; this file proves the piece
 /// that was still missing — deciding who is car 0, connecting to a real
 /// relay by a shared code, and writing each side's own `.f3drun`.
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -17,6 +16,8 @@ import 'package:flutter3d_net/flutter3d_net.dart' show relayRoom;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'support/relay.dart';
 
 const GameAction _throttle = GameAction('throttle');
 const GameAction _brake = GameAction('brake');
@@ -41,35 +42,6 @@ void _drive(InputState input, int step, {int offset = 0}) {
   final steeringRight = s % 80 < 40;
   input.setActionValue(_right, steeringRight ? 0.4 : 0.0);
   input.setActionValue(_left, steeringRight ? 0.0 : 0.4);
-}
-
-Future<({Process process, int port})> _startRelay() async {
-  final process = await Process.start(
-    'dart',
-    <String>['run', 'bin/relay.dart', '0'],
-    workingDirectory: '${Directory.current.path}/../../packages/flutter3d_net',
-  );
-  final portFound = Completer<int>();
-  final subscription = process.stdout
-      .transform(utf8.decoder)
-      .transform(const LineSplitter())
-      .listen((line) {
-        final match = RegExp(
-          r'flutter3d_net relay listening on (\d+)',
-        ).firstMatch(line);
-        if (match != null && !portFound.isCompleted) {
-          portFound.complete(int.parse(match.group(1)!));
-        }
-      });
-  final port = await portFound.future.timeout(
-    const Duration(seconds: 15),
-    onTimeout: () {
-      process.kill();
-      throw StateError('the relay never printed the port it bound to');
-    },
-  );
-  await subscription.cancel();
-  return (process: process, port: port);
 }
 
 void main() {
@@ -118,9 +90,8 @@ void main() {
 
   test('create and join over a real relay agree on car slots, converge, and '
       'each write their own readable .f3drun', () async {
-    final relay = await _startRelay();
-    addTearDown(() => relay.process.kill());
-    final relayBase = Uri.parse('ws://127.0.0.1:${relay.port}/');
+    final relayPort = await startRelay();
+    final relayBase = Uri.parse('ws://127.0.0.1:$relayPort/');
 
     final inputA = InputState();
     final inputB = InputState();
@@ -199,5 +170,6 @@ void main() {
     );
     expect(divergence, isNull, reason: 'checkpoints diverged at $divergence');
     expect(demoA.checkpoints.steps, isNotEmpty);
-  }, timeout: const Timeout(Duration(seconds: 30)));
+    // The file's minute rather than 30 s: the relay's start is inside it.
+  });
 }

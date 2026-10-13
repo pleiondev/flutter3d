@@ -23,6 +23,13 @@ final Directory _fixtures = Directory(
   '${_package.path}/test/fixtures/migrate_kinds',
 );
 
+/// The engine's packages the fixtures resolve against: the 1.0 side of each
+/// break, and a second package that took a name the first one renamed.
+const List<String> _kindPackages = <String>[
+  'flutter3d_kinds',
+  'flutter3d_kinds_board',
+];
+
 /// The text of [kind]'s table.
 String kindTableText(String kind) =>
     File('${_fixtures.path}/$kind/table.yaml').readAsStringSync();
@@ -49,33 +56,45 @@ MigrationTable kindTable(String kind) {
 
 /// [kind]'s `before/` migrated by `flutter3d_lints:migrate` with only its
 /// own table, compared file by file with `after/`; the report's entries.
-Future<List<Map<String, Object?>>> migrateKindFixture(String kind) async {
+///
+/// [project] is the migrated package's name: a project may be called
+/// anything, the engine's own prefix included. [passes] runs the migrator
+/// that many times, as `flutter3d migrate` does, so a rule that matches its
+/// own result shows; the report is the last pass's.
+Future<List<Map<String, Object?>>> migrateKindFixture(
+  String kind, {
+  String project = 'fixture',
+  int passes = 1,
+}) async {
   final table = kindTable(kind);
   final scratch = Directory.systemTemp.createTempSync('migrate_kinds_');
   addTearDown(() => scratch.deleteSync(recursive: true));
-  final project = Directory('${scratch.path}/project')..createSync();
-  _copy(Directory('${_fixtures.path}/$kind/before'), project);
-  _copy(
-    Directory('${_fixtures.path}/flutter3d_kinds'),
-    Directory('${scratch.path}/flutter3d_kinds')..createSync(),
-  );
+  final root = Directory('${scratch.path}/project')..createSync();
+  _copy(Directory('${_fixtures.path}/$kind/before'), root);
+  for (final package in _kindPackages) {
+    _copy(
+      Directory('${_fixtures.path}/$package'),
+      Directory('${scratch.path}/$package')..createSync(),
+    );
+  }
   File(
-    '${project.path}/pubspec.yaml',
-  ).writeAsStringSync('name: fixture\nenvironment:\n  sdk: ^3.9.0\n');
-  File('${project.path}/.dart_tool/package_config.json')
+    '${root.path}/pubspec.yaml',
+  ).writeAsStringSync('name: $project\nenvironment:\n  sdk: ^3.9.0\n');
+  File('${root.path}/.dart_tool/package_config.json')
     ..createSync(recursive: true)
     ..writeAsStringSync(
       jsonEncode(<String, Object?>{
         'configVersion': 2,
         'packages': <Map<String, String>>[
+          for (final package in _kindPackages)
+            <String, String>{
+              'name': package,
+              'rootUri': '../../$package',
+              'packageUri': 'lib/',
+              'languageVersion': '3.9',
+            },
           <String, String>{
-            'name': 'flutter3d_kinds',
-            'rootUri': '../../flutter3d_kinds',
-            'packageUri': 'lib/',
-            'languageVersion': '3.9',
-          },
-          <String, String>{
-            'name': 'fixture',
+            'name': project,
             'rootUri': '../',
             'packageUri': 'lib/',
             'languageVersion': '3.9',
@@ -86,20 +105,23 @@ Future<List<Map<String, Object?>>> migrateKindFixture(String kind) async {
   final rules = File('${scratch.path}/rules.json')
     ..writeAsStringSync(jsonEncode(lintsRules(<MigrationTable>[table])));
 
-  final run = await Process.run('dart', <String>[
-    'run',
-    'bin/migrate.dart',
-    '--json',
-    '--rules=${rules.path}',
-    project.path,
-  ], workingDirectory: '${_package.parent.path}/flutter3d_lints');
-  expect(run.exitCode, 0, reason: '${run.stdout}\n${run.stderr}');
+  late ProcessResult run;
+  for (var pass = 0; pass < passes; pass++) {
+    run = await Process.run('dart', <String>[
+      'run',
+      'bin/migrate.dart',
+      '--json',
+      '--rules=${rules.path}',
+      root.path,
+    ], workingDirectory: '${_package.parent.path}/flutter3d_lints');
+    expect(run.exitCode, 0, reason: '${run.stdout}\n${run.stderr}');
+  }
 
   final expected = Directory('${_fixtures.path}/$kind/after');
   for (final file in expected.listSync(recursive: true).whereType<File>()) {
     final relative = file.path.substring(expected.path.length + 1);
     expect(
-      File('${project.path}/$relative').readAsStringSync(),
+      File('${root.path}/$relative').readAsStringSync(),
       file.readAsStringSync(),
       reason: '$relative is not what the migration should leave',
     );

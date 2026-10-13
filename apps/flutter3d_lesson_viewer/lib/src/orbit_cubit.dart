@@ -17,8 +17,7 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:flutter3d_stereo/flutter3d_stereo.dart'
-    show applyLessonStepTo;
+import 'package:flutter3d_stereo/flutter3d_stereo.dart' show applyLessonStepTo;
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// A snapshot of [OrbitController]'s own numbers.

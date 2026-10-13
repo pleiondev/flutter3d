@@ -115,8 +115,9 @@ void main() {
     await projects.remember(crypt, exists: _anywhere);
     await projects.remember(mine, exists: _anywhere);
 
-    final offered = await RecentProjects(storage: storage)
-        .read(exists: _disk(<String>{crypt}));
+    final offered = await RecentProjects(
+      storage: storage,
+    ).read(exists: _disk(<String>{crypt}));
 
     expect(offered, <String>[crypt]);
   });
@@ -129,8 +130,9 @@ void main() {
     await RecentProjects(storage: storage).remember(crypt, exists: _anywhere);
     await RecentProjects(storage: storage).remember(mine, exists: _anywhere);
 
-    final written = await RecentProjects(storage: storage)
-        .remember(attic, exists: _disk(<String>{attic, mine}));
+    final written = await RecentProjects(
+      storage: storage,
+    ).remember(attic, exists: _disk(<String>{attic, mine}));
 
     expect(written, <String>[attic, mine]);
     expect(storage.documents['recent.json'], isNot(contains(crypt)));

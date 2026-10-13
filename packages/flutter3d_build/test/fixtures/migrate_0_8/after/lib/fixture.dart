@@ -1,3 +1,5 @@
+// dart format off
+// What the migration writes, compared byte for byte: not reformatted.
 // A project written against flutter3d 0.8.5, one use of each kind of
 // change the 1.0 migration carries out. `after/` is what
 // `dart run flutter3d_build:migrate` leaves of it.

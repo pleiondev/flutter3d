@@ -16,7 +16,6 @@ library;
 /// place.
 ///
 /// `@TestOn('vm')`: spawns a real relay process and opens real sockets.
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -30,6 +29,8 @@ import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show usePhysics;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'support/relay.dart';
 
 const GameAction _throttle = GameAction('throttle');
 const GameAction _brake = GameAction('brake');
@@ -65,42 +66,12 @@ void _drive(InputState input, int step, {int offset = 0}) {
   if (s == 305) input.release(_handbrake);
 }
 
-Future<({Process process, int port})> _startRelay() async {
-  final process = await Process.start(
-    'dart',
-    <String>['run', 'bin/relay.dart', '0'],
-    workingDirectory: '${Directory.current.path}/../../packages/flutter3d_net',
-  );
-  final portFound = Completer<int>();
-  final subscription = process.stdout
-      .transform(utf8.decoder)
-      .transform(const LineSplitter())
-      .listen((line) {
-        final match = RegExp(
-          r'flutter3d_net relay listening on (\d+)',
-        ).firstMatch(line);
-        if (match != null && !portFound.isCompleted) {
-          portFound.complete(int.parse(match.group(1)!));
-        }
-      });
-  final port = await portFound.future.timeout(
-    const Duration(seconds: 15),
-    onTimeout: () {
-      process.kill();
-      throw StateError('the relay never printed the port it bound to');
-    },
-  );
-  await subscription.cancel();
-  return (process: process, port: port);
-}
-
 void main() {
   test('two devices racing each other over a real relay end the race agreeing '
       'on every settled checkpoint', () async {
-    final relay = await _startRelay();
-    addTearDown(() => relay.process.kill());
+    final relayPort = await startRelay();
     final room = 'race-${DateTime.now().microsecondsSinceEpoch}';
-    final roomUri = Uri.parse('ws://127.0.0.1:${relay.port}/room/$room');
+    final roomUri = Uri.parse('ws://127.0.0.1:$relayPort/room/$room');
 
     final transportA = await WebSocketTransport.connect(roomUri);
     final transportB = await WebSocketTransport.connect(roomUri);
@@ -167,7 +138,8 @@ void main() {
     expect(digestsA.steps, isNotEmpty);
     expect(raceA.session.droppedCorrections, 0);
     expect(raceB.session.droppedCorrections, 0);
-  }, timeout: const Timeout(Duration(seconds: 30)));
+    // The file's minute rather than 30 s: the relay's start is inside it.
+  });
 
   test('the very first inputDelay steps — before either side has sent a '
       'message the other could possibly receive — are symmetric', () {
@@ -182,7 +154,8 @@ void main() {
     // confirmed by anyone. `LoopbackWire` with zero delay makes
     // this reproduce in a few milliseconds rather than needing the real
     // relay above to catch it again.
-    final LoopbackPair(first: transportA, second: transportB) = LoopbackWire.pair();
+    final LoopbackPair(first: transportA, second: transportB) =
+        LoopbackWire.pair();
     final deviceA = _stageTwoCars();
     final deviceB = _stageTwoCars();
     final digestsA = DigestTrace(every: 1);
@@ -222,9 +195,8 @@ void main() {
 
   test('a room made on the other physics turns this machine away and says '
       'why', () async {
-    final relay = await _startRelay();
-    addTearDown(() => relay.process.kill());
-    final base = Uri.parse('ws://127.0.0.1:${relay.port}/');
+    final relayPort = await startRelay();
+    final base = Uri.parse('ws://127.0.0.1:$relayPort/');
     final room = 'apart-${DateTime.now().microsecondsSinceEpoch}';
     final mine = usePhysics().name;
     final other = mine == 'native' ? 'dart' : 'native';

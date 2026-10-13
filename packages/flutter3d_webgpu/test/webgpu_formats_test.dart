@@ -14,6 +14,8 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_webgpu/src/webgpu_formats.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -335,10 +337,17 @@ void main() {
         ],
         <String>['clamp-to-edge', 'repeat', 'mirror-repeat'],
       );
-      // Refused by `samplerBorderColor` before a sampler is made.
+      // WebGPU has no border: the mapping refuses it by the feature that
+      // names it, as `webgpuCheckSampler` does before a sampler is made.
       expect(
         () => gpuAddressMode(SamplerAddressMode.clampToBorder),
-        throwsUnsupportedError,
+        throwsA(
+          isA<UnsupportedCapabilityException>().having(
+            (e) => e.feature,
+            'feature',
+            DeviceFeature.samplerBorderColor,
+          ),
+        ),
       );
       expect(
         <String>[

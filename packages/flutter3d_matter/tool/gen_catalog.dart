@@ -256,7 +256,17 @@ void main(List<String> args) {
   try {
     final formatted = File('${scratch.path}/materials.g.dart')
       ..writeAsStringSync(dart);
-    final format = Process.runSync('dart', <String>['format', formatted.path]);
+    // At the language version of this package's SDK floor, as the
+    // repository's format check formats it; the SDK's own newer version
+    // splits long strings differently.
+    final floor = RegExp(
+      r'sdk:\s*"?>=?\^?(\d+\.\d+)',
+    ).firstMatch(File('$root/pubspec.yaml').readAsStringSync())!;
+    final format = Process.runSync('dart', <String>[
+      'format',
+      '--language-version=${floor.group(1)}',
+      formatted.path,
+    ]);
     if (format.exitCode != 0) {
       stderr.writeln(format.stderr);
       exitCode = 1;

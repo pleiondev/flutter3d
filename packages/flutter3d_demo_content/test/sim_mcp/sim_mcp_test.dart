@@ -1,4 +1,7 @@
 @TestOn('vm')
+// Three minutes: the server's start runs in `setUpAll`, under this. It said
+// its port in 25 s alone and took longer than 60 s under a full CI run.
+@Timeout(Duration(minutes: 3))
 library;
 
 /// `ai-00`'s acceptance, read literally: an agent opens the crypt, steps it
@@ -35,7 +38,10 @@ final String _crypt = File(
   '../../apps/flutter3d_demo_dungeon/assets/levels/crypt.json',
 ).resolveSymbolicLinksSync();
 
-Future<({Process process, int port})> _startServer() async {
+/// Starts the server and answers its port. Called from `setUpAll`, so the
+/// tear-down it registers kills the server after the file's last test, and
+/// also when the start itself is what failed.
+Future<int> _startServer() async {
   final process = await Process.start('flutter', <String>[
     'test',
     // Resolved already: this suite is running.
@@ -43,6 +49,7 @@ Future<({Process process, int port})> _startServer() async {
     '--reporter=silent',
     'test/sim_mcp/fixtures/sim_mcp_server.dart',
   ], workingDirectory: Directory.current.path);
+  addTearDown(process.kill);
   final portFound = Completer<int>();
   final subscription = process.stdout
       .transform(utf8.decoder)
@@ -55,19 +62,27 @@ Future<({Process process, int port})> _startServer() async {
           portFound.complete(int.parse(match.group(1)!));
         }
       });
-  final port = await portFound.future.timeout(
-    const Duration(seconds: 60),
-    onTimeout: () {
-      process.kill();
-      throw StateError('the server never printed the port it bound to');
-    },
-  );
-  await subscription.cancel();
-  return (process: process, port: port);
+  // **Ready when it says its port, failed when it exits first.** A clock of
+  // 60 seconds here ran out under a full CI run, where the compile alone
+  // outlasted it; how long the start may take is the file's timeout.
+  final int port;
+  try {
+    port = await Future.any(<Future<int>>[
+      portFound.future,
+      process.exitCode.then(
+        (code) => throw StateError(
+          'the server exited with $code before it printed the port it '
+          'bound to',
+        ),
+      ),
+    ]);
+  } finally {
+    await subscription.cancel();
+  }
+  return port;
 }
 
 void main() {
-  late Process process;
   late int port;
   late Socket socket;
   late MCPClient client;
@@ -75,10 +90,8 @@ void main() {
   late Directory workspace;
 
   setUpAll(() async {
-    (:process, :port) = await _startServer();
+    port = await _startServer();
   });
-
-  tearDownAll(() => process.kill());
 
   setUp(() async {
     socket = await Socket.connect(InternetAddress.loopbackIPv4, port);

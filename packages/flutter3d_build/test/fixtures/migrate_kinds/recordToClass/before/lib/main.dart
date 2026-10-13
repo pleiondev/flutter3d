@@ -43,3 +43,10 @@ int kept() {
   final ({int width, int height}) f = frameOf(2);
   return f.width;
 }
+
+final List<Frame> grown = <Frame>[
+  for (var i = 1; i < 3; i++) (width: i, height: i),
+  if (frames.isEmpty) (width: 0, height: 0),
+];
+
+final sized = <String, Frame>{'unit': (width: 1, height: 1)};

@@ -1,3 +1,5 @@
+// dart format off
+// What the migration writes, compared byte for byte: not reformatted.
 import 'package:flutter3d_kinds/flutter3d_kinds.dart';
 
 const Gauge plain = Gauge(2.0);

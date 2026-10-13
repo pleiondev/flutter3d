@@ -8,6 +8,18 @@
   naming them would break with its next minor. `flutter3d_lints.dart`
   exports `scanSimulationCode`, `SimulationFinding`, `SimulationRules` and
   `machineArithmetic`; the analyzer loads `main.dart`'s `plugin` as before.
+- **A second pass changes nothing the first one wrote.** A callback a rule
+  wraps, or a value it turns into a `Duration`, is left alone once it has
+  the parameter's type; a hook's parameters rewritten whole win over a
+  rename inside them, so the reads from the context are never written into
+  a method that does not take it. A project named like one of the engine's
+  packages (`flame_flutter3d_example`) has its own classes made `base`
+  under a base class; a renamed class whose old name another engine
+  package took since (`Unit`) is renamed as one `dart:core` shadows is; a
+  record in a collection `for` or `if`, or a map's value, becomes the class
+  it was typed as. A `rewrite` reaches a call of a field of a function type
+  (`tool.run(session, arguments)`), and leaves a call with fewer arguments
+  than its template reads, which is the new call already.
 - **A hook that took nothing is migrated too.** A `hookContext` entry
   with no fields gives an override its new parameter and hands a call
   `const <Context>()`, which asks for nothing; `AssetSource.read` is the

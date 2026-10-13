@@ -23847,8 +23847,9 @@ entries:
   - id: fixh-core-TextureWrap-SamplerAddressMode
     package: flutter3d_core
     symbol: TextureWrap
-    kind: rename
-    to: SamplerAddressMode
+    kind: moved
+    to: package:flutter3d_hardware/flutter3d_hardware.dart
+    name: SamplerAddressMode
     guidance: >-
       One type says how a texture wraps: `TextureWrap` is
       `SamplerAddressMode`, the type a `SamplerDescriptor` already took, so
@@ -25214,3 +25215,13 @@ entries:
       A mechanism world makes its own and reads it as `events`; one made
       by hand at 0.8.5 belonged to no world and was never filled. Read the
       world's `events`, as before.
+  - id: ci1-mcpkit-OfferedTool-run-invoke
+    package: flutter3d_mcp_kit
+    symbol: OfferedTool.run
+    kind: rewrite
+    template: '{target}.runOn({0}, {1})'
+    guidance: >-
+      A tool's body is called with one `SessionToolCall`; a caller that holds
+      the session and the arguments calls `runOn(session, arguments)`, which
+      builds the call with the tool's own name: `tool.run(session, args)` is
+      `tool.runOn(session, args)`.

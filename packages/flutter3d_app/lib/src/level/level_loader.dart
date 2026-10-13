@@ -75,7 +75,8 @@ final class _LevelMaterialSource extends AssetSource {
   String get key => 'level-material:$path';
 
   @override
-  Future<Uint8List> read(AssetRead request) async => _bytes(await fetch(AssetRequest(path)));
+  Future<Uint8List> read(AssetRead request) async =>
+      _bytes(await fetch(AssetRequest(path)));
 
   /// Images a material names are relative to the material file, the way a
   /// `.gltf`'s buffers and an `.obj`'s maps already are — so a folder of

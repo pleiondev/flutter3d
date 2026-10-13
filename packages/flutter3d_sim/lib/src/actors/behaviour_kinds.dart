@@ -227,7 +227,10 @@ final class BehaviorKinds {
   void _standardLeaves() {
     leaf('wait', (p) => _Wait(p.number('seconds')));
     leaf('goToFocus', (p) => _GoToFocus(p.number('within', fallback: 1.0)));
-    leaf('goTo', (p) => _GoTo(p.text('key'), p.number('within', fallback: 0.5)));
+    leaf(
+      'goTo',
+      (p) => _GoTo(p.text('key'), p.number('within', fallback: 0.5)),
+    );
     leaf('seesFocus', (p) => const _SeesFocus());
     leaf('focusWithin', (p) => _FocusWithin(p.number('distance')));
     leaf(

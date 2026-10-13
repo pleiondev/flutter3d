@@ -1,3 +1,5 @@
+// dart format off
+// What the migration writes, compared byte for byte: not reformatted.
 import 'package:flutter3d_kinds/flutter3d_kinds.dart';
 
 const View3d wide = View3d(view: ViewOptions(fov: 90), title: 'wide');
