@@ -20,8 +20,19 @@
 /// **This does not fail on a spike.** `integrationDriver` hands its data to
 /// the host only when every test passed, and a report of the run that went
 /// wrong is the one worth having; the script reads the numbers and fails.
+///
+/// **Where the simulation runs** is `FLUTTER3D_SOAK_PLACEMENT`, which
+/// `tool/soak.sh` passes: `inline` (the default) steps the run on the
+/// thread that draws, as the game does; `isolate` builds the same run in an
+/// isolate of its own through `IsolateSimulation`, the handle
+/// `SimulationPlacement.isolate` gives a view, plays the tape there, and
+/// draws the runner where each published state puts it. Its fixtures stay
+/// where the level placed them, their bodies being in the other isolate;
+/// what that soak watches is the memory and the life of the isolate's
+/// path, not the picture.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -31,6 +42,8 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_demo_platformer/src/air.dart';
 import 'package:flutter3d_demo_platformer/src/lens.dart';
 import 'package:flutter3d_demo_platformer/src/run.dart';
+import 'package:flutter3d_demo_platformer/src/run_elements.dart'
+    show stepElements;
 import 'package:flutter3d_demo_platformer/src/runner_visuals.dart';
 import 'package:flutter3d_demo_platformer/src/staging.dart';
 import 'package:flutter3d_game/flutter3d_game.dart' show FixtureVisuals;
@@ -74,6 +87,13 @@ const int _budget = int.fromEnvironment('FLUTTER3D_PACING_BUDGET');
 /// The model the game dresses the runner in; `main.dart`'s `_runnerModel`.
 const String _runnerModel = 'assets_src/models/penguin.glb';
 
+/// Where the simulation runs: `inline` or `isolate` (see the library's
+/// doc); `tool/soak.sh` passes it.
+const String _placement = String.fromEnvironment(
+  'FLUTTER3D_SOAK_PLACEMENT',
+  defaultValue: 'inline',
+);
+
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -84,6 +104,11 @@ void main() {
       reason:
           'no run to play: tool/pacing.sh passes one as '
           'FLUTTER3D_PACING_RUN_GZIP',
+    );
+    expect(
+      _placement,
+      isIn(<String>['inline', 'isolate']),
+      reason: 'FLUTTER3D_SOAK_PLACEMENT is inline or isolate',
     );
     final demo = Demo.fromJson(
       jsonDecode(utf8.decode(gzip.decode(base64.decode(_runGzip))))
@@ -98,12 +123,43 @@ void main() {
     );
     final views = ascent.views();
 
+    // The same run in an isolate of its own, stepped a frame at a time as a
+    // view steps `SimulationPlacement.isolate`'s handle.
+    final apart = _placement == 'isolate'
+        ? await IsolateSimulation.open(
+            _ascentApart,
+            arguments: <String, Object?>{
+              'run': _runGzip,
+              'level': jsonEncode(ascent.loaded.level.toJson()),
+              'physics': demo.physics ?? askedPhysics,
+            },
+            ownsClock: false,
+            debugName: 'ascent',
+          )
+        : null;
+    void rewind() {
+      if (apart == null) {
+        ascent.rewind(demo);
+      } else {
+        ascent.cut();
+        unawaited(apart.ask(_rewindQuestion));
+      }
+    }
+
+    void step(double dt) {
+      if (apart == null) {
+        ascent.step(dt);
+      } else {
+        apart.advance(dt);
+        ascent.elapse(dt);
+      }
+    }
+
     // The loading screen's work, done before the first timed frame: the
     // penguin and the fixtures are in the scene and every pipeline they need
     // is linked, so a spike below is a spike of play and not of a cold start.
-    ascent
-      ..rewind(demo)
-      ..placeCamera(0.0);
+    rewind();
+    ascent.placeCamera(0.0, from: apart?.published);
     renderer.warmUp(
       width: _width,
       height: _height,
@@ -114,7 +170,7 @@ void main() {
     await gpuSettled(device);
 
     Future<void> drawFrame(int frame) async {
-      ascent.placeCamera(_dt);
+      ascent.placeCamera(_dt, from: apart?.published);
       renderer.render(
         width: _width,
         height: _height,
@@ -130,8 +186,8 @@ void main() {
         demo: demo,
         input: ascent.input,
         repeats: _warmUp,
-        rewind: () => ascent.rewind(demo),
-        onStep: ascent.step,
+        rewind: rewind,
+        onStep: step,
         drawFrame: drawFrame,
       );
     }
@@ -139,10 +195,21 @@ void main() {
       demo: demo,
       input: ascent.input,
       repeats: _repeats,
-      rewind: () => ascent.rewind(demo),
-      onStep: ascent.step,
+      rewind: rewind,
+      onStep: step,
       drawFrame: drawFrame,
     );
+    if (apart != null) {
+      // A soak of an isolate that never stepped would be a soak of the
+      // renderer alone under the isolate's name.
+      expect(
+        apart.published.step,
+        greaterThan(0),
+        reason: 'the isolate published no step',
+      );
+      expect(apart.published.probe(_probeId('position', 'x')), isNotNull);
+      await apart.dispose();
+    }
 
     binding.reportData = <String, Object?>{
       'pacing': <String, Object?>{
@@ -160,6 +227,7 @@ void main() {
         'width': _width,
         'height': _height,
         'frameWorkBudget': _budget,
+        'placement': _placement,
         'device': device.runtimeType.toString(),
         'os':
             '${Platform.operatingSystem} '
@@ -241,6 +309,12 @@ final class _AscentReplay {
   /// with the camera, and a tape played against another yaw is another run.
   void rewind(Demo demo) {
     staged.sim.restore(demo.start);
+    cut();
+  }
+
+  /// The clock and the camera back at the start, for a run that is being
+  /// put back elsewhere.
+  void cut() {
     _elapsed = 0.0;
     follow.cut();
   }
@@ -249,15 +323,23 @@ final class _AscentReplay {
   /// the fires'.
   void step(double dt) {
     staged.step(dt);
-    _elapsed += dt;
+    elapse(dt);
   }
 
+  /// [dt] more seconds of the run, for the fixtures' clock.
+  void elapse(double dt) => _elapsed += dt;
+
   /// The runner where the simulation left them, the fixtures in step, and
-  /// the camera following, [dt] seconds after the last placement.
-  void placeCamera(double dt) {
+  /// the camera following, [dt] seconds after the last placement: where
+  /// [from] puts them when the run is in an isolate, where this isolate's
+  /// run left them otherwise.
+  void placeCamera(double dt, {PublishedState? from}) {
     final runner = staged.runner;
-    final at = runner.body.position;
-    follow.follow(at, dt, traveling: runner.body.velocity);
+    final at = from == null ? runner.body.position : _read(from, 'position');
+    final traveling = from == null
+        ? runner.body.velocity
+        : _read(from, 'velocity');
+    follow.follow(at, dt, traveling: traveling);
     fixtures.sync(_elapsed);
     // By the feet, as the game places the model.
     visuals.node?.setPosition(
@@ -283,4 +365,86 @@ final class _AscentReplay {
       );
 
   List<RenderView> views() => <RenderView>[RenderView(camera: camera)];
+
+  /// The runner's [what] (`position` or `velocity`) as [state] published
+  /// it, nought before the first step.
+  static Vector3 _read(PublishedState state, String what) => Vector3(
+    state.probe(_probeId(what, 'x'))?.value.first ?? 0.0,
+    state.probe(_probeId(what, 'y'))?.value.first ?? 0.0,
+    state.probe(_probeId(what, 'z'))?.value.first ?? 0.0,
+  );
+}
+
+/// What the isolate is asked to put the run back at its start.
+const String _rewindQuestion = 'soak.rewind';
+
+String _probeId(String what, String axis) => 'soak.runner.$what.$axis';
+
+/// The run in the isolate `IsolateSimulation.open` spawns: the level from
+/// its document, staged as [stage] stages it, stepped in a loop the way the
+/// game steps it (the genre in `physics`, the water and fires in `fields`),
+/// with the tape played into the loop's input at the start of every step.
+/// The runner's position and velocity are published by probes, which is
+/// what crosses back.
+///
+/// [arguments] are plain values: the run as the harness was handed it, the
+/// level's document as JSON and the physics it was recorded on.
+SimulationSetup _ascentApart(Object? arguments) {
+  final args = (arguments! as Map<Object?, Object?>).cast<String, Object?>();
+  final demo = Demo.fromJson(
+    jsonDecode(utf8.decode(gzip.decode(base64.decode(args['run']! as String))))
+        as Map<String, Object?>,
+  );
+  final level = Level.fromJson(
+    jsonDecode(args['level']! as String) as Map<String, Object?>,
+  );
+  final physics = choosePhysics(args['physics']! as String);
+  final world = CollisionWorld(backend: physics);
+  level.addTo(world);
+  physics.attach(world);
+  final input = InputState();
+  final staged = stage(
+    level,
+    world,
+    input: input,
+    registry: platformerRegistry(),
+  );
+  world.update();
+
+  var playback = InputTapePlayback(demo.tape);
+  final genre = PlatformerPlugin(kinds: const <EntityKind>[])
+    ..simulation = staged.sim;
+  final loop = EngineLoop(input: input, plugins: <Flutter3dPlugin>[genre])
+    ..addSystem('soak.tape', LoopPhase.input, (_) => playback.applyTo(input))
+    ..addSystem(
+      'soak.elements',
+      LoopPhase.fields,
+      (LoopContext step) => stepElements(staged.sim, staged.elements, step.dt),
+    );
+  loop.queries.add(_rewindQuestion, (_) {
+    staged.sim.restore(demo.start);
+    playback = InputTapePlayback(demo.tape);
+    return null;
+  });
+  for (final (what, unit, read) in <(String, Unit, Vector3 Function())>[
+    ('position', Unit.meter, () => staged.runner.body.position),
+    ('velocity', Unit.meterPerSecond, () => staged.runner.body.velocity),
+  ]) {
+    for (final (axis, component) in <(String, int)>[
+      ('x', 0),
+      ('y', 1),
+      ('z', 2),
+    ]) {
+      final id = _probeId(what, axis);
+      loop.probeSamplers.add(
+        id,
+        ProbeSampler.of((_) => Quantity(read()[component], unit)),
+      );
+      loop.world.set<Probe>(
+        loop.world.spawn(),
+        Probe(id: id, quantity: id, unit: unit),
+      );
+    }
+  }
+  return SimulationSetup(loop: loop, applyInput: (_) {});
 }
