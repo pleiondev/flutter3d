@@ -53,11 +53,13 @@ void main() {
       'blend',
     ]);
     // In the order of `SamplerAddressMode.values`; the words are the ones
-    // the project file wrote when the wrap had a type of its own.
+    // the project file wrote when the wrap had a type of its own, and the
+    // border clamp's name after them.
     holds(SamplerAddressMode.values, textureWrapWord, textureWrapOf, <String>[
       'clampToEdge',
       'repeat',
       'mirroredRepeat',
+      'clampToBorder',
     ]);
     holds(SelectionMode.values, selectionModeWord, selectionModeOf, <String>[
       'object',

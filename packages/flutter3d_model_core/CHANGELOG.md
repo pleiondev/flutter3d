@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **A texture clamped to its border is read back as it was written.** The
+  project file writes `clampToBorder` for `SamplerAddressMode.clampToBorder`
+  and reads the word again; it wrote the name and read nothing before.
 - **Breaking: `BoneMap`, `BuiltRig` and `TwoBoneIkResult` are `final
   class`es**, values the rig builder hands back, so they can gain fields in
   a minor.
