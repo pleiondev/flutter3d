@@ -6,7 +6,6 @@
 @TestOn('vm')
 library;
 
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -19,6 +18,8 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/relay.dart';
+
 const GameAction _throttle = GameAction('throttle');
 
 TrackDocument _ring() => TrackDocument.fromJson(
@@ -30,35 +31,6 @@ CollisionWorld _worldFor(TrackDocument document) {
   final world = CollisionWorld();
   document.level?.addTo(world);
   return world;
-}
-
-Future<({Process process, int port})> _startRelay() async {
-  final process = await Process.start(
-    'dart',
-    <String>['run', 'bin/relay.dart', '0'],
-    workingDirectory: '${Directory.current.path}/../../packages/flutter3d_net',
-  );
-  final portFound = Completer<int>();
-  final subscription = process.stdout
-      .transform(utf8.decoder)
-      .transform(const LineSplitter())
-      .listen((line) {
-        final match = RegExp(
-          r'flutter3d_net relay listening on (\d+)',
-        ).firstMatch(line);
-        if (match != null && !portFound.isCompleted) {
-          portFound.complete(int.parse(match.group(1)!));
-        }
-      });
-  final port = await portFound.future.timeout(
-    const Duration(seconds: 15),
-    onTimeout: () {
-      process.kill();
-      throw StateError('the relay never printed the port it bound to');
-    },
-  );
-  await subscription.cancel();
-  return (process: process, port: port);
 }
 
 Future<PartyRaceSession> _open(
@@ -85,9 +57,8 @@ Future<PartyRaceSession> _open(
 void main() {
   test('one code seats three machines in three cars, and each hears the '
       'other two', () async {
-    final relay = await _startRelay();
-    addTearDown(() => relay.process.kill());
-    final base = Uri.parse('ws://127.0.0.1:${relay.port}/');
+    final relayPort = await startRelay();
+    final base = Uri.parse('ws://127.0.0.1:$relayPort/');
 
     final inputs = List<InputState>.generate(3, (_) => InputState());
     final first = await _open(base, size: 3, input: inputs[0]);
@@ -128,9 +99,8 @@ void main() {
   });
 
   test('a party bigger than the grid is refused, not half raced', () async {
-    final relay = await _startRelay();
-    addTearDown(() => relay.process.kill());
-    final base = Uri.parse('ws://127.0.0.1:${relay.port}/');
+    final relayPort = await startRelay();
+    final base = Uri.parse('ws://127.0.0.1:$relayPort/');
 
     // Another client made it for six, on the same simulation: a maker on
     // none would be refused for its version, and this would pass for that.
@@ -157,9 +127,8 @@ void main() {
 
   test('a party asks with the racing simulation, so another build is turned '
       'away', () async {
-    final relay = await _startRelay();
-    addTearDown(() => relay.process.kill());
-    final base = Uri.parse('ws://127.0.0.1:${relay.port}/');
+    final relayPort = await startRelay();
+    final base = Uri.parse('ws://127.0.0.1:$relayPort/');
 
     final host = await _open(base, code: 'RULES', size: 3, input: InputState());
     addTearDown(host.dispose);
@@ -181,9 +150,8 @@ void main() {
 
   test('Find a race seats strangers on one circuit together, says when the '
       'grid is full, and keeps circuits apart', () async {
-    final relay = await _startRelay();
-    addTearDown(() => relay.process.kill());
-    final base = Uri.parse('ws://127.0.0.1:${relay.port}/');
+    final relayPort = await startRelay();
+    final base = Uri.parse('ws://127.0.0.1:$relayPort/');
 
     final first = await _open(base, size: 3, find: true, input: InputState());
     final stranger = await _open(
