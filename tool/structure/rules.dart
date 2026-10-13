@@ -1475,8 +1475,10 @@ List<Finding> _ruleCount() {
 /// paragraph and watching it name the file and the 60 published.
 List<Finding> _packageCount() {
   final workspace = packages;
+  // Without build metadata: 1.0.0-rc.1+1, the same version republished with
+  // a fix, is still on the 1.0.0-rc.1 line.
   String? versionOf(Directory package) =>
-      RegExp(r'^version:\s*(\S+)', multiLine: true)
+      RegExp(r'^version:\s*([^\s+]+)', multiLine: true)
           .firstMatch(File('${package.path}/pubspec.yaml').readAsStringSync())
           ?.group(1);
   bool unpublished(Directory package) => RegExp(

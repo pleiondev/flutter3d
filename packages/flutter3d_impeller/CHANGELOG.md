@@ -1,3 +1,9 @@
+## 1.0.0-rc.1+1
+
+- **The shader bundle is the one the sources compile to.** 1.0.0-rc.1 went
+  up with a bundle built before 18 of its shaders last changed, so a stage
+  could ask for a slot the compiled one does not have. Nothing else differs.
+
 ## 1.0.0-rc.1
 
 - **`wireframe` is listed where a line mode draws lines**: on Metal and

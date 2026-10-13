@@ -130,6 +130,14 @@ EOF
 }
 
 if [ "$PUBLISH" = 1 ]; then
+  # A compiled shader bundle rides in the archive (the .pubignore negations),
+  # and nothing in pub sees that it is older than its sources: 1.0.0-rc.1 of
+  # flutter3d_impeller went up that way. Refuse before anything is uploaded.
+  if ! dart run tool/structure.dart --only 'shader bundle' >/dev/null 2>&1; then
+    echo "publish_layers: a compiled shader bundle is older than its sources;" >&2
+    echo "  dart run tool/structure.dart --only 'shader bundle' names it." >&2
+    exit 1
+  fi
   echo "Publishing for real, layers L$FROM to L$TO."
 else
   echo "Dry run, layers L$FROM to L$TO: nothing is uploaded. --publish uploads."
