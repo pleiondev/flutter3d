@@ -55,7 +55,12 @@ What sits behind each level:
   Metal, the sample plugin's render checks and pacing on the Mac, then the
   shooter, the platformer and the racing game on the A55, where a p99 over
   33.3 ms turns the night red; README's nightly badge counts the green nights
-  in a row and says "stale" after 48 hours without a run.
+  in a row and says "stale" after 48 hours without a run. Last run by hand
+  on 2026-10-13 at `e94a04f79`, on an Apple-silicon Mac:
+  `flutter3d_impeller/tool/conformance.sh` 46 passed, 0 failed, 11
+  declined (the 57 checks; the declines are compute, multiview and array
+  layers, which flutter_gpu does not have), and the Impeller golden set
+  96 of 96 scenes with 0 differing pixels.
 - **iOS, Metal.** CI builds four demos with `flutter build ios --no-codesign`.
   They run clean in the simulator; no physical device has run them.
 - **Android, Vulkan.** CI builds four demos as APKs. The platformer has been

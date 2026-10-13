@@ -27,8 +27,11 @@ core and the games over it.
 ## The table
 
 `tool/digest_platforms.sh tapes vm dart2js dart2wasm`, run from
-`packages/flutter3d_physics_native` on 2026-10-13, on top of `1a171e87f`
-with the two fixes below. The
+`packages/flutter3d_physics_native` on 2026-10-13 at `e94a04f79`: 22
+digests on each of the three columns, every one equal to the VM's and to
+the first run of the day (on top of `1a171e87f` with the two fixes below),
+101 commits and 52 files of the physics, simulation and game packages
+earlier. The
 reference column is this Mac (Apple clang, ARM64, the library the package's
 hook builds); a cell that agrees with it reads "=".
 
