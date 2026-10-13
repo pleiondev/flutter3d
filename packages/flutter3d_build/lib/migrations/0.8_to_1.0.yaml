@@ -410,22 +410,6 @@ entries:
     symbol: FrameTextureSource
     kind: implementsToWith
 
-  # 1 break(s), seen in flutter3d:
-  #   no longer re-exported through package:flutter3d_core/flutter3d_core.dart
-  - id: core-ImmediateTextureSource
-    package: flutter3d_core
-    symbol: ImmediateTextureSource
-    kind: moved
-    to: package:flutter3d_core/flutter3d_core.dart
-
-  # 1 break(s), seen in flutter3d:
-  #   no longer re-exported through package:flutter3d_core/flutter3d_core.dart
-  - id: core-InMemoryDeviceClassMemory
-    package: flutter3d_core
-    symbol: InMemoryDeviceClassMemory
-    kind: moved
-    to: package:flutter3d_core/flutter3d_core.dart
-
   # 1 break(s), seen in flutter3d_core:
   #   new subtype of sealed AnimationGoal: every exhaustive switch over it is missing a case
   - id: core-LookGoal
@@ -807,14 +791,6 @@ entries:
   - id: core-lookAtRightHanded
     package: flutter3d_core
     symbol: lookAtRightHanded
-    kind: moved
-    to: package:flutter3d_core/flutter3d_core.dart
-
-  # 1 break(s), seen in flutter3d:
-  #   no longer re-exported through package:flutter3d_core/flutter3d_core.dart
-  - id: core-optimizeVertexCache
-    package: flutter3d_core
-    symbol: optimizeVertexCache
     kind: moved
     to: package:flutter3d_core/flutter3d_core.dart
 
@@ -24925,3 +24901,24 @@ entries:
       `FileAssetSource.read` takes the `AssetRead` every source's `read`
       takes; a call is handed `const AssetRead()`, which reads the whole
       file as before.
+
+  - id: core-ImmediateTextureSource-acquire
+    package: flutter3d_core
+    symbol: ImmediateTextureSource.acquire
+    kind: none
+    reason: >-
+      Its parameter's type is `RenderTargetSpec` renamed to
+      `RenderTargetDescriptor`, which the rename of that type carries; a
+      call passes the same value as before. `ImmediateTextureSource` is
+      exported by `flutter3d` again, as at 0.8.5.
+
+  - id: core-optimizeVertexCache-default
+    package: flutter3d_core
+    symbol: optimizeVertexCache
+    kind: none
+    reason: >-
+      Only the constant its `cacheSize` defaults to is renamed
+      (`kDefaultVertexCacheSize` to `defaultVertexCacheSize`, an entry of
+      its own), with the same value, so every call compiles and behaves as
+      before. `optimizeVertexCache` is exported by `flutter3d` again, as at
+      0.8.5.

@@ -935,7 +935,7 @@ package ships, applies the rewrites that need resolved code through the
 has a `// TODO(flutter3d-1.0):` in the code with a link. `--data` lifts
 data files to their current versions (`--backup` keeps the old ones). The
 0.8 to 1.0 table, `flutter3d_build/lib/migrations/0.8_to_1.0.yaml`, has
-2053 entries, 308 of them by hand; the site's
+2062 entries, 308 of them by hand; the site's
 [migration guide](https://flutter3d.pleion.dev/reference/migrating-to-1.0/)
 lists every one by package. The largest shape change is `GameLoop` to
 `EngineLoop`:
