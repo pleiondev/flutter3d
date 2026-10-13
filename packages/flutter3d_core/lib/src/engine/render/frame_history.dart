@@ -101,6 +101,8 @@ final class _ViewHistory {
 }
 
 final class FrameHistory {
+  FrameHistory._();
+
   /// Whether the renderer records a history at all. Set by whatever needs
   /// one; nothing in 0.8.0's defaults does.
   bool tracking = false;
@@ -335,3 +337,8 @@ extension FrameHistoryInternals on FrameHistory {
   /// before any pass reads this history.
   set origin(WorldPosition origin) => _origin = origin;
 }
+
+/// A new [FrameHistory], for the renderer, which keeps the one history its
+/// frames are recorded into: the package's own code makes one, and nothing
+/// outside it has a use for one it did not get from there.
+FrameHistory engineFrameHistory() => FrameHistory._();

@@ -240,6 +240,8 @@ abstract base mixin class DirectionalBackend {
 /// Not only for tests: a build with no audio device, a headless capture, or a
 /// player who has turned sound off should all take this path rather than a
 /// branch at every call site.
+///
+/// Made with `SilentBackend()` for a test, a server or a muted build.
 final class SilentBackend extends AudioBackend {
   final List<String> preloaded = <String>[];
   final List<SilentVoice> started = <SilentVoice>[];

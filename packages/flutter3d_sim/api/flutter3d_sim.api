@@ -1941,7 +1941,6 @@ abstract base class Mechanism
   void step(double dt)
 
 final class MechanismEvents
-  MechanismEvents()
   final List<Mechanism> reached
   final List<Mechanism> started
   final List<Mechanism> stopped

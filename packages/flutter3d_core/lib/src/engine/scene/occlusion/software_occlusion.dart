@@ -13,6 +13,8 @@ import 'occlusion_test.dart';
 ///
 /// Owns the buffer so a renderer allocates it once, on the first frame that
 /// asks, and a renderer that never asks allocates nothing.
+///
+/// A caller testing occlusion outside a renderer makes `SoftwareOcclusion()`.
 final class SoftwareOcclusion {
   /// Occluder triangles a frame may draw.
   ///

@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **Breaking: what only the renderer can fill is made only by it.**
+  `DrawJournal`, `FrameHistory`, `MaterialSortIds` and `HiZOcclusion` lost
+  the public constructor the language gave them: the renderer keeps the one
+  of each it fills, and reads them out (`Renderer.frameHistory`, a frame's
+  draw journal, `OcclusionMode.hiZ`).
 - **A material's `compute` stage runs wherever a device computes.**
   `lowerMaterialCompute` (new) writes it in the kernel language as a
   `MaterialComputeKernel` (new: `kernel`, `load(device)`, `bake(width,

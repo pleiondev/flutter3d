@@ -110,6 +110,8 @@ final class PadReadContext {
 /// this package does not serve behaves exactly as it did before the package
 /// existed. There is no `MissingPluginException` to catch because nothing is
 /// called.
+///
+/// A build with no gamepad support installs one, `UnsupportedGamepad()`.
 final class UnsupportedGamepad extends GamepadPlatform {
   @override
   bool get isSupported => false;

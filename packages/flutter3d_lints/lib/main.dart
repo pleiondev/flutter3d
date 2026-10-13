@@ -26,6 +26,8 @@ final Flutter3dLintsPlugin plugin = Flutter3dLintsPlugin();
 /// off by name. The migration diagnostics are warnings for the same reason:
 /// a project on 1.0 that still uses what 0.8 had is one the plugin should
 /// tell, and one that is done migrating never sees them.
+///
+/// The analyzer makes it from the package's `plugin` entry point.
 final class Flutter3dLintsPlugin extends Plugin {
   @override
   String get name => 'flutter3d_lints';

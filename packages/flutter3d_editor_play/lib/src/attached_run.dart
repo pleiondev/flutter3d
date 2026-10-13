@@ -63,7 +63,7 @@ final class AttachedRun with PlayedGame {
 
   static const int consoleLimit = 2000;
 
-  final GameEventLog _events = GameEventLog();
+  final GameEventLog _events = engineGameEventLog();
 
   @override
   Watched<List<PostedEvent>> get events => _events.events;

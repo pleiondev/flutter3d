@@ -5,6 +5,8 @@
 library;
 
 import 'package:flutter3d_editor_play/flutter3d_editor_play.dart';
+import 'package:flutter3d_editor_play/src/game_events.dart'
+    show engineGameEventLog;
 import 'package:flutter3d_editor_play/testing.dart';
 import 'package:test/test.dart';
 import 'package:vm_service/vm_service.dart' show Event;
@@ -30,9 +32,11 @@ void main() {
         await _settle();
 
         game
-          ..posts('flutter3d.level.loaded', data: <String, Object?>{
-            'level': 'crypt',
-          }, time: 1767225600000)
+          ..posts(
+            'flutter3d.level.loaded',
+            data: <String, Object?>{'level': 'crypt'},
+            time: 1767225600000,
+          )
           ..posts('Flutter.Frame', data: <String, Object?>{'elapsed': 16})
           ..posts('flutter3d.player.died');
         await _settle();
@@ -73,7 +77,10 @@ void main() {
       });
       await pumpEventQueue();
 
-      game.posts('flutter3d.pickup.taken', data: <String, Object?>{'gift': 'key'});
+      game.posts(
+        'flutter3d.pickup.taken',
+        data: <String, Object?>{'gift': 'key'},
+      );
       await pumpEventQueue();
 
       // Mutation: not opening the connection at `app.debugPort` keeps
@@ -167,7 +174,7 @@ void main() {
     });
 
     test('the log is capped like the console, the oldest dropped', () {
-      final log = GameEventLog();
+      final log = engineGameEventLog();
       for (var i = 0; i < GameEventLog.limit + 3; i++) {
         log.record(
           Event(kind: 'Extension', timestamp: 0)

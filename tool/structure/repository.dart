@@ -2594,6 +2594,13 @@ final Map<String, List<String>> facadePackages = <String, List<String>>{
   // A kit is read beside the game facade, which its README tells a game to
   // import with it: together they name every type the kit's API names.
   for (final kit in _gameKits) kit: <String>['flutter3d_game', kit],
+  // Not `flutter3d_education`: a lab is written with `lab.dart`,
+  // `flutter3d_app` and `flutter3d`, and read beside those two the
+  // education libraries reach the whole simulation through the loop and the
+  // level, which `flutter3d_app` leaves to `flutter3d_sim` on purpose. Its
+  // libraries re-export by name what a lab and an experiment write (`Demo`,
+  // `DigestTrace`, `DataSourceTrace`, `Divergence`, `Probe`); the rest a
+  // laboratory that steps its own world imports from `flutter3d_sim`.
 };
 
 const List<String> _gameKits = <String>[
@@ -2617,6 +2624,8 @@ const Map<String, List<String>> facadeShowListsHeld = <String, List<String>>{
     'flutter3d_foundation',
     'flutter3d_fields',
     'flutter3d_hub',
+    'flutter3d_plugin_api',
+    'flutter3d_matter',
   ],
 };
 
@@ -2642,6 +2651,15 @@ final Map<String, String> facadeLeavesOut = <String, String>{
   for (final name in _foundationBeneath)
     'flutter3d:$name':
         'the foundation\'s, beneath what the facade hands a caller: the base a placed event of the elements implements, the deterministic transcendentals the simulation\'s maths is written in, and the registry `migrate --data` fills (an engine registers its formats through `FormatRegistry`, which the facade exports)',
+  for (final name in _pluginApiPlumbing)
+    'flutter3d:$name':
+        'the plugin contract\'s own plumbing: the order a registry sorts systems into, and the VM service extension a host registers and the schema it answers with; a plugin is written against the registries and the host, which the facade exports',
+  for (final name in _matterPhysics)
+    'flutter3d:$name':
+        'the physical constants and the standard atmosphere a world\'s properties are worked out from; a caller reads them off `WorldProperties`, which the facade exports, so a number a world overrides is the one it gets',
+  for (final name in _matterDocument)
+    'flutter3d:$name':
+        'the catalog\'s document sections, its checker and its table of units: what a loader and the editor read; a caller adds a substance through `MaterialCatalog` and reads its numbers off `PhysicalMaterial`',
   for (final name in _hubProtocol)
     'flutter3d:$name':
         'the model hub\'s wire protocol, for a server and the client\'s own reader: an application loads a model through `HubAssetSource` with a `HubReference`, and meets the protocol only as a `HubRefusal`',
@@ -2878,6 +2896,39 @@ const List<String> _foundationBeneath = <String>[
   'FormatSpecs',
   'PlacedEvent',
   'Portable',
+];
+
+const List<String> _pluginApiPlumbing = <String>[
+  'orderByConstraints',
+  'registerFlutter3dExtension',
+  'vmSchemaVersion',
+  'vmVersionExtension',
+];
+
+const List<String> _matterPhysics = <String>[
+  'airDensityAt',
+  'airHeatCapacityRatio',
+  'boltzmannConstant',
+  'lorenzNumber',
+  'molarGasConstant',
+  'molarMassOfDryAir',
+  'speedOfSoundAt',
+  'standardAirDensity',
+  'standardAirTemperature',
+  'standardAtmosphere',
+  'standardGravity',
+  'standardGravityVector',
+  'standardSpeedOfSound',
+  'stefanBoltzmann',
+  'zeroCelsius',
+];
+
+const List<String> _matterDocument = <String>[
+  'checkMaterialCatalog',
+  'materialPairsSection',
+  'physicalMaterialsRequirement',
+  'physicalMaterialsSection',
+  'propertyUnits',
 ];
 
 const List<String> _hubProtocol = <String>[

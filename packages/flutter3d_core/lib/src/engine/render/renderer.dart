@@ -968,7 +968,7 @@ final class Renderer with RenderServices {
 
   /// What the previous frame looked like — `G2`. Recorded at the end of each
   /// frame while [FrameHistory.tracking] is on, and read during the next.
-  final FrameHistory frameHistory = FrameHistory();
+  final FrameHistory frameHistory = engineFrameHistory();
 
   /// The depth of the deferred-release rings: the most frames that may be in
   /// flight, whatever [pacing] allows — see [FramePacing.maxFramesInFlight].
@@ -5725,7 +5725,7 @@ final class Renderer with RenderServices {
         : FrameCaptureBuilder(
             width: width,
             height: height,
-            journal: _captureDraws ? DrawJournal() : null,
+            journal: _captureDraws ? engineDrawJournal() : null,
             readFloats: _captureFloats,
           );
     passState.journal = _capture?.journal;

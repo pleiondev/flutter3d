@@ -269,7 +269,6 @@ final class ParticleFade extends ParticleAffector
   void apply(ParticleStep step)
 
 final class ParticleGlow
-  ParticleGlow()
   Vector3 get center
   bool get isLocated
   double get power

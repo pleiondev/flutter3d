@@ -16,6 +16,8 @@ import 'level_format_exception.dart';
 /// What a row looks like is the format's, not this class's — a row is exactly
 /// what `Brush.fromJson` reads, which is how an expanded recipe and a hand
 /// written brush end up indistinguishable.
+///
+/// A generator in a tool makes one with `LevelSketch()` to write rows.
 final class LevelSketch {
   /// The brush rows, in the order they were drawn.
   final List<Map<String, Object?>> brushes = <Map<String, Object?>>[];

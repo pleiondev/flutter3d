@@ -13,6 +13,8 @@ import 'particle_affector.dart';
 /// reading fourteen parallel `Float32List`s every time somebody touches this
 /// file is paid on every change. Allocated once and reused, which is the part
 /// that actually matters.
+///
+/// An emitter's test, or an emitter of its own, makes one with `Particle()`.
 final class Particle {
   final Vector3 position = Vector3.zero();
   final Vector3 velocity = Vector3.zero();

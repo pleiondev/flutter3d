@@ -11,6 +11,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_core/src/engine/render/render_list.dart';
+import 'package:flutter3d_core/src/engine/scene/occlusion/hi_z_occlusion.dart'
+    show engineHiZOcclusion;
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -395,14 +397,14 @@ void main() {
     );
 
     test('nothing is hidden before the first reading', () {
-      expect(ask(HiZOcclusion(), _camera()), isNull);
+      expect(ask(engineHiZOcclusion(), _camera()), isNull);
     });
 
     test(
       'a still camera hides what is behind the reading and nothing else',
       () {
         final camera = _camera();
-        final hiZ = HiZOcclusion();
+        final hiZ = engineHiZOcclusion();
         take(hiZ, camera, reading(10.0, camera.projection.far));
         final test = ask(hiZ, camera)!;
         // The wall is ten metres out, at z = 0.
@@ -415,7 +417,7 @@ void main() {
 
     test('a cell with an empty pixel under it is no occluder', () {
       final camera = _camera();
-      final hiZ = HiZOcclusion();
+      final hiZ = engineHiZOcclusion();
       // The left half of the view saw sky.
       take(
         hiZ,
@@ -435,7 +437,7 @@ void main() {
       'a small step reprojects, a cut or another camera answers visible',
       () {
         final camera = _camera();
-        final hiZ = HiZOcclusion();
+        final hiZ = engineHiZOcclusion();
         take(hiZ, camera, reading(10.0, camera.projection.far));
 
         // Half a metre sideways: the wall is still there, and a box well
@@ -458,7 +460,7 @@ void main() {
     test('a post in front of a doorway stops occluding once the camera '
         'steps past it', () {
       final camera = _camera();
-      final hiZ = HiZOcclusion();
+      final hiZ = engineHiZOcclusion();
       // A band of cells down the middle saw a post three metres out and,
       // beside it, the wall ten metres out: their farthest is the wall's
       // depth, but nobody saw whether the wall goes on behind the post. It
@@ -489,7 +491,7 @@ void main() {
 
     test('a pixel two moved cells cover twice in part is not covered', () {
       final camera = _camera();
-      final hiZ = HiZOcclusion();
+      final hiZ = engineHiZOcclusion();
       // The camera rises so a row ten metres out slides 0.3 of a pixel
       // down, one at five metres 0.6 and one at 15/7 metres 1.4. Rows 62
       // and 63 then both cover the top 0.3–0.4 of pixel row 64 and row 64

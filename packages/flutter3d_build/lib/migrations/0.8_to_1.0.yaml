@@ -24922,3 +24922,31 @@ entries:
       its own), with the same value, so every call compiles and behaves as
       before. `optimizeVertexCache` is exported by `flutter3d` again, as at
       0.8.5.
+
+  - id: core-HiZOcclusion-constructor
+    package: flutter3d_core
+    symbol: HiZOcclusion.HiZOcclusion
+    kind: none
+    reason: >-
+      The renderer makes the one it uses and feeds it the depths it read
+      back from the GPU; one made by hand at 0.8.5 was never fed and
+      answered nothing, so no code had a use for it. `OcclusionMode.hiZ`
+      in the render settings asks for it, as before.
+
+  - id: particles-ParticleGlow-constructor
+    package: flutter3d_particles
+    symbol: ParticleGlow.ParticleGlow
+    kind: none
+    reason: >-
+      A light emitter makes its own glow and reads it as `glow`; one made
+      by hand at 0.8.5 belonged to no emitter and counted nothing. Read
+      the emitter's `glow`, as before.
+
+  - id: sim-MechanismEvents-constructor
+    package: flutter3d_sim
+    symbol: MechanismEvents.MechanismEvents
+    kind: none
+    reason: >-
+      A mechanism world makes its own and reads it as `events`; one made
+      by hand at 0.8.5 belonged to no world and was never filled. Read the
+      world's `events`, as before.

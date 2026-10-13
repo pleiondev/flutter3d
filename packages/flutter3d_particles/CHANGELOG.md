@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `ParticleGlow` is made by its emitter.** A `LightEmitter`
+  keeps its own as `glow`; one made by hand belonged to no emitter.
 - **Breaking: `Particle.color` is `Particle.linearRgba`.** The same
   `Vector4`, written in place by every affector, under a name that says it
   is a linear RGBA buffer rather than a colour value.

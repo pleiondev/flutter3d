@@ -38,6 +38,8 @@ final class _CachedLod {
 
 /// The simplified mesh each `(objectId, lodIndex)` pair produces, kept until
 /// the object's own version moves past the one it was generated at.
+///
+/// An application keeps one, `LodMeshCache()`, across edits of a project.
 final class LodMeshCache {
   final Map<int, Map<int, _CachedLod>> _byObjectId =
       <int, Map<int, _CachedLod>>{};

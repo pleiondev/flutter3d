@@ -34,6 +34,8 @@ const int panoramaCubeSize = 32;
 const int panoramaCubeLevels = 4;
 
 /// Keeps [Scene.environment] in step with [SceneLighting.panorama].
+///
+/// An application drawing a project makes one with `PanoramaSync()`.
 final class PanoramaSync {
   /// Which image is on the scene right now, and how long its bytes were —
   /// enough to notice a different panorama at the same index.

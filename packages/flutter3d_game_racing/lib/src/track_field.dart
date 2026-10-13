@@ -10,6 +10,8 @@ import 'track.dart';
 ///
 /// Filled in rather than returned, and reused between steps: this is asked once
 /// per car per step at least, and often four times more when the car has wheels.
+///
+/// A ground field's query fills one the caller made, `GroundSample()`.
 final class GroundSample {
   /// How far along the track the car is, in metres. Feed this back as the hint
   /// on the next step — that is what keeps the answer on the right part of a

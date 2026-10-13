@@ -12,6 +12,8 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// shooter's idea; a platformer counts coins and stars and does not care what
 /// they are for. The two were the same class once, which is how the engine came
 /// to have ammunition in it.
+///
+/// A game keeps one per body, made with `Purse()`.
 final class Purse extends Tally {}
 
 /// Someone a collectible can be given to.

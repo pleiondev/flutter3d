@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **The plugin and matter exceptions are exported**
+  (`ConstraintCycleException`, `FormatRegistrationException`,
+  `PluginFormatException`, `MaterialFormatException`,
+  `MaterialRegistrationException`, `UnknownMaterialException`,
+  `GeoOriginFormatException`, `WorldPropertiesFormatException`), with the
+  engine's own catalog `Materials` and `ExternalIdSpace`.
 - **What the guides name and the bases' own implementations are
   exported.** `lowerMaterialCompute` and `MaterialComputeKernel` (a
   material's `compute` stage, beside `parseMaterial`), `RenderStepAddon`

@@ -976,21 +976,26 @@ export package:flutter3d_hub/flutter3d_hub.dart show HubCachePolicy, HubReferenc
   HubRefusal
   HubRefusedException
 
-export package:flutter3d_matter/flutter3d_matter.dart show AcousticProperties, Confidence, ConstantLaw, ConstitutiveModel, ContactProperties, ElectricalProperties, FluidProperties, FormulaLaw, GeoOrigin, InelasticProperties, LawInput, MaterialCatalog, MaterialPair, MaterialPhase, MatterState, MechanicalProperties, OpticalProperties, PhysicalMaterial, PropertyGroup, PropertyInterval, PropertyLaw, RgbValues, TableLaw, ThermalProperties, WorldProperties, WorldPropertiesPatch
+export package:flutter3d_matter/flutter3d_matter.dart show AcousticProperties, Confidence, ConstantLaw, ConstitutiveModel, ContactProperties, ElectricalProperties, ExternalIdSpace, FluidProperties, FormulaLaw, GeoOrigin, GeoOriginFormatException, InelasticProperties, LawInput, MaterialCatalog, MaterialFormatException, MaterialPair, MaterialPhase, MaterialRegistrationException, Materials, MatterState, MechanicalProperties, OpticalProperties, PhysicalMaterial, PropertyGroup, PropertyInterval, PropertyLaw, RgbValues, TableLaw, ThermalProperties, UnknownMaterialException, WorldProperties, WorldPropertiesFormatException, WorldPropertiesPatch
   AcousticProperties
   Confidence
   ConstantLaw
   ConstitutiveModel
   ContactProperties
   ElectricalProperties
+  ExternalIdSpace
   FluidProperties
   FormulaLaw
   GeoOrigin
+  GeoOriginFormatException
   InelasticProperties
   LawInput
   MaterialCatalog
+  MaterialFormatException
   MaterialPair
   MaterialPhase
+  MaterialRegistrationException
+  Materials
   MatterState
   MechanicalProperties
   OpticalProperties
@@ -1001,10 +1006,12 @@ export package:flutter3d_matter/flutter3d_matter.dart show AcousticProperties, C
   RgbValues
   TableLaw
   ThermalProperties
+  UnknownMaterialException
   WorldProperties
+  WorldPropertiesFormatException
   WorldPropertiesPatch
 
-export package:flutter3d_plugin_api/flutter3d_plugin_api.dart show Assimilation, AssimilationContext, BindingInterpolation, BindingLifetime, BusChannel, BusEvent, ComponentCodec, ComponentDecodeContext, ComponentInfo, ComponentRegistry, ComponentRestoreContext, DataSection, DataSectionContext, DataSectionInstall, DataSectionLoad, DataSectionRead, DataSectionRegistry, Delivered, Entity, EventCodec, EventDeclaration, EventDecodeContext, EventDigestSink, EventHandler, EventRegistry, ExternalStateInput, Flutter3dPlugin, FormatRegistry, InPlaceCodec, LoopContext, LoopPhase, LoopRegistry, LoopSystem, OriginShifted, PhaseKind, PluginApiVersion, PluginChange, PluginDependency, PluginDisabled, PluginEnabled, PluginGroup, PluginHost, PluginManager, PluginManifest, PluginPermission, PluginRegistry, PluginScope, PluginStatus, PluginTouches, PluginVersion, PluginsReordered, PluginsSet, ProbeField, ProbeReading, PublishedEvent, PublishedState, ReadingKind, ReadingQuality, RenderAnchor, RenderStepRegistry, SceneBindingRegistry, SceneBindingSpec, SimCommands, SimQuery, SimSpawned, SimWorld, SimulationProfile, SimulationVersion, SnapshotPart, SnapshotRegistry, SnapshotRestoreContext, VersionRange, VmExtensionHandler, VmExtensions, WorldPositionCodec
+export package:flutter3d_plugin_api/flutter3d_plugin_api.dart show Assimilation, AssimilationContext, BindingInterpolation, BindingLifetime, BusChannel, BusEvent, ComponentCodec, ComponentDecodeContext, ComponentInfo, ComponentRegistry, ComponentRestoreContext, ConstraintCycleException, DataSection, DataSectionContext, DataSectionInstall, DataSectionLoad, DataSectionRead, DataSectionRegistry, Delivered, Entity, EventCodec, EventDeclaration, EventDecodeContext, EventDigestSink, EventHandler, EventRegistry, ExternalStateInput, Flutter3dPlugin, FormatRegistrationException, FormatRegistry, InPlaceCodec, LoopContext, LoopPhase, LoopRegistry, LoopSystem, OriginShifted, PhaseKind, PluginApiVersion, PluginChange, PluginDependency, PluginDisabled, PluginEnabled, PluginFormatException, PluginGroup, PluginHost, PluginManager, PluginManifest, PluginPermission, PluginRegistry, PluginScope, PluginStatus, PluginTouches, PluginVersion, PluginsReordered, PluginsSet, ProbeField, ProbeReading, PublishedEvent, PublishedState, ReadingKind, ReadingQuality, RenderAnchor, RenderStepRegistry, SceneBindingRegistry, SceneBindingSpec, SimCommands, SimQuery, SimSpawned, SimWorld, SimulationProfile, SimulationVersion, SnapshotPart, SnapshotRegistry, SnapshotRestoreContext, VersionRange, VmExtensionHandler, VmExtensions, WorldPositionCodec
   Assimilation
   AssimilationContext
   BindingInterpolation
@@ -1016,6 +1023,7 @@ export package:flutter3d_plugin_api/flutter3d_plugin_api.dart show Assimilation,
   ComponentInfo
   ComponentRegistry
   ComponentRestoreContext
+  ConstraintCycleException
   DataSection
   DataSectionContext
   DataSectionInstall
@@ -1032,6 +1040,7 @@ export package:flutter3d_plugin_api/flutter3d_plugin_api.dart show Assimilation,
   EventRegistry
   ExternalStateInput
   Flutter3dPlugin
+  FormatRegistrationException
   FormatRegistry
   InPlaceCodec
   LoopContext
@@ -1045,6 +1054,7 @@ export package:flutter3d_plugin_api/flutter3d_plugin_api.dart show Assimilation,
   PluginDependency
   PluginDisabled
   PluginEnabled
+  PluginFormatException
   PluginGroup
   PluginHost
   PluginManager

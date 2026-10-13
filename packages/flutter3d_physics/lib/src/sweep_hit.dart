@@ -64,6 +64,8 @@ final class SweptContact {
 /// Reused between queries rather than returned fresh: the character controller
 /// runs several sweeps per step, sixty times a second, and an allocation here
 /// is an allocation on the hottest path in the game.
+///
+/// A caller makes one with `SweepHit()` for a sweep to fill, and reuses it.
 final class SweepHit {
   /// Fraction of the requested motion completed before contact, in `[0, 1]`.
   /// One means nothing was in the way.

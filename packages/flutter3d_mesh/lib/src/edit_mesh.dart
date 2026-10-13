@@ -2090,6 +2090,8 @@ final class EditMesh {
 /// a half-edge, and that map is worth nothing once the mesh is built: keeping
 /// it on `EditMesh` would be a hash table per mesh, alive for the life of the
 /// document, to answer a question only construction asks.
+///
+/// A caller makes one with `EditMeshBuilder()` to build a mesh.
 final class EditMeshBuilder {
   final List<double> _positions = <double>[];
   final List<int> _origin = <int>[];

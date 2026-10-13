@@ -43,7 +43,7 @@ final class RenderList {
 
   /// RenderMaterial ids for the state sort term. Owned here because this is the only
   /// place they are used.
-  final MaterialSortIds materialIds = MaterialSortIds();
+  final MaterialSortIds materialIds = engineMaterialSortIds();
 
   /// Where [bvhThreshold] starts.
   ///

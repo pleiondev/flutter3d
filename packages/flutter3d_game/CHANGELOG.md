@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **The plugin and matter exceptions, `Materials` and `ExternalIdSpace`**
+  are re-exported from `flutter3d`.
 - **The facade exports what fills the bases it exports.** The variants
   of `SaveRead`, `SaveUpgrade`, `ServiceAnswer` and `ActivationOutcome`
   (`SaveFound`, `SaveNotRead`, `SaveRefused`, `SaveUpgraded`,

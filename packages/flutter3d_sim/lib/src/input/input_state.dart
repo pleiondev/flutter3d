@@ -27,6 +27,8 @@ import 'game_action.dart';
 ///
 /// Only the simulation calls [beginStep]/[endStep], and only between them are
 /// [pressed] and [released] meaningful.
+///
+/// Every input device, a test and a server write one made with `InputState()`.
 final class InputState {
   /// Physically down right now.
   final Set<GameAction> _held = <GameAction>{};

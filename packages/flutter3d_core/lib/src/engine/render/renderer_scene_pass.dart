@@ -716,7 +716,7 @@ extension _ScenePasses on Renderer {
           cullBackFaces: settings.backfaceCulling,
         );
       case OcclusionMode.hiZ:
-        final hiZ = _hiZ ??= HiZOcclusion();
+        final hiZ = _hiZ ??= engineHiZOcclusion();
         // The pyramid reduces the whole frame for one camera, so with a
         // second view there is no reading to have; see `_DepthPyramidNode`.
         if (views != 1) return null;

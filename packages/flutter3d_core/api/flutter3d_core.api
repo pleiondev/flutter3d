@@ -1204,7 +1204,6 @@ final class DracoMesh
   final int pointCount
 
 final class DrawJournal
-  DrawJournal()
   List<DrawRecord> get records
   Map<String, int> get undetailed
   void add({required String kind, required String? mesh, required String? material, required String lighting, required int vertices, required int indices, required int instances, required Map<String, Object?> state, Map<String, Float32List> uniforms = const <String, Float32List>{}, Object? node})
@@ -1696,7 +1695,6 @@ final class FrameHeld extends BusEvent
   final FrameResult result
 
 final class FrameHistory
-  FrameHistory()
   NodeHistory? of(MeshNode node, RenderView view)
   bool moved(MeshNode node, RenderView view)
   bool tracking
@@ -2057,7 +2055,6 @@ final class HdrFormatException extends Flutter3dFormatException
 typedef HdrImage = ({int width, int height, Float32List rgb});
 
 final class HiZOcclusion
-  HiZOcclusion()
   OcclusionTest? prepare(Matrix4 viewProjection, {required Vector3 eye, required Vector3 forward, required Object camera})
   bool get hasReading
   final OcclusionBuffer buffer
@@ -2836,7 +2833,6 @@ final class MaterialSlotTable
   static const MaterialSlotTable none = MaterialSlotTable()
 
 final class MaterialSortIds
-  MaterialSortIds()
   int get length
   int idOf(RenderMaterial material, {int limit = 0x7FFFFF})
   void clear()

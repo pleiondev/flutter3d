@@ -7,6 +7,8 @@ import 'package:vector_math/vector_math.dart';
 /// two are the same kind of thing and a recorded lap can be played back through
 /// either. Values are held between steps rather than being events: a throttle
 /// is a position, not a press.
+///
+/// A driver, the player's or an AI's, writes one made with `VehicleInput()`.
 final class VehicleInput {
   /// How hard the driven wheels are being turned, from nought to one.
   double throttle = 0.0;

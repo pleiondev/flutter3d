@@ -43,6 +43,8 @@ final class CueContext<T extends BusEvent> {
 ///   ..on<DoorLocked>((c) => c.out.add(Heard(Sounds.locked, c.event.at)));
 /// for (final heard in cues.listen(events)) scene.play(heard.sound, heard.at);
 /// ```
+///
+/// A game makes its own sheet with `CueSheet()` and fills it with `on`.
 final class CueSheet {
   final List<_Row> _rows = <_Row>[];
 

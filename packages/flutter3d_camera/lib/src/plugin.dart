@@ -18,6 +18,8 @@ typedef ImpulseRule<T extends BusEvent> = CameraImpulse? Function(T event);
 ///   ..on<Exploded>((e) => CameraImpulse(amplitude: 0.4, at: e.at))
 ///   ..on<Landed>((e) => e.hard ? const CameraImpulse(amplitude: 0.1) : null);
 /// ```
+///
+/// A game makes one with `ImpulseTable()` and fills it with `on`.
 final class ImpulseTable {
   final List<(Type, ImpulseRule<BusEvent>)> _rows =
       <(Type, ImpulseRule<BusEvent>)>[];
