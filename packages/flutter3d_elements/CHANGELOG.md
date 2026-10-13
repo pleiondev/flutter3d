@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **`radiantFluxOn` stands a flame by `FireExposure.standingMiddleOf`**,
+  the core package's one rule for a flame under a ceiling, which the
+  platformer's runner now burns by too.
 - **Breaking: each `ElementsListener` callback takes its event.** `caught`,
   `out`, `burntOut`, `wetted` and `burnerOut` take the `ElementCaught` (and
   so on) the bus carries, with its `body` and `made`; `exploded` an

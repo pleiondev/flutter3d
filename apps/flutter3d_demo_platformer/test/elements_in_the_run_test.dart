@@ -273,7 +273,7 @@ void main() {
     expect(health.current, lessThan(health.maximum));
     expect(far.runner.health.current, far.runner.health.maximum);
     expect(
-      RunElements.fluxOnto(far.runner, far.elements!.world.fires()),
+      RunElements.fluxOnto(far.runner, far.elements!.world),
       lessThan(RunElements.harmlessFlux),
     );
 
@@ -307,5 +307,77 @@ void main() {
       before - health.current,
       closeTo(health.maximum * _dt / (minutes * 60.0), 1e-6),
     );
+  });
+
+  test('a flame under a ceiling burns the runner from below it', () {
+    // A slab low over the brazier the runner stands against, under the
+    // middle of its flame: the flame turns along it, and the point source
+    // is the middle of the column under it, as the elements' own
+    // radiantFluxOn measures. Mutation: the middle of the whole flame,
+    // above the slab — the flux is the farther source's.
+    final (:staged, :input) = _stage(at: Vector3(-17.5 + 0.45, 0.0, -12.0));
+    final elements = staged.elements!;
+    final world = elements.world;
+    void step() {
+      input.beginStep();
+      staged.step(_dt);
+      input.endStep();
+    }
+
+    for (var i = 0; i < 240; i++) {
+      step();
+    }
+    final runnerAt = staged.runner.body.position;
+    final near = world.fires().reduce(
+      (a, b) =>
+          a.at.distanceToSquared(runnerAt) <= b.at.distanceToSquared(runnerAt)
+          ? a
+          : b,
+    );
+    // Fed as a bonfire, its flame stands metres over the runner's head;
+    // the brazier's own is no taller than the runner, and a source
+    // anywhere along it is as near their box.
+    world.setBurner(near.body, NativeBurner.bonfire());
+    step();
+    final lit = world.fires().firstWhere((f) => f.body == near.body);
+    expect(FireExposure.middleOf(lit).y, greaterThan(runnerAt.y + 2.0));
+    final low = lit.at.y + 0.3 * lit.reach;
+    final slab = world.addBody(
+      position: Vector3(lit.at.x, low + 0.02, lit.at.z),
+      type: NativeBodyType.fixed,
+    );
+    world.setShape(slab, NativeShape.box(Vector3(0.2, 0.02, 0.2)));
+    step();
+
+    final body = staged.runner.body;
+    final lo = body.position - body.halfExtents;
+    final hi = body.position + body.halfExtents;
+    double onto(Vector3 source, NativeFire fire) {
+      final skin = Vector3(
+        source.x.clamp(lo.x, hi.x),
+        source.y.clamp(lo.y, hi.y),
+        source.z.clamp(lo.z, hi.z),
+      );
+      return FireExposure.fluxFrom(fire, source.distanceToSquared(skin));
+    }
+
+    var standing = 0.0, whole = 0.0, stopped = 0;
+    for (final fire in world.fires()) {
+      final stop = world.rayCast(
+        fire.at,
+        fire.axis,
+        fire.reach,
+        ignore: fire.body,
+      );
+      if (stop?.body == slab) stopped++;
+      final middle = stop == null
+          ? FireExposure.middleOf(fire)
+          : fire.at + fire.axis * (0.5 * stop.at);
+      standing += onto(middle, fire);
+      whole += onto(FireExposure.middleOf(fire), fire);
+    }
+    expect(stopped, greaterThan(0), reason: 'the slab stops a flame');
+    expect(standing, greaterThan(whole));
+    expect(RunElements.fluxOnto(staged.runner, world), closeTo(standing, 1e-6));
   });
 }

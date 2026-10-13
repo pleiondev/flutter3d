@@ -24,6 +24,27 @@ abstract final class FireExposure {
   static Vector3 middleOf(NativeFire fire) =>
       fire.at + fire.axis * (0.5 * fire.reach);
 
+  /// The middle of [fire]'s flame as it stands in [world]: [middleOf], or,
+  /// where its axis meets a body short of its tip, half the way there.
+  ///
+  /// A flame longer than the room is high turns along the ceiling as a
+  /// ceiling jet (Alpert, SFPE Handbook, "Ceiling jet flows"), and the
+  /// point source is the middle of the column under it. Measured from the
+  /// middle of the whole flame, a fire of a few megawatts in a vault 4 m
+  /// high sent its heat from above the vault's roof, and the roof let none
+  /// of it through.
+  static Vector3 standingMiddleOf(NativeFire fire, NativeWorld world) {
+    final stop = world.rayCast(
+      fire.at,
+      fire.axis,
+      fire.reach,
+      ignore: fire.body,
+    );
+    return stop == null
+        ? middleOf(fire)
+        : fire.at + fire.axis * (0.5 * stop.at);
+  }
+
   /// W/m² a flame radiating [radiant] W, its soot glowing at
   /// [sootTemperature] K, throws onto a point [distanceSquared] m² from the
   /// middle of the flame.

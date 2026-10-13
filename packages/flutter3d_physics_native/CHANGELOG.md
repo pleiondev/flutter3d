@@ -8,6 +8,10 @@
   1.3 MW at the most and about 0.3 MW after their char forms, and 46 kW.
   `burnRate` was checked and no longer read; it is that bound now, and
   nought takes 11 g/(m² s), a generic wood's.
+- **`FireExposure.standingMiddleOf`.** The middle of a flame as it stands
+  in a world: where its axis meets a ceiling short of its tip, the middle
+  of the column under it, as a flame longer than the room is high turns
+  along the ceiling.
 - **A save names its standing colliders the same on every platform.** The
   key was the shape's type name and each number's text, which a web build
   writes differently, so the same world saved to different bytes under
