@@ -2618,10 +2618,6 @@ final Map<String, String> facadeGapAllowed = <String, String>{
     'flutter3d_app:$name':
         'the physics a loaded level\'s collision world is made of: a game\'s, '
         'exported by `flutter3d_game`',
-  for (final name in _cpuBehindTheView)
-    'flutter3d_app:$name':
-        'the software device\'s own stage kinds, reached through the stages '
-        'a material compiles to: a backend author\'s, from `flutter3d_cpu`',
 };
 
 const List<String> _simulationBehindTheView = <String>[
@@ -2749,8 +2745,6 @@ const List<String> _kernelLanguage = <String>[
   'KernelTexture',
   'WgslKernel',
 ];
-
-const List<String> _cpuBehindTheView = <String>['CpuVertexShader'];
 
 /// Third-party types a published package names in its API, as
 /// `package:Type`, each with why the type belongs in the contract and its

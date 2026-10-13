@@ -1853,7 +1853,7 @@ entries:
     package: flutter3d_testing
     symbol: MaterialProgramStage
     kind: moved
-    to: package:flutter3d_app/flutter3d_app.dart
+    to: package:flutter3d_app/software.dart
 
   # 1 break(s), seen in flutter3d_webgl:
   #   the declaration changed: typedef WebGlSampler = ({int unit, bool cube}); -> typedef WebGlSampler = ({int unit, int target});

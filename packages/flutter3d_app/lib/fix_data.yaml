@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 6301c73b5ce779cc
+# table-stamp: 2c6b4da54bf2f4ba
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -14,7 +14,7 @@ transforms:
     changes:
       - kind: 'replacedBy'
         newElement:
-          uris: ['package:flutter3d_app/flutter3d_app.dart']
+          uris: ['package:flutter3d_app/software.dart']
           class: 'MaterialProgramStage'
   - title: 'flutter3d 1.0.0-rc.1: 4a-app-WidgetSurface-WidgetSurface'
     date: 2026-10-08

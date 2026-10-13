@@ -1,5 +1,14 @@
 ## 1.0.0-rc.1
 
+- **The software device's material stages live in `software.dart`**
+  (new library). `MaterialProgramStage`, `MaterialVertexStage` and
+  `MaterialFullscreenStage` left the main barrel, and with them the
+  seven `flutter3d_cpu` stage types it re-exported to name them
+  (`CpuFragmentShader`, `CpuVertexShaderByIndex`, `ShaderBindings`,
+  `FragmentContext`, `BoundTexture`, `CpuTexture`, `CpuStorageTexture`):
+  the rasterizer's stage interface is no longer part of every
+  application's import. `openDevice` builds the stages on its own; code
+  that names one imports `package:flutter3d_app/software.dart`.
 - **`materialComputeStage` is gone.** A material's `compute` stage is
   lowered to the kernel language (`lowerMaterialCompute` in
   `flutter3d_core`), which `CpuDevice` loads from a bundle's kernel
