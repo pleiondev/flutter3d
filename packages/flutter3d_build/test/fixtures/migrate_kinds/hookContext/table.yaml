@@ -22,9 +22,9 @@ entries:
       '0': what
       '1': amount
       loud: loud
-  - id: kinds-Store-read
+  - id: kinds-Depot-read
     package: flutter3d_kinds
-    symbol: Store.read
+    symbol: Depot.read
     kind: hookContext
     context: Reading
     fields: {}

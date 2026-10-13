@@ -28,7 +28,7 @@ void main() {
     expect(
       guide,
       contains(
-        '`Store.read` takes one `Reading` where it took nothing: an override '
+        '`Depot.read` takes one `Reading` where it took nothing: an override '
         'takes it, and a call hands one asking for nothing, '
         '`const Reading()`.',
       ),
@@ -51,11 +51,11 @@ void main() {
     // The table's second entry for the same hook, as an engine
     // implementation's entry is, matches every use the first one does and
     // must rewrite none of them a second time.
-    // A hook that took nothing (`Store.read`): the override takes the
+    // A hook that took nothing (`Depot.read`): the override takes the
     // context, and each call is handed one asking for nothing.
     expect(appliedOf(report), <String>[
       for (var i = 0; i < 6; i++) 'kinds-Sensor-sense',
-      for (var i = 0; i < 3; i++) 'kinds-Store-read',
+      for (var i = 0; i < 3; i++) 'kinds-Depot-read',
     ]);
     expect(manualOf(report), isEmpty);
   }, timeout: const Timeout(Duration(minutes: 3)));

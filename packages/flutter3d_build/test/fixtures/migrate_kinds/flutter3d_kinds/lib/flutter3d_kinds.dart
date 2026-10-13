@@ -237,15 +237,15 @@ abstract base class Sensor {
   void sense(Sensing sensing);
 }
 
-// 0.8: `abstract base class Store` whose `read()` took nothing.
+// 0.8: `abstract base class Depot` whose `read()` took nothing.
 
 final class Reading {
   const Reading({this.from = 0});
   final int from;
 }
 
-abstract base class Store {
-  const Store();
+abstract base class Depot {
+  const Depot();
   Future<int> read(Reading reading);
 }
 
