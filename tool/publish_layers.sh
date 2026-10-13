@@ -166,9 +166,16 @@ while read -r layer names; do
       continue
     fi
     printf '  %-30s %-12s uploading\n' "$name" "$version"
-    if ! (cd "$dir" && flutter pub publish --force); then
-      plan_b "$name $version" "$n" "$version"
-      exit 1
+    # A version uploaded by a run that stopped before pub.dev listed it is
+    # refused as existing; it is up, and this waits for it like the rest.
+    if ! out="$(cd "$dir" && flutter pub publish --force 2>&1)"; then
+      echo "$out"
+      if ! echo "$out" | grep -Fq "Version $version of package $name already exists"; then
+        plan_b "$name $version" "$n" "$version"
+        exit 1
+      fi
+    else
+      echo "$out"
     fi
     uploaded="$uploaded $name=$version"
   done
