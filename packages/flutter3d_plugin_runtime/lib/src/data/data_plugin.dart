@@ -166,7 +166,10 @@ final class DataPluginDocument {
   /// phase or places a system against one of its own (`after`, `before`,
   /// `wasm[].phase`, `expressions[].phase`). A name that is not one of the
   /// document's phases — the engine's `physics`, another plugin's — is the
-  /// loop's name as written. In version 3 a phase was the loop's name as
+  /// loop's name as written. A Wasm system is `<id>.<system>` in the loop,
+  /// and a `wasm[].after` or `wasm[].before` that names another of the
+  /// document's systems is filed the same way; any other system name is the
+  /// loop's as written. In version 3 a phase was the loop's name as
   /// written, a bare one the engine could add in a minor; the lift takes
   /// `<id>.` off a version-3 name that already carried it, so it is not
   /// filed twice. A version-3 build refuses a version-4 document rather
@@ -786,6 +789,11 @@ final class DataPlugin extends Flutter3dPlugin {
         codec: PluginDataEvent.codecFor('$id.${event.name}'),
       );
     }
+    // So is a system of its own, which a Wasm system orders itself against
+    // by the name the document gives it; another's is the loop's name.
+    final ownSystems = <String>{for (final spec in document.wasm) spec.system};
+    String systemInLoop(String system) =>
+        ownSystems.contains(system) ? '$id.$system' : system;
     for (final spec in document.wasm) {
       _wasmSystems.add(
         installWasmSystem(
@@ -794,8 +802,8 @@ final class DataPlugin extends Flutter3dPlugin {
             module: spec.module,
             system: spec.system,
             phase: inLoop(spec.phase),
-            after: spec.after,
-            before: spec.before,
+            after: spec.after.map(systemInLoop).toList(),
+            before: spec.before.map(systemInLoop).toList(),
             fields: spec.fields,
             events: spec.events,
             limits: spec.limits,

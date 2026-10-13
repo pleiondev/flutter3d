@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **A Wasm system orders itself against another of its plugin's by the
+  name the document gives it.** `wasm[].after` and `wasm[].before` naming a
+  system of the same document are filed under `<id>.`, as its phases are;
+  any other name is the loop's as written, so a document that already
+  wrote `<id>.blow` reads as before.
 - **Render nodes are a capability their export names, not an ABI number
   set aside.** `wasmRenderAbi` is the lowest ABI they can arrive in, one
   past `wasmPluginAbiMax`; the release that implements them names the ABI

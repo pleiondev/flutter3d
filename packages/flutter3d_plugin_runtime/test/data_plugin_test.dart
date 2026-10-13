@@ -676,6 +676,53 @@ void main() {
       );
     });
 
+    test('a Wasm system ordered against another of its own finds it under '
+        'the plugin', () async {
+      // Mutation: hand `after` to the loop as written. `settle` then waits
+      // on a bare `blow`, which no system in the loop is called, and runs
+      // in no order the document asked for.
+      final plugin = await const DataPluginLoader().load(
+        jsonEncode(<String, Object?>{
+          'format': 'f3d.plugin',
+          'version': DataPluginDocument.formatVersion,
+          'manifest': <String, Object?>{'id': 'gusts', 'apiVersion': '1.0'},
+          'phases': <Object?>[
+            <String, Object?>{
+              'name': 'weather',
+              'after': <String>['physics'],
+            },
+          ],
+          'wasm': <Object?>[
+            for (final (system, after) in <(String, List<String>)>[
+              ('settle', <String>['blow']),
+              ('blow', <String>[]),
+            ])
+              <String, Object?>{
+                'module': 'gusts.wasm',
+                'system': system,
+                'phase': 'weather',
+                'after': after,
+                'fields': <Object?>[
+                  <String, Object?>{'name': 'wind', 'write': true},
+                ],
+              },
+          ],
+        }),
+        MemoryPluginSource(<String, Uint8List>{'gusts.wasm': _gusts()}),
+      );
+      final loop = EngineLoop(
+        input: InputState(),
+        registries: <PluginRegistry>[
+          WorldFields(<WorldField>[ListWorldField('wind', Float64List(1))]),
+        ],
+        plugins: <Flutter3dPlugin>[plugin],
+      );
+      expect(loop.systemsIn(const LoopPhase.step('gusts.weather')), <String>[
+        'gusts.blow',
+        'gusts.settle',
+      ]);
+    });
+
     test('a version 3 phase already in the namespace is not filed twice', () {
       // Mutation: lift 3 → 4 by the identity. A version 3 document that
       // named its phase `gusts.weather` to pass the namespace check would
