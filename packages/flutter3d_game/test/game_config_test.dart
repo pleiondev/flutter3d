@@ -205,5 +205,6 @@ void main() {
         GameAction.jump,
       );
     }
-  });
+    // The fixtures are files: the browser run has no disk to read them from.
+  }, testOn: 'vm');
 }
