@@ -28,7 +28,7 @@ import 'reaction_table.dart';
 final class ReactionsPlugin extends Flutter3dPlugin {
   ReactionsPlugin(
     this.table, {
-    this.id = 'flutter3d_addon_reactions',
+    this.id = 'flutter3d_game_kit.reactions',
     this.showCorrections = false,
   });
 

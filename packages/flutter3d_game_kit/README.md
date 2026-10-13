@@ -41,7 +41,7 @@ something somebody had to happen to notice.
 
 `ReactionsPlugin`:
 
-- **id** `flutter3d_game_kit/reactions.dart`, or the one passed in, when one engine
+- **id** `flutter3d_game_kit.reactions`, or the one passed in, when one engine
   has two tables;
 - **apiVersion** 1.0;
 - **touches** `view`, so switching it is not written into a replay;
@@ -132,7 +132,7 @@ here so a sheet needs one import.
 
 `SoundtrackPlugin`:
 
-- **id** `flutter3d_game_kit/soundtrack.dart`, or the one passed in;
+- **id** `flutter3d_game_kit.soundtrack`, or the one passed in;
 - **apiVersion** 1.0;
 - **touches** `view`, so switching it is not written into a replay;
 - **backends** all of them;

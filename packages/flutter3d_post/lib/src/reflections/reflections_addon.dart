@@ -14,7 +14,7 @@ import 'package:flutter3d_core/flutter3d_core.dart';
 final class ScreenSpaceReflectionsAddon extends RenderStepAddon {
   const ScreenSpaceReflectionsAddon()
     : super(
-        id: 'flutter3d_addon_reflections.screen_space',
+        id: 'flutter3d_post.screen_space_reflections',
         provides: const <RenderStep>[RenderStep.reflections],
         settings: const <SettingsSlot<Object>>[SettingsSlot.reflections],
         description: 'Reflections traced through the picture itself.',
@@ -26,7 +26,7 @@ final class ScreenSpaceReflectionsAddon extends RenderStepAddon {
 final class PlanarReflectionsAddon extends RenderStepAddon {
   const PlanarReflectionsAddon()
     : super(
-        id: 'flutter3d_addon_reflections.planar',
+        id: 'flutter3d_post.planar_reflections',
         provides: const <RenderStep>[RenderStep.planarReflections],
         settings: const <SettingsSlot<Object>>[SettingsSlot.planarReflections],
         description: 'A mirrored picture behind each flat reflector.',
@@ -41,7 +41,7 @@ final class PlanarReflectionsAddon extends RenderStepAddon {
 final class ReflectionProbesAddon extends RenderStepAddon {
   const ReflectionProbesAddon()
     : super(
-        id: 'flutter3d_addon_reflections.probes',
+        id: 'flutter3d_post.reflection_probes',
         provides: const <RenderStep>[RenderStep.reflectionProbes],
         description: 'Reflection probes recaptured as the scene changes.',
       );

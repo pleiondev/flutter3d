@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `AudioPlugin` is `flutter3d_audio_core`** by default, the
+  package that ships it, where it was `flutter3d_audio`, the name of the
+  SoLoud package. A run recorded under the old id reads as naming the new
+  one.
 - **Breaking: a backend's calls take one context each.**
   `AudioBackend.start` takes a `VoiceStart` (new) and `update` a
   `VoiceUpdate` (new); `MixingBackend.routeVoice` and `mixBus` take a

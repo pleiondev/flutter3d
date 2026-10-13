@@ -1,3 +1,4 @@
+import 'plugin_ids.dart';
 import 'plugin_version.dart';
 
 /// A plugin switched on, off or moved, at a step boundary.
@@ -31,6 +32,8 @@ abstract base class PluginChange {
   Map<String, Object?> toJson();
 
   /// Reads a change back, or throws a [PluginFormatException] saying why not.
+  /// An engine plugin named by its id from before 1.0 is read as the plugin
+  /// of that id now, so a run recorded then switches what it switched.
   static PluginChange fromJson(Map<String, Object?> json) {
     final step = json['step'];
     if (step is! int || step < 0) {
@@ -39,14 +42,16 @@ abstract base class PluginChange {
     final simulation = json['simulation'] == true;
     List<String> names(String key) => switch (json[key]) {
       final List<Object?> list when list.every((e) => e is String) =>
-        List<String>.unmodifiable(list.cast<String>()),
+        List<String>.unmodifiable(<String>[
+          for (final id in list.cast<String>()) liftPluginId(id),
+        ]),
       _ => throw PluginFormatException(
         '"$key" is not a list of plugin ids',
         json,
       ),
     };
     String plugin() => switch (json['plugin']) {
-      final String id when id.isNotEmpty => id,
+      final String id when id.isNotEmpty => liftPluginId(id),
       _ => throw PluginFormatException('the change names no plugin', json),
     };
     return switch (json['kind']) {

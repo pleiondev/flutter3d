@@ -22,7 +22,7 @@ void main() {
       for (final addon in lightAddons) {
         final manifest = addon.manifest;
         expect(manifest.idProblem, isNull, reason: manifest.id);
-        expect(manifest.id, startsWith('flutter3d_addon_light.'));
+        expect(manifest.id, startsWith('flutter3d_post.'));
         // Mutation: make `RenderStepAddon.manifest` a simulation plugin, and
         // a replay starts recording every bloom switched.
         expect(manifest.touches, PluginTouches.view, reason: manifest.id);
@@ -104,7 +104,10 @@ void main() {
       );
       expect(
         stage.skips(everything),
-        containsAll(<String>['bloom: switched off', 'lens flare: switched off']),
+        containsAll(<String>[
+          'bloom: switched off',
+          'lens flare: switched off',
+        ]),
       );
 
       host

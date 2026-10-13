@@ -465,7 +465,7 @@ final class RendererSteps extends RenderStepRegistry {
     for (final entry in _store.provided) entry.step,
   ]);
 
-  /// Who provides [step] — `plugin "flutter3d_addon_light.bloom"`, or `the
+  /// Who provides [step] — `plugin "flutter3d_post.bloom"`, or `the
   /// application` — or null when nobody has taken it.
   String? providerOf(RenderStep step) => _store.provided
       .where((entry) => entry.step == step)

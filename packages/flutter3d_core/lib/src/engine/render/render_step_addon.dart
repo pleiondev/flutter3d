@@ -41,7 +41,7 @@ abstract base class RenderStepAddon extends Flutter3dPlugin {
   });
 
   /// The plugin's id — the package's name, a dot and the effect's:
-  /// `flutter3d_addon_light.bloom`.
+  /// `flutter3d_post.bloom`.
   final String id;
 
   /// The steps this plugin is the switch of, built in or among [adds].

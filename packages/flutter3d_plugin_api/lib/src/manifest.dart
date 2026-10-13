@@ -2,6 +2,7 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show PluginException;
 
 import 'host.dart';
+import 'plugin_ids.dart';
 import 'plugin_version.dart';
 import 'version.dart';
 
@@ -207,7 +208,8 @@ final class PluginManifest {
   /// Why [id] is not a usable name, or null when it is: an id that is not
   /// lower case letters, digits, `_`, `.` and `-`, or, when the plugin is
   /// not the engine's own, whose [namespace] is one of the engine's
-  /// [reservedAreas] or the namespace of one of its [enginePluginIds].
+  /// [reservedAreas], or the namespace of a 0.8 add-on whose plugins' ids
+  /// readers lift to the engine's.
   String? get idProblem {
     if (!_idPattern.hasMatch(id)) {
       return 'a plugin id is lower case letters, digits, "_", "." and "-", '
@@ -219,10 +221,11 @@ final class PluginManifest {
           'of the engine\'s own areas (its MCP tools, VM extensions and '
           'events start with it); a plugin names itself after its package';
     }
-    if (_engineIdNamespaces.contains(namespace)) {
+    if (retiredPluginNamespaces.contains(namespace)) {
       return 'plugin "$id" takes the namespace "$namespace", which the '
-          'engine\'s own plugins of that name use; only their exact ids are '
-          'the engine\'s, and a plugin names itself after its package';
+          'engine\'s own plugins were named by before 1.0, and a recorded run '
+          'that names them is read as naming the engine\'s; a plugin names '
+          'itself after its package';
     }
     return null;
   }
@@ -245,15 +248,14 @@ final class PluginManifest {
   }
 
   /// Whether this plugin ships with the engine — its [namespace] is one of
-  /// [engineNamespaces], or its [id] is exactly one of [enginePluginIds] —
-  /// and so registers the engine's own names, which carry no plugin's
-  /// namespace.
+  /// [engineNamespaces] — and so registers the engine's own names, which
+  /// carry no plugin's namespace. Every engine plugin is named after the
+  /// package that ships it, as every other plugin is.
   ///
   /// Decided by the lists, never by a prefix: pub.dev reserves no
   /// `flutter3d_` prefix, so a package published as `flutter3d_frost` by
   /// somebody else is a plugin from outside and is held to its namespace.
-  bool get isEngine =>
-      engineNamespaces.contains(namespace) || enginePluginIds.contains(id);
+  bool get isEngine => engineNamespaces.contains(namespace);
 
   /// The namespaces of the engine's own plugins: every package this
   /// repository publishes on pub.dev, today or under the name it had at
@@ -262,9 +264,9 @@ final class PluginManifest {
   /// one of these.
   ///
   /// **Only names that were published.** The `flutter3d_addon_*` packages
-  /// of 0.8 never were, so anybody could publish one; their plugins keep
-  /// the ids recorded runs name them by, and those ids alone are the
-  /// engine's ([enginePluginIds]).
+  /// of 0.8 never were, and `flutter3d_demo_content` never will be, so
+  /// anybody could publish one; none of them is here. The plugins the
+  /// add-ons had are named after the packages that ship them now.
   ///
   /// Held to the repository's published packages and the 0.8.5 release's
   /// by a test, so a package added to the engine is added here, and a minor
@@ -285,7 +287,6 @@ final class PluginManifest {
     'flutter3d_conformance_render',
     'flutter3d_core',
     'flutter3d_cpu',
-    'flutter3d_demo_content',
     'flutter3d_editor_core',
     'flutter3d_editor_mcp',
     'flutter3d_editor_play',
@@ -337,56 +338,6 @@ final class PluginManifest {
     'flutter3d_wgpu',
     'pad_input',
     'pointer_lock',
-  };
-
-  /// The exact ids of the engine's own plugins whose namespace is not one
-  /// of [engineNamespaces]: the plugins of 0.8's `flutter3d_addon_*`
-  /// packages, which moved into published packages and kept the ids a
-  /// recorded run names them by (`flutter3d_addon_light.bloom` is drawn by
-  /// `flutter3d_post`).
-  ///
-  /// **The id, not its namespace.** None of those packages was published,
-  /// so a package called `flutter3d_addon_light` could be published by
-  /// anybody; its plugin is from outside, held to its namespace, and
-  /// refused at install while that namespace is one of these ids'
-  /// ([idProblem]). Held to the ids the engine's plugins declare by a
-  /// test; the list only shrinks.
-  static const Set<String> enginePluginIds = <String>{
-    'flutter3d_addon_access.spoken_events',
-    'flutter3d_addon_atmosphere.fog',
-    'flutter3d_addon_atmosphere.light_shafts',
-    'flutter3d_addon_atmosphere.sky',
-    'flutter3d_addon_atmosphere.volumetric_fog',
-    'flutter3d_addon_camera',
-    'flutter3d_addon_light.auto_exposure',
-    'flutter3d_addon_light.bloom',
-    'flutter3d_addon_light.colour_grade',
-    'flutter3d_addon_light.lens_distortion',
-    'flutter3d_addon_light.lens_flare',
-    'flutter3d_addon_light.local_exposure',
-    'flutter3d_addon_light.vignette_and_grain',
-    'flutter3d_addon_motion.depth_of_field',
-    'flutter3d_addon_motion.motion_blur',
-    'flutter3d_addon_motion.temporal_anti_aliasing',
-    'flutter3d_addon_reactions',
-    'flutter3d_addon_reflections.planar',
-    'flutter3d_addon_reflections.probes',
-    'flutter3d_addon_reflections.screen_space',
-    'flutter3d_addon_shading.ambient_occlusion',
-    'flutter3d_addon_shading.contact_shadows',
-    'flutter3d_addon_soundtrack',
-    'flutter3d_addon_style.high_contrast',
-    'flutter3d_addon_style.outlines',
-    'flutter3d_addon_style.toon',
-    'flutter3d_addon_style.viewport_shading',
-  };
-
-  /// The namespaces of [enginePluginIds], which a plugin from outside may
-  /// not take: it would be held to a namespace the engine's own plugins
-  /// register bare names beside.
-  static final Set<String> _engineIdNamespaces = <String>{
-    for (final id in enginePluginIds)
-      id.contains('.') ? id.substring(0, id.indexOf('.')) : id,
   };
 
   /// The first segments the engine names its own areas by, which no plugin
@@ -537,7 +488,11 @@ final class PluginManifest {
       apiVersion: PluginApiVersion.parse(version),
       version: own is String ? PluginVersion.parse(own) : PluginVersion.none,
       simulationVersion: simulation,
-      dependsOn: names('dependsOn'),
+      // A dependency on an engine plugin by its id from before 1.0 is on
+      // the plugin of that id now.
+      dependsOn: List<String>.unmodifiable(<String>[
+        for (final entry in names('dependsOn')) liftPluginDependency(entry),
+      ]),
       backends: names('backends').toSet(),
       touches: touches is String
           ? PluginTouches.named(touches)

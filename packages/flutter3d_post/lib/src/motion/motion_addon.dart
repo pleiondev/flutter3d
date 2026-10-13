@@ -15,7 +15,7 @@ import 'package:flutter3d_core/flutter3d_core.dart';
 final class DepthOfFieldAddon extends RenderStepAddon {
   const DepthOfFieldAddon()
     : super(
-        id: 'flutter3d_addon_motion.depth_of_field',
+        id: 'flutter3d_post.depth_of_field',
         provides: const <RenderStep>[RenderStep.depthOfField],
         settings: const <SettingsSlot<Object>>[SettingsSlot.depthOfField],
         description: 'What is out of focus, blurred by its distance.',
@@ -26,7 +26,7 @@ final class DepthOfFieldAddon extends RenderStepAddon {
 final class MotionBlurAddon extends RenderStepAddon {
   const MotionBlurAddon()
     : super(
-        id: 'flutter3d_addon_motion.motion_blur',
+        id: 'flutter3d_post.motion_blur',
         provides: const <RenderStep>[RenderStep.motionBlur],
         settings: const <SettingsSlot<Object>>[SettingsSlot.motionBlur],
         description: 'Movement smeared along its own velocity.',
@@ -42,7 +42,7 @@ final class MotionBlurAddon extends RenderStepAddon {
 final class TemporalAntiAliasingAddon extends RenderStepAddon {
   const TemporalAntiAliasingAddon()
     : super(
-        id: 'flutter3d_addon_motion.temporal_anti_aliasing',
+        id: 'flutter3d_post.temporal_anti_aliasing',
         provides: const <RenderStep>[RenderStep.temporalAntiAliasing],
         settings: const <SettingsSlot<Object>>[SettingsSlot.antiAlias],
         description: 'Jittered frames blended across time.',

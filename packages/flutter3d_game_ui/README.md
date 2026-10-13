@@ -195,7 +195,7 @@ with, which colour to pick, as a settings panel's "choose for me" would.
 
 ### `SpokenEvents`: manifest
 
-- **id** `flutter3d_addon_access.spoken_events` (a second table in one
+- **id** `flutter3d_game_ui.spoken_events` (a second table in one
   engine takes another `id`);
 - **apiVersion** 1.0;
 - **touches** `view`, so switching it is not written into a replay;

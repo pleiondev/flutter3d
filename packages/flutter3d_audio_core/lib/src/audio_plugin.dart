@@ -36,7 +36,7 @@ final class AudioPlugin extends Flutter3dPlugin {
   AudioPlugin({
     required this.scene,
     required this.listener,
-    this.id = 'flutter3d_audio',
+    this.id = 'flutter3d_audio_core',
     this.phase = LoopPhase.audio,
     Iterable<DuckRule> ducking = const <DuckRule>[],
   }) : ducking = List<DuckRule>.unmodifiable(ducking),

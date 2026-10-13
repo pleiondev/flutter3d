@@ -55,7 +55,7 @@ abstract base class LightingModelAddon extends Flutter3dPlugin {
   });
 
   /// The plugin's id — the package's name, a dot and the model's:
-  /// `flutter3d_addon_style.toon`.
+  /// `flutter3d_post.toon`.
   final String id;
 
   /// The models this plugin registers.

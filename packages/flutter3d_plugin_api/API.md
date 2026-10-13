@@ -182,9 +182,10 @@ The rules of D23 ([namespaces](../../docs/CONTRACTS.md#namespaces-d23)):
   may use it.
 - **The engine's rights go by list, never by prefix.**
   `PluginManifest.engineNamespaces` is the packages this repository
-  publishes or published at 0.8.5; `enginePluginIds` is the exact ids of the
-  0.8 `flutter3d_addon_*` plugins. `isEngine` is true for those alone, and
-  no outside plugin may take one of those namespaces. A plugin named
+  publishes or published at 0.8.5, and `isEngine` is true for a plugin in
+  one of them alone; every engine plugin is named after its package. The
+  ids of the 0.8 `flutter3d_addon_*` plugins are read as today's, and no
+  outside plugin may take one of those namespaces. A plugin named
   `flutter3d_wind` from outside is an outside plugin.
 - **The engine's areas are frozen at 1.0.0.** `PluginManifest.reservedAreas`
   cannot be a plugin's namespace, and the set does not grow in a 1.x

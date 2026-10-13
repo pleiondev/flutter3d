@@ -6,13 +6,19 @@
   package hands a plugin, and a structure rule holds it to that from the
   first 1.x release on. A plugin writes the number it was written against
   as a literal, never `current`.
-- **Breaking: the 0.8 add-on names are the engine's only as exact plugin
-  ids.** `PluginManifest.engineNamespaces` holds the packages this
-  repository publishes and published at 0.8.5, and no longer the
-  `flutter3d_addon_*` names, none of which was ever published; the plugins
-  that still carry one are named one by one in `enginePluginIds` (new),
-  and `isEngine` is true for them alone. A plugin from outside whose
-  namespace is one of those ids' is refused by `idProblem`.
+- **Breaking: every engine plugin is named after the package that ships
+  it, and `isEngine` is the namespace alone.**
+  `PluginManifest.engineNamespaces` holds the packages this repository
+  publishes and published at 0.8.5, and no longer the never-published
+  `flutter3d_addon_*` names or `flutter3d_demo_content`. The plugins of the
+  0.8 add-ons are `flutter3d_post.bloom` (and its 22 siblings),
+  `flutter3d_camera`, `flutter3d_game_kit.reactions`,
+  `flutter3d_game_kit.soundtrack` and `flutter3d_game_ui.spoken_events`,
+  and `AudioPlugin` is `flutter3d_audio_core`, where it was
+  `flutter3d_audio`. `PluginChange.fromJson`, `SimulationVersion.fromJson`
+  and a manifest's `dependsOn` read the old ids as the new ones, so a run
+  or a `.f3dplugin` written before still opens; a plugin from outside may
+  not take an add-on's namespace (`idProblem`).
 - **`reservedAreas` is frozen at what 1.0.0 ships.** A test holds it to
   the list; an area a 1.x minor brings goes under `f3d.`, or under a name
   with an upper-case letter, which no plugin id can have.

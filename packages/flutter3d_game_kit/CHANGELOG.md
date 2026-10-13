@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **Breaking: the plugins are `flutter3d_game_kit.reactions` and
+  `flutter3d_game_kit.soundtrack`** by default, where they were
+  `flutter3d_addon_reactions` and `flutter3d_addon_soundtrack`. A run
+  recorded under the old ids reads as naming the new ones.
 - **`GhostNote.say` takes `languageCode:` by name.**
 - **Breaking: a cue and a reaction rule take one context.** A `Cue` is
   handed a `CueContext` (new) and a `ReactionRule` a `ReactionContext`

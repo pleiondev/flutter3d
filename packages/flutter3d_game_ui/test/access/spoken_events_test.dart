@@ -138,7 +138,7 @@ void main() {
     final it = installed();
     final manifest = it.plugin.manifest;
     expect(manifest.idProblem, isNull);
-    expect(manifest.id, startsWith('flutter3d_addon_access.'));
+    expect(manifest.id, startsWith('flutter3d_game_ui.'));
     // Mutation: leave `touches` at its default — the plugin claims the
     // simulation and is written into every replay.
     expect(manifest.touches, PluginTouches.view);

@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `SpokenEvents` is `flutter3d_game_ui.spoken_events`** by
+  default, where it was `flutter3d_addon_access.spoken_events`. A run
+  recorded under the old id reads as naming the new one.
 - **Breaking: every widget and painter is a `final class`.** A widget is
   composed, not extended, and a new option on one is then an addition: a
   plain class could be implemented, so it could never gain a field.

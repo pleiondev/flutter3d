@@ -15,7 +15,7 @@ import 'package:flutter3d_core/flutter3d_core.dart';
 final class HighContrastAddon extends RenderStepAddon {
   const HighContrastAddon()
     : super(
-        id: 'flutter3d_addon_style.high_contrast',
+        id: 'flutter3d_post.high_contrast',
         provides: const <RenderStep>[RenderStep.highContrast],
         settings: const <SettingsSlot<Object>>[SettingsSlot.highContrast],
         description: 'A flat, toned picture with the marked nodes ringed.',
@@ -49,10 +49,10 @@ bool _outlinesOn(RenderStepContext context) =>
 final class OutlinesAddon extends RenderStepAddon {
   const OutlinesAddon()
     : super(
-        id: 'flutter3d_addon_style.outlines',
+        id: 'flutter3d_post.outlines',
         adds: const <RenderStep>[outlinesStep],
         provides: const <RenderStep>[outlinesStep],
-        dependsOn: const <String>['flutter3d_addon_style.high_contrast'],
+        dependsOn: const <String>['flutter3d_post.high_contrast'],
         description: 'Rings around the nodes a game marked.',
       );
 }
@@ -62,7 +62,7 @@ final class OutlinesAddon extends RenderStepAddon {
 final class ViewportShadingAddon extends RenderStepAddon {
   const ViewportShadingAddon()
     : super(
-        id: 'flutter3d_addon_style.viewport_shading',
+        id: 'flutter3d_post.viewport_shading',
         provides: const <RenderStep>[RenderStep.viewportShading],
         settings: const <SettingsSlot<Object>>[SettingsSlot.viewportShading],
         description: "The editor's normals, clay, outline and curvature.",
@@ -88,7 +88,7 @@ const LightingModel toonLighting = LightingModel('Toon', 'Toon');
 final class ToonLightingAddon extends LightingModelAddon {
   const ToonLightingAddon()
     : super(
-        id: 'flutter3d_addon_style.toon',
+        id: 'flutter3d_post.toon',
         models: const <LightingModel>[toonLighting],
         description: 'Cel shading: the light in a few hard bands.',
       );

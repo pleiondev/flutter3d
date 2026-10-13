@@ -14,8 +14,9 @@
   `flutter3d_addon_camera` before it was ever published, and its library is
   `package:flutter3d_camera/flutter3d_camera.dart`. `dart run
   flutter3d_build:migrate` moves the dependency and the imports. The
-  plugin's id stays `flutter3d_addon_camera`, so an ordering constraint that
-  names it still holds.
+  plugin's id is `flutter3d_camera` too, where it was
+  `flutter3d_addon_camera`; a run recorded under the old id reads as
+  naming the new one.
 - **Breaking: a field of view is `fovY`**, in radians: `CameraShot.fov` and
   every framing's `fov` are `fovY`, and `baseFov` and `fovPerSpeed` are
   `baseFovY` and `fovYPerSpeed` (docs/CONTRACTS.md).

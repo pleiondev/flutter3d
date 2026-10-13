@@ -18,7 +18,7 @@ import 'package:flutter3d_core/flutter3d_core.dart';
 final class AmbientOcclusionAddon extends RenderStepAddon {
   const AmbientOcclusionAddon()
     : super(
-        id: 'flutter3d_addon_shading.ambient_occlusion',
+        id: 'flutter3d_post.ambient_occlusion',
         provides: const <RenderStep>[RenderStep.ambientOcclusion],
         settings: const <SettingsSlot<Object>>[SettingsSlot.ambientOcclusion],
         description: 'Screen-space ambient occlusion and its blur.',
@@ -30,7 +30,7 @@ final class AmbientOcclusionAddon extends RenderStepAddon {
 final class ContactShadowsAddon extends RenderStepAddon {
   const ContactShadowsAddon()
     : super(
-        id: 'flutter3d_addon_shading.contact_shadows',
+        id: 'flutter3d_post.contact_shadows',
         provides: const <RenderStep>[RenderStep.contactShadows],
         settings: const <SettingsSlot<Object>>[SettingsSlot.contactShadows],
         description: 'Short shadows where things touch, marched on screen.',

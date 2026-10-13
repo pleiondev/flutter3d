@@ -758,10 +758,14 @@ units and the files above.
   step. Bare names and `f3d.` names are the engine's.
 - **The engine's rights go by list, never by prefix.**
   `PluginManifest.engineNamespaces` is the packages this repository
-  publishes, and published at 0.8.5; the plugins that still carry an id of
-  0.8's never-published `flutter3d_addon_*` packages are the engine's by
-  that exact id alone (`enginePluginIds`), and no plugin from outside may
-  take one of those namespaces.
+  publishes, and published at 0.8.5; a package that is never published
+  (`flutter3d_demo_content`) is not on it. Every engine plugin is named
+  after the package that ships it, as every other plugin is
+  (`flutter3d_post.bloom`). The ids of 0.8's never-published
+  `flutter3d_addon_*` plugins are read as the ids of today
+  (`flutter3d_addon_light.bloom` as `flutter3d_post.bloom`), and no plugin
+  from outside may take one of those namespaces. A data or Wasm plugin is
+  never the engine's, whatever its document says.
 - **The engine's areas are frozen at 1.0.0.** `PluginManifest.reservedAreas`
   (`light`, `level`, `physics` and the rest) cannot be a plugin's
   namespace, and the set does not grow in a 1.x minor: an area added later

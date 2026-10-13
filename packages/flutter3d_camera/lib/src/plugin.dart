@@ -68,7 +68,7 @@ final class CameraPlugin extends Flutter3dPlugin {
   CameraPlugin(
     this.director, {
     ImpulseTable? impulses,
-    this.id = 'flutter3d_addon_camera',
+    this.id = 'flutter3d_camera',
     this.realTime = false,
     this.shakeCorrections = false,
   }) : impulses = impulses ?? ImpulseTable();

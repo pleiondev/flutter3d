@@ -156,64 +156,113 @@ void main() {
   });
 
   test('the engine\'s own packages register the engine\'s names', () {
-    final sky = _manifest('flutter3d_addon_atmosphere.sky');
+    final sky = _manifest('flutter3d_post.sky');
     expect(sky.isEngine, isTrue);
     expect(sky.nameProblem('sky', what: 'a render step'), isNull);
   });
 
-  test('a 0.8 add-on name is the engine\'s only as an exact plugin id', () {
-    // None of the `flutter3d_addon_*` packages was ever published, so
-    // anybody may publish one. Mutation: decide by the namespace again —
-    // a package published as `flutter3d_addon_light` registers bare names
-    // and `f3d.` names with the engine's rights.
+  test('a 0.8 add-on name is nobody\'s', () {
+    // None of the `flutter3d_addon_*` packages was ever published, and the
+    // engine's plugins are named after their packages now. Mutation: give
+    // the old ids engine rights again — a package published as
+    // `flutter3d_addon_light` registers bare names with the engine's rights.
     for (final id in <String>[
       'flutter3d_addon_light',
-      'flutter3d_addon_light.glare',
-      'flutter3d_addons_standard',
+      'flutter3d_addon_light.bloom',
+      'flutter3d_addon_camera',
     ]) {
       final squatter = _manifest(id);
       expect(squatter.isEngine, isFalse, reason: id);
       expect(squatter.nameProblem('glare', what: 'a render step'), isNotNull);
     }
-    // Held to its namespace, it would sit beside the engine's own plugins
-    // of that name; mutation: drop the check from `idProblem`.
+    // A reader lifts the old ids to the new ones, so a plugin of that name
+    // would have its runs read as the engine's. Mutation: drop the check
+    // from `idProblem`.
     expect(
       _manifest('flutter3d_addon_light.glare').idProblem,
       contains('"flutter3d_addon_light"'),
     );
+    expect(_manifest('flutter3d_addon_camera').idProblem, isNotNull);
     expect(_manifest('flutter3d_addons_standard').idProblem, isNull);
-    final bloom = _manifest('flutter3d_addon_light.bloom');
-    expect(bloom.isEngine, isTrue);
-    expect(bloom.idProblem, isNull);
   });
 
-  test('the engine\'s exact plugin ids are the ones its plugins declare', () {
-    // Mutation: add an id no engine plugin carries — somebody else's is
-    // let through; leave one out — the engine's plugin is refused its own
-    // bare names.
-    // Every 0.8 add-on id an engine package's source names; this package's
-    // own lists are left out, or the test would read its answer.
-    final declared = <String>{
+  test('every engine plugin is named after the package that ships it', () {
+    // Mutation: give one of the engine's plugins an id under another name —
+    // it loses its engine rights, and the naming rule it holds others to
+    // has an exception again.
+    final declared = <(String, String)>[
       for (final package in Directory('../../packages').listSync())
-        if (!package.path.endsWith('/flutter3d_plugin_api'))
-          if (Directory('${package.path}/lib') case final lib
-              when lib.existsSync())
-            for (final file in lib.listSync(recursive: true))
-              if (file is File && file.path.endsWith('.dart'))
-                for (final match in RegExp(
-                  r"'(flutter3d_addons?_[a-z_]+(?:\.[a-z_]+)?)'",
-                ).allMatches(file.readAsStringSync()))
-                  match[1]!,
-    };
-    expect(declared, contains('flutter3d_addon_light.bloom'));
-    expect(PluginManifest.enginePluginIds, unorderedEquals(declared));
-    for (final id in PluginManifest.enginePluginIds) {
-      expect(
-        PluginManifest.engineNamespaces,
-        isNot(contains(_manifest(id).namespace)),
-        reason: '$id is the engine\'s by its namespace already',
+        if (Directory('${package.path}/lib') case final lib
+            when lib.existsSync())
+          for (final file in lib.listSync(recursive: true))
+            if (file is File && file.path.endsWith('.dart'))
+              for (final match in RegExp(
+                r"(?:this\.id = |\bid: )'((?:flutter3d|flame)[a-z0-9_]*|"
+                r"pad_input)(?:\.[a-z0-9_]+)?'",
+              ).allMatches(file.readAsStringSync()))
+                // `flutter3d.` is the engine's component namespace, no
+                // plugin's.
+                if (match[1] != 'flutter3d')
+                  (
+                    package.uri.pathSegments.lastWhere((s) => s.isNotEmpty),
+                    match[0]!,
+                  ),
+    ];
+    expect(declared.map((d) => d.$2), contains("id: 'flutter3d_post.bloom'"));
+    for (final (package, declaration) in declared) {
+      final id = declaration.substring(
+        declaration.indexOf("'") + 1,
+        declaration.length - 1,
       );
+      expect(_manifest(id).namespace, package, reason: declaration);
     }
+  });
+
+  test('old ids of the engine\'s plugins are lifted when read', () {
+    // A run or a plugin document written before the engine's plugins were
+    // named after their packages. Mutation: drop the lift from a reader —
+    // the run asks for a plugin no engine installs, and is refused.
+    final change = PluginChange.fromJson(<String, Object?>{
+      'kind': 'enable',
+      'step': 3,
+      'plugin': 'flutter3d_addon_light.bloom',
+      'simulation': false,
+    });
+    expect((change as PluginEnabled).plugin, 'flutter3d_post.bloom');
+    final set =
+        PluginChange.fromJson(<String, Object?>{
+              'kind': 'set',
+              'step': 0,
+              'plugins': <String>['flutter3d_addon_camera', 'acme_frost'],
+              'enabled': <String>['flutter3d_audio'],
+              'simulation': true,
+            })
+            as PluginsSet;
+    expect(set.order, <String>['flutter3d_camera', 'acme_frost']);
+    expect(set.enabled, <String>['flutter3d_audio_core']);
+    final simulation = SimulationVersion.fromJson(<String, Object?>{
+      'engine': 1,
+      'plugins': <String, Object?>{
+        'flutter3d_addon_reactions': 2,
+        'acme_frost': 1,
+      },
+    });
+    expect(simulation.plugins, <String, int>{
+      'flutter3d_game_kit.reactions': 2,
+      'acme_frost': 1,
+    });
+    final manifest = PluginManifest.fromJson(<String, Object?>{
+      'id': 'acme_glow',
+      'apiVersion': '1.0',
+      'dependsOn': <String>[
+        'flutter3d_addon_style.high_contrast ^1.0.0',
+        'acme_frost',
+      ],
+    });
+    expect(manifest.dependsOn, <String>[
+      'flutter3d_post.high_contrast ^1.0.0',
+      'acme_frost',
+    ]);
   });
 
   test('a package named like the engine\'s is a plugin from outside', () {
@@ -253,6 +302,21 @@ void main() {
         if (snapshot.path.endsWith('.api'))
           snapshot.uri.pathSegments.last.replaceAll('.api', ''),
     };
+    // A package that is never published names nobody's namespace: nobody
+    // holds its name on pub.dev. Mutation: count every package with a
+    // snapshot again — `flutter3d_demo_content` comes back.
+    final unpublished = <String>{
+      for (final file in Directory('../../packages').listSync())
+        if (file is Directory &&
+            File('${file.path}/pubspec.yaml').existsSync() &&
+            RegExp(
+              r'^publish_to:\s*none',
+              multiLine: true,
+            ).hasMatch(File('${file.path}/pubspec.yaml').readAsStringSync()))
+          file.uri.pathSegments.lastWhere((s) => s.isNotEmpty),
+    };
+    expect(unpublished, contains('flutter3d_demo_content'));
+    published.removeAll(unpublished);
     expect(published, isNotEmpty);
     expect(released, contains('pointer_lock'));
     expect(

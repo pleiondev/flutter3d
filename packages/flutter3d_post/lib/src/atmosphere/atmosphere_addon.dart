@@ -16,7 +16,7 @@ import 'package:flutter3d_core/flutter3d_core.dart';
 final class FogAddon extends RenderStepAddon {
   const FogAddon()
     : super(
-        id: 'flutter3d_addon_atmosphere.fog',
+        id: 'flutter3d_post.fog',
         provides: const <RenderStep>[RenderStep.fog],
         settings: const <SettingsSlot<Object>>[SettingsSlot.fog],
         description: 'Distance and height fog, mixed in where light is.',
@@ -27,7 +27,7 @@ final class FogAddon extends RenderStepAddon {
 final class VolumetricFogAddon extends RenderStepAddon {
   const VolumetricFogAddon()
     : super(
-        id: 'flutter3d_addon_atmosphere.volumetric_fog',
+        id: 'flutter3d_post.volumetric_fog',
         provides: const <RenderStep>[RenderStep.volumetricFog],
         settings: const <SettingsSlot<Object>>[SettingsSlot.volumetricFog],
         description: 'Fog marched through the light, shadows and all.',
@@ -38,7 +38,7 @@ final class VolumetricFogAddon extends RenderStepAddon {
 final class LightShaftsAddon extends RenderStepAddon {
   const LightShaftsAddon()
     : super(
-        id: 'flutter3d_addon_atmosphere.light_shafts',
+        id: 'flutter3d_post.light_shafts',
         provides: const <RenderStep>[RenderStep.lightShafts],
         settings: const <SettingsSlot<Object>>[SettingsSlot.lightShafts],
         description: 'Shafts of sunlight through the air.',
@@ -63,7 +63,7 @@ bool _skyOn(RenderStepContext context) => context.settings.sky.enabled;
 final class SkyAddon extends RenderStepAddon {
   const SkyAddon()
     : super(
-        id: 'flutter3d_addon_atmosphere.sky',
+        id: 'flutter3d_post.sky',
         adds: const <RenderStep>[skyStep],
         provides: const <RenderStep>[skyStep],
         settings: const <SettingsSlot<Object>>[SettingsSlot.sky],

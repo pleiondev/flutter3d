@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **Breaking: each effect's plugin id is this package's.** `BloomAddon` is
+  `flutter3d_post.bloom`, and so on for all 23, where they were
+  `flutter3d_addon_light.bloom` and the like; the three reflections are
+  `flutter3d_post.screen_space_reflections`, `planar_reflections` and
+  `reflection_probes`, and the grade is `flutter3d_post.color_grade`. A
+  run recorded under the old ids reads as naming the new ones.
 - **Breaking: a family's library does not re-export its settings.**
   `FogSettings`, `BloomSettings`, `MotionBlurSettings`, `ReflectionSettings`,
   `PlanarReflectorNode`, `ReflectionProbeNode`, `AmbientOcclusionSettings`,

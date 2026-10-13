@@ -20,7 +20,7 @@ void main() {
     for (final addon in shadingAddons) {
       final manifest = addon.manifest;
       expect(manifest.idProblem, isNull, reason: manifest.id);
-      expect(manifest.id, startsWith('flutter3d_addon_shading.'));
+      expect(manifest.id, startsWith('flutter3d_post.'));
       expect(manifest.touches, PluginTouches.view, reason: manifest.id);
       expect(manifest.apiVersion, const PluginApiVersion(1, 0));
     }

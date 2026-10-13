@@ -24,7 +24,7 @@ final class SoundtrackPlugin extends Flutter3dPlugin {
   SoundtrackPlugin(
     this.cues, {
     required this.scene,
-    this.id = 'flutter3d_addon_soundtrack',
+    this.id = 'flutter3d_game_kit.soundtrack',
     this.playCorrections = false,
     this.bus,
   });

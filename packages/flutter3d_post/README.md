@@ -33,13 +33,13 @@ the switch of its own render step.
 
 | Plugin | Id | Step | Configured by |
 |---|---|---|---|
-| `BloomAddon` | `flutter3d_addon_light.bloom` | `bloom` | `RenderSettings.bloom` |
-| `LensFlareAddon` | `flutter3d_addon_light.lens_flare` | `lens flare` | `BloomSettings.lensFlare` |
-| `AutoExposureAddon` | `flutter3d_addon_light.auto_exposure` | `auto exposure` | `RenderSettings.autoExposure` |
-| `LocalExposureAddon` | `flutter3d_addon_light.local_exposure` | `local exposure` | `RenderSettings.localExposure` |
-| `ColorGradeAddon` | `flutter3d_addon_light.colour_grade` | `colour grade` | `RenderSettings.look` |
-| `LensDistortionAddon` | `flutter3d_addon_light.lens_distortion` | `lens distortion` | `LookSettings.distortion`, `chromaticAberration` |
-| `VignetteAndGrainAddon` | `flutter3d_addon_light.vignette_and_grain` | `vignette and grain` | `LookSettings.vignette`, `grain` |
+| `BloomAddon` | `flutter3d_post.bloom` | `bloom` | `RenderSettings.bloom` |
+| `LensFlareAddon` | `flutter3d_post.lens_flare` | `lens flare` | `BloomSettings.lensFlare` |
+| `AutoExposureAddon` | `flutter3d_post.auto_exposure` | `auto exposure` | `RenderSettings.autoExposure` |
+| `LocalExposureAddon` | `flutter3d_post.local_exposure` | `local exposure` | `RenderSettings.localExposure` |
+| `ColorGradeAddon` | `flutter3d_post.color_grade` | `color grade` | `RenderSettings.look` |
+| `LensDistortionAddon` | `flutter3d_post.lens_distortion` | `lens distortion` | `LookSettings.distortion`, `chromaticAberration` |
+| `VignetteAndGrainAddon` | `flutter3d_post.vignette_and_grain` | `vignette and grain` | `LookSettings.vignette`, `grain` |
 
 ### Manifest
 
@@ -116,8 +116,8 @@ the switch of its own render step.
 
 | Plugin | Id | Step | Configured by |
 |---|---|---|---|
-| `AmbientOcclusionAddon` | `flutter3d_addon_shading.ambient_occlusion` | `ambient occlusion` | `RenderSettings.ambientOcclusion` |
-| `ContactShadowsAddon` | `flutter3d_addon_shading.contact_shadows` | `contact shadows` | `RenderSettings.contactShadows` |
+| `AmbientOcclusionAddon` | `flutter3d_post.ambient_occlusion` | `ambient occlusion` | `RenderSettings.ambientOcclusion` |
+| `ContactShadowsAddon` | `flutter3d_post.contact_shadows` | `contact shadows` | `RenderSettings.contactShadows` |
 
 ### Manifest
 
@@ -189,9 +189,9 @@ and the switch of its own render step.
 
 | Plugin | Id | Step | Configured by |
 |---|---|---|---|
-| `ReflectionProbesAddon` | `flutter3d_addon_reflections.probes` | `reflection probes` | `RenderSettings.reflectionProbes`, `ReflectionProbeNode` |
-| `PlanarReflectionsAddon` | `flutter3d_addon_reflections.planar` | `planar reflections` | `RenderSettings.planarReflections`, `PlanarReflectorNode` |
-| `ScreenSpaceReflectionsAddon` | `flutter3d_addon_reflections.screen_space` | `reflections` | `RenderSettings.reflections` |
+| `ReflectionProbesAddon` | `flutter3d_post.reflection_probes` | `reflection probes` | `RenderSettings.reflectionProbes`, `ReflectionProbeNode` |
+| `PlanarReflectionsAddon` | `flutter3d_post.planar_reflections` | `planar reflections` | `RenderSettings.planarReflections`, `PlanarReflectorNode` |
+| `ScreenSpaceReflectionsAddon` | `flutter3d_post.screen_space_reflections` | `reflections` | `RenderSettings.reflections` |
 
 ### Manifest
 
@@ -261,10 +261,10 @@ the switch of its own render step.
 
 | Plugin | Id | Step | Configured by |
 |---|---|---|---|
-| `SkyAddon` | `flutter3d_addon_atmosphere.sky` | `sky` (this package's own, `skyStep`) | `RenderSettings.sky` |
-| `FogAddon` | `flutter3d_addon_atmosphere.fog` | `fog` | `RenderSettings.fog` |
-| `VolumetricFogAddon` | `flutter3d_addon_atmosphere.volumetric_fog` | `volumetric fog` | `RenderSettings.volumetricFog` |
-| `LightShaftsAddon` | `flutter3d_addon_atmosphere.light_shafts` | `light shafts` | `RenderSettings.lightShafts` |
+| `SkyAddon` | `flutter3d_post.sky` | `sky` (this package's own, `skyStep`) | `RenderSettings.sky` |
+| `FogAddon` | `flutter3d_post.fog` | `fog` | `RenderSettings.fog` |
+| `VolumetricFogAddon` | `flutter3d_post.volumetric_fog` | `volumetric fog` | `RenderSettings.volumetricFog` |
+| `LightShaftsAddon` | `flutter3d_post.light_shafts` | `light shafts` | `RenderSettings.lightShafts` |
 
 Height fog is part of the fog step: `FogSettings.heightFalloff` thins the
 fog upwards from `baseHeight`. The sky is physical, `PhysicalSky`, unless it
@@ -347,9 +347,9 @@ the switch of its own render step.
 
 | Plugin | Id | Step | Configured by |
 |---|---|---|---|
-| `DepthOfFieldAddon` | `flutter3d_addon_motion.depth_of_field` | `depth of field` | `RenderSettings.depthOfField` |
-| `MotionBlurAddon` | `flutter3d_addon_motion.motion_blur` | `motion blur` | `RenderSettings.motionBlur` |
-| `TemporalAntiAliasingAddon` | `flutter3d_addon_motion.temporal_anti_aliasing` | `temporal anti-aliasing` | `AntiAliasSettings.temporal` |
+| `DepthOfFieldAddon` | `flutter3d_post.depth_of_field` | `depth of field` | `RenderSettings.depthOfField` |
+| `MotionBlurAddon` | `flutter3d_post.motion_blur` | `motion blur` | `RenderSettings.motionBlur` |
+| `TemporalAntiAliasingAddon` | `flutter3d_post.temporal_anti_aliasing` | `temporal anti-aliasing` | `AntiAliasSettings.temporal` |
 
 ### Manifest
 
@@ -422,9 +422,9 @@ the switch of its own render step.
 
 | Plugin | Id | Step | Configured by |
 |---|---|---|---|
-| `HighContrastAddon` | `flutter3d_addon_style.high_contrast` | `high contrast` | `RenderSettings.highContrast` |
-| `OutlinesAddon` | `flutter3d_addon_style.outlines` | `outlines` (this package's own, `outlinesStep`) | `HighContrastSettings.outlineWidth`, `MeshNode.outlineColor` |
-| `ViewportShadingAddon` | `flutter3d_addon_style.viewport_shading` | `viewport shading` | `RenderSettings.viewportShading` |
+| `HighContrastAddon` | `flutter3d_post.high_contrast` | `high contrast` | `RenderSettings.highContrast` |
+| `OutlinesAddon` | `flutter3d_post.outlines` | `outlines` (this package's own, `outlinesStep`) | `HighContrastSettings.outlineWidth`, `MeshNode.outlineColor` |
+| `ViewportShadingAddon` | `flutter3d_post.viewport_shading` | `viewport shading` | `RenderSettings.viewportShading` |
 
 The toon look is not here yet. It is a lighting model a material picks,
 `LightingModel.toon`, and it is compiled into the scene's own stages rather

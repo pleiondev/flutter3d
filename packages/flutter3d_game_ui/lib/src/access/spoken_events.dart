@@ -67,7 +67,7 @@ final class SpokenEvents extends Flutter3dPlugin {
     List<Spoken<BusEvent>> table, {
     Announce? announce,
     this.quietSteps = 60,
-    this.id = 'flutter3d_addon_access.spoken_events',
+    this.id = 'flutter3d_game_ui.spoken_events',
   }) : table = List<Spoken<BusEvent>>.unmodifiable(table),
        _announce = announce ?? announceToImplicitView();
 

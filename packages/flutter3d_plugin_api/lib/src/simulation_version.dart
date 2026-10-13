@@ -4,6 +4,7 @@ library;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show DocumentFormatException;
 
+import 'plugin_ids.dart';
 import 'plugin_version.dart';
 import 'simulation_profile.dart';
 
@@ -297,7 +298,8 @@ final class SimulationVersion {
           json,
         );
       }
-      read[key] = value;
+      // An engine plugin's id from before 1.0 is the plugin of that id now.
+      read[liftPluginId(key)] = value;
     }
     if (others is! Map) {
       throw PluginFormatException(

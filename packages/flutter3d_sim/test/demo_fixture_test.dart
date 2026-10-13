@@ -120,6 +120,48 @@ void main() {
     expect(run.toJson()['version'], 5);
   });
 
+  test('a run that names the engine\'s plugins by their 0.8 add-on ids opens '
+      'on the plugins of today', () {
+    final run = Demo.fromJson(
+      jsonDecode(File('test/fixtures/v5/plugin_ids.f3drun').readAsStringSync())
+          as Map<String, Object?>,
+    );
+    // Mutation: drop the lift from `SimulationVersion.fromJson` — the run
+    // asks for `flutter3d_addon_camera`, which no engine has, and is
+    // refused by one running `flutter3d_camera`.
+    expect(run.simulation!.plugins, <String, int>{
+      'flutter3d_camera': 1,
+      'flutter3d_game_kit.reactions': 2,
+    });
+    final changes = <PluginChange>[
+      for (final change in run.loopChanges)
+        if (change is LoopPluginChange) change.change,
+    ];
+    final set = changes.first as PluginsSet;
+    expect(set.order, <String>[
+      'flutter3d_camera',
+      'flutter3d_game_kit.reactions',
+      'flutter3d_post.bloom',
+    ]);
+    expect(set.enabled, <String>[
+      'flutter3d_camera',
+      'flutter3d_game_kit.reactions',
+    ]);
+    expect((changes.last as PluginEnabled).plugin, 'flutter3d_post.bloom');
+    expect(
+      run.refusalOn(
+        const SimulationVersion(
+          genre: 'shooter',
+          plugins: <String, int>{
+            'flutter3d_camera': 1,
+            'flutter3d_game_kit.reactions': 2,
+          },
+        ),
+      ),
+      isNull,
+    );
+  });
+
   test('every fixture directory is a version this build reads, and every '
       'version has one', () {
     final versions = <int>[

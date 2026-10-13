@@ -15,7 +15,7 @@ import 'package:flutter3d_core/flutter3d_core.dart';
 final class BloomAddon extends RenderStepAddon {
   const BloomAddon()
     : super(
-        id: 'flutter3d_addon_light.bloom',
+        id: 'flutter3d_post.bloom',
         provides: const <RenderStep>[RenderStep.bloom],
         settings: const <SettingsSlot<Object>>[SettingsSlot.bloom],
         description: 'The glow taken from the bright parts of the picture.',
@@ -27,10 +27,10 @@ final class BloomAddon extends RenderStepAddon {
 final class LensFlareAddon extends RenderStepAddon {
   const LensFlareAddon()
     : super(
-        id: 'flutter3d_addon_light.lens_flare',
+        id: 'flutter3d_post.lens_flare',
         provides: const <RenderStep>[RenderStep.lensFlare],
         settings: const <SettingsSlot<Object>>[SettingsSlot.bloom],
-        dependsOn: const <String>['flutter3d_addon_light.bloom'],
+        dependsOn: const <String>['flutter3d_post.bloom'],
         description: 'Ghosts and a halo drawn from the glow.',
       );
 }
@@ -40,7 +40,7 @@ final class LensFlareAddon extends RenderStepAddon {
 final class AutoExposureAddon extends RenderStepAddon {
   const AutoExposureAddon()
     : super(
-        id: 'flutter3d_addon_light.auto_exposure',
+        id: 'flutter3d_post.auto_exposure',
         provides: const <RenderStep>[RenderStep.autoExposure],
         settings: const <SettingsSlot<Object>>[SettingsSlot.autoExposure],
         description: 'The meter that adapts the exposure to the picture.',
@@ -52,7 +52,7 @@ final class AutoExposureAddon extends RenderStepAddon {
 final class LocalExposureAddon extends RenderStepAddon {
   const LocalExposureAddon()
     : super(
-        id: 'flutter3d_addon_light.local_exposure',
+        id: 'flutter3d_post.local_exposure',
         provides: const <RenderStep>[RenderStep.localExposure],
         settings: const <SettingsSlot<Object>>[SettingsSlot.localExposure],
         description: 'Shadows lifted and highlights held, region by region.',
@@ -64,7 +64,7 @@ final class LocalExposureAddon extends RenderStepAddon {
 final class ColorGradeAddon extends RenderStepAddon {
   const ColorGradeAddon()
     : super(
-        id: 'flutter3d_addon_light.colour_grade',
+        id: 'flutter3d_post.color_grade',
         provides: const <RenderStep>[RenderStep.colorGrade],
         settings: const <SettingsSlot<Object>>[SettingsSlot.look],
         description: 'Contrast, saturation, temperature and the colour table.',
@@ -76,7 +76,7 @@ final class ColorGradeAddon extends RenderStepAddon {
 final class LensDistortionAddon extends RenderStepAddon {
   const LensDistortionAddon()
     : super(
-        id: 'flutter3d_addon_light.lens_distortion',
+        id: 'flutter3d_post.lens_distortion',
         provides: const <RenderStep>[RenderStep.lensDistortion],
         settings: const <SettingsSlot<Object>>[SettingsSlot.look],
         description: "The lens's bend and its colour fringes.",
@@ -88,7 +88,7 @@ final class LensDistortionAddon extends RenderStepAddon {
 final class VignetteAndGrainAddon extends RenderStepAddon {
   const VignetteAndGrainAddon()
     : super(
-        id: 'flutter3d_addon_light.vignette_and_grain',
+        id: 'flutter3d_post.vignette_and_grain',
         provides: const <RenderStep>[RenderStep.vignetteAndGrain],
         settings: const <SettingsSlot<Object>>[SettingsSlot.look],
         description: 'The film: a vignette and grain.',
