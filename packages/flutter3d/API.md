@@ -333,7 +333,7 @@ Future<ModelDocument> loadWithBar(
 );
 ```
 
-The schemes The schemes `http`, `https`, `file`, `asset`,
+The schemes `http`, `https`, `file`, `asset`,
 `data`, `blob`, `package`, `hub` and `f3d` are reserved
 (`AssetSources.reservedSchemes`). The build pipeline (`flutter3d_build`,
 `flutter3d_assets.yaml`) is described in

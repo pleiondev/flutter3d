@@ -535,6 +535,21 @@ a shape the engine keeps for later blocks, `F3d…` and `…Info`, which a
 material's own block was never allowed; a block the engine adds in a minor
 is named in that shape, so `uniform(Hair)` stays a material's to use.
 
+### Two languages, two readers
+
+A `.f3dmat` file is read by the material parser (`parseMaterial` in
+`flutter3d_core`), whose version is the file's first line, `f3dmat <N>`.
+Its `compute` kind is not a second compute language: it is sugar for a
+texture computed texel by texel, which `lowerMaterialCompute` writes in the
+kernel language, so it runs wherever a kernel runs and is computed one way.
+A kernel source, a `ComputeStep`'s or a skinning hook's, is read by the
+kernel parser (`ComputeKernel.parse` in `flutter3d_shaders`), whose version
+is the line `kernel <N>`, after the `f3dmat <N>` line where a file has
+both. The kernel parser skips a `material` or `fullscreen` block beside its
+kernels and refuses every other top-level word, naming the material form
+when it meets a material `compute` block. Each language moves its own
+number; neither one's version says anything about the other's.
+
 ### Light codes
 
 The light row the lit stages read (four `vec4`s a light: position and type

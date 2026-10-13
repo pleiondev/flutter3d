@@ -24876,6 +24876,18 @@ entries:
       target still compiles, and reads back as one. Code that read `spec`
       into a `RenderTargetDescriptor` variable declares it a
       `TextureDescriptor`, or tests `is RenderTargetDescriptor`.
+
+  - id: hal-hardware-Trace-formatVersion
+    package: flutter3d_hardware
+    symbol: Trace.formatVersion
+    kind: none
+    reason: >-
+      A trace is version 2 now, which records an attachment's layer, a
+      depth attachment's level, layer, face and read-only flags, and a
+      created texture's whole descriptor. `Trace.decode` still reads version
+      1, lifted unchanged, so a trace kept from before opens as it did and
+      no code has to change.
+
   - id: core-HitResult
     package: flutter3d_core
     symbol: HitResult

@@ -225,7 +225,8 @@ final class ShaderBundle {
   static const String materialSection = 'material';
 
   /// The section every device with compute reads — 1.0: the source of each
-  /// compute kernel written in `.f3dmat compute`, by stage name, as JSON.
+  /// compute kernel in the kernel language (a material's `compute` block
+  /// as it was lowered to it), by stage name, as JSON.
   /// See [encodeKernelSection].
   ///
   /// **One source for every placement.** A kernel runs on the device that
@@ -574,7 +575,7 @@ Map<String, String> decodeMaterialSection(ShaderBundle bundle) =>
 const int kernelSectionVersion = 1;
 
 /// The payload of [ShaderBundle.kernelSection]: each compute kernel's
-/// `.f3dmat compute` source, by stage name — 1.0. The same document as
+/// kernel-language source, by stage name — 1.0. The same document as
 /// [encodeMaterialSection]'s, under a version of its own.
 ByteData encodeKernelSection(Map<String, String> sources) =>
     _encodeSources(kernelSectionVersion, sources);

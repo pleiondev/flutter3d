@@ -104,7 +104,15 @@ final class Trace {
   ///
   /// A bump adds the step that lifts the previous version's header to
   /// [_migrations] and a fixture under `test/fixtures/v<N>/`.
-  static const int formatVersion = 1;
+  ///
+  /// Version 2 records what 1.0's descriptors say: an attachment's `layer`,
+  /// a depth attachment's level, layer, face and read-only flags, and a
+  /// `createTexture` of any `TextureDescriptor` (marked `texture: true`, with
+  /// its dimension, layers, levels, usage and label). Each key is written
+  /// only when it is not its default, so a version 1 header is a version 2
+  /// header that sets none of them; a version 1 reader would have dropped
+  /// them and replayed a different frame, which is why the number moved.
+  static const int formatVersion = 2;
 
   /// `.f3dtrace` for a `FormatRegistry`.
   ///
@@ -121,9 +129,14 @@ final class Trace {
   );
 
   /// Entry `i` lifts a header from version `i + 1` to `i + 2`, so a file of
-  /// version `v` runs every step from `v - 1` on. Empty while version 1 is the
-  /// only one: reading it is the identity.
-  static const List<_TraceMigration> _migrations = <_TraceMigration>[];
+  /// version `v` runs every step from `v - 1` on.
+  static const List<_TraceMigration> _migrations = <_TraceMigration>[_liftV1];
+
+  /// Version 1 to 2: nothing to rewrite. Every key version 2 added is
+  /// absent from a version 1 header, and absent reads as the default a
+  /// version 1 recorder always meant: layer zero, a writable depth at level
+  /// zero, and a `createTexture` that is a pool's 2D target.
+  static Map<String, Object?> _liftV1(Map<String, Object?> header) => header;
 
   /// The `.f3dtrace` bytes.
   Uint8List encode() {

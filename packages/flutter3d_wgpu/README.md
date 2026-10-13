@@ -14,7 +14,7 @@ await myComputeStep.prepare(executors);
 
 ## The same kernels, the same bytes
 
-A kernel is written once, in `.f3dmat compute`, and travels in a shader bundle's kernel section. The sidecar loads it as WebGPU does: translated to WGSL by `flutter3d_shaders`, then compiled by wgpu. The four kernels of the conformance suite (a prefix sum, a particle step, a skinning pass and a blur from a texture into a storage texture) give the bytes the CPU gives on it; `test/sidecar_test.dart` runs them against the device.
+A kernel is written once, in the kernel language (`kernel <N>`; a material's `compute` block is lowered to it), and travels in a shader bundle's kernel section. The sidecar loads it as WebGPU does: translated to WGSL by `flutter3d_shaders`, then compiled by wgpu. The four kernels of the conformance suite (a prefix sum, a particle step, a skinning pass and a blur from a texture into a storage texture) give the bytes the CPU gives on it; `test/sidecar_test.dart` runs them against the device.
 
 That holds because the WGSL rounds every f32 sum, difference and product where the source rounds it. Metal's compiler fuses a multiply into the add beside it and reorders sums, and before the rounding the particle step came out one ulp off in eight values of sixteen hundred.
 

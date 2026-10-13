@@ -1868,7 +1868,7 @@ final class Trace
   final List<TraceEvent> events
   final Map<String, Object?> metadata
   static const FormatSpec format = …
-  static const int formatVersion = 1
+  static const int formatVersion = 2
 
 final class TraceBeginComputePass extends TraceEvent
   Map<String, Object?> toJson(TraceBlobWriter blob)

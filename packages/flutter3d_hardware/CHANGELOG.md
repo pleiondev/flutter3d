@@ -25,6 +25,11 @@
   texture of any shape is recorded with its dimension, layers, levels,
   usage and label, and a pool's target still reads back as a
   `RenderTargetDescriptor`. A trace without the new keys reads as it did.
+- **`.f3dtrace` is format version 2.** The keys above change what a replay
+  draws, so a trace that carries them says a version an older reader
+  refuses rather than replays wrong. A version 1 trace is lifted unchanged
+  (absent keys read as their defaults); `test/fixtures/v2/frame.f3dtrace`
+  holds a layered pass, a read-only depth and an array texture.
 - **Breaking: `StencilFace` is gone.** No member of the HAL took it; which
   face a stencil state is for is `PassEncoder.setStencil`'s two parameters.
 - **A pass over the attachment limit is a `DeviceResourceException`**

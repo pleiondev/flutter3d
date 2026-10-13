@@ -353,7 +353,10 @@ author meets:
   `WasmInstance.restore(state)` takes its own saved state; a later shape is
   told apart by the version saved beside it, never by a second parameter.
 - **I/O seams take their path.** `PluginSource.read(path)` and
-  `AssetSourceFactory(path)` stay in the shape of the call they wrap.
+  `AssetSourceFactory(path)` stay in the shape of the call they wrap. The
+  source a factory makes reads through `AssetSource.read(AssetRead)`: one
+  request (`onProgress`, `cancel`, `range`) that a minor can add to, which
+  a source that cannot report, stop or read a range ignores.
 - **What the engine implements is not a hook.** `AssimilationContext`,
   `SubsystemContext`, `FieldRegistry`, `SnapshotRegistry`, `SimQuery`,
   `DataSectionContext` and `EventDigestSink` are made by the engine and

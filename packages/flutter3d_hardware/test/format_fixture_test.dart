@@ -22,6 +22,13 @@ import 'package:test/test.dart';
 Uint8List _bytes(String name, int version) =>
     File('test/fixtures/v$version/$name').readAsBytesSync();
 
+/// A copy of the trace [bytes] whose version word says [version].
+Uint8List _withVersion(Uint8List bytes, int version) {
+  final copy = Uint8List.fromList(bytes);
+  ByteData.sublistView(copy).setUint32(8, version, Endian.little);
+  return copy;
+}
+
 /// The offset just past the first occurrence of [text] in [bytes]: where a
 /// stage's kind byte sits after its name.
 int _indexAfter(Uint8List bytes, String text) {
@@ -52,6 +59,43 @@ void main() {
       expect((trace.events[2] as TraceDraw).instanceCount, 2);
       final shaders = trace.events[1] as TraceLoadShaders;
       expect(ascii.decode(shaders.bytes.buffer.asUint8List()), 'F3SB');
+    });
+
+    test('the version 2 fixture keeps the layer, the depth and the shape', () {
+      final trace = Trace.decode(_bytes('frame.f3dtrace', 2));
+
+      // Mutation: drop the `layer` key from the reader, or read a created
+      // texture as a pool's target, and the replay draws a different frame.
+      final created = trace.events.whereType<TraceCreateTexture>().toList();
+      expect(created.first.spec.dimension, TextureDimension.d2Array);
+      expect(created.first.spec.depthOrArrayLayers, 2);
+      expect(created.first.spec.label, 'layers');
+      expect(created.last.spec, isA<RenderTargetDescriptor>());
+      final pass = trace.events.whereType<TraceBeginRenderPass>().single;
+      expect(pass.colors.single.layer, 1);
+      expect(pass.depth!.depthReadOnly, isTrue);
+      expect(pass.depth!.loadAction, LoadAction.load);
+    });
+
+    test('a version 1 header is lifted unchanged', () {
+      // Version 2 only added keys a version 1 header lacks, so the lift
+      // rewrites nothing: the same header read as either version is the
+      // same frame. Mutation: a lift that filled or dropped a key.
+      final v2 = _bytes('frame.f3dtrace', 2);
+      expect(
+        Trace(Trace.decode(_withVersion(v2, 1)).events).encode(),
+        Trace(Trace.decode(v2).events).encode(),
+      );
+    });
+
+    test('a trace newer than this build is refused', () {
+      // Mutation: drop the upper bound and a future trace half-replays.
+      expect(
+        () => Trace.decode(
+          _withVersion(_bytes('frame.f3dtrace', 2), Trace.formatVersion + 1),
+        ),
+        throwsA(isA<TraceFormatException>()),
+      );
     });
 
     test('every version up to this build has a fixture', () {

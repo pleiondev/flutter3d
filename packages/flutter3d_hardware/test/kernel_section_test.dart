@@ -1,4 +1,4 @@
-// The kernel section: each compute kernel's `.f3dmat compute` source by
+// The kernel section: each compute kernel's kernel-language source by
 // stage name, in a bundle every device with compute reads.
 import 'dart:convert';
 import 'dart:typed_data';

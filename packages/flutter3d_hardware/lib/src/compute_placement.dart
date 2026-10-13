@@ -5,7 +5,8 @@
 /// device beside it (`flutter3d_wgpu`'s sidecar over wgpu-native), or on the
 /// CPU. Each is a [GraphicsDevice] with `DeviceFeature.compute`, so a step
 /// is encoded the same way wherever it lands, and its kernel, written once
-/// in `.f3dmat compute`, is loaded on whichever it is through the bundle's
+/// in the kernel language (`kernel <N>`; a material's `compute` block is
+/// lowered to it), is loaded on whichever it is through the bundle's
 /// kernel section. This file names the three and decides between them; the
 /// frame graph's `ComputeStep` asks it.
 library;

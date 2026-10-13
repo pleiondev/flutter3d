@@ -276,12 +276,13 @@ void main() {
       );
     });
 
-    test('the container stays at the version three backends already read', () {
-      // The lever the section's own version exists to avoid pulling: raising
-      // `ShaderBundle.formatVersion` would refuse every bundle in existence to
-      // Impeller, WebGL2 and the software rasteriser, none of which can see
-      // this section at all.
-      expect(ShaderBundle.formatVersion, 1);
+    test('a newer section leaves the container version where it is', () {
+      // The lever the section's own version exists to avoid pulling: the
+      // container moves only for its own shape (version 2 wrote each
+      // stage's kind), never for this section, which Impeller, WebGL2 and
+      // the software rasteriser cannot see at all. The refusal names the
+      // container's version as it stands, version 2.
+      expect(ShaderBundle.formatVersion, 2);
       final refused = () {
         try {
           WebGpuLoadedShaderLibrary.load(
@@ -294,7 +295,7 @@ void main() {
         return null;
       }();
       expect(refused, isNotNull);
-      expect(refused!.reason, contains('format version 1'));
+      expect(refused!.reason, contains('format version 2'));
     });
 
     test('a reload of an unknown shape leaves the library as it was', () {

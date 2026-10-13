@@ -23,7 +23,8 @@ import 'package:flutter3d_shaders/kernel.dart';
 
 import '../flutter3d_conformance.dart';
 
-/// The four kernels, as one `.f3dmat compute` file.
+/// The four kernels, as one source in the kernel language, which
+/// `ComputeKernel.parseAll` reads.
 const String conformanceKernels = r'''
 // The four kernels conformance holds every compute placement to.
 

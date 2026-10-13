@@ -257,17 +257,12 @@ void main() {
         () => pass.setPolygonMode(PolygonMode.line),
         _refusing(DeviceFeature.wireframe),
       );
-      // A clamp is the one part of depth bias GL cannot do. Refused, and
-      // not as a missing feature: the device has depth bias.
+      // A clamp is the one part of depth bias GL cannot do. Refused by its
+      // own feature, `depthBiasClamp`, which this device does not list,
+      // and not as depth bias: the device has that.
       expect(
         () => pass.setDepthBias(const DepthBias(constant: 1, clamp: 0.5)),
-        throwsA(
-          isA<UnsupportedError>().having(
-            (UnsupportedError e) => e is UnsupportedCapabilityException,
-            'a capability refusal',
-            isFalse,
-          ),
-        ),
+        _refusing(DeviceFeature.depthBiasClamp),
       );
       pass
         ..setDepthBias(const DepthBias(constant: 1, slopeScale: 1))

@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 7779a8f3980226e2
+# table-stamp: 6301c73b5ce779cc
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -19,7 +19,7 @@ transforms:
   - title: 'flutter3d 1.0.0-rc.1: hardware-TextureBlockLayout (TextureBlockLayout)'
     date: 2026-10-08
     element:
-      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      uris: ['package:flutter3d_core/flutter3d_core.dart']
       class: 'TextureBlockLayout'
     changes:
       - kind: 'replacedBy'
