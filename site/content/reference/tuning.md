@@ -78,6 +78,8 @@ A weapon is a `WeaponDef`, and a game's arsenal is a list of them. The five it i
 The shipped shotgun, from `flutter3d_game_shooter`'s sample arsenal:
 
 ```dart
+import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
+
 const WeaponDef(
   name: 'Shotgun',
   behavior: HitscanBehavior(),   // or MeleeBehavior, or ProjectileBehavior

@@ -47,9 +47,11 @@ const List<String> _siteDefault = <String>[
 /// Flutter's widgets, which a snippet takes for granted.
 const List<String> _always = <String>[
   "import 'dart:async';",
+  "import 'dart:io';",
   "import 'dart:math';",
   "import 'dart:typed_data';",
-  "import 'package:flutter/widgets.dart';",
+  // vector_math's `Matrix4` is the engine's; Flutter's is vector_math_64's.
+  "import 'package:flutter/widgets.dart' hide Matrix4;",
   "import 'package:vector_math/vector_math.dart';",
 ];
 
@@ -99,7 +101,17 @@ Future<void> main(List<String> args) async {
       listed.any(hasMain)
           ? listed
           : package != null
-          ? <String>[package, 'flutter3d', 'flutter3d_app', 'flutter3d_game']
+          ? <String>[
+              package,
+              // The packages its own pubspec depends on: what its API is
+              // written over, and what its README's reader has with it.
+              ...declaredDependencies(
+                '```yaml\n${File('${packages[package]!.path}/pubspec.yaml').readAsStringSync()}```\n',
+              ),
+              'flutter3d',
+              'flutter3d_app',
+              'flutter3d_game',
+            ]
           : <String>[..._siteDefault, ...?_sectionKits[section]],
     );
     final blocks = docBlocksOf(text, fallback: fallback);
@@ -199,8 +211,21 @@ Set<String> _apiFunctions(Directory root, Map<String, Directory> packages) {
         continue;
       }
       if (RegExp(r'^(library|export) ').hasMatch(line)) continue;
-      final bare = line.replaceAll(RegExp(r'<[^<>]*>'), '');
-      final m = RegExp(r'([a-z_$][\w$]*)\s*(?:\(| =|$)').firstMatch(bare);
+      // A type's header names no function.
+      if (RegExp(
+        r'^(?:@\S+\s+)*(?:[a-z]+\s+)*(?:class|enum|mixin|typedef|extension)\s',
+      ).hasMatch(line)) {
+        continue;
+      }
+      var bare = line;
+      while (bare.contains('<')) {
+        final next = bare.replaceAll(RegExp(r'<[^<>]*>'), '');
+        if (next == bare) break;
+        bare = next;
+      }
+      final m = RegExp(
+        r'(?<![\w$])([a-z_$][\w$]*)\s*(?:\(| =|$)',
+      ).firstMatch(bare);
       if (m != null) out.add(m.group(1)!);
     }
   }

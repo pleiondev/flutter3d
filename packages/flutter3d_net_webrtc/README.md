@@ -17,5 +17,12 @@ import 'package:flutter3d_net_webrtc/flutter3d_net_webrtc.dart';
 // Whoever created the room offers; the one who joined answers — both take
 // the signaling transport (net-02's relay) that carries the handshake.
 final transport = await WebRtcTransport.openOffering(signallingTransport);
-final session = RollbackSession(wire: transport, /* captureLocalFrame, ... */);
+// The game's own step, as any rollback session takes it.
+final session = RollbackSession(
+  wire: transport,
+  captureLocalFrame: captureLocalFrame,
+  applyAndStep: applyAndStep,
+  save: save,
+  restore: restore,
+);
 ```

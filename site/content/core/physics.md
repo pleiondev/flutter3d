@@ -77,7 +77,7 @@ if (world.raycast(origin, direction, 30.0, ray, mask: CollisionLayers.world)) {
   // ray.collider, ray.point, ray.normal, ray.distance
 }
 
-world.overlap(shape, position, nearby, mask: CollisionLayers.monster);
+world.overlap(shape, position, nearby, mask: CollisionLayers.actor);
 
 // Pushes a box out of whatever it ended up inside; `out` is the correction.
 world.depenetrate(center, halfExtents, out);
@@ -216,6 +216,8 @@ Bodies sleep when they stop, and wake when something touches them. A `Physical` 
 Everything on this page has two implementations: the Dart reference in `flutter3d_physics`, and the C core in `flutter3d_physics_native`, which is an FFI library natively and a WebAssembly module in the browser. A run uses one of them for everything — bodies, character moves, rays — and picks it once:
 
 ```dart
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await preparePhysics();       // fetches the module in a browser
@@ -224,6 +226,14 @@ Future<void> main() async {
 
 // later, wherever a world is staged
 final dynamics = usePhysics().dynamics(DynamicsRequest(world));
+
+// The game's root widget.
+class MyGame extends StatelessWidget {
+  const MyGame({super.key});
+
+  @override
+  Widget build(BuildContext context) => const SizedBox();
+}
 ```
 
 The core is the default. The reference runs when the build asks for it with `--dart-define=FLUTTER3D_PHYSICS=dart`, or when the core will not start: a missing library, a module that did not load, or bindings for another ABI. In that case `physicsFallbackReason` says what happened, and the game keeps running.

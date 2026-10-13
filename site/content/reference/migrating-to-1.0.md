@@ -96,12 +96,14 @@ them in bulk, which is why step 5 above exists.
 phases, and plugins add theirs to the same loop. The change is a shape
 rather than a rename, so no tool makes it for you:
 
-```dart
+```dart fragment
 // 0.8
 final loop = GameLoop(input: input, onStep: (dt) => world.step(dt));
 // every frame:
 loop.advance(dt);
+```
 
+```dart
 // 1.0
 final loop = EngineLoop(input: input)
   ..addSystem('world', LoopPhase.physics, (ctx) => world.step(ctx.dt));

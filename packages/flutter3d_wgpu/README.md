@@ -5,6 +5,10 @@ The compute sidecar of flutter3d: a `GraphicsDevice` that computes and draws not
 A frame's compute step runs where the frame can run it. The device that draws comes first, when it has compute (WebGPU does; Impeller will when flutter_gpu has compute pipelines). This package is second: a GPU beside the drawing device, on every native target. The CPU is last, through `flutter3d_cpu`. The order is `ComputeExecutors` in `flutter3d_hardware`, and a frame-graph `ComputeStep` in `flutter3d_core` is placed by it.
 
 ```dart
+import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_wgpu/flutter3d_wgpu.dart';
+
 final registry = DeviceRegistry<Object>();
 registerWgpuSidecar(registry); // ComputePlacement.sidecar
 registerCpuBackend(registry); // ComputePlacement.cpu, and the fallback backend

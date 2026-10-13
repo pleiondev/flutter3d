@@ -104,6 +104,10 @@ A pistol keeps most of its damage to 70 m; a shotgun is down to a fifth of it by
 ## The arsenal
 
 ```dart
+// `Weapons` and `Monsters` are the dungeon's own roster, from the repository's
+// unpublished `flutter3d_demo_content`; a game writes its own the same way.
+import 'package:flutter3d_demo_content/shooter_sample.dart';
+
 final arsenal = Arsenal(
   slots: Weapons.all,                             // slot n is all[n]
   owned: <WeaponDef>[Weapons.fists, Weapons.pistol],

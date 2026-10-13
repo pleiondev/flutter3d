@@ -71,7 +71,7 @@ final RegExp _fence = RegExp(
   dotAll: true,
 );
 final RegExp _import = RegExp(
-  r"^[ \t]*import\s+'[^']+'[^;]*;[ \t]*$",
+  r"^[ \t]*import\s+'[^']+'[^;]*;[ \t]*(?://[^\n]*)?$",
   multiLine: true,
 );
 
@@ -184,6 +184,8 @@ const Set<String> resolutionCodes = <String>{
   'NEW_WITH_UNDEFINED_CONSTRUCTOR',
   'NEW_WITH_UNDEFINED_CONSTRUCTOR_DEFAULT',
   'NON_ABSTRACT_CLASS_INHERITS_ABSTRACT_MEMBER',
+  'NON_TYPE_AS_TYPE_ARGUMENT',
+  'NON_TYPE_IN_CATCH_CLAUSE',
   'NOT_A_TYPE',
   'NOT_ENOUGH_POSITIONAL_ARGUMENTS',
   'SUBTYPE_OF_FINAL_IS_NOT_BASE_FINAL_OR_SEALED',
@@ -241,6 +243,8 @@ List<DocFinding> findingsIn(
       'UNDEFINED_CLASS',
       'NOT_A_TYPE',
       'CREATION_WITH_NON_TYPE',
+      'NON_TYPE_AS_TYPE_ARGUMENT',
+      'NON_TYPE_IN_CATCH_CLAUSE',
     }.contains(code);
     if (undefinedName) {
       final lower = name.isNotEmpty && name[0] == name[0].toLowerCase();

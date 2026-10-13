@@ -62,7 +62,7 @@ final camera = CameraNode(
 ### Orbit camera
 
 ```dart
-final orbit = OrbitController(node: camera, distance: 6.0)
+final orbit = OrbitController(camera, distance: 6.0)
   ..rotate(dx * 0.005, dy * 0.005)
   ..zoom(1.1)
   ..pan(dx, dy, viewportHeight: size.height)
@@ -78,7 +78,7 @@ Up to **eight** lights of any type, packed into `vec4[8]` uniform arrays with th
 ```dart
 scene.add(LightNode(
   type: LightType.spot,
-  color: Vector3(1.0, 0.86, 0.7),
+  color: const LinearColor(1.0, 0.86, 0.7),
   intensity: 69500.0,          // candela, for a camera exposed for daylight
   range: 14.0,                 // glTF's range window
   innerConeAngle: 0.25,

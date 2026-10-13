@@ -12,13 +12,22 @@ River Sortie (`apps/flutter3d_demo_river`) is a Flame game from end to end:
 Flame's components, collisions and instrument panel, drawn in 3D by flutter3d.
 
 ```dart
+import 'package:flame/components.dart';
+import 'package:flame/game.dart';
+import 'package:flame_flutter3d/flame_flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart';
+
 class MyGame extends FlameGame with HasFlutter3d {
-  late final JetComponent jet;
+  late final Object3dComponent jet;
 
   @override
   void onOpen3d() {
     scene.add(LightNode(name: 'sun'));
-    jet = JetComponent(node: SceneNode(), scene: scene);
+    jet = Object3dComponent(
+      node: SceneNode(),
+      scene: scene,
+      plane: BridgePlane.ground(),
+    );
     add(jet);
     add(FlameChaseCameraComponent(FlameChaseCamera(
       camera: camera3d,

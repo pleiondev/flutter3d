@@ -11,26 +11,27 @@ It is plain Dart, with no Flutter anywhere, and a scan says so. The devices stay
 ## The fixed step
 
 ```dart
-final loop = GameLoop(
-  input: input,
-  onStep: (double dt) => simulation.step(dt),
-  drainLook: devices.drainLook,
-);
+final loop = EngineLoop(input: input, drainLook: devices.drainLook)
+  ..addSystem(
+    'simulation',
+    LoopPhase.physics,
+    (LoopContext context) => simulation.step(context.dt),
+  );
 
 // Once a frame, from a Ticker.
-loop.paused = !devices.isCaptured;
-final steps = loop.advance(dt.clamp(0.0, 0.25));
+loop.isPaused = !devices.isCaptured;
+final steps = loop.frame(dt);
 
 // Draw at the interpolated position, not the last stepped one.
 drawnAt.read(loop.alpha, out);
 ```
 
-`FixedStep` accumulates real time and hands out whole steps, capped by `maxStepsPerFrame` so a stall does not turn into a spiral of death. `loop.alpha` is the fraction between the last two steps.
+`EngineLoop` accumulates real time and hands out whole steps, each running the systems of every step phase in order. A frame longer than `longestFrame` (a quarter of a second) counts as that long, and `catchUp` caps the steps one frame may run (`CatchUp.announce`, five by default) so a stall does not turn into a spiral of death. `loop.alpha` is the fraction between the last two steps.
 
 ```mermaid
 flowchart LR
-  tick["Ticker: dt"] --> acc["FixedStep.advance(dt)"]
-  acc -->|"0..n whole steps"| step["onStep(1/60)"]
+  tick["Ticker: dt"] --> acc["EngineLoop.frame(dt)"]
+  acc -->|"0..n whole steps"| step["systems, dt = 1/60"]
   step --> sim["simulation"]
   acc -->|"alpha 0..1"| interp["InterpolatedVector3.read(alpha)"]
   interp --> draw["what gets drawn"]
@@ -40,7 +41,7 @@ flowchart LR
 <p>Interpolation is not polish. The step is 60 Hz and the display may not be; a body drawn at the last step's position judders on a 120 Hz monitor even though the simulation is perfectly smooth. <code>InterpolatedVector3</code> and <code>InterpolatedAngle</code> hold the previous and current value and read between them, and <code>jumpTo</code> exists for a teleport, because easing from where somebody died to where they respawned is a second of the level flying past for no reason.</p>
 </div>
 
-After loading a level, call `loop.clock.reset()`. Loading blocked the ticker for a couple of seconds and all of that time is sitting in the accumulator; none of it happened in the game, so it is dropped rather than simulated.
+After loading a level, call `loop.resetClock()`. Loading blocked the ticker for a couple of seconds and all of that time is sitting in the accumulator; none of it happened in the game, so it is dropped rather than simulated.
 
 ## Input
 
@@ -49,7 +50,7 @@ After loading a level, call `loop.clock.reset()`. Loading blocked the ticker for
 ```dart
 input.held(GameAction.moveForward);   // is it down now
 input.pressed(GameAction.jump);       // did it go down this step — latched
-input.released(GameAction.fire);
+input.released(GameAction.use);
 input.moveAxis;                       // combined WASD / stick, normalised
 input.lookDelta;                      // mouse or right stick
 ```
@@ -57,6 +58,10 @@ input.lookDelta;                      // mouse or right stick
 Latched edges are the point: a press that happens between two steps must still be seen by the step that follows, or a jump gets swallowed at a low frame rate. `endStep()` clears the latches.
 
 ```dart
+import 'package:flutter/services.dart';
+import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+
 final actions = DesktopInput.addDefaultsTo(ActionMap(actions: ActionSet.common));
 actions.buttons.bind(InputSource.key(LogicalKeyboardKey.controlLeft.keyId),
     PlatformerActions.dropThrough);
@@ -132,11 +137,14 @@ The snapshot carries the holes, six numbers each, and restoring replays them ont
 There is **no ready-made registry**, and that is deliberate. There was one, and it listed fourteen kinds, a spawn point, three movers, a button, a trigger, a note, an exit, a monster, a pickup, a key and three lamps. A second game loading a level got every one of them.
 
 ```dart
+import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
+
 final kinds = EntityRegistry(<EntityKind>[
   const PlayerSpawnKind(),
   const DoorKind(),
   MonsterKind(myMonsters),   // only if this game has monsters
-  MyOwnKind(),               // and whatever it invents
+  const TurretKind(),        // and whatever it invents, written below
 ]);
 ```
 
@@ -149,14 +157,27 @@ final class TurretKind extends EntityKind {
   @override
   void validate(EntityCheck check) {
     requireText(check.entity, check.scope, check.out, 'facing');
-    requireTarget(check.entity, check.scope, check.out, 'shootsAt');
+    // What it shoots at: the entity its `target` names.
+    requireTarget(check.entity, check.scope, check.out);
   }
 
   @override
   void spawn(EntitySpawn spawn) {
     final EntitySpawn(:entity, :context) = spawn;
-    final collider = place(entity, context, size: Vector3(1, 2, 1));
-    context.actors.spawn(position: entity.position, brain: TurretBrain());
+    place(
+      entity,
+      context,
+      kind: ColliderKind.static,
+      fallbackSize: Vector3(1, 2, 1),
+    );
+    context.actors.spawn(name: entity.name, brain: TurretBrain());
+  }
+}
+
+final class TurretBrain extends Brain {
+  @override
+  void think(Mind it) {
+    // Turn toward the target, and fire once it is in sight.
   }
 }
 ```
@@ -325,8 +346,15 @@ Walls are the cells the walk could not enter, not the cells nobody can stand in;
 It was accepted for one reason: replication. A snapshot with delta compression needs state enumerable in one place, and a hand-written `save()` enumerates it a line per subsystem, so it will silently miss the next one added.
 
 ```dart
+import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
+
 final entities = EcsWorld();
-final actors = ActorSystem(world: collision, entities: entities);
+final actors = ActorSystem(
+  world: collision,
+  random: GameRandom(seed),
+  entities: entities,
+);
 final projectiles = ProjectileSystem(world: collision, entities: entities);
 
 final data = entities.save();   // refuses a component type nobody registered
@@ -361,12 +389,22 @@ A demo is a save plus a tape. `Demo` is a level name, the `Snapshot` a run start
 ```dart
 final recorder = InputTapeRecorder(seed: seed);
 loop.recorders.add(recorder);              // written as each step is taken
+final checkpoints = DigestTrace();         // the world's digest every 25 steps
 
 // When the run ends, either way.
-demos.write(Demo(level: levelName, start: startSnapshot, tape: recorder.tape));
+demos.write(
+  Demo(
+    level: levelName,
+    levelHash: level.digestHex,            // refused on a level edited since
+    start: startSnapshot,
+    tape: recorder.tape,
+    buildStamp: buildStamp,
+    checkpoints: checkpoints,              // where a replay first parts
+  ),
+);
 ```
 
-`GameLoop.recorders` is a list, so a demo recorder and a rewind buffer can both listen. The dungeon records every run and writes the last one as `demo.json` through `DemoFile` when it ends, so the file that reproduces a bug exists before anybody thinks to ask for it.
+`EngineLoop.recorders` is a list, so a demo recorder and a rewind buffer can both listen. The dungeon records every run and writes the last one as `demo.json` through `DemoFile` when it ends, so the file that reproduces a bug exists before anybody thinks to ask for it.
 
 <div class="why">
 <p>A test plays six hundred steps of the shipped crypt through the document as a string and back, and holds the two snapshots byte-equal. It found the tape dropping weapon-slot requests on its first run: positions, dice and a dead monster all agreed, and the replay arrived holding the pistol where the player had switched to the shotgun.</p>

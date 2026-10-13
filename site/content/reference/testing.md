@@ -93,6 +93,8 @@ Zero differing pixels is the right bar for a frame that should not move. It is t
 `flutter3d_testing` answers that with FLIP. `flip` compares two 8-bit sRGB frames and `flipLinear` two in linear light; both return a `FlipResult` holding the per-pixel error map and its mean, where 0 is identical and 1 is as different as green is from blue. It is LDR-FLIP (Andersson et al., HPG 2020) ported line for line from the reference implementation, so a value here is the value there, and a test holds it to the error maps that implementation publishes. The viewing condition defaults to `defaultFlipPpd`, about 67 pixels per degree.
 
 ```dart
+import 'package:flutter3d_testing/flutter3d_testing.dart';
+
 await expectMatchesGolden(frame, 'test/goldens/half_scale.png', flipBudget: 0.02);
 ```
 
@@ -163,7 +165,10 @@ What this settles: a run submitted to a server can be replayed bit for bit on a 
 
 The same tape is also the cheapest regression test a game can have. Play a level once with the recorder on, commit the `.f3drun`, and `testReplay` in `flutter3d_testing` plays it back on the software backend in CI:
 
-```dart
+```dart fragment
+import 'package:flutter3d_testing/flutter3d_testing.dart';
+
+// `Ascent` is the platformer demo's own game.
 void main() {
   testReplay(
     'test/tapes/ascent.f3drun',
@@ -195,8 +200,10 @@ Everything except the Impeller goldens. In practice that means:
 Two packages carry a `lib/testing.dart`. It is a separate library, so nothing a consumer builds pulls it in, and it is importable, which a `test/` directory is not:
 
 ```dart
-import 'package:flutter3d_hardware/testing.dart';  // FakeBackend
-import 'package:flutter3d_cpu/testing.dart';       // cpuTestDevice
+// FakeBackend:
+import 'package:flutter3d_hardware/testing.dart';
+// cpuTestDevice:
+import 'package:flutter3d_cpu/testing.dart';
 ```
 
 The repository's own hygiene checks, `soundTableIn` (a sound bank against its source) and `creditGaps` (credits against the shipped models), were in `flutter3d_audio` and `flutter3d_game` until 1.0. They check this repository's demo games rather than anything a game of yours needs, so they moved to `package:flutter3d_demo_content/repo_checks.dart`, which is not published.
@@ -215,6 +222,9 @@ The repository's own hygiene checks, `soundTableIn` (a sound bank against its so
 The most valuable test in either game is the one that plays it.
 
 ```dart
+import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
+import 'package:flutter_test/flutter_test.dart';
+
 test('the crypt can be finished', () {
   final game = loadCrypt();
   for (final (action, steps) in route) {

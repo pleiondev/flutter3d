@@ -56,7 +56,7 @@ flowchart TB
 
 Every backend opens the same way: asynchronously, at the size of the surface it starts with.
 
-```dart
+```dart fragment
 final class VulkanDevice extends GraphicsDevice {
   static Future<VulkanDevice> open({required int width, required int height}) async {
     // ... create the instance, the device, the queue
@@ -69,6 +69,9 @@ That shape is `BackendOpener`, and it is the only one the engine knows. `DeviceR
 Your package adds itself to an engine's registry with a function of its own, which an application calls:
 
 ```dart
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_shaders/backend.dart';
+
 Registration registerVulkanBackend(
   DeviceRegistry<Object> registry, {
   MaterialCompilerRegistry? compilers,
@@ -232,6 +235,8 @@ The device factory is called **fresh for each check** and the device disposed af
 `flutter3d_testing` draws the engine's frames on the software rasteriser by default, and on any device you name:
 
 ```dart
+import 'package:flutter3d_testing/flutter3d_testing.dart';
+
 final frame = await renderFrame(
   width: 320,
   height: 180,

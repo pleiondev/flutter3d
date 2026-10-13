@@ -122,13 +122,13 @@ Generated with Lengyel's method where a mesh has none, taken analytically where 
 
 ## Materials
 
-A `Material` is a pipeline selection plus its parameters. Changing `lighting` changes the shader, and therefore where the draw lands in the sort.
+A `RenderMaterial` is a pipeline selection plus its parameters. Changing `lighting` changes the shader, and therefore where the draw lands in the sort.
 
 ```dart
-final material = Material(
+final material = RenderMaterial(
   name: 'stone',
   lighting: LightingModel.pbr,
-  baseColor: Vector4(1, 1, 1, 1),
+  baseColor: LinearColor.white,
   metallic: 0.0,
   roughness: 1.0,
   albedo: albedoTexture,
@@ -138,7 +138,7 @@ final material = Material(
   occlusion: ormTexture,
   occlusionStrength: 1.0,
   emissiveTexture: emissive,
-  emissive: Vector3(0.9, 0.5, 0.2),
+  emissive: const LinearColor(0.9, 0.5, 0.2),
   emissiveStrength: 2.0,
   alphaMode: MaterialAlphaMode.mask,
   alphaCutoff: 0.5,

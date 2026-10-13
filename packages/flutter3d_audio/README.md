@@ -24,6 +24,17 @@ second backend, not an edit to this one.
 ## Shape
 
 ```dart
+// The game's own sounds.
+abstract final class Sounds {
+  static const pistol = SoundDef(name: 'pistol', asset: 'audio/pistol.ogg');
+  static const door = SoundDef(name: 'door', asset: 'audio/door.ogg');
+  static const torch = SoundDef(
+    name: 'torch',
+    asset: 'audio/torch.ogg',
+    loop: true,
+  );
+}
+
 final scene = AudioScene(
   backend: SoLoudBackend()..open(),
   maxVoices: 24,

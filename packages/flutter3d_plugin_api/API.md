@@ -648,6 +648,8 @@ plugin's quantity readable by any `Probe` that names it: the loop asks the
 makes one.
 
 ```dart
+import 'package:flutter3d_sim/flutter3d_sim.dart';
+
 host.registry<ProbeSamplers>().add(
   'haze.density',
   ProbeSampler.of(
@@ -1003,6 +1005,10 @@ own, one another owner registered, naming it. `EditorPanels.addPanel(EditorPanel
 `run(command)`, `say(sentence)`.
 
 ```dart
+import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
+import 'package:flutter3d_plugin_api/editor.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
+
 void editor(PluginHost host) => host.registry<EditorPieces>().addComponent(
   const EditorComponent(
     kind: 'buoyancy',
@@ -1041,6 +1047,9 @@ handed a `ToolCall` (`name`, `arguments`) and answers a `ToolResult`
 refused a reserved area as their namespace too.
 
 ```dart
+import 'package:flutter3d_mcp/kit.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
+
 void tools(PluginHost host) => host.registry<McpTools>().addTool(
   ToolSpec(
     name: 'sink',
@@ -1249,7 +1258,8 @@ each seam this document describes:
 | A budget | `extra: {'budget': {'stepMicroseconds': 2000}}` |
 | The frame | `OutsidePlugin.upload` makes a `FieldUpload` from the published field, placed with `RendererSteps.addFieldUpload` |
 
-```dart
+```dart fragment
+// `OutsidePlugin.install`, with `Warming` and `heatField` its own.
 @override
 void install(PluginHost host) {
   host.registry<FieldRegistry>().declare(heatField);

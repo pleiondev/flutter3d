@@ -44,6 +44,8 @@ Note what is *not* there: `flutter3d_game_shooter`. A genre is a package, and th
 `GameAction` is not an enum, and this is the reason. A platformer needs actions the engine has never heard of, and it must be able to declare them without editing the engine.
 
 ```dart
+import 'package:flutter/services.dart';
+
 abstract final class MyActions {
   // The engine's table plus this game's own two.
 }
@@ -81,7 +83,7 @@ _devices = DesktopInput(state: _input, actions: config.actionsOr(_actions));
 Settings first, devices second. The bindings a player saved are the ones the keyboard should be reading from the **first** key press, not from the first rebind.
 
 <div class="note">
-<p><code>SettingsFile</code> comes from <code>flutter3d_game</code>, so add that package to the pubspec like the rest. The catalogues used later on this page (<code>Sounds</code>, <code>Effects</code>, <code>RunnerClips</code>) are exported by no package at all: they are the application's own definitions, and the demo's live in <code>apps/flutter3d_demo_platformer/lib/src/</code> as <code>sounds.dart</code>, <code>effects.dart</code> and <code>runner_clips.dart</code>.</p>
+<p><code>SettingsFile</code> comes from <code>flutter3d_game</code>, so add that package to the pubspec like the rest. The catalogues used later on this page (<code>Sounds</code>, <code>Effects</code>, <code>RunnerClips</code>, <code>PlatformerLooks</code>) are exported by no package at all: they are the application's own definitions, and the demo's live in <code>apps/flutter3d_demo_platformer/lib/src/</code> as <code>sounds.dart</code>, <code>effects.dart</code>, <code>runner_clips.dart</code> and <code>looks.dart</code>. The blocks that use them are excerpts of that application.</p>
 </div>
 
 ## Put the game in a view, and hand it each level's scene {.step}
@@ -175,7 +177,7 @@ The `surface` word on a brush is the whole of the ice mechanic in the document. 
 
 ## Load the level, and spawn into it {.step}
 
-```dart
+```dart fragment
 Future<void> _loadLevel() async {
   final kinds = platformerRegistry();
 
@@ -191,7 +193,11 @@ Future<void> _loadLevel() async {
   // as the shooter tells its monster kind where the bestiary is.
   (kinds[PlatformerEntities.crate] as CrateKind?)?.dynamics = dynamics;
 
-  final actors = ActorSystem(world: loaded.collision);
+  // A fixed seed, so a replay of the run rolls the same dice.
+  final actors = ActorSystem(
+    world: loaded.collision,
+    random: GameRandom(1),
+  );
   final mechanisms = MechanismWorld(loaded.collision);
   final fixtures = FixtureVisuals(
     loaded.scene, loaded,
@@ -369,8 +375,11 @@ A box now and the model when it arrives, so the game is playable either way and 
 SceneNode _boxRunner(GraphicsDevice device, Scene scene, Runner runner) {
   final box = MeshNode(
     SharedMeshes(device).box(runner.body.halfExtents * 2.0),
-    Material(name: 'runner', baseColor: Vector4(0.90, 0.42, 0.28, 1.0),
-             lighting: LightingModel.pbr)..roughness = 0.5,
+    RenderMaterial(
+      name: 'runner',
+      baseColor: const LinearColor(0.90, 0.42, 0.28),
+      roughness: 0.5,
+    ),
     name: 'runner box',
   );
   scene.add(box);
@@ -400,7 +409,7 @@ Future<void> _dressRunner(GraphicsDevice device, Scene scene, Runner runner) asy
 
 Which clip to play is a pure function of what the runner is doing, which makes it testable without a device:
 
-```dart
+```dart fragment
 void _animateRunner(double dt) {
   final player = _runnerAnimation;
   if (player == null) return;
@@ -429,58 +438,60 @@ void _animateRunner(double dt) {
 
 ## Turn the step's events into sound and light {.step}
 
-```dart
-void _hear(PlatformerSimulation sim, Runner runner) {
-  final at = runner.position;
+The simulation publishes what happened in a step on its event bus: a jump, a dash, a landing and how hard, a coin, a checkpoint, a spring. The game subscribes once, when the run starts, and hears each event in the frame after the step that published it.
+
+```dart fragment
+void _hear(EventRegistry bus, Runner runner) {
+  Vector3 at() => runner.position;
   final camera = _followCamera;
 
-  if (runner.jumpedThisStep) {
-    _audio.play(runner.airJumpsLeft < 1 ? Sounds.airJump : Sounds.jump, at);
-  }
-  if (runner.dashedThisStep) {
-    _audio.play(Sounds.dash, at);
-    _particles.burst(Effects.dash, at);
-    camera?.widen(0.1);
-  }
-  if (runner.wallJumpedThisStep) _particles.burst(Effects.dust, at);
-
-  for (final taken in sim.takenThisStep) {
-    _audio.play(Sounds.coin, taken.origin);
-    _particles.burst(Effects.coin, taken.origin);
-  }
-  if (sim.reachedCheckpointThisStep) {
-    _audio.play(Sounds.checkpoint, at);
-    _particles.burst(Effects.checkpoint, at, direction: _up);
-  }
-  if (sim.deaths != _deathsSeen) {
-    _audio.play(Sounds.death, at);
-    _particles.burst(Effects.death, at);
-    camera?.shake(0.5, seconds: 0.4);
-  }
-
-  // Everything the level's own machinery did this step.
-  for (final Mechanism m in sim.mechanisms?.all ?? const <Mechanism>[]) {
-    if (m is Spring && m.firedThisStep) {
-      _particles.burst(Effects.spring, m.origin, direction: _up);
-    }
-    if (m is Crumbling && m.crumbledThisStep) {
-      _particles.burst(Effects.crumble, m.origin);
-    }
-    if (m is Breakable && m.brokeThisStep) {
-      _particles.burst(Effects.slam, m.origin);
-    }
-  }
-
-  // Landing reports how hard, which is something only the simulation knows.
-  if (runner.landedThisStep) {
-    _audio.play(Sounds.land, at);
-    _feelLanding(runner.landingSpeed, pounded: runner.poundedThisStep);
-    if (runner.poundedThisStep) {
-      _particles.burst(Effects.slam, at);
-    } else if (runner.landingSpeed > 6.0) {
-      _particles.burst(Effects.dust, at);
-    }
-  }
+  bus
+    ..onFrame<Jumped>('hear a jump', (_) {
+      _audio.play(runner.airJumpsLeft < 1 ? Sounds.airJump : Sounds.jump, at());
+    })
+    ..onFrame<Dashed>('hear a dash', (_) {
+      _audio.play(Sounds.dash, at());
+      _particles.burst(Effects.dash, at());
+      camera?.widen(0.1);
+    })
+    ..onFrame<WallJumped>('see a wall jump', (_) {
+      _particles.burst(Effects.dust, at());
+    })
+    ..onFrame<CollectibleTaken>('hear a coin', (taken) {
+      final where = taken.event.collectible.origin ?? at();
+      _audio.play(Sounds.coin, where);
+      _particles.burst(Effects.coin, where);
+    })
+    ..onFrame<CheckpointReached>('hear a checkpoint', (_) {
+      _audio.play(Sounds.checkpoint, at());
+      _particles.burst(Effects.checkpoint, at(), direction: _up);
+    })
+    ..onFrame<RunnerDied>('hear a death', (_) {
+      _audio.play(Sounds.death, at());
+      _particles.burst(Effects.death, at());
+      camera?.shake(0.5, seconds: 0.4);
+    })
+    // Everything the level's own machinery did this step.
+    ..onFrame<SpringFired>('see a spring', (fired) {
+      _particles.burst(Effects.spring, fired.event.at, direction: _up);
+    })
+    ..onFrame<BlockCrumbled>('see a block crumble', (crumbled) {
+      _particles.burst(Effects.crumble, crumbled.event.at);
+    })
+    ..onFrame<BlockBroke>('see a block break', (broke) {
+      _particles.burst(Effects.slam, broke.event.at);
+    })
+    // Landing reports how hard, which is something only the simulation knows.
+    ..onFrame<Landed>('hear a landing', (landed) {
+      final pounded = landed.event.pounded;
+      _audio.play(Sounds.land, at());
+      _feelLanding(runner.landingSpeed, pounded: pounded);
+      if (pounded) {
+        _particles.burst(Effects.slam, at());
+      } else if (runner.landingSpeed > 6.0) {
+        _particles.burst(Effects.dust, at());
+      }
+    });
 }
 
 void _feelLanding(double speed, {required bool pounded}) {
@@ -495,7 +506,7 @@ void _feelLanding(double speed, {required bool pounded}) {
 
 Keep every lamp alight by restating its rate, rather than starting it once:
 
-```dart
+```dart fragment
 void _burnLamps() {
   for (final MapEntry<LightFixture, TorchFire> lamp in _fixtures!.flames.entries) {
     final fire = lamp.value;
@@ -552,7 +563,8 @@ test('the ascent can be run to its exit', () {
 And draw one frame in a test through the software backend, because there are failures a simulation test cannot see:
 
 ```dart
-import 'package:flutter3d_cpu/testing.dart';   // a dev dependency
+// A dev dependency.
+import 'package:flutter3d_cpu/testing.dart';
 
 test('a frame renders', () {
   final it = cpuTestDevice(width: 320, height: 180);

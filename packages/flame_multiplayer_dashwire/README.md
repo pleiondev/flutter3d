@@ -4,6 +4,10 @@ A [dashwire](https://pub.dev/packages/dashwire) connection as a
 [`flame_multiplayer`](https://pub.dev/packages/flame_multiplayer) wire.
 
 ```dart
+import 'package:dashwire/dashwire.dart';
+import 'package:flame_multiplayer/flame_multiplayer.dart';
+import 'package:flame_multiplayer_dashwire/flame_multiplayer_dashwire.dart';
+
 final wire = DashwireWire(await connectWebSocket(roomUri));
 final room = PeerRoom(wire, slot: 0);
 ```

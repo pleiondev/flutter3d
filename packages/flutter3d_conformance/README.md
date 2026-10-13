@@ -22,9 +22,10 @@ mistake that would ship on another.
 A plugin runs the other half of the package, `package:flutter3d_conformance/plugins.dart`,
 from its own test suite:
 
-```dart
+```dart fragment
 import 'package:flutter3d_conformance/plugins.dart';
 
+// `WindPlugin` and `world` are the plugin's and the application's own.
 void main() => runPluginConformance(
   WindPlugin.new,
   harness: PluginHarness(

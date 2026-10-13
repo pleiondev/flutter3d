@@ -30,6 +30,16 @@ onto this kept its feel: same rig, same numbers.
 ## Using it
 
 ```dart
+// The game's own event, which shakes the view.
+final class Exploded extends BusEvent {
+  Exploded(this.at);
+
+  final Vector3 at;
+
+  @override
+  String get name => 'exploded';
+}
+
 final chase = ChaseFraming();
 final finish = LookAtFraming(from: Vector3(0, 4, -20));
 final director = CameraDirector(world: world)

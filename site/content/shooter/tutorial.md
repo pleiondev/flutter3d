@@ -263,9 +263,12 @@ final kinds = shooterRegistry();
 // One entity world for everything that has moved onto components, so one
 // save covers the lot. Two would be a save covering half the game.
 final entities = EcsWorld();
-final hitscan = Hitscan(world: collision);
+// One set of dice for the whole run, so a save holds where they stand. Any
+// seed; the same seed and the same input play the same game.
+final random = GameRandom(7);
+final hitscan = Hitscan(world: collision, random: random);
 final projectiles = ProjectileSystem(world: collision, entities: entities);
-final actors = ActorSystem(world: collision, entities: entities);
+final actors = ActorSystem(world: collision, random: random, entities: entities);
 final mechanisms = MechanismWorld(collision);
 
 final bestiary = Bestiary(
@@ -339,13 +342,18 @@ Baked from `level.brushes`, deliberately **not** from `collision`: the world hol
 
 ```dart
 final input = InputState();
-final loop = GameLoop(input: input, onStep: sim.step);
+final loop = EngineLoop(input: input)
+  ..addSystem(
+    'shooter',
+    LoopPhase.physics,
+    (LoopContext context) => sim.step(context.dt),
+  );
 
-// In a test, drive it directly rather than from a Ticker.
+// In a test, drive it directly rather than from a Ticker. The loop ends each
+// step's input itself, so a press is seen by exactly one step.
 for (var i = 0; i < 600; i++) {
   input.press(GameAction.moveForward);
-  loop.advance(1.0 / 60.0);
-  input.endStep();
+  loop.frame(1.0 / 60.0);
 }
 expect(sim.state, GameState.complete);
 ```
@@ -383,6 +391,33 @@ Lists filled during the step and drained after it. Nothing here decides anything
 <div class="note">
 <p><code>Effects</code> is this application's own catalogue of <code>ParticleEffect</code> constants, not a package export; the demo's lives in <code>apps/flutter3d_demo_dungeon/lib/src/effects.dart</code>.</p>
 </div>
+
+Two of them, enough for the step above:
+
+```dart
+abstract final class Effects {
+  // A spray of sparks off whatever a shot hit.
+  static final ParticleEffect impact = ParticleEffect(
+    count: 12,
+    lifetime: const Range(0.15, 0.3),
+    size: const Range(0.02, 0.05),
+    // Linear, and above one so the bloom picks it up.
+    color: LinearColor(1.6, 1.1, 0.6, 1.0),
+    emitter: const ConeEmitter(halfAngle: 0.6, speed: Range(2.0, 5.0)),
+    affectors: const <ParticleAffector>[ParticleGravity.world()],
+  );
+
+  // A rocket's fireball.
+  static final ParticleEffect explosion = ParticleEffect(
+    count: 60,
+    lifetime: const Range(0.3, 0.7),
+    size: const Range(0.2, 0.5),
+    color: LinearColor(2.4, 1.2, 0.4, 1.0),
+    emitter: const SphereEmitter(speed: Range(3.0, 7.0)),
+    affectors: const <ParticleAffector>[ParticleDrag(3.0), ParticleFade()],
+  );
+}
+```
 
 ## Load the level with visuals {.step}
 
@@ -422,7 +457,7 @@ loaded.level.spawnInto(
 `ActorAppearance` and `FixtureAppearance` are the seams where the game says what things look like. Everything else in the bridge is mechanism.
 
 ```dart
-final class DungeonMonsters implements ActorAppearance {
+final class DungeonMonsters with ActorAppearance {
   const DungeonMonsters();
 
   // The engine hands over an `Actor`; what kind of thing it is lives on its
@@ -432,8 +467,16 @@ final class DungeonMonsters implements ActorAppearance {
   @override
   String meshKeyFor(Actor actor) => _brainOf(actor)?.def.name ?? 'actor';
 
+  // No models yet: every monster is the bridge's capsule, in its colour. The
+  // demo names a `.glb` per kind here and the clips each state plays.
   @override
-  Material materialFor(Actor actor) {
+  String? modelFor(Actor actor) => null;
+
+  @override
+  List<String> clipsFor(Actor actor) => const <String>[];
+
+  @override
+  RenderMaterial materialFor(Actor actor) {
     final brain = _brainOf(actor);
     // Brightened for a moment after a hit: the cheapest damage feedback there
     // is, and the one whose absence makes a fight feel unresponsive.
@@ -449,13 +492,64 @@ final class DungeonMonsters implements ActorAppearance {
   // Shared rather than built per call: materialFor runs for every monster
   // every frame, and a default that allocated would allocate once a frame
   // per monster.
-  static final Map<String, Material> _materials = <String, Material>{
-    'runner':  Material(baseColor: Vector4(0.52, 0.20, 0.18, 1.0), roughness: 0.7),
-    'shooter': Material(baseColor: Vector4(0.22, 0.32, 0.52, 1.0), roughness: 0.6),
-    'tank':    Material(baseColor: Vector4(0.30, 0.28, 0.16, 1.0), roughness: 0.85),
-  };
-  static final Material _struck = Material(baseColor: Vector4(1.4, 0.9, 0.8, 1.0));
-  static final Material _unknown = Material();
+  static final Map<String, RenderMaterial> _materials =
+      <String, RenderMaterial>{
+        'runner': RenderMaterial(
+          baseColor: LinearColor.fromSrgb(0.52, 0.20, 0.18, 1.0),
+          roughness: 0.7,
+        ),
+        'shooter': RenderMaterial(
+          baseColor: LinearColor.fromSrgb(0.22, 0.32, 0.52, 1.0),
+          roughness: 0.6,
+        ),
+        'tank': RenderMaterial(
+          baseColor: LinearColor.fromSrgb(0.30, 0.28, 0.16, 1.0),
+          roughness: 0.85,
+        ),
+      };
+  static final RenderMaterial _struck = RenderMaterial(
+    baseColor: LinearColor.fromSrgb(1.4, 0.9, 0.8, 1.0),
+  );
+  static final RenderMaterial _unknown = RenderMaterial();
+}
+```
+
+The fixtures' appearance is the same seam for torches, keys and pickups. The smallest that draws a torch:
+
+```dart
+final class DungeonFixtures with FixtureAppearance {
+  const DungeonFixtures();
+
+  // A glowing cup where the torch is, and the flame the game feeds above it.
+  // The demo's draws a plate, a shaft and a cup, a lamp and a window.
+  @override
+  TorchFire? buildLightFixture(LightFixtureBuild build) {
+    build.holder.add(
+      MeshNode(build.meshes.box(build.fixture.size), build.glow, name: 'cup'),
+    );
+    return TorchFire(build.holder, rise: build.fixture.size.y * 0.5);
+  }
+
+  @override
+  LevelMaterial fallbackFor(Fixture fixture) =>
+      LevelMaterial(baseColor: LinearColor.fromSrgb(0.62, 0.55, 0.40));
+
+  // A pickup taken is a pickup gone, and a pickup on the floor turns.
+  @override
+  bool isSpent(Fixture fixture) {
+    final mechanism = fixture.mechanism;
+    return mechanism is Pickup && mechanism.isTaken;
+  }
+
+  @override
+  bool spins(Fixture fixture) => fixture.mechanism is Pickup;
+
+  @override
+  double scaleOf(Fixture fixture) => 1.0;
+
+  // Nothing here changes colour once it is placed.
+  @override
+  void refresh(FixtureRefreshContext context) {}
 }
 ```
 
@@ -493,7 +587,9 @@ if (sim.firedThisStep != null) _weaponView.recoil();
 
 ## A HUD that reads one object {.step}
 
-```dart
+`Hud` is the application's own widget, as `Effects` is its own catalogue; the demo's is `apps/flutter3d_demo_dungeon/lib/src/hud.dart`. What matters is what it is handed:
+
+```dart fragment
 Hud(
   health: inventory.health.current,
   armor: inventory.health.armor,

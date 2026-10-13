@@ -40,7 +40,7 @@ Wall jumps, mantles, slides, long jumps and ground pounds are all in there; the 
 
 Three files, and none of them is in the engine.
 
-```dart
+```dart fragment
 // lib/src/backend.dart — the whole of the choice
 export 'backend_native.dart' if (dart.library.js_interop) 'backend_web.dart';
 ```
@@ -49,6 +49,9 @@ A conditional import instead of a runtime branch, because the two backends pull 
 
 ```dart
 // lib/src/backend_web.dart
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_webgl/flutter3d_webgl.dart';
+
 // A browser without WebGL2 completes the future with a
 // DeviceUnavailableException that says so.
 Future<GraphicsDevice> openDevice({required int width, required int height}) =>

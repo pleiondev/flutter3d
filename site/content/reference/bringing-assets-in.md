@@ -225,6 +225,8 @@ A service that takes uploads calls the same conversion with bytes on both
 sides, from `package:flutter3d_build/convert.dart`:
 
 ```dart
+import 'package:flutter3d_build/convert.dart';
+
 final result = await convertFiles(
   files,                         // Map<String, Uint8List>, by path in the bundle
   to: ConversionTarget.everything,

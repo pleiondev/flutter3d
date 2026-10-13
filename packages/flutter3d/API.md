@@ -940,11 +940,13 @@ data files to their current versions (`--backup` keeps the old ones). The
 lists every one by package. The largest shape change is `GameLoop` to
 `EngineLoop`:
 
-```dart
+```dart fragment
 // 0.8
 final loop = GameLoop(input: input, onStep: (dt) => world.step(dt));
 loop.advance(dt);
+```
 
+```dart
 // 1.0
 final loop = EngineLoop(input: input)
   ..addSystem('world', LoopPhase.physics, (step) => world.step(step.dt));

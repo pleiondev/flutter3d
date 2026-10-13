@@ -58,6 +58,17 @@ scene.add(...);
     expect(blocks.take(3).every((DocBlock b) => !b.fragment), isTrue);
   });
 
+  test('an import with a comment after it is still an import', () {
+    // Mutation: require the line to end at its semicolon, and the import
+    // stays in the code, where nothing it names resolves.
+    final blocks = docBlocksOf(
+      "```dart\nimport 'package:a/a.dart'; // A\nA();\n```\n",
+      fallback: const <String>[],
+    );
+    expect(blocks.single.imports, <String>["import 'package:a/a.dart'; // A"]);
+    expect(blocks.single.source, isNot(contains('import')));
+  });
+
   test('the dependencies a page lists are the ones it is read with', () {
     expect(declaredDependencies(page), <String>[
       'flutter3d',

@@ -111,6 +111,14 @@ step "pub get" flutter pub get
 # extensions' — `api/<package>.mcp` and `.vm`, written by the same tool.
 step "api snapshots" dart run tool/structure.dart --only 'snapshot its package commits'
 
+# **Every Dart block of the docs, analyzed against today's API.** `migrate`
+# and `dart fix` reach a user's code and never the pages that taught it, so
+# a rename left its old spelling on the site with nothing to say so. Here
+# rather than in the structure scan because it needs the workspace resolved
+# and takes about a minute and a half; a block that is not meant to compile
+# says so with ` ```dart fragment `.
+step "doc blocks" in_dir tool/api dart run api_snapshot:doc_blocks
+
 # The shader bundle is gitignored and its format is tied to the SDK version, so
 # a fresh checkout has none. A test asserts it was built — deliberately a
 # failure rather than a skip, because "CI built only one bundle" is one of the

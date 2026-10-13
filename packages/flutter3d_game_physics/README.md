@@ -92,7 +92,9 @@ registers nothing with the engine, so the pubspec has no plugin marker.
 ```dart
 import 'package:flutter3d_game_physics/wrecks.dart';
 
-final wrecks = BurningWrecks(elements, device);
+final wrecks = BurningWrecks(elements);
+
+enum Target { tanker, depot }
 
 void onHit(Target target, Vector3 at) => switch (target) {
   Target.tanker => wrecks.oil(at),
@@ -132,10 +134,12 @@ game's own rollback over the seat's wire, stays the game's.
 
 ### Example
 
-```dart
+```dart fragment
 import 'dart:math' as math;
 
 import 'package:flutter3d_game_physics/party.dart';
+
+// `MyGame` is the game's own, made for the seat the relay gives.
 
 final party = await PartySession.open<MyGame>(
   relayBase: Uri.parse('wss://relay.example/'),
