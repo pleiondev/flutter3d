@@ -139,7 +139,7 @@ abstract final class Sounds {
 audio.play(Sounds.coin, where);
 
 // Held for as long as it should sound, stopped when it should not.
-final voice = audio.play(Sounds.stoneGrinding, door.origin);
+final voice = audio.play(Sounds.stoneGrinding, doorOrigin);
 // ...
 voice.stop();
 

@@ -66,6 +66,17 @@ final class WindPlugin extends Flutter3dPlugin {
     );
     host.events.onStep<Gust>('wind.gusts', (gust) => _record(gust.event));
   }
+
+  void _push(double dt) {}
+
+  void _record(Gust gust) {}
+}
+
+final class Gust extends BusEvent {
+  const Gust();
+
+  @override
+  String get name => 'wind.gust';
 }
 ```
 
@@ -118,7 +129,8 @@ This package names the anchors. The renderer in `flutter3d_core` fills the
 `RenderStepRegistry` slot with `RendererSteps`, which knows the renderer's
 types, so a plugin that draws depends on `flutter3d_core` too:
 
-```dart
+```dart fragment
+// `SoftGlowNode` is the plugin's own `RenderNode`.
 const softGlow = RenderStep('acme.soft_glow', needs: {RenderStep.bloom});
 
 @override
@@ -157,6 +169,9 @@ A registry needs no slot here to be found: `host.registry<T>()` finds any
 and composites come through `BehaviorKindsRegistry` in `flutter3d_sim`.
 
 ```dart
+import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
+import 'package:flutter3d_mcp/kit.dart';
+
 @override
 void install(PluginHost host) {
   host.registry<EditorPieces>().addComponent(
@@ -187,8 +202,11 @@ void install(PluginHost host) {
       id: 'orchard.plumJam', // refused outside "orchard."
       name: 'plum jam',
       phase: MaterialPhase.liquid,
-      mechanical: MechanicalProperties(density: 1300.0, source: 'lab notes'),
-      fluid: FluidProperties(viscosity: 30.0, source: 'lab notes'),
+      mechanical: MechanicalProperties(
+        density: ConstantLaw(1300.0),
+        source: 'lab notes',
+      ),
+      fluid: FluidProperties(viscosity: ConstantLaw(30.0), source: 'lab notes'),
     ))
     ..addPair(const MaterialPair('orchard.plumJam', 'f3d.glass',
         contactAngle: 0.6, source: 'lab notes'));
@@ -259,10 +277,12 @@ appends one, `without<T>()` and `withoutId` take members out, and each
 answers a new group:
 
 ```dart
-installedPlugins
-    .set(BloomAddon(threshold: 1.2))
+import 'package:flutter3d_post/flutter3d_post.dart';
+
+final plugins = installedPlugins
+    .set(const BloomAddon())
     .without<FogAddon>()
-    .add(TrailsPlugin());
+    .add(const OutlinesAddon());
 ```
 
 Depending on a package installs every plugin it marks; `flutter3d_post`

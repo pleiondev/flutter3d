@@ -154,6 +154,7 @@ final class KeyEase
   static const KeyEase step = KeyEase('step', _step)
 
 mixin class LightEmitter
+  LightEmitter()
   final ParticleGlow glow
 
 final class MeshParticleContributor extends PassContributor
@@ -170,6 +171,7 @@ final class MeshParticleContributor extends PassContributor
 final class Particle
   List<ParticleAffector> affectors
   Object? source
+  Particle()
   bool isAlive
   double age
   double birthSize

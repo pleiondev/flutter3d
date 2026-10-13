@@ -19,7 +19,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_app/flutter3d_app.dart' show MaterialProgramStage;
+import 'package:flutter3d_app/software.dart' show MaterialProgramStage;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';

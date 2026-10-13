@@ -134,6 +134,8 @@ final class GamePadAxis {
 ///
 /// Mutable and reused, as the device's own snapshot is: a pad is read once a
 /// frame, and a reading allocated per frame is garbage per frame.
+///
+/// A test or a custom pad makes one with `PadReading()` and sets it.
 final class PadReading {
   /// Whether a pad answered. When it did not, nothing else here is said.
   bool isConnected = false;

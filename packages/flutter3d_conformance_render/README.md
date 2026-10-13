@@ -3,8 +3,11 @@
 What a plugin adds to the frame, drawn on a backend and checked: the render
 half of flutter3d's conformance suite.
 
-```dart
+```dart fragment
 import 'package:flutter3d_conformance_render/flutter3d_conformance_render.dart';
+import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+
+// `HairPlugin`, `hairShaders` and `hairModel` are the plugin's own.
 
 void main() => runPluginRenderConformance(
   HairPlugin.new,

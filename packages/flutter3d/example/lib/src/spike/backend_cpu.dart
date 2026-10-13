@@ -13,7 +13,7 @@
 /// fixture.
 library;
 
-import 'package:flutter3d_app/flutter3d_app.dart' show materialLanguageCompiler;
+import 'package:flutter3d_app/software.dart' show materialLanguageCompiler;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 

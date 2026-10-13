@@ -147,6 +147,7 @@ abstract interface class GroundField
   bool sample(Vector3 position, double nearHint, GroundSample out)
 
 final class GroundSample
+  GroundSample()
   String? surface
   bool barrier
   bool onRoad
@@ -391,6 +392,7 @@ final class TrackField implements GroundField
   static const int defaultProbeMask = Layers.all & ~(RacingLayers.vehicle | RacingLayers.roadTrigger)
 
 final class TrackFrame
+  TrackFrame()
   final Vector3 forward
   final Vector3 position
   final Vector3 right
@@ -445,6 +447,7 @@ abstract interface class VehicleController
   void step(double dt, VehicleInput input)
 
 final class VehicleInput
+  VehicleInput()
   bool boost
   bool handbrake
   double brake

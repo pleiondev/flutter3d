@@ -185,6 +185,7 @@ final class ImpulseShake
   void impulse(CameraImpulse impulse, {required int step, int sequence = 0, Vector3? eye})
 
 final class ImpulseTable
+  ImpulseTable()
   List<CameraImpulse> impulsesFor(BusEvent event)
   List<Type> get types
   void on<T extends BusEvent>(ImpulseRule<T> rule)

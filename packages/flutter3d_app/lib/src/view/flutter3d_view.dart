@@ -27,15 +27,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart'
     show ParticleSystem;
-import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show
-        FormatRegistry,
-        FormatSpec,
-        OriginShifted,
-        PluginRegistry,
-        PublishedState,
-        Registration,
-        VmExtensions;
 import 'package:flutter3d_sim/flutter3d_sim.dart'
     show
         EngineLoop,

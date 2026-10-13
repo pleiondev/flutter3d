@@ -365,6 +365,7 @@ final class PowerEnded extends GameEvent
   final String power
 
 final class Purse extends Tally
+  Purse()
 
 enum RunState
   values: running, fallen, finished, lost

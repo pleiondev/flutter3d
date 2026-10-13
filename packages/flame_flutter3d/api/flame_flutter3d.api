@@ -93,6 +93,7 @@ final class BridgeProjector
   final ViewportRect Function()? viewport
 
 abstract base mixin class BridgeSpace
+  BridgeSpace()
   abstract void place(double x, double y, double lift, Vector3 out)
   abstract void turn(double x, double y, double angle, Quaternion out)
 
@@ -166,6 +167,7 @@ final class ChunkStreamer<C>
 
 final class ColliderRegistry
   ({PositionComponent? component, Vector2 point, Collider collider})? raycast(CollisionWorld world, BridgePlane plane, Vector2 from, Vector2 to, {double lift = 0.0, int mask = Layers.all, Collider? ignore, bool includeTriggers = false})
+  ColliderRegistry()
   CollisionBridge bridge({required Collider collider, required CollisionCallbacks component, PhysicsStepComponent? stepper})
   PositionComponent? componentFor(Collider collider)
   void register(Collider collider, PositionComponent component)
@@ -585,6 +587,7 @@ base class SpriteBillboardComponent extends Object3dComponent
   void updateTree(double dt)
 
 abstract mixin class StepClock
+  StepClock()
   abstract double get alpha
   abstract void follow(StepFollower follower)
   abstract void unfollow(StepFollower follower)
@@ -661,6 +664,7 @@ base class TrailComponent extends Component
 
 base class TransparentFlameGame extends FlameGame
   Color backgroundColor()
+  TransparentFlameGame()
 
 mixin UpdatesAtRoot on Component
   abstract void rootUpdate(double dt)

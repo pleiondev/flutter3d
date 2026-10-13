@@ -29,6 +29,8 @@ import 'package:vector_math/vector_math.dart';
 /// through its material, and a spatial index that dragged `dart:ui` in with it
 /// could not be compiled ahead of time by `tool/bench/bench.dart` — which is
 /// where its cost is actually measured. `sceneSpheres` does the mapping.
+///
+/// A caller that culls or picks its own spheres makes one with `SceneBvh()`.
 final class SceneBvh {
   /// Meshes per leaf. Small enough that a leaf test is cheap, large enough that
   /// the tree does not become mostly pointers.

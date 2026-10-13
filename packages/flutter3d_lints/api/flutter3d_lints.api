@@ -19,10 +19,41 @@ abstract final class SimulationRules
   static const String prefixedMath = 'step_prefixes_dart_math'
   static const String seededRandom = 'step_takes_seeded_random'
 
+final class StepPrefixesDartMath extends AnalysisRule
+  LintCode get diagnosticCode
+  StepPrefixesDartMath()
+  static const LintCode code = …
+  void registerNodeProcessors(RuleVisitorRegistry registry, RuleContext context)
+
+final class StepReadsNoClock extends AnalysisRule
+  LintCode get diagnosticCode
+  StepReadsNoClock()
+  static const LintCode code = …
+  void registerNodeProcessors(RuleVisitorRegistry registry, RuleContext context)
+
+final class StepTakesSeededRandom extends AnalysisRule
+  LintCode get diagnosticCode
+  StepTakesSeededRandom()
+  static const LintCode code = …
+  void registerNodeProcessors(RuleVisitorRegistry registry, RuleContext context)
+
+final class StepUsesPortableMath extends AnalysisRule
+  LintCode get diagnosticCode
+  StepUsesPortableMath()
+  static const LintCode code = …
+  void registerNodeProcessors(RuleVisitorRegistry registry, RuleContext context)
+
 const Set<String> machineArithmetic = <String>{'sin', 'cos', 'tan', 'asin', 'acos', 'atan2', 'atan', 'exp', 'log', 'pow'}
 
 List<SimulationFinding> scanSimulationCode(CompilationUnit unit)
 
+List<AnalysisRule> simulationRules()
+
 library package:flutter3d_lints/main.dart
 
-final Plugin plugin
+final class Flutter3dLintsPlugin extends Plugin
+  Flutter3dLintsPlugin()
+  String get name
+  void register(PluginRegistry registry)
+
+final Flutter3dLintsPlugin plugin

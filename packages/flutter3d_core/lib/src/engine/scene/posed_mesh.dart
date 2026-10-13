@@ -31,6 +31,8 @@ import 'package:vector_math/vector_math.dart';
 import 'skeleton.dart';
 
 /// Posed positions for one mesh and skeleton, reused while the pose holds.
+///
+/// A caller that poses one skinned mesh on the CPU keeps one, `PosedMesh()`.
 final class PosedMesh {
   Float32List _positions = Float32List(0);
   int _vertexCount = 0;

@@ -440,6 +440,8 @@ final class _Sample extends ProbeSample {
 /// trace is for what does not replay: a chart drawn from a run file on a
 /// build that refuses its tape, a lesson's answer checked without stepping,
 /// a twin's history scrubbed from disk.
+///
+/// A caller makes one with `ProbeTrace()` and records a loop into it.
 final class ProbeTrace {
   /// Every reading recorded, in step order.
   List<ProbeReading> get readings => List<ProbeReading>.unmodifiable(_readings);

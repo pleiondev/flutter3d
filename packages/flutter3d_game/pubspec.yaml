@@ -66,6 +66,9 @@ dependencies:
   # cannot resolve. A game that plays sound depends on `flutter3d_audio`
   # itself, whose types are these.
   flutter3d_audio_core: '>=1.0.0-rc.1 <1.1.0'
+  # The camera rig every genre kit hands a game, re-exported by name so a
+  # game that sets its framing writes it through this import.
+  flutter3d_camera: '>=1.0.0-rc.1 <1.1.0'
 
   # A torch's flame, which is the particles its light is measured from.
   flutter3d_particles: '>=1.0.0-rc.1 <1.1.0'

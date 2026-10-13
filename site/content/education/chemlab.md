@@ -59,10 +59,11 @@ The first version was a coloured solid with a flat lid, and that is exactly how 
 - **A wet surface.** A clear coat with no roughness over the colour gives the sharp highlight a liquid has and a painted surface does not.
 
 ```dart
-Material liquid(Vector3 color, {required double depth}) => Material(
+RenderMaterial liquid(Vector3 color, {required double depth}) =>
+    RenderMaterial(
   lighting: LightingModel.pbrLayered,
-  baseColor: Vector4(0.75 + 0.25 * color.x, 0.75 + 0.25 * color.y,
-      0.75 + 0.25 * color.z, 1.0),
+  baseColor: LinearColor(0.75 + 0.25 * color.x, 0.75 + 0.25 * color.y,
+      0.75 + 0.25 * color.z),
   roughness: 0.02,
   alphaMode: MaterialAlphaMode.blend,
   depthWrite: true,

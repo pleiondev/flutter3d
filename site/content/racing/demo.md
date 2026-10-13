@@ -61,7 +61,7 @@ Click the frame first. The keyboard goes to whatever was clicked last, and a pla
 
 The same conditional import as the other two games. `apps/flutter3d_demo_racing/lib/src/backend.dart` used to export the native backend unconditionally, with a comment saying the conditional would come back when there was a web build.
 
-```dart
+```dart fragment
 export 'backend_native.dart' if (dart.library.js_interop) 'backend_web.dart';
 ```
 

@@ -41,6 +41,8 @@ import 'occlusion_test.dart';
 /// jumps ([cutDistance], [cutCosine]) or the reading was taken through
 /// another camera.
 final class HiZOcclusion {
+  HiZOcclusion._();
+
   /// The reading's size in cells, which is the `DepthPyramid` target's size.
   static const int width = 256;
   static const int height = 128;
@@ -387,3 +389,8 @@ final class HiZOcclusion {
   final Float64List _edgesX = Float64List(_hitsPerPixel * 2 + 2);
   final Float64List _edgesY = Float64List(_hitsPerPixel * 2 + 2);
 }
+
+/// A new [HiZOcclusion], for the scene pass, which feeds it the depth it read
+/// back: the package's own code makes one, and nothing outside it has a use for
+/// one it did not get from there.
+HiZOcclusion engineHiZOcclusion() => HiZOcclusion._();

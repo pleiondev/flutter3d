@@ -27,6 +27,8 @@ void printIssue(Issue issue) => debugPrint(issue.message);
 /// wants to assert a failure was reported rather than hunt through console
 /// output for it — which is the only reason half of these could not be tested
 /// before.
+///
+/// A caller makes one with `IssueLog()` to keep what a load or a save reports.
 final class IssueLog {
   final List<String> issues = <String>[];
 

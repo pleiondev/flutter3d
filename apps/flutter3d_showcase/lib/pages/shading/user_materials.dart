@@ -10,7 +10,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_app/flutter3d_app.dart' show materialLanguageCompiler;
+import 'package:flutter3d_app/software.dart' show materialLanguageCompiler;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart'
     show CpuDevice, CpuLoadedShaderLibrary;
 import 'package:flutter3d_showcase/src/demo/demo.dart';

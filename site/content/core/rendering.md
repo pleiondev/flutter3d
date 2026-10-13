@@ -118,7 +118,7 @@ flowchart LR
 final pillars = InstancedMeshNode(mesh, material, capacity: 25, name: 'pillars');
 for (var i = 0; i < 25; i++) {
   pillars.setTransform(i, Matrix4.translation(Vector3(i % 5 * 3.0, 0, i ~/ 5 * 3.0)));
-  pillars.setColor(i, Vector4(1.0, 0.9, 0.8, 1.0));
+  pillars.setColor(i, const LinearColor(1.0, 0.9, 0.8));
 }
 scene.add(pillars);
 ```
@@ -463,7 +463,7 @@ Both read the albedo buffer, a third scene attachment. A device that opens only 
 
 ```dart
 FogSettings(
-  color: Vector3(0.05, 0.07, 0.12),
+  color: const LinearColor(0.05, 0.07, 0.12),
   density: 0.004,
 )
 ```
@@ -496,9 +496,9 @@ It is marched at half resolution and brought up by depth, so a halo behind a pil
 ```dart
 SkySettings(
   enabled: true,        // off by default: 96 goldens are recorded against none
-  zenith: Vector3(0.10, 0.22, 0.52),
-  horizon: Vector3(0.42, 0.50, 0.62),
-  nadir: Vector3(0.06, 0.06, 0.07),   // what fills the frame looking down at nothing
+  zenith: const LinearColor(0.10, 0.22, 0.52),
+  horizon: const LinearColor(0.42, 0.50, 0.62),
+  nadir: const LinearColor(0.06, 0.06, 0.07),   // what fills the frame looking down at nothing
   sunIntensity: 20.0,   // 0 means no disc; the target is HDR, so far above 1 is fine
 )
 ```
@@ -692,8 +692,8 @@ It runs after the tone map, because in HDR a highlight rings around any lobed fi
 ```dart
 final decal = DecalNode(
   texture: scorch,                      // sRGB, like a base color map; null paints the tint alone
-  color: Vector4(1.0, 1.0, 1.0, 0.9),   // sRGB tint, and the opacity in w
-  emissive: Vector3.zero(),             // light the painted color gives off, as a multiple of it
+  color: const LinearColor(1.0, 1.0, 1.0, 0.9), // linear tint, and the opacity in alpha
+  emissive: LinearColor.black,          // light the painted color gives off, as a multiple of it
   order: 0,                             // higher is painted over lower where two overlap
   angleLimit: 1.3,                      // radians from the box's up past which a surface is left alone
 )
@@ -751,10 +751,10 @@ final layers = MaterialExtensions(
   transmission: 1.0,
   thickness: 0.02,             // meters, for the volume's attenuation
   attenuationDistance: 0.5,
-  attenuationColor: Vector3(0.80, 0.95, 0.90),  // linear, as every layer color is
+  attenuationColor: const LinearColor(0.80, 0.95, 0.90),  // linear, as every layer color is
   dispersion: 0.1,
 );
-final glass = Material(
+final glass = RenderMaterial(
   name: 'glass',
   roughness: 0.05,
   lighting: LightingModel.pbr.withLayers(layers),  // pbrLayered when a layer changes the shading
@@ -764,7 +764,7 @@ final glass = Material(
 
 A material that has layers and asks for plain `pbr` is drawn without them, which is why the loaders call `withLayers` and a material you build by hand should too. `MaterialExtensions.shades` is the test: an index other than 1.5, a specular other than one, a clearcoat, a sheen colour, anisotropy, transmission or iridescence. The layers' textures reach the stage packed, because the lit stages have no sampler to spare for each: the coat map carries the clearcoat in red, its roughness in green, the transmission in blue and the thickness in alpha, and the sheen map the sheen's colour and roughness. `bindSurfaceMaterial` packs them given `layerImages`, the device and a decoder, and `ModelAsset` does it for you, decoding each image once. The specular textures, the clearcoat's own normal map, the anisotropy texture and the iridescence textures are kept for export and not drawn, and the loader says so in its warnings.
 
-**A texture transform per map.** One `KHR_texture_transform` shared by every map of a material is still baked into the mesh's coordinates and costs nothing. Where the maps disagree, or a clip animates a texture offset, the loader keeps the transforms at the sampler in `Material.textureTransforms`, one `TextureTransform` per `MaterialMap`, and hands the material the layered model, the one stage with room in its block for a matrix per map. A material drawn by any other model has no matrices to read them through and keeps its warning.
+**A texture transform per map.** One `KHR_texture_transform` shared by every map of a material is still baked into the mesh's coordinates and costs nothing. Where the maps disagree, or a clip animates a texture offset, the loader keeps the transforms at the sampler in `RenderMaterial.textureTransforms`, one `TextureTransform` per `MaterialMap`, and hands the material the layered model, the one stage with room in its block for a matrix per map. A material drawn by any other model has no matrices to read them through and keeps its warning.
 
 ## Occlusion culling
 
@@ -827,7 +827,7 @@ final renderer = Renderer.create(device: device, materials: effects);
 const stripes = LightingModel('Stripes', 'ExampleStripes',
     usesFragInfo: false, usesAlbedoTexture: false, usesMaterialMaps: false,
     usesMetallicRoughnessMap: false, usesMaterialParameters: false);
-Material(name: 'striped', lighting: stripes);          // names a stage only the bundle has
+RenderMaterial(name: 'striped', lighting: stripes);    // names a stage only the bundle has
 ```
 
 A `.f3dshaders` file is a header (the bundle's name, the SDK it was compiled on, the stages it claims) and one section per backend: `impellerc` output for Impeller, GLSL ES text for WebGL2, WGSL and its reflection for WebGPU. The software rasteriser compiles nothing and answers the bundle's names with the Dart stages the device already has, so the same call works on all four; a name it has no Dart for refuses the bundle, naming the stage. `packages/flutter3d_webgl/tool/pack_shaders.dart` writes the file from a manifest, the `impellerc` output and a WGSL section, `packages/flutter3d_webgpu/tool/pack_wgsl_section.dart` writes that section through `glslangValidator` and `naga`, and `packages/flutter3d/example/tool/build_shaders.sh` is the three-step recipe an application copies. The WGSL step is the one allowed to be missing: on a machine with neither compiler installed it says so and the bundle comes out with two sections, because a backend's tooling must not become a requirement for everybody else's build.

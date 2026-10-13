@@ -195,6 +195,8 @@ AttachedRun fakeAttachedRun(FakeGame game, {String uri = 'ws://game/ws'}) =>
 
 /// A `flutter run --machine` that says what [say] is given and records what
 /// it is sent.
+///
+/// A test makes one with `FakeFlutterTool()` in place of the real tool.
 final class FakeFlutterTool implements Process {
   final StreamController<List<int>> _out = StreamController<List<int>>();
   final StreamController<List<int>> _err = StreamController<List<int>>();

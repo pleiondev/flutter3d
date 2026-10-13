@@ -32,7 +32,10 @@ flowchart TB
 An application names a backend in its pubspec and hands the device to `Renderer.create`. That is the one line that changes to move a game onto another API, and the reason the choice stays visible in the pubspec instead of being resolved by magic.
 
 ```dart
-final device = await GpuRenderBackend.open(width: 1280, height: 720);   // flutter3d_impeller
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_impeller/flutter3d_impeller.dart';
+
+final device = await GpuRenderBackend.open(width: 1280, height: 720);
 final renderer = Renderer.create(device: device);
 ```
 
@@ -120,7 +123,7 @@ Level geometry has to become mesh nodes. An actor has to get a visual. A glowing
 
 Everything in it is mechanism. What a torch *looks* like and what colour a runner is are decided by the game and handed in through `FixtureAppearance` and `ActorAppearance`.
 
-```dart
+```dart fragment
 final visuals = ActorVisuals(
   scene,
   appearance: const DungeonMonsters(),  // your game's opinion
@@ -154,13 +157,13 @@ There is no runtime shader compilation on this platform. `tool/build_shaders.sh`
 
 ## A material is a pipeline
 
-Because of the above, `Material.lighting` is not a style setting. It selects the fragment shader, and therefore the pipeline, and therefore where the draw lands in the sort.
+Because of the above, `RenderMaterial.lighting` is not a style setting. It selects the fragment shader, and therefore the pipeline, and therefore where the draw lands in the sort.
 
 ```dart
-Material(
+RenderMaterial(
   name: 'brass',
   lighting: LightingModel.pbr,      // <- picks the shader
-  baseColor: Vector4(0.7, 0.5, 0.2, 1.0),
+  baseColor: const LinearColor(0.7, 0.5, 0.2),
   metallic: 1.0,
   roughness: 0.35,
 );

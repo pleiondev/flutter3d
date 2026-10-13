@@ -1,5 +1,4 @@
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

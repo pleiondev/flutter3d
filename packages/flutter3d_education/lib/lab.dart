@@ -12,6 +12,10 @@
 /// container with no Flutter SDK in it.
 library;
 
+// The recording primitives a lab run is read through, so a lab's code
+// names them with this import and not `flutter3d_sim`'s.
+export 'package:flutter3d_sim/flutter3d_sim.dart'
+    show DataSourceTrace, Demo, DigestTrace, Divergence;
 export 'src/lab/lab_review.dart';
 export 'src/lab/pendulum.dart';
 export 'src/lab/pendulum_lab_run.dart';

@@ -26,6 +26,7 @@ final class ClothPointMove
   int index
 
 abstract base mixin class ClothSystem
+  ClothSystem()
   abstract ClothFrame? read({bool wait = true})
   abstract int get pointCount
   abstract void dispose()
@@ -86,6 +87,7 @@ abstract final class DebrisStatic
   const DebrisStatic()
 
 abstract base mixin class DebrisSystem
+  DebrisSystem()
   abstract DebrisFrame? read({bool wait = true})
   abstract int get capacity
   abstract void add(List<DebrisBody> bodies)
@@ -135,6 +137,7 @@ final class FluidSettings
   final int substeps
 
 abstract base mixin class FluidSystem
+  FluidSystem()
   abstract FluidFrame? read({bool wait = true})
   abstract double get restDensity
   abstract int get capacity
@@ -675,6 +678,7 @@ final class NativeParticle
   int get hashCode
 
 abstract base mixin class NativeParticleCloud
+  NativeParticleCloud()
   abstract Float32List read()
   abstract int get capacity
   abstract void dispose()

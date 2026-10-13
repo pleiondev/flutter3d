@@ -10,7 +10,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_hardware/testing.dart' show FakeBackend;
-import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Shows nothing: there is no backend to present a fake's frame.

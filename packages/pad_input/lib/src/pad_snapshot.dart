@@ -12,6 +12,8 @@ import 'pad_button.dart';
 /// a stream would push edge detection into every caller. It is also the only
 /// shape the browser can serve honestly, because `navigator.getGamepads()` is
 /// itself a poll.
+///
+/// A platform or a test makes one with `PadSnapshot()` and sets it.
 final class PadSnapshot {
   /// Whether a pad was attached when this was filled in.
   ///

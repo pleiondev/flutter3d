@@ -17,7 +17,7 @@ import 'particle.dart';
 mixin class LightEmitter {
   /// What this emitter's particles currently amount to. Owned here, written by
   /// the particle system, read by anything that wants to be lit by fire.
-  final ParticleGlow glow = ParticleGlow();
+  final ParticleGlow glow = ParticleGlow._();
 }
 
 /// What a source's particles add up to: how much light they are, and where.
@@ -32,6 +32,8 @@ mixin class LightEmitter {
 /// between frames — a strobe rather than a flicker. A tenth of a second of lag
 /// is invisible and turns the same numbers into fire.
 final class ParticleGlow {
+  ParticleGlow._();
+
   /// Live particles from this source.
   int get count => _count;
   int _count = 0;

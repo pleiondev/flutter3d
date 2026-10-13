@@ -9,5 +9,8 @@
 /// container.
 library;
 
+// The probe an experiment reads, so its document is written with this
+// import alone.
+export 'package:flutter3d_sim/flutter3d_sim.dart' show Probe;
 export 'src/experiment/check_question.dart';
 export 'src/experiment/experiment_document.dart';

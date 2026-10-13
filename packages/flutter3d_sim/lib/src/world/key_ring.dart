@@ -18,6 +18,8 @@ abstract mixin class KeyHolder {
 /// This is the smallest thing that makes locked doors work, and the inventory
 /// of stage 9 will take it over rather than replace it — keys behave unlike
 /// everything else in an inventory, being permanent, weightless and countless.
+///
+/// A game keeps one per body, made with `KeyRing()`.
 final class KeyRing with KeyHolder {
   final Set<String> _held = <String>{};
 

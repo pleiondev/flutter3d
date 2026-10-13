@@ -403,6 +403,7 @@ final class AnimationPointerProperty
   static const List<AnimationPointerProperty> values = <AnimationPointerProperty>[baseColor, emissiveStrength, roughness, metallic, textureOffset, lightColor, lightIntensity]
 
 abstract base mixin class AnimationPointerSink
+  AnimationPointerSink()
   abstract void setPointer(AnimationPointer pointer, List<double> values)
 
 final class AnimationPointerTarget
@@ -453,6 +454,7 @@ final class AnimationStateMachine
   int indexOfState(String name)
 
 abstract base mixin class AnimationTarget
+  AnimationTarget()
   abstract void setPosition(double x, double y, double z)
   abstract void setRotation(Quaternion value)
   abstract void setScale(double x, double y, double z)
@@ -866,6 +868,7 @@ final class ContributorFrame extends FrameContext
   final vm.Matrix4? viewProjection
 
 abstract base mixin class ContributorLights
+  ContributorLights()
   abstract void bind(LightBindRequest request)
 
 final class CpuMesh implements MeshGeometry
@@ -1240,6 +1243,7 @@ final class DrawRecord
   static DrawRecord fromJson(Map<String, Object?> json)
 
 abstract base class DrawableGeometry with MeshGeometry
+  DrawableGeometry()
   abstract ClusteredIndices? get clusters
   abstract GeometryBuffer get indices
   abstract GeometryBuffer get vertices
@@ -1653,6 +1657,7 @@ final class FrameFraction extends ResourceSize
 
 final class FrameGraph
   CompiledFrameGraph compile({required List<ResourceId> outputs, Set<String> disabled = const <String>{}, Set<String> switchedOff = const <String>{}, FramePlacer? placer})
+  FrameGraph()
   int get length
   static const Set<String> undisableable = <String>{'scene', 'composite', 'object ids'}
   void addExternal(ResourceId id)
@@ -1856,6 +1861,7 @@ final class FrameResult
   static const List<String> declinedNames = <String>['wireframe', 'alpha to coverage', 'multisampling', 'point shadow rows']
 
 abstract base mixin class FrameTextureSource
+  FrameTextureSource()
   abstract TextureHandle acquire(RenderTargetDescriptor spec)
   abstract void release(TextureHandle texture)
 
@@ -2991,6 +2997,7 @@ final class MeshData
   static MeshData merge(List<MeshData> parts)
 
 abstract base mixin class MeshGeometry
+  MeshGeometry()
   abstract Aabb3 get bounds
   abstract MeshData? get source
   abstract double get boundingRadius
@@ -3309,6 +3316,7 @@ final class MorphBlend
   final MeshData mesh
 
 abstract base mixin class MorphSink
+  MorphSink()
   abstract void setWeights(List<double> values)
 
 final class MorphState with MorphSink
@@ -3464,6 +3472,7 @@ final class OcclusionMode
   static const OcclusionMode software = OcclusionMode._(1, 'software')
 
 abstract base mixin class OcclusionTest
+  OcclusionTest()
   abstract bool mayBeVisible(Aabb3 box)
 
 final class OffAxisProjection extends Projection
@@ -3882,6 +3891,7 @@ final class PointerTargets with AnimationPointerSink
 final class PosedMesh
   Aabb3 get bounds
   Float32List? positionsOf(MeshData mesh, Skeleton skeleton)
+  PosedMesh()
   int get vertexCount
 
 final class PostFrameResult
@@ -4122,6 +4132,7 @@ abstract base class RenderNode extends FrameGraphNode
   const RenderNode()
 
 abstract base mixin class RenderServices
+  RenderServices()
   abstract void drawFullscreen(FullscreenDraw draw)
   abstract void encodeScene(SceneEncodeRequest request)
 
@@ -4545,6 +4556,7 @@ final class SceneBindings extends SceneBindingRegistry
   SceneNodeKind? kindNamed(String name)
 
 final class SceneBvh
+  SceneBvh()
   String toString()
   bool get isEmpty
   int get meshCount
@@ -4967,6 +4979,7 @@ final class SkySettings
 
 final class SoftwareOcclusion
   OcclusionTest prepare({required List<MeshNode> meshes, required Matrix4 viewProjection, required Frustum frustum, required Vector3 eye, required int layerMask, bool cullBackFaces = true, int budget = triangleBudget})
+  SoftwareOcclusion()
   final OcclusionBuffer buffer
   int get occluders
   static MeshData? occluderGeometry(MeshNode node)
@@ -5140,6 +5153,7 @@ final class SplatQuads
 typedef SplatRangeReader = Future<Uint8List> Function(int offset, int length);
 
 final class SplatSorter
+  SplatSorter()
   Uint32List get keys
   Uint32List get order
   double get lastRange
@@ -6214,6 +6228,7 @@ final class AnimationPointerProperty
   static const List<AnimationPointerProperty> values = <AnimationPointerProperty>[baseColor, emissiveStrength, roughness, metallic, textureOffset, lightColor, lightIntensity]
 
 abstract base mixin class AnimationPointerSink
+  AnimationPointerSink()
   abstract void setPointer(AnimationPointer pointer, List<double> values)
 
 final class AnimationPointerTarget
@@ -8256,6 +8271,7 @@ final class MeshData
   static MeshData merge(List<MeshData> parts)
 
 abstract base mixin class MeshGeometry
+  MeshGeometry()
   abstract Aabb3 get bounds
   abstract MeshData? get source
   abstract double get boundingRadius

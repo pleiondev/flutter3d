@@ -239,6 +239,7 @@ abstract base class FurnitureEvent extends GameEvent
   final Vector3 at
 
 abstract base mixin class Gatherer
+  Gatherer()
   abstract Purse get purse
 
 final class Grabbed extends RunnerEvent
@@ -284,6 +285,7 @@ final class Jumped extends RunnerEvent
   static final EventCodec<Jumped> codec
 
 abstract base mixin class KeyTaker
+  KeyTaker()
   abstract KeyRing get keyRing
 
 final class Landed extends RunnerEvent
@@ -294,6 +296,7 @@ final class Landed extends RunnerEvent
   static final EventCodec<Landed> codec
 
 abstract base mixin class Launchable
+  Launchable()
   abstract void launch(double speed)
 
 final class Leaper extends Patrol
@@ -450,6 +453,7 @@ final class PowerEnded extends GameEvent
   static final EventCodec<PowerEnded> codec
 
 final class Purse extends Tally
+  Purse()
 
 final class RunState
   String toString()

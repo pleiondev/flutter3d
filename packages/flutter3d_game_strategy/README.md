@@ -4,7 +4,7 @@ A fourth genre: the ground is made of samples, units move as a crowd instead of
 one at a time, and orders go to a selection instead of to a body.
 
 ```dart
-final sim = StrategySimulation(ground: heightfield);
+final sim = StrategySimulation(ground: heightfield, random: GameRandom(7));
 for (var i = 0; i < 500; i++) {
   sim.add(StrategyUnit(position: Vector3(i % 25 * 1.5, 0.0, i ~/ 25 * 1.5)));
 }

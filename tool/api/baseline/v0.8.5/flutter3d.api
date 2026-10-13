@@ -43,7 +43,7 @@ extension ModelAssetInstantiate on ModelAsset
   ModelInstance instantiateFitted(Scene scene, {required double length, int axis = 2, bool onGround = false, SceneNode? parent, String? name, bool shareMaterials = true})
 
 final class ModelInstance
-  ModelInstance({required this.root, required this.nodes, required this.meshes, required this.skeletons, required this.player, this.variants = const <String>[], this._drawn = const <(MeshNode, ModelPart)>[], Material Function(Material)? materialFor, PointerTargets? pointerTargets})
+  ModelInstance({required this.root, required this.nodes, required this.meshes, required this.skeletons, required this.player, this.variants = const <String>[], List<(MeshNode, ModelPart)> this._drawn = const <(MeshNode, ModelPart)>[], Material Function(Material)? materialFor, PointerTargets? pointerTargets})
   String? get variant
   bool selectVariant(String? name)
   final AnimationPlayer? player

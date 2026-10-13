@@ -1,5 +1,4 @@
 import 'package:flutter3d_education/lab.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 
 DataSourceTrace _traceOf(List<double> lengths, {String path = 'length'}) {

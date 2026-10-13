@@ -99,6 +99,8 @@ void _countingPass(
 ///
 /// One per drawn cloud, since the buffers are sized to it and reused: a
 /// camera that moves every frame sorts every frame and allocates nothing.
+///
+/// A backend's sort, or a test of one, keeps one, `SplatSorter()`.
 final class SplatSorter {
   Uint32List _keys = Uint32List(0);
   Uint32List _order = Uint32List(0);

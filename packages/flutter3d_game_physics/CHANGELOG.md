@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **`party.dart` exports `PartySeat`**, the seat `PartySession.open`'s
+  `stage` is handed, so the callback can name it with this import alone.
 - **Breaking: `RagdollCorpses.begin` takes one `ActorDeathContext`**, as
   every `ActorCorpses` does now.
 - **`BurningWreck.fromJson` throws a `SnapshotFormatException`** for a

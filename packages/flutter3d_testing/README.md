@@ -26,7 +26,8 @@ picture changes, and the message says by how much and how to re-record.
 
 A `.f3drun` your game recorded is a test too:
 
-```dart
+```dart fragment
+// `Ascent` is the game's own.
 void main() {
   testReplay(
     'test/tapes/ascent.f3drun',
@@ -93,6 +94,8 @@ function that opens a device at a size, in the shape every backend's `open`
 has. The frame is drawn there instead of on the software rasteriser:
 
 ```dart
+import 'package:flutter3d_webgpu/flutter3d_webgpu_web.dart';
+
 final frame = await renderFrame(
   width: 320,
   height: 180,

@@ -6,6 +6,8 @@ import 'package:vector_math/vector_math.dart';
 /// Filled in by [TrackSpline.frameAt] rather than returned by it: a car asks
 /// for this several times a step, and a fresh set of four vectors each time is
 /// four allocations on the hottest path the simulation has.
+///
+/// A track's query fills one the caller made, `TrackFrame()`.
 final class TrackFrame {
   /// The point on the centre line.
   final Vector3 position = Vector3.zero();

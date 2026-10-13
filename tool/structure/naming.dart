@@ -775,8 +775,9 @@ List<NamingProblem> openSetShapeIn(String snapshot) {
 
 /// The capitalized identifiers the declaration or member on [line] names as
 /// types: its return type, its parameters' types, its supertypes and type
-/// bounds. Not its annotations, its string literals, its default values or
-/// a constant's value, which a caller never has to write.
+/// bounds, and the type of a constant a default value reads. Not its
+/// annotations, its string literals, the rest of a default value or a
+/// constant's value, which a caller never has to write.
 Set<String> typesNamedIn(String line) {
   var bare = splitAnnotations(
     line,
@@ -789,11 +790,18 @@ Set<String> typesNamedIn(String line) {
   }
   // Default values inside a parameter list. A typedef's `=` is its body,
   // a function type, which can hold none: everything after it is a type
-  // a caller writes.
+  // a caller writes. Of a default, only the type of a constant it reads
+  // (`mask = CollisionLayers.world`) stays: that is the vocabulary a caller
+  // writes to pass anything else.
   if (!bare.startsWith('typedef ')) {
-    bare = bare.replaceAll(
+    bare = bare.replaceAllMapped(
       RegExp(r'\s=\s*(?:const\s+)?[^,)}\]]*(?:\([^)]*\))?'),
-      '',
+      (Match m) => <String>[
+        for (final c in RegExp(
+          r'(?<![\w$.])([A-Z][\w$]*)\.[a-z_$]',
+        ).allMatches(m.group(0)!))
+          ' ${c.group(1)}',
+      ].join(),
     );
   }
   return <String>{
@@ -900,13 +908,39 @@ List<NamingProblem> facadeGapsIn({
   required Set<String> exported,
   required Map<String, List<ApiBlock>> declarations,
   Set<String>? extensions,
+  Map<String, Set<String>>? homes,
 }) {
   final out = <NamingProblem>[];
   final reached = <String>{...exported};
   final queue = <String>[...exported];
   final reported = <String>{};
+  final subtypes = subtypesIn(declarations);
+  bool home(String a, String b) =>
+      homes == null ||
+      (homes[a] ?? const <String>{}).any(
+        (String p) => homes[b]?.contains(p) ?? false,
+      );
   while (queue.isNotEmpty) {
     final type = queue.removeLast();
+    // Downward, from a type the facade exports: the variants of a sealed
+    // base and the stock implementations its package gives a base are what
+    // fills it, and a caller writes them (`SaveFound`, `SteadyLight`).
+    if (exported.contains(type)) {
+      for (final sub in subtypes[type] ?? const <String>[]) {
+        if (!home(sub, type)) continue;
+        if (!exported.contains(sub) && reported.add(sub)) {
+          out.add((
+            subject: sub,
+            what:
+                'is a subtype of `$type`, which `package:$facade` exports, '
+                'declared in its package, and `package:$facade` does not '
+                'export it: export it (or give `$type` a factory for it), or '
+                'say in `facadeGapAllowed` why a caller never writes it',
+          ));
+        }
+        if (reached.add(sub)) queue.add(sub);
+      }
+    }
     for (final block in declarations[type] ?? const <ApiBlock>[]) {
       final generics = typeParametersIn(block.header);
       for (final line in <String>[block.header, ...block.members]) {
@@ -954,6 +988,95 @@ List<NamingProblem> facadeGapsIn({
     }
   }
   return out;
+}
+
+/// Each name the main library of a package in [underneath] lets a caller
+/// write that the facade [facade] re-exports it with a `show` list leaving
+/// that name out (S2): a public name of the library underneath that is not
+/// the facade's.
+///
+/// [facadeSnapshot] is the facade's snapshot; [underneath] maps a package to
+/// its snapshot. A library the facade does not re-export from, or
+/// re-exports whole, has nothing to leave out.
+///
+/// **A name added underneath lands outside the facade unseen.**
+/// `lowerMaterialCompute` was added to the core with the guide naming it
+/// beside `parseMaterial`, and the facade's hand-kept list took the one and
+/// not the other: nothing asked, and the closure cannot see a name that no
+/// exported signature names.
+List<NamingProblem> facadeLeftOutIn({
+  required String facade,
+  required String facadeSnapshot,
+  required Map<String, String> underneath,
+}) {
+  final library = parseApi(facadeSnapshot)['package:$facade/$facade.dart'];
+  if (library == null) return const <NamingProblem>[];
+  // A name the library underneath re-exports from further down may reach
+  // the facade through that package's own list.
+  final admitted = facadeNames(facadeSnapshot, facade);
+  final out = <NamingProblem>[];
+  for (final MapEntry(key: package, value: snapshot) in underneath.entries) {
+    final uri = 'package:$package/$package.dart';
+    final export = library.exports[uri];
+    if (export == null || !export.header.contains(' show ')) continue;
+    for (final name in facadeNames(snapshot, package).toList()..sort()) {
+      if (admitted.contains(name)) continue;
+      out.add((
+        subject: name,
+        what:
+            'is public in `$uri`, which `package:$facade` re-exports with a '
+            '`show` list that leaves it out: add it to the list, or say in '
+            '`facadeLeavesOut` why a caller of the facade never writes it',
+      ));
+    }
+  }
+  return out;
+}
+
+/// The direct subtypes of each type in [declarations], by the supertype's
+/// name: every type whose header names it after `extends`, `implements` or
+/// `with`.
+Map<String, List<String>> subtypesIn(Map<String, List<ApiBlock>> declarations) {
+  final out = <String, List<String>>{};
+  for (final MapEntry(key: name, value: blocks) in declarations.entries) {
+    for (final block in blocks) {
+      final header = splitAnnotations(block.header).rest;
+      final clause = RegExp(
+        r'\s(?:extends|implements|with)\s+(.*)$',
+      ).firstMatch(header);
+      if (clause == null) continue;
+      // A type argument (`extends Base<Kind>`) names no supertype.
+      var supers = clause.group(1)!;
+      while (supers.contains('<')) {
+        supers = supers.replaceAll(RegExp(r'<[^<>]*>'), '');
+      }
+      for (final m in RegExp(r'(?<![\w$.])([A-Z][\w$]*)').allMatches(supers)) {
+        final list = out[m.group(1)!] ??= <String>[];
+        if (!list.contains(name)) list.add(name);
+      }
+    }
+  }
+  return out;
+}
+
+/// The packages whose main library declares each type, read off
+/// [snapshots] by package.
+///
+/// **The main library only.** A package's other libraries are entry points
+/// of their own for a reader of their own (`testing.dart`'s fakes,
+/// `trace.dart`'s recording device), and a facade over the main library
+/// does not owe them.
+Map<String, Set<String>> typeHomesIn(Map<String, String> snapshots) {
+  final homes = <String, Set<String>>{};
+  for (final MapEntry(key: package, value: snapshot) in snapshots.entries) {
+    for (final library in parseApi(snapshot).values) {
+      if (library.uri != 'package:$package/$package.dart') continue;
+      for (final name in library.declarations.keys) {
+        (homes[name] ??= <String>{}).add(package);
+      }
+    }
+  }
+  return homes;
 }
 
 /// Every type a snapshot declares, by name: a class, an enum, a mixin, an
@@ -1826,8 +1949,8 @@ List<(String, String)> proveNamingDetectorsWork() {
   const core =
       'library package:core/core.dart\n\n'
       'final class Engine\n'
-      '  Registration addStep(RenderNode node, {int limit = Hidden.most, '
-      'Fallback fallback = const Fallback()})\n'
+      '  Registration addStep(RenderNode node, {int limit = Layers.most, '
+      'Fallback fallback = const Fallback(), int depth = Hidden()})\n'
       '  @Deprecated(\'Use Hidden\') void old()\n'
       '  static const Engine none = Engine._(Hidden())\n\n'
       'abstract base class RenderNode\n'
@@ -1844,15 +1967,28 @@ List<(String, String)> proveNamingDetectorsWork() {
       '  Map<String, List<Phase>> phases<E extends Shape>(E of)\n\n'
       'final class Contact\n\nfinal class Phase\n\n'
       'extension EngineLooks on Engine\n  int get looks\n\n'
-      'extension HiddenLooks on Hidden\n';
+      'extension HiddenLooks on Hidden\n\n'
+      'final class Layers\n\n'
+      'sealed class Answer\n\n'
+      'final class Yes extends Answer\n\n'
+      'final class Glow extends RenderNode implements Comparable<Answer>\n';
+  const outside =
+      'library package:other/other.dart\n\n'
+      'final class Theirs extends RenderNode\n';
   const facadeApi =
       'library package:face/face.dart\n\n'
-      'export package:core/core.dart show Bus, Engine, Handler, RenderNode\n'
-      '  Bus\n  Engine\n  Handler\n  RenderNode\n';
+      'export package:core/core.dart show Answer, Bus, Engine, Handler, '
+      'RenderNode\n'
+      '  Answer\n  Bus\n  Engine\n  Handler\n  RenderNode\n';
   final gaps = facadeGapsIn(
     facade: 'face',
     exported: facadeNames(facadeApi, 'face'),
-    declarations: typeDeclarationsIn(<String>[core, facadeApi]),
+    declarations: typeDeclarationsIn(<String>[core, outside, facadeApi]),
+    homes: typeHomesIn(<String, String>{
+      'core': core,
+      'other': outside,
+      'face': facadeApi,
+    }),
   ).map((NamingProblem p) => p.subject).toSet();
   fires(
     'facade closure',
@@ -1877,12 +2013,56 @@ List<(String, String)> proveNamingDetectorsWork() {
         'generic argument (`Stream<Contact>`, `List<Phase>`), and an '
         'extension on an exported type',
   );
+  // Mutation: drop the downward step, and `Yes` and `Glow` go quiet; drop
+  // what a default reads, and `Layers` does.
+  fires(
+    'facade closure',
+    gaps.containsAll(<String>{'Yes', 'Glow', 'Layers'}),
+    'a variant of an exported sealed base, a stock implementation its '
+        'package gives an exported base, and the type of a constant a '
+        'default value reads (`limit = Layers.most`)',
+  );
   quiet(
     'facade closure',
-    gaps.length == 10,
-    'a default value, an annotation, a constant\'s value and a type '
-        'parameter, a method\'s own (`<E extends Shape>`) included',
-    'a caller never writes those',
+    gaps.length == 13,
+    'an annotation, a constant\'s value, a default value that only '
+        'constructs, a type parameter, a method\'s own (`<E extends Shape>`) '
+        'included, a type argument of a supertype, and a subtype another '
+        'package declares',
+    'a caller never writes those, or the facade never stood on them',
+  );
+
+  // A facade's show list against the library under it.
+  final leftOut = facadeLeftOutIn(
+    facade: 'face',
+    facadeSnapshot:
+        'library package:face/face.dart\n\n'
+        'export package:core/core.dart show Engine, parseThing\n'
+        '  Engine\n  parseThing\n'
+        'export package:whole/whole.dart (whole library)\n'
+        '  Whole\n',
+    underneath: <String, String>{
+      'core':
+          'library package:core/core.dart\n\n'
+          'final class Engine\n\nfinal class Kernel\n\n'
+          'Thing parseThing(String source)\n\n'
+          'Kernel lowerThing(Thing thing)\n\n'
+          'export package:deep/deep.dart show Whole\n  Whole from deep\n\n'
+          'library package:core/other.dart\n\nfinal class Elsewhere\n',
+      'whole': 'library package:whole/whole.dart\n\nfinal class Whole\n',
+    },
+  ).map((NamingProblem p) => p.subject).toSet();
+  fires(
+    'facade show list',
+    leftOut.containsAll(<String>{'Kernel', 'lowerThing'}),
+    'a class and a function the library under the facade declares',
+  );
+  quiet(
+    'facade show list',
+    leftOut.length == 2,
+    'a name on the list, one admitted through another export, one in '
+        'another library of the package, and a library re-exported whole',
+    'the facade admits those, or never stood on them',
   );
 
   // Types nobody can import.

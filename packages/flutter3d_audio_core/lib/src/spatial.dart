@@ -46,6 +46,8 @@ final class SpatialQuery {
 /// stereo backend reads [gain] and [pan] and a binaural one reads [azimuth],
 /// [elevation] and [distance] from the same result. Kept on the emitter
 /// ([AudioEmitter.spatial]) between mixes.
+///
+/// A backend's test makes one with `SpatialResult()` to hand its mixer.
 final class SpatialResult {
   /// How loud it arrives, linear, before any bus: the sound's gain, the
   /// emitter's, the distance curve's and what the walls let through.

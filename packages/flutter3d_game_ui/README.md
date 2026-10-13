@@ -45,9 +45,10 @@ loop and the pubspec has no `flutter3d_plugins:` marker.
 
 ### Example
 
-```dart
+```dart fragment
 import 'package:flutter3d_game_ui/hud.dart';
 
+// `Readout` (what the run shows) and `Jumped` are the game's own.
 Widget hud(Readout r) => Stack(
   children: <Widget>[
     Positioned(
@@ -138,8 +139,18 @@ marker.
 ```dart
 import 'package:flutter3d_game_ui/touch.dart';
 
+// The game's own actions.
+abstract final class Drive {
+  static const left = GameAction('steerLeft');
+  static const right = GameAction('steerRight');
+  static const throttle = GameAction('throttle');
+  static const brake = GameAction('brake');
+  static const handbrake = GameAction('handbrake');
+  static const tireSet = GameAction('tireSet');
+}
+
 // A vehicle.
-TouchDrive(
+final drive = TouchDrive(
   state: input,
   steerLeft: Drive.left,
   steerRight: Drive.right,
@@ -150,7 +161,7 @@ TouchDrive(
 );
 
 // A game with many verbs.
-TouchControls(
+final controls = TouchControls(
   state: input,
   corner: TouchToggle(label: 'map', on: mapOn, onTap: toggleMap),
   slots: const <TouchSlot>[TouchSlot('axe'), TouchSlot('bow', owned: false)],
@@ -158,7 +169,7 @@ TouchControls(
   buttons: const <TouchAction>[
     TouchAction(GameAction.use, 'use'),
     TouchAction(GameAction.jump, 'jump'),
-    TouchAction(Actions.strike, 'strike'), // nearest the thumb
+    TouchAction(GameAction('strike'), 'strike'), // nearest the thumb
   ],
 );
 ```
@@ -219,6 +230,7 @@ with no arguments, and a spoken table is the game's own, handed in code.
 ### Example
 
 ```dart
+import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_game_ui/access.dart';
 
 final loop = EngineLoop(
@@ -377,7 +389,7 @@ import 'package:flutter3d_game_ui/photo_mode.dart';
 final photo = PhotoMode(
   controls: const ActionPhotoControls(
     up: GameAction.jump,
-    down: MyActions.duck,
+    down: GameAction('duck'),
     sensitivity: 0.0022, // the game's own look, radians a pixel
   ),
 );
@@ -395,8 +407,8 @@ photo
 final said = photo.key(event, onCapture: (scale) => takePicture(scale));
 
 // The look, filtered, and the strip.
-final look = photo.active ? photo.look(game.look) : game.look;
-if (photo.active) PhotoBar(mode: photo);
+final look = photo.isActive ? photo.look(game.look) : game.look;
+if (photo.isActive) PhotoBar(mode: photo);
 ```
 
 A keyboard-only game hands `KeyPhotoControls(up: keyE, down: keyQ,

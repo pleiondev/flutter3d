@@ -108,6 +108,8 @@ ModelDocument toModelDocument(ModelProject project, {bool withLods = false}) =>
 /// would upload it again, or write it twice into a file whose whole point is
 /// that a shared mesh is written once. Reusing the exact instance is what lets
 /// those caches work across an edit that touched a different object entirely.
+///
+/// An application makes one with `ProjectModelDocument()` to export a project.
 final class ProjectModelDocument extends ModelDocument {
   final Map<(int, int), MeshData> _meshCache = <(int, int), MeshData>{};
 

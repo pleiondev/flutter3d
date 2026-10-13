@@ -123,6 +123,7 @@ final class DesktopInput
   void releasePointer(GameAction action)
 
 final class DragLook
+  DragLook()
   Vector2 take()
   bool get isDragging
   void begin()
@@ -228,6 +229,7 @@ final class PadInput
   void tick(double dt)
 
 final class PadPresses
+  PadPresses()
   bool offer(PadInput pad, SettingsCubit settings, {PadButton? menuButton, void Function()? opening})
 
 final class PadRoutes

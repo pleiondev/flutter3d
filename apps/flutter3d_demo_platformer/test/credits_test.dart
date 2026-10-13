@@ -17,7 +17,6 @@ library;
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d_app/flutter3d_app.dart' show MemoryStorage;
 import 'package:flutter3d_demo_content/repo_checks.dart'; // creditGaps
 import 'package:flutter3d_demo_platformer/src/credits.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';

@@ -666,6 +666,8 @@ extension BundledMaterialLooks on BundledMaterials {
 /// collected with its id, and this registry stops being a reason anything
 /// stays alive.
 final class MaterialSortIds {
+  MaterialSortIds._();
+
   Expando<int> _ids = Expando<int>('material sort id');
 
   /// How many ids have been handed out.
@@ -696,3 +698,8 @@ final class MaterialSortIds {
     _assigned = 0;
   }
 }
+
+/// A new [MaterialSortIds], for the render list, which hands out the ids: the
+/// package's own code makes one, and nothing outside it has a use for one it
+/// did not get from there.
+MaterialSortIds engineMaterialSortIds() => MaterialSortIds._();

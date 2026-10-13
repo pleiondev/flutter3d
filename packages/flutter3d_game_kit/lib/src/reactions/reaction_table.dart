@@ -8,6 +8,8 @@ import 'reaction.dart';
 ///
 /// Mutable on purpose, and only while one step or one frame is decided:
 /// [build] hands out the finished, unchanging [Reaction].
+///
+/// A test of a game's rules makes one with `ReactionBuilder()` to run them on.
 final class ReactionBuilder {
   final List<Shown> bursts = <Shown>[];
   final List<Lingering> lingering = <Lingering>[];
@@ -89,6 +91,8 @@ final class ReactionContext<T extends BusEvent> {
 ///   });
 /// final reaction = table.react(events);
 /// ```
+///
+/// A game makes its own table with `ReactionTable()` and fills it with `on`.
 final class ReactionTable {
   final List<_Row> _rows = <_Row>[];
 

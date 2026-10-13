@@ -40,6 +40,8 @@ import 'selection.dart';
 /// lists is 300 000 allocations for arithmetic that touches at most a few dozen
 /// numbers at a time — the shape of cost that does not show in a microbenchmark
 /// and shows in a garbage collector's pauses while somebody drags a vertex.
+///
+/// A caller keeps one, `FaceTriangulator()`, to reuse its buffers.
 final class FaceTriangulator {
   /// Corner positions of the face being cut, projected to two dimensions.
   final List<double> _x = <double>[];

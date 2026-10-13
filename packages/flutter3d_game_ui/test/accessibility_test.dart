@@ -30,7 +30,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
-import 'package:flutter3d_app/flutter3d_app.dart' show MemoryStorage;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_ui/flutter3d_game_ui.dart';
 import 'package:flutter_test/flutter_test.dart';

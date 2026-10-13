@@ -41,39 +41,52 @@
 ///
 /// `package:flutter3d_app/native.dart` holds the one piece that needs a
 /// filesystem, off this barrel so a `dart:io` import never stops a web build
-/// compiling, and `package:flutter3d_app/xr_testing.dart` the session a test
-/// drives with no headset.
+/// compiling, `package:flutter3d_app/xr_testing.dart` the session a test
+/// drives with no headset, and `package:flutter3d_app/software.dart` the
+/// software device's stages for a material written as source.
 library;
 
-export 'package:flutter3d_cpu/flutter3d_cpu.dart'
-    show
-        BoundTexture,
-        CpuFragmentShader,
-        CpuStorageTexture,
-        CpuTexture,
-        CpuVertexShaderByIndex,
-        FragmentContext,
-        ShaderBindings;
 export 'package:flutter3d_level_scene/flutter3d_level_scene.dart'
     show LevelBatching;
 export 'package:flutter3d_particles/flutter3d_particles.dart'
     show
+        BoxEmitter,
+        ConeEmitter,
+        CurveKey,
+        DriftEmitter,
         Flipbook,
         FlipbookCell,
+        GradientKey,
+        KeyEase,
         Particle,
         ParticleAffector,
         ParticleBirth,
+        ParticleColorGradient,
+        ParticleColorOverLife,
+        ParticleCurve,
+        ParticleDrag,
         ParticleEffect,
         ParticleEmitter,
+        ParticleFade,
+        ParticleGradient,
+        ParticleGravity,
+        ParticlePlaneCollision,
+        ParticleSizeCurve,
+        ParticleSizeOverLife,
+        ParticleSpin,
         ParticleStep,
         ParticleSystem,
-        Range;
+        ParticleTurbulence,
+        ParticleWind,
+        Range,
+        SphereEmitter;
 export 'package:flutter3d_physics/flutter3d_physics.dart'
     show
         ClothObstacle,
         CollisionWorld,
         ContactPhase,
         JetObstacle,
+        Layers,
         ObstacleTouch,
         PhysicsBackend,
         StepContact,
@@ -84,6 +97,8 @@ export 'package:flutter3d_sim/flutter3d_sim.dart'
         ActorHurt,
         AvoidanceNeighbor,
         Brush,
+        CollisionLayers,
+        ContactEvent,
         DisplayTime,
         EngineLoop,
         EntityDef,
@@ -97,6 +112,7 @@ export 'package:flutter3d_sim/flutter3d_sim.dart'
         InputFrame,
         InputState,
         InputTapeRecorder,
+        IsolateSimulation,
         JsonLinearColorWriter,
         Level,
         LevelCheck,
@@ -110,6 +126,8 @@ export 'package:flutter3d_sim/flutter3d_sim.dart'
         Lightmap,
         LightmapLayout,
         LocalSimulation,
+        LogTime,
+        ManualTime,
         NavMeshLink,
         PlayerStart,
         Prefab,
@@ -145,7 +163,6 @@ export 'src/level/prop_visuals.dart';
 export 'src/level/shared_meshes.dart';
 export 'src/level/terrain_tiles.dart';
 export 'src/level/visibility_culler.dart';
-export 'src/materials/material_language_stage.dart';
 export 'src/photo/photo_shelf.dart';
 export 'src/storage/storage.dart';
 export 'src/surface/did_not_start.dart';

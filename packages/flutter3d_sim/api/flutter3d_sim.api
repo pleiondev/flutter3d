@@ -123,6 +123,7 @@ final class ActorDied extends GameEvent
   static final EventCodec<ActorDied> codec
 
 abstract base mixin class ActorDirector
+  ActorDirector()
   abstract bool directs(Actor actor)
   abstract void steer(Mind it)
 
@@ -393,6 +394,7 @@ final class BodyPose
   final Vector3 position
 
 abstract base class Brain
+  Brain()
   Map<String, Object?> save()
   void act(Mind it)
   void onDeath(Mind it)
@@ -592,6 +594,7 @@ final class Damage
   final double amount
 
 abstract base mixin class Damageable
+  Damageable()
   abstract bool applyDamage(Damage damage)
 
 final class DataSourceRegistry
@@ -1219,6 +1222,7 @@ final class GivenOrder
   final String verb
 
 abstract base mixin class HasBehaviorTree
+  HasBehaviorTree()
   abstract BehaviorTree get tree
 
 abstract base class HeadlessGame
@@ -1362,6 +1366,7 @@ final class InputFrame
   final int? slot
 
 final class InputState
+  InputState()
   Iterable<GameAction> get heldNow
   Iterable<GameAction> get pressedThisStep
   Iterable<GameAction> get releasedThisStep
@@ -1514,9 +1519,11 @@ final class JumpReach
   int get hashCode
 
 abstract mixin class KeyHolder
+  KeyHolder()
   abstract Set<String> get keys
 
 final class KeyRing with KeyHolder
+  KeyRing()
   List<String> save()
   Set<String> get keys
   bool add(String key)
@@ -1700,6 +1707,7 @@ final class LevelScope
   final Set<String> keys
 
 final class LevelSketch
+  LevelSketch()
   Map<String, Object?> box(List<num> at, List<num> size, String material, {String shadows = 'on', bool solid = true})
   final List<Map<String, Object?>> brushes
   final List<Map<String, Object?>> entities
@@ -2232,6 +2240,7 @@ final class Powers
   List<String> step(double dt)
   Map<String, Object?> save()
   Map<String, double> get remaining
+  Powers()
   bool has(String power)
   double remainingOf(String power)
   void clear()
@@ -2333,6 +2342,7 @@ final class ProbeSection extends ProbeRegion
 
 final class ProbeTrace
   List<ProbeReading> get readings
+  ProbeTrace()
   Registration record(EngineLoop loop)
 
 final class PublishedActor
@@ -2475,6 +2485,7 @@ final class RewindPoint
   final int step
 
 abstract base mixin class Rider
+  Rider()
   abstract Collider? get carriedBy
 
 final class RoomDoor

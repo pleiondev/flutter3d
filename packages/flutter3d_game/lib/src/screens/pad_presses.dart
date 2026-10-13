@@ -21,6 +21,8 @@ import 'game_settings.dart';
 /// The settings are asked first, for the reason `settingsKeys` gives about the
 /// keyboard: a controller has to be remappable from the controller, which is
 /// the whole point for a player who has one of the two devices.
+///
+/// A screen that reads the pad makes one with `PadPresses()`.
 final class PadPresses {
   /// What was down last frame, so an edge is per button.
   final Set<GamePadButton> _held = <GamePadButton>{};

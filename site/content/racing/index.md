@@ -75,7 +75,7 @@ final car = SphereVehicle(
   tireSet: TireSet.slicks,
 );
 
-car.step(dt, input);
+car.step(VehicleStep(dt: dt, input: input));
 ```
 
 `VehicleSettings` is the table of engine, brakes, steering and gravity, all plain units. The grip is not in it: `TireSet` bundles the `TireModel` curve, the `GripTable` that says what each surface is worth to it, and `limit`, how many gravities there are to spend on a surface worth `1.0`. Three sets ship (`TireSet.road`, `TireSet.slicks`, `TireSet.rally`), a car given none starts on road tires, and `pitStop` swaps them at a standstill.

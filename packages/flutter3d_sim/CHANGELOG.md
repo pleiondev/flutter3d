@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `MechanismEvents` is made by its world**, which keeps it as
+  `events`; one made by hand was never filled.
 - **Breaking: `Actor.onDamage` is handed the `Damage`.** It took the
   amount and who dealt it as two parameters; one object can tell a target
   more in a minor without breaking a handler. `migrate` wraps an old one.

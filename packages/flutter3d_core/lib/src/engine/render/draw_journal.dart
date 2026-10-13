@@ -173,6 +173,8 @@ final class DrawRecord {
 
 /// Collects [DrawRecord]s while one frame runs.
 final class DrawJournal {
+  DrawJournal._();
+
   final List<DrawRecord> _records = <DrawRecord>[];
   final Map<String, int> _undetailed = <String, int>{};
 
@@ -237,3 +239,8 @@ final class DrawJournal {
     );
   }
 }
+
+/// A new [DrawJournal], for the renderer, which keeps one journal per renderer:
+/// the package's own code makes one, and nothing outside it has a use for one
+/// it did not get from there.
+DrawJournal engineDrawJournal() => DrawJournal._();

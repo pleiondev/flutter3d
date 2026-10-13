@@ -216,6 +216,7 @@ final class EditMesh
 
 final class EditMeshBuilder
   EditMesh build()
+  EditMeshBuilder()
   int addFace(List<int> loop)
   int addVertex(Vector3 position)
   int get faceCount
@@ -234,6 +235,7 @@ abstract final class FaceFlags
   static const int smooth = 1 << 0
 
 final class FaceTriangulator
+  FaceTriangulator()
   bool get didFanLastFace
   int triangulate(List<Vector3> points, void Function(int a, int b, int c) emit)
 
@@ -433,6 +435,7 @@ final class MeshLayoutPlan
   Int32List get gpuVertexToVertex
   Int32List get triangleToFace
   MeshData toMeshData(EditMesh mesh, {Float32List? into, bool withTangents = false})
+  MeshLayoutPlan()
   Uint32List get indices
   VertexLayout get layout
   bool get didFanAnyFace
@@ -448,6 +451,7 @@ final class MeshLayoutPlan
 final class MeshNormals
   Float32List get cornerNormals
   Float32List get faceNormals
+  MeshNormals()
   Vector3 cornerNormal(int halfEdge, [Vector3? out])
   Vector3 faceNormal(int face, [Vector3? out])
   int groupOf(int halfEdge)

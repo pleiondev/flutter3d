@@ -8,7 +8,7 @@ final device = CpuDevice(
   height: 160,
   shaders: CpuShaderLibrary(builtinCpuShaders()),
 );
-final pixels = await device.readPixels(frame);
+final pixels = await device.readback(frame);
 ```
 
 Two things use it. The golden images are drawn with it, so a machine with no

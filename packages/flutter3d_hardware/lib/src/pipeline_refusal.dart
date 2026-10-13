@@ -141,6 +141,8 @@ final class PipelineRefusedException extends ResourceException {
 /// Keyed by the handle, not by its name: a pipeline relinked after a shader
 /// reload is a new handle with a new count, which is what a fixed shader
 /// deserves.
+///
+/// A backend's device keeps one, made with `PipelineRefusals()`.
 final class PipelineRefusals {
   /// How many times a pipeline is built before it is left refused: the first
   /// build and two rebuilds.

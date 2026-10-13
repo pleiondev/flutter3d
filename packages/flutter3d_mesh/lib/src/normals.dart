@@ -41,6 +41,8 @@ import 'edit_mesh.dart';
 /// dragging one, is every frame — and a pair of fresh `Float32List`s per frame
 /// on a 200 000-face mesh is nine megabytes a second of garbage for numbers
 /// that are overwritten immediately.
+///
+/// A caller keeps one, `MeshNormals()`, to reuse its buffers.
 final class MeshNormals {
   /// The angle beyond which two faces are taken to disagree, in radians.
   ///

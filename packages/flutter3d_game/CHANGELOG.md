@@ -1,5 +1,30 @@
 ## 1.0.0-rc.1
 
+- **The plugin and matter exceptions, `Materials` and `ExternalIdSpace`**
+  are re-exported from `flutter3d`.
+- **The facade exports what fills the bases it exports.** The variants
+  of `SaveRead`, `SaveUpgrade`, `ServiceAnswer` and `ActivationOutcome`
+  (`SaveFound`, `SaveNotRead`, `SaveRefused`, `SaveUpgraded`,
+  `ServiceDone`, `ServiceRefused`, `Activated`, `Refused`, `NothingToDo`);
+  the stock entity kinds with `EntityTypes`, `EntityKinds` and
+  `EntityKindRegistry`; the level rules (`ExactlyOne`, `AtLeastOne`,
+  `ExitReachable`, `BehaviorsRead` and the behavior tree's builders) and
+  `LevelValidator`; the mechanisms and the cutscene sequence; the light
+  behaviors (`SteadyLight`, `FlameFlicker`, `PulseLight`); the collision
+  masks (`CollisionLayers`, `Layers`); `Difficulty`; the stock
+  attenuations, `SilentBackend`, `LowPassEffect`, `ReverbEffect` and
+  `EqualPowerPanner`; every stock particle emitter and affector with
+  their curves and gradients; `DartPhysics`, `DartFluid`, `DartCloth`, the
+  jet obstacles and the liquid body; `FileStorage`, `MemoryStorage` and
+  the XR layers; the time sources and `IsolateSimulation`; and what the
+  genre kits name: `KeyRing`, `Powers`, `Tally`, `Scoring`,
+  `SurfaceTable`, `CatmullRom`, the headless run (`HeadlessGame`,
+  `HeadlessRun`, `HeadlessStart`, `RestorableRun`), `GenrePlugin` with its
+  contexts, and the camera rig with its framings from `flutter3d_camera`
+  (now a dependency), so a game on a kit names its camera through this
+  import.
+- **Everything `flutter3d` adds is re-exported here**: the compute
+  material, the add-ons, the format exceptions and the rest of its list.
 - **`RenderStepContext` is exported**, what a render step's `isOn` and
   `switchOff` are handed: the settings, and the frame's views, device and
   quality.

@@ -410,22 +410,6 @@ entries:
     symbol: FrameTextureSource
     kind: implementsToWith
 
-  # 1 break(s), seen in flutter3d:
-  #   no longer re-exported through package:flutter3d_core/flutter3d_core.dart
-  - id: core-ImmediateTextureSource
-    package: flutter3d_core
-    symbol: ImmediateTextureSource
-    kind: moved
-    to: package:flutter3d_core/flutter3d_core.dart
-
-  # 1 break(s), seen in flutter3d:
-  #   no longer re-exported through package:flutter3d_core/flutter3d_core.dart
-  - id: core-InMemoryDeviceClassMemory
-    package: flutter3d_core
-    symbol: InMemoryDeviceClassMemory
-    kind: moved
-    to: package:flutter3d_core/flutter3d_core.dart
-
   # 1 break(s), seen in flutter3d_core:
   #   new subtype of sealed AnimationGoal: every exhaustive switch over it is missing a case
   - id: core-LookGoal
@@ -807,14 +791,6 @@ entries:
   - id: core-lookAtRightHanded
     package: flutter3d_core
     symbol: lookAtRightHanded
-    kind: moved
-    to: package:flutter3d_core/flutter3d_core.dart
-
-  # 1 break(s), seen in flutter3d:
-  #   no longer re-exported through package:flutter3d_core/flutter3d_core.dart
-  - id: core-optimizeVertexCache
-    package: flutter3d_core
-    symbol: optimizeVertexCache
     kind: moved
     to: package:flutter3d_core/flutter3d_core.dart
 
@@ -1853,7 +1829,7 @@ entries:
     package: flutter3d_testing
     symbol: MaterialProgramStage
     kind: moved
-    to: package:flutter3d_app/flutter3d_app.dart
+    to: package:flutter3d_app/software.dart
 
   # 1 break(s), seen in flutter3d_webgl:
   #   the declaration changed: typedef WebGlSampler = ({int unit, bool cube}); -> typedef WebGlSampler = ({int unit, int target});
@@ -25190,3 +25166,51 @@ entries:
     guidance: >-
       `rsaPublicKeyToJwk` is `flutter3d_education_lti`'s, under the same name; `migrate`
       adds the dependency and `dart fix` the import.
+  - id: core-ImmediateTextureSource-acquire
+    package: flutter3d_core
+    symbol: ImmediateTextureSource.acquire
+    kind: none
+    reason: >-
+      Its parameter's type is `RenderTargetSpec` renamed to
+      `RenderTargetDescriptor`, which the rename of that type carries; a
+      call passes the same value as before. `ImmediateTextureSource` is
+      exported by `flutter3d` again, as at 0.8.5.
+
+  - id: core-optimizeVertexCache-default
+    package: flutter3d_core
+    symbol: optimizeVertexCache
+    kind: none
+    reason: >-
+      Only the constant its `cacheSize` defaults to is renamed
+      (`kDefaultVertexCacheSize` to `defaultVertexCacheSize`, an entry of
+      its own), with the same value, so every call compiles and behaves as
+      before. `optimizeVertexCache` is exported by `flutter3d` again, as at
+      0.8.5.
+
+  - id: core-HiZOcclusion-constructor
+    package: flutter3d_core
+    symbol: HiZOcclusion.HiZOcclusion
+    kind: none
+    reason: >-
+      The renderer makes the one it uses and feeds it the depths it read
+      back from the GPU; one made by hand at 0.8.5 was never fed and
+      answered nothing, so no code had a use for it. `OcclusionMode.hiZ`
+      in the render settings asks for it, as before.
+
+  - id: particles-ParticleGlow-constructor
+    package: flutter3d_particles
+    symbol: ParticleGlow.ParticleGlow
+    kind: none
+    reason: >-
+      A light emitter makes its own glow and reads it as `glow`; one made
+      by hand at 0.8.5 belonged to no emitter and counted nothing. Read
+      the emitter's `glow`, as before.
+
+  - id: sim-MechanismEvents-constructor
+    package: flutter3d_sim
+    symbol: MechanismEvents.MechanismEvents
+    kind: none
+    reason: >-
+      A mechanism world makes its own and reads it as `events`; one made
+      by hand at 0.8.5 belonged to no world and was never filled. Read the
+      world's `events`, as before.

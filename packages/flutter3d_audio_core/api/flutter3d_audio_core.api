@@ -118,6 +118,7 @@ final class BusMix
   double gain
 
 abstract base mixin class DirectionalBackend
+  DirectionalBackend()
   void placeVoice(VoicePlacement placement)
 
 final class DuckRule
@@ -224,6 +225,7 @@ final class Mixer
   void setVolume(AudioBus bus, double volume)
 
 abstract base mixin class MixingBackend
+  MixingBackend()
   void mixBus(BusMix mix)
   void routeVoice(VoiceRoute route)
 
@@ -247,6 +249,7 @@ final class SilentBackend extends AudioBackend
   Future<void> dispose()
   Future<void> preload(String asset)
   List<SilentVoice> get live
+  SilentBackend()
   VoiceId? start(VoiceStart voice)
   bool get isDisposed
   bool get isPaused
@@ -306,6 +309,7 @@ abstract base class SpatialRenderer
   void beginMix(AudioListener listener)
 
 final class SpatialResult
+  SpatialResult()
   String toString()
   double azimuth
   double distance

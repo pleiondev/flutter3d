@@ -42,6 +42,8 @@ No `flutter3d_game_shooter` and no `flutter3d_game_platformer`. A genre is a pac
 A car has a throttle and a brake, not a forward and a back. `GameAction` is a string, not an enum, for this reason: a genre declares its own verbs without editing the engine.
 
 ```dart
+import 'package:flutter/services.dart';
+
 abstract final class Drive {
   static const GameAction throttle = GameAction('throttle');
   static const GameAction brake = GameAction('brake');
@@ -124,6 +126,8 @@ final loaded = await const LevelLoader().load(
 Then turn the curve into meshes. That is `bridge.dart`, the one file in the genre that knows what a mesh is. It builds the road, the verges and the walls as `MeshData` from the same curve the cars drive on, and uploading them into the scene is the application's job (the shipped demo does it in an `addTrackTo` helper in `lib/src/looks.dart`, one `DeviceMesh.upload` and one `MeshNode` per mesh):
 
 ```dart
+import 'package:flutter3d_game_racing/bridge.dart';
+
 final road = buildRoadMesh(track);
 final leftVerge = buildVergeMesh(track, side: -1);
 final rightVerge = buildVergeMesh(track, side: 1);
@@ -179,8 +183,11 @@ for (var i = 0; i < 4; i++) {
   );
   // Told where it is on the lap, so the first `sample` has a hint and the
   // first progress read is not a global search from the wrong end.
-  car.placeAt(car.position, car.headingYaw,
-      trackDistance: track.center.wrap(track.grid.s));
+  car.placeAt(VehiclePlacement(
+    position: car.position,
+    headingYaw: car.headingYaw,
+    trackDistance: track.center.wrap(track.grid.s),
+  ));
   cars.add(car);
 }
 ```
@@ -202,13 +209,14 @@ const tuning = VehicleSettings(
   maxSteer: 0.62,        // radians at a standstill
   steerFalloff: 26.0,    // the speed at which steering has closed to half
   wheelBase: 2.6,
-  gravity: 22.0,         // positive is down, and above the real figure on purpose
   groundStick: 0.45,     // how far below the car the ground still counts as under it
   suspensionRate: 9.0,
   slideAlignment: 6.0,   // how strongly a slide drags the nose round with it
   wheelInertia: 0.5,     // what makes a wheelspin a wheelspin
 );
 ```
+
+Gravity is not among them: a car falls by the gravity of the world it drives in, as every body does. `racingWorld` (20 m/s², above the real figure on purpose) is the world a race is run in; a game that wants its own gives the race `racingWorld.copyWith(gravity: Vector3(0, -22, 0))`.
 
 The tire is where the feel lives, and it is one object: the curve, what each surface is worth to it, and how many gravities of grip there are to divide up. `TireSet` holds the three, so a game can offer a player a choice between sets without passing arguments that have to agree.
 

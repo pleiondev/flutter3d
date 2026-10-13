@@ -237,6 +237,7 @@ final class CollisionHeightfield extends CollisionShape
   int partsIn(Vector3 position, Vector3 min, Vector3 max, Int32List out)
 
 abstract mixin class CollisionListener
+  CollisionListener()
   void onCollision(CollisionContext context)
   void onCollisionEnd(CollisionContext context)
   void onCollisionStart(CollisionContext context)
@@ -346,6 +347,7 @@ final class ConstraintForce
   late RigidBody body
 
 abstract base mixin class ConstraintPhysics
+  ConstraintPhysics()
   abstract Registration constrain(ConstraintRequest request)
 
 final class ConstraintRequest
@@ -554,10 +556,12 @@ final class JetLanding
   double volume
 
 abstract base mixin class JetObstacle
+  JetObstacle()
   abstract ObstacleTouch? touch(Vector3 point, double radius)
   abstract bool reaches(Vector3 center, double distance)
 
 abstract base mixin class JetReceiver
+  JetReceiver()
   abstract bool catches(Vector3 point, double radius)
   abstract void receive(JetLanding landing)
 
@@ -571,6 +575,7 @@ final class JointHandle
   int get hashCode
 
 abstract base mixin class JointPhysics
+  JointPhysics()
   abstract JointHandle join(JointRequest request)
   abstract Set<JointType> get jointTypes
   abstract void unjoin(JointRelease request)
@@ -824,6 +829,7 @@ final class Pusher
 
 final class RayHit
   Collider? collider
+  RayHit()
   bool get didHit
   double distance
   final Vector3 normal
@@ -916,6 +922,7 @@ abstract final class SegmentMassShares
   static const double upperTrunk = 0.1596
 
 abstract base mixin class ShapePhysics
+  ShapePhysics()
   int get customShapeSamples
 
 final class SpatialGrid
@@ -958,6 +965,7 @@ final class StepContact implements Comparable<StepContact>
 
 final class SweepHit
   Collider? collider
+  SweepHit()
   bool get didHit
   double fraction
   final Vector3 normal
@@ -992,6 +1000,7 @@ final class TubeMeniscus
   late final double wallRise
 
 abstract base class VesselShape
+  VesselShape()
   abstract ({double low, double high}) span(Vector3 up)
   abstract List<Vector3> get rim
   abstract bool contains(Vector3 point)
@@ -1026,6 +1035,7 @@ final class WindSettings
   final double velocityZ
 
 abstract base mixin class WorldMirror
+  WorldMirror()
   abstract void mirror()
 
 abstract base class WorldRays

@@ -18,6 +18,8 @@ import 'physics_step_component.dart';
 /// again, a pooled ship say. A component moved to another parent keeps it:
 /// Flame moves by removing and mounting at once, and the move dropped the
 /// entry for good.
+///
+/// A game makes one with `ColliderRegistry()` and hands it to its bridge.
 final class ColliderRegistry {
   final Map<Collider, PositionComponent> _components =
       <Collider, PositionComponent>{};

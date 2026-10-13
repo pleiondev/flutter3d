@@ -194,8 +194,8 @@ if (player != null) {
 
 Advance the player **once a frame**, not once a step. The simulation runs at a fixed 60 Hz and the animation should run at whatever the display does. Which clip to play is a pure function of the simulation's state, which makes it testable on its own:
 
-```dart
-// A pure function, tested as one.
+```dart fragment
+// The platformer demo's own `RunnerClips`: a pure function, tested as one.
 final wanted = RunnerClips.forRunner(runner);
 if (wanted != current) {
   player.crossFadeToNamed(wanted, duration: wanted == RunnerClips.jump ? 0.06 : 0.14);

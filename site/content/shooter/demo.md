@@ -70,7 +70,7 @@ Sound, pointer capture and saved settings were all listed here as missing. All t
 
 The same three files as the platformer, plus one decision about the pointer.
 
-```dart
+```dart fragment
 // lib/src/backend.dart
 export 'backend_native.dart' if (dart.library.js_interop) 'backend_web.dart';
 ```

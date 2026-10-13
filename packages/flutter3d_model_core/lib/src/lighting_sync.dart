@@ -36,6 +36,8 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'scene_lighting.dart';
 
 /// The scene's own lights, following a project's [SceneLighting].
+///
+/// An application drawing a project makes one with `LightingSync()`.
 final class LightingSync {
   final List<LightNode> _managed = <LightNode>[];
 

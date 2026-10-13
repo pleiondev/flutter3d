@@ -49,12 +49,13 @@ SceneSurface(
     reflections: const ReflectionSettings(),
     fog: fogFromLevel,
   ),
+  presentFrame: presentFrame,
 )
 ```
 
 <small>from `apps/flutter3d_demo_dungeon/lib/main.dart`</small>
 
-`renderer`, `scene` and `view` are unsurprising. `settings` is not a `RenderSettings` value. It is a **function called once per frame, immediately after `onBeforeFrame`**. That ordering is the whole reason it's a function: the racing game's fog colour is the colour of the air along the current view, which only exists once the camera has moved for this frame, and `onBeforeFrame` is where the camera moves. A stored `RenderSettings` would describe last frame's air.
+`renderer`, `scene` and `view` are unsurprising, and `presentFrame` is the same backend choice `openDevice` made, handing the finished frame to Flutter. `settings` is not a `RenderSettings` value. It is a **function called once per frame, immediately after `onBeforeFrame`**. That ordering is the whole reason it's a function: the racing game's fog colour is the colour of the air along the current view, which only exists once the camera has moved for this frame, and `onBeforeFrame` is where the camera moves. A stored `RenderSettings` would describe last frame's air.
 
 `SceneSurface` clamps the render target to at least one pixel in each dimension, because a panel mid-animation or a window dragged to nothing is a real, zero-sized layout, and a render target of zero pixels is not a state the renderer has to tolerate.
 
@@ -62,12 +63,12 @@ SceneSurface(
 
 `RunSession<L>` is loading a level, restarting it, moving to the next one, saving, resuming, and reporting how a run ended. Three games wrote that sequence out separately: a 278-line cubit in the dungeon, nine private methods in a 1441-line platformer widget, and nothing at all in the racing game, whose saves never worked. A game answers five questions and gets the sequence for free:
 
-```dart
+```dart fragment
 final class DungeonRun extends RunSession<LevelReady> {
   DungeonRun({required super.firstLevel, required super.saves, /* ... */});
 
   @override
-  Future<LevelReady> open(String asset) async {
+  Future<LevelReady> loadLevel(String asset) async {
     final loaded = await const LevelLoader().load(asset, device: device, registry: registry, rules: sampleRules());
     // ... build the scene and collision visuals, stage the level
     return LevelReady(/* ... */);
@@ -108,6 +109,8 @@ Not every game fits the shape. The racing game moves from one circuit to the nex
 The screens a game has that are not the game are `flutter3d_game_ui`'s `settings.dart`: `SettingsOverlay`, a panel of `SettingsSection`s (volumes, gamepad and accessibility sliders, a rebinding list that takes a key or a pad button, and where a licence's attribution goes). What they show and write stays in `flutter3d_game`: `GameSettings`, its controller, and `SaveFile` (where `RunSession.saves` reads and writes, per platform, through `Storage`). Wiring the overlay into a HUD is one widget per game:
 
 ```dart
+import 'package:flutter3d_game_ui/settings.dart';
+
 SettingsOverlay(
   settings: gameSettings,          // a GameSettingsController, a ValueListenable
   sections: SettingsSection.standard(
@@ -127,6 +130,8 @@ It was extracted when the second game wanted rebinding, which mattered for acces
 A game rarely calls `pad_input` or `flutter3d_pointer_lock` directly. `flutter3d_game`'s `DesktopInput` and pad-action layer already wrap both, and that is what `_devices.isCaptured` and `_devices.captureMouse()` in an app's `main.dart` reach. The two packages underneath matter because they're where a fifth platform gets implemented:
 
 ```dart
+import 'package:pad_input/pad_input.dart';
+
 final pad = Gamepad.instance;
 final snapshot = PadSnapshot();
 pad.read(snapshot);                                  // once per frame
@@ -136,6 +141,8 @@ if (snapshot.down(PadButton.faceSouth)) jump();
 `Gamepad` is pull, not push. A fixed-step simulation asks *what is the pad doing now* exactly once per step, and a stream would push edge detection into every caller differently. Button identifiers are physical positions (`face.south`, not `a`), because the string is what lands in a player's config file, read back on a possibly different pad. Implemented on macOS, iOS, Web and Android; Windows and Linux are not yet.
 
 ```dart
+import 'package:flutter3d_pointer_lock/flutter3d_pointer_lock.dart';
+
 final lock = PointerLock.instance;
 if (lock.isSupported) await lock.capture();
 final delta = lock.drainDelta();                       // synchronous, drained once per step

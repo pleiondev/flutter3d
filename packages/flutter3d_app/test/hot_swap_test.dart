@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_app/software.dart' show materialLanguageCompiler;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/trace.dart'
     show RecordingDevice, TraceReleaseTexture;

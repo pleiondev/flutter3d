@@ -126,6 +126,7 @@ final class Body
   final CharacterController controller
 
 abstract base class Brain
+  Brain()
   Map<String, Object?> save()
   void act(Mind it)
   void onDeath(Mind it)
@@ -354,6 +355,7 @@ final class DoorKind extends EntityKind
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
 
 final class EcsWorld
+  EcsWorld()
   Entity spawn()
   Iterable<Entity> query2<A extends Object, B extends Object>()
   Iterable<Entity> query<A extends Object>()
@@ -640,6 +642,7 @@ final class InputFrame
   final int? slot
 
 final class InputState
+  InputState()
   Iterable<GameAction> get heldNow
   Iterable<GameAction> get pressedThisStep
   Iterable<GameAction> get releasedThisStep
@@ -744,9 +747,11 @@ final class JumpReach
   int get hashCode
 
 abstract mixin class KeyHolder
+  KeyHolder()
   abstract Set<String> get keys
 
 final class KeyRing with KeyHolder
+  KeyRing()
   List<String> save()
   Set<String> get keys
   bool has(String key)
@@ -848,6 +853,7 @@ final class LevelScope
   final Set<String> keys
 
 final class LevelSketch
+  LevelSketch()
   Map<String, Object?> box(List<num> at, List<num> size, String material, {String shadows = 'on', bool solid = true})
   final List<Map<String, Object?>> brushes
   final List<Map<String, Object?>> entities
@@ -1000,6 +1006,7 @@ abstract base class Mechanism
   void step(double dt)
 
 final class MechanismEvents
+  MechanismEvents()
   final List<Mechanism> reached
   final List<Mechanism> started
   final List<Mechanism> stopped
@@ -1175,6 +1182,7 @@ final class Powers
   List<String> step(double dt)
   Map<String, Object?> save()
   Map<String, double> get remaining
+  Powers()
   bool has(String power)
   double remainingOf(String power)
   void clear()
@@ -1268,7 +1276,7 @@ final class RunStats
 
 final class SamplerDataSource extends EduDataSource
   Object? sample(int step)
-  const SamplerDataSource(this._sample)
+  const SamplerDataSource(Object? Function(int step) this._sample)
 
 abstract final class ScatterKit
   static void build(LevelSketch sketch, LevelRecipe recipe)
@@ -1370,6 +1378,7 @@ typedef StepSystem = void Function(StepContext step);
 
 final class StepSystems
   List<SystemRegistration> forPhase(StepPhase phase)
+  StepSystems()
   SystemRegistration add(StepPhase phase, StepSystem system, {int order = 0, String? label})
   bool get isEmpty
   void clear()
@@ -1399,7 +1408,7 @@ base class SurfaceTable<T>
   Iterable<String> get names
   T of(String? surface)
   bool knows(String surface)
-  const SurfaceTable(this._byName, {required this.fallback})
+  const SurfaceTable(Map<String, T> this._byName, {required this.fallback})
   final T fallback
 
 final class SystemRegistration

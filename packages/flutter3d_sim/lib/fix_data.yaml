@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 817beb8ecb27beca
+# table-stamp: 90f178a8c30fd1be
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -324,7 +324,7 @@ transforms:
   - title: 'flutter3d 1.0.0-rc.1: b1-editor_core-OpenKind (OpenKind)'
     date: 2026-10-08
     element:
-      uris: ['package:flutter3d_editor_core/flutter3d_editor_core.dart', 'package:flutter3d_game/flutter3d_game.dart']
+      uris: ['package:flutter3d_editor_core/flutter3d_editor_core.dart']
       class: 'OpenKind'
     changes:
       - kind: 'replacedBy'
@@ -334,7 +334,7 @@ transforms:
   - title: 'flutter3d 1.0.0-rc.1: b1-game-OpenKind (OpenKind)'
     date: 2026-10-08
     element:
-      uris: ['package:flutter3d_editor_core/flutter3d_editor_core.dart', 'package:flutter3d_game/flutter3d_game.dart']
+      uris: ['package:flutter3d_editor_core/flutter3d_editor_core.dart']
       class: 'OpenKind'
     changes:
       - kind: 'replacedBy'

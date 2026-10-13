@@ -7,6 +7,11 @@
   editor, the build tool and a lesson that read an experiment no longer
   resolve them. `dart run flutter3d_build:migrate` moves a project written
   against `flutter3d_lti` 0.8 to the new package.
+- **A lab is written with its own import.** `lab.dart` exports the
+  recording types a lab run is read through (`Demo`, `DigestTrace`,
+  `DataSourceTrace`, `Divergence`) and `experiment.dart` the `Probe` an
+  experiment reads, from `flutter3d_sim`, which a lab's code no longer
+  imports for them.
 - **New: a lesson's answers reach the learning platform** (`CheckReporter`,
   `CheckAnswer`, `CheckDelivery`, now in `flutter3d_education_lti`). Each answer to a `check`
   question is an xAPI `answered` statement; each question an answer

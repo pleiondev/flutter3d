@@ -16,6 +16,8 @@ import 'package:flutter/painting.dart' show Color;
 /// Extend this instead of [FlameGame], or override [backgroundColor] the
 /// same way this class does, and whatever the 2D layer does not cover shows
 /// the 3D layer through it.
+///
+/// A game extends it, or makes one, as it would a `FlameGame`.
 base class TransparentFlameGame extends FlameGame {
   @override
   Color backgroundColor() => const Color(0x00000000);

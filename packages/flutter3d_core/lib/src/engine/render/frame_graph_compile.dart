@@ -21,6 +21,8 @@ part of 'frame_graph.dart';
 /// order produces the next version of a name and each read binds to the version
 /// current at that moment, so a chain of passes over one target is a chain of
 /// versions and the order falls out of it rather than being special-cased.
+///
+/// A test or a tool makes one with `FrameGraph()` to compile its own passes.
 final class FrameGraph {
   final List<FrameGraphNode> _nodes = <FrameGraphNode>[];
   final Set<String> _external = <String>{};

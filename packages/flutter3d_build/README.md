@@ -182,7 +182,8 @@ The hook runs three built-in steps in order: `models`, `materials` and
 reads and writes, so the hook reruns when one changes, and places itself with
 `after`/`before`:
 
-```dart
+```dart fragment
+// `WindBaker` is a `BuildStep` of the plugin's own.
 void main(List<String> arguments) async {
   await build(arguments, buildAssetsWith(<BuildStep>[WindBaker()]));
 }

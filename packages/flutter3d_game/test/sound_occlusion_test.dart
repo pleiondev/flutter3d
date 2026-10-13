@@ -10,8 +10,6 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_matter/flutter3d_matter.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Brush _box(double x, double y, double z, double sx, double sy, double sz) =>

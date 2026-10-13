@@ -9,6 +9,9 @@ The liquid part of `flutter3d_physics` lives in `lib/src/fluid/` and knows nothi
 It is a hybrid, because no single method is right everywhere. Liquid standing in a vessel is a volume with a free surface on it, and the surface moves by its modes. Liquid leaving a vessel is a stream of parcels. A stream that breaks becomes drops, and drops are particles. Each part hands volume to the next one exactly, and the world can tell you where every cubic millimetre is.
 
 ```dart
+import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:vector_math/vector_math.dart';
+
 final world = FluidWorld(
   gravity: Vector3(0, -9.81, 0),
   floor: [PlaneObstacle(normal: Vector3(0, 1, 0), offset: 0)],

@@ -13,7 +13,6 @@
 library;
 
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 

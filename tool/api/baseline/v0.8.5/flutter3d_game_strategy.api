@@ -174,7 +174,7 @@ final class MoveOrder extends StrategyOrder
 final class OrderQueue
   List<Object?> save()
   List<StrategyOrder> get waiting
-  OrderQueue(this._simulation)
+  OrderQueue(StrategySimulation this._simulation)
   OrderTapeRecorder? recorder
   void add(StrategyOrder order)
   void addAll(Iterable<StrategyOrder> orders)

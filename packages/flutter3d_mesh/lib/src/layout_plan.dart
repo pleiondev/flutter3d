@@ -41,6 +41,8 @@ import 'normals.dart';
 import 'triangulate.dart';
 
 /// How an [EditMesh] maps onto GPU vertices and triangles.
+///
+/// A caller keeps one, `MeshLayoutPlan()`, to reuse it across edits.
 final class MeshLayoutPlan {
   /// The normals the plan was built with, and the ones [fillVertices] writes.
   final MeshNormals normals = MeshNormals();

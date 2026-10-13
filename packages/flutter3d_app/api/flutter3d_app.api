@@ -234,6 +234,7 @@ final class HotSwap
   static const HotSwapReport none = HotSwapReport(renderers: 0, refreshed: <String>[], refused: <String>[])
 
 final class IssueLog
+  IssueLog()
   String? get summary
   bool get isEmpty
   bool get isNotEmpty
@@ -354,26 +355,6 @@ final class Material3D extends StatefulWidget
   final double? metallic
   final double? roughness
   final void Function(engine.RenderMaterial material)? onCreated
-
-final class MaterialFullscreenStage extends CpuFragmentShader
-  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c)
-  const MaterialFullscreenStage(this.program)
-  final MaterialProgram program
-
-final class MaterialProgramStage extends CpuFragmentShader
-  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c)
-  const MaterialProgramStage(this.program)
-  final MaterialProgram program
-
-final class MaterialVertexStage extends CpuVertexShaderByIndex
-  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out)
-  Vector4 runAt(int vertexIndex, int instanceIndex, Float32List a, ShaderBindings bindings, Float32List out)
-  const MaterialVertexStage(this.program, {this.skinned = false, this.instanced = false, this.lightmapped = false})
-  final MaterialProgram program
-  final bool instanced
-  final bool lightmapped
-  final bool skinned
-  int get varyingCount
 
 final class MemoryPressureRelease extends StatefulWidget
   State<MemoryPressureRelease> createState()
@@ -1051,8 +1032,6 @@ const bool fixedResolution = false
 
 bool isRefusal(Map<String, Object?> answer)
 
-CpuStage materialLanguageCompiler(String stage, String source)
-
 Future<GraphicsDevice> openDevice({required int width, required int height, DeviceRegistry? registry})
 
 String? picturesDirectory({required String appName, required TargetPlatform platform, required Map<String, String> environment, required String temporary})
@@ -1097,45 +1076,59 @@ List<SemanticObject> semanticObjectsFor(List<SceneAnnouncement> announcements, {
 
 void unmountWidgetTree(BuildOwner build, RenderObjectToWidgetElement<RenderBox> element, RenderObjectWithChildMixin<RenderBox> container)
 
-export package:flutter3d_cpu/flutter3d_cpu.dart show BoundTexture, CpuFragmentShader, CpuStorageTexture, CpuTexture, CpuVertexShaderByIndex, FragmentContext, ShaderBindings
-  BoundTexture
-  CpuFragmentShader
-  CpuStorageTexture
-  CpuTexture
-  CpuVertexShaderByIndex
-  FragmentContext
-  ShaderBindings
-
 export package:flutter3d_level_scene/flutter3d_level_scene.dart show LevelBatching
   LevelBatching
 
-export package:flutter3d_particles/flutter3d_particles.dart show Flipbook, FlipbookCell, Particle, ParticleAffector, ParticleBirth, ParticleEffect, ParticleEmitter, ParticleStep, ParticleSystem, Range
+export package:flutter3d_particles/flutter3d_particles.dart show BoxEmitter, ConeEmitter, CurveKey, DriftEmitter, Flipbook, FlipbookCell, GradientKey, KeyEase, Particle, ParticleAffector, ParticleBirth, ParticleColorGradient, ParticleColorOverLife, ParticleCurve, ParticleDrag, ParticleEffect, ParticleEmitter, ParticleFade, ParticleGradient, ParticleGravity, ParticlePlaneCollision, ParticleSizeCurve, ParticleSizeOverLife, ParticleSpin, ParticleStep, ParticleSystem, ParticleTurbulence, ParticleWind, Range, SphereEmitter
+  BoxEmitter
+  ConeEmitter
+  CurveKey
+  DriftEmitter
   Flipbook
   FlipbookCell
+  GradientKey
+  KeyEase
   Particle
   ParticleAffector
   ParticleBirth
+  ParticleColorGradient
+  ParticleColorOverLife
+  ParticleCurve
+  ParticleDrag
   ParticleEffect
   ParticleEmitter
+  ParticleFade
+  ParticleGradient
+  ParticleGravity
+  ParticlePlaneCollision
+  ParticleSizeCurve
+  ParticleSizeOverLife
+  ParticleSpin
   ParticleStep
   ParticleSystem
+  ParticleTurbulence
+  ParticleWind
   Range
+  SphereEmitter
 
-export package:flutter3d_physics/flutter3d_physics.dart show ClothObstacle, CollisionWorld, ContactPhase, JetObstacle, ObstacleTouch, PhysicsBackend, StepContact, SweptContact, WorldMirror
+export package:flutter3d_physics/flutter3d_physics.dart show ClothObstacle, CollisionWorld, ContactPhase, JetObstacle, Layers, ObstacleTouch, PhysicsBackend, StepContact, SweptContact, WorldMirror
   ClothObstacle
   CollisionWorld
   ContactPhase
   JetObstacle
+  Layers
   ObstacleTouch
   PhysicsBackend
   StepContact
   SweptContact
   WorldMirror
 
-export package:flutter3d_sim/flutter3d_sim.dart show ActorHurt, AvoidanceNeighbor, Brush, DisplayTime, EngineLoop, EntityDef, EntityKind, EntityRegistry, FocusPoint, FrameCadence, GameEvent, HeightfieldTiles, InputAction, InputFrame, InputState, InputTapeRecorder, JsonLinearColorWriter, Level, LevelCheck, LevelCollision, LevelIssue, LevelLight, LevelMaterial, LevelRecipe, LevelRule, LevelVisibility, Lightmap, LightmapLayout, LocalSimulation, NavMeshLink, PlayerStart, Prefab, SeatInput, ShadowCasting, SimulationFactory, SimulationHandle, SimulationQuestion, SimulationSetup, TileLevelChooser, TimeSource, WorldTiming, XrControl, XrControlReading, XrHand, XrPlane, XrPlaneOrientation, XrPoseInput, XrSceneMesh
+export package:flutter3d_sim/flutter3d_sim.dart show ActorHurt, AvoidanceNeighbor, Brush, CollisionLayers, ContactEvent, DisplayTime, EngineLoop, EntityDef, EntityKind, EntityRegistry, FocusPoint, FrameCadence, GameEvent, HeightfieldTiles, InputAction, InputFrame, InputState, InputTapeRecorder, IsolateSimulation, JsonLinearColorWriter, Level, LevelCheck, LevelCollision, LevelIssue, LevelLight, LevelMaterial, LevelRecipe, LevelRule, LevelVisibility, Lightmap, LightmapLayout, LocalSimulation, LogTime, ManualTime, NavMeshLink, PlayerStart, Prefab, SeatInput, ShadowCasting, SimulationFactory, SimulationHandle, SimulationQuestion, SimulationSetup, TileLevelChooser, TimeSource, WorldTiming, XrControl, XrControlReading, XrHand, XrPlane, XrPlaneOrientation, XrPoseInput, XrSceneMesh
   ActorHurt
   AvoidanceNeighbor
   Brush
+  CollisionLayers
+  ContactEvent
   DisplayTime
   EngineLoop
   EntityDef
@@ -1149,6 +1142,7 @@ export package:flutter3d_sim/flutter3d_sim.dart show ActorHurt, AvoidanceNeighbo
   InputFrame
   InputState
   InputTapeRecorder
+  IsolateSimulation
   JsonLinearColorWriter
   Level
   LevelCheck
@@ -1162,6 +1156,8 @@ export package:flutter3d_sim/flutter3d_sim.dart show ActorHurt, AvoidanceNeighbo
   Lightmap
   LightmapLayout
   LocalSimulation
+  LogTime
+  ManualTime
   NavMeshLink
   PlayerStart
   Prefab
@@ -1189,6 +1185,30 @@ void writeBytesAtomicallySync(String path, Uint8List contents)
 Future<void> writeFileAtomically(String path, String contents)
 
 void writeFileAtomicallySync(String path, String contents)
+
+library package:flutter3d_app/software.dart
+
+final class MaterialFullscreenStage extends CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c)
+  const MaterialFullscreenStage(this.program)
+  final MaterialProgram program
+
+final class MaterialProgramStage extends CpuFragmentShader
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c)
+  const MaterialProgramStage(this.program)
+  final MaterialProgram program
+
+final class MaterialVertexStage extends CpuVertexShaderByIndex
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out)
+  Vector4 runAt(int vertexIndex, int instanceIndex, Float32List a, ShaderBindings bindings, Float32List out)
+  const MaterialVertexStage(this.program, {this.skinned = false, this.instanced = false, this.lightmapped = false})
+  final MaterialProgram program
+  final bool instanced
+  final bool lightmapped
+  final bool skinned
+  int get varyingCount
+
+CpuStage materialLanguageCompiler(String stage, String source)
 
 library package:flutter3d_app/xr_testing.dart
 

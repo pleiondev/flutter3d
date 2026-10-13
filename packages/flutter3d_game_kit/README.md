@@ -58,9 +58,10 @@ skips it unless `showCorrections` is set.
 
 ### Example
 
-```dart
+```dart fragment
 import 'package:flutter3d_game_kit/reactions.dart';
 
+// `Landed`, `Exploded` and `Effects` are the game's own events and effects.
 final table = ReactionTable()
   ..on<Landed>((rule) {
     final ReactionContext(:event, :out) = rule;
@@ -81,7 +82,7 @@ final loop = EngineLoop(input: input, plugins: [genre, reactions]);
 final flash = ScreenFlash(fadePerSecond: 4.0);
 
 // Each frame:
-final reaction = reactions.take()
+final reaction = reactions.drain()
   ..showIn(particles)
   ..feel(camera.rig, haptic: settings.haptics);
 if (reaction.flash) flash.fire(settings.screenFlash);
@@ -146,9 +147,10 @@ played twice unless `playCorrections` is set.
 
 ### Example
 
-```dart
+```dart fragment
 import 'package:flutter3d_game_kit/soundtrack.dart';
 
+// `Jumped`, `DoorRefused` and `Sounds` are the game's own events and sounds.
 final cues = CueSheet()
   ..on<Jumped>((cue) => cue.out.add(Heard(Sounds.jump, cue.event.at)))
   ..on<DoorRefused>((cue) => cue.out.add(Heard(Sounds.locked, cue.event.at)));

@@ -56,6 +56,8 @@ const bool _bakeStaysHere = bool.fromEnvironment('dart.library.js_interop');
 /// calls to [bakeTextureGraph] and [bakeTextureFull] — the object a caller
 /// keeps alive across edits so an unchanged `Image` node is never redecoded.
 /// Empty and inert until a bake fills it.
+///
+/// An application keeps one, `TextureBakeCache()`, across bakes.
 final class TextureBakeCache {
   final Map<String, _Raster> _byKey = <String, _Raster>{};
 

@@ -49,6 +49,8 @@ final class PostedEvent {
 /// on through a stop and a start, so a cursor taken before the restart still
 /// points at what came after it.
 final class GameEventLog {
+  GameEventLog._();
+
   static const String prefix = 'flutter3d.';
   static const int limit = 2000;
 
@@ -126,3 +128,8 @@ final class GameEventLog {
     restarted: restarted,
   );
 }
+
+/// A new [GameEventLog], for a run, which fills it from the game it attached
+/// to: the package's own code makes one, and nothing outside it has a use for
+/// one it did not get from there.
+GameEventLog engineGameEventLog() => GameEventLog._();

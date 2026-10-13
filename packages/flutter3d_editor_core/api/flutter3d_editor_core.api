@@ -328,6 +328,7 @@ final class GeneratorException extends Flutter3dFormatException
   final String message
 
 abstract base mixin class GeneratorSource
+  GeneratorSource()
   abstract List<String> list(String directory)
   abstract String read(String path)
 

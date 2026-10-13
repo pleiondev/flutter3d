@@ -26,6 +26,8 @@ import 'trace_wire_names.dart';
 
 /// Collects the byte payloads of a trace into one buffer, handing back where
 /// each landed.
+///
+/// A caller that writes trace events itself makes one with `TraceBlobWriter()`.
 final class TraceBlobWriter {
   final BytesBuilder _bytes = BytesBuilder(copy: false);
 

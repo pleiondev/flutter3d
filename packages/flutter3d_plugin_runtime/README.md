@@ -40,6 +40,11 @@ resolves without the render core, the simulation or the physics.
 ```
 
 ```dart
+import 'package:flutter3d_core/data_plugins.dart';
+import 'package:flutter3d_particles/flutter3d_particles.dart';
+import 'package:flutter3d_plugin_runtime/flutter3d_plugin_runtime.dart';
+import 'package:flutter3d_sim/data_plugins.dart';
+
 final loader = DataPluginLoader(
   sections: DataSections([
     entityKindsSection,      // package:flutter3d_sim/data_plugins.dart

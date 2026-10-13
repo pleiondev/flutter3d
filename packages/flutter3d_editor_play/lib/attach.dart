@@ -10,7 +10,7 @@
 library;
 
 export 'src/attached_run.dart';
-export 'src/game_events.dart';
+export 'src/game_events.dart' hide engineGameEventLog;
 export 'src/level_push.dart';
 export 'src/play_state.dart';
 export 'src/vm_connect.dart';

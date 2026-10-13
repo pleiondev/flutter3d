@@ -5,8 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
-import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show LoopContext, LoopPhase;
 
 void main() => runApp(const MaterialApp(home: FallingCrates()));
 

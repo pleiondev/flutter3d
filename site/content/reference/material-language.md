@@ -213,6 +213,8 @@ final stage = await ripples.load(device); // bind target, params; dispatch
 The build writes `lib/materials.g.dart`, with an extension type per material that declares a `uniform`. It is a typed view over the same `RenderMaterial.parameters` map:
 
 ```dart
+import 'package:flutter3d_effects/flutter3d_effects.dart';
+
 final seabed = SeabedParameters(material.parameters)
   ..time = seconds
   ..eye = camera.position

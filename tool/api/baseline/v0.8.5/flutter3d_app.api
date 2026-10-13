@@ -65,6 +65,7 @@ final class Issue
   final String message
 
 final class IssueLog
+  IssueLog()
   String? get summary
   bool get isEmpty
   bool get isNotEmpty
@@ -191,7 +192,7 @@ class SceneSurface extends StatelessWidget
 final class SharedMeshes
   DeviceMesh box(Vector3 size)
   DeviceMesh shape(String key, Shape Function() shape)
-  SharedMeshes(this._device)
+  SharedMeshes(GraphicsDevice this._device)
   void dispose()
 
 abstract interface class Storage

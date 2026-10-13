@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `GameEventLog` is made by a run**, which fills it from the
+  game it attached to.
 - **`FakeGame.posts` takes `data:` and `time:` by name**, so an event can
   gain a field without a third position.
 - **`PlayState` is `abstract final` rather than sealed**, so a phase a later

@@ -160,6 +160,16 @@ const Map<String, String> reexportsAllowed = <String, String>{
       'the one facade: the level, the step loop and its input, by name',
   'flutter3d_game -> flutter3d_physics':
       'the one facade: the collision world a first game walks, by name',
+  'flutter3d_game -> flutter3d_camera':
+      'the one facade: the rig and the framings every genre kit\'s camera '
+      'hands a game, by name',
+  'flutter3d_education -> flutter3d_sim':
+      'a lab\'s and an experiment\'s recording types and probe (`Demo`, '
+      '`DigestTrace`, `DataSourceTrace`, `Divergence`, `Probe`), by name: a '
+      'lab is written with the lab library, `flutter3d_app` and `flutter3d`',
+  'flutter3d_game_physics -> flutter3d_net':
+      'a party\'s seat, which the game\'s `stage` callback is handed: the '
+      'seat alone, by name, and the relay stays `flutter3d_net`\'s',
   'flutter3d_game -> flutter3d_audio_core':
       'the one facade: the listener, the emitters and the sound bank, by '
       'name',
@@ -194,9 +204,6 @@ const Map<String, String> reexportsAllowed = <String, String>{
       '`flutter3d_game`\'s to export',
   'flutter3d_app -> flutter3d_physics':
       'the physics backend and collision world a loaded level hands back, '
-      'named',
-  'flutter3d_app -> flutter3d_cpu':
-      'the CPU stages a material program compiles to on the software device, '
       'named',
   'flutter3d_app -> flutter3d_level_scene':
       'the batching a loaded level carries, named',
