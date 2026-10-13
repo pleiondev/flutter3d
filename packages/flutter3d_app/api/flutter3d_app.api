@@ -253,7 +253,7 @@ final class LevelLoadFailed extends StatelessWidget
 
 final class LevelLoader
   Future<LoadedLevel> build(Level authored, {required GraphicsDevice device, required EntityRegistry registry, List<LevelRule> rules = const <LevelRule>[], AssetBytes? readAsset, LevelVisibility? visibility, Lightmap? lightmap, List<LevelIssue> issues = const <LevelIssue>[], LevelBatching batching = LevelBatching.perMaterial, PhysicsBackend physics = const DartPhysics(), WorldProperties? gameWorld, Map<String, MaterialProgram> programs = const <String, MaterialProgram>{}})
-  Future<LoadedLevel> load(String assetPath, {required GraphicsDevice device, required EntityRegistry registry, List<LevelRule> rules = const <LevelRule>[], AssetBytes? readAsset, LevelDocumentText? readDocument, bool sidecars = true, LevelBatching batching = LevelBatching.perMaterial, DeviceClass? deviceClass, PhysicsBackend physics = const DartPhysics(), WorldProperties? gameWorld, Map<String, MaterialProgram> programs = const <String, MaterialProgram>{}})
+  Future<LoadedLevel> load(String assetPath, {required GraphicsDevice device, required EntityRegistry registry, List<LevelRule> rules = const <LevelRule>[], AssetBytes? readAsset, LevelDocumentText? readDocument, bool sidecars = true, LevelBatching batching = LevelBatching.perMaterial, DeviceClass? deviceClass, PhysicsBackend physics = const DartPhysics(), WorldProperties? gameWorld, Map<String, MaterialProgram> programs = const <String, MaterialProgram>{}, AssetRead read = AssetRead.whole})
   const LevelLoader()
   static RenderMaterial materialFrom(LevelMaterial source, Map<String, TextureHandle?> textures, {String? name, SamplerDescriptor tiling = SamplerDescriptor.trilinearRepeat, PhysicalMaterial? substance})
   static SamplerDescriptor tilingSamplerFor(GraphicsDevice device)
@@ -263,22 +263,25 @@ final class LevelLoader
 
 final class Light3D extends Spatial3D
   State<Light3D> createState()
-  const Light3D({super.key, this.type = LightType.directional, this.direction, this.color, this.intensity = sunIlluminance, this.range = 0.0, this.castsShadow, this.outerConeAngle, super.position, super.children})
-  const Light3D.directional({super.key, required this.direction, this.color, this.intensity = sunIlluminance, this.castsShadow})
+  const Light3D({super.key, this.type = LightType.directional, this.direction, this.color, this.intensity, this.range = 0.0, this.castsShadow, this.innerConeAngle, this.outerConeAngle, super.position, super.children})
+  const Light3D.directional({super.key, required this.direction, this.color, this.intensity, this.castsShadow})
   const Light3D.lamp({super.key, required super.position, this.color = lampColor, this.intensity = lampIntensity, this.range = 0.0, this.castsShadow})
-  const Light3D.point({super.key, required super.position, this.color, this.intensity = lampIntensity, this.range = 0.0, this.castsShadow})
+  const Light3D.point({super.key, required super.position, this.color, this.intensity, this.range = 0.0, this.castsShadow})
+  const Light3D.spot({super.key, required super.position, this.direction, this.color, this.intensity, this.range = 0.0, this.innerConeAngle, this.outerConeAngle, this.castsShadow})
   const Light3D.sun({super.key, this.direction, this.color = sunColor, this.intensity = sunIlluminance, this.castsShadow = true})
   final LightType type
   final LinearColor? color
   final Vector3? direction
   final bool? castsShadow
-  final double intensity
   final double range
+  final double? innerConeAngle
+  final double? intensity
   final double? outerConeAngle
   static Vector3 get sunDirection
   static const LinearColor lampColor = LinearColor(1.0, 0.72, 0.42)
   static const LinearColor sunColor = LinearColor(1.0, 0.94, 0.86)
   static const double lampIntensity = 63.66197723675813
+  static const double lampLumens = 800.0
   static const double sunIlluminance = 15000.0
 
 final class ListenerPose
@@ -409,15 +412,25 @@ final class Mirror3D extends Spatial3D
 
 final class Model3D extends Spatial3D
   State<Model3D> createState()
-  const Model3D({super.key, this.source, this.load, this.placeholder, this.animation, this.playing = true, this.speed = 1.0, this.onLoaded, this.onTap, super.position, super.rotation, super.scale, super.visible, super.children})
+  const Model3D({super.key, this.source, this.load, this.placeholder, this.animation, this.playing = true, this.speed = 1.0, this.onLoaded, this.onProgress, this.onError, this.errorBuilder, this.onTap, super.position, super.rotation, super.scale, super.visible, super.children})
   final Future<ModelAsset> Function(GraphicsDevice device)? load
   final String? animation
   final String? source
+  final Widget Function(BuildContext context, Model3DFailure failure)? errorBuilder
   final Widget? placeholder
   final bool playing
   final double speed
+  final void Function(AssetProgress progress)? onProgress
+  final void Function(Model3DFailure failure)? onError
   final void Function(ModelInstance instance)? onLoaded
   final void Function(Tap3D tap)? onTap
+
+final class Model3DFailure
+  String toString()
+  const Model3DFailure({required this.error, required this.stackTrace, this.source})
+  final Object error
+  final StackTrace stackTrace
+  final String? source
 
 typedef ModelBuild = Future<ModelAsset> Function(Uint8List bytes);
 

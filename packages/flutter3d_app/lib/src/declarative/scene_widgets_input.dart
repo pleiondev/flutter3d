@@ -320,7 +320,7 @@ mixin _SceneGestures on State<Scene3D> implements _SceneHost {
       Tap3D(
         hit: hit,
         localPosition: details.localPosition,
-        kind: details.kind ?? PointerDeviceKind.touch,
+        kind: details.kind,
       ),
     );
   }

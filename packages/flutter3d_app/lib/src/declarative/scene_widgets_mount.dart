@@ -145,6 +145,11 @@ final class _MountHost implements _SceneHost {
   @override
   void gesturesChanged() {}
 
+  // A mount has no view, and so no log: what a widget reports goes to
+  // Flutter's error handler.
+  @override
+  EngineLog? get log => null;
+
   // A mount has no loop: a [Binding3D] under one names its simulation.
   @override
   SimulationHandle? get simulation => null;

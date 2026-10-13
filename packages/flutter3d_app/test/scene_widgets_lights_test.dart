@@ -75,6 +75,70 @@ void main() {
     expect(lights.last.intensity, Light3D.sunIlluminance);
   });
 
+  test('a plain Light3D of another type takes that type\'s default, in '
+      'that type\'s unit', () {
+    // Mutation: default `intensity` to `sunIlluminance` whatever the type,
+    // and the point light shines with 15 000 cd, about 190 000 lumens.
+    mount.update(<Widget>[
+      Light3D(type: LightType.point, position: Vector3.zero()),
+      Light3D(
+        type: LightType.spot,
+        position: Vector3.zero(),
+        outerConeAngle: 0.5,
+      ),
+    ]);
+    final lights = scene.root.children.whereType<LightNode>().toList();
+    expect(lights.first.intensity, Light3D.lampIntensity);
+    expect(
+      Photometric.toLumens(
+        lights.last.intensity,
+        type: LightType.spot,
+        outerConeAngle: 0.5,
+      ),
+      closeTo(Light3D.lampLumens, 1e-9),
+    );
+  });
+
+  test('a spot shines its lumens into its cone, with an inner cone at full '
+      'strength', () {
+    // Mutation: leave the inner cone unapplied, and the spot fades from
+    // its axis however it was told.
+    mount.update(<Widget>[
+      Light3D.spot(
+        position: Vector3(0.0, 3.0, 0.0),
+        direction: Vector3(0.0, -1.0, 0.0),
+        innerConeAngle: 0.2,
+        outerConeAngle: 0.4,
+      ),
+    ]);
+    final spot = _light(scene);
+    final wide = spot.intensity;
+    expect(spot.type, LightType.spot);
+    expect(spot.innerConeAngle, 0.2);
+    expect(spot.outerConeAngle, 0.4);
+    expect(spot.readDirection().y, closeTo(-1.0, 1e-6));
+    expect(
+      spot.intensity,
+      closeTo(
+        Photometric.fromLumens(
+          Light3D.lampLumens,
+          type: LightType.spot,
+          outerConeAngle: 0.4,
+        ),
+        1e-9,
+      ),
+    );
+    // Narrower is brighter on its axis: the same flux in a smaller cone.
+    mount.update(<Widget>[
+      Light3D.spot(
+        position: Vector3(0.0, 3.0, 0.0),
+        direction: Vector3(0.0, -1.0, 0.0),
+        outerConeAngle: 0.2,
+      ),
+    ]);
+    expect(_light(scene).intensity, greaterThan(wide));
+  });
+
   test('a sun told its direction shines that way', () {
     mount.update(<Widget>[Light3D.sun(direction: Vector3(0.0, 0.0, -1.0))]);
     expect(_light(scene).readDirection().z, closeTo(-1.0, 1e-6));
