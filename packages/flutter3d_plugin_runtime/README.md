@@ -29,7 +29,7 @@ resolves without the render core, the simulation or the physics.
   "format": "f3d.plugin", "version": 4,
   "manifest": {"id": "gusts", "apiVersion": "1.0", "touches": "simulation"},
   "phases": [{"name": "weather", "kind": "step",
-              "after": ["physics"], "before": ["elements"]}],
+              "after": ["physics"], "before": ["fields"]}],
   "events": [{"name": "gust"}],
   "entityKinds": [{"type": "gusts.vent", "requires": ["size"],
                    "collider": "trigger"}],

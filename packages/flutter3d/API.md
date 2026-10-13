@@ -63,22 +63,28 @@ describes every package.
 | `package:flutter3d_game/flutter3d_game.dart` | Everything `flutter3d` exports, the view from `flutter3d_app`, and by name the loop, the level, input, saves and tapes from `flutter3d_sim`, the collision world, colliders and dynamics from `flutter3d_physics`, the listener, emitters and sound bank from `flutter3d_audio_core`, the particles. Declares input bindings, settings, saves, `RunSession`, `RunTimeline` | A game: one import for most of it |
 
 Each facade re-exports with a `show` list, so a name added to a lower
-package reaches the facade only when somebody lists it. That is also why a
-type is sometimes missing from a facade: a game that needs `ContactEvent`,
-`ManualTime` or `Dynamics` imports `flutter3d_sim` or `flutter3d_physics` by
-name, with a `show` of its own:
+package reaches the facade only when somebody lists it. A structure rule
+holds each list closed: every type a facade's API names, in a signature, a
+typedef's function type or a generic argument (`EventHandler` names
+`Delivered`, `Dynamics.forces` names `BodyForce`), is exported by the
+facade too. So a game handling a contact needs only the one import:
 
 ```dart
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_physics/flutter3d_physics.dart'
-    show ContactPhase, Dynamics;
-import 'package:flutter3d_sim/flutter3d_sim.dart' show ContactEvent, ManualTime;
+
+void listen(EngineLoop loop, Dynamics dynamics, void Function(Object?) hit) {
+  loop.events.onStep<ContactEvent>('hits', (Delivered<ContactEvent> d) {
+    if (d.event.phase != ContactPhase.begin) return;
+    // The ids the event carries, read back to the body and its actor.
+    hit(dynamics.bodyOfId(d.event.bodyB)?.collider.userData);
+  });
+}
 ```
 
 Import a lower package when:
 
-- the type is not in the facade's `show` list (the snapshot of the facade,
-  `api/<facade>.api`, lists them);
+- the type is in no API the facade exports, so not in its `show` list (the
+  snapshot of the facade, `api/<facade>.api`, lists them);
 - the code must not depend on Flutter: a server, a CLI or a test under
   `dart test` imports `flutter3d_sim`, `flutter3d_physics` or `flutter3d_core`
   directly, since the facades pull in Flutter;
@@ -153,18 +159,25 @@ same four settings groups, handed on whole, plus `children`, `clearColor`,
 | Widget | What it puts in the scene |
 |---|---|
 | `Node3D` | A transform with children |
-| `Mesh3D` | A mesh from a `Shape` or a `MeshGeometry`, with a `RenderMaterial`, `castsShadow`, `drawOrder`, `onTap` |
-| `Model3D` | A model from `source` (a path) or `load`, with `animation`, `playing`, `speed`, `placeholder`, `onLoaded` (`ModelInstance`), `onTap` |
+| `Mesh3D` | A mesh from a `Shape` or a `MeshGeometry`, with a `RenderMaterial`, `castsShadow`, `drawOrder`, `onTap` (a `Tap3D`: `hit`, `localPosition`, `kind`, `buttons`) |
+| `Model3D` | A model from `source` (a path) or `load`, with `animation`, `playing`, `speed`, `placeholder`, `onLoaded` (`ModelInstance`), `onProgress` (`AssetProgress`), `onError` and `errorBuilder` (a `Model3DFailure`: `error`, `stackTrace`, `source`), `onTap` (a `Tap3D`) |
 | `Material3D` | One `RenderMaterial` shared by the meshes below it, changed in place on rebuild |
-| `Light3D` | A light: `.sun()`, `.directional()`, `.point()`, `.lamp()`, in lux or candela |
+| `Light3D` | A light: `.sun()`, `.directional()`, `.point()`, `.lamp()`, `.spot()` (inner and outer cone), in lux or candela; an `intensity` left null is its type's default |
 | `Camera3D`, `OrbitCamera3D` | A camera with a `Projection`; an orbiting one that turns, zooms and damps |
 | `Decal3D`, `Mirror3D`, `ReflectionProbe3D`, `Particles3D` | A projected decal, a planar mirror, a reflection probe, a particle system |
 | `Binding3D` | Nodes for the simulation's components, through the scene bindings plugins registered |
 | `Contributor3D` | A `PassContributor` drawing into the scene pass |
 
 Every spatial widget extends `Spatial3D` (`position`, `rotation`, `scale`,
-`visible`, `children`). `SceneWidgets.mount` mounts the same widgets into a
-`Scene` with no view, for a test or a tool.
+`visible`, `children`). A root-level widget's `position`, and a camera's
+`target` wherever it hangs, is a place in the world: each build converts it
+through `Scene.toScene`, so a rebuild after the view shifted the origin
+leaves the node where it stood; below another widget `position` is the
+parent's space. A tap hands a `Tap3D`, the hit (a `HitResult` of its own)
+with the pointer. A model that will not load goes to `onError` and
+`errorBuilder`, or to the view's `EngineLog` with neither, never to the
+zone. `SceneWidgets.mount` mounts the same widgets into a `Scene` with no
+view, for a test or a tool.
 
 ```dart
 Widget teapotScene() => Scene3D(
@@ -222,7 +235,7 @@ The scene graph is in `flutter3d_core` and exported by `flutter3d`.
 | `DecalNode`, `PlanarReflectorNode`, `ReflectionProbeNode` | Projected decals, mirrors, cube captures |
 | `Shape` and its kinds | `SphereShape`, `CuboidShape`, `CylinderShape`, `ConeShape`, `TorusShape`, `CapsuleShape`, `DiscShape`, `PlaneShape`, `LatheShape`: values that build `MeshData` |
 | `MeshData`, `MeshBuilder`, `DeviceMesh` | CPU geometry, a builder, and geometry uploaded to a device (`DeviceMesh.upload`) |
-| `Raycaster`, `HitResult`, `Renderer.pickPixel` | Picking by ray and by the object-id pass |
+| `Raycaster`, `HitResult`, `Renderer.pickPixel` | Picking by ray and by the object-id pass; a `HitResult` is new per cast and its fields are final |
 
 Positions in a node are scene space: float32, relative to `Scene.origin`.
 A place in the world is a `WorldPosition` (doubles) and crosses into scene
@@ -279,12 +292,12 @@ engine's lists.
 
 | Call | What it does |
 |---|---|
-| `loadModelByPath(path, {bundleSource, decoders, deviceClass})` | A `ModelDocument` from a path: a bundle asset, a file, or a `scheme:` source a plugin registered |
-| `loadModelAsset(sourcePath, ...)` | The build's converted copy of a source under `assets_src/` (`.f3d`, per device class), falling back to the source in a debug build |
+| `loadModelByPath(path, {bundleSource, decoders, deviceClass, read})` | A `ModelDocument` from a path: a bundle asset, a file, or a `scheme:` source a plugin registered |
+| `loadModelAsset(sourcePath, {..., read})` | The build's converted copy of a source under `assets_src/` (`.f3d`, per device class), falling back to the source in a debug build |
 | `ModelAsset.fromDocument(document, {device, lighting})` | Uploads a document: `parts`, `nodes`, `skins`, `clips`, `materials`, `variants`, `localBounds`; `dispose()` |
 | `ModelAsset.instantiate(scene)`, `instantiateFitted(scene, length:)` | A `ModelInstance` in a scene: `root`, `meshes`, `skeletons`, `player` (`AnimationPlayer`), `selectVariant`, `removeFromScene`, `adopt` |
 | `ModelWardrobe<K>` | Models looked up by key and dressed onto visuals |
-| `LevelLoader.load(assetPath, {device, registry})` | A `LoadedLevel`: `scene`, `collision` (`CollisionWorld`), `issues`, `probes`, `decals`, `cull(eye)`, `dispose(device)` |
+| `LevelLoader.load(assetPath, {device, registry, read})` | A `LoadedLevel`: `scene`, `collision` (`CollisionWorld`), `issues`, `probes`, `decals`, `cull(eye)`, `dispose(device)`; `read` hears every file it reads and stops at the next one when canceled |
 | `loadMaterial`, `bindMaterial`, `loadMaterialDocument` | A `RenderMaterial` from a material file or a `MaterialDocument` |
 
 ```dart
@@ -295,9 +308,32 @@ Future<ModelInstance> place(GraphicsDevice device, Scene scene) async {
 }
 ```
 
-`AssetSource` (`key`, `read()`, `resolveUri`) is where bytes come from:
-`BundleAssetSource`, `FileAssetSource`, `HubAssetSource`, or one a plugin
-registers under a scheme. The schemes `http`, `https`, `file`, `asset`,
+`AssetSource` (`key`, `read(AssetRead)`, `resolveUri`) is where bytes come
+from: `BundleAssetSource`, `FileAssetSource`, `HubAssetSource`, or one a
+plugin registers under a scheme. An `AssetRead` is what a reader asks of
+one read: `onProgress` (an `AssetProgress`: `received`, `total`,
+`fraction`), `cancel` (an `AssetCancel`: `cancel()`, `isCanceled`,
+`whenCanceled`, `throwIfCanceled`) and `range` (an `AssetByteRange`);
+`AssetRead.whole` asks for nothing. A source that cannot report, stop or
+read a range ignores it. The loaders take `read:` and read through
+`AssetRead.readFrom`, which checks the signal around the call and reports
+the whole file once it has arrived; a canceled load fails with
+`ResourceLoadCanceledException`.
+
+```dart
+Future<ModelDocument> loadWithBar(
+  void Function(double? fraction) shown,
+  AssetCancel cancel,
+) => loadModelAsset(
+  'assets_src/robot.glb',
+  read: AssetRead(
+    onProgress: (AssetProgress p) => shown(p.fraction),
+    cancel: cancel,
+  ),
+);
+```
+
+The schemes The schemes `http`, `https`, `file`, `asset`,
 `data`, `blob`, `package`, `hub` and `f3d` are reserved
 (`AssetSources.reservedSchemes`). The build pipeline (`flutter3d_build`,
 `flutter3d_assets.yaml`) is described in
@@ -369,7 +405,7 @@ look back; a patch does not change it.
 |---|---|
 | `LightNode` | `type` (`LightType`), `color`, `intensity` (lux for a directional light, candela for the others), `range` (meters, 0 for unbounded), `innerConeAngle`, `outerConeAngle` (radians), `width`, `height` (an area light), `castsShadow`, `channels`; `LightNode.lumens(...)` converts lumens to candela once |
 | `LightType` | `directional`, `point`, `spot`, `area`, and `LightType.custom(name, base:)` for a plugin's own |
-| `Light3D` | The widget: `.sun()` (15 000 lux), `.directional()`, `.point()` and `.lamp()` (an 800-lumen bulb, about 63.7 cd) |
+| `Light3D` | The widget: `.sun()` (15 000 lux), `.directional()`, `.point()` and `.lamp()` (an 800-lumen bulb, about 63.7 cd), `.spot()` (`innerConeAngle`, `outerConeAngle`; 800 lumens poured into its cone by default); a plain `Light3D(type: …)` with no `intensity` takes its type's default in its type's unit |
 | `CameraNode`, `Camera3D`, `OrbitCamera3D`, `OrbitController` | A camera, its widgets, and an orbiting controller |
 | `PerspectiveProjection` | `fovY` (radians, the vertical angle), `near`, `far`; `.infinite()` |
 | `PhysicalCamera`, `ThinLens` | Exposure and depth of field from aperture, shutter and sensor |
@@ -575,7 +611,10 @@ A step run again (a rollback, a scrub) is `isResimulated`; the frame
 channel of the bus reconciles its events with what it already showed
 instead of showing them twice. Rollback netcode for two peers is
 `flutter3d_net` and `flame_multiplayer`; a match is formed only between
-builds of the same `SimulationVersion`.
+builds of the same `SimulationVersion`. Its step function
+(`RollbackSession.applyAndStep`, `EngineRollback.applyFrames`) is handed a
+`RollbackStep`: `step`, `frames` by slot, `statusOf(slot)` (an
+`InputStatus`: `confirmed`, `predicted`, `disconnected`) and `resimulated`.
 
 **What grows in 1.x.** New phases between the engine's (a plugin's are
 namespaced), new time sources, new members of the loop and its contexts.
@@ -587,13 +626,13 @@ is refused with a reason while its `PoseRecord` still plays.
 
 | Type | What it is |
 |---|---|
-| `CollisionWorld` | Colliders, a broadphase, rays and sweeps that do not tunnel; `properties` (`WorldProperties`: gravity, air, wind, medium), `materials` (`MaterialCatalog`), `backend`, `origin` |
+| `CollisionWorld` | Colliders, a broadphase, rays and sweeps that do not tunnel; `properties` (`WorldProperties`: gravity, air, wind, medium), `materials` (`MaterialCatalog`), `backend`, `origin`; `idOf(collider)` and `colliderOf(id)`, the ids a contact names |
 | `Collider`, `CollisionShape` | `CollisionBox`, `CollisionSphere`, `CollisionCapsule`, `CollisionWedge`, `CollisionHeightfield`, `CustomShape` |
 | `PhysicsBackend` | `DartPhysics` (the reference, plain Dart) or `NativePhysics` (`flutter3d_physics_native`, the C core, with joints, cloth, fluids and ragdolls); `dynamics(...)`, `cloth(...)`, `fluid` |
-| `RigidDynamics`, `RigidBody` | Bodies with mass, friction (one μ), restitution and a `PhysicalMaterial`; `step(dt)`, `contacts`, `saveState`, `restoreState` |
+| `RigidDynamics`, `RigidBody` | Bodies with mass, friction (one μ), restitution and a `PhysicalMaterial`; `step(dt)`, `contacts`, `bodyOf(collider)`, `bodyOfId(id)` (a contact's id back to its body, on either core), `saveState`, `restoreState` |
 | `CharacterController`, `MovementSettings` | A capsule that walks, steps and slides |
 | `StepContact`, `ContactPhase` | One contact a step reported: bodies, point, normal, impulse (N·s), relative velocity, materials; `begin`, `persist`, `end` |
-| `ContactEvent` (`flutter3d_sim`) | The same on the bus, `physics.contact`, step channel |
+| `ContactEvent` (`flutter3d_sim`) | The same on the bus, `physics.contact`, step channel; its `bodyA` and `bodyB` are the world's ids, which `colliderOf` and `bodyOfId` read back |
 
 Two bodies meeting take the geometric mean of their friction and the larger
 restitution in both cores, and a scene 5 km out on a shifted origin stays
@@ -620,7 +659,8 @@ void physics(EngineLoop loop) {
   loop.events.onStep<ContactEvent>('contacts', (delivered) {
     final contact = delivered.event;
     if (contact.phase == ContactPhase.begin && contact.impulse > 5.0) {
-      // a hard landing: newton-seconds
+      // a hard landing: newton-seconds; dynamics.bodyOfId(contact.bodyB)
+      // is the body that landed
     }
   });
 }

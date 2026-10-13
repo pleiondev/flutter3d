@@ -119,7 +119,7 @@ This package names the anchors. The renderer in `flutter3d_core` fills the
 types, so a plugin that draws depends on `flutter3d_core` too:
 
 ```dart
-const softGlow = RenderStep('soft glow', needs: {RenderStep.bloom});
+const softGlow = RenderStep('acme.soft_glow', needs: {RenderStep.bloom});
 
 @override
 void install(PluginHost host) {
@@ -317,16 +317,18 @@ refused with the permission named otherwise.
 ## Writing one
 
 - `dart run flutter3d_build:create plugin --kind
-  render-step|effect|genre|element|tool --name <name>` writes a plugin
-  package with its tests, its conformance suite and the pubspec marker.
+  render-step|effect|genre|element|tool|backend --name <name>` writes a
+  plugin package (or, for `backend`, a graphics backend) with its tests,
+  its conformance suite and the pubspec marker.
 - `flutter3d_lints` is an analysis server plugin carrying the rules a step
   is held to: no clock, no unseeded `Random`, no `dart:math` transcendental
   where `Portable` gives one answer everywhere.
 - `EngineLoop(determinismCheck: …)` steps each step twice in a debug build
   and names the plugin whose system made the two runs differ.
-- `package:flutter3d_conformance/plugins.dart` runs five checks: the
-  manifest, the switch, determinism, every declared backend, and the budget
-  the manifest declares under `extra['budget']`. A plugin that passes all of
+- `package:flutter3d_conformance/plugins.dart` runs seven checks: the
+  manifest, the switch, the names (every one in the plugin's namespace),
+  determinism, every declared backend, the budget the manifest declares
+  under `extra['budget']`, and the physical materials it declares. A plugin that passes all of
   them on every backend it declares, with a world given to the determinism
   check, may show the conformance badge.
 - `dart run flutter3d_build:plugin_mcp` is an MCP server through which an

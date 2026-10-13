@@ -49,7 +49,9 @@ final class _Tooling extends Flutter3dPlugin {
   @override
   PluginManifest get manifest => const PluginManifest(
     id: 'outside.editor',
-    apiVersion: PluginApiVersion.current,
+    // The version it was written against, as a plugin states it: a
+    // literal, never `current`, which moves with the engine it runs on.
+    apiVersion: PluginApiVersion(1, 0),
     simulationVersion: 7,
     touches: PluginTouches.tooling,
   );

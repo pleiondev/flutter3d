@@ -202,8 +202,9 @@ flutter3d create --list
 (or `dart run flutter3d_build:create …`, the same command) makes a new package with the plugin, its
 `flutter3d_plugins:` marker for discovery, a test that installs it, and
 `test/conformance_test.dart`, which runs `flutter3d_conformance`'s plugin
-suite. The five kinds are `render-step`, `effect`, `genre`, `element` and
-`tool`. The directory must be empty or not exist.
+suite. The six kinds are `render-step`, `effect`, `genre`, `element`,
+`tool` and `backend`, the last a graphics backend started from the null
+backend rather than a plugin. The directory must be empty or not exist.
 
 `dart run flutter3d_build:plugin_mcp` is the same for an agent: an MCP
 server with `plugin.create`, `plugin.conformance` (runs the suite and reads

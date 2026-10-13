@@ -174,10 +174,12 @@ snapshot in each package's `api/` is what a release is compared against.
 
 **The engine ships under one major.minor.** The 58 packages of the shelf
 share a major and a minor, now the release candidate `1.0.0-rc.1`, and ask
-for `^1.0.0-rc.1` of each other. A minor or a major moves all of them
-together. A patch goes only to the package that needs it, so after 1.0.0
-`flutter3d_impeller` can be at 1.0.1 beside the rest at 1.0.0: every
-sibling's `^1.0.0` reaches it, and nobody downloads 57 unchanged packages
+for `'>=1.0.0-rc.1 <1.1.0'` of each other, one minor, so a 1.1 of one never
+resolves under a 1.0 of another; an application asks with a caret. A minor
+or a major moves all of them together. A patch goes only to the package
+that needs it, so after 1.0.0 `flutter3d_impeller` can be at 1.0.1 beside
+the rest at 1.0.0: every sibling's `'>=1.0.0 <1.1.0'` reaches it, and
+nobody downloads 57 unchanged packages
 for one fix. So read the shelf's number as `1.0`, and each package's own
 patch from its CHANGELOG. Among them are the packages the candidate
 brings: the game parts (`flutter3d_game_kit`, `flutter3d_game_physics`,
@@ -191,10 +193,10 @@ admits the final 1.0.0 too, so it stays when 1.0.0 follows. The candidate
 already keeps the promise above. The interface
 packages keep lines of their own that break more rarely than the engine:
 `flutter3d_plugin_api` (1.0.0-rc.1), `flutter3d_hardware` (on the shelf's number
-for now) and the file format schemas. Wasm plugin ABI 1 (`wasmPluginAbi` in
-`flutter3d_plugin_runtime`) is numbered on its own as well: a module states
-the ABI it was written for, and only a change to what a module may import or
-export moves it. `flame_multiplayer` and `flame_multiplayer_dashwire`
+for now) and the file format schemas. The Wasm plugin ABI (`wasmPluginAbi`
+in `flutter3d_plugin_runtime`, now 2; a host runs a module of ABI 1 or 2) is
+numbered on its own as well: a module states the ABI it was written for,
+and only a change to what a module may import or export moves it. `flame_multiplayer` and `flame_multiplayer_dashwire`
 joined the shelf's number at `1.0.0-rc.1`, because they stand on
 `flutter3d_net` and break with it. `pad_input` and `flutter3d_pointer_lock` name no
 sibling and keep their own lines below 1.0.
