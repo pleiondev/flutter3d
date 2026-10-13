@@ -110,7 +110,10 @@ void main() {
     final settings = const RenderSettings().without(<RenderStep>{
       RenderStep.velocity,
     });
-    expect(RenderStep.velocity.isOn(settings), isFalse);
+    expect(
+      RenderStep.velocity.isOn(RenderStepContext(settings: settings)),
+      isFalse,
+    );
     expect(settings.antiAlias.temporal.enabled, isFalse);
     expect(settings.motionBlur.enabled, isFalse);
   });

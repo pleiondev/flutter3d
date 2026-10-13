@@ -40,7 +40,7 @@ void main() {
     // Mutation: switch the sky off by its intensity instead of `enabled`,
     // and a gradient sky survives its plugin.
     final on = const RenderSettings(sky: SkySettings(enabled: true));
-    expect(skyStep.isOn(on), isTrue);
+    expect(skyStep.isOn(RenderStepContext(settings: on)), isTrue);
     expect(on.without(<RenderStep>{skyStep}).sky.enabled, isFalse);
     expect(skyStep.isBuiltIn, isFalse);
   });

@@ -1,5 +1,20 @@
-/// A compute kernel written in `.f3dmat compute`, and its two translations:
-/// WGSL for WebGPU and the wgpu sidecar, a Dart kernel for the CPU — 1.0.
+/// A compute kernel written in the kernel language, and its two
+/// translations: WGSL for WebGPU and the wgpu sidecar, a Dart kernel for the
+/// CPU — 1.0.
+///
+/// **The kernel language, and the material language's form of it.** This
+/// is the language a `ComputeStep` hands its kernels in, with buffers,
+/// textures, images, loops and branches. A `.f3dmat` file's `compute` block
+/// is something else: the material language's form for a texture computed
+/// texel by texel (`workgroup x y`, a `kernel` body that returns the
+/// texel), which `lowerMaterialCompute` in `flutter3d_core` writes in this
+/// language. This reader skips a `material` or `fullscreen` block beside
+/// its kernels, refuses every other top-level word, and names the material
+/// form when it meets one.
+///
+/// **Versioned** ([kernelLanguageVersion]): a source may open with
+/// `kernel 1`, after the `f3dmat <N>` line of a `.f3dmat` file if it has
+/// one, and a source of a newer version is refused with both numbers.
 ///
 /// **One source, three placements.** A frame's compute step runs on the
 /// device that draws, on a compute-only sidecar or on the CPU, decided per
@@ -31,10 +46,10 @@
 /// `for i in a .. b`, `break`, `continue` and `return`; the types `f32`,
 /// `i32`, `u32`, `bool` and `vec2`–`vec4`; WGSL's operators; and `len`,
 /// `width`, `height`, `f32`, `i32`, `u32`, `min`, `max`, `clamp`, `abs`,
-/// `floor`, `ceil`, `round`, `trunc`, `sqrt`, `select(c, a, b)` and the
-/// vector constructors. There is no workgroup memory and no barrier in this
-/// version: invocations are independent, and a kernel writes each element
-/// from one invocation.
+/// `floor`, `ceil`, `round`, `trunc`, `sqrt`, `sin`, `cos`, `pow`,
+/// `select(c, a, b)` and the vector constructors. There is no workgroup
+/// memory and no barrier in this version: invocations are independent, and
+/// a kernel writes each element from one invocation.
 library;
 
 import 'dart:typed_data';
@@ -57,6 +72,41 @@ export 'kernel/kernel_dart.dart'
         unormValue;
 export 'kernel/kernel_wgsl.dart' show kernelEntryPoint;
 export 'kernel_exception.dart';
+export 'kernel_version.dart';
+
+/// How many invocations a workgroup runs along each of its three axes: a
+/// kernel's `workgroup x, y, z`, and a material's `workgroup x y`.
+///
+/// **A class rather than a record**, so it can say what it is and gain a
+/// member later; three numbers rather than two, because a kernel over a
+/// volume needs the third.
+final class WorkgroupSize {
+  /// [x] × [y] × [z] invocations, each at least one.
+  const WorkgroupSize(this.x, this.y, this.z)
+    : assert(x >= 1 && y >= 1 && z >= 1);
+
+  /// Along x.
+  final int x;
+
+  /// Along y; one for a kernel over a line.
+  final int y;
+
+  /// Along z; one for a kernel over a line or a plane.
+  final int z;
+
+  /// How many invocations one workgroup runs: [x] × [y] × [z].
+  int get invocations => x * y * z;
+
+  @override
+  bool operator ==(Object other) =>
+      other is WorkgroupSize && other.x == x && other.y == y && other.z == z;
+
+  @override
+  int get hashCode => Object.hash(x, y, z);
+
+  @override
+  String toString() => 'WorkgroupSize($x, $y, $z)';
+}
 
 /// What a [KernelBinding] is.
 ///
@@ -145,7 +195,7 @@ final class WgslKernel {
   final List<KernelBinding> bindings;
 
   /// `@workgroup_size`, as [ComputeKernel.workgroupSize].
-  final (int, int, int) workgroupSize;
+  final WorkgroupSize workgroupSize;
 
   /// The compute entry point, `main` for every kernel.
   String get entryPoint => kernelEntryPoint;
@@ -208,15 +258,16 @@ final class DartKernel {
   }
 }
 
-/// One compute kernel, read from `.f3dmat compute` source and checked.
+/// One compute kernel, read from kernel language source and checked.
 ///
 /// Throws [ComputeKernelException], with the line and column, for source
 /// that is not one.
 final class ComputeKernel {
   ComputeKernel._(this._tree, this.source);
 
-  /// Every `compute` block of [source], in order; other blocks in the file
-  /// (a `material` beside them) are skipped.
+  /// Every `compute` block of [source], in order; a `material` or
+  /// `fullscreen` block beside them is skipped, and any other top-level
+  /// word refused.
   static List<ComputeKernel> parseAll(String source) => <ComputeKernel>[
     for (final tree in parseKernels(source)) ComputeKernel._(tree, source),
   ];
@@ -257,8 +308,15 @@ final class ComputeKernel {
   /// The name a bundle and a step know it by.
   String get name => _tree.name;
 
+  /// The kernel language version the source is written in: its
+  /// `kernel <N>` line, or [kernelLanguageFirstVersion] without one.
+  int get languageVersion => _tree.languageVersion;
+
   /// `workgroup x, y, z`, one where the source gave fewer.
-  (int, int, int) get workgroupSize => _tree.workgroup;
+  WorkgroupSize get workgroupSize {
+    final (x, y, z) = _tree.workgroup;
+    return WorkgroupSize(x, y, z);
+  }
 
   /// What it binds, in order.
   late final List<KernelBinding> bindings =
@@ -284,7 +342,7 @@ final class ComputeKernel {
 
   /// How many workgroups along x cover [invocations] invocations.
   int groupsFor(int invocations) {
-    final (x, _, _) = workgroupSize;
+    final x = workgroupSize.x;
     return (invocations + x - 1) ~/ x;
   }
 

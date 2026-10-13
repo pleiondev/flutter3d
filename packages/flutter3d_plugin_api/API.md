@@ -771,7 +771,10 @@ step added again, a `needs` nobody registered (`ArgumentError` or
 `PluginException`, naming the step and its owner).
 
 `RenderStep(name, {passes, passPrefix, needs, switchOff, isOn})` is one
-switch over the frame. `RenderStepAddon` (a `Flutter3dPlugin` base) is how
+switch over the frame. `isOn` and `switchOff` take one `RenderStepContext`
+(`settings`, and inside a frame its `views`, `device` and `quality`), which
+can gain members in a minor; `switchOff` returns the settings with the step
+off. `RenderStepAddon` (a `Flutter3dPlugin` base) is how
 `flutter3d_post` ships each effect: `provides`, `adds`, `settings`.
 
 ```dart
@@ -792,7 +795,7 @@ void renderStep(PluginHost host, FullscreenEffect effect) =>
 |---|---|
 | `RenderNode` (`abstract base`) | A frame graph node: `name`, `setup(FrameGraphBuilder)` (`read`, `readIfProduced`, `write`, `create`, `keep`, `place`), `execute(RenderFrame)`, `defaultAnchor`, `isActive`, `isSupported` |
 | `FullscreenEffect` | A full-screen stage: `.overlay(...)`, `.present(...)`, and `FullscreenEffect.material(materials, stage, {name, shader, parameters, ...})` for a stage written in the material language, bound at its source's defaults (`parameters`), reading the surface buffer when its source reads `sceneDepth` (`readsSurface`) |
-| `ComputeStep` (`abstract base`) | `kernels`, `record(ComputeContext)`, `demand` (a `ComputePlacement`), `prepare(executors)`; a demand nothing meets is a `ComputePlacementException` (`refusal`) and the step is not run |
+| `ComputeStep` (`abstract base`) | `kernels` (`ComputeKernel`s in the kernel language, `kernelLanguageVersion` 1), `record(ComputeContext)`, `demand` (a `ComputePlacement`), `prepare(executors)`; a demand nothing meets is a `ComputePlacementException` (`refusal`) and the step is not run |
 | `FieldUpload` | A host field carried into the frame as a 3D texture or a storage buffer (`residence`); `refusal` is a `FieldResidenceException` |
 | `PassContributor` (`abstract base`) | Draws into the scene pass: `encode(ContributorFrame)`, `boundsFor(view)`, `order`, `readsSceneDepth`, `isOverlay` |
 | `DrawListHook`, `SkinningHook`, `LodPolicy` | Through `RenderHooks`: keep or sort draws (`DrawListContext`), skin claimed meshes (`SkinningContext`, writing `FrameResourceIds.skinnedVertices`), choose LOD levels |

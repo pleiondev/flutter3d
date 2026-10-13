@@ -41,13 +41,16 @@ void main() {
     final on = const RenderSettings(
       highContrast: HighContrastSettings(enabled: true),
     );
-    expect(outlinesStep.isOn(on), isTrue);
+    expect(outlinesStep.isOn(RenderStepContext(settings: on)), isTrue);
     // Mutation: switch the outlines off with the look itself, and switching
     // the rings off takes the whole look with them.
     final off = on.without(<RenderStep>{outlinesStep});
     expect(off.highContrast.outlineWidth, 0.0);
     expect(off.highContrast.enabled, isTrue);
-    expect(outlinesStep.isOn(const RenderSettings()), isFalse);
+    expect(
+      outlinesStep.isOn(RenderStepContext(settings: const RenderSettings())),
+      isFalse,
+    );
   });
 
   test('installed, the frame does not move', () {

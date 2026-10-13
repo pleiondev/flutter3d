@@ -86,7 +86,7 @@ final class WebGpuComputeStage {
   final List<WebGpuStorageTextureBinding> storageTextures;
 
   /// Textures read texel by texel with `textureLoad`, with no sampler beside
-  /// them: what a `.f3dmat compute` kernel's `texture` binding is.
+  /// them: what a kernel language `texture` binding is.
   /// `ComputeEncoder.bindTexture` binds one and ignores the sampler it is
   /// handed, which such a texture has no slot for.
   final List<WebGpuLoadedTexture> loadedTextures;
@@ -143,7 +143,11 @@ WebGpuComputeStage webgpuKernelStage(ComputeKernel kernel) {
             format: b.textureFormat,
           ),
     ],
-    workgroupSize: wgsl.workgroupSize,
+    workgroupSize: (
+      wgsl.workgroupSize.x,
+      wgsl.workgroupSize.y,
+      wgsl.workgroupSize.z,
+    ),
   );
 }
 

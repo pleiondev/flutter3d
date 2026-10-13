@@ -4,7 +4,7 @@
 /// **Compute everywhere, by placement.** A [ComputeStep] is a [RenderNode]:
 /// it declares what it reads and writes, the frame graph orders and culls it
 /// like any other pass, and the renderer runs it in order. What is its own is
-/// where its work goes. Its kernels are `.f3dmat compute`, and [prepare]
+/// where its work goes. Its kernels are in the kernel language, and [prepare]
 /// places them on the first executor that loads them — the device that draws
 /// the frame, then the wgpu sidecar, then the CPU (`ComputeExecutors`) — or
 /// on the one the step [demand]s. A step that cannot be placed is not

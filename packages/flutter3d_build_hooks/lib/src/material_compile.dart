@@ -49,6 +49,7 @@ import 'package:flutter3d_shaders/backend.dart'
         MaterialStageBudget,
         MaterialStageSource;
 import 'package:flutter3d_shaders/compile.dart';
+import 'package:flutter3d_shaders/kernel.dart' show ComputeKernel, kernelBundle;
 
 /// A material that did not build, and where.
 ///
@@ -209,7 +210,9 @@ String flutterSdkRootFrom(String executable) {
 }
 
 /// One material [text] as a bundle with a fragment stage named after the
-/// material, compiled for every backend [compilers] can serve.
+/// material, compiled for every backend [compilers] can serve; a `compute`
+/// stage as a bundle of its kernel, lowered to the kernel language
+/// (`lowerMaterialCompute`), which every device with compute loads.
 ///
 /// [source] is the path every failure names. [scratch] is where the
 /// generated `.frag` is written for `impellerc`, and where it stays when
@@ -238,17 +241,18 @@ ShaderBundle compileMaterial(
   // the manifest's to grow when somebody needs one.
   final name = program.name;
   if (program.kind == MaterialStageKind.compute) {
-    // Refused here rather than built into a bundle a GPU backend would
-    // refuse at load: no backend that compiles shaders runs a compute stage
-    // from a bundle. The software backend runs the kernel from its source.
-    throw MaterialBuildException(
-      '"$name" is a compute stage, and no GPU backend loads one from a '
-      'bundle: Impeller and WebGL2 have no compute pipelines, and WebGPU '
-      'runs only the engine\'s own compute stages. The software backend '
-      'runs the kernel from its source — keep it outside assets_src/ and '
-      'hand it to CpuDevice as materialComputeStage(...)',
-      source: source,
-    );
+    // Lowered to the kernel language and carried in the kernel section,
+    // which WebGPU, the wgpu sidecar and the software backend load as it
+    // is. Impeller and WebGL2 have no compute: there the engine refuses the
+    // stage naming `DeviceFeature.compute`, and the texture is baked on the
+    // CPU at load (`MaterialComputeKernel.bake`).
+    try {
+      return kernelBundle(name, <ComputeKernel>[
+        lowerMaterialCompute(program).kernel,
+      ]);
+    } on MaterialSyntaxException catch (error) {
+      throw MaterialBuildException(error.message, source: source);
+    }
   }
   final specialised = specializeMaterial(program, MaterialVariant(name));
 

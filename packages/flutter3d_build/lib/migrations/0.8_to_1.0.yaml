@@ -24783,3 +24783,44 @@ entries:
       `dressed.instance` and `dressed.key`. `migrate` wraps the old
       function, `(dressed) => (old)(dressed.instance, dressed.key)`, which
       runs as it did.
+
+  - id: hook-core-RenderStep-isOn
+    package: flutter3d_core
+    symbol: RenderStep.isOn
+    kind: hookContext
+    context: RenderStepContext
+    fields:
+      '0': settings
+    guidance: >-
+      `RenderStep.isOn` takes one `RenderStepContext` where it took the
+      settings. A step's switch could only read the settings it was asked
+      about; the context also carries the frame's views, its device and the
+      quality setting it is drawn at, and can gain members in a minor
+      release. `migrate` builds the context at a call,
+      `step.isOn(RenderStepContext(settings: s))`.
+
+  - id: hook-core-RenderStep-isOn-argument
+    package: flutter3d_core
+    symbol: RenderStep
+    kind: argument
+    arguments: [isOn]
+    template: '(context) => ({value})(context.settings)'
+    guidance: >-
+      A step's own `isOn` is handed one `RenderStepContext`, where it took
+      the settings: `(settings) => ...` is `(context) => ...` reading
+      `context.settings`, and may read the frame's views, device and quality
+      too. `migrate` wraps the old function,
+      `(context) => (old)(context.settings)`, which runs as it did.
+
+  - id: hook-core-RenderStep-switchOff-argument
+    package: flutter3d_core
+    symbol: RenderStep
+    kind: argument
+    arguments: [switchOff]
+    template: '(context) => ({value})(context.settings)'
+    guidance: >-
+      A step's own `switchOff` is handed one `RenderStepContext`, where it
+      took the settings, and still returns the settings with the step off:
+      `(settings) => ...` is `(context) => ...` reading `context.settings`.
+      `migrate` wraps the old function,
+      `(context) => (old)(context.settings)`, which runs as it did.

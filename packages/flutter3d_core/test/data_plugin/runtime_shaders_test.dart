@@ -14,6 +14,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/data_plugins.dart';
 import 'package:flutter3d_core/flutter3d_core.dart' show Renderer;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart' show FakeBackend;
@@ -350,6 +352,51 @@ fullscreen Grade {
       expect(RuntimeBackends.normalize('webgpu-dawn'), 'webgpu-dawn');
       expect(RuntimeBackends.normalize('Vulkan'), 'Vulkan');
       expect(RuntimeBackends.normalize('software-gl'), 'software-gl');
+    });
+  });
+
+  group('a compute stage', () {
+    const ripples = '''
+f3dmat 2
+compute Ripples {
+  kernel { return vec4(uv, 0.0, 1.0); }
+}
+''';
+
+    test('is its lowered kernel where the backend computes', () {
+      // Mutation: refuse it as before, and a plugin's computed texture
+      // never runs on WebGPU or the software backend.
+      for (final backend in <String>['webgpu', 'cpu']) {
+        final bundle = runtimeMaterialBundle(
+          ripples,
+          backend: backend,
+          from: 'ripples.f3dmat',
+        );
+        expect(bundle.stages.single.kind, ShaderStageKind.compute);
+        expect(
+          decodeKernelSection(bundle)['Ripples'],
+          startsWith('kernel 1\n'),
+        );
+      }
+    });
+
+    test('is refused by naming compute where the backend has none', () {
+      for (final backend in <String>['impeller', 'WebGL2']) {
+        expect(
+          () => runtimeMaterialBundle(
+            ripples,
+            backend: backend,
+            from: 'ripples.f3dmat',
+          ),
+          throwsA(
+            isA<UnsupportedCapabilityException>().having(
+              (e) => e.feature,
+              'feature',
+              DeviceFeature.compute,
+            ),
+          ),
+        );
+      }
     });
   });
 }

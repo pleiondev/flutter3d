@@ -85,7 +85,10 @@ void main() {
       });
 
       expect(settings.stepsOff, contains(RenderStep.lensFlare));
-      expect(RenderStep.lensFlare.isOn(settings), isFalse);
+      expect(
+        RenderStep.lensFlare.isOn(RenderStepContext(settings: settings)),
+        isFalse,
+      );
     });
   });
 

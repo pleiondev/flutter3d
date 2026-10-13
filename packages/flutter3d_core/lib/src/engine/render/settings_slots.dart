@@ -27,9 +27,12 @@ part of 'render_settings.dart';
 ///   switchOff: _frostOff,
 ///   isOn: _frostOn,
 /// );
-/// RenderSettings _frostOff(RenderSettings s) =>
-///     s.withExtension(frost, s.extension(frost).copyWith(enabled: false));
-/// bool _frostOn(RenderSettings s) => s.extension(frost).enabled;
+/// RenderSettings _frostOff(RenderStepContext context) {
+///   final s = context.settings;
+///   return s.withExtension(frost, s.extension(frost).copyWith(enabled: false));
+/// }
+/// bool _frostOn(RenderStepContext context) =>
+///     context.settings.extension(frost).enabled;
 /// ```
 ///
 /// **Keyed by [id], not by the Dart type.** A runtime type is minified on the

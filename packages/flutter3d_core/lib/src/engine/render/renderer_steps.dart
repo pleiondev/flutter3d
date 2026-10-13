@@ -865,16 +865,16 @@ final class _AnchoredNode {
 }
 
 /// An anchored node as this frame registers it: active only while its step
-/// is on in this frame's settings.
+/// is on in this frame.
 ///
 /// Everything else is the node's own, so the graph sees the pass the plugin
 /// declared, and the name it reports is the node's.
 final class _SteppedNode extends RenderNode {
-  const _SteppedNode(this._node, this._step, this._settings);
+  const _SteppedNode(this._node, this._step, this._context);
 
   final RenderNode _node;
   final RenderStep _step;
-  final RenderSettings _settings;
+  final RenderStepContext _context;
 
   @override
   String get name => _node.name;
@@ -895,7 +895,7 @@ final class _SteppedNode extends RenderNode {
   void setup(FrameGraphBuilder builder) => _node.setup(builder);
 
   @override
-  bool get isActive => _step.isOn(_settings) && _node.isActive;
+  bool get isActive => _step.isOn(_context) && _node.isActive;
 
   @override
   bool get isSupported => _node.isSupported;

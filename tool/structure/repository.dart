@@ -1615,6 +1615,14 @@ const Map<String, String> readsSimulationWorld = <String, String>{
 /// Version constants that number something other than a file a reader opens,
 /// by `path#constant`, with the reason.
 const Map<String, String> notAVersionedFormat = <String, String>{
+  'packages/flutter3d_shaders/lib/src/kernel_version.dart#kernelLanguageVersion':
+      'the kernel language, which is source text inside a bundle\'s kernel '
+      'section and no file a reader opens: the section has its own version '
+      '(`kernelSectionVersion`, with its fixture), and a source of a newer '
+      'language is refused by `ComputeKernel.parse`, which a test holds',
+  'packages/flutter3d_shaders/lib/src/kernel_version.dart#kernelLanguageFirstVersion':
+      'the kernel language version a source without a `kernel` line is, '
+      'for the reason `kernelLanguageVersion` gives',
   'packages/flutter3d_hub/lib/src/hub_reference.dart#maxVersion':
       'the largest version of a model on the hub a reference can name, '
       'which is no file a reader opens: the reference format itself has no '
@@ -2517,6 +2525,11 @@ const Map<String, List<String>> facadePackages = <String, List<String>>{
 /// declares it, as `facade:Type`, each with why a caller of the facade never
 /// writes it.
 final Map<String, String> facadeGapAllowed = <String, String>{
+  for (final facade in <String>['flutter3d', 'flutter3d_game', 'flutter3d_app'])
+    '$facade:WorkgroupSize':
+        'read off a parsed compute stage (`MaterialProgram.workgroupSize`), '
+        'which `parseMaterial` builds and a caller never writes by hand; a '
+        'kernel author imports `flutter3d_shaders/kernel.dart`',
   for (final name in _simulationBehindTheView)
     'flutter3d_app:$name':
         'the simulation\'s, reached through the loop, the level and the '
@@ -2866,7 +2879,6 @@ const List<String> _recordResultsPending = <String>[
   'ColorVision.applyEncoded',
   'ColorVision.applyLinear',
   'ColorVision.confusions',
-  'ComputeKernel.workgroupSize',
   'ConvexHull.faces',
   'CpuComputeShader.workgroupSize',
   'CubeLut.domainMax',
@@ -2901,7 +2913,6 @@ const List<String> _recordResultsPending = <String>[
   'LiquidView.wanted',
   'MaterialExtensions.coatMapSources',
   'MaterialExtensions.sheenMapSources',
-  'MaterialProgram.workgroupSize',
   'MeshVessel.span',
   'ModelHistory.authorship',
   'NativeWorld.charOf',
@@ -2936,7 +2947,6 @@ const List<String> _recordResultsPending = <String>[
   'VesselShape.span',
   'VesselVolumes.lip',
   'VoxelHit.before',
-  'WgslKernel.workgroupSize',
   'WorldPosition.relativeTo',
   'blockLayoutFor',
   'bloomSource',

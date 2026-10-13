@@ -53,9 +53,13 @@ const frost = SettingsSlot<FrostSettings>(
   fromJson: FrostSettings.read,
 );
 
-RenderSettings _frostOff(RenderSettings s) =>
-    s.withExtension(frost, s.extension(frost).copyWith(enabled: false));
-bool _frostOn(RenderSettings s) => s.extension(frost).enabled;
+RenderSettings _frostOff(RenderStepContext context) {
+  final s = context.settings;
+  return s.withExtension(frost, s.extension(frost).copyWith(enabled: false));
+}
+
+bool _frostOn(RenderStepContext context) =>
+    context.settings.extension(frost).enabled;
 
 const frostStep = RenderStep(
   'acme_frost.frost',
@@ -163,9 +167,11 @@ void main() {
       expect(stage.renderer.renderSteps.settingsNamed(frost.id), same(frost));
       expect(
         frostStep.isOn(
-          const RenderSettings().withExtension(
-            frost,
-            const FrostSettings(enabled: true),
+          RenderStepContext(
+            settings: const RenderSettings().withExtension(
+              frost,
+              const FrostSettings(enabled: true),
+            ),
           ),
         ),
         isTrue,

@@ -163,7 +163,7 @@ final class WebGpuLoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary {
   WebGpuSectionStages _stages;
   final Map<String, ShaderHandle?> _handles = <String, ShaderHandle?>{};
 
-  /// The `.f3dmat compute` kernels of the bundle's kernel section — 1.0 —
+  /// The kernel language kernels of the bundle's kernel section — 1.0 —
   /// translated to WGSL by `flutter3d_shaders` when one is asked for.
   final Map<String, ComputeKernel> _kernels = <String, ComputeKernel>{};
 

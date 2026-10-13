@@ -54,9 +54,10 @@ final class LightShaftsAddon extends RenderStepAddon {
 /// where the sky was.
 const RenderStep skyStep = RenderStep('sky', switchOff: _skyOff, isOn: _skyOn);
 
-RenderSettings _skyOff(RenderSettings s) =>
-    s.copyWith(sky: s.sky.copyWith(enabled: false));
-bool _skyOn(RenderSettings s) => s.sky.enabled;
+RenderSettings _skyOff(RenderStepContext context) => context.settings.copyWith(
+  sky: context.settings.sky.copyWith(enabled: false),
+);
+bool _skyOn(RenderStepContext context) => context.settings.sky.enabled;
 
 /// The sky — [skyStep], the physical sky by default.
 final class SkyAddon extends RenderStepAddon {

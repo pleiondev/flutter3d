@@ -1,4 +1,4 @@
-/// Compute kernels written in `.f3dmat compute`, read once and translated
+/// Compute kernels written in the kernel language, read once and translated
 /// for each placement: WGSL for WebGPU and the wgpu sidecar, a Dart kernel
 /// for the CPU — 1.0.
 ///

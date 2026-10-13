@@ -2565,6 +2565,21 @@ final class MaterialBundleException extends Flutter3dFormatException
   const MaterialBundleException(this.message)
   final String message
 
+final class MaterialComputeKernel
+  ByteData parameterBytes({Map<String, List<double>> values = const <String, List<double>>{}})
+  Future<ShaderHandle> load(GraphicsDevice device)
+  KernelPixels bake(int width, int height, {Map<String, List<double>> parameters = const <String, List<double>>{}, Map<String, KernelTexture> textures = const <String, KernelTexture>{}})
+  List<MaterialParameter> get uniforms
+  List<String> get textures
+  String get source
+  String toString()
+  WorkgroupSize get workgroupSize
+  bool get readsParameters
+  final ComputeKernel kernel
+  final MaterialProgram program
+  int groupsX(int width)
+  int groupsY(int height)
+
 final class MaterialDocument
   const MaterialDocument({required this.surface, this.images = const <String>[], this.lighting, this.parameterBlock = 'MaterialParams', this.parameters = const <String, Float32List>{}, this.hints = const <String, MaterialHint>{}, this.extraTextures = const <String, TextureBinding>{}, this.warnings = const <String>[], this.unknown = const <String, Object?>{}})
   final LightingModel? lighting
@@ -2716,8 +2731,7 @@ final class MaterialProgram
   bool get isLit
   bool get readsLightRow
   bool get readsSceneDepth
-  const MaterialProgram({required this.name, required this.parameters, required this.textures, required this.body, required this.inputsUsed, this.light, this.languageVersion = materialLanguageFirstVersion, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.vertex, this.ambient, this.composite, this.workgroupSize = (8, 8), this.version = firstMaterialVersion, this.updates = const <MaterialUpdate>[], this.lightTypes = const <String, String>{}})
-  final (int, int) workgroupSize
+  const MaterialProgram({required this.name, required this.parameters, required this.textures, required this.body, required this.inputsUsed, this.light, this.languageVersion = materialLanguageFirstVersion, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.vertex, this.ambient, this.composite, this.workgroupSize = const WorkgroupSize(8, 8, 1), this.version = firstMaterialVersion, this.updates = const <MaterialUpdate>[], this.lightTypes = const <String, String>{}})
   final List<MaterialParameter> parameters
   final List<MaterialStatement> body
   final List<MaterialStatement>? ambient
@@ -2731,6 +2745,7 @@ final class MaterialProgram
   final MaterialStageKind kind
   final Set<String> inputsUsed
   final String name
+  final WorkgroupSize workgroupSize
   final int languageVersion
   final int version
 
@@ -4151,9 +4166,9 @@ final class RenderSettings
 final class RenderStep
   String toString()
   bool get isBuiltIn
-  bool isOn(RenderSettings settings)
+  bool isOn(RenderStepContext context)
   bool ownsPass(String pass)
-  const RenderStep(this.name, {this.passes = const <String>{}, this.passPrefix, this.needs = const <RenderStep>{}, RenderSettings Function(RenderSettings settings)? switchOff, bool Function(RenderSettings settings)? isOn})
+  const RenderStep(this.name, {this.passes = const <String>{}, this.passPrefix, this.needs = const <RenderStep>{}, RenderSettings Function(RenderStepContext context)? switchOff, bool Function(RenderStepContext context)? isOn})
   final Set<RenderStep> needs
   final Set<String> passes
   final String name
@@ -4203,6 +4218,13 @@ abstract base class RenderStepAddon extends Flutter3dPlugin
   final String id
   final String? description
   void install(PluginHost host)
+
+final class RenderStepContext
+  const RenderStepContext({required this.settings, this.views = const <FrameView>[], this.device, this.quality})
+  final GraphicsDevice? device
+  final List<FrameView> views
+  final QualitySetting? quality
+  final RenderSettings settings
 
 final class RenderView
   CameraNode camera
@@ -4258,6 +4280,7 @@ final class Renderer with RenderServices
   PipelineDocument describePipeline({required Scene scene, required List<RenderView> views, RenderSettings settings = const RenderSettings(), String? name})
   PipelineNodeKinds get pipelineNodeKinds
   PostFrameResult renderPost({required TextureHandle hdr, RenderSettings settings = const RenderSettings(), bool keepHdr = false, TextureHandle? target})
+  QualitySetting? quality
   RenderHooks get hooks
   RenderListener? listener
   SceneBindings get sceneBindings
@@ -5773,6 +5796,8 @@ bool looksLikeAsciiStl(Uint8List bytes)
 
 bool looksLikeSpz(Uint8List bytes)
 
+MaterialComputeKernel lowerMaterialCompute(MaterialProgram program)
+
 const List<MaterialInput> materialAmbientInputs = <MaterialInput>[MaterialInput('lightmap', ExpressionType.vec3, 'f3d_lightmap', since: 2)]
 
 const Map<String, int> materialBuiltinVersions = …
@@ -5782,6 +5807,10 @@ const List<ExpressionBuiltin> materialBuiltins = …
 const List<MaterialInput> materialCompositeInputs = <MaterialInput>[MaterialInput('direct', ExpressionType.vec3, 'f3d_direct', since: 2), MaterialInput('indirect', ExpressionType.vec3, 'f3d_indirect', since: 2)]
 
 const List<MaterialInput> materialComputeInputs = …
+
+const String materialComputeParameters = 'params'
+
+const String materialComputeTarget = 'target'
 
 const Map<String, CompareFunction> materialDepthCompareWire = …
 
@@ -6798,6 +6827,21 @@ final class MaterialBundleException extends Flutter3dFormatException
   const MaterialBundleException(this.message)
   final String message
 
+final class MaterialComputeKernel
+  ByteData parameterBytes({Map<String, List<double>> values = const <String, List<double>>{}})
+  Future<ShaderHandle> load(GraphicsDevice device)
+  KernelPixels bake(int width, int height, {Map<String, List<double>> parameters = const <String, List<double>>{}, Map<String, KernelTexture> textures = const <String, KernelTexture>{}})
+  List<MaterialParameter> get uniforms
+  List<String> get textures
+  String get source
+  String toString()
+  WorkgroupSize get workgroupSize
+  bool get readsParameters
+  final ComputeKernel kernel
+  final MaterialProgram program
+  int groupsX(int width)
+  int groupsY(int height)
+
 final class MaterialDocument
   const MaterialDocument({required this.surface, this.images = const <String>[], this.lighting, this.parameterBlock = 'MaterialParams', this.parameters = const <String, Float32List>{}, this.hints = const <String, MaterialHint>{}, this.extraTextures = const <String, TextureBinding>{}, this.warnings = const <String>[], this.unknown = const <String, Object?>{}})
   final LightingModel? lighting
@@ -6949,8 +6993,7 @@ final class MaterialProgram
   bool get isLit
   bool get readsLightRow
   bool get readsSceneDepth
-  const MaterialProgram({required this.name, required this.parameters, required this.textures, required this.body, required this.inputsUsed, this.light, this.languageVersion = materialLanguageFirstVersion, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.vertex, this.ambient, this.composite, this.workgroupSize = (8, 8), this.version = firstMaterialVersion, this.updates = const <MaterialUpdate>[], this.lightTypes = const <String, String>{}})
-  final (int, int) workgroupSize
+  const MaterialProgram({required this.name, required this.parameters, required this.textures, required this.body, required this.inputsUsed, this.light, this.languageVersion = materialLanguageFirstVersion, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.vertex, this.ambient, this.composite, this.workgroupSize = const WorkgroupSize(8, 8, 1), this.version = firstMaterialVersion, this.updates = const <MaterialUpdate>[], this.lightTypes = const <String, String>{}})
   final List<MaterialParameter> parameters
   final List<MaterialStatement> body
   final List<MaterialStatement>? ambient
@@ -6964,6 +7007,7 @@ final class MaterialProgram
   final MaterialStageKind kind
   final Set<String> inputsUsed
   final String name
+  final WorkgroupSize workgroupSize
   final int languageVersion
   final int version
 
@@ -7822,6 +7866,8 @@ bool looksLikeAsciiStl(Uint8List bytes)
 
 bool looksLikeSpz(Uint8List bytes)
 
+MaterialComputeKernel lowerMaterialCompute(MaterialProgram program)
+
 const List<MaterialInput> materialAmbientInputs = <MaterialInput>[MaterialInput('lightmap', ExpressionType.vec3, 'f3d_lightmap', since: 2)]
 
 const Map<String, int> materialBuiltinVersions = …
@@ -7831,6 +7877,10 @@ const List<ExpressionBuiltin> materialBuiltins = …
 const List<MaterialInput> materialCompositeInputs = <MaterialInput>[MaterialInput('direct', ExpressionType.vec3, 'f3d_direct', since: 2), MaterialInput('indirect', ExpressionType.vec3, 'f3d_indirect', since: 2)]
 
 const List<MaterialInput> materialComputeInputs = …
+
+const String materialComputeParameters = 'params'
+
+const String materialComputeTarget = 'target'
 
 const Map<String, CompareFunction> materialDepthCompareWire = …
 

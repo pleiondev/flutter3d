@@ -3,11 +3,14 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart'
     show
         LoadedShaderLibrary,
         ShaderBundle,
         ShaderBundleStage,
+        DeviceFeature,
         ShaderLibrary,
         encodeMaterialSection;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
@@ -20,6 +23,7 @@ import 'package:flutter3d_shaders/backend.dart'
         MaterialStageSource;
 import 'package:flutter3d_shaders/flutter3d_shaders.dart'
     show EngineBundleStamp, MissingShaderStageException;
+import 'package:flutter3d_shaders/kernel.dart' show ComputeKernel, kernelBundle;
 import 'package:flutter3d_shaders/translate.dart'
     show
         GlslTranslateException,
@@ -139,9 +143,10 @@ const String runtimeShaderSdk = 'flutter3d run time';
 /// WebGL2, and is refused on WebGPU at run time (the build compiles it). A
 /// `fullscreen` stage is built for all three: as its source, as GLSL ES, and
 /// on WebGPU as WGSL written whole ([fullscreenMaterialWgsl]) at
-/// [webGpuFullscreenUvLocation]. A `compute` kernel is refused everywhere: a
-/// bundle carries no compute stage, and the software backend runs one handed
-/// to it as `materialComputeStage(...)`.
+/// [webGpuFullscreenUvLocation]. A `compute` stage is lowered to the kernel
+/// language and carried as a bundle of its kernel for a backend that
+/// computes; Impeller and WebGL2 refuse it with an
+/// `UnsupportedCapabilityException` naming `DeviceFeature.compute`.
 ShaderBundle runtimeMaterialBundle(
   String source, {
   required String? backend,
@@ -162,12 +167,25 @@ ShaderBundle runtimeMaterialBundle(
   final name = program.name;
   final kind = RuntimeBackends.normalize(backend);
   if (program.kind == MaterialStageKind.compute) {
-    throw RuntimeShadersException(
-      '$from: "$name" is a compute kernel, and a bundle carries no compute '
-      'stage: Impeller and WebGL2 have no compute pipelines, WebGPU runs the '
-      'engine\'s own alone, and the software backend runs a kernel handed to '
-      'it as materialComputeStage(...)',
-    );
+    // Lowered to the kernel language, for any backend that computes; the
+    // two that do not are refused by naming what they lack.
+    if (kind == RuntimeBackends.impeller || kind == RuntimeBackends.webgl) {
+      throw UnsupportedCapabilityException(
+        DeviceFeature.compute,
+        backend: backend!,
+        reason:
+            '$from: compute stage "$name" runs only where a device '
+            'computes; compute its texture on the CPU at load with '
+            'MaterialComputeKernel.bake and upload that instead',
+      );
+    }
+    try {
+      return kernelBundle(name, <ComputeKernel>[
+        lowerMaterialCompute(program).kernel,
+      ]);
+    } on MaterialSyntaxException catch (error) {
+      throw RuntimeShadersException('$from: ${error.message}');
+    }
   }
   final fullscreen = program.kind == MaterialStageKind.fullscreen;
   final vertexStages = emitMaterialVertexStages(

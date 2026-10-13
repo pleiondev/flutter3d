@@ -36,9 +36,13 @@ const RenderStep outlinesStep = RenderStep(
   isOn: _outlinesOn,
 );
 
-RenderSettings _outlinesOff(RenderSettings s) =>
-    s.copyWith(highContrast: s.highContrast.copyWith(outlineWidth: 0.0));
-bool _outlinesOn(RenderSettings s) => s.highContrast.outlineWidth > 0.0;
+RenderSettings _outlinesOff(RenderStepContext context) {
+  final s = context.settings;
+  return s.copyWith(highContrast: s.highContrast.copyWith(outlineWidth: 0.0));
+}
+
+bool _outlinesOn(RenderStepContext context) =>
+    context.settings.highContrast.outlineWidth > 0.0;
 
 /// The outlines — [outlinesStep]. Needs [HighContrastAddon], which the
 /// plugin host installs first.

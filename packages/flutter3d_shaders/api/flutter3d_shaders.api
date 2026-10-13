@@ -885,13 +885,14 @@ final class VolumeFogInfoBlock extends UniformBlock
 library package:flutter3d_shaders/kernel.dart
 
 final class ComputeKernel
-  (int, int, int) get workgroupSize
   DartKernel toDartKernel()
   KernelBinding? binding(String name)
   String get name
   String toString()
   WgslKernel toWgsl()
+  WorkgroupSize get workgroupSize
   final String source
+  int get languageVersion
   int groupsFor(int invocations)
   late final List<KernelBinding> bindings
   static ComputeKernel parse(String source, {String? name})
@@ -956,13 +957,27 @@ abstract base class KernelTexture
 
 final class WgslKernel
   String get entryPoint
-  final (int, int, int) workgroupSize
   final List<KernelBinding> bindings
   final String code
+  final WorkgroupSize workgroupSize
+
+final class WorkgroupSize
+  String toString()
+  bool operator ==(Object other)
+  const WorkgroupSize(this.x, this.y, this.z)
+  final int x
+  final int y
+  final int z
+  int get hashCode
+  int get invocations
 
 ShaderBundle kernelBundle(String name, Iterable<ComputeKernel> kernels)
 
 const String kernelEntryPoint = 'main'
+
+const int kernelLanguageFirstVersion = 1
+
+const int kernelLanguageVersion = 1
 
 Map<String, ComputeKernel> kernelsOf(ShaderBundle bundle)
 

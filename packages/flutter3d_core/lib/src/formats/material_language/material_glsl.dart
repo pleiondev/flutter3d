@@ -51,8 +51,8 @@ String emitMaterialFragment(MaterialProgram program) {
     throw ArgumentError.value(
       program.name,
       'program',
-      'a compute stage has no fragment stage to emit; the software backend '
-          'runs its kernel, and no GPU backend compiles one yet',
+      'a compute stage has no fragment stage to emit: it is a kernel, '
+          'which lowerMaterialCompute writes in the kernel language',
     );
   }
   final light = program.light;

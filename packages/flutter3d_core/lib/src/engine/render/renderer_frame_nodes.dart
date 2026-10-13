@@ -797,7 +797,9 @@ final class _SceneNode extends RenderNode {
     // unsplit anyway.
     copy = _SceneColourCopyNode(
       _renderer,
-      active: transmits && RenderStep.sceneColorCopy.isOn(settings),
+      active:
+          transmits &&
+          RenderStep.sceneColorCopy.isOn(RenderStepContext(settings: settings)),
     );
     transparent = _TransparentNode(
       _renderer,
@@ -805,7 +807,7 @@ final class _SceneNode extends RenderNode {
       contributors: contributors,
       active:
           (transmits || readsDepth || decals.isActive) &&
-          RenderStep.transparent.isOn(settings),
+          RenderStep.transparent.isOn(RenderStepContext(settings: settings)),
       readsDepth: readsDepth,
       samples: optionalReads,
     );
@@ -2028,7 +2030,8 @@ extension _VelocityReaders on RenderSettings {
   /// Whether the velocity passes run: their step on, and a reader — one of
   /// the engine's two, or a placed node that declared the read ([asked]).
   bool _velocityOn({required bool asked}) =>
-      RenderStep.velocity.isOn(this) && (_wantsVelocity || asked);
+      RenderStep.velocity.isOn(RenderStepContext(settings: this)) &&
+      (_wantsVelocity || asked);
 }
 
 /// `R6`'s motion blur, as a link in the lit-colour chain.

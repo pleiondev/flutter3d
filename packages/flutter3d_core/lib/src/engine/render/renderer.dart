@@ -82,6 +82,7 @@ import 'physical_sky.dart';
 import 'pipeline_nodes.dart';
 import 'probe_faces.dart';
 import 'procedural_texture.dart';
+import 'quality_table.dart' show QualitySetting;
 import 'render_hooks.dart';
 import 'render_list.dart';
 import 'render_listener.dart';
@@ -356,6 +357,13 @@ final class Renderer with RenderServices {
   /// level-of-detail policy, the skinning hooks (D22b). A plugin reaches it
   /// as `host.registry<RenderHooks>()`, through [renderSteps].
   RenderHooks get hooks => renderSteps._store.hooks;
+
+  /// The quality setting the next frames are drawn at, for a step's switch
+  /// to read as [RenderStepContext.quality]: what an `AdaptiveQuality`
+  /// chose, set beside the settings it applied (`adaptive.row.setting`).
+  /// Null, the default, where nobody chooses one; the renderer itself only
+  /// hands it on.
+  QualitySetting? quality;
 
   /// How the simulation's components are shown in this renderer's scenes,
   /// and the kinds of node they are shown as (D37). A plugin reaches it as
@@ -3200,6 +3208,22 @@ final class Renderer with RenderServices {
   /// The `render` call's views, by index, beside [_frameViews].
   List<RenderView> _frameViewSources = const <RenderView>[];
 
+  /// [views] as the frame's [FrameView]s, each with the view-projection it
+  /// drew through the frame before.
+  List<FrameView> _frameViewsOf(
+    List<RenderView> views,
+    int width,
+    int height,
+  ) => <FrameView>[
+    for (final (index, view) in views.indexed)
+      FrameView.ofRenderView(
+        view,
+        aspect: _aspectOfView(view, width, height),
+        index: index,
+        previousViewProjection: _previousViewProjections[view],
+      ),
+  ];
+
   /// The width over the height of the pixels [view] lands on in a
   /// [width] × [height] frame.
   static double _aspectOfView(RenderView view, int width, int height) {
@@ -3334,6 +3358,7 @@ final class Renderer with RenderServices {
     required vm.Vector3? contactToLight,
     required vm.Vector3? fogToLight,
     required vm.Vector3? fogRadiance,
+    List<FrameView> frameViews = const <FrameView>[],
   }) {
     final schedule = _FrameSchedule()
       // The atlas before the directional map, which is the order they were
@@ -3590,13 +3615,22 @@ final class Renderer with RenderServices {
     // after the anchor it follows, so its nodes come after that anchor's. A
     // node owned by a step runs only while the step is on.
     final placed = renderSteps._store.nodes;
+    // What a step's switch is asked with in this frame.
+    final stepContext = RenderStepContext(
+      settings: s,
+      views: frameViews,
+      device: device,
+      quality: quality,
+    );
     for (final anchor in RenderAnchor.values) {
       for (final at in renderSteps._store.anchorsFrom(anchor)) {
         for (final entry in renderSteps._store.orderedAt(at)) {
           final step = entry.step;
           schedule.at(
             anchor,
-            step == null ? entry.node : _SteppedNode(entry.node, step, s),
+            step == null
+                ? entry.node
+                : _SteppedNode(entry.node, step, stepContext),
             after: entry.after,
             before: entry.before,
           );
@@ -5473,6 +5507,7 @@ final class Renderer with RenderServices {
       frameGraph = _compileFrameGraph(
         views.first,
         settings,
+        frameViews: _frameViewsOf(views, width, height),
         cubeStatic: cubeStaticNode,
         cube: cubeNode,
         shadow: shadowNode,
@@ -5676,15 +5711,7 @@ final class Renderer with RenderServices {
     // Every view of the frame as a node reads it (D20), each with the
     // view-projection it drew through the frame before.
     _frameViewSources = List<RenderView>.of(views);
-    _frameViews = <FrameView>[
-      for (final (index, view) in views.indexed)
-        FrameView.ofRenderView(
-          view,
-          aspect: _aspectOfView(view, width, height),
-          index: index,
-          previousViewProjection: _previousViewProjections[view],
-        ),
-    ];
+    _frameViews = _frameViewsOf(views, width, height);
     final capturing = _captureWanted;
     _captureWanted = null;
     _capture = capturing == null

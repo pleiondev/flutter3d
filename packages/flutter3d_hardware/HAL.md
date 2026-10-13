@@ -590,7 +590,10 @@ registers a sidecar or CPU device, and `registry.computeExecutors(device)`
 builds the executors for a frame, leaving out (and reporting) one that will
 not start.
 
-**Kernels** are written once in `.f3dmat compute` and travel in a bundle's
+**Kernels** are written once in the kernel language (`ComputeKernel` in
+`flutter3d_shaders`, versioned by an optional `kernel <N>` line,
+`kernelLanguageVersion` 1; the material language's `compute` form is
+lowered to it) and travel in a bundle's
 `kernel` section as source (`encodeKernelSection`, `decodeKernelSection`,
 `kernelSectionVersion`). Each device translates them as it loads them:
 to WGSL on WebGPU and the wgpu sidecar, to a Dart kernel on the software
@@ -642,7 +645,7 @@ a rebuild.
 | `webgl` | WebGL2 | GLSL ES 3.00 sources by name, as JSON |
 | `webgpu` | WebGPU | WGSL and the reflection that goes with it, versioned inside the document |
 | `material` | the software rasteriser | each material-language stage's source (`encodeMaterialSection`) |
-| `kernel` | every device with compute | each `.f3dmat compute` kernel's source |
+| `kernel` | every device with compute | each kernel's source, in the kernel language |
 | `flutter3d.stamp` | the build and `doctor` | the `EngineBundleStamp` |
 | a backend's own | that backend | whatever its `MaterialCompiler` writes; no two backends share one |
 

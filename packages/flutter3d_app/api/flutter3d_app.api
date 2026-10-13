@@ -1030,8 +1030,6 @@ const bool fixedResolution = false
 
 bool isRefusal(Map<String, Object?> answer)
 
-CpuComputeShader materialComputeStage(MaterialProgram program)
-
 CpuStage materialLanguageCompiler(String stage, String source)
 
 Future<GraphicsDevice> openDevice({required int width, required int height, DeviceRegistry? registry})

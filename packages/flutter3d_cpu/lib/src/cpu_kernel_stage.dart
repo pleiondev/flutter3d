@@ -1,4 +1,4 @@
-/// A `.f3dmat compute` kernel as a compute stage of the software
+/// A kernel language kernel as a compute stage of the software
 /// rasteriser: the CPU placement — 1.0.
 ///
 /// The kernel is read and translated to Dart by `flutter3d_shaders`, the
@@ -29,7 +29,10 @@ final class CpuKernelStage extends CpuComputeShader with CpuStorageReader {
   DartKernel kernel;
 
   @override
-  (int, int, int) get workgroupSize => kernel.kernel.workgroupSize;
+  (int, int, int) get workgroupSize {
+    final size = kernel.kernel.workgroupSize;
+    return (size.x, size.y, size.z);
+  }
 
   /// The buffers and images the kernel declares: a bind of anything else
   /// answers false, as on a backend that reflects its stages.

@@ -299,4 +299,28 @@ done
       <int>[engineLast + 2, engineLast + 3, engineLast + 4],
     );
   });
+
+  test('a compute stage is built as its kernel, lowered', () {
+    // Mutation: refuse it as before, and a texture computed by a material
+    // never reaches a device that computes.
+    final bundle = compileMaterial(
+      '''
+f3dmat 2
+compute Ripples {
+  uniform float time = 0.0;
+  kernel { return vec4(vec3(0.5 + 0.5 * sin(time)), 1.0); }
+}
+''',
+      source: 'assets_src/ripples.f3dmat',
+      engine: engine,
+      compilers: MaterialCompilers(impellerc: impellerc.path, sdk: '3.13.0'),
+      scratch: Directory('${scratch.path}/out'),
+    );
+    expect(bundle.stages.single.name, 'Ripples');
+    expect(bundle.stages.single.kind, ShaderStageKind.compute);
+    expect(bundle.section(ShaderBundle.impellerSection), isNull);
+    final source = decodeKernelSection(bundle)['Ripples']!;
+    expect(source, startsWith('kernel 1\n'));
+    expect(source, contains('image target: rgba8;'));
+  });
 }

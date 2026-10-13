@@ -1,4 +1,4 @@
-// `.f3dmat compute` on the CPU placement: a bundle's kernel section loads
+// The kernel language on the CPU placement: a bundle's kernel section loads
 // as compute stages, reloads under the handles already handed out, and a
 // frame's placement rule lands on this device where nothing else computes.
 import 'dart:typed_data';

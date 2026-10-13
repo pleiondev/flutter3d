@@ -598,6 +598,7 @@ export 'package:flutter3d/flutter3d.dart'
         RenderServices,
         RenderSettings,
         RenderStep,
+        RenderStepContext,
         RenderStepRegistry,
         RenderTargetDescriptor,
         RenderTargetPool,

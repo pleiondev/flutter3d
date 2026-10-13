@@ -28,9 +28,10 @@
 /// **Version 2 of the language runs here whole**: the `vertex` block as
 /// [MaterialVertexStage], the `ambient` and `composite` hooks and the two
 /// switches through `composeMaterialLit`, the scene behind a translucent
-/// surface, a full-screen stage as [MaterialFullscreenStage] and a compute
-/// kernel as [materialComputeStage] — the one backend of the four that runs
-/// a kernel written in the language.
+/// surface and a full-screen stage as [MaterialFullscreenStage]. A
+/// `compute` stage is not a stage of the rasteriser: it is lowered to the
+/// kernel language (`lowerMaterialCompute`), and the device loads it as any
+/// kernel.
 library;
 
 import 'dart:math' as math;
@@ -570,91 +571,6 @@ final class MaterialFullscreenStage extends CpuFragmentShader {
   }
 }
 
-/// A compute kernel written in the language — version 2 — as the software
-/// backend's compute stage: one invocation per texel of the storage texture
-/// bound as `target`, each writing what the kernel returns there.
-///
-/// **The one backend that runs a kernel written in the language.** Impeller
-/// and WebGL2 have no compute pipelines, and WebGPU runs the engine's own
-/// compute stages alone; `flutter3d_build` refuses a kernel under
-/// `assets_src/` with that sentence. [program] must be specialised.
-///
-///     CpuDevice(
-///       shaders: CpuShaderLibrary({
-///         ...builtinCpuShaders(),
-///         'Ripples': CpuStage.compute(materialComputeStage(program)),
-///       }),
-///     );
-CpuComputeShader materialComputeStage(MaterialProgram program) {
-  if (program.kind != MaterialStageKind.compute) {
-    throw ArgumentError.value(
-      program.name,
-      'program',
-      'is a ${program.kind} stage, not a compute kernel',
-    );
-  }
-  return _MaterialKernel(program);
-}
-
-final class _MaterialKernel extends CpuComputeShader {
-  _MaterialKernel(this.program);
-
-  final MaterialProgram program;
-
-  @override
-  (int, int, int) get workgroupSize =>
-      (program.workgroupSize.$1, program.workgroupSize.$2, 1);
-
-  @override
-  void runWorkgroup((int, int, int) group, CpuComputeBindings bindings) {
-    final target =
-        bindings.storageTextures['target'] ??
-        (throw StateError(
-          'kernel "${program.name}" writes the storage texture "target", '
-          'and none was bound',
-        ));
-    final params = bindings.blocks['MaterialParams'];
-    final uniforms = <String, List<double>>{
-      for (final parameter in program.parameters)
-        if (parameter.uniform) parameter.name: ?params?[parameter.name],
-    };
-    List<double> sample(MaterialTextureSlot slot, double u, double w) {
-      final bound = bindings.textures[slot.bindingName];
-      if (bound == null) return const <double>[0, 0, 0, 0];
-      final texel = bound.sample(u, w);
-      return <double>[texel.x, texel.y, texel.z, texel.w];
-    }
-
-    final (sizeX, sizeY) = program.workgroupSize;
-    final width = target.width;
-    final height = target.height;
-    for (var y = 0; y < sizeY; y++) {
-      for (var x = 0; x < sizeX; x++) {
-        final cellX = group.$1 * sizeX + x;
-        final cellY = group.$2 * sizeY + y;
-        if (cellX >= width || cellY >= height) continue;
-        final result = evaluateMaterial(
-          program,
-          MaterialSurfaceValues(
-            inputs: <String, List<double>>{
-              'cell': <double>[cellX.toDouble(), cellY.toDouble()],
-              'size': <double>[width.toDouble(), height.toDouble()],
-              'uv': <double>[(cellX + 0.5) / width, (cellY + 0.5) / height],
-            },
-            uniforms: uniforms,
-            sample: sample,
-          ),
-        );
-        target.store(
-          cellX,
-          cellY,
-          Vector4(result[0], result[1], result[2], result[3]),
-        );
-      }
-    }
-  }
-}
-
 /// A `CpuMaterialCompiler` for the engine's material language — `P8`: the
 /// source parsed and specialised at its declared defaults, as the build does
 /// for the GPU sections beside it, and run by [MaterialProgramStage].
@@ -707,8 +623,9 @@ CpuStage materialLanguageCompiler(String stage, String source) {
       MaterialFullscreenStage(specialised),
     ),
     MaterialStageKind.compute => throw MaterialBundleException(
-      '"$stage" is a compute kernel, which a bundle does not carry: hand '
-      'materialComputeStage(...) to CpuDevice.shaders instead',
+      '"$stage" is a compute stage, which a bundle carries as its lowered '
+      'kernel in the kernel section, not as a material: build it again, or '
+      'load lowerMaterialCompute(program).kernel through kernelBundle',
     ),
     _ => CpuStage.fragment(MaterialProgramStage(specialised)),
   };

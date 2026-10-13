@@ -6,9 +6,10 @@
 /// at 32 bits as WGSL's do; an integer divided by zero is the dividend, its
 /// remainder zero; a shift is by its amount modulo 32; `round` breaks ties
 /// to even. Where a GPU is allowed to differ — an f32 division or `%` it
-/// computes to 2.5 ulp, a read or write outside a buffer — this answers the
-/// exact value and zero, and a kernel whose bytes must match on every
-/// placement keeps to `+`, `-`, `*`, the integers and guarded indices.
+/// computes to 2.5 ulp, `sin`, `cos` and `pow` to its own precision, a read
+/// or write outside a buffer — this answers the f32 nearest the exact value
+/// and zero, and a kernel whose bytes must match on every placement keeps
+/// to `+`, `-`, `*`, the integers and guarded indices.
 ///
 /// Closures rather than a walk over the tree per invocation, so the tree is
 /// read once per kernel and a dispatch costs calls, not switches.
@@ -552,13 +553,29 @@ final class CompiledKernel {
           KType.u32 => a,
           _ => (f) => _map(a(f)! as Float32List, (double v) => v.abs()),
         };
-      case 'floor' || 'ceil' || 'round' || 'trunc' || 'sqrt':
+      case 'pow':
+        final a = args[0];
+        final b = args[1];
+        double g(double x, double y) => roundToF32(math.pow(x, y).toDouble());
+        if (type.isVector) {
+          return (f) {
+            final x = a(f)! as Float32List;
+            final y = b(f)! as Float32List;
+            return Float32List.fromList(<double>[
+              for (var i = 0; i < x.length; i++) g(x[i], y[i]),
+            ]);
+          };
+        }
+        return (f) => g(a(f)! as double, b(f)! as double);
+      case 'floor' || 'ceil' || 'round' || 'trunc' || 'sqrt' || 'sin' || 'cos':
         final a = args.single;
         final double Function(double) g = switch (function) {
           'floor' => (v) => v.floorToDouble(),
           'ceil' => (v) => v.ceilToDouble(),
           'round' => roundHalfEven,
           'trunc' => (v) => v.truncateToDouble(),
+          'sin' => (v) => roundToF32(math.sin(v)),
+          'cos' => (v) => roundToF32(math.cos(v)),
           _ => (v) => roundToF32(math.sqrt(v)),
         };
         if (type.isVector) return (f) => _map(a(f)! as Float32List, g);
