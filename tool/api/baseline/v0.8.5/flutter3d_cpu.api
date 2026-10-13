@@ -107,7 +107,7 @@ final class CpuDevice implements GraphicsDevice
   void releaseTexture(TextureHandle texture)
 
 final class CpuEncoder implements CommandEncoder
-  CpuEncoder(this._descriptor, [this._independentBlend = true])
+  CpuEncoder(RenderPassDescriptor this._descriptor, [bool this._independentBlend = true])
   bool bindTexture(ShaderHandle shader, String slot, TextureHandle texture, {SamplerOptions? sampler})
   bool bindUniformBlock(ShaderHandle shader, String blockName, Map<String, Float32List> members)
   void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount)

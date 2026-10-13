@@ -47,7 +47,7 @@ final class SnapshotDivergence
 
 final class WebSocketTransport implements NetTransport
   Future<void> close()
-  WebSocketTransport(this._channel)
+  WebSocketTransport(WebSocketChannel this._channel)
   static Future<WebSocketTransport> connect(Uri uri)
   void listen(void Function(Map<String, Object?> message) onMessage)
   void send(Map<String, Object?> message)

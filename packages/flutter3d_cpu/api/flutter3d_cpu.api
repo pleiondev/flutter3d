@@ -691,6 +691,7 @@ final class CpuStage
   final CpuVertexShader? vertex
 
 abstract base mixin class CpuStorageReader
+  CpuStorageReader()
   abstract Set<String> get storageBindings
 
 final class CpuStorageTexture

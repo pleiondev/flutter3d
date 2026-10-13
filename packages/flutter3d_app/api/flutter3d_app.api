@@ -234,6 +234,7 @@ final class HotSwap
   static const HotSwapReport none = HotSwapReport(renderers: 0, refreshed: <String>[], refused: <String>[])
 
 final class IssueLog
+  IssueLog()
   String? get summary
   bool get isEmpty
   bool get isNotEmpty

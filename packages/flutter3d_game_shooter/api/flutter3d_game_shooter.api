@@ -143,6 +143,7 @@ base class ChaseBrain extends Brain
   void think(Mind it)
 
 abstract base mixin class Collector
+  Collector()
   abstract Inventory get inventory
 
 final class Detonation

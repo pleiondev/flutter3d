@@ -153,6 +153,7 @@ final class CollisionHeightfield extends CollisionShape
   int partsIn(Vector3 position, Vector3 min, Vector3 max, Int32List out)
 
 abstract mixin class CollisionListener
+  CollisionListener()
   void onCollision(Collider self, Collider other)
   void onCollisionEnd(Collider self, Collider other)
   void onCollisionStart(Collider self, Collider other)
@@ -292,6 +293,7 @@ abstract final class Nearly
 
 final class RayHit
   Collider? collider
+  RayHit()
   bool get hit
   double distance
   final Vector3 normal
@@ -328,6 +330,7 @@ final class SpatialGrid
 
 final class SweepHit
   Collider? collider
+  SweepHit()
   bool get hit
   double fraction
   final Vector3 normal

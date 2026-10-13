@@ -170,6 +170,7 @@ enum CompareFunction
   values: never, always, less, equal, lessEqual, greater, notEqual, greaterEqual
 
 abstract base class ComputeEncoder
+  ComputeEncoder()
   abstract bool bindStorageBuffer(ShaderHandle stage, String name, StorageBuffer buffer, {int offsetInBytes = 0, int? sizeInBytes})
   abstract bool bindTexture(ShaderHandle stage, String name, TextureHandle texture, {SamplerDescriptor? sampler})
   abstract bool bindUniformBlock(ShaderHandle stage, String block, Map<String, Float32List> members)
@@ -529,6 +530,7 @@ abstract base class GraphicsDevice with TextureAllocator
   Future<PipelineHandle> createPipelineFromAsync(PipelineDescriptor descriptor)
   GpuFence createFence()
   GpuFence importFence(NativeHandle handle)
+  GraphicsDevice()
   List<TextureFormat> get hdrOutputFormats
   NativeHandle exportBuffer(StorageBuffer buffer, {NativeHandleKind? kind})
   NativeHandle exportFence(GpuFence fence, {NativeHandleKind? kind})
@@ -639,6 +641,7 @@ final class MapMode
   static const MapMode write = MapMode._('write')
 
 abstract base class MappedBuffer
+  MappedBuffer()
   abstract ByteData get bytes
   abstract void unmap()
 
@@ -686,6 +689,7 @@ final class MipFilter
   static const NativeHandleKind vulkanSemaphoreWin32 = NativeHandleKind._('vulkanSemaphoreWin32')
 
 abstract base mixin class PassEncoder
+  PassEncoder()
   abstract bool bindTexture(ShaderHandle shader, String slot, TextureHandle texture, {SamplerDescriptor? sampler})
   abstract bool bindUniformBlock(ShaderHandle shader, String blockName, Map<String, Float32List> members)
   abstract void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount)
@@ -788,6 +792,7 @@ final class PipelineRefusalReason
 
 final class PipelineRefusals
   List<PipelineRefusedException> drain()
+  PipelineRefusals()
   PipelineRefusedException? refusalOf(PipelineHandle pipeline)
   bool isRefused(PipelineHandle pipeline)
   bool report(PipelineHandle pipeline, PipelineRefusedException refusal, {bool retry = true})
@@ -1012,6 +1017,7 @@ final class ShaderHandle
   void dispose()
 
 abstract base mixin class ShaderLibrary
+  ShaderLibrary()
   abstract ShaderHandle? operator [](String name)
 
 final class ShaderLibraryStack with ShaderLibrary
@@ -1142,6 +1148,7 @@ final class StoreAction
   static const StoreAction storeAndMultisampleResolve = StoreAction._('storeAndMultisampleResolve')
 
 abstract base mixin class TextureAllocator
+  TextureAllocator()
   abstract TextureHandle createTexture(TextureDescriptor descriptor)
   abstract void releaseTexture(TextureHandle texture)
 
@@ -1343,6 +1350,7 @@ final class TextureType
   static const TextureUsage storage = TextureUsage._(4)
 
 abstract base class TransferEncoder
+  TransferEncoder()
   abstract void submit()
   void clearBuffer(StorageBuffer buffer, {int offsetInBytes = 0, int? sizeInBytes})
   void copyBufferToBuffer(StorageBuffer source, int sourceOffset, StorageBuffer destination, int destinationOffset, int size)
@@ -1952,6 +1960,7 @@ final class TraceBlobReader
 
 final class TraceBlobWriter
   List<int> add(ByteData data)
+  TraceBlobWriter()
   Uint8List drain()
 
 final class TraceClearBindings extends TracePassEvent

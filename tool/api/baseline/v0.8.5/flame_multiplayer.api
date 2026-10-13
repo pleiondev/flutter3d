@@ -5,7 +5,7 @@
 library package:flame_multiplayer/flame_multiplayer.dart
 
 final class BatonStream
-  BatonStream(this.transport, {required this._holding, required this.onFrame, required this.onEvent, required this.onBaton, this.catchUpAfter = 4})
+  BatonStream(this.transport, {required bool this._holding, required this.onFrame, required this.onEvent, required this.onBaton, this.catchUpAfter = 4})
   bool get holding
   final PeerWire transport
   final int catchUpAfter

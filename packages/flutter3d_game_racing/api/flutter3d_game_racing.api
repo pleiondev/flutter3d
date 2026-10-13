@@ -155,9 +155,11 @@ final class GripTable extends SurfaceTable<double>
   double gripFor(String? surface)
 
 abstract base mixin class GroundField
+  GroundField()
   abstract bool sample(Vector3 position, double nearHint, GroundSample out)
 
 final class GroundSample
+  GroundSample()
   String? surface
   bool barrier
   bool onRoad
@@ -476,6 +478,7 @@ final class TrackField implements GroundField
   static const int defaultProbeMask = Layers.all & ~(RacingLayers.vehicle | RacingLayers.roadTrigger)
 
 final class TrackFrame
+  TrackFrame()
   final Vector3 forward
   final Vector3 position
   final Vector3 right
@@ -498,6 +501,7 @@ final class TrackSpline
   void surfacePoint(double s, double lateral, Vector3 out)
 
 abstract base mixin class VehicleController
+  VehicleController()
   abstract Collider get collider
   abstract Map<String, Object?> save()
   abstract Matrix3 get visualBasis
@@ -516,6 +520,7 @@ abstract base mixin class VehicleController
   abstract void step(VehicleStep context)
 
 final class VehicleInput
+  VehicleInput()
   bool boost
   bool handbrake
   double brake

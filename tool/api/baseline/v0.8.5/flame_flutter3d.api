@@ -179,6 +179,7 @@ final class ChunkStreamer<C>
 
 final class ColliderRegistry
   ({PositionComponent? component, Vector2 point, Collider collider})? raycast(CollisionWorld world, BridgePlane plane, Vector2 from, Vector2 to, {double lift = 0.0, int mask = Layers.all, Collider? ignore, bool includeTriggers = false})
+  ColliderRegistry()
   CollisionBridge bridge({required Collider collider, required CollisionCallbacks component, PhysicsStepComponent? stepper})
   PositionComponent? componentFor(Collider collider)
   void register(Collider collider, PositionComponent component)
@@ -599,6 +600,7 @@ class TrailComponent extends Component
 
 class TransparentFlameGame extends FlameGame
   Color backgroundColor()
+  TransparentFlameGame()
 
 mixin UpdatesAtRoot on Component
   abstract void rootUpdate(double dt)

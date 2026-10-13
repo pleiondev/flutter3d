@@ -17,7 +17,7 @@ extension CullModeToGpu on CullMode
   gpu.CullMode toGpu()
 
 final class GpuCommandEncoder implements CommandEncoder
-  GpuCommandEncoder(this._buffer, this._pass, this._backend, this._frame)
+  GpuCommandEncoder(gpu.CommandBuffer this._buffer, gpu.RenderPass this._pass, GpuRenderBackend this._backend, GpuFrame this._frame)
   Never setBlendColor(Vector4 color)
   bool bindTexture(ShaderHandle shader, String slot, TextureHandle texture, {SamplerOptions? sampler})
   bool bindUniformBlock(ShaderHandle shader, String blockName, Map<String, Float32List> members)
@@ -42,6 +42,7 @@ final class GpuCommandEncoder implements CommandEncoder
   void submit()
 
 final class GpuFrame
+  GpuFrame()
   bool encoded
   final List<void Function()> whenDone
   int encoding
@@ -119,7 +120,7 @@ final class GpuRenderBackend implements GraphicsDevice
   void releaseTexture(TextureHandle texture)
 
 final class GpuShaderLibrary implements ShaderLibrary
-  GpuShaderLibrary(this._library, [this._extra = const <gpu.ShaderLibrary>[]])
+  GpuShaderLibrary(gpu.ShaderLibrary this._library, [List<gpu.ShaderLibrary> this._extra = const <gpu.ShaderLibrary>[]])
   ShaderHandle? operator [](String name)
 
 extension GpuTextureHandle on TextureHandle

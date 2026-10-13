@@ -109,4 +109,5 @@ final class WebGpuFramePresenter extends StatelessWidget
   final WebGpuDevice device
 
 abstract base mixin class WgslModuleCompiler
+  WgslModuleCompiler()
   abstract Object compileModule(String name, String wgsl)

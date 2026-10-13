@@ -26,6 +26,7 @@ typedef ConnectVmService = Future<VmService> Function(String uri);
 final class GameEventLog
   Future<StreamSubscription<Event>> listenTo(VmService service)
   Future<void> close()
+  GameEventLog()
   final Watched<List<PostedEvent>> events
   static const String prefix = 'flutter3d.'
   static const int limit = 2000
@@ -52,6 +53,7 @@ final class PlayStopped extends PlayState
   final int exitCode
 
 abstract base mixin class PlayedGame
+  PlayedGame()
   abstract Future<String?> hotRestart()
   abstract Future<String?> hotSwap()
   abstract Future<void> dispose()
@@ -145,6 +147,7 @@ final class FlutterRun with PlayedGame
 final class GameEventLog
   Future<StreamSubscription<Event>> listenTo(VmService service)
   Future<void> close()
+  GameEventLog()
   final Watched<List<PostedEvent>> events
   static const String prefix = 'flutter3d.'
   static const int limit = 2000
@@ -173,6 +176,7 @@ final class PlayStopped extends PlayState
   final int exitCode
 
 abstract base mixin class PlayedGame
+  PlayedGame()
   abstract Future<String?> hotRestart()
   abstract Future<String?> hotSwap()
   abstract Future<void> dispose()
@@ -238,6 +242,7 @@ String vmServiceWebSocket(String uri)
 library package:flutter3d_editor_play/testing.dart
 
 final class FakeFlutterTool implements Process
+  FakeFlutterTool()
   Future<int> get exitCode
   IOSink get stdin
   Stream<List<int>> get stderr

@@ -431,6 +431,7 @@ abstract base class ParameterType<T extends Object>
   static const ParameterType<double> float = _FloatType()
 
 abstract base mixin class PlacedEvent
+  PlacedEvent()
   Vector3? get direction
   abstract Vector3 get at
 

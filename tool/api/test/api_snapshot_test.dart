@@ -136,6 +136,45 @@ void main() {
     expect(text, contains('  Transport.typed(Sink<String> this._channel)\n'));
   });
 
+  test('a class that declares no constructor lists the one it has', () {
+    // Mutation: list only the constructors the source declares, and giving
+    // `Hit` a named constructor (which takes `Hit()` away) reads as an
+    // addition.
+    final text = _snapshot(<String, Map<String, String>>{
+      'p': <String, String>{
+        'lib/p.dart':
+            'final class Hit {\n  int count = 0;\n}\n'
+            'class Box<T> {}\n'
+            'abstract base class Hook {\n  void run() {}\n}\n'
+            'abstract interface class Port {\n  void open();\n}\n'
+            'sealed class Shape {}\n'
+            'abstract final class Names {\n  static const a = 1;\n}\n'
+            'final class Kind {\n  const Kind._();\n}\n',
+      },
+    }, 'p');
+    expect(text, contains('final class Hit\n  Hit()\n'));
+    expect(text, contains('class Box<T>\n  Box()\n'));
+    // An outside subclass calls it through `super()`.
+    expect(text, contains('abstract base class Hook\n  Hook()\n'));
+    expect(text, isNot(contains('Port()')));
+    expect(text, isNot(contains('Shape()')));
+    expect(text, isNot(contains('Names()')));
+    expect(text, isNot(contains('Kind()')));
+
+    String hit(String body) => _snapshot(<String, Map<String, String>>{
+      'p': <String, String>{'lib/p.dart': 'final class Hit {\n$body}\n'},
+    }, 'p');
+    final changes = classifyApi(
+      hit('  int count = 0;\n'),
+      hit('  Hit.empty();\n  int count = 0;\n'),
+    );
+    expect(
+      changes.where((ApiChange c) => c.what == 'Hit.Hit is gone'),
+      hasLength(1),
+    );
+    expect(changes.map((ApiChange c) => c.bump), contains(Bump.major));
+  });
+
   test('a whole-package re-export names its origin and every name', () {
     // Mutation: list only the package's own declarations, and `flutter3d`
     // dropping the core's re-export — every name a caller had — would leave

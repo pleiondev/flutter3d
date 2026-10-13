@@ -88,7 +88,7 @@ final class WebGlDevice implements GraphicsDevice
   web.OES_draw_buffers_indexed? get drawBuffersIndexed
 
 final class WebGlEncoder implements CommandEncoder
-  WebGlEncoder(this._device, this._gl, RenderPassDescriptor descriptor)
+  WebGlEncoder(WebGlDevice this._device, web.WebGL2RenderingContext this._gl, RenderPassDescriptor descriptor)
   bool bindTexture(ShaderHandle shader, String slot, TextureHandle texture, {SamplerOptions? sampler})
   bool bindUniformBlock(ShaderHandle shader, String blockName, Map<String, Float32List> members)
   void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount)
@@ -144,7 +144,7 @@ typedef WebGlSectionSources = ({Map<String, String> vertex, Map<String, String> 
 
 final class WebGlShader
   ({Set<String> blocks, Set<String> samplers}) declaredIn(web.WebGL2RenderingContext gl)
-  WebGlShader(this._shader, this.isVertex)
+  WebGlShader(web.WebGLShader this._shader, this.isVertex)
   final bool isVertex
   set shader(web.WebGLShader value)
   web.WebGLShader get shader
@@ -152,7 +152,7 @@ final class WebGlShader
 final class WebGlShaderLibrary implements ShaderLibrary
   PipelineHandle link(ShaderHandle vertex, ShaderHandle fragment, {VertexLayoutSpec? layout})
   ShaderHandle? operator [](String name)
-  WebGlShaderLibrary(this._gl, this._sources)
+  WebGlShaderLibrary(web.WebGL2RenderingContext this._gl, ShaderSources this._sources)
   int get debugTrackedResourceCount
   void dispose()
   void forgetPrograms(Iterable<ShaderHandle> stale)

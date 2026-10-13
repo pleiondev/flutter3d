@@ -254,7 +254,7 @@ final class Looks
   Vector3? sizeFor(EntityDef entity)
   Vector3? tintFor(EntityDef entity)
   bool get isEmpty
-  const Looks(this._byType)
+  const Looks(Map<String, Look> this._byType)
   factory Looks.parse(String text)
   static const Looks none = Looks(<String, Look>{})
 

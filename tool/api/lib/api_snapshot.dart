@@ -386,7 +386,10 @@ void _render(CompilationUnitMember d, Map<String, String> found) {
           d.mixinKeyword != null && d.abstractKeyword != null;
       found[name] = _block(
         header(d, body.offset),
-        _members(body.members, markAbstract: abstractMembers),
+        <String>[
+          ..._members(body.members, markAbstract: abstractMembers),
+          if (_hasImplicitConstructor(d)) '$name()',
+        ]..sort(),
       );
     case MixinDeclaration(:final name, :final body):
       if (_private(name.lexeme)) return;
@@ -430,6 +433,21 @@ void _render(CompilationUnitMember d, Map<String, String> found) {
     default:
       break;
   }
+}
+
+/// Whether [d] has the constructor the language gives a class that declares
+/// none, and a caller outside can use it: to construct a concrete class, or
+/// through `super()` from a subclass of an abstract one outside may extend.
+///
+/// **Its loss is a break the source never shows.** Giving such a class a
+/// named or a private constructor takes `X()` away, and a snapshot that
+/// listed only declared constructors showed that as one constructor added.
+bool _hasImplicitConstructor(ClassDeclaration d) {
+  if (d.namePart is PrimaryConstructorDeclaration) return false;
+  if (d.body.members.any((m) => m is ConstructorDeclaration)) return false;
+  if (d.sealedKeyword != null) return false;
+  if (d.abstractKeyword == null) return true;
+  return d.finalKeyword == null && d.interfaceKeyword == null;
 }
 
 List<String> _members(List<ClassMember> members, {bool markAbstract = false}) {

@@ -86,6 +86,7 @@ final class ActorAnimations extends ActorStrides
   void restore(ActorStridesRestore given)
 
 abstract base mixin class ActorAppearance
+  ActorAppearance()
   List<String> clipsFrom(ActorClipsContext context)
   abstract List<String> clipsFor(Actor actor)
   abstract RenderMaterial materialFor(Actor actor)
@@ -98,6 +99,7 @@ final class ActorClipsContext
   PublishedActor published
 
 abstract base mixin class ActorCorpses
+  ActorCorpses()
   abstract bool begin(ActorDeathContext context)
   abstract void dispose()
   abstract void end(Actor actor)
@@ -123,6 +125,7 @@ final class ActorDriveContext
   ModelInstance model
 
 abstract base mixin class ActorGraphs
+  ActorGraphs()
   abstract AnimationStateMachine? machineFor(ActorMachineContext context)
   abstract void dress(ActorDressContext context)
   abstract void drive(ActorDriveContext context)
@@ -424,6 +427,7 @@ final class DesktopInput
   void releasePointer(GameAction action)
 
 final class DragLook
+  DragLook()
   Vector2 drain()
   bool get isDragging
   void begin()
@@ -455,6 +459,7 @@ final class DualAxisComposite extends ActionBinding
   final InputSource up
 
 abstract base mixin class FixtureAppearance
+  FixtureAppearance()
   abstract LevelMaterial fallbackFor(Fixture fixture)
   abstract TorchFire? buildLightFixture(LightFixtureBuild build)
   abstract bool isSpent(Fixture fixture)
@@ -719,10 +724,12 @@ final class PadInput
   void tick(double dt)
 
 final class PadPresses
+  PadPresses()
   bool offer(PadInput pad, GameSettingsController settings, {GamePadButton? menuButton, void Function()? opening})
 
 final class PadReading
   Iterable<GamePadButton> get held
+  PadReading()
   bool down(GamePadButton button)
   bool isConnected
   double axis(GamePadAxis axis)

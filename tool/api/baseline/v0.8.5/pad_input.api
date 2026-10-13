@@ -67,6 +67,7 @@ enum PadConnection
 
 final class PadSnapshot
   Iterable<PadButton> get held
+  PadSnapshot()
   bool connected
   bool down(PadButton button)
   double axis(PadAxis axis)
@@ -79,5 +80,6 @@ final class PadSnapshot
 
 final class UnsupportedGamepad extends GamepadPlatform
   Stream<PadConnection> get connectionChanges
+  UnsupportedGamepad()
   bool get isSupported
   void read(PadSnapshot out)

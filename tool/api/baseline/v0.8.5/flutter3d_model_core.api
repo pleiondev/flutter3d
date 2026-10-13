@@ -939,6 +939,7 @@ final class LevelsTextureNode extends TextureNode
   final int? source
 
 final class LightingSync
+  LightingSync()
   RenderSettings apply(RenderSettings settings, SceneLighting lighting)
   void sync(Scene scene, SceneLighting lighting)
 
@@ -987,6 +988,7 @@ final class Listed
   final int? version
 
 final class LodMeshCache
+  LodMeshCache()
   MeshData? meshFor(ModelObject object, int lodIndex)
   void forget(int objectId)
   void invalidate(int objectId)
@@ -1075,8 +1077,8 @@ final class ModelHistory
   List<HistoryStep> get steps
   List<ModelCommand> get journal
   Map<EditMesh, int> get openMeshSteps
-  ModelHistory(this._project, {this.depth = 64, this.historyBudgetBytes = kHistoryBudgetBytes, ProjectSelection? selection, this.recoveryJournal})
-  ModelHistory.withSteps(this._project, List<HistoryStep> steps, {this.depth = 64, this.historyBudgetBytes = kHistoryBudgetBytes, ProjectSelection? selection, this.recoveryJournal})
+  ModelHistory(ModelProject this._project, {this.depth = 64, this.historyBudgetBytes = kHistoryBudgetBytes, ProjectSelection? selection, this.recoveryJournal})
+  ModelHistory.withSteps(ModelProject this._project, List<HistoryStep> steps, {this.depth = 64, this.historyBudgetBytes = kHistoryBudgetBytes, ProjectSelection? selection, this.recoveryJournal})
   ModelProject get project
   ProjectSelection get selection
   StepAuthor? get topStepAuthor
@@ -1147,6 +1149,7 @@ abstract interface class ModelProjectView
 
 final class ModifierEvaluationCache
   EditMesh? evaluatedMesh(ModelProject project, ModelObject object)
+  ModifierEvaluationCache()
   void forget(int objectId)
 
 final class ModifierSlot
@@ -1330,6 +1333,7 @@ final class PaintWeightsMode
   static const PaintWeightsMode paint = PaintWeightsMode._('paint')
 
 final class PanoramaSync
+  PanoramaSync()
   bool get rebuiltLast
   void sync(GraphicsDevice device, Scene scene, ModelProject project)
 
@@ -1421,6 +1425,7 @@ final class ProjectModelDocument extends ModelDocument
   List<SurfaceMaterial> materials
   List<int> roots
   ModelDocument of(ModelProject project, {bool withLods = false})
+  ProjectModelDocument()
   String toString()
 
 final class ProjectOpened extends ProjectRead
@@ -2285,6 +2290,7 @@ final class SubdivideMesh extends ModelCommand
   final int levels
 
 final class TextureBakeCache
+  TextureBakeCache()
   void clear()
 
 enum TextureBlendMode

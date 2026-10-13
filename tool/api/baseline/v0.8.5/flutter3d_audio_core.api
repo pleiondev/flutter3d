@@ -103,6 +103,7 @@ final class NoAttenuation extends Attenuation
 final class SilentBackend implements AudioBackend
   Future<void> preload(String asset)
   List<SilentVoice> get live
+  SilentBackend()
   VoiceId? start(String asset, {required double gain, required double pan, required double rate, required bool loop, double muffle = 0.0})
   bool isAlive(VoiceId voice)
   final List<SilentVoice> started

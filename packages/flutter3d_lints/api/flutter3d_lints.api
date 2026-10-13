@@ -52,6 +52,7 @@ List<AnalysisRule> simulationRules()
 library package:flutter3d_lints/main.dart
 
 final class Flutter3dLintsPlugin extends Plugin
+  Flutter3dLintsPlugin()
   String get name
   void register(PluginRegistry registry)
 

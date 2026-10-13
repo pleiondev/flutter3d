@@ -355,7 +355,7 @@ final class CheckerboardTexture extends ProceduralTexture
 
 final class ClusterDraws
   ({GeometryBuffer buffer, int count})? indicesFor({required MeshNode node, required DrawableGeometry mesh, required int view, required Frustum frustum, Vector3? eye, OcclusionTest? occlusion})
-  ClusterDraws(this._device, {this.framesInFlight = 3})
+  ClusterDraws(GraphicsDevice this._device, {this.framesInFlight = 3})
   final int framesInFlight
   int get culled
   int get slotCount
@@ -377,7 +377,7 @@ final class CompiledFrameGraph
   bool isConsumed(ResourceId id)
   bool isKeptVersion(ResourceVersion version)
   bool isRead(ResourceId id)
-  const CompiledFrameGraph(this._lastUse, this._readers, this._bindings, this._current, this._kept, {required this.order, required this.culled, required this.outputs, this.skipped = const <SkippedPass>[]})
+  const CompiledFrameGraph(Map<ResourceVersion, int> this._lastUse, Set<String> this._readers, List<_NodeBindings> this._bindings, Map<String, int> this._current, Set<ResourceVersion> this._kept, {required this.order, required this.culled, required this.outputs, this.skipped = const <SkippedPass>[]})
   final List<FrameGraphNode> culled
   final List<FrameGraphNode> order
   final List<ResourceId> outputs
@@ -426,6 +426,7 @@ abstract interface class ContributorLights
   void bind(PassEncoder encoder, ShaderHandle stage, {required vm.Vector3 centre, required double radius})
 
 final class ContributorRegistry
+  ContributorRegistry()
   Iterable<PassContributor> get active
   List<PassContributor> get all
   T add<T extends PassContributor>(T plugin)
@@ -639,6 +640,7 @@ final class DracoMesh
   final int pointCount
 
 final class DrawItem
+  DrawItem()
   Material get material
   MeshNode get requireNode
   MeshNode? node
@@ -877,6 +879,7 @@ final class FrameFraction extends ResourceSize
 
 final class FrameGraph
   CompiledFrameGraph compile({required List<ResourceId> outputs, Set<String> disabled = const <String>{}})
+  FrameGraph()
   int get length
   static const Set<String> undisableable = <String>{'scene', 'composite', 'object ids'}
   void addExternal(ResourceId id)
@@ -899,6 +902,7 @@ abstract base class FrameGraphNode
   const FrameGraphNode()
 
 final class FrameHistory
+  FrameHistory()
   NodeHistory? of(MeshNode node)
   bool moved(MeshNode node)
   bool tracking
@@ -911,6 +915,7 @@ typedef FramePass = ({String name, bool active, int micros, int? gpuMicros, int 
 
 final class FramePassState
   CompareFunction depthCompare
+  FramePassState()
   LightingModel? boundPipeline
   bool? boundInstanced
   bool? boundLightmapped
@@ -1146,6 +1151,7 @@ final class HdrFormatException implements Exception
 typedef HdrImage = ({int width, int height, Float32List rgb});
 
 final class HiZOcclusion
+  HiZOcclusion()
   OcclusionTest? prepare(Matrix4 viewProjection, {required Vector3 eye, required Vector3 forward, required Object camera})
   bool get hasReading
   final OcclusionBuffer buffer
@@ -1160,6 +1166,7 @@ final class HiZOcclusion
   void reset()
 
 final class HitResult
+  HitResult()
   MeshNode get requireNode
   MeshNode? node
   String toString()
@@ -1187,7 +1194,7 @@ final class ImpostorNode extends MeshNode
 final class InMemoryDeviceClassMemory implements DeviceClassMemory
   Future<String?> read()
   Future<void> write(String? value)
-  InMemoryDeviceClassMemory([this._value])
+  InMemoryDeviceClassMemory([String? this._value])
 
 final class InstanceHandle
   bool get live
@@ -1335,6 +1342,7 @@ final class LatheShape extends Shape
 
 final class LightBuffer
   Float32List get candidateData
+  LightBuffer()
   String toString()
   bool get anyChannelled
   final Float32List colors
@@ -1411,7 +1419,7 @@ final class LightingModel
   bool get usesLightList
   bool get usesPointShadow
   bool get usesShadowMap
-  const LightingModel(this.label, this.shaderName, {this.vertexShaderName, this.usesFragInfo = true, this.usesAlbedoTexture = true, this.usesMaterialMaps = true, this.usesMetallicRoughnessMap = true, this.usesMaterialParameters = true, this.usesMetallic = false, this.usesEnvironment = false, this._usesLightList, this._usesFogInfo, this.vertexStageMorphs = true})
+  const LightingModel(this.label, this.shaderName, {this.vertexShaderName, this.usesFragInfo = true, this.usesAlbedoTexture = true, this.usesMaterialMaps = true, this.usesMetallicRoughnessMap = true, this.usesMaterialParameters = true, this.usesMetallic = false, this.usesEnvironment = false, bool? this._usesLightList, bool? this._usesFogInfo, this.vertexStageMorphs = true})
   final String label
   final String shaderName
   final String? vertexShaderName
@@ -1723,6 +1731,7 @@ final class MaterialSample extends MaterialExpression
   final MaterialTextureSlot slot
 
 final class MaterialSortIds
+  MaterialSortIds()
   int get length
   int idOf(Material material, {int limit = 0x7FFFFF})
   void clear()
@@ -2402,6 +2411,7 @@ final class Pose
 final class PosedMesh
   Aabb3 get bounds
   Float32List? positionsOf(MeshData mesh, Skeleton skeleton)
+  PosedMesh()
   int get vertexCount
 
 final class PostFrameResult
@@ -2529,6 +2539,7 @@ final class ReflectionSettings
 
 final class RenderList
   DrawItem itemAt(int index)
+  RenderList()
   bool usedBvh
   final List<int> opaque
   final List<int> transparent
@@ -2551,6 +2562,7 @@ abstract base class RenderNode extends FrameGraphNode
 final class RenderNodeRegistry
   List<RenderNode> get all
   List<RenderNode> of(FramePhase phase)
+  RenderNodeRegistry()
   T add<T extends RenderNode>(T node, {FramePhase? phase})
   bool remove(RenderNode node)
   int get length
@@ -2799,6 +2811,7 @@ final class Scene
   void unregisterProbe(ReflectionProbeNode node)
 
 final class SceneBvh
+  SceneBvh()
   String toString()
   bool get isEmpty
   int get meshCount
@@ -3041,6 +3054,7 @@ final class SkySettings
 
 final class SoftwareOcclusion
   OcclusionTest prepare({required List<MeshNode> meshes, required Matrix4 viewProjection, required Frustum frustum, required Vector3 eye, required int layerMask, bool cullBackFaces = true, int budget = triangleBudget})
+  SoftwareOcclusion()
   final OcclusionBuffer buffer
   int get occluders
   static MeshData? occluderGeometry(MeshNode node)
@@ -3175,6 +3189,7 @@ final class SplatQuads
 typedef SplatRangeReader = Future<Uint8List> Function(int offset, int length);
 
 final class SplatSorter
+  SplatSorter()
   Uint32List get keys
   Uint32List get order
   double get lastRange
@@ -4410,7 +4425,7 @@ final class LightingModel
   bool get usesLightList
   bool get usesPointShadow
   bool get usesShadowMap
-  const LightingModel(this.label, this.shaderName, {this.vertexShaderName, this.usesFragInfo = true, this.usesAlbedoTexture = true, this.usesMaterialMaps = true, this.usesMetallicRoughnessMap = true, this.usesMaterialParameters = true, this.usesMetallic = false, this.usesEnvironment = false, this._usesLightList, this._usesFogInfo, this.vertexStageMorphs = true})
+  const LightingModel(this.label, this.shaderName, {this.vertexShaderName, this.usesFragInfo = true, this.usesAlbedoTexture = true, this.usesMaterialMaps = true, this.usesMetallicRoughnessMap = true, this.usesMaterialParameters = true, this.usesMetallic = false, this.usesEnvironment = false, bool? this._usesLightList, bool? this._usesFogInfo, this.vertexStageMorphs = true})
   final String label
   final String shaderName
   final String? vertexShaderName

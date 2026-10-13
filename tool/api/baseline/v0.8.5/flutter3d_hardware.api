@@ -842,10 +842,11 @@ final class TraceBindVertexData extends TracePassEvent
 
 final class TraceBlobReader
   ByteData read(Object? where)
-  TraceBlobReader(this._blob)
+  TraceBlobReader(Uint8List this._blob)
 
 final class TraceBlobWriter
   List<int> add(ByteData data)
+  TraceBlobWriter()
   Uint8List take()
 
 final class TraceClearBindings extends TracePassEvent
