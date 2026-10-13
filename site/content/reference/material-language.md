@@ -1,10 +1,10 @@
 ---
-description: The .f3dmat material language, version 2. Surfaces, the light, ambient and composite hooks, the vertex block that also moves the shadow, state in the file, the scene behind a translucent surface, full-screen stages for render steps, compute kernels, typed accessors, and what each backend does with each construct.
+description: The .f3dmat material language, version 3. Surfaces, the light, ambient and composite hooks, plugin light types, the vertex block that also moves the shadow, state in the file, the scene behind a translucent surface, a material's own version and updates, full-screen stages for render steps, computed textures lowered to the kernel language, typed accessors, and what each backend does with each construct.
 ---
 
 # The material language
 
-A `.f3dmat` file is one stage written once. The build compiles it for Impeller, WebGL2 and WebGPU, and the software backend runs the same tree in Dart, so no backend has a transcription of its own that could drift. The vocabulary is GLSL's (`mix`, `clamp`, swizzles, `vec3 * float`). What it leaves out is anything a material must not do: declare its own blocks, sample a texture the engine does not bind, loop, or write a global.
+A `.f3dmat` file is one stage written once. The build compiles it for Impeller, WebGL2 and WebGPU, and the software backend runs the same tree in Dart, so no backend has a transcription of its own that could drift. The vocabulary is GLSL's (`mix`, `clamp`, swizzles, `vec3 * float`). What it leaves out is anything a material must not do: sample a texture nobody binds, loop, or write a global. A material's own blocks and textures are declared in the language (version 2), so the engine binds them as it binds its own.
 
 ```text
 f3dmat 2
@@ -24,9 +24,30 @@ Put it under `assets_src/` and the build hook compiles it into `flutter3d_genera
 
 ## Versions
 
-The first line may name the version: `f3dmat 1` or `f3dmat 2`. A file without that line is version 1. A build reads every version up to its own `materialLanguageVersion`, which is 2 in 1.0, and refuses a newer file with the version that reads it.
+The first line may name the version: `f3dmat 1`, `f3dmat 2` or `f3dmat 3`. A file without that line is version 1. A build reads every version up to its own `materialLanguageVersion`, which is 3 in 1.0, and refuses a newer file with the version that reads it.
 
-Everything below that version 1 did not have is read only in a file that says `f3dmat 2`. A version 1 file keeps every name it used, so a `let sceneDepth` written before version 2 still compiles. A version 2 file also reserves names starting `f3d_` for the generated stage.
+Each construct below is read only in a file whose version has it. A version 1 file keeps every name it used, so a `let sceneDepth` written before version 2 still compiles.
+
+- **Version 2** adds the `state`, `vertex`, `ambient` and `composite` blocks, the `fullscreen` and `compute` kinds, the scene inputs (`sceneDepth`, `viewDepth`, `scenePosition`), and a material's own blocks and textures: `uniform(Hair) vec3 tint = ...;` is a member of a block called `Hair`, and `texture fur;` a texture of the material's own, bound as `material_fur`. It reserves names starting `f3d_` for the generated stage.
+- **Version 3** adds what a light block knows of the light (`lightKind`, `lightParams` and `lighttype`), the `instance` input of the vertex block, which is then drawn on instanced and lightmapped draws too, and a material's own version with its `updates`.
+
+A material's own version is not the language's. `material Hatch version 3 { ... }` counts the changes to one material's parameters, and its `updates` block says how a value an instance set for an older version carries forward:
+
+```text
+f3dmat 3
+material Hatch version 3 {
+  uniform vec3 inkColor = vec3(0.1);
+  uniform float roughness = 0.5;
+  updates {
+    2: rename ink -> inkColor;
+    3: scale roughness 0.5;
+  }
+  light { return albedo * nDotL; }
+  fragment { return vec4(lit, alpha); }
+}
+```
+
+An update is `rename a -> b`, `scale a <factor>` or `remove a`, under the version it leads to. `MaterialProgram.lift` applies them, and a level or a saved instance that names an older version is read through them rather than under the new meaning.
 
 ## What a source holds
 
@@ -34,14 +55,14 @@ A source is one of three kinds, each named by the word it opens with:
 
 | Kind | Opens with | Bodies | Becomes |
 |---|---|---|---|
-| Surface | `material` | `fragment`, and optionally `light`, `ambient`, `composite`, `vertex`, `state` | a lighting model a `Material` draws with |
+| Surface | `material` | `fragment`, and optionally `light`, `ambient`, `composite`, `vertex`, `state`, `updates` | a lighting model a `RenderMaterial` draws with |
 | Full-screen | `fullscreen` | `fragment` | a stage a `FullscreenEffect` or a plugin's render step draws |
-| Compute | `compute` | `kernel`, optionally `workgroup` | a kernel the software backend runs per texel |
+| Compute | `compute` | `kernel`, optionally `workgroup` | a texture computed texel by texel, lowered to the kernel language |
 
 Every kind takes declarations:
 
 - `param float x = 1.0;` is a constant folded into the stage. A variant changes it.
-- `uniform vec3 c = vec3(1.0);` is a member of the `MaterialParams` block, set at run time through `Material.parameters` or a [typed accessor](#typed-accessors).
+- `uniform vec3 c = vec3(1.0);` is a member of the `MaterialParams` block, set at run time through `RenderMaterial.parameters` or a [typed accessor](#typed-accessors).
 - `texture base = base_color_texture;` is a slot. In a surface it must be a slot the engine binds: `base_color_texture`, `normal_texture`, `occlusion_texture`, `emissive_texture` or `metallic_roughness_texture`. In a full-screen stage or a kernel the name is yours, and whoever draws it binds the texture by that name.
 
 ## Surfaces
@@ -57,6 +78,8 @@ Without hooks, `lit` is `(direct + indirect) * occlusion + emissive`, where `dir
 - `ambient { return ...; }` replaces `indirect`. It reads the surface and `lightmap`, the level's baked light at the fragment.
 - `composite { return ...; }` replaces the whole sum. It reads the surface, `direct` and `indirect`, the latter two not yet multiplied by the occlusion. What it returns is `lit`.
 
+Version 3 lets the light block know which light it shades. `lightKind` is the light's type code: 0 directional, 1 point, 2 spot, 3 area, and a plugin's own light type from 16. `lightParams` is the last `vec4` of the light's row, which a plugin's `LightTypeHook` packs. `lighttype tube = acme.tube;` declares a name the block reads as one while it shades a light of the plugin type `acme.tube` and as nought otherwise, so a block need not know the code the renderer gave the type. A block that reads any of the three gathers its lights through the material's own loop, which hands it a plugin's light rather than skipping it.
+
 ```text
 f3dmat 2
 material Hatch {
@@ -71,25 +94,25 @@ These hooks are how a [registered lighting model](/core/rendering/) is written: 
 
 ### State
 
-The `state` block says how the surface is drawn. Each setting appears at most once, and anything left out keeps `Material`'s default:
+The `state` block says how the surface is drawn. Each setting appears at most once, and anything left out keeps `RenderMaterial`'s default:
 
 | Setting | Values | Becomes |
 |---|---|---|
-| `blend` | `opaque`, `mask`, `hashed`, `alpha`, `additive`, `premultiplied` | `Material.alphaMode` and `Material.blendMode` |
+| `blend` | `opaque`, `mask`, `hashed`, `alpha`, `additive`, `premultiplied` | `RenderMaterial.alphaMode` and `RenderMaterial.blendMode` |
 | `cutoff` | 0 to 1, with `blend mask` only | `alphaCutoff` |
 | `alphaToCoverage` | `on`/`off`, with `blend mask` only | `alphaToCoverage` |
 | `depthWrite` | `on`/`off` | `depthWrite` |
 | `depthTest` | `off` is a test that always passes | `depthCompare` |
 | `depthCompare` | `never`, `less`, `equal`, `lessEqual`, `greater`, `notEqual`, `greaterEqual`, `always` | `depthCompare` |
 | `doubleSided` | `on`/`off` | `doubleSided` |
-| `depthLayer` | a whole number from −16 to 16 | `Material.depthLayer` |
-| `effectsDepth` | `on`/`off`, translucent blends only | `Material.effectsDepth` |
+| `depthLayer` | a whole number from −16 to 16 | `RenderMaterial.depthLayer` |
+| `effectsDepth` | `on`/`off`, translucent blends only | `RenderMaterial.effectsDepth` |
 | `environment` | `off` leaves the hemisphere, the irradiance field and the lightmap out of `lit` | a switch in the stage |
 | `directional` | `off` leaves the directional lights, the sun, out of `lit` | a switch in the stage |
 
-`BundledMaterials.material(name)` makes a `Material` with the lighting model, the uniforms at their defaults and all the draw state above. Every field can still be changed in Dart afterwards. `environment` and `directional` are compiled into the stage, so nothing at run time turns them back on. A stage with a switch still keeps every sampler the engine binds to a lit stage, behind a branch no frame takes, so the binding stays the same as for any other lit model.
+`BundledMaterials.read(bytes).material(name)` (the `BundledMaterialLooks` extension of `package:flutter3d_core`) makes a `RenderMaterial` with the lighting model, the uniforms at their defaults and all the draw state above. Every field can still be changed in Dart afterwards. `environment` and `directional` are compiled into the stage, so nothing at run time turns them back on. A stage with a switch still keeps every sampler the engine binds to a lit stage, behind a branch no frame takes, so the binding stays the same as for any other lit model.
 
-**Blend modes.** `alpha` is over on straight colour, glTF's blend. `additive` adds the colour times its alpha to what is already there. `premultiplied` is over on a colour the body already multiplied by its alpha: the stage leaves the colour exactly as returned, so one surface can both add light and cover what is behind it. On the engine's own lighting models `Material.blendMode = premultiplied` draws the same as `alpha`, because those stages weight their colour by alpha themselves. Under weighted blended transparency every translucent surface is a layer of the weighted average, and the blend mode is not used.
+**Blend modes.** `alpha` is over on straight colour, glTF's blend. `additive` adds the colour times its alpha to what is already there. `premultiplied` is over on a colour the body already multiplied by its alpha: the stage leaves the colour exactly as returned, so one surface can both add light and cover what is behind it. On the engine's own lighting models `RenderMaterial.blendMode = premultiplied` draws the same as `alpha`, because those stages weight their colour by alpha themselves. Under weighted blended transparency every translucent surface is a layer of the weighted average, and the blend mode is not used.
 
 **Depth layers.** Of two coplanar surfaces, the one with the higher layer wins: a decal on a wall, markings on a road, a puddle on a floor. Where the device has `DeviceFeature.depthBias` (WebGL2, WebGPU and the software rasteriser), a layered draw is pulled towards the eye by four of the depth format's smallest steps and one slope per layer. The bias is turned round for reversed-Z, as every bias is. Where it does not (Impeller today), the opaque half draws layered surfaces after the rest, lowest layer first, and tests them `lessEqual`, so the later of two equal depths wins. Both rules apply wherever both are possible. Layers affect the scene pass only. A level document carries them per brush, and brushes on different layers are never batched together.
 
@@ -108,7 +131,7 @@ It writes `out position = ...` (in mesh space, before the model transform) or `o
 
 The build turns the block into two vertex stages, `<Name>Vertex` and `<Name>VertexSkinned`, and the material's lighting model names them. **The depth pre-draw and the shadow passes draw through the same stage** (`LightingModel.vertexStageInDepthPasses`), both cascades and point-light cubes, so geometry the block moves casts the shadow it draws. A block that writes `world` is projected through `MaterialVertexInfo.view_projection`, which the renderer binds with the matrix of whichever pass is drawing.
 
-Instanced and lightmapped draws keep the engine's own vertex stages, as they did for a hand-written stage. So do the pick pass and the velocity pass: picking reads the unmoved surface, and motion blur and temporal anti-aliasing see the object move but not what the block does to its vertices.
+From version 3 the block also runs on instanced and lightmapped draws, as `<Name>VertexInstanced` and `<Name>VertexLightmapped`, and reads `instance`, the instance's own four numbers (`InstancedMeshNode.setInstanceData`), nought on any other draw. On a lightmapped draw `color` is white, because the attribute holds the lightmap's coordinate there. Below version 3, instanced and lightmapped draws keep the engine's own vertex stages. The pick pass and the velocity pass keep them at every version: picking reads the unmoved surface, and motion blur and temporal anti-aliasing see the object move but not what the block does to its vertices.
 
 ### The scene behind
 
@@ -153,7 +176,7 @@ A full-screen stage reads `uv`, from the top left, and the picture as the textur
 
 A plugin's render step can be one of these: in a `.f3dplugin`, `"shaders": {"material": "fog.f3dmat"}` in place of a stage per backend. `RuntimeShaders` builds it for whatever backend the engine draws with, its uniforms at their defaults under `MaterialParams`. On WebGPU this needs `webGpuFullscreenUvLocation()` from `flutter3d_webgpu`.
 
-## Compute kernels
+## Computed textures
 
 ```text
 f3dmat 2
@@ -167,13 +190,27 @@ compute Ripples {
 }
 ```
 
-A kernel runs once per texel of the storage texture bound as `target`, and writes what it returns there. It reads `cell` (the texel), `size` (the target in texels) and `uv` (the texel's centre, from nought to one). `workgroup x y` is at most 256 invocations in all, eight by eight by default. Textures are sampled at level nought.
+A `compute` stage computes a texture texel by texel. Its kernel runs once per texel of the storage texture bound as `target` and writes what it returns there. It reads `cell` (the texel), `size` (the target in texels) and `uv` (the texel's centre, from nought to one). `workgroup x y` or `workgroup x y z` is at most 256 invocations in all and 64 along z, eight by eight by one by default.
 
-Only the software backend runs a kernel written in the language: `CpuStage.compute(materialComputeStage(program))` from `flutter3d_app`. Impeller and WebGL2 have no compute pipelines, and WebGPU runs only the engine's own compute stages until bundles can carry compute stages. So the build refuses a kernel under `assets_src/`, and `RuntimeShaders` refuses one at run time, each with that explanation.
+**It is the short form of a kernel.** The engine has one compute language, the kernel language a `ComputeStep` hands its kernels in (`ComputeKernel` in `package:flutter3d_shaders/kernel.dart`), with buffers, textures, images, loops and branches. `lowerMaterialCompute(program)` writes a `compute` stage in it, and the build and `RuntimeShaders` carry that kernel in the bundle's kernel section. So the stage runs wherever a kernel runs, on WebGPU, on the wgpu sidecar and on the software backend, through the same two translations, and it is versioned as the kernel language is: the lowered source opens with `kernel 1`. The lowering decides four things:
+
+- a `uniform` is read from an `f32` buffer called `params`, each uniform's components one after another in the order the source declares them. `MaterialComputeKernel.parameterBytes` packs it; a `param` is folded at its default;
+- `sample(t, uv)` is bilinear between the four texels around `uv` of the texture's base level, clamped to its edge, with the texture bound under its binding name;
+- `mix`, `smoothstep`, `step`, `fract`, `dot`, `length` and `normalize` are written out in arithmetic, and `sin`, `cos` and `pow` are the kernel language's own;
+- an invocation past the target's edge does nothing, so the target need not be a multiple of the workgroup.
+
+The material receives the result as an input. The texture the stage writes is an ordinary texture, bound to a surface's own `texture` slot like any other.
+
+```dart
+final ripples = lowerMaterialCompute(parseMaterial(source));
+final stage = await ripples.load(device); // bind target, params; dispatch
+```
+
+**Impeller and WebGL2 have no compute pipelines.** There `MaterialComputeKernel.load` and `RuntimeShaders` refuse the stage with an `UnsupportedCapabilityException` naming `DeviceFeature.compute`. The fallback is to compute the texture on the CPU at load: `ripples.bake(width, height, parameters: ...)` runs the same kernel in Dart and answers its RGBA8 texels, which are uploaded as any texture is. A uniform that changes every frame has no such fallback.
 
 ## Typed accessors
 
-The build writes `lib/materials.g.dart`, with an extension type per material that declares a `uniform`. It is a typed view over the same `Material.parameters` map:
+The build writes `lib/materials.g.dart`, with an extension type per material that declares a `uniform`. It is a typed view over the same `RenderMaterial.parameters` map:
 
 ```dart
 final seabed = SeabedParameters(material.parameters)
@@ -200,6 +237,6 @@ A misspelt member is a compile error rather than a uniform that silently never m
 | `sceneDepth`, `scenePosition` | build | build, run time | build; run time refused: the host stage binds no scene depth | build, run time |
 | `viewDepth` | build | build, run time | build, run time | build, run time |
 | `fullscreen` | build; run time refused (`impellerc` does not ship with a game) | build, run time | build, run time | build, run time |
-| `compute` | refused: no compute pipelines | refused: no compute pipelines | refused: no compute stage in a bundle | `materialComputeStage` |
+| `compute` | refused, naming `DeviceFeature.compute`; baked on the CPU at load | refused, naming `DeviceFeature.compute`; baked on the CPU at load | build, run time, lowered to the kernel language | build, run time, lowered to the kernel language |
 
 Every refusal is an exception or a `RuntimeShaders.statuses` entry with the sentence from this table. Nothing is ever silently drawn wrong.
