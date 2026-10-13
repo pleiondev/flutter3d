@@ -14,16 +14,19 @@ import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
-/// A stone post with a fire fed on top of it, at the origin.
+/// A small stone pedestal with a campfire fed on it, at the origin. Small,
+/// so the fire gives off heat: a burner's flame stands over the whole body
+/// it burns on, and a post a metre tall took all of the campfire's 78 kW
+/// back into its 1.9 m², and gave off none.
 NativeBody _brazier(ElementsSimulation elements) {
   final post = elements.track(
     elements.addBody(
       Solid.box(
-        Vector3(0.2, 0.5, 0.2),
+        Vector3(0.1, 0.1, 0.1),
         material: NativeMaterial.stone(),
         density: 2700.0,
       ),
-      at: Vector3(0.0, 0.5, 0.0),
+      at: Vector3(0.0, 0.1, 0.0),
       type: NativeBodyType.fixed,
     ),
   );
@@ -60,6 +63,7 @@ void main() {
       final fields = NativeElementFields(elements.world);
       final flux = fields.radiantFluxOn(ElementBody.of(stander));
       final fire = elements.world.fires().single;
+      expect(fire.power, greaterThan(0.0), reason: 'the fire gives off heat');
       final middle = FireExposure.middleOf(fire);
       final hit = elements.world.rayCast(
         middle,
@@ -68,6 +72,7 @@ void main() {
         ignore: fire.body,
       )!;
       expect(hit.body, stander);
+      expect(flux, greaterThan(0.0));
       expect(flux, closeTo(FireExposure.fluxFrom(fire, hit.at * hit.at), 1e-6));
       expect(
         flux,
@@ -98,7 +103,7 @@ void main() {
         type: NativeBodyType.fixed,
       );
       elements.step(1 / 60);
-      expect(elements.world.fires(), isNotEmpty);
+      expect(elements.world.fires().single.power, greaterThan(0.0));
       expect(
         NativeElementFields(
           elements.world,
