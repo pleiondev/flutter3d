@@ -9,8 +9,8 @@
 /// error, no log line, nothing to notice.
 ///
 /// So the check has two halves and no way to be silent about either. A backend
-/// that answers true to `GraphicsDevice.supportsBlendColor` has to show the
-/// constant arriving at the blend; one that answers false has to refuse, from
+/// that lists `DeviceFeature.blendConstant` has to show the
+/// constant arriving at the blend; one without it has to refuse, from
 /// both the setter and from `setBlend` handed a state that names the factor.
 library;
 
@@ -143,7 +143,11 @@ Future<List<int>> _centerOf(
   if (constant != null) pass.setBlendColor(constant);
   pass
     ..setBlend(equation)
-    ..bindPipeline(device.createPipeline(vertex, fragment))
+    ..bindPipeline(
+      device.createPipelineFrom(
+        PipelineDescriptor(vertex: vertex, fragment: fragment),
+      ),
+    )
     ..bindUniformBlock(vertex, 'LineInfo', <String, Float32List>{
       'view_projection': Float32List.fromList(Matrix4.identity().storage),
     })
@@ -207,7 +211,7 @@ void _refusesTheConstant(
     }
     require(
       refusedSetter,
-      'supportsBlendColor is false and setBlendColor was accepted anyway. A '
+      'blendConstant is not listed and setBlendColor was accepted anyway. A '
       'backend that cannot set the constant has to say so — accepting the call '
       'and dropping it leaves the caller believing a value it will never see, '
       'which is the silence DeviceFeature.blendConstant exists to break.',
@@ -223,7 +227,7 @@ void _refusesTheConstant(
     }
     require(
       refusedState,
-      'supportsBlendColor is false and a BlendState naming '
+      'blendConstant is not listed and a BlendState naming '
       'BlendFactor.blendColor was accepted anyway. The term will be multiplied '
       'by a constant nothing can set — transparent black — so the draw loses '
       'it and paints a plausible picture with no error. See '

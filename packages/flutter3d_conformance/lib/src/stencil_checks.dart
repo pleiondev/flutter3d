@@ -91,7 +91,11 @@ Future<void> checkStencilKeepsWhatItShould(GraphicsDevice device) async {
     ..setCullMode(CullMode.none)
     ..setDepthCompare(CompareFunction.always)
     ..setDepthWrite(enabled: false)
-    ..bindPipeline(device.createPipeline(vertex!, fragment!));
+    ..bindPipeline(
+      device.createPipelineFrom(
+        PipelineDescriptor(vertex: vertex!, fragment: fragment!),
+      ),
+    );
 
   void draw(List<double> color) {
     pass
@@ -210,7 +214,9 @@ Future<void> checkPassStartsWithStencilOff(GraphicsDevice device) async {
     vertex != null && fragment != null,
     'the debug-line stages are missing, so this cannot draw twice',
   );
-  final pipeline = device.createPipeline(vertex!, fragment!);
+  final pipeline = device.createPipelineFrom(
+    PipelineDescriptor(vertex: vertex!, fragment: fragment!),
+  );
   final indices = Uint16List.fromList(<int>[0, 1, 2]);
   final identity = Float32List.fromList(Matrix4.identity().storage);
   Float32List triangle(List<double> color) => Float32List.fromList(<double>[

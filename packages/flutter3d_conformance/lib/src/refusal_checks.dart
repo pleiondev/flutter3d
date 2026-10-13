@@ -28,10 +28,11 @@ const int _size = 32;
 
 /// `PolygonMode.line` is drawn as edges, or refused; never filled instead.
 ///
-/// **The one capability that differs across all three backends** — true on
-/// Impeller, false on WebGL2 and on the software rasteriser — and the contract
-/// attaches a promise to each answer. `supportsWireframe`'s doc says a backend
-/// that cannot draw it "refuses loudly rather than filling the triangles
+/// **The one capability that differs across the backends** — listed on
+/// Impeller over Metal and Vulkan, not on Impeller's OpenGL ES path, WebGL2,
+/// WebGPU or the software rasteriser — and the contract attaches a promise to
+/// each answer. `DeviceFeature.wireframe`'s doc says a backend that cannot
+/// draw it "refuses loudly rather than filling the triangles
 /// instead, because a silent substitution here looks exactly like the wireframe
 /// setting having no effect"; nothing was checking either half.
 ///
@@ -60,7 +61,7 @@ Future<void> checkWireframeIsDrawnOrRefused(GraphicsDevice device) async {
     }
     require(
       refused,
-      'supportsWireframe is false and PolygonMode.line was accepted anyway. A '
+      'wireframe is not listed and PolygonMode.line was accepted anyway. A '
       'backend that cannot draw edges must throw an UnsupportedError rather '
       'than fill the triangles, which looks exactly like the wireframe '
       'setting having no effect. See DeviceFeature.wireframe.',
@@ -75,7 +76,7 @@ Future<void> checkWireframeIsDrawnOrRefused(GraphicsDevice device) async {
   final painted = await _paintedPixels(device, target);
   require(
     painted > 40,
-    'supportsWireframe is true and PolygonMode.line drew $painted pixels — '
+    'wireframe is listed and PolygonMode.line drew $painted pixels — '
     'the outline of a triangle this size is about ninety, so nothing was '
     'drawn at all',
   );
@@ -86,7 +87,7 @@ Future<void> checkWireframeIsDrawnOrRefused(GraphicsDevice device) async {
   // would have noticed.
   require(
     painted < 250,
-    'supportsWireframe is true and PolygonMode.line filled the triangle: '
+    'wireframe is listed and PolygonMode.line filled the triangle: '
     '$painted pixels came back where an outline is about ninety. A backend '
     'that answers true must draw edges; one that cannot must answer false and '
     'throw. See DeviceFeature.wireframe.',
@@ -215,7 +216,11 @@ _oneTriangle(GraphicsDevice device) {
   pass
     ..setPrimitiveType(PrimitiveType.triangle)
     ..setCullMode(CullMode.none)
-    ..bindPipeline(device.createPipeline(vertex!, fragment!));
+    ..bindPipeline(
+      device.createPipelineFrom(
+        PipelineDescriptor(vertex: vertex!, fragment: fragment!),
+      ),
+    );
 
   final triangle = Float32List.fromList(<double>[
     -0.9, -0.9, 0.5, 1, 1, 1, 1, //

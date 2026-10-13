@@ -103,7 +103,11 @@ Future<void> checkObjectIdDrawsAndDecodes(GraphicsDevice device) async {
     ..setCullMode(CullMode.none)
     // No depth attachment, so no depth test — and the id stage never blends.
     ..setBlend(null)
-    ..bindPipeline(device.createPipeline(vertex!, fragment!))
+    ..bindPipeline(
+      device.createPipelineFrom(
+        PipelineDescriptor(vertex: vertex!, fragment: fragment!),
+      ),
+    )
     ..bindUniformBlock(vertex, 'FrameInfo', <String, Float32List>{
       'mvp': identity,
       'model': identity,

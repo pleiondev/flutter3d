@@ -370,7 +370,9 @@ final class MeshOverlay extends PassContributor {
     // a stale one would read triangle indices as overlay vertices.
     frame.encoder.clearBindings();
     frame.encoder.bindPipeline(
-      _pipeline ??= frame.device.createPipeline(vertexShader, fragmentShader),
+      _pipeline ??= frame.device.createPipelineFrom(
+        PipelineDescriptor(vertex: vertexShader, fragment: fragmentShader),
+      ),
     );
     frame.state.invalidatePipeline();
 

@@ -281,9 +281,8 @@ extension _ShadowPasses on Renderer {
       // occlude the casters that follow it.
       pass.setState(Renderer._kShadowTileResetState);
       pass.bindPipeline(
-        _cubeShadowResetPipeline ??= device.createPipeline(
-          resetVertexShader,
-          resetShader,
+        _cubeShadowResetPipeline ??= device.createPipelineFrom(
+          PipelineDescriptor(vertex: resetVertexShader, fragment: resetShader),
         ),
       );
       pass.bindVertexBuffer(_fullscreenTriangle, 3);
@@ -363,32 +362,49 @@ extension _ShadowPasses on Renderer {
             instanced != null
                 ? masked
                       ? (_instancedMaskedCubeShadowPipeline ??= device
-                            .createPipeline(
-                              _instancedVertexShader,
-                              fragment,
-                              layout: _kInstancedLayout,
+                            .createPipelineFrom(
+                              PipelineDescriptor(
+                                vertex: _instancedVertexShader,
+                                fragment: fragment,
+                                layout: _kInstancedLayout,
+                              ),
                             ))
-                      : (_instancedCubeShadowPipeline ??= device.createPipeline(
-                          _instancedVertexShader,
-                          fragment,
-                          layout: _kInstancedLayout,
-                        ))
+                      : (_instancedCubeShadowPipeline ??= device
+                            .createPipelineFrom(
+                              PipelineDescriptor(
+                                vertex: _instancedVertexShader,
+                                fragment: fragment,
+                                layout: _kInstancedLayout,
+                              ),
+                            ))
                 : skinned
                 ? masked
                       ? (_skinnedMaskedCubeShadowPipeline ??= device
-                            .createPipeline(_skinnedVertexShader, fragment))
-                      : (_skinnedCubeShadowPipeline ??= device.createPipeline(
-                          _skinnedVertexShader,
-                          fragment,
-                        ))
+                            .createPipelineFrom(
+                              PipelineDescriptor(
+                                vertex: _skinnedVertexShader,
+                                fragment: fragment,
+                              ),
+                            ))
+                      : (_skinnedCubeShadowPipeline ??= device
+                            .createPipelineFrom(
+                              PipelineDescriptor(
+                                vertex: _skinnedVertexShader,
+                                fragment: fragment,
+                              ),
+                            ))
                 : masked
-                ? (_maskedCubeShadowPipeline ??= device.createPipeline(
-                    _vertexShader,
-                    fragment,
+                ? (_maskedCubeShadowPipeline ??= device.createPipelineFrom(
+                    PipelineDescriptor(
+                      vertex: _vertexShader,
+                      fragment: fragment,
+                    ),
                   ))
-                : (_cubeShadowPipeline ??= device.createPipeline(
-                    _vertexShader,
-                    fragment,
+                : (_cubeShadowPipeline ??= device.createPipelineFrom(
+                    PipelineDescriptor(
+                      vertex: _vertexShader,
+                      fragment: fragment,
+                    ),
                   )),
           );
         }
@@ -1392,31 +1408,37 @@ extension _ShadowPasses on Renderer {
         } else if (boundKind != kind) {
           final fragment = masked ? maskedShadowShader : shadowShader;
           pass.bindPipeline(switch (kind) {
-            5 => _instancedMaskedShadowPipeline ??= device.createPipeline(
-              _instancedVertexShader,
-              fragment,
-              layout: _kInstancedLayout,
+            5 => _instancedMaskedShadowPipeline ??= device.createPipelineFrom(
+              PipelineDescriptor(
+                vertex: _instancedVertexShader,
+                fragment: fragment,
+                layout: _kInstancedLayout,
+              ),
             ),
-            4 => _skinnedMaskedShadowPipeline ??= device.createPipeline(
-              _skinnedVertexShader,
-              fragment,
+            4 => _skinnedMaskedShadowPipeline ??= device.createPipelineFrom(
+              PipelineDescriptor(
+                vertex: _skinnedVertexShader,
+                fragment: fragment,
+              ),
             ),
-            3 => _maskedShadowPipeline ??= device.createPipeline(
-              _vertexShader,
-              fragment,
+            3 => _maskedShadowPipeline ??= device.createPipelineFrom(
+              PipelineDescriptor(vertex: _vertexShader, fragment: fragment),
             ),
-            2 => _instancedShadowPipeline ??= device.createPipeline(
-              _instancedVertexShader,
-              fragment,
-              layout: _kInstancedLayout,
+            2 => _instancedShadowPipeline ??= device.createPipelineFrom(
+              PipelineDescriptor(
+                vertex: _instancedVertexShader,
+                fragment: fragment,
+                layout: _kInstancedLayout,
+              ),
             ),
-            1 => _skinnedShadowPipeline ??= device.createPipeline(
-              _skinnedVertexShader,
-              fragment,
+            1 => _skinnedShadowPipeline ??= device.createPipelineFrom(
+              PipelineDescriptor(
+                vertex: _skinnedVertexShader,
+                fragment: fragment,
+              ),
             ),
-            _ => _shadowPipeline ??= device.createPipeline(
-              _vertexShader,
-              fragment,
+            _ => _shadowPipeline ??= device.createPipelineFrom(
+              PipelineDescriptor(vertex: _vertexShader, fragment: fragment),
             ),
           });
           boundKind = kind;
@@ -1459,18 +1481,23 @@ extension _ShadowPasses on Renderer {
         } else if (boundKind != kind) {
           pass.bindPipeline(switch (kind) {
             2 =>
-              _instancedTransmittanceShadowPipeline ??= device.createPipeline(
-                _instancedVertexShader,
-                shader,
-                layout: _kInstancedLayout,
+              _instancedTransmittanceShadowPipeline ??= device
+                  .createPipelineFrom(
+                    PipelineDescriptor(
+                      vertex: _instancedVertexShader,
+                      fragment: shader,
+                      layout: _kInstancedLayout,
+                    ),
+                  ),
+            1 =>
+              _skinnedTransmittanceShadowPipeline ??= device.createPipelineFrom(
+                PipelineDescriptor(
+                  vertex: _skinnedVertexShader,
+                  fragment: shader,
+                ),
               ),
-            1 => _skinnedTransmittanceShadowPipeline ??= device.createPipeline(
-              _skinnedVertexShader,
-              shader,
-            ),
-            _ => _transmittanceShadowPipeline ??= device.createPipeline(
-              _vertexShader,
-              shader,
+            _ => _transmittanceShadowPipeline ??= device.createPipelineFrom(
+              PipelineDescriptor(vertex: _vertexShader, fragment: shader),
             ),
           });
           boundKind = kind;
@@ -1548,9 +1575,11 @@ extension _ShadowPasses on Renderer {
       );
       pass.bindPipeline(
         // The cube atlas's own: the same stages into the same format.
-        _cubeShadowResetPipeline ??= device.createPipeline(
-          resetVertexShader!,
-          resetShader!,
+        _cubeShadowResetPipeline ??= device.createPipelineFrom(
+          PipelineDescriptor(
+            vertex: resetVertexShader!,
+            fragment: resetShader!,
+          ),
         ),
       );
       pass.bindVertexBuffer(_fullscreenTriangle, 3);
@@ -1619,9 +1648,8 @@ extension _ShadowPasses on Renderer {
         Renderer._kShadowCopyState.copyWith(viewport: tile, scissor: tile),
       );
       pass.bindPipeline(
-        _shadowCopyPipeline ??= device.createPipeline(
-          copyVertexShader!,
-          copyShader!,
+        _shadowCopyPipeline ??= device.createPipelineFrom(
+          PipelineDescriptor(vertex: copyVertexShader!, fragment: copyShader!),
         ),
       );
       _shadowCopyInfo.tile
@@ -1711,9 +1739,11 @@ extension _ShadowPasses on Renderer {
           Renderer._kShadowCopyState.copyWith(viewport: whole, scissor: whole),
         )
         ..bindPipeline(
-          _shadowCopyPipeline ??= device.createPipeline(
-            shaders['FullscreenVertex']!,
-            copyShader,
+          _shadowCopyPipeline ??= device.createPipelineFrom(
+            PipelineDescriptor(
+              vertex: shaders['FullscreenVertex']!,
+              fragment: copyShader,
+            ),
           ),
         )
         ..bindBlock(copyShader, _shadowCopyInfo)
@@ -1731,10 +1761,13 @@ extension _ShadowPasses on Renderer {
 
       final photons = settings.causticPhotons.clamp(8, 512);
       final raw = rawMatrices[cascade];
-      final surfacePipeline = _causticSurfacePipeline ??= device.createPipeline(
-        _vertexShader,
-        causticSurface!,
-      );
+      final surfacePipeline = _causticSurfacePipeline ??= device
+          .createPipelineFrom(
+            PipelineDescriptor(
+              vertex: _vertexShader,
+              fragment: causticSurface!,
+            ),
+          );
 
       final maps =
           <
@@ -1863,9 +1896,11 @@ extension _ShadowPasses on Renderer {
           Renderer._kCausticPhotonState.copyWith(viewport: tile, scissor: tile),
         )
         ..bindPipeline(
-          _causticPhotonPipeline ??= device.createPipeline(
-            photonVertex!,
-            photonFragment!,
+          _causticPhotonPipeline ??= device.createPipelineFrom(
+            PipelineDescriptor(
+              vertex: photonVertex!,
+              fragment: photonFragment!,
+            ),
           ),
         )
         ..bindVertexBuffer(quad, 6)

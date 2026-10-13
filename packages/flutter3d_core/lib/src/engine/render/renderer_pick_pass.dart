@@ -200,17 +200,21 @@ extension _PickPass on Renderer {
     return _pipelineCache.putIfAbsent(
       key,
       () => instanced
-          ? device.createPipeline(
-              _instancedVertexShader,
-              _objectIdShader,
-              layout: _kInstancedLayout,
+          ? device.createPipelineFrom(
+              PipelineDescriptor(
+                vertex: _instancedVertexShader,
+                fragment: _objectIdShader,
+                layout: _kInstancedLayout,
+              ),
             )
-          : device.createPipeline(
-              // The lightmapped stage is left out on purpose: it reads the
-              // same layout as the plain one and differs only in what it
-              // hands the fragment stage, which this one ignores.
-              skinned ? _skinnedVertexShader : _vertexShader,
-              _objectIdShader,
+          : device.createPipelineFrom(
+              PipelineDescriptor(
+                // The lightmapped stage is left out on purpose: it reads the
+                // same layout as the plain one and differs only in what it
+                // hands the fragment stage, which this one ignores.
+                vertex: skinned ? _skinnedVertexShader : _vertexShader,
+                fragment: _objectIdShader,
+              ),
             ),
     );
   }

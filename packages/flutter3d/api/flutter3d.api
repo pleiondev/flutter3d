@@ -797,7 +797,7 @@ export package:flutter3d_foundation/flutter3d_foundation.dart show AssetNotFound
   WorldPosition
   WorldPositionVector
 
-export package:flutter3d_hardware/flutter3d_hardware.dart show BackendOpener, BlendFactor, BlendOperation, BlendState, BufferDescriptor, BufferLayout, BufferTextureLayout, BufferUsage, ColorTarget, ColorWriteMask, CommandEncoder, CompareFunction, ComputeEncoder, ComputeExecutor, ComputeExecutors, ComputeOpener, ComputePipelineHandle, ComputePlacement, ComputePlacementException, ComputeRefusalReason, CullMode, DepthBias, DepthRange, DepthTarget, DeviceFeature, DeviceFeatures, DeviceLimits, DeviceLoss, DeviceLossReason, DeviceRegistry, DeviceResourceException, DeviceUnavailableException, FeatureStability, FramebufferOrigin, GeometryBuffer, GeometryUsage, GpuFence, GpuFrameTimings, GpuPassTiming, GraphicsDevice, IndexType, IndexedDraw, InputAttribute, LoadAction, LoadedShaderLibrary, MapMode, MappedBuffer, MinMagFilter, MipChain, MipFilter, NativeHandle, NativeHandleKind, PassEncoder, PassState, PassTimestampWrites, PipelineHandle, PipelineRefusalReason, PipelineRefusals, PipelineRefusedException, PolygonMode, PrimitiveType, QuerySet, QueryType, RenderBundle, RenderBundleDescriptor, RenderBundleEncoder, RenderPassDescriptor, RenderTargetDescriptor, RenderTargetPool, SamplerAddressMode, SamplerBorderColor, SamplerDescriptor, ScreenRect, ShaderBundle, ShaderBundleException, ShaderBundleStage, ShaderHandle, ShaderLibrary, ShaderStageKind, StageBindings, StencilOperation, StencilState, StorageBuffer, StorageMode, StorageTextureAccess, StoreAction, TextureAllocator, TextureCopyLocation, TextureDescriptor, TextureDimension, TextureFormat, TextureFormatStencil, TextureFormatSupport, TextureHandle, TextureRegion, TextureType, TextureUsage, TransferEncoder, UniformBlock, UniformMemberLayout, VertexFormat, VertexLayoutDescriptor, VertexStepMode, WindingOrder, decodeMaterialSection, encodeMaterialSection, indexWindow, readbackFormats, readbackRegionOf
+export package:flutter3d_hardware/flutter3d_hardware.dart show BackendOpener, BlendFactor, BlendOperation, BlendState, BufferDescriptor, BufferLayout, BufferTextureLayout, BufferUsage, ColorTarget, ColorWriteMask, CommandEncoder, CompareFunction, ComputeEncoder, ComputeExecutor, ComputeExecutors, ComputeOpener, ComputePipelineDescriptor, ComputePipelineHandle, ComputePlacement, ComputePlacementException, ComputeRefusalReason, CullMode, DepthBias, DepthRange, DepthTarget, DeviceFeature, DeviceFeatures, DeviceLimits, DeviceLoss, DeviceLossReason, DeviceRegistry, DeviceResourceException, DeviceUnavailableException, FeatureStability, FramebufferOrigin, GeometryBuffer, GeometryUsage, GpuFence, GpuFrameTimings, GpuPassTiming, GraphicsDevice, IndexType, IndexedDraw, InputAttribute, LoadAction, LoadedShaderLibrary, MapMode, MappedBuffer, MinMagFilter, MipChain, MipFilter, NativeHandle, NativeHandleKind, PassEncoder, PassState, PassTimestampWrites, PipelineDescriptor, PipelineHandle, PipelineRefusalReason, PipelineRefusals, PipelineRefusedException, PolygonMode, PrimitiveType, QuerySet, QueryType, RenderBundle, RenderBundleDescriptor, RenderBundleEncoder, RenderPassDescriptor, RenderTargetDescriptor, RenderTargetPool, SamplerAddressMode, SamplerBorderColor, SamplerDescriptor, ScreenRect, ShaderBundle, ShaderBundleException, ShaderBundleStage, ShaderHandle, ShaderLibrary, ShaderStageKind, StageBindings, StencilOperation, StencilState, StorageBuffer, StorageMode, StorageTextureAccess, StoreAction, TextureAllocator, TextureCopyLocation, TextureDescriptor, TextureDimension, TextureFormat, TextureFormatStencil, TextureFormatSupport, TextureHandle, TextureRegion, TextureType, TextureUsage, TransferEncoder, UniformBlock, UniformMemberLayout, VertexFormat, VertexLayoutDescriptor, VertexStepMode, WindingOrder, decodeMaterialSection, encodeMaterialSection, indexWindow, readbackFormats, readbackRegionOf
   BackendOpener
   BlendFactor
   BlendOperation
@@ -814,6 +814,7 @@ export package:flutter3d_hardware/flutter3d_hardware.dart show BackendOpener, Bl
   ComputeExecutor
   ComputeExecutors
   ComputeOpener
+  ComputePipelineDescriptor
   ComputePipelineHandle
   ComputePlacement
   ComputePlacementException
@@ -853,6 +854,7 @@ export package:flutter3d_hardware/flutter3d_hardware.dart show BackendOpener, Bl
   PassEncoder
   PassState
   PassTimestampWrites
+  PipelineDescriptor
   PipelineHandle
   PipelineRefusalReason
   PipelineRefusals

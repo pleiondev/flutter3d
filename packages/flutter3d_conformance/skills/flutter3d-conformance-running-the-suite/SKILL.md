@@ -38,8 +38,8 @@ backend whose pipelines were linked ahead of time.
 ## Declining is not passing
 
 ```dart
-if (!device.supportsOffscreenMsaa) {
-  decline(device, 'answers false to supportsOffscreenMsaa, and multisamples nothing');
+if (!device.features.has(DeviceFeature.offscreenMultisample)) {
+  decline(device, 'has no offscreenMultisample, and multisamples nothing');
 }
 require(pixels[0] == 255, 'the clear did not cover the top-left pixel');
 ```

@@ -69,9 +69,14 @@ DeviceFeatures impellerFeatures({required bool cubesWork}) {
     // says so — which is why this gates the probe's chain and not the probe.
     if (context.doesSupportFramebufferRenderMipmap)
       DeviceFeature.renderToMipLevel,
-    // Impeller exposes glPolygonMode's equivalent, so the request goes
-    // through.
-    DeviceFeature.wireframe,
+    // flutter_gpu's `setPolygonMode` reaches Metal's and Vulkan's fill mode;
+    // OpenGL ES has no `glPolygonMode`, and Impeller's GLES path draws a
+    // line request filled. flutter_gpu names no backend, so the GLES path is
+    // told the one way it tells itself: it is where render-to-mip is false.
+    // Inferred, as [metalOnMac] is, and said so.
+    // TODO(impeller): a backend or polygon-mode query in flutter_gpu would
+    // replace the inference.
+    if (context.doesSupportFramebufferRenderMipmap) DeviceFeature.wireframe,
     // alphaToCoverage — `P7`: flutter_gpu exposes no alpha-to-coverage and
     // no sample mask.
     // TODO(impeller): no alpha-to-coverage in flutter_gpu's pipeline state —

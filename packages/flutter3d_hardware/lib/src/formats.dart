@@ -50,7 +50,8 @@
 /// faces) breaks no backend outside this repository: its `switch` ends with
 /// a wildcard that refuses the value by name. The few left as enums are the
 /// ones whose members are fixed by what they mean: [CompareFunction],
-/// [WindingOrder], [StencilFace] and [FramebufferOrigin].
+/// [WindingOrder] and [FramebufferOrigin]. Which face a stencil state is for
+/// is said by `PassEncoder.setStencil`'s two parameters, not by a value.
 library;
 
 /// What shape a texture is.
@@ -946,12 +947,23 @@ final class SamplerAddressMode {
 
   static const SamplerAddressMode mirror = SamplerAddressMode._('mirror');
 
+  /// Outside the texture along this axis, the sampler's
+  /// `SamplerDescriptor.borderColor` (transparent black when it names none)
+  /// instead of the edge texel. An axis by axis choice, as every API with a
+  /// border makes it: one axis may clamp to the border and another to the
+  /// edge. Needs `DeviceFeature.samplerBorderColor`, which WebGPU and WebGL2
+  /// lack.
+  static const SamplerAddressMode clampToBorder = SamplerAddressMode._(
+    'clampToBorder',
+  );
+
   /// Every value this version names, in declaration order. A later version
   /// appends; nothing is removed or renamed within a major.
   static const List<SamplerAddressMode> values = <SamplerAddressMode>[
     clampToEdge,
     repeat,
     mirror,
+    clampToBorder,
   ];
 
   /// The value called [name], or null for a name this version does not know,
@@ -1242,18 +1254,6 @@ final class StencilOperation {
   @override
   String toString() => 'StencilOperation.$name';
 }
-
-/// Which side of a triangle a stencil configuration applies to.
-///
-/// The engine configures both sides alike through `PassEncoder.setStencil`
-/// and names a back face only when a caller hands one; this enum is what the
-/// Impeller translation maps onto, and is here because every enum
-/// flutter_gpu has is mirrored one for one.
-///
-/// **Closed for good**: front, back or both: every non-empty set of a
-/// triangle's two faces. No member can be added without changing what the type
-/// means, so it stays an enum and a `switch` over it may name every case.
-enum StencilFace { both, front, back }
 
 /// What a backend's clip space maps depth onto.
 ///

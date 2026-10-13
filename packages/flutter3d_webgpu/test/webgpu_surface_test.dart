@@ -339,6 +339,7 @@ void main() {
         'flutter3dNoSuchSlot',
         target,
         sampler: const SamplerDescriptor(
+          widthAddressMode: SamplerAddressMode.clampToBorder,
           borderColor: SamplerBorderColor.opaqueWhite,
         ),
       ),

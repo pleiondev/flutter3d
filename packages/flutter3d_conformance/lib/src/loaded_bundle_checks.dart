@@ -117,7 +117,9 @@ Future<void> checkLoadedLibrary(
   final vertex = loaded['MeshVertex']!;
   final fragment = loaded['Pbr']!;
   try {
-    device.createPipeline(vertex, fragment);
+    device.createPipelineFrom(
+      PipelineDescriptor(vertex: vertex, fragment: fragment),
+    );
   } catch (error) {
     throw ConformanceFailureException(
       'MeshVertex + Pbr from the loaded library do not link: $error',
@@ -144,7 +146,12 @@ Future<void> checkLoadedLibrary(
     'builds afterwards links against stale stages',
   );
   try {
-    device.createPipeline(loaded['MeshVertex']!, loaded['Pbr']!);
+    device.createPipelineFrom(
+      PipelineDescriptor(
+        vertex: loaded['MeshVertex']!,
+        fragment: loaded['Pbr']!,
+      ),
+    );
   } catch (error) {
     throw ConformanceFailureException(
       'MeshVertex + Pbr do not link after a refresh: $error',

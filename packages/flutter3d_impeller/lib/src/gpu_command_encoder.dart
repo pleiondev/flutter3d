@@ -80,8 +80,19 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
   void setPrimitiveType(PrimitiveType type) =>
       _pass.setPrimitiveType(type.toGpu());
 
+  /// A line mode on a device without `DeviceFeature.wireframe` (Impeller's
+  /// OpenGL ES path) is refused, rather than drawn filled.
   @override
-  void setPolygonMode(PolygonMode mode) => _pass.setPolygonMode(mode.toGpu());
+  void setPolygonMode(PolygonMode mode) {
+    if (mode == PolygonMode.line) {
+      _features.require(
+        DeviceFeature.wireframe,
+        backend: impellerBackendName,
+        reason: 'OpenGL ES has no glPolygonMode',
+      );
+    }
+    _pass.setPolygonMode(mode.toGpu());
+  }
 
   @override
   void setCullMode(CullMode mode) => _pass.setCullMode(mode.toGpu());
@@ -150,12 +161,9 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
     }
     _pass.setStencilConfig(
       _stencilOf(front),
-      targetFace: StencilFace.front.toGpu(),
+      targetFace: gpu.StencilFace.front,
     );
-    _pass.setStencilConfig(
-      _stencilOf(back),
-      targetFace: StencilFace.back.toGpu(),
-    );
+    _pass.setStencilConfig(_stencilOf(back), targetFace: gpu.StencilFace.back);
   }
 
   /// A fresh config per call (see `StencilStateToGpu`), so clearing its
@@ -557,9 +565,9 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
         DeviceFeature.samplerCompare,
         'a comparison sampler',
       ),
-      SamplerDescriptor(borderColor: final SamplerBorderColor _) => (
+      SamplerDescriptor(clampsToBorder: true) => (
         DeviceFeature.samplerBorderColor,
-        'a border colour',
+        'clamp-to-border address mode',
       ),
       _ => (DeviceFeature.samplerLodClamp, 'a level-of-detail clamp'),
     };

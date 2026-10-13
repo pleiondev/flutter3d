@@ -162,27 +162,12 @@ final class FuzzProgram {
         pass: 0,
         label: 'fuzz',
         colors: <TraceColorTarget>[
-          (
+          TraceColorTarget(
             texture: 0,
-            resolveTexture: null,
-            loadAction: LoadAction.clear,
-            storeAction: StoreAction.store,
             clearValue: Vector4(clear[0], clear[1], clear[2], clear[3]),
-            face: 0,
-            mipLevel: 0,
           ),
         ],
-        depth: depth
-            ? (
-                texture: 1,
-                clearValue: 1.0,
-                loadAction: LoadAction.clear,
-                storeAction: StoreAction.dontCare,
-                stencilLoadAction: LoadAction.clear,
-                stencilStoreAction: StoreAction.dontCare,
-                stencilClearValue: 0,
-              )
-            : null,
+        depth: depth ? const TraceDepthTarget(texture: 1) : null,
       ),
       const TraceSetPrimitiveType(0, PrimitiveType.triangle),
       const TraceSetCullMode(0, CullMode.none),

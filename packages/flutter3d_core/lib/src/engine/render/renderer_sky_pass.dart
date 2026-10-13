@@ -104,10 +104,16 @@ extension _SkyPass on Renderer {
 
     pass.bindPipeline(
       textured
-          ? (_skyCubePipeline ??= device.createPipeline(vertex, fragment))
+          ? (_skyCubePipeline ??= device.createPipelineFrom(
+              PipelineDescriptor(vertex: vertex, fragment: fragment),
+            ))
           : air != null
-          ? (_skyPhysicalPipeline ??= device.createPipeline(vertex, fragment))
-          : (_skyPipeline ??= device.createPipeline(vertex, fragment)),
+          ? (_skyPhysicalPipeline ??= device.createPipelineFrom(
+              PipelineDescriptor(vertex: vertex, fragment: fragment),
+            ))
+          : (_skyPipeline ??= device.createPipelineFrom(
+              PipelineDescriptor(vertex: vertex, fragment: fragment),
+            )),
     );
     // The tracker described a pipeline this just replaced; the next mesh has to
     // bind its own rather than trust a stale answer.

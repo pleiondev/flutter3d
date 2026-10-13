@@ -48,7 +48,11 @@ Future<Uint8List> _draw(
   pass
     ..setPrimitiveType(PrimitiveType.triangle)
     ..setCullMode(CullMode.none)
-    ..bindPipeline(device.createPipeline(vertex, fragment))
+    ..bindPipeline(
+      device.createPipelineFrom(
+        PipelineDescriptor(vertex: vertex, fragment: fragment),
+      ),
+    )
     ..bindUniformBlock(vertex, 'LineInfo', <String, Float32List>{
       'view_projection': Float32List.fromList(Matrix4.identity().storage),
     })

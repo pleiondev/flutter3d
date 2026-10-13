@@ -152,27 +152,40 @@ final class SamplerDescriptor {
   /// In mip levels, unitless, as [lodMinClamp].
   final double lodMaxClamp;
 
-  /// When set, every axis whose address mode is
-  /// [SamplerAddressMode.clampToEdge] clamps to this colour instead of the
-  /// edge texel. Null for the edge. A field rather than a fourth
-  /// [SamplerAddressMode] because that enum mirrors flutter_gpu, which has no
-  /// border. Ask `DeviceFeature.samplerBorderColor`; a backend without it
-  /// refuses the bind.
+  /// The colour every axis whose address mode is
+  /// [SamplerAddressMode.clampToBorder] reads outside the texture. Null
+  /// means [SamplerBorderColor.transparentBlack]. **It applies on those axes
+  /// only**: an axis clamped to the edge reads the edge texel whatever this
+  /// says, so one axis can clamp to the border and another to the edge, and
+  /// a colour no axis uses needs nothing of the device.
   final SamplerBorderColor? borderColor;
 
+  /// Whether any axis clamps to the border: what
+  /// `DeviceFeature.samplerBorderColor` is asked for.
+  bool get clampsToBorder =>
+      widthAddressMode == SamplerAddressMode.clampToBorder ||
+      heightAddressMode == SamplerAddressMode.clampToBorder ||
+      depthAddressMode == SamplerAddressMode.clampToBorder;
+
+  /// The colour a [SamplerAddressMode.clampToBorder] axis reads:
+  /// [borderColor], or transparent black when it names none.
+  SamplerBorderColor get effectiveBorderColor =>
+      borderColor ?? SamplerBorderColor.transparentBlack;
+
   /// Whether this needs [DeviceFeature]s beyond the pre-0.9 sampler, so a
-  /// backend can check once per bind: a comparison, a level clamp, a border.
+  /// backend can check once per bind: a comparison, a level clamp, an axis
+  /// clamped to the border.
   bool get usesExtendedState =>
       compare != null ||
       lodMinClamp != 0 ||
       lodMaxClamp != 32 ||
-      borderColor != null;
+      clampsToBorder;
 
   /// Throws [UnsupportedCapabilityException] when this sampler needs a
   /// feature [features] lacks: a comparison (`samplerCompare`), a
-  /// level-of-detail clamp (`samplerLodClamp`), a border colour
-  /// (`samplerBorderColor`). Each is asked for alone, so a comparison sampler
-  /// with no clamp does not need the clamp.
+  /// level-of-detail clamp (`samplerLodClamp`), an axis clamped to the
+  /// border (`samplerBorderColor`). Each is asked for alone, so a comparison
+  /// sampler with no clamp does not need the clamp.
   ///
   /// **For a backend's `bindTexture`**, so that every backend refuses the
   /// same samplers in the same words, and a field a minor adds with its
@@ -194,11 +207,11 @@ final class SamplerDescriptor {
         reason: 'the sampler clamps its level of detail',
       );
     }
-    if (borderColor != null) {
+    if (clampsToBorder) {
       features.require(
         DeviceFeature.samplerBorderColor,
         backend: backend,
-        reason: 'the sampler names a border colour',
+        reason: 'the sampler clamps an axis to its border colour',
       );
     }
   }

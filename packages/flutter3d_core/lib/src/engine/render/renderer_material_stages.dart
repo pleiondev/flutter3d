@@ -94,7 +94,13 @@ extension _MaterialStages on Renderer {
       pass.bindPipeline(
         _pipelineCache.putIfAbsent(
           'depth/${own.name}+${fragment.name}',
-          () => device.createPipeline(own, fragment, layout: _kInstancedLayout),
+          () => device.createPipelineFrom(
+            PipelineDescriptor(
+              vertex: own,
+              fragment: fragment,
+              layout: _kInstancedLayout,
+            ),
+          ),
         ),
       );
       return own;
@@ -107,7 +113,9 @@ extension _MaterialStages on Renderer {
     pass.bindPipeline(
       _pipelineCache.putIfAbsent(
         'depth/${own.name}+${fragment.name}',
-        () => device.createPipeline(own, fragment),
+        () => device.createPipelineFrom(
+          PipelineDescriptor(vertex: own, fragment: fragment),
+        ),
       ),
     );
     return own;

@@ -330,9 +330,15 @@ void main() {
       );
       expect(
         <String>[
-          for (final mode in SamplerAddressMode.values) gpuAddressMode(mode),
+          for (final mode in SamplerAddressMode.values)
+            if (mode != SamplerAddressMode.clampToBorder) gpuAddressMode(mode),
         ],
         <String>['clamp-to-edge', 'repeat', 'mirror-repeat'],
+      );
+      // Refused by `samplerBorderColor` before a sampler is made.
+      expect(
+        () => gpuAddressMode(SamplerAddressMode.clampToBorder),
+        throwsUnsupportedError,
       );
       expect(
         <String>[

@@ -17,6 +17,7 @@ import '../command_encoder.dart';
 import '../compute.dart';
 import '../geometry_buffer.dart';
 import '../graphics_device.dart';
+import '../pipeline_descriptor.dart';
 import '../resources.dart';
 import '../shader.dart';
 import '../texture.dart';
@@ -247,10 +248,12 @@ Future<TraceReplay> replayTrace(Trace trace, GraphicsDevice device) async {
       case TraceLoadShaders(:final bytes):
         libraries.add(await device.loadShaders(bytes));
       case TraceCreatePipeline():
-        pipelines[event.id] = device.createPipeline(
-          stage(event.vertex),
-          stage(event.fragment),
-          layout: event.layout,
+        pipelines[event.id] = device.createPipelineFrom(
+          PipelineDescriptor(
+            vertex: stage(event.vertex),
+            fragment: stage(event.fragment),
+            layout: event.layout,
+          ),
         );
       case TraceBeginRenderPass():
         passes[event.pass] = device.beginRenderPass(
@@ -268,6 +271,7 @@ Future<TraceReplay> replayTrace(Trace trace, GraphicsDevice device) async {
                   clearValue: c.clearValue,
                   face: c.face,
                   mipLevel: c.mipLevel,
+                  layer: c.layer,
                 ),
             ],
             depth: switch (event.depth) {
@@ -280,6 +284,11 @@ Future<TraceReplay> replayTrace(Trace trace, GraphicsDevice device) async {
                 stencilLoadAction: d.stencilLoadAction,
                 stencilStoreAction: d.stencilStoreAction,
                 stencilClearValue: d.stencilClearValue,
+                mipLevel: d.mipLevel,
+                layer: d.layer,
+                face: d.face,
+                depthReadOnly: d.depthReadOnly,
+                stencilReadOnly: d.stencilReadOnly,
               ),
             },
           ),
@@ -316,7 +325,9 @@ Future<TraceReplay> replayTrace(Trace trace, GraphicsDevice device) async {
       case TraceReleaseStorageBuffer(:final buffer):
         device.releaseStorageBuffer(storage.remove(buffer)!);
       case TraceCreateComputePipeline(:final id, :final shader):
-        computePipelines[id] = device.createComputePipeline(stage(shader));
+        computePipelines[id] = device.createComputePipelineFrom(
+          ComputePipelineDescriptor(shader: stage(shader)),
+        );
       case TraceBeginComputePass(:final pass, :final label):
         computePasses[pass] = device.beginComputePass(label: label);
       case TraceComputeBindPipeline(:final pass, :final pipeline):

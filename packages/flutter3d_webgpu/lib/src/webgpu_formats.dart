@@ -642,6 +642,11 @@ String gpuAddressMode(SamplerAddressMode mode) => switch (mode) {
   SamplerAddressMode.clampToEdge => 'clamp-to-edge',
   SamplerAddressMode.repeat => 'repeat',
   SamplerAddressMode.mirror => 'mirror-repeat',
+  // Not reached through a bind: `webgpuCheckSampler` refuses a border axis
+  // by `DeviceFeature.samplerBorderColor` before a sampler is made.
+  SamplerAddressMode.clampToBorder => throw UnsupportedError(
+    'WebGPU has no "clamp-to-border" address mode',
+  ),
   _ => throw UnsupportedError('WebGPU has no address mode for $mode'),
 };
 

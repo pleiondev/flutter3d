@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 894fc7a1ff784236
+# table-stamp: babd7b4c0d394164
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -16,16 +16,6 @@ transforms:
         newElement:
           uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
           class: 'LayeredShaderLibrary'
-  - title: 'flutter3d 1.0.0-rc.1: hardware-StencilFace (StencilFace)'
-    date: 2026-10-08
-    element:
-      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
-      enum: 'StencilFace'
-    changes:
-      - kind: 'replacedBy'
-        newElement:
-          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
-          enum: 'StencilFace'
   - title: 'flutter3d 1.0.0-rc.1: hardware-TextureBlockLayout (TextureBlockLayout)'
     date: 2026-10-08
     element:
@@ -505,16 +495,6 @@ transforms:
         newElement:
           uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
           typedef: 'StageBindings'
-  - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (StencilFace)'
-    date: 2026-10-08
-    element:
-      uris: ['package:flutter3d_core/flutter3d_core.dart']
-      enum: 'StencilFace'
-    changes:
-      - kind: 'replacedBy'
-        newElement:
-          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
-          enum: 'StencilFace'
   - title: 'flutter3d 1.0.0-rc.1: c-core-hardware-library (StencilOperation)'
     date: 2026-10-08
     element:

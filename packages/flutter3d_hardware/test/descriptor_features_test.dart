@@ -12,6 +12,7 @@ library;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show UnsupportedCapabilityException;
+import 'package:flutter3d_hardware/backend.dart' show wrapTexture;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
 
@@ -52,10 +53,38 @@ void main() {
       );
       expect(
         () => const SamplerDescriptor(
+          heightAddressMode: SamplerAddressMode.clampToBorder,
           borderColor: SamplerBorderColor.opaqueBlack,
         ).checkFeatures(DeviceFeatures.none, backend: 'Null'),
         _refusedFor(DeviceFeature.samplerBorderColor),
       );
+    });
+
+    test('any clampToBorder axis needs the border, even with no colour', () {
+      // Mutation: ask for the border only when `borderColor` is set. A
+      // sampler clamping its depth axis to the transparent-black default
+      // reaches a backend with no border, which clamps to the edge instead.
+      expect(
+        () => const SamplerDescriptor(
+          depthAddressMode: SamplerAddressMode.clampToBorder,
+        ).checkFeatures(DeviceFeatures.none, backend: 'Null'),
+        _refusedFor(DeviceFeature.samplerBorderColor),
+      );
+      expect(
+        const SamplerDescriptor(
+          widthAddressMode: SamplerAddressMode.clampToBorder,
+        ).usesExtendedState,
+        isTrue,
+      );
+    });
+
+    test('a border colour with no clampToBorder axis needs nothing', () {
+      // Mutation: keep asking for the border whenever a colour is set. A
+      // sampler whose colour no axis uses is refused for a border it never
+      // samples.
+      const SamplerDescriptor(
+        borderColor: SamplerBorderColor.opaqueWhite,
+      ).checkFeatures(DeviceFeatures.none, backend: 'Null');
     });
 
     test('a plain sampler needs nothing', () {
@@ -191,6 +220,34 @@ void main() {
           DeviceFeature.depthBiasClamp,
         ]),
         backend: 'Null',
+      );
+    });
+  });
+
+  group('RenderPassDescriptor', () {
+    test('a pass over the attachment limit is a typed refusal', () {
+      // Mutation: throw an untyped `UnsupportedError`, as the limit did; a
+      // caller catching the device's refusals cannot tell it from a bug.
+      final colors = <ColorTarget>[
+        for (var i = 0; i < 2; i++)
+          ColorTarget(
+            texture: wrapTexture(
+              backend: Object(),
+              width: 1,
+              height: 1,
+              format: TextureFormat.r8g8b8a8UNormInt,
+            ),
+          ),
+      ];
+      final pass = RenderPassDescriptor(colors: colors);
+      pass.checkAttachmentLimit(2, backend: 'Null');
+      expect(
+        () => pass.checkAttachmentLimit(1, backend: 'Null'),
+        throwsA(
+          isA<DeviceResourceException>()
+              .having((e) => e.operation, 'operation', 'beginRenderPass')
+              .having((e) => e.message, 'message', contains('at most 1')),
+        ),
       );
     });
   });

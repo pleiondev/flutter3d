@@ -252,9 +252,10 @@ void main() {
     expect(clamped.sample(0.5, 0.5).x, 0);
   });
 
-  test('a border colour is read outside the texture and nowhere else', () {
-    // Mutation: `_sampleLevel` ignoring `borderColor`, clamping to the edge
-    // texel as a sampler without one does.
+  test('a border is read outside the texture on a clampToBorder axis only', () {
+    // Mutation: `_sampleLevel` reading the border on every clamped axis
+    // whenever a colour is set, as the sampler did before the mode existed.
+    // The height axis, clamped to the edge, reads white below the texture.
     final d = _device();
     final texture = d.createTextureFromPixels(
       width: 1,
@@ -265,13 +266,31 @@ void main() {
     final cpu = texture.backend as CpuTexture;
     final bordered = BoundTexture(
       cpu,
-      const SamplerDescriptor(borderColor: SamplerBorderColor.opaqueWhite),
+      const SamplerDescriptor(
+        widthAddressMode: SamplerAddressMode.clampToBorder,
+        borderColor: SamplerBorderColor.opaqueWhite,
+      ),
     );
     expect(bordered.sample(1.5, 0.5).storage, <double>[1, 1, 1, 1]);
     expect(bordered.sample(0.5, 0.5).storage, <double>[1, 0, 0, 1]);
+    expect(bordered.sample(0.5, 1.5).storage, <double>[1, 0, 0, 1]);
+    // A colour no axis uses changes nothing.
     expect(
-      BoundTexture(cpu, SamplerDescriptor.nearestClamp).sample(1.5, 0.5).x,
-      1,
+      BoundTexture(
+        cpu,
+        const SamplerDescriptor(borderColor: SamplerBorderColor.opaqueWhite),
+      ).sample(1.5, 0.5).storage,
+      <double>[1, 0, 0, 1],
+    );
+    // No colour named reads transparent black.
+    expect(
+      BoundTexture(
+        cpu,
+        const SamplerDescriptor(
+          heightAddressMode: SamplerAddressMode.clampToBorder,
+        ),
+      ).sample(0.5, -0.5).storage,
+      <double>[0, 0, 0, 0],
     );
   });
 

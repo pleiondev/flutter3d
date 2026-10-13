@@ -48,6 +48,25 @@ void main() {
       expect(device.features.has(DeviceFeature.compute), isTrue);
       expect(device.features.has(DeviceFeature.sharedTextures), isFalse);
       expect(WgpuSidecar.adapterName(device), isNotEmpty);
+      // Mutation: answer `DeviceLimits.webgpuDefaults`, and a caller sizing
+      // a pass from the limits plans eight colour attachments and four
+      // samples on a device that opens no pass at all.
+      final limits = device.limits;
+      expect(
+        (
+          limits.maxColorAttachments,
+          limits.maxColorAttachmentBytesPerSample,
+          limits.maxSampleCount,
+          limits.maxVertexBuffers,
+          limits.maxVertexAttributes,
+          limits.maxInterStageShaderVariables,
+        ),
+        (0, 0, 1, 0, 0, 0),
+      );
+      expect(
+        limits.maxComputeInvocationsPerWorkgroup,
+        DeviceLimits.webgpuDefaults.maxComputeInvocationsPerWorkgroup,
+      );
       expect(
         () => device.beginRenderPass(const RenderPassDescriptor(colors: [])),
         throwsA(

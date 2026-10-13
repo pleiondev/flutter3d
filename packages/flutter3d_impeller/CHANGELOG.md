@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **`wireframe` is listed where a line mode draws lines**: on Metal and
+  Vulkan, not on Impeller's OpenGL ES path, which has no `glPolygonMode`;
+  there `setPolygonMode(PolygonMode.line)` is refused by the feature.
+- **`preferredSampleCount` is 1 without `offscreenMultisample`**, where it
+  answered 4 on every device.
+- **An axis clamped to the border is refused by `samplerBorderColor`.**
 - **`texture1D` is listed**: a 1D texture is a 2D one a texel high.
 - **`releasePipeline` lets go of the linked pipeline.** flutter_gpu has no
   dispose for a `RenderPipeline`, so a pipeline's `dispose` drops the

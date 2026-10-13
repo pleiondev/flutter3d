@@ -540,11 +540,12 @@ final class WebGpuComputeEncoder extends ComputeEncoder {
 /// at the slot it is bound to — a refusal is the device's answer about the
 /// sampler, and a slot nobody declared must not turn it into a `false`.
 ///
-/// The border colour is the one WebGPU refuses: `GPUSamplerDescriptor` has
-/// no border, and `"clamp-to-edge"` is the only clamp it offers.
+/// An axis clamped to the border is the one WebGPU refuses:
+/// `GPUSamplerDescriptor` has no border, and `"clamp-to-edge"` is the only
+/// clamp it offers. A border colour no axis uses is not a border.
 void webgpuCheckSampler(DeviceFeatures features, SamplerDescriptor? sampler) {
   if (sampler == null || !sampler.usesExtendedState) return;
-  if (sampler.borderColor != null) {
+  if (sampler.clampsToBorder) {
     // TODO(webgpu): border colours — absent from the WebGPU API (no
     // `"clamp-to-border"` address mode, no border field); a future
     // specification feature adding them would unblock this.

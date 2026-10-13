@@ -19,6 +19,9 @@
   settings, so a step can be on for one device or quality and off for
   another; `Renderer.quality` (new) is the quality setting the frame is
   drawn at, which the context hands on.
+- **The renderer builds every pipeline through the descriptor forms**,
+  `createPipelineFrom` and `createComputePipelineFrom`, so a backend that
+  reads a descriptor field sees the engine's pipelines through it.
 - **A plugin's asset scheme is in its namespace.** Through a plugin's
   view, `ModelDecoders.addSource` takes the plugin's namespace with `-`
   for `_`, or that and `-<name>` (`acme-frost-pak`), and never one of

@@ -9,8 +9,12 @@
 /// compiles, it runs, and it renders wrong only for the scenes that use it.
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:web/web.dart' as web;
+
+import 'webgl_types.dart' show webglBackendName;
 
 /// The comparison function, as `gl.depthFunc` wants it.
 int compareFunctionToGl(CompareFunction f) => switch (f) {
@@ -35,13 +39,6 @@ int stencilOperationToGl(StencilOperation op) => switch (op) {
   StencilOperation.incrementWrap => web.WebGLRenderingContext.INCR_WRAP,
   StencilOperation.decrementWrap => web.WebGLRenderingContext.DECR_WRAP,
   _ => throw UnsupportedError('WebGL2 has no stencil operation for $op'),
-};
-
-/// Which face a `stencil*Separate` call addresses.
-int stencilFaceToGl(StencilFace face) => switch (face) {
-  StencilFace.both => web.WebGLRenderingContext.FRONT_AND_BACK,
-  StencilFace.front => web.WebGLRenderingContext.FRONT,
-  StencilFace.back => web.WebGLRenderingContext.BACK,
 };
 
 /// Which faces the rasteriser discards.
@@ -410,6 +407,12 @@ int addressModeToGl(SamplerAddressMode mode) => switch (mode) {
   SamplerAddressMode.clampToEdge => web.WebGLRenderingContext.CLAMP_TO_EDGE,
   SamplerAddressMode.repeat => web.WebGLRenderingContext.REPEAT,
   SamplerAddressMode.mirror => web.WebGLRenderingContext.MIRRORED_REPEAT,
+  // `webglGateSampler` refuses a border axis before a bind gets here.
+  SamplerAddressMode.clampToBorder => throw UnsupportedCapabilityException(
+    DeviceFeature.samplerBorderColor,
+    backend: webglBackendName,
+    reason: 'WebGL2 has no CLAMP_TO_BORDER',
+  ),
   _ => throw UnsupportedError('WebGL2 has no wrap mode for $mode'),
 };
 

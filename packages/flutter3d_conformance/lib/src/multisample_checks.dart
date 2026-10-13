@@ -34,7 +34,7 @@ import '../flutter3d_conformance.dart';
 /// cannot exist without coverage having been averaged.
 ///
 /// **Written to be run on a device by somebody who did not write it.** The
-/// software rasteriser answers false to `supportsOffscreenMsaa`, and this
+/// software rasteriser has no `offscreenMultisample`, and this
 /// [decline]s there rather than returning — a check that passes without running
 /// would tell a reader the software rasteriser resolves correctly, which is the
 /// opposite of true. The line the harness prints names the backend and what it
@@ -58,7 +58,7 @@ Future<void> checkMultisampleResolveResolves(GraphicsDevice device) async {
   if (!device.features.has(DeviceFeature.offscreenMultisample)) {
     decline(
       device,
-      'answers false to supportsOffscreenMsaa: it has no multisampled '
+      'has no offscreenMultisample: it has no multisampled '
       'offscreen target to resolve, so there is nothing here to ask it. A '
       'backend that answers true runs this check.',
     );
@@ -67,7 +67,7 @@ Future<void> checkMultisampleResolveResolves(GraphicsDevice device) async {
   if (samples < 2) {
     decline(
       device,
-      'answers true to supportsOffscreenMsaa and $samples to '
+      'lists offscreenMultisample and answers $samples to '
       'preferredSampleCount, so the only target it would build is '
       'single-sampled and no resolve would happen.',
     );
@@ -125,7 +125,11 @@ Future<void> checkMultisampleResolveResolves(GraphicsDevice device) async {
   pass
     ..setPrimitiveType(PrimitiveType.triangle)
     ..setCullMode(CullMode.none)
-    ..bindPipeline(device.createPipeline(vertex!, fragment!))
+    ..bindPipeline(
+      device.createPipelineFrom(
+        PipelineDescriptor(vertex: vertex!, fragment: fragment!),
+      ),
+    )
     ..bindUniformBlock(vertex, 'LineInfo', <String, Float32List>{
       'view_projection': Float32List.fromList(Matrix4.identity().storage),
     })

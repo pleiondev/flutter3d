@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **An axis clamped to the border is refused by `samplerBorderColor`**;
+  a border colour no axis uses is not refused.
 - **`texture1D` and `depthBiasClamp` are listed**, and a depth bias is
   checked through `DepthBias.checkFeatures`.
 - **Breaking: `WebGpuFramePresenter` is a `final class`.**

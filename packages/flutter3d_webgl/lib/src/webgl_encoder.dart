@@ -327,15 +327,18 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
 
   void _applyStencil() {
     if (_stencilFront == _stencilBack) {
-      _applyStencilFace(StencilFace.both, _stencilFront);
+      _applyStencilFace(
+        web.WebGLRenderingContext.FRONT_AND_BACK,
+        _stencilFront,
+      );
       return;
     }
-    _applyStencilFace(StencilFace.front, _stencilFront);
-    _applyStencilFace(StencilFace.back, _stencilBack);
+    _applyStencilFace(web.WebGLRenderingContext.FRONT, _stencilFront);
+    _applyStencilFace(web.WebGLRenderingContext.BACK, _stencilBack);
   }
 
-  void _applyStencilFace(StencilFace face, StencilState state) {
-    final target = stencilFaceToGl(face);
+  /// [target] is the face a `stencil*Separate` call addresses.
+  void _applyStencilFace(int target, StencilState state) {
     _gl.stencilFuncSeparate(
       target,
       compareFunctionToGl(state.compare),
@@ -1806,10 +1809,11 @@ void webglGateBlend(WebGlDevice device, BlendState? state) {
   state.checkFeatures(device.features, backend: webglBackendName);
 }
 
-/// The sampler features a bind names. A border colour is refused always.
+/// The sampler features a bind names. An axis clamped to the border is
+/// refused always; a border colour no axis uses is not a border.
 void webglGateSampler(WebGlDevice device, SamplerDescriptor? sampler) {
   if (sampler == null || !sampler.usesExtendedState) return;
-  if (sampler.borderColor != null) {
+  if (sampler.clampsToBorder) {
     // TODO(webgl): border colours — WebGL2 has no CLAMP_TO_BORDER (it is
     // OpenGL ES 3.2, and no WebGL extension exposes it).
     throw UnsupportedCapabilityException(

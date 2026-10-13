@@ -344,15 +344,24 @@ void main() {
     (v) => v.toEngine(),
   );
 
+  // `clampToBorder` has no flutter_gpu value: a bind refuses it by
+  // `samplerBorderColor` before a sampler is made, and the mapping says so.
+  final addressModes = <SamplerAddressMode>[
+    for (final mode in SamplerAddressMode.values)
+      if (mode != SamplerAddressMode.clampToBorder) mode,
+  ];
   checkForward(
     'SamplerAddressMode',
-    SamplerAddressMode.values,
+    addressModes,
     gpu.SamplerAddressMode.values,
     (v) => v.toGpu(),
   );
+  test('clampToBorder has no flutter_gpu address mode', () {
+    expect(SamplerAddressMode.clampToBorder.toGpu, throwsUnsupportedError);
+  });
   checkRoundTrip(
     'SamplerAddressMode',
-    SamplerAddressMode.values,
+    addressModes,
     gpu.SamplerAddressMode.values,
     (v) => v.toGpu(),
     (v) => v.toEngine(),
@@ -427,12 +436,6 @@ void main() {
     'StencilOperation',
     StencilOperation.values,
     gpu.StencilOperation.values,
-    (v) => v.toGpu(),
-  );
-  checkForward(
-    'StencilFace',
-    StencilFace.values,
-    gpu.StencilFace.values,
     (v) => v.toGpu(),
   );
 

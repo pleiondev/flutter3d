@@ -1,5 +1,39 @@
 ## 1.0.0-rc.1
 
+- **A pipeline is built from a descriptor.** `PipelineDescriptor` (`vertex`,
+  `fragment`, `layout`, `label`) and `ComputePipelineDescriptor` (`shader`,
+  `label`) are final classes, and `GraphicsDevice.createPipelineFrom`,
+  `createPipelineFromAsync`, `createComputePipelineFrom` and
+  `createComputePipelineFromAsync` take them, with default bodies over the
+  parameter forms, so a backend written before them builds the same
+  pipeline either way. A member a backend overrides cannot gain a parameter
+  within a major; every pipeline input after 1.0 lands as a descriptor
+  field. `RecordingDevice` records the descriptor forms, label included,
+  and the replay builds through them.
+- **Breaking: a border colour applies on `clampToBorder` axes only.**
+  `SamplerAddressMode.clampToBorder` is new; `SamplerDescriptor.borderColor`
+  is the colour those axes read (transparent black when null) and an axis
+  clamped to the edge ignores it. `checkFeatures` asks for
+  `samplerBorderColor` when an axis clamps to the border
+  (`clampsToBorder`), never for a colour no axis uses.
+  `effectiveBorderColor` is the colour a border axis reads.
+- **Breaking: `TraceColorTarget` and `TraceDepthTarget` are final classes**
+  where they were records, with `ColorTarget`'s and `DepthTarget`'s
+  defaults, and carry `layer`, and the depth target's `mipLevel`, `layer`,
+  `face`, `depthReadOnly` and `stencilReadOnly`. A record literal becomes a
+  constructor call. `TraceCreateTexture.spec` is a `TextureDescriptor`: a
+  texture of any shape is recorded with its dimension, layers, levels,
+  usage and label, and a pool's target still reads back as a
+  `RenderTargetDescriptor`. A trace without the new keys reads as it did.
+- **Breaking: `StencilFace` is gone.** No member of the HAL took it; which
+  face a stencil state is for is `PassEncoder.setStencil`'s two parameters.
+- **A pass over the attachment limit is a `DeviceResourceException`**
+  (operation `beginRenderPass`) from `checkAttachmentLimit`, where it was an
+  untyped `UnsupportedError`.
+- **`DeviceLossReason.byName`** reads a logged reason back.
+- **A pipeline-statistics set's stride is frozen**: the five counters, in
+  `PipelineStatistic.values` order, for all of 1.x; `createQuerySet`'s doc
+  names `pipelineStatisticsQuery`.
 - **A handle says its shape once.** `TextureHandle.type` and
   `sliceCount` are read from `dimension`, and `StorageBuffer.hostReadable`
   from `usage`; `wrapTexture(type:)` and `wrapStorageBuffer(hostReadable:)`

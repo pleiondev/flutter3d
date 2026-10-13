@@ -208,7 +208,11 @@ Future<ByteData> _run(
       key: _buffer(device, value),
   };
   final pass = device.beginComputePass(label: stage.name)
-    ..bindPipeline(device.createComputePipeline(stage));
+    ..bindPipeline(
+      device.createComputePipelineFrom(
+        ComputePipelineDescriptor(shader: stage),
+      ),
+    );
   for (final MapEntry(:key, :value) in made.entries) {
     require(
       pass.bindStorageBuffer(stage, key, value),
@@ -429,7 +433,11 @@ Future<void> checkKernelBlur(GraphicsDevice device) async {
     ),
   );
   final pass = device.beginComputePass(label: 'Blur')
-    ..bindPipeline(device.createComputePipeline(stage));
+    ..bindPipeline(
+      device.createComputePipelineFrom(
+        ComputePipelineDescriptor(shader: stage),
+      ),
+    );
   require(
     pass.bindTexture(stage, 'source', source),
     'the kernel "Blur" declares the texture "source", and binding it '

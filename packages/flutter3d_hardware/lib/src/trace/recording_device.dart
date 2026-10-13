@@ -26,8 +26,8 @@ import '../formats.dart';
 import '../geometry_buffer.dart';
 import '../gpu_timings.dart';
 import '../graphics_device.dart';
+import '../pipeline_descriptor.dart';
 import '../pipeline_refusal.dart';
-import '../render_target_pool.dart';
 import '../resources.dart';
 import '../sampler.dart';
 import '../shader.dart';
@@ -224,6 +224,44 @@ final class RecordingDevice extends GraphicsDevice
     return pipeline;
   }
 
+  /// The inner device's own, so a backend that reads a descriptor field
+  /// [createPipeline] has no room for still sees it under the recorder;
+  /// written into the trace as [createPipeline] writes it, with the label
+  /// as a `TraceSetLabel` after it.
+  @override
+  PipelineHandle createPipelineFrom(PipelineDescriptor descriptor) =>
+      _recordPipeline(descriptor, inner.createPipelineFrom(descriptor));
+
+  /// [createPipelineFrom], recorded when the inner device's link completes.
+  @override
+  Future<PipelineHandle> createPipelineFromAsync(
+    PipelineDescriptor descriptor,
+  ) async => _recordPipeline(
+    descriptor,
+    await inner.createPipelineFromAsync(descriptor),
+  );
+
+  PipelineHandle _recordPipeline(
+    PipelineDescriptor descriptor,
+    PipelineHandle pipeline,
+  ) {
+    final id = _name(_pipelineIds, pipeline);
+    events.add(
+      TraceCreatePipeline(
+        id: id,
+        vertex: descriptor.vertex.name,
+        fragment: descriptor.fragment.name,
+        layout: descriptor.layout,
+      ),
+    );
+    if (descriptor.label case final label?) {
+      events.add(
+        TraceSetLabel(resource: TraceLabeled.pipeline, id: id, label: label),
+      );
+    }
+    return pipeline;
+  }
+
   @override
   GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage) {
     final buffer = inner.uploadGeometry(bytes, usage);
@@ -260,16 +298,12 @@ final class RecordingDevice extends GraphicsDevice
     inner.releaseGeometry(geometry);
   }
 
-  /// A [RenderTargetDescriptor] is recorded; any other shape goes through
-  /// unrecorded, as it did when it had a call of its own.
+  /// Recorded with its whole descriptor, whatever its shape: a pool's
+  /// target, an array, a volume, a chain or a storage texture.
   @override
   TextureHandle createTexture(TextureDescriptor descriptor) {
     final texture = inner.createTexture(descriptor);
-    if (descriptor is RenderTargetDescriptor) {
-      events.add(TraceCreateTexture(id: _texture(texture), spec: descriptor));
-    } else {
-      _unrecorded('createTexture');
-    }
+    events.add(TraceCreateTexture(id: _texture(texture), spec: descriptor));
     return texture;
   }
 
@@ -392,18 +426,11 @@ final class RecordingDevice extends GraphicsDevice
   @override
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor) {
     final pass = _nextPass++;
-    // The trace's pass carries face and level but none of the 1.0 fields:
-    // a multiview pass recorded as one view would replay as a single-view
-    // pass with nothing saying so.
-    final depth = descriptor.depth;
+    // The trace's pass carries every attachment field; what it does not
+    // carry is a view mask and the queries, which name resources a trace
+    // never creates. A multiview pass recorded as one view would replay as
+    // a single-view pass with nothing saying so.
     if (descriptor.viewMask != null ||
-        descriptor.colors.any((ColorTarget c) => c.layer != 0) ||
-        depth != null &&
-            (depth.layer != 0 ||
-                depth.face != 0 ||
-                depth.mipLevel != 0 ||
-                depth.depthReadOnly ||
-                depth.stencilReadOnly) ||
         descriptor.occlusionQuerySet != null ||
         descriptor.timestampWrites != null) {
       _unrecorded('beginRenderPass descriptor fields');
@@ -414,7 +441,7 @@ final class RecordingDevice extends GraphicsDevice
         label: descriptor.label,
         colors: <TraceColorTarget>[
           for (final c in descriptor.colors)
-            (
+            TraceColorTarget(
               texture: _texture(c.texture),
               resolveTexture: c.resolveTexture == null
                   ? null
@@ -424,11 +451,12 @@ final class RecordingDevice extends GraphicsDevice
               clearValue: c.clearValue?.clone(),
               face: c.face,
               mipLevel: c.mipLevel,
+              layer: c.layer,
             ),
         ],
         depth: switch (descriptor.depth) {
           null => null,
-          final d => (
+          final d => TraceDepthTarget(
             texture: _texture(d.texture),
             clearValue: d.clearValue,
             loadAction: d.loadAction,
@@ -436,6 +464,11 @@ final class RecordingDevice extends GraphicsDevice
             stencilLoadAction: d.stencilLoadAction,
             stencilStoreAction: d.stencilStoreAction,
             stencilClearValue: d.stencilClearValue,
+            mipLevel: d.mipLevel,
+            layer: d.layer,
+            face: d.face,
+            depthReadOnly: d.depthReadOnly,
+            stencilReadOnly: d.stencilReadOnly,
           ),
         },
       ),
@@ -485,6 +518,40 @@ final class RecordingDevice extends GraphicsDevice
         shader.name,
       ),
     );
+    return pipeline;
+  }
+
+  /// The inner device's own, recorded as [createComputePipeline] is. A
+  /// trace names no compute pipeline's label, so a label is passed on and
+  /// listed in [unrecorded].
+  @override
+  ComputePipelineHandle createComputePipelineFrom(
+    ComputePipelineDescriptor descriptor,
+  ) => _recordComputePipeline(
+    descriptor,
+    inner.createComputePipelineFrom(descriptor),
+  );
+
+  /// [createComputePipelineFrom], recorded when it completes.
+  @override
+  Future<ComputePipelineHandle> createComputePipelineFromAsync(
+    ComputePipelineDescriptor descriptor,
+  ) async => _recordComputePipeline(
+    descriptor,
+    await inner.createComputePipelineFromAsync(descriptor),
+  );
+
+  ComputePipelineHandle _recordComputePipeline(
+    ComputePipelineDescriptor descriptor,
+    ComputePipelineHandle pipeline,
+  ) {
+    events.add(
+      TraceCreateComputePipeline(
+        _name(_computePipelineIds, pipeline),
+        descriptor.shader.name,
+      ),
+    );
+    if (descriptor.label != null) _unrecorded('setLabel');
     return pipeline;
   }
 

@@ -16,7 +16,9 @@ extension _PostPasses on Renderer {
     void Function(PipelineHandle) store,
   ) {
     if (cached != null) return cached;
-    final pipeline = device.createPipeline(_fullscreenVertexShader, fragment);
+    final pipeline = device.createPipelineFrom(
+      PipelineDescriptor(vertex: _fullscreenVertexShader, fragment: fragment),
+    );
     store(pipeline);
     return pipeline;
   }

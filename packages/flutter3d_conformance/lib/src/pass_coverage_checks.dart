@@ -57,7 +57,11 @@ Future<void> checkPassCoversItsAttachment(GraphicsDevice device) async {
   pass
     ..setPrimitiveType(PrimitiveType.triangle)
     ..setCullMode(CullMode.none)
-    ..bindPipeline(device.createPipeline(vertex!, fragment!))
+    ..bindPipeline(
+      device.createPipelineFrom(
+        PipelineDescriptor(vertex: vertex!, fragment: fragment!),
+      ),
+    )
     ..bindUniformBlock(vertex, 'LineInfo', <String, Float32List>{
       'view_projection': Float32List.fromList(Matrix4.identity().storage),
     })
@@ -140,7 +144,11 @@ Future<void> checkReadbackOfRegion(GraphicsDevice device) async {
   pass
     ..setPrimitiveType(PrimitiveType.triangle)
     ..setCullMode(CullMode.none)
-    ..bindPipeline(device.createPipeline(vertex!, fragment!))
+    ..bindPipeline(
+      device.createPipelineFrom(
+        PipelineDescriptor(vertex: vertex!, fragment: fragment!),
+      ),
+    )
     ..bindUniformBlock(vertex, 'LineInfo', <String, Float32List>{
       'view_projection': Float32List.fromList(Matrix4.identity().storage),
     })
@@ -242,7 +250,11 @@ Future<void> checkPassDoesNotInheritScissor(GraphicsDevice device) async {
     // whole question: what does a pass that says nothing about clipping get?
     if (clippedTo != null) pass.setScissor(clippedTo);
     pass
-      ..bindPipeline(device.createPipeline(vertex!, fragment!))
+      ..bindPipeline(
+        device.createPipelineFrom(
+          PipelineDescriptor(vertex: vertex!, fragment: fragment!),
+        ),
+      )
       ..bindUniformBlock(vertex, 'LineInfo', <String, Float32List>{
         'view_projection': Float32List.fromList(Matrix4.identity().storage),
       })
