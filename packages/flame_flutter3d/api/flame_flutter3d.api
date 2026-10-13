@@ -711,4 +711,4 @@ bool shownInFlame(HasVisibility component)
 
 library package:flame_flutter3d/testing.dart
 
-void Function() openSharedDevicesWith(Future<GraphicsDevice> Function({required int width, required int height}) open)
+void Function() overrideSharedDeviceOpener(Future<GraphicsDevice> Function({required int width, required int height}) open)

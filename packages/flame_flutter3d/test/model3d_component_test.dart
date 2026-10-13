@@ -107,7 +107,7 @@ void main() {
       // keep the first device for ever.
       var opened = 0;
       addTearDown(
-        openSharedDevicesWith(({
+        overrideSharedDeviceOpener(({
           required int width,
           required int height,
         }) async {

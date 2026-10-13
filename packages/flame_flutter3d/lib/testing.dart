@@ -13,7 +13,7 @@ import 'src/embed/shared_device.dart';
 /// Opens the device each game's `Model3dComponent`s share with [open]
 /// rather than `flutter3d_app`'s `openDevice`, until the function returned
 /// is called, which puts back the opener there was before.
-void Function() openSharedDevicesWith(
+void Function() overrideSharedDeviceOpener(
   Future<GraphicsDevice> Function({required int width, required int height})
   open,
 ) {

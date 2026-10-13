@@ -2,7 +2,7 @@
 
 - **Breaking: `Model3dComponent.openSharedDevice` is gone from the main
   library.** A game had a global it could change; a test opens the shared
-  device another way with `openSharedDevicesWith` from the new
+  device another way with `overrideSharedDeviceOpener` from the new
   `package:flame_flutter3d/testing.dart`, which returns the function that
   puts the opener back.
 - **Breaking: the world helpers' callbacks take one object each.**
