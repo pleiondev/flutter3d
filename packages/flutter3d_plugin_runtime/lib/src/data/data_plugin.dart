@@ -389,6 +389,15 @@ final class DataPluginDocument {
     final problem = manifest.idProblem;
     if (problem != null) throw DataPluginFormatException(problem);
     final id = manifest.id;
+    // A document says what it likes about itself; the engine's rights go
+    // to the code the engine ships, never to a file.
+    if (manifest.isEngine) {
+      throw DataPluginFormatException(
+        'the document names its plugin "$id", in the engine\'s own namespace '
+        '"${manifest.namespace}"; a data plugin names itself after its '
+        'package and is never the engine\'s',
+      );
+    }
 
     List<Map<String, Object?>> entries(String key) => switch (json[key]) {
       null => const <Map<String, Object?>>[],

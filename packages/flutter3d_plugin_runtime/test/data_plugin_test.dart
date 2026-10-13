@@ -380,6 +380,30 @@ void main() {
         throwsA(isA<DataPluginFormatException>()),
       );
     });
+
+    test('a data plugin is never the engine\'s, whatever id it says', () {
+      // A `.f3dplugin` from a mod folder says what it likes about itself.
+      // Mutation: check only `idProblem` — a document that says
+      // `flutter3d_post.glow` installs with the engine's rights.
+      for (final id in <String>['flutter3d_post.glow', 'flutter3d_core']) {
+        expect(
+          () => DataPluginDocument.parse(
+            _document(
+              const <String, Object?>{},
+              manifest: <String, Object?>{'id': id},
+            ),
+          ),
+          throwsA(
+            isA<DataPluginFormatException>().having(
+              (e) => e.message,
+              'message',
+              contains('"$id"'),
+            ),
+          ),
+          reason: id,
+        );
+      }
+    });
   });
 
   group('permissions', () {

@@ -551,13 +551,24 @@ final class _RuntimeScope extends PluginScope {
 /// The module is decoded here, so bytes that are not ABI 1 are refused with
 /// [WasmException] before the plugin reaches an engine. `install` declares
 /// each event as `<id>.<event>` and installs the system.
+///
+/// A module is never the engine's: a [manifest] in one of the engine's
+/// namespaces is refused with a [PluginException].
 final class WasmPlugin extends Flutter3dPlugin {
   WasmPlugin({
     required this.manifest,
     required this.spec,
     required Uint8List bytes,
     this.runtime = WasmRuntime.interpreter,
-  }) : module = WasmModule.decode(bytes);
+  }) : module = WasmModule.decode(bytes) {
+    if (manifest.isEngine) {
+      throw PluginException(
+        'the Wasm plugin "${manifest.id}" is in the engine\'s own namespace '
+        '"${manifest.namespace}"; a module names itself after its package '
+        'and is never the engine\'s',
+      );
+    }
+  }
 
   @override
   final PluginManifest manifest;

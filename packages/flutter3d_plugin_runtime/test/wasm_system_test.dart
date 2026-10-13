@@ -79,22 +79,21 @@ final class _Unmetered extends WasmRuntime {
       WasmRuntime.interpreter.instantiate(request);
 }
 
-WasmPlugin _onRuntime(WasmRuntime runtime, PluginTouches touches) =>
-    WasmPlugin(
-      manifest: PluginManifest(
-        id: 'breeze',
-        apiVersion: PluginApiVersion.current,
-        touches: touches,
-      ),
-      spec: const WasmSystemSpec(
-        module: 'breeze.wasm',
-        system: 'blow',
-        phase: 'elements',
-        fields: <WasmFieldSpec>[WasmFieldSpec('heat')],
-      ),
-      bytes: _breeze(),
-      runtime: runtime,
-    );
+WasmPlugin _onRuntime(WasmRuntime runtime, PluginTouches touches) => WasmPlugin(
+  manifest: PluginManifest(
+    id: 'breeze',
+    apiVersion: PluginApiVersion.current,
+    touches: touches,
+  ),
+  spec: const WasmSystemSpec(
+    module: 'breeze.wasm',
+    system: 'blow',
+    phase: 'elements',
+    fields: <WasmFieldSpec>[WasmFieldSpec('heat')],
+  ),
+  bytes: _breeze(),
+  runtime: runtime,
+);
 
 void main() {
   late Float64List heat;
@@ -127,6 +126,32 @@ void main() {
     expect(seen.map((e) => e.name), <String>['breeze.gust', 'breeze.gust']);
     expect(seen.last.values, <int>[Fixed16.fromDouble(2.5), 1]);
     expect(plugin.system!.trapped, isNull);
+  });
+
+  test('a Wasm plugin is never the engine\'s, whatever id it says', () {
+    // Mutation: take the manifest as given — a module that says
+    // `flutter3d_post.glow` installs with the engine's rights.
+    expect(
+      () => WasmPlugin(
+        manifest: const PluginManifest(
+          id: 'flutter3d_post.glow',
+          apiVersion: PluginApiVersion.current,
+        ),
+        spec: const WasmSystemSpec(
+          module: 'glow.wasm',
+          system: 'blow',
+          phase: 'elements',
+        ),
+        bytes: _breeze(),
+      ),
+      throwsA(
+        isA<PluginException>().having(
+          (e) => e.message,
+          'message',
+          contains('"flutter3d_post.glow"'),
+        ),
+      ),
+    );
   });
 
   test('a write to a field declared read-only traps once and stays off', () {
