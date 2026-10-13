@@ -16,7 +16,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
-import 'package:flutter3d_core/formats.dart' show GlbContainer, GlbModelWriter;
+import 'package:flutter3d_core/formats.dart'
+    show GlbContainer, GlbModelWriter, ModelWriteContext;
 import 'package:flutter3d_models/src/convert/exporter.dart';
 import 'package:flutter3d_models/src/convert/gltf_files.dart';
 import 'package:flutter3d_models/src/convert/zip_guard.dart';
@@ -125,7 +126,12 @@ class _Harness {
 }
 
 Future<Uint8List> _glbOfTriangle() async => const GlbModelWriter()
-    .write(await decodeStoredModel(_triangle, 'tri.obj'), baseName: 'tri')
+    .write(
+      ModelWriteContext(
+        document: await decodeStoredModel(_triangle, 'tri.obj'),
+        baseName: 'tri',
+      ),
+    )
     .files
     .single
     .bytes;

@@ -49,6 +49,8 @@ dev_dependencies:
 # that version yet: the lab library's simulation, and what that stands on.
 # Plain Dart all of it, so the service still resolves with no Flutter SDK.
 dependency_overrides:
+  flutter3d_fields:
+    path: ../../../packages/flutter3d_fields
   flutter3d_foundation:
     path: ../../../packages/flutter3d_foundation
   flutter3d_matter:

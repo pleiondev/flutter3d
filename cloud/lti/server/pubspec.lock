@@ -112,6 +112,13 @@ packages:
       relative: true
     source: path
     version: "1.0.0-rc.1"
+  flutter3d_fields:
+    dependency: "direct overridden"
+    description:
+      path: "../../../packages/flutter3d_fields"
+      relative: true
+    source: path
+    version: "1.0.0-rc.1"
   flutter3d_foundation:
     dependency: "direct overridden"
     description:
