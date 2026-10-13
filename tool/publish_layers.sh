@@ -60,8 +60,9 @@ while [ $# -gt 0 ]; do
 done
 
 # "L<n> pkg pkg ..." per line, read from the numbered list. Continuation lines
-# belong to the step above them; the list ends at the first blank line. The
-# step without an `L<n>:` (the packages that are never published) is left out.
+# belong to the step above them; the list ends at the first blank line. Step
+# <n> is layer L<n-1>; the step of the packages that are never published is
+# left out.
 LAYERS="$(awk '
   /\*\*The order, used on the day\*\*/ { inside = 1; next }
   !inside { next }
@@ -69,15 +70,13 @@ LAYERS="$(awk '
   listing && /^[[:space:]]*$/ { exit }
   !listing { next }
   {
-    if (match($0, /L[0-9]+:/)) {
+    if (match($0, /^[[:space:]]*[0-9]+\./)) {
       if (layer != "") print layer line
-      layer = substr($0, RSTART, RLENGTH - 1)
       line = ""
-    } else if ($0 ~ /^[[:space:]]*[0-9]+\./) {
-      if (layer != "") print layer line
-      layer = ""
-      line = ""
-      next
+      if ($0 ~ /Not published/) { layer = ""; next }
+      step = substr($0, RSTART, RLENGTH)
+      gsub(/[^0-9]/, "", step)
+      layer = "L" (step - 1)
     }
     if (layer == "") next
     rest = $0
