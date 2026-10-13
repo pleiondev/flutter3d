@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **`RenderStepContext` is exported**, what a render step's `isOn` and
+  `switchOff` are handed: the settings, and the frame's views, device and
+  quality.
 - **A live level's and an actor's animation callbacks take one object
   each.** `LiveLevel.present` takes a `LevelPresent` (the next level and
   the diff), `LiveLevel.swapped` a `LevelSwapped` (the level and the step)

@@ -337,6 +337,12 @@ language is described in
 [the material language](https://flutter3d.pleion.dev/reference/material-language/),
 and what a lit model of a plugin's own may declare is in
 [the plugin API](../flutter3d_plugin_api/API.md#custom-materials-and-lit-models).
+A `compute` stage of the language is a texture computed texel by texel:
+`lowerMaterialCompute(program)` writes it in the kernel language
+(`MaterialComputeKernel`: `kernel`, `load(device)`, `bake(width, height)`,
+`parameterBytes`), which runs wherever a device computes. Impeller and
+WebGL2 refuse it naming `DeviceFeature.compute`; there `bake` computes the
+texture on the CPU at load.
 
 ```dart
 const ParameterKey<LinearColor> tint = ParameterKey<LinearColor>(

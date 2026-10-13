@@ -534,6 +534,51 @@ void main() {
       return it;
     }
 
+    test('its switch is asked about the frame, not only the settings', () {
+      // Mutation: hand the switch the settings alone, and a step cannot be
+      // on for the device and quality it is drawn at and off elsewhere.
+      final asked = <RenderStepContext>[];
+      final eyes = RenderStep(
+        'eyes',
+        switchOff: (context) => context.settings,
+        isOn: (context) {
+          asked.add(context);
+          return context.quality?.tier == 1;
+        },
+      );
+      final it = _stage();
+      it.renderer
+        ..quality = const QualitySetting(renderScale: 1, tier: 1)
+        ..renderSteps.addStep(eyes)
+        ..renderSteps.addNode(
+          _hdr('eyes'),
+          at: RenderAnchor.afterBloom,
+          step: eyes,
+        );
+      it.renderer.render(
+        width: _size,
+        height: _size,
+        scene: it.scene,
+        views: it.views,
+      );
+      expect(asked, isNotEmpty);
+      expect(asked.last.device, same(it.renderer.device));
+      expect(asked.last.views, hasLength(1));
+      expect(asked.last.quality!.tier, 1);
+      expect(_ran(it), contains('eyes'));
+
+      // Outside a frame only the settings are known, and a plan has no
+      // views to give.
+      expect(_plan(it, const RenderSettings()).order, isNotEmpty);
+      expect(asked.last.views, isEmpty);
+      expect(
+        eyes.isOn(const RenderStepContext(settings: RenderSettings())),
+        isFalse,
+      );
+      it.renderer.quality = null;
+      expect(_ran(it), isNot(contains('eyes')));
+    });
+
     test('runs while on, and is switched by without', () {
       final it = staged();
       expect(_ran(it), containsAll(<String>['glow', 'grade']));

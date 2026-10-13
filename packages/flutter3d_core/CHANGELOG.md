@@ -1,5 +1,24 @@
 ## 1.0.0-rc.1
 
+- **A material's `compute` stage runs wherever a device computes.**
+  `lowerMaterialCompute` (new) writes it in the kernel language as a
+  `MaterialComputeKernel` (new: `kernel`, `load(device)`, `bake(width,
+  height)`, `parameterBytes`, `groupsX`, `groupsY`), its uniforms in the
+  `f32` buffer `materialComputeParameters` (new) and its texels in the
+  image `materialComputeTarget` (new). The build and `RuntimeShaders`
+  carry it in a bundle's kernel section for WebGPU, the wgpu sidecar and
+  the software backend; Impeller and WebGL2 refuse it with an
+  `UnsupportedCapabilityException` naming `DeviceFeature.compute`, and
+  `bake` computes the texture on the CPU at load instead.
+- **`MaterialProgram.workgroupSize` is a `WorkgroupSize`**, three numbers
+  where it was a record of two: `workgroup x y z` reads a depth, and a
+  missing one is one.
+- **A render step's switch is asked about the frame.** `RenderStep.isOn`
+  and a step's own `isOn` and `switchOff` take one `RenderStepContext`
+  (new: `settings`, `views`, `device`, `quality`) where they took the
+  settings, so a step can be on for one device or quality and off for
+  another; `Renderer.quality` (new) is the quality setting the frame is
+  drawn at, which the context hands on.
 - **A plugin's asset scheme is in its namespace.** Through a plugin's
   view, `ModelDecoders.addSource` takes the plugin's namespace with `-`
   for `_`, or that and `-<name>` (`acme-frost-pak`), and never one of

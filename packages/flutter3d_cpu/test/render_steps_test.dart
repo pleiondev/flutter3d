@@ -334,7 +334,11 @@ void main() {
         'spatial upscale',
       });
       for (final step in RenderStep.values) {
-        expect(step.isOn(_everything), isTrue, reason: step.name);
+        expect(
+          step.isOn(RenderStepContext(settings: _everything)),
+          isTrue,
+          reason: step.name,
+        );
       }
     });
   });
@@ -444,10 +448,18 @@ void main() {
       // Mutation: `only` without `withPrerequisites` switches the bloom off
       // under the flare, and the flare with it.
       final settings = _everything.only(<RenderStep>{RenderStep.lensFlare});
-      expect(RenderStep.lensFlare.isOn(settings), isTrue);
-      expect(RenderStep.bloom.isOn(settings), isTrue);
       expect(
-        RenderStep.values.where((s) => s.isOn(settings)).toSet(),
+        RenderStep.lensFlare.isOn(RenderStepContext(settings: settings)),
+        isTrue,
+      );
+      expect(
+        RenderStep.bloom.isOn(RenderStepContext(settings: settings)),
+        isTrue,
+      );
+      expect(
+        RenderStep.values
+            .where((s) => s.isOn(RenderStepContext(settings: settings)))
+            .toSet(),
         <RenderStep>{RenderStep.lensFlare, RenderStep.bloom},
       );
       final it = _stage();

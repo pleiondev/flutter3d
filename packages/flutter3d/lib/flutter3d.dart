@@ -404,6 +404,7 @@ export 'package:flutter3d_core/flutter3d_core.dart'
         RenderServices,
         RenderSettings,
         RenderStep,
+        RenderStepContext,
         RenderView,
         RenderViewSettings,
         Renderer,

@@ -25,10 +25,51 @@
 /// with.
 library;
 
+import 'package:flutter3d_hardware/flutter3d_hardware.dart' show GraphicsDevice;
+
 import '../scene/occlusion/occlusion_test.dart';
 import 'frame_graph.dart' show PassSkip, SkippedPass;
 import 'frame_plan.dart' show FramePassNames;
+import 'frame_view.dart';
+import 'quality_table.dart' show QualitySetting;
 import 'render_settings.dart';
+
+/// What a [RenderStep]'s switch is asked with: the settings, and inside a
+/// frame the views, the device and the quality it is drawn at.
+///
+/// **One context that can grow**, never a list of parameters that does: a
+/// step's `isOn` and `switchOff` take this, so a later minor adds a member
+/// here and a step written against 1.0 keeps compiling. A switch that reads
+/// more than its settings is an effect on for the frame's main camera and
+/// off for a stereo pair, or off on a device without a feature it needs,
+/// or off below a quality tier.
+///
+/// Outside a frame — [RenderSettings.without] and [RenderSettings.only]
+/// switching a step — only [settings] is known: [views] is empty, and
+/// [device] and [quality] are null.
+final class RenderStepContext {
+  /// The question about [settings], and what of the frame is known.
+  const RenderStepContext({
+    required this.settings,
+    this.views = const <FrameView>[],
+    this.device,
+    this.quality,
+  });
+
+  /// The settings the step is switched in.
+  final RenderSettings settings;
+
+  /// The views the frame draws (`FrameContext.views`); empty outside a
+  /// frame.
+  final List<FrameView> views;
+
+  /// The device the frame is drawn on; null outside a frame.
+  final GraphicsDevice? device;
+
+  /// The quality setting the frame is drawn at, which `Renderer.quality`
+  /// holds where an `AdaptiveQuality` chose it; null where nobody said.
+  final QualitySetting? quality;
+}
 
 /// One step of the frame that can be switched off — the passes before the
 /// scene, the scene's own extras, and the post chain.
@@ -84,12 +125,14 @@ import 'render_settings.dart';
 final class RenderStep {
   const RenderStep._(
     this.name,
-    this._off,
-    this._isOn, {
+    this._settingsOff,
+    this._settingsOn, {
     this.passes = const <String>{},
     this.passPrefix,
     this.needs = const <RenderStep>{},
-  }) : _builtIn = true;
+  }) : _off = null,
+       _isOn = null,
+       _builtIn = true;
 
   /// A step of a plugin's, or an application's — see "A step of one's own"
   /// above.
@@ -100,20 +143,23 @@ final class RenderStep {
   /// node registered with `RendererSteps.addNode(…, step: this)` is owned
   /// whether or not it is listed. [needs] are the steps it cannot run
   /// without, built in or added. Give both [switchOff] and [isOn], or
-  /// neither.
+  /// neither: each is handed a [RenderStepContext], whose
+  /// [RenderStepContext.settings] it reads and [switchOff] returns changed.
   const RenderStep(
     this.name, {
     this.passes = const <String>{},
     this.passPrefix,
     this.needs = const <RenderStep>{},
-    RenderSettings Function(RenderSettings settings)? switchOff,
-    bool Function(RenderSettings settings)? isOn,
+    RenderSettings Function(RenderStepContext context)? switchOff,
+    bool Function(RenderStepContext context)? isOn,
   }) : assert(
          (switchOff == null) == (isOn == null),
          'a step with a setting of its own gives both switchOff and isOn',
        ),
        _off = switchOff,
        _isOn = isOn,
+       _settingsOff = null,
+       _settingsOn = null,
        _builtIn = false;
 
   /// What the step is called in `FrameResult.skipped` when it is off.
@@ -136,22 +182,29 @@ final class RenderStep {
   /// this one off too.
   final Set<RenderStep> needs;
 
-  final RenderSettings Function(RenderSettings)? _off;
-  final bool Function(RenderSettings)? _isOn;
+  final RenderSettings Function(RenderStepContext)? _off;
+  final bool Function(RenderStepContext)? _isOn;
+
+  // A built-in step's switch, which is about its settings alone.
+  final RenderSettings Function(RenderSettings)? _settingsOff;
+  final bool Function(RenderSettings)? _settingsOn;
   final bool _builtIn;
 
   /// Whether this is one of the engine's own steps, in [values], rather than
   /// one a plugin or an application defined.
   bool get isBuiltIn => _builtIn;
 
-  RenderSettings _switchOff(RenderSettings settings) => switch (_off) {
-    final off? => off(settings),
-    null => settings.copyWith(
-      stepsOff: <RenderStep>{...settings.stepsOff, this},
-    ),
-  };
+  RenderSettings _switchOff(RenderStepContext context) =>
+      switch ((_settingsOff, _off)) {
+        (final off?, _) => off(context.settings),
+        (_, final off?) => off(context),
+        _ => context.settings.copyWith(
+          stepsOff: <RenderStep>{...context.settings.stepsOff, this},
+        ),
+      };
 
-  /// Whether this step's own switch is on in [settings].
+  /// Whether this step's own switch is on in [context]: in its settings,
+  /// and for an added step's own switch whatever else of the frame it reads.
   ///
   /// About the switch alone. A step whose switch is on may still draw
   /// nothing — reflection probes with no probe in the scene, light shafts
@@ -159,12 +212,13 @@ final class RenderStep {
   ///
   /// An added step is on only while every step it [needs] is on as well; a
   /// built-in step's own switch already says so.
-  bool isOn(RenderSettings settings) {
-    final own = switch (_isOn) {
-      final on? => on(settings),
-      null => !settings.stepsOff.contains(this),
+  bool isOn(RenderStepContext context) {
+    final own = switch ((_settingsOn, _isOn)) {
+      (final on?, _) => on(context.settings),
+      (_, final on?) => on(context),
+      _ => !context.settings.stepsOff.contains(this),
     };
-    return _builtIn ? own : own && needs.every((need) => need.isOn(settings));
+    return _builtIn ? own : own && needs.every((need) => need.isOn(context));
   }
 
   /// Whether the pass called [pass] is one of this step's.
@@ -574,14 +628,14 @@ abstract final class RenderStepInternals {
   /// keep. An added step with no setting is switched by that set, so for it
   /// this adds the step to it.
   static RenderSettings switchOff(RenderStep step, RenderSettings settings) =>
-      step._switchOff(settings);
+      step._switchOff(RenderStepContext(settings: settings));
 
   /// The steps in [RenderSettings.stepsOff] whose own switch is still off —
   /// what [settings] reports as switched off.
   static Set<RenderStep> switchedOffSteps(RenderSettings settings) =>
       <RenderStep>{
         for (final step in settings.stepsOff)
-          if (!step.isOn(settings)) step,
+          if (!step.isOn(RenderStepContext(settings: settings))) step,
       };
 
   /// [steps] and every step that needs one of them, transitively — what

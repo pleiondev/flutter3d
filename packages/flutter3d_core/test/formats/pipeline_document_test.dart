@@ -117,7 +117,10 @@ void main() {
     expect(steps.nodesAt(anchor), <String>['acme_glow.streak']);
 
     final settings = steps.settingsFor(_glow, const RenderSettings());
-    expect(RenderStep.bloom.isOn(settings), isFalse);
+    expect(
+      RenderStep.bloom.isOn(RenderStepContext(settings: settings)),
+      isFalse,
+    );
 
     final described = it.renderer.describePipeline(
       scene: it.scene,

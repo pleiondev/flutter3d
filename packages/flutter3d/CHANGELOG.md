@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **`RenderStepContext` is exported**, what a render step's `isOn` and
+  `switchOff` are handed: the settings, and the frame's views, device and
+  quality.
 - **Breaking: `ModelWardrobe.onDressed` takes a `ModelDressed`** (new: the
   instance and the key), where it took the two as parameters. `migrate`
   wraps an old function.
