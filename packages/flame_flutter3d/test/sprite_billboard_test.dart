@@ -138,6 +138,7 @@ void main() {
         scene: game.scene,
         plane: BridgePlane.ground(),
         position: Vector2(3.0, 0.0),
+        castsShadow: false,
       );
       flash = SpriteBillboardComponent(
         animation: SpriteAnimation.fromFrameData(
@@ -164,6 +165,9 @@ void main() {
     expect(cardOf(reed).material, same(cardOf(other).material));
     expect(cardOf(reed).mesh, same(cardOf(other).mesh));
     expect(cardOf(flash).material, same(cardOf(reed).material));
+    // A card casts unless told not to. Mutation: leave the card's default.
+    expect(cardOf(reed).castsShadow, isTrue);
+    expect(cardOf(other).castsShadow, isFalse);
 
     for (var i = 0; i < 4; i++) {
       game.update(0.1);
