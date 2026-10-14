@@ -50,6 +50,7 @@ base class SpriteBillboardComponent extends Object3dComponent {
     this.faces,
     this.removeOnFinish = false,
     this.smooth = false,
+    this.castsShadow = true,
     super.position,
     super.elevation,
     super.priority,
@@ -84,6 +85,14 @@ base class SpriteBillboardComponent extends Object3dComponent {
   /// lettering, from `BillboardAtlas.spriteOfText`, and anything not pixel
   /// art.
   final bool smooth;
+
+  /// Whether the card is drawn into the shadow maps.
+  ///
+  /// Each card is a draw of its own into every cascade it reaches, where the
+  /// colour pass draws the cards of a kind as one: a bank of a hundred reeds
+  /// was most of a river's shadow pass for shadows a few pixels across, and
+  /// a card that turns to the camera casts a shadow that turns with it.
+  final bool castsShadow;
 
   Sprite? _sprite;
 
@@ -127,7 +136,8 @@ base class SpriteBillboardComponent extends Object3dComponent {
     );
     if (material == null) return;
     _showing = currentSprite;
-    final card = _card = MeshNode(_atlas.cardOf(currentSprite), material);
+    final card = _card = MeshNode(_atlas.cardOf(currentSprite), material)
+      ..castsShadow = castsShadow;
     visual.add(card);
     _showFrame();
   }

@@ -13,9 +13,20 @@
   executors; `Elements.open`, `adopt` and `over` take others (`compute`)
   for a test. On WebGPU a river's main-thread script fell from
   about 15 ms a frame to about 11.
+- **`LiquidView.inSight`: a liquid out of the picture is stepped and not
+  drawn.** While it is false, `update` leaves the surface, the sheet and
+  the spray as they were last drawn; the first `update` after it is true
+  again redraws all of it. A game that keeps water just past the edges of
+  its picture no longer rewrites and uploads it every frame. Additive:
+  nothing that worked against 1.0.0-rc.1 changes.
+- **Drawing a liquid writes and sends less.** The surface rewrites only
+  what moves (height, normal, depth, flow, froth), the froth is not worked
+  out at all with no bubbles in the water, the falling sheet clears and
+  sends only as far as this frame or the last drew it rather than all of
+  its capacity, and a bubble cloud's size settles without building a
+  matrix per try. What is drawn is the same, vertex for vertex.
 
 ## 1.0.0-rc.1
-
 - **Breaking: the effects' colours are `LinearColor`s.** `Elements.sun`'s
   and `LiquidLook.sun`'s `light`, `SeabedLook.sun`'s, `sky`'s `zenith` and
   `horizon`, `LiquidLook.glow` and `Liquid.glow`. The generated

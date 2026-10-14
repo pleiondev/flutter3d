@@ -4,6 +4,11 @@
   `Flutter3dFlameWidget` sets the renderer's `RendererSteps.computeExecutors`
   from the registry its device came from, so a river's water is stepped on
   WebGPU's compute in a browser without the game naming compute.
+- **`SpriteBillboardComponent` takes `castsShadow:`.** True by default, as
+  before. Each card is a draw of its own into every shadow cascade it
+  reaches, where the colour pass draws the cards of a kind as one, so a
+  bank of reeds whose shadows are a few pixels across can leave them out.
+  Additive: nothing that worked against 1.0.0-rc.1 changes.
 
 ## 1.0.0-rc.1
 
