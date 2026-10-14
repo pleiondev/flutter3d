@@ -22,6 +22,7 @@ import 'package:flutter3d_physics/flutter3d_physics.dart'
 import 'glassware.dart';
 import 'label.dart';
 import 'optics.dart';
+import 'puddle.dart';
 
 /// One piece of glass on the bench and what is in it.
 final class Vessel {
@@ -355,7 +356,9 @@ final class Bench {
         MeshNode(
             DeviceMesh.upload(
               device,
-              CuboidShape(size: Vector3(0.6, 0.004, 0.44)).build(),
+              CuboidShape(
+                size: Vector3(2.0 * _halfTop.x, 0.004, 2.0 * _halfTop.y),
+              ).build(),
             ),
             RenderMaterial(
               name: 'bench',
@@ -364,7 +367,7 @@ final class Bench {
             ),
             name: 'bench',
           )
-          ..setPosition(0, -0.002, 0.06)
+          ..setPosition(_topMiddle.x, -0.002, _topMiddle.y)
           // A floor casts nothing.
           ..castsShadow = false
           // Its own channel: the sun reaches every channel, and the fill
@@ -409,6 +412,21 @@ final class Bench {
     particleSpacing: 0.001,
     floor: [PlaneObstacle(normal: Vector3(0, 1, 0), offset: 0.0)],
     backend: physics,
+  );
+
+  /// The bench's top, seen from above: its middle and half its size, in
+  /// metres along x and z.
+  static final Vector2 _topMiddle = Vector2(0.0, 0.06);
+  static final Vector2 _halfTop = Vector2(0.3, 0.22);
+
+  /// What was spilt and has come down on the bench, taken out of the
+  /// particles: see [_settle].
+  late final Puddles puddles = Puddles(
+    cell: 2.0 * world.particleSpacing,
+    minX: _topMiddle.x - _halfTop.x,
+    maxX: _topMiddle.x + _halfTop.x,
+    minZ: _topMiddle.y - _halfTop.y,
+    maxZ: _topMiddle.y + _halfTop.y,
   );
 
   /// Whether the shadows come from the engine's caustics
@@ -499,9 +517,13 @@ final class Bench {
   /// **Colour, not chemistry.** The dyes mix by volume and their absorbances
   /// add; nothing reacts. Permanganate poured into acid stays purple here,
   /// diluted, where on a real bench it would oxidise what it met.
-  Color colorOf(LiquidLayer layer) {
+  Color colorOf(LiquidLayer layer) => _mixed(layer.concentrations);
+
+  /// The colour of liquid with [concentrations] of the dyes in it, as
+  /// [colorOf] works it out.
+  Color _mixed(Map<String, double> concentrations) {
     final absorb = Vector3.zero();
-    layer.concentrations.forEach((dye, c) {
+    concentrations.forEach((dye, c) {
       final mu = _dyes[dye];
       if (mu != null) absorb.addScaled(mu, c);
     });
@@ -955,6 +977,7 @@ final class Bench {
       );
     }
     world.advance(seconds);
+    _settle(seconds);
     if (transfer != null && before != null && seconds > 0.0) {
       transfer.flow =
           math.max(before - transfer.from.liquid.volume, 0.0) / seconds;
@@ -972,6 +995,60 @@ final class Bench {
     }
     if (_drawStreams()) moving = true;
     return moving;
+  }
+
+  /// How long spilt liquid lies on the bench before it is a puddle, in
+  /// seconds: long enough that a drop bouncing off it is not caught in the
+  /// air, short enough that it has not slid far.
+  static const double _settleTime = 0.15;
+
+  /// The puddles, as drawn; null until anything is spilt.
+  MeshNode? _puddleNode;
+
+  /// Takes what has come down on the bench out of the particles, into
+  /// [puddles], and draws them again if any did.
+  ///
+  /// **Spilt liquid never stops by itself here.** The bench is a plane with
+  /// no friction and the particles wet nothing, so a spill skates on at the
+  /// speed it landed with, metres past the edge of the table, and every
+  /// particle of it is solved for every step: spilt again and again, the
+  /// frame went from a sixtieth of a second to a second. Liquid on a real
+  /// bench wets it and stops where it lands; so here, what has lain within
+  /// three particles of the top for [_settleTime] stops being particles and
+  /// is a film of the same volume where it lay, which costs nothing to
+  /// step.
+  void _settle(double seconds) {
+    final low = 3.0 * world.particleSpacing;
+    var changed = false;
+    for (final fluid in world.particles.values) {
+      final gone = fluid.retire(
+        elapsed: seconds,
+        after: _settleTime,
+        settled: (position, _) => position.y < low,
+      );
+      if (gone.isEmpty) continue;
+      puddles.add(gone);
+      changed = true;
+    }
+    if (changed) _drawPuddles();
+  }
+
+  void _drawPuddles() {
+    final color = _rgb(_mixed(puddles.concentrations));
+    final mesh = puddles.mesh();
+    final node = _puddleNode;
+    if (node == null) {
+      scene.add(
+        _puddleNode = MeshNode(
+          _upload(mesh),
+          liquid(color, depth: 0.001)..doubleSided = true,
+          name: 'puddles',
+        )..castsShadow = false,
+      );
+      return;
+    }
+    _swap(node, mesh);
+    node.material = liquid(color, depth: 0.001)..doubleSided = true;
   }
 
   /// Draws [vessel]'s liquid as it is now, layer by layer.

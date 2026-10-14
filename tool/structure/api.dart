@@ -973,15 +973,33 @@ int? compareVersionTexts(String a, String b) {
 /// pre-release promises nothing, so any later version is enough after one.
 /// `1.0.0` may change what `1.0.0-rc.1` had, which a break still has to
 /// label in the CHANGELOG; what it may not do is stay `1.0.0-rc.1`.
+///
+/// **And one of our own: after a pre-release, `+N` may add.** A release
+/// candidate's API is still open, and a fix republished as `1.0.0-rc.1+1`
+/// can need a new member to carry it. Build metadata is no release by
+/// semver's order, so it is let through for an addition only, and only
+/// over the same version with a larger build number: a removal or a changed
+/// signature under `+N` still needs a version past the pre-release.
 bool bumpIsEnoughFrom(Bump needed, String released, String current) {
   if (needed == Bump.none) return true;
   final then = parseVersion(released);
   final now = parseVersion(current);
   if (then == null || now == null) return true;
   if (preReleaseOf(released).isNotEmpty) {
+    if (needed == Bump.minor &&
+        compareVersionTexts(current, released) == 0 &&
+        _buildOf(current) > _buildOf(released)) {
+      return true;
+    }
     return compareVersionTexts(current, released)! > 0;
   }
   return bumpIsEnough(needed, then, now);
+}
+
+/// The build number after `+` in a version [text], nought for none.
+int _buildOf(String text) {
+  final plus = text.trim().indexOf('+');
+  return plus < 0 ? 0 : int.tryParse(text.trim().substring(plus + 1)) ?? 0;
 }
 
 /// Whether `^asked` admits [declared], by pub's caret rule: below 1.0.0 the

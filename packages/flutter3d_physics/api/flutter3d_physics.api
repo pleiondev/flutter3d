@@ -740,9 +740,11 @@ final class ParticleFluid
   List<Vector3> get positions
   List<Vector3> get velocities
   ParticleFluid({required this.medium, required this.spacing, this.iterations = 4, this.substeps = 2, this.solver = const DartFluid()})
+  RetiredParticles retire({required double elapsed, required double after, required bool Function(Vector3 position, Vector3 velocity) settled})
   double get capillaryTime
   double get particleVolume
   double get received
+  double get retired
   double get volume
   final FluidMedium medium
   final FluidSolver solver
@@ -844,6 +846,15 @@ final class RayQuery
   Vector3 origin
   double maxDistance
   int mask
+
+final class RetiredParticles
+  RetiredParticles({required this.positions, required this.particleVolume, this.amounts = const {}})
+  bool get isEmpty
+  double get volume
+  final List<Vector3> positions
+  final Map<String, double> amounts
+  final double particleVolume
+  static final RetiredParticles none
 
 final class RevolvedVessel implements VesselShape
   ({double distance, Vector3 normal})? wallDistance(Vector3 point)

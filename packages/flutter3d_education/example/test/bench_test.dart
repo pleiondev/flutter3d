@@ -7,7 +7,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
-import 'package:flutter3d_physics/flutter3d_physics.dart' show DartFluid;
+import 'package:flutter3d_physics/flutter3d_physics.dart'
+    show DartFluid, FluidMedium, ParticleFluid;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_testing/flutter3d_testing.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -267,6 +268,53 @@ void main() {
       bench.world.particles.forEach((_, f) => drops += f.count);
       expect(drops, 0);
     });
+  });
+
+  test('a spill comes down into a puddle, and the bench goes still', () {
+    // Reported from the bench: spilt again and again, the frame went from
+    // a sixtieth of a second to a second, because spilt liquid skated on
+    // over the top for ever and every particle was solved every step.
+    // Mutation: never retire it in `Bench._settle`, and the bench never
+    // stops moving.
+    final kit = cpuTestDevice(width: 8, height: 8);
+    final bench = Bench(kit.device);
+    final everything = bench.world.volume;
+    final spill = bench.world.particles['water'] = ParticleFluid(
+      medium: FluidMedium.water,
+      spacing: bench.world.particleSpacing,
+      solver: bench.world.solver,
+    );
+    // Two lumps of dyed liquid let go over the bench, clear of the glass.
+    final dyes = bench.vessels[1].name;
+    spill
+      ..inject(
+        125 * spill.particleVolume,
+        Vector3(0.0, 0.02, 0.2),
+        Vector3(0.1, -0.2, 0.0),
+        concentrations: {dyes: 1.0},
+      )
+      ..inject(
+        64 * spill.particleVolume,
+        Vector3(-0.2, 0.015, 0.15),
+        Vector3.zero(),
+        concentrations: {dyes: 1.0},
+      );
+    final spilt = spill.volume;
+    var seconds = 0.0;
+    while (bench.step(1 / 60)) {
+      seconds += 1 / 60;
+      expect(seconds, lessThan(5), reason: 'it never went still');
+    }
+    expect(spill.count, 0);
+    // Every cubic metre spilt lies on the bench or ran off it, and the
+    // bench still holds what it did.
+    expect(bench.puddles.volume, closeTo(spilt, spilt * 1e-9));
+    expect(bench.puddles.onTop, greaterThan(0.5 * spilt));
+    expect(bench.world.volume, closeTo(everything + spilt, spilt * 1e-6));
+    // A film, not a drop: millimetres deep at most.
+    expect(bench.puddles.deepest, lessThan(0.005));
+    // In the colour of what was spilt.
+    expect(bench.puddles.concentrations[dyes], closeTo(1.0, 1e-9));
   });
 
   test('sharing pours half into the clean tube, lip over the rim', () {
