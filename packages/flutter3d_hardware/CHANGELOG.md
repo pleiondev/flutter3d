@@ -11,6 +11,13 @@
   code, then the CPU executor. A physics core's fluid runs on WebGPU, on the
   wgpu sidecar or on the core itself without a branch of its own on which.
   Additive: nothing that worked against 1.0.0-rc.1 changes.
+- **A device says whether it is software.** `GraphicsDevice.isSoftware`
+  (new, false by default) is true for a device that does its work on the
+  CPU; the workload rule keeps a workload with host code off one, and
+  `ComputeExecutors.workloadCandidates` lists where the rule may put a
+  workload, in order. A workload may demand a placement
+  (`ComputeWorkload.demand`), which is met or refused as a compute step's
+  is.
 
 ## 1.0.0-rc.1
 

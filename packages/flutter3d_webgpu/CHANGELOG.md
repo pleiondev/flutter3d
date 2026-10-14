@@ -1,3 +1,11 @@
+## 1.0.0-rc.1+2
+
+- **A compute pass keeps the bind groups it made.** A dispatch that binds the
+  same storage ranges as one before it — a workload's kernel every frame —
+  sets the bind group made then rather than asking the browser for another;
+  a pipeline keeps the last thirty-two of each group. A river's water,
+  stepped on the GPU, dispatches nine kernels a reach a frame.
+
 ## 1.0.0-rc.1+1
 
 - **A device is opened with the adapter's limits on a pipeline layout.**

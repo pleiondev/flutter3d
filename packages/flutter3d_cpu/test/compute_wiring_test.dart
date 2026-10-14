@@ -115,4 +115,33 @@ void main() {
     );
     expect(step.refusal!.reason, ComputeRefusalReason.noExecutor);
   });
+
+  test('a workload with host code is kept off the software device', () {
+    // Mutation: drop the isSoftware test from the workload rule, and a
+    // physics core's water drawn by the software rasteriser is stepped by
+    // its kernels interpreted in Dart rather than by the core.
+    final device = cpuComputeDevice();
+    expect(device.isSoftware, isTrue);
+    final executors = ComputeExecutors(
+      device: device,
+      sidecar: cpuComputeDevice(),
+      cpu: cpuComputeDevice(),
+    );
+    expect(executors.placeWorkload(step: 'water', hasHost: true), isNull);
+    expect(executors.workloadCandidates(hasHost: true), isEmpty);
+    // Without host code, the rule is the compute step's: the drawing
+    // device first, software or not.
+    expect(
+      executors.placeWorkload(step: 'blur', hasHost: false)!.placement,
+      ComputePlacement.device,
+    );
+    expect(
+      executors.workloadCandidates(hasHost: false).map((e) => e.placement),
+      <ComputePlacement>[
+        ComputePlacement.device,
+        ComputePlacement.sidecar,
+        ComputePlacement.cpu,
+      ],
+    );
+  });
 }

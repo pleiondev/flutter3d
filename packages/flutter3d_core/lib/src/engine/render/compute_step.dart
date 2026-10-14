@@ -259,6 +259,10 @@ final class WorkloadStep extends ComputeStep {
   @override
   String get name => workload.name;
 
+  /// The workload's own demand ([ComputeWorkload.demand]).
+  @override
+  ComputePlacement? get demand => workload.demand;
+
   @override
   late final List<ComputeKernel> kernels = ComputeKernel.parseAll(
     workload.kernelSource,
@@ -319,15 +323,10 @@ final class WorkloadStep extends ComputeStep {
     _release();
     final loaded = <ComputeExecutor, Map<String, ShaderHandle>>{};
     Object? cause;
-    final candidates = <ComputeExecutor>[
-      if (demand != null)
-        ?executors.executorFor(demand!)
-      else ...[
-        for (final placement in ComputeExecutors.aheadOfHost)
-          ?executors.executorFor(placement),
-        if (!workload.hasHost) ?executors.executorFor(ComputePlacement.cpu),
-      ],
-    ];
+    final candidates = switch (demand) {
+      final demanded? => <ComputeExecutor>[?executors.executorFor(demanded)],
+      null => executors.workloadCandidates(hasHost: workload.hasHost),
+    };
     for (final candidate in candidates) {
       try {
         loaded[candidate] = await _load(candidate.device);

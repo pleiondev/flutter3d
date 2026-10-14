@@ -326,8 +326,11 @@ final class ComputeExecutors {
   /// sidecar ([aheadOfHost]); then, when it [hasHost], its own host code,
   /// which was written for the CPU, ahead of the CPU executor, which
   /// interprets kernels written for a GPU; and the CPU executor only for a
-  /// workload with nothing of its own there. [accepts] narrows the choice
-  /// as it does for [place].
+  /// workload with nothing of its own there. A workload with host code is
+  /// never put on a device that does its work on the CPU
+  /// (`GraphicsDevice.isSoftware`) — a software rasteriser drawing the
+  /// frame, say — for the same reason. [accepts] narrows the choice as it
+  /// does for [place].
   ///
   /// Throws [ComputePlacementException] when nothing fits: a demand that
   /// cannot be met, or a workload with no host code and no executor.
@@ -340,13 +343,24 @@ final class ComputeExecutors {
     if (demand != null) {
       return place(step: step, demand: demand, accepts: accepts);
     }
-    for (final placement in aheadOfHost) {
-      final executor = executorFor(placement);
-      if (executor != null && (accepts == null || accepts(executor))) {
-        return executor;
-      }
+    for (final executor in workloadCandidates(hasHost: hasHost)) {
+      if (executor.placement == ComputePlacement.cpu) break;
+      if (accepts == null || accepts(executor)) return executor;
     }
     if (hasHost) return null;
     return place(step: step, accepts: accepts);
   }
+
+  /// The executors [placeWorkload] may put a workload on when it demands
+  /// nothing, in the order it tries them: the GPUs ahead of the host, and,
+  /// for a workload with no host code of its own, the CPU executor after
+  /// them. What a step loads its kernels on before it asks the rule.
+  List<ComputeExecutor> workloadCandidates({required bool hasHost}) =>
+      <ComputeExecutor>[
+        for (final placement in aheadOfHost)
+          if (executorFor(placement) case final executor?
+              when !hasHost || !executor.device.isSoftware)
+            executor,
+        if (!hasHost) ?executorFor(ComputePlacement.cpu),
+      ];
 }

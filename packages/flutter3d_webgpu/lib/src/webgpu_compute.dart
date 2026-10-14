@@ -38,6 +38,53 @@ final class WebGpuComputePipeline {
   final WebGpuComputeShader shader;
   final GPUComputePipeline pipeline;
   final Map<int, GPUBindGroupLayout> layouts;
+
+  /// The bind groups each group was set with, by the storage ranges each
+  /// was made of: a dispatch binding the same ranges again — a workload's
+  /// kernel every frame — sets that one rather than making another. A bind
+  /// group is a call into the browser and an object for it to collect, and
+  /// a water's step dispatches tens of kernels a frame. The oldest go past
+  /// [_kept] a group.
+  final Map<int, Map<WebGpuGroupKey, GPUBindGroup>> groups =
+      <int, Map<WebGpuGroupKey, GPUBindGroup>>{};
+
+  static const int _kept = 32;
+
+  /// The group made of [key], or null.
+  GPUBindGroup? groupFor(int group, WebGpuGroupKey key) {
+    final made = groups[group];
+    final found = made?.remove(key);
+    if (found != null) made![key] = found;
+    return found;
+  }
+
+  /// Keeps [made] as group [group]'s made of [key].
+  void keep(int group, WebGpuGroupKey key, GPUBindGroup made) {
+    final kept = groups[group] ??= <WebGpuGroupKey, GPUBindGroup>{};
+    kept[key] = made;
+    if (kept.length > _kept) kept.remove(kept.keys.first);
+  }
+}
+
+/// The storage ranges a bind group is made of, compared range by range.
+final class WebGpuGroupKey {
+  WebGpuGroupKey(this.ranges) : hashCode = Object.hashAll(ranges);
+
+  final List<Object> ranges;
+
+  @override
+  final int hashCode;
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! WebGpuGroupKey || other.ranges.length != ranges.length) {
+      return false;
+    }
+    for (var i = 0; i < ranges.length; i++) {
+      if (other.ranges[i] != ranges[i]) return false;
+    }
+    return true;
+  }
 }
 
 int _roundUp4(int n) => (n + 3) & ~3;
@@ -247,6 +294,11 @@ final class WebGpuComputeEncoder extends ComputeEncoder {
   final Map<(int, int), GPUBindGroupEntry> _bound =
       <(int, int), GPUBindGroupEntry>{};
 
+  /// What each binding in [_bound] is, where it is a storage range: the
+  /// buffer, its offset and its size. A binding of anything else has none,
+  /// and a group holding one is made afresh each dispatch.
+  final Map<(int, int), Object> _keys = <(int, int), Object>{};
+
   /// Uniform buffers this pass made for its blocks, destroyed once the pass
   /// is submitted: WebGPU defers a destroy until the work using it is done.
   final List<GPUBuffer> _transient = <GPUBuffer>[];
@@ -257,6 +309,7 @@ final class WebGpuComputeEncoder extends ComputeEncoder {
   void bindPipeline(ComputePipelineHandle pipeline) {
     _pipeline = pipeline.backend as WebGpuComputePipeline;
     _bound.clear();
+    _keys.clear();
     _pass.setPipeline(_pipeline!.pipeline);
   }
 
@@ -293,14 +346,16 @@ final class WebGpuComputeEncoder extends ComputeEncoder {
     // rounded up to four when it was made, so rounding the range up never
     // leaves it.
     final size = sizeInBytes == null ? rest : _roundUp4(sizeInBytes);
+    final bound = size > rest ? rest : size;
     _bound[(s.group, s.binding)] = GPUBindGroupEntry.buffer(
       binding: s.binding,
       resource: GPUBufferBinding(
         buffer: storage.buffer,
         offset: offsetInBytes,
-        size: size > rest ? rest : size,
+        size: bound,
       ),
     );
+    _keys[(s.group, s.binding)] = (storage, offsetInBytes, bound);
     return true;
   }
 
@@ -317,6 +372,7 @@ final class WebGpuComputeEncoder extends ComputeEncoder {
     // A kernel's texture has no sampler slot: the view alone is bound.
     for (final loaded in pipeline.shader.stage.loadedTextures) {
       if (loaded.name != name) continue;
+      _keys.remove((loaded.group, loaded.binding));
       _bound[(loaded.group, loaded.binding)] = GPUBindGroupEntry.textureView(
         binding: loaded.binding,
         resource: (texture.backend as WebGpuTexture).sampledView,
@@ -330,10 +386,12 @@ final class WebGpuComputeEncoder extends ComputeEncoder {
     final slot = declared.first;
     final options = webgpuSamplerForSlot(slot, sampler);
     final backend = texture.backend as WebGpuTexture;
+    _keys.remove((slot.group, slot.textureBinding));
     _bound[(slot.group, slot.textureBinding)] = GPUBindGroupEntry.textureView(
       binding: slot.textureBinding,
       resource: backend.sampledView,
     );
+    _keys.remove((slot.group, slot.samplerBinding));
     _bound[(slot.group, slot.samplerBinding)] = GPUBindGroupEntry.sampler(
       binding: slot.samplerBinding,
       resource: _samplerFor(options),
@@ -375,6 +433,7 @@ final class WebGpuComputeEncoder extends ComputeEncoder {
       declaredAccess: slot.access,
       declaredFormat: slot.format,
     );
+    _keys.remove((slot.group, slot.binding));
     _bound[(slot.group, slot.binding)] = GPUBindGroupEntry.textureView(
       binding: slot.binding,
       resource: (texture.backend as WebGpuTexture).storageView(mipLevel),
@@ -453,6 +512,7 @@ final class WebGpuComputeEncoder extends ComputeEncoder {
     );
     _transient.add(buffer);
     _gpu.queue.writeBuffer(buffer, 0, gpuWritableBytes(data).toJS);
+    _keys.remove((group, binding));
     _bound[(group, binding)] = GPUBindGroupEntry.buffer(
       binding: binding,
       resource: GPUBufferBinding(
@@ -472,18 +532,29 @@ final class WebGpuComputeEncoder extends ComputeEncoder {
     }
     for (final MapEntry(key: group, value: layout)
         in pipeline.layouts.entries) {
-      _pass.setBindGroup(
-        group,
-        _gpu.createBindGroup(
-          GPUBindGroupDescriptor(
-            layout: layout,
-            entries: <GPUBindGroupEntry>[
-              for (final MapEntry(key: (g, _), value: entry) in _bound.entries)
-                if (g == group) entry,
-            ].toJS,
-          ),
+      final inGroup = <(int, int)>[
+        for (final key in _bound.keys)
+          if (key.$1 == group) key,
+      ]..sort((a, b) => a.$2.compareTo(b.$2));
+      final keys = <Object>[for (final key in inGroup) ?_keys[key]];
+      final cacheable = keys.length == inGroup.length;
+      final key = cacheable ? WebGpuGroupKey(keys) : null;
+      if (key != null) {
+        if (pipeline.groupFor(group, key) case final kept?) {
+          _pass.setBindGroup(group, kept);
+          continue;
+        }
+      }
+      final made = _gpu.createBindGroup(
+        GPUBindGroupDescriptor(
+          layout: layout,
+          entries: <GPUBindGroupEntry>[
+            for (final key in inGroup) _bound[key]!,
+          ].toJS,
         ),
       );
+      if (key != null) pipeline.keep(group, key, made);
+      _pass.setBindGroup(group, made);
     }
     return pipeline;
   }

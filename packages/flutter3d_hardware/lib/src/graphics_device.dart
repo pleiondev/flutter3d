@@ -750,6 +750,16 @@ abstract base class GraphicsDevice with TextureAllocator {
   /// null example and the backend template all say theirs outright.
   String get backendId => backendName.toLowerCase();
 
+  /// Whether this device does its work on the CPU, as the software
+  /// rasteriser does, rather than on a GPU — since 1.0.0-rc.1+1.
+  ///
+  /// What `ComputeExecutors.placeWorkload` asks before it places a workload
+  /// that has code of its own on the host: such a workload runs that code
+  /// rather than have this device interpret, one invocation at a time,
+  /// kernels written for a GPU. False by default; the software rasteriser
+  /// answers true.
+  bool get isSoftware => false;
+
   /// The refusal for [feature] on this device, for a default body or a
   /// backend's own gate to throw: `throw refuse(DeviceFeature.compute)`.
   @protected

@@ -5587,6 +5587,7 @@ abstract final class WebDecodeWorker
   static void use(Uri script)
 
 final class WorkloadStep extends ComputeStep
+  ComputePlacement? get demand
   Future<ComputePlacementException?> prepare(ComputeExecutors executors)
   List<ResourceId> get writes
   String get name

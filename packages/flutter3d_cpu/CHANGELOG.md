@@ -1,3 +1,10 @@
+## 1.0.0-rc.1+1
+
+- **The software rasteriser says it is software.** `CpuDevice.isSoftware`
+  answers true, so a compute workload with host code of its own — a physics
+  core's water — is not placed on it to be interpreted in Dart while the
+  core's own step sits idle. Additive.
+
 ## 1.0.0-rc.1
 
 - **`depthBiasClamp` is listed.** The rasteriser always capped the offset

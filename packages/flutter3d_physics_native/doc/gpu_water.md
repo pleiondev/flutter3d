@@ -34,7 +34,10 @@ is written:
 
 Host code comes before the CPU executor because it was written for the
 CPU; the CPU executor runs kernels written for a GPU, one invocation at a
-time. A demanded placement is met or refused, never moved, as for any
+time. For the same reason a workload with host code is never put on a
+device that does its work on the CPU (`GraphicsDevice.isSoftware`): the
+software rasteriser drawing a test's frames, or a native fallback, leaves
+the water on the core. A demanded placement is met or refused, never moved, as for any
 compute step. Impeller has no compute (`_noCompute`), so a native Impeller
 application lands on the sidecar or the core.
 
@@ -144,12 +147,19 @@ lists them, the CPU's to the GPU's rounding.
 
 Additive only.
 
-- `flutter3d_hardware` (1.0.0-rc.1+1): `ComputeWorkload`,
+- `flutter3d_hardware` (1.0.0-rc.1+1): `ComputeWorkload` (with `demand`),
   `WorkloadBuffer`, `WorkloadRecorder`, `WorkloadBinding`,
-  `ComputeExecutors.placeWorkload` and `ComputeExecutors.aheadOfHost`.
-- `flutter3d_core`: `WorkloadStep`, `RendererSteps.addWorkload`,
+  `ComputeExecutors.placeWorkload`, `workloadCandidates` and
+  `aheadOfHost`, `GraphicsDevice.isSoftware`.
+- `flutter3d_core` (1.0.0-rc.1+1): `WorkloadStep`,
+  `RendererSteps.addWorkload` and `workloadStep`,
   `FrameResourceIds.computedVertices`.
-- `flutter3d_effects`: `ShallowWaterWorkload`.
+- `flutter3d_cpu` (1.0.0-rc.1+1): `CpuDevice.isSoftware`.
+- `flutter3d_webgpu` (1.0.0-rc.1+2): no API; a compute pass keeps its bind
+  groups.
+- `flutter3d_effects` (1.0.0-rc.1+1): `ShallowWaterWorkload`,
+  `LiquidView.steppedOn` and `steppedAt`, and `Elements.open`'s, `adopt`'s
+  and `over`'s `compute`.
 - `flutter3d_physics_native` (not yet published; lands after its first
   publish as a +1): `shallowWaterKernels`, `nativeLipFloats`,
   `NativeShallowExternal`, the `NativeWorld` calls a workload makes

@@ -175,6 +175,11 @@ abstract base class ComputeWorkload {
   /// ([ComputeExecutors.placeWorkload]).
   bool get hasHost => false;
 
+  /// The placement it must run at, or null for wherever the rule puts it.
+  /// A demand nothing meets is refused, never moved, as a compute step's
+  /// is; most workloads demand nothing.
+  ComputePlacement? get demand => null;
+
   /// Told where it runs, before the first [record] there; told again with
   /// [WorkloadBinding.host] when it falls back. The buffers are zeroed at
   /// the first [record] after a placement: a workload whose state lives on

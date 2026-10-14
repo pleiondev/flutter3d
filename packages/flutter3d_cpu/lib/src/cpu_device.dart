@@ -49,6 +49,10 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
   @override
   String get backendId => 'cpu';
 
+  /// Everything here, compute included, runs in Dart on the CPU.
+  @override
+  bool get isSoftware => true;
+
   // Debug groups, labels and loss: the inherited defaults are the truth
   // here. There is no debugger to show a group to, a label is kept for
   // `labelOf`, nothing can take a CPU away, and a pipeline links in the

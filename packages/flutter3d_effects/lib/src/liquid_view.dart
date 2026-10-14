@@ -8,6 +8,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_elements/flutter3d_elements.dart' show LiquidSteps;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Registration;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
@@ -20,6 +22,8 @@ import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
         nativeSpraySheet;
 import 'package:vector_math/vector_math.dart';
 
+import 'liquid_surface_kernels.dart';
+import 'shallow_water_workload.dart';
 import 'vertices.dart';
 
 /// How much falling water is drawn at most: pieces of a falling sheet, drops
@@ -295,11 +299,109 @@ final class LiquidView {
     _bubbles,
   ];
 
-  /// Its nodes taken out of the scene they are in.
+  /// Its nodes taken out of the scene they are in, and its water handed
+  /// back to the core if a device stepped it.
   void dispose() {
     for (final node in nodes) {
       node.removeFromParent();
     }
+    _disposed = true;
+    _compute?.cancel();
+    _compute = null;
+  }
+
+  bool _disposed = false;
+
+  // ------------------------------------------------ stepped where it lands
+
+  /// The water's step handed to the engine ([steppedOn]), while it is.
+  Registration? _compute;
+  _SurfaceWorkload? _workload;
+
+  /// Where the water's columns are stepped: on an executor's placement, or
+  /// null while the core steps them — before [steppedOn], while it is
+  /// being placed, and where the engine's rule leaves it on the core. For a
+  /// settings page or a frame report saying where the water runs.
+  ComputePlacement? get steppedAt => _workload?.binding?.placement;
+
+  /// Hands the water's step to [renderer], placed on [executors] by the
+  /// engine's rule (`ComputeExecutors.placeWorkload`): on a device that
+  /// computes the columns are stepped there and the surface is built
+  /// there and drawn from the buffer it was built in; where none does, the
+  /// core steps them and this draws them as before. Which of the two it is
+  /// is the engine's answer, read from [steppedAt].
+  Future<void> steppedOn(Renderer renderer, ComputeExecutors executors) async {
+    if (_compute != null || _workload != null || _disposed) return;
+    final workload = _workload = _SurfaceWorkload(this);
+    final added = await renderer.renderSteps.addWorkload(workload, executors);
+    // Let go while it was being placed: handed straight back.
+    if (_disposed) {
+      added.cancel();
+      return;
+    }
+    _compute = added;
+  }
+
+  /// The surface drawn from the buffer the workload built it in, or null
+  /// while the core steps the water.
+  _ComputedSurface? _computed;
+
+  /// Told by the workload where it landed: on an executor the surface node
+  /// draws the buffer the kernels write; on the host, the mesh this view
+  /// writes.
+  void _placed(WorkloadBinding binding) {
+    final vertices = binding.vertices('vertices');
+    if (binding.isOnHost || vertices == null) {
+      _computed = null;
+      surfaceNode.mesh = _surface;
+    } else {
+      final computed = _computed = _ComputedSurface(
+        vertices,
+        _surface,
+        _bounds(),
+      );
+      surfaceNode.mesh = computed;
+    }
+    surfaceNode.markBoundsDirty();
+    _stale = true;
+  }
+
+  /// A box round everything the surface can draw: the grid, from under its
+  /// lowest ground to well over its highest.
+  Aabb3 _bounds() {
+    var lo = double.infinity, hi = double.negativeInfinity;
+    for (final g in _ground) {
+      lo = math.min(lo, g);
+      hi = math.max(hi, g);
+    }
+    final o = liquid.origin;
+    return Aabb3.minMax(
+      Vector3(o.x, o.y + lo - liquid.cell, o.z),
+      Vector3(
+        o.x + liquid.nx * liquid.cell,
+        o.y + hi + 4.0,
+        o.z + liquid.nz * liquid.cell,
+      ),
+    );
+  }
+
+  /// The air the bubbles hold over each column, m³, for the workload to
+  /// write before it builds the surface; null when there is none to send.
+  Float32List? _airToSend;
+  bool _airSent = false;
+
+  /// The surface and depth the core mirrors, read once a frame while the
+  /// water is stepped elsewhere and something falls or bubbles over it:
+  /// what a piece landing and a cloud of bubbles are held against.
+  ({Float32List surface, Float32List depth})? _mirror;
+
+  /// The height a vertex of cell [c] is drawn at over the origin, NaN where
+  /// it is sunk: the CPU's own while the core steps the water, the mirror's
+  /// surface over a wet cell while it is stepped elsewhere.
+  double _drawnAt(int c) {
+    if (_computed == null) return _drawn[c];
+    final mirror = _mirror ??= _world.readShallowSurface(liquid);
+    return mirror.depth[c] > _wet ? mirror.surface[c] : double.nan;
   }
 
   /// Which of its steps the view takes ([LiquidSteps]).
@@ -320,9 +422,12 @@ final class LiquidView {
   /// seconds after the last time: how far the mist off a falls has drifted
   /// and thinned, which a step at sixty a second assumes when not told.
   void update({double dt = 1.0 / 60.0}) {
+    // The mirror is read again, once, if this frame asks it.
+    _mirror = null;
+    final computed = _computed != null;
     // Water the core lets rest, with nothing in the air over it, is as it
-    // was last drawn.
-    final resting = _world.shallowInfoOf(liquid).resting;
+    // was last drawn. Water stepped elsewhere does not rest.
+    final resting = !computed && _world.shallowInfoOf(liquid).resting;
     if (resting &&
         !_stale &&
         sprayInFlight == 0 &&
@@ -334,12 +439,21 @@ final class LiquidView {
     final bubbles = _world.readBubbles(of: liquid);
     surfaceNode.isVisible = steps.surface;
     if (steps.surface) {
-      _surface.overwriteVertices(
-        _device,
-        0,
-        _writeSurface(bubbles).buffer.asByteData(),
-      );
-      surfaceNode.markBoundsDirty();
+      if (computed) {
+        // Built where the water was stepped; all it needs from here is the
+        // air the bubbles hold, when there is any or was last frame.
+        if (bubbles.isNotEmpty || _airSent) {
+          _airToSend = Float32List.fromList(_airSpread(bubbles));
+          _airSent = bubbles.isNotEmpty;
+        }
+      } else {
+        _surface.overwriteVertices(
+          _device,
+          0,
+          _writeSurface(bubbles).buffer.asByteData(),
+        );
+        surfaceNode.markBoundsDirty();
+      }
     }
     final spray = _world.readSpray(
       capacity: detail.sheet + detail.drops,
@@ -370,6 +484,22 @@ final class LiquidView {
   /// distance by the binomial 1 4 6 4 1, so a falls' froth is a round
   /// plume that fades into the pool, not a square of cells.
   Float64List _airIn(Float32List bubbles, Float32List depth) {
+    final cell = liquid.cell;
+    final air = _airSpread(bubbles);
+    // A cloud spread onto a film at the shore is not a white column: the
+    // share is of a column at least five centimetres deep.
+    for (var c = 0; c < air.length; c++) {
+      air[c] = depth[c] > _wet
+          ? air[c] / (math.max(depth[c], 0.05) * cell * cell)
+          : 0.0;
+    }
+    return air;
+  }
+
+  /// The air of the bubbles spread over each column, m³, before it is
+  /// taken as a share of the column: what [_airIn] divides, and what a
+  /// surface built on the GPU divides there.
+  Float64List _airSpread(Float32List bubbles) {
     final nx = liquid.nx, nz = liquid.nz, cell = liquid.cell;
     final air = Float64List(liquid.cells);
     const spread = <double>[1.0, 4.0, 6.0, 4.0, 1.0];
@@ -384,13 +514,6 @@ final class LiquidView {
               bubbles[o + 4] * spread[di + 2] * spread[dj + 2] / 256.0;
         }
       }
-    }
-    // A cloud spread onto a film at the shore is not a white column: the
-    // share is of a column at least five centimetres deep.
-    for (var c = 0; c < air.length; c++) {
-      air[c] = depth[c] > _wet
-          ? air[c] / (math.max(depth[c], 0.05) * cell * cell)
-          : 0.0;
     }
     return air;
   }
@@ -713,7 +836,7 @@ final class LiquidView {
     final j = ((spray[o + 2] - liquid.origin.z) / liquid.cell).floor();
     if (i < 0 || j < 0 || i >= liquid.nx || j >= liquid.nz) return false;
     final c = i + j * liquid.nx;
-    final water = _drawn[c];
+    final water = _drawnAt(c);
     if (onWater && water.isNaN) return false;
     final over =
         spray[o + 1] - liquid.origin.y - (water.isNaN ? _ground[c] : water);
@@ -967,7 +1090,7 @@ final class LiquidView {
       final i = ((bubbles[o] - liquid.origin.x) / cell).floor();
       final j = ((bubbles[o + 2] - liquid.origin.z) / cell).floor();
       final inside = i >= 0 && j >= 0 && i < liquid.nx && j < liquid.nz;
-      final surface = inside ? _drawn[i + j * liquid.nx] : double.nan;
+      final surface = inside ? _drawnAt(i + j * liquid.nx) : double.nan;
       final under = surface.isNaN
           ? 0.0
           : liquid.origin.y + surface - bubbles[o + 1];
@@ -996,6 +1119,104 @@ final class LiquidView {
     }
     _bubbles.count = drawn;
   }
+}
+
+/// A view's water as a workload: the water's step, then its surface built
+/// from what the step left, into a buffer the surface node draws.
+final class _SurfaceWorkload extends ShallowWaterWorkload {
+  _SurfaceWorkload(this.view) : super(view._world, view.liquid);
+
+  final LiquidView view;
+
+  @override
+  String get name => 'water ${water.id} and its surface';
+
+  @override
+  String get kernelSource =>
+      '${ShallowWaterWorkload.kernels}\n$liquidSurfaceKernels';
+
+  @override
+  List<WorkloadBuffer> get buffers => <WorkloadBuffer>[
+    ...super.buffers,
+    WorkloadBuffer('look', 3 * water.cells * 4),
+    WorkloadBuffer('air', water.cells * 4),
+    const WorkloadBuffer('view', 4 * 4),
+    WorkloadBuffer('vertices', water.cells * vertexFloats * 4, drawn: true),
+  ];
+
+  /// Whether the next frame writes where the surface stands.
+  bool _sendView = true;
+
+  @override
+  void placed(WorkloadBinding binding) {
+    super.placed(binding);
+    _sendView = true;
+    view._placed(binding);
+  }
+
+  @override
+  void released() {
+    super.released();
+    view._placed(WorkloadBinding.host());
+  }
+
+  @override
+  void recordAfterStep(WorkloadRecorder recorder) {
+    if (_sendView) {
+      final o = water.origin;
+      recorder.write(
+        'view',
+        ByteData.sublistView(
+          Float32List.fromList(<double>[o.x, o.y, o.z, water.cell]),
+        ),
+      );
+      _sendView = false;
+    }
+    if (view._airToSend case final air?) {
+      recorder.write('air', ByteData.sublistView(air));
+      view._airToSend = null;
+    }
+    final groups = (water.cells + 63) ~/ 64;
+    recorder
+      ..dispatch('SurfaceHeights', groups)
+      ..dispatch('SurfaceVertices', groups);
+  }
+}
+
+/// The surface as the GPU built it: the workload's vertex buffer, drawn
+/// with the grid's own triangles, in a box round all it can reach.
+final class _ComputedSurface extends DrawableGeometry {
+  _ComputedSurface(this.vertices, this._grid, this.bounds);
+
+  final DeviceMesh _grid;
+
+  @override
+  final GeometryBuffer vertices;
+
+  @override
+  GeometryBuffer get indices => _grid.indices;
+
+  @override
+  IndexType get indexType => _grid.indexType;
+
+  @override
+  int get indexCount => _grid.indexCount;
+
+  @override
+  int get vertexCount => _grid.vertexCount;
+
+  @override
+  ClusteredIndices? get clusters => null;
+
+  @override
+  final Aabb3 bounds;
+
+  @override
+  MeshData? get source => null;
+
+  /// Half the box's diagonal, in metres.
+  @override
+  double get boundingRadius => ((bounds.max - bounds.min)..scale(0.5)).length;
 }
 
 /// A corner of the falling sheet: where it is, and what the look is told

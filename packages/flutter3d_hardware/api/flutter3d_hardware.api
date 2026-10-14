@@ -200,6 +200,7 @@ final class ComputeExecutors
   ComputeExecutor? placeWorkload({required String step, required bool hasHost, ComputePlacement? demand, bool Function(ComputeExecutor executor)? accepts})
   ComputeExecutors({required this.device, this.sidecar, this.cpu})
   List<ComputeExecutor> get available
+  List<ComputeExecutor> workloadCandidates({required bool hasHost})
   final GraphicsDevice device
   final GraphicsDevice? cpu
   final GraphicsDevice? sidecar
@@ -251,6 +252,7 @@ final class ComputePlacementException extends CapabilityException
   static const List<ComputeRefusalReason> values = <ComputeRefusalReason>[noExecutor, placementUnavailable, kernelRefused, notPlaced]
 
 abstract base class ComputeWorkload
+  ComputePlacement? get demand
   ComputeWorkload()
   abstract List<WorkloadBuffer> get buffers
   abstract String get kernelSource
@@ -585,6 +587,7 @@ abstract base class GraphicsDevice with TextureAllocator
   abstract void overwriteGeometry(GeometryBuffer target, int offsetInBytes, ByteData bytes)
   abstract void releaseGeometry(GeometryBuffer geometry)
   bool get isLost
+  bool get isSoftware
   void onGpuTimings(void Function(GpuFrameTimings timings)? listener)
   void releaseComputePipeline(ComputePipelineHandle pipeline)
   void releaseFence(GpuFence fence)

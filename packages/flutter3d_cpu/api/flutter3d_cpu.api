@@ -638,6 +638,7 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback
   TextureHandle createTextureFromPixels({required int width, required int height, required TextureFormat format, required ByteData pixels, List<ByteData>? mipLevels})
   TransferEncoder beginTransferPass({String? label})
   bool get isLost
+  bool get isSoftware
   final CpuMaterialCompiler? materialCompiler
   final CpuShaderLibrary shaders
   final DeviceFeatures features
