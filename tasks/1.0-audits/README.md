@@ -44,5 +44,16 @@ target state, the same evening.
 | `23-twins-labs.md` | What a twin pilot and a school pilot need against the target state; the catalog | §2, §8.2 |
 | `24-ecosystem-ops.md` | Publishing, CI, community, the site, MCP, comparison claims, the launch | §5, §8.3 |
 
-The notes are in Russian, as the agents wrote them. Where a note names a
+The four below rechecked the tree at `9f4312f64` on 2026-10-15, after
+waves 0–4.1; the review's decisions 63–126 answer them and wave 4.3 of
+the plan carries the work. They are in English.
+
+| File | What it covers |
+|---|---|
+| `25-public-api-recheck.md` | The API principles and decisions against the tree; Effective Dart; naming across packages |
+| `26-hal-surface.md` | The HAL contract mapped, coverage across five backends, additive-or-break against WebGPU, WebGL2 and flutter_gpu |
+| `27-hal-compute.md` | The compute contract, backend × feature, placement and determinism, the kernel language |
+| `28-extension-api.md` | Every decided hook, eight developer journeys, plugin lifecycle and isolation |
+
+The notes before 25 are in Russian, as the agents wrote them. Where a note names a
 scratchpad path, that scratchpad belonged to the session and is gone.
