@@ -39,6 +39,10 @@ List<Rule> get allRules => <Rule>[
     run: _flatDartResolvesWithoutFlutter,
   ),
   (name: 'the hardware layer names no graphics API', run: _hardwareNamesNoApi),
+  (
+    name: 'only the hardware layer and the backends say where compute runs',
+    run: _placementBehindHardware,
+  ),
   (name: 'the hardware layer names no Flutter', run: _hardwareNamesNoFlutter),
   (name: 'the engine names no backend', run: _engineNamesNoBackend),
   (
@@ -3843,6 +3847,131 @@ List<Finding> _noWorldOutsideSimulation() {
   return found;
 }
 
+/// The packages that may choose, name and report where compute runs: the
+/// hardware layer, which decides it, and the backends, which add the
+/// devices it decides between.
+const Set<String> computePlacers = <String>{
+  'flutter3d_hardware',
+  'flutter3d_cpu',
+  'flutter3d_webgpu',
+  'flutter3d_webgl',
+  'flutter3d_impeller',
+  'flutter3d_wgpu',
+};
+
+/// The files outside [computePlacers] that may name a backend's device
+/// anyway, each with why. The composition roots alone: what opens a device
+/// has to name the backend it opens.
+const Map<String, String> namesComputeBackends = <String, String>{
+  'flutter3d_app/lib/src/backend_web.dart':
+      'the web build\'s composition root: it registers WebGPU, opening its '
+      'device and presenting its frames, so nothing above it names WebGPU',
+  'flutter3d/example/lib/src/spike/backend_web.dart':
+      'the example\'s own composition root, which opens WebGPU to show it',
+};
+
+/// **Where compute runs is the hardware layer's to say, and nobody else's.**
+/// Outside [computePlacers], `lib/` code — a package's, an application's,
+/// an example's — names no placement or executor (`ComputePlacement`,
+/// `ComputeExecutor`, `ComputeExecutors`, `executorFor`, `placeWorkload`,
+/// `workloadCandidates`, the test seam `computePlacementOf`), asks no
+/// device whether it is software (`isSoftware`), and names nothing of
+/// WebGPU's or wgpu's (a `WebGpu…` or `Wgpu…` name, an import of
+/// `flutter3d_webgpu` or `flutter3d_wgpu`). A simulation hands its compute
+/// over as a `ComputeWorkload`, a step asks `FrameCompute` and is told a
+/// `ComputeSite`, and the backends add the devices; so a GPU, the CPU and
+/// the sidecar are reached only through the hardware layer, and a game
+/// cannot come to depend on which one ran it. [namesComputeBackends] lists
+/// the composition roots that open a device, each with its reason.
+///
+/// Mutation: give `LiquidView` back a `steppedAt` answering a
+/// `ComputePlacement`, or import `flutter3d_wgpu` into `flutter3d_effects`
+/// to register the sidecar there, and this names the file.
+List<Finding> _placementBehindHardware() {
+  final names = RegExp(
+    r'\b(?:ComputePlacement|ComputeExecutors?|executorFor|placeWorkload|'
+    r'workloadCandidates|computePlacementOf|isSoftware|Wgpu\w*|WebGpu\w*|'
+    r'register(?:Wgpu|WebGpu)\w*)\b',
+  );
+  final imports = RegExp(
+    r"^\s*(?:import|export)\s+'package:flutter3d_(?:webgpu|wgpu)/",
+    multiLine: true,
+  );
+  final found = <Finding>[];
+  final homes = <String, Directory>{
+    for (final MapEntry(key: name, value: dir) in packages.entries)
+      if (!computePlacers.contains(name)) ...<String, Directory>{
+        '$name/lib': Directory('${dir.path}/lib'),
+        '$name/example/lib': Directory('${dir.path}/example/lib'),
+      },
+    for (final MapEntry(key: name, value: dir) in apps.entries)
+      '$name/lib': Directory('${dir.path}/lib'),
+    for (final dir in <Directory>[
+      if (Directory('${repositoryRoot.path}/examples').existsSync())
+        ...Directory(
+          '${repositoryRoot.path}/examples',
+        ).listSync().whereType<Directory>(),
+    ])
+      '${dir.path.split(Platform.pathSeparator).last}/lib': Directory(
+        '${dir.path}/lib',
+      ),
+  };
+  final listed = <String>{};
+  for (final MapEntry(key: home, value: dir) in homes.entries) {
+    if (!dir.existsSync()) continue;
+    for (final file in dartFilesIn(dir)) {
+      final path =
+          '${home.substring(0, home.length - 4)}/lib/'
+          '${relative(file, dir)}';
+      final text = file.readAsStringSync();
+      final code = _withoutStrings(_withoutComments(text));
+      final named = <String>{
+        for (final m in names.allMatches(code)) m.group(0)!,
+        if (imports.hasMatch(text)) 'an import of a compute backend',
+      };
+      if (named.isEmpty) continue;
+      if (namesComputeBackends.containsKey(path)) {
+        listed.add(path);
+        continue;
+      }
+      found.add(
+        Finding(
+          path,
+          'names ${(named.toList()..sort()).join(', ')}, and where compute '
+          'runs is the hardware layer\'s and the backends\' alone: ask '
+          '`FrameCompute` for a `ComputeSite`, hand a simulation\'s step over '
+          'as a `ComputeWorkload`, or name this file in '
+          '`namesComputeBackends` with the reason it opens a device',
+        ),
+      );
+    }
+  }
+  for (final path in namesComputeBackends.keys) {
+    if (!listed.contains(path)) {
+      found.add(
+        Finding(
+          path,
+          'is listed in `namesComputeBackends` and names no compute backend '
+          'any more: take it off the list',
+        ),
+      );
+    }
+  }
+  return found;
+}
+
+/// [source] with its string literals emptied, crudely: what a name inside a
+/// message or a generated table says is no reference to it.
+String _withoutStrings(String source) {
+  const q = '"';
+  final triple = RegExp("'''.*?'''|$q$q$q.*?$q$q$q", dotAll: true);
+  final single = RegExp(
+    r"r?'(?:\\.|[^'\\\n])*'|"
+    'r?$q(?:\\\\.|[^$q\\\\\\n])*$q',
+  );
+  return source.replaceAll(triple, "''").replaceAll(single, "''");
+}
+
 /// [source] with its comments taken out.
 ///
 /// So that a doc comment naming `math.sin` — this rule's own explanation does,
@@ -5264,9 +5393,23 @@ List<Finding> _breaksSinceRelease({
           .split('\n')
           .toSet();
 
+  // A baseline written for the tag lists what the release really put up
+  // (`versions.txt`); a package it leaves out was never uploaded, so
+  // nothing at the tag is a promise to hold it to.
+  final uploaded = switch (File(
+    '${root.path}/tool/api/baseline/$tag/versions.txt',
+  )) {
+    final f when f.existsSync() => <String>{
+      for (final line in f.readAsLinesSync())
+        if (line.trim().isNotEmpty && !line.startsWith('#'))
+          line.trim().split(' ').first,
+    },
+    _ => null,
+  };
   final found = <Finding>[];
   for (final entry in _publishedPackages.entries) {
     final name = entry.key;
+    if (uploaded != null && !uploaded.contains(name)) continue;
     final home = entry.value.path
         .substring(root.path.length + 1)
         .replaceAll(Platform.pathSeparator, '/');
@@ -5277,19 +5420,27 @@ List<Finding> _breaksSinceRelease({
       final file = File('${root.path}/$path');
       if (released == null || !file.existsSync()) continue;
       final current = file.readAsStringSync();
-      final changes = classify(released, current);
-      final needed = requiredBump(changes);
-      if (needed == Bump.none) continue;
-      final hint =
-          '${changes.length} changes; run `$diff` in tool/api against '
-          '`git show $tag:$path` to see them';
-
       final then = _pubspecVersionText(
         git(<String>['show', '$tag:$home/pubspec.yaml']) ?? '',
       );
       final now = _pubspecVersionText(
         File('${entry.value.path}/pubspec.yaml').readAsStringSync(),
       );
+      // A break named in `buildAllowances` is let through under `+N` over
+      // the release it breaks; every other change is held as before.
+      final changes = <ApiChange>[
+        for (final change in classify(released, current))
+          if (then == null ||
+              now == null ||
+              !allowedUnderBuild(name, change, then, now))
+            change,
+      ];
+      final needed = requiredBump(changes);
+      if (needed == Bump.none) continue;
+      final hint =
+          '${changes.length} changes; run `$diff` in tool/api against '
+          '`git show $tag:$path` to see them';
+
       if (then != null && now != null && !bumpIsEnoughFrom(needed, then, now)) {
         found.add(
           Finding(

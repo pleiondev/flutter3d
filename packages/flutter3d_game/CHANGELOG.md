@@ -1,3 +1,10 @@
+## 1.0.0-rc.1+1
+
+- **Breaking: the placement types are no longer re-exported.**
+  `ComputeExecutor`, `ComputeExecutors` and `ComputePlacement` are the
+  hardware layer's and the backends' own, as in `flutter3d`; `ComputeSite`
+  is re-exported in their place.
+
 ## 1.0.0-rc.1
 
 - **The plugin and matter exceptions, `Materials` and `ExternalIdSpace`**

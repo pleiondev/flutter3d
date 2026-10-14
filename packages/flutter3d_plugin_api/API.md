@@ -763,10 +763,10 @@ plugin's own anchor.
 | `addStep(RenderStep)` | A step switched like the engine's: `RenderSettings.without` and `only` switch it, and switching off a step it `needs` takes it down too |
 | `provide(RenderStep)` | Says the plugin provides one of the engine's steps (what a `RenderStepAddon` does) |
 | `addNode(RenderNode, {at, step, after, before})` | A node at an anchor, owned by a step |
-| `addComputeStep(ComputeStep, executors, {at, owner, ...})` | A compute node, placed on an executor (asynchronous) |
-| `addFieldUpload(FieldUpload, executors, ...)` | Puts a host field on the drawing device |
+| `addComputeStep(ComputeStep, {at, owner, ...})` | A compute node, placed by the hardware layer (asynchronous) |
+| `addFieldUpload(FieldUpload, {at, owner, ...})` | Puts a host field on a device (asynchronous) |
 | `addContributor(PassContributor)`, `removeContributor` | Draws into the scene pass |
-| `placeSkinningHook(SkinningHook, executors)` | Skinning on a device or the CPU |
+| `placeSkinningHook(SkinningHook)` | Skinning on the drawing device or the CPU |
 | `addSettings(SettingsSlot)` | A settings group in `RenderSettings.extensions` |
 | `addMaterials(ShaderLibrary)` | A plugin's compiled stages |
 | `fromDocument(PipelineDocument)` | Nodes from a pipeline document |
@@ -801,13 +801,13 @@ void renderStep(PluginHost host, FullscreenEffect effect) =>
 |---|---|
 | `RenderNode` (`abstract base`) | A frame graph node: `name`, `setup(FrameGraphBuilder)` (`read`, `readIfProduced`, `write`, `create`, `keep`, `place`), `execute(RenderFrame)`, `defaultAnchor`, `isActive`, `isSupported` |
 | `FullscreenEffect` | A full-screen stage: `.overlay(...)`, `.present(...)`, and `FullscreenEffect.material(materials, stage, {name, shader, parameters, ...})` for a stage written in the material language, bound at its source's defaults (`parameters`), reading the surface buffer when its source reads `sceneDepth` (`readsSurface`) |
-| `ComputeStep` (`abstract base`) | `kernels` (`ComputeKernel`s in the kernel language, `kernelLanguageVersion` 1), `record(ComputeContext)`, `demand` (a `ComputePlacement`), `prepare(executors)`; a demand nothing meets is a `ComputePlacementException` (`refusal`) and the step is not run |
+| `ComputeStep` (`abstract base`) | `kernels` (`ComputeKernel`s in the kernel language, `kernelLanguageVersion` 1), `record(ComputeContext)`, `prepare(device)`, `site` (where the hardware layer put it, a `ComputeSite`); a step nothing can run is a `ComputePlacementException` (`refusal`) and is not run. A step asks for no placement |
 | `FieldUpload` | A host field carried into the frame as a 3D texture or a storage buffer (`residence`); `refusal` is a `FieldResidenceException` |
 | `PassContributor` (`abstract base`) | Draws into the scene pass: `encode(ContributorFrame)`, `boundsFor(view)`, `order`, `readsSceneDepth`, `isOverlay` |
 | `DrawListHook`, `SkinningHook`, `LodPolicy` | Through `RenderHooks`: keep or sort draws (`DrawListContext`), skin claimed meshes (`SkinningContext`, writing `FrameResourceIds.skinnedVertices`), choose LOD levels |
 | `SceneBindingSpec` | Through `SceneBindings.add`: a published component drawn as a node of a `SceneNodeKind`, with its fields mapped to material parameters, `interpolation` and `lifetime` |
 
-`ComputeContext` holds `device`, `executor`, `placement`, `frame`, `step`,
+`ComputeContext` holds `device`, `site`, `frame`, `step`,
 `stage(kernel)`, `beginPass()`, `isOnFrameDevice`. `ContributorFrame`
 extends `FrameContext` with the pass `encoder`, `viewProjection`, `lights`
 and `sceneDepth`. The renderer's extension API is in scene space

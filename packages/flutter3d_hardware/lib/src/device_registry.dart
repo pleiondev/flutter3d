@@ -111,11 +111,42 @@ final class DeviceRegistry<P extends Object> {
   /// starts, its [DeviceUnavailableException.refusals] one line per backend
   /// tried. (It was a `StateError` before 1.0: a machine with no backend that
   /// will start is something a correct program meets, not a mistake in it.)
+  ///
+  /// **The device opened takes its compute from here**, since
+  /// 1.0.0-rc.1+1, as [adopt] says: its frames' [FrameCompute] offers the
+  /// compute devices added with [addComputeDevice], opened the first time
+  /// a frame needs them, each that will not start told to [onFallback].
   Future<GraphicsDevice> open({
     required int width,
     required int height,
     void Function(String message)? onFallback,
   }) async {
+    final device = await _openFirst(width, height, onFallback);
+    adopt(device, onRefused: onFallback);
+    return device;
+  }
+
+  /// Makes the compute devices added here ([addComputeDevice]) the ones
+  /// frames drawn on [device] may place their compute on, beside [device]
+  /// itself — opened the first time a frame needs them, each that will not
+  /// start told to [onRefused] and left out — since 1.0.0-rc.1+1.
+  ///
+  /// [open] does this for every device it opens. A layer that opens a
+  /// device some other way, or a test that makes one directly, adopts it to
+  /// give its frames the same compute. The latest adoption wins.
+  void adopt(
+    GraphicsDevice device, {
+    void Function(String message)? onRefused,
+  }) => attachCompute(
+    device,
+    () => computeExecutors(device, onRefused: onRefused),
+  );
+
+  Future<GraphicsDevice> _openFirst(
+    int width,
+    int height,
+    void Function(String message)? onFallback,
+  ) async {
     final refusals = <String>[];
     for (final entry in _preferred.reversed.toList()) {
       try {

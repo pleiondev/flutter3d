@@ -1022,8 +1022,6 @@ String? applicationDirectory({required String appName, required TargetPlatform p
 
 String? applicationFolder(String appName)
 
-Future<ComputeExecutors> computeExecutorsFor(GraphicsDevice device, {DeviceRegistry? registry})
-
 BinaryStorage defaultBinaryStorage(String appName, {IssueSink? onIssue})
 
 PhotoShelf defaultPhotoShelf(String appName)

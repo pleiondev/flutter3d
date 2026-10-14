@@ -6,13 +6,12 @@
   core keeping the bodies, the springs and the spray round them; where
   neither is, the core steps them as before. Additive.
 - **A river's surface is built where its water is stepped.** `LiquidView`
-  hands its water's step to the engine (`steppedOn`) and, where it lands on
-  a device that computes, builds the surface there in two kernels and draws
-  it from the buffer they wrote, the CPU writing only the air of the
-  bubbles; `steppedAt` says where. It is placed on the renderer's own
-  executors; `Elements.open`, `adopt` and `over` take others (`compute`)
-  for a test. On WebGPU a river's main-thread script fell from
-  about 15 ms a frame to about 11.
+  hands its water's step to the renderer (`steppedOn`) and, where the
+  hardware layer puts it on a device that computes, builds the surface
+  there in two kernels and draws it from the buffer they wrote, the CPU
+  writing only the air of the bubbles. Nothing here says, asks or reports
+  where that is. On WebGPU a river's main-thread script fell from about
+  15 ms a frame to about 11.
 - **`LiquidView.inSight`: a liquid out of the picture is stepped and not
   drawn.** While it is false, `update` leaves the surface, the sheet and
   the spray as they were last drawn; the first `update` after it is true

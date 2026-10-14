@@ -59,8 +59,10 @@ Registration registerCpuBackend(
 /// A software rasteriser for running compute and nothing else — the
 /// [ComputePlacement.cpu] executor: one texel, the engine's own stages, and
 /// every kernel a bundle's kernel section carries translated to Dart.
-CpuDevice cpuComputeDevice() => CpuDevice(
+/// [standInForGpu] is `CpuDevice.standInForGpu`, for a test.
+CpuDevice cpuComputeDevice({bool standInForGpu = false}) => CpuDevice(
   width: 1,
   height: 1,
   shaders: CpuShaderLibrary(builtinCpuShaders()),
+  standInForGpu: standInForGpu,
 );

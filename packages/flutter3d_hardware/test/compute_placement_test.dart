@@ -1,7 +1,6 @@
-// The placement rule on devices without compute: what a step that demands
-// nothing and one that demands a placement are told. The order among
-// devices that do compute is held where a device computes,
-// `flutter3d_cpu/test/compute_placement_test.dart`.
+// The placement rule: what a step is told on devices without compute, and
+// the order among devices that compute as [FrameCompute] applies it to the
+// device a frame is drawn on and the registry that opened it.
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:test/test.dart';
@@ -17,28 +16,8 @@ void main() {
       throwsA(
         isA<ComputePlacementException>()
             .having((e) => e.reason, 'reason', ComputeRefusalReason.noExecutor)
-            .having((e) => e.demand, 'demand', isNull)
             .having((e) => e.tried, 'tried', hasLength(3))
             .having((e) => e.message, 'message', contains('"particles"')),
-      ),
-    );
-  });
-
-  test('a demanded placement that is missing is refused, not moved', () {
-    // Mutation: fall through to the next placement, and a step that
-    // demanded the sidecar runs somewhere it did not ask for.
-    final executors = ComputeExecutors(device: FakeBackend());
-    expect(
-      () => executors.place(step: 'blur', demand: ComputePlacement.sidecar),
-      throwsA(
-        isA<ComputePlacementException>()
-            .having(
-              (e) => e.reason,
-              'reason',
-              ComputeRefusalReason.placementUnavailable,
-            )
-            .having((e) => e.demand, 'demand', ComputePlacement.sidecar)
-            .having((e) => e.tried.single, 'tried', 'sidecar: none given'),
       ),
     );
   });
@@ -100,24 +79,7 @@ void main() {
     );
   });
 
-  test('a workload demanding a missing placement is refused, host or not', () {
-    // Mutation: fall back to the host under a demand, and a workload that
-    // asked for the sidecar is quietly stepped somewhere else.
-    final executors = ComputeExecutors(device: FakeBackend());
-    expect(
-      () => executors.placeWorkload(
-        step: 'water',
-        hasHost: true,
-        demand: ComputePlacement.sidecar,
-      ),
-      throwsA(
-        isA<ComputePlacementException>().having(
-          (e) => e.reason,
-          'reason',
-          ComputeRefusalReason.placementUnavailable,
-        ),
-      ),
-    );
+  test('the GPUs are tried ahead of a workload\'s host code', () {
     expect(ComputeExecutors.aheadOfHost, <ComputePlacement>[
       ComputePlacement.device,
       ComputePlacement.sidecar,
@@ -128,9 +90,10 @@ void main() {
     final host = WorkloadBinding.host();
     expect(host.isOnHost, isTrue);
     expect(host.vertices('surface'), isNull);
-    final placed = WorkloadBinding.placed(ComputePlacement.sidecar);
+    final site = FrameCompute.of(FakeBackend()).frame;
+    final placed = WorkloadBinding.at(site);
     expect(placed.isOnHost, isFalse);
-    expect(placed.placement, ComputePlacement.sidecar);
+    expect(computePlacementOf(placed.site!), ComputePlacement.device);
     expect(
       const WorkloadBuffer('depth', 16, readable: true),
       const WorkloadBuffer('depth', 16, readable: true),

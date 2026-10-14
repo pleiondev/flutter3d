@@ -1,6 +1,6 @@
 // A compute step in the frame graph: unplaced it is not in the frame, a
-// placement nothing can give is refused by type and reported as
-// unsupported, and what only read its output is culled with it.
+// step nothing can run is refused by type and reported as unsupported, and
+// what only read its output is culled with it.
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
@@ -13,15 +13,8 @@ const _particles = ResourceId('particles');
 const _frame = ResourceId('frame');
 
 final class _Step extends ComputeStep {
-  _Step({this.wanted});
-
-  final ComputePlacement? wanted;
-
   @override
   String get name => 'particles';
-
-  @override
-  ComputePlacement? get demand => wanted;
 
   @override
   List<ResourceId> get writes => const <ResourceId>[_particles];
@@ -75,19 +68,11 @@ void main() {
     // Mutation: place it on the drawing device regardless, and a device
     // without compute is handed a compute pass.
     final step = _Step();
-    final refused = await step.prepare(ComputeExecutors(device: FakeBackend()));
+    final refused = await step.prepare(FakeBackend());
     expect(refused!.reason, ComputeRefusalReason.noExecutor);
     expect(step.refusal, same(refused));
-    expect(step.executor, isNull);
+    expect(step.site, isNull);
     expect(_frameWith(step).skipReason('particles'), PassSkip.unsupported);
-  });
-
-  test('a demanded placement that is missing is refused, naming it', () async {
-    final step = _Step(wanted: ComputePlacement.sidecar);
-    final refused = await step.prepare(ComputeExecutors(device: FakeBackend()));
-    expect(refused!.demand, ComputePlacement.sidecar);
-    expect(refused.reason, ComputeRefusalReason.placementUnavailable);
-    expect(refused.message, contains('"particles" demands sidecar'));
   });
 
   test('compute goes before the opaque scene unless the step says', () {

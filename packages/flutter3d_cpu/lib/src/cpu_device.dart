@@ -49,9 +49,17 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
   @override
   String get backendId => 'cpu';
 
-  /// Everything here, compute included, runs in Dart on the CPU.
+  /// Everything here, compute included, runs in Dart on the CPU — unless
+  /// it was made to [standInForGpu].
   @override
-  bool get isSoftware => true;
+  bool get isSoftware => !standInForGpu;
+
+  /// Whether this device says it is not software, for a test: the
+  /// hardware layer then places work with host code of its own on it as on
+  /// a GPU, rather than leaving it to that host code, which is how a
+  /// simulation's kernels are checked against its own CPU step on the CPU.
+  /// Configured, never asked for by the work. Since 1.0.0-rc.1+1.
+  final bool standInForGpu;
 
   // Debug groups, labels and loss: the inherited defaults are the truth
   // here. There is no debugger to show a group to, a label is kept for
@@ -67,6 +75,7 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
     bool supportsIndependentBlend = true,
     Iterable<DeviceFeature> withhold = const <DeviceFeature>[],
     this.materialCompiler,
+    this.standInForGpu = false,
   }) : features = DeviceFeatures(<DeviceFeature>[
          ..._implemented,
          if (supportsIndependentBlend) DeviceFeature.independentBlend,

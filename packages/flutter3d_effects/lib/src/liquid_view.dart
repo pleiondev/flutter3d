@@ -319,30 +319,16 @@ final class LiquidView {
   Registration? _compute;
   _SurfaceWorkload? _workload;
 
-  /// Where the water's columns are stepped: on an executor's placement, or
-  /// null while the core steps them — before [steppedOn], while it is
-  /// being placed, and where the engine's rule leaves it on the core. For a
-  /// settings page or a frame report saying where the water runs.
-  ComputePlacement? get steppedAt => _workload?.binding?.placement;
-
-  /// Hands the water's step to [renderer], placed by the engine's rule
-  /// (`ComputeExecutors.placeWorkload`) on the executors the renderer was
-  /// given where it was opened (`RendererSteps.computeExecutors`), or on
-  /// [executors] when they are handed in: on a device that
-  /// computes the columns are stepped there and the surface is built
-  /// there and drawn from the buffer it was built in; where none does, the
-  /// core steps them and this draws them as before. Which of the two it is
-  /// is the engine's answer, read from [steppedAt].
-  Future<void> steppedOn(
-    Renderer renderer, {
-    ComputeExecutors? executors,
-  }) async {
+  /// Hands the water's step to [renderer], which places it as the hardware
+  /// layer's rule says, for the device it draws on: where that device or
+  /// one beside it computes, the columns are stepped there and the surface
+  /// is built there and drawn from the buffer it was built in; where none
+  /// does, the core steps them and this draws them as before. Which it is
+  /// is the hardware layer's to say, and nothing here reports it.
+  Future<void> steppedOn(Renderer renderer) async {
     if (_compute != null || _workload != null || _disposed) return;
     final workload = _workload = _SurfaceWorkload(this);
-    final added = await renderer.renderSteps.addWorkload(
-      workload,
-      executors: executors,
-    );
+    final added = await renderer.renderSteps.addWorkload(workload);
     // Let go while it was being placed: handed straight back.
     if (_disposed) {
       added.cancel();

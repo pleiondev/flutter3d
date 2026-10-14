@@ -37,7 +37,7 @@ flutter test
   and watches the warmth arrive in the field and in the ball's material
   state; rolls a run back and forward again; and draws the published field
   into a frame on the software rasteriser, as a 3D texture and as a
-  storage buffer on the CPU executor.
+  storage buffer on the CPU device.
 - `test/conformance_test.dart` holds the plugin to the plugin suite of
   `flutter3d_conformance` under both profiles. Its backends check installs
   and steps the plugin on no backend and on each of the four by name, and
@@ -67,4 +67,4 @@ named, and a field in a storage buffer reads back bit for bit.
   refuses the plugin's field the same way, as unsupported in the frame. A
   buffer field needs compute, which flutter_gpu does not have yet
   (flutter/flutter#188474), so the second is declined there and a buffer
-  field goes to the wgpu sidecar or the CPU executor instead.
+  field goes to the wgpu sidecar or the CPU device instead.

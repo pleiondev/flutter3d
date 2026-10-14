@@ -20,43 +20,46 @@ The physics never does. A fluid describes its step once, as a
 - whether it has an implementation of its own on the host (`hasHost`) —
   for the core's fluids, the C step they always had.
 
-**Nor does the game.** The executors a workload is offered are the
-renderer's own (`RendererSteps.computeExecutors`), set by the layer that
-opened the device — `Flutter3dView`, `Flutter3dFlameWidget`, or
-`computeExecutorsFor` for one that opens its own — from the registry the
-device came from (`DeviceRegistry.computeExecutors`). A game adds a water to
-its elements and nothing else; which device is there, and whether a wgpu
-sidecar was registered beside it, is the application's registry.
+**Nor does the game, nor the engine above the hardware layer.** Where a
+workload may run is the hardware layer's alone (`FrameCompute`): the
+device a renderer draws on, and the sidecar and CPU device of the
+`DeviceRegistry` that opened it, which attaches its compute to every device
+it opens. A game adds a water to its elements and nothing else; which
+device is there, and whether a wgpu sidecar was registered beside it, is
+the application's registry. A structure rule holds every `lib/` outside the
+hardware layer and the backends to naming no placement.
 
-The engine places it. `RendererSteps.addWorkload` makes a `WorkloadStep`
-(`flutter3d_core`, `compute_step.dart`), loads the kernels on each candidate
-and asks `ComputeExecutors.placeWorkload`, which is the one place the rule
-is written:
+`RendererSteps.addWorkload` makes a `WorkloadStep` (`flutter3d_core`,
+`compute_step.dart`), which hands the kernels to `FrameCompute.placeHosted`;
+that loads them on each candidate and asks `ComputeExecutors.placeWorkload`,
+the one place the rule is written:
 
-1. the drawing device's own compute (`ComputePlacement.device`): WebGPU;
-2. the compute sidecar (`ComputePlacement.sidecar`): `flutter3d_wgpu` over
-   wgpu-native, where the application registered it (`registerWgpuSidecar`);
+1. the drawing device's own compute: WebGPU;
+2. the compute sidecar: `flutter3d_wgpu` over wgpu-native, where the
+   application registered it (`registerWgpuSidecar`);
 3. the workload's own host implementation, when it has one;
-4. the CPU executor (`ComputePlacement.cpu`), which interprets the kernels
-   in Dart — only for a workload with nothing of its own on the host.
+4. the CPU device, which interprets the kernels in Dart — only for a
+   workload with nothing of its own on the host.
 
-Host code comes before the CPU executor because it was written for the
-CPU; the CPU executor runs kernels written for a GPU, one invocation at a
-time. For the same reason a workload with host code is never put on a
-device that does its work on the CPU (`GraphicsDevice.isSoftware`): the
-software rasteriser drawing a test's frames, or a native fallback, leaves
-the water on the core. A demanded placement is met or refused, never moved, as for any
-compute step. Impeller has no compute (`_noCompute`), so a native Impeller
-application lands on the sidecar or the core.
+Host code comes before the CPU device because it was written for the CPU;
+the CPU device runs kernels written for a GPU, one invocation at a time.
+For the same reason a workload with host code is never put on a device that
+does its work on the CPU (`GraphicsDevice.isSoftware`): the software
+rasteriser drawing a test's frames, or a native fallback, leaves the water
+on the core. Nothing asks for a placement. Impeller has no compute
+(`_noCompute`), so a native Impeller application lands on the sidecar or
+the core.
 
 The workload learns the outcome and nothing else: `placed(WorkloadBinding)`
-says the placement, or `isOnHost`, and hands the drawing device's vertex
-buffer for each buffer it declared `drawn`. `ShallowWaterWorkload` reacts by
+says whether its host code steps it (`isOnHost`), and hands the drawing
+device's vertex buffer for each buffer it declared `drawn`. `ShallowWaterWorkload` reacts by
 telling the core whether it steps the columns (`setShallowExternal`); it
 has no branch on a backend and no knowledge of which exist.
 `flutter3d_effects/test/shallow_workload_test.dart` runs the same workload
-object under four setups — a computing drawing device, a sidecar, only a
-CPU executor, nothing — and reads where it ran back from what it was told.
+object under the setups a registry can make — a computing drawing device,
+a sidecar (the CPU device standing in for a GPU, and the real wgpu one),
+only a CPU device, nothing — and reads where it ran back through the
+hardware layer's test seam, `computePlacementOf`.
 
 **The core names no device.** It publishes its step's kernels
 (`shallowWaterKernels`) and the calls that hand a water's columns over and
@@ -153,29 +156,26 @@ lists them, the CPU's to the GPU's rounding.
 
 ## Public surface
 
-Additive only.
-
-- `flutter3d_hardware` (1.0.0-rc.1+1): `ComputeWorkload` (with `demand`),
-  `WorkloadBuffer`, `WorkloadRecorder`, `WorkloadBinding`,
-  `ComputeExecutors.placeWorkload`, `workloadCandidates` and
-  `aheadOfHost`, `GraphicsDevice.isSoftware`.
+- `flutter3d_hardware` (1.0.0-rc.1+1): `ComputeWorkload`,
+  `WorkloadBuffer`, `WorkloadRecorder`, `WorkloadBinding`, `FrameCompute`,
+  `ComputeSite`, `DeviceRegistry.adopt`, `ComputeExecutors.placeWorkload`,
+  `workloadCandidates` and `aheadOfHost`, `GraphicsDevice.isSoftware`; a
+  step's `demand` is gone.
 - `flutter3d_core` (1.0.0-rc.1+1): `WorkloadStep`,
-  `RendererSteps.addWorkload`, `workloadStep` and `computeExecutors`,
-  `FrameResourceIds.computedVertices`.
-- `flutter3d_cpu` (1.0.0-rc.1+1): `CpuDevice.isSoftware`.
+  `RendererSteps.addWorkload` and `workloadStep`,
+  `FrameResourceIds.computedVertices`; compute steps, hooks and fields are
+  placed by the hardware layer and handed no executors.
+- `flutter3d_cpu` (1.0.0-rc.1+1): `CpuDevice.isSoftware` and
+  `standInForGpu`.
 - `flutter3d_webgpu` (1.0.0-rc.1+2): no API; a compute pass keeps its bind
   groups.
-- `flutter3d_app` (1.0.0-rc.1+1): `computeExecutorsFor`; the view sets
-  the renderer's executors. `flame_flutter3d` (1.0.0-rc.1+1): no API; the
-  widget sets them.
 - `flutter3d_effects` (1.0.0-rc.1+1): `ShallowWaterWorkload`,
-  `LiquidView.steppedOn` and `steppedAt`, and `Elements.open`'s, `adopt`'s
-  and `over`'s `compute`.
-- `flutter3d_physics_native` (not yet published; lands after its first
-  publish as a +1): `shallowWaterKernels`, `nativeLipFloats`,
-  `NativeShallowExternal`, the `NativeWorld` calls a workload makes
-  (`setShallowExternal`, `drainShallowExternal`, `readShallowState`,
-  `putShallowState`, `throwShallowLips`) and `NativeShallowLiquid.faces`,
-  `stateLength` and `blockLength`; in C, `f3d_shallow_set_external`,
+  `LiquidView.steppedOn`.
+- `flutter3d_physics_native` (1.0.0-rc.1, its first upload):
+  `shallowWaterKernels`, `nativeLipFloats`, `NativeShallowExternal`, the
+  `NativeWorld` calls a workload makes (`setShallowExternal`,
+  `drainShallowExternal`, `readShallowState`, `putShallowState`,
+  `throwShallowLips`) and `NativeShallowLiquid.faces`, `stateLength` and
+  `blockLength`; in C, `f3d_shallow_set_external`,
   `f3d_shallow_take_external`, `f3d_shallow_read_state`,
   `f3d_shallow_put_state` and `f3d_shallow_throw_lips` (ABI 42).

@@ -1,31 +1,36 @@
 /// A pass of the frame that computes rather than draws, and where it runs
 /// — 1.0.
 ///
-/// **Compute everywhere, by placement.** A [ComputeStep] is a [RenderNode]:
-/// it declares what it reads and writes, the frame graph orders and culls it
-/// like any other pass, and the renderer runs it in order. What is its own is
-/// where its work goes. Its kernels are in the kernel language, and [prepare]
-/// places them on the first executor that loads them — the device that draws
-/// the frame, then the wgpu sidecar, then the CPU (`ComputeExecutors`) — or
-/// on the one the step [demand]s. A step that cannot be placed is not
-/// supported ([isSupported] false), so the frame reports it as
-/// `PassSkip.unsupported` with [refusal] saying why, and whatever only read
-/// its output is culled with it, rather than a frame that throws.
+/// **Compute everywhere, placed by the hardware layer.** A [ComputeStep] is
+/// a [RenderNode]: it declares what it reads and writes, the frame graph
+/// orders and culls it like any other pass, and the renderer runs it in
+/// order. What is its own is where its work goes, and that is not its to
+/// say: [prepare] hands its kernels to `FrameCompute`, which loads them on
+/// the first device of the frame's that takes them and answers a
+/// [ComputeSite]. A step that cannot be placed is not supported
+/// ([isSupported] false), so the frame reports it as `PassSkip.unsupported`
+/// with [refusal] saying why, and whatever only read its output is culled
+/// with it, rather than a frame that throws.
 ///
 /// **Placed before the frame, not by it.** Loading a kernel is asynchronous
 /// on every device (`GraphicsDevice.loadShaders`), and a frame is not; so the
-/// placement is a step of its own, done when the step is added or the
-/// executors change, the way pipelines are warmed up. `FrameGraph.compile`
-/// needs nothing new for it: it already asks every node [isSupported], and
-/// that answer is the placement's. A step never prepared is unsupported.
+/// placement is a step of its own, done when the step is added, the way
+/// pipelines are warmed up. `FrameGraph.compile` needs nothing new for it:
+/// it already asks every node [isSupported], and that answer is the
+/// placement's. A step never prepared is unsupported.
 ///
-/// **A step may take the executor's encoder directly.** [record] is handed
-/// the [ComputeContext]: the chosen [ComputeExecutor], its device, each
-/// kernel's stage on that device and `beginPass`, which is the executor's
-/// own `ComputeEncoder`. A step on the drawing device reads and writes the
-/// frame's buffers as they are; one on another executor hands its results
-/// over through `SharedBuffer` or `SharedTexture`, which copy through host
+/// **A step may take the site's encoder directly.** [record] is handed the
+/// [ComputeContext]: the device its work is encoded on, each kernel's stage
+/// on that device and `beginPass`, which is that device's own
+/// `ComputeEncoder`. A step on the drawing device reads and writes the
+/// frame's buffers as they are; one elsewhere hands its results over
+/// through `SharedBuffer` or `SharedTexture`, which copy through host
 /// memory where the two devices share nothing.
+///
+/// **Breaking in 1.0.0-rc.1+1.** A step no longer demands a placement
+/// (`demand` is gone), is no longer handed executors (`prepare` takes the
+/// device the frame is drawn on), and learns a [ComputeSite], not an
+/// executor: where compute runs is the hardware layer's alone.
 library;
 
 import 'dart:async';
@@ -47,7 +52,7 @@ import 'render_node.dart';
 /// later minor adds members here, and a step written against this one keeps
 /// compiling.
 final class ComputeContext {
-  ComputeContext._(this.step, this.frame, this.executor, this._stages);
+  ComputeContext._(this.step, this.frame, this.site, this._stages);
 
   /// The step recording, by its name in the frame.
   final String step;
@@ -56,24 +61,22 @@ final class ComputeContext {
   /// device that draws it.
   final RenderFrame frame;
 
-  /// Where the step was placed.
-  final ComputeExecutor executor;
+  /// Where the step was placed. Since 1.0.0-rc.1+1, in place of the
+  /// executor.
+  final ComputeSite site;
 
   final Map<String, ShaderHandle> _stages;
 
-  /// [executor]'s placement.
-  ComputePlacement get placement => executor.placement;
-
   /// The device the step's work is encoded on.
-  GraphicsDevice get device => executor.device;
+  GraphicsDevice get device => site.device;
 
   /// Whether that is the device drawing the frame, so the frame's own
   /// buffers and textures can be bound as they are.
   ///
   /// For whoever writes a step's `record` — a game, a plugin: a step that
-  /// may land on the sidecar or the CPU asks this before it binds
-  /// `frame.resources` directly, and otherwise hands its output over
-  /// through `SharedBuffer` or `SharedTexture`.
+  /// may land elsewhere asks this before it binds `frame.resources`
+  /// directly, and otherwise hands its output over through `SharedBuffer`
+  /// or `SharedTexture`.
   bool get isOnFrameDevice => identical(device, frame.device);
 
   /// The stage of the kernel called [kernel] on [device]. Throws an
@@ -86,17 +89,17 @@ final class ComputeContext {
         'is not one of this step\'s kernels (${_stages.keys.join(', ')})',
       ));
 
-  /// Opens a compute pass on [device]: the executor's own encoder, which the
-  /// caller binds, dispatches and submits. Labelled with the step's name
-  /// unless [label] says otherwise.
+  /// Opens a compute pass on [device]: its own encoder, which the caller
+  /// binds, dispatches and submits. Labelled with the step's name unless
+  /// [label] says otherwise.
   ComputeEncoder beginPass({String? label}) =>
       device.beginComputePass(label: label ?? step);
 }
 
-/// A compute pass in the frame graph, run on the executor [prepare] chose.
+/// A compute pass in the frame graph, run where [prepare] placed it.
 ///
 /// A subclass names its [kernels], declares its reads and writes as any
-/// node does, and [record]s its passes; it may [demand] a placement.
+/// node does, and [record]s its passes.
 ///
 /// **Implementable outside this package, and stays so through 1.x**: a
 /// member added later arrives with a default body.
@@ -104,12 +107,8 @@ abstract base class ComputeStep extends RenderNode {
   /// A step; a subclass says what it computes.
   ComputeStep();
 
-  /// The kernels this step dispatches, loaded together on its executor.
+  /// The kernels this step dispatches, loaded together where it is placed.
   List<ComputeKernel> get kernels;
-
-  /// The placement this step must run at, or null for the first that loads
-  /// its kernels in `ComputePlacement.values` order.
-  ComputePlacement? get demand => null;
 
   /// Records this frame's work: binds, dispatches and submits on
   /// `context.beginPass()`.
@@ -121,7 +120,7 @@ abstract base class ComputeStep extends RenderNode {
   @override
   RenderAnchor get defaultAnchor => RenderAnchor.beforeOpaque;
 
-  ComputeExecutor? _executor;
+  ComputeSite? _site;
   Map<String, ShaderHandle> _stages = const <String, ShaderHandle>{};
   ComputePlacementException? _refusal = const ComputePlacementException(
     step: '',
@@ -129,8 +128,9 @@ abstract base class ComputeStep extends RenderNode {
     tried: <String>['ComputeStep.prepare places a step before its frame'],
   );
 
-  /// Where the last [prepare] placed this step, or null.
-  ComputeExecutor? get executor => _executor;
+  /// Where the last [prepare] placed this step, or null. Since
+  /// 1.0.0-rc.1+1, in place of `executor`.
+  ComputeSite? get site => _site;
 
   /// Why this step is not placed: the refusal of the last [prepare], or
   /// that it was never prepared. Null once placed.
@@ -145,99 +145,88 @@ abstract base class ComputeStep extends RenderNode {
 
   /// Placed, and so in the frame.
   @override
-  bool get isSupported => _executor != null;
+  bool get isSupported => _site != null;
 
-  /// Places this step on [executors]: at its [demand], or on the first in
-  /// placement order whose device loads the step's [kernels]. A device that
-  /// refuses the bundle is passed over, and its refusal kept as the cause.
+  /// Places this step for frames drawn on [device]: `FrameCompute.of`
+  /// that device loads the step's [kernels] on the first of the frame's
+  /// compute devices that takes them. A device that refuses the bundle is
+  /// passed over, and its refusal kept as the cause.
   ///
   /// Answers the refusal when nothing fits, which [refusal] also holds;
   /// null when placed.
-  Future<ComputePlacementException?> prepare(ComputeExecutors executors) async {
+  Future<ComputePlacementException?> prepare(GraphicsDevice device) =>
+      _prepare(device, besideFrame: true);
+
+  Future<ComputePlacementException?> _prepare(
+    GraphicsDevice device, {
+    required bool besideFrame,
+  }) async {
     final bundle = kernelBundle(name, kernels).encode();
-    final loaded = <ComputeExecutor, Map<String, ShaderHandle>>{};
-    Object? cause;
-    // In placement order, stopping at the first that loads: the rule below
-    // then chooses that one, and asking the rest would only load the
-    // kernels again on devices nobody will use.
-    for (final candidate in <ComputeExecutor>[
-      if (demand == null)
-        ...executors.available
-      else
-        ?executors.executorFor(demand!),
-    ]) {
-      try {
-        final library = await candidate.device.loadShaders(bundle);
-        loaded[candidate] = <String, ShaderHandle>{
+    try {
+      final (site, stages) = await FrameCompute.of(device).place(name, (
+        GraphicsDevice on,
+      ) async {
+        final library = await on.loadShaders(bundle);
+        return <String, ShaderHandle>{
           for (final kernel in kernels)
             kernel.name:
                 library[kernel.name] ??
                 (throw StateError(
-                  '${candidate.device.backendName} loaded the bundle and '
-                  'has no stage "${kernel.name}"',
+                  '${on.backendName} loaded the bundle and has no stage '
+                  '"${kernel.name}"',
                 )),
         };
-        break;
-      } on Object catch (error) {
-        cause ??= error;
-      }
-    }
-    try {
-      final chosen = executors.place(
-        step: name,
-        demand: demand,
-        accepts: loaded.containsKey,
-      );
-      _executor = chosen;
-      _stages = loaded[chosen]!;
-      _refusal = null;
+      }, besideFrame: besideFrame);
+      _place(site, stages, null);
       return null;
     } on ComputePlacementException catch (refused) {
-      _executor = null;
-      _stages = const <String, ShaderHandle>{};
-      return _refusal = ComputePlacementException(
-        step: refused.step,
-        reason: refused.reason,
-        demand: refused.demand,
-        tried: refused.tried,
-        cause: cause,
-      );
+      _place(null, const <String, ShaderHandle>{}, refused);
+      return refused;
     }
   }
 
   /// Sets where this step stands, for the steps of this library that place
   /// by a rule of their own.
   void _place(
-    ComputeExecutor? executor,
+    ComputeSite? site,
     Map<String, ShaderHandle> stages,
     ComputePlacementException? refusal,
   ) {
-    _executor = executor;
+    _site = site;
     _stages = stages;
     _refusal = refusal;
   }
 
-  /// Runs [record] on the placed executor. Called only for a step the frame
+  /// Runs [record] where it was placed. Called only for a step the frame
   /// kept, which a step that is not placed never is.
   @override
   void execute(RenderFrame frame) {
-    final executor = _executor;
-    if (executor == null) {
+    final site = _site;
+    if (site == null) {
       throw StateError('"$name" ran without a placement: ${refusal?.message}');
     }
-    record(ComputeContext._(name, frame, executor, _stages));
+    record(ComputeContext._(name, frame, site, _stages));
   }
 }
 
-/// A `ComputeWorkload` in the frame: placed by the workload rule,
-/// `ComputeExecutors.placeWorkload`, its buffers made where it landed, and
-/// its work recorded there once a frame — since 1.0.0-rc.1+1.
+/// Places [step] as [ComputeStep.prepare] does, kept off a compute-only
+/// device beside the frame's: for the engine's own steps whose output the
+/// frame draws the same frame, a skinning hook's. Not exported.
+Future<ComputePlacementException?> prepareForThisFrame(
+  ComputeStep step,
+  GraphicsDevice device,
+) => step._prepare(device, besideFrame: false);
+
+/// A `ComputeWorkload` in the frame: placed by the hardware layer's
+/// workload rule (`FrameCompute.placeHosted`), its buffers made where it
+/// landed, and its work recorded there once a frame — since 1.0.0-rc.1+1.
 ///
-/// **Where is decided here, never by the workload.** [prepare] loads the
-/// workload's kernels on the drawing device's compute, then on the sidecar,
-/// and asks the rule: the first that loaded them, else the workload's own
-/// host implementation when it has one, else the CPU executor. The workload
-/// is told the outcome (`ComputeWorkload.placed`) and nothing else.
+/// **Where is decided by the hardware layer, never here and never by the
+/// workload.** [prepare] hands the workload's kernels to `FrameCompute`,
+/// which loads them on the GPUs a frame has, in its order, and answers the
+/// first that took them, or none when the workload's own host code is to
+/// step it. The workload is told the outcome (`ComputeWorkload.placed`)
+/// and nothing else.
 ///
 /// **What it draws reaches the drawing device.** A buffer the workload
 /// declares drawn is made with `BufferUsage.vertex` on the drawing device
@@ -258,10 +247,6 @@ final class WorkloadStep extends ComputeStep {
 
   @override
   String get name => workload.name;
-
-  /// The workload's own demand ([ComputeWorkload.demand]).
-  @override
-  ComputePlacement? get demand => workload.demand;
 
   @override
   late final List<ComputeKernel> kernels = ComputeKernel.parseAll(
@@ -314,87 +299,65 @@ final class WorkloadStep extends ComputeStep {
     }();
   }
 
-  /// Places the workload by `ComputeExecutors.placeWorkload`, makes its
-  /// buffers there and tells it where it landed. Answers the refusal when
-  /// nothing fits — a demand nothing meets, or no executor and no host
-  /// code — and null when it is placed or left to its host code.
+  /// Places the workload for frames drawn on [device] by the hardware
+  /// layer's workload rule, makes its buffers there and tells it where it
+  /// landed. Answers the refusal when nothing fits — no executor and no
+  /// host code — and null when it is placed or left to its host code.
   @override
-  Future<ComputePlacementException?> prepare(ComputeExecutors executors) async {
+  Future<ComputePlacementException?> prepare(GraphicsDevice device) async {
     _release();
-    final loaded = <ComputeExecutor, Map<String, ShaderHandle>>{};
-    Object? cause;
-    final candidates = switch (demand) {
-      final demanded? => <ComputeExecutor>[?executors.executorFor(demanded)],
-      null => executors.workloadCandidates(hasHost: workload.hasHost),
-    };
-    for (final candidate in candidates) {
-      try {
-        loaded[candidate] = await _load(candidate.device);
-        break;
-      } on Object catch (error) {
-        // A device that refused once refuses again; asked afresh next time.
-        _libraries[candidate.device]?.remove(workload.kernelSource)?.ignore();
-        cause ??= error;
-      }
-    }
-    final ComputeExecutor? chosen;
+    final (ComputeSite, Map<String, ShaderHandle>)? placed;
     try {
-      chosen = executors.placeWorkload(
-        step: name,
-        hasHost: workload.hasHost,
-        demand: demand,
-        accepts: loaded.containsKey,
-      );
+      placed = await FrameCompute.of(device).placeHosted(name, (
+        GraphicsDevice on,
+      ) async {
+        try {
+          return await _load(on);
+        } on Object {
+          // A device that refused once refuses again; asked afresh next time.
+          _libraries[on]?.remove(workload.kernelSource)?.ignore();
+          rethrow;
+        }
+      }, hasHost: workload.hasHost);
     } on ComputePlacementException catch (refused) {
       _onHost = false;
-      final refusal = ComputePlacementException(
-        step: refused.step,
-        reason: refused.reason,
-        demand: refused.demand,
-        tried: refused.tried,
-        cause: cause,
-      );
-      _place(null, const <String, ShaderHandle>{}, refusal);
-      return refusal;
+      _place(null, const <String, ShaderHandle>{}, refused);
+      return refused;
     }
-    if (chosen == null) {
+    if (placed == null) {
       _onHost = true;
       _place(null, const <String, ShaderHandle>{}, null);
       workload.placed(_binding = WorkloadBinding.host());
       return null;
     }
-    final stages = loaded[chosen]!;
+    final (site, stages) = placed;
     final pipelines = <String, ComputePipelineHandle>{
       for (final MapEntry(key: kernel, value: stage) in stages.entries)
-        kernel: await (_pipelines[stage] ??= chosen.device
+        kernel: await (_pipelines[stage] ??= site.device
             .createComputePipelineAsync(stage)),
     };
     final resources = _resources = _WorkloadResources.make(
       workload,
-      chosen,
-      drawing: executors.device,
+      site,
       pipelines: pipelines,
       stages: stages,
     );
     _onHost = false;
-    _place(chosen, stages, null);
+    _place(site, stages, null);
     workload.placed(
-      _binding = WorkloadBinding.placed(
-        chosen.placement,
-        drawn: resources.drawnVertices,
-      ),
+      _binding = WorkloadBinding.at(site, drawn: resources.drawnVertices),
     );
     return null;
   }
 
-  /// Records the workload's frame on the executor it was placed on, then
-  /// hands what it draws to the drawing device and starts its reads back.
+  /// Records the workload's frame where it was placed, then hands what it
+  /// draws to the drawing device and starts its reads back.
   @override
   void record(ComputeContext context) {
     final resources = _resources;
     if (resources == null) return;
     final encoder = context.beginPass(label: name);
-    final recorder = _Recorder(resources, encoder, context.placement);
+    final recorder = _Recorder(resources, encoder);
     workload.record(recorder);
     encoder.submit();
     resources.afterFrame(recorder.reads);
@@ -420,11 +383,11 @@ final class WorkloadStep extends ComputeStep {
   }
 }
 
-/// A workload's buffers on its executor, the drawing device's copies of the
-/// drawn ones where those are two devices, and the reads in flight.
+/// A workload's buffers where it was placed, the drawing device's copies of
+/// the drawn ones where those are two devices, and the reads in flight.
 final class _WorkloadResources {
   _WorkloadResources._(
-    this.executor,
+    this.site,
     this.drawing,
     this.buffers,
     this.copies,
@@ -435,13 +398,13 @@ final class _WorkloadResources {
 
   static _WorkloadResources make(
     ComputeWorkload workload,
-    ComputeExecutor executor, {
-    required GraphicsDevice drawing,
+    ComputeSite site, {
     required Map<String, ComputePipelineHandle> pipelines,
     required Map<String, ShaderHandle> stages,
   }) {
-    final device = executor.device;
-    final here = identical(device, drawing);
+    final device = site.device;
+    final drawing = site.frameDevice;
+    final here = site.isOnFrameDevice;
     final buffers = <String, StorageBuffer>{};
     final copies = <String, StorageBuffer>{};
     for (final b in workload.buffers) {
@@ -480,7 +443,7 @@ final class _WorkloadResources {
       for (final k in ComputeKernel.parseAll(workload.kernelSource)) k.name: k,
     };
     return _WorkloadResources._(
-      executor,
+      site,
       drawing,
       buffers,
       copies,
@@ -490,7 +453,7 @@ final class _WorkloadResources {
     );
   }
 
-  final ComputeExecutor executor;
+  final ComputeSite site;
   final GraphicsDevice drawing;
   final Map<String, StorageBuffer> buffers;
 
@@ -521,7 +484,7 @@ final class _WorkloadResources {
   /// Starts the reads the frame asked for, and the copies of what is drawn
   /// across to the drawing device.
   void afterFrame(List<(String, void Function(ByteData bytes))> reads) {
-    final device = executor.device;
+    final device = site.device;
     for (final (name, done) in reads) {
       unawaited(
         device.readBuffer(buffer(name)).then((bytes) {
@@ -557,15 +520,12 @@ final class _WorkloadResources {
 }
 
 /// The recorder a frame hands a workload: its names bound to the buffers
-/// and pipelines of the executor it runs on.
+/// and pipelines of the device it runs on.
 final class _Recorder extends WorkloadRecorder {
-  _Recorder(this._resources, this._encoder, this.placement);
+  _Recorder(this._resources, this._encoder);
 
   final _WorkloadResources _resources;
   final ComputeEncoder _encoder;
-
-  @override
-  final ComputePlacement placement;
 
   /// The reads asked for this frame, started once its work is submitted.
   final List<(String, void Function(ByteData bytes))> reads =
@@ -573,7 +533,7 @@ final class _Recorder extends WorkloadRecorder {
 
   @override
   void write(String buffer, ByteData bytes, {int offsetInBytes = 0}) =>
-      _resources.executor.device.writeBuffer(
+      _resources.site.device.writeBuffer(
         _resources.buffer(buffer),
         offsetInBytes,
         bytes,

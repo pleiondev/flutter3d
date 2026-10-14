@@ -15,7 +15,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/geometry.dart' show MeshData, VertexLayout;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart'
-    show ComputePlacement, GraphicsDevice, StorageBuffer;
+    show GraphicsDevice, StorageBuffer;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show PluginRegistry, PluginScope, Registration;
 import 'package:flutter3d_shaders/kernel.dart' show ComputeKernel;
@@ -175,13 +175,9 @@ abstract base class SkinningHook {
   bool claims(SkinningContext context) => false;
 
   /// The kernels [record] dispatches, as a `ComputeStep`'s are: what
-  /// placing the hook loads on the executor it lands on.
+  /// placing the hook loads where it lands. Where that is, the hardware
+  /// layer says: since 1.0.0-rc.1+1 a hook demands no placement.
   List<ComputeKernel> get kernels => const <ComputeKernel>[];
-
-  /// The placement this hook must run at, or null for the drawing device
-  /// and then the CPU. A demand nothing can meet is refused, and the hook
-  /// is placed on the CPU instead, the refusal kept.
-  ComputePlacement? get demand => null;
 
   /// Records the skinning of [context]'s mesh into its
   /// [SkinningContext.output], through [SkinningContext.compute]. True when

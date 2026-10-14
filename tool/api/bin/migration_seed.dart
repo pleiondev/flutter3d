@@ -89,19 +89,22 @@ void main(List<String> args) {
   // the snapshots), or the snapshots at its tag.
   final baseline = Directory('${root.path}/tool/api/baseline/v${table.from}');
   final packages = repositoryPackages(root);
+  // Two separate `if`s, not an `if … else`: an `else` here binds to the
+  // `.api` test inside the loop, which left a release with no baseline
+  // reading nothing.
   final released = <String, String>{
     if (baseline.existsSync())
       for (final f in baseline.listSync().whereType<File>())
         if (f.path.endsWith('.api'))
-          f.uri.pathSegments.last.replaceAll('.api', ''): f.readAsStringSync()
-        else
-          for (final MapEntry(key: name, value: dir) in packages.entries)
-            if (git(<String>[
-                  'show',
-                  'v${table.from}:${dir.path.substring(root.path.length + 1)}/api/$name.api',
-                ])
-                case final String text)
-              name: text,
+          f.uri.pathSegments.last.replaceAll('.api', ''): f.readAsStringSync(),
+    if (!baseline.existsSync())
+      for (final MapEntry(key: name, value: dir) in packages.entries)
+        if (git(<String>[
+              'show',
+              'v${table.from}:${dir.path.substring(root.path.length + 1)}/api/$name.api',
+            ])
+            case final String text)
+          name: text,
   };
   if (released.isEmpty) {
     stderr.writeln(

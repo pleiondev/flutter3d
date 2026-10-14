@@ -47,9 +47,9 @@ final class Elements
   set scene(Scene value)
   set switches(ElementsSteps value)
   set wind(Vector3 value)
-  static Future<Elements> adopt(NativeWorld world, {required GraphicsDevice device, required Renderer renderer, required Scene scene, required Future<ByteData> Function(String asset) load, ElementsQuality quality = const ElementsQuality(liquid: LiquidDetail.full, fire: FireDetail.full), FireLights lights = const FireLights.clusters(), PhysicsHearing Function(NativeWorld world)? hearing, ComputeExecutors? compute})
-  static Future<Elements> open({required GraphicsDevice device, required Renderer renderer, required Scene scene, required Future<ByteData> Function(String asset) load, ElementsQuality quality = const ElementsQuality(liquid: LiquidDetail.full, fire: FireDetail.full), FireLights lights = const FireLights.clusters(), PhysicsHearing Function(NativeWorld world)? hearing, ComputeExecutors? compute})
-  static Future<Elements> over(ElementsSimulation simulation, {required GraphicsDevice device, required Renderer renderer, required Scene scene, required Future<ByteData> Function(String asset) load, ElementsQuality quality = const ElementsQuality(liquid: LiquidDetail.full, fire: FireDetail.full), FireLights lights = const FireLights.clusters(), PhysicsHearing Function(NativeWorld world)? hearing, ComputeExecutors? compute})
+  static Future<Elements> adopt(NativeWorld world, {required GraphicsDevice device, required Renderer renderer, required Scene scene, required Future<ByteData> Function(String asset) load, ElementsQuality quality = const ElementsQuality(liquid: LiquidDetail.full, fire: FireDetail.full), FireLights lights = const FireLights.clusters(), PhysicsHearing Function(NativeWorld world)? hearing})
+  static Future<Elements> open({required GraphicsDevice device, required Renderer renderer, required Scene scene, required Future<ByteData> Function(String asset) load, ElementsQuality quality = const ElementsQuality(liquid: LiquidDetail.full, fire: FireDetail.full), FireLights lights = const FireLights.clusters(), PhysicsHearing Function(NativeWorld world)? hearing})
+  static Future<Elements> over(ElementsSimulation simulation, {required GraphicsDevice device, required Renderer renderer, required Scene scene, required Future<ByteData> Function(String asset) load, ElementsQuality quality = const ElementsQuality(liquid: LiquidDetail.full, fire: FireDetail.full), FireLights lights = const FireLights.clusters(), PhysicsHearing Function(NativeWorld world)? hearing})
   static double burnDoseRate(double flux)
   void dispose()
   void draw(double dt, {required Vector3 eye, double pixel = 0.001, CameraNode? camera, double aspect = 16 / 9})
@@ -190,10 +190,9 @@ extension type LiquidParameters(MaterialParameters parameters)
   static const String materialName = 'Liquid'
 
 final class LiquidView
-  ComputePlacement? get steppedAt
   Float32List get sheetVertices
   Float32List get surfaceVertices
-  Future<void> steppedOn(Renderer renderer, {ComputeExecutors? executors})
+  Future<void> steppedOn(Renderer renderer)
   LiquidSteps steps
   LiquidView({required NativeWorld this._world, required this.liquid, required List<double> ground, required GraphicsDevice device, required Scene scene, required RenderMaterial look, this.detail = LiquidDetail.full, this.mist, NativeLiquidProperties? properties})
   List<(String, int, int)> get wanted

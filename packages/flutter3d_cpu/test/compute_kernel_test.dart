@@ -136,15 +136,6 @@ void main() {
       expect(executor.device, same(drawing));
     });
 
-    test('a step that demands the CPU gets it, the device notwithstanding', () {
-      final cpu = _device();
-      final executor = ComputeExecutors(
-        device: _device(),
-        cpu: cpu,
-      ).place(step: 'reference', demand: ComputePlacement.cpu);
-      expect(executor.device, same(cpu));
-    });
-
     test('a kernel refused on one executor moves to the next', () {
       // Mutation: stop at the first executor with compute, and a kernel the
       // device cannot load leaves the step with nowhere to run.

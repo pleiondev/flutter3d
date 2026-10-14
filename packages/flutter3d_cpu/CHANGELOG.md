@@ -4,6 +4,12 @@
   answers true, so a compute workload with host code of its own — a physics
   core's water — is not placed on it to be interpreted in Dart while the
   core's own step sits idle. Additive.
+- **A test can make it stand in for a GPU.** `CpuDevice(standInForGpu:)`
+  and `cpuComputeDevice(standInForGpu:)` (new, false by default) make it
+  answer `isSoftware` false, so the hardware layer places a simulation's
+  kernels on it as on a GPU: how those kernels are held against the
+  simulation's own CPU step without one. Configured on the device, never
+  asked for by the work. Additive.
 
 ## 1.0.0-rc.1
 

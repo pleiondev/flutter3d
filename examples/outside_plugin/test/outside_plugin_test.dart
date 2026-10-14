@@ -207,22 +207,22 @@ void main() {
   });
 
   group('in the frame, on the software rasteriser', () {
-    test('the published field reaches a reader as a 3D texture', () {
+    test('the published field reaches a reader as a 3D texture', () async {
       final loop = _loop()..runSteps(60);
       final upload = OutsidePlugin.upload(loop.fields)!;
       final device = _cpu();
-      expect(upload.place(ComputeExecutors(device: device)), isNull);
+      expect(await upload.place(device), isNull);
       final seen = _frame(upload, device);
       expect(seen, isA<Texture3DField>());
       expect(seen!.declaration.id, heatField.id);
     });
 
-    test('and as a buffer on the CPU executor, bit for bit', () async {
+    test('and as a buffer on the CPU device, bit for bit', () async {
       final loop = _loop()..runSteps(60);
       final published = loop.fields.published(heatField.id)!;
       final upload = FieldUpload(published, residence: FieldResidence.buffer);
       final device = _cpu();
-      expect(upload.place(ComputeExecutors(device: device)), isNull);
+      expect(await upload.place(device), isNull);
       final seen = _frame(upload, device)! as BufferField;
       final read = Float32List.sublistView(
         await device.readBuffer(seen.buffer),

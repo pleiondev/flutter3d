@@ -10,9 +10,9 @@
 ///
 /// **Where it is held is the field's declaration's.** A
 /// `FieldResidence.buffer` field lives in a storage buffer on a compute
-/// executor, chosen as a compute step's is (`ComputeExecutors.place`: the
-/// device that draws, then a sidecar, then the CPU), so a compute step that
-/// steps the field on that executor binds it as it is. A
+/// device the hardware layer chooses as it chooses a compute step's
+/// (`FrameCompute.placeStorage`), so a compute step that steps the field
+/// there binds it as it is. A
 /// `FieldResidence.texture3D` field lives in a 3D texture on the device that
 /// draws, which a stage samples and filters; a device without
 /// `DeviceFeature.texture3D` refuses it, by name, before anything is
@@ -29,10 +29,10 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
 import 'frame_graph.dart';
 import 'render_node.dart';
 
-/// A field held in a storage buffer on a compute executor, its cells in the
+/// A field held in a storage buffer on a compute device, its cells in the
 /// order a `HostField` keeps them, one float each value.
 final class BufferField extends FieldStorage {
-  BufferField(this.declaration, this.buffer, this.executor);
+  BufferField(this.declaration, this.buffer, this.site);
 
   @override
   final FieldDeclaration declaration;
@@ -43,12 +43,13 @@ final class BufferField extends FieldStorage {
   /// The buffer, `FieldGrid.valueCount` floats long.
   final StorageBuffer buffer;
 
-  /// Where it lives: the executor a compute step that steps it runs on.
-  final ComputeExecutor executor;
+  /// Where it lives: where a compute step that steps it runs. Since
+  /// 1.0.0-rc.1+1, in place of the executor.
+  final ComputeSite site;
 
   @override
   String toString() =>
-      'BufferField(${declaration.id} on ${executor.placement.name})';
+      'BufferField(${declaration.id} on ${site.device.backendName})';
 }
 
 /// A field held in a 3D texture on the device that draws: one texel a
@@ -71,8 +72,7 @@ final class Texture3DField extends FieldStorage {
 }
 
 /// The node that puts a host field on a device every frame, in [residence]:
-/// a buffer on a compute executor, or a 3D texture on the device that
-/// draws.
+/// a buffer on a compute device, or a 3D texture on the device that draws.
 ///
 /// **The simulation's field, the frame's copy.** A field a subsystem steps
 /// is declared in host memory, and the frame draws a volume from a copy of
@@ -125,7 +125,7 @@ final class FieldUpload extends RenderNode {
   @override
   RenderAnchor get defaultAnchor => RenderAnchor.beforeOpaque;
 
-  ComputeExecutor? _executor;
+  ComputeSite? _site;
   FieldResidenceException? _refusal = const FieldResidenceException(
     field: '',
     residence: FieldResidence.host,
@@ -133,8 +133,9 @@ final class FieldUpload extends RenderNode {
   );
   FieldStorage? _storage;
 
-  /// Where the last [place] put the field, or null.
-  ComputeExecutor? get executor => _executor;
+  /// Where the last [place] put the field, or null. Since 1.0.0-rc.1+1, in
+  /// place of `executor`.
+  ComputeSite? get site => _site;
 
   /// Why the field is not placed: the refusal of the last [place], or that
   /// it was never placed. Null once placed.
@@ -149,23 +150,27 @@ final class FieldUpload extends RenderNode {
 
   /// Placed, and so in the frame.
   @override
-  bool get isSupported => _executor != null;
+  bool get isSupported => _site != null;
 
-  /// Decides where the field is held among [executors], and whether it can
-  /// be. A [FieldResidence.texture3D] field is held on the device that
-  /// draws, which needs `DeviceFeature.texture3D` and
+  /// Decides where the field is held for frames drawn on [device], and
+  /// whether it can be. A [FieldResidence.texture3D] field is held on
+  /// [device], which needs `DeviceFeature.texture3D` and
   /// `DeviceFeature.textureWrites`, and a format of the cell's width; a
-  /// [FieldResidence.buffer] field on the first executor in placement order
-  /// that has `DeviceFeature.buffers`.
+  /// [FieldResidence.buffer] field on the first of the frame's compute
+  /// devices that has `DeviceFeature.buffers`, as the hardware layer orders
+  /// them.
   ///
   /// Answers the refusal when nothing fits, which [refusal] also holds;
   /// null when placed. Placing again releases what the last placement made.
-  FieldResidenceException? place(ComputeExecutors executors) {
+  ///
+  /// **Breaking in 1.0.0-rc.1+1:** given the device, not executors, and
+  /// asynchronous, as a compute step's placement is.
+  Future<FieldResidenceException?> place(GraphicsDevice device) async {
     release();
     return _refusal = switch (residence) {
-      FieldResidence.texture3D => _placeTexture(executors.device),
-      FieldResidence.buffer => _placeBuffer(executors),
-      // A residence a later version names has no executor in this one.
+      FieldResidence.texture3D => _placeTexture(device),
+      FieldResidence.buffer => await _placeBuffer(device),
+      // A residence a later version names has no device in this one.
       final other => _refused(FieldRefusal.noPlacement, other: other),
     };
   }
@@ -192,16 +197,15 @@ final class FieldUpload extends RenderNode {
         ),
       );
     }
-    _executor = ComputeExecutor(ComputePlacement.device, device);
+    _site = FrameCompute.of(device).frame;
     return null;
   }
 
-  FieldResidenceException? _placeBuffer(ComputeExecutors executors) {
+  Future<FieldResidenceException?> _placeBuffer(GraphicsDevice device) async {
     try {
-      _executor = executors.place(
-        step: name,
-        accepts: (ComputeExecutor e) =>
-            e.device.features.has(DeviceFeature.buffers),
+      _site = await FrameCompute.of(device).placeStorage(
+        name,
+        (GraphicsDevice on) => on.features.has(DeviceFeature.buffers),
       );
       return null;
     } on ComputePlacementException catch (placement) {
@@ -240,24 +244,24 @@ final class FieldUpload extends RenderNode {
   /// that is not placed never is.
   @override
   void execute(RenderFrame frame) {
-    final executor = _executor;
-    if (executor == null) {
+    final site = _site;
+    if (site == null) {
       throw StateError('"$name" ran without a placement: ${refusal?.message}');
     }
     final bytes = ByteData.sublistView(source.values);
-    final storage = _storage ??= _make(executor, bytes);
+    final storage = _storage ??= _make(site, bytes);
     switch (storage) {
       case final BufferField field:
-        executor.device.writeBuffer(field.buffer, 0, bytes);
+        site.device.writeBuffer(field.buffer, 0, bytes);
       case final Texture3DField field:
-        executor.device.writeTexture(field.texture, bytes);
+        site.device.writeTexture(field.texture, bytes);
     }
     frame.resources.provideField(id, storage);
   }
 
-  FieldStorage _make(ComputeExecutor executor, ByteData bytes) {
+  FieldStorage _make(ComputeSite site, ByteData bytes) {
     final grid = declaration.grid;
-    final device = executor.device;
+    final device = site.device;
     return residence == FieldResidence.texture3D
         ? Texture3DField(
             declaration,
@@ -282,7 +286,7 @@ final class FieldUpload extends RenderNode {
                 label: declaration.id,
               ),
             ),
-            executor,
+            site,
           );
   }
 
@@ -290,11 +294,11 @@ final class FieldUpload extends RenderNode {
   void release() {
     switch (_storage) {
       case final BufferField field:
-        field.executor.device.releaseStorageBuffer(field.buffer);
+        field.site.device.releaseStorageBuffer(field.buffer);
       case final Texture3DField field:
-        _executor?.device.releaseTexture(field.texture);
+        _site?.device.releaseTexture(field.texture);
     }
     _storage = null;
-    _executor = null;
+    _site = null;
   }
 }

@@ -1,17 +1,37 @@
 ## 1.0.0-rc.1+1
 
+- **Breaking: the engine asks the hardware layer where compute runs, and
+  says nothing about it.** A compute step, a skinning hook and a field are
+  placed by `FrameCompute` for the device the renderer draws on, from the
+  registry that opened it, and are told a `ComputeSite`.
+  - `ComputeStep.demand` and `SkinningHook.demand` are gone: nothing above
+    the hardware layer asks for a placement.
+  - `ComputeStep.prepare` takes the drawing device, not executors;
+    `ComputeStep.executor` is gone for `ComputeStep.site`.
+    `ComputeContext.executor` and `ComputeContext.placement` are gone for
+    `ComputeContext.site`.
+  - `RendererSteps.addComputeStep`, `placeSkinningHook` and
+    `addFieldUpload` take no executors; `addFieldUpload` is asynchronous,
+    as placing a compute step is. `RendererSteps.skinningPlacement` and
+    `skinningRefusal` are gone: a hook nothing can place is reported by
+    the frame as any compute step is.
+  - `FieldUpload.place` takes the drawing device and is asynchronous;
+    `FieldUpload.executor` and `BufferField.executor` are gone for `site`,
+    and `BufferField`'s constructor takes one.
+
+  Code that handed `registry.computeExecutors(device)` in drops the
+  argument; a test that wanted a particular device configures the
+  registry or the device it builds (`DeviceRegistry.adopt`).
 - **A compute workload is a step of the frame.**
   `RendererSteps.addWorkload` puts a `ComputeWorkload` in the frame as a
-  `WorkloadStep` (new), placed by `ComputeExecutors.placeWorkload`: its
-  buffers are made on the executor it lands on, a buffer it draws is bound
-  as vertices where that is the drawing device and copied across through the
-  host where it is not, and on the host the step does nothing and the
+  `WorkloadStep` (new), placed by the hardware layer's workload rule: its
+  buffers are made where it lands, a buffer it draws is bound as vertices
+  where that is the drawing device and copied across through the host
+  where it is not, and on the host the step does nothing and the
   workload's own code runs. The scene reads
   `FrameResourceIds.computedVertices` (new) while one is in the frame, so
   each runs before the draws; a step taken out lets go of its buffers once
-  no frame in flight uses them. The executors are the renderer's own
-  (`RendererSteps.computeExecutors`, new), which the layer that opened the
-  device sets; `addWorkload` takes others only for a test. Additive.
+  no frame in flight uses them.
 
 ## 1.0.0-rc.1
 

@@ -3,8 +3,8 @@
 ///
 ///     dart test test/liquid_surface_test.dart
 ///
-/// The kernels run on the software device's compute, demanded, as a GPU
-/// would run them; the water is stepped there, read back into the core, and
+/// The kernels run on the software device's compute, made to stand in for
+/// a GPU (`CpuDevice.standInForGpu`), as a GPU would run them; the water is stepped there, read back into the core, and
 /// a view that never handed its water over writes its vertices from what
 /// the core then holds. Every vertex's sixteen floats agree.
 library;
@@ -17,6 +17,7 @@ import 'package:flutter3d_effects/flutter3d_effects.dart';
 import 'package:flutter3d_effects/src/liquid_surface_kernels.dart';
 import 'package:flutter3d_effects/src/vertices.dart' show vertexFloats;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_hardware/testing.dart' show computePlacementOf;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -24,15 +25,12 @@ import 'package:vector_math/vector_math.dart';
 const int _nx = 14, _nz = 12;
 const double _cell = 0.5;
 
-/// The water's step and its surface, demanded on the drawing device, the
-/// vertices read back after each frame.
+/// The water's step and its surface, the vertices read back after each
+/// frame.
 final class _Surface extends ShallowWaterWorkload {
   _Surface(super.world, super.water);
 
   Float32List? vertices;
-
-  @override
-  ComputePlacement? get demand => ComputePlacement.device;
 
   @override
   String get kernelSource =>
@@ -109,15 +107,15 @@ void main() {
     // surface over it is the water's and what the box fills of it.
     final box = world.addBody(position: Vector3(5.0, 0.6, 1.0), mass: 20.0);
     world.setShape(box, NativeShape.box(Vector3(0.6, 0.15, 0.6)));
-    final device = cpuComputeDevice();
+    final device = cpuComputeDevice(standInForGpu: true);
     final renderer = Renderer.create(device: device);
     final workload = _Surface(world, water);
-    final added = await renderer.renderSteps.addWorkload(
-      workload,
-      executors: ComputeExecutors(device: device),
-    );
+    final added = await renderer.renderSteps.addWorkload(workload);
     addTearDown(added.cancel);
-    expect(workload.binding!.placement, ComputePlacement.device);
+    expect(
+      computePlacementOf(workload.binding!.site!),
+      ComputePlacement.device,
+    );
     final camera = CameraNode()..setPosition(0.0, 2.0, 2.0);
     final scene = Scene()..add(camera);
     for (var s = 0; s < 20; s++) {
@@ -141,8 +139,6 @@ void main() {
       scene: Scene(),
       look: RenderMaterial(name: 'water'),
     )..update();
-    // Never handed over, it is drawn as the core steps it.
-    expect(view.steppedAt, isNull);
     final cpu = view.surfaceVertices;
     expect(gpu.length, cpu.length);
     var worst = 0.0;

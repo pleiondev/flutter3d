@@ -2,7 +2,7 @@
 
 The compute sidecar of flutter3d: a `GraphicsDevice` that computes and draws nothing, over [wgpu-native](https://github.com/gfx-rs/wgpu-native) through `dart:ffi`.
 
-A frame's compute step runs where the frame can run it. The device that draws comes first, when it has compute (WebGPU does; Impeller will when flutter_gpu has compute pipelines). This package is second: a GPU beside the drawing device, on every native target. The CPU is last, through `flutter3d_cpu`. The order is `ComputeExecutors` in `flutter3d_hardware`, and a frame-graph `ComputeStep` in `flutter3d_core` is placed by it.
+A frame's compute step runs where the frame can run it. The device that draws comes first, when it has compute (WebGPU does; Impeller will when flutter_gpu has compute pipelines). This package is second: a GPU beside the drawing device, on every native target. The CPU is last, through `flutter3d_cpu`. The order is the hardware layer's (`FrameCompute` in `flutter3d_hardware`), and nothing above it chooses: a frame-graph `ComputeStep` in `flutter3d_core` is told where it landed.
 
 ```dart
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
@@ -10,10 +10,11 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_wgpu/flutter3d_wgpu.dart';
 
 final registry = DeviceRegistry<Object>();
-registerWgpuSidecar(registry); // ComputePlacement.sidecar
-registerCpuBackend(registry); // ComputePlacement.cpu, and the fallback backend
-final executors = await registry.computeExecutors(drawingDevice);
-await myComputeStep.prepare(executors);
+registerWgpuSidecar(registry); // the sidecar
+registerCpuBackend(registry); // the CPU, and the fallback backend
+final device = await registry.open(width: 1280, height: 720);
+// Frames drawn on `device` now compute on it, then the sidecar, then the
+// CPU: a renderer's addComputeStep and addWorkload place there.
 ```
 
 ## The same kernels, the same bytes

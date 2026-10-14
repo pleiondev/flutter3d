@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: b10a4d7a92a7cd33
+# table-stamp: daa45601522afb3e
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -713,3 +713,51 @@ transforms:
         newElement:
           uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
           enum: 'SamplerAddressMode'
+  - title: 'flutter3d 1.0.0-rc.1+1: hardware-ComputePlacementException-new'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_game/flutter3d_game.dart', 'package:flutter3d_hardware/flutter3d_hardware.dart']
+      constructor: ''
+      inClass: 'ComputePlacementException'
+    changes:
+      - kind: 'removeParameter'
+        name: 'demand'
+  - title: 'flutter3d 1.0.0-rc.1+1: hardware-ComputeExecutors-place'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_game/flutter3d_game.dart', 'package:flutter3d_hardware/flutter3d_hardware.dart']
+      method: 'place'
+      inClass: 'ComputeExecutors'
+    changes:
+      - kind: 'removeParameter'
+        name: 'demand'
+  - title: 'flutter3d 1.0.0-rc.1+1: hardware-ComputeExecutors (ComputeExecutors)'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_game/flutter3d_game.dart']
+      class: 'ComputeExecutors'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'ComputeExecutors'
+  - title: 'flutter3d 1.0.0-rc.1+1: hardware-ComputeExecutor (ComputeExecutor)'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_game/flutter3d_game.dart']
+      class: 'ComputeExecutor'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'ComputeExecutor'
+  - title: 'flutter3d 1.0.0-rc.1+1: hardware-ComputePlacement (ComputePlacement)'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_game/flutter3d_game.dart']
+      class: 'ComputePlacement'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
+          class: 'ComputePlacement'

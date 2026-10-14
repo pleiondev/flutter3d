@@ -246,23 +246,33 @@ final class RendererSteps extends RenderStepRegistry {
     return registration;
   }
 
-  /// Places [step] on [executors] (`ComputeStep.prepare`) and adds it as a
-  /// node at [at], as [addNode] does — the one call that puts a compute step
-  /// in the frame.
+  /// The device this renderer draws on, whose compute the hardware layer
+  /// places this renderer's compute steps, workloads, fields and hooks on.
+  GraphicsDevice _drawing(String what) => switch (_store.renderer) {
+    final renderer? => renderer.device,
+    null => throw StateError(
+      '$what on a registry no renderer owns: its compute is the drawing '
+      'device\'s, and there is none',
+    ),
+  };
+
+  /// Places [step] (`ComputeStep.prepare`) and adds it as a node at [at], as
+  /// [addNode] does — the one call that puts a compute step in the frame.
   ///
   /// **Placed before it is added, because a frame cannot wait.** Loading a
   /// kernel is asynchronous on every device; the frame graph only asks the
-  /// step whether it was placed. [executors] is what
-  /// `DeviceRegistry.computeExecutors` answers for the device this renderer
-  /// draws on: that device, the sidecar `registerWgpuSidecar` added, the CPU
-  /// `registerCpuBackend` added. A step nothing can run is added all the
-  /// same: the frame reports it as `PassSkip.unsupported`, with
+  /// step whether it was placed. Where it goes is the hardware layer's to
+  /// say, from the device this renderer draws on and the registry that
+  /// opened it: that device, the sidecar `registerWgpuSidecar` added, the
+  /// CPU `registerCpuBackend` added. A step nothing can run is added all
+  /// the same: the frame reports it as `PassSkip.unsupported`, with
   /// `ComputeStep.refusal` saying why, and culls what only read its output.
   ///
   /// Throws what [addNode] throws, before anything is loaded.
+  ///
+  /// **Breaking in 1.0.0-rc.1+1:** no executors are handed in.
   Future<Registration> addComputeStep(
-    ComputeStep step,
-    ComputeExecutors executors, {
+    ComputeStep step, {
     RenderAnchor? at,
     RenderStep? owner,
     List<String> after = const <String>[],
@@ -271,46 +281,33 @@ final class RendererSteps extends RenderStepRegistry {
     // The checks first, then the placement, then the node: a name refused
     // loads no kernel on any device.
     addNode(step, at: at, step: owner, after: after, before: before).cancel();
-    await step.prepare(executors);
+    await step.prepare(_drawing('addComputeStep'));
     return addNode(step, at: at, step: owner, after: after, before: before);
   }
 
-  /// Puts [workload] in the frame, placed by the workload rule on
-  /// [executors] (`ComputeExecutors.placeWorkload`): the drawing device's
-  /// compute, then the sidecar, then the workload's own host code where it
-  /// has some, then the CPU executor; [workloadStep] answers where it
-  /// landed ([WorkloadStep.binding], [WorkloadStep.refusal]) — since
-  /// 1.0.0-rc.1+1.
+  /// Puts [workload] in the frame, placed by the hardware layer's workload
+  /// rule for the device this renderer draws on: the GPUs the frame has,
+  /// then the workload's own host code where it has some, then the CPU
+  /// device; [workloadStep] answers what it was told
+  /// ([WorkloadStep.binding], [WorkloadStep.refusal]) — since 1.0.0-rc.1+1.
   ///
   /// **The workload is told, the caller decides nothing.** A simulation
   /// handing its step over learns where it runs through
-  /// `ComputeWorkload.placed` and draws from what that says. Nor does the
-  /// caller say where it may run: [executors] is for a test; otherwise the
-  /// renderer's own [computeExecutors] are used, which the layer that
-  /// opened the device set, and failing those the drawing device alone.
+  /// `ComputeWorkload.placed` and draws from what that says, and neither it
+  /// nor whoever adds it says where it may run.
   ///
   /// Cancelling the result takes the step out of the frame
   /// and lets go of its buffers once no frame in flight can be using them.
-  /// A workload nothing can run — a demand nothing meets, no executor and
-  /// no host code — is added all the same and reported as
-  /// `PassSkip.unsupported`, as a compute step is.
+  /// A workload nothing can run — no executor and no host code — is added
+  /// all the same and reported as `PassSkip.unsupported`, as a compute step
+  /// is.
   Future<Registration> addWorkload(
     ComputeWorkload workload, {
-    ComputeExecutors? executors,
     RenderAnchor? at,
   }) async {
     final step = WorkloadStep(workload);
     addNode(step, at: at).cancel();
-    final placeOn =
-        executors ??
-        computeExecutors ??
-        switch (_store.renderer) {
-          final renderer? => ComputeExecutors(device: renderer.device),
-          null => throw StateError(
-            'addWorkload on a registry no renderer owns: pass executors',
-          ),
-        };
-    await step.prepare(placeOn);
+    await step.prepare(_drawing('addWorkload'));
     final added = addNode(step, at: at);
     _store.workloads.add(step);
     final registration = Registration(() {
@@ -327,21 +324,8 @@ final class RendererSteps extends RenderStepRegistry {
     return registration;
   }
 
-  /// What the frame's compute may be placed on — the device it is drawn on,
-  /// the sidecar and the CPU device beside it — as the layer that opened the
-  /// device answered (`DeviceRegistry.computeExecutors`); null until it
-  /// does, and [addWorkload] then offers the drawing device alone. Shared
-  /// by every view of this registry. Since 1.0.0-rc.1+1.
-  ComputeExecutors? get computeExecutors => _store.computeExecutors;
-  set computeExecutors(ComputeExecutors? executors) =>
-      _store.computeExecutors = executors;
-
-  /// The step [workload] is in the frame as ([addWorkload]): where it was
-  /// placed, or why it was refused. Null for a workload not added here.
-  ///
-  /// For whoever added it and wants to say where it runs — a frame report,
-  /// a settings page, a test — since the workload itself is told only the
-  /// outcome, never the refusals on the way to it.
+  /// The step [workload] is in the frame as ([addWorkload]): what it was
+  /// told, or why it was refused. Null for a workload not added here.
   WorkloadStep? workloadStep(ComputeWorkload workload) {
     for (final step in _store.workloads) {
       if (identical(step.workload, workload)) return step;
@@ -349,28 +333,29 @@ final class RendererSteps extends RenderStepRegistry {
     return null;
   }
 
-  /// Places [upload] on [executors] (`FieldUpload.place`) and adds it as a
-  /// node, as [addComputeStep] does for a compute step: the one call that
-  /// puts a simulation's field in the frame.
+  /// Places [upload] (`FieldUpload.place`) and adds it as a node, as
+  /// [addComputeStep] does for a compute step: the one call that puts a
+  /// simulation's field in the frame.
   ///
-  /// Placed synchronously, since holding a field needs no kernel. An upload
-  /// nothing can hold is added all the same: the frame reports it as
-  /// `PassSkip.unsupported`, with `FieldUpload.refusal` saying why, and
+  /// An upload nothing can hold is added all the same: the frame reports it
+  /// as `PassSkip.unsupported`, with `FieldUpload.refusal` saying why, and
   /// culls whatever only read the field. Cancelling the registration takes
   /// the node out and lets go of the storage it held
   /// (`FieldUpload.release`).
   ///
   /// Throws what [addNode] throws, before anything is placed.
-  Registration addFieldUpload(
-    FieldUpload upload,
-    ComputeExecutors executors, {
+  ///
+  /// **Breaking in 1.0.0-rc.1+1:** no executors are handed in, and it is
+  /// asynchronous, as placing a compute step is.
+  Future<Registration> addFieldUpload(
+    FieldUpload upload, {
     RenderAnchor? at,
     RenderStep? owner,
     List<String> after = const <String>[],
     List<String> before = const <String>[],
-  }) {
+  }) async {
     addNode(upload, at: at, step: owner, after: after, before: before).cancel();
-    upload.place(executors);
+    await upload.place(_drawing('addFieldUpload'));
     final added = addNode(
       upload,
       at: at,
@@ -386,44 +371,31 @@ final class RendererSteps extends RenderStepRegistry {
     return registration;
   }
 
-  /// Places [hook] on [executors] and puts it in the frame: the one call
-  /// that makes a [SkinningHook] skin (D22b).
+  /// Places [hook] and puts it in the frame: the one call that makes a
+  /// [SkinningHook] skin (D22b).
   ///
-  /// A hook with kernels is placed as a `ComputeStep` is — at its demand, or
-  /// on the drawing device and then the CPU, never the sidecar, whose
-  /// vertices would reach the drawing device only through the host. A
-  /// demand nothing can meet is refused, the refusal kept as
-  /// [skinningRefusal], and the hook placed on the CPU instead. A
-  /// [HostSkinningHook] needs no placement. The step runs before the
+  /// A hook with kernels is placed as a `ComputeStep` is, by the hardware
+  /// layer, except never beside the drawing device, whose vertices would
+  /// reach it only through the host: on the drawing device, or on the CPU.
+  /// A [HostSkinningHook] needs no placement. The step runs before the
   /// shadows and writes `FrameResourceIds.skinnedVertices`, which the scene
   /// reads.
   ///
   /// The hook is listed in [RenderHooks.skinningHooks] too, and the result
   /// takes both out again.
-  Future<Registration> placeSkinningHook(
-    SkinningHook hook,
-    ComputeExecutors executors,
-  ) async {
+  ///
+  /// **Breaking in 1.0.0-rc.1+1:** no executors are handed in, a hook
+  /// demands nothing, and `skinningPlacement` and `skinningRefusal` are
+  /// gone: a hook nothing can place is reported by the frame, as any
+  /// compute step is.
+  Future<Registration> placeSkinningHook(SkinningHook hook) async {
     final step = _SkinningStep(
       hook,
       _store.skinning,
       'skinning ${_store.sequence}',
     );
     if (hook is! HostSkinningHook && hook.kernels.isNotEmpty) {
-      final placeable = ComputeExecutors(
-        device: executors.device,
-        cpu: executors.cpu,
-      );
-      step.wanted = hook.demand;
-      final refused = await step.prepare(placeable);
-      if (refused != null &&
-          hook.demand != null &&
-          hook.demand != ComputePlacement.cpu) {
-        step
-          ..demandRefusal = refused
-          ..wanted = ComputePlacement.cpu;
-        await step.prepare(placeable);
-      }
+      await prepareForThisFrame(step, _drawing('placeSkinningHook'));
     }
     final listed = _store.hooks.addSkinningHook(hook);
     final node = addNode(step);
@@ -435,28 +407,6 @@ final class RendererSteps extends RenderStepRegistry {
     });
     _scope?.track(registration);
     return registration;
-  }
-
-  /// Where [hook] runs, as [placeSkinningHook] placed it: a placement, or
-  /// null for a [HostSkinningHook], for one nothing could place, and for a
-  /// hook not placed here.
-  ComputePlacement? skinningPlacement(SkinningHook hook) {
-    for (final step in _store.skinning.steps) {
-      if (identical(step.hook, hook)) return step.executor?.placement;
-    }
-    return null;
-  }
-
-  /// Why [hook] does not run where it asked: the refusal of its demand
-  /// when it fell back to the CPU, or of every placement when nothing
-  /// could run it; null when it runs where it asked.
-  ComputePlacementException? skinningRefusal(SkinningHook hook) {
-    for (final step in _store.skinning.steps) {
-      if (identical(step.hook, hook)) {
-        return step.demandRefusal ?? (step.isSupported ? null : step.refusal);
-      }
-    }
-    return null;
   }
 
   /// Every anchor a node can be placed at here: the engine's, then the ones
@@ -847,8 +797,6 @@ final class _StepStore {
   /// are any, the scene reads what they write.
   final List<WorkloadStep> workloads = <WorkloadStep>[];
 
-  /// [RendererSteps.computeExecutors].
-  ComputeExecutors? computeExecutors;
   final SceneBindings sceneBindings = SceneBindings();
   final PipelineNodeKinds nodeKinds = PipelineNodeKinds();
 

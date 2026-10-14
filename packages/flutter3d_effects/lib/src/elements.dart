@@ -149,7 +149,6 @@ final class Elements {
     required this.quality,
     required FireLights lights,
     required this.hearing,
-    required this._compute,
   }) : _device = device,
        _scene = scene,
        _renderer = renderer,
@@ -211,13 +210,10 @@ final class Elements {
 
   /// A world of its own, which it steps.
   ///
-  /// Each water's step is handed to [renderer], which places it on the
-  /// executors the layer that opened the device gave it
-  /// (`RendererSteps.computeExecutors`): WebGPU's compute, a wgpu sidecar
-  /// the application registered, or the core itself where neither is.
-  /// [compute] (and [adopt]'s and [over]'s) overrides them, for a test.
-  /// Where each water then runs is the engine's rule,
-  /// `ComputeExecutors.placeWorkload`; `LiquidView.steppedAt` says.
+  /// Each water's step is handed to [renderer], which places it as the
+  /// hardware layer says for the device it draws on: WebGPU's compute, a
+  /// wgpu sidecar the application registered, or the core itself where
+  /// neither is.
   static Future<Elements> open({
     required GraphicsDevice device,
     required Renderer renderer,
@@ -229,7 +225,6 @@ final class Elements {
     ),
     FireLights lights = const FireLights.clusters(),
     PhysicsHearing Function(NativeWorld world)? hearing,
-    ComputeExecutors? compute,
   }) => over(
     ElementsSimulation.open(),
     device: device,
@@ -239,7 +234,6 @@ final class Elements {
     quality: quality,
     lights: lights,
     hearing: hearing,
-    compute: compute,
   );
 
   /// [world], which the game steps itself: followed, drawn and heard, not
@@ -256,7 +250,6 @@ final class Elements {
     ),
     FireLights lights = const FireLights.clusters(),
     PhysicsHearing Function(NativeWorld world)? hearing,
-    ComputeExecutors? compute,
   }) => over(
     ElementsSimulation.adopt(world),
     device: device,
@@ -266,7 +259,6 @@ final class Elements {
     quality: quality,
     lights: lights,
     hearing: hearing,
-    compute: compute,
   );
 
   /// The view of [simulation], which something else may step: a loop in its
@@ -283,7 +275,6 @@ final class Elements {
     ),
     FireLights lights = const FireLights.clusters(),
     PhysicsHearing Function(NativeWorld world)? hearing,
-    ComputeExecutors? compute,
   }) async {
     final bundle = await load(LiquidLook.asset);
     renderer.renderSteps.addMaterials(await device.loadShaders(bundle));
@@ -296,7 +287,6 @@ final class Elements {
       quality: quality,
       lights: lights,
       hearing: hearing?.call(simulation.world),
-      compute: compute,
     );
   }
 
@@ -392,10 +382,8 @@ final class Elements {
   final GraphicsDevice _device;
   Scene _scene;
 
-  /// What the waters' steps are handed to, and the executors they are
-  /// offered when [open] was given some; otherwise the renderer's own.
+  /// What the waters' steps are handed to.
   final Renderer _renderer;
-  final ComputeExecutors? _compute;
 
   /// The scene it draws into; set again, everything it draws moves there.
   Scene get scene => _scene;
@@ -517,7 +505,7 @@ final class Elements {
     _waters.add(_DrawnWater(water, view, look));
     // The engine places its step: a device that computes steps the water
     // and builds its surface, the core where none does.
-    unawaited(view.steppedOn(_renderer, executors: _compute));
+    unawaited(view.steppedOn(_renderer));
     hearing?.listen(native, density: liquid.properties.density);
     return water;
   }

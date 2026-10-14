@@ -105,13 +105,11 @@ void main() {
     expect(graph.skipReason('acme.shimmer'), PassSkip.starved);
   });
 
-  test('a device without 3D textures refuses the field by name', () {
+  test('a device without 3D textures refuses the field by name', () async {
     final upload = FieldUpload(HostField(_heat()));
-    final refused = upload.place(
-      ComputeExecutors(
-        device: FakeBackend(
-          extraFeatures: const <DeviceFeature>[DeviceFeature.textureWrites],
-        ),
+    final refused = await upload.place(
+      FakeBackend(
+        extraFeatures: const <DeviceFeature>[DeviceFeature.textureWrites],
       ),
     );
     // Mutation: allocate the texture and let the device throw mid-frame.
@@ -131,7 +129,7 @@ void main() {
   });
 
   test('a 3D texture field is made once and written every frame, and its '
-      'reader takes it under the field\'s id', () {
+      'reader takes it under the field\'s id', () async {
     final device = FakeBackend(
       extraFeatures: const <DeviceFeature>[
         DeviceFeature.texture3D,
@@ -140,8 +138,8 @@ void main() {
     );
     final source = HostField(_heat())..setValueAt(3, 2, 1, 300);
     final upload = FieldUpload(source);
-    expect(upload.place(ComputeExecutors(device: device)), isNull);
-    expect(upload.executor!.placement, ComputePlacement.device);
+    expect(await upload.place(device), isNull);
+    expect(upload.site!.isOnFrameDevice, isTrue);
     final shimmer = _Shimmer();
     final graph = _compile(upload, shimmer);
     expect(graph.order.map((n) => n.name), <String>[
@@ -171,16 +169,14 @@ void main() {
     expect(upload.isSupported, isFalse);
   });
 
-  test('a cell of three values has no texel format, and says so', () {
+  test('a cell of three values has no texel format, and says so', () async {
     final upload = FieldUpload(HostField(_heat(components: 3)));
-    final refused = upload.place(
-      ComputeExecutors(
-        device: FakeBackend(
-          extraFeatures: const <DeviceFeature>[
-            DeviceFeature.texture3D,
-            DeviceFeature.textureWrites,
-          ],
-        ),
+    final refused = await upload.place(
+      FakeBackend(
+        extraFeatures: const <DeviceFeature>[
+          DeviceFeature.texture3D,
+          DeviceFeature.textureWrites,
+        ],
       ),
     );
     expect(refused!.reason, FieldRefusal.missingFeature);
@@ -188,12 +184,12 @@ void main() {
   });
 
   test('a buffer field goes where compute is placed, and is refused where '
-      'no executor has it', () {
+      'no executor has it', () async {
     final upload = FieldUpload(
       HostField(_heat()),
       residence: FieldResidence.buffer,
     );
-    final refused = upload.place(ComputeExecutors(device: FakeBackend()));
+    final refused = await upload.place(FakeBackend());
     // Mutation: hold it on the drawing device whatever it has. A fake with
     // no compute would be handed a storage buffer it cannot make.
     expect(refused!.reason, FieldRefusal.noPlacement);
@@ -224,7 +220,7 @@ void main() {
 
   group('through the renderer', () {
     test('one call places the upload and puts it in the frame, and its '
-        'registration takes it out and lets the storage go', () {
+        'registration takes it out and lets the storage go', () async {
       // Mutation: add the node without placing it. The frame reports the
       // field unsupported on a device that holds 3D textures, and every
       // volume that reads it is culled.
@@ -236,10 +232,7 @@ void main() {
       );
       final renderer = Renderer.create(device: device);
       final upload = FieldUpload(HostField(_heat()));
-      final added = renderer.renderSteps.addFieldUpload(
-        upload,
-        ComputeExecutors(device: device),
-      );
+      final added = await renderer.renderSteps.addFieldUpload(upload);
       expect(upload.isSupported, isTrue);
       expect(
         renderer.renderSteps.nodesAt(RenderAnchor.beforeOpaque),
@@ -254,14 +247,11 @@ void main() {
     });
 
     test('an upload nothing can hold is added all the same, with its '
-        'refusal', () {
+        'refusal', () async {
       final device = FakeBackend();
       final renderer = Renderer.create(device: device);
       final upload = FieldUpload(HostField(_heat()));
-      renderer.renderSteps.addFieldUpload(
-        upload,
-        ComputeExecutors(device: device),
-      );
+      await renderer.renderSteps.addFieldUpload(upload);
       expect(upload.refusal!.capability, DeviceFeature.texture3D);
       expect(
         renderer.renderSteps.nodesAt(RenderAnchor.beforeOpaque),

@@ -1,23 +1,40 @@
 ## 1.0.0-rc.1+1
 
+- **Breaking: where compute runs is this package's alone.** A step no
+  longer demands a placement: `ComputeExecutors.place` takes no `demand`,
+  and `ComputePlacementException` has none to report (its constructor
+  takes none and `demand` is gone). `ComputeRefusalReason.placementUnavailable`
+  stays, so a `switch` written against 1.0.0-rc.1 compiles, and no refusal
+  gives it. Nothing above this layer, nor any backend, used a demand but
+  the engine's own steps and their tests, which now configure the devices
+  they build instead.
+- **`FrameCompute` and `ComputeSite` (new) are how the engine asks.**
+  `FrameCompute.of(device)` is the compute of frames drawn on a device: the
+  device itself, and the sidecar and CPU device of the `DeviceRegistry`
+  that opened it, opened the first time a frame needs them.
+  `place` loads a step's work on each in the rule's order and answers the
+  `ComputeSite` it landed on — the device to encode on, and whether that is
+  the frame's — never a placement; `placeHosted` is the workload rule for
+  work with host code of its own; `placeStorage` puts a field's buffer.
+  `DeviceRegistry.open` attaches its compute to every device it opens, and
+  `DeviceRegistry.adopt` (new) to a device opened another way. A test reads
+  where a site is through `computePlacementOf` in `testing.dart`.
 - **A simulation hands its compute over as kernels and buffers.**
   `ComputeWorkload` (new) is a step described once — its kernels in the
   kernel language, the `WorkloadBuffer`s they bind, what a frame records
   with a `WorkloadRecorder` (writes, dispatches, reads back), and whether
   it has an implementation of its own on the host — and the engine places
-  it, telling it the outcome as a `WorkloadBinding`. The rule is
-  `ComputeExecutors.placeWorkload`: the drawing device's compute, then the
-  sidecar (`ComputeExecutors.aheadOfHost`), then the workload's own host
-  code, then the CPU executor. A physics core's fluid runs on WebGPU, on the
-  wgpu sidecar or on the core itself without a branch of its own on which.
-  Additive: nothing that worked against 1.0.0-rc.1 changes.
+  it, telling it the outcome as a `WorkloadBinding` (`isOnHost`, its
+  `site`, the drawn buffers). The rule is `ComputeExecutors.placeWorkload`:
+  the drawing device's compute, then the sidecar
+  (`ComputeExecutors.aheadOfHost`), then the workload's own host code,
+  then the CPU executor. A physics core's fluid runs on WebGPU, on the wgpu
+  sidecar or on the core itself without a branch of its own on which.
 - **A device says whether it is software.** `GraphicsDevice.isSoftware`
   (new, false by default) is true for a device that does its work on the
   CPU; the workload rule keeps a workload with host code off one, and
   `ComputeExecutors.workloadCandidates` lists where the rule may put a
-  workload, in order. A workload may demand a placement
-  (`ComputeWorkload.demand`), which is met or refused as a compute step's
-  is.
+  workload, in order.
 
 ## 1.0.0-rc.1
 

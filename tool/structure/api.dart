@@ -996,6 +996,124 @@ bool bumpIsEnoughFrom(Bump needed, String released, String current) {
   return bumpIsEnough(needed, then, now);
 }
 
+/// A break a `+N` republication may carry over the pre-release it breaks:
+/// the [members] of [package] it names, and why.
+///
+/// **Named, never general.** [bumpIsEnoughFrom] lets `+N` add and nothing
+/// more, and that stays the rule; an entry here lets through exactly the
+/// changes whose name it lists — `Type.member` as the classifier writes it,
+/// or a top-level name no longer re-exported — in exactly one package, and
+/// only under a larger build number of the same version. Each carries the
+/// line a reviewer reads to agree to it.
+final class BuildAllowance {
+  const BuildAllowance({
+    required this.package,
+    required this.members,
+    required this.reason,
+  });
+
+  /// The published package whose snapshot the breaks are in.
+  final String package;
+
+  /// What may break: `Type.member`, `Type` for a type gone or no longer
+  /// re-exported, or a library URI for a re-export line that changed.
+  final List<String> members;
+
+  /// Why, in a sentence.
+  final String reason;
+}
+
+/// Every break let through under `+N`, by package.
+const List<BuildAllowance> buildAllowances = <BuildAllowance>[
+  BuildAllowance(
+    package: 'flutter3d_hardware',
+    members: <String>[
+      'ComputeExecutors.place',
+      'ComputePlacementException.ComputePlacementException',
+      'ComputePlacementException.demand',
+    ],
+    reason:
+        'Where compute runs is the hardware layer\'s alone (1.0.0-rc.1+1): '
+        'nothing above it demands a placement, so the demand goes from the '
+        'rule and its refusal.',
+  ),
+  BuildAllowance(
+    package: 'flutter3d_core',
+    members: <String>[
+      'BufferField.BufferField',
+      'BufferField.executor',
+      'ComputeContext.executor',
+      'ComputeContext.placement',
+      'ComputeStep.demand',
+      'ComputeStep.executor',
+      'ComputeStep.prepare',
+      'FieldUpload.executor',
+      'FieldUpload.place',
+      'RendererSteps.addComputeStep',
+      'RendererSteps.addFieldUpload',
+      'RendererSteps.placeSkinningHook',
+      'RendererSteps.skinningPlacement',
+      'RendererSteps.skinningRefusal',
+      'SkinningHook.demand',
+    ],
+    reason:
+        'Where compute runs is the hardware layer\'s alone (1.0.0-rc.1+1): '
+        'the engine asks it for a site and is told a device, so no step, '
+        'hook or field demands, is handed or reports a placement.',
+  ),
+  BuildAllowance(
+    package: 'flutter3d',
+    members: <String>[
+      'ComputeExecutor',
+      'ComputeExecutors',
+      'ComputePlacement',
+    ],
+    reason:
+        'The placement types are the hardware layer\'s and the backends\' '
+        '(1.0.0-rc.1+1); the facade no longer re-exports them.',
+  ),
+  BuildAllowance(
+    package: 'flutter3d_game',
+    members: <String>[
+      'ComputeExecutor',
+      'ComputeExecutors',
+      'ComputePlacement',
+      'package:flutter3d/flutter3d.dart',
+    ],
+    reason:
+        'The placement types are the hardware layer\'s and the backends\' '
+        '(1.0.0-rc.1+1); the facade no longer re-exports them, which changes '
+        'the one line it re-exports the engine with.',
+  ),
+];
+
+/// Whether [change] to [package] is one [buildAllowances] lets through
+/// from [released] to [current]: a larger build number of the same
+/// pre-release, and a name the package's entry lists.
+bool allowedUnderBuild(
+  String package,
+  ApiChange change,
+  String released,
+  String current,
+) {
+  if (preReleaseOf(released).isEmpty ||
+      compareVersionTexts(current, released) != 0 ||
+      _buildOf(current) <= _buildOf(released)) {
+    return false;
+  }
+  for (final allowance in buildAllowances) {
+    if (allowance.package != package) continue;
+    for (final member in allowance.members) {
+      if (change.what.startsWith('$member ') ||
+          (change.subject == member && !member.contains('.')) ||
+          (change.subject == member && member.startsWith('package:'))) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 /// The build number after `+` in a version [text], nought for none.
 int _buildOf(String text) {
   final plus = text.trim().indexOf('+');
@@ -1594,6 +1712,36 @@ List<(String, String)> proveApiDetectorsWork() {
   }
   if (bumpIsEnoughFrom(Bump.major, '1.0.0', '1.1.0')) {
     broken.add(('api versions', 'called 1.1.0 enough for a break from 1.0.0'));
+  }
+  // The named allowances: only the member listed, only in its package, only
+  // under a larger build number of the same pre-release.
+  const listed = ApiChange(
+    'package:flutter3d_core/flutter3d_core.dart',
+    'ComputeStep',
+    'ComputeStep.demand is gone',
+    Bump.major,
+  );
+  const unlisted = ApiChange(
+    'package:flutter3d_core/flutter3d_core.dart',
+    'ComputeStep',
+    'ComputeStep.record is gone',
+    Bump.major,
+  );
+  for (final (package, change, from, to, allowed)
+      in <(String, ApiChange, String, String, bool)>[
+        ('flutter3d_core', listed, '1.0.0-rc.1', '1.0.0-rc.1+1', true),
+        ('flutter3d_core', unlisted, '1.0.0-rc.1', '1.0.0-rc.1+1', false),
+        ('flutter3d_hardware', listed, '1.0.0-rc.1', '1.0.0-rc.1+1', false),
+        ('flutter3d_core', listed, '1.0.0-rc.1', '1.0.0-rc.1', false),
+        ('flutter3d_core', listed, '1.0.0', '1.0.0+1', false),
+      ]) {
+    if (allowedUnderBuild(package, change, from, to) != allowed) {
+      broken.add((
+        'build allowances',
+        '${allowed ? 'refused' : 'let through'} "${change.what}" in $package '
+            'from $from to $to',
+      ));
+    }
   }
 
   // The CHANGELOG label.

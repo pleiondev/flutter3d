@@ -44,7 +44,7 @@ export 'src/compute.dart' hide wrapComputePipeline, wrapStorageBuffer;
 
 /// Where a compute step runs — the device's own compute, a sidecar, the
 /// CPU — and the rule that picks one.
-export 'src/compute_placement.dart';
+export 'src/compute_placement.dart' hide attachCompute, computePlacementOf;
 
 /// A simulation's compute as kernels and buffers, which the engine places
 /// and runs: the workload, its buffers, the recorder and where it landed.

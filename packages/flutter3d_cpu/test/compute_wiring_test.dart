@@ -1,7 +1,7 @@
 /// A compute step put in the frame through `RendererSteps.addComputeStep`:
-/// placed on the executors the device registry answers, then run by the
-/// frame where it was placed. A drawing device without compute places it on
-/// the CPU that `registerCpuBackend` added.
+/// placed by the hardware layer on the compute the device's registry has,
+/// then run by the frame where it was placed. A drawing device without
+/// compute places it on the CPU that `registerCpuBackend` added.
 ///
 ///     dart test test/compute_wiring_test.dart
 ///
@@ -16,7 +16,8 @@ library;
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter3d_hardware/testing.dart' show FakeBackend;
+import 'package:flutter3d_hardware/testing.dart'
+    show FakeBackend, computePlacementOf;
 import 'package:flutter3d_shaders/kernel.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart' show Vector3;
@@ -42,7 +43,8 @@ compute Step {
 ''');
 
   @override
-  void record(ComputeContext context) => ran.add(context.placement);
+  void record(ComputeContext context) =>
+      ran.add(computePlacementOf(context.site));
 }
 
 /// Reads the step's output, as a particle draw would, and hands the scene's
@@ -78,12 +80,10 @@ void main() {
       final renderer = Renderer.create(device: device);
       final step = _Step();
 
-      final registration = await renderer.renderSteps.addComputeStep(
-        step,
-        await registry.computeExecutors(device),
-      );
+      registry.adopt(device);
+      final registration = await renderer.renderSteps.addComputeStep(step);
       expect(step.refusal, isNull);
-      expect(step.executor!.placement, ComputePlacement.cpu);
+      expect(computePlacementOf(step.site!), ComputePlacement.cpu);
       final reader = renderer.renderSteps.addNode(_Reader());
 
       final camera = CameraNode()..setPosition(0.0, 2.0, 2.0);
@@ -109,10 +109,8 @@ void main() {
     final device = FakeBackend(maxColorAttachments: 4);
     final renderer = Renderer.create(device: device);
     final step = _Step();
-    await renderer.renderSteps.addComputeStep(
-      step,
-      await DeviceRegistry<Object>().computeExecutors(device),
-    );
+    DeviceRegistry<Object>().adopt(device);
+    await renderer.renderSteps.addComputeStep(step);
     expect(step.refusal!.reason, ComputeRefusalReason.noExecutor);
   });
 

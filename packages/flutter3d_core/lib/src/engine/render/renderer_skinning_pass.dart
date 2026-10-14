@@ -92,10 +92,11 @@ final class _SkinningState {
 
 /// One placed [SkinningHook], as the compute step that runs it.
 ///
-/// A hook with kernels runs where `ComputeStep.prepare` placed it: on the
-/// drawing device it writes the mesh's buffer there and the vertices never
-/// leave the GPU; on the CPU it writes a buffer of the CPU executor, which
-/// is copied into the drawing device's buffer from the host. A
+/// A hook with kernels runs where the hardware layer placed it, never
+/// beside the frame's device (`prepareForThisFrame`): on the drawing device
+/// it writes the mesh's buffer there and the vertices never leave the GPU;
+/// on the CPU it writes a buffer of the CPU device, which is copied into
+/// the drawing device's buffer from the host. A
 /// [HostSkinningHook] needs no placement and uploads what it computed.
 final class _SkinningStep extends ComputeStep {
   _SkinningStep(this.hook, this._state, this.name);
@@ -106,18 +107,7 @@ final class _SkinningStep extends ComputeStep {
   @override
   final String name;
 
-  /// What the step is placed at; the hook's demand, or the CPU after the
-  /// demand was refused.
-  ComputePlacement? wanted;
-
-  /// The refusal of the hook's own demand, kept once the step fell back to
-  /// the CPU; null when the demand was met or there was none.
-  ComputePlacementException? demandRefusal;
-
   bool get _onHost => hook is HostSkinningHook || hook.kernels.isEmpty;
-
-  @override
-  ComputePlacement? get demand => wanted;
 
   @override
   List<ComputeKernel> get kernels => hook.kernels;
@@ -176,7 +166,7 @@ final class _SkinningStep extends ComputeStep {
         if (wrote) _state.drawn[node] = last = output;
         continue;
       }
-      // The CPU executor: its own buffer, read in host memory and copied
+      // The CPU device: its own buffer, read in host memory and copied
       // into the drawing device's. No device is read back.
       final executor = context.device;
       if (executor is! SynchronousBufferReadback) continue;

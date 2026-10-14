@@ -78,33 +78,34 @@ final class WorkloadBuffer {
       '${drawn ? ', drawn' : ''}${readable ? ', readable' : ''})';
 }
 
-/// Where a [ComputeWorkload] was placed, as the engine tells it: an
-/// executor's placement, or its own host implementation; and the drawing
+/// Where a [ComputeWorkload] was placed, as the engine tells it: on a
+/// [ComputeSite], or on its own host implementation; and the drawing
 /// device's view of each buffer it declared [WorkloadBuffer.drawn].
 ///
 /// **The outcome, never the choice.** A workload reads this to know whether
 /// its host code steps it ([isOnHost]) and what to draw from; which executor
-/// was tried and why is the engine's.
+/// was tried and why, and which placement the site is, are the hardware
+/// layer's.
 final class WorkloadBinding {
-  /// On [placement]'s executor, its drawn buffers as [drawn] has them.
-  WorkloadBinding.placed(
-    ComputePlacement this.placement, {
+  /// On [site], its drawn buffers as [drawn] has them.
+  WorkloadBinding.at(
+    ComputeSite this.site, {
     Map<String, GeometryBuffer> drawn = const <String, GeometryBuffer>{},
   }) : _drawn = Map<String, GeometryBuffer>.unmodifiable(drawn);
 
-  /// On the workload's own host implementation: no executor, nothing drawn
+  /// On the workload's own host implementation: no site, nothing drawn
   /// from its buffers.
   WorkloadBinding.host()
-    : placement = null,
+    : site = null,
       _drawn = const <String, GeometryBuffer>{};
 
-  /// The placement of the executor it runs on, or null on the host.
-  final ComputePlacement? placement;
+  /// Where it runs, or null on the host.
+  final ComputeSite? site;
 
   final Map<String, GeometryBuffer> _drawn;
 
   /// Whether its own host implementation steps it.
-  bool get isOnHost => placement == null;
+  bool get isOnHost => site == null;
 
   /// The drawing device's vertex buffer over the drawn buffer [name], or
   /// null on the host and for a buffer not declared drawn.
@@ -112,7 +113,7 @@ final class WorkloadBinding {
 
   @override
   String toString() =>
-      'WorkloadBinding(${placement?.name ?? 'host'}'
+      'WorkloadBinding(${site ?? 'host'}'
       '${_drawn.isEmpty ? '' : ', drawn: ${_drawn.keys.join(', ')}'})';
 }
 
@@ -128,9 +129,6 @@ final class WorkloadBinding {
 abstract base class WorkloadRecorder {
   /// A recorder; the engine makes one a frame.
   WorkloadRecorder();
-
-  /// Where this frame's work runs.
-  ComputePlacement get placement;
 
   /// Writes [bytes] into the buffer [buffer] at [offsetInBytes], ahead of
   /// this frame's dispatches.
@@ -174,11 +172,6 @@ abstract base class ComputeWorkload {
   /// placement rule prefers to the CPU executor
   /// ([ComputeExecutors.placeWorkload]).
   bool get hasHost => false;
-
-  /// The placement it must run at, or null for wherever the rule puts it.
-  /// A demand nothing meets is refused, never moved, as a compute step's
-  /// is; most workloads demand nothing.
-  ComputePlacement? get demand => null;
 
   /// Told where it runs, before the first [record] there; told again with
   /// [WorkloadBinding.host] when it falls back. The buffers are zeroed at

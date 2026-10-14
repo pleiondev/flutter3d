@@ -5,11 +5,11 @@ description: Move a project written against flutter3d 0.8 to 1.0.0-rc.1, with on
 # Migrating from 0.8 to 1.0
 
 1.0 is the release the engine promises to keep: from it on, a break comes
-only in a major version. To get there, 0.8's API changed in 2095 places,
-308 of them left to you; 380 are backend internals no application called.
+only in a major version. To get there, and on to this release, the API changed in 2117 places,
+314 of them left to you; 380 are backend internals no application called.
 The rest a program carries out for you, and three
-tools share the work. All three read one table,
-`flutter3d_build/lib/migrations/0.8_to_1.0.yaml`, so they agree about what
+tools share the work. All three read the same tables,
+`flutter3d_build/lib/migrations/`, so they agree about what
 changed.
 
 <div class="goal">
@@ -224,6 +224,39 @@ carried out:
   can write is affected. It is listed so you know it was checked.
 
 <!-- migration-table:start -->
+
+*Generated from `flutter3d_build/lib/migrations/` — 22 entries from 1.0.0-rc.1 to 1.0.0-rc.1+1, 6 by hand: 12 `dart fix`, 3 `migrate`, 6 by hand, 1 nothing to do.*
+
+### `flutter3d_core`
+
+- <a id="core-BufferField-new"></a>**`BufferField.BufferField`** (by hand). A buffer field is made by `FieldUpload` where the hardware layer put it, and takes that `ComputeSite` as its third argument where it took an executor.
+- <a id="core-BufferField-executor"></a>**`BufferField.executor`** (`dart fix`). `BufferField.executor` is `BufferField.site`. Where the field lives is a `ComputeSite`, whose `device` is the executor's.
+- <a id="core-ComputeContext-executor"></a>**`ComputeContext.executor`** (`dart fix`). `ComputeContext.executor` is `ComputeContext.site`. The context carries a `ComputeSite`, whose `device` is the executor's; `device` and `isOnFrameDevice` read as before.
+- <a id="core-ComputeContext-placement"></a>**`ComputeContext.placement`** (by hand). A step is no longer told which placement it runs at, only the device it encodes on (`device`) and whether that is the frame's (`isOnFrameDevice`). Branch on those.
+- <a id="core-ComputeStep-demand"></a>**`ComputeStep.demand`** (by hand). Delete the override: a step no longer asks where it runs, the hardware layer decides. A test that wanted the step on a particular device configures the devices or the registry it builds (`DeviceRegistry.adopt`, `CpuDevice(standInForGpu:)`).
+- <a id="core-ComputeStep-executor"></a>**`ComputeStep.executor`** (`dart fix`). `ComputeStep.executor` is `ComputeStep.site`. The step learns a `ComputeSite`: its `device` is the executor's, and no placement comes with it.
+- <a id="core-ComputeStep-prepare"></a>**`ComputeStep.prepare`** (`migrate`). `ComputeStep.prepare` becomes `x.prepare({0}.device)`. A step is placed for frames drawn on a device, from the compute the registry that opened it has; it is no longer handed executors.
+- <a id="core-FieldUpload-executor"></a>**`FieldUpload.executor`** (`dart fix`). `FieldUpload.executor` is `FieldUpload.site`.
+- <a id="core-FieldUpload-place"></a>**`FieldUpload.place`** (`migrate`). `FieldUpload.place` becomes `x.place({0}.device)`. It takes the device the frame is drawn on and answers a `Future`, as a compute step's placement does: `await` it where its refusal is read.
+- <a id="core-RendererSteps-addComputeStep"></a>**`RendererSteps.addComputeStep`** (`dart fix`). The renderer's own device and the registry that opened it say where the step may run; nothing is handed in.
+- <a id="core-RendererSteps-addFieldUpload"></a>**`RendererSteps.addFieldUpload`** (`dart fix`). Nothing is handed in, and the result is a `Future<Registration>`, as `addComputeStep`'s is: `await` it where the registration is kept.
+- <a id="core-RendererSteps-placeSkinningHook"></a>**`RendererSteps.placeSkinningHook`** (`dart fix`). 
+- <a id="core-RendererSteps-skinningPlacement"></a>**`RendererSteps.skinningPlacement`** (by hand). Nothing above the hardware layer reports where a hook runs. A hook that writes its output was placed; one nothing could place is reported by the frame as `PassSkip.unsupported`, as any compute step is.
+- <a id="core-RendererSteps-skinningRefusal"></a>**`RendererSteps.skinningRefusal`** (by hand). A hook no longer demands a placement, so there is no refused demand to read. One nothing could place is reported by the frame as `PassSkip.unsupported`, with the refusal in the frame's report.
+- <a id="core-SkinningHook-demand"></a>**`SkinningHook.demand`** (by hand). Delete the override: a hook no longer asks where it runs. The hardware layer places it on the drawing device or the CPU.
+
+### `flutter3d_game`
+
+- <a id="game-flutter3d-export"></a>**`package:flutter3d/flutter3d.dart`** (nothing to do). The facade still re-exports the engine through this one line; only the names in it changed, `ComputeExecutor`, `ComputeExecutors` and `ComputePlacement` out and `ComputeSite` in, which their own entries cover.
+
+### `flutter3d_hardware`
+
+- <a id="hardware-ComputeExecutor"></a>**`ComputeExecutor`** (`dart fix`). `ComputeExecutor` is imported from `package:flutter3d_hardware/flutter3d_hardware.dart`. The facades no longer re-export it: a step is told a `ComputeSite` now, whose `device` is what an executor's was.
+- <a id="hardware-ComputeExecutors"></a>**`ComputeExecutors`** (`dart fix`). `ComputeExecutors` is imported from `package:flutter3d_hardware/flutter3d_hardware.dart`. The facades no longer re-export it: it is the hardware layer's and the backends' own. A backend imports it from `flutter3d_hardware`; anything else asks `FrameCompute` and is told a `ComputeSite`.
+- <a id="hardware-ComputeExecutors-place"></a>**`ComputeExecutors.place`** (`dart fix`). The rule places a step on the first device of the frame's that runs it, and nothing asks it for another. A test that wanted a particular device configures the devices or the registry it builds.
+- <a id="hardware-ComputePlacement"></a>**`ComputePlacement`** (`dart fix`). `ComputePlacement` is imported from `package:flutter3d_hardware/flutter3d_hardware.dart`. The facades no longer re-export it: a placement is named only by the hardware layer and the backends that add compute devices.
+- <a id="hardware-ComputePlacementException-new"></a>**`ComputePlacementException.ComputePlacementException`** (`dart fix`). A step no longer demands a placement, so a refusal has no demand to carry.
+- <a id="hardware-ComputePlacementException-demand"></a>**`ComputePlacementException.demand`** (`migrate`). `ComputePlacementException.demand` becomes `null`. Nothing demands a placement any more, so there is none to read: the refusal says why nothing ran (`reason`, `tried`), never where it was asked to.
 
 *Generated from `flutter3d_build/lib/migrations/` — 2095 entries from 0.8.5 to 1.0.0-rc.1, 308 by hand: 425 `migrate`, 308 by hand, 329 nothing to do, 528 `dart fix`, 380 gone internal, 125 `migrate`, with a TODO.*
 

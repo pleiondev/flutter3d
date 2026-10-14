@@ -7,8 +7,14 @@
 /// is encoded the same way wherever it lands, and its kernel, written once
 /// in the kernel language (`kernel <N>`; a material's `compute` block is
 /// lowered to it), is loaded on whichever it is through the bundle's
-/// kernel section. This file names the three and decides between them; the
-/// frame graph's `ComputeStep` asks it.
+/// kernel section.
+///
+/// **Decided here and nowhere else.** This file names the three, decides
+/// between them, and is the only place that does: since 1.0.0-rc.1+1 the
+/// engine above asks [FrameCompute] for a [ComputeSite] and is told a
+/// device to encode on, never a placement, and nothing above this layer
+/// may ask for one. Which devices a frame has is the backends' to say,
+/// through the [DeviceRegistry] that opened its device.
 library;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
@@ -16,6 +22,7 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
 import 'package:meta/meta.dart';
 
 import 'capabilities.dart';
+import 'device_registry.dart';
 import 'graphics_device.dart';
 
 /// Where a compute step runs: on the device that draws the frame, on a
@@ -113,8 +120,9 @@ final class ComputeRefusalReason {
     'noExecutor',
   );
 
-  /// The step demanded a placement, and the executor for it is missing or
-  /// has no compute.
+  /// A placement asked for is missing or has no compute. Nothing asks for
+  /// one since 1.0.0-rc.1+1, so no refusal gives this reason; it stays so a
+  /// `switch` written against 1.0.0-rc.1 compiles.
   static const ComputeRefusalReason placementUnavailable =
       ComputeRefusalReason._('placementUnavailable');
 
@@ -154,17 +162,19 @@ final class ComputeRefusalReason {
   String toString() => 'ComputeRefusalReason.$name';
 }
 
-/// The typed refusal of a compute step nothing can run: what it demanded,
-/// why, and what each executor said.
+/// The typed refusal of a compute step nothing can run: why, and what each
+/// executor said.
 ///
 /// A [CapabilityException]: the machine, not the program, decides it. A
 /// frame reports the step as unsupported and goes on; a caller that asked
-/// [ComputeExecutors.place] directly catches this.
+/// [FrameCompute] directly catches this.
+///
+/// **Breaking in 1.0.0-rc.1+1: no `demand`.** A step no longer asks where
+/// it runs, so there is no demand to report.
 final class ComputePlacementException extends CapabilityException {
   const ComputePlacementException({
     required this.step,
     required this.reason,
-    this.demand,
     this.tried = const <String>[],
     this.cause,
   });
@@ -174,9 +184,6 @@ final class ComputePlacementException extends CapabilityException {
 
   /// Why.
   final ComputeRefusalReason reason;
-
-  /// The placement the step demanded, or null when it demanded none.
-  final ComputePlacement? demand;
 
   /// One line per executor considered, in placement order: which it was
   /// and why it did not run the step.
@@ -188,11 +195,7 @@ final class ComputePlacementException extends CapabilityException {
 
   @override
   String get message {
-    final what = switch (demand) {
-      null => '"$step" has nowhere to run',
-      final demanded =>
-        '"$step" demands ${demanded.name} compute and cannot have it',
-    };
+    final what = '"$step" has nowhere to run';
     final why = switch (reason) {
       ComputeRefusalReason.noExecutor =>
         'no executor of this frame has compute',
@@ -212,11 +215,13 @@ final class ComputePlacementException extends CapabilityException {
 /// The executors one frame may place compute steps on, and the order it
 /// tries them in.
 ///
-/// **The placement rule, written once.** A step that demands nothing runs
-/// on the first of [ComputePlacement.values] whose executor has
-/// `DeviceFeature.compute`: the drawing [device]'s own, then the [sidecar],
-/// then the [cpu]. One that demands a placement runs there or is refused
-/// with [ComputePlacementException], never quietly moved.
+/// **The placement rule, written once.** A step runs on the first of
+/// [ComputePlacement.values] whose executor has `DeviceFeature.compute`:
+/// the drawing [device]'s own, then the [sidecar], then the [cpu].
+///
+/// **The hardware layer's and the backends'.** The engine above asks
+/// [FrameCompute], which keeps one of these for the device a frame is drawn
+/// on; a backend that adds a compute device names its placement here.
 final class ComputeExecutors {
   /// The executors of a frame drawn on [device], with a [sidecar] and a
   /// [cpu] device where the application has them.
@@ -258,36 +263,19 @@ final class ComputeExecutors {
     final at => '${placement.name}: ${at.backendName} has no compute',
   };
 
-  /// Where the step called [step] runs: at [demand] when it names one,
-  /// otherwise the first executor in placement order. [accepts] narrows the
-  /// choice further (a step whose kernel one executor refused asks again
-  /// without it) and is asked in placement order.
+  /// Where the step called [step] runs: the first executor in placement
+  /// order. [accepts] narrows the choice further (a step whose kernel one
+  /// executor refused asks again without it) and is asked in placement
+  /// order.
   ///
   /// Throws [ComputePlacementException] when nothing fits.
+  ///
+  /// **Breaking in 1.0.0-rc.1+1: no `demand`.** Where a step runs is this
+  /// rule's to say, never the step's.
   ComputeExecutor place({
     required String step,
-    ComputePlacement? demand,
     bool Function(ComputeExecutor executor)? accepts,
   }) {
-    if (demand != null) {
-      final executor = executorFor(demand);
-      if (executor != null && (accepts == null || accepts(executor))) {
-        return executor;
-      }
-      throw ComputePlacementException(
-        step: step,
-        demand: demand,
-        reason: executor == null
-            ? ComputeRefusalReason.placementUnavailable
-            : ComputeRefusalReason.kernelRefused,
-        tried: <String>[
-          if (executor == null)
-            _why(demand)
-          else
-            '${demand.name}: ${executor.device.backendName} refused it',
-        ],
-      );
-    }
     final tried = <String>[];
     for (final placement in ComputePlacement.values) {
       final executor = executorFor(placement);
@@ -321,28 +309,23 @@ final class ComputeExecutors {
   /// Where the workload called [step] runs: an executor, or null for its
   /// own host implementation — since 1.0.0-rc.1+1.
   ///
-  /// **The workload rule, written once.** At its [demand] when it names
-  /// one, as [place]. Otherwise the drawing device's compute, then the
-  /// sidecar ([aheadOfHost]); then, when it [hasHost], its own host code,
-  /// which was written for the CPU, ahead of the CPU executor, which
-  /// interprets kernels written for a GPU; and the CPU executor only for a
-  /// workload with nothing of its own there. A workload with host code is
-  /// never put on a device that does its work on the CPU
+  /// **The workload rule, written once.** The drawing device's compute,
+  /// then the sidecar ([aheadOfHost]); then, when it [hasHost], its own
+  /// host code, which was written for the CPU, ahead of the CPU executor,
+  /// which interprets kernels written for a GPU; and the CPU executor only
+  /// for a workload with nothing of its own there. A workload with host
+  /// code is never put on a device that does its work on the CPU
   /// (`GraphicsDevice.isSoftware`) — a software rasteriser drawing the
   /// frame, say — for the same reason. [accepts] narrows the choice as it
   /// does for [place].
   ///
-  /// Throws [ComputePlacementException] when nothing fits: a demand that
-  /// cannot be met, or a workload with no host code and no executor.
+  /// Throws [ComputePlacementException] when nothing fits: a workload with
+  /// no host code and no executor.
   ComputeExecutor? placeWorkload({
     required String step,
     required bool hasHost,
-    ComputePlacement? demand,
     bool Function(ComputeExecutor executor)? accepts,
   }) {
-    if (demand != null) {
-      return place(step: step, demand: demand, accepts: accepts);
-    }
     for (final executor in workloadCandidates(hasHost: hasHost)) {
       if (executor.placement == ComputePlacement.cpu) break;
       if (accepts == null || accepts(executor)) return executor;
@@ -351,10 +334,10 @@ final class ComputeExecutors {
     return place(step: step, accepts: accepts);
   }
 
-  /// The executors [placeWorkload] may put a workload on when it demands
-  /// nothing, in the order it tries them: the GPUs ahead of the host, and,
-  /// for a workload with no host code of its own, the CPU executor after
-  /// them. What a step loads its kernels on before it asks the rule.
+  /// The executors [placeWorkload] may put a workload on, in the order it
+  /// tries them: the GPUs ahead of the host, and, for a workload with no
+  /// host code of its own, the CPU executor after them. What a step loads
+  /// its kernels on before it asks the rule.
   List<ComputeExecutor> workloadCandidates({required bool hasHost}) =>
       <ComputeExecutor>[
         for (final placement in aheadOfHost)
@@ -363,4 +346,199 @@ final class ComputeExecutors {
             executor,
         if (!hasHost) ?executorFor(ComputePlacement.cpu),
       ];
+
+  /// These executors less the sidecar: for work the frame draws from the
+  /// same frame, which from a device beside it would arrive only through
+  /// the host.
+  ComputeExecutors get _withoutSidecar =>
+      ComputeExecutors(device: device, cpu: cpu);
+}
+
+/// Where one piece of a frame's compute runs, as the hardware layer chose
+/// it: the device its work is encoded on — since 1.0.0-rc.1+1.
+///
+/// **The outcome, never the choice.** The engine above records on
+/// [device], binds the frame's own buffers there when [isOnFrameDevice],
+/// and otherwise hands results across with a `SharedBuffer`; it never
+/// learns which of the placements this is, and never asks for one.
+@immutable
+final class ComputeSite {
+  const ComputeSite._(this._executor, this.frameDevice);
+
+  final ComputeExecutor _executor;
+
+  /// The device the frame is drawn on.
+  final GraphicsDevice frameDevice;
+
+  /// The device the work is encoded on: `device.beginComputePass()` is the
+  /// encoder.
+  GraphicsDevice get device => _executor.device;
+
+  /// Whether that is the device drawing the frame, so the frame's own
+  /// buffers and textures can be bound as they are.
+  bool get isOnFrameDevice => identical(device, frameDevice);
+
+  @override
+  bool operator ==(Object other) =>
+      other is ComputeSite &&
+      other._executor == _executor &&
+      identical(other.frameDevice, frameDevice);
+
+  @override
+  int get hashCode => Object.hash(_executor, identityHashCode(frameDevice));
+
+  @override
+  String toString() => 'ComputeSite(${device.backendName})';
+}
+
+/// Where [site] is, for a test checking the rule — exported from
+/// `package:flutter3d_hardware/testing.dart` only.
+ComputePlacement computePlacementOf(ComputeSite site) =>
+    site._executor.placement;
+
+/// Opens the executors of frames drawn on [device] when they are first
+/// asked for: what a [DeviceRegistry] attaches to a device it opened or
+/// adopted.
+typedef ExecutorOpener = Future<ComputeExecutors> Function();
+
+/// The compute a device's frames may use, and the hardware layer's rule for
+/// where each piece of it runs — since 1.0.0-rc.1+1.
+///
+/// **Asked of the device, answered here.** [FrameCompute.of] is what frames
+/// drawn on a device have: the executors the [DeviceRegistry] that opened
+/// it offers (the device itself, the sidecar a backend added, the CPU
+/// device), opened the first time they are needed; for a device opened
+/// without one, the device alone. A renderer, a compute step, a workload
+/// and a field ask it for a [ComputeSite] and are told the outcome, never
+/// a placement, and none of them is told where to look for executors.
+final class FrameCompute {
+  FrameCompute._(this.device, this._open);
+
+  static final Expando<FrameCompute> _of = Expando<FrameCompute>(
+    'frame compute',
+  );
+
+  /// The compute of frames drawn on [device].
+  static FrameCompute of(GraphicsDevice device) => _of[device] ??=
+      FrameCompute._(device, () async => ComputeExecutors(device: device));
+
+  /// The device the frames are drawn on.
+  final GraphicsDevice device;
+
+  final ExecutorOpener _open;
+  Future<ComputeExecutors>? _executors;
+
+  /// The executors, opened once.
+  Future<ComputeExecutors> _resolve() => _executors ??= _open();
+
+  /// The drawing device itself, as a site: where what the frame samples is
+  /// held.
+  ComputeSite get frame =>
+      ComputeSite._(ComputeExecutor(ComputePlacement.device, device), device);
+
+  /// Places the work called [step]: [load]s it — its kernels, say — on each
+  /// device the rule offers in turn, stopping at the first that takes it,
+  /// and answers that site with what [load] gave. A device whose [load]
+  /// throws is passed over, its error kept as the refusal's cause.
+  /// [besideFrame] false keeps the work off a compute-only device beside
+  /// the frame's: for work the frame draws from in the same frame, which
+  /// would reach it only through the host.
+  ///
+  /// Throws [ComputePlacementException] when nothing takes it.
+  Future<(ComputeSite, T)> place<T>(
+    String step,
+    Future<T> Function(GraphicsDevice device) load, {
+    bool besideFrame = true,
+  }) async {
+    final all = await _resolve();
+    final executors = besideFrame ? all : all._withoutSidecar;
+    final loaded = <ComputeExecutor, T>{};
+    Object? cause;
+    // In placement order, stopping at the first that loads: the rule then
+    // chooses that one, and asking the rest would only load the work again
+    // on devices nobody will use.
+    for (final candidate in executors.available) {
+      try {
+        loaded[candidate] = await load(candidate.device);
+        break;
+      } on Object catch (error) {
+        cause ??= error;
+      }
+    }
+    try {
+      final chosen = executors.place(step: step, accepts: loaded.containsKey);
+      return (ComputeSite._(chosen, device), loaded[chosen] as T);
+    } on ComputePlacementException catch (refused) {
+      throw _withCause(refused, cause);
+    }
+  }
+
+  /// Places the work called [step] that has an implementation of its own on
+  /// the host when [hasHost]: as [place], by the workload rule
+  /// ([ComputeExecutors.placeWorkload]) — the GPUs first, then that host
+  /// code, then the CPU executor for work with none. Null when its host
+  /// code is to run it.
+  ///
+  /// Throws [ComputePlacementException] when nothing takes it.
+  Future<(ComputeSite, T)?> placeHosted<T>(
+    String step,
+    Future<T> Function(GraphicsDevice device) load, {
+    required bool hasHost,
+  }) async {
+    final executors = await _resolve();
+    final loaded = <ComputeExecutor, T>{};
+    Object? cause;
+    for (final candidate in executors.workloadCandidates(hasHost: hasHost)) {
+      try {
+        loaded[candidate] = await load(candidate.device);
+        break;
+      } on Object catch (error) {
+        cause ??= error;
+      }
+    }
+    try {
+      final chosen = executors.placeWorkload(
+        step: step,
+        hasHost: hasHost,
+        accepts: loaded.containsKey,
+      );
+      if (chosen == null) return null;
+      return (ComputeSite._(chosen, device), loaded[chosen] as T);
+    } on ComputePlacementException catch (refused) {
+      throw _withCause(refused, cause);
+    }
+  }
+
+  /// Places storage called [step] on the first device in placement order
+  /// that [holds] it — a field's buffer a compute step steps, say.
+  ///
+  /// Throws [ComputePlacementException] when none does.
+  Future<ComputeSite> placeStorage(
+    String step,
+    bool Function(GraphicsDevice device) holds,
+  ) async {
+    final executors = await _resolve();
+    final chosen = executors.place(
+      step: step,
+      accepts: (ComputeExecutor e) => holds(e.device),
+    );
+    return ComputeSite._(chosen, device);
+  }
+
+  static ComputePlacementException _withCause(
+    ComputePlacementException refused,
+    Object? cause,
+  ) => ComputePlacementException(
+    step: refused.step,
+    reason: refused.reason,
+    tried: refused.tried,
+    cause: cause ?? refused.cause,
+  );
+}
+
+/// Makes [open] the executors of frames drawn on [device], opened the first
+/// time they are asked for: what [DeviceRegistry.open] and
+/// [DeviceRegistry.adopt] do. Not exported.
+void attachCompute(GraphicsDevice device, ExecutorOpener open) {
+  FrameCompute._of[device] = FrameCompute._(device, open);
 }

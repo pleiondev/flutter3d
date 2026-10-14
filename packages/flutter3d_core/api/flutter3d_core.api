@@ -636,10 +636,10 @@ final class BoolCondition extends AnimationCondition
   final bool value
 
 final class BufferField extends FieldStorage
-  BufferField(this.declaration, this.buffer, this.executor)
+  BufferField(this.declaration, this.buffer, this.site)
   FieldResidence get residence
   String toString()
-  final ComputeExecutor executor
+  final ComputeSite site
   final FieldDeclaration declaration
   final StorageBuffer buffer
 
@@ -818,20 +818,18 @@ final class CompiledFrameGraph
 
 final class ComputeContext
   ComputeEncoder beginPass({String? label})
-  ComputePlacement get placement
   GraphicsDevice get device
   ShaderHandle stage(String kernel)
   bool get isOnFrameDevice
-  final ComputeExecutor executor
+  final ComputeSite site
   final RenderFrame frame
   final String step
 
 abstract base class ComputeStep extends RenderNode
-  ComputeExecutor? get executor
-  ComputePlacement? get demand
   ComputePlacementException? get refusal
+  ComputeSite? get site
   ComputeStep()
-  Future<ComputePlacementException?> prepare(ComputeExecutors executors)
+  Future<ComputePlacementException?> prepare(GraphicsDevice device)
   RenderAnchor get defaultAnchor
   abstract List<ComputeKernel> get kernels
   abstract void record(ComputeContext context)
@@ -1529,11 +1527,11 @@ final class FieldPass
   void step(ShaderHandle kernel, {void Function(PassEncoder pass)? bind, String label = 'field step'})
 
 final class FieldUpload extends RenderNode
-  ComputeExecutor? get executor
+  ComputeSite? get site
   FieldDeclaration get declaration
   FieldResidenceException? get refusal
-  FieldResidenceException? place(ComputeExecutors executors)
   FieldUpload(this.source, {this.residence = FieldResidence.texture3D})
+  Future<FieldResidenceException?> place(GraphicsDevice device)
   List<ResourceId> get writes
   RenderAnchor get defaultAnchor
   ResourceId get id
@@ -4364,12 +4362,10 @@ final class Renderer with RenderServices
   void warmUp({required int width, required int height, required Scene scene, required List<RenderView> views, RenderSettings settings = const RenderSettings()})
 
 final class RendererSteps extends RenderStepRegistry
-  ComputeExecutors? get computeExecutors
-  ComputePlacement? skinningPlacement(SkinningHook hook)
-  ComputePlacementException? skinningRefusal(SkinningHook hook)
-  Future<Registration> addComputeStep(ComputeStep step, ComputeExecutors executors, {RenderAnchor? at, RenderStep? owner, List<String> after = const <String>[], List<String> before = const <String>[]})
-  Future<Registration> addWorkload(ComputeWorkload workload, {ComputeExecutors? executors, RenderAnchor? at})
-  Future<Registration> placeSkinningHook(SkinningHook hook, ComputeExecutors executors)
+  Future<Registration> addComputeStep(ComputeStep step, {RenderAnchor? at, RenderStep? owner, List<String> after = const <String>[], List<String> before = const <String>[]})
+  Future<Registration> addFieldUpload(FieldUpload upload, {RenderAnchor? at, RenderStep? owner, List<String> after = const <String>[], List<String> before = const <String>[]})
+  Future<Registration> addWorkload(ComputeWorkload workload, {RenderAnchor? at})
+  Future<Registration> placeSkinningHook(SkinningHook hook)
   GraphicsDevice get device
   Iterable<PluginRegistry> get companions
   List<PassContributor> get contributors
@@ -4380,7 +4376,6 @@ final class RendererSteps extends RenderStepRegistry
   List<SettingsSlot<Object>> get settings
   List<String> nodesAt(RenderAnchor anchor)
   Registration addAnchor(RenderAnchor anchor)
-  Registration addFieldUpload(FieldUpload upload, ComputeExecutors executors, {RenderAnchor? at, RenderStep? owner, List<String> after = const <String>[], List<String> before = const <String>[]})
   Registration addMaterials(ShaderLibrary library)
   Registration addNode(RenderNode node, {RenderAnchor? at, RenderStep? step, List<String> after = const <String>[], List<String> before = const <String>[]})
   Registration addSettings(SettingsSlot<Object> slot)
@@ -4397,7 +4392,6 @@ final class RendererSteps extends RenderStepRegistry
   T addContributor<T extends PassContributor>(T contributor)
   WorkloadStep? workloadStep(ComputeWorkload workload)
   bool removeContributor(PassContributor contributor)
-  set computeExecutors(ComputeExecutors? executors)
 
 final class ResourceCache<K, V>
   Future<ResourceHandle<V>> acquire(K key, {ResourcePriority priority = ResourcePriority.normal})
@@ -4914,7 +4908,6 @@ final class SkinningContext
   int get vertexCount
 
 abstract base class SkinningHook
-  ComputePlacement? get demand
   List<ComputeKernel> get kernels
   bool claims(SkinningContext context)
   bool record(SkinningContext context)
@@ -5589,8 +5582,7 @@ abstract final class WebDecodeWorker
   static void use(Uri script)
 
 final class WorkloadStep extends ComputeStep
-  ComputePlacement? get demand
-  Future<ComputePlacementException?> prepare(ComputeExecutors executors)
+  Future<ComputePlacementException?> prepare(GraphicsDevice device)
   List<ResourceId> get writes
   String get name
   WorkloadBinding? get binding

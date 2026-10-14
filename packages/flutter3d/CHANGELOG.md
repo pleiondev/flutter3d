@@ -1,3 +1,11 @@
+## 1.0.0-rc.1+1
+
+- **Breaking: the placement types are no longer re-exported.**
+  `ComputeExecutor`, `ComputeExecutors` and `ComputePlacement` are the
+  hardware layer's and the backends' own: where compute runs is decided
+  there, and nothing a game or a plugin writes names it. `ComputeSite`
+  (new here), what a compute step is told, is re-exported in their place.
+
 ## 1.0.0-rc.1
 
 - **The plugin and matter exceptions are exported**

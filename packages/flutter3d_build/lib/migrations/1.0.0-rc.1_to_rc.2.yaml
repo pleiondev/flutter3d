@@ -1,0 +1,339 @@
+# How code written against flutter3d 1.0.0-rc.1 moves to the `+N`
+# republications of it that carry breaks, and on to 1.0.0-rc.2: the open
+# table, whose `to:` moves with the release it ends at.
+#
+# The one source of every migration: `tool/generate_migrations.dart` in
+# flutter3d_build turns it into each package's `lib/fix_data.yaml` (for
+# `dart fix`), into the `flutter3d_lints` migration diagnostics and their
+# quick fixes, and into the table on the site's migration guide; the
+# `migrate` command reads `packages:` and the `import` entries itself.
+#
+# Layout, which `tool/structure/migration.dart` reads without a YAML parser
+# (the generator refuses a file the two readers see differently):
+#
+#   - every entry starts `  - id: <unique-id>` and its keys sit at four
+#     spaces; a long text is a `>-` block under its key;
+#   - `package` is the package that declared `symbol` at the `from` release;
+#   - `symbol` is `Name`, which covers every member of it, or `Name.member`;
+#     a whole library gone is its URI.
+#
+# Kinds, and what each becomes:
+#
+#   rename            `to: NewName` (or `to: Type.newMember`)      dart fix
+#                     (and flutter3d_lints, for a class named in a
+#                     `const` creation, which `dart fix` misses)
+#   moved             `to: <library uri>`, optional `name:`        dart fix
+#                     (and `migrate` adds the dependency it needs)
+#   parameters        `changes:` — a list of `rename:`/`to:`,       dart fix
+#                     `remove:`, `add:` with `named`, `required`,
+#                     `value:` (the argument old callers get), and
+#                     `toNamed: <name>` with `index: <n>` for the
+#                     positional argument n that became named (also
+#                     flutter3d_lints, which writes `name: ` before it)
+#   rewrite          `template:` with `{target}` for the receiver, flutter3d_lints
+#                     `{0}`, `{1}`… for a call's arguments,
+#                     `{arguments}` for all of them as written and
+#                     `{typeArguments}` for its type arguments;
+#                     `imports:` the libraries it names. A symbol
+#                     with no member is a top-level function; `on:`
+#                     the type a gone extension's member was on;
+#                     `static: true` for a static that is an
+#                     instance's member now, rewritten only where
+#                     it is named through the class
+#   implementsToWith  a type that became a `base mixin class`:      flutter3d_lints
+#                     `implements X` becomes `with X` on a base class
+#   subclassModifier  a class that became `base` or `final`: `to:`   flutter3d_lints
+#                     the modifier. Under `base`, a project's class
+#                     below it (directly or through its own classes)
+#                     gains `base`, and `implements X` becomes
+#                     `extends X` where nothing else is the
+#                     superclass; under `final`, each clause that
+#                     extends or implements it gets a TODO
+#   regroup         named arguments that moved into an options    flutter3d_lints
+#                     object: `into:` the parameter that takes it,
+#                     `options:` its class, `arguments:` the names
+#                     that move, optional `imports:`
+#   enumToClass       a type that stopped being an enum or sealed:  flutter3d_lints
+#                     a `switch` over it with no wildcard gains
+#                     one that throws, with a TODO
+#   recordToClass     a record that became a class: `fields:` maps  flutter3d_lints
+#                     each old field (`$1`, `name`) to its getter;
+#                     destructuring patterns are left to a person
+#   nullToThrow       a call that answered null and now throws:     flutter3d_lints
+#                     `exception:` the type; a null check right
+#                     beside a call becomes `try … on` with a TODO
+#   argument          a parameter or a field that changed name,     flutter3d_lints
+#                     type or unit: `arguments:` the names, `to:`
+#                     a new name, `template:` the value written,
+#                     with `{value}` for the old one and
+#                     `{components}` for a vector's; `types:` the
+#                     old types it rewrites, `on:` the class's 1.0
+#                     name where it was renamed, `reads:` a map from
+#                     a member of the old type read off the field to
+#                     the new one's (`{x: r}`). A value it cannot
+#                     write once, and a read used as the old type,
+#                     keep the TODO
+#   internal          a name public at `from` that is the owning    flutter3d_lints
+#                     package's own now, with nothing to replace it;
+#                     optional `instead:`. One diagnostic per import
+#                     of the package naming every such name the file
+#                     uses, a TODO at each use, one line per package
+#                     in the guide. It names a top-level name or a
+#                     library (with the names it took, `members:`).
+#   manual            `guidance:` — the diagnostic and the TODO     flutter3d_lints
+#                     `migrate` leaves at each use (for a library
+#                     gone whole, at its import and at each use of
+#                     the names `members:` lists). Their count is
+#                     held to a ceiling (`manualCeiling` in
+#                     `tool/structure/migration.dart`): prefer a kind
+#                     above, or allowlist the entry with a reason
+#   none              `reason:` — a break no caller has to act on   the guide only
+#   import            `from:`/`to:` library URIs, for a library     migrate
+#                     that moved; no `symbol`
+#
+# Every entry may add `guidance:` (shown in the guide and the report) and
+# `wave:` (which piece of the 1.0 work added it). What a person reads —
+# `guidance:`, `reason:`, `instead:` — names no wave, plan or review: it
+# lands in their TODOs. A break the structure rule
+# `every break since the last release has its migration` finds with no entry
+# is drafted by `dart run api_snapshot:migration_seed --append` in tool/api.
+# Later work appends entries at the end; nothing here is renumbered.
+#
+# The tables are a chain, each starting where the one before ends. Once the
+# release in `to:` is tagged, this table is closed: the structure rule `a
+# migration table is closed once its release is tagged` holds it to the
+# text at the tag. The next one is started then, by hand, as
+# `1.0.0-rc.1_to_rc.2.yaml`: this header with `from: 1.0.0-rc.1`, `to:
+# 1.0.0-rc.2`, its `packages:` constraint moved on, and `entries:` empty.
+# `migration_seed` writes into whichever table is open, `migrate` applies
+# every table after the release a project's `pubspec.lock` resolves, and
+# the generator folds them all into each package's one `fix_data.yaml`.
+
+
+format: 1
+from: 1.0.0-rc.1
+to: 1.0.0-rc.1+1
+# The date `dart fix` shows on every fix generated from this table.
+date: 2026-10-14
+guide: https://flutter3d.pleion.dev/reference/migrating-to-1.0/
+
+# `migrate` moves every dependency on a package of this repository to
+# `constraint`, or to its own line under `versions:` for a package that is
+# not on the engine's number. `renamed:` is old name to new; `removed:` is a
+# name and what to use instead. The structure rule holds `versions:` to the
+# pubspecs.
+packages:
+  constraint: ^1.0.0-rc.1+1
+  versions:
+    flutter3d_pointer_lock: ^0.5.0
+    pad_input: ^0.5.0
+  renamed:
+  removed:
+
+entries:
+
+  # Where compute runs is the hardware layer's alone: nothing above it
+  # demands, is handed or reports a placement.
+
+  - id: hardware-ComputePlacementException-new
+    package: flutter3d_hardware
+    symbol: ComputePlacementException.ComputePlacementException
+    kind: parameters
+    changes:
+      - remove: demand
+    guidance: >-
+      A step no longer demands a placement, so a refusal has no demand to
+      carry.
+
+  - id: hardware-ComputePlacementException-demand
+    package: flutter3d_hardware
+    symbol: ComputePlacementException.demand
+    kind: rewrite
+    template: 'null'
+    guidance: >-
+      Nothing demands a placement any more, so there is none to read: the
+      refusal says why nothing ran (`reason`, `tried`), never where it was
+      asked to.
+
+  - id: hardware-ComputeExecutors-place
+    package: flutter3d_hardware
+    symbol: ComputeExecutors.place
+    kind: parameters
+    changes:
+      - remove: demand
+    guidance: >-
+      The rule places a step on the first device of the frame's that runs
+      it, and nothing asks it for another. A test that wanted a particular
+      device configures the devices or the registry it builds.
+
+  - id: hardware-ComputeExecutors
+    package: flutter3d_hardware
+    symbol: ComputeExecutors
+    kind: moved
+    to: package:flutter3d_hardware/flutter3d_hardware.dart
+    guidance: >-
+      The facades no longer re-export it: it is the hardware layer's and
+      the backends' own. A backend imports it from `flutter3d_hardware`;
+      anything else asks `FrameCompute` and is told a `ComputeSite`.
+
+  - id: hardware-ComputeExecutor
+    package: flutter3d_hardware
+    symbol: ComputeExecutor
+    kind: moved
+    to: package:flutter3d_hardware/flutter3d_hardware.dart
+    guidance: >-
+      The facades no longer re-export it: a step is told a `ComputeSite`
+      now, whose `device` is what an executor's was.
+
+  - id: hardware-ComputePlacement
+    package: flutter3d_hardware
+    symbol: ComputePlacement
+    kind: moved
+    to: package:flutter3d_hardware/flutter3d_hardware.dart
+    guidance: >-
+      The facades no longer re-export it: a placement is named only by the
+      hardware layer and the backends that add compute devices.
+
+  - id: core-ComputeStep-demand
+    package: flutter3d_core
+    symbol: ComputeStep.demand
+    kind: manual
+    guidance: >-
+      Delete the override: a step no longer asks where it runs, the
+      hardware layer decides. A test that wanted the step on a particular
+      device configures the devices or the registry it builds
+      (`DeviceRegistry.adopt`, `CpuDevice(standInForGpu:)`).
+
+  - id: core-ComputeStep-executor
+    package: flutter3d_core
+    symbol: ComputeStep.executor
+    kind: rename
+    to: ComputeStep.site
+    guidance: >-
+      The step learns a `ComputeSite`: its `device` is the executor's, and
+      no placement comes with it.
+
+  - id: core-ComputeStep-prepare
+    package: flutter3d_core
+    symbol: ComputeStep.prepare
+    kind: rewrite
+    template: '{target}.prepare({0}.device)'
+    guidance: >-
+      A step is placed for frames drawn on a device, from the compute the
+      registry that opened it has; it is no longer handed executors.
+
+  - id: core-ComputeContext-executor
+    package: flutter3d_core
+    symbol: ComputeContext.executor
+    kind: rename
+    to: ComputeContext.site
+    guidance: >-
+      The context carries a `ComputeSite`, whose `device` is the
+      executor's; `device` and `isOnFrameDevice` read as before.
+
+  - id: core-ComputeContext-placement
+    package: flutter3d_core
+    symbol: ComputeContext.placement
+    kind: manual
+    guidance: >-
+      A step is no longer told which placement it runs at, only the device
+      it encodes on (`device`) and whether that is the frame's
+      (`isOnFrameDevice`). Branch on those.
+
+  - id: core-BufferField-new
+    package: flutter3d_core
+    symbol: BufferField.BufferField
+    kind: manual
+    guidance: >-
+      A buffer field is made by `FieldUpload` where the hardware layer put
+      it, and takes that `ComputeSite` as its third argument where it took
+      an executor.
+
+  - id: core-BufferField-executor
+    package: flutter3d_core
+    symbol: BufferField.executor
+    kind: rename
+    to: BufferField.site
+    guidance: >-
+      Where the field lives is a `ComputeSite`, whose `device` is the
+      executor's.
+
+  - id: core-FieldUpload-executor
+    package: flutter3d_core
+    symbol: FieldUpload.executor
+    kind: rename
+    to: FieldUpload.site
+
+  - id: core-FieldUpload-place
+    package: flutter3d_core
+    symbol: FieldUpload.place
+    kind: rewrite
+    template: '{target}.place({0}.device)'
+    guidance: >-
+      It takes the device the frame is drawn on and answers a `Future`, as
+      a compute step's placement does: `await` it where its refusal is
+      read.
+
+  - id: core-RendererSteps-addComputeStep
+    package: flutter3d_core
+    symbol: RendererSteps.addComputeStep
+    kind: parameters
+    changes:
+      - remove: executors
+    guidance: >-
+      The renderer's own device and the registry that opened it say where
+      the step may run; nothing is handed in.
+
+  - id: core-RendererSteps-addFieldUpload
+    package: flutter3d_core
+    symbol: RendererSteps.addFieldUpload
+    kind: parameters
+    changes:
+      - remove: executors
+    guidance: >-
+      Nothing is handed in, and the result is a `Future<Registration>`, as
+      `addComputeStep`'s is: `await` it where the registration is kept.
+
+  - id: core-RendererSteps-placeSkinningHook
+    package: flutter3d_core
+    symbol: RendererSteps.placeSkinningHook
+    kind: parameters
+    changes:
+      - remove: executors
+
+  - id: core-RendererSteps-skinningPlacement
+    package: flutter3d_core
+    symbol: RendererSteps.skinningPlacement
+    kind: manual
+    guidance: >-
+      Nothing above the hardware layer reports where a hook runs. A hook
+      that writes its output was placed; one nothing could place is
+      reported by the frame as `PassSkip.unsupported`, as any compute step
+      is.
+
+  - id: core-RendererSteps-skinningRefusal
+    package: flutter3d_core
+    symbol: RendererSteps.skinningRefusal
+    kind: manual
+    guidance: >-
+      A hook no longer demands a placement, so there is no refused demand to
+      read. One nothing could place is reported by the frame as
+      `PassSkip.unsupported`, with the refusal in the frame's report.
+
+  - id: core-SkinningHook-demand
+    package: flutter3d_core
+    symbol: SkinningHook.demand
+    kind: manual
+    guidance: >-
+      Delete the override: a hook no longer asks where it runs. The hardware
+      layer places it on the drawing device or the CPU.
+
+  - id: game-flutter3d-export
+    package: flutter3d_game
+    symbol: package:flutter3d/flutter3d.dart
+    kind: none
+    reason: >-
+      The facade still re-exports the engine through this one line; only
+      the names in it changed, `ComputeExecutor`, `ComputeExecutors` and
+      `ComputePlacement` out and `ComputeSite` in, which their own entries
+      cover.

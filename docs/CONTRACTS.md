@@ -601,11 +601,10 @@ and `picturesPerDraw` cut the draws within those limits.
 
 A `SkinningHook` (D22b) skins the meshes it claims into a buffer the
 scene draws. It is placed with `RendererSteps.placeSkinningHook` as a
-`ComputeStep` is: at its `demand`, or on the device drawing the frame and
-then the CPU, and never on the sidecar, whose vertices would reach the
-drawing device only through the host. A demand nothing meets is refused
-with a `ComputePlacementException` (`skinningRefusal`), and the hook runs
-on the CPU instead.
+`ComputeStep` is, by the hardware layer: on the device drawing the frame
+and then the CPU, and never on the sidecar, whose vertices would reach the
+drawing device only through the host. A hook asks for no placement, and
+one nothing can place is reported by the frame as `PassSkip.unsupported`.
 
 - **What it writes.** For each claimed mesh, `SkinningContext.output`: the
   mesh's vertex count in `VertexLayout.standard` (position, normal,
@@ -615,7 +614,7 @@ on the CPU instead.
   buffer through the unskinned vertex stage.
 - **Where it lives.** Placed on the drawing device, the hook's kernels
   write the drawing device's buffer and the vertices never leave the GPU.
-  Placed on the CPU, they write a buffer of the CPU executor, which is
+  Placed on the CPU, they write a buffer of the CPU device, which is
   copied into the drawing device's buffer from host memory: an upload,
   never a readback of the drawing device.
 - **The host shape.** A `HostSkinningHook` answers `skin` with the

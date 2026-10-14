@@ -1,8 +1,7 @@
 /// A shallow water's columns as a compute workload: the physics core's
 /// substep as kernels (`shallowWaterKernels`, which the core publishes
 /// beside the calls that hand a water's columns over), handed to the
-/// engine, which runs it where its placement rule says —
-/// `flutter3d_hardware`'s `ComputeExecutors.placeWorkload`.
+/// engine, which runs it where the hardware layer's rule says.
 ///
 /// **Here and not in the core**, because the core draws nothing and names
 /// no device: it says what the step is in its own terms, and this file

@@ -82,7 +82,23 @@ const int manualCeiling = 308;
 
 /// `manual` entries past [manualCeiling], each with why no kind carries it
 /// out. Entry id to reason. Empty: the ceiling holds the whole count.
-const Map<String, String> manualAllowlist = <String, String>{};
+const Map<String, String> manualAllowlist = <String, String>{
+  'core-ComputeStep-demand':
+      'an override to delete: no kind removes a member a class declares',
+  'core-SkinningHook-demand':
+      'an override to delete: no kind removes a member a class declares',
+  'core-ComputeContext-placement':
+      'nothing replaces it by design: a step is told a device, not a '
+      'placement, and what it did with one is its own to rewrite',
+  'core-RendererSteps-skinningPlacement':
+      'nothing replaces it by design: no layer above the hardware reports '
+      'where a hook runs',
+  'core-RendererSteps-skinningRefusal':
+      'nothing replaces it by design: a hook demands nothing, so there is no '
+      'refused demand to read',
+  'core-BufferField-new':
+      'the third argument changes type, to a site only a placement makes',
+};
 
 /// Words in what a person reads that belong to the work behind the release,
 /// not to the user: a wave, a plan file, a review's decision number.

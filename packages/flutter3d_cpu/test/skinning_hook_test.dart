@@ -155,9 +155,6 @@ final class _Fill extends SkinningHook {
   bool claims(SkinningContext context) => true;
 
   @override
-  ComputePlacement? get demand => ComputePlacement.device;
-
-  @override
   List<ComputeKernel> get kernels => ComputeKernel.parseAll('''
 compute Fill {
   workgroup 4;
@@ -197,13 +194,10 @@ void main() {
     final (scene, mesh, camera) = _scene(device);
     final copied = <Float32List>[];
     final hook = LinearBlendSkinning();
-    final placed = await renderer.renderSteps.placeSkinningHook(
-      hook,
-      await registry.computeExecutors(device),
-    );
+    registry.adopt(device);
+    final placed = await renderer.renderSteps.placeSkinningHook(hook);
     renderer.renderSteps.addNode(_Reader(copied));
     expect(renderer.hooks.skinningHooks, <SkinningHook>[hook]);
-    expect(renderer.renderSteps.skinningPlacement(hook), isNull);
 
     renderer.render(
       width: width,
@@ -224,7 +218,7 @@ void main() {
     expect(renderer.hooks.skinningHooks, isEmpty);
   });
 
-  test('a device placement nothing gives falls back to the CPU, and the '
+  test('a hook the drawing device cannot run is placed on the CPU, and the '
       'frame reads nothing back', () async {
     final device = FakeBackend(
       maxColorAttachments: 4,
@@ -236,15 +230,8 @@ void main() {
     final renderer = Renderer.create(device: device);
     final (scene, _, camera) = _scene(device);
     const hook = _Fill();
-    await renderer.renderSteps.placeSkinningHook(
-      hook,
-      await registry.computeExecutors(device),
-    );
-
-    final refused = renderer.renderSteps.skinningRefusal(hook)!;
-    expect(refused.demand, ComputePlacement.device);
-    expect(refused.reason, ComputeRefusalReason.placementUnavailable);
-    expect(renderer.renderSteps.skinningPlacement(hook), ComputePlacement.cpu);
+    registry.adopt(device);
+    await renderer.renderSteps.placeSkinningHook(hook);
 
     renderer.render(
       width: 16,

@@ -195,9 +195,9 @@ abstract base class ComputeEncoder
   int get hashCode
 
 final class ComputeExecutors
-  ComputeExecutor place({required String step, ComputePlacement? demand, bool Function(ComputeExecutor executor)? accepts})
+  ComputeExecutor place({required String step, bool Function(ComputeExecutor executor)? accepts})
   ComputeExecutor? executorFor(ComputePlacement placement)
-  ComputeExecutor? placeWorkload({required String step, required bool hasHost, ComputePlacement? demand, bool Function(ComputeExecutor executor)? accepts})
+  ComputeExecutor? placeWorkload({required String step, required bool hasHost, bool Function(ComputeExecutor executor)? accepts})
   ComputeExecutors({required this.device, this.sidecar, this.cpu})
   List<ComputeExecutor> get available
   List<ComputeExecutor> workloadCandidates({required bool hasHost})
@@ -234,8 +234,7 @@ final class ComputePipelineHandle
 final class ComputePlacementException extends CapabilityException
   String get message
   String toString()
-  const ComputePlacementException({required this.step, required this.reason, this.demand, this.tried = const <String>[], this.cause})
-  final ComputePlacement? demand
+  const ComputePlacementException({required this.step, required this.reason, this.tried = const <String>[], this.cause})
   final ComputeRefusalReason reason
   final List<String> tried
   final Object? cause
@@ -251,8 +250,15 @@ final class ComputePlacementException extends CapabilityException
   static const ComputeRefusalReason placementUnavailable = ComputeRefusalReason._('placementUnavailable')
   static const List<ComputeRefusalReason> values = <ComputeRefusalReason>[noExecutor, placementUnavailable, kernelRefused, notPlaced]
 
+@immutable final class ComputeSite
+  GraphicsDevice get device
+  String toString()
+  bool get isOnFrameDevice
+  bool operator ==(Object other)
+  final GraphicsDevice frameDevice
+  int get hashCode
+
 abstract base class ComputeWorkload
-  ComputePlacement? get demand
   ComputeWorkload()
   abstract List<WorkloadBuffer> get buffers
   abstract String get kernelSource
@@ -465,6 +471,7 @@ final class DeviceRegistry<P extends Object>
   Registration addBackend(String name, BackendOpener open, {bool asFallback = false})
   Registration addComputeDevice(ComputePlacement placement, String name, ComputeOpener open)
   Registration addPresenter<T extends GraphicsDevice>(P presenter)
+  void adopt(GraphicsDevice device, {void Function(String message)? onRefused})
 
 final class DeviceResourceException extends ResourceException
   String get message
@@ -486,6 +493,8 @@ final class DeviceUnavailableException extends ResourceException
 base mixin EncodedImageUpload on GraphicsDevice
   abstract Future<TextureHandle> decodeTexture(Uint8List encoded, {bool mipmaps = false, int? maxDimension})
 
+typedef ExecutorOpener = Future<ComputeExecutors> Function();
+
 final class FeatureStability
   String toString()
   final String name
@@ -493,6 +502,14 @@ final class FeatureStability
   static const FeatureStability reserved = FeatureStability._('reserved')
   static const FeatureStability stable = FeatureStability._('stable')
   static const List<FeatureStability> values = <FeatureStability>[stable, reserved]
+
+final class FrameCompute
+  ComputeSite get frame
+  Future<(ComputeSite, T)> place<T>(String step, Future<T> Function(GraphicsDevice device) load, {bool besideFrame = true})
+  Future<(ComputeSite, T)?> placeHosted<T>(String step, Future<T> Function(GraphicsDevice device) load, {required bool hasHost})
+  Future<ComputeSite> placeStorage(String step, bool Function(GraphicsDevice device) holds)
+  final GraphicsDevice device
+  static FrameCompute of(GraphicsDevice device)
 
 enum FramebufferOrigin
   values: topLeft, bottomLeft
@@ -1441,10 +1458,10 @@ enum WindingOrder
 final class WorkloadBinding
   GeometryBuffer? vertices(String name)
   String toString()
+  WorkloadBinding.at(ComputeSite this.site, {Map<String, GeometryBuffer> drawn = const <String, GeometryBuffer>{}})
   WorkloadBinding.host()
-  WorkloadBinding.placed(ComputePlacement this.placement, {Map<String, GeometryBuffer> drawn = const <String, GeometryBuffer>{}})
   bool get isOnHost
-  final ComputePlacement? placement
+  final ComputeSite? site
 
 @immutable final class WorkloadBuffer
   String toString()
@@ -1458,7 +1475,6 @@ final class WorkloadBinding
 
 abstract base class WorkloadRecorder
   WorkloadRecorder()
-  abstract ComputePlacement get placement
   abstract bool readBack(String buffer, void Function(ByteData bytes) done)
   abstract void dispatch(String kernel, int x, {int y = 1, int z = 1})
   abstract void write(String buffer, ByteData bytes, {int offsetInBytes = 0})
@@ -1843,6 +1859,8 @@ final class RecordedWindingOrder extends Recorded
 
 base mixin SynchronousBufferReadback on GraphicsDevice
   abstract ByteData readBufferSync(StorageBuffer buffer, {int offsetInBytes = 0, int? sizeInBytes})
+
+ComputePlacement computePlacementOf(ComputeSite site)
 
 library package:flutter3d_hardware/trace.dart
 

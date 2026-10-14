@@ -7,13 +7,14 @@
 ///
 /// The machines are set up the way an engine's device registry would set
 /// them up, and the workload is the same object each time: where it runs is
-/// the engine's answer, read back from what it was told. Where nothing but
-/// the software device computes, the rule leaves the water on the core —
-/// the core's own step is written for the CPU, the software device would
-/// interpret kernels written for a GPU — so to run the kernels at all here
-/// a workload demands a placement, which the rule meets or refuses: the
-/// software device standing in for WebGPU drawing the frame, and for wgpu
-/// beside one that does not compute.
+/// the hardware layer's answer, read back from what it was told through the
+/// hardware layer's test seam (`computePlacementOf`). Where nothing but the
+/// software device computes, the rule leaves the water on the core — the
+/// core's own step is written for the CPU, the software device would
+/// interpret kernels written for a GPU — so to run the kernels here the
+/// software device is made to stand in for a GPU
+/// (`CpuDevice.standInForGpu`): for WebGPU drawing the frame, and for wgpu
+/// beside one that does not compute. The workload asks for nothing.
 library;
 
 import 'dart:math' as math;
@@ -24,7 +25,8 @@ import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_effects/flutter3d_effects.dart'
     show ShallowWaterWorkload;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter3d_hardware/testing.dart' show FakeBackend;
+import 'package:flutter3d_hardware/testing.dart'
+    show FakeBackend, computePlacementOf;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_wgpu/flutter3d_wgpu.dart';
 import 'package:test/test.dart';
@@ -33,14 +35,6 @@ import 'package:vector_math/vector_math.dart';
 const int _nx = 10, _nz = 18;
 const double _cell = 0.6;
 const int _steps = 60;
-
-/// The water's workload demanding [demand]: the physics code untouched.
-final class _Demanding extends ShallowWaterWorkload {
-  _Demanding(super.world, super.water, this.demand);
-
-  @override
-  final ComputePlacement? demand;
-}
 
 /// A reach of river as the river game lays one under a bridge: a sill at
 /// its upper end the river is let in over, a pool under it, a level edge
@@ -104,10 +98,10 @@ void Function() _frames(Renderer renderer) {
   );
 }
 
-/// [_steps] frames of the reach on [executors], drawn on [drawing], its
-/// workload demanding [demand]: what the core mirrors of it at the end,
-/// where it ran, how much spray was in the air at most, and how many
-/// substeps were run off the core.
+/// [_steps] frames of the reach drawn on [drawing], which [registry]
+/// adopts when given one: what the core mirrors of it at the end, what it
+/// was told, how much spray was in the air at most, and how many substeps
+/// were run off the core.
 Future<
   ({
     Float32List depth,
@@ -119,17 +113,15 @@ Future<
 >
 _run({
   required GraphicsDevice drawing,
-  required ComputeExecutors executors,
-  ComputePlacement? demand,
+  DeviceRegistry<Object>? registry,
+  void Function(String message)? onRefused,
 }) async {
+  registry?.adopt(drawing, onRefused: onRefused);
   final (:world, :water) = _reach();
   addTearDown(world.dispose);
   final renderer = Renderer.create(device: drawing);
-  final workload = _Demanding(world, water, demand);
-  final added = await renderer.renderSteps.addWorkload(
-    workload,
-    executors: executors,
-  );
+  final workload = ShallowWaterWorkload(world, water);
+  final added = await renderer.renderSteps.addWorkload(workload);
   addTearDown(added.cancel);
   final step = renderer.renderSteps.workloadStep(workload)!;
   final draw = _frames(renderer);
@@ -169,19 +161,17 @@ double _held(Float32List depth) =>
 
 FakeBackend _noCompute() => FakeBackend(maxColorAttachments: 4);
 
+/// A software device standing in for a GPU.
+CpuDevice _gpu() => cpuComputeDevice(standInForGpu: true);
+
 void main() {
   test(
     'the drawing device\'s compute steps it, within the tolerance',
     () async {
       // Mutation: a kernel's flux scattered the wrong way round a column, or
       // a slope with its sign turned, and the pool drains or overfills.
-      final device = cpuComputeDevice();
-      final ran = await _run(
-        drawing: device,
-        executors: ComputeExecutors(device: device),
-        demand: ComputePlacement.device,
-      );
-      expect(ran.binding!.placement, ComputePlacement.device);
+      final ran = await _run(drawing: _gpu());
+      expect(computePlacementOf(ran.binding!.site!), ComputePlacement.device);
       expect(ran.moved, greaterThanOrEqualTo(_steps));
       final core = _onCore();
       var worst = 0.0;
@@ -201,17 +191,16 @@ void main() {
   test('a sidecar steps it beside a drawing device without compute', () async {
     // Mutation: copy the drawn buffers only when the executor draws, and a
     // sidecar's water never reaches the frame — or place it on the CPU
-    // executor, and the binding names the wrong placement.
-    final ran = await _run(
-      drawing: _noCompute(),
-      executors: ComputeExecutors(
-        device: _noCompute(),
-        sidecar: cpuComputeDevice(),
-        cpu: cpuComputeDevice(),
-      ),
-      demand: ComputePlacement.sidecar,
-    );
-    expect(ran.binding!.placement, ComputePlacement.sidecar);
+    // device, and the binding names the wrong site.
+    final registry = DeviceRegistry<Object>()
+      ..addComputeDevice(ComputePlacement.sidecar, 'beside', () async => _gpu())
+      ..addComputeDevice(
+        ComputePlacement.cpu,
+        'cpu',
+        () async => cpuComputeDevice(),
+      );
+    final ran = await _run(drawing: _noCompute(), registry: registry);
+    expect(computePlacementOf(ran.binding!.site!), ComputePlacement.sidecar);
     final core = _onCore();
     expect(_held(ran.depth), closeTo(_held(core), 0.01 * _held(core)));
   });
@@ -219,7 +208,7 @@ void main() {
   test('the wgpu sidecar steps it on a GPU, within the tolerance', () async {
     // The registry as a native application sets it up: a drawing device
     // without compute (Impeller's, standing in), the sidecar and the CPU
-    // registered. Nothing is demanded: the rule puts the water on the
+    // registered. Nothing is asked for: the rule puts the water on the
     // sidecar. Mutation: a kernel that reads a neighbour's velocity a row
     // off, and the GPU's water leaves the core's by more than the
     // tolerance.
@@ -229,18 +218,16 @@ void main() {
     addTearDown(cpu.cancel);
     addTearDown(sidecar.cancel);
     final refused = <String>[];
-    final drawing = _noCompute();
-    final executors = await registry.computeExecutors(
-      drawing,
+    final ran = await _run(
+      drawing: _noCompute(),
+      registry: registry,
       onRefused: refused.add,
     );
-    if (executors.sidecar == null) {
+    if (ran.binding!.isOnHost) {
       markTestSkipped('no wgpu sidecar here: ${refused.join('; ')}');
       return;
     }
-    addTearDown(executors.sidecar!.dispose);
-    final ran = await _run(drawing: drawing, executors: executors);
-    expect(ran.binding!.placement, ComputePlacement.sidecar);
+    expect(computePlacementOf(ran.binding!.site!), ComputePlacement.sidecar);
     expect(ran.moved, greaterThanOrEqualTo(_steps));
     final core = _onCore();
     var worst = 0.0;
@@ -256,50 +243,30 @@ void main() {
     // Mutation: place a workload with host code on a device that computes
     // on the CPU, and the water is stepped by kernels interpreted in Dart
     // while its own C step sits idle.
-    final device = cpuComputeDevice();
-    final ran = await _run(
-      drawing: device,
-      executors: ComputeExecutors(device: device),
-    );
+    final ran = await _run(drawing: cpuComputeDevice());
     expect(ran.binding!.isOnHost, isTrue);
     expect(ran.moved, 0);
     // On the host it is the core's step, bit for bit.
     expect(ran.depth, _onCore());
   });
 
-  test('with only the CPU executor, the core steps it itself', () async {
-    // Mutation: prefer the CPU executor to the workload's host code.
-    final ran = await _run(
-      drawing: _noCompute(),
-      executors: ComputeExecutors(
-        device: _noCompute(),
-        cpu: cpuComputeDevice(),
-      ),
-    );
+  test('with only the CPU device, the core steps it itself', () async {
+    // Mutation: prefer the CPU device to the workload's host code.
+    final registry = DeviceRegistry<Object>()
+      ..addComputeDevice(
+        ComputePlacement.cpu,
+        'cpu',
+        () async => cpuComputeDevice(),
+      );
+    final ran = await _run(drawing: _noCompute(), registry: registry);
     expect(ran.binding!.isOnHost, isTrue);
     expect(ran.depth, _onCore());
   });
 
   test('with no compute anywhere, the core steps it itself', () async {
-    final ran = await _run(
-      drawing: _noCompute(),
-      executors: ComputeExecutors(device: _noCompute()),
-    );
+    final ran = await _run(drawing: _noCompute());
     expect(ran.binding!.isOnHost, isTrue);
     expect(ran.step.refusal, isNull);
-    expect(ran.depth, _onCore());
-  });
-
-  test('a demand nothing meets is refused, and the core keeps it', () async {
-    // Mutation: fall back to the host under a demand, and a workload that
-    // asked for the sidecar is quietly stepped somewhere else.
-    final ran = await _run(
-      drawing: _noCompute(),
-      executors: ComputeExecutors(device: _noCompute()),
-      demand: ComputePlacement.sidecar,
-    );
-    expect(ran.binding, isNull);
-    expect(ran.step.refusal!.reason, ComputeRefusalReason.placementUnavailable);
     expect(ran.depth, _onCore());
   });
 }

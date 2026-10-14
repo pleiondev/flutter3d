@@ -612,17 +612,32 @@ it can run is a `GraphicsDevice` with `compute`. `ComputePlacement` (an open
 class) names three: `device` (the device that draws the frame), `sidecar` (a
 compute-only device beside it, `flutter3d_wgpu`) and `cpu` (the software
 rasteriser's compute as a device of its own). `values` is also the order a
-step that demands nothing is placed in.
+step is placed in.
 
-`ComputeExecutors(device:, sidecar:, cpu:)` writes the placement rule once.
-`place(step:, demand:, accepts:)` runs a step at its `demand` or refuses
-with `ComputePlacementException` (`ComputeRefusalReason`: `noExecutor`,
-`placementUnavailable`, `kernelRefused`, `notPlaced`), and never moves it
-quietly; a step demanding nothing goes to the first executor with compute
-that `accepts` it. `DeviceRegistry.addComputeDevice(placement, name, open)`
-registers a sidecar or CPU device, and `registry.computeExecutors(device)`
-builds the executors for a frame, leaving out (and reporting) one that will
-not start.
+**Where compute runs is decided here and nowhere else.** Nothing above this
+layer chooses, demands, names or reports a placement; a structure rule
+holds every `lib/` outside it and the backends to that. The engine asks
+`FrameCompute.of(device)` — the compute of frames drawn on a device — and
+is told a `ComputeSite`: the device to encode on, and whether it is the
+frame's. `place(step, load, {besideFrame})` loads a step's work on each
+device in the rule's order and answers the first that takes it;
+`placeHosted(step, load, hasHost:)` is the workload rule for work with
+host code of its own; `placeStorage(step, holds)` puts a buffer.
+
+`ComputeExecutors(device:, sidecar:, cpu:)` writes the rule once, for this
+layer and the backends. `place(step:, accepts:)` goes to the first executor
+with compute that `accepts` the step, or refuses with
+`ComputePlacementException` (`ComputeRefusalReason`: `noExecutor`,
+`kernelRefused`, `notPlaced`; `placementUnavailable` is kept for old
+switches and no longer given). `DeviceRegistry.addComputeDevice(placement,
+name, open)` registers a sidecar or CPU device; `DeviceRegistry.open`
+attaches the registry's compute to every device it opens, and
+`DeviceRegistry.adopt(device)` to one opened another way, each opened the
+first time a frame needs it and left out (and reported) if it will not
+start. A test reads where a site is with `computePlacementOf`, from
+`testing.dart`, and puts work somewhere by configuring the devices and the
+registry it builds — `CpuDevice(standInForGpu: true)` in `flutter3d_cpu`
+stands in for a GPU — never by asking from the step.
 
 **Kernels** are written once in the kernel language (`ComputeKernel` in
 `flutter3d_shaders`, versioned by an optional `kernel <N>` line,
@@ -637,8 +652,8 @@ bytes.
 
 **What grows in a minor**: `ComputePlacement` values (a second queue, a
 remote device), `ComputeRefusalReason` values, kernel section versions.
-**What is frozen**: the placement order of the three existing values and the
-never-moved-quietly rule.
+**What is frozen**: the placement order of the three existing values, and
+that nothing above this layer chooses among them.
 
 ## Shaders
 

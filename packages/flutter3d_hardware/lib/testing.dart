@@ -44,6 +44,7 @@
 /// from here to mix it in.
 library;
 
+export 'src/compute_placement.dart' show computePlacementOf;
 export 'src/synchronous_readback.dart';
 export 'src/testing_fake_backend.dart';
 export 'src/testing_fake_pass.dart';
