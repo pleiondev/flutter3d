@@ -21,6 +21,22 @@ void main() {
     expect(RiverWater.keeps(8, 3, 6), isFalse);
   });
 
+  test('a kept reach is drawn only where the picture is', () {
+    // Reach 3 runs from 170 m to 230 m along the river. Mutation: draw
+    // every kept reach, and the reach past the top of the picture and the
+    // one under the jet's tail are rewritten and sent every frame.
+    expect(RiverWater.inSight(3, near: 150.0, far: 210.0), isTrue);
+    // A picture ending or starting a few metres short of it still draws
+    // it: the spray off a weir stands over the water past where the
+    // picture meets it.
+    expect(RiverWater.inSight(3, near: 100.0, far: 165.0), isTrue);
+    expect(RiverWater.inSight(3, near: 240.0, far: 320.0), isTrue);
+    // Twenty metres clear of the picture either way, it is stepped and
+    // not drawn.
+    expect(RiverWater.inSight(3, near: 80.0, far: 150.0), isFalse);
+    expect(RiverWater.inSight(3, near: 250.0, far: 330.0), isFalse);
+  });
+
   test('the water is kept from under the jet\'s tail to past the top of the '
       'picture', () async {
     // Mutation: leave the half field of view out of `RiverWater.seen`, and

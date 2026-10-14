@@ -177,6 +177,7 @@ final class LiquidView {
       );
     }
     _vertices = Float32List(liquid.cells * vertexFloats);
+    _writeFixed();
     _surface = DeviceMesh.upload(
       device,
       MeshData(
@@ -316,10 +317,20 @@ final class LiquidView {
   /// Whether what was last drawn may no longer be what the core has.
   bool _stale = true;
 
+  /// Whether [update] draws: false for a liquid out of the picture, which
+  /// the core goes on stepping but nobody sees. What was last drawn stays
+  /// as it was, and the first [update] with it true again redraws all of
+  /// it, so the liquid comes back into the picture as the core has it then.
+  bool inSight = true;
+
   /// Everything brought up to date with the world as it stands, [dt]
   /// seconds after the last time: how far the mist off a falls has drifted
   /// and thinned, which a step at sixty a second assumes when not told.
   void update({double dt = 1.0 / 60.0}) {
+    if (!inSight) {
+      _stale = true;
+      return;
+    }
     // Water the core lets rest, with nothing in the air over it, is as it
     // was last drawn.
     final resting = _world.shallowInfoOf(liquid).resting;
@@ -369,7 +380,10 @@ final class LiquidView {
   /// column's neighbours as a cloud spreads: two cells out, thinning with
   /// distance by the binomial 1 4 6 4 1, so a falls' froth is a round
   /// plume that fades into the pool, not a square of cells.
-  Float64List _airIn(Float32List bubbles, Float32List depth) {
+  ///
+  /// Null where there are no bubbles: no air anywhere.
+  Float64List? _airIn(Float32List bubbles, Float32List depth) {
+    if (bubbles.isEmpty) return null;
     final nx = liquid.nx, nz = liquid.nz, cell = liquid.cell;
     final air = Float64List(liquid.cells);
     const spread = <double>[1.0, 4.0, 6.0, 4.0, 1.0];
@@ -472,6 +486,12 @@ final class LiquidView {
           _drawn[c] = surface[c];
           continue;
         }
+        // No water round it at all: sunk, with nothing to look through.
+        if (lowest == double.infinity) {
+          _drawn[c] = double.nan;
+          _beside[c] = 0.0;
+          continue;
+        }
         // The water this vertex is the bank of: below the cell's own when
         // it is perched over it, else level with the lowest round it.
         final top = perched ? _ground[c] - perch : lowest + fall;
@@ -527,46 +547,70 @@ final class LiquidView {
     // off the grid or across a fall counts as level with the cell, so the
     // water's edge is not tipped towards the bank it meets.
     final fall = _fall * cell;
-    double height(int c, int i, int j) {
-      if (i < 0 || j < 0 || i >= nx || j >= nz) return _drawn[c];
-      final h = _drawn[i + j * nx];
-      return h.isNaN || (h - _drawn[c]).abs() > fall ? _drawn[c] : h;
-    }
+    final drawn = _drawn, ground = _ground;
 
     // Written straight into the vertices, as `writeVertex` lays them out: a
     // river keeps tens of thousands of cells, and three small objects a
-    // cell a frame were most of what drawing it cost.
+    // cell a frame were most of what drawing it cost. Only what moves: where
+    // each vertex stands across the water, its tangent and its colour's
+    // alpha were written once, by [_writeFixed].
     final v = _vertices;
     for (var j = 0; j < nz; j++) {
       for (var i = 0; i < nx; i++) {
         final c = i + j * nx;
-        final sunk = _drawn[c].isNaN;
+        final here = drawn[c];
+        final sunk = here.isNaN;
         var gx = 0.0, gz = 0.0;
         if (!sunk) {
-          gx = -(height(c, i + 1, j) - height(c, i - 1, j)) / (2 * cell);
-          gz = -(height(c, i, j + 1) - height(c, i, j - 1)) / (2 * cell);
+          final east = i + 1 < nx ? _level(drawn[c + 1], here, fall) : here;
+          final west = i > 0 ? _level(drawn[c - 1], here, fall) : here;
+          final south = j + 1 < nz ? _level(drawn[c + nx], here, fall) : here;
+          final north = j > 0 ? _level(drawn[c - nx], here, fall) : here;
+          gx = -(east - west) / (2 * cell);
+          gz = -(south - north) / (2 * cell);
         }
         final unit = 1.0 / math.sqrt(gx * gx + 1.0 + gz * gz);
         final k = c * vertexFloats;
-        v[k] = o.x + (i + 0.5) * cell;
-        v[k + 1] = o.y + (sunk ? _ground[c] - 0.2 * cell : _drawn[c]);
-        v[k + 2] = o.z + (j + 0.5) * cell;
+        v[k + 1] = o.y + (sunk ? ground[c] - 0.2 * cell : here);
         v[k + 3] = gx * unit;
         v[k + 4] = unit;
         v[k + 5] = gz * unit;
         v[k + 6] = _edge(c, depth[c]);
+        v[k + 12] = 0.5 + flow[2 * c] / 8.0;
+        v[k + 13] = 0.5 + flow[2 * c + 1] / 8.0;
+        v[k + 14] = air == null ? 0.0 : (air[c] / 0.03).clamp(0.0, 1.0);
+      }
+    }
+    return v;
+  }
+
+  /// The height of a neighbour drawn at [h] as the slope at a vertex drawn
+  /// at [here] reads it: a neighbour sunk under its ground or across a fall
+  /// counts as level with the vertex, so the water's edge is not tipped
+  /// towards the bank it meets.
+  static double _level(double h, double here, double fall) =>
+      h.isNaN || (h - here).abs() > fall ? here : h;
+
+  /// What of each surface vertex never changes, written once: where it
+  /// stands across the water, its second texture coordinate, its tangent
+  /// along x and its colour's alpha.
+  void _writeFixed() {
+    final nx = liquid.nx, nz = liquid.nz, cell = liquid.cell;
+    final o = liquid.origin;
+    final v = _vertices;
+    for (var j = 0; j < nz; j++) {
+      for (var i = 0; i < nx; i++) {
+        final k = (i + j * nx) * vertexFloats;
+        v[k] = o.x + (i + 0.5) * cell;
+        v[k + 2] = o.z + (j + 0.5) * cell;
         v[k + 7] = 0.0;
         v[k + 8] = 1.0;
         v[k + 9] = 0.0;
         v[k + 10] = 0.0;
         v[k + 11] = 1.0;
-        v[k + 12] = 0.5 + flow[2 * c] / 8.0;
-        v[k + 13] = 0.5 + flow[2 * c + 1] / 8.0;
-        v[k + 14] = (air[c] / 0.03).clamp(0.0, 1.0);
         v[k + 15] = 1.0;
       }
     }
-    return v;
   }
 
   /// The light [volume] m³ of water in drops [diameter] m across stops,
@@ -606,10 +650,7 @@ final class LiquidView {
   /// not cut off by it; the depth through the middle, and that many
   /// spreads.
   Vector4 _cloud(double x, double y, double z, double spread, double depth) {
-    final reach = math.max(
-      3.0,
-      math.sqrt(2.0 * math.log(math.max(100.0 * depth, 1.0))),
-    );
+    final reach = _reach(depth);
     final r = reach * spread;
     _m
       ..setIdentity()
@@ -617,6 +658,15 @@ final class LiquidView {
       ..scaleByDouble(r, r, r, 1.0);
     return Vector4(depth, reach, 0.0, 1.0);
   }
+
+  /// How many spreads out a cloud [depth] through its middle is drawn to,
+  /// as [_cloud] has it.
+  static double _reach(double depth) =>
+      math.max(3.0, math.sqrt(2.0 * math.log(math.max(100.0 * depth, 1.0))));
+
+  /// [_reach] as the look is told it, in single precision.
+  static double _toldReach(double depth) => (_single..[0] = _reach(depth))[0];
+  static final Float32List _single = Float32List(1);
 
   void _drawDrops(Float32List spray, double dt) {
     sprayInFlight = spray.length ~/ nativeSprayFloats;
@@ -779,7 +829,10 @@ final class LiquidView {
     double height(Map<int, int> row) =>
         row.values.fold(0.0, (sum, o) => sum + spray[o + 1]) / row.length;
     rows.sort((a, b) => height(b).compareTo(height(a)));
-    final v = _sheetVertices..fillRange(0, _sheetVertices.length, 0.0);
+    // Past the quads drawn the vertices are nought, as they were made: only
+    // what the last frame drew past this one's quads needs clearing, and
+    // only as far as either reaches needs sending.
+    final v = _sheetVertices;
     var quads = 0;
     final up = Vector3(0.0, 1.0, 0.0);
     // Across the fall, level: the way along the lip a piece's faces lie.
@@ -933,8 +986,19 @@ final class LiquidView {
         }
       }
     }
+    final before = sheetQuads;
     sheetQuads = quads;
-    _sheet.overwriteVertices(_device, 0, v.buffer.asByteData());
+    final floatsPerQuad = 4 * vertexFloats;
+    for (var k = quads * floatsPerQuad; k < before * floatsPerQuad; k++) {
+      v[k] = 0.0;
+    }
+    final sent = math.max(quads, before);
+    if (sent == 0) return;
+    _sheet.overwriteVertices(
+      _device,
+      0,
+      v.buffer.asByteData(v.offsetInBytes, sent * floatsPerQuad * 4),
+    );
     sheetNode.markBoundsDirty();
   }
 
@@ -979,7 +1043,7 @@ final class LiquidView {
       // the two are settled together.
       var spread = math.max(math.min(0.5 * cell, under / 3.0), 1e-6);
       for (var settle = 0; settle < 8; settle++) {
-        final reach = _cloud(0, 0, 0, spread, cloudDepth(shadow, spread)).y;
+        final reach = _toldReach(cloudDepth(shadow, spread));
         if (reach * spread <= under) break;
         spread = math.max(under / reach, 1e-6);
       }

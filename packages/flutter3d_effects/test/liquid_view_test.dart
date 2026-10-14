@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_effects/flutter3d_effects.dart';
@@ -148,6 +149,63 @@ void main() {
       final top = view.surfaceVertices[(i + j * 24) * _floats + 1];
       expect(b[o + 7] + b[o], lessThanOrEqualTo(top + 1e-4));
     }
+  });
+
+  test('a liquid out of sight is not redrawn, and comes back as it is', () {
+    // The falls above, drawn by two views: one always, one taken out of
+    // sight for a second and brought back.
+    final ground = <double>[
+      for (var j = 0; j < 4; j++)
+        for (var i = 0; i < 24; i++) i < 8 ? 2.0 : 0.0,
+    ];
+    final water = world.createShallowLiquid(
+      nx: 24,
+      nz: 4,
+      cell: 0.25,
+      origin: Vector3.zero(),
+      ground: ground,
+    );
+    world
+      ..fillShallowLiquid(water, x0: 2.0, z0: -1, x1: 9, z1: 9, level: 0.5)
+      ..setShallowSource(water, 0, x: 0.5, z: 0.5, radius: 0.3, rate: 0.05);
+    LiquidView view() => LiquidView(
+      world: world,
+      liquid: water,
+      ground: ground,
+      device: softwareDevice(),
+      scene: Scene(),
+      look: RenderMaterial(name: 'water'),
+    );
+    final seen = view(), away = view();
+    void frames(int n) {
+      for (var i = 0; i < n; i++) {
+        world.step(1.0 / 60.0);
+        seen.update();
+        away.update();
+      }
+    }
+
+    frames(240);
+    final left = Float32List.fromList(away.surfaceVertices);
+    final falling = away.sheetQuads;
+    expect(falling, greaterThan(0));
+    // Out of sight while the falls is shut off and its sheet thins out.
+    away.inSight = false;
+    world.setShallowSource(water, 0, x: 0.5, z: 0.5, radius: 0.3, rate: 0.0);
+    for (var i = 0; i < 1200 && seen.sheetQuads >= falling; i++) {
+      frames(1);
+    }
+    // Mutation: drop the early return for `inSight` — rewritten anyway.
+    expect(away.surfaceVertices, left);
+    expect(seen.surfaceVertices, isNot(left));
+    expect(seen.sheetQuads, lessThan(falling));
+    away.inSight = true;
+    frames(1);
+    // Mutation: leave what the last frame drew past this one's quads — the
+    // old sheet's tail stays drawn.
+    expect(away.surfaceVertices, seen.surfaceVertices);
+    expect(away.sheetQuads, seen.sheetQuads);
+    expect(away.sheetVertices, seen.sheetVertices);
   });
 
   test('falling water raises as much mist as its speed says', () {

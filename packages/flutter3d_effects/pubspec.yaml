@@ -3,7 +3,7 @@ description: >-
   The elements' water and fire, drawn: a lit water surface, a waterfall
   with its spray, bubbles and froth, flames, smoke, embers and firelight,
   and a liquid in a vessel.
-version: 1.0.0-rc.1
+version: 1.0.0-rc.1+1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues

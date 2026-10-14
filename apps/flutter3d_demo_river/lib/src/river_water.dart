@@ -229,6 +229,9 @@ final class RiverWater {
     // as the jet takes to fly a reach, at least two seconds at full speed,
     // before it comes into sight.
     _cover(_reachAt(near), _reachAt(far) + 1);
+    for (final MapEntry(key: index, value: reach) in _reaches.entries) {
+      reach.view.inSight = inSight(index, near: near, far: far);
+    }
     _wade();
     _plunge(step);
     elements.update(step, eye: _game.chase.rig.eye);
@@ -262,6 +265,27 @@ final class RiverWater {
   /// to [to]: those, and one either side of them.
   static bool keeps(int index, int from, int to) =>
       index >= from - 1 && index <= to + 1;
+
+  /// How far past the edges of the picture a reach is still drawn, m: the
+  /// spray off a weir stands a metre or two over the water, and the top
+  /// edge of the picture comes down to the water about seven metres a
+  /// metre of height.
+  static const double _sightMargin = 15.0;
+
+  /// Whether reach [index] is drawn while the picture shows the water from
+  /// [near] to [far] along the river.
+  ///
+  /// **A kept reach out of the picture is stepped, not drawn.** Of the
+  /// four or five reaches kept, two or three are in the picture; the others'
+  /// surfaces were rewritten and sent to the GPU every frame all the same,
+  /// for nobody to see. The camera has moved before this
+  /// is asked, so a reach that comes into the picture is drawn on the
+  /// frame it does, as the core has it then.
+  static bool inSight(int index, {required double near, required double far}) {
+    final low = _first + index * reachLength;
+    return low + reachLength >= near - _sightMargin &&
+        low <= far + _sightMargin;
+  }
 
   /// Keeps reaches [from] to [to] and lets go of the rest; makes at most
   /// two a frame, the nearest first, so starting again is not one long
@@ -393,7 +417,7 @@ final class RiverWater {
       level: 0.0,
     );
     final nodes = <MeshNode>[if (weir) _sill(high)];
-    return _Reach(water, nodes, near: low);
+    return _Reach(water, elements.viewOf(water), nodes, near: low);
   }
 
   /// The sill under the bridge at [bridge], from bank to bank: stone from
@@ -556,12 +580,13 @@ final class RiverWater {
   }
 }
 
-/// One reach of the river: its water, what was put into the scene for it,
-/// and how far up the river its lower end is, m.
+/// One reach of the river: its water and what draws it, what was put into
+/// the scene for it, and how far up the river its lower end is, m.
 final class _Reach {
-  _Reach(this.water, this.nodes, {required this.near});
+  _Reach(this.water, this.view, this.nodes, {required this.near});
 
   final WaterBody water;
+  final LiquidView view;
   final List<MeshNode> nodes;
   final double near;
 }
