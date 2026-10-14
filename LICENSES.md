@@ -19,7 +19,7 @@ go with it:
 | Material | Reaches an app through | Licence | What the app does |
 |---|---|---|---|
 | The LTC tables of Heitz, Dupuy, Hill and Neubelt | `flutter3d_core` (any app that draws) | BSD-style, notice required in binary form | Include the notice from `packages/flutter3d_core/tool/third_party/ltc/LICENSE` in the app's licences or credits screen |
-| wgpu-native | `flutter3d_wgpu` and `flutter3d_physics_native`, linked by their build hooks | MIT or Apache-2.0, the user's choice | Include one of the two notices from [gfx-rs/wgpu-native](https://github.com/gfx-rs/wgpu-native) |
+| wgpu-native | `flutter3d_wgpu`, linked by its build hook | MIT or Apache-2.0, the user's choice | Include one of the two notices from [gfx-rs/wgpu-native](https://github.com/gfx-rs/wgpu-native) |
 | SMAA | `flutter3d_shaders` | MIT, with no notice required in binary form | Nothing; the notice is in the shader sources |
 
 Flutter's `LicenseRegistry` and `showLicensePage` pick up the licences of
@@ -55,11 +55,10 @@ AFFILIATES, in
 Used by tests that compare pictures. An application does not normally ship
 it, and one that does includes that notice.
 
-**wgpu-native.** Not in the repository. The build hooks of `flutter3d_wgpu`
-and, when an application asks for its GPU passes, `flutter3d_physics_native`
-fetch the pinned release (`v29.0.1.1`, in each package's
-`tool/hook/wgpu_native.dart`), check its sha256 and link it statically. MIT or
-Apache-2.0.
+**wgpu-native.** Not in the repository. The build hook of `flutter3d_wgpu`
+fetches the pinned release (`v29.0.1.1`, in its
+`tool/hook/wgpu_native.dart`), checks its sha256 and links it statically. MIT
+or Apache-2.0.
 
 ## Assets in published packages
 

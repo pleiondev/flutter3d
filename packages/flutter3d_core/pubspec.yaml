@@ -31,7 +31,7 @@ dependencies:
   flutter3d_hardware: '>=1.0.0-rc.1+1 <1.1.0'
   # The typed uniform blocks the renderer fills, generated from the compiled
   # bundle's own layout — `H1`. Pure Dart: the shader sources and two tables.
-  flutter3d_shaders: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_shaders: '>=1.0.0-rc.1+1 <1.1.0'
   # The plugin API, for the render anchors and the registry slot the renderer
   # fills (`RendererSteps`). Only the foundation beneath it, which this
   # package depends on anyway.

@@ -52,8 +52,8 @@ MaterialComputeKernel _lower(String source) =>
 void main() {
   test('the compute form is lowered to version 1 of the kernel language', () {
     final lowered = _lower(_ripples);
-    expect(lowered.source, startsWith('kernel $kernelLanguageVersion\n'));
-    expect(lowered.kernel.languageVersion, kernelLanguageVersion);
+    expect(lowered.source, startsWith('kernel 1\n'));
+    expect(lowered.kernel.languageVersion, kernelLanguageFirstVersion);
     expect(lowered.workgroupSize, const WorkgroupSize(8, 4, 1));
     expect(
       lowered.kernel.bindings.map((b) => (b.name, b.kind, b.index)),

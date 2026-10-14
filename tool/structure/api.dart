@@ -1062,6 +1062,14 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
         'hook or field demands, is handed or reports a placement.',
   ),
   BuildAllowance(
+    package: 'flutter3d_shaders',
+    members: <String>['kernelLanguageVersion'],
+    reason:
+        'The language\'s version is 2 with its atomic buffers '
+        '(1.0.0-rc.1+1): every version 1 source reads as it did, and the '
+        'constant says which this build reads, as it promised to.',
+  ),
+  BuildAllowance(
     package: 'flutter3d',
     members: <String>[
       'ComputeExecutor',

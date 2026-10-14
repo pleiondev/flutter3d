@@ -977,7 +977,7 @@ const String kernelEntryPoint = 'main'
 
 const int kernelLanguageFirstVersion = 1
 
-const int kernelLanguageVersion = 1
+const int kernelLanguageVersion = 2
 
 Map<String, ComputeKernel> kernelsOf(ShaderBundle bundle)
 

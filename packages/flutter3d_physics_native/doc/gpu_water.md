@@ -1,10 +1,12 @@
-# Fluids on GPU compute, placed by the engine
+# The physics core on GPU compute, placed by the hardware layer
 
-How a fluid of the physics core runs on a GPU's compute: on the web on the
+How a system of the physics core runs on a GPU's compute: on the web on the
 WebGPU device that draws the frame, natively on the wgpu sidecar beside an
 Impeller device, and on the core itself where neither exists. Written for
-the shallow water the river runs on, and the particle liquid the chemistry
-bench spills, which follows the same shape.
+the shallow water the river runs on; the visual systems — particles, debris,
+cloth and the fluid tank — follow the same shape (*The visual systems*,
+below). The particle liquid the chemistry bench spills does not yet: its
+solver hands its state back synchronously every step.
 
 ## Who decides where
 
@@ -117,9 +119,6 @@ written into a buffer declared drawn, which the surface mesh draws from. On
 the host the view builds the same vertices on the CPU as before, and that
 path is unchanged.
 
-The particle liquid draws its particles instanced from its position buffer
-the same way.
-
 ## Determinism, and the tolerance
 
 The CPU step is untouched: on the host, a water is the core's step bit for
@@ -150,9 +149,47 @@ falls off a sill with a stone dropped into the pool below — is two
 centimetres in any column and one per cent of the water held; measured,
 it is under a millimetre and a few parts in a hundred million.
 
-The particle liquid's GPU passes (`csrc/gpu/f3d_gpu_fluid.c`) already
-documented theirs: neighbours summed in the order a grid built with atomics
-lists them, the CPU's to the GPU's rounding.
+## The visual systems
+
+Particles, debris, cloth and the fluid tank are published as kernels
+(`visual_kernels.dart`: `particleKernels`, `debrisKernels`, `clothKernels`,
+`fluidKernels`) beside the CPU systems they mirror, and
+`flutter3d_effects` hands each to a renderer as a workload
+(`ParticleCloudWorkload`, `DebrisWorkload`, `ClothWorkload`,
+`FluidWorkload`), which is itself the system: a `NativeParticleCloud`, a
+`DebrisSystem`, a `ClothSystem` or a `FluidSystem`. Its host is the core's
+own system for the same step, so where no GPU is it is the core, bit for
+bit; on a GPU it records what it is told and the frame runs it, and a read
+answers what was read back a frame or two before. Before it is placed it
+keeps what it is told and plays it where it lands; taken out of the frame it
+goes back to the core from what was read back last.
+
+Each kernel is its C loop as one invocation an element. Debris and the
+fluid find their neighbours through a grid of lists built with
+`atomicExchange` — kernel language 2's atomic buffers — so a cell's
+neighbours are summed in the order the invocations inserted them; the
+cloth's colours come from the core already coloured (`ClothColoring`) and
+are solved a dispatch each, in the core's order, with nothing summed in an
+order a GPU picks. The tolerances
+`flutter3d_effects/test/visual_workloads_test.dart` holds, on the software
+device standing in for a GPU and on the wgpu sidecar, against the core:
+
+- **particles:** two seconds of a spray bouncing on a floor in a wind, to
+  a tenth of a millimetre in every float;
+- **debris:** three balls of different sizes and masses stacked on a
+  floor, every tenth step for two seconds, to a tenth of a millimetre;
+  balls poured into a pen, to a tenth of a millimetre for five steps while
+  they fall, then the same heap — its mean height within one per cent,
+  none through the floor or a wall, none sunk a tenth into another;
+- **cloth:** a pendulum, a damped spring in a wind, a rod sliding off a
+  ball and points blown along a floor, every tenth step for two seconds,
+  to half a millimetre; a sheet hung from two pins, to a tenth of a
+  millimetre for half a second, then the same sheet — its stretch within
+  half a per cent, its lowest point within a centimetre — with its pins
+  carried where they are moved;
+- **fluid:** a viscous pair passing, every tenth step for a second, to a
+  hundredth of a millimetre; a dam slumping, to a tenth of a millimetre for
+  five steps, and the density at rest within a thousandth.
 
 ## Public surface
 
@@ -169,10 +206,14 @@ lists them, the CPU's to the GPU's rounding.
   `standInForGpu`.
 - `flutter3d_webgpu` (1.0.0-rc.1+2): no API; a compute pass keeps its bind
   groups.
+- `flutter3d_shaders` (1.0.0-rc.1+1): kernel language 2, its atomic
+  buffers.
 - `flutter3d_effects` (1.0.0-rc.1+1): `ShallowWaterWorkload`,
-  `LiquidView.steppedOn`.
-- `flutter3d_physics_native` (1.0.0-rc.1, its first upload):
-  `shallowWaterKernels`, `nativeLipFloats`, `NativeShallowExternal`, the
+  `LiquidView.steppedOn`, `ParticleCloudWorkload`, `DebrisWorkload`,
+  `ClothWorkload`, `FluidWorkload`.
+- `flutter3d_physics_native` (1.0.0-rc.1, its first upload): the visual
+  systems' kernels and buffer layouts, `ClothColoring`, with `NativeGpu`
+  and its passes gone; `shallowWaterKernels`, `nativeLipFloats`, `NativeShallowExternal`, the
   `NativeWorld` calls a workload makes (`setShallowExternal`,
   `drainShallowExternal`, `readShallowState`, `putShallowState`,
   `throwShallowLips`) and `NativeShallowLiquid.faces`, `stateLength` and

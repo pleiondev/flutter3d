@@ -1,6 +1,6 @@
 name: flutter3d_physics_native
 description: "The physics core in C11: rigid bodies stepped natively through dart:ffi, and in the browser as WebAssembly. flutter3d_physics is its reference."
-version: 1.0.0-rc.1+1
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -31,12 +31,6 @@ dependencies:
   # depending on this package needs no other toolchain. `code_assets` and
   # `hooks` are what the hook speaks; `logging` is what the builder reports
   # through.
-  # When the application asks for the GPU passes (the user define `gpu`),
-  # the hook fetches wgpu-native through `tool/hook/wgpu_native.dart`: the one
-  # pinned release, with its checksums, that the compute sidecar links too.
-  # `archive` unpacks the release and `crypto` checks its sha256.
-  archive: ^4.2.0
-  crypto: ^3.0.6
   code_assets: ^2.1.0
   hooks: ^2.0.0
   logging: ^1.3.0

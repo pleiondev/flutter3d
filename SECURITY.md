@@ -1,6 +1,6 @@
 # Security policy
 
-Revised 2026-10-12, for the `1.0.0-rc.1` tree.
+Revised 2026-10-14, for the `1.0.0-rc.1+1` tree.
 
 ## Reporting a vulnerability
 

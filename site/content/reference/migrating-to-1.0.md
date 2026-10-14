@@ -5,7 +5,7 @@ description: Move a project written against flutter3d 0.8 to 1.0.0-rc.1, with on
 # Migrating from 0.8 to 1.0
 
 1.0 is the release the engine promises to keep: from it on, a break comes
-only in a major version. To get there, and on to this release, the API changed in 2117 places,
+only in a major version. To get there, and on to this release, the API changed in 2118 places,
 314 of them left to you; 380 are backend internals no application called.
 The rest a program carries out for you, and three
 tools share the work. All three read the same tables,
@@ -225,7 +225,7 @@ carried out:
 
 <!-- migration-table:start -->
 
-*Generated from `flutter3d_build/lib/migrations/` — 22 entries from 1.0.0-rc.1 to 1.0.0-rc.1+1, 6 by hand: 12 `dart fix`, 3 `migrate`, 6 by hand, 1 nothing to do.*
+*Generated from `flutter3d_build/lib/migrations/` — 23 entries from 1.0.0-rc.1 to 1.0.0-rc.1+1, 6 by hand: 12 `dart fix`, 3 `migrate`, 6 by hand, 2 nothing to do.*
 
 ### `flutter3d_core`
 
@@ -257,6 +257,10 @@ carried out:
 - <a id="hardware-ComputePlacement"></a>**`ComputePlacement`** (`dart fix`). `ComputePlacement` is imported from `package:flutter3d_hardware/flutter3d_hardware.dart`. The facades no longer re-export it: a placement is named only by the hardware layer and the backends that add compute devices.
 - <a id="hardware-ComputePlacementException-new"></a>**`ComputePlacementException.ComputePlacementException`** (`dart fix`). A step no longer demands a placement, so a refusal has no demand to carry.
 - <a id="hardware-ComputePlacementException-demand"></a>**`ComputePlacementException.demand`** (`migrate`). `ComputePlacementException.demand` becomes `null`. Nothing demands a placement any more, so there is none to read: the refusal says why nothing ran (`reason`, `tried`), never where it was asked to.
+
+### `flutter3d_shaders`
+
+- <a id="shaders-kernelLanguageVersion"></a>**`kernelLanguageVersion`** (nothing to do). The kernel language reads version 2 now, which adds atomic buffers; every version 1 source reads as it did. Code that compared a source's version with this constant reads the newer number.
 
 *Generated from `flutter3d_build/lib/migrations/` — 2095 entries from 0.8.5 to 1.0.0-rc.1, 308 by hand: 425 `migrate`, 308 by hand, 329 nothing to do, 528 `dart fix`, 380 gone internal, 125 `migrate`, with a TODO.*
 

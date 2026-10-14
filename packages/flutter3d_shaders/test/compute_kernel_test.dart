@@ -84,9 +84,10 @@ $_scale
   });
 
   group('versions', () {
-    test('the language is at version 1, and a source may say so', () {
-      expect(kernelLanguageVersion, 1);
+    test('the language is at version 2, and a source may say so', () {
+      expect(kernelLanguageVersion, 2);
       expect(ComputeKernel.parse('kernel 1\n$_scale').name, 'Scale');
+      expect(ComputeKernel.parse('kernel 2\n$_scale').languageVersion, 2);
       expect(ComputeKernel.parse(_scale).languageVersion, 1);
     });
 
@@ -94,14 +95,14 @@ $_scale
       // Mutation: read past the version line, and a kernel written for a
       // later language runs under this one's meaning of its words.
       expect(
-        () => ComputeKernel.parse('kernel 2\n$_scale'),
+        () => ComputeKernel.parse('kernel 3\n$_scale'),
         throwsA(
           isA<ComputeKernelException>()
               .having((e) => e.line, 'line', 1)
               .having(
                 (e) => e.reason,
                 'reason',
-                allOf(contains('version 2'), contains('version 1')),
+                allOf(contains('version 3'), contains('version 2')),
               ),
         ),
       );
@@ -118,8 +119,8 @@ $_scale
       expect(kernel.name, 'Scale');
       expect(ComputeKernel.parse('f3dmat 3\nkernel 1\n$_scale').name, 'Scale');
       expect(
-        () => ComputeKernel.parse('f3dmat 3\nkernel 2\n$_scale'),
-        _refusedAt(2, 'version 2'),
+        () => ComputeKernel.parse('f3dmat 3\nkernel 3\n$_scale'),
+        _refusedAt(2, 'version 3'),
       );
     });
 
@@ -426,6 +427,111 @@ compute Copy {
               .having((e) => e.name, 'name', 'bad')
               .having((e) => e.reason, 'reason', contains('"Scale"')),
         ),
+      );
+    });
+  });
+
+  group('atomics', () {
+    const lists = '''
+kernel 2
+compute Lists {
+  workgroup 4;
+  buffer cell: u32[] read;
+  buffer head: u32[] atomic;
+  buffer next: u32[] read_write;
+  buffer count: u32[] atomic;
+  kernel {
+    let i = id.x;
+    if i >= len(cell) { return; }
+    next[i] = atomicExchange(head, cell[i], i);
+    atomicAdd(count, cell[i], 1u);
+  }
+}
+''';
+
+    test('many invocations build one list each cell, and count it', () {
+      // Mutation: write the old head instead of the exchange's answer, and
+      // every list loses all but its last element.
+      final cells = <int>[0, 1, 0, 2, 1, 0];
+      final cell = ByteData(cells.length * 4);
+      for (var i = 0; i < cells.length; i++) {
+        cell.setUint32(i * 4, cells[i], Endian.little);
+      }
+      final head = ByteData(12);
+      for (var c = 0; c < 3; c++) {
+        head.setUint32(c * 4, 0xFFFFFFFF, Endian.little);
+      }
+      final next = ByteData(cells.length * 4);
+      final count = ByteData(12);
+      ComputeKernel.parse(lists).toDartKernel().dispatch(
+        KernelInputs(
+          buffers: {'cell': cell, 'head': head, 'next': next, 'count': count},
+        ),
+        2,
+      );
+      for (var c = 0; c < 3; c++) {
+        final seen = <int>[];
+        for (
+          var j = head.getUint32(c * 4, Endian.little);
+          j != 0xFFFFFFFF;
+          j = next.getUint32(j * 4, Endian.little)
+        ) {
+          seen.add(j);
+        }
+        expect(seen..sort(), <int>[
+          for (var i = 0; i < cells.length; i++)
+            if (cells[i] == c) i,
+        ]);
+        expect(count.getUint32(c * 4, Endian.little), seen.length);
+      }
+    });
+
+    test('an atomic call is WGSL\'s atomic on the element', () {
+      final wgsl = ComputeKernel.parse(lists).toWgsl().code;
+      expect(wgsl, contains('array<atomic<u32>>'));
+      expect(wgsl, contains('atomicExchange(&b_head[b_cell[l_i]], l_i)'));
+      expect(wgsl, contains('_ = atomicAdd(&b_count[b_cell[l_i]], 1u);'));
+      final store = ComputeKernel.parse(
+        '''
+kernel 2
+compute Clear {
+  buffer head: u32[] atomic;
+  kernel { atomicStore(head, id.x, 7u); out(); }
+}
+'''
+            .replaceAll(' out();', ''),
+      ).toWgsl().code;
+      expect(store, contains('atomicStore(&b_head[(f3d_id).x], 7u);'));
+    });
+
+    test('atomics are refused where they cannot mean what they say', () {
+      // Mutation: read an atomic buffer by index, and WGSL refuses the
+      // module at load, on the device, rather than here with a line.
+      expect(
+        () => ComputeKernel.parse(
+          'compute A { buffer h: u32[] atomic; kernel { } }',
+        ),
+        _refusedAt(1, 'kernel language 2'),
+      );
+      expect(
+        () => ComputeKernel.parse(
+          'kernel 2\ncompute A { buffer h: f32[] atomic; kernel { } }',
+        ),
+        _refusedAt(2, 'i32 or u32'),
+      );
+      expect(
+        () => ComputeKernel.parse(
+          'kernel 2\ncompute A { buffer h: u32[] atomic; '
+          'kernel { let x = h[0]; } }',
+        ),
+        _refusedAt(2, 'atomicLoad'),
+      );
+      expect(
+        () => ComputeKernel.parse(
+          'kernel 2\ncompute A { buffer h: u32[] read_write; '
+          'kernel { let x = atomicLoad(h, 0); } }',
+        ),
+        _refusedAt(2, 'not atomic'),
       );
     });
   });

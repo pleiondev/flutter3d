@@ -1,4 +1,4 @@
-/// Debris — the visual bodies — on the CPU and on the GPU: P9, phase 10.
+/// Debris — the visual bodies — on the CPU: P9, phase 10.
 library;
 
 import 'dart:typed_data';
@@ -162,8 +162,9 @@ final class DebrisFrame {
   String toString() => 'DebrisFrame(step: $step, bodies: $bodies)';
 }
 
-/// Debris slots, filled round and round: on the CPU ([NativeDebris]) or the
-/// GPU ([GpuDebris]), the same passes. Visual, not the game's state.
+/// Debris slots, filled round and round: on the CPU ([NativeDebris]), or on
+/// a GPU through the hardware layer (`DebrisWorkload` in
+/// `flutter3d_effects`, from [debrisKernels]), the same passes. Visual, not the game's state.
 ///
 /// **Mixed in, not implemented**, outside this library: a `base` type, so a
 /// member added in a 1.x release arrives with a body and nothing that mixes
@@ -181,7 +182,7 @@ abstract base mixin class DebrisSystem {
   void step(DebrisSystemStep step);
 
   /// The latest step's bodies not read yet; null when there is none
-  /// (absent, not an error). On the GPU, without [wait], a frame late: the
+  /// (absent, not an error). Stepped on a GPU, a frame or two late: the
   /// step queued last is still on its way.
   DebrisFrame? read({bool wait = true});
 
@@ -251,8 +252,8 @@ c.F32s packDebrisStatics(List<DebrisStatic> statics) {
   return data;
 }
 
-/// [settings] as the core's `F3dDebrisSettings` — and the GPU's, laid out
-/// the same — in a block of the core's memory the caller frees.
+/// [settings] as the core's `F3dDebrisSettings` in a block of the core's memory the
+/// caller frees.
 int writeDebrisSettings(DebrisSettings settings) {
   final s = c.coreAlloc(c.F3dDebrisSettingsLayout.size);
   for (var k = 0; k < 3; k++) {

@@ -12,6 +12,15 @@ final class ClothBall
   final double radius
   int get hashCode
 
+final class ClothColoring
+  factory ClothColoring.of(ClothMesh mesh)
+  final Float32List compliance
+  final Float32List rest
+  final Uint32List colorStart
+  final Uint32List pairs
+  int get colorCount
+  int get edgeCount
+
 final class ClothFrame
   String toString()
   bool operator ==(Object other)
@@ -150,43 +159,6 @@ final class FluidSystemStep
   FluidSettings settings
   FluidSystemStep({required this.settings, required this.dt})
   double dt
-
-final class GpuCloth with ClothSystem
-  ClothFrame? read({bool wait = true})
-  int get pointCount
-  void dispose()
-  void movePoint(ClothPointMove move)
-  void setBalls(List<ClothBall> balls)
-  void step(ClothSystemStep request)
-
-final class GpuDebris with DebrisSystem
-  DebrisFrame? read({bool wait = true})
-  int get capacity
-  void add(List<DebrisBody> bodies)
-  void dispose()
-  void setStatics(List<DebrisStatic> statics)
-  void step(DebrisSystemStep request)
-
-final class GpuFluid with FluidSystem
-  FluidFrame? read({bool wait = true})
-  double get restDensity
-  int get capacity
-  int get count
-  void add(List<FluidParticle> particles)
-  void dispose()
-  void step(FluidSystemStep request)
-
-final class GpuParticles with NativeParticleCloud
-  Float32List read()
-  int get capacity
-  void dispose()
-  void emit(List<NativeParticle> particles)
-  void step(ParticleCloudStep request)
-
-final class GpuUnavailableException extends CapabilityException
-  String toString()
-  const GpuUnavailableException(this.message)
-  final String message
 
 final class GridSide
   String toString()
@@ -514,15 +486,6 @@ final class NativeForceFields
   void apply(double dt)
   void restoreState(Object? saved)
   void step(double dt)
-
-final class NativeGpu
-  GpuCloth cloth(ClothMesh mesh)
-  GpuDebris debris(int capacity)
-  GpuFluid fluid(int capacity, double spacing)
-  GpuParticles particles(int capacity)
-  String get adapterName
-  static NativeGpu open()
-  void dispose()
 
 final class NativeHit
   String toString()
@@ -1070,13 +1033,39 @@ const String askedPhysics = String.fromEnvironment('FLUTTER3D_PHYSICS', defaultV
 
 PhysicsBackend choosePhysics(String asked)
 
+const String clothKernels = …
+
+const int clothMaxBalls = 16
+
+const int clothParamFloats = 20
+
+const int clothPointFloats = 4
+
 final List<(double, double, double)> customShapeDirections
+
+const int debrisBodyFloats = 16
+
+final String debrisKernels
+
+const int debrisMaxStatics = 64
+
+const int debrisParamFloats = 16
+
+const int debrisStaticFloats = 8
 
 const String defaultPhysicsCoreThreadsUrl = 'assets/packages/flutter3d_physics_native/web/f3d_physics_threads.wasm'
 
 const String defaultPhysicsCoreUrl = 'assets/packages/flutter3d_physics_native/web/f3d_physics.wasm'
 
 const String defaultPhysicsWorkerUrl = 'assets/packages/flutter3d_physics_native/web/f3d_worker.js'
+
+final String fluidKernels
+
+const int fluidParamFloats = 32
+
+const int fluidParticleFloats = 4
+
+const int gridNone = 4294967295
 
 Future<void> loadPhysicsCore({Uint8List? bytes, String url = defaultPhysicsCoreUrl, int threads = 1, String threadsUrl = defaultPhysicsCoreThreadsUrl, String workerUrl = defaultPhysicsWorkerUrl})
 
@@ -1091,6 +1080,12 @@ const int nativeSprayDrops = c.sprayDrops
 const int nativeSprayFloats = c.sprayFloats
 
 const int nativeSpraySheet = c.spraySheet
+
+const String particleKernels = …
+
+const int particleParamFloats = 16
+
+const int particleSlotFloats = 8
 
 bool get physicsCoreLoaded
 

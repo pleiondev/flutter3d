@@ -12,10 +12,10 @@
 /// that will not be needed.
 ///
 /// **Native only.** wgpu-native is linked in by this package's build hook,
-/// the one pinned release `flutter3d_physics_native` links too
-/// (`tool/hook/wgpu_native.dart` in each). In the browser, and in a build where
-/// wgpu-native could not be fetched, [WgpuSidecar.open] refuses with the
-/// reason, and the frame places its compute on the CPU.
+/// the one pinned release in `tool/hook/wgpu_native.dart`. In the browser,
+/// and in a build where wgpu-native could not be fetched,
+/// [WgpuSidecar.open] refuses with the reason, and the frame places its
+/// compute on the CPU.
 library;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'

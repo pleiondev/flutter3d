@@ -1,5 +1,26 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
+- **The browser's physics core gives back what a step borrowed.** The
+  allocator in the WebAssembly build split freed blocks and never joined
+  them, so a world that borrows scratch every step (the shallow water, the
+  particle liquid) scanned a longer free list and grew its memory on every
+  step: a river that dropped to 15 fps in 40 s in a browser. Freed blocks
+  now merge with their neighbours and the top of the heap is handed back;
+  the same water holds 3 MB and a flat step time.
+- **Breaking: the GPU passes are the hardware layer's, not this
+  package's.** `NativeGpu`, `GpuParticles`, `GpuDebris`, `GpuCloth`,
+  `GpuFluid` and `GpuUnavailableException` are gone, with the `f3d_gpu`
+  library, its C passes, and the hook's wgpu-native download and `gpu` user
+  define. The same steps are published as kernels in the kernel language
+  (`particleKernels`, `debrisKernels`, `clothKernels`, `fluidKernels`,
+  new, and the layouts of their buffers), which `flutter3d_effects` hands
+  to a renderer as compute workloads: the hardware layer runs them on the
+  GPU that draws, on the compute sidecar, or leaves each to this package's
+  CPU system, the one place that decides. `ClothColoring` (new) is the
+  core's colouring of a cloth's edges, which a GPU solves it by. The
+  package depends on neither `flutter3d_wgpu` nor `archive` and `crypto`,
+  and an application with the physics core ships no GPU library of its
+  own.
 - **A water's columns can be stepped elsewhere.**
   `NativeWorld.setShallowExternal` hands a shallow water's columns to a step
   run somewhere else — a GPU, given the same scheme as kernels
@@ -16,25 +37,6 @@
   water's surface or writing a block into the core went a float a call
   through a `DataView`; a typed array's own copy now moves the range, and a
   block is zeroed at once.
-
-## 1.0.0-rc.1
-
-- **The browser's physics core gives back what a step borrowed.** The
-  allocator in the WebAssembly build split freed blocks and never joined
-  them, so a world that borrows scratch every step (the shallow water, the
-  particle liquid) scanned a longer free list and grew its memory on every
-  step: a river that dropped to 15 fps in 40 s in a browser. Freed blocks
-  now merge with their neighbours and the top of the heap is handed back;
-  the same water holds 3 MB and a flat step time.
-- **Breaking: the GPU passes are built only when the application asks.**
-  The hook builds `f3d_gpu` with wgpu-native linked in when the
-  application's pubspec sets `hooks: user_defines: flutter3d_physics_native:
-  gpu: true`; without it, nothing is downloaded at build time and the
-  application ships the core alone (`NativeGpu.open` throws
-  `GpuUnavailableException`, and the particles, debris, cloth and fluid run
-  on the CPU). The package no longer depends on `flutter3d_wgpu`: an
-  application with the physics core resolves no compute sidecar, and
-  builds and ships one copy of wgpu-native at most.
 - **Heat crosses a touching face, and a flame heats what stands in it.**
   Two faces that meet pass heat through their interface — 3.6 kW/(m² K)
   for two metals, the air across a quarter-millimetre gap otherwise, with
@@ -340,7 +342,7 @@
   `NativeSpring.broken` is `isBroken`; `NativeWorld.fast` is `isFast`.
   `dart fix` carries the renames.
 - **Breaking: American spelling in identifiers, as Flutter and Dart
-  use.** `centre` is `center`, `colourCount` is `colorCount`. Only the
+  use.** `centre` is `center`, `colorCount` is `colorCount`. Only the
   Dart names changed: a file keeps the keys it was written with, and `dart
   fix` carries the renames.
 - **Breaking: `NativeWorld.positionOf` is a `WorldPosition`**, the origin

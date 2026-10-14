@@ -16,7 +16,7 @@ void main() {
     // Mutation: offer nothing for a device no registry opened, and a test's
     // own device refuses every step.
     final drawing = cpuComputeDevice();
-    final (site, loaded) = await FrameCompute.of(
+    final PlacedWork(:site, :loaded) = await FrameCompute.of(
       drawing,
     ).place('blur', (GraphicsDevice d) async => d.backendName);
     expect(site.device, same(drawing));
@@ -38,7 +38,7 @@ void main() {
       );
       final drawing = FakeBackend();
       registry.adopt(drawing);
-      final (site, _) = await FrameCompute.of(
+      final PlacedWork(:site, :loaded) = await FrameCompute.of(
         drawing,
       ).place('blur', (GraphicsDevice d) async => true);
       expect(site.device, same(sidecar));
@@ -49,7 +49,7 @@ void main() {
         return FakeBackend();
       });
       final opened = await registry.open(width: 4, height: 4);
-      final (onOpened, _) = await FrameCompute.of(
+      final PlacedWork(site: onOpened) = await FrameCompute.of(
         opened,
       ).place('blur', (GraphicsDevice d) async => true);
       expect(onOpened.device, same(sidecar));
@@ -70,7 +70,7 @@ void main() {
       ..addComputeDevice(ComputePlacement.cpu, 'cpu', () async => cpu);
     final drawing = FakeBackend();
     registry.adopt(drawing);
-    final (site, _) = await FrameCompute.of(
+    final PlacedWork(:site, :loaded) = await FrameCompute.of(
       drawing,
     ).place('skinning', (GraphicsDevice d) async => true, besideFrame: false);
     expect(site.device, same(cpu));
@@ -86,7 +86,7 @@ void main() {
       registry.addComputeDevice(ComputePlacement.cpu, 'cpu', () async => cpu);
       final drawing = cpuComputeDevice();
       registry.adopt(drawing);
-      final (site, _) = await FrameCompute.of(drawing).place(
+      final PlacedWork(:site, :loaded) = await FrameCompute.of(drawing).place(
         'blur',
         (GraphicsDevice d) async =>
             identical(d, drawing) ? throw StateError('no such stage') : true,
@@ -136,6 +136,6 @@ void main() {
       (GraphicsDevice d) async => true,
       hasHost: false,
     );
-    expect(computePlacementOf(placed!.$1), ComputePlacement.cpu);
+    expect(computePlacementOf(placed!.site), ComputePlacement.cpu);
   });
 }

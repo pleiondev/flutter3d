@@ -163,7 +163,7 @@ abstract base class ComputeStep extends RenderNode {
   }) async {
     final bundle = kernelBundle(name, kernels).encode();
     try {
-      final (site, stages) = await FrameCompute.of(device).place(name, (
+      final placed = await FrameCompute.of(device).place(name, (
         GraphicsDevice on,
       ) async {
         final library = await on.loadShaders(bundle);
@@ -177,7 +177,7 @@ abstract base class ComputeStep extends RenderNode {
                 )),
         };
       }, besideFrame: besideFrame);
-      _place(site, stages, null);
+      _place(placed.site, placed.loaded, null);
       return null;
     } on ComputePlacementException catch (refused) {
       _place(null, const <String, ShaderHandle>{}, refused);
@@ -306,7 +306,7 @@ final class WorkloadStep extends ComputeStep {
   @override
   Future<ComputePlacementException?> prepare(GraphicsDevice device) async {
     _release();
-    final (ComputeSite, Map<String, ShaderHandle>)? placed;
+    final PlacedWork<Map<String, ShaderHandle>>? placed;
     try {
       placed = await FrameCompute.of(device).placeHosted(name, (
         GraphicsDevice on,
@@ -330,7 +330,8 @@ final class WorkloadStep extends ComputeStep {
       workload.placed(_binding = WorkloadBinding.host());
       return null;
     }
-    final (site, stages) = placed;
+    final site = placed.site;
+    final stages = placed.loaded;
     final pipelines = <String, ComputePipelineHandle>{
       for (final MapEntry(key: kernel, value: stage) in stages.entries)
         kernel: await (_pipelines[stage] ??= site.device

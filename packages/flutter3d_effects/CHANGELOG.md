@@ -5,6 +5,15 @@
   WebGPU's compute or the wgpu sidecar its columns are stepped there, the
   core keeping the bodies, the springs and the spray round them; where
   neither is, the core steps them as before. Additive.
+- **Particles, debris, cloth and a fluid tank on a GPU.**
+  `ParticleCloudWorkload`, `DebrisWorkload`, `ClothWorkload` and
+  `FluidWorkload` (new) are the physics core's visual systems as compute
+  workloads, each the system it steps (`NativeParticleCloud`,
+  `DebrisSystem`, `ClothSystem`, `FluidSystem`): handed to a renderer with
+  `addWorkload`, the hardware layer runs its kernels on the GPU that draws
+  or on the compute sidecar, or leaves it to the core's own system, bit for
+  bit. On a GPU a read answers what was read back a frame or two before.
+  They replace the physics core's own GPU passes. Additive.
 - **A river's surface is built where its water is stepped.** `LiquidView`
   hands its water's step to the renderer (`steppedOn`) and, where the
   hardware layer puts it on a device that computes, builds the surface

@@ -641,7 +641,8 @@ stands in for a GPU — never by asking from the step.
 
 **Kernels** are written once in the kernel language (`ComputeKernel` in
 `flutter3d_shaders`, versioned by an optional `kernel <N>` line,
-`kernelLanguageVersion` 1; the material language's `compute` form is
+`kernelLanguageVersion` 2, whose atomic buffers let many invocations build
+one list; the material language's `compute` form is
 lowered to it) and travel in a bundle's
 `kernel` section as source (`encodeKernelSection`, `decodeKernelSection`,
 `kernelSectionVersion`). Each device translates them as it loads them:

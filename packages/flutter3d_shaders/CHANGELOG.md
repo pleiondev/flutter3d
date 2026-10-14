@@ -1,3 +1,16 @@
+## 1.0.0-rc.1+1
+
+- **Kernel language 2: atomic buffers.** A buffer of `i32` or `u32` may be
+  declared `atomic`, and is read and written only through `atomicLoad`,
+  `atomicStore`, `atomicExchange` and `atomicAdd` (the last two as a value
+  or as a statement), each element by any number of invocations at once:
+  what a list many invocations build together needs, a grid of
+  neighbours. WGSL gets `array<atomic<T>>` and WGSL's atomics; the Dart
+  kernel, which runs invocations one after another, the plain read and
+  write. A source that uses them opens with `kernel 2`, and one that does
+  not reads as before; `kernelLanguageVersion` is 2. Additive: every
+  kernel 1 source means what it meant.
+
 ## 1.0.0-rc.1
 
 - **The kernel language has a version, and refuses what it cannot read.**

@@ -1,4 +1,4 @@
-/// Particles, on the CPU and on the GPU — P9, phase 10.
+/// Particles, on the CPU — P9, phase 10.
 library;
 
 import 'dart:typed_data';
@@ -81,8 +81,9 @@ final class NativeParticle {
 }
 
 /// A set of particle slots, filled round and round, that fall, drift,
-/// bounce and die: on the CPU ([NativeParticles]) or the GPU
-/// ([GpuParticles]), the same steps. Visual, not the game's state.
+/// bounce and die: on the CPU ([NativeParticles]), or on a GPU through the
+/// hardware layer (`ParticleCloudWorkload` in `flutter3d_effects`, from
+/// [particleKernels]), the same steps. Visual, not the game's state.
 ///
 /// **Mixed in, not implemented**, outside this library: a `base` type, so a
 /// member added in a 1.x release arrives with a body and nothing that mixes
@@ -140,8 +141,8 @@ c.F32s packParticles(List<NativeParticle> particles) {
   return data;
 }
 
-/// [forces] as the core's `F3dParticleForces` — and the GPU's, laid out
-/// the same — in a block of the core's memory the caller frees.
+/// [forces] as the core's `F3dParticleForces` in a block of the core's memory the
+/// caller frees.
 int writeParticleForces(ParticleForces forces) {
   final f = c.coreAlloc(c.F3dParticleForcesLayout.size);
   for (var k = 0; k < 3; k++) {

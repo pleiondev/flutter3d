@@ -1,4 +1,4 @@
-/// Fluid — water as particles — on the CPU and on the GPU: P9, phase 10.
+/// Fluid — water as particles — on the CPU: P9, phase 10.
 library;
 
 import 'dart:typed_data';
@@ -120,8 +120,9 @@ final class FluidFrame {
   String toString() => 'FluidFrame(step: $step, particles: $particles)';
 }
 
-/// Water as particles: on the CPU ([NativeFluid]) or the GPU
-/// ([GpuFluid]), the same passes. Visual, not the game's state.
+/// Water as particles: on the CPU ([NativeFluid]), or on a GPU through the
+/// hardware layer (`FluidWorkload` in `flutter3d_effects`, from
+/// [fluidKernels]), the same passes. Visual, not the game's state.
 ///
 /// **Mixed in, not implemented**, outside this library: a `base` type, so a
 /// member added in a 1.x release arrives with a body and nothing that mixes
@@ -142,7 +143,7 @@ abstract base mixin class FluidSystem {
   void step(FluidSystemStep step);
 
   /// The latest step's particles not read yet; null when there is
-  /// none (absent, not an error). On the GPU, without [wait], a frame late.
+  /// none (absent, not an error). Stepped on a GPU, a frame or two late.
   FluidFrame? read({bool wait = true});
 
   void dispose();
@@ -179,8 +180,8 @@ c.F32s packFluidParticles(List<FluidParticle> particles) {
   return data;
 }
 
-/// [settings] as the core's `F3dFluidSettings` — and the GPU's, laid out
-/// the same — in a block of the core's memory the caller frees.
+/// [settings] as the core's `F3dFluidSettings` in a block of the core's memory the
+/// caller frees.
 int writeFluidSettings(FluidSettings settings) {
   final s = c.coreAlloc(c.F3dFluidSettingsLayout.size);
   for (var k = 0; k < 3; k++) {

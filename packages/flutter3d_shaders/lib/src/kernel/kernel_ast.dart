@@ -102,10 +102,15 @@ final class KBinding {
     required this.writable,
     required this.index,
     required this.line,
+    this.atomic = false,
   });
 
   final String name;
   final KBindingKind kind;
+
+  /// An `atomic` buffer (kernel language 2): read and written only through
+  /// the atomic calls, each element by any number of invocations at once.
+  final bool atomic;
 
   /// The scalar a buffer holds; [KType.vec4] for a texture or an image,
   /// whose texels are RGBA8 read and written as four floats.
@@ -166,6 +171,20 @@ final class KBufferRead extends KExpr {
   KBufferRead(this.binding, this.index) : super(binding.element);
   final KBinding binding;
   final KExpr index;
+}
+
+/// `atomicLoad(buffer, index)`, `atomicExchange(buffer, index, value)` or
+/// `atomicAdd(buffer, index, value)` on an `atomic` buffer: the element's
+/// value before the call, which [op] — `load`, `exchange`, `add` — leaves
+/// changed in one step no other invocation sees half of. [value] is null
+/// for a load.
+final class KAtomic extends KExpr {
+  KAtomic(this.op, this.binding, this.index, this.value)
+    : super(binding.element);
+  final String op;
+  final KBinding binding;
+  final KExpr index;
+  final KExpr? value;
 }
 
 /// `len(buffer)`: how many elements it holds.
@@ -244,6 +263,17 @@ final class KAssign extends KStmt {
 /// `buffer[index] = value;`.
 final class KBufferWrite extends KStmt {
   const KBufferWrite(this.binding, this.index, this.value, super.line);
+  final KBinding binding;
+  final KExpr index;
+  final KExpr value;
+}
+
+/// `atomicStore(buffer, index, value);`, or `atomicAdd` or `atomicExchange`
+/// as a statement, its answer let go, on an `atomic` buffer: [op] is
+/// `store`, `add` or `exchange`.
+final class KAtomicStore extends KStmt {
+  const KAtomicStore(this.op, this.binding, this.index, this.value, super.line);
+  final String op;
   final KBinding binding;
   final KExpr index;
   final KExpr value;

@@ -10,8 +10,6 @@ library;
 
 export 'src/core/load.dart';
 export 'src/fire_exposure.dart';
-export 'src/gpu.dart';
-export 'src/gpu_unavailable.dart';
 // The core's own ClothMesh and ClothSettings by the names CoreClothMesh and
 // CoreClothSettings: flutter3d_physics, which a game imports beside this,
 // has the plain names for the cloth every backend steps.
@@ -36,3 +34,4 @@ export 'src/native_physics.dart';
 export 'src/native_ragdoll.dart';
 export 'src/native_world.dart' hide forEachContactReport;
 export 'src/shallow_water_kernels.dart';
+export 'src/visual_kernels.dart';

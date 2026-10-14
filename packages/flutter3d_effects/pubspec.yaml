@@ -53,7 +53,7 @@ dependencies:
   # would otherwise resolve into every game (decision G of
   # `tasks/1.0-arch-review.md`).
   flutter3d_build_hooks: '>=1.0.0-rc.1 <1.1.0'
-  flutter3d_shaders: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_shaders: '>=1.0.0-rc.1+1 <1.1.0'
   hooks: ^2.0.0
 
   # The graphics vocabulary, named here directly.

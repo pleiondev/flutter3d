@@ -1,7 +1,7 @@
 /*
  * Fluid on the CPU — P9, phase 10: the reference for the GPU's, and the
  * fallback where there is none. See f3d_physics.h for what it does; the
- * WGSL in f3d_gpu_fluid.c does the same, pass for pass.
+ * kernels in lib/src/visual_kernels.dart do the same, pass for pass.
  *
  * Position-based fluids (Macklin and Müller, 2013), each substep:
  *

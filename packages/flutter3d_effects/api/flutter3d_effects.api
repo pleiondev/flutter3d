@@ -15,6 +15,29 @@ abstract final class Blackbody
   static LinearColor color(double kelvin)
   static double efficacy(double kelvin)
 
+final class ClothWorkload extends _VisualWorkload<NativeCloth> with ClothSystem
+  ClothFrame? read({bool wait = true})
+  ClothWorkload(this.mesh)
+  List<WorkloadBuffer> get buffers
+  String get kernelSource
+  final CoreClothMesh mesh
+  int get pointCount
+  void dispose()
+  void movePoint(ClothPointMove move)
+  void setBalls(List<ClothBall> balls)
+  void step(ClothSystemStep step)
+
+final class DebrisWorkload extends _VisualWorkload<NativeDebris> with DebrisSystem
+  DebrisFrame? read({bool wait = true})
+  DebrisWorkload(this.capacity)
+  List<WorkloadBuffer> get buffers
+  String get kernelSource
+  final int capacity
+  void add(List<DebrisBody> bodies)
+  void dispose()
+  void setStatics(List<DebrisStatic> statics)
+  void step(DebrisSystemStep step)
+
 final class Elements
   ({WaterBody water, NativeShallowSample sample})? waterAt(Vector3 at)
   ElementsListener? get listener
@@ -110,6 +133,19 @@ final class FireView
   void forget(NativeBody body)
   void update(double dt)
   void watch(NativeBody body, MeshNode look, {LinearColor? fresh, LinearColor? charred})
+
+final class FluidWorkload extends _VisualWorkload<NativeFluid> with FluidSystem
+  FluidFrame? read({bool wait = true})
+  FluidWorkload(this.capacity, this.spacing)
+  List<WorkloadBuffer> get buffers
+  String get kernelSource
+  double get restDensity
+  final double spacing
+  final int capacity
+  int get count
+  void add(List<FluidParticle> particles)
+  void dispose()
+  void step(FluidSystemStep step)
 
 final class HearingScale
   const HearingScale({required this.quiet, required this.loud, required this.reference, this.pitch = 0.06, this.slowest = 0.7, this.fastest = 1.4})
@@ -219,6 +255,16 @@ final class MistSettings
   double shareAt(double speed, {double g = standardGravity, double? viscosity})
   final double droplet
   final double? share
+
+final class ParticleCloudWorkload extends _VisualWorkload<NativeParticles> with NativeParticleCloud
+  Float32List read()
+  List<WorkloadBuffer> get buffers
+  ParticleCloudWorkload(this.capacity)
+  String get kernelSource
+  final int capacity
+  void dispose()
+  void emit(List<NativeParticle> particles)
+  void step(ParticleCloudStep step)
 
 final class PhysicsHearing
   PhysicsHearing(NativeWorld this._world, {required this.fireScale, required this.fallScale, required this.splashScale})

@@ -1,4 +1,5 @@
-/// Cloth on the CPU and on the GPU — P9, phase 10.
+/// Cloth on the CPU — P9, phase 10 — and its colouring, which a GPU
+/// steps it by.
 library;
 
 import 'dart:typed_data';
@@ -222,8 +223,9 @@ final class ClothBall {
   String toString() => 'ClothBall(center: $center, radius: $radius)';
 }
 
-/// A cloth: on the CPU ([NativeCloth]) or the GPU ([GpuCloth]), the same
-/// passes. Visual, not the game's state.
+/// A cloth: on the CPU ([NativeCloth]), or on a GPU through the hardware
+/// layer (`ClothWorkload` in `flutter3d_effects`, from [clothKernels]), the
+/// same passes. Visual, not the game's state.
 ///
 /// **Mixed in, not implemented**, outside this library: a `base` type, so a
 /// member added in a 1.x release arrives with a body and nothing that mixes
@@ -242,7 +244,7 @@ abstract base mixin class ClothSystem {
   void step(ClothSystemStep step);
 
   /// The latest step's points not read yet; null when there is none
-  /// (absent, not an error). On the GPU, without [wait], a frame late.
+  /// (absent, not an error). Stepped on a GPU, a frame or two late.
   ClothFrame? read({bool wait = true});
 
   void dispose();
@@ -332,6 +334,70 @@ int createCoreCloth(ClothMesh mesh) {
   }
 }
 
+/// The core's colouring of a [ClothMesh]'s edges: what [NativeCloth]
+/// solves, colour by colour, and what a cloth stepped elsewhere solves in
+/// the same order — `clothKernels`, one dispatch a colour.
+///
+/// **Inside a colour no two edges share a point**, so each colour is one
+/// pass whose edges are solved at once, and nothing is summed in an order
+/// a GPU would choose.
+final class ClothColoring {
+  /// The colouring the core makes of [mesh].
+  factory ClothColoring.of(ClothMesh mesh) {
+    final core = createCoreCloth(mesh);
+    final edges = c.f3d_cloth_edge_count(core);
+    final colours = c.f3d_cloth_colour_count(core);
+    final pairs = c.U32s.alloc(edges == 0 ? 2 : edges * 2);
+    final rest = c.F32s.alloc(edges == 0 ? 1 : edges);
+    final compliance = c.F32s.alloc(edges == 0 ? 1 : edges);
+    final start = c.U32s.alloc(colours + 1);
+    try {
+      c.f3d_cloth_edges(core, pairs, rest, compliance, start);
+      return ClothColoring._(
+        pairs: Uint32List.fromList(<int>[
+          for (var k = 0; k < edges * 2; k++) pairs[k],
+        ]),
+        rest: rest.copy(edges),
+        compliance: compliance.copy(edges),
+        colorStart: Uint32List.fromList(<int>[
+          for (var k = 0; k <= colours; k++) start[k],
+        ]),
+      );
+    } finally {
+      c.f3d_cloth_destroy(core);
+      pairs.free();
+      rest.free();
+      compliance.free();
+      start.free();
+    }
+  }
+
+  ClothColoring._({
+    required this.pairs,
+    required this.rest,
+    required this.compliance,
+    required this.colorStart,
+  });
+
+  /// The two points of each edge, colour by colour.
+  final Uint32List pairs;
+
+  /// Each edge's rest length, in metres.
+  final Float32List rest;
+
+  /// Each edge's compliance, nought or more.
+  final Float32List compliance;
+
+  /// Where each colour's edges start, and after the last, the edge count.
+  final Uint32List colorStart;
+
+  /// How many edges.
+  int get edgeCount => rest.length;
+
+  /// How many colours.
+  int get colorCount => colorStart.length - 1;
+}
+
 c.F32s packClothBalls(List<ClothBall> balls) {
   if (balls.length > c.clothMaxBalls) {
     throw ArgumentError.value(balls.length, 'balls', 'more than 16');
@@ -346,8 +412,8 @@ c.F32s packClothBalls(List<ClothBall> balls) {
   return data;
 }
 
-/// [settings] as the core's `F3dClothSettings` — and the GPU's, laid out
-/// the same — in a block of the core's memory the caller frees.
+/// [settings] as the core's `F3dClothSettings` in a block of the core's memory the
+/// caller frees.
 int writeClothSettings(ClothSettings settings) {
   final s = c.coreAlloc(c.F3dClothSettingsLayout.size);
   for (var k = 0; k < 3; k++) {

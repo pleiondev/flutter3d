@@ -1,7 +1,8 @@
 /*
  * Debris on the CPU — P9, phase 10: the reference for the GPU's visual
  * bodies, and the fallback where there is none. See f3d_physics.h for what
- * they do; the WGSL in f3d_gpu.c does the same, pass for pass.
+ * they do; the kernels in lib/src/visual_kernels.dart do the same, pass for
+ * pass.
  *
  * A substep is four passes, each reading what the last one wrote and
  * nothing it writes itself, so the GPU can run every body of a pass at

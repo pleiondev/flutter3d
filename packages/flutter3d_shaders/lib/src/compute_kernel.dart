@@ -48,8 +48,15 @@
 /// `width`, `height`, `f32`, `i32`, `u32`, `min`, `max`, `clamp`, `abs`,
 /// `floor`, `ceil`, `round`, `trunc`, `sqrt`, `sin`, `cos`, `pow`,
 /// `select(c, a, b)` and the vector constructors. There is no workgroup
-/// memory and no barrier in this version: invocations are independent, and
-/// a kernel writes each element from one invocation.
+/// memory and no barrier: invocations are independent, and a kernel writes
+/// each element of a plain buffer from one invocation.
+///
+/// **Kernel language 2** adds `atomic` buffers of `i32` or `u32`, which any
+/// number of invocations read and write at once through `atomicLoad(b, i)`,
+/// `atomicStore(b, i, v)`, `atomicExchange(b, i, v)` and `atomicAdd(b, i,
+/// v)` — the last two answer what was there, or stand as a statement —
+/// and never by index: what a grid of lists many invocations build
+/// together needs.
 library;
 
 import 'dart:typed_data';

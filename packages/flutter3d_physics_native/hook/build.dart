@@ -9,26 +9,13 @@
 // for the native targets — but by `tool/build_wasm.dart`, from the same
 // sources with the same flags.
 //
-// Then, when the application asks for them, the GPU passes, `csrc/gpu/`, as
-// a library of their own, linked with wgpu-native, which
-// `tool/hook/wgpu_native.dart` fetches for the target: the one pinned release the compute
-// sidecar links too, from a copy of the same file. An application asks in
-// its pubspec:
-//
-//     hooks:
-//       user_defines:
-//         flutter3d_physics_native:
-//           gpu: true
-//
-// Without it, or without a wgpu-native for the target, the core alone: no
-// download at build time and no second library in the application, and the
-// particles, debris, cloth and fluid run on the CPU.
+// Only the core: the particles, debris, cloth and fluid it steps on the
+// CPU are the same systems a GPU steps through the hardware layer, from the
+// kernels in `lib/src/visual_kernels.dart`, which need nothing built here.
 import 'package:code_assets/code_assets.dart';
 import 'package:hooks/hooks.dart';
 import 'package:logging/logging.dart';
 import 'package:native_toolchain_c/native_toolchain_c.dart';
-
-import '../tool/hook/wgpu_native.dart';
 
 /// The core's sources, as `tool/build_wasm.dart` and the C tests list them.
 const List<String> coreSources = <String>[
@@ -83,39 +70,6 @@ void main(List<String> args) async {
               if (input.config.code.targetArchitecture ==
                   Architecture.ia32) ...<String>['-msse2', '-mfpmath=sse'],
             ],
-    ).run(input: input, output: output, logger: logger);
-    final code = input.config.code;
-    // From a pubspec the value is a bool; from the command line, text.
-    if (!const <Object?>{true, 'true'}.contains(input.userDefines['gpu'])) {
-      logger.info('the GPU passes were not asked for (user define gpu)');
-      return;
-    }
-    final target = wgpuNativeTarget(code);
-    if (target == null) {
-      logger.info('no wgpu-native for ${code.targetOS}: no GPU passes');
-      return;
-    }
-    final wgpu = await fetchWgpuNative(
-      target,
-      input.outputDirectoryShared,
-      logger.warning,
-    );
-    if (wgpu == null) return;
-    await CBuilder.library(
-      name: 'f3d_gpu',
-      assetName: 'src/gpu_bindings.dart',
-      sources: const <String>[
-        'csrc/gpu/f3d_gpu.c',
-        'csrc/gpu/f3d_gpu_particles.c',
-        'csrc/gpu/f3d_gpu_debris.c',
-        'csrc/gpu/f3d_gpu_cloth.c',
-        'csrc/gpu/f3d_gpu_fluid.c',
-      ],
-      includes: <String>['csrc/gpu', '${wgpu.path}/include'],
-      std: 'c11',
-      libraries: const <String>['wgpu_native'],
-      libraryDirectories: <String>['${wgpu.path}/lib'],
-      flags: wgpuNativeSystemLibraries(code.targetOS),
     ).run(input: input, output: output, logger: logger);
   });
 }

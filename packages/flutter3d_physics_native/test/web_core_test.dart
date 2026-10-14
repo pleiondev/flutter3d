@@ -24,10 +24,10 @@ void main() {
   // The test runner serves the package root one up from the test's page.
   setUpAll(() => loadPhysicsCore(url: '../web/f3d_physics.wasm'));
 
-  test('loads once, and has no GPU', () async {
+  test('loads once', () async {
     expect(physicsCoreLoaded, isTrue);
     await loadPhysicsCore(url: 'nowhere');
-    expect(NativeGpu.open, throwsA(isA<GpuUnavailableException>()));
+    expect(physicsCoreLoaded, isTrue);
   });
 
   test('a crate falls onto a floor and rests there', () {

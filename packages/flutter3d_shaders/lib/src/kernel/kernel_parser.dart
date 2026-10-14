@@ -127,6 +127,11 @@ const Set<String> _reserved = <String>{
   'select',
   'read',
   'read_write',
+  'atomic',
+  'atomicLoad',
+  'atomicStore',
+  'atomicExchange',
+  'atomicAdd',
   'rgba8',
 };
 
@@ -391,6 +396,7 @@ final class _Parser {
   }
 
   KKernel _kernel(int version) {
+    _version = version;
     final nameToken = _peek;
     final name = _name('the kernel\'s name');
     _bindings = <String, KBinding>{};
@@ -479,6 +485,9 @@ final class _Parser {
     _bindings[name] = make(_bindings.length);
   }
 
+  /// The version of the source being read: what its kernels may use.
+  int _version = kernelLanguageFirstVersion;
+
   void _buffer(_Token word) {
     final nameToken = _peek;
     final name = _name('the buffer\'s name');
@@ -493,13 +502,26 @@ final class _Parser {
     _expect('[');
     _expect(']');
     var writable = false;
+    var atomic = false;
     if (_peek.kind == 'ident') {
       final access = _next();
       writable = switch (access.text) {
         'read' => false,
         'read_write' => true,
-        _ => _fail('a buffer is read or read_write', access),
+        'atomic' => true,
+        _ => _fail('a buffer is read, read_write or atomic', access),
       };
+      atomic = access.text == 'atomic';
+      if (atomic && _version < 2) {
+        _fail(
+          'an atomic buffer is kernel language 2: open the source with '
+          '"kernel 2"',
+          access,
+        );
+      }
+      if (atomic && element == KType.f32) {
+        _fail('an atomic buffer holds i32 or u32', access);
+      }
     }
     _expect(';');
     _declare(
@@ -512,6 +534,7 @@ final class _Parser {
         writable: writable,
         index: index,
         line: word.line,
+        atomic: atomic,
       ),
     );
   }
@@ -627,6 +650,24 @@ final class _Parser {
         _expect(')');
         _expect(';');
         return KImageStore(binding, x, y, value, line);
+      case 'atomicStore' || 'atomicAdd' || 'atomicExchange'
+          when word.kind == 'ident':
+        _at += 1;
+        _expect('(');
+        final binding = _atomicBinding();
+        _expect(',');
+        final index = _index();
+        _expect(',');
+        final value = _coerce(_expression(), binding.element, word);
+        _expect(')');
+        _expect(';');
+        return KAtomicStore(
+          word.text.substring('atomic'.length).toLowerCase(),
+          binding,
+          index,
+          value,
+          line,
+        );
     }
     if (word.kind != 'ident') _fail('expected a statement, found $word');
     _at += 1;
@@ -638,6 +679,7 @@ final class _Parser {
       if (!binding.writable) {
         _fail('"${binding.name}" is read only; declare it read_write', word);
       }
+      if (binding.atomic) _failAtomic(binding, word);
       _expect('[');
       final index = _index();
       _expect(']');
@@ -713,6 +755,22 @@ final class _Parser {
       final other => _fail('"$other" is not a type', token),
     };
   }
+
+  /// An `atomic` buffer, named as a call's first argument.
+  KBinding _atomicBinding() {
+    final token = _peek;
+    final binding = _bindingNamed(KBindingKind.buffer, 'a buffer');
+    if (!binding.atomic) {
+      _fail('"${binding.name}" is not atomic; declare it atomic', token);
+    }
+    return binding;
+  }
+
+  Never _failAtomic(KBinding binding, _Token at) => _fail(
+    '"${binding.name}" is atomic: read and write it with atomicLoad, '
+    'atomicStore, atomicExchange or atomicAdd',
+    at,
+  );
 
   KBinding _bindingNamed(KBindingKind kind, String what) {
     final token = _peek;
@@ -1054,6 +1112,7 @@ final class _Parser {
       if (binding.kind != KBindingKind.buffer) {
         _fail('a ${binding.kind.name} is read with load()', token);
       }
+      if (binding.atomic) _failAtomic(binding, token);
       _expect('[');
       final index = _index();
       _expect(']');
@@ -1079,6 +1138,23 @@ final class _Parser {
   KExpr _call(_Token token) {
     final name = token.text;
     switch (name) {
+      case 'atomicLoad' || 'atomicExchange' || 'atomicAdd':
+        _expect('(');
+        final binding = _atomicBinding();
+        _expect(',');
+        final index = _index();
+        KExpr? value;
+        if (name != 'atomicLoad') {
+          _expect(',');
+          value = _coerce(_expression(), binding.element, token);
+        }
+        _expect(')');
+        return KAtomic(
+          name.substring('atomic'.length).toLowerCase(),
+          binding,
+          index,
+          value,
+        );
       case 'len':
         _expect('(');
         final binding = _bindingNamed(KBindingKind.buffer, 'a buffer');

@@ -236,7 +236,9 @@ final class _Lowering extends MaterialExpressionVisitor<String> {
     const width = 'width($target)';
     const height = 'height($target)';
     return <String>[
-      'kernel $kernelLanguageVersion',
+      // Version 1: a material's form uses nothing a later version added, so
+      // a bundle built now is read by a build that reads only version 1.
+      'kernel $kernelLanguageFirstVersion',
       'compute ${program.name} {',
       '  workgroup ${size.x}, ${size.y}, ${size.z};',
       '  image $target: rgba8;',

@@ -62,7 +62,7 @@ final class _Emitter {
       final declaration = switch (b.kind) {
         KBindingKind.buffer =>
           'var<storage, ${b.writable ? 'read_write' : 'read'}> b_${b.name}: '
-              'array<${_type(b.element)}>',
+              'array<${b.atomic ? 'atomic<${_type(b.element)}>' : _type(b.element)}>',
         KBindingKind.texture => 'var b_${b.name}: texture_2d<f32>',
         KBindingKind.image =>
           'var b_${b.name}: texture_storage_2d<rgba8unorm, write>',
@@ -138,6 +138,19 @@ final class _Emitter {
           out.writeln(
             '${indent}b_${binding.name}[${_expr(index)}] = ${_expr(value)};',
           );
+        case KAtomicStore(
+          :final op,
+          :final binding,
+          :final index,
+          :final value,
+        ):
+          // An add or an exchange answers the old value, which WGSL will not
+          // let a statement drop without saying so.
+          out.writeln(
+            '$indent${op == 'store' ? '' : '_ = '}'
+            'atomic${op[0].toUpperCase()}${op.substring(1)}('
+            '&b_${binding.name}[${_expr(index)}], ${_expr(value)});',
+          );
         case KImageStore(:final binding, :final x, :final y, :final value):
           _storesImage = true;
           out.writeln(
@@ -188,6 +201,10 @@ final class _Emitter {
     KBufferRead(:final binding, :final index) =>
       'b_${binding.name}[${_expr(index)}]',
     KBufferLength(:final binding) => 'arrayLength(&b_${binding.name})',
+    KAtomic(:final op, :final binding, :final index, :final value) =>
+      'atomic${op[0].toUpperCase()}${op.substring(1)}('
+          '&b_${binding.name}[${_expr(index)}]'
+          '${value == null ? '' : ', ${_expr(value)}'})',
     KTextureSize(:final binding, :final height) =>
       'textureDimensions(b_${binding.name}).${height ? 'y' : 'x'}',
     KTextureLoad(:final binding, :final x, :final y) =>

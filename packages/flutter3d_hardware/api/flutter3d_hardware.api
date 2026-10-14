@@ -493,8 +493,6 @@ final class DeviceUnavailableException extends ResourceException
 base mixin EncodedImageUpload on GraphicsDevice
   abstract Future<TextureHandle> decodeTexture(Uint8List encoded, {bool mipmaps = false, int? maxDimension})
 
-typedef ExecutorOpener = Future<ComputeExecutors> Function();
-
 final class FeatureStability
   String toString()
   final String name
@@ -505,9 +503,9 @@ final class FeatureStability
 
 final class FrameCompute
   ComputeSite get frame
-  Future<(ComputeSite, T)> place<T>(String step, Future<T> Function(GraphicsDevice device) load, {bool besideFrame = true})
-  Future<(ComputeSite, T)?> placeHosted<T>(String step, Future<T> Function(GraphicsDevice device) load, {required bool hasHost})
   Future<ComputeSite> placeStorage(String step, bool Function(GraphicsDevice device) holds)
+  Future<PlacedWork<T>> place<T>(String step, Future<T> Function(GraphicsDevice device) load, {bool besideFrame = true})
+  Future<PlacedWork<T>?> placeHosted<T>(String step, Future<T> Function(GraphicsDevice device) load, {required bool hasHost})
   final GraphicsDevice device
   static FrameCompute of(GraphicsDevice device)
 
@@ -852,6 +850,11 @@ final class PipelineStatistic
   static const PipelineStatistic computeShaderInvocations = PipelineStatistic._('computeShaderInvocations')
   static const PipelineStatistic fragmentShaderInvocations = PipelineStatistic._('fragmentShaderInvocations')
   static const PipelineStatistic vertexShaderInvocations = PipelineStatistic._('vertexShaderInvocations')
+
+final class PlacedWork<T>
+  String toString()
+  final ComputeSite site
+  final T loaded
 
 final class PolygonMode
   String toString()

@@ -123,7 +123,7 @@ guide: https://flutter3d.pleion.dev/reference/migrating-to-1.0/
 # name and what to use instead. The structure rule holds `versions:` to the
 # pubspecs.
 packages:
-  constraint: ^1.0.0-rc.1+1
+  constraint: ^1.0.0-rc.1
   versions:
     flutter3d_pointer_lock: ^0.5.0
     pad_input: ^0.5.0
@@ -337,3 +337,12 @@ entries:
       the names in it changed, `ComputeExecutor`, `ComputeExecutors` and
       `ComputePlacement` out and `ComputeSite` in, which their own entries
       cover.
+
+  - id: shaders-kernelLanguageVersion
+    package: flutter3d_shaders
+    symbol: kernelLanguageVersion
+    kind: none
+    reason: >-
+      The kernel language reads version 2 now, which adds atomic buffers;
+      every version 1 source reads as it did. Code that compared a source's
+      version with this constant reads the newer number.

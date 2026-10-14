@@ -7251,7 +7251,9 @@ List<Finding> _simulationDrawsNothing() {
 
 /// The build hooks that fetch wgpu-native fetch the same release, from the
 /// same bytes: [wgpuFetchCopies], a file each keeps under its own `hook/`
-/// so the physics core does not depend on the compute sidecar for it.
+/// so none depends on another for it. One copy since the physics core's GPU
+/// passes went behind the hardware layer; a second package that links
+/// wgpu-native adds its own.
 ///
 /// Mutation: bump the release in one copy alone, and this names the other.
 List<Finding> _wgpuFetchesAgree() {

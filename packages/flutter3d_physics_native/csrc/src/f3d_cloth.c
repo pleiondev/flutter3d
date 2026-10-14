@@ -1,7 +1,7 @@
 /*
  * Cloth on the CPU — P9, phase 10: the reference for the GPU's, and the
  * fallback where there is none. See f3d_physics.h for what it does; the
- * WGSL in f3d_gpu_cloth.c does the same, pass for pass.
+ * kernels in lib/src/visual_kernels.dart do the same, pass for pass.
  *
  * XPBD in small steps (Macklin et al., 2019): every substep predicts the
  * points, solves each constraint once with its multiplier starting from

@@ -396,10 +396,21 @@ final class ComputeSite {
 ComputePlacement computePlacementOf(ComputeSite site) =>
     site._executor.placement;
 
-/// Opens the executors of frames drawn on [device] when they are first
-/// asked for: what a [DeviceRegistry] attaches to a device it opened or
-/// adopted.
-typedef ExecutorOpener = Future<ComputeExecutors> Function();
+/// What [FrameCompute.place] and [FrameCompute.placeHosted] answer: where
+/// the work landed, and what loading it there gave — its kernels' stages,
+/// say. A class, so it can say more in a minor.
+final class PlacedWork<T> {
+  const PlacedWork._(this.site, this.loaded);
+
+  /// Where it runs.
+  final ComputeSite site;
+
+  /// What the load gave on [site]'s device.
+  final T loaded;
+
+  @override
+  String toString() => 'PlacedWork($site)';
+}
 
 /// The compute a device's frames may use, and the hardware layer's rule for
 /// where each piece of it runs — since 1.0.0-rc.1+1.
@@ -425,7 +436,7 @@ final class FrameCompute {
   /// The device the frames are drawn on.
   final GraphicsDevice device;
 
-  final ExecutorOpener _open;
+  final Future<ComputeExecutors> Function() _open;
   Future<ComputeExecutors>? _executors;
 
   /// The executors, opened once.
@@ -445,7 +456,7 @@ final class FrameCompute {
   /// would reach it only through the host.
   ///
   /// Throws [ComputePlacementException] when nothing takes it.
-  Future<(ComputeSite, T)> place<T>(
+  Future<PlacedWork<T>> place<T>(
     String step,
     Future<T> Function(GraphicsDevice device) load, {
     bool besideFrame = true,
@@ -467,7 +478,7 @@ final class FrameCompute {
     }
     try {
       final chosen = executors.place(step: step, accepts: loaded.containsKey);
-      return (ComputeSite._(chosen, device), loaded[chosen] as T);
+      return PlacedWork._(ComputeSite._(chosen, device), loaded[chosen] as T);
     } on ComputePlacementException catch (refused) {
       throw _withCause(refused, cause);
     }
@@ -480,7 +491,7 @@ final class FrameCompute {
   /// code is to run it.
   ///
   /// Throws [ComputePlacementException] when nothing takes it.
-  Future<(ComputeSite, T)?> placeHosted<T>(
+  Future<PlacedWork<T>?> placeHosted<T>(
     String step,
     Future<T> Function(GraphicsDevice device) load, {
     required bool hasHost,
@@ -503,7 +514,7 @@ final class FrameCompute {
         accepts: loaded.containsKey,
       );
       if (chosen == null) return null;
-      return (ComputeSite._(chosen, device), loaded[chosen] as T);
+      return PlacedWork._(ComputeSite._(chosen, device), loaded[chosen] as T);
     } on ComputePlacementException catch (refused) {
       throw _withCause(refused, cause);
     }
@@ -539,6 +550,9 @@ final class FrameCompute {
 /// Makes [open] the executors of frames drawn on [device], opened the first
 /// time they are asked for: what [DeviceRegistry.open] and
 /// [DeviceRegistry.adopt] do. Not exported.
-void attachCompute(GraphicsDevice device, ExecutorOpener open) {
+void attachCompute(
+  GraphicsDevice device,
+  Future<ComputeExecutors> Function() open,
+) {
   FrameCompute._of[device] = FrameCompute._(device, open);
 }

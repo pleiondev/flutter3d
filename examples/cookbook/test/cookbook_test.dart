@@ -82,7 +82,9 @@ void main() {
       // A small frame: the software rasteriser pays for every pixel.
       await tester.pumpWidget(
         MaterialApp(
-          home: Center(child: SizedBox(width: 200, height: 120, child: recipe())),
+          home: Center(
+            child: SizedBox(width: 200, height: 120, child: recipe()),
+          ),
         ),
       );
       // The device opens, the models decode on an isolate, and a frame's

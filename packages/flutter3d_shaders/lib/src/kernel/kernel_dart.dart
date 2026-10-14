@@ -221,6 +221,14 @@ final class CompiledKernel {
           }
           return _next;
         };
+      case KAtomicStore(:final op, :final binding, :final index, :final value):
+        final apply = _expr(
+          KAtomic(op == 'store' ? 'exchange' : op, binding, index, value),
+        );
+        return (f) {
+          apply(f);
+          return _next;
+        };
       case KImageStore(:final binding, :final x, :final y, :final value):
         final at = binding.index;
         final ex = _expr(x);
@@ -321,6 +329,30 @@ final class CompiledKernel {
                 ? b.getUint32(n * 4, Endian.little)
                 : 0;
           },
+        };
+      case KAtomic(:final op, :final binding, :final index, :final value):
+        // Invocations run one after another here, so an atomic is the plain
+        // read, then the write, with nothing between.
+        final at = binding.index;
+        final i = _expr(index);
+        final v = value == null ? null : _expr(value);
+        final signed = binding.element == KType.i32;
+        return (f) {
+          final b = _buffer(f, at, binding);
+          final n = i(f)! as int;
+          if (n < 0 || n * 4 + 4 > b.lengthInBytes) return 0;
+          final old = signed
+              ? b.getInt32(n * 4, Endian.little)
+              : b.getUint32(n * 4, Endian.little);
+          if (v == null) return old;
+          final given = v(f)! as int;
+          final next = op == 'add' ? old + given : given;
+          if (signed) {
+            b.setInt32(n * 4, next.toSigned(32), Endian.little);
+          } else {
+            b.setUint32(n * 4, next.toUnsigned(32), Endian.little);
+          }
+          return old;
         };
       case KBufferLength(:final binding):
         final at = binding.index;

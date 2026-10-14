@@ -18,10 +18,10 @@ It is being built in phases (P9 in the 0.9 plan). What is here now:
 - heat on every body, by convection, radiation and across its contacts, and fire: wood, paper and rubber catch, burn their fuel, lose mass and give off hot gas, and water puts them out;
 - an origin held in doubles that the world can move to where the play is;
 - events, and snapshots a world restores from to the byte;
-- particles that fall, drift in the wind, bounce off a floor and die, on the CPU and, through wgpu-native, on the GPU.
-- debris, the visual bodies: thousands of balls that tumble, heap and settle on still planes and boxes, on the CPU and on the GPU, where they are read a frame late.
-- cloth: sheets and ropes held by constraints of any stiffness, blown by the wind, on the CPU and on the GPU. On the CPU a sheet can also drape over the same obstacles the Dart solver handles (balls, capsules, boxes, wedges and heightfields), with friction and self-collision. `usePhysics().cloth(mesh)` returns the core's cloth, or the Dart solver when the run is on the reference.
-- water as particles in a tank that slumps, splashes and settles, on the CPU and on the GPU.
+- particles that fall, drift in the wind, bounce off a floor and die, on the CPU and, through the hardware layer, on a GPU.
+- debris, the visual bodies: thousands of balls that tumble, heap and settle on still planes and boxes, on the CPU and, through the hardware layer, on a GPU, where they are read a frame or two late.
+- cloth: sheets and ropes held by constraints of any stiffness, blown by the wind, on the CPU and, through the hardware layer, on a GPU. On the CPU a sheet can also drape over the same obstacles the Dart solver handles (balls, capsules, boxes, wedges and heightfields), with friction and self-collision. `usePhysics().cloth(mesh)` returns the core's cloth, or the Dart solver when the run is on the reference.
+- water as particles in a tank that slumps, splashes and settles, on the CPU and, through the hardware layer, on a GPU.
 - the liquids of `flutter3d_physics` — the spilt particles (position-based fluid with cohesion), a stream's parcels in the air (falling, running along and clinging to the glass) and the waves on a vessel's surface — stepped as the Dart reference steps them, against the planes and turned glassware a `FluidWorld` makes; and the liquid in pipes between vessels and the bodies floating in them. `usePhysics().fluid` is the core's solver, or the Dart one when the run is on the reference; a `FluidWorld` asks for it when it is made.
 
 ## Under CollisionWorld
@@ -41,18 +41,7 @@ Multibodies (`createMultibody`) hold a tree of bodies in reduced coordinates, so
 
 There is nothing to build by hand. The package's hook compiles `csrc/` with the C compiler the target already uses: Xcode's clang on Apple platforms, the NDK's on Android, MSVC or clang on Windows, the system's on Linux. A game that depends on this package needs no other toolchain.
 
-The GPU passes are a second library, `f3d_gpu`, built from `csrc/gpu/` and linked with wgpu-native, and only when the application asks for them in its pubspec:
-
-```yaml
-hooks:
-  user_defines:
-    flutter3d_physics_native:
-      gpu: true
-```
-
-Then the hook downloads a pinned wgpu-native release for the target from GitHub, checks the archive against the sha256 written in `tool/hook/wgpu_native.dart` (the same pinned release the compute sidecar of `flutter3d_wgpu` links, from a copy of the same file), and keeps it in the hooks' shared output, so it is fetched once. Only the static library is used, so nothing extra has to be found at run time. If there is no release for the target, no network, or the checksum is wrong, the hook says so and builds the core alone; `NativeGpu.open()` then throws `GpuUnavailableException` and particles run on the CPU.
-
-What it costs: the core alone is about 0.5 MB (`libf3d_physics`, macOS arm64, 2026-10-13); `f3d_gpu`, with wgpu-native in it, is about 11 MB more, and a download at the first build. An application that does not ask pays neither, and one with the compute sidecar too ships a second copy of wgpu-native inside `f3d_wgpu`.
+There are no GPU passes to build. The particles, debris, cloth and fluid tank are published as kernels in the engine's kernel language too (`particleKernels`, `debrisKernels`, `clothKernels`, `fluidKernels`, beside `shallowWaterKernels`), and `flutter3d_effects` hands each to a renderer as a compute workload (`ParticleCloudWorkload`, `DebrisWorkload`, `ClothWorkload`, `FluidWorkload`). Where it runs is the hardware layer's to say: on the GPU that draws the frame, on the compute sidecar beside it, or on this package's own CPU system. This package names no device and links no GPU library: the core alone is about 0.5 MB (`libf3d_physics`, macOS arm64, 2026-10-13).
 
 The Dart side reaches the core the same way natively and in the browser: through `lib/src/core/`, where every call is a function and every pointer an address. The calls and the layouts of the structs the Dart side fills are generated from `csrc/include/f3d_physics.h`; after changing the header, run
 
@@ -60,7 +49,7 @@ The Dart side reaches the core the same way natively and in the browser: through
 dart run tool/gen_core.dart
 ```
 
-and `test/bindings_test.dart` fails until you do. In the browser there are no GPU passes: `NativeGpu.open()` returns null there, and the CPU systems run instead. Call `await preparePhysics()` before making the first world. In the browser it loads the core; natively there is nothing to load. Either way it makes the core the run's `PhysicsBackend` if it starts, and the Dart reference if it does not, and `usePhysics()` returns that backend afterwards. `loadPhysicsCore()` is the lower-level call that `preparePhysics()` uses. With `threads:` above one, on a page served cross-origin isolated (COOP and COEP headers), it loads `web/f3d_physics_threads.wasm` instead and starts that many Web Workers less one from `web/f3d_worker.js`; `physicsCoreThreads` then says how many threads a world can ask for. In the browser it fetches `web/f3d_physics.wasm`, which this package ships as an asset; after changing the core, rebuild it with `dart run tool/build_wasm.dart`, or `test/wasm_test.dart` fails.
+and `test/bindings_test.dart` fails until you do. Call `await preparePhysics()` before making the first world. In the browser it loads the core; natively there is nothing to load. Either way it makes the core the run's `PhysicsBackend` if it starts, and the Dart reference if it does not, and `usePhysics()` returns that backend afterwards. `loadPhysicsCore()` is the lower-level call that `preparePhysics()` uses. With `threads:` above one, on a page served cross-origin isolated (COOP and COEP headers), it loads `web/f3d_physics_threads.wasm` instead and starts that many Web Workers less one from `web/f3d_worker.js`; `physicsCoreThreads` then says how many threads a world can ask for. In the browser it fetches `web/f3d_physics.wasm`, which this package ships as an asset; after changing the core, rebuild it with `dart run tool/build_wasm.dart`, or `test/wasm_test.dart` fails.
 
 The WebAssembly module is built separately, because hooks build for native targets only:
 

@@ -1,7 +1,7 @@
 /*
  * Particles on the CPU — P9, phase 10: the reference for the GPU's, and
  * the fallback where there is none. See f3d_physics.h for what they do;
- * the WGSL in f3d_gpu.c does the same, line for line.
+ * the kernels in lib/src/visual_kernels.dart do the same, line for line.
  */
 #include "f3d_internal.h"
 

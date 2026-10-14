@@ -1387,8 +1387,9 @@ F3D_API uint32_t f3d_world_move_character(
 
 /* Particles: sparks, spray, dust, smoke — many points that fall, drift in
  * the wind, bounce off a floor and die. Visual, not part of the game's
- * state: the GPU steps the same system in f3d_gpu.h, and this one is its
- * reference and the fallback where there is none. A fixed number of slots,
+ * state: a GPU steps the same system from the kernels in
+ * lib/src/visual_kernels.dart, and this one is their reference and the fallback
+ * where there is none. A fixed number of slots,
  * filled round and round: a new particle takes the next slot, the oldest
  * first; a slot whose life has run out is still and waits. */
 typedef struct F3dParticles F3dParticles;
@@ -1438,9 +1439,10 @@ F3D_API uint32_t f3d_particles_read(const F3dParticles *particles,
 /* Debris: the visual bodies — rubble, shards, crates' splinters, the
  * thousands of things a blast throws that nobody steers and nothing in the
  * game reads. Balls, each with its own size and mass, that fall, knock into
- * each other, roll and come to rest on still planes and boxes. The GPU
- * steps the same system in f3d_gpu.h and is read a frame late; this one is
- * its reference and the fallback where there is none.
+ * each other, roll and come to rest on still planes and boxes. A GPU
+ * steps the same system from the kernels in lib/src/visual_kernels.dart and is
+ * read a frame or two late; this one is their reference and the fallback
+ * where there is none.
  *
  * Each substep finds contacts through a hashed grid of cells as wide as
  * three of the largest radii, and solves them all at once from the same
@@ -1506,9 +1508,9 @@ F3D_API uint32_t f3d_debris_read(const F3dDebris *debris, f3d_real *out,
 /* Cloth: points held at their distances by constraints — XPBD in small
  * steps, one pass over the constraints a substep. The constraints are
  * coloured when the cloth is made, so that no two of a colour share a
- * point, and solved colour by colour: the GPU steps the same cloth in
- * f3d_gpu.h a colour a dispatch, with nothing summed in any order, and
- * this one is its reference and the fallback where there is none. Points
+ * point, and solved colour by colour: a GPU steps the same cloth from the
+ * kernels in lib/src/visual_kernels.dart a colour a dispatch, with nothing
+ * summed in any order, and this one is their reference and the fallback where there is none. Points
  * collide with balls, a floor, and nothing else — not each other.
  * f3d_cloth_solve, further down, steps the same cloth as the Dart
  * reference does, against obstacles of every shape and itself. */
@@ -1553,7 +1555,7 @@ F3D_API uint32_t f3d_cloth_edge_count(const F3dCloth *cloth);
 /* The constraints as they are solved, colour by colour: each one's pair of
  * points into [pairs], its length into [rest] and its compliance into
  * [compliance], edge-count apiece; where each colour starts into
- * [colour_start], colour-count and one. What the GPU's cloth is made
+ * [colour_start], colour-count and one. What a GPU's cloth is made
  * from, so the colouring is done in one place. */
 F3D_API void f3d_cloth_edges(const F3dCloth *cloth, uint32_t *pairs, f3d_real *rest,
                              f3d_real *compliance, uint32_t *colour_start);
@@ -1671,8 +1673,8 @@ F3D_API void f3d_cloth_solve(F3dCloth *cloth, const F3dClothSolveSettings *setti
 
 /* Fluid: water as particles, position-based (PBF) — each held near the
  * density at rest of a cubic lattice of [spacing], with a kernel twice the
- * spacing wide, inside a tank. The GPU steps the same fluid in f3d_gpu.h;
- * this one is its reference and the fallback where there is none. Only
+ * spacing wide, inside a tank. A GPU steps the same fluid from the kernels
+ * in lib/src/visual_kernels.dart; this one is their reference and the fallback where there is none. Only
  * ever pushed apart, never pulled together: no clumping, and no surface
  * tension either. */
 typedef struct F3dFluid F3dFluid;

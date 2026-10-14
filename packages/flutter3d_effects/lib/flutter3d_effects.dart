@@ -29,3 +29,4 @@ export 'src/materials.g.dart';
 export 'src/physics_hearing.dart';
 export 'src/seabed_look.dart';
 export 'src/shallow_water_workload.dart';
+export 'src/visual_workloads.dart';

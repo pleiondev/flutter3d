@@ -2631,6 +2631,8 @@ const Map<String, List<String>> facadeShowListsHeld = <String, List<String>>{
 /// out, as `facade:Name`, each with why a caller of the facade never writes
 /// it: they stay public in the package that declares them, one import away.
 final Map<String, String> facadeLeavesOut = <String, String>{
+  for (final name in <String>[..._computePlacement, ..._computeDoor])
+    'flutter3d:$name': _placementReason,
   for (final name in _computeWorkload)
     'flutter3d:$name':
         'a simulation\'s compute handed to the engine (`RendererSteps.addWorkload`), written by the author of a physics core\'s fluid or of its view, who imports `flutter3d_hardware` and `flutter3d_core`; an application adds the view, which adds the workload',
@@ -2986,6 +2988,8 @@ facadeGapFromAllowed = <String, Map<String, String>>{
 /// writes it.
 final Map<String, String> facadeGapAllowed = <String, String>{
   for (final facade in facadePackages.keys)
+    for (final name in _computePlacement) '$facade:$name': _placementReason,
+  for (final facade in facadePackages.keys)
     for (final name in _computeWorkload)
       '$facade:$name':
           'a simulation\'s compute handed to the engine '
@@ -3186,6 +3190,24 @@ const List<String> _physicsBehindTheView = <String>[
 
 /// A compute workload's types (`flutter3d_hardware`, `flutter3d_core`),
 /// which `RendererSteps.addWorkload` names.
+/// Where compute runs: the hardware layer's and the backends' alone, which
+/// nothing above them names (`only the hardware layer and the backends say
+/// where compute runs`).
+const List<String> _computePlacement = <String>[
+  'ComputeExecutor',
+  'ComputeExecutors',
+  'ComputePlacement',
+];
+
+/// The hardware layer's door to where compute runs, which the engine's
+/// steps use and nothing a facade serves calls.
+const List<String> _computeDoor = <String>['FrameCompute', 'PlacedWork'];
+
+const String _placementReason =
+    'where compute runs, which the hardware layer decides and a backend '
+    'registers a device for; nothing a facade serves may name it, so a '
+    'caller of the facade never writes it';
+
 const List<String> _computeWorkload = <String>[
   'ComputeWorkload',
   'WorkloadBinding',
@@ -3824,7 +3846,6 @@ const Map<String, String> verbAllowed = <String, String>{
   'ModelSession.open': 'a session made at once over a model in memory',
   'ElementsSimulation.open':
       'a native world made at once, beside the asynchronous loader',
-  'NativeGpu.open': 'a device made at once over a library already loaded',
 };
 
 /// Unit-suffixed names the units rule lets stand.
