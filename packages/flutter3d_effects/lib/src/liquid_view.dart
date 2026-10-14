@@ -324,16 +324,24 @@ final class LiquidView {
   /// settings page or a frame report saying where the water runs.
   ComputePlacement? get steppedAt => _workload?.binding?.placement;
 
-  /// Hands the water's step to [renderer], placed on [executors] by the
-  /// engine's rule (`ComputeExecutors.placeWorkload`): on a device that
+  /// Hands the water's step to [renderer], placed by the engine's rule
+  /// (`ComputeExecutors.placeWorkload`) on the executors the renderer was
+  /// given where it was opened (`RendererSteps.computeExecutors`), or on
+  /// [executors] when they are handed in: on a device that
   /// computes the columns are stepped there and the surface is built
   /// there and drawn from the buffer it was built in; where none does, the
   /// core steps them and this draws them as before. Which of the two it is
   /// is the engine's answer, read from [steppedAt].
-  Future<void> steppedOn(Renderer renderer, ComputeExecutors executors) async {
+  Future<void> steppedOn(
+    Renderer renderer, {
+    ComputeExecutors? executors,
+  }) async {
     if (_compute != null || _workload != null || _disposed) return;
     final workload = _workload = _SurfaceWorkload(this);
-    final added = await renderer.renderSteps.addWorkload(workload, executors);
+    final added = await renderer.renderSteps.addWorkload(
+      workload,
+      executors: executors,
+    );
     // Let go while it was being placed: handed straight back.
     if (_disposed) {
       added.cancel();
@@ -366,21 +374,28 @@ final class LiquidView {
     _stale = true;
   }
 
-  /// A box round everything the surface can draw: the grid, from under its
-  /// lowest ground to well over its highest.
+  /// A box round what the surface draws: the cells' middles, from under
+  /// the lowest ground to a little over the highest.
   Aabb3 _bounds() {
     var lo = double.infinity, hi = double.negativeInfinity;
     for (final g in _ground) {
       lo = math.min(lo, g);
       hi = math.max(hi, g);
     }
+    // As the box the CPU's own vertices span, which the transparent draws
+    // are sorted by: from a sunk vertex under the lowest ground to the
+    // highest ground, a little over it for water standing higher.
     final o = liquid.origin;
     return Aabb3.minMax(
-      Vector3(o.x, o.y + lo - liquid.cell, o.z),
       Vector3(
-        o.x + liquid.nx * liquid.cell,
-        o.y + hi + 4.0,
-        o.z + liquid.nz * liquid.cell,
+        o.x + 0.5 * liquid.cell,
+        o.y + lo - 0.2 * liquid.cell,
+        o.z + 0.5 * liquid.cell,
+      ),
+      Vector3(
+        o.x + (liquid.nx - 0.5) * liquid.cell,
+        o.y + hi + 0.25,
+        o.z + (liquid.nz - 0.5) * liquid.cell,
       ),
     );
   }

@@ -284,7 +284,10 @@ final class RendererSteps extends RenderStepRegistry {
   ///
   /// **The workload is told, the caller decides nothing.** A simulation
   /// handing its step over learns where it runs through
-  /// `ComputeWorkload.placed` and draws from what that says.
+  /// `ComputeWorkload.placed` and draws from what that says. Nor does the
+  /// caller say where it may run: [executors] is for a test; otherwise the
+  /// renderer's own [computeExecutors] are used, which the layer that
+  /// opened the device set, and failing those the drawing device alone.
   ///
   /// Cancelling the result takes the step out of the frame
   /// and lets go of its buffers once no frame in flight can be using them.
@@ -292,13 +295,22 @@ final class RendererSteps extends RenderStepRegistry {
   /// no host code — is added all the same and reported as
   /// `PassSkip.unsupported`, as a compute step is.
   Future<Registration> addWorkload(
-    ComputeWorkload workload,
-    ComputeExecutors executors, {
+    ComputeWorkload workload, {
+    ComputeExecutors? executors,
     RenderAnchor? at,
   }) async {
     final step = WorkloadStep(workload);
     addNode(step, at: at).cancel();
-    await step.prepare(executors);
+    final placeOn =
+        executors ??
+        computeExecutors ??
+        switch (_store.renderer) {
+          final renderer? => ComputeExecutors(device: renderer.device),
+          null => throw StateError(
+            'addWorkload on a registry no renderer owns: pass executors',
+          ),
+        };
+    await step.prepare(placeOn);
     final added = addNode(step, at: at);
     _store.workloads.add(step);
     final registration = Registration(() {
@@ -314,6 +326,15 @@ final class RendererSteps extends RenderStepRegistry {
     _scope?.track(registration);
     return registration;
   }
+
+  /// What the frame's compute may be placed on — the device it is drawn on,
+  /// the sidecar and the CPU device beside it — as the layer that opened the
+  /// device answered (`DeviceRegistry.computeExecutors`); null until it
+  /// does, and [addWorkload] then offers the drawing device alone. Shared
+  /// by every view of this registry. Since 1.0.0-rc.1+1.
+  ComputeExecutors? get computeExecutors => _store.computeExecutors;
+  set computeExecutors(ComputeExecutors? executors) =>
+      _store.computeExecutors = executors;
 
   /// The step [workload] is in the frame as ([addWorkload]): where it was
   /// placed, or why it was refused. Null for a workload not added here.
@@ -825,6 +846,9 @@ final class _StepStore {
   /// The workloads in the frame ([RendererSteps.addWorkload]): while there
   /// are any, the scene reads what they write.
   final List<WorkloadStep> workloads = <WorkloadStep>[];
+
+  /// [RendererSteps.computeExecutors].
+  ComputeExecutors? computeExecutors;
   final SceneBindings sceneBindings = SceneBindings();
   final PipelineNodeKinds nodeKinds = PipelineNodeKinds();
 

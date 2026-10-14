@@ -1,3 +1,10 @@
+## 1.0.0-rc.1+1
+
+- **The widget tells its renderer where compute may run.**
+  `Flutter3dFlameWidget` sets the renderer's `RendererSteps.computeExecutors`
+  from the registry its device came from, so a river's water is stepped on
+  WebGPU's compute in a browser without the game naming compute.
+
 ## 1.0.0-rc.1
 
 - **Breaking: `Model3dComponent.openSharedDevice` is gone from the main

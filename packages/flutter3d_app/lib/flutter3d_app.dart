@@ -150,7 +150,12 @@ export 'package:flutter3d_sim/flutter3d_sim.dart'
 
 export 'src/backend_native.dart'
     if (dart.library.js_interop) 'src/backend_web.dart'
-    show fixedResolution, openDevice, platformDevices, presentFrame;
+    show
+        computeExecutorsFor,
+        fixedResolution,
+        openDevice,
+        platformDevices,
+        presentFrame;
 export 'src/declarative/scene_widgets.dart';
 export 'src/diagnostics/issues.dart';
 export 'src/diagnostics/render_extensions.dart';

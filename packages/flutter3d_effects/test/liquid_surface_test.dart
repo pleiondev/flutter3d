@@ -105,12 +105,16 @@ void main() {
       ..setShallowEdge(water, GridSide.north, const NativeEdgeFlow.level(0.6))
       ..fillShallowLiquid(water, x0: -9, z0: -9, x1: 99, z1: 99, level: 0.6)
       ..pourShallowLiquid(water, 4.0, 0.5, radius: 0.6, volume: 0.4);
+    // A box floating in it, which stands in the columns it fills: the
+    // surface over it is the water's and what the box fills of it.
+    final box = world.addBody(position: Vector3(5.0, 0.6, 1.0), mass: 20.0);
+    world.setShape(box, NativeShape.box(Vector3(0.6, 0.15, 0.6)));
     final device = cpuComputeDevice();
     final renderer = Renderer.create(device: device);
     final workload = _Surface(world, water);
     final added = await renderer.renderSteps.addWorkload(
       workload,
-      ComputeExecutors(device: device),
+      executors: ComputeExecutors(device: device),
     );
     addTearDown(added.cancel);
     expect(workload.binding!.placement, ComputePlacement.device);

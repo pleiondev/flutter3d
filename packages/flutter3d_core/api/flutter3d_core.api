@@ -4364,10 +4364,11 @@ final class Renderer with RenderServices
   void warmUp({required int width, required int height, required Scene scene, required List<RenderView> views, RenderSettings settings = const RenderSettings()})
 
 final class RendererSteps extends RenderStepRegistry
+  ComputeExecutors? get computeExecutors
   ComputePlacement? skinningPlacement(SkinningHook hook)
   ComputePlacementException? skinningRefusal(SkinningHook hook)
   Future<Registration> addComputeStep(ComputeStep step, ComputeExecutors executors, {RenderAnchor? at, RenderStep? owner, List<String> after = const <String>[], List<String> before = const <String>[]})
-  Future<Registration> addWorkload(ComputeWorkload workload, ComputeExecutors executors, {RenderAnchor? at})
+  Future<Registration> addWorkload(ComputeWorkload workload, {ComputeExecutors? executors, RenderAnchor? at})
   Future<Registration> placeSkinningHook(SkinningHook hook, ComputeExecutors executors)
   GraphicsDevice get device
   Iterable<PluginRegistry> get companions
@@ -4396,6 +4397,7 @@ final class RendererSteps extends RenderStepRegistry
   T addContributor<T extends PassContributor>(T contributor)
   WorkloadStep? workloadStep(ComputeWorkload workload)
   bool removeContributor(PassContributor contributor)
+  set computeExecutors(ComputeExecutors? executors)
 
 final class ResourceCache<K, V>
   Future<ResourceHandle<V>> acquire(K key, {ResourcePriority priority = ResourcePriority.normal})

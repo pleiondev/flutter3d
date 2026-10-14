@@ -568,6 +568,20 @@ class _Flutter3dViewState extends State<Flutter3dView>
       }
       final borrowedRenderer = options.renderer;
       final renderer = borrowedRenderer ?? Renderer.create(device: device);
+      // Where the frame's compute may run, asked of the registry the device
+      // came from: what a fluid's step is offered, so nothing above this
+      // names compute. A borrowed renderer keeps what its owner gave it.
+      if (renderer.renderSteps.computeExecutors == null) {
+        renderer.renderSteps.computeExecutors = await devices.computeExecutors(
+          device,
+          onRefused: (String message) => log.info(message, source: _source),
+        );
+        if (!mounted) {
+          if (borrowedRenderer == null) renderer.dispose();
+          if (borrowed == null) device.dispose();
+          return;
+        }
+      }
       final scene = widget.scene ?? _defaultScene();
       final camera = widget.camera ?? _defaultCamera();
       if (camera.parent == null) scene.add(camera);

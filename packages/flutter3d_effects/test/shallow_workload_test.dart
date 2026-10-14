@@ -26,6 +26,7 @@ import 'package:flutter3d_effects/flutter3d_effects.dart'
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart' show FakeBackend;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
+import 'package:flutter3d_wgpu/flutter3d_wgpu.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -125,7 +126,10 @@ _run({
   addTearDown(world.dispose);
   final renderer = Renderer.create(device: drawing);
   final workload = _Demanding(world, water, demand);
-  final added = await renderer.renderSteps.addWorkload(workload, executors);
+  final added = await renderer.renderSteps.addWorkload(
+    workload,
+    executors: executors,
+  );
   addTearDown(added.cancel);
   final step = renderer.renderSteps.workloadStep(workload)!;
   final draw = _frames(renderer);
@@ -210,6 +214,42 @@ void main() {
     expect(ran.binding!.placement, ComputePlacement.sidecar);
     final core = _onCore();
     expect(_held(ran.depth), closeTo(_held(core), 0.01 * _held(core)));
+  });
+
+  test('the wgpu sidecar steps it on a GPU, within the tolerance', () async {
+    // The registry as a native application sets it up: a drawing device
+    // without compute (Impeller's, standing in), the sidecar and the CPU
+    // registered. Nothing is demanded: the rule puts the water on the
+    // sidecar. Mutation: a kernel that reads a neighbour's velocity a row
+    // off, and the GPU's water leaves the core's by more than the
+    // tolerance.
+    final registry = DeviceRegistry<Object>();
+    final sidecar = registerWgpuSidecar(registry);
+    final cpu = registerCpuBackend(registry);
+    addTearDown(cpu.cancel);
+    addTearDown(sidecar.cancel);
+    final refused = <String>[];
+    final drawing = _noCompute();
+    final executors = await registry.computeExecutors(
+      drawing,
+      onRefused: refused.add,
+    );
+    if (executors.sidecar == null) {
+      markTestSkipped('no wgpu sidecar here: ${refused.join('; ')}');
+      return;
+    }
+    addTearDown(executors.sidecar!.dispose);
+    final ran = await _run(drawing: drawing, executors: executors);
+    expect(ran.binding!.placement, ComputePlacement.sidecar);
+    expect(ran.moved, greaterThanOrEqualTo(_steps));
+    final core = _onCore();
+    var worst = 0.0;
+    for (var c = 0; c < core.length; c++) {
+      worst = math.max(worst, (core[c] - ran.depth[c]).abs());
+    }
+    expect(worst, lessThan(0.02));
+    expect(_held(ran.depth), closeTo(_held(core), 0.01 * _held(core)));
+    expect(ran.spray, greaterThan(0));
   });
 
   test('a software device drawing the frame leaves it on the core', () async {

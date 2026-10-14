@@ -211,12 +211,13 @@ final class Elements {
 
   /// A world of its own, which it steps.
   ///
-  /// [compute] is what the waters' steps are offered to (and [adopt]'s and
-  /// [over]'s): the drawing device's compute alone when it is not given,
-  /// the executors `DeviceRegistry.computeExecutors` answers — a wgpu
-  /// sidecar among them — when an application passes them. Where each
-  /// water then runs is the engine's rule, `ComputeExecutors.placeWorkload`;
-  /// `LiquidView.steppedAt` says.
+  /// Each water's step is handed to [renderer], which places it on the
+  /// executors the layer that opened the device gave it
+  /// (`RendererSteps.computeExecutors`): WebGPU's compute, a wgpu sidecar
+  /// the application registered, or the core itself where neither is.
+  /// [compute] (and [adopt]'s and [over]'s) overrides them, for a test.
+  /// Where each water then runs is the engine's rule,
+  /// `ComputeExecutors.placeWorkload`; `LiquidView.steppedAt` says.
   static Future<Elements> open({
     required GraphicsDevice device,
     required Renderer renderer,
@@ -295,7 +296,7 @@ final class Elements {
       quality: quality,
       lights: lights,
       hearing: hearing?.call(simulation.world),
-      compute: compute ?? ComputeExecutors(device: device),
+      compute: compute,
     );
   }
 
@@ -391,10 +392,10 @@ final class Elements {
   final GraphicsDevice _device;
   Scene _scene;
 
-  /// What the waters' steps are handed to, and the executors it places
-  /// them on: the drawing device alone unless [open] was given more.
+  /// What the waters' steps are handed to, and the executors they are
+  /// offered when [open] was given some; otherwise the renderer's own.
   final Renderer _renderer;
-  final ComputeExecutors _compute;
+  final ComputeExecutors? _compute;
 
   /// The scene it draws into; set again, everything it draws moves there.
   Scene get scene => _scene;
@@ -516,7 +517,7 @@ final class Elements {
     _waters.add(_DrawnWater(water, view, look));
     // The engine places its step: a device that computes steps the water
     // and builds its surface, the core where none does.
-    unawaited(view.steppedOn(_renderer, _compute));
+    unawaited(view.steppedOn(_renderer, executors: _compute));
     hearing?.listen(native, density: liquid.properties.density);
     return water;
   }

@@ -110,6 +110,21 @@ Future<GraphicsDevice> openDevice({
   return device;
 }
 
+/// The executors a frame drawn on [device] may place its compute on — the
+/// device itself, and the sidecar and the CPU device the registry it was
+/// opened from has — for `RendererSteps.computeExecutors`, which is where a
+/// physics core's fluid is offered: what the layer that opens a device sets
+/// on its renderer, so nothing above it names compute. Asked of [registry],
+/// else the registry [device] was opened from, else this platform's. Since
+/// 1.0.0-rc.1+1.
+Future<ComputeExecutors> computeExecutorsFor(
+  GraphicsDevice device, {
+  DeviceRegistry? registry,
+}) => (registry ?? _openedFrom[device] ?? platformDevices()).computeExecutors(
+  device,
+  onRefused: (message) => debugPrint('flutter3d_app: $message'),
+);
+
 /// The widget that shows [frame], for whichever [device] this build's
 /// [openDevice] actually returned — or for any other [GraphicsDevice] a
 /// caller added with `DeviceRegistry.addPresenter`, native backend or not.

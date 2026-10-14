@@ -20,6 +20,14 @@ The physics never does. A fluid describes its step once, as a
 - whether it has an implementation of its own on the host (`hasHost`) —
   for the core's fluids, the C step they always had.
 
+**Nor does the game.** The executors a workload is offered are the
+renderer's own (`RendererSteps.computeExecutors`), set by the layer that
+opened the device — `Flutter3dView`, `Flutter3dFlameWidget`, or
+`computeExecutorsFor` for one that opens its own — from the registry the
+device came from (`DeviceRegistry.computeExecutors`). A game adds a water to
+its elements and nothing else; which device is there, and whether a wgpu
+sidecar was registered beside it, is the application's registry.
+
 The engine places it. `RendererSteps.addWorkload` makes a `WorkloadStep`
 (`flutter3d_core`, `compute_step.dart`), loads the kernels on each candidate
 and asks `ComputeExecutors.placeWorkload`, which is the one place the rule
@@ -152,11 +160,14 @@ Additive only.
   `ComputeExecutors.placeWorkload`, `workloadCandidates` and
   `aheadOfHost`, `GraphicsDevice.isSoftware`.
 - `flutter3d_core` (1.0.0-rc.1+1): `WorkloadStep`,
-  `RendererSteps.addWorkload` and `workloadStep`,
+  `RendererSteps.addWorkload`, `workloadStep` and `computeExecutors`,
   `FrameResourceIds.computedVertices`.
 - `flutter3d_cpu` (1.0.0-rc.1+1): `CpuDevice.isSoftware`.
 - `flutter3d_webgpu` (1.0.0-rc.1+2): no API; a compute pass keeps its bind
   groups.
+- `flutter3d_app` (1.0.0-rc.1+1): `computeExecutorsFor`; the view sets
+  the renderer's executors. `flame_flutter3d` (1.0.0-rc.1+1): no API; the
+  widget sets them.
 - `flutter3d_effects` (1.0.0-rc.1+1): `ShallowWaterWorkload`,
   `LiquidView.steppedOn` and `steppedAt`, and `Elements.open`'s, `adopt`'s
   and `over`'s `compute`.

@@ -372,6 +372,13 @@ class _Flutter3dFlameHostState extends State<_Flutter3dFlameHost> {
       if (!mounted) return opened.dispose();
       final scene = _sceneOn(opened);
       final made = renderer = Renderer.create(device: opened);
+      // Where the frame's compute may run, asked of the registry the device
+      // came from: what a fluid's step is offered, so the game names none.
+      made.renderSteps.computeExecutors = await computeExecutorsFor(opened);
+      if (!mounted) {
+        made.dispose();
+        return opened.dispose();
+      }
       void release() {
         made.dispose();
         opened.dispose();

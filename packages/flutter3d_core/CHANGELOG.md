@@ -9,7 +9,9 @@
   workload's own code runs. The scene reads
   `FrameResourceIds.computedVertices` (new) while one is in the frame, so
   each runs before the draws; a step taken out lets go of its buffers once
-  no frame in flight uses them. Additive.
+  no frame in flight uses them. The executors are the renderer's own
+  (`RendererSteps.computeExecutors`, new), which the layer that opened the
+  device sets; `addWorkload` takes others only for a test. Additive.
 
 ## 1.0.0-rc.1
 

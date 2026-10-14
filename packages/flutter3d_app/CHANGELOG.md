@@ -1,3 +1,13 @@
+## 1.0.0-rc.1+1
+
+- **A view tells its renderer where compute may run.** `Flutter3dView` asks
+  the registry its device came from (`DeviceRegistry.computeExecutors`) and
+  sets the answer as the renderer's `RendererSteps.computeExecutors`, so a
+  physics core's fluid is placed on WebGPU's compute, a registered wgpu
+  sidecar, or the core, with nothing in the game naming any of them.
+  `computeExecutorsFor` (new) is the same question for a layer that opens
+  its own device. Additive.
+
 ## 1.0.0-rc.1
 
 - **The facade exports the stock implementations of what it exports**:

@@ -9,9 +9,9 @@
   hands its water's step to the engine (`steppedOn`) and, where it lands on
   a device that computes, builds the surface there in two kernels and draws
   it from the buffer they wrote, the CPU writing only the air of the
-  bubbles; `steppedAt` says where. `Elements.open`, `adopt` and `over` take
-  the executors to offer (`compute`), the drawing device's compute alone
-  when none are given. On WebGPU a river's main-thread script fell from
+  bubbles; `steppedAt` says where. It is placed on the renderer's own
+  executors; `Elements.open`, `adopt` and `over` take others (`compute`)
+  for a test. On WebGPU a river's main-thread script fell from
   about 15 ms a frame to about 11.
 
 ## 1.0.0-rc.1
