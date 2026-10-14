@@ -723,6 +723,13 @@ abstract base class WebGpuRecorder extends PassEncoder {
     final refusals = _device.pipelineRefusals;
     if (refusals.isRefused(handle)) return false;
     final layouts = _device.bindingsFor(pipeline);
+    if (layouts == null) {
+      // The pair's bind group layouts are refused — over a limit of this
+      // device, or by the browser — which no rebuild changes. Told once for
+      // the pair, and the draw skipped.
+      _device.tellLayoutRefusal(handle, pipeline);
+      return false;
+    }
     final GPURenderPipeline? built;
     try {
       built = _realPipeline(pipeline, handle, layouts);

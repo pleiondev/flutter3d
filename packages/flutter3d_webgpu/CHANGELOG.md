@@ -1,3 +1,20 @@
+## 1.0.0-rc.1+1
+
+- **A device is opened with the adapter's limits on a pipeline layout.**
+  `webgpuRequiredLimits` now asks for the adapter's
+  `maxDynamicUniformBuffersPerPipelineLayout`, `maxBindGroups`,
+  `maxStorageBuffersPerShaderStage` and `maxStorageTexturesPerShaderStage`
+  beside the three stage limits it asked for. Every uniform block is bound
+  with a dynamic offset, so a pair of 9 — an instanced mesh beside a
+  material with blocks of its own — was refused at WebGPU's 8 on an adapter
+  that had 10, and drew nothing.
+- **A pair over a limit the adapter really has is refused once.** Its
+  layouts are checked against the device's limits before the browser is
+  asked, and a pair refused there or by the browser is reported once on
+  `pipelineRefusals`, naming the limit, and its draws are skipped. The
+  refusal was kept with the pipeline, so a pair made and given back every
+  second was refused, and thrown from `beginFrame`, every second.
+
 ## 1.0.0-rc.1
 
 - **An axis clamped to the border is refused by `samplerBorderColor`**;

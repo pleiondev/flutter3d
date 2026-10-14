@@ -58,6 +58,7 @@ import 'webgpu_error_ledger.dart';
 import 'webgpu_formats.dart';
 import 'webgpu_image_decode.dart';
 import 'webgpu_interop.dart';
+import 'webgpu_layout_limits.dart';
 import 'webgpu_loaded_shaders.dart';
 import 'webgpu_pipeline_cache.dart';
 import 'webgpu_project_shaders.dart';
@@ -589,7 +590,13 @@ final class WebGpuDevice extends GraphicsDevice
   /// own textures ran into a pipeline-layout limit the adapter did not have.
   /// [webgpuRequiredLimits] asks for what the adapter reports, which it
   /// always grants; what a bundle may count on everywhere is the minimum
-  /// (`MaterialStageBudget`), which the build holds a material to.
+  /// (`MaterialStageBudget`), which the build holds a material to. Since
+  /// 1.0.0-rc.1+1 that includes the uniform blocks with a dynamic offset in
+  /// one pipeline layout, and the bind groups, storage buffers and storage
+  /// textures (`webgpuRequestedLimits`): every uniform block here has a
+  /// dynamic offset, and a pair of 9 was refused at WebGPU's 8 on an
+  /// adapter that had 10. A pair over what the adapter really has is refused
+  /// once, by name and limit, on [pipelineRefusals] (see `bindingsFor`).
   ///
   /// `GpuFeature.requested` is the list: filtering of 32-bit float textures,
   /// the full-precision depth-stencil format, the three block-compression
@@ -808,6 +815,10 @@ final class WebGpuDevice extends GraphicsDevice
   /// encoder skips its draws. The draws already encoded with the refused
   /// object are the browser's to drop, which it does by invalidating their
   /// pass: one frame, not every frame.
+  ///
+  /// A pipeline refused because the browser refused its pair's layouts
+  /// first is that refusal, told once for the pair ([_tellLayoutRefusal])
+  /// rather than as a link failure that names no limit.
   GPURenderPipeline _guardPipeline(
     PipelineHandle handle,
     WebGpuPipelineSignature signature,
@@ -817,6 +828,11 @@ final class WebGpuDevice extends GraphicsDevice
     body,
     refused: (String message) {
       _pipelines.forget(signature);
+      final pipeline = handle.backend as WebGpuPipeline;
+      if (_layoutRefusalOf(pipeline) != null) {
+        _tellLayoutRefusal(handle, pipeline);
+        return;
+      }
       pipelineRefusals.report(
         handle,
         PipelineRefusedException(
@@ -855,14 +871,85 @@ final class WebGpuDevice extends GraphicsDevice
   /// reflection behind a name, and a layered library answers a name the
   /// engine's library also answers; a name-keyed cache handed either of those
   /// the layouts of whichever pair was drawn first.
-  WebGpuBindingLayouts _bindingsFor(WebGpuPipeline pipeline) =>
-      _bindingLayouts[_StagePairKey(
-        pipeline.vertexModule,
-        pipeline.fragmentModule,
-      )] ??= _guard(
-        'the bind group layouts of ${pipeline.name}',
-        () => WebGpuBindingLayouts.of(_gpuDevice, pipeline),
-      );
+  ///
+  /// **Null when the pair's layouts are refused**, and refused for good: by
+  /// [webgpuLayoutProblem] before the browser is asked, when they are over
+  /// one of this device's limits, or by the browser on the error scope. The
+  /// refusal is kept in [_layoutRefusals] by the pair, which outlives every
+  /// handle given back for it, so a renderer that makes and releases a
+  /// pipeline over the pair every second does not make the layouts again
+  /// every second and have them refused again; [_tellLayoutRefusal] reports
+  /// it once.
+  WebGpuBindingLayouts? _bindingsFor(WebGpuPipeline pipeline) {
+    final key = _StagePairKey(pipeline.vertexModule, pipeline.fragmentModule);
+    if (_layoutRefusals.isRefused(key)) return null;
+    final cached = _bindingLayouts[key];
+    if (cached != null) return cached;
+    final problem = webgpuLayoutProblem(
+      pipeline.name,
+      pipeline.groups,
+      _layoutLimits,
+    );
+    if (problem != null) {
+      _layoutRefusals.refuse(key, problem);
+      return null;
+    }
+    return _bindingLayouts[key] = _guard(
+      'the bind group layouts of ${pipeline.name}',
+      () => WebGpuBindingLayouts.of(_gpuDevice, pipeline),
+      refused: (String message) => _layoutRefusals.refuse(key, message),
+    );
+  }
+
+  /// The stage pairs whose bind group layouts were refused, and why — see
+  /// [_bindingsFor]. Kept for the device's life: a pair's modules are the
+  /// library's, and a reload that fixes a stage compiles new ones, which are
+  /// a new pair.
+  final WebGpuLayoutRefusals _layoutRefusals = WebGpuLayoutRefusals();
+
+  /// What [webgpuLayoutProblem] holds a layout to: the limits this device
+  /// was granted.
+  late final WebGpuLayoutLimits _layoutLimits = () {
+    final l = _gpuDevice.limits;
+    return (
+      maxBindGroups: l.maxBindGroups,
+      maxDynamicUniformBuffersPerPipelineLayout:
+          l.maxDynamicUniformBuffersPerPipelineLayout,
+      maxUniformBuffersPerShaderStage: l.maxUniformBuffersPerShaderStage,
+      maxSampledTexturesPerShaderStage: l.maxSampledTexturesPerShaderStage,
+      maxSamplersPerShaderStage: l.maxSamplersPerShaderStage,
+    );
+  }();
+
+  /// Why [pipeline]'s pair has no bind group layouts on this device, or null
+  /// when it has them or has not been asked for them yet.
+  String? _layoutRefusalOf(WebGpuPipeline pipeline) => _layoutRefusals.reasonOf(
+    _StagePairKey(pipeline.vertexModule, pipeline.fragmentModule),
+  );
+
+  /// Reports, on [pipelineRefusals] against [handle], that [pipeline]'s pair
+  /// has no bind group layouts — **once per pair**, not once per handle or
+  /// per draw. No rebuild changes a limit, so the pipeline is left refused at
+  /// once; a later handle over the same pair is skipped at its draws without
+  /// being told again.
+  void _tellLayoutRefusal(PipelineHandle handle, WebGpuPipeline pipeline) {
+    final reason = _layoutRefusals.tell(
+      _StagePairKey(pipeline.vertexModule, pipeline.fragmentModule),
+    );
+    if (reason == null) return;
+    pipelineRefusals.report(
+      handle,
+      PipelineRefusedException(
+        pipeline: handle.name,
+        backend: _backend,
+        reason: _isLost
+            ? PipelineRefusalReason.deviceLost
+            : PipelineRefusalReason.other,
+        detail: reason,
+      ),
+      retry: false,
+    );
+  }
 
   /// The sampler object for [options], made once per distinct description.
   ///
@@ -1447,7 +1534,10 @@ final class WebGpuDevice extends GraphicsDevice
       createWebGpuPipeline(vertex, fragment, layout: layout, owner: this),
     );
     final pipeline = handle.backend as WebGpuPipeline;
+    // A pair whose layouts are refused has nothing to warm: its draws are
+    // skipped, and the first of them reports why.
     final layouts = _bindingsFor(pipeline);
+    if (layouts == null) return handle;
     await Future.wait(<Future<void>>[
       for (final state in _drawStates.values.toList())
         _warm(pipeline, layouts, state.forPipeline(pipeline)),
@@ -2607,6 +2697,7 @@ fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
     _holders.clear();
     _drawStates.clear();
     _bindingLayouts.clear();
+    _layoutRefusals.clear();
     _samplers.clear();
     _bindGroups.clear();
     _conversionLayouts.clear();
@@ -2638,8 +2729,12 @@ extension WebGpuDeviceInternals on WebGpuDevice {
     Map<int, GPUSampler>? samplers,
   ) => _bindGroupFor(layouts, group, blocks, views, samplers);
   GPUSampler samplerFor(SamplerDescriptor options) => _samplerFor(options);
-  WebGpuBindingLayouts bindingsFor(WebGpuPipeline pipeline) =>
+  WebGpuBindingLayouts? bindingsFor(WebGpuPipeline pipeline) =>
       _bindingsFor(pipeline);
+  String? layoutRefusalOf(WebGpuPipeline pipeline) =>
+      _layoutRefusalOf(pipeline);
+  void tellLayoutRefusal(PipelineHandle handle, WebGpuPipeline pipeline) =>
+      _tellLayoutRefusal(handle, pipeline);
   void rememberDrawState(WebGpuDrawState state) => _rememberDrawState(state);
   T guard<T>(String what, T Function() body) => _guard(what, body);
   GPURenderPipeline? pipelineForDraw(
@@ -2650,14 +2745,11 @@ extension WebGpuDeviceInternals on WebGpuDevice {
 }
 
 /// The limits [WebGpuDevice.open] asks a device for: the [adapter]'s own
-/// value of each limit on what one stage binds, so a lit model's own
-/// textures and blocks have the room the adapter has rather than WebGPU's
-/// minimum. An adapter grants every value it reports, so the request never
-/// fails a device that would otherwise open.
-Map<String, int> webgpuRequiredLimits(
-  GPUSupportedLimits adapter,
-) => <String, int>{
-  'maxSampledTexturesPerShaderStage': adapter.maxSampledTexturesPerShaderStage,
-  'maxSamplersPerShaderStage': adapter.maxSamplersPerShaderStage,
-  'maxUniformBuffersPerShaderStage': adapter.maxUniformBuffersPerShaderStage,
-};
+/// value of each of [webgpuRequestedLimits], so a lit model's own textures
+/// and blocks have the room the adapter has rather than WebGPU's minimum. An
+/// adapter grants every value it reports, so the request never fails a
+/// device that would otherwise open.
+Map<String, int> webgpuRequiredLimits(GPUSupportedLimits adapter) =>
+    <String, int>{
+      for (final name in webgpuRequestedLimits) name: adapter.named(name),
+    };

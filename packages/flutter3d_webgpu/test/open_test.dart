@@ -24,6 +24,7 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_webgpu/engine_shaders.dart';
 import 'package:flutter3d_webgpu/src/webgpu_device.dart';
 import 'package:flutter3d_webgpu/src/webgpu_interop.dart';
+import 'package:flutter3d_webgpu/src/webgpu_layout_limits.dart';
 import 'package:flutter3d_webgpu/src/webgpu_shaders.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -181,9 +182,18 @@ void main() {
       // exactly that — the procedural sky takes its parameters through no
       // uniform block — so what is asserted is that the browser accepted the
       // layouts, not that there were any.
-      webgpu.bindingsFor(pipeline.backend as WebGpuPipeline);
+      final backend = pipeline.backend as WebGpuPipeline;
       expect(
-        await webgpu.debugDrainErrors(where: '$vertex+$fragment'),
+        webgpu.bindingsFor(backend),
+        isNotNull,
+        reason: '$vertex+$fragment is within the limits the device was given',
+      );
+      expect(await webgpu.debugDrainErrors(where: '$vertex+$fragment'), isNull);
+      // The browser's verdict on the layouts goes to the pair's refusal
+      // rather than the ledger, so it is asked for there, once the drain
+      // above has waited for it.
+      expect(
+        webgpu.layoutRefusalOf(backend),
         isNull,
         reason:
             'the bind group layouts come out of the bundle\'s reflection '
@@ -223,6 +233,18 @@ void main() {
       device.limits.maxUniformBuffersPerShaderStage,
       limits['maxUniformBuffersPerShaderStage'],
     );
-    (device as WebGpuDevice).dispose();
+    // Every limit asked for is the adapter's own on the device granted —
+    // the dynamic uniform blocks of one layout among them, which a device
+    // asked for none of kept at 8 where an M3's adapter had 10, and refused
+    // a pair of 9.
+    final granted = (device as WebGpuDevice).gpuDevice.limits;
+    for (final name in webgpuRequestedLimits) {
+      expect(granted.named(name), adapter.limits.named(name), reason: name);
+    }
+    expect(
+      granted.maxDynamicUniformBuffersPerPipelineLayout,
+      adapter.limits.maxDynamicUniformBuffersPerPipelineLayout,
+    );
+    device.dispose();
   });
 }
