@@ -142,6 +142,84 @@ void main() {
     expect(body.volume + fluid.volume, closeTo(total, total * 1e-12));
   });
 
+  test('liquid down on the floor is retired, and still counted', () {
+    // Spilt liquid lying on the floor is taken out of the solve. Its
+    // volume and what was dissolved in it go with it, and the world still
+    // counts it. Mutations: leave the retired out of `FluidWorld.volume`
+    // and a spill loses liquid; drop the amounts and a puddle has no
+    // colour.
+    final world = FluidWorld(
+      gravity: Vector3(0, -9.81, 0),
+      particleSpacing: 0.002,
+      floor: [PlaneObstacle(normal: Vector3(0, 1, 0), offset: 0)],
+    );
+    final fluid = world.particles['water'] = ParticleFluid(
+      medium: FluidMedium.water,
+      spacing: 0.002,
+    );
+    fluid.inject(
+      27 * fluid.particleVolume,
+      Vector3(0, 0.05, 0),
+      Vector3.zero(),
+      concentrations: {'dye': 3.0},
+    );
+    final total = world.volume;
+    // Down on the floor: on a floor with no friction a lone particle
+    // slides on for ever, so lying low, not lying still, is the test.
+    bool lying(Vector3 p, Vector3 v) => p.y < 0.006;
+    final retired = <RetiredParticles>[];
+    var first = double.infinity;
+    for (var frame = 0; frame < 120 && fluid.count > 0; frame++) {
+      world.advance(1 / 60);
+      final gone = fluid.retire(elapsed: 1 / 60, after: 0.25, settled: lying);
+      if (!gone.isEmpty) {
+        retired.add(gone);
+        first = math.min(first, frame / 60);
+      }
+    }
+    expect(fluid.count, 0, reason: 'all of it came down');
+    // Five centimetres is a tenth of a second's fall, and a quarter more
+    // lying low: nothing goes sooner.
+    expect(first, greaterThan(0.3));
+    for (final gone in retired) {
+      for (final p in gone.positions) {
+        expect(p.y, lessThan(0.006));
+      }
+    }
+    final volume = retired.fold(0.0, (s, r) => s + r.volume);
+    expect(volume, closeTo(27 * fluid.particleVolume, 1e-18));
+    expect(fluid.retired, closeTo(volume, 1e-18));
+    expect(world.volume, closeTo(total, total * 1e-12));
+    final dye = retired.fold(0.0, (s, r) => s + (r.amounts['dye'] ?? 0.0));
+    expect(dye, closeTo(3.0 * volume, 1e-15));
+  });
+
+  test('a particle the test lets go of starts its time again', () {
+    // Mutation: keep its time when the test fails, and a drop bouncing
+    // off the floor is retired in the air.
+    final fluid = ParticleFluid(medium: FluidMedium.water, spacing: 0.002)
+      ..inject(0.008e-6, Vector3.zero(), Vector3.zero());
+    var yes = false;
+    for (var i = 0; i < 100; i++) {
+      yes = !yes;
+      final gone = fluid.retire(
+        elapsed: 0.1,
+        after: 0.15,
+        settled: (_, _) => yes,
+      );
+      expect(gone.isEmpty, isTrue);
+    }
+    expect(
+      fluid.retire(elapsed: 0.1, after: 0.15, settled: (_, _) => true).isEmpty,
+      isTrue,
+    );
+    expect(
+      fluid.retire(elapsed: 0.1, after: 0.15, settled: (_, _) => true).volume,
+      closeTo(fluid.particleVolume, 1e-18),
+    );
+    expect(fluid.count, 0);
+  });
+
   group('a test tube, a millimetre a particle', () {
     // Sixteen millimetres across, half a millimetre of glass, a round
     // bottom: a lathe profile from the middle of the floor up the side.

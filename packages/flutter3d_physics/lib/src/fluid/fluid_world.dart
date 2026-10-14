@@ -85,11 +85,12 @@ final class FluidWorld {
   final Map<String, ParticleFluid> particles = {};
 
   /// Every cubic metre the world holds: in vessels, in the air, as
-  /// particles.
+  /// particles, and what was particles until `ParticleFluid.retire` took it
+  /// out to lie where it settled.
   double get volume =>
       bodies.fold(0.0, (s, b) => s + b.volume) +
       jets.values.fold(0.0, (s, j) => s + j.inFlight) +
-      particles.values.fold(0.0, (s, p) => s + p.volume);
+      particles.values.fold(0.0, (s, p) => s + p.volume + p.retired);
 
   double _carried = 0.0;
   int _ran = 0;

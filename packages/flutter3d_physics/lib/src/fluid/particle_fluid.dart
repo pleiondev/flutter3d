@@ -30,6 +30,39 @@ final class PlaneObstacle with JetObstacle {
   }
 }
 
+/// Particles [ParticleFluid.retire] took out: where each was, and what they
+/// carried between them.
+final class RetiredParticles {
+  RetiredParticles({
+    required this.positions,
+    required this.particleVolume,
+    this.amounts = const {},
+  });
+
+  /// None taken out.
+  static final RetiredParticles none = RetiredParticles(
+    positions: const [],
+    particleVolume: 0.0,
+  );
+
+  /// Where each particle was when it was taken out.
+  final List<Vector3> positions;
+
+  /// How much liquid each one was, in cubic metres.
+  final double particleVolume;
+
+  /// How much of each solute they carried between them: each one's
+  /// concentration times its volume, summed. Over [volume], their mixture's
+  /// concentrations.
+  final Map<String, double> amounts;
+
+  /// Cubic metres taken out: every particle.
+  double get volume => positions.length * particleVolume;
+
+  /// Whether none were taken out.
+  bool get isEmpty => positions.isEmpty;
+}
+
 /// Liquid that has left every vessel and stream — drops, splashes, a puddle
 /// on the bench — as particles: Position Based Fluids (Macklin and Müller,
 /// 2013).
@@ -55,8 +88,9 @@ final class PlaneObstacle with JetObstacle {
 ///
 /// **Every cubic metre is counted.** Liquid arrives by [inject] in any
 /// amount, and what is less than one particle waits in a bank until it is;
-/// what reaches a receiver leaves as whole particles. So [volume] — the
-/// particles and the bank — is exactly what came in less what left.
+/// what reaches a receiver leaves as whole particles, and so does what
+/// [retire] takes out. So [volume] — the particles and the bank — is exactly
+/// what came in less what was [received] and [retired].
 final class ParticleFluid {
   ParticleFluid({
     required this.medium,
@@ -136,6 +170,10 @@ final class ParticleFluid {
   final Map<String, double> _bankAmounts = {};
   double _bank = 0.0;
   double _received = 0.0;
+  double _retired = 0.0;
+
+  /// How long [retire]'s test has held of each particle, in seconds.
+  final List<double> _settled = [];
 
   /// The one landing every particle handed over goes in.
   final JetLanding _landing = JetLanding();
@@ -156,6 +194,73 @@ final class ParticleFluid {
 
   /// Cubic metres handed to receivers so far.
   double get received => _received;
+
+  /// Cubic metres [retire] has taken out so far.
+  double get retired => _retired;
+
+  /// Takes out every particle that [settled] has held true of for [after]
+  /// seconds running, and says where they were and what they carried.
+  ///
+  /// Meant to be called once a frame, [elapsed] being the seconds since the
+  /// last call: a particle [settled] holds true of has [elapsed] added to
+  /// its time, one it does not starts again from nought. [settled] is asked
+  /// with the particle's position and velocity, in vectors lent for the
+  /// call and reused for the next particle.
+  ///
+  /// **What this is for is cost.** Liquid spilt where nothing will gather
+  /// it up again — a puddle on a bench — is still a particle every step
+  /// solves for, and a solve that only ever gains particles only ever gets
+  /// slower. Taken out, it is whatever the caller draws in its place, and
+  /// costs nothing; the volume it was is counted in [retired], and
+  /// `FluidWorld.volume` still counts it.
+  ///
+  /// **Lying low, rather than lying still,** is what a caller usually
+  /// tests on a floor: a [PlaneObstacle] has no friction and no contact
+  /// angle, so a lone particle on one slides on at the speed it landed
+  /// with, and a test for stillness would never pass.
+  RetiredParticles retire({
+    required double elapsed,
+    required double after,
+    required bool Function(Vector3 position, Vector3 velocity) settled,
+  }) {
+    if (_x.isEmpty) return RetiredParticles.none;
+    final position = Vector3.zero();
+    final velocity = Vector3.zero();
+    final gone = <Vector3>[];
+    final amounts = <String, double>{};
+    final v = particleVolume;
+    var kept = 0;
+    for (var i = 0; i < _x.length; i++) {
+      final x = _x[i];
+      final u = _v[i];
+      position.setValues(x.x, x.y, x.z);
+      velocity.setValues(u.x, u.y, u.z);
+      final time = settled(position, velocity) ? _settled[i] + elapsed : 0.0;
+      if (time >= after) {
+        gone.add(x.toVector3());
+        _c[i].forEach((key, c) {
+          amounts[key] = (amounts[key] ?? 0.0) + c * v;
+        });
+        continue;
+      }
+      _x[kept] = x;
+      _v[kept] = u;
+      _c[kept] = _c[i];
+      _settled[kept] = time;
+      kept++;
+    }
+    if (gone.isEmpty) return RetiredParticles.none;
+    _x.length = kept;
+    _v.length = kept;
+    _c.length = kept;
+    _settled.length = kept;
+    _retired += gone.length * v;
+    return RetiredParticles(
+      positions: gone,
+      particleVolume: v,
+      amounts: amounts,
+    );
+  }
 
   /// Adds [amount] cubic metres at [position] moving at [velocity], with
   /// [concentrations] dissolved in it: as many whole particles as it and
@@ -199,6 +304,7 @@ final class ParticleFluid {
           );
           _v.add(_V(velocity.x, velocity.y, velocity.z));
           _c.add(carried);
+          _settled.add(0.0);
           placed++;
         }
       }
@@ -304,6 +410,7 @@ final class ParticleFluid {
         _x.removeAt(i);
         _v.removeAt(i);
         _c.removeAt(i);
+        _settled.removeAt(i);
         break;
       }
     }

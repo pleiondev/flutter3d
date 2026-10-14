@@ -1,3 +1,14 @@
+## 1.0.0-rc.1+1
+
+- **Spilt particles can be retired.** `ParticleFluid.retire` takes out the
+  particles a caller's test has held true of for a given time, a puddle
+  lying on a bench, say, and hands back where they were and what they
+  carried as `RetiredParticles` (new). A solve that only ever gained
+  particles only ever got slower: spilt again and again, a chemistry bench
+  went from sixty frames a second to one. `ParticleFluid.retired` counts
+  what was taken out, and `FluidWorld.volume` still includes it. Additive:
+  nothing that worked against 1.0.0-rc.1 changes.
+
 ## 1.0.0-rc.1
 
 - **A contact's ids read back.** `CollisionWorld.colliderOf(id)` is
