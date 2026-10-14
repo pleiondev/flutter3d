@@ -41,7 +41,7 @@ dev_dependencies:
 Set `FLTEnableFlutterGPU` and `FLTEnableImpeller` in `macos/Runner/Info.plist`. That is the whole of the setup: the shader bundle rides inside `flutter3d_impeller` and is loaded from there, so a project installed from pub.dev has nothing to build. The [quickstart](/quickstart/) covers the plist keys, and its bundle step is for the checkout it opens with.
 
 <div class="warn">
-<p>The versions come from <a href="https://pub.dev/publishers/pleion.dev/packages">pub.dev</a>. Every line is on the same set, the release candidate 1.0.0-rc.1, and the lines have to agree: <code>flutter3d_app</code> 1.0.0-rc.1 asks for <code>flutter3d</code> ^1.0.0-rc.1, so one package left on 0.8.0 stops <code>pub get</code>. To work against a checkout instead, for engine changes of your own, swap each line for a <code>path:</code> into it. <a href="/first-project/">Your first project</a> covers the deployment-target trap that lives beside the pubspec.</p>
+<p>The versions come from <a href="https://pub.dev/publishers/pleion.dev/packages">pub.dev</a>. Every line is on the same set, the release candidate 1.0.0-rc.1, and the lines have to agree: <code>flutter3d_app</code> 1.0.0-rc.1 asks for <code>flutter3d</code> <code>'&gt;=1.0.0-rc.1 &lt;1.1.0'</code>, so one package left on 0.8.0 stops <code>pub get</code>. To work against a checkout instead, for engine changes of your own, swap each line for a <code>path:</code> into it. <a href="/first-project/">Your first project</a> covers the deployment-target trap that lives beside the pubspec.</p>
 </div>
 
 ## Decide what a weapon is {.step}

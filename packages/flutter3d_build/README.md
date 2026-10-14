@@ -5,7 +5,7 @@ assets. It converts model and texture sources into what the engine loads, and
 it does so on every build, so nobody has to remember to run a separate step.
 
 ```sh
-dart pub add dev:flutter3d_build
+dart pub add dev:flutter3d_build:^1.0.0-rc.1
 dart run flutter3d_build:init          # hook/build.dart, pubspec, .gitignore
 dart run flutter3d_build:init --check  # say what a run would change, change nothing
 ```
@@ -26,7 +26,7 @@ BC, ASTC, ETC2 or RGBA8 when the texture is uploaded.
 ## The `flutter3d` command
 
 ```sh
-dart pub global activate flutter3d_build
+dart pub global activate flutter3d_build 1.0.0-rc.1
 flutter3d help
 ```
 

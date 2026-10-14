@@ -14,7 +14,7 @@ and scenes and prefabs as level documents with `prefabs`. It is the
 `flutter3d` command from `flutter3d_build`:
 
 ```sh
-dart pub global activate flutter3d_build
+dart pub global activate flutter3d_build 1.0.0-rc.1
 flutter3d doctor                       # what is installed, and what is missing
 flutter3d convert MyUnityGame/Assets/Prefabs/Crate.prefab -o assets_src/imported
 flutter3d convert 'MyGodotGame/**.tscn' -o assets_src/imported --dry-run

@@ -20,7 +20,7 @@ Every public name of every published package is in a committed snapshot under th
 
 The command line is held the same way. `flutter3d help --surface` prints every subcommand, flag and `--json` key, `api/flutter3d_build.cli` commits that list, and the structure check fails when the two differ, because a CI script calling `flutter3d convert` compiles against nothing and would otherwise find out last.
 
-The published packages, all but `pad_input` and `flutter3d_pointer_lock`, are at one version, `1.0.0-rc.1`, and move together at a minor or a major. A patch goes only to the package that needs it, so after 1.0.0 you may see `flutter3d_impeller` at 1.0.1 beside the rest at 1.0.0, and every `^1.0.0` reaches it. [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md) has the version policy in full, and which platforms each backend is supported on.
+The published packages, all but `pad_input` and `flutter3d_pointer_lock`, are at one version, `1.0.0-rc.1`, and move together at a minor or a major. A patch goes only to the package that needs it: `flutter3d_impeller` is already at `1.0.0-rc.1+1`, the same code with the shader bundle its sources compile to, which `^1.0.0-rc.1` picks over the first upload. After 1.0.0 you may likewise see `flutter3d_impeller` at 1.0.1 beside the rest at 1.0.0, and every `^1.0.0` reaches it. [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md) has the version policy in full, and which platforms each backend is supported on.
 
 ## Four backends behind one HAL
 
