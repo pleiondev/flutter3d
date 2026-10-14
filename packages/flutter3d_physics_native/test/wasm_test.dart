@@ -192,6 +192,43 @@ process.exit(0);
 })();
 ''';
 
+/// Two shallow waters of different sizes and a boat in one of them, 900
+/// steps, one water dropped and made again every thirty: the heap's size
+/// at step 150 and at the end, as JSON.
+const String _heapRunner = r'''
+const fs = require('fs');
+const f = new WebAssembly.Instance(
+  new WebAssembly.Module(fs.readFileSync(process.argv[2])), {}).exports;
+const world = f.f3d_world_create();
+f.f3d_world_set_gravity(world, 0, -9.81, 0);
+const reach = (nx, nz, z) => {
+  const ground = f.f3d_buffer_alloc(nx * nz * 4);
+  const g = new Float32Array(f.memory.buffer, ground, nx * nz);
+  for (let c = 0; c < nx * nz; c++) g[c] = (c % nx) < 3 || (c % nx) > nx - 4 ? 2 : 0;
+  const w = f.f3d_shallow_create(world, nx, nz, 0.5, 0, 0, z, ground);
+  f.f3d_buffer_free(ground);
+  if (!w) throw new Error('no water');
+  f.f3d_shallow_fill(world, w, 0, 0, nx * 0.5, nz * 0.5, 1);
+  f.f3d_shallow_set_source(world, w, 0, nx * 0.25, 2, 1, 2);
+  f.f3d_shallow_set_source(world, w, 1, nx * 0.25, nz * 0.5 - 2, 1, -2);
+  return w;
+};
+const boat = f.f3d_body_create(world, 0, 5, 1.2, 5, 200);
+f.f3d_body_set_shape(world, boat, 2, 0.5, 0.3, 1);
+const live = [reach(24, 40, 0), reach(30, 48, 30)];
+let made = 0, warm = 0;
+for (let s = 1; s <= 900; s++) {
+  f.f3d_world_step(world, 1 / 60);
+  if (s % 30 === 0) {
+    f.f3d_shallow_destroy(world, live.shift());
+    made++;
+    live.push(made % 2 ? reach(24, 40, 0) : reach(30, 48, 30));
+  }
+  if (s === 150) warm = f.memory.buffer.byteLength;
+}
+console.log(JSON.stringify({ warm, end: f.memory.buffer.byteLength }));
+''';
+
 bool _available(String executable, List<String> args) {
   try {
     return Process.runSync(executable, args).exitCode == 0;
@@ -248,6 +285,45 @@ void main() {
     addTearDown(() => scratch.deleteSync(recursive: true));
     _sameBits('web/f3d_physics_threads.wasm', scratch, threads: 4);
   }, skip: _available('node', <String>['--version']) ? false : 'no node');
+
+  // Shallow water takes its scratch for a step and gives it back at the end
+  // of it, in sizes that differ from one water to the next, and a game
+  // drops waters and makes new ones as it goes. The module's own allocator
+  // has to give that memory back whole: one that only split its free blocks
+  // grew the heap every step and scanned every piece of it on each request,
+  // which was River Sortie running down to a few frames a second in the
+  // browser while the native build, on the C library's allocator, did not.
+  //
+  // Mutation: take the merging out of `free_held` in f3d_memory_wasm.c —
+  // the heap grows from sixteen megabytes to eighty-seven here.
+  for (final shipped in <bool>[false, true]) {
+    test(
+      shipped
+          ? 'the shipped module steps water in a heap that holds still'
+          : 'a stepping world with water holds the heap still',
+      () {
+        final scratch = Directory.systemTemp.createTempSync('f3d_wasm_test');
+        addTearDown(() => scratch.deleteSync(recursive: true));
+        final wasm = shipped
+            ? 'web/f3d_physics.wasm'
+            : '${scratch.path}/f3d.wasm';
+        if (!shipped) buildWasm(root: Directory.current.path, out: wasm);
+        final runner = File('${scratch.path}/heap.js')
+          ..writeAsStringSync(_heapRunner);
+        final ran = Process.runSync('node', <String>[runner.path, wasm]);
+        expect(ran.exitCode, 0, reason: '${ran.stderr}');
+        final heap = jsonDecode('${ran.stdout}'.trim()) as Map<String, dynamic>;
+        expect(
+          heap['end'],
+          heap['warm'],
+          reason: 'linear memory after 900 steps against after 150, bytes',
+        );
+      },
+      skip: shipped
+          ? (_available('node', <String>['--version']) ? false : 'no node')
+          : (missing.isEmpty ? false : 'no ${missing.join(', ')}'),
+    );
+  }
 
   test('the module imports nothing and exports the API and the shim', () {
     final scratch = Directory.systemTemp.createTempSync('f3d_wasm_test');

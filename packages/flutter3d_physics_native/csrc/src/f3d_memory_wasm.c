@@ -1,12 +1,24 @@
 /*
  * Memory for the WebAssembly build, which has no C library — P9.
  *
- * A first-fit free list over linear memory grown a page at a time. Every
- * block has a header holding its size; a freed block goes back on the list
- * and is split when a smaller request fits it, merged with nothing. That is
- * enough for a physics world, which allocates a few growing arrays and
- * frees them when the world goes, and it keeps the module free of every
- * import: the page count and the bytes are all it touches.
+ * A first-fit free list over linear memory grown a page at a time, kept in
+ * address order. Every block has a header holding its size; a freed block
+ * goes back on the list in its place and is merged with a free neighbour on
+ * either side, and one that ends at the top of what was handed out lowers
+ * the top instead. It keeps the module free of every import: the page count
+ * and the bytes are all it touches.
+ *
+ * **The merging is not optional.** A world does not only allocate a few
+ * arrays and free them when it goes: shallow water and the particle liquid
+ * take their scratch for a step and give it back at the end of it, every
+ * step, in sizes that differ from step to step and from one water to the
+ * next. A list that only ever split blocks cut that memory into pieces too
+ * small for the next step's requests; each step then scanned every piece
+ * before growing memory past them, so the scan and the heap grew without
+ * end — River Sortie's water reached a gigabyte and a second's work for two
+ * seconds of play inside a few minutes, in the browser alone, since the
+ * native build has the C library's allocator. wasm_test holds the heap of
+ * a stepping world still.
  *
  * memset and memcpy are here too, because clang emits calls to them for
  * struct copies and zeroing whatever the source says.
@@ -79,19 +91,26 @@ static void lock(void) {}
 static void unlock(void) {}
 #endif
 
+/* The first byte past [b]: its neighbour's header, or the top. */
+static unsigned char *end_of(Block *b) {
+  return (unsigned char *)b + HEADER + b->size;
+}
+
 static void *alloc_held(size_t bytes) {
   const size_t size = round_up(bytes == 0 ? 1 : bytes);
   Block **link = &g_free;
   for (Block *b = g_free; b != NULL; link = &b->next_free, b = b->next_free) {
     if (b->size < size) continue;
-    *link = b->next_free;
     if (b->size >= size + HEADER + F3D_ALIGN) {
-      /* Split: the rest goes back on the list as a block of its own. */
+      /* Split: the rest stays on the list in b's place, which keeps the
+       * list in address order since the rest is above b. */
       Block *rest = (Block *)((unsigned char *)b + HEADER + size);
       rest->size = b->size - size - HEADER;
-      rest->next_free = g_free;
-      g_free = rest;
+      rest->next_free = b->next_free;
+      *link = rest;
       b->size = size;
+    } else {
+      *link = b->next_free;
     }
     return (unsigned char *)b + HEADER;
   }
@@ -106,8 +125,43 @@ static void *alloc_held(size_t bytes) {
 static void free_held(void *block) {
   if (block == NULL) return;
   Block *b = (Block *)((unsigned char *)block - HEADER);
-  b->next_free = g_free;
-  g_free = b;
+  /* Its place in the list: after every free block below it. */
+  Block *prev = NULL;
+  Block *next = g_free;
+  while (next != NULL && next < b) {
+    prev = next;
+    next = next->next_free;
+  }
+  /* Merged with the free block above it, then with the one below. */
+  if (next != NULL && end_of(b) == (unsigned char *)next) {
+    b->size += HEADER + next->size;
+    next = next->next_free;
+  }
+  if (prev != NULL && end_of(prev) == (unsigned char *)b) {
+    prev->size += HEADER + b->size;
+    b = prev;
+  } else if (prev != NULL) {
+    prev->next_free = b;
+  } else {
+    g_free = b;
+  }
+  b->next_free = next;
+  /* The highest block handed out, back: the top comes down to it, so the
+   * next request larger than every free block grows from there and not
+   * from above it. Being the highest, it is the last on the list. */
+  if (end_of(b) == g_top) {
+    g_top = (unsigned char *)b;
+    if (prev == b) {
+      /* It merged into prev, which is still linked from below. */
+      Block **link = &g_free;
+      while (*link != b) link = &(*link)->next_free;
+      *link = NULL;
+    } else if (prev != NULL) {
+      prev->next_free = NULL;
+    } else {
+      g_free = NULL;
+    }
+  }
 }
 
 void *f3d_alloc(size_t bytes) {
