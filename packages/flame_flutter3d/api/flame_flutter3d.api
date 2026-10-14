@@ -573,10 +573,11 @@ base class Scale3dEffect extends ComponentEffect<Node3dComponent>
 base class SpriteBillboardComponent extends Object3dComponent
   Future<void> onLoad()
   Sprite get currentSprite
-  SpriteBillboardComponent({Sprite? sprite, SpriteAnimation? animation, required this.device, required super.scene, required super.plane, BillboardAtlas? atlas, this.cardHeight = 1.0, this.upright = true, this.faces, this.removeOnFinish = false, this.smooth = false, super.position, super.elevation, super.priority})
+  SpriteBillboardComponent({Sprite? sprite, SpriteAnimation? animation, required this.device, required super.scene, required super.plane, BillboardAtlas? atlas, this.cardHeight = 1.0, this.upright = true, this.faces, this.removeOnFinish = false, this.smooth = false, this.castsShadow = true, super.position, super.elevation, super.priority})
   final CameraNode? faces
   final GraphicsDevice device
   final SpriteAnimationTicker? ticker
+  final bool castsShadow
   final bool removeOnFinish
   final bool smooth
   final bool upright

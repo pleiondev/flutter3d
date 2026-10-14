@@ -233,6 +233,9 @@ extension RiverGameStaging on RiverGame {
       scene: _scene,
       plane: RiverGame.river,
       cardHeight: 1.1 + random.nextDouble() * 0.6,
+      // A reed's shadow is a few pixels of grass; a hundred of them were
+      // two thirds of the shadow pass, a draw apiece in every cascade.
+      castsShadow: false,
       position: Vector2(x, -distance),
       elevation: landHeight - 0.05,
     );
