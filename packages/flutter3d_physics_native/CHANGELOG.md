@@ -1,3 +1,22 @@
+## 1.0.0-rc.1+1
+
+- **A water's columns can be stepped elsewhere.**
+  `NativeWorld.setShallowExternal` hands a shallow water's columns to a step
+  run somewhere else — a GPU, given the same scheme as kernels
+  (`shallowWaterKernels`, new) — while the core keeps the bodies standing in
+  it, its springs and outlets, the spray off its lips and the slope's push
+  on the bodies. What the core does to the water is handed over as changes
+  (`drainShallowExternal`, `NativeShallowExternal`), the state stepped there
+  is mirrored back (`putShallowState`) and what went over the lips is thrown
+  as the core throws its own (`throwShallowLips`), so no water is made or
+  lost however late the mirror is. `doc/gpu_water.md` says how, and what
+  the GPU step differs by. ABI 42. Additive: a water nobody hands over is
+  stepped as it was, bit for bit.
+- **The browser's core copies blocks of floats in one go.** Reading a
+  water's surface or writing a block into the core went a float a call
+  through a `DataView`; a typed array's own copy now moves the range, and a
+  block is zeroed at once.
+
 ## 1.0.0-rc.1
 
 - **The browser's physics core gives back what a step borrowed.** The

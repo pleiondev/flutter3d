@@ -420,6 +420,39 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber water,
     JSNumber velocity,
   );
+  @JS('f3d_shallow_set_external')
+  external JSNumber f3d_shallow_set_external(
+    JSNumber world,
+    JSNumber water,
+    JSNumber on,
+  );
+  @JS('f3d_shallow_take_external')
+  external JSNumber f3d_shallow_take_external(
+    JSNumber world,
+    JSNumber water,
+    JSNumber changes,
+    JSNumber filled,
+    JSNumber params,
+  );
+  @JS('f3d_shallow_read_state')
+  external JSNumber f3d_shallow_read_state(
+    JSNumber world,
+    JSNumber water,
+    JSNumber out,
+  );
+  @JS('f3d_shallow_put_state')
+  external JSNumber f3d_shallow_put_state(
+    JSNumber world,
+    JSNumber water,
+    JSNumber state,
+  );
+  @JS('f3d_shallow_throw_lips')
+  external JSNumber f3d_shallow_throw_lips(
+    JSNumber world,
+    JSNumber water,
+    JSNumber lips,
+    JSNumber dt,
+  );
   @JS('f3d_shallow_volume')
   external JSNumber f3d_shallow_volume(
     JSNumber world,
@@ -1982,6 +2015,31 @@ int f3d_shallow_read(int world, int water, int surface, int depth) => _x
     .toDartInt;
 int f3d_shallow_read_flow(int world, int water, int velocity) =>
     _x.f3d_shallow_read_flow(world.toJS, water.toJS, velocity.toJS).toDartInt;
+int f3d_shallow_set_external(int world, int water, int on) =>
+    _x.f3d_shallow_set_external(world.toJS, water.toJS, on.toJS).toDartInt;
+int f3d_shallow_take_external(
+  int world,
+  int water,
+  int changes,
+  int filled,
+  int params,
+) => _x
+    .f3d_shallow_take_external(
+      world.toJS,
+      water.toJS,
+      changes.toJS,
+      filled.toJS,
+      params.toJS,
+    )
+    .toDartInt
+    .toUnsigned(32);
+int f3d_shallow_read_state(int world, int water, int out) =>
+    _x.f3d_shallow_read_state(world.toJS, water.toJS, out.toJS).toDartInt;
+int f3d_shallow_put_state(int world, int water, int state) =>
+    _x.f3d_shallow_put_state(world.toJS, water.toJS, state.toJS).toDartInt;
+int f3d_shallow_throw_lips(int world, int water, int lips, double dt) => _x
+    .f3d_shallow_throw_lips(world.toJS, water.toJS, lips.toJS, dt.toJS)
+    .toDartInt;
 int f3d_shallow_volume(int world, int water, int held, int lost) => _x
     .f3d_shallow_volume(world.toJS, water.toJS, held.toJS, lost.toJS)
     .toDartInt;

@@ -132,6 +132,93 @@ static Grid grid_of(const F3dWorld *world, F3dShallowSlot *w) {
   return g;
 }
 
+/* ------------------------------------------------- stepped elsewhere */
+
+/* A water whose columns are stepped elsewhere: its depths and velocities
+ * when the core last began touching them, what it has done to them since
+ * they were last taken, whether it was set outright, whether bodies filled
+ * any of it when last taken, and the seconds stepped since. */
+typedef struct F3dShallowExt {
+  f3d_real *before;
+  f3d_real *changes;
+  uint32_t length;
+  uint32_t reset;
+  uint32_t filled;
+  uint32_t open;
+  f3d_real seconds;
+} F3dShallowExt;
+
+/* The reals a water's depths and velocities take: nx·nz + faces. */
+static uint32_t state_of(uint32_t nx, uint32_t nz) {
+  return nx * nz + (nx + 1u) * nz + nx * (nz + 1u);
+}
+
+/* Water [k], by index, when it is stepped elsewhere; null otherwise. */
+static F3dShallowExt *external_at(const F3dWorld *world, uint32_t k) {
+  if (k >= world->shallow_ext_count || world->shallow_ext == NULL) return NULL;
+  return world->shallow_ext[k];
+}
+
+/* The core started touching water [k] from outside a step. */
+static void external_begin(F3dWorld *world, uint32_t k) {
+  F3dShallowExt *e = external_at(world, k);
+  if (e == NULL || !world->shallows[k].live) return;
+  const F3dShallowSlot *w = &world->shallows[k];
+  f3d_copy(e->before, world->shallow_data + w->first + w->nx * w->nz,
+           (size_t)e->length * sizeof(f3d_real));
+  e->open = 1u;
+}
+
+/* What it did since [external_begin], added to the changes handed over. */
+static void external_end(F3dWorld *world, uint32_t k) {
+  F3dShallowExt *e = external_at(world, k);
+  if (e == NULL || !e->open) return;
+  e->open = 0u;
+  const F3dShallowSlot *w = &world->shallows[k];
+  const f3d_real *now = world->shallow_data + w->first + w->nx * w->nz;
+  for (uint32_t i = 0; i < e->length; i++) e->changes[i] += now[i] - e->before[i];
+}
+
+/* Water [k] was set outright: its whole state is sent again. */
+static void external_reset(F3dWorld *world, F3dShallow water) {
+  F3dShallowExt *e = water == 0 ? NULL : external_at(world, water - 1u);
+  if (e == NULL) return;
+  e->reset = 1u;
+  f3d_zero(e->changes, (size_t)e->length * sizeof(f3d_real));
+}
+
+static void external_free(F3dWorld *world, uint32_t k) {
+  F3dShallowExt *e = external_at(world, k);
+  if (e == NULL) return;
+  f3d_free(e->before);
+  f3d_free(e->changes);
+  f3d_free(e);
+  world->shallow_ext[k] = NULL;
+}
+
+void f3d_shallow_free_external(F3dWorld *world) {
+  for (uint32_t k = 0; k < world->shallow_ext_count; k++) external_free(world, k);
+  f3d_free(world->shallow_ext);
+  world->shallow_ext = NULL;
+  world->shallow_ext_count = 0;
+}
+
+void f3d_shallow_external_restored(F3dWorld *world) {
+  for (uint32_t k = 0; k < world->shallow_ext_count; k++) {
+    F3dShallowExt *e = external_at(world, k);
+    if (e == NULL) continue;
+    const F3dShallowSlot *w = k < world->s.shallow_count ? &world->shallows[k] : NULL;
+    if (w == NULL || !w->live || state_of(w->nx, w->nz) != e->length) {
+      external_free(world, k);
+      continue;
+    }
+    e->reset = 1u;
+    e->open = 0u;
+    e->seconds = F3D_R(0.0);
+    f3d_zero(e->changes, (size_t)e->length * sizeof(f3d_real));
+  }
+}
+
 /* What pulls the water down: gravity's part along −y. */
 static f3d_real gravity_down(const F3dWorld *world) {
   return f3d_max(-world->s.gravity.y, F3D_R(0.0));
@@ -351,6 +438,7 @@ int f3d_shallow_destroy(F3dWorld *world, F3dShallow water) {
   F3dShallowSlot *w = water_of(world, water);
   if (w == NULL) return 0;
   dry_bodies(world, water);
+  external_free(world, water - 1u);
   /* Its reals closed up: every later water's move down by its share. */
   const uint32_t size = reals_of(w->nx, w->nz);
   const uint32_t from = w->first + size;
@@ -390,6 +478,7 @@ int f3d_shallow_set_ground(F3dWorld *world, F3dShallow water,
   }
   Grid g = grid_of(world, w);
   f3d_copy(g.ground, ground, (size_t)g.n * sizeof(f3d_real));
+  external_reset(world, water);
   wake(w);
   return 1;
 }
@@ -415,6 +504,7 @@ int f3d_shallow_fill(F3dWorld *world, F3dShallow water, f3d_real x0, f3d_real z0
       g.depth[c] = f3d_max(level - g.ground[c], F3D_R(0.0));
     }
   }
+  external_reset(world, water);
   wake(w);
   return 1;
 }
@@ -459,6 +549,7 @@ uint32_t f3d_shallow_fill_basin(F3dWorld *world, F3dShallow water, f3d_real x,
   }
   f3d_free(queue);
   f3d_free(seen);
+  external_reset(world, water);
   wake(w);
   return tail;
 }
@@ -471,6 +562,7 @@ int f3d_shallow_set_depth(F3dWorld *world, F3dShallow water, const f3d_real *dep
   }
   Grid g = grid_of(world, w);
   for (uint32_t c = 0; c < g.n; c++) if (!walled(&g, c)) g.depth[c] = depth[c];
+  external_reset(world, water);
   wake(w);
   return 1;
 }
@@ -523,7 +615,11 @@ int f3d_shallow_pour(F3dWorld *world, F3dShallow water, f3d_real x, f3d_real z,
     return 0;
   }
   Grid g = grid_of(world, w);
+  /* Stepped elsewhere, what it pours is handed over as a change. */
+  const int outside = external_at(world, water - 1u) != NULL && !external_at(world, water - 1u)->open;
+  if (outside) external_begin(world, water - 1u);
   spread(&g, x, z, radius, volume);
+  if (outside) external_end(world, water - 1u);
   wake(w);
   return 1;
 }
@@ -615,6 +711,7 @@ int f3d_shallow_set_cells(F3dWorld *world, F3dShallow water,
   if (walls != NULL) {
     for (uint32_t c = 0; c < g.n; c++) g.wall[c] = walls[c] ? F3D_R(1.0) : F3D_R(0.0);
   }
+  external_reset(world, water);
   wake(w);
   return 1;
 }
@@ -1972,15 +2069,11 @@ static f3d_real edge_share(const Grid *g, const f3d_real *weights, uint32_t side
   return total * h * r * r / weights[side];
 }
 
-/* One substep of [h] seconds. Whether any face's flow had to be held to
- * the most a substep allows, into [held]. */
-static void substep(F3dWorld *world, Grid *g, Lip *lip, Shove *shove, f3d_real h,
-                    f3d_real *u_old, f3d_real *w_old, f3d_real *out,
-                    int *held, int *drained) {
+/* 1. The springs well up, and the outlets take what their weirs pass, over
+ * [h] seconds. */
+static void wells(F3dWorld *world, Grid *g, f3d_real h, int *drained) {
   F3dShallowSlot *ws = g->slot;
-  const uint32_t nx = g->nx, nz = g->nz, ux = nx + 1u;
   const f3d_real gravity = gravity_down(world);
-  /* 1. The springs. */
   for (uint32_t k = 0; k < ws->source_count; k++) {
     const F3dShallowSource *s = &ws->sources[k];
     if (s->rate != F3D_R(0.0)) spread(g, s->x, s->z, s->radius, s->rate * h);
@@ -2019,6 +2112,17 @@ static void substep(F3dWorld *world, Grid *g, Lip *lip, Shove *shove, f3d_real h
     ws->lost += taken;
     if (taken > F3D_R(0.0)) *drained = 1;
   }
+}
+
+/* One substep of [h] seconds. Whether any face's flow had to be held to
+ * the most a substep allows, into [held]. */
+static void substep(F3dWorld *world, Grid *g, Lip *lip, Shove *shove, f3d_real h,
+                    f3d_real *u_old, f3d_real *w_old, f3d_real *out,
+                    int *held, int *drained) {
+  F3dShallowSlot *ws = g->slot;
+  const uint32_t nx = g->nx, nz = g->nz, ux = nx + 1u;
+  const f3d_real gravity = gravity_down(world);
+  wells(world, g, h, drained);
   f3d_real weights[4];
   edge_weights(g, weights);
   /* 2. The velocities carried along themselves, conserving momentum
@@ -2776,15 +2880,312 @@ static f3d_real most_energy(const Grid *g, f3d_real gravity) {
   return most;
 }
 
+/* As many substeps as keep a wave or the flow within a quarter of a cell
+ * each, and the fluid's own viscosity from spreading a cell's momentum
+ * further than a quarter of it (the explicit scheme's bound, ν·h/Δx² ≤
+ * 1/4); past the most a step is cut into, [held]. */
+static uint32_t substeps_for(const F3dWorld *world, const Grid *g, f3d_real dt,
+                             int *held) {
+  const F3dShallowSlot *ws = g->slot;
+  const f3d_real gravity = gravity_down(world);
+  f3d_real fastest = F3D_R(0.0), deepest = F3D_R(0.0);
+  for (uint32_t f = 0; f < (g->nx + 1u) * g->nz; f++) fastest = f3d_max(fastest, f3d_abs(g->u[f]));
+  for (uint32_t f = 0; f < g->nx * (g->nz + 1u); f++) fastest = f3d_max(fastest, f3d_abs(g->w[f]));
+  for (uint32_t c = 0; c < g->n; c++) deepest = f3d_max(deepest, g->depth[c] + g->filled[c] / g->area);
+  const f3d_real wave = fastest + f3d_sqrt(gravity * deepest);
+  f3d_real longest = F3D_R(0.25) * g->cell * g->cell * ws->density / ws->viscosity;
+  if (wave > F3D_R(0.0)) longest = f3d_min(longest, F3D_R(0.25) * g->cell / wave);
+  uint32_t count = 1;
+  while ((f3d_real)count * longest < dt && count < F3D_SHALLOW_MOST_SUBSTEPS) count++;
+  *held = (f3d_real)count * longest < dt;
+  return count;
+}
+
+/* What the water's slope gave each body over [dt], at the middle of what it
+ * holds up. */
+static void apply_shove(F3dWorld *world, const F3dShallowSlot *ws, const Shove *shove,
+                        f3d_real dt) {
+  for (uint32_t b = 0; b < world->s.used; b++) {
+    const f3d_real *p = shove->push + (size_t)b * SHOVE_REALS;
+    if (p[0] == F3D_R(0.0) && p[1] == F3D_R(0.0)) continue;
+    F3dSlot *s = &world->slots[b];
+    const F3dVec3 force = f3d_v3(p[0] / dt, F3D_R(0.0), p[1] / dt);
+    const F3dVec3 arm = f3d_sub(f3d_add(ws->origin, f3d_v3(p[2], p[3], p[4])), s->position);
+    s->force = f3d_add(s->force, force);
+    s->torque = f3d_add(s->torque, f3d_cross(arm, force));
+  }
+}
+
+/* Each face of a lip throws what went over it in a step of [dt] as one
+ * piece of sheet, as wide as the face, at the speed it went over with, from
+ * the middle of the sheet's thickness at the lip. With no room for it, the
+ * water stays on the lip for the next step — and, for a water stepped
+ * elsewhere, goes into [back], the depths' changes handed over. Whether
+ * any went over. */
+static int throw_sheets(F3dWorld *world, Grid *g, uint32_t k, const Lip *lip,
+                        uint32_t faces, f3d_real dt, f3d_real *back) {
+  const F3dShallowSlot *ws = g->slot;
+  const uint32_t ux = g->nx + 1u;
+  int over = 0;
+  for (uint32_t fi = 0; fi < faces; fi++) {
+    const f3d_real volume = lip->volume[fi];
+    if (!(volume > F3D_R(0.0))) continue;
+    over = 1;
+    const F3dVec3 velocity = f3d_scale(lip->push[fi], F3D_R(1.0) / volume);
+    const f3d_real speed = f3d_sqrt(f3d_dot(velocity, velocity));
+    const uint32_t from = lip->from[fi];
+    const int x_face = fi < ux * g->nz;
+    const uint32_t f = x_face ? fi : fi - ux * g->nz;
+    const f3d_real fx = x_face ? (f3d_real)(f % ux) : (f3d_real)(f % g->nx) + F3D_R(0.5);
+    const f3d_real fz = x_face ? (f3d_real)(f / ux) + F3D_R(0.5) : (f3d_real)(f / g->nx);
+    F3dSpray d;
+    f3d_zero(&d, sizeof d);
+    d.water = k + 1u;
+    d.kind = F3D_SPRAY_SHEET;
+    d.face = fi + 1u;
+    d.volume = volume;
+    d.velocity = velocity;
+    d.flow = volume / dt;
+    d.width = g->cell;
+    d.speed0 = speed;
+    const f3d_real thick = speed > F3D_R(0.0) ? d.flow / (d.width * speed) : F3D_R(0.0);
+    d.at = f3d_add(ws->origin, f3d_v3(fx * g->cell,
+                                      g->ground[from] + F3D_R(0.5) * thick,
+                                      fz * g->cell));
+    d.top = d.at.y;
+    if (!add_spray(world, &d)) {
+      g->depth[from] += volume / g->area;
+      if (back != NULL) back[from] += volume / g->area;
+    }
+  }
+  return over;
+}
+
+/* What the water's slope pushes the bodies standing in it with over [dt],
+ * from the mirror as it stands: step 3's share, face by face, taken once
+ * for the step rather than once a substep. */
+static void shove_faces(const F3dWorld *world, const Grid *g, Shove *shove, f3d_real dt) {
+  const F3dShallowSlot *ws = g->slot;
+  const f3d_real gravity = gravity_down(world);
+  const uint32_t nx = g->nx, nz = g->nz;
+  for (int axis = 0; axis < 2; axis++) {
+    const uint32_t fx_count = axis == 0 ? nx + 1u : nx;
+    const uint32_t fz_count = axis == 0 ? nz : nz + 1u;
+    for (uint32_t j = 0; j < fz_count; j++) {
+      for (uint32_t i = 0; i < fx_count; i++) {
+        if (axis == 0 ? (i == 0 || i == nx) : (j == 0 || j == nz)) continue;
+        const uint32_t a = axis == 0 ? (i - 1u) + j * nx : i + (j - 1u) * nx;
+        const uint32_t b = i + j * nx;
+        if (!(g->filled[a] > F3D_R(0.0) || g->filled[b] > F3D_R(0.0))) continue;
+        const f3d_real da = g->depth[a], db = g->depth[b];
+        if (walled(g, a) || walled(g, b) ||
+            (!(da > F3D_SHALLOW_DRY) && !(db > F3D_SHALLOW_DRY))) {
+          continue;
+        }
+        if (brink(g, a, b) || brink(g, b, a)) continue;
+        const f3d_real k = ws->density * gravity * dt * F3D_R(0.5) * (da + db) * g->cell / g->area;
+        const uint32_t pa = shove->owner[a], pb = shove->owner[b];
+        const uint32_t m = axis == 0 ? 0u : 1u;
+        if (pb != 0) shove->push[(size_t)(pb - 1u) * SHOVE_REALS + m] += k * g->filled[b];
+        if (pa != 0) shove->push[(size_t)(pa - 1u) * SHOVE_REALS + m] -= k * g->filled[a];
+      }
+    }
+  }
+}
+
+/* Water [k], stepped elsewhere, for [dt]: what is round its columns — the
+ * bodies in it, its springs and outlets, the slope's push on the bodies —
+ * on the mirror, never the columns themselves. It never rests: it is not
+ * the core's to watch. */
+static void step_round(F3dWorld *world, uint32_t k, f3d_real dt) {
+  F3dShallowSlot *ws = &world->shallows[k];
+  F3dShallowExt *e = external_at(world, k);
+  ws->resting = 0u;
+  ws->calm = F3D_R(0.0);
+  Grid g = grid_of(world, ws);
+  int stirring = 0, drained = 0;
+  Shove shove;
+  shove.owner = (uint32_t *)f3d_alloc((size_t)g.n * sizeof(uint32_t) + 8u);
+  shove.owned = (f3d_real *)f3d_alloc((size_t)g.n * sizeof(f3d_real) + 8u);
+  shove.push = (f3d_real *)f3d_alloc((size_t)world->s.used * SHOVE_REALS * sizeof(f3d_real) + 8u);
+  Shove *pushes = &shove;
+  if (shove.owner == NULL || shove.owned == NULL || shove.push == NULL) {
+    pushes = NULL;
+  } else {
+    f3d_zero(shove.owner, (size_t)g.n * sizeof(uint32_t));
+    f3d_zero(shove.owned, (size_t)g.n * sizeof(f3d_real));
+    f3d_zero(shove.push, (size_t)world->s.used * SHOVE_REALS * sizeof(f3d_real));
+  }
+  bodies_in(world, &g, k + 1u, dt, pushes, &stirring);
+  wells(world, &g, dt, &drained);
+  if (pushes != NULL) {
+    shove_faces(world, &g, pushes, dt);
+    apply_shove(world, ws, &shove, dt);
+  }
+  f3d_free(shove.owner);
+  f3d_free(shove.owned);
+  f3d_free(shove.push);
+  e->seconds += dt;
+}
+
+int f3d_shallow_set_external(F3dWorld *world, F3dShallow water, uint32_t on) {
+  F3dShallowSlot *w = water_of(world, water);
+  if (w == NULL) return 0;
+  const uint32_t k = water - 1u;
+  if (!on) {
+    external_free(world, k);
+    wake(w);
+    return 1;
+  }
+  if (external_at(world, k) != NULL) return 1;
+  if (k >= world->shallow_ext_count) {
+    struct F3dShallowExt **all = (struct F3dShallowExt **)f3d_realloc(
+        world->shallow_ext, (size_t)world->s.shallow_count * sizeof(*all));
+    if (all == NULL) return 0;
+    for (uint32_t i = world->shallow_ext_count; i < world->s.shallow_count; i++) all[i] = NULL;
+    world->shallow_ext = all;
+    world->shallow_ext_count = world->s.shallow_count;
+  }
+  F3dShallowExt *e = (F3dShallowExt *)f3d_alloc(sizeof *e);
+  if (e == NULL) return 0;
+  f3d_zero(e, sizeof *e);
+  e->length = state_of(w->nx, w->nz);
+  e->before = (f3d_real *)f3d_alloc((size_t)e->length * sizeof(f3d_real) + 8u);
+  e->changes = (f3d_real *)f3d_alloc((size_t)e->length * sizeof(f3d_real) + 8u);
+  if (e->before == NULL || e->changes == NULL) {
+    f3d_free(e->before);
+    f3d_free(e->changes);
+    f3d_free(e);
+    return 0;
+  }
+  f3d_zero(e->changes, (size_t)e->length * sizeof(f3d_real));
+  e->reset = 1u;
+  world->shallow_ext[k] = e;
+  wake(w);
+  return 1;
+}
+
+uint32_t f3d_shallow_take_external(F3dWorld *world, F3dShallow water,
+                                   f3d_real *changes, f3d_real *filled,
+                                   f3d_real *params) {
+  F3dShallowSlot *w = water_of(world, water);
+  F3dShallowExt *e = w == NULL ? NULL : external_at(world, water - 1u);
+  if (e == NULL) return 0u;
+  Grid g = grid_of(world, w);
+  uint32_t bits = F3D_EXTERNAL_ON;
+  if (e->reset) bits |= F3D_EXTERNAL_RESET;
+  int any = 0;
+  for (uint32_t i = 0; i < e->length && !any; i++) any = e->changes[i] != F3D_R(0.0);
+  if (any && !e->reset) bits |= F3D_EXTERNAL_CHANGED;
+  int fills = 0;
+  for (uint32_t c = 0; c < g.n && !fills; c++) fills = g.filled[c] != F3D_R(0.0);
+  if (fills || e->filled) bits |= F3D_EXTERNAL_FILLED;
+  e->filled = (uint32_t)fills;
+  if (changes != NULL) f3d_copy(changes, e->changes, (size_t)e->length * sizeof(f3d_real));
+  if (filled != NULL) f3d_copy(filled, g.filled, (size_t)g.n * sizeof(f3d_real));
+  if (params != NULL) {
+    f3d_zero(params, F3D_SHALLOW_EXTERNAL_PARAMS * sizeof(f3d_real));
+    f3d_real wind[3];
+    f3d_world_sample_wind(world, w->origin.x, w->origin.y, w->origin.z, wind);
+    int held = 0;
+    const f3d_real seconds = e->seconds;
+    const uint32_t count = seconds > F3D_R(0.0) ? substeps_for(world, &g, seconds, &held) : 0u;
+    params[0] = (f3d_real)w->nx;
+    params[1] = (f3d_real)w->nz;
+    params[2] = w->cell;
+    params[3] = gravity_down(world);
+    params[4] = w->density;
+    params[5] = w->viscosity;
+    params[6] = w->roughness;
+    params[7] = world->s.air_density;
+    params[8] = wind[0];
+    params[9] = wind[2];
+    for (uint32_t side = 0; side < 4u; side++) {
+      params[10u + side] = (f3d_real)w->edge_kind[side];
+      params[14u + side] = w->edge_value[side];
+    }
+    params[18] = w->origin.y;
+    params[19] = seconds;
+    params[20] = (f3d_real)count;
+    params[21] = count > 0u ? seconds / (f3d_real)count : F3D_R(0.0);
+    w->substeps = count;
+    if (held) w->overruns++;
+  }
+  e->seconds = F3D_R(0.0);
+  e->reset = 0u;
+  f3d_zero(e->changes, (size_t)e->length * sizeof(f3d_real));
+  return bits;
+}
+
+int f3d_shallow_read_state(const F3dWorld *world, F3dShallow water, f3d_real *out) {
+  F3dShallowSlot *w = water_of(world, water);
+  if (w == NULL || out == NULL) return 0;
+  f3d_copy(out, world->shallow_data + w->first,
+           (size_t)reals_of(w->nx, w->nz) * sizeof(f3d_real));
+  return 1;
+}
+
+int f3d_shallow_put_state(F3dWorld *world, F3dShallow water, const f3d_real *state) {
+  F3dShallowSlot *w = water_of(world, water);
+  if (w == NULL || state == NULL) return 0;
+  const uint32_t length = state_of(w->nx, w->nz);
+  for (uint32_t i = 0; i < length; i++) {
+    if (!f3d_finite(state[i])) return 0;
+  }
+  f3d_copy(world->shallow_data + w->first + w->nx * w->nz, state,
+           (size_t)length * sizeof(f3d_real));
+  return 1;
+}
+
+int f3d_shallow_throw_lips(F3dWorld *world, F3dShallow water, const f3d_real *lips,
+                           f3d_real dt) {
+  F3dShallowSlot *w = water_of(world, water);
+  F3dShallowExt *e = w == NULL ? NULL : external_at(world, water - 1u);
+  if (e == NULL || lips == NULL || !(dt > F3D_R(0.0))) return 0;
+  Grid g = grid_of(world, w);
+  const uint32_t faces = (g.nx + 1u) * g.nz + g.nx * (g.nz + 1u);
+  Lip lip;
+  lip.volume = (f3d_real *)f3d_alloc((size_t)faces * sizeof(f3d_real) + 8u);
+  lip.push = (F3dVec3 *)f3d_alloc((size_t)faces * sizeof(F3dVec3) + 8u);
+  lip.from = (uint32_t *)f3d_alloc((size_t)faces * sizeof(uint32_t) + 8u);
+  if (lip.volume == NULL || lip.push == NULL || lip.from == NULL) {
+    f3d_free(lip.volume);
+    f3d_free(lip.push);
+    f3d_free(lip.from);
+    return 0;
+  }
+  for (uint32_t f = 0; f < faces; f++) {
+    const f3d_real *l = lips + (size_t)f * F3D_LIP_FLOATS;
+    const f3d_real from = l[3];
+    const int ok = f3d_finite(l[0]) && l[0] > F3D_R(0.0) && f3d_finite(l[1]) &&
+                   f3d_finite(l[2]) && from >= F3D_R(0.0) && from < (f3d_real)g.n;
+    lip.volume[f] = ok ? l[0] : F3D_R(0.0);
+    lip.push[f] = ok ? f3d_v3(l[1], F3D_R(0.0), l[2]) : f3d_v3(F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
+    lip.from[f] = ok ? (uint32_t)from : 0u;
+  }
+  throw_sheets(world, &g, water - 1u, &lip, faces, dt, e->changes);
+  f3d_free(lip.volume);
+  f3d_free(lip.push);
+  f3d_free(lip.from);
+  return 1;
+}
+
 void f3d_step_water(F3dWorld *world, f3d_real dt) {
   if (world->s.shallow_count == 0) return;
   const f3d_real gravity = gravity_down(world);
   const f3d_real rest_energy =
       world->s.water_rest_set ? world->s.water_rest_energy : F3D_REST_ENERGY;
   const f3d_real rest_time = world->s.water_rest_set ? world->s.water_rest_time : F3D_REST_TIME;
+  /* What the waters stepped elsewhere hold before the core touches them,
+   * so what it does to them this step can be handed over as changes. */
+  for (uint32_t k = 0; k < world->s.shallow_count; k++) external_begin(world, k);
   for (uint32_t k = 0; k < world->s.shallow_count; k++) {
     F3dShallowSlot *ws = &world->shallows[k];
     if (!ws->live) continue;
+    if (external_at(world, k) != NULL) {
+      step_round(world, k, dt);
+      continue;
+    }
     if (ws->resting) {
       if (!stirred(world, ws, dt)) continue;
       wake(ws);
@@ -2804,20 +3205,8 @@ void f3d_step_water(F3dWorld *world, f3d_real dt) {
       f3d_zero(shove.push, (size_t)world->s.used * SHOVE_REALS * sizeof(f3d_real));
     }
     bodies_in(world, &g, k + 1u, dt, pushes, &stirring);
-    /* As many substeps as keep a wave or the flow within a quarter of a
-     * cell each, and the fluid's own viscosity from spreading a cell's
-     * momentum further than a quarter of it (the explicit scheme's bound,
-     * ν·h/Δx² ≤ 1/4); past the most a step is cut into, counted. */
-    f3d_real fastest = F3D_R(0.0), deepest = F3D_R(0.0);
-    for (uint32_t f = 0; f < (g.nx + 1u) * g.nz; f++) fastest = f3d_max(fastest, f3d_abs(g.u[f]));
-    for (uint32_t f = 0; f < g.nx * (g.nz + 1u); f++) fastest = f3d_max(fastest, f3d_abs(g.w[f]));
-    for (uint32_t c = 0; c < g.n; c++) deepest = f3d_max(deepest, g.depth[c] + g.filled[c] / g.area);
-    const f3d_real wave = fastest + f3d_sqrt(gravity * deepest);
-    f3d_real longest = F3D_R(0.25) * g.cell * g.cell * ws->density / ws->viscosity;
-    if (wave > F3D_R(0.0)) longest = f3d_min(longest, F3D_R(0.25) * g.cell / wave);
-    uint32_t count = 1;
-    while ((f3d_real)count * longest < dt && count < F3D_SHALLOW_MOST_SUBSTEPS) count++;
-    int held = (f3d_real)count * longest < dt;
+    int held = 0;
+    const uint32_t count = substeps_for(world, &g, dt, &held);
     const size_t faces = (size_t)(g.nx + 1u) * g.nz + (size_t)g.nx * (g.nz + 1u);
     f3d_real *room = (f3d_real *)f3d_alloc((faces + 2u * (size_t)g.n) * sizeof(f3d_real) + 16u);
     Lip lip;
@@ -2844,54 +3233,13 @@ void f3d_step_water(F3dWorld *world, f3d_real dt) {
     }
     /* What the water's slope gave each body, at the middle of what it
      * holds up. */
-    for (uint32_t b = 0; pushes != NULL && b < world->s.used; b++) {
-      const f3d_real *p = shove.push + (size_t)b * SHOVE_REALS;
-      if (p[0] == F3D_R(0.0) && p[1] == F3D_R(0.0)) continue;
-      F3dSlot *s = &world->slots[b];
-      const F3dVec3 force = f3d_v3(p[0] / dt, F3D_R(0.0), p[1] / dt);
-      const F3dVec3 arm = f3d_sub(f3d_add(ws->origin, f3d_v3(p[2], p[3], p[4])), s->position);
-      s->force = f3d_add(s->force, force);
-      s->torque = f3d_add(s->torque, f3d_cross(arm, force));
-    }
+    if (pushes != NULL) apply_shove(world, ws, &shove, dt);
     f3d_free(shove.owner);
     f3d_free(shove.owned);
     f3d_free(shove.push);
     ws->substeps = count;
     if (held) ws->overruns++;
-    /* Each face of a lip throws what went over it this step as one piece
-     * of sheet, as wide as the face, at the speed it went over with, from
-     * the middle of the sheet's thickness at the lip. With no room for it,
-     * the water stays on the lip for the next step. */
-    const uint32_t ux = g.nx + 1u;
-    int over = 0;
-    for (uint32_t fi = 0; fi < (uint32_t)faces; fi++) {
-      const f3d_real volume = lip.volume[fi];
-      if (!(volume > F3D_R(0.0))) continue;
-      over = 1;
-      const F3dVec3 velocity = f3d_scale(lip.push[fi], F3D_R(1.0) / volume);
-      const f3d_real speed = f3d_sqrt(f3d_dot(velocity, velocity));
-      const uint32_t from = lip.from[fi];
-      const int x_face = fi < ux * g.nz;
-      const uint32_t f = x_face ? fi : fi - ux * g.nz;
-      const f3d_real fx = x_face ? (f3d_real)(f % ux) : (f3d_real)(f % g.nx) + F3D_R(0.5);
-      const f3d_real fz = x_face ? (f3d_real)(f / ux) + F3D_R(0.5) : (f3d_real)(f / g.nx);
-      F3dSpray d;
-      f3d_zero(&d, sizeof d);
-      d.water = k + 1u;
-      d.kind = F3D_SPRAY_SHEET;
-      d.face = fi + 1u;
-      d.volume = volume;
-      d.velocity = velocity;
-      d.flow = volume / dt;
-      d.width = g.cell;
-      d.speed0 = speed;
-      const f3d_real thick = speed > F3D_R(0.0) ? d.flow / (d.width * speed) : F3D_R(0.0);
-      d.at = f3d_add(ws->origin, f3d_v3(fx * g.cell,
-                                        g.ground[from] + F3D_R(0.5) * thick,
-                                        fz * g.cell));
-      d.top = d.at.y;
-      if (!add_spray(world, &d)) g.depth[from] += volume / g.area;
-    }
+    const int over = throw_sheets(world, &g, k, &lip, (uint32_t)faces, dt, NULL);
     /* Still, with nothing moving in it, feeding it, draining it or going
      * over a lip, for long enough: it rests. */
     ws->energy = most_energy(&g, gravity);
@@ -2919,4 +3267,5 @@ void f3d_step_water(F3dWorld *world, f3d_real dt) {
   }
   fly_spray(world, dt);
   rise_bubbles(world, dt);
+  for (uint32_t k = 0; k < world->s.shallow_count; k++) external_end(world, k);
 }

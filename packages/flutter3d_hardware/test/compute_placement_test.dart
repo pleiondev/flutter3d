@@ -82,4 +82,58 @@ void main() {
     expect(executors.sidecar, isNull);
     expect(refused.single, contains('wgpu (sidecar compute) would not start'));
   });
+
+  test('a workload with host code falls back to it, not to a refusal', () {
+    // Mutation: answer the CPU rule for a workload with host code, and a
+    // frame with no compute anywhere refuses a step its own core would run.
+    final executors = ComputeExecutors(device: FakeBackend());
+    expect(executors.placeWorkload(step: 'water', hasHost: true), isNull);
+    expect(
+      () => executors.placeWorkload(step: 'water', hasHost: false),
+      throwsA(
+        isA<ComputePlacementException>().having(
+          (e) => e.reason,
+          'reason',
+          ComputeRefusalReason.noExecutor,
+        ),
+      ),
+    );
+  });
+
+  test('a workload demanding a missing placement is refused, host or not', () {
+    // Mutation: fall back to the host under a demand, and a workload that
+    // asked for the sidecar is quietly stepped somewhere else.
+    final executors = ComputeExecutors(device: FakeBackend());
+    expect(
+      () => executors.placeWorkload(
+        step: 'water',
+        hasHost: true,
+        demand: ComputePlacement.sidecar,
+      ),
+      throwsA(
+        isA<ComputePlacementException>().having(
+          (e) => e.reason,
+          'reason',
+          ComputeRefusalReason.placementUnavailable,
+        ),
+      ),
+    );
+    expect(ComputeExecutors.aheadOfHost, <ComputePlacement>[
+      ComputePlacement.device,
+      ComputePlacement.sidecar,
+    ]);
+  });
+
+  test('a workload binding says where it landed and what it draws', () {
+    final host = WorkloadBinding.host();
+    expect(host.isOnHost, isTrue);
+    expect(host.vertices('surface'), isNull);
+    final placed = WorkloadBinding.placed(ComputePlacement.sidecar);
+    expect(placed.isOnHost, isFalse);
+    expect(placed.placement, ComputePlacement.sidecar);
+    expect(
+      const WorkloadBuffer('depth', 16, readable: true),
+      const WorkloadBuffer('depth', 16, readable: true),
+    );
+  });
 }

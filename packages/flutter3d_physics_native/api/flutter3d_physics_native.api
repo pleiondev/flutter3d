@@ -719,6 +719,14 @@ final class NativeRagdoll
   void dispose()
   void place(List<RigidPose> pose, {List<Vector3>? velocity, List<Vector3>? spin})
 
+final class NativeShallowExternal
+  bool get wasReset
+  double get seconds
+  final Float32List params
+  final Float32List? changes
+  final Float32List? filled
+  int get substeps
+
 final class NativeShallowInfo
   String toString()
   bool operator ==(Object other)
@@ -735,7 +743,10 @@ final class NativeShallowLiquid
   final int id
   final int nx
   final int nz
+  int get blockLength
   int get cells
+  int get faces
+  int get stateLength
 
 typedef NativeShallowSample = ({double surface, double depth, double flowX, double flowZ});
 
@@ -807,6 +818,7 @@ final class NativeWorld
   Float32List readBubbles({int capacity = c.shallowMostBubbles, NativeShallowLiquid? of})
   Float32List readShallowFlow(NativeShallowLiquid water)
   Float32List readShallowGround(NativeShallowLiquid water)
+  Float32List readShallowState(NativeShallowLiquid water)
   Float32List readSpray({int capacity = c.shallowMostSpray, NativeShallowLiquid? of})
   List<NativeBody> overlapShape(NativeShape shape, Vector3 position, {Quaternion? orientation, double rounding = 0.0, int mask = 0xffffffff, NativeBody? ignore})
   List<NativeBody> queryBox(Vector3 lo, Vector3 hi)
@@ -830,6 +842,7 @@ final class NativeWorld
   NativeMaterial materialOf(NativeBody body)
   NativeMesh createMesh(List<Vector3> vertices, List<int> indices)
   NativeMultibody createMultibody(NativeBody root)
+  NativeShallowExternal? drainShallowExternal(NativeShallowLiquid water)
   NativeShallowInfo shallowInfoOf(NativeShallowLiquid water)
   NativeShallowLiquid createShallowLiquid({required int nx, required int nz, required double cell, required Vector3 origin, required List<double> ground})
   NativeShallowSample? sampleShallow(NativeShallowLiquid water, double x, double z)
@@ -916,6 +929,7 @@ final class NativeWorld
   void moveKinematic(NativeBody body, Vector3 position, Quaternion orientation, double dt)
   void moveOriginTo(WorldPosition to)
   void pourShallowLiquid(NativeShallowLiquid water, double x, double z, {double radius = 0.0, required double volume})
+  void putShallowState(NativeShallowLiquid water, Float32List state)
   void restore(Uint8List snapshot)
   void setAir({required double temperature, required double density})
   void setAngularVelocity(NativeBody body, Vector3 value)
@@ -957,6 +971,7 @@ final class NativeWorld
   void setShallowBed(NativeShallowLiquid water, {double roughness = 0.03, bool openEdges = false})
   void setShallowDepth(NativeShallowLiquid water, List<double> depth)
   void setShallowEdge(NativeShallowLiquid water, GridSide side, NativeEdgeFlow edge)
+  void setShallowExternal(NativeShallowLiquid water, {required bool on})
   void setShallowGround(NativeShallowLiquid water, List<double> ground)
   void setShallowHeat(NativeShallowLiquid water, NativeLiquidHeat heat)
   void setShallowLaw(NativeShallowLiquid water, NativeLawProperty property, NativeLaw? law)
@@ -973,6 +988,7 @@ final class NativeWorld
   void setWheel(NativeVehicle vehicle, int wheel, {double steer = 0.0, double drive = 0.0, double brake = 0.0})
   void setWindGrid({required Vector3 origin, required double cell, required int nx, required int ny, required int nz, required Float32List velocities})
   void step(double dt)
+  void throwShallowLips(NativeShallowLiquid water, Float32List lips, double seconds)
   void wake(NativeBody body)
 
 final class NativeWorldRays extends WorldRays
@@ -1068,6 +1084,8 @@ const int nativeBubbleFloats = c.bubbleFloats
 
 const int nativeFireFloats = c.fireFloats
 
+const int nativeLipFloats = c.lipFloats
+
 const int nativeSprayDrops = c.sprayDrops
 
 const int nativeSprayFloats = c.sprayFloats
@@ -1081,6 +1099,8 @@ int get physicsCoreThreads
 String? get physicsFallbackReason
 
 Future<PhysicsStart> preparePhysics()
+
+final String shallowWaterKernels
 
 Future<PhysicsStart> startPhysics({String asked = askedPhysics, int threads = 1, void Function()? probe})
 

@@ -1,3 +1,11 @@
+## 1.0.0-rc.1+1
+
+- **A shallow water can be stepped on a GPU.** `ShallowWaterWorkload` (new)
+  is the physics core's shallow water substep as a `ComputeWorkload`: on
+  WebGPU's compute or the wgpu sidecar its columns are stepped there, the
+  core keeping the bodies, the springs and the spray round them; where
+  neither is, the core steps them as before. Additive.
+
 ## 1.0.0-rc.1
 
 - **Breaking: the effects' colours are `LinearColor`s.** `Elements.sun`'s

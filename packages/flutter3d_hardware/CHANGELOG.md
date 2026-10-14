@@ -1,3 +1,17 @@
+## 1.0.0-rc.1+1
+
+- **A simulation hands its compute over as kernels and buffers.**
+  `ComputeWorkload` (new) is a step described once — its kernels in the
+  kernel language, the `WorkloadBuffer`s they bind, what a frame records
+  with a `WorkloadRecorder` (writes, dispatches, reads back), and whether
+  it has an implementation of its own on the host — and the engine places
+  it, telling it the outcome as a `WorkloadBinding`. The rule is
+  `ComputeExecutors.placeWorkload`: the drawing device's compute, then the
+  sidecar (`ComputeExecutors.aheadOfHost`), then the workload's own host
+  code, then the CPU executor. A physics core's fluid runs on WebGPU, on the
+  wgpu sidecar or on the core itself without a branch of its own on which.
+  Additive: nothing that worked against 1.0.0-rc.1 changes.
+
 ## 1.0.0-rc.1
 
 - **A pipeline is built from a descriptor.** `PipelineDescriptor` (`vertex`,

@@ -3,7 +3,7 @@ description: >-
   The elements' water and fire, drawn: a lit water surface, a waterfall
   with its spray, bubbles and froth, flames, smoke, embers and firelight,
   and a liquid in a vessel.
-version: 1.0.0-rc.1
+version: 1.0.0-rc.1+1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -30,7 +30,7 @@ platforms:
 dependencies:
   # The scene, meshes, materials and the renderer the views draw into — the
   # Flutter-free core, so the package runs under `dart test`.
-  flutter3d_core: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_core: '>=1.0.0-rc.1+1 <1.1.0'
   # The flames, embers and smoke, and the six-way smoke sheet's baker.
   flutter3d_particles: '>=1.0.0-rc.1 <1.1.0'
   # What is drawn: the elements' simulation, which steps the world, the
@@ -57,7 +57,7 @@ dependencies:
   hooks: ^2.0.0
 
   # The graphics vocabulary, named here directly.
-  flutter3d_hardware: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_hardware: '>=1.0.0-rc.1+1 <1.1.0'
 
   # What a world is made of: its properties, the materials and the constants.
   flutter3d_matter: '>=1.0.0-rc.1 <1.1.0'

@@ -1,3 +1,16 @@
+## 1.0.0-rc.1+1
+
+- **A compute workload is a step of the frame.**
+  `RendererSteps.addWorkload` puts a `ComputeWorkload` in the frame as a
+  `WorkloadStep` (new), placed by `ComputeExecutors.placeWorkload`: its
+  buffers are made on the executor it lands on, a buffer it draws is bound
+  as vertices where that is the drawing device and copied across through the
+  host where it is not, and on the host the step does nothing and the
+  workload's own code runs. The scene reads
+  `FrameResourceIds.computedVertices` (new) while one is in the frame, so
+  each runs before the draws; a step taken out lets go of its buffers once
+  no frame in flight uses them. Additive.
+
 ## 1.0.0-rc.1
 
 - **A plan asks a step's switch what a frame would ask it.**

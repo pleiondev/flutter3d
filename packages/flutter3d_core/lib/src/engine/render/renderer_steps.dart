@@ -275,6 +275,59 @@ final class RendererSteps extends RenderStepRegistry {
     return addNode(step, at: at, step: owner, after: after, before: before);
   }
 
+  /// Puts [workload] in the frame, placed by the workload rule on
+  /// [executors] (`ComputeExecutors.placeWorkload`): the drawing device's
+  /// compute, then the sidecar, then the workload's own host code where it
+  /// has some, then the CPU executor; [workloadStep] answers where it
+  /// landed ([WorkloadStep.binding], [WorkloadStep.refusal]) — since
+  /// 1.0.0-rc.1+1.
+  ///
+  /// **The workload is told, the caller decides nothing.** A simulation
+  /// handing its step over learns where it runs through
+  /// `ComputeWorkload.placed` and draws from what that says.
+  ///
+  /// Cancelling the result takes the step out of the frame
+  /// and lets go of its buffers once no frame in flight can be using them.
+  /// A workload nothing can run — a demand nothing meets, no executor and
+  /// no host code — is added all the same and reported as
+  /// `PassSkip.unsupported`, as a compute step is.
+  Future<Registration> addWorkload(
+    ComputeWorkload workload,
+    ComputeExecutors executors, {
+    RenderAnchor? at,
+  }) async {
+    final step = WorkloadStep(workload);
+    addNode(step, at: at).cancel();
+    await step.prepare(executors);
+    final added = addNode(step, at: at);
+    _store.workloads.add(step);
+    final registration = Registration(() {
+      added.cancel();
+      _store.workloads.remove(step);
+      final renderer = _store.renderer;
+      if (renderer == null) {
+        step.release();
+      } else {
+        renderer._releaseWorkloadAfterFrame(step);
+      }
+    });
+    _scope?.track(registration);
+    return registration;
+  }
+
+  /// The step [workload] is in the frame as ([addWorkload]): where it was
+  /// placed, or why it was refused. Null for a workload not added here.
+  ///
+  /// For whoever added it and wants to say where it runs — a frame report,
+  /// a settings page, a test — since the workload itself is told only the
+  /// outcome, never the refusals on the way to it.
+  WorkloadStep? workloadStep(ComputeWorkload workload) {
+    for (final step in _store.workloads) {
+      if (identical(step.workload, workload)) return step;
+    }
+    return null;
+  }
+
   /// Places [upload] on [executors] (`FieldUpload.place`) and adds it as a
   /// node, as [addComputeStep] does for a compute step: the one call that
   /// puts a simulation's field in the frame.
@@ -768,6 +821,10 @@ final class _StepStore {
   final LightTypes lightTypes = LightTypes();
   final RenderHooks hooks = RenderHooks();
   final _SkinningState skinning = _SkinningState();
+
+  /// The workloads in the frame ([RendererSteps.addWorkload]): while there
+  /// are any, the scene reads what they write.
+  final List<WorkloadStep> workloads = <WorkloadStep>[];
   final SceneBindings sceneBindings = SceneBindings();
   final PipelineNodeKinds nodeKinds = PipelineNodeKinds();
 

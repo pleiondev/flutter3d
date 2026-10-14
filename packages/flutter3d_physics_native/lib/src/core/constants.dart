@@ -5,7 +5,7 @@
 library;
 
 /// `F3D_ABI_VERSION` this file was written against.
-const int abiVersion = 41;
+const int abiVersion = 42;
 
 /// `F3D_TRANSFORM_FLOATS`.
 const int transformFloats = 7;
@@ -90,6 +90,20 @@ const int sprayFloats = 11;
 const int shallowMostOutlets = 8;
 const int shallowInfoFloats = 4;
 const int shallowMostSubsteps = 64;
+
+/// `F3D_SHALLOW_EXTERNAL_PARAMS` and `F3D_LIP_FLOATS`: a water stepped
+/// elsewhere.
+const int shallowExternalParams = 24;
+const int lipFloats = 4;
+
+/// `F3D_EXTERNAL_ON`, `F3D_EXTERNAL_CHANGED`, `F3D_EXTERNAL_RESET` and
+/// `F3D_EXTERNAL_FILLED`: what `f3d_shallow_take_external` answers.
+abstract final class ExternalBits {
+  static const int on = 1;
+  static const int changed = 2;
+  static const int reset = 4;
+  static const int filled = 8;
+}
 
 /// `F3D_EDGE_WALL`, `F3D_EDGE_OPEN`, `F3D_EDGE_FLOW` and `F3D_EDGE_LEVEL`.
 abstract final class EdgeKind {

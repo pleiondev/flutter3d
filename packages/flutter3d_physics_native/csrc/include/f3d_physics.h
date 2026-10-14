@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 41u
+#define F3D_ABI_VERSION 42u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -917,6 +917,74 @@ F3D_API int f3d_shallow_read(const F3dWorld *world, F3dShallow water,
 /* Every cell's flow, its velocity x and z, two reals a cell. */
 F3D_API int f3d_shallow_read_flow(const F3dWorld *world, F3dShallow water,
                                 f3d_real *velocity);
+
+/* ------------------------------------------------- a water stepped elsewhere
+ *
+ * A water whose columns are stepped somewhere else — a GPU's compute, given
+ * the same scheme as kernels — while the core keeps everything round them:
+ * the bodies standing in it, the springs and outlets, the spray off its lips
+ * landing in it, and what it pushes back on the bodies. Its depths and
+ * velocities here are then a mirror of the ones stepped elsewhere, put back
+ * with f3d_shallow_put_state as they arrive; what the core does to them in a
+ * step is gathered as changes, which f3d_shallow_take_external hands over to
+ * be added there, so no water is made or lost on the way however late the
+ * mirror is. */
+
+/* Reals f3d_shallow_take_external writes into [params]: nx, nz, the cell,
+ * gravity down, density, viscosity, the water's roughness, the air's
+ * density, the wind's x and z over the water, each edge's kind and value
+ * (−x, +x, −z, +z), the height of the grid's origin, the seconds stepped
+ * since the last take, the substeps they are cut into, and their length. */
+#define F3D_SHALLOW_EXTERNAL_PARAMS 24u
+
+/* What f3d_shallow_take_external answers, bits: the water is stepped
+ * elsewhere; its changes hold something; it was set outright and its whole
+ * state is to be sent (f3d_shallow_read_state); what bodies fill of its
+ * columns is to be sent. */
+#define F3D_EXTERNAL_ON 1u
+#define F3D_EXTERNAL_CHANGED 2u
+#define F3D_EXTERNAL_RESET 4u
+#define F3D_EXTERNAL_FILLED 8u
+
+/* Reals a lip's face takes in f3d_shallow_throw_lips: the water that went
+ * over it, its push x and z (velocity times volume), and the cell it left,
+ * as a real. A grid has (nx + 1)·nz + nx·(nz + 1) faces, x faces first. */
+#define F3D_LIP_FLOATS 4u
+
+/* [on] nonzero: [water]'s columns are stepped elsewhere from the next step,
+ * the core keeping what is round them; nought: the core steps them again.
+ * 0 for a water that is not, or no memory. */
+F3D_API int f3d_shallow_set_external(F3dWorld *world, F3dShallow water,
+                                     uint32_t on);
+
+/* What the core did to [water] since the last take, handed over and
+ * cleared: the change to each depth, x velocity and z velocity, into
+ * [changes] (nx·nz + (nx + 1)·nz + nx·(nz + 1) reals) when not null; what
+ * bodies fill of each column, m³, into [filled] (nx·nz) when not null; the
+ * step to run there into [params] (F3D_SHALLOW_EXTERNAL_PARAMS) when not
+ * null. Answers the F3D_EXTERNAL_ bits, nought for a water not stepped
+ * elsewhere. */
+F3D_API uint32_t f3d_shallow_take_external(F3dWorld *world, F3dShallow water,
+                                           f3d_real *changes, f3d_real *filled,
+                                           f3d_real *params);
+
+/* Every real of [water] as the core keeps them: ground, depth, x
+ * velocities, z velocities, what bodies fill, roughness and walls, in the
+ * order f3d_shallow_create documents its block. */
+F3D_API int f3d_shallow_read_state(const F3dWorld *world, F3dShallow water,
+                                   f3d_real *out);
+
+/* The depths, x velocities and z velocities stepped elsewhere, as the core
+ * is to mirror them: nx·nz + (nx + 1)·nz + nx·(nz + 1) reals. */
+F3D_API int f3d_shallow_put_state(F3dWorld *world, F3dShallow water,
+                                  const f3d_real *state);
+
+/* The water that went over [water]'s lips while stepped elsewhere for [dt]
+ * seconds, F3D_LIP_FLOATS reals a face, thrown as sheets of spray as the
+ * core throws its own; where there is no room for a piece, its water goes
+ * back on the lip and into the changes. */
+F3D_API int f3d_shallow_throw_lips(F3dWorld *world, F3dShallow water,
+                                   const f3d_real *lips, f3d_real dt);
 
 /* The water it holds, m³, in its cells and in the air as spray; and what
  * has run off its open edges since it was made. */

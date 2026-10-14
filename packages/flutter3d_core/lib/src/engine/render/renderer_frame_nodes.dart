@@ -865,6 +865,11 @@ final class _SceneNode extends RenderNode {
     // read of a name nothing writes.
     if (_renderer.renderSteps._store.skinning.steps.isNotEmpty)
       FrameResourceIds.skinnedVertices,
+    // What the compute workloads wrote for the scene to draw: a water's
+    // surface, built where it was stepped. Named only while one is in the
+    // frame, as the skinned vertices are.
+    if (_renderer.renderSteps._store.workloads.isNotEmpty)
+      FrameResourceIds.computedVertices,
   ];
 
   /// **Both names always, including on a device that cannot attach the

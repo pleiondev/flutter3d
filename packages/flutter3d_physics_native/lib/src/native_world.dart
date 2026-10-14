@@ -131,6 +131,54 @@ final class NativeShallowLiquid {
   /// How many cells: the length of what [NativeWorld.readShallowSurface]
   /// and its depths return.
   int get cells => nx * nz;
+
+  /// How many faces between cells and round the edge: (nx + 1)·nz across
+  /// x, then nx·(nz + 1) across z.
+  int get faces => (nx + 1) * nz + nx * (nz + 1);
+
+  /// How many reals its depths and face velocities take, in that order:
+  /// what [NativeWorld.putShallowState] takes.
+  int get stateLength => cells + faces;
+
+  /// How many reals the core keeps of it: [NativeWorld.readShallowState].
+  int get blockLength => 5 * cells + faces;
+}
+
+/// What the core did to a water stepped elsewhere since it was last asked
+/// — [NativeWorld.drainShallowExternal].
+final class NativeShallowExternal {
+  const NativeShallowExternal._(
+    this._bits, {
+    required this.changes,
+    required this.filled,
+    required this.params,
+  });
+
+  final int _bits;
+
+  /// It was set outright — filled, dug, walled — so its whole state is to
+  /// be sent again ([NativeWorld.readShallowState]) and [changes] is null.
+  bool get wasReset => _bits & c.ExternalBits.reset != 0;
+
+  /// The change to each depth, x face velocity and z face velocity, in
+  /// that order; null when there is none.
+  final Float32List? changes;
+
+  /// What bodies fill of each column, m³; null when none fill any now and
+  /// none did when last asked.
+  final Float32List? filled;
+
+  /// The step to run, `F3D_SHALLOW_EXTERNAL_PARAMS` reals: nx, nz, the
+  /// cell, gravity down, density, viscosity, roughness, the air's density,
+  /// the wind's x and z, each edge's kind then value, the origin's height,
+  /// the seconds stepped, the substeps and their length.
+  final Float32List params;
+
+  /// The seconds stepped since it was last asked.
+  double get seconds => params[19];
+
+  /// The substeps they are cut into.
+  int get substeps => params[20].round();
 }
 
 /// One of the four edges of a water's grid: [west] at its origin's x,
@@ -475,6 +523,11 @@ final class NativeLiquidHeat {
 /// left, one past its index, nought for drops, so a sheet's pieces join into
 /// one ribbon in the order they left.
 const int nativeSprayFloats = c.sprayFloats;
+
+/// Reals one face of a lip takes in [NativeWorld.throwShallowLips]: the
+/// water that went over it, its push x and z — velocity times volume — and
+/// the cell it left, as a real.
+const int nativeLipFloats = c.lipFloats;
 
 /// Reals one fire takes in [NativeWorld.readFires], in the order
 /// [NativeFire]'s fields are given.
@@ -3675,6 +3728,102 @@ final class NativeWorld {
       return flow.copy(n);
     } finally {
       flow.free();
+    }
+  }
+
+  // ------------------------------------------- a water stepped elsewhere
+
+  /// [water]'s columns stepped elsewhere from the next step — a GPU's
+  /// compute, given the same scheme as kernels — while the core keeps what
+  /// is round them: the bodies in it, its springs and outlets, the spray
+  /// off its lips; or, [on] false, stepped by the core again. What runs it
+  /// elsewhere is `ShallowWaterWorkload`'s; nothing else needs this.
+  void setShallowExternal(NativeShallowLiquid water, {required bool on}) {
+    if (c.f3d_shallow_set_external(_live, water.id, on ? 1 : 0) == 0) {
+      throw StateError('$water is not in this world, or there is no memory');
+    }
+  }
+
+  /// What the core did to [water], stepped elsewhere, since this was last
+  /// asked, handed over and cleared: the change to each depth and face
+  /// velocity, what bodies fill of each column, and the step to run
+  /// ([NativeShallowExternal]). Null for a water the core steps itself.
+  NativeShallowExternal? drainShallowExternal(NativeShallowLiquid water) {
+    final n = water.cells;
+    final state = water.stateLength;
+    final changes = c.F32s.alloc(state);
+    final filled = c.F32s.alloc(n);
+    final params = c.F32s.alloc(c.shallowExternalParams);
+    try {
+      final bits = c.f3d_shallow_take_external(
+        _live,
+        water.id,
+        changes,
+        filled,
+        params,
+      );
+      if (bits & c.ExternalBits.on == 0) return null;
+      return NativeShallowExternal._(
+        bits,
+        changes: bits & c.ExternalBits.changed != 0
+            ? changes.copy(state)
+            : null,
+        filled: bits & c.ExternalBits.filled != 0 ? filled.copy(n) : null,
+        params: params.copy(c.shallowExternalParams),
+      );
+    } finally {
+      changes.free();
+      filled.free();
+      params.free();
+    }
+  }
+
+  /// Every real the core keeps of [water] — ground, depth, x and z face
+  /// velocities, what bodies fill, roughness, walls — in that order.
+  Float32List readShallowState(NativeShallowLiquid water) {
+    final length = water.blockLength;
+    final out = c.F32s.alloc(length);
+    try {
+      c.f3d_shallow_read_state(_live, water.id, out);
+      return out.copy(length);
+    } finally {
+      out.free();
+    }
+  }
+
+  /// The depths and face velocities [water] was stepped to elsewhere, for
+  /// the core to mirror: [NativeShallowLiquid.stateLength] reals.
+  void putShallowState(NativeShallowLiquid water, Float32List state) {
+    if (state.length != water.stateLength) {
+      throw ArgumentError.value(
+        state.length,
+        'state',
+        'a water of ${water.nx} × ${water.nz} is ${water.stateLength} reals',
+      );
+    }
+    final block = c.F32s.alloc(state.length);
+    try {
+      block.setAll(state);
+      c.f3d_shallow_put_state(_live, water.id, block);
+    } finally {
+      block.free();
+    }
+  }
+
+  /// What went over [water]'s lips while stepped elsewhere for [seconds],
+  /// `F3D_LIP_FLOATS` reals a face, thrown as the core throws its own
+  /// sheets.
+  void throwShallowLips(
+    NativeShallowLiquid water,
+    Float32List lips,
+    double seconds,
+  ) {
+    final block = c.F32s.alloc(lips.length);
+    try {
+      block.setAll(lips);
+      c.f3d_shallow_throw_lips(_live, water.id, block, seconds);
+    } finally {
+      block.free();
     }
   }
 

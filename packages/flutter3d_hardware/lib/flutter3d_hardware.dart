@@ -46,6 +46,10 @@ export 'src/compute.dart' hide wrapComputePipeline, wrapStorageBuffer;
 /// CPU — and the rule that picks one.
 export 'src/compute_placement.dart';
 
+/// A simulation's compute as kernels and buffers, which the engine places
+/// and runs: the workload, its buffers, the recorder and where it landed.
+export 'src/compute_workload.dart';
+
 /// How a build opens a `GraphicsDevice`, and how a caller finds what shows a
 /// frame from one — both as a backend registers into, not a list this
 /// package or an assembly layer has to already know every entry of.

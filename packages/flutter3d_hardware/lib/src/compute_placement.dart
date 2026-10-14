@@ -309,4 +309,44 @@ final class ComputeExecutors {
       tried: tried,
     );
   }
+
+  /// The placements a `ComputeWorkload` with an implementation of its own
+  /// on the host is tried at before that implementation, in order: the GPUs
+  /// only. Since 1.0.0-rc.1+1.
+  static const List<ComputePlacement> aheadOfHost = <ComputePlacement>[
+    ComputePlacement.device,
+    ComputePlacement.sidecar,
+  ];
+
+  /// Where the workload called [step] runs: an executor, or null for its
+  /// own host implementation — since 1.0.0-rc.1+1.
+  ///
+  /// **The workload rule, written once.** At its [demand] when it names
+  /// one, as [place]. Otherwise the drawing device's compute, then the
+  /// sidecar ([aheadOfHost]); then, when it [hasHost], its own host code,
+  /// which was written for the CPU, ahead of the CPU executor, which
+  /// interprets kernels written for a GPU; and the CPU executor only for a
+  /// workload with nothing of its own there. [accepts] narrows the choice
+  /// as it does for [place].
+  ///
+  /// Throws [ComputePlacementException] when nothing fits: a demand that
+  /// cannot be met, or a workload with no host code and no executor.
+  ComputeExecutor? placeWorkload({
+    required String step,
+    required bool hasHost,
+    ComputePlacement? demand,
+    bool Function(ComputeExecutor executor)? accepts,
+  }) {
+    if (demand != null) {
+      return place(step: step, demand: demand, accepts: accepts);
+    }
+    for (final placement in aheadOfHost) {
+      final executor = executorFor(placement);
+      if (executor != null && (accepts == null || accepts(executor))) {
+        return executor;
+      }
+    }
+    if (hasHost) return null;
+    return place(step: step, accepts: accepts);
+  }
 }

@@ -149,6 +149,12 @@ abstract final class FrameResourceIds {
   /// meshes' own. Produced only while a hook is placed.
   static const ResourceId skinnedVertices = ResourceId('skinned_vertices');
 
+  /// What the frame's compute workloads wrote for the scene to draw: a
+  /// water's surface, particles to instance — `WorkloadStep`. The scene
+  /// reads it while a workload is in the frame, so the graph keeps every
+  /// workload's step, and runs it, before the draws. Since 1.0.0-rc.1+1.
+  static const ResourceId computedVertices = ResourceId('computed_vertices');
+
   /// The filtered cube of the [index]th reflection probe in the scene.
   ///
   /// One name per probe rather than one for all of them, because a resource

@@ -816,6 +816,7 @@ final class Renderer with RenderServices {
       slot.clear();
     }
     _pendingMeshes.forEach(_releaseMeshes);
+    _pendingWorkloads.forEach(_releaseWorkloads);
     targetPool.trim();
 
     // The window-sized targets `_ensureTargets` owns. On a resize they go
@@ -6108,6 +6109,8 @@ final class Renderer with RenderServices {
 
     // See [releaseMeshAfterFrame].
     _releaseMeshes(_pendingMeshes[slot]);
+    // See [_releaseWorkloadAfterFrame].
+    _releaseWorkloads(_pendingWorkloads[slot]);
     // See [_releasePipelinesAfterFrame].
     _releasePipelines(_pendingPipelines[slot]);
   }
@@ -6464,6 +6467,28 @@ final class Renderer with RenderServices {
     _kFramesInFlight,
     (_) => <DeviceMesh>[],
   );
+
+  /// A workload's step taken out of the frame, its buffers let go once no
+  /// frame in flight can still be using them: filed under the last frame
+  /// submitted, as [releaseMeshAfterFrame] files a mesh.
+  void _releaseWorkloadAfterFrame(WorkloadStep step) {
+    final lastSubmitted =
+        (_frameIndex + _kFramesInFlight - 1) % _kFramesInFlight;
+    _pendingWorkloads[lastSubmitted].add(step);
+  }
+
+  final List<List<WorkloadStep>> _pendingWorkloads =
+      List<List<WorkloadStep>>.generate(
+        _kFramesInFlight,
+        (_) => <WorkloadStep>[],
+      );
+
+  void _releaseWorkloads(List<WorkloadStep> steps) {
+    for (final step in steps) {
+      step.release();
+    }
+    steps.clear();
+  }
 
   void _releaseMeshes(List<DeviceMesh> meshes) {
     for (final mesh in meshes) {

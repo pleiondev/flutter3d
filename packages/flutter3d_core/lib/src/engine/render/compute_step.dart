@@ -28,11 +28,16 @@
 /// memory where the two devices share nothing.
 library;
 
+import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show RenderAnchor;
 import 'package:flutter3d_shaders/kernel.dart';
 
+import 'frame_graph.dart' show ResourceId;
+import 'frame_plan.dart' show FrameResourceIds;
 import 'render_node.dart';
 
 /// What a [ComputeStep] records its work with: where it was placed, its
@@ -200,6 +205,18 @@ abstract base class ComputeStep extends RenderNode {
     }
   }
 
+  /// Sets where this step stands, for the steps of this library that place
+  /// by a rule of their own.
+  void _place(
+    ComputeExecutor? executor,
+    Map<String, ShaderHandle> stages,
+    ComputePlacementException? refusal,
+  ) {
+    _executor = executor;
+    _stages = stages;
+    _refusal = refusal;
+  }
+
   /// Runs [record] on the placed executor. Called only for a step the frame
   /// kept, which a step that is not placed never is.
   @override
@@ -209,5 +226,384 @@ abstract base class ComputeStep extends RenderNode {
       throw StateError('"$name" ran without a placement: ${refusal?.message}');
     }
     record(ComputeContext._(name, frame, executor, _stages));
+  }
+}
+
+/// A `ComputeWorkload` in the frame: placed by the workload rule,
+/// `ComputeExecutors.placeWorkload`, its buffers made where it landed, and
+/// its work recorded there once a frame — since 1.0.0-rc.1+1.
+///
+/// **Where is decided here, never by the workload.** [prepare] loads the
+/// workload's kernels on the drawing device's compute, then on the sidecar,
+/// and asks the rule: the first that loaded them, else the workload's own
+/// host implementation when it has one, else the CPU executor. The workload
+/// is told the outcome (`ComputeWorkload.placed`) and nothing else.
+///
+/// **What it draws reaches the drawing device.** A buffer the workload
+/// declares drawn is made with `BufferUsage.vertex` on the drawing device
+/// and bound as vertices there as it is; from a sidecar or the CPU
+/// executor it is copied across through the host after each frame's work,
+/// the way a `SharedBuffer` without a shared allocation is, so what is
+/// drawn trails the step by the copy.
+///
+/// **On the host it is in the frame and does nothing**: the workload's own
+/// code steps it, and the frame keeps the step only so that a later
+/// [prepare] can move it onto a device without the graph changing shape.
+final class WorkloadStep extends ComputeStep {
+  /// The step that runs [workload].
+  WorkloadStep(this.workload);
+
+  /// What it runs.
+  final ComputeWorkload workload;
+
+  @override
+  String get name => workload.name;
+
+  @override
+  late final List<ComputeKernel> kernels = ComputeKernel.parseAll(
+    workload.kernelSource,
+  );
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[
+    FrameResourceIds.computedVertices,
+  ];
+
+  /// Whether the last [prepare] left it to the workload's own host code.
+  bool get isOnHost => _onHost;
+  bool _onHost = false;
+
+  /// Where the last [prepare] put it, as the workload was told; null before.
+  WorkloadBinding? get binding => _binding;
+  WorkloadBinding? _binding;
+
+  @override
+  bool get isSupported => _onHost || super.isSupported;
+
+  _WorkloadResources? _resources;
+
+  /// Each device's kernels and pipelines, by the source they were read
+  /// from, so a hundred steps of one workload load and compile them once.
+  static final Expando<Map<String, Future<Map<String, ShaderHandle>>>>
+  _libraries = Expando<Map<String, Future<Map<String, ShaderHandle>>>>(
+    'workload kernels',
+  );
+  static final Expando<Future<ComputePipelineHandle>> _pipelines =
+      Expando<Future<ComputePipelineHandle>>('workload pipelines');
+
+  Future<Map<String, ShaderHandle>> _load(GraphicsDevice device) {
+    final libraries = _libraries[device] ??=
+        <String, Future<Map<String, ShaderHandle>>>{};
+    return libraries[workload.kernelSource] ??= () async {
+      final library = await device.loadShaders(
+        kernelBundle(name, kernels).encode(),
+      );
+      return <String, ShaderHandle>{
+        for (final kernel in kernels)
+          kernel.name:
+              library[kernel.name] ??
+              (throw StateError(
+                '${device.backendName} loaded the bundle and has no stage '
+                '"${kernel.name}"',
+              )),
+      };
+    }();
+  }
+
+  /// Places the workload by `ComputeExecutors.placeWorkload`, makes its
+  /// buffers there and tells it where it landed. Answers the refusal when
+  /// nothing fits — a demand nothing meets, or no executor and no host
+  /// code — and null when it is placed or left to its host code.
+  @override
+  Future<ComputePlacementException?> prepare(ComputeExecutors executors) async {
+    _release();
+    final loaded = <ComputeExecutor, Map<String, ShaderHandle>>{};
+    Object? cause;
+    final candidates = <ComputeExecutor>[
+      if (demand != null)
+        ?executors.executorFor(demand!)
+      else ...[
+        for (final placement in ComputeExecutors.aheadOfHost)
+          ?executors.executorFor(placement),
+        if (!workload.hasHost) ?executors.executorFor(ComputePlacement.cpu),
+      ],
+    ];
+    for (final candidate in candidates) {
+      try {
+        loaded[candidate] = await _load(candidate.device);
+        break;
+      } on Object catch (error) {
+        // A device that refused once refuses again; asked afresh next time.
+        _libraries[candidate.device]?.remove(workload.kernelSource)?.ignore();
+        cause ??= error;
+      }
+    }
+    final ComputeExecutor? chosen;
+    try {
+      chosen = executors.placeWorkload(
+        step: name,
+        hasHost: workload.hasHost,
+        demand: demand,
+        accepts: loaded.containsKey,
+      );
+    } on ComputePlacementException catch (refused) {
+      _onHost = false;
+      final refusal = ComputePlacementException(
+        step: refused.step,
+        reason: refused.reason,
+        demand: refused.demand,
+        tried: refused.tried,
+        cause: cause,
+      );
+      _place(null, const <String, ShaderHandle>{}, refusal);
+      return refusal;
+    }
+    if (chosen == null) {
+      _onHost = true;
+      _place(null, const <String, ShaderHandle>{}, null);
+      workload.placed(_binding = WorkloadBinding.host());
+      return null;
+    }
+    final stages = loaded[chosen]!;
+    final pipelines = <String, ComputePipelineHandle>{
+      for (final MapEntry(key: kernel, value: stage) in stages.entries)
+        kernel: await (_pipelines[stage] ??= chosen.device
+            .createComputePipelineAsync(stage)),
+    };
+    final resources = _resources = _WorkloadResources.make(
+      workload,
+      chosen,
+      drawing: executors.device,
+      pipelines: pipelines,
+      stages: stages,
+    );
+    _onHost = false;
+    _place(chosen, stages, null);
+    workload.placed(
+      _binding = WorkloadBinding.placed(
+        chosen.placement,
+        drawn: resources.drawnVertices,
+      ),
+    );
+    return null;
+  }
+
+  /// Records the workload's frame on the executor it was placed on, then
+  /// hands what it draws to the drawing device and starts its reads back.
+  @override
+  void record(ComputeContext context) {
+    final resources = _resources;
+    if (resources == null) return;
+    final encoder = context.beginPass(label: name);
+    final recorder = _Recorder(resources, encoder, context.placement);
+    workload.record(recorder);
+    encoder.submit();
+    resources.afterFrame(recorder.reads);
+  }
+
+  @override
+  void execute(RenderFrame frame) {
+    if (_onHost) return;
+    super.execute(frame);
+  }
+
+  /// Lets go of its buffers and tells the workload: what a renderer calls
+  /// once no frame in flight can still be using them.
+  void release() {
+    _release();
+    _binding = null;
+    workload.released();
+  }
+
+  void _release() {
+    _resources?.dispose();
+    _resources = null;
+  }
+}
+
+/// A workload's buffers on its executor, the drawing device's copies of the
+/// drawn ones where those are two devices, and the reads in flight.
+final class _WorkloadResources {
+  _WorkloadResources._(
+    this.executor,
+    this.drawing,
+    this.buffers,
+    this.copies,
+    this.pipelines,
+    this.stages,
+    this.kernels,
+  );
+
+  static _WorkloadResources make(
+    ComputeWorkload workload,
+    ComputeExecutor executor, {
+    required GraphicsDevice drawing,
+    required Map<String, ComputePipelineHandle> pipelines,
+    required Map<String, ShaderHandle> stages,
+  }) {
+    final device = executor.device;
+    final here = identical(device, drawing);
+    final buffers = <String, StorageBuffer>{};
+    final copies = <String, StorageBuffer>{};
+    for (final b in workload.buffers) {
+      final usage = switch ((
+        drawnHere: b.drawn && here,
+        read: b.readable || (b.drawn && !here),
+      )) {
+        (drawnHere: true, read: true) =>
+          BufferUsage.standardStorage |
+              BufferUsage.vertex |
+              BufferUsage.hostReadable,
+        (drawnHere: true, read: false) =>
+          BufferUsage.standardStorage | BufferUsage.vertex,
+        (drawnHere: false, read: true) =>
+          BufferUsage.standardStorage | BufferUsage.hostReadable,
+        (drawnHere: false, read: false) => BufferUsage.standardStorage,
+      };
+      buffers[b.name] = device.createBuffer(
+        BufferDescriptor(
+          lengthInBytes: b.lengthInBytes,
+          usage: usage,
+          label: '${workload.name} ${b.name}',
+        ),
+      );
+      if (b.drawn && !here) {
+        copies[b.name] = drawing.createBuffer(
+          BufferDescriptor(
+            lengthInBytes: b.lengthInBytes,
+            usage: BufferUsage.vertex | BufferUsage.copyDestination,
+            label: '${workload.name} ${b.name}, drawn',
+          ),
+        );
+      }
+    }
+    final kernels = <String, ComputeKernel>{
+      for (final k in ComputeKernel.parseAll(workload.kernelSource)) k.name: k,
+    };
+    return _WorkloadResources._(
+      executor,
+      drawing,
+      buffers,
+      copies,
+      pipelines,
+      stages,
+      kernels,
+    );
+  }
+
+  final ComputeExecutor executor;
+  final GraphicsDevice drawing;
+  final Map<String, StorageBuffer> buffers;
+
+  /// The drawing device's copy of each drawn buffer made elsewhere.
+  final Map<String, StorageBuffer> copies;
+  final Map<String, ComputePipelineHandle> pipelines;
+  final Map<String, ShaderHandle> stages;
+  final Map<String, ComputeKernel> kernels;
+
+  /// The buffers a read of is in flight: one at a time each.
+  final Set<String> _reading = <String>{};
+  bool _disposed = false;
+
+  /// Each drawn buffer as the drawing device binds it.
+  Map<String, GeometryBuffer> get drawnVertices => <String, GeometryBuffer>{
+    for (final MapEntry(key: name, value: buffer) in buffers.entries)
+      name: ?(copies[name] ?? buffer).asVertices,
+  };
+
+  StorageBuffer buffer(String name) =>
+      buffers[name] ??
+      (throw ArgumentError.value(
+        name,
+        'buffer',
+        'is not one of the workload\'s buffers (${buffers.keys.join(', ')})',
+      ));
+
+  /// Starts the reads the frame asked for, and the copies of what is drawn
+  /// across to the drawing device.
+  void afterFrame(List<(String, void Function(ByteData bytes))> reads) {
+    final device = executor.device;
+    for (final (name, done) in reads) {
+      unawaited(
+        device.readBuffer(buffer(name)).then((bytes) {
+          _reading.remove(name);
+          if (!_disposed) done(bytes);
+        }),
+      );
+    }
+    for (final MapEntry(key: name, value: copy) in copies.entries) {
+      final key = '\u0000copy $name';
+      if (!_reading.add(key)) continue;
+      unawaited(
+        device.readBuffer(buffers[name]!).then((bytes) {
+          _reading.remove(key);
+          if (!_disposed) drawing.writeBuffer(copy, 0, bytes);
+        }),
+      );
+    }
+  }
+
+  /// Whether a read of [name] may start now; marks it started.
+  bool startRead(String name) => _reading.add(name);
+
+  void dispose() {
+    _disposed = true;
+    for (final b in buffers.values) {
+      b.dispose();
+    }
+    for (final b in copies.values) {
+      b.dispose();
+    }
+  }
+}
+
+/// The recorder a frame hands a workload: its names bound to the buffers
+/// and pipelines of the executor it runs on.
+final class _Recorder extends WorkloadRecorder {
+  _Recorder(this._resources, this._encoder, this.placement);
+
+  final _WorkloadResources _resources;
+  final ComputeEncoder _encoder;
+
+  @override
+  final ComputePlacement placement;
+
+  /// The reads asked for this frame, started once its work is submitted.
+  final List<(String, void Function(ByteData bytes))> reads =
+      <(String, void Function(ByteData bytes))>[];
+
+  @override
+  void write(String buffer, ByteData bytes, {int offsetInBytes = 0}) =>
+      _resources.executor.device.writeBuffer(
+        _resources.buffer(buffer),
+        offsetInBytes,
+        bytes,
+      );
+
+  @override
+  void dispatch(String kernel, int x, {int y = 1, int z = 1}) {
+    final pipeline =
+        _resources.pipelines[kernel] ??
+        (throw ArgumentError.value(
+          kernel,
+          'kernel',
+          'is not one of the workload\'s kernels '
+              '(${_resources.pipelines.keys.join(', ')})',
+        ));
+    final stage = _resources.stages[kernel]!;
+    _encoder.bindPipeline(pipeline);
+    for (final b in _resources.kernels[kernel]!.bindings) {
+      if (b.kind != KernelBindingKind.buffer) continue;
+      _encoder.bindStorageBuffer(stage, b.name, _resources.buffer(b.name));
+    }
+    _encoder.dispatch(x, y, z);
+  }
+
+  @override
+  bool readBack(String buffer, void Function(ByteData bytes) done) {
+    _resources.buffer(buffer);
+    if (!_resources.startRead(buffer)) return false;
+    reads.add((buffer, done));
+    return true;
   }
 }

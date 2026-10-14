@@ -35,3 +35,4 @@ export 'src/native_particles.dart' hide packParticles, writeParticleForces;
 export 'src/native_physics.dart';
 export 'src/native_ragdoll.dart';
 export 'src/native_world.dart' hide forEachContactReport;
+export 'src/shallow_water_kernels.dart';

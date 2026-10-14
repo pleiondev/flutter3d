@@ -1500,6 +1500,7 @@ int f3d_world_restore(F3dWorld *world, const uint8_t *buffer, uint32_t size) {
   world->lumps = st.lumps;
   world->shallows = st.shallows;
   world->shallow_data = st.shallow_data;
+  f3d_shallow_external_restored(world);
   world->spray = st.spray;
   world->bubbles = st.bubbles;
   /* The tree is not in a snapshot: built again by the next step. */

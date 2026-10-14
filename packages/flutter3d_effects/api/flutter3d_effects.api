@@ -264,6 +264,23 @@ extension type SeabedParameters(MaterialParameters parameters)
   static MaterialParameters defaults()
   static const String materialName = 'Seabed'
 
+base class ShallowWaterWorkload extends ComputeWorkload
+  List<WorkloadBuffer> get buffers
+  ShallowWaterWorkload(this.world, this.water)
+  String get kernelSource
+  String get name
+  WorkloadBinding? get binding
+  bool get hasHost
+  final NativeShallowLiquid water
+  final NativeWorld world
+  int get lastSubsteps
+  static const int paramFloats = 32
+  static final String kernels
+  void placed(WorkloadBinding binding)
+  void record(WorkloadRecorder recorder)
+  void recordAfterStep(WorkloadRecorder recorder)
+  void released()
+
 MeshData jetMesh(Jet jet, {int sides = 14})
 
 List<LiquidLayerMesh> liquidMeshes(LiquidBody body, {int segments = 48, int rows = 48, int rings = 12})

@@ -1765,6 +1765,7 @@ abstract final class FrameResourceIds
   static const ResourceId albedoBuffer = ResourceId('albedo_buffer')
   static const ResourceId ao = ResourceId('ao')
   static const ResourceId bloom = ResourceId('bloom')
+  static const ResourceId computedVertices = ResourceId('computed_vertices')
   static const ResourceId contactShadow = ResourceId('contact_shadow')
   static const ResourceId cubeShadow = ResourceId('cube_shadow')
   static const ResourceId cubeShadowStatic = ResourceId('cube_shadow_static')
@@ -4366,6 +4367,7 @@ final class RendererSteps extends RenderStepRegistry
   ComputePlacement? skinningPlacement(SkinningHook hook)
   ComputePlacementException? skinningRefusal(SkinningHook hook)
   Future<Registration> addComputeStep(ComputeStep step, ComputeExecutors executors, {RenderAnchor? at, RenderStep? owner, List<String> after = const <String>[], List<String> before = const <String>[]})
+  Future<Registration> addWorkload(ComputeWorkload workload, ComputeExecutors executors, {RenderAnchor? at})
   Future<Registration> placeSkinningHook(SkinningHook hook, ComputeExecutors executors)
   GraphicsDevice get device
   Iterable<PluginRegistry> get companions
@@ -4392,6 +4394,7 @@ final class RendererSteps extends RenderStepRegistry
   SettingsSlot<Object>? settingsNamed(String id)
   String? providerOf(RenderStep step)
   T addContributor<T extends PassContributor>(T contributor)
+  WorkloadStep? workloadStep(ComputeWorkload workload)
   bool removeContributor(PassContributor contributor)
 
 final class ResourceCache<K, V>
@@ -5582,6 +5585,20 @@ abstract final class WebDecodeWorker
   static int get decoded
   static void stop()
   static void use(Uri script)
+
+final class WorkloadStep extends ComputeStep
+  Future<ComputePlacementException?> prepare(ComputeExecutors executors)
+  List<ResourceId> get writes
+  String get name
+  WorkloadBinding? get binding
+  WorkloadStep(this.workload)
+  bool get isOnHost
+  bool get isSupported
+  final ComputeWorkload workload
+  late final List<ComputeKernel> kernels
+  void execute(RenderFrame frame)
+  void record(ComputeContext context)
+  void release()
 
 final class WorldRay
   LocalRay relativeTo(WorldPosition from)

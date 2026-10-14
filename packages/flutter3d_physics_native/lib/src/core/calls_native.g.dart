@@ -1196,6 +1196,94 @@ int f3d_shallow_read_flow(int world, int water, int velocity) =>
       Pointer.fromAddress(velocity),
     );
 
+@Native<Int32 Function(Pointer<Void>, Uint32, Uint32)>(
+  symbol: 'f3d_shallow_set_external',
+  isLeaf: true,
+)
+external int _f3d_shallow_set_external(Pointer<Void> world, int water, int on);
+int f3d_shallow_set_external(int world, int water, int on) =>
+    _f3d_shallow_set_external(Pointer.fromAddress(world), water, on);
+
+@Native<
+  Uint32 Function(
+    Pointer<Void>,
+    Uint32,
+    Pointer<Void>,
+    Pointer<Void>,
+    Pointer<Void>,
+  )
+>(symbol: 'f3d_shallow_take_external', isLeaf: true)
+external int _f3d_shallow_take_external(
+  Pointer<Void> world,
+  int water,
+  Pointer<Void> changes,
+  Pointer<Void> filled,
+  Pointer<Void> params,
+);
+int f3d_shallow_take_external(
+  int world,
+  int water,
+  int changes,
+  int filled,
+  int params,
+) => _f3d_shallow_take_external(
+  Pointer.fromAddress(world),
+  water,
+  Pointer.fromAddress(changes),
+  Pointer.fromAddress(filled),
+  Pointer.fromAddress(params),
+);
+
+@Native<Int32 Function(Pointer<Void>, Uint32, Pointer<Void>)>(
+  symbol: 'f3d_shallow_read_state',
+  isLeaf: true,
+)
+external int _f3d_shallow_read_state(
+  Pointer<Void> world,
+  int water,
+  Pointer<Void> out,
+);
+int f3d_shallow_read_state(int world, int water, int out) =>
+    _f3d_shallow_read_state(
+      Pointer.fromAddress(world),
+      water,
+      Pointer.fromAddress(out),
+    );
+
+@Native<Int32 Function(Pointer<Void>, Uint32, Pointer<Void>)>(
+  symbol: 'f3d_shallow_put_state',
+  isLeaf: true,
+)
+external int _f3d_shallow_put_state(
+  Pointer<Void> world,
+  int water,
+  Pointer<Void> state,
+);
+int f3d_shallow_put_state(int world, int water, int state) =>
+    _f3d_shallow_put_state(
+      Pointer.fromAddress(world),
+      water,
+      Pointer.fromAddress(state),
+    );
+
+@Native<Int32 Function(Pointer<Void>, Uint32, Pointer<Void>, Float)>(
+  symbol: 'f3d_shallow_throw_lips',
+  isLeaf: true,
+)
+external int _f3d_shallow_throw_lips(
+  Pointer<Void> world,
+  int water,
+  Pointer<Void> lips,
+  double dt,
+);
+int f3d_shallow_throw_lips(int world, int water, int lips, double dt) =>
+    _f3d_shallow_throw_lips(
+      Pointer.fromAddress(world),
+      water,
+      Pointer.fromAddress(lips),
+      dt,
+    );
+
 @Native<Int32 Function(Pointer<Void>, Uint32, Pointer<Void>, Pointer<Void>)>(
   symbol: 'f3d_shallow_volume',
   isLeaf: true,

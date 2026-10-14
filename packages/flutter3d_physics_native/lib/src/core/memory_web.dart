@@ -26,6 +26,19 @@ extension type _DataView._(JSObject _) implements JSObject {
   external void setInt32(int at, int value, bool little);
 }
 
+@JS('Float32Array')
+extension type _Float32Array._(JSObject _) implements JSObject {
+  external factory _Float32Array(JSObject buffer, int offset, int length);
+  external JSFloat32Array slice();
+  external void set(JSFloat32Array values);
+}
+
+@JS('Uint8Array')
+extension type _Uint8Array._(JSObject _) implements JSObject {
+  external factory _Uint8Array(JSObject buffer, int offset, int length);
+  external void fill(int value);
+}
+
 _DataView? _view;
 int _viewLength = -1;
 
@@ -48,10 +61,9 @@ int coreAlloc(int bytes) {
   if (address == 0) {
     throw StateError('the physics core has no memory for $size bytes');
   }
-  final b = _bytes;
-  for (var i = 0; i < size; i++) {
-    b.setUint8(address + i, 0);
-  }
+  // At once rather than a byte a call: a water's block is tens of
+  // thousands of bytes, and a call apiece cost more than the step.
+  _Uint8Array(coreBufferObject(), address, size).fill(0);
   return address;
 }
 
@@ -75,20 +87,32 @@ void writeU64(int address, int value) {
   writeU32(address + 4, highHalf(value));
 }
 
+/// [count] floats from [address], copied out in one go: the browser's own
+/// copy of a typed array's range, which takes a shared memory too.
 Float32List copyF32s(int address, int count) {
-  final b = _bytes;
-  final out = Float32List(count);
-  for (var i = 0; i < count; i++) {
-    out[i] = b.getFloat32(address + i * 4, true);
+  if (count == 0) return Float32List(0);
+  if (address % 4 != 0) {
+    final b = _bytes;
+    final out = Float32List(count);
+    for (var i = 0; i < count; i++) {
+      out[i] = b.getFloat32(address + i * 4, true);
+    }
+    return out;
   }
-  return out;
+  return _Float32Array(coreBufferObject(), address, count).slice().toDart;
 }
 
 void setF32s(int address, List<double> values) {
-  final b = _bytes;
-  for (var i = 0; i < values.length; i++) {
-    b.setFloat32(address + i * 4, values[i], true);
+  if (values.isEmpty) return;
+  if (address % 4 != 0) {
+    final b = _bytes;
+    for (var i = 0; i < values.length; i++) {
+      b.setFloat32(address + i * 4, values[i], true);
+    }
+    return;
   }
+  final floats = values is Float32List ? values : Float32List.fromList(values);
+  _Float32Array(coreBufferObject(), address, floats.length).set(floats.toJS);
 }
 
 Uint8List copyU8s(int address, int count) {

@@ -971,6 +971,11 @@ struct F3dWorld {
   f3d_real *shallow_data;
   F3dSpray *spray;
   F3dBubbles *bubbles;
+  /* Each water stepped elsewhere, by index, null for one the core steps,
+   * shallow_ext_count long. Not in a snapshot: a restored world asks each
+   * for its whole state again. */
+  struct F3dShallowExt **shallow_ext;
+  uint32_t shallow_ext_count;
   /* The joints, and the pairs of slots joined by a joint that keeps them
    * from colliding, sorted: built from the joints when they change, not in
    * a snapshot. */
@@ -1038,6 +1043,11 @@ void f3d_apply_laws(F3dWorld *world);
 
 /* [water]'s slot while it is live, or null (f3d_shallow.c). */
 F3dShallowSlot *f3d_shallow_slot(const F3dWorld *world, F3dShallow water);
+/* Every water stepped elsewhere let go, as the world goes. */
+void f3d_shallow_free_external(F3dWorld *world);
+/* The waters a snapshot brought back: each one stepped elsewhere asks for
+ * its whole state again, and one past the restored count is let go. */
+void f3d_shallow_external_restored(F3dWorld *world);
 
 /* Frees every law the world holds. */
 void f3d_clear_laws(F3dWorld *world);

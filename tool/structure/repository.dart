@@ -2087,6 +2087,8 @@ const Map<String, String> hookParametersAllowed = <String, String>{
       'flutter3d_plugin_runtime: the module\'s imports as the ABI declares them (`field_get(field, index)`), mirrored one to one; an import arrives with an ABI version as a member with a default body, never as a parameter',
   'WgslStageCompiler':
       'flutter3d_build_hooks: a test seam with the shape of `compileStage` it stands in for',
+  'WorkloadRecorder':
+      'flutter3d_hardware: the recorder the engine implements and a workload calls by a buffer\'s or a kernel\'s name, for ComputeEncoder\'s reason; it grows by named parameters a caller may leave out',
   // Callbacks a `final class` holds, read since the rule reads them: each a
   // function of its inputs, Flutter's builder shape, or a test seam.
   'AudioScene.occlusion':
@@ -2451,6 +2453,8 @@ const Map<String, String> hookValueParameters = <String, String>{
       'flutter3d_app: a warm-up\'s progress and a failure heard by the view, $_valueChanged',
   'WasmInstance.restore':
       'flutter3d_plugin_runtime: a module\'s memory and globals as its own capture wrote them; $_ownState',
+  'WorkloadRecorder.readBack':
+      'flutter3d_hardware: a buffer\'s bytes as a device read them back, the whole answer to the read asked for; a later read is a new member',
   'XrSession.restoreAnchor':
       'flutter3d_app: an anchor restored by its id, $_ofItsInput',
   'RenderBundleEncoder.finish':
@@ -2627,6 +2631,9 @@ const Map<String, List<String>> facadeShowListsHeld = <String, List<String>>{
 /// out, as `facade:Name`, each with why a caller of the facade never writes
 /// it: they stay public in the package that declares them, one import away.
 final Map<String, String> facadeLeavesOut = <String, String>{
+  for (final name in _computeWorkload)
+    'flutter3d:$name':
+        'a simulation\'s compute handed to the engine (`RendererSteps.addWorkload`), written by the author of a physics core\'s fluid or of its view, who imports `flutter3d_hardware` and `flutter3d_core`; an application adds the view, which adds the workload',
   for (final name in _coreFormatInternals)
     'flutter3d:$name':
         'a file format\'s internals (record layouts, magic numbers, versions, block codecs and sniffers) that the readers and writers this facade exports apply (`F3dDecoder`, `GltfLoader`, `writeKtx2`, `readFmat`, `parseSplatPly`); a tool that reads the bytes itself imports `flutter3d_core`',
@@ -2979,6 +2986,13 @@ facadeGapFromAllowed = <String, Map<String, String>>{
 /// writes it.
 final Map<String, String> facadeGapAllowed = <String, String>{
   for (final facade in facadePackages.keys)
+    for (final name in _computeWorkload)
+      '$facade:$name':
+          'a simulation\'s compute handed to the engine '
+          '(`RendererSteps.addWorkload`): written by the author of a physics '
+          'core\'s fluid or of its view, who imports `flutter3d_hardware` '
+          'and `flutter3d_core`, never by a game a facade serves',
+  for (final facade in facadePackages.keys)
     '$facade:WorkgroupSize':
         'read off a parsed compute stage (`MaterialProgram.workgroupSize`), '
         'which `parseMaterial` builds and a caller never writes by hand; a '
@@ -3168,6 +3182,16 @@ const List<String> _physicsBehindTheView = <String>[
   'WindSettings',
   'WorldRays',
   'WorldSweeps',
+];
+
+/// A compute workload's types (`flutter3d_hardware`, `flutter3d_core`),
+/// which `RendererSteps.addWorkload` names.
+const List<String> _computeWorkload = <String>[
+  'ComputeWorkload',
+  'WorkloadBinding',
+  'WorkloadBuffer',
+  'WorkloadRecorder',
+  'WorkloadStep',
 ];
 
 const List<String> _kernelLanguage = <String>[

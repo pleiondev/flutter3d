@@ -197,11 +197,13 @@ abstract base class ComputeEncoder
 final class ComputeExecutors
   ComputeExecutor place({required String step, ComputePlacement? demand, bool Function(ComputeExecutor executor)? accepts})
   ComputeExecutor? executorFor(ComputePlacement placement)
+  ComputeExecutor? placeWorkload({required String step, required bool hasHost, ComputePlacement? demand, bool Function(ComputeExecutor executor)? accepts})
   ComputeExecutors({required this.device, this.sidecar, this.cpu})
   List<ComputeExecutor> get available
   final GraphicsDevice device
   final GraphicsDevice? cpu
   final GraphicsDevice? sidecar
+  static const List<ComputePlacement> aheadOfHost = <ComputePlacement>[ComputePlacement.device, ComputePlacement.sidecar]
 
 typedef ComputeOpener = Future<GraphicsDevice> Function();
 
@@ -247,6 +249,16 @@ final class ComputePlacementException extends CapabilityException
   static const ComputeRefusalReason notPlaced = ComputeRefusalReason._('notPlaced')
   static const ComputeRefusalReason placementUnavailable = ComputeRefusalReason._('placementUnavailable')
   static const List<ComputeRefusalReason> values = <ComputeRefusalReason>[noExecutor, placementUnavailable, kernelRefused, notPlaced]
+
+abstract base class ComputeWorkload
+  ComputeWorkload()
+  abstract List<WorkloadBuffer> get buffers
+  abstract String get kernelSource
+  abstract String get name
+  abstract void record(WorkloadRecorder recorder)
+  bool get hasHost
+  void placed(WorkloadBinding binding)
+  void released()
 
 final class CullMode
   String toString()
@@ -1422,6 +1434,31 @@ abstract final class ViewPasses
 
 enum WindingOrder
   values: clockwise, counterClockwise
+
+final class WorkloadBinding
+  GeometryBuffer? vertices(String name)
+  String toString()
+  WorkloadBinding.host()
+  WorkloadBinding.placed(ComputePlacement this.placement, {Map<String, GeometryBuffer> drawn = const <String, GeometryBuffer>{}})
+  bool get isOnHost
+  final ComputePlacement? placement
+
+@immutable final class WorkloadBuffer
+  String toString()
+  bool operator ==(Object other)
+  const WorkloadBuffer(this.name, this.lengthInBytes, {this.drawn = false, this.readable = false})
+  final String name
+  final bool drawn
+  final bool readable
+  final int lengthInBytes
+  int get hashCode
+
+abstract base class WorkloadRecorder
+  WorkloadRecorder()
+  abstract ComputePlacement get placement
+  abstract bool readBack(String buffer, void Function(ByteData bytes) done)
+  abstract void dispatch(String kernel, int x, {int y = 1, int z = 1})
+  abstract void write(String buffer, ByteData bytes, {int offsetInBytes = 0})
 
 ({int width, int height}) cappedImageSize(int width, int height, {int? maxDimension})
 

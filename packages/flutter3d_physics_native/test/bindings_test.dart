@@ -97,6 +97,17 @@ void main() {
     expect(c.EdgeKind.level, define('F3D_EDGE_LEVEL'));
   });
 
+  test('a water stepped elsewhere is handed over as the header says', () {
+    // Mutation: a parameter block of twenty-three here, or the reset bit
+    // numbered as the change bit, and the GPU step reads the wrong reals.
+    expect(c.shallowExternalParams, define('F3D_SHALLOW_EXTERNAL_PARAMS'));
+    expect(c.lipFloats, define('F3D_LIP_FLOATS'));
+    expect(c.ExternalBits.on, define('F3D_EXTERNAL_ON'));
+    expect(c.ExternalBits.changed, define('F3D_EXTERNAL_CHANGED'));
+    expect(c.ExternalBits.reset, define('F3D_EXTERNAL_RESET'));
+    expect(c.ExternalBits.filled, define('F3D_EXTERNAL_FILLED'));
+  });
+
   test('water holds as many springs and drops as the header says', () {
     expect(c.shallowMostSources, define('F3D_SHALLOW_MOST_SOURCES'));
     expect(c.shallowMostSpray, define('F3D_SHALLOW_MOST_SPRAY'));
