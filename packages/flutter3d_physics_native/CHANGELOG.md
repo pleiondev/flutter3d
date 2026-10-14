@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **The browser's physics core gives back what a step borrowed.** The
+  allocator in the WebAssembly build split freed blocks and never joined
+  them, so a world that borrows scratch every step (the shallow water, the
+  particle liquid) scanned a longer free list and grew its memory on every
+  step: a river that dropped to 15 fps in 40 s in a browser. Freed blocks
+  now merge with their neighbours and the top of the heap is handed back;
+  the same water holds 3 MB and a flat step time.
 - **Breaking: the GPU passes are built only when the application asks.**
   The hook builds `f3d_gpu` with wgpu-native linked in when the
   application's pubspec sets `hooks: user_defines: flutter3d_physics_native:
