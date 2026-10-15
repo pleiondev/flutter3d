@@ -1416,6 +1416,126 @@ List<int> exactVersionGatesIn(String source) => <int>[
     if (_exactVersionGate.hasMatch(line)) index + 1,
 ];
 
+/// The literals of the `const` collection [name] declares in [code], which
+/// has its comments removed: a map's keys with their values as written, a
+/// set's entries with a null value. Null when [code] declares no [name].
+Map<String, String?>? _constLiterals(String code, String name) {
+  final declaration = RegExp(
+    'const\\s+(?:Map|Set)<[^>]*>\\s+$name\\s*=\\s*<[^>]*>\\s*\\{(.*?)\\};',
+    dotAll: true,
+  ).firstMatch(code);
+  if (declaration == null) return null;
+  return <String, String?>{
+    for (final entry in RegExp(
+      r"'([^']*)'\s*(?::\s*([^,}]+))?",
+    ).allMatches(declaration.group(1)!))
+      entry.group(1)!: entry.group(2)?.trim(),
+  };
+}
+
+/// A word-shaped string literal: two characters or more, so the swizzle's
+/// `'x'` and `'r'` are not taken for words.
+final RegExp _wordLiteral = RegExp(r"'([A-Za-z_][A-Za-z0-9_]+)'");
+
+/// The words the kernel parser's code [code] reads as its own: the literals
+/// of its `case` patterns (up to a `when`), of its switch expressions' arms,
+/// and of the tokens it asks for with `_is`, `_accept` and `_expect`.
+Set<String> _kernelDispatchWords(String code) {
+  final words = <String>{};
+  void collect(String text) {
+    for (final m in _wordLiteral.allMatches(text)) {
+      words.add(m.group(1)!);
+    }
+  }
+
+  for (final m in RegExp(
+    r'\bcase\s+([^:]*?)(?:\bwhen\b[^:]*)?:',
+    dotAll: true,
+  ).allMatches(code)) {
+    collect(m.group(1)!);
+  }
+  for (final m in RegExp(
+    r"('[^'\n]*'(?:\s*\|\|\s*'[^'\n]*')*)\s*=>",
+  ).allMatches(code)) {
+    collect(m.group(1)!);
+  }
+  for (final m in RegExp(
+    r"\b_(?:is|accept|expect)\(\s*('[^'\n]*')\s*\)",
+  ).allMatches(code)) {
+    collect(m.group(1)!);
+  }
+  return words;
+}
+
+/// What breaks "every word of the kernel language carries the version it
+/// arrived in", given the word table's source [words], the parser's
+/// [parser] and [newest], the version this build reads.
+///
+/// **A word without a version is reserved in every version**, so the
+/// version that adds it refuses every older kernel naming a local after
+/// it. Four ways back to that are closed: a word the parser dispatches on
+/// that the table does not version (`kernelWordVersions`) or name as the
+/// other language's (`kernelOtherLanguageWords`); a version that is not a
+/// number this build reads; a word in `kernelWordsReservedEarly` that is
+/// not version 2's (the one exception, frozen); and a `const Set` of words
+/// in the parser itself, the one list for every version it used to keep.
+List<String> kernelWordProblems({
+  required String words,
+  required String parser,
+  required int newest,
+}) {
+  final problems = <String>[];
+  final table = codeOf(words);
+  final versions = _constLiterals(table, 'kernelWordVersions');
+  final early = _constLiterals(table, 'kernelWordsReservedEarly');
+  final other = _constLiterals(table, 'kernelOtherLanguageWords');
+  if (versions == null || early == null || other == null) {
+    const missing =
+        'the word table declares no kernelWordVersions, '
+        'kernelWordsReservedEarly or kernelOtherLanguageWords';
+    return <String>[missing];
+  }
+  final since = <String, int>{};
+  for (final MapEntry(key: word, value: written) in versions.entries) {
+    final version = written == null ? null : int.tryParse(written);
+    if (version == null || version < 1 || version > newest) {
+      problems.add(
+        '"$word" arrives in "$written", which is not a version from 1 to '
+        '$newest',
+      );
+    } else {
+      since[word] = version;
+    }
+    if (other.containsKey(word)) {
+      problems.add('"$word" is a kernel word and the other language\'s');
+    }
+  }
+  for (final word in early.keys) {
+    if (since[word] != 2) {
+      problems.add(
+        '"$word" is taken before its version arrives, and only version 2\'s '
+        'words are: a later word is taken only in a source of its version',
+      );
+    }
+  }
+  final code = codeOf(parser);
+  for (final word in _kernelDispatchWords(code)) {
+    if (!versions.containsKey(word) && !other.containsKey(word)) {
+      problems.add(
+        'the parser reads "$word" as a word, and kernelWordVersions does not '
+        'say which version it arrived in',
+      );
+    }
+  }
+  for (final m in RegExp(r'const\s+Set<String>\s+(\w+)').allMatches(code)) {
+    problems.add(
+      'the parser keeps a word list of its own, ${m.group(1)}, which no '
+      'version reaches: version its words in kernelWordVersions',
+    );
+  }
+  return problems;
+}
+
 // --------------------------------------------------------------- self-checks
 
 /// Proves every detector above fires, and stays quiet on what only looks alike.
@@ -3748,6 +3868,90 @@ dev_dependencies:
     ).isEmpty,
     'the version written as code',
     'markdown may set the version in backticks',
+  );
+
+  // The kernel language's words. The clean table and parser are the shape
+  // the real files have; each break below is one way back to a word
+  // reserved in every version.
+  const kernelTable = '''
+const Map<String, int> kernelWordVersions = <String, int>{
+  'let': 1,
+  'atomicAdd': 2,
+};
+const Set<String> kernelWordsReservedEarly = <String>{'atomicAdd'};
+const Set<String> kernelOtherLanguageWords = <String>{'material'};
+''';
+  const kernelParser = '''
+switch (_word(word)) {
+  case 'let' when word.kind == _Kind.ident:
+  case 'atomicAdd':
+}
+if (_is('material')) {}
+final c = switch (s) { 'x' || 'r' => 0, _ => 1 };
+''';
+  List<String> kernelWords({
+    String table = kernelTable,
+    String parser = kernelParser,
+    int newest = 2,
+  }) => kernelWordProblems(words: table, parser: parser, newest: newest);
+  quiet(
+    'kernel words',
+    kernelWords().isEmpty,
+    'a versioned table and the parser it covers',
+    'every word has a version, the early one is version 2\'s, and the '
+        'swizzle letters are not words',
+  );
+  fires(
+    'kernel words',
+    kernelWords(parser: "$kernelParser\ncase 'barrier':\n").isNotEmpty,
+    'a statement word the table does not version',
+  );
+  fires(
+    'kernel words',
+    kernelWords(parser: "$kernelParser\n'shared' => 1,\n").isNotEmpty,
+    'a switch arm\'s word the table does not version',
+  );
+  fires(
+    'kernel words',
+    kernelWords(
+      table: kernelTable.replaceFirst("'atomicAdd': 2", "'atomicAdd': 3"),
+    ).isNotEmpty,
+    'a version after the newest this build reads',
+  );
+  final kernelThree = kernelTable.replaceFirst(
+    "'atomicAdd': 2,",
+    "'atomicAdd': 2,\n  'barrier': 3,",
+  );
+  quiet(
+    'kernel words',
+    kernelWords(table: kernelThree, newest: 3).isEmpty,
+    'a version 3 word in a build that reads version 3',
+    'a later version adds its words to the same table',
+  );
+  fires(
+    'kernel words',
+    kernelWords(
+      table: kernelThree.replaceFirst(
+        "{'atomicAdd'}",
+        "{'atomicAdd', 'barrier'}",
+      ),
+      newest: 3,
+    ).isNotEmpty,
+    'a version 3 word taken before its version',
+  );
+  fires(
+    'kernel words',
+    kernelWords(
+      table: kernelTable.replaceFirst("'let': 1", "'let': newest"),
+    ).isNotEmpty,
+    'a version that is not a number',
+  );
+  fires(
+    'kernel words',
+    kernelWords(
+      parser: "const Set<String> _reserved = <String>{'let'};\n$kernelParser",
+    ).isNotEmpty,
+    'an unversioned word list kept in the parser',
   );
 
   return broken;

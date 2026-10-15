@@ -22,22 +22,33 @@ library;
 import '../kernel_exception.dart';
 import '../kernel_version.dart';
 import 'kernel_ast.dart';
+import 'kernel_words.dart';
 
 /// Every `compute` block of [source], in order. Other top-level blocks — a
 /// `material` beside the kernels in one `.f3dmat` file — are skipped.
-List<KKernel> parseKernels(String source) => _Parser(source).file();
+///
+/// [words] and [newest] are this build's ([kernelWordVersions],
+/// [kernelLanguageVersion]); a test passes a later version's to show that
+/// its words leave an older source's names alone.
+List<KKernel> parseKernels(
+  String source, {
+  Map<String, int> words = kernelWordVersions,
+  int newest = kernelLanguageVersion,
+}) => _Parser(source, words, newest).file();
+
+/// What a token is.
+enum _Kind { ident, integer, float, punct, eof }
 
 final class _Token {
   const _Token(this.kind, this.text, this.line, this.column);
 
-  /// `ident`, `int`, `float`, `punct` or `eof`.
-  final String kind;
+  final _Kind kind;
   final String text;
   final int line;
   final int column;
 
   @override
-  String toString() => kind == 'eof' ? 'the end of the file' : '"$text"';
+  String toString() => kind == _Kind.eof ? 'the end of the file' : '"$text"';
 }
 
 const List<String> _punctuation = <String>[
@@ -79,61 +90,6 @@ const List<String> _punctuation = <String>[
   '~',
   '!',
 ];
-
-/// Words a local may not be called: the language's own, and the built-ins.
-const Set<String> _reserved = <String>{
-  'compute',
-  'workgroup',
-  'buffer',
-  'texture',
-  'image',
-  'kernel',
-  'let',
-  'var',
-  'if',
-  'else',
-  'for',
-  'in',
-  'break',
-  'continue',
-  'return',
-  'true',
-  'false',
-  'store',
-  'load',
-  'len',
-  'width',
-  'height',
-  'id',
-  'f32',
-  'i32',
-  'u32',
-  'bool',
-  'vec2',
-  'vec3',
-  'vec4',
-  'min',
-  'max',
-  'clamp',
-  'abs',
-  'floor',
-  'ceil',
-  'round',
-  'trunc',
-  'sqrt',
-  'sin',
-  'cos',
-  'pow',
-  'select',
-  'read',
-  'read_write',
-  'atomic',
-  'atomicLoad',
-  'atomicStore',
-  'atomicExchange',
-  'atomicAdd',
-  'rgba8',
-};
 
 List<_Token> _lex(String source) {
   final tokens = <_Token>[];
@@ -186,7 +142,9 @@ List<_Token> _lex(String source) {
       while (at < source.length && isIdent(source.codeUnitAt(at))) {
         at += 1;
       }
-      tokens.add(_Token('ident', source.substring(start, at), line, column));
+      tokens.add(
+        _Token(_Kind.ident, source.substring(start, at), line, column),
+      );
       continue;
     }
     if (isDigit(c)) {
@@ -239,7 +197,7 @@ List<_Token> _lex(String source) {
       }
       tokens.add(
         _Token(
-          float ? 'float' : 'int',
+          float ? _Kind.float : _Kind.integer,
           source.substring(start, at),
           line,
           column,
@@ -255,10 +213,10 @@ List<_Token> _lex(String source) {
         column: column,
       );
     }
-    tokens.add(_Token('punct', punct.first, line, column));
+    tokens.add(_Token(_Kind.punct, punct.first, line, column));
     at += punct.first.length;
   }
-  tokens.add(_Token('eof', '', line, at - lineStart + 1));
+  tokens.add(_Token(_Kind.eof, '', line, at - lineStart + 1));
   return tokens;
 }
 
@@ -272,10 +230,39 @@ final class _Scope {
 }
 
 final class _Parser {
-  _Parser(String source) : _tokens = _lex(source);
+  _Parser(String source, this._words, this._newest) : _tokens = _lex(source);
 
   final List<_Token> _tokens;
+  final Map<String, int> _words;
+  final int _newest;
   int _at = 0;
+
+  /// [token]'s text when it is a word in this source's version, which the
+  /// parser dispatches on; null for a name, a later version's word among
+  /// them.
+  String? _word(_Token token) =>
+      token.kind == _Kind.ident &&
+          isKernelWord(token.text, _version, words: _words)
+      ? token.text
+      : null;
+
+  /// Whether [name] is taken from a binding or a local in this source.
+  bool _taken(String name) =>
+      isKernelReservedName(name, _version, words: _words);
+
+  /// Nothing in scope is called [token]'s text; a later version's word is
+  /// named as one, so a source that meant it learns which line to add.
+  Never _unknown(_Token token) {
+    final since = _words[token.text];
+    if (since != null && since > _version) {
+      _fail(
+        '"${token.text}" is kernel language $since: open the source with '
+        '"kernel $since"',
+        token,
+      );
+    }
+    _fail('nothing is called "${token.text}"', token);
+  }
 
   // Per kernel.
   Map<String, KBinding> _bindings = <String, KBinding>{};
@@ -294,7 +281,7 @@ final class _Parser {
     );
   }
 
-  bool _is(String text) => _peek.kind != 'eof' && _peek.text == text;
+  bool _is(String text) => _peek.kind != _Kind.eof && _peek.text == text;
 
   bool _accept(String text) {
     if (!_is(text)) return false;
@@ -309,7 +296,7 @@ final class _Parser {
 
   String _name(String what) {
     final token = _peek;
-    if (token.kind != 'ident') _fail('expected $what, found $token');
+    if (token.kind != _Kind.ident) _fail('expected $what, found $token');
     _at += 1;
     return token.text;
   }
@@ -318,9 +305,9 @@ final class _Parser {
     final version = _header();
     final kernels = <KKernel>[];
     final names = <String>{};
-    while (_peek.kind != 'eof') {
+    while (_peek.kind != _Kind.eof) {
       final word = _peek;
-      if (word.kind != 'ident') _fail('expected a block, found $word');
+      if (word.kind != _Kind.ident) _fail('expected a block, found $word');
       switch (word.text) {
         case 'compute':
           _at += 1;
@@ -354,11 +341,13 @@ final class _Parser {
   /// Absent, the kernel language is version 1. A newer one is refused with
   /// both numbers, never read under this build's meaning of its words.
   int _header() {
-    if (_is('f3dmat') && _tokens[_at + 1].kind == 'int') _at += 2;
+    if (_is('f3dmat') && _tokens[_at + 1].kind == _Kind.integer) _at += 2;
     if (!_is('kernel')) return kernelLanguageFirstVersion;
     final word = _next();
     final number = _peek;
-    final value = number.kind == 'int' ? int.tryParse(number.text) : null;
+    final value = number.kind == _Kind.integer
+        ? int.tryParse(number.text)
+        : null;
     if (value == null || value < kernelLanguageFirstVersion) {
       _fail(
         '"${number.text}" is not a kernel language version: write a whole '
@@ -367,10 +356,10 @@ final class _Parser {
         number,
       );
     }
-    if (value > kernelLanguageVersion) {
+    if (value > _newest) {
       _fail(
         'this source is kernel language version $value, and this build '
-        'reads up to version $kernelLanguageVersion: it needs a newer '
+        'reads up to version $_newest: it needs a newer '
         'flutter3d',
         word,
       );
@@ -382,16 +371,16 @@ final class _Parser {
   /// A `material` or `fullscreen` block of a `.f3dmat` file: its words up
   /// to the brace that closes the one it opens.
   void _skipBlock() {
-    while (_peek.kind != 'eof' && !_is('{')) {
+    while (_peek.kind != _Kind.eof && !_is('{')) {
       _at += 1;
     }
-    if (_peek.kind == 'eof') return;
+    if (_peek.kind == _Kind.eof) return;
     var depth = 0;
     do {
       final token = _next();
-      if (token.text == '{' && token.kind == 'punct') depth += 1;
-      if (token.text == '}' && token.kind == 'punct') depth -= 1;
-      if (token.kind == 'eof') _fail('a block that never closes', token);
+      if (token.text == '{' && token.kind == _Kind.punct) depth += 1;
+      if (token.text == '}' && token.kind == _Kind.punct) depth -= 1;
+      if (token.kind == _Kind.eof) _fail('a block that never closes', token);
     } while (depth > 0);
   }
 
@@ -454,7 +443,9 @@ final class _Parser {
     final first = _peek;
     do {
       final token = _next();
-      final value = token.kind == 'int' ? int.tryParse(token.text) : null;
+      final value = token.kind == _Kind.integer
+          ? int.tryParse(token.text)
+          : null;
       if (value == null || value < 1) {
         _fail('a workgroup size is a whole number above zero', token);
       }
@@ -478,7 +469,7 @@ final class _Parser {
   }
 
   void _declare(_Token at, String name, KBinding Function(int) make) {
-    if (_reserved.contains(name)) {
+    if (_taken(name)) {
       _fail('"$name" is a word of the language', at);
     }
     if (_bindings.containsKey(name)) _fail('a second binding "$name"', at);
@@ -503,7 +494,7 @@ final class _Parser {
     _expect(']');
     var writable = false;
     var atomic = false;
-    if (_peek.kind == 'ident') {
+    if (_peek.kind == _Kind.ident) {
       final access = _next();
       writable = switch (access.text) {
         'read' => false,
@@ -569,7 +560,7 @@ final class _Parser {
     _scope = _Scope(outer);
     final statements = <KStmt>[];
     while (!_accept('}')) {
-      if (_peek.kind == 'eof') _fail('a block that never closes');
+      if (_peek.kind == _Kind.eof) _fail('a block that never closes');
       statements.add(_statement());
     }
     _scope = outer;
@@ -579,12 +570,12 @@ final class _Parser {
   KStmt _statement() {
     final word = _peek;
     final line = word.line;
-    switch (word.text) {
-      case 'let' || 'var' when word.kind == 'ident':
+    switch (_word(word)) {
+      case 'let' || 'var':
         _at += 1;
         final nameToken = _peek;
         final name = _name('a name');
-        if (_reserved.contains(name) || _bindings.containsKey(name)) {
+        if (_taken(name) || _bindings.containsKey(name)) {
           _fail('"$name" is already a word or a binding', nameToken);
         }
         if (_scope.locals.containsKey(name)) {
@@ -601,13 +592,13 @@ final class _Parser {
         final local = KLocal(name, value.type, mutable: word.text == 'var');
         _scope.locals[name] = local;
         return KDeclare(local, value, line);
-      case 'if' when word.kind == 'ident':
+      case 'if':
         return _if();
-      case 'for' when word.kind == 'ident':
+      case 'for':
         _at += 1;
         final nameToken = _peek;
         final name = _name('the counter\'s name');
-        if (_reserved.contains(name) || _bindings.containsKey(name)) {
+        if (_taken(name) || _bindings.containsKey(name)) {
           _fail('"$name" is already a word or a binding', nameToken);
         }
         _expect('in');
@@ -628,16 +619,16 @@ final class _Parser {
         _loops -= 1;
         _scope = outer;
         return KFor(counter, from, to, body, line);
-      case 'break' || 'continue' when word.kind == 'ident':
+      case 'break' || 'continue':
         _at += 1;
         if (_loops == 0) _fail('"${word.text}" outside a loop', word);
         _expect(';');
         return word.text == 'break' ? KBreak(line) : KContinue(line);
-      case 'return' when word.kind == 'ident':
+      case 'return':
         _at += 1;
         _expect(';');
         return KReturn(line);
-      case 'store' when word.kind == 'ident':
+      case 'store':
         _at += 1;
         _expect('(');
         final binding = _bindingNamed(KBindingKind.image, 'an image');
@@ -650,8 +641,7 @@ final class _Parser {
         _expect(')');
         _expect(';');
         return KImageStore(binding, x, y, value, line);
-      case 'atomicStore' || 'atomicAdd' || 'atomicExchange'
-          when word.kind == 'ident':
+      case 'atomicStore' || 'atomicAdd' || 'atomicExchange':
         _at += 1;
         _expect('(');
         final binding = _atomicBinding();
@@ -669,7 +659,7 @@ final class _Parser {
           line,
         );
     }
-    if (word.kind != 'ident') _fail('expected a statement, found $word');
+    if (word.kind != _Kind.ident) _fail('expected a statement, found $word');
     _at += 1;
     final binding = _bindings[word.text];
     if (binding != null) {
@@ -702,7 +692,7 @@ final class _Parser {
       );
     }
     final local = _scope.find(word.text);
-    if (local == null) _fail('nothing is called "${word.text}"', word);
+    if (local == null) _unknown(word);
     if (!local.mutable) {
       _fail('"${local.name}" is a let; declare it with var to assign it', word);
     }
@@ -725,7 +715,7 @@ final class _Parser {
           '/=',
           '%=',
         ].contains(token.text) &&
-        token.kind == 'punct') {
+        token.kind == _Kind.punct) {
       return token.text;
     }
     _fail('expected an assignment, found $token', token);
@@ -776,7 +766,7 @@ final class _Parser {
     final token = _peek;
     final name = _name(what);
     final binding = _bindings[name];
-    if (binding == null) _fail('nothing is called "$name"', token);
+    if (binding == null) _unknown(token);
     if (binding.kind != kind) _fail('"$name" is not $what', token);
     return binding;
   }
@@ -813,7 +803,7 @@ final class _Parser {
   KExpr _binaryLevel(int level) {
     if (level == _levels.length) return _unary();
     var left = _binaryLevel(level + 1);
-    while (_peek.kind == 'punct' && _levels[level].contains(_peek.text)) {
+    while (_peek.kind == _Kind.punct && _levels[level].contains(_peek.text)) {
       final op = _next();
       final right = _binaryLevel(level + 1);
       left = _binary(op.text, left, right, op);
@@ -995,7 +985,7 @@ final class _Parser {
 
   KExpr _unary() {
     final token = _peek;
-    if (token.kind == 'punct' &&
+    if (token.kind == _Kind.punct &&
         (token.text == '-' || token.text == '!' || token.text == '~')) {
       _at += 1;
       final operand = _unary();
@@ -1069,7 +1059,7 @@ final class _Parser {
   KExpr _primary() {
     final token = _next();
     switch (token.kind) {
-      case 'int':
+      case _Kind.integer:
         final text = token.text;
         final suffix = text.endsWith('u')
             ? KType.u32
@@ -1082,7 +1072,7 @@ final class _Parser {
         final value = int.parse(digits);
         if (suffix == null) return KIntLiteral(value, KType.abstractInt);
         return _coerce(KIntLiteral(value, KType.abstractInt), suffix, token);
-      case 'float':
+      case _Kind.float:
         final text = token.text;
         final suffixed = text.endsWith('f');
         final value = double.parse(
@@ -1090,17 +1080,17 @@ final class _Parser {
         );
         final literal = KFloatLiteral(value, text, KType.abstractFloat);
         return suffixed ? _coerce(literal, KType.f32, token) : literal;
-      case 'punct' when token.text == '(':
+      case _Kind.punct when token.text == '(':
         final inner = _expression();
         _expect(')');
         return inner;
-      case 'ident':
+      case _Kind.ident:
         break;
       default:
         _fail('expected a value, found $token', token);
     }
     final name = token.text;
-    switch (name) {
+    switch (_word(token)) {
       case 'true' || 'false':
         return KBoolLiteral(name == 'true');
       case 'id':
@@ -1119,7 +1109,7 @@ final class _Parser {
       return KBufferRead(binding, index);
     }
     final local = _scope.find(name);
-    if (local == null) _fail('nothing is called "$name"', token);
+    if (local == null) _unknown(token);
     return KLocalRef(local);
   }
 
@@ -1137,6 +1127,9 @@ final class _Parser {
 
   KExpr _call(_Token token) {
     final name = token.text;
+    // A later version's builtin is named before its arguments are read,
+    // which an older source cannot read as that call's.
+    if (_word(token) == null) _unknown(token);
     switch (name) {
       case 'atomicLoad' || 'atomicExchange' || 'atomicAdd':
         _expect('(');
@@ -1264,7 +1257,7 @@ final class _Parser {
         }
         return KCall(name, parts, KType.vector(size));
     }
-    _fail('nothing is called "$name"', token);
+    _unknown(token);
   }
 
   /// The one type every argument has, abstract literals taking it.

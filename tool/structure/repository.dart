@@ -893,6 +893,12 @@ String relative(File file, Directory dir) => file.path
 /// the next one has to be argued for rather than typed.
 const Map<String, Map<String, String>>
 boundaryEnumExempt = <String, Map<String, String>>{
+  'flutter3d_shaders/lib/src/kernel/kernel_parser.dart': <String, String>{
+    '_Kind':
+        'private to the kernel parser: what a token of the source is, which '
+        'the lexer writes and the parser reads in the same file, and nothing '
+        'outside it can name',
+  },
   'flutter3d_lints/lib/src/migration/migration_rule.dart': <String, String>{
     'MigrationKind':
         'private to the package (under src/, exported by no library): the '

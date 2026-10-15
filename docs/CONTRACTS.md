@@ -535,6 +535,17 @@ a shape the engine keeps for later blocks, `F3d…` and `…Info`, which a
 material's own block was never allowed; a block the engine adds in a minor
 is named in that shape, so `uniform(Hair)` stays a material's to use.
 
+The kernel language grows the same way, under its own `kernel <N>`. Every
+word its parser reads as its own (a declaration, a statement, a type, a
+builtin, a binding's kind, access or format) carries the version it
+arrived in, and a source of an older version keeps that word as a name for
+a binding or a local; calling it there is refused with the version it
+needs. Version 2's `atomic…` words are the one exception: version 1 never
+had them as names, so they stay taken in a version 1 source, and freeing
+them would gain nothing. A word of version 3 or later is taken only in a
+source of its own version, so the version that brings workgroup memory and
+barriers reads every kernel written before it.
+
 ### Two languages, two readers
 
 A `.f3dmat` file is read by the material parser (`parseMaterial` in

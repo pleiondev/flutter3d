@@ -234,6 +234,10 @@ List<Rule> get allRules => <Rule>[
     name: 'every versioned format has a fixture for each version it reads',
     run: _formatFixtures,
   ),
+  (
+    name: 'every kernel-language word says the version it arrived in',
+    run: _kernelWordsVersioned,
+  ),
   (name: '.f3d writes codes, not enum ordinals', run: _noEnumOrdinalsInFormats),
   (
     name: 'every break since the last release has its migration',
@@ -5978,6 +5982,43 @@ List<Finding> _cliSurfaceCurrent() {
     );
   }
   return found;
+}
+
+/// Every word the kernel parser reads as its own carries the version it
+/// arrived in (`kernelWordVersions`), and only version 2's words are taken
+/// before their version (`kernelWordsReservedEarly`).
+///
+/// **One unversioned list made every version a break.** The parser kept
+/// its words in one set for all versions, so a `kernel 1` source could not
+/// call a local `atomicAdd`, and version 3's `barrier` or `shared` would
+/// have refused every kernel naming a local after one. The table is what
+/// the parser asks; this rule keeps a new word from going around it, which
+/// a test cannot see. Mutation: add `case 'barrier':` to the parser's
+/// statement switch without a table entry, or put a version 3 word in the
+/// early set.
+List<Finding> _kernelWordsVersioned() {
+  const shaders = 'packages/flutter3d_shaders/lib/src';
+  const wordsPath = '$shaders/kernel/kernel_words.dart';
+  const parserPath = '$shaders/kernel/kernel_parser.dart';
+  const versionPath = '$shaders/kernel_version.dart';
+  String read(String path) =>
+      File('${repositoryRoot.path}/$path').readAsStringSync();
+  final newest = RegExp(
+    r'const\s+int\s+kernelLanguageVersion\s*=\s*(\d+)\s*;',
+  ).firstMatch(codeOf(read(versionPath)));
+  if (newest == null) {
+    return <Finding>[
+      const Finding(versionPath, 'declares no kernelLanguageVersion'),
+    ];
+  }
+  return <Finding>[
+    for (final problem in kernelWordProblems(
+      words: read(wordsPath),
+      parser: read(parserPath),
+      newest: int.parse(newest.group(1)!),
+    ))
+      Finding(wordsPath, problem),
+  ];
 }
 
 /// Each format a published package declares with a `FormatSpec`, and each in

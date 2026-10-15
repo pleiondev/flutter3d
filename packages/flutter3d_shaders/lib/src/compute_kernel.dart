@@ -14,7 +14,12 @@
 ///
 /// **Versioned** ([kernelLanguageVersion]): a source may open with
 /// `kernel 1`, after the `f3dmat <N>` line of a `.f3dmat` file if it has
-/// one, and a source of a newer version is refused with both numbers.
+/// one, and a source of a newer version is refused with both numbers. Each
+/// word of the language carries the version it arrived in: a later
+/// version's word is a name like any other in an older source, so a
+/// version that adds words reads every kernel written before it. Version
+/// 2's `atomic…` words are the one exception, taken in version 1 sources
+/// as they always were.
 ///
 /// **One source, three placements.** A frame's compute step runs on the
 /// device that draws, on a compute-only sidecar or on the CPU, decided per

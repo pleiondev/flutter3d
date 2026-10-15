@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1+1
 
+- **Every word of the kernel language says which version it arrived in.**
+  The parser kept its words in one list for every version, so a version
+  that added `barrier` or `shared` would have refused each older kernel
+  with a local of that name. Now a word is taken from a binding or a local
+  only in a source of its own version or later, and in an older one it is
+  a name like any other; calling it there is refused with the version it
+  needs (`"atomicAdd" is kernel language 2: open the source with "kernel
+  2"`). Version 2's `atomic…` words stay taken in version 1 sources, as
+  they were: no version 1 source ever used them as names. Additive: every
+  source that parsed still parses and means what it meant.
 - **Kernel language 2: atomic buffers.** A buffer of `i32` or `u32` may be
   declared `atomic`, and is read and written only through `atomicLoad`,
   `atomicStore`, `atomicExchange` and `atomicAdd` (the last two as a value
