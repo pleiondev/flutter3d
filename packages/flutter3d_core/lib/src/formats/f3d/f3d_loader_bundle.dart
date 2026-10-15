@@ -94,15 +94,13 @@ extension _F3dBundle on F3dDocument {
     };
   }
 
-  /// Section 32, by material index. A model this build does not know reads
-  /// as none — the material's base parameters — and says so in [warnings]'s
-  /// place: the record is skipped rather than refused.
-  Map<int, LightingModel> _readMaterialLighting() {
+  /// Section 32's JSON, decoded, by material index.
+  Map<int, Object?> _materialLightingWords() {
     final table = _table(
       F3dSection.materialLighting,
       F3dRecord.materialLighting,
     );
-    final lighting = <int, LightingModel>{};
+    final words = <int, Object?>{};
     for (var i = 0; i < table.count; i++) {
       final o = _recordOffset(
         F3dSection.materialLighting,
@@ -113,17 +111,27 @@ extension _F3dBundle on F3dDocument {
         _view.getUint32(o + 4, Endian.little),
         _view.getUint32(o + 8, Endian.little),
       );
-      final Object? decoded;
       try {
-        decoded = json == null ? null : jsonDecode(json);
+        words[_view.getUint32(o, Endian.little)] = json == null
+            ? null
+            : jsonDecode(json);
       } on FormatException catch (error) {
         throw F3dFormatException('A lighting model is not JSON: $error');
       }
-      final model = readLightingJson(decoded, <String>[]);
-      if (model != null) lighting[_view.getUint32(o, Endian.little)] = model;
     }
-    return lighting;
+    return words;
   }
+
+  /// Section 32, by material index. A model this build does not know reads
+  /// as none — the material's base parameters — and says so in [warnings]'s
+  /// place: the record is skipped rather than refused. A plugin's model
+  /// never gets here unknown: [F3dDocument.parse] refused the file.
+  Map<int, LightingModel> _readMaterialLighting() => <int, LightingModel>{
+    for (final MapEntry(:key, :value) in _materialLightingWords().entries)
+      if (readLightingJson(value, <String>[], models: _lightingModels)
+          case final LightingModel model)
+        key: model,
+  };
 
   /// A names-to-text section (programs, prefabs) in file order.
   Map<String, String> _readNamedTexts(int kind) {

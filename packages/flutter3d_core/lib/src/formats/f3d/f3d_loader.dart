@@ -43,7 +43,13 @@ part 'f3d_loader_scene.dart';
 /// and no per-element work. That is what makes loading a converted teapot a
 /// different order of magnitude from parsing the OBJ it came from.
 final class F3dDocument extends ModelDocument {
-  F3dDocument._(this._bytes, this._view, this._sections, this.version);
+  F3dDocument._(
+    this._bytes,
+    this._view,
+    this._sections,
+    this.version,
+    this._lightingModels,
+  );
 
   final Uint8List _bytes;
   final ByteData _view;
@@ -51,6 +57,9 @@ final class F3dDocument extends ModelDocument {
 
   /// The version the file was written at, 1 to [f3dVersion].
   final int version;
+
+  /// The table a lighting model named by name is looked up in.
+  final LightingModels? _lightingModels;
 
   /// Reads the header of [bytes]. The body is decoded lazily.
   ///
@@ -62,9 +71,17 @@ final class F3dDocument extends ModelDocument {
   /// caller reads with [section] — a tool's [f3dVendorKindStart] kinds. A
   /// section flagged [F3dSectionFlags.mustUnderstand] whose kind is neither
   /// the engine's nor in [understands] refuses the file.
+  ///
+  /// A material's lighting model named by name is looked up in
+  /// [lightingModels] — the engine's, `Renderer.lightingModels`, so a
+  /// plugin's model reads as itself — or among the built-in models when
+  /// none is given. A material naming a plugin's model that table does not
+  /// hold refuses the file, naming the plugin ([requires]): drawn with
+  /// another model it would be a different asset, not a poorer one.
   factory F3dDocument.parse(
     Uint8List bytes, {
     Set<int> understands = const <int>{},
+    LightingModels? lightingModels,
   }) {
     if (bytes.lengthInBytes < f3dHeaderBytes) {
       throw F3dFormatException(
@@ -123,8 +140,16 @@ final class F3dDocument extends ModelDocument {
         'than the $f3dSectionEntryBytesV2 the version needs.',
       );
     }
-    final directoryEnd = f3dHeaderBytes + sectionCount * entryBytes;
-    if (directoryEnd > bytes.lengthInBytes) {
+    if (entryBytes > f3dMaxSectionEntryBytes) {
+      throw F3dFormatException(
+        'Directory entries are $entryBytes bytes, more than the '
+        '$f3dMaxSectionEntryBytes a reader accepts.',
+      );
+    }
+    // Divided rather than multiplied: two u32 words from the file multiply
+    // past what an int holds on the VM, where the product wraps negative
+    // and passes a bound it should fail.
+    if (sectionCount > (bytes.lengthInBytes - f3dHeaderBytes) ~/ entryBytes) {
       throw F3dFormatException(
         'Section directory claims $sectionCount entries, which runs past the '
         'end of a ${bytes.lengthInBytes}-byte file.',
@@ -161,13 +186,41 @@ final class F3dDocument extends ModelDocument {
                     'Update flutter3d to open it.',
         );
       }
+      final unread =
+          flags &
+          F3dSectionFlags.mustUnderstandIfSet &
+          ~F3dSectionFlags.understood;
+      if (unread != 0 && F3dSection.known.contains(kind)) {
+        throw F3dFormatException(
+          'Section $kind carries flag bits 0x${unread.toRadixString(16)}, '
+          'which change how it reads and which this build does not know: the '
+          'file was written by a newer converter. Update flutter3d to open it.',
+        );
+      }
       // Later duplicates win, and unknown kinds are kept rather than rejected:
       // a newer writer may add a section this build has no idea about, and
       // ignoring it is exactly what the directory is for.
       sections[kind] = _Section(offset, length, count, flags: flags);
     }
 
-    return F3dDocument._(bytes, view, sections, version);
+    final document = F3dDocument._(
+      bytes,
+      view,
+      sections,
+      version,
+      lightingModels,
+    );
+    final missing = document.requires.difference(
+      lightingPluginsIn(lightingModels),
+    );
+    if (missing.isNotEmpty) {
+      throw F3dFormatException(
+        'A material is drawn with a lighting model of '
+        '${missing.map((String p) => '"$p"').join(', ')}, which this engine '
+        'does not have: install the plugin to open the file.',
+      );
+    }
+    return document;
   }
 
   _Section _section(int kind) => _sections[kind] ?? const _Section(0, 0, 0);
@@ -327,7 +380,28 @@ final class F3dDocument extends ModelDocument {
       );
     }
     final start = _bytes.offsetInBytes + strings.offset + offset;
-    return utf8.decode(_bytes.buffer.asUint8List(start, length));
+    try {
+      return utf8.decode(_bytes.buffer.asUint8List(start, length));
+    } on FormatException catch (error) {
+      throw F3dFormatException(
+        'String bytes $offset..${offset + length} are not UTF-8: '
+        '${error.message}.',
+      );
+    }
+  }
+
+  /// [build] run over values read from the file, a refusal by the type it
+  /// builds turned into the format's own: a record whose counts disagree is
+  /// a broken file, not a programming error, and the caller catches
+  /// [F3dFormatException] alone.
+  T _built<T>(String what, T Function() build) {
+    try {
+      return build();
+    } on ArgumentError catch (error) {
+      throw F3dFormatException('$what does not hold together: ${error.message}');
+    } on UnsupportedError catch (error) {
+      throw F3dFormatException('$what does not hold together: ${error.message}');
+    }
   }
 
   /// Where record [index] of [kind] starts, refusing an index past the table —
@@ -394,6 +468,15 @@ final class F3dDocument extends ModelDocument {
     // a later build's file points at and this one skips.
     if (animations.isNotEmpty) ..._skippedPointers,
   ]);
+
+  /// The plugins whose lighting models this file's materials are drawn
+  /// with: the namespace of every model section 32 names by name
+  /// (`acme_ink` for `acme_ink.Ink`). [F3dDocument.parse] refuses a file
+  /// naming one its `lightingModels` has no model of.
+  late final Set<String> requires = Set<String>.unmodifiable(<String>{
+    for (final word in _materialLightingWords().values)
+      ?lightingPluginOf(word),
+  });
 
   /// Filled by the pointer-track reader; read once, by [warnings].
   final List<String> _skippedPointers = <String>[];

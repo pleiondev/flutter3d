@@ -256,7 +256,9 @@ abstract base class FormatDocument
   Map<String, Object?> write(Map<String, Object?> body, {String generator = FormatSpec.defaultGenerator})
   abstract FormatSpec get spec
   final Map<String, Object?> unknown
+  static Map<String, Object?> nestedUnknownIn(Map<String, Object?> entry, {required Set<String> known})
   static Map<String, Object?> unknownIn(Map<String, Object?> document, {required Set<String> known, FormatSpec? spec})
+  static Map<String, Object?> writeNested(Map<String, Object?> body, Map<String, Object?> unknown)
 
 typedef FormatMigration = Map<String, Object?> Function(Map<String, Object?> document);
 
@@ -283,6 +285,7 @@ final class FormatSpec
   int versionOf(Map<String, Object?> document)
   static const Set<String> envelopeKeys = <String>{'format', 'version', 'requires', 'generator'}
   static const String defaultGenerator = 'flutter3d'
+  static int? wholeNumber(Object? value)
 
 final class FormatSpecs
   FormatSpec? byId(String id)

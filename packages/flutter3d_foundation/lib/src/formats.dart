@@ -150,7 +150,8 @@ final class FormatSpec {
 
   /// The version [document] was written at: `version`, else the legacy key,
   /// else 1 — a document from before the key existed is the first version.
-  /// A 0 or a negative is what it says, for [open] to refuse.
+  /// A 0 or a negative is what it says, for [open] to refuse, and so is
+  /// anything that is not a finite whole number, read as 0.
   int versionOf(Map<String, Object?> document) {
     final said =
         document['version'] ??
@@ -158,8 +159,21 @@ final class FormatSpec {
           final String key => document[key],
           null => null,
         };
-    return said is num ? said.toInt() : 1;
+    return said is num ? wholeNumber(said) ?? 0 : 1;
   }
+
+  /// [value] as an `int` when it is a finite whole number, else null.
+  ///
+  /// **What every number a reader takes from a document goes through**, a
+  /// version above all: `jsonDecode('1e999')` is `double.infinity`, which
+  /// passes a `value == value.roundToDouble()` check and then throws an
+  /// [UnsupportedError] from `toInt()`, out of a reader that promises its own
+  /// exception. Null here is that exception's to say.
+  static int? wholeNumber(Object? value) => switch (value) {
+    final int whole => whole,
+    final double d when d.isFinite && d == d.roundToDouble() => d.toInt(),
+    _ => null,
+  };
 
   /// [document] checked against this format and lifted to [version].
   ///
@@ -189,7 +203,7 @@ final class FormatSpec {
           final String key => document[key],
           null => null,
         };
-    if (raw != null && (raw is! num || raw != raw.roundToDouble())) {
+    if (raw != null && wholeNumber(raw) == null) {
       throw refuse('"version" must be a whole number, not $raw');
     }
     final at = versionOf(document);
@@ -361,6 +375,33 @@ abstract base class FormatDocument {
           key != spec?.legacyVersionKey &&
           !known.contains(key))
         key: value,
+  };
+
+  /// The keys of [entry], an object nested in a document, that are not in
+  /// [known]: what a later minor added inside it.
+  ///
+  /// **Kept for the nested objects an editor rewrites**, and only those: a
+  /// pipeline's nodes and a plugin's sections, where a document opened and
+  /// saved by an earlier minor would otherwise lose what a later one put
+  /// there (`docs/CONTRACTS.md`, "Unknown keys are kept"). The reader keeps
+  /// the result beside the entry and the writer hands it to [writeNested].
+  static Map<String, Object?> nestedUnknownIn(
+    Map<String, Object?> entry, {
+    required Set<String> known,
+  }) => Map<String, Object?>.unmodifiable(<String, Object?>{
+    for (final MapEntry(:key, :value) in entry.entries)
+      if (!known.contains(key)) key: value,
+  });
+
+  /// [body], a nested object, with [unknown] after it, as [write] does for
+  /// the top level: a key in both is written from [body].
+  static Map<String, Object?> writeNested(
+    Map<String, Object?> body,
+    Map<String, Object?> unknown,
+  ) => <String, Object?>{
+    ...body,
+    for (final MapEntry(:key, :value) in unknown.entries)
+      if (!body.containsKey(key)) key: value,
   };
 
   /// [body] in the envelope, with [unknown] after it. A key in both [body]

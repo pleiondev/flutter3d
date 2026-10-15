@@ -97,6 +97,38 @@ List<Map<String, Object?>> _written(DataPluginDocument document, String name) =>
 
 void main() {
   group('the document', () {
+    test('keys a later minor put inside its entries are kept', () {
+      // Mutation: build a phase, an event or a system without `unknown`,
+      // and a tool of this build saving a 1.1 plugin drops what 1.1 said
+      // inside each entry.
+      final json =
+          jsonDecode(File('test/fixtures/v4/glow.f3dplugin').readAsStringSync())
+              as Map<String, Object?>;
+      Map<String, Object?> later(Object? entry) => <String, Object?>{
+        ...(entry! as Map<String, Object?>),
+        'later': <String, Object?>{'minor': 1},
+      };
+      for (final key in <String>['phases', 'events', 'wasm']) {
+        final list = json[key]! as List<Object?>;
+        list[0] = later(list[0]);
+      }
+      final document = DataPluginDocument.fromJson(json, sections: _sections);
+      const kept = <String, Object?>{
+        'later': <String, Object?>{'minor': 1},
+      };
+      expect(document.phases.first.unknown, kept);
+      expect(document.events.first.unknown, kept);
+      expect(document.wasm.first.unknown, kept);
+      final written = document.toJson();
+      for (final key in <String>['phases', 'events', 'wasm']) {
+        expect(
+          (written[key]! as List<Object?>).first,
+          containsPair('later', kept['later']),
+          reason: key,
+        );
+      }
+    });
+
     for (final version in <int>[1, 2, 3, 4]) {
       test('the v$version fixture reads, every key in its place', () {
         // Mutation: drop a key from `_read` or a section's `read`, or read

@@ -109,7 +109,25 @@ final class PipelineNode {
     this.after = const <String>[],
     this.before = const <String>[],
     this.options = const <String, Object?>{},
+    this.unknown = const <String, Object?>{},
   });
+
+  /// The keys a node is written with; any other a node has was written by a
+  /// later minor and is kept in [unknown].
+  static const Set<String> keys = <String>{
+    'name',
+    'anchor',
+    'kind',
+    'engine',
+    'step',
+    'reads',
+    'optionalReads',
+    'writes',
+    'keeps',
+    'after',
+    'before',
+    'options',
+  };
 
   /// The node's name, as the frame reports it.
   final String name;
@@ -150,7 +168,13 @@ final class PipelineNode {
   /// What the [kind] is handed to make the node: its own settings, by name.
   final Map<String, Object?> options;
 
-  Map<String, Object?> toJson() => <String, Object?>{
+  /// The node's keys this build does not read, as the file had them: written
+  /// back after the node's own, so a pipeline a later minor wrote and this
+  /// one opened and saved keeps what the later one added to its nodes
+  /// (`FormatDocument.nestedUnknownIn`).
+  final Map<String, Object?> unknown;
+
+  Map<String, Object?> toJson() => FormatDocument.writeNested(<String, Object?>{
     'name': name,
     'anchor': anchor,
     'kind': ?kind,
@@ -163,7 +187,7 @@ final class PipelineNode {
     if (after.isNotEmpty) 'after': after,
     if (before.isNotEmpty) 'before': before,
     if (options.isNotEmpty) 'options': options,
-  };
+  }, unknown);
 }
 
 /// A frame's pipeline, written down (D44): what a renderer describes of its
@@ -251,6 +275,10 @@ final class PipelineDocument extends FormatDocument {
                   '$what: "options" is not an object',
                 ),
               },
+              unknown: FormatDocument.nestedUnknownIn(
+                entry,
+                known: PipelineNode.keys,
+              ),
             );
           }(),
       ]),

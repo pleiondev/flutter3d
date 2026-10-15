@@ -6,18 +6,22 @@ library package:flutter3d_plugin_runtime/flutter3d_plugin_runtime.dart
 
 final class DataEventDeclaration
   Map<String, Object?> toJson()
-  const DataEventDeclaration({required this.name, this.description})
+  const DataEventDeclaration({required this.name, this.description, this.unknown = const <String, Object?>{}})
+  final Map<String, Object?> unknown
   final String name
   final String? description
+  static const Set<String> keys = <String>{'name', 'description'}
 
 final class DataPhase
   LoopPhase get phase
   Map<String, Object?> toJson()
-  const DataPhase({required this.name, required this.kind, this.after = const <String>[], this.before = const <String>[]})
+  const DataPhase({required this.name, required this.kind, this.after = const <String>[], this.before = const <String>[], this.unknown = const <String, Object?>{}})
   final List<String> after
   final List<String> before
+  final Map<String, Object?> unknown
   final PhaseKind kind
   final String name
+  static const Set<String> keys = <String>{'name', 'kind', 'after', 'before'}
 
 final class DataPlugin extends Flutter3dPlugin
   List<String> get notes
@@ -73,17 +77,19 @@ final class DataSections extends DataSectionRegistry
 
 final class ExpressionSystemSpec
   Map<String, Object?> toJson()
-  const ExpressionSystemSpec({required this.system, required this.phase, this.source, this.text, this.after = const <String>[], this.before = const <String>[], this.reads = const <String>[], this.writes = const <String>[], this.events = const <String>[]})
+  const ExpressionSystemSpec({required this.system, required this.phase, this.source, this.text, this.after = const <String>[], this.before = const <String>[], this.reads = const <String>[], this.writes = const <String>[], this.events = const <String>[], this.unknown = const <String, Object?>{}})
   factory ExpressionSystemSpec.fromJson(Map<String, Object?> json)
   final List<String> after
   final List<String> before
   final List<String> events
   final List<String> reads
   final List<String> writes
+  final Map<String, Object?> unknown
   final String phase
   final String system
   final String? source
   final String? text
+  static const Set<String> keys = <String>{'system', 'phase', 'source', 'text', 'after', 'before', 'reads', 'writes', 'events'}
 
 abstract final class Fixed16
   static const int one = 65536
@@ -230,16 +236,18 @@ final class WasmSystem
 
 final class WasmSystemSpec
   Map<String, Object?> toJson()
-  const WasmSystemSpec({required this.module, required this.system, required this.phase, this.after = const <String>[], this.before = const <String>[], this.fields = const <WasmFieldSpec>[], this.events = const <String>[], this.limits = const WasmLimits()})
+  const WasmSystemSpec({required this.module, required this.system, required this.phase, this.after = const <String>[], this.before = const <String>[], this.fields = const <WasmFieldSpec>[], this.events = const <String>[], this.limits = const WasmLimits(), this.unknown = const <String, Object?>{}})
   factory WasmSystemSpec.fromJson(Map<String, Object?> json)
   final List<String> after
   final List<String> before
   final List<String> events
   final List<WasmFieldSpec> fields
+  final Map<String, Object?> unknown
   final String module
   final String phase
   final String system
   final WasmLimits limits
+  static const Set<String> keys = <String>{'module', 'system', 'phase', 'after', 'before', 'fields', 'events', 'limits'}
 
 final class WasmTrapException extends PluginException
   String toString()

@@ -87,14 +87,17 @@ extension _F3dAnimation on F3dDocument {
 
       (byClip[word(0)] ??= <(int, AnimationTrack)>[]).add((
         word(4),
-        AnimationTrack(
-          nodeIndex: -1,
-          path: AnimationPath.pointer,
-          interpolation: interpolation,
-          componentCount: word(12),
-          times: _floats(word(16), word(20)),
-          values: _floats(word(24), word(28)),
-          pointer: pointer,
+        _built(
+          'pointer track $i',
+          () => AnimationTrack(
+            nodeIndex: -1,
+            path: AnimationPath.pointer,
+            interpolation: interpolation,
+            componentCount: word(12),
+            times: _floats(word(16), word(20)),
+            values: _floats(word(24), word(28)),
+            pointer: pointer,
+          ),
         ),
       ));
     }
@@ -115,18 +118,23 @@ extension _F3dAnimation on F3dDocument {
       );
     }
 
-    return AnimationTrack(
-      nodeIndex: _view.getUint32(o, Endian.little),
-      path: path,
-      interpolation: interpolation,
-      componentCount: _view.getUint32(o + 12, Endian.little),
-      times: _floats(
-        _view.getUint32(o + 16, Endian.little),
-        _view.getUint32(o + 20, Endian.little),
-      ),
-      values: _floats(
-        _view.getUint32(o + 24, Endian.little),
-        _view.getUint32(o + 28, Endian.little),
+    final times = _floats(
+      _view.getUint32(o + 16, Endian.little),
+      _view.getUint32(o + 20, Endian.little),
+    );
+    final values = _floats(
+      _view.getUint32(o + 24, Endian.little),
+      _view.getUint32(o + 28, Endian.little),
+    );
+    return _built(
+      'tracks[$index]',
+      () => AnimationTrack(
+        nodeIndex: _view.getUint32(o, Endian.little),
+        path: path,
+        interpolation: interpolation,
+        componentCount: _view.getUint32(o + 12, Endian.little),
+        times: times,
+        values: values,
       ),
     );
   }

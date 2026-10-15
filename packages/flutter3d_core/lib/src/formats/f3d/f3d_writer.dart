@@ -77,17 +77,35 @@ final class F3dWriter {
   ///
   /// This is what re-exporting a bundle goes through (`F3dModelWriter`), so
   /// a `.f3d` opened and saved keeps its bundle and a tool's sections.
-  factory F3dWriter.carrying(ModelDocument document) => switch (document) {
-    final F3dDocument bundle => F3dWriter(
-      bundle,
-      programs: bundle.programs,
-      prefabs: bundle.prefabs,
-      files: bundle.files,
-      physicalMaterials: bundle.physicalMaterials,
-      extraSections: bundle.extraSections,
-    ),
-    _ => F3dWriter(document),
-  };
+  ///
+  /// [from] is the `.f3d` an edited [document] was made from. Its bundle is
+  /// carried as above, but its tables are not [document]'s any more, so of
+  /// the sections this build does not know only those flagged
+  /// [F3dSectionFlags.safeToCopy] are kept: the rest may name records by an
+  /// index the edit moved. Without [from], [document] is written over its
+  /// own tables and keeps every section.
+  factory F3dWriter.carrying(ModelDocument document, {F3dDocument? from}) {
+    final source =
+        from ??
+        switch (document) {
+          final F3dDocument bundle => bundle,
+          _ => null,
+        };
+    if (source == null) return F3dWriter(document);
+    final sameTables = identical(source, document);
+    return F3dWriter(
+      document,
+      programs: source.programs,
+      prefabs: source.prefabs,
+      files: source.files,
+      physicalMaterials: source.physicalMaterials,
+      extraSections: <F3dExtraSection>[
+        for (final extra in source.extraSections)
+          if (sameTables || extra.flags & F3dSectionFlags.safeToCopy != 0)
+            extra,
+      ],
+    );
+  }
 
   final ModelDocument document;
 
@@ -403,6 +421,8 @@ final class F3dExtraSection {
   final int count;
 
   /// [F3dSectionFlags] bits; [F3dSectionFlags.mustUnderstand] makes a reader
-  /// that does not know [kind] refuse the file.
+  /// that does not know [kind] refuse the file, and
+  /// [F3dSectionFlags.safeToCopy] lets `F3dWriter.carrying` keep it in a file
+  /// whose tables were edited.
   final int flags;
 }

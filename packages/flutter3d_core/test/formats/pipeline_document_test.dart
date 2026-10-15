@@ -92,6 +92,24 @@ void main() {
     expect(again.encode(), standard.encode());
   });
 
+  test('a key a later minor put on a node is kept through a save', () {
+    // Mutation: build the node without `unknown`, and an editor of this
+    // build saving a 1.1 pipeline drops what 1.1 said about each node.
+    final json = _standard().toJson();
+    final nodes = json['nodes']! as List<Object?>;
+    nodes[0] = <String, Object?>{
+      ...(nodes[0]! as Map<String, Object?>),
+      'perView': true,
+    };
+    final read = PipelineDocument.fromJson(json);
+    expect(read.nodes.first.unknown, <String, Object?>{'perView': true});
+    expect(
+      (read.toJson()['nodes']! as List<Object?>).first,
+      containsPair('perView', true),
+    );
+    expect(read.nodes[1].unknown, isEmpty);
+  });
+
   test('the version 1 pipeline reads as version 2, every engine word with '
       'f3d. before it', () {
     // Mutation: drop `_engineWords` from the format's migrations, and the v1

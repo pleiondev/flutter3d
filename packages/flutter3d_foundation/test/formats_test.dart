@@ -37,6 +37,28 @@ void main() {
     }
   });
 
+  test('a version past what a double holds is refused in the format\'s '
+      'words', () {
+    // `jsonDecode('{"version": 1e999}')` is `double.infinity`, which passed
+    // the whole-number check and then threw `UnsupportedError` from
+    // `toInt()`. Mutation: drop `isFinite` from `FormatSpec.wholeNumber`.
+    for (final said in <double>[
+      double.infinity,
+      double.negativeInfinity,
+      double.nan,
+    ]) {
+      expect(FormatSpec.wholeNumber(said), isNull);
+      expect(_spec.versionOf(<String, Object?>{'version': said}), 0);
+      expect(
+        () => _open(<String, Object?>{'format': 'f3d.test', 'version': said}),
+        throwsA(isA<DocumentFormatException>()),
+      );
+    }
+    expect(FormatSpec.wholeNumber(2.0), 2);
+    expect(FormatSpec.wholeNumber(2.5), isNull);
+    expect(FormatSpec.wholeNumber('2'), isNull);
+  });
+
   group('FormatSpecs', () {
     const level = FormatSpec(
       id: 'f3d.level',

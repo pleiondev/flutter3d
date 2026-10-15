@@ -61,12 +61,17 @@ extension _F3dGeometry on F3dDocument {
       );
     }
 
-    return MeshData(
-      layout: _layouts[layoutIndex],
-      vertices: _floats(vertexOffset, vertexBytes ~/ 4),
-      indices: _uint32s(indexOffset, indexBytes ~/ 4),
-      morphTargets: _morphTargets[index] ?? const <MorphTarget>[],
-      clusters: _clusters[index],
+    final vertices = _floats(vertexOffset, vertexBytes ~/ 4);
+    final indices = _uint32s(indexOffset, indexBytes ~/ 4);
+    return _built(
+      'meshes[$index]',
+      () => MeshData(
+        layout: _layouts[layoutIndex],
+        vertices: vertices,
+        indices: indices,
+        morphTargets: _morphTargets[index] ?? const <MorphTarget>[],
+        clusters: _clusters[index],
+      ),
     );
   });
 

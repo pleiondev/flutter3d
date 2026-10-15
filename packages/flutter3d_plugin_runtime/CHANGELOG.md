@@ -5,6 +5,11 @@
   `ArgumentError`; it is the `PluginException` every registry throws for a
   name already taken now, naming the name. A name the runtime reads itself
   is still an `ArgumentError`, since no plugin can ever have it.
+- **A plugin's entries keep the keys a later minor gave them.**
+  `DataPhase`, `DataEventDeclaration`, `ExpressionSystemSpec` and
+  `WasmSystemSpec` hold what their `keys` do not name in `unknown` and write
+  it back, so a tool of this build saving a later `.f3dplugin` keeps what
+  that build said inside each phase, event and system.
 
 ## 1.0.0-rc.1
 

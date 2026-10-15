@@ -181,11 +181,50 @@ const int f3dSectionEntryBytes = 16;
 /// grow the entry the same way a record grows.
 const int f3dSectionEntryBytesV2 = 20;
 
+/// The largest directory entry a reader accepts, in bytes. An entry grows at
+/// its tail as a record does, and 256 bytes is twelve times today's: a header
+/// claiming more is a broken or hostile file, refused before the directory's
+/// size is multiplied out.
+const int f3dMaxSectionEntryBytes = 256;
+
 /// The bits of a directory entry's flags word (version 2 and up).
+///
+/// **All 32 bits have a meaning now**, so a 1.x flag never needs a version
+/// bump to be read safely by 1.0:
+///
+/// | bits | meaning |
+/// |---|---|
+/// | 0 | [mustUnderstand]: a reader that does not know the kind refuses |
+/// | 1 | [safeToCopy]: a writer that changed the tables keeps the section |
+/// | 2–15 | [ignorable]: a reader that does not know one reads on |
+/// | 16–31 | [mustUnderstandIfSet]: a reader refuses a section it knows when one it does not know is set |
 abstract final class F3dSectionFlags {
   /// A reader that does not know this section's kind must refuse the file:
   /// skipping it would open a different model, not a poorer one.
   static const int mustUnderstand = 1 << 0;
+
+  /// A section a writer may carry into a file whose tables it changed.
+  ///
+  /// A section this build does not know may name records by index: its
+  /// nodes, its materials. Written back over the same tables
+  /// (`F3dWriter.carrying` of the document itself), every index still
+  /// points where it did, so every section is kept. Written over tables an
+  /// edit changed, only a section flagged here is kept, and the rest are
+  /// dropped rather than left naming the wrong records.
+  static const int safeToCopy = 1 << 1;
+
+  /// Bits 2–15: a flag a reader that does not know it ignores, reading the
+  /// section as if it were clear. For a hint a later build may act on.
+  static const int ignorable = 0x0000FFFC;
+
+  /// Bits 16–31: a flag that changes how the section's bytes read, such as
+  /// a compression. A reader that knows the section's kind and not the flag
+  /// refuses the file, naming both; an unknown kind's high bits are its
+  /// writer's business.
+  static const int mustUnderstandIfSet = 0xFFFF0000;
+
+  /// The [mustUnderstandIfSet] bits this build reads: none yet.
+  static const int understood = 0;
 }
 
 /// Section kinds.

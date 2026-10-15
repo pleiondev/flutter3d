@@ -52,6 +52,35 @@
   decode-worker`.** It is the same command, kept for a project without
   `flutter3d_build`: the usage on stdout for `--help`, 2 for a command line
   it cannot read and 1 when the compile fails, where it answered 64 and 69.
+- **A `.f3d` flag bit means the same in every 1.x reader.** Bit 0 is
+  must-understand, bit 1 safe-to-copy (`F3dSectionFlags.safeToCopy`), bits
+  2–15 a reader ignores, and bits 16–31 change how a section reads: a
+  reader refuses a section it knows carrying one it does not
+  (`mustUnderstandIfSet`). `F3dWriter.carrying(document, from:)` writes an
+  edited model with the bundle of the `.f3d` it came from and keeps only
+  the unknown sections flagged safe to copy, whose indices an edit cannot
+  have moved.
+- **A hostile `.f3d` is refused as a `.f3d`.** A directory entry larger
+  than `f3dMaxSectionEntryBytes` (256) is refused, and the directory's size
+  is divided out rather than multiplied, so two words from the file no
+  longer wrap past the bound on the VM. A string that is not UTF-8, a mesh
+  or a track whose counts disagree throw `F3dFormatException` where they
+  threw `FormatException`, `ArgumentError` or `RangeError`; a seeded fuzz
+  test holds it.
+- **A material naming a plugin's lighting model requires the plugin.**
+  `writeFmat` lists the plugin of every model it names in `requires`, and a
+  plugin's model is always written by its name, `<namespace>.<Name>`.
+  `readFmat` refuses a material whose plugin its `lightingModels` holds no
+  model of, naming it, where it drew the material with the scene's model;
+  `F3dDocument.parse(lightingModels:)` does the same for a `.f3d`'s
+  materials and says which plugins it needs in `F3dDocument.requires`.
+- **A pipeline node keeps the keys a later minor gave it.**
+  `PipelineNode.unknown` holds what `PipelineNode.keys` does not name and
+  writes it back, so an editor of this build saving a later pipeline keeps
+  what that build said about each node.
+- **`v2/everything.f3d` holds every section kind the engine writes**, minted
+  once by `tool/make_everything_fixture.dart`, and the structure check now
+  reads each fixture's directory: a kind no committed file holds fails it.
 - **Breaking: results that were records are final classes.**
   `AbsolutePixels`, `AnimationGraph`, `AtmosphereCycle`, `ColorVision`,
   `CubeLut`, `FrameContext`, `FrameFraction`, `IrradianceField`,

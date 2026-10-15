@@ -25,6 +25,7 @@ final class ExpressionSystemSpec {
     this.reads = const <String>[],
     this.writes = const <String>[],
     this.events = const <String>[],
+    this.unknown = const <String, Object?>{},
   }) : assert(
          (source == null) != (text == null),
          'an expression system is a source file or its text, not both',
@@ -53,6 +54,25 @@ final class ExpressionSystemSpec {
 
   /// Events it may publish, without the plugin's prefix.
   final List<String> events;
+
+  /// The keys a declaration is written with.
+  static const Set<String> keys = <String>{
+    'system',
+    'phase',
+    'source',
+    'text',
+    'after',
+    'before',
+    'reads',
+    'writes',
+    'events',
+  };
+
+  /// The keys this build does not read, as the document had them: written
+  /// back after its own, so a document a later minor wrote and this one
+  /// opened and saved keeps what the later one added here
+  /// (`FormatDocument.nestedUnknownIn`).
+  final Map<String, Object?> unknown;
 
   /// Reads a declaration, or throws a [DocumentFormatException] saying why
   /// not.
@@ -90,10 +110,11 @@ final class ExpressionSystemSpec {
       reads: names('reads'),
       writes: names('writes'),
       events: names('events'),
+      unknown: FormatDocument.nestedUnknownIn(json, known: keys),
     );
   }
 
-  Map<String, Object?> toJson() => <String, Object?>{
+  Map<String, Object?> toJson() => FormatDocument.writeNested(<String, Object?>{
     'system': system,
     'phase': phase,
     'source': ?source,
@@ -103,5 +124,5 @@ final class ExpressionSystemSpec {
     if (reads.isNotEmpty) 'reads': reads,
     if (writes.isNotEmpty) 'writes': writes,
     if (events.isNotEmpty) 'events': events,
-  };
+  }, unknown);
 }

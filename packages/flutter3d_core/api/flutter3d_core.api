@@ -1448,7 +1448,7 @@ final class F3dDocument extends ModelDocument
   F3dExtraSection? section(int kind)
   List<String> get variants
   String toString()
-  factory F3dDocument.parse(Uint8List bytes, {Set<int> understands = const <int>{}})
+  factory F3dDocument.parse(Uint8List bytes, {Set<int> understands = const <int>{}, LightingModels? lightingModels})
   final int version
   late final DocumentAsset? asset
   late final List<AnimationClip> animations
@@ -1466,6 +1466,7 @@ final class F3dDocument extends ModelDocument
   late final Map<String, Map<String, Object?>> prefabs
   late final Map<String, String> programs
   late final Map<String, Uint8List> files
+  late final Set<String> requires
 
 final class F3dExtraSection
   F3dExtraSection({required this.kind, required this.bytes, this.count = 0, this.flags = 0})
@@ -1586,12 +1587,16 @@ abstract final class F3dSection
   static const int warnings = 11
 
 abstract final class F3dSectionFlags
+  static const int ignorable = 0x0000FFFC
   static const int mustUnderstand = 1 << 0
+  static const int mustUnderstandIfSet = 0xFFFF0000
+  static const int safeToCopy = 1 << 1
+  static const int understood = 0
 
 final class F3dWriter
   F3dWriter(this.document, {List<F3dExtraSection> extraSections = const <F3dExtraSection>[], Map<String, String> programs = const <String, String>{}, Map<String, Map<String, Object?>> prefabs = const <String, Map<String, Object?>>{}, Map<String, Uint8List> files = const <String, Uint8List>{}, Map<String, Map<String, Object?>> physicalMaterials = const <String, Map<String, Object?>>{}})
   Uint8List write()
-  factory F3dWriter.carrying(ModelDocument document)
+  factory F3dWriter.carrying(ModelDocument document, {F3dDocument? from})
   final List<F3dExtraSection> extraSections
   final Map<String, Map<String, Object?>> physicalMaterials
   final Map<String, Map<String, Object?>> prefabs
@@ -3921,7 +3926,7 @@ final class PipelineGeometry
 
 final class PipelineNode
   Map<String, Object?> toJson()
-  const PipelineNode({required this.name, required this.anchor, this.kind, this.engine = false, this.step, this.reads = const <String>[], this.optionalReads = const <String>[], this.writes = const <String>[], this.keeps = const <String>[], this.after = const <String>[], this.before = const <String>[], this.options = const <String, Object?>{}})
+  const PipelineNode({required this.name, required this.anchor, this.kind, this.engine = false, this.step, this.reads = const <String>[], this.optionalReads = const <String>[], this.writes = const <String>[], this.keeps = const <String>[], this.after = const <String>[], this.before = const <String>[], this.options = const <String, Object?>{}, this.unknown = const <String, Object?>{}})
   final List<String> after
   final List<String> before
   final List<String> keeps
@@ -3929,11 +3934,13 @@ final class PipelineNode
   final List<String> reads
   final List<String> writes
   final Map<String, Object?> options
+  final Map<String, Object?> unknown
   final String anchor
   final String name
   final String? kind
   final String? step
   final bool engine
+  static const Set<String> keys = <String>{'name', 'anchor', 'kind', 'engine', 'step', 'reads', 'optionalReads', 'writes', 'keeps', 'after', 'before', 'options'}
 
 final class PipelineNodeContext
   const PipelineNodeContext(this.node)
@@ -5943,6 +5950,8 @@ const int f3dHeaderBytes = 16
 
 const int f3dMagic = 0x0A443346
 
+const int f3dMaxSectionEntryBytes = 256
+
 const int f3dSectionEntryBytes = 16
 
 const int f3dSectionEntryBytesV2 = 20
@@ -6671,7 +6680,7 @@ final class F3dDocument extends ModelDocument
   F3dExtraSection? section(int kind)
   List<String> get variants
   String toString()
-  factory F3dDocument.parse(Uint8List bytes, {Set<int> understands = const <int>{}})
+  factory F3dDocument.parse(Uint8List bytes, {Set<int> understands = const <int>{}, LightingModels? lightingModels})
   final int version
   late final DocumentAsset? asset
   late final List<AnimationClip> animations
@@ -6689,6 +6698,7 @@ final class F3dDocument extends ModelDocument
   late final Map<String, Map<String, Object?>> prefabs
   late final Map<String, String> programs
   late final Map<String, Uint8List> files
+  late final Set<String> requires
 
 final class F3dExtraSection
   F3dExtraSection({required this.kind, required this.bytes, this.count = 0, this.flags = 0})
@@ -6809,12 +6819,16 @@ abstract final class F3dSection
   static const int warnings = 11
 
 abstract final class F3dSectionFlags
+  static const int ignorable = 0x0000FFFC
   static const int mustUnderstand = 1 << 0
+  static const int mustUnderstandIfSet = 0xFFFF0000
+  static const int safeToCopy = 1 << 1
+  static const int understood = 0
 
 final class F3dWriter
   F3dWriter(this.document, {List<F3dExtraSection> extraSections = const <F3dExtraSection>[], Map<String, String> programs = const <String, String>{}, Map<String, Map<String, Object?>> prefabs = const <String, Map<String, Object?>>{}, Map<String, Uint8List> files = const <String, Uint8List>{}, Map<String, Map<String, Object?>> physicalMaterials = const <String, Map<String, Object?>>{}})
   Uint8List write()
-  factory F3dWriter.carrying(ModelDocument document)
+  factory F3dWriter.carrying(ModelDocument document, {F3dDocument? from})
   final List<F3dExtraSection> extraSections
   final Map<String, Map<String, Object?>> physicalMaterials
   final Map<String, Map<String, Object?>> prefabs
@@ -7704,7 +7718,7 @@ final class PipelineDocument extends FormatDocument
 
 final class PipelineNode
   Map<String, Object?> toJson()
-  const PipelineNode({required this.name, required this.anchor, this.kind, this.engine = false, this.step, this.reads = const <String>[], this.optionalReads = const <String>[], this.writes = const <String>[], this.keeps = const <String>[], this.after = const <String>[], this.before = const <String>[], this.options = const <String, Object?>{}})
+  const PipelineNode({required this.name, required this.anchor, this.kind, this.engine = false, this.step, this.reads = const <String>[], this.optionalReads = const <String>[], this.writes = const <String>[], this.keeps = const <String>[], this.after = const <String>[], this.before = const <String>[], this.options = const <String, Object?>{}, this.unknown = const <String, Object?>{}})
   final List<String> after
   final List<String> before
   final List<String> keeps
@@ -7712,11 +7726,13 @@ final class PipelineNode
   final List<String> reads
   final List<String> writes
   final Map<String, Object?> options
+  final Map<String, Object?> unknown
   final String anchor
   final String name
   final String? kind
   final String? step
   final bool engine
+  static const Set<String> keys = <String>{'name', 'anchor', 'kind', 'engine', 'step', 'reads', 'optionalReads', 'writes', 'keeps', 'after', 'before', 'options'}
 
 final class PixelExtent
   String toString()
@@ -8149,6 +8165,8 @@ const FormatSpec f3dFormat = …
 const int f3dHeaderBytes = 16
 
 const int f3dMagic = 0x0A443346
+
+const int f3dMaxSectionEntryBytes = 256
 
 const int f3dSectionEntryBytes = 16
 

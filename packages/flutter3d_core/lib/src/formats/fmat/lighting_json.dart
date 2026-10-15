@@ -8,6 +8,30 @@ library;
 
 import '../lighting_model.dart';
 
+/// The plugin a lighting-model word written as a name belongs to — `acme_ink`
+/// for `acme_ink.Ink` — or null for a built-in model's word, an
+/// application's own shader described as an object, and the engine's `f3d`.
+///
+/// **The word carries its plugin.** A plugin's model is named in its
+/// namespace (`LightingModel.name`), so a `.fmat` and a `.f3d` record that
+/// name one also say which plugin a reader needs to open them as they were
+/// made: a reader without it refuses, naming it, rather than drawing the
+/// material with another model.
+String? lightingPluginOf(Object? word) {
+  if (word is! String) return null;
+  final dot = word.indexOf('.');
+  if (dot <= 0) return null;
+  final namespace = word.substring(0, dot);
+  return namespace == 'f3d' ? null : namespace;
+}
+
+/// The plugins whose lighting models [models] can read: every namespace a
+/// registered model is named in. Empty for [LightingModels.shipped].
+Set<String> lightingPluginsIn(LightingModels? models) => <String>{
+  for (final model in (models ?? LightingModels.shipped).registered)
+    if (lightingPluginOf(model.name) case final String namespace) namespace,
+};
+
 /// Reads the shader this material asks for.
 ///
 /// A string names one the engine ships; an object describes one it does not, and
@@ -73,8 +97,12 @@ LightingModel? readLightingJson(
 
 Object writeLightingJson(LightingModel model, {LightingModels? models}) {
   // By name when the name reads back as this very model — built in or
-  // registered — and as a description otherwise.
-  if (identical((models ?? LightingModels.shipped).named(model.name), model)) {
+  // registered — and as a description otherwise. A plugin's model is always
+  // written by its name, which carries the plugin a reader needs
+  // ([lightingPluginOf]): written as a description, a reader without the
+  // plugin would draw a stage nobody compiled instead of refusing.
+  if (identical((models ?? LightingModels.shipped).named(model.name), model) ||
+      lightingPluginOf(model.name) != null) {
     return model.name;
   }
   const plain = LightingModel('', '');

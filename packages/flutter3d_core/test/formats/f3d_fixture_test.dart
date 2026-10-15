@@ -257,6 +257,147 @@ void main() {
     );
   });
 
+  group('the fixture with every section', () {
+    final bytes = File('test/fixtures/v2/everything.f3d').readAsBytesSync();
+
+    test('lists every kind the engine writes in its directory', () {
+      final view = ByteData.sublistView(bytes);
+      final entryBytes = view.getUint32(12, Endian.little);
+      final kinds = <int>{
+        for (var i = 0; i < view.getUint32(8, Endian.little); i++)
+          view.getUint32(f3dHeaderBytes + i * entryBytes, Endian.little),
+      };
+      // Minted on 2026-10-15 by `tool/make_everything_fixture.dart`.
+      // A kind added to `F3dSection.known` after it has its own fixture.
+      expect(kinds, containsAll(F3dSection.known));
+    });
+
+    test('reads back what each section carried', () {
+      final document = F3dDocument.parse(bytes);
+      expect(document.version, 2);
+      // Variants (23) and the surface that changes in them.
+      expect(document.variants, <String>['day', 'night']);
+      final ball = document.surfaces.firstWhere(
+        (ModelSurface s) => s.name == 'ball',
+      );
+      expect(ball.variantMaterials, hasLength(2));
+      // Clusters (26).
+      expect(ball.mesh.clusters, isNotNull);
+      // A measured level (27) and an impostor (25).
+      final node = document.nodes.firstWhere((ModelNode n) => n.name == 'ball');
+      expect(node.lods.first.error, closeTo(0.0125, 1e-7));
+      expect(node.lods.last.impostor?.grid, 4);
+      // Extras (28) on the node, a material, a clip and the document.
+      expect(node.extras?['tag'], 'ball');
+      expect(document.asset?.extras?['minted'], '2026-10-15');
+      // A pointer track (24).
+      final glow = document.animations.firstWhere(
+        (AnimationClip c) => c.name == 'glow',
+      );
+      expect(glow.tracks.single.pointer?.property, isNotNull);
+      // Rights (38), a physical material (36) and its reference (37).
+      expect(document.asset?.license, 'CC0-1.0');
+      expect(document.physicalMaterials.keys, contains('acme.foam'));
+      expect(
+        document.materials.map((SurfaceMaterial m) => m.physicalMaterial),
+        contains('acme.foam'),
+      );
+      // A tool's section a writer may carry over edited tables.
+      expect(
+        document.section(f3dVendorKindStart + 9)?.flags,
+        F3dSectionFlags.safeToCopy,
+      );
+    });
+  });
+
+  group('the flag bits', () {
+    Uint8List withFlags(int kind, int flags) {
+      final bytes = Uint8List.fromList(
+        File('test/fixtures/v2/box.f3d').readAsBytesSync(),
+      );
+      final view = ByteData.sublistView(bytes);
+      for (var i = 0; i < view.getUint32(8, Endian.little); i++) {
+        final entry = f3dHeaderBytes + i * f3dSectionEntryBytesV2;
+        if (view.getUint32(entry, Endian.little) == kind) {
+          view.setUint32(entry + 16, flags, Endian.little);
+        }
+      }
+      return bytes;
+    }
+
+    test('are all spoken for', () {
+      // Written into files for good. Mutation: move a bit and a 1.x
+      // writer's flag reads as another in a 1.0 reader.
+      expect(
+        F3dSectionFlags.mustUnderstand |
+            F3dSectionFlags.safeToCopy |
+            F3dSectionFlags.ignorable |
+            F3dSectionFlags.mustUnderstandIfSet,
+        0xFFFFFFFF,
+      );
+      expect(F3dSectionFlags.mustUnderstand, 1 << 0);
+      expect(F3dSectionFlags.safeToCopy, 1 << 1);
+      expect(F3dSectionFlags.ignorable & F3dSectionFlags.safeToCopy, 0);
+    });
+
+    test('an ignorable bit on a known section reads on', () {
+      final document = F3dDocument.parse(
+        withFlags(F3dSection.materials, 1 << 9),
+      );
+      expect(document.materials, hasLength(1));
+    });
+
+    test('an unknown high bit on a known section refuses the file', () {
+      // Mutation: drop the check and a 1.x section whose bytes are
+      // compressed reads as garbage records.
+      expect(
+        () => F3dDocument.parse(withFlags(F3dSection.materials, 1 << 20)),
+        throwsA(
+          isA<F3dFormatException>().having(
+            (F3dFormatException e) => e.message,
+            'message',
+            contains('Update flutter3d'),
+          ),
+        ),
+      );
+    });
+
+    test('a high bit on a section nobody knows is its writer\'s', () {
+      final document = F3dDocument.parse(
+        withFlags(f3dVendorKindStart + 1, 1 << 20),
+      );
+      expect(document.section(f3dVendorKindStart + 1)?.flags, 1 << 20);
+    });
+
+    test('over edited tables, only a section safe to copy is carried', () {
+      final source = F3dDocument.parse(
+        File('test/fixtures/v2/everything.f3d').readAsBytesSync(),
+      );
+      final edited = PlainModelDocument(
+        surfaces: source.surfaces.take(1).toList(),
+        materials: source.materials,
+        images: source.images,
+        nodes: <ModelNode>[
+          ModelNode(surfaces: <int>[0]),
+        ],
+      );
+      final same = F3dDocument.parse(F3dWriter.carrying(source).write());
+      final moved = F3dDocument.parse(
+        F3dWriter.carrying(edited, from: source).write(),
+      );
+      // Mutation: carry every unknown section over edited tables, and a
+      // tool's section names nodes that are not there any more.
+      expect(
+        same.extraSections.map((F3dExtraSection s) => s.kind),
+        source.extraSections.map((F3dExtraSection s) => s.kind),
+      );
+      expect(moved.extraSections.map((F3dExtraSection s) => s.kind), <int>[
+        f3dVendorKindStart + 9,
+      ]);
+      expect(moved.programs, source.programs);
+    });
+  });
+
   test('the bundle fixture carries lights, a camera, a program, a prefab '
       'and a file', () {
     final bundle = F3dDocument.parse(

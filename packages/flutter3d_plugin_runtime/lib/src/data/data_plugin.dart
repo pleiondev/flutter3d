@@ -29,7 +29,11 @@ final class DataPhase {
     required this.kind,
     this.after = const <String>[],
     this.before = const <String>[],
+    this.unknown = const <String, Object?>{},
   });
+
+  /// The keys a phase is written with.
+  static const Set<String> keys = <String>{'name', 'kind', 'after', 'before'};
 
   final String name;
 
@@ -40,30 +44,49 @@ final class DataPhase {
   final List<String> after;
   final List<String> before;
 
+  /// The keys this build does not read, as the document had them: written
+  /// back after its own, so a document a later minor wrote and this one
+  /// opened and saved keeps what the later one added here
+  /// (`FormatDocument.nestedUnknownIn`).
+  final Map<String, Object?> unknown;
+
   LoopPhase get phase =>
       kind == PhaseKind.frame ? LoopPhase.frame(name) : LoopPhase.step(name);
 
-  Map<String, Object?> toJson() => <String, Object?>{
+  Map<String, Object?> toJson() => FormatDocument.writeNested(<String, Object?>{
     'name': name,
     'kind': kind.name,
     if (after.isNotEmpty) 'after': after,
     if (before.isNotEmpty) 'before': before,
-  };
+  }, unknown);
 }
 
 /// An event a data plugin publishes, declared on the bus as
 /// `<plugin id>.<name>`.
 final class DataEventDeclaration {
-  const DataEventDeclaration({required this.name, this.description});
+  const DataEventDeclaration({
+    required this.name,
+    this.description,
+    this.unknown = const <String, Object?>{},
+  });
+
+  /// The keys an event is written with.
+  static const Set<String> keys = <String>{'name', 'description'};
 
   /// The name without the plugin's prefix.
   final String name;
   final String? description;
 
-  Map<String, Object?> toJson() => <String, Object?>{
+  /// The keys this build does not read, as the document had them: written
+  /// back after its own, so a document a later minor wrote and this one
+  /// opened and saved keeps what the later one added here
+  /// (`FormatDocument.nestedUnknownIn`).
+  final Map<String, Object?> unknown;
+
+  Map<String, Object?> toJson() => FormatDocument.writeNested(<String, Object?>{
     'name': name,
     if (description != null) 'description': description,
-  };
+  }, unknown);
 }
 
 /// One section of a document a registered reader read: the [DataSection]
@@ -439,6 +462,7 @@ final class DataPluginDocument {
           },
           after: names(entry, 'after', 'phase "${entry['name']}"'),
           before: names(entry, 'before', 'phase "${entry['name']}"'),
+          unknown: FormatDocument.nestedUnknownIn(entry, known: DataPhase.keys),
         ),
     ];
 
@@ -449,6 +473,10 @@ final class DataPluginDocument {
           description: entry['description'] is String
               ? entry['description']! as String
               : null,
+          unknown: FormatDocument.nestedUnknownIn(
+            entry,
+            known: DataEventDeclaration.keys,
+          ),
         ),
     ];
     final declared = <String>{for (final event in events) event.name};

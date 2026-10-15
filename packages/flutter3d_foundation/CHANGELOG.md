@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1+1
 
+- **`FormatDocument.nestedUnknownIn` and `FormatDocument.writeNested`
+  keep a nested object's unknown keys.** For the objects an editor
+  rewrites, a pipeline's nodes and a plugin's entries: what a later minor
+  added inside one is written back after the object's own keys.
+- **`FormatSpec.wholeNumber` reads a number from a document.** A finite
+  whole number, else null: `{"version": 1e999}` is infinity, which passed
+  the old whole-number check and threw `UnsupportedError` from `toInt()`,
+  and `FormatSpec.open` now refuses it in the format's own words.
 - **Breaking: results that were records are final classes.** `Portable` and
   `WorldPosition` answered or held a record, which can never gain a field.
   Each answers a final class now, with the record's field names (a

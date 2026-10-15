@@ -114,8 +114,25 @@ MaterialDocument readFmat(
   // are not read as older ones, because the difference between the two
   // versions is precisely what would be silently dropped. Version 1 is the
   // only one, so there is nothing to lift yet.
+  //
+  // **A plugin's lighting model is required by name.** The writer lists the
+  // plugin of every model it names in `requires`; a file written before it
+  // did still names the model in the plugin's namespace, so that word counts
+  // as a requirement too. A plugin [lightingModels] holds a model of is
+  // understood; any other is refused with its name, where the material
+  // would otherwise open drawn with the scene's model.
+  final provided = lightingPluginsIn(lightingModels);
+  final declared = parsed['requires'];
   fmatFormat.open(
-    parsed,
+    <String, Object?>{
+      ...parsed,
+      if (declared == null || declared is List)
+        'requires': <Object?>{
+          ...?(declared as List<Object?>?),
+          ?lightingPluginOf(parsed['lighting']),
+          ?lightingPluginOf(parsed['lightingModel']),
+        }.where((Object? each) => !provided.contains(each)).toList(),
+    },
     refuse: (String message) => FmatFormatException('$name: $message'),
   );
 
@@ -288,15 +305,30 @@ String writeFmat(MaterialDocument document, {LightingModels? lightingModels}) {
       if (slot(entry.value) case final Object value) entry.key: value,
   };
 
-  final lighting = document.lighting;
+  final lighting = switch (document.lighting) {
+    final LightingModel model => writeLightingJson(
+      model,
+      models: lightingModels,
+    ),
+    null => null,
+  };
+  final surfaceJson = surfaceMaterialToJson(
+    surface,
+    lightingModels: lightingModels,
+  );
+  // The plugin of every lighting model named, so a reader without it
+  // refuses the material by the plugin's name (see [readFmat]).
+  final requires = <String>{
+    ?lightingPluginOf(lighting),
+    ?lightingPluginOf(surfaceJson['lightingModel']),
+  }.toList()..sort();
   final json = const JsonEncoder.withIndent('  ').convert(<String, Object?>{
-    ...fmatFormat.envelope(),
+    ...fmatFormat.envelope(requires: requires),
     // Beside the envelope for a 0.8 reader, which refuses a material without
     // it (see [fmatFormat]).
     'fmat': fmatVersion,
-    if (lighting != null)
-      'lighting': writeLightingJson(lighting, models: lightingModels),
-    ...surfaceMaterialToJson(surface, lightingModels: lightingModels),
+    'lighting': ?lighting,
+    ...surfaceJson,
     if (textures.isNotEmpty) 'textures': textures,
     if (surface.extensions case final layers?)
       if (materialExtensionsToJson(layers, texture: slot) case final written

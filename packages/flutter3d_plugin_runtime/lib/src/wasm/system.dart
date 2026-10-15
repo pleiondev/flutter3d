@@ -110,7 +110,20 @@ final class WasmSystemSpec {
     this.fields = const <WasmFieldSpec>[],
     this.events = const <String>[],
     this.limits = const WasmLimits(),
+    this.unknown = const <String, Object?>{},
   });
+
+  /// The keys a declaration is written with.
+  static const Set<String> keys = <String>{
+    'module',
+    'system',
+    'phase',
+    'after',
+    'before',
+    'fields',
+    'events',
+    'limits',
+  };
 
   /// Reads the keys [toJson] writes. Throws a [WasmFormatException] saying which
   /// key is wrong.
@@ -146,6 +159,7 @@ final class WasmSystemSpec {
         final Map<String, Object?> map => WasmLimits.fromJson(map),
         _ => throw WasmFormatException('"limits" is not an object'),
       },
+      unknown: FormatDocument.nestedUnknownIn(json, known: keys),
     );
   }
 
@@ -171,7 +185,13 @@ final class WasmSystemSpec {
 
   final WasmLimits limits;
 
-  Map<String, Object?> toJson() => <String, Object?>{
+  /// The keys this build does not read, as the document had them: written
+  /// back after its own, so a document a later minor wrote and this one
+  /// opened and saved keeps what the later one added here
+  /// (`FormatDocument.nestedUnknownIn`).
+  final Map<String, Object?> unknown;
+
+  Map<String, Object?> toJson() => FormatDocument.writeNested(<String, Object?>{
     'module': module,
     'system': system,
     'phase': phase,
@@ -181,7 +201,7 @@ final class WasmSystemSpec {
       'fields': <Object>[for (final field in fields) field.toJson()],
     if (events.isNotEmpty) 'events': events,
     'limits': limits.toJson(),
-  };
+  }, unknown);
 }
 
 /// Published once, on the step channel, when a Wasm system traps.
