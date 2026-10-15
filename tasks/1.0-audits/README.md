@@ -55,5 +55,16 @@ the plan carries the work. They are in English.
 | `27-hal-compute.md` | The compute contract, backend × feature, placement and determinism, the kernel language |
 | `28-extension-api.md` | Every decided hook, eight developer journeys, plugin lifecycle and isolation |
 
+The four below rechecked the contracts outside Dart signatures at
+`da3b09a6e` on 2026-10-15, the same day; they are in English and wait for
+Dmitrii's answers.
+
+| File | What it covers |
+|---|---|
+| `29-formats-wire.md` | `.f3d`, `f3d.pipeline`, the project format, saves, replays, the network wire, native ABIs, platform channels |
+| `30-languages-shader-abi.md` | The material and kernel languages, the shader ABI, the Wasm ABI |
+| `31-tooling-surfaces.md` | The command line, MCP tool surfaces, build configuration, lints, conformance and goldens for third parties, templates |
+| `32-domain-api-coherence.md` | Whether the domain packages speak one vocabulary and keep the units contract |
+
 The notes before 25 are in Russian, as the agents wrote them. Where a note names a
 scratchpad path, that scratchpad belonged to the session and is gone.
