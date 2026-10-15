@@ -63,7 +63,7 @@ Future<GraphicsDevice> openDevice({required int width, required int height}) =>
     WebGlDevice.open(width: width, height: height);
 ```
 
-Everything above that line is the ordinary frame: a `Scene`, a `CameraNode`, a `RenderView`, `Renderer.render`. The simulation does not know a browser is involved and neither does the renderer.
+Everything above that line is the ordinary frame: a `Scene`, a `CameraNode`, a `CameraView`, `Renderer.render`. The simulation does not know a browser is involved and neither does the renderer.
 
 ## What the browser costs
 

@@ -525,7 +525,7 @@ final frame = renderer.render(
   width: (constraints.maxWidth * dpr).round().clamp(1, 8192),
   height: (constraints.maxHeight * dpr).round().clamp(1, 8192),
   scene: scene,
-  views: <RenderView>[view],
+  views: <CameraView>[view],
   settings: RenderSettings(
     fog: FogSettings(
       color: loaded?.level.fogColor ?? const LinearColor(0.05, 0.07, 0.12),
@@ -574,7 +574,7 @@ test('a frame renders', () {
     fallbackNormal: it.normal,
   );
   final frame = renderer.render(width: 320, height: 180, scene: scene,
-      views: <RenderView>[view], settings: const RenderSettings());
+      views: <CameraView>[view], settings: const RenderSettings());
   expect(frame.drawCalls, greaterThan(0));
 });
 ```

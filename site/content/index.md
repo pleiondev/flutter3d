@@ -30,7 +30,7 @@ It is a game engine first. The same fixed step, probes and time source carry a v
 | | |
 |---|---|
 | Platforms | macOS and the browser are supported and exercised; Android is played on a real handset (Impeller Vulkan, touch controls), and a Galaxy A55 plays three demos every night; iOS runs clean in the simulator on Metal; CI builds for Windows, where nobody has played a game yet, and runs every suite on Linux, where a game draws through the software rasteriser. [SUPPORT](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md) has the table |
-| Published | All 61 packages go to [pub.dev](https://pub.dev/publishers/pleion.dev/packages). 59 of them are at the release candidate `1.0.0-rc.1`, so any `^1.0.0-rc.1` resolves against every other and admits 1.0.0 when it follows; `pad_input` and `flutter3d_pointer_lock` keep their own line at 0.5.0. Until 1.0.0, pub.dev's default is still 0.8.x, so ask for the constraint by name |
+| Published | All 61 packages go to [pub.dev](https://pub.dev/publishers/pleion.dev/packages). 55 of them are at the release candidate `1.0.0-rc.1`, so any `^1.0.0-rc.1` resolves against every other and admits 1.0.0 when it follows; `pad_input` and `flutter3d_pointer_lock` keep their own line at 0.5.0, and four whose signatures carry pre-1.0 types (`flame_multiplayer_dashwire`, `flutter3d_lints`, `flutter3d_editor_play`, `flutter3d_education_lti`) one at 0.9.0, outside the 1.0 promise. Until 1.0.0, pub.dev's default is still 0.8.x, so ask for the constraint by name |
 | Stability | Strict semver from 1.0.0, and the candidate already keeps it: every public name is in a committed snapshot, and a break waits for a major. [What 1.0 is](/reference/what-1.0-is/) |
 
 ## Where to start
@@ -176,7 +176,7 @@ flowchart TB
   simp --> physics
 ```
 
-The rest are left out of the diagram on purpose, because none of them changes what an app may know. Three of them are worth naming: `pad_input` and `flutter3d_pointer_lock` are gamepad and mouse capture, read once per frame by `flutter3d_game`, and `flutter3d_conformance` is test-only: it is what a backend has to pass before it can appear in the table below. `flutter3d_app` makes one decision of its own, which device to open (web or native at compile time, and which backend on each side at run time), so the conditional import an app needs is written once and not per project. [Assembling an application](/core/session/) walks through all of it with the real code that uses them. The rules the diagram states live outside any package, in `tool/structure.dart`: 107 checks that read source text and run before a build.
+The rest are left out of the diagram on purpose, because none of them changes what an app may know. Three of them are worth naming: `pad_input` and `flutter3d_pointer_lock` are gamepad and mouse capture, read once per frame by `flutter3d_game`, and `flutter3d_conformance` is test-only: it is what a backend has to pass before it can appear in the table below. `flutter3d_app` makes one decision of its own, which device to open (web or native at compile time, and which backend on each side at run time), so the conditional import an app needs is written once and not per project. [Assembling an application](/core/session/) walks through all of it with the real code that uses them. The rules the diagram states live outside any package, in `tool/structure.dart`: 110 checks that read source text and run before a build.
 
 Three of those rules hold the picture up:
 

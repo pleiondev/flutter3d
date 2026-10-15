@@ -52,7 +52,7 @@ final camera = CameraNode(
   ..lookAt(target);
 ```
 
-`Projection` is sealed: `PerspectiveProjection` and `OrthographicProjection`, both with `copyWith`. A `RenderView` reads `camera.viewProjection(aspect)`.
+`Projection` is sealed: `PerspectiveProjection` and `OrthographicProjection`, both with `copyWith`. A `CameraView` reads `camera.viewProjection(aspect)`.
 
 <div class="warn">
 <p>Two conventions bite here, and both produce a picture rather than an error.</p>
@@ -109,7 +109,7 @@ One BVH over world bounds, shared by frustum culling and by picking, rebuilt onl
 flowchart TB
   nodes["MeshNode world bounds"] --> spheres["scene_spheres<br>packed Float32List"]
   spheres --> bvh["SceneBvh.refresh(spheres, count, stamp)"]
-  bvh --> cull["frustum culling<br>per RenderView"]
+  bvh --> cull["frustum culling<br>per CameraView"]
   bvh --> pick["Raycaster.intersectScene"]
   cull --> list["RenderList"]
   pick --> hit["HitResult: node, point, normal, distance"]

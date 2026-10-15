@@ -391,7 +391,7 @@ a caller for that cannot supply a Flutter SDK.
 
 ### 3.3 Rules that are scanned, not remembered
 
-`tool/structure.dart` walks `packages/` and `apps/` and enforces 107 rules
+`tool/structure.dart` walks `packages/` and `apps/` and enforces 110 rules
 as the first step of CI. All but two read source text in under a second; the
 two snapshot rules run `tool/api` over every published package (its API, and
 the tools it offers agents — see §16), and CI asks for both again by name once
@@ -460,7 +460,7 @@ one, because people believe it.
 ### 4.1 The frame
 
 ```
-for each RenderView in ascending priority:
+for each CameraView in ascending priority:
   1. aspect from the viewport → projection matrix
   2. view = camera.node.worldMatrix.inverted()   (cached by worldVersion)
   3. extract the frustum
@@ -1009,7 +1009,7 @@ buffer to the farthest view depth over 256×128 blocks, packed into RGBA8 as 24
 bits of depth and a validity bit, and reads it back; later frames reproject it
 through the camera it was seen with and answer the same test. The reading
 arrives a frame or two late, so the test answers *visible* before the first
-one, after a `RenderView.cut`, with several views, and on a device with no
+one, after a `CameraView.cut`, with several views, and on a device with no
 surface buffer. A block takes up to thirty-two taps a side, which covers a
 buffer up to 8192×4096 texel for texel. It took sixteen at first, and a phone
 held upright is already taller than 2048 pixels: the rows no tap landed on were
@@ -1025,7 +1025,7 @@ the same against the recorded references with `FLUTTER3D_GOLDEN_OCCLUSION`.
 Everything in this section is off by default.
 
 **The previous frame is a store the renderer keeps.** `FrameHistory`
-(`Renderer.frameHistory`) holds, for each `RenderView`, its unjittered
+(`Renderer.frameHistory`) holds, for each `CameraView`, its unjittered
 view-projection and each `MeshNode`'s world matrix, joint palette, morph
 weights and instance bytes as they were at the end of the last frame that drew
 that view; the views of one `render` call share the first's copy of the nodes.
@@ -1071,7 +1071,7 @@ which the history keeps in alpha. `TemporalSettings.clip` says what it clips to:
 8, 16 or 32 sides (`kdop8`, `kdop16`, `kdop32`), whose slabs along more axes
 catch a remembered colour of the right brightness and the wrong hue. That colour
 sits inside the box, and it is the trail a red object leaves on green. Two
-output-sized histories swap each frame, and a `RenderView.cut`, a resize or a
+output-sized histories swap each frame, and a `CameraView.cut`, a resize or a
 frame with the resolve off starts them again. The scene draws at `renderScale`
 and everything from the resolve on at the size that was asked for; material
 maps take a mip bias of log2(`renderScale`) - 0.5 meanwhile, and the antialias
@@ -1200,8 +1200,8 @@ else the setting draws the SDR frame byte for byte.
 scene holds a transmissive draw, the scene node draws the opaque half, the sky
 and the x-ray silhouettes, keeps the glass and the transparent draws back, and
 stores its depth; the
-*scene colour copy* node writes the scene and five halvings of it into one
-texture (`SceneColourChain`); and the *transparent* node loads the scene's
+*scene color copy* node writes the scene and five halvings of it into one
+texture (`SceneColorChain`); and the *transparent* node loads the scene's
 targets and depth and draws the glass reading that copy where the bent ray
 leaves the volume, at a level its roughness picks, then the transparent half
 and the contributors. The levels sit side by side in one texture, the base on
@@ -1401,12 +1401,12 @@ infinite (`PerspectiveProjection.infinite`); what needs a number there takes a
 stand-in of 65504 m, the most the surface buffer's half float holds.
 `RenderSettings.reversedDepth` turns all of it off.
 
-### 5.4 RenderView
+### 5.4 CameraView
 
-A `RenderView` carries a camera, a normalised viewport fraction, a layer mask, a
+A `CameraView` carries a camera, a normalised viewport fraction, a layer mask, a
 priority, clear settings and a target spec. That gives split-screen, a mini-map,
 rendering into a texture and shadow passes from one abstraction: a light's camera
-is also a `RenderView`.
+is also a `CameraView`.
 
 Layers are a bitmask on the node plus a mask on the view, with the
 opaque/transparent split derived from the material's alpha mode.
@@ -1941,7 +1941,7 @@ is a Dart stage handed to its device under the same name.
 count them from the top. Flip for patterns, never for lookups: a screen-space
 pattern (dither, grain, a kernel's rotation) reads `FragCoordFromTop(rows)`, so
 it lands on the same pixels everywhere, while a lookup of a texture the same
-backend drew at this pixel (the surface buffer's depth, the scene colour copy)
+backend drew at this pixel (the surface buffer's depth, the scene color copy)
 reads `gl_FragCoord` unchanged, because that texture was drawn into the same
 rows. Flipping the lookup reads the mirrored row: the velocity pass did so
 until 0.8.0 and discarded nearly every fragment on WebGL2. Velocity is a
@@ -3679,8 +3679,8 @@ storage.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **14887 tests** across 62 packages and 18 applications |
-| Structure rules | 107, `dart run tool/structure.dart`, the first CI step |
+| Unit tests | **14891 tests** across 62 packages and 18 applications |
+| Structure rules | 110, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
 ### 13.1 The published-enum boundary

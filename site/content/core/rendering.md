@@ -13,7 +13,7 @@ final frame = renderer.render(
   width: (constraints.maxWidth * dpr).round().clamp(1, 8192),
   height: (constraints.maxHeight * dpr).round().clamp(1, 8192),
   scene: scene,
-  views: <RenderView>[view],
+  views: <CameraView>[view],
   settings: RenderSettings(
     fog: fog,
     shadows: const ShadowSettings(cascades: 3, resolution: 1024),
@@ -50,7 +50,7 @@ sequenceDiagram
 
 Each of those is a **separate command buffer**. Metal allows one open encoder per command buffer and `flutter_gpu` has no way to end a `RenderPass`, so a multi-pass frame needs a buffer per pass, submitted in order. Buffers on one queue execute in submission order, which is also how the passes get sequenced.
 
-The diagram is the frame with nothing optional switched on. The whole list, in the order the graph registers it, is `RenderSettings.passOrder`, and 0.8.0 added fifteen names to it: the velocity passes and the histories, the temporal resolve, volumetric fog, motion blur, local exposure, the spatial upscale, the scene colour copy and the transparent half, the depth pyramid, the shadow moments and the irradiance update. Each of them stays culled until a setting asks for it, and a frame that asks for none of them draws what 0.7.4 drew, apart from the corrections below.
+The diagram is the frame with nothing optional switched on. The whole list, in the order the graph registers it, is `RenderSettings.passOrder`, and 0.8.0 added fifteen names to it: the velocity passes and the histories, the temporal resolve, volumetric fog, motion blur, local exposure, the spatial upscale, the scene color copy and the transparent half, the depth pyramid, the shadow moments and the irradiance update. Each of them stays culled until a setting asks for it, and a frame that asks for none of them draws what 0.7.4 drew, apart from the corrections below.
 
 ## What 0.8.0 changes without being asked
 
@@ -68,10 +68,10 @@ The last row is described under [glass and transparency](#glass-and-transparency
 
 ## Render views
 
-A `RenderView` is a camera plus where it draws and what it may see. A frame takes a list of them, which is how split screen, a minimap and a picture-in-picture rear view all work without the renderer knowing what any of those are.
+A `CameraView` is a camera plus where it draws and what it may see. A frame takes a list of them, which is how split screen, a minimap and a picture-in-picture rear view all work without the renderer knowing what any of those are.
 
 ```dart
-final view = RenderView(camera: camera)
+final view = CameraView(camera: camera)
   ..viewportFraction = const ViewportRect(0.0, 0.0, 1.0, 1.0)
   ..layerMask = 0xFFFFFFFF      // which layers this view draws
   ..priority = 0                 // draw order between views
@@ -518,7 +518,7 @@ A sky switched on with none of `zenith`, `horizon`, `nadir` or `sunColor` given 
 
 One full-screen triangle, encoded inside the scene pass between the opaque half and the transparent half: after the opaque half so that every covered pixel fails the depth test before the sky's fragment stage runs, and before the transparent half so glass has something to blend with. The gradient is three stops plus a scattering lobe and an analytic sun disc; a `cubemap` replaces it, or the air, with a `tint` on top. Colours are **linear and scene-referred**, multiplied by exposure and rolled through the tone curve like everything else, so the first sky anybody writes looks too bright. `SkySettings.sample(direction)` runs the same arithmetic on the CPU, for a fog colour that has to match the horizon or a light picked from the sky.
 
-The painted alternative is `SkyDome` with a `SkyGradient`, an inside-out sphere with the colours baked into its vertices. It needs no shader and, unlike a frame-wide setting, can differ per `RenderView`; what it cannot do is a sun disc, and fog eats it unless it stays small and follows the camera.
+The painted alternative is `SkyDome` with a `SkyGradient`, an inside-out sphere with the colours baked into its vertices. It needs no shader and, unlike a frame-wide setting, can differ per `CameraView`; what it cannot do is a sun disc, and fog eats it unless it stays small and follows the camera.
 
 ## Reflection probes
 
@@ -577,10 +577,10 @@ It is off by default and costs a second drawing of the scene per view while it i
 
 ## Cameras into textures
 
-The same pass, pointed through an ordinary camera, is public as a texture view, `RenderView.texture`: a monitor, a portal, a minimap.
+The same pass, pointed through an ordinary camera, is public as a texture view, `CameraView.texture`: a monitor, a portal, a minimap.
 
 ```dart
-final feed = RenderView.texture(device, camera: securityCamera, width: 256, height: 192);
+final feed = CameraView.texture(device, camera: securityCamera, width: 256, height: 192);
 feed.excluded.add(monitor);   // a screen must not film itself
 scene.addTextureView(feed);
 monitor.material = RenderMaterial(lighting: LightingModel.unlit, albedo: feed.texture);
@@ -588,7 +588,7 @@ monitor.material = RenderMaterial(lighting: LightingModel.unlit, albedo: feed.te
 
 {{golden render-texture | The same props on the same floor, and a monitor on a stand showing what a second camera off to the left sees of them, drawn earlier in the same frame.}}
 
-It is drawn before the scene, so a material shows the picture in the frame it was taken. The texture holds sRGB bytes with the top of the picture in its first row on every backend, the way an uploaded image does, so it goes into an albedo or emissive slot like any picture: unlit, it shows what the camera saw; lit, it is lit again, like a printed photograph. The light is multiplied by `exposure` and clipped, and tone mapping is left to the frame that shows it. `RenderViewSettings(refreshEveryFrame: false)` draws it once and then only after `invalidate()`. No post chain runs on it.
+It is drawn before the scene, so a material shows the picture in the frame it was taken. The texture holds sRGB bytes with the top of the picture in its first row on every backend, the way an uploaded image does, so it goes into an albedo or emissive slot like any picture: unlit, it shows what the camera saw; lit, it is lit again, like a printed photograph. The light is multiplied by `exposure` and clipped, and tone mapping is left to the frame that shows it. `CameraViewSettings(refreshEveryFrame: false)` draws it once and then only after `invalidate()`. No post chain runs on it.
 
 ## The look
 
@@ -725,7 +725,7 @@ What it costs: two fullscreen draws per batch, each cut to the screen rectangle 
 
 ### Glass that sees the scene
 
-A material shows what is behind it when it is drawn with the layered model and its `extensions` carry a `transmission` above nought ([material layers](#material-layers) below). A frame holding such a draw splits the scene around a copy of itself. The scene pass draws the opaque half with the glass left out, then the sky and the x-ray silhouettes, and stores its depth; the `scene colour copy` node writes the scene and five halvings of it side by side into one texture (`SceneColourChain`); the `transparent` node loads the scene's targets and depth and draws the glass reading that copy where the ray its index bends leaves the volume, at a level its roughness picks, with dispersion and attenuation. The transparent half and the contributors follow. The chain is one texture because a 2D render target has no mip levels in the hardware interface, and because the layered stage had one sampler left under WebGL2's sixteen, which the copy takes.
+A material shows what is behind it when it is drawn with the layered model and its `extensions` carry a `transmission` above nought ([material layers](#material-layers) below). A frame holding such a draw splits the scene around a copy of itself. The scene pass draws the opaque half with the glass left out, then the sky and the x-ray silhouettes, and stores its depth; the `scene color copy` node writes the scene and five halvings of it side by side into one texture (`SceneColorChain`); the `transparent` node loads the scene's targets and depth and draws the glass reading that copy where the ray its index bends leaves the volume, at a level its roughness picks, with dispersion and attenuation. The transparent half and the contributors follow. The chain is one texture because a 2D render target has no mip levels in the hardware interface, and because the layered stage had one sampler left under WebGL2's sixteen, which the copy takes.
 
 A frame without glass registers both nodes, finds them inactive and draws exactly what it drew. A frame with glass draws one sample a pixel: the multisampled targets live in tile memory and keep nothing for the pass after the first, and `FrameResult.antiAliasing.msaaDeclined` names that reason. The question is asked of the scene before the graph compiles, so a transmissive mesh on a view's layers splits the frame even when the frustum then culls it.
 

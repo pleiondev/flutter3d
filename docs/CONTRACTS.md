@@ -306,7 +306,7 @@ renderer looks the same here.
   is the exposure value in stops at ISO 100 and whose `exposure` is the
   linear factor it makes. `RenderSettings.exposure` (default
   `RenderSettings.defaultExposure`, 1.6, the reference camera's: f/4, 1/60 s,
-  ISO 100, about EV 9.9), `RenderViewSettings.exposure`, and the
+  ISO 100, about EV 9.9), `CameraViewSettings.exposure`, and the
   `exposure` that `FrameResult` and `PhotoCaptureReport` report, are that
   factor, never an EV100. A number written as one (`exposure: 12` for an
   overcast EV 12) is a factor of twelve and a white frame. To expose for a
@@ -751,7 +751,7 @@ The full-screen inputs of the material language read the same encodings
 
 The units above are half of what a name promises; the other half is how it
 is spelled and what its verb means. Item 28 of
-`tasks/1.0-scope-additions.md` settled these for 1.0, and seven structure
+`tasks/1.0-scope-additions.md` settled these for 1.0, and the structure
 rules hold them over every published API snapshot (`tool/structure/naming.dart`).
 `dart fix` carries each rename made for them, from the migration table.
 
@@ -761,7 +761,29 @@ rules hold them over every published API snapshot (`tool/structure/naming.dart`)
   until the format's version moves it — a tool's `boundsCentre` — because a
   file is read by the reader's wire table, never by a Dart name. Level
   format 5 moved its keys (`behaviors`, `behavior`, `texelsPerMeter`), and
-  its lift reads the British ones of format 4.
+  its lift reads the British ones of format 4. The shader ABI's entry
+  points, block members and samplers are identifiers too, bound by name on
+  three backends (`SceneColorCopy`, `LayerInfo.scene_color`), and a rule
+  reads `api/flutter3d_shaders.abi` for British words as it reads the Dart
+  snapshots.
+- **No public type takes a name Flutter exports.** A widget file imports
+  `widgets.dart` or `material.dart` beside the facade, and those are built
+  from `foundation`, `rendering` and `services`, so a type of ours named
+  like one of theirs needs a `hide` there: the engine's camera onto a
+  viewport is `CameraView` (Flutter's `RenderView` is a render tree's
+  root), a credits table's section is `LicenseSection`. A collision kept
+  with a reason is one with `dart:ui` or `dart:io` only (`Scene`, `Link`),
+  which a game imports under a prefix to reach beneath Flutter.
+- **A result is a class, never a record.** What a caller reads (a return
+  type, a field, a getter) is a `final` class with named fields and `==`,
+  so it can gain a field in a minor; a record never can. Only a named
+  record typedef whose shape is fixed by its mathematics stays, each with
+  its reason. What an outside author implements is a base class, or a
+  base mixin class to mix in beside a superclass of its own, so a member a
+  minor adds arrives with a body.
+- **A creation callback is `onCreated`** on every widget of the engine's,
+  handed what that widget made (`Flutter3dView`'s engine, `Scene3D`'s
+  controller).
 - **One teardown verb per type.** `dispose()` ends an object's life, and
   `close()` is for a connection or a stream. A handle a graphics device
   made has one owner, who disposes it once: a second `dispose` asserts in a
@@ -809,7 +831,27 @@ units and the files above.
 - **Every name a plugin registers is `<namespace>.<name>`**, its namespace
   being its id up to the first dot: a component, an event, a phase, a
   snapshot part, a field, a subsystem, a quantity, an MCP tool, a render
-  step. Bare names and `f3d.` names are the engine's.
+  step, a lighting model. Bare names and `f3d.` names are the engine's.
+- **The engine's own anchors, frame resources and render steps are
+  `f3d.<name>`** (`f3d.after_bloom`, `f3d.scene_color`, `f3d.color_grade`),
+  lower case with underscores, since `f3d.pipeline` version 2. A file
+  written before names them without the prefix and with spaces
+  (`after bloom`); a version 1 pipeline is lifted to the new words, and
+  `RenderAnchor.named`, `RendererSteps.named` and `anchorNamed` find an old
+  word too. A word without a dot was always the engine's, which is what
+  makes the renaming mechanical. A frame's pass names are reports, not
+  registrations, and keep their spelling. The structure rule `a render name
+  carries its namespace, f3d. for the engine` holds both halves.
+- **A lighting model is `<namespace>.<Name>`, its shader `<namespace>__<Name>`.**
+  A shader's entry point cannot carry a dot, so the stage is the same word
+  with the dot made `__` (`LightingModel.shaderNameOf`), and its vertex
+  stages follow (`acme_ink__InkVertex`). `__` is refused in a plugin id and
+  in a model's own name, which keeps the two spellings one to one. A
+  `.f3dmat` source names its material bare (`material Ink`); the namespace
+  is the plugin's that ships it. A file names the model by
+  `LightingModel.name`; the `<namespace>_<Name>` a file wrote before reads
+  as the registered model it meant, and the built-in models keep their bare
+  names (`Pbr`).
 - **The engine's rights go by list, never by prefix.**
   `PluginManifest.engineNamespaces` is the packages this repository
   publishes, and published at 0.8.5; a package that is never published
@@ -871,15 +913,20 @@ A 1.x package names a type of another package in its API only where that
 type is the point: a Flame component, a `SoLoud` a game already holds. A
 type of a package at 0.x is one whose next minor may change it, so a 1.x
 signature that names it would break with it and no major of ours would
-say so. Three packages do it on purpose, and each is a bridge whose own
-minor follows its counterpart's:
+say so. One 1.x package does it on purpose, a bridge whose own minor
+follows its counterpart's:
 
 - `flame_flutter3d` takes `tiled`'s `TiledMap`, `TiledObject` and
-  `TileLayer`, the map a Flame game loaded through `flame_tiled`;
-- `flame_multiplayer_dashwire` takes `dashwire`'s `WireConnection`;
-- `flutter3d_lints`' `main.dart` hands the analyzer a `Plugin` of
-  `analysis_server_plugin`. Its rule classes, which extend that package's
-  `AnalysisRule`, are the package's own and not exported.
+  `TileLayer`, the map a Flame game loaded through `flame_tiled`.
+
+Four packages whose signatures cannot leave such types out are not 1.x at
+all: `flame_multiplayer_dashwire` (`dashwire`'s `WireConnection`),
+`flutter3d_lints` (a `Plugin` of `analysis_server_plugin`, and the
+analyzer's `CompilationUnit`), `flutter3d_editor_play` (`vm_service`) and
+`flutter3d_education_lti` (pointycastle's and dart_jsonwebtoken's keys)
+stay on a 0.9 line outside the 1.0 promise, named with their reasons in
+`ownVersionLines` (`tool/structure/repository.dart`), and every pin
+written on one, a template's included, admits its version.
 
 Each constrains its counterpart to one 0.x minor, and when the counterpart
 moves to its next minor the bridge releases a minor of its own that

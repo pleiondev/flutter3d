@@ -222,7 +222,7 @@ The field of view opens with speed, and the camera looks ahead along the track r
 - **No gearbox.** `rpm` is derived from wheel speed for the sound to read; there are no ratios and no shifts.
 - **No tire wear, no fuel.** Damage there is, and it only slows the car: a wreck still corners and still stops.
 - **No pit lane, no flags, no penalties.** `offRoad` is reported and the car is put back; nothing takes a time away.
-- **No split screen.** `RenderView` supports it; nothing in this package assumes one camera, and nobody has written the other one.
+- **No split screen.** `CameraView` supports it; nothing in this package assumes one camera, and nobody has written the other one.
 
 ## Next
 

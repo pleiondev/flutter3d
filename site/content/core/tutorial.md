@@ -242,10 +242,10 @@ view: ViewSettings(
 
 ## The engine under the widgets {.step}
 
-`Scene3D` hands you what it built once the device is open, in `onSceneCreated` (named apart from the view's `onCreated`, which is handed the engine alone):
+`Scene3D` hands you what it built once the device is open, in `onCreated` (named apart from the view's `onCreated`, which is handed the engine alone):
 
 ```dart
-onSceneCreated: (Scene3DController scene) {
+onCreated: (Scene3DController scene) {
   // The scene graph the widgets build into, and a node added by hand: a
   // shape builds its mesh on the CPU, and the device uploads it.
   scene.scene.add(
