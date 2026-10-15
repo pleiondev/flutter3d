@@ -12,11 +12,11 @@ library;
 /// Each package a template depends on, with the constraint it writes.
 const Map<String, String> templateConstraints = <String, String>{
   'flame_flutter3d': '^1.0.0-rc.1+1',
-  'flutter3d': '^1.0.0-rc.1+1',
+  'flutter3d': '^1.0.0-rc.1+2',
   'flutter3d_app': '^1.0.0-rc.1+1',
   'flutter3d_build': '^1.0.0-rc.1+1',
-  'flutter3d_conformance': '^1.0.0-rc.1+1',
-  'flutter3d_core': '^1.0.0-rc.1+1',
+  'flutter3d_conformance': '^1.0.0-rc.1+2',
+  'flutter3d_core': '^1.0.0-rc.1+2',
   'flutter3d_fields': '^1.0.0-rc.1',
   'flutter3d_foundation': '^1.0.0-rc.1+1',
   'flutter3d_hardware': '^1.0.0-rc.1+2',
