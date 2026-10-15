@@ -37,6 +37,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter3d_build_hooks/flutter3d_build_hooks.dart';
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_hardware/shader_bundle.dart';
+import 'package:flutter3d_shaders/backend.dart' show MaterialCompilerRegistry;
 import 'package:flutter3d_shaders/compile.dart';
 
 import 'layout.dart';
@@ -77,11 +78,17 @@ final class MaterialBuildReport {
 ///
 /// Throws [MaterialBuildException] on the first material that does not build,
 /// having written nothing for it.
+///
+/// [registry] is the compilers of the backends from outside the engine the
+/// project depends on (`discoveredCompilers`), asked for their sections of
+/// each material when [compilers] is not given; the build hook hands the
+/// ones discovery found.
 MaterialBuildReport runMaterialBuild(
   Directory projectRoot, {
   IOSink? log,
   MaterialCompilers? compilers,
   ShaderSet? engine,
+  MaterialCompilerRegistry? registry,
 }) {
   final layout = AssetLayout(projectRoot: projectRoot);
   final plan = layout.materialPlan();
@@ -129,7 +136,7 @@ MaterialBuildReport runMaterialBuild(
       source: plan.first.source,
     );
   }
-  final tools = compilers ?? MaterialCompilers.locate();
+  final tools = compilers ?? MaterialCompilers.locate(registry: registry);
   if (tools.wgsl == null) {
     sink.writeln(
       'flutter3d_build: $glslangExecutable or $nagaExecutable is not on PATH, so material '

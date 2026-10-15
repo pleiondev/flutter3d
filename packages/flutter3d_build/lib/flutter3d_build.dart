@@ -4,6 +4,7 @@
 /// published `flutter3d` package can both reach it.
 library;
 
+export 'src/backend_compilers.dart';
 export 'src/build_assets.dart';
 export 'src/build_exceptions.dart';
 export 'src/build_steps.dart';

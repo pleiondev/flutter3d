@@ -548,11 +548,35 @@ final class RuntimeShaders extends PluginRegistry {
   /// renderer's materials once loaded. [from] names it in every message.
   ///
   /// The registration takes it out of the renderer again.
+  ///
+  /// **In the plugin's namespace.** Through the view of a plugin from
+  /// outside the engine, the bare name the source writes (`material Ink`)
+  /// is compiled as `<namespace>__Ink` (`materialStageIn`), the source
+  /// renamed to match, so its lighting model is `<namespace>.Ink` whatever
+  /// the file wrote; a name in another plugin's namespace is a
+  /// [PluginException].
   Registration addMaterial(String source, {required String from}) {
     final String name;
+    // [source], in the plugin's namespace.
+    final String named;
     final ShaderBundle bundle;
     try {
-      final program = parseMaterial(source);
+      final parsed = parseMaterial(source);
+      final manifest = _scope?.manifest;
+      final stage = manifest == null || manifest.isEngine
+          ? parsed.name
+          : materialStageIn(manifest.namespace, parsed.name);
+      if (stage == null) {
+        throw PluginException(
+          '${_owner()} brought the material "${parsed.name}", which is named '
+          'in another plugin\'s namespace: a plugin writes the bare name, '
+          'which it compiles as "${manifest!.namespace}__<Name>"',
+        );
+      }
+      named = stage == parsed.name
+          ? source
+          : renameMaterialSource(source, stage);
+      final program = stage == parsed.name ? parsed : parseMaterial(named);
       name = program.name;
       if (program.kind != MaterialStageKind.surface) {
         throw PluginException(
@@ -570,11 +594,11 @@ final class RuntimeShaders extends PluginRegistry {
       );
     }
     if (_store.backend == RuntimeBackends.impeller) {
-      return _prebuiltMaterial(source, name);
+      return _prebuiltMaterial(named, name);
     }
     try {
       bundle = runtimeMaterialBundle(
-        source,
+        named,
         backend: _store.backend,
         from: from,
         engineSources: _store.engineSources,
@@ -593,7 +617,7 @@ final class RuntimeShaders extends PluginRegistry {
       if (cancelled) return;
       added = _store.addMaterials(library);
       _store.lighting[name] = describeMaterial(
-        parseMaterial(source),
+        parseMaterial(named),
       ).lightingModel(label: name, shaderName: name);
     });
     return _tracked(

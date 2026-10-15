@@ -52,6 +52,11 @@ dependencies:
   # refusals extend.
   flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
 
+  # `NameTakenException`, what `MaterialCompilerRegistry` refuses a section
+  # another backend's compiler writes with, as every registry refuses a
+  # name taken.
+  flutter3d_plugin_api: '>=1.0.0-rc.1 <1.1.0'
+
 dev_dependencies:
   test: ^1.25.0
 

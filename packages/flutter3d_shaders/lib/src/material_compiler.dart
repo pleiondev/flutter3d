@@ -8,6 +8,8 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show CapabilityException, Registration;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart'
     show ShaderStageKind;
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show NameTakenException;
 
 /// One stage a `.f3dmat` source becomes, as GLSL the engine's emitter wrote:
 /// the fragment stage, and a `vertex` block's two vertex stages.
@@ -205,18 +207,18 @@ final class MaterialCompilerRegistry {
   /// Makes [compiler] the one [forBackend] answers for its backend, until
   /// the result is cancelled.
   ///
-  /// Throws an [ArgumentError] when another compiler for another backend
-  /// already writes the same [MaterialCompiler.bundleSection]: two backends
-  /// reading one section would read each other's bytes.
+  /// Throws a [NameTakenException] when another compiler for another
+  /// backend already writes the same [MaterialCompiler.bundleSection]: two
+  /// backends reading one section would read each other's bytes.
   Registration register(MaterialCompiler compiler) {
     for (final other in _compilers) {
       if (other.backend != compiler.backend &&
           other.bundleSection == compiler.bundleSection) {
-        throw ArgumentError.value(
+        throw NameTakenException(
           compiler.bundleSection,
-          'compiler',
-          'is the section the ${other.backend} compiler writes; '
-              '${compiler.backend} needs one of its own',
+          what: 'the bundle section',
+          owner: 'the ${other.backend} compiler',
+          detail: '${compiler.backend} needs one of its own',
         );
       }
     }

@@ -203,6 +203,7 @@ Map<String, String> _backendTemplate(String package) {
     'pubspec.yaml': fill(_backendPubspec),
     'analysis_options.yaml': _analysisOptions,
     'lib/$package.dart': fill(_backendLibrary),
+    'bin/material_compiler.dart': fill(_backendCompiler),
     'lib/src/${label}_device.dart': fill(_backendDevice),
     'lib/src/${label}_pass.dart': fill(_backendPass),
     'lib/src/${label}_texels.dart': fill(_backendTexels),
@@ -1013,11 +1014,36 @@ dependencies:
   flutter3d_shaders: ^1.0.0-rc.1
   flutter3d_foundation: ^1.0.0-rc.1
 
+# What makes a project's build compile its materials for this backend too:
+# the build hook finds this among the project's dependencies and runs the
+# compiler for this backend's section, as it runs impellerc for Impeller's.
+flutter3d_backend:
+  backend: '{{label}}'
+  section: '{{label}}'
+  compiler: bin/material_compiler.dart
+
 dev_dependencies:
   flutter3d_conformance: ^1.0.0-rc.1
   flutter3d_core: ^1.0.0-rc.1
   test: ^1.25.0
   vector_math: ^2.2.0
+''';
+
+const String _backendCompiler = '''
+// The {{label}} backend's material compiler as the build runs it: a project
+// that depends on this package has its engine bundle and every plugin
+// material compiled with `{{stem}}MaterialCompiler` too, because the pubspec's
+// `flutter3d_backend:` names this file. The build hands it a request and a
+// path, and reads the section back from there.
+//
+//     dart run {{name}}:material_compiler <request.json> <out>
+import 'dart:io';
+
+import 'package:{{name}}/{{name}}.dart';
+import 'package:flutter3d_shaders/compile.dart' show runMaterialCompiler;
+
+void main(List<String> arguments) =>
+    exit(runMaterialCompiler(const {{stem}}MaterialCompiler(), arguments));
 ''';
 
 const String _backendReadme = '''

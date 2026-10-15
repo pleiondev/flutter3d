@@ -14,6 +14,7 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:flutter3d_backend_null/flutter3d_backend_null.dart';
@@ -284,9 +285,10 @@ done
     expect(report.needs, <String>['pbrLayered']);
     // The stub's last manifest is the material's, so the bundle is asked.
     expect(bundle().names, contains('PbrLayered'));
-    expect(report.materials, <String>['AcmeGlow']);
+    // In the namespace of the package that ships it.
+    expect(report.materials, <String>['acme__AcmeGlow']);
     final material = File(
-      '${project.path}/${EngineBundleStamp.projectMaterialAsset('AcmeGlow')}',
+      '${project.path}/${EngineBundleStamp.projectMaterialAsset('acme__AcmeGlow')}',
     );
     expect(material.existsSync(), isTrue);
     expect(
@@ -354,11 +356,60 @@ done
 
       final material = ShaderBundle.decode(
         File(
-          '${project.path}/${EngineBundleStamp.projectMaterialAsset('AcmeGlow')}',
+          '${project.path}/${EngineBundleStamp.projectMaterialAsset('acme__AcmeGlow')}',
         ).readAsBytesSync().buffer.asByteData(),
       );
-      expect(namesIn(material), contains('AcmeGlow'));
+      expect(namesIn(material), contains('acme__AcmeGlow'));
     });
+
+    test(
+      'is found among the dependencies and run as its package says',
+      () async {
+        // The null backend's own pubspec names `bin/material_compiler.dart`;
+        // discovery reads it, and the build runs it against this test's
+        // package config, which resolves the example.
+        // Mutation: hand the build no compiler when none is registered, and
+        // the project whose one GPU backend is the null one gets no bundle.
+        final lib = await Isolate.resolvePackageUri(
+          Uri.parse('package:flutter3d_backend_null/'),
+        );
+        final config = await Isolate.packageConfig;
+        final root = Directory.fromUri(lib!).parent.path;
+        final marker = backendCompilerOf(
+          'flutter3d_backend_null',
+          <Object?, Object?>{
+            'flutter3d_backend': <Object?, Object?>{
+              'backend': 'null',
+              'section': 'null',
+              'compiler': 'bin/material_compiler.dart',
+            },
+          },
+          root: root,
+          packageConfig: config!.toFilePath(),
+        )!;
+        final report = build(
+          plugins: PluginDiscovery(
+            plugins: const <DiscoveredPlugin>[],
+            readFiles: const <String>[],
+            dependencies: const <String>{'flutter3d_backend_null'},
+            backendCompilers: <BackendCompilerPackage>[marker],
+          ),
+        );
+        expect(report.ran, isTrue);
+        expect(namesIn(bundle()).toSet(), report.stages.toSet());
+        expect(
+          () => backendCompilerOf(
+            'half',
+            <Object?, Object?>{
+              'flutter3d_backend': <Object?, Object?>{'backend': 'half'},
+            },
+            root: root,
+            packageConfig: config.toFilePath(),
+          ),
+          throwsA(isA<PluginDiscoveryException>()),
+        );
+      },
+    );
 
     test('is never asked for the engine\'s stamp section', () {
       // Mutation: drop the stamp from the engine's sections, and the build
@@ -370,6 +421,101 @@ done
         ]),
       );
       expect(bundle().section(EngineBundleStamp.section), isNotNull);
+    });
+  });
+
+  group('a plugin\'s material', () {
+    Directory plugin(String name, String source) {
+      final root = Directory('${project.path}/$name')..createSync();
+      File('${root.path}/assets_src/hair.f3dmat')
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(source);
+      return root;
+    }
+
+    PluginDiscovery shipping(Directory root, {List<String> needs = const []}) =>
+        PluginDiscovery(
+          plugins: const <DiscoveredPlugin>[],
+          readFiles: const <String>[],
+          dependencies: <String>{
+            'flutter3d_impeller',
+            root.uri.pathSegments.where((s) => s.isNotEmpty).last,
+          },
+          packages: <PluginPackage>[
+            PluginPackage(
+              name: root.uri.pathSegments.where((s) => s.isNotEmpty).last,
+              root: root.path,
+              shaderNeeds: needs,
+            ),
+          ],
+        );
+
+    test('is named in the namespace of the package shipping it', () {
+      // Mutation: compile the name the source writes. `material Hair` of
+      // two packages would be one stage, and the plugin's model
+      // `acme_hair.Hair` would find neither.
+      final report = build(
+        plugins: shipping(
+          plugin('acme_hair', _glow.replaceAll('AcmeGlow', 'Hair')),
+        ),
+      );
+      expect(report.materials, <String>['acme_hair__Hair']);
+      final material = ShaderBundle.decode(
+        File(
+          '${project.path}/${EngineBundleStamp.projectMaterialAsset('acme_hair__Hair')}',
+        ).readAsBytesSync().buffer.asByteData(),
+      );
+      expect(material.names, contains('acme_hair__Hair'));
+      // The source the bundle carries names the stage too, so a backend
+      // that compiles it again reads the same name.
+      expect(
+        decodeMaterialSection(material)['acme_hair__Hair'],
+        contains('material acme_hair__Hair'),
+      );
+    });
+
+    test('in another plugin\'s namespace is refused', () {
+      expect(
+        () => build(
+          plugins: shipping(
+            plugin('acme_hair', _glow.replaceAll('AcmeGlow', 'other__Hair')),
+          ),
+        ),
+        throwsA(
+          isA<MaterialBuildException>().having(
+            (e) => e.message,
+            'message',
+            contains('another plugin\'s namespace'),
+          ),
+        ),
+      );
+    });
+
+    test('is what a need named after its plugin resolves to', () {
+      final root = plugin('acme_hair', _glow.replaceAll('AcmeGlow', 'Hair'));
+      expect(
+        build(
+          plugins: shipping(root, needs: const <String>['acme_hair.hair']),
+        ).materials,
+        <String>['acme_hair__Hair'],
+      );
+      // Mutation: drop a need nobody compiles, as the build did before.
+      expect(
+        () => build(
+          plugins: shipping(root, needs: const <String>['acme_hair.fur']),
+        ),
+        throwsA(
+          isA<MaterialBuildException>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('acme_hair needs'),
+              contains('"acme_hair.fur"'),
+              contains('acme_hair__Hair'),
+            ),
+          ),
+        ),
+      );
     });
   });
 

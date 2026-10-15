@@ -27,12 +27,13 @@
 /// asks `impellerc`, the WebGL2 translator and naga for the engine's three.
 /// A project whose only GPU backend is such a one gets its bundle.
 ///
-/// **Only a caller that hands [runShaderBuild] a registry gets that.** The
-/// build hook, `flutter3d shaders` and `material_build.dart` hand it none
-/// yet: the build cannot load a package's compiler without importing it.
-/// Until compilers are discovered from a pubspec marker, a backend from
-/// outside ships its own section, compiles at run time, or runs this with
-/// its registry from a tool of its own.
+/// **Found among the project's dependencies.** A backend package names its
+/// compiler under `flutter3d_backend:` in its pubspec ([backendMarkerKey]);
+/// discovery reads it ([PluginDiscovery.backendCompilers]) and this runs it
+/// as a process ([ProcessMaterialCompiler]), so the build hook, `flutter3d
+/// shaders` and the project's materials compile for every backend the
+/// project depends on with nothing registered by hand. A registry handed in
+/// is used instead.
 ///
 /// **A plugin's materials too** (D19). A package that marks plugins and keeps
 /// `.f3dmat` sources under its own `assets_src/` has each compiled into
@@ -40,6 +41,15 @@
 /// Impeller for this SDK whatever SDK the plugin's author built with. A
 /// bundle the plugin ships itself stays a documented option; the device
 /// refuses it by name when its SDK is another.
+///
+/// **In the plugin's namespace.** A package from outside the engine writes
+/// `material Hair`, and its material compiles as `<package>__Hair`, the
+/// stage of its lighting model `<package>.Hair` (`materialStageIn`): the
+/// namespace comes from the package shipping the source, never from the
+/// source. A shader need a package or the manifest names after a plugin
+/// (`acme.hair`) is the stage `acme__hair` one of those materials compiled
+/// to, and a need no installed package compiles is refused, naming who
+/// declared it.
 library;
 
 import 'dart:convert';
@@ -50,6 +60,8 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter3d_build_hooks/flutter3d_build_hooks.dart';
 import 'package:flutter3d_core/flutter3d_core.dart' show F3dDocument;
 import 'package:flutter3d_hardware/shader_bundle.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show PluginManifest;
 import 'package:flutter3d_shaders/backend.dart'
     show
         MaterialCompileException,
@@ -61,6 +73,7 @@ import 'package:flutter3d_shaders/compile.dart';
 import 'package:flutter3d_shaders/flutter3d_shaders.dart'
     show EngineBundleStamp, ShaderStageNeed;
 
+import 'backend_compilers.dart';
 import 'layout.dart';
 import 'plugin_discovery.dart';
 
@@ -266,7 +279,9 @@ Iterable<String> _modelNeeds(AssetLayout layout) sync* {
 /// write. [engineRevision] defaults to the SDK's own.
 ///
 /// [registry] is the backends' compilers (D26): [compilers]' own when it
-/// has one. Each compiler of a backend outside the engine is handed the
+/// has one, and otherwise the compilers [plugins] found among the project's
+/// dependencies ([discoveredCompilers]). Each compiler of a backend outside
+/// the engine is handed the
 /// engine's stages as GLSL, with the engine's sources to resolve their
 /// includes and an empty `.f3dmat` source, and writes its section of the
 /// engine's bundle; and it is asked for its section of every plugin
@@ -285,7 +300,8 @@ ShaderBuildReport runShaderBuild(
   String? engineRevision,
   MaterialCompilerRegistry? registry,
 }) {
-  final compilerRegistry = registry ?? compilers?.registry;
+  final compilerRegistry =
+      registry ?? compilers?.registry ?? discoveredCompilers(plugins);
   final outside = _outsideCompilers(compilerRegistry);
   // The engine's own sections only for an application that has one of the
   // engine's GPU backends; one whose only backend is from outside gets that
@@ -428,6 +444,12 @@ ShaderBuildReport runShaderBuild(
     cache,
     projectRoot,
     sink,
+  );
+  _resolvePluginNeeds(
+    plugins,
+    layout.manifest.shaders.needs,
+    materials.names,
+    projectRoot,
   );
 
   _writeCache(cachePath, <String, Object?>{
@@ -656,10 +678,16 @@ _pluginMaterials(
             .where((file) => file.path.endsWith('.f3dmat'))
             .toList()
           ..sort((a, b) => a.path.compareTo(b.path));
+    // The plugin's namespace, from the package that ships the source: the
+    // engine's own packages name their stages as the engine does.
+    final namespace = PluginManifest.engineNamespaces.contains(package.name)
+        ? null
+        : package.name;
     for (final file in files) {
       final text = file.readAsStringSync();
       sources.add(file.path);
-      final key = '${sha256.convert(utf8.encode(text))} $stamp';
+      final key =
+          '${sha256.convert(utf8.encode(text))} $stamp ${namespace ?? ''}';
       final known = before.entries
           .where((entry) => entry.value == key)
           .map((entry) => entry.key)
@@ -678,6 +706,7 @@ _pluginMaterials(
         scratch: Directory(
           '${projectRoot.path}/.dart_tool/flutter3d_build/plugin_materials',
         ),
+        namespace: namespace,
       );
       if (bundle.name == 'flutter3d' || bundle.name == 'flutter3d.previous') {
         throw MaterialBuildException(
@@ -707,6 +736,44 @@ _pluginMaterials(
     if (file.existsSync()) file.deleteSync();
   }
   return (names: names, cache: next, sources: sources);
+}
+
+/// Resolves every shader need named after a plugin (`acme.hair`), that a
+/// package of [plugins] declares under `flutter3d_plugins: shaders:` or the
+/// project's [manifestNeeds] lists, to the plugin material compiled as its
+/// stage (`acme__hair`, matched in any case, among [compiled]); a need none
+/// of them compiled is a [MaterialBuildException] naming who declared it
+/// and what the installed plugins do compile.
+///
+/// **Refused rather than dropped.** A need the engine does not know used to
+/// bring nothing, and a stage left out was then missing at run time with no
+/// plugin to name; now the build says which package asked for what.
+void _resolvePluginNeeds(
+  PluginDiscovery plugins,
+  List<String> manifestNeeds,
+  List<String> compiled,
+  Directory projectRoot,
+) {
+  final stages = <String>{for (final name in compiled) name.toLowerCase()};
+  final declared = <(String, String, String)>[
+    for (final package in plugins.packages)
+      for (final need in package.shaderNeeds)
+        (need, package.name, '${package.root}/pubspec.yaml'),
+    for (final need in manifestNeeds)
+      (need, 'the project', '${projectRoot.path}/flutter3d_assets.yaml'),
+  ];
+  for (final (need, owner, source) in declared) {
+    if (!need.contains('.') || ShaderStageNeed.byName(need) != null) continue;
+    final stage = need.replaceAll('.', '__');
+    if (stages.contains(stage.toLowerCase())) continue;
+    throw MaterialBuildException(
+      '$owner needs the shader stages "$need", the plugin material compiled '
+      'as "$stage", and no installed plugin package compiles one'
+      '${compiled.isEmpty ? '' : ' (they compile ${compiled.join(', ')})'}: '
+      'add the package that ships it, or take the need out',
+      source: source,
+    );
+  }
 }
 
 String _hashOf(Map<String, String> sources) => sha256

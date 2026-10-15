@@ -25,6 +25,17 @@ dependencies:
   flutter3d_foundation:
     path: ../../packages/flutter3d_foundation
 
+# **What makes a project's build compile for this backend.** The build hook
+# finds this among a project's dependencies and runs the compiler named here
+# for this backend's section of the engine's bundle and of every plugin
+# material, as it runs `impellerc` for Impeller's. `backend` is the device's
+# `backendId` and `section` its compiler's `bundleSection`, read without
+# running anything.
+flutter3d_backend:
+  backend: 'null'
+  section: 'null'
+  compiler: bin/material_compiler.dart
+
 dev_dependencies:
   test: ^1.25.0
 

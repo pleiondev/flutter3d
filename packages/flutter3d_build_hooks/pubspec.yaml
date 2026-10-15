@@ -1,6 +1,6 @@
 name: flutter3d_build_hooks
 description: "What a package's build hook needs to compile its flutter3d materials into shader bundles, with no converters, servers or Flutter behind it."
-version: 1.0.0-rc.1
+version: 1.0.0-rc.1+1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues

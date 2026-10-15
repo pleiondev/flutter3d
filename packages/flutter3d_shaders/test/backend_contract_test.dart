@@ -10,6 +10,8 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show NameTakenException;
 import 'package:flutter3d_shaders/backend.dart';
 import 'package:test/test.dart';
 
@@ -88,7 +90,7 @@ void main() {
       expect(
         () => registry.register(const _Compiler('metal', 'spirv')),
         throwsA(
-          isA<ArgumentError>().having(
+          isA<NameTakenException>().having(
             (e) => e.message,
             'message',
             contains('vulkan'),

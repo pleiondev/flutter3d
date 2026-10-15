@@ -34,6 +34,23 @@ material Glow {
 }
 ''';
 
+/// The scope of a data plugin called [id], which tracks nothing.
+final class _Scope extends PluginScope {
+  const _Scope(this.id);
+
+  final String id;
+
+  @override
+  PluginManifest get manifest =>
+      PluginManifest(id: id, apiVersion: const PluginApiVersion(1, 0));
+
+  @override
+  int get rank => 0;
+
+  @override
+  void track(Registration registration) {}
+}
+
 /// A library the stand-in device hands back for a bundle.
 final class _Library with ShaderLibrary, LoadedShaderLibrary {
   _Library(this.bundle);
@@ -203,6 +220,31 @@ void main() {
         expect(cpu.shaders.statuses, isEmpty);
       },
     );
+
+    test('a plugin\'s material is compiled in its namespace', () async {
+      // Mutation: compile the name the source writes. Two plugins' `Glow`
+      // would be one stage, and neither plugin's model would name its own.
+      final cpu = _shaders('cpu');
+      final plugin = cpu.shaders.forPlugin(const _Scope('acme_ink.data'));
+      plugin.addMaterial(_glow, from: 'glow.f3dmat');
+      await cpu.shaders.settled;
+      expect(cpu.added.single['acme_ink__Glow'], isNotNull);
+      expect(cpu.added.single['Glow'], isNull);
+      expect(cpu.shaders.lighting('acme_ink__Glow')?.name, 'acme_ink.Glow');
+      expect(
+        () => plugin.addMaterial(
+          _glow.replaceFirst('Glow', 'other__Glow'),
+          from: 'theirs.f3dmat',
+        ),
+        throwsA(
+          isA<PluginException>().having(
+            (PluginException e) => e.message,
+            'message',
+            contains('another plugin\'s namespace'),
+          ),
+        ),
+      );
+    });
 
     test('on Impeller the material is off, with the reason, and the rest '
         'installs', () async {

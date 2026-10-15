@@ -218,16 +218,41 @@ String flutterSdkRootFrom(String executable) {
 /// generated `.frag` is written for `impellerc`, and where it stays when
 /// a compiler refuses it, so the line in that compiler's message is a line
 /// somebody can open.
+///
+/// [namespace] is the plugin's that ships the source, for a plugin's
+/// material: the bare name the file writes (`material Hair`) compiles as
+/// `<namespace>__Hair` (`materialStageIn`), every stage of it and the
+/// source the bundle carries renamed to match, so the plugin's lighting
+/// model (`acme_hair.Hair`) finds it. A name in another plugin's namespace
+/// is refused. Null compiles the name as written: the engine's own
+/// materials, and an application's.
 ShaderBundle compileMaterial(
   String text, {
   required String source,
   required ShaderSet engine,
   required MaterialCompilers compilers,
   required Directory scratch,
+  String? namespace,
 }) {
   final MaterialProgram program;
+  // [text], in the plugin's namespace: what every stage is emitted from
+  // and the bundle's material section carries.
+  final String named;
   try {
-    program = parseMaterial(text);
+    final parsed = parseMaterial(text);
+    final stage = namespace == null
+        ? parsed.name
+        : materialStageIn(namespace, parsed.name);
+    if (stage == null) {
+      throw MaterialBuildException(
+        'the material "${parsed.name}" is named in another plugin\'s '
+        'namespace; a plugin of "$namespace" writes the bare name, which '
+        'compiles as "${namespace}__<Name>"',
+        source: source,
+      );
+    }
+    named = stage == parsed.name ? text : renameMaterialSource(text, stage);
+    program = stage == parsed.name ? parsed : parseMaterial(named);
   } on MaterialSyntaxException catch (error) {
     throw MaterialBuildException(
       error.message,
@@ -357,7 +382,7 @@ ShaderBundle compileMaterial(
     // runtime that builds the material's lighting model from it — `P8`.
     // Under every stage's name, so the software backend can answer each.
     ShaderBundle.materialSection: encodeMaterialSection(<String, String>{
-      for (final stage in stages) stage.name: text,
+      for (final stage in stages) stage.name: named,
     }),
   };
 
@@ -367,7 +392,7 @@ ShaderBundle compileMaterial(
     final request = MaterialCompileRequest(
       name: name,
       from: source,
-      source: text,
+      source: named,
       stages: <MaterialStageSource>[
         for (final stage in stages)
           MaterialStageSource(

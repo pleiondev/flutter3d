@@ -31,6 +31,7 @@ import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show ConstraintCycleException, ResourceException, orderByConstraints;
 
+import 'backend_compilers.dart';
 import 'build_assets.dart';
 import 'convert.dart';
 import 'layout.dart';
@@ -356,9 +357,24 @@ final class _Materials extends _BuiltInStep {
   @override
   String get name => BuildStep.materials;
 
+  /// With the compilers of the backends from outside the engine the
+  /// project depends on, when it is a package to discover them in.
   @override
   void run(BuildStepContext context) {
-    _report = runMaterialBuild(context.projectRoot, log: context.sink);
+    PluginDiscovery? found;
+    if (File('${context.projectRoot.path}/pubspec.yaml').existsSync()) {
+      try {
+        found = discoverPlugins(context.projectRoot);
+      } on PluginDiscoveryException {
+        // Not resolved yet: the plugins step says so in its own words.
+        found = null;
+      }
+    }
+    _report = runMaterialBuild(
+      context.projectRoot,
+      log: context.sink,
+      registry: found == null ? null : discoveredCompilers(found),
+    );
   }
 
   @override

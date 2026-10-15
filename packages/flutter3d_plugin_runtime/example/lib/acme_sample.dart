@@ -42,9 +42,15 @@ final class TubeHook extends LightTypeHook {
 /// packs, so a longer tube reaches further. The engine's stages skip a light
 /// type of a plugin's own; this block is handed it with its direction and
 /// `nDotL`, which is what lights a box under a tube alone on every backend.
+///
+/// **The source writes the bare name, `Hair`.** The namespace is the
+/// plugin's, not the file's: the build compiles it as `acme_sample__Hair`
+/// for the plugin that ships it (`compileMaterial(namespace:)`, which
+/// `tool/build_bundle.dart` and a project's build hook both pass), and a data
+/// plugin's run time does the same with its manifest's namespace.
 const String hairSource = '''
 f3dmat 3
-material acme_sample__Hair {
+material Hair {
   uniform float gloss = 0.5;
   uniform(Strands) vec3 tint = vec3(0.4, 0.3, 0.2);
   uniform(Strands) float shift = 0.1;
@@ -62,10 +68,17 @@ material acme_sample__Hair {
 }
 ''';
 
-/// [hairSource] described as a lighting model.
-final LightingModel hairModel = describeMaterial(
-  parseMaterial(hairSource),
-).lightingModel(label: 'Hair', shaderName: 'acme_sample__Hair');
+/// [hairSource] described as a lighting model, `acme_sample.Hair`: its
+/// stage is the one the build compiles the source as in this plugin's
+/// namespace.
+final LightingModel hairModel = describeMaterial(parseMaterial(hairSource))
+    .lightingModel(
+      label: 'Hair',
+      shaderName: materialStageIn(
+        'acme_sample',
+        parseMaterial(hairSource).name,
+      )!,
+    );
 
 /// A decal stage of the plugin's own, with the engine's decal interface.
 const LightingModel decalStage = LightingModel(

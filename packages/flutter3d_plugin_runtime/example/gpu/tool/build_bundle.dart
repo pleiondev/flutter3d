@@ -26,6 +26,9 @@ void main() {
       engine: loadShaders(),
       compilers: MaterialCompilers.locate(),
       scratch: scratch,
+      // The plugin's namespace: `material Hair` compiles as the stage
+      // `acme_sample__Hair` its lighting model names.
+      namespace: 'acme_sample',
     );
     final missing = <String>[
       for (final section in <String>[

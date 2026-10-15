@@ -127,6 +127,86 @@ final class PluginDiscoveryException extends PluginException {
 /// The pubspec key a package declares its plugins under.
 const String pluginMarkerKey = 'flutter3d_plugins';
 
+/// The pubspec key a graphics backend from outside the engine declares its
+/// material compiler under, so a project's build compiles for it (D26):
+///
+/// ```yaml
+/// flutter3d_backend:
+///   backend: acme_vk          # the device's backendId
+///   section: acme_vk          # its compiler's bundleSection
+///   compiler: bin/material_compiler.dart
+/// ```
+///
+/// `compiler` is a Dart file in the package that runs the compiler with
+/// `runMaterialCompiler` from `package:flutter3d_shaders/compile.dart`;
+/// `examples/flutter3d_backend_null` is the reference.
+const String backendMarkerKey = 'flutter3d_backend';
+
+/// A dependency that is a graphics backend from outside the engine with a
+/// material compiler: what its pubspec's [backendMarkerKey] says.
+final class BackendCompilerPackage {
+  const BackendCompilerPackage({
+    required this.name,
+    required this.root,
+    required this.backend,
+    required this.section,
+    required this.compiler,
+    required this.packageConfig,
+  });
+
+  /// The package's name.
+  final String name;
+
+  /// Its root directory, as the package config resolves it.
+  final String root;
+
+  /// The backend's id, `MaterialCompiler.backend`.
+  final String backend;
+
+  /// The section its compiler writes, `MaterialCompiler.bundleSection`.
+  final String section;
+
+  /// The compiler's Dart file, relative to [root].
+  final String compiler;
+
+  /// The package config the project resolved, which the compiler runs
+  /// against.
+  final String packageConfig;
+
+  @override
+  String toString() => '$name ($backend)';
+}
+
+/// What [pubspec], of [package] at [root], says under [backendMarkerKey],
+/// or null when it says nothing. Throws a [PluginDiscoveryException] naming
+/// the package for a marker without its three strings.
+BackendCompilerPackage? backendCompilerOf(
+  String package,
+  Map<Object?, Object?> pubspec, {
+  required String root,
+  required String packageConfig,
+}) => switch (pubspec[backendMarkerKey]) {
+  null => null,
+  {
+    'backend': final String backend,
+    'section': final String section,
+    'compiler': final String compiler,
+  } =>
+    BackendCompilerPackage(
+      name: package,
+      root: root,
+      backend: backend,
+      section: section,
+      compiler: compiler,
+      packageConfig: packageConfig,
+    ),
+  _ => throw PluginDiscoveryException(
+    '$package: `$backendMarkerKey:` names the backend, the section its '
+    'compiler writes and the compiler\'s file, as `backend:`, `section:` and '
+    '`compiler:`, each a string',
+  ),
+};
+
 /// The key plugins were declared under before 1.0, as `flutter3d: plugin:`.
 ///
 /// Still read, with a warning, so a plugin published against 0.8 keeps
@@ -143,12 +223,18 @@ final class PluginDiscovery {
     this.excluded = const <DiscoveredPlugin>[],
     this.packages = const <PluginPackage>[],
     this.dependencies = const <String>{},
+    this.backendCompilers = const <BackendCompilerPackage>[],
   });
 
   /// Every package the application depends on, directly or through another:
   /// what the shader build asks to see whether a backend that loads the
   /// engine's bundle is among them.
   final Set<String> dependencies;
+
+  /// The graphics backends from outside the engine among [dependencies]
+  /// that name a material compiler under [backendMarkerKey], by package
+  /// name: what the shader build runs for each one's section (D26).
+  final List<BackendCompilerPackage> backendCompilers;
 
   /// The packages at least one of [plugins] comes from, by name: where each
   /// is, for the build that compiles its materials (D19), and the shader
@@ -508,9 +594,19 @@ PluginDiscovery discoverPlugins(Directory appRoot) {
 
   final plugins = <DiscoveredPlugin>[];
   final warnings = <String>[];
+  final backendCompilers = <BackendCompilerPackage>[];
   for (final package in reached.toList()..sort()) {
     if (!roots.containsKey(package)) continue;
     final pubspec = pubspecOf(package);
+    if (backendCompilerOf(
+          package,
+          pubspec,
+          root: _withoutTrailingSlash(roots[package]!.toFilePath()),
+          packageConfig: config.path,
+        )
+        case final compiler?) {
+      backendCompilers.add(compiler);
+    }
     final value = switch (markerOf(pubspec)) {
       PluginMarker(:final value, legacy: false) => value,
       PluginMarker(:final value, legacy: true) => () {
@@ -548,6 +644,9 @@ PluginDiscovery discoverPlugins(Directory appRoot) {
     ],
     excluded: selected.excluded,
     dependencies: Set<String>.unmodifiable(reached),
+    backendCompilers: List<BackendCompilerPackage>.unmodifiable(
+      backendCompilers,
+    ),
     packages: <PluginPackage>[
       for (final package in installedFrom.toList()..sort())
         if (roots[package] case final root?)

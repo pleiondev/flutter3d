@@ -292,6 +292,7 @@ void main() {
         'pubspec.yaml',
         'analysis_options.yaml',
         'lib/my_vulkan.dart',
+        'bin/material_compiler.dart',
         'lib/src/my_vulkan_device.dart',
         'lib/src/my_vulkan_pass.dart',
         'lib/src/my_vulkan_texels.dart',
