@@ -391,7 +391,7 @@ final class _ShadowMomentsNode extends RenderNode {
   /// null too when its lookup does not read them, so the moments are never
   /// bound to a lookup that would read them as depth.
   ShadowPrefilter? get _prefilter {
-    final technique = settings.directionalTechnique;
+    final technique = _renderer._directionalTechnique(settings);
     return technique.kernelFor(settings).readsMoments
         ? technique.prefilterFor(settings)
         : null;

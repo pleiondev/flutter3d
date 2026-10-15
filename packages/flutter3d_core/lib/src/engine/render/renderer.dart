@@ -15,6 +15,8 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
         LinearColor,
         NameTakenException,
         PluginException,
+        PluginManifest,
+        PluginPermission,
         PluginRegistry,
         PluginScope,
         PluginTouches,
@@ -356,9 +358,15 @@ final class Renderer with RenderServices {
   LightTypes get lightTypes => renderSteps._store.lightTypes;
 
   /// The hooks into what this renderer draws — the draw-list hooks, the
-  /// level-of-detail policy, the skinning hooks (D22b). A plugin reaches it
-  /// as `host.registry<RenderHooks>()`, through [renderSteps].
+  /// level-of-detail, pacing and quality policies, the skinning hooks and
+  /// the shadow techniques (D22b). A plugin reaches it as
+  /// `host.registry<RenderHooks>()`, through [renderSteps].
   RenderHooks get hooks => renderSteps._store.hooks;
+
+  /// What the directional map is drawn with under [shadows]: its filter's
+  /// technique, or the one a plugin registered under the filter's name.
+  ShadowTechnique _directionalTechnique(ShadowSettings shadows) =>
+      hooks.techniqueFor(shadows.directionalFilter);
 
   /// The quality setting the next frames are drawn at, for a step's switch
   /// to read as [RenderStepContext.quality]: what an `AdaptiveQuality`
@@ -1012,18 +1020,19 @@ final class Renderer with RenderServices {
   }
 
   /// Whether this frame is held: [pacing]'s policy where it answers (D22b),
-  /// and otherwise its rule — held while the GPU is behind by every frame in
-  /// flight.
+  /// then the pacing policies plugins registered with [hooks], in their
+  /// order, and otherwise its rule — held while the GPU is behind by every
+  /// frame in flight.
   bool _holdsFrame() {
     final behind = _gpuIsBehind;
-    return pacing.policy?.hold(
-          PacingContext(
-            frameIndex: _frameIndex,
-            unfinishedFrames: _unfinished.length,
-            framesInFlight: pacing.framesInFlight,
-            gpuIsBehind: behind,
-          ),
-        ) ??
+    final context = PacingContext(
+      frameIndex: _frameIndex,
+      unfinishedFrames: _unfinished.length,
+      framesInFlight: pacing.framesInFlight,
+      gpuIsBehind: behind,
+    );
+    return pacing.policy?.hold(context) ??
+        hooks.pacingPolicy?.hold(context) ??
         (pacing.holdWhenBehind && behind);
   }
 
@@ -5799,6 +5808,8 @@ final class Renderer with RenderServices {
         final runs = entry != null && node.viewRuns == ViewRuns.perView
             ? math.max(1, _frameViews.length)
             : 1;
+        // A placed node declares only what is its owner's to make.
+        if (entry != null) resources.runningPlacedNode(entry.scope?.manifest);
         try {
           for (var viewIndex = 0; viewIndex < runs; viewIndex++) {
             node.execute(
@@ -5855,6 +5866,7 @@ final class Renderer with RenderServices {
             }
           }
         } finally {
+          resources.ranNode();
           if (timing) developer.Timeline.finishSync();
           _passLabel = null;
         }

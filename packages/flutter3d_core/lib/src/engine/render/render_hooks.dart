@@ -6,8 +6,9 @@
 /// Each hook is an `abstract base` class whose methods take one context
 /// object that can gain members, and answer null (or do nothing) by default,
 /// which is the engine's own choice. A plugin registers the renderer's with
-/// [RenderHooks] (`host.registry<RenderHooks>()`, beside the render steps);
-/// `FramePacing` and `AdaptiveQuality` take theirs directly.
+/// [RenderHooks] (`host.registry<RenderHooks>()`, beside the render steps),
+/// each a registration withdrawn with the plugin; an application may also
+/// hand `FramePacing` and `AdaptiveQuality` one of its own directly.
 library;
 
 import 'dart:collection';
@@ -17,7 +18,12 @@ import 'package:flutter3d_core/geometry.dart' show MeshData, VertexLayout;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart'
     show GraphicsDevice, StorageBuffer;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show PluginRegistry, PluginScope, Registration;
+    show
+        NameTakenException,
+        PluginException,
+        PluginRegistry,
+        PluginScope,
+        Registration;
 import 'package:flutter3d_shaders/kernel.dart' show ComputeKernel;
 
 import '../animation/skin_blend.dart';
@@ -27,6 +33,7 @@ import '../scene/mesh_node.dart';
 import 'compute_step.dart';
 import 'quality_table.dart';
 import 'render_view.dart';
+import 'shadow_settings.dart';
 
 /// What a [DrawListHook] is asked about one mesh of one view.
 ///
@@ -65,7 +72,8 @@ abstract base class DrawListHook {
 
   /// The mesh's place in the view's order, below its draw bucket: a number
   /// from nought to 2³⁵ − 1, smaller drawn first, or null for the order the
-  /// view's `SortMode` gives. The first hook to answer decides.
+  /// view's `SortMode` gives. The first hook to answer decides, in the
+  /// order `RenderHooks.drawListHooks` lists them; null passes to the next.
   int? sortKey(DrawListContext context) => null;
 }
 
@@ -353,10 +361,22 @@ abstract base class QualityPolicy {
 }
 
 /// A renderer's hooks into what it draws (D22b): the draw-list hooks, the
-/// level-of-detail policy and the skinning hooks plugins registered.
+/// level-of-detail and sort policies, the skinning hooks, the pacing and
+/// quality policies and the shadow techniques plugins registered.
 ///
 /// Reached by a plugin as `host.registry<RenderHooks>()`, a companion of
 /// the render steps; an application uses `Renderer.hooks`.
+///
+/// **Every policy is a registration, and several chain.** A hook added here
+/// is withdrawn with the plugin that added it, and the hooks of one kind are
+/// asked in the plugins' dependency order — the application's first, then
+/// each plugin's in install order, and within one owner as they were added.
+/// The first to answer decides; one that answers null passes the question
+/// to the next, and the last to pass leaves it to the engine's own rule. So
+/// two level-of-detail policies, two sort keys or two pacing rules from two
+/// plugins compose instead of the one added last silently winning, and
+/// which one decides does not change with the order a game happened to
+/// install them in.
 final class RenderHooks extends PluginRegistry {
   /// A renderer's, with nothing registered.
   RenderHooks() : _store = _HookStore(), _scope = null;
@@ -366,26 +386,58 @@ final class RenderHooks extends PluginRegistry {
   final _HookStore _store;
   final PluginScope? _scope;
 
-  /// The draw-list hooks, in the order they were added. A view of the
-  /// renderer's own list, read for every mesh of every view, so it is not
-  /// copied.
-  List<DrawListHook> get drawListHooks => _store.drawListView;
+  /// The draw-list hooks, in the order they are asked: the application's,
+  /// then each plugin's in dependency order. A view of the renderer's own
+  /// list, read for every mesh of every view, so it is not copied. Every
+  /// hook must keep a mesh for it to be drawn, and the first to answer a
+  /// [DrawListHook.sortKey] gives its order.
+  List<DrawListHook> get drawListHooks => _store.drawList.view;
 
-  /// The level-of-detail policy, the one added last; null for the
-  /// engine's rule.
-  LodPolicy? get lodPolicy => _store.lod.lastOrNull;
+  /// The level-of-detail policies, in the order they are asked.
+  List<LodPolicy> get lodPolicies =>
+      List<LodPolicy>.unmodifiable(_store.lod.hooks);
+
+  /// The level-of-detail policy every group asks: [lodPolicies] chained,
+  /// the first to answer a level deciding and null passing to the next.
+  /// Null when none is registered, which is the engine's rule.
+  LodPolicy? get lodPolicy => _store.lod.hooks.isEmpty ? null : _store.lodChain;
 
   /// The skinning hooks, in the order they were added: what an application
   /// or a tool lists to say who skins what.
   List<SkinningHook> get skinningHooks =>
-      List<SkinningHook>.unmodifiable(_store.skinning);
+      List<SkinningHook>.unmodifiable(_store.skinning.hooks);
+
+  /// The pacing policies, in the order they are asked.
+  List<PacingPolicy> get pacingPolicies =>
+      List<PacingPolicy>.unmodifiable(_store.pacing.hooks);
+
+  /// What every frame of this renderer asks before it is drawn, after
+  /// `FramePacing.policy`: [pacingPolicies] chained, null passing to the
+  /// next. Null when none is registered.
+  PacingPolicy? get pacingPolicy =>
+      _store.pacing.hooks.isEmpty ? null : _store.pacingChain;
+
+  /// The quality policies, in the order they are asked.
+  List<QualityPolicy> get qualityPolicies =>
+      List<QualityPolicy>.unmodifiable(_store.quality.hooks);
+
+  /// What an `AdaptiveQuality` handed these hooks asks once a frame's time
+  /// is recorded, after its own `policy`: [qualityPolicies] chained, null
+  /// passing to the next. Null when none is registered.
+  QualityPolicy? get qualityPolicy =>
+      _store.quality.hooks.isEmpty ? null : _store.qualityChain;
+
+  /// The shadow techniques registered, in the order they are found.
+  List<ShadowTechnique> get shadowTechniques =>
+      List<ShadowTechnique>.unmodifiable(_store.shadows.hooks);
 
   /// Adds [hook] to every view's draw list until the result is cancelled.
   Registration addDrawListHook(DrawListHook hook) =>
       _add(_store.drawList, hook);
 
-  /// Makes [policy] choose every group's level until the result is
-  /// cancelled; the one added last decides.
+  /// Makes [policy] one of the level-of-detail policies every group asks
+  /// until the result is cancelled. Chained with the others ([lodPolicy]):
+  /// the first, in dependency order, to answer a level decides.
   Registration addLodPolicy(LodPolicy policy) => _add(_store.lod, policy);
 
   /// Lists [hook] among the skinning hooks until the result is cancelled.
@@ -396,9 +448,82 @@ final class RenderHooks extends PluginRegistry {
   Registration addSkinningHook(SkinningHook hook) =>
       _add(_store.skinning, hook);
 
-  Registration _add<T>(List<T> into, T hook) {
-    into.add(hook);
-    final registration = Registration(() => into.remove(hook));
+  /// Makes [policy] one of the pacing policies every frame of this renderer
+  /// asks until the result is cancelled, chained with the others
+  /// ([pacingPolicy]) after `FramePacing.policy`, the application's own.
+  Registration addPacingPolicy(PacingPolicy policy) =>
+      _add(_store.pacing, policy);
+
+  /// Makes [policy] one of the quality policies an `AdaptiveQuality` handed
+  /// these hooks asks until the result is cancelled, chained with the others
+  /// ([qualityPolicy]) after the controller's own `policy`.
+  Registration addQualityPolicy(QualityPolicy policy) =>
+      _add(_store.quality, policy);
+
+  /// Makes [technique] the one a `ShadowFilter` named
+  /// [ShadowTechnique.name] is drawn with, until the result is cancelled
+  /// (D22): a settings file, a level or another plugin names the filter
+  /// (`ShadowFilter.custom('acme_soft.sun', base: ShadowFilter.pcf)`) and
+  /// this renderer draws it with the technique, without the settings
+  /// holding the object.
+  ///
+  /// A technique the filter itself was given wins ([techniqueFor]). Throws
+  /// a [NameTakenException] for the name of a built-in filter and for one
+  /// another technique has, naming who has it; through a plugin's view, a
+  /// [PluginException] for a name outside the plugin's namespace,
+  /// `<namespace>.<name>`.
+  Registration addShadowTechnique(ShadowTechnique technique) {
+    final name = technique.name;
+    final problem = _scope?.manifest.nameProblem(
+      name,
+      what: 'the shadow technique',
+    );
+    if (problem != null) throw PluginException(problem);
+    if (ShadowFilter.values.any((filter) => filter.name == name)) {
+      throw NameTakenException(
+        name,
+        what: 'the shadow technique',
+        owner: 'the engine',
+        detail: 'it is the name of one of the engine\'s own filters',
+      );
+    }
+    for (final entry in _store.shadows.entries) {
+      if (entry.hook.name != name) continue;
+      throw NameTakenException(
+        name,
+        what: 'the shadow technique',
+        owner: entry.owner,
+      );
+    }
+    return _add(_store.shadows, technique);
+  }
+
+  /// The technique registered under [name], or null.
+  ShadowTechnique? shadowTechniqueNamed(String name) {
+    for (final technique in _store.shadows.hooks) {
+      if (technique.name == name) return technique;
+    }
+    return null;
+  }
+
+  /// What this renderer draws [filter] with: the technique the filter, or a
+  /// filter it is drawn as, was given ([ShadowFilter.givenTechnique]); else
+  /// the one registered under its name, or under the name of a filter it is
+  /// drawn as; else its [ShadowFilter.technique], its base's built-in one.
+  ShadowTechnique techniqueFor(ShadowFilter filter) {
+    if (filter.givenTechnique case final given?) return given;
+    for (ShadowFilter? at = filter; at != null; at = at.drawnAs) {
+      if (shadowTechniqueNamed(at.name) case final registered?) {
+        return registered;
+      }
+    }
+    return filter.technique;
+  }
+
+  Registration _add<T extends Object>(_Hooks<T> into, T hook) {
+    final entry = _Hooked<T>(hook, _scope, _store.sequence++);
+    into.add(entry);
+    final registration = Registration(() => into.remove(entry));
     _scope?.track(registration);
     return registration;
   }
@@ -420,10 +545,111 @@ extension RenderHooksInternals on RenderHooks {
 }
 
 final class _HookStore {
-  final List<DrawListHook> drawList = <DrawListHook>[];
-  late final UnmodifiableListView<DrawListHook> drawListView =
-      UnmodifiableListView<DrawListHook>(drawList);
-  final List<LodPolicy> lod = <LodPolicy>[];
-  final List<SkinningHook> skinning = <SkinningHook>[];
+  final _Hooks<DrawListHook> drawList = _Hooks<DrawListHook>();
+  final _Hooks<LodPolicy> lod = _Hooks<LodPolicy>();
+  final _Hooks<SkinningHook> skinning = _Hooks<SkinningHook>();
+  final _Hooks<PacingPolicy> pacing = _Hooks<PacingPolicy>();
+  final _Hooks<QualityPolicy> quality = _Hooks<QualityPolicy>();
+  final _Hooks<ShadowTechnique> shadows = _Hooks<ShadowTechnique>();
   final DrawListContext context = DrawListContext._();
+  late final LodPolicy lodChain = _LodChain(lod);
+  late final PacingPolicy pacingChain = _PacingChain(pacing);
+  late final QualityPolicy qualityChain = _QualityChain(quality);
+  int sequence = 0;
+}
+
+/// One hook, who added it, and when.
+final class _Hooked<T extends Object> {
+  _Hooked(this.hook, this.scope, this.sequence);
+
+  final T hook;
+  final PluginScope? scope;
+  final int sequence;
+
+  int get rank => scope?.rank ?? -1;
+
+  String get owner => switch (scope?.manifest.id) {
+    final String id => 'plugin "$id"',
+    null => 'the application',
+  };
+
+  static int compare(_Hooked<Object> a, _Hooked<Object> b) {
+    final byRank = a.rank.compareTo(b.rank);
+    return byRank != 0 ? byRank : a.sequence.compareTo(b.sequence);
+  }
+}
+
+/// The hooks of one kind, in the order they are asked: by their owner's
+/// place in the install order, then as they were added. [hooks] is kept in
+/// that order in place, so [view] can be read for every mesh without a
+/// copy.
+final class _Hooks<T extends Object> {
+  final List<_Hooked<T>> entries = <_Hooked<T>>[];
+  final List<T> hooks = <T>[];
+  late final UnmodifiableListView<T> view = UnmodifiableListView<T>(hooks);
+
+  void add(_Hooked<T> entry) {
+    entries.add(entry);
+    _order();
+  }
+
+  void remove(_Hooked<T> entry) {
+    if (entries.remove(entry)) _order();
+  }
+
+  void _order() {
+    entries.sort(_Hooked.compare);
+    hooks
+      ..clear()
+      ..addAll(<T>[for (final entry in entries) entry.hook]);
+  }
+}
+
+/// Every level-of-detail policy, asked in order until one answers.
+///
+/// Asked for every group of every view, so the list is read where it is,
+/// never copied: a policy registers nothing while it is asked.
+final class _LodChain extends LodPolicy {
+  _LodChain(this._policies);
+
+  final _Hooks<LodPolicy> _policies;
+
+  @override
+  int? select(LodContext context) {
+    final hooks = _policies.hooks;
+    for (var i = 0; i < hooks.length; i++) {
+      if (hooks[i].select(context) case final int level) return level;
+    }
+    return null;
+  }
+}
+
+/// Every pacing policy, asked in order until one answers.
+final class _PacingChain extends PacingPolicy {
+  _PacingChain(this._policies);
+
+  final _Hooks<PacingPolicy> _policies;
+
+  @override
+  bool? hold(PacingContext context) {
+    for (final policy in _policies.hooks) {
+      if (policy.hold(context) case final bool held) return held;
+    }
+    return null;
+  }
+}
+
+/// Every quality policy, asked in order until one answers.
+final class _QualityChain extends QualityPolicy {
+  _QualityChain(this._policies);
+
+  final _Hooks<QualityPolicy> _policies;
+
+  @override
+  int? choose(QualityContext context) {
+    for (final policy in _policies.hooks) {
+      if (policy.choose(context) case final int row) return row;
+    }
+    return null;
+  }
 }

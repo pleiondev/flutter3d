@@ -108,7 +108,7 @@ export 'src/engine/render/frame_graph.dart';
 export 'src/engine/render/frame_history.dart'
     hide FrameHistoryInternals, engineFrameHistory;
 export 'src/engine/render/frame_plan.dart';
-export 'src/engine/render/frame_resources.dart';
+export 'src/engine/render/frame_resources.dart' hide FrameResourcesInternals;
 export 'src/engine/render/frame_view.dart';
 export 'src/engine/render/frame_work_budget.dart';
 export 'src/engine/render/fullscreen_effect.dart';
@@ -135,7 +135,7 @@ export 'src/engine/render/render_node.dart' hide FrameContextInternals;
 export 'src/engine/render/render_step_addon.dart';
 export 'src/engine/render/render_view.dart' hide CameraViewInternals;
 export 'src/engine/render/renderer.dart'
-    hide RendererInternals, RenderStepInternals;
+    hide RendererInternals, RendererStepsTakeovers, RenderStepInternals;
 export 'src/engine/render/shadow_slots.dart';
 export 'src/engine/render/sky_settings.dart';
 export 'src/engine/render/splat_contributor.dart';

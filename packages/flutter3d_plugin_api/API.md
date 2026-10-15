@@ -126,7 +126,7 @@ final class WindPlugin extends Flutter3dPlugin {
 | `dependsOn` | `List<String>` | empty | Plugin ids, each optionally with a range (`"heat >=1.2.0 <2.0.0"`), read as `dependencies` (`PluginDependency`, `VersionRange`) |
 | `backends` | `Set<String>` | empty (every backend) | The backends it runs on; `runsOn(backend)` |
 | `touches` | `PluginTouches` | `simulation` | What it changes (below) |
-| `permissions` | `Set<PluginPermission>` | empty | `files`, `network`, `tools`: checked for plugins loaded at run time |
+| `permissions` | `Set<PluginPermission>` | empty | `files`, `network`, `tools`, `replace`: checked for plugins loaded at run time; `tools` also by `McpTools.addTool` and before the editor's MCP server offers a plugin's commands, `replace` by the renderer before a plugin takes over a built-in step or stage |
 | `description` | `String?` | | For a list of plugins |
 | `extra` | `Map<String, Object?>` | empty | Keys the manifest does not know, kept; `extra['budget']` is what the conformance suite holds the plugin to |
 
@@ -772,16 +772,16 @@ plugin's own anchor.
 | Member | What it does |
 |---|---|
 | `addStep(RenderStep)` | A step switched like the engine's: `RenderSettings.without` and `only` switch it, and switching off a step it `needs` takes it down too |
-| `provide(RenderStep)` | Says the plugin provides one of the engine's steps (what a `RenderStepAddon` does) |
+| `provide(RenderStep)` | Says the plugin is the switch of a step: its own freely; one of the engine's only as a `RenderStepAddon` that declares it in `replaces`, with `PluginPermission.replace` |
 | `addNode(RenderNode, {at, step, after, before})` | A node at an anchor, owned by a step |
 | `addComputeStep(ComputeStep, {at, owner, ...})` | A compute node, placed by the hardware layer behind the registration (`PassSkip.pending` until it is) |
 | `addWorkload(ComputeWorkload, {at})` | A simulation's workload, placed by the workload rule and told where it landed |
 | `addFieldUpload(FieldUpload, {at, owner, ...})` | Puts a host field on a device, placed behind the registration |
-| `addContributor(PassContributor)`, `removeContributor` | Draws into the scene pass |
+| `addContributor(PassContributor)`, `removeContributor` | Draws into the scene pass; only who added a contributor takes it out (`PluginException` otherwise), and a plugin that touches only tooling adds none |
 | `placeSkinningHook(SkinningHook)` | Skinning on the drawing device or the CPU, named `<namespace>.skinning_<n>` |
 | `whenPlaced()` | Completes once every placement started so far has settled — for a test or a loading screen, never a frame |
 | `addSettings(SettingsSlot)` | A settings group in `RenderSettings.extensions` |
-| `addMaterials(ShaderLibrary)` | A plugin's compiled stages |
+| `addMaterials(ShaderLibrary)` | A plugin's compiled stages: through a plugin's view the library answers the stages in its namespace (`<namespace>__…`) and the engine names its addon declared in `replacesStages`, nothing else |
 | `fromDocument(PipelineDocument)` | Nodes from a pipeline document |
 | `anchors`, `named(name)`, `anchorNamed(name)`, `nodesAt(anchor)`, `providerOf(step)` | Lookups |
 
@@ -798,6 +798,19 @@ switch over the frame. `isOn` and `switchOff` take one `RenderStepContext`
 can gain members in a minor; `switchOff` returns the settings with the step
 off. `RenderStepAddon` (a `Flutter3dPlugin` base) is how
 `flutter3d_post` ships each effect: `provides`, `adds`, `settings`.
+
+**Taking over what the engine draws is declared, and nothing else is
+taken.** A plugin from outside the engine provides one of the engine's
+steps only as a `RenderStepAddon` that lists it in `replaces`, and hands
+the renderer a stage under an engine name (`Pbr`, a shadow pass's) only
+when it lists the name in `replacesStages`; either puts
+`PluginPermission.replace` in the addon's manifest, and a manifest without
+it is refused. Everything else such a plugin adds stays in its namespace:
+its libraries answer `<namespace>__…` stages only, a resource a node it
+placed declares at run time (`FrameResources.declare`) is held to the
+namespace as `FrameGraphBuilder.create` is, and a contributor it did not
+add it cannot take out. The engine's own plugins and the application are
+not held to this.
 
 ```dart
 const RenderStep softGlow = RenderStep(
@@ -821,7 +834,7 @@ void renderStep(PluginHost host, FullscreenEffect effect) =>
 | `ComputeStep` (`abstract base`) | `kernels` (`ComputeKernel`s in the kernel language, `kernelLanguageVersion` 2), `record(ComputeContext)`, `prepare(device)`, `site` (where the hardware layer put it, a `ComputeSite`); a step nothing can run is a `ComputePlacementException` (`refusal`) and is not run. A step asks for no placement |
 | `FieldUpload` | A host field carried into the frame as a 3D texture or a storage buffer (`residence`); `refusal` is a `FieldResidenceException` |
 | `PassContributor` (`abstract base`) | Draws into the scene pass: `encode(ContributorFrame)`, `boundsFor(view)`, `order`, `readsSceneDepth`, `isOverlay` |
-| `DrawListHook`, `SkinningHook`, `LodPolicy` | Through `RenderHooks`: keep or sort draws (`DrawListContext`), skin claimed meshes (`SkinningContext`, writing `FrameResourceIds.skinnedVertices`), choose LOD levels |
+| `DrawListHook`, `SkinningHook`, `LodPolicy`, `PacingPolicy`, `QualityPolicy`, `ShadowTechnique` | Through `RenderHooks`, each a registration withdrawn with its plugin: keep or sort draws (`DrawListContext`), skin claimed meshes (`SkinningContext`, writing `FrameResourceIds.skinnedVertices`), choose LOD levels, hold a frame (`addPacingPolicy`), choose a quality row (`addQualityPolicy`, asked by an `AdaptiveQuality` handed the hooks), draw a shadow filter named after the technique (`addShadowTechnique`, `techniqueFor`). Several of a kind chain in dependency order — the application's first, then each plugin's in install order — the first to answer deciding and `null` passing to the next |
 | `SceneBindingSpec` | Through `SceneBindings.add`: a published component drawn as a node of a `SceneNodeKind`, with its fields mapped to material parameters, `interpolation` and `lifetime` |
 
 **A node that throws is quarantined, and the frame goes on.** The rest of
@@ -1020,7 +1033,7 @@ uses.
 | Member | Adds | Published as |
 |---|---|---|
 | `addComponent(EditorComponent)` | An inspector component: `kind`, `title`, `piece`, `keys`, `defaults`, `types`, `hints` | `<namespace>.<kind>` |
-| `addCommand(name, CommandReader, {description, arguments})` | A `PluginCommand` (a `DocumentCommand`) read back from its arguments; the editor's MCP server offers it as a tool with `arguments` as its input schema | `<namespace>.<name>` |
+| `addCommand(name, CommandReader, {description, arguments, hints})` | A `PluginCommand` (a `DocumentCommand`) read back from its arguments; the editor's MCP server offers it as a tool with `arguments` as its input schema and `hints` as its `ToolHints` — only when the plugin declares `PluginPermission.tools`, and as `ToolHints.destroys` when it gave no hints | `<namespace>.<name>` |
 | `addGizmo(name, EditorGizmo)` | Marks drawn over a level (`marksFor(GizmoContext)` to `GizmoMark.box`, `.cage`, `.ball`, `.line`) and the command a drag makes (`dragged(GizmoDrag)`) | `<namespace>.<name>` |
 | `addImporter(name, EditorImporter)` | A file kind brought into a project: `label`, `suffixes`, `import(ImportRequest)` to an `ImportResult` (`files`, `commands`, `notes`) | `<namespace>.<name>` |
 | `addPaletteEntry(PaletteEntry)`, `addAssetEntry(name, entry)` | A palette entry for an entity type; an asset browser entry | |

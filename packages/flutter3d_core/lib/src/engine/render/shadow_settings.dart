@@ -77,8 +77,20 @@ final class ShadowFilter {
   /// each of [values].
   ShadowFilter get base => _base?.base ?? this;
 
-  /// What the renderer draws this filter with: the technique it was given,
-  /// or its [base]'s. [ShadowTechnique.pcf], [ShadowTechnique.pcss] and
+  /// The filter this one was declared over — `base:` of
+  /// [ShadowFilter.custom] — or null for one of [values]. [base] is the end
+  /// of this chain.
+  ShadowFilter? get drawnAs => _base;
+
+  /// The technique this filter, or a filter it is drawn as, was given, or
+  /// null when none was: then a renderer draws it with the technique
+  /// registered under its name (`RenderHooks.addShadowTechnique`), or with
+  /// [technique].
+  ShadowTechnique? get givenTechnique => _technique ?? _base?.givenTechnique;
+
+  /// What the renderer draws this filter with when no technique is
+  /// registered under its name (`RenderHooks.techniqueFor`): the technique
+  /// it was given, or its [base]'s. [ShadowTechnique.pcf], [ShadowTechnique.pcss] and
   /// [ShadowTechnique.evsm] for the built-ins.
   ShadowTechnique get technique =>
       _technique ??

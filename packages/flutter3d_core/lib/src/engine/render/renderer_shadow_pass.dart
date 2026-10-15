@@ -619,7 +619,7 @@ extension _ShadowPasses on Renderer {
     if (!settings.enabled || settings.strength <= 0.0 || slotCount <= 0) {
       return false;
     }
-    final producer = settings.directionalTechnique.cubeAtlasProducer(
+    final producer = _directionalTechnique(settings).cubeAtlasProducer(
       ShadowProducerContext(
         settings: settings,
         camera: frame.view?.camera,
@@ -850,7 +850,7 @@ extension _ShadowPasses on Renderer {
     // bundle without the stage — and then every caster is drawn as before.
     final transmittanceShader =
         settings.translucentCasters &&
-            !settings.directionalTechnique.kernelFor(settings).readsMoments
+            !_directionalTechnique(settings).kernelFor(settings).readsMoments
         ? shaders['ShadowTransmittance']
         : null;
     final transmits = transmittanceShader != null;
@@ -1108,7 +1108,7 @@ extension _ShadowPasses on Renderer {
     // frame after the producer goes draws every caster again.
     final producer = frame == null
         ? null
-        : settings.directionalTechnique.shadowMapProducer(
+        : _directionalTechnique(settings).shadowMapProducer(
             ShadowProducerContext(
               settings: settings,
               camera: camera,
@@ -2117,7 +2117,7 @@ extension _ShadowPasses on Renderer {
     );
     // The technique's count, which is `settings.cascades` for every
     // built-in filter.
-    final count = settings.directionalTechnique
+    final count = _directionalTechnique(settings)
         .cascadesFor(settings)
         .clamp(1, 3);
 

@@ -22,6 +22,8 @@ library;
 
 import 'package:flutter3d_fields/flutter3d_fields.dart' show FieldStorage;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show PluginException, PluginManifest;
 
 import 'frame_graph.dart';
 import 'frame_result.dart' show FrameResourceUse;
@@ -206,6 +208,10 @@ final class FrameResources {
   }
 
   final Map<String, ResourceDesc> _declared = <String, ResourceDesc>{};
+
+  /// Whose placed node is running, while one is: what [declare] holds it
+  /// to. Null for the engine's own nodes and between nodes.
+  _Declaring? _declaringFor;
   final Map<ResourceVersion, TextureHandle> _live =
       <ResourceVersion, TextureHandle>{};
   final Set<ResourceVersion> _external = <ResourceVersion>{};
@@ -245,7 +251,28 @@ final class FrameResources {
   /// Fires never today: every transient allocation goes through [transient],
   /// which is unnamed by construction and so cannot be read by anyone. It is
   /// insurance against the next `ResourceDesc` somebody writes.
+  ///
+  /// **A node somebody placed declares only its own resources.** From a
+  /// node a plugin placed, an id outside the plugin's namespace is a
+  /// [PluginException], as `FrameGraphBuilder.create` refuses it; from one
+  /// the application placed, an id of the engine's own (`f3d.…`) is, so no
+  /// node overwrites how the engine's `hdr_color` or `shadow_map` is made.
   void declare(ResourceDesc desc) {
+    switch (_declaringFor) {
+      case _Declaring(:final manifest?) when !manifest.isEngine:
+        final problem = manifest.nameProblem(
+          desc.id.name,
+          what: 'the resource',
+        );
+        if (problem != null) throw PluginException(problem);
+      case _Declaring(manifest: null)
+          when desc.id.name.startsWith('${PluginManifest.reservedNamespace}.'):
+        throw PluginException(
+          'the application\'s node declared "${desc.id.name}", a resource '
+          'the engine makes: a node declares resources of its own',
+        );
+      case _:
+    }
     if (desc.storageMode == StorageMode.deviceTransient &&
         graph.isRead(desc.id)) {
       throw StateError(
@@ -675,6 +702,9 @@ final class FrameResources {
 /// budget is set against. A mip chain is not counted, because a handle does
 /// not say it has one: the engine's own targets have none, and the pictures
 /// it samples are not targets.
+///
+/// (The renderer's half of [FrameResources.declare]'s check is
+/// [FrameResourcesInternals].)
 int textureBytes(TextureHandle texture) {
   final perTexel = switch (texture.format) {
     TextureFormat.a8UNormInt ||
@@ -693,4 +723,25 @@ int textureBytes(TextureHandle texture) {
       texture.sliceCount *
       texture.sampleCount *
       perTexel;
+}
+
+/// What the renderer tells [FrameResources] about the node it runs, and
+/// nobody else. Not exported by `flutter3d_core.dart`.
+extension FrameResourcesInternals on FrameResources {
+  /// Holds [FrameResources.declare] to the node [manifest]'s plugin placed
+  /// — a null [manifest] for one the application placed — until [ranNode].
+  void runningPlacedNode(PluginManifest? manifest) =>
+      _declaringFor = _Declaring(manifest);
+
+  /// Ends what [runningPlacedNode] began: the engine's own nodes declare
+  /// what they make.
+  void ranNode() => _declaringFor = null;
+}
+
+/// The owner of a placed node: its plugin's manifest, or null for the
+/// application.
+final class _Declaring {
+  const _Declaring(this.manifest);
+
+  final PluginManifest? manifest;
 }

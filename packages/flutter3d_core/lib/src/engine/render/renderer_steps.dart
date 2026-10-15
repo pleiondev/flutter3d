@@ -83,6 +83,20 @@ final class RendererSteps extends RenderStepRegistry {
     if (problem != null) throw PluginException(problem);
   }
 
+  /// The manifest of the plugin from outside the engine this view files
+  /// under, or null for the application's view and an engine plugin's: what
+  /// is held to its namespace and may take over nothing undeclared.
+  PluginManifest? get _outside => switch (_scope?.manifest) {
+    final PluginManifest manifest when !manifest.isEngine => manifest,
+    _ => null,
+  };
+
+  /// Whether the outside plugin [manifest] declared, through its
+  /// `RenderStepAddon.replaces` or `replacesStages`, that it takes over
+  /// [name], a built-in step's or an engine stage's.
+  bool _takesOver(PluginManifest manifest, String name) =>
+      _store.takeovers[manifest.id]?.contains(name) ?? false;
+
   /// Refuses, with a [PluginException], [what] from a plugin that declares
   /// it touches only tooling (`PluginTouches.tooling`): a game ships without
   /// such a plugin, so nothing it adds may be part of the frame the game
@@ -584,16 +598,42 @@ final class RendererSteps extends RenderStepRegistry {
   /// ordered by [PassContributor.order] and then by when they were added,
   /// and hands it back. [removeContributor] takes it out again; one added
   /// by a plugin goes when the plugin is uninstalled.
+  ///
+  /// Through the view of a plugin that touches only tooling, a
+  /// [PluginException]: a game draws without that plugin. A contributor
+  /// added twice is counted once, by the first who added it.
   T addContributor<T extends PassContributor>(T contributor) {
+    _notTooling('a contributor to the engine\'s passes');
+    if (_store.contributorOwners[contributor] != null) return contributor;
     _store.contributors.add(contributor);
-    _scope?.track(Registration(() => _store.contributors.remove(contributor)));
+    _store.contributorOwners[contributor] = _ContributorOwner(_scope);
+    _scope?.track(Registration(() => _removeContributor(contributor)));
     return contributor;
   }
 
   /// Takes [contributor] out, and says whether it was there: an editor
   /// switching a feature off, a widget leaving the tree.
-  bool removeContributor(PassContributor contributor) =>
-      _store.contributors.remove(contributor);
+  ///
+  /// **Only the caller's own.** The application's view takes out what the
+  /// application added, and a plugin's view what that plugin added; a
+  /// contributor somebody else added is a [PluginException] naming who, so
+  /// one plugin cannot switch off another's particles.
+  bool removeContributor(PassContributor contributor) {
+    final owner = _store.contributorOwners[contributor];
+    if (owner == null) return false;
+    if (owner.id != _scope?.manifest.id) {
+      throw PluginException(
+        '$_owner took out a contributor ${owner.name} added: only the one '
+        'who adds a contributor takes it out',
+      );
+    }
+    return _removeContributor(contributor);
+  }
+
+  bool _removeContributor(PassContributor contributor) {
+    _store.contributorOwners[contributor] = null;
+    return _store.contributors.remove(contributor);
+  }
 
   /// The steps taken with [provide], in the order they were taken.
   List<RenderStep> get provided => List<RenderStep>.unmodifiable(<RenderStep>[
@@ -633,12 +673,28 @@ final class RendererSteps extends RenderStepRegistry {
   /// [step] is built in or one [addStep] added. Throws an [ArgumentError]
   /// for a step this renderer does not know, and a [NameTakenException] for
   /// one already provided — naming who provides it.
+  ///
+  /// **A built-in step is the engine's to switch**, and a plugin from
+  /// outside the engine takes it over only as a `RenderStepAddon` that
+  /// declares it in `replaces`, with `PluginPermission.replace` in its
+  /// manifest; through any other plugin's view, providing a built-in step
+  /// is a [PluginException]. A step of a plugin's own, in its namespace, it
+  /// provides freely.
   Registration provide(RenderStep step) {
     if (!step.isBuiltIn && !_store.steps.any((e) => e.step == step)) {
       throw ArgumentError.value(
         step.name,
         'step',
         'is not a step of this renderer. Add it with addStep first',
+      );
+    }
+    if (_outside case final manifest?
+        when step.isBuiltIn && !_takesOver(manifest, step.name)) {
+      throw PluginException(
+        'plugin "${manifest.id}" provided "${step.name}", a step the engine '
+        'draws: a plugin from outside the engine takes one over only as a '
+        'RenderStepAddon that declares it in `replaces`, with the '
+        '"${PluginPermission.replace}" permission in its manifest',
       );
     }
     final owner = providerOf(step);
@@ -739,10 +795,28 @@ final class RendererSteps extends RenderStepRegistry {
   ///
   /// **The one way in, since 1.0.** `Renderer.addMaterials` and
   /// `removeMaterials` did the same without the registration.
+  ///
+  /// **A plugin from outside the engine adds stages in its namespace
+  /// only.** Through its view, the library answers the stages named
+  /// `<namespace>__…` — its lighting models' (`LightingModel.shaderNameOf`)
+  /// and their vertex stages — and nothing else, so a stage the engine draws
+  /// with (`Pbr`, `Unlit`, the shadow passes) is never shadowed by one that
+  /// happens to share its name. A stage under another name it takes over
+  /// only as a `RenderStepAddon` that declares it in `replacesStages`, with
+  /// `PluginPermission.replace` in its manifest. The application's view and
+  /// the engine's plugins replace any stage, as a layer does.
   Registration addMaterials(ShaderLibrary library) {
     _notTooling('stages');
-    final renderer = _store.renderer!.._addMaterials(library);
-    final registration = Registration(() => renderer._removeMaterials(library));
+    final added = switch (_outside) {
+      final manifest? => _store.confined[library] ??= _ConfinedLibrary(
+        library,
+        manifest,
+        this,
+      ),
+      null => library,
+    };
+    final renderer = _store.renderer!.._addMaterials(added);
+    final registration = Registration(() => renderer._removeMaterials(added));
     _scope?.track(registration);
     return registration;
   }
@@ -916,6 +990,19 @@ final class _StepStore {
   /// a document that describes the frame again.
   final Expando<String> kindOf = Expando<String>();
   final ContributorRegistry contributors = ContributorRegistry();
+
+  /// Who added each contributor, which only they may take out again.
+  final Expando<_ContributorOwner> contributorOwners =
+      Expando<_ContributorOwner>();
+
+  /// What each plugin from outside the engine declared it takes over, by
+  /// plugin id: built-in step names and engine stage names, from its
+  /// `RenderStepAddon.replaces` and `replacesStages`.
+  final Map<String, Set<String>> takeovers = <String, Set<String>>{};
+
+  /// The view of each library an outside plugin added, confined to its
+  /// namespace and what it took over.
+  final Expando<_ConfinedLibrary> confined = Expando<_ConfinedLibrary>();
   int sequence = 0;
 
   /// The placements still loading: the registrations' and the frame
@@ -968,6 +1055,85 @@ final class _StepStore {
       what: 'passes at ${anchor.name}',
     );
   }
+}
+
+/// What a `RenderStepAddon` needs from [RendererSteps] to take over what
+/// the engine draws, and nobody else. Not exported by `flutter3d_core.dart`.
+extension RendererStepsTakeovers on RendererSteps {
+  /// Declares that the plugin of this view takes over [steps], built-in
+  /// render steps it then provides, and [stages], shader stages under the
+  /// engine's names its libraries may answer, until the result is
+  /// cancelled.
+  ///
+  /// The application's view and an engine plugin's need no declaration:
+  /// nothing is recorded and the result does nothing. Through the view of a
+  /// plugin from outside the engine, a [PluginException] unless its manifest
+  /// carries `PluginPermission.replace`, and an [ArgumentError] for a step
+  /// that is not built in, which needs taking over by nobody.
+  Registration takeOver({
+    Iterable<RenderStep> steps = const <RenderStep>[],
+    Iterable<String> stages = const <String>[],
+  }) {
+    final manifest = _outside;
+    if (manifest == null || (steps.isEmpty && stages.isEmpty)) {
+      return Registration(() {});
+    }
+    if (!manifest.permissions.contains(PluginPermission.replace)) {
+      throw PluginException(
+        'plugin "${manifest.id}" takes over '
+        '${<String>[for (final step in steps) step.name, ...stages].map((n) => '"$n"').join(', ')}, '
+        'which the engine draws, without the "${PluginPermission.replace}" '
+        'permission in its manifest',
+      );
+    }
+    for (final step in steps) {
+      if (step.isBuiltIn) continue;
+      throw ArgumentError.value(
+        step.name,
+        'steps',
+        'is not one of the engine\'s steps; a plugin provides a step of its '
+            'own without taking it over',
+      );
+    }
+    final names = <String>{for (final step in steps) step.name, ...stages};
+    final held = _store.takeovers.putIfAbsent(manifest.id, () => <String>{})
+      ..addAll(names);
+    final registration = Registration(() {
+      held.removeAll(names);
+      if (held.isEmpty) _store.takeovers.remove(manifest.id);
+    });
+    _scope?.track(registration);
+    return registration;
+  }
+}
+
+/// Who added a contributor: a plugin's id, or null for the application.
+final class _ContributorOwner {
+  _ContributorOwner(PluginScope? scope) : id = scope?.manifest.id;
+
+  final String? id;
+
+  String get name => switch (id) {
+    final String id => 'plugin "$id"',
+    null => 'the application',
+  };
+}
+
+/// A library an outside plugin added, answering only the stages in its
+/// namespace and those it declared it takes over.
+final class _ConfinedLibrary with ShaderLibrary {
+  _ConfinedLibrary(this._library, this._manifest, this._steps);
+
+  final ShaderLibrary _library;
+  final PluginManifest _manifest;
+  final RendererSteps _steps;
+
+  @override
+  ShaderHandle? operator [](String name) =>
+      name.startsWith('${_manifest.namespace}__') ||
+          _steps._takesOver(_manifest, name)
+      ? _library[name]
+      : null;
 }
 
 final class _AddedAnchor {

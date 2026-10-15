@@ -137,16 +137,23 @@ final class AdaptiveQuality {
     this.table, {
     this.settings = const AdaptiveQualitySettings(),
     this.policy,
+    this.hooks,
   }) : assert(
          settings.budget > Duration.zero,
          'a budget of nothing fits no row',
        ),
        _correction = List<double>.filled(table.rows.length, 1.0);
 
-  /// A plugin's or an application's own rule for the next row, asked once
-  /// the engine's has chosen and answering for it where it answers at all
-  /// (D22b). Null for the engine's rule alone.
+  /// An application's own rule for the next row, asked once the engine's
+  /// has chosen and answering for it where it answers at all (D22b). Null
+  /// for the engine's rule alone, or for the policies of [hooks].
   final QualityPolicy? policy;
+
+  /// The hooks of the renderer this controller chooses for
+  /// (`Renderer.hooks`): the quality policies plugins registered there
+  /// (`RenderHooks.addQualityPolicy`) are asked after [policy], in their
+  /// dependency order, null passing to the next. Null asks none.
+  final RenderHooks? hooks;
 
   final QualityTable table;
   final AdaptiveQualitySettings settings;
@@ -180,22 +187,24 @@ final class AdaptiveQuality {
   ///
   /// Disabled, this sits at full quality and forgets what it measured.
   ///
-  /// With a [policy], the row the policy answers instead of the one the
-  /// engine's rule chose.
+  /// With a [policy], or a quality policy among [hooks], the row the first
+  /// of them to answer gives instead of the one the engine's rule chose.
   QualityRow recordFrame(int micros, {double motion = 0.0}) {
     final current = _index;
     final chosen = _recordFrame(micros, motion: motion);
     final policy = this.policy;
-    if (policy == null || !settings.enabled) return chosen;
-    final picked = policy.choose(
-      QualityContext(
-        table: table,
-        micros: micros,
-        motion: motion,
-        current: current,
-        choice: _index,
-      ),
+    final registered = hooks?.qualityPolicy;
+    if ((policy == null && registered == null) || !settings.enabled) {
+      return chosen;
+    }
+    final context = QualityContext(
+      table: table,
+      micros: micros,
+      motion: motion,
+      current: current,
+      choice: _index,
     );
+    final picked = policy?.choose(context) ?? registered?.choose(context);
     if (picked == null) return chosen;
     _index = picked.clamp(0, table.rows.length - 1);
     _climbCount = 0;

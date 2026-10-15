@@ -72,7 +72,8 @@ void main() {
     expect(hairModel.slots.textures.single.binding, 'material_fur');
     expect(renderer.lightingModels.named('acme_sample__Decal'), decalStage);
     expect(renderer.hooks.drawListHooks.single, isA<HideHook>());
-    expect(renderer.hooks.lodPolicy, isA<CoarsePolicy>());
+    // Chained with any other plugin's, in dependency order.
+    expect(renderer.hooks.lodPolicies.single, isA<CoarsePolicy>());
     expect(engine.decoders.textureCodecs.codecs.single.name, 'acme_sample.pix');
     expect(renderer.sceneBindings.resolve('acme_sample.heat'), isNotNull);
     expect(renderer.renderSteps.named('acme_sample.smear'), smearStep);

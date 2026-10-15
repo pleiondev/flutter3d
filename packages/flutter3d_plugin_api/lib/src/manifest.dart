@@ -93,9 +93,20 @@ final class PluginPermission {
   static const PluginPermission files = PluginPermission('files');
 
   /// Offers tools to an agent through the project's MCP servers. Checked by
-  /// `McpTools.addTool`: a plugin that did not ask for it is refused there,
-  /// so a person installing a plugin sees that it talks to agents.
+  /// `McpTools.addTool`, and by the editor's MCP server before it offers a
+  /// plugin's editor commands as tools: a plugin that did not ask for it is
+  /// refused there, and its commands stay the editor's own, so a person
+  /// installing a plugin sees that it talks to agents.
   static const PluginPermission tools = PluginPermission('tools');
+
+  /// Takes over a step or a shader stage the engine draws: provides a
+  /// built-in render step, or hands the renderer a stage under one of the
+  /// engine's names. Checked by the renderer: a plugin from outside the
+  /// engine takes over only what its `RenderStepAddon` declares in
+  /// `replaces` and `replacesStages`, and only with this permission, so a
+  /// person installing it sees that it changes what the engine draws, and
+  /// everything else it adds stays in its namespace.
+  static const PluginPermission replace = PluginPermission('replace');
 
   final String name;
 
