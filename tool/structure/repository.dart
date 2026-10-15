@@ -1424,8 +1424,8 @@ const Map<String, Map<String, String>> keptVectorParameterAllowed =
     <String, Map<String, String>>{
       'flutter3d_game_kit/lib/src/reactions/reaction.dart': <String, String>{
         'Felt.kick(by)':
-            'a `const` constructor, which cannot copy: making '
-            'it copy drops `const`, a signature change',
+            'a `const` value type, which takes ownership of the vector its '
+            'constructor is given (CONTRACTS "Who owns a vector")',
       },
     };
 

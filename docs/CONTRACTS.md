@@ -65,7 +65,7 @@ pretending otherwise.
 
 `Vector3`, `Quaternion`, `Matrix4` and the rest of `vector_math` are
 mutable, so every signature that hands one over also says who may write
-into it. There are three cases, and the shape of the member says which
+into it. There are four cases, and the shape of the member says which
 one applies:
 
 - **A public `final` field is the owner's live state.** `RigidBody.velocity`,
@@ -77,19 +77,23 @@ one applies:
   changes nothing but the answer, and keeping it keeps a snapshot, not a
   view. A getter that reads per body on the engine's own inner loops has
   the live field beside it to read instead (`body.collider.position`).
-- **A vector parameter is read, never kept.** The callee copies what it
-  wants to keep, into a field it owns (`setFrom`) or as a `clone()`, so a
-  caller can pass the same scratch vector to every call.
+- **A method's or a setter's vector parameter is read, never kept.** The
+  callee copies what it wants to keep, into a field it owns (`setFrom`) or
+  as a `clone()`, so a caller can pass the same scratch vector to every
+  call.
+- **A value type takes ownership of the vectors its constructor is
+  given.** `RayQuery(this.origin)`, `ContactEvent(point: …)`,
+  `const NativeHit(…)` keep the vectors they were built with rather than
+  copies, so they stay `const` and read as declared; the caller hands the
+  vector over and does not mutate it afterwards. A caller that means to
+  keep writing into one passes a `clone()`.
 
-Each case is a structure rule (`a getter hands out a copy of a vector, and
-a parameter is not kept`). The getters that still answer live state are
-named in its exemption table with the inner loop that reads them, and so
-is the one `const` constructor that keeps its vector. **Not every
-constructor copies yet.** A value type declared with initializing formals
-(`RayQuery(this.origin)`, `ContactEvent(point: …)`, `const NativeHit(…)`)
-holds the vectors it was built with; making those copy changes how their
-signatures read, and drops `const` from some, so the rule does not read
-initializing formals until that is decided.
+The structure rule `a getter hands out a copy of a vector, and a parameter
+is not kept` holds the first three, and holds this section to naming all
+four. The getters that answer the object's own cache
+rather than a field are named in its exemption table with the reason, and
+so is the one `const` constructor that keeps its vector through its
+initializer list.
 
 ### Three spaces
 

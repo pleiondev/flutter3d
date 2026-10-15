@@ -525,8 +525,33 @@ const Set<String> _notAMember = <String>{
 /// an assignment `field = parameter` (in its body or its initializer list)
 /// where the parameter is a vector and the field is one of the type's own
 /// vector fields. An initializing formal (`this.position`) is not read: it
-/// is how a value type is declared, and it is visible in the API snapshot,
-/// so making one copy is a signature change, decided there.
+/// is how a value type is declared, and a value type takes ownership of the
+/// vectors its constructor is given, the caller not mutating them after
+/// (CONTRACTS "Who owns a vector", which [vectorOwnershipGapsIn] holds).
+/// The cases of "Who owns a vector" (docs/CONTRACTS.md, "Space") that
+/// [section] does not state, by the words each is stated in, and the gap it
+/// may no longer claim.
+///
+/// **The fourth case is the contract's alone.** The rule reads fields,
+/// getters and parameters, and leaves an initializing formal be: a value
+/// type takes ownership of what its constructor is given. Nothing in code
+/// shows that, so the section must say it, and must not call it a gap
+/// ("does not copy yet").
+List<String> vectorOwnershipGapsIn(String section) => <String>[
+  for (final (words, name) in const <(String, String)>[
+    ('public `final` field is the owner\'s live state', 'a field is live'),
+    ('answer a copy the caller owns', 'a getter answers a copy'),
+    ('read, never kept', 'a parameter is not kept'),
+    (
+      'takes ownership of the vectors its constructor',
+      'a value type owns what its constructor is given',
+    ),
+  ])
+    if (!section.replaceAll(RegExp(r'\s+'), ' ').contains(words)) name,
+  if (RegExp(r'cop(y|ies) yet', caseSensitive: false).hasMatch(section))
+    'a constructor that does not copy is called a gap',
+];
+
 List<({String subject, int line})> keptVectorParametersIn(String source) {
   final code = codeOf(source);
   int lineAt(int offset) =>
@@ -3135,6 +3160,31 @@ List<Finding> proveDetectorsWork() {
         'member and a private type',
     'a copy is not the caller\'s vector, and an initializing formal is '
         'how a value type is declared',
+  );
+
+  fires(
+    'vector ownership in the contract',
+    vectorOwnershipGapsIn(
+      'A public `final` field is the owner\'s live state. A getter and an '
+      '`…Of` query answer a copy the caller owns. A vector parameter is '
+      'read, never kept. **Not every constructor copies yet.**',
+    ).toSet().containsAll(<String>{
+      'a value type owns what its constructor is given',
+      'a constructor that does not copy is called a gap',
+    }),
+    'the three cases and the gap',
+  );
+  quiet(
+    'vector ownership in the contract',
+    vectorOwnershipGapsIn(
+      '- **A public `final` field is the owner\'s live state.**\n'
+      '- **A getter and an `…Of` query answer a copy the caller\n'
+      '  owns.**\n- **A method\'s vector parameter is read, never kept.**\n'
+      '- **A value type takes ownership of the vectors its constructor\n'
+      '  is given.**',
+    ).isEmpty,
+    'the four cases, wrapped across lines',
+    'a line break inside a case is still the case',
   );
 
   // A particle's world. The platformer's sparks fell at the standard

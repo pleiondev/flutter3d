@@ -5095,8 +5095,11 @@ List<Finding> _worldNumbersFromTheWorld() {
 
 // ------------------------------------------------------- a vector's owner
 
-/// A vector has one owner: a getter answers a copy, and a parameter is read
-/// and not kept (docs/CONTRACTS.md, "Space").
+/// A vector has one owner: a getter answers a copy, a parameter is read and
+/// not kept, and a value type owns what its constructor is given. No code
+/// shows the last, so CONTRACTS "Who owns a vector" is held to stating all
+/// four cases and to calling none of them a gap (docs/CONTRACTS.md,
+/// "Space").
 ///
 /// **Before 1.0 both answers lived in one class.** `PhotoCamera.eye` handed
 /// out the camera's own vector and `PhotoCamera.target` a new one, and a
@@ -5143,6 +5146,36 @@ List<Finding> _vectorsHaveOneOwner() {
         'keeps the vector it was passed: copy it into a field the object '
         'owns (`setFrom`) or keep a `clone()`',
       );
+    }
+  }
+  final contracts = File('${repositoryRoot.path}/docs/CONTRACTS.md');
+  if (contracts.existsSync()) {
+    final text = contracts.readAsStringSync();
+    final start = text.indexOf('### Who owns a vector');
+    final end = start < 0 ? -1 : text.indexOf('\n### ', start + 1);
+    final section = start < 0
+        ? ''
+        : text.substring(start, end < 0 ? text.length : end);
+    if (start < 0) {
+      found.add(
+        const Finding(
+          'docs/CONTRACTS.md',
+          'has no "Who owns a vector": the section says who owns a vector, '
+              'and this rule enforces it',
+        ),
+      );
+    } else {
+      for (final gap in vectorOwnershipGapsIn(section)) {
+        found.add(
+          Finding(
+            'docs/CONTRACTS.md → Who owns a vector',
+            gap == 'a constructor that does not copy is called a gap'
+                ? 'calls a constructor that keeps its vectors a gap: a value '
+                      'type takes ownership of them, and the section says so'
+                : 'does not state that $gap',
+          ),
+        );
+      }
     }
   }
   for (final allowed in <Map<String, Map<String, String>>>[
