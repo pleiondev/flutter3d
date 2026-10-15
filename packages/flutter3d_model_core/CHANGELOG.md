@@ -1,5 +1,19 @@
 ## 1.0.0-rc.1+1
 
+- **A project keeps the sections it does not know.** A section of a kind
+  `ProjectSection.known` does not list is read into
+  `ModelProject.unknownSections` (`ProjectExtraSection`) and written back on
+  save, through every edit, where a project a later editor wrote lost what
+  that editor added the first time this one saved it.
+- **The project format is version 3: `.f3d`'s flagged directory.** The
+  header's fifth word is the size of a directory entry and each entry
+  carries `.f3d`'s flag bits: a section nobody here knows marked
+  must-understand refuses the file, and a known one with an unknown high
+  bit too. `writeProject` writes version 3 only for a project holding a
+  flagged section; every other project is the version 2 file a 1.0 reader
+  opens. `projectVersion` is 3. `v3/workshop.f3dproj` and
+  `v2/history.f3dproj` hold history, its own images and a baked simulation,
+  sections no fixture held before.
 - **Breaking: results that were records are final classes.** `AddNode`,
   `ImpostorAtlas`, `ModelHistory`, `TextureGraph`, `blockLayoutFor`,
   `curveSamples`, `dirtyRectOf`, `dirtyTilesBetween`, `polygonEdgesOf`,

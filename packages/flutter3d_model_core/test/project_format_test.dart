@@ -240,7 +240,9 @@ Uint8List fileOf(List<(int, Uint8List, int)> sections, {int? claimSections}) {
   final view = ByteData.sublistView(out);
   view
     ..setUint32(0, projectMagic, Endian.little)
-    ..setUint32(4, projectVersion, Endian.little)
+    // Version 2, the layout this helper builds: version 3's header and
+    // entries are four bytes longer.
+    ..setUint32(4, 2, Endian.little)
     ..setUint32(8, claimSections ?? sections.length, Endian.little)
     ..setUint32(
       projectChecksumOffset,

@@ -428,6 +428,7 @@ ModelProject _withoutModifiers(ModelProject project) => ModelProject(
   lighting: project.lighting,
   animationGraphs: project.animationGraphs,
   unknown: project.unknown,
+  unknownSections: project.unknownSections,
   rights: project.rights,
 );
 
@@ -478,6 +479,7 @@ ModelProject _narrowedTo(ModelProject project, Set<int> keep) {
     lighting: project.lighting,
     animationGraphs: project.animationGraphs,
     unknown: project.unknown,
+    unknownSections: project.unknownSections,
     rights: project.rights,
   );
 }

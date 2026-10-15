@@ -18,7 +18,26 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import '../test/fixture_project.dart';
 
 void main() {
-  final path = 'test/fixtures/v$projectVersion/workshop.f3dproj';
+  final history = fixtureHistory();
+  // Version 3 is the flagged directory, so its fixture carries a flagged
+  // section a later minor wrote; every other section kind is in it too.
+  final project = projectVersion >= 3
+      ? history.project.copyWith(
+          unknownSections: <ProjectExtraSection>[fixtureLaterSection()],
+        )
+      : fixtureProject();
+  _mint(
+    'test/fixtures/v$projectVersion/workshop.f3dproj',
+    writeProject(project, history: projectVersion >= 3 ? history : null),
+  );
+  // The history sections in the version this build writes without flags.
+  _mint(
+    'test/fixtures/v2/history.f3dproj',
+    writeProject(history.project, history: history),
+  );
+}
+
+void _mint(String path, List<int> bytes) {
   final file = File(path);
   if (file.existsSync()) {
     stderr.writeln(
@@ -31,7 +50,6 @@ void main() {
     return;
   }
   file.parent.createSync(recursive: true);
-  final bytes = writeProject(fixtureProject());
   file.writeAsBytesSync(bytes);
   stdout.writeln('$path: ${bytes.length} bytes');
 }

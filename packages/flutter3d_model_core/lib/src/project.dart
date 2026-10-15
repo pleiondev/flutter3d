@@ -18,6 +18,8 @@
 /// ever goes up is the one thing that survives both.
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
@@ -691,6 +693,58 @@ final class ModelCredit {
       'url: $url)';
 }
 
+/// A section of a `.f3dproj` this build does not read, kept to be written
+/// back: its kind, its bytes, the count its directory entry gave and its
+/// flags (`F3dSectionFlags`, from version 3; 0 before).
+///
+/// A section with [flags] set makes the file version 3, the version whose
+/// directory carries them; without, a project writes version 2, which every
+/// 1.0 reader opens.
+final class ProjectExtraSection {
+  ProjectExtraSection({
+    required this.kind,
+    required Uint8List bytes,
+    this.count = 0,
+    this.flags = 0,
+  }) : bytes = Uint8List.fromList(bytes);
+
+  /// The section's kind: never one of `ProjectSection.known`.
+  final int kind;
+
+  /// The section's bytes, a copy of what was handed in.
+  final Uint8List bytes;
+
+  /// The count the directory entry gave: records in [bytes] for a table.
+  final int count;
+
+  /// `F3dSectionFlags` bits.
+  final int flags;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ProjectExtraSection &&
+      other.kind == kind &&
+      other.count == count &&
+      other.flags == flags &&
+      _sameBytes(other.bytes, bytes);
+
+  @override
+  int get hashCode => Object.hash(kind, count, flags, Object.hashAll(bytes));
+
+  static bool _sameBytes(Uint8List a, Uint8List b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  @override
+  String toString() =>
+      'ProjectExtraSection(kind: $kind, ${bytes.length} bytes, '
+      'count: $count, flags: 0x${flags.toRadixString(16)})';
+}
+
 /// The document.
 final class ModelProject with ModelProjectView {
   const ModelProject({
@@ -704,6 +758,7 @@ final class ModelProject with ModelProjectView {
     this.lighting = const SceneLighting(),
     this.animationGraphs = const <String, Map<String, Object?>>{},
     this.unknown = const <String, Object?>{},
+    this.unknownSections = const <ProjectExtraSection>[],
     this.rights,
   });
 
@@ -761,6 +816,13 @@ final class ModelProject with ModelProjectView {
   /// one before with this map — and empty for a project made here. A key this
   /// build writes itself never lands here, and one here never overrides it.
   final Map<String, Object?> unknown;
+
+  /// The file's sections this build does not read, as the file had them,
+  /// in its order: written back when the project is saved, flags and all,
+  /// so a section a later minor added survives a save by this one, as
+  /// [unknown] does for the manifest's keys. Carried through every edit the
+  /// way [unknown] is, and empty for a project made here.
+  final List<ProjectExtraSection> unknownSections;
 
   /// In the order they were added, which is the order the outliner shows and
   /// the order an export writes. A map by id would make a lookup cheaper and
@@ -846,6 +908,7 @@ final class ModelProject with ModelProjectView {
       lighting: lighting,
       animationGraphs: animationGraphs,
       unknown: unknown,
+      unknownSections: unknownSections,
       rights: rights,
     );
   }
@@ -866,6 +929,7 @@ final class ModelProject with ModelProjectView {
     lighting: lighting,
     animationGraphs: animationGraphs,
     unknown: unknown,
+    unknownSections: unknownSections,
     rights: rights,
   );
 
@@ -908,6 +972,7 @@ final class ModelProject with ModelProjectView {
       lighting: lighting,
       animationGraphs: animationGraphs,
       unknown: unknown,
+      unknownSections: unknownSections,
       rights: rights,
       // Unchanged on purpose: an id belonging to something deleted must not
       // come back, or a step of history that names it starts naming something
@@ -925,6 +990,7 @@ final class ModelProject with ModelProjectView {
     SceneLighting? lighting,
     Map<String, Map<String, Object?>>? animationGraphs,
     Map<String, Object?>? unknown,
+    List<ProjectExtraSection>? unknownSections,
     DocumentAsset? rights,
     bool clearRights = false,
   }) => ModelProject(
@@ -938,6 +1004,7 @@ final class ModelProject with ModelProjectView {
     lighting: lighting ?? this.lighting,
     animationGraphs: animationGraphs ?? this.animationGraphs,
     unknown: unknown ?? this.unknown,
+    unknownSections: unknownSections ?? this.unknownSections,
     rights: clearRights ? null : (rights ?? this.rights),
   );
 

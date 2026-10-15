@@ -1208,17 +1208,18 @@ final class ModelObject
 final class ModelProject with ModelProjectView
   ModelObject? operator [](int id)
   ModelProject added(ModelObject Function(int id) build)
-  ModelProject copyWith({ProjectProfile? profile, List<ProjectMaterial>? materials, List<EncodedImage>? images, List<ProjectSkeleton>? skeletons, List<ProjectClip>? clips, SceneLighting? lighting, Map<String, Map<String, Object?>>? animationGraphs, Map<String, Object?>? unknown, DocumentAsset? rights, bool clearRights = false})
+  ModelProject copyWith({ProjectProfile? profile, List<ProjectMaterial>? materials, List<EncodedImage>? images, List<ProjectSkeleton>? skeletons, List<ProjectClip>? clips, SceneLighting? lighting, Map<String, Map<String, Object?>>? animationGraphs, Map<String, Object?>? unknown, List<ProjectExtraSection>? unknownSections, DocumentAsset? rights, bool clearRights = false})
   ModelProject removed(int id)
   ModelProject withObject(ModelObject object)
   String toString()
   bool holds(int id)
   bool isVisible(int id)
-  const ModelProject({this.profile = const ProjectProfile(), this.objects = const <ModelObject>[], this.materials = const <ProjectMaterial>[], this.images = const <EncodedImage>[], this.nextId = 1, this.skeletons = const <ProjectSkeleton>[], this.clips = const <ProjectClip>[], this.lighting = const SceneLighting(), this.animationGraphs = const <String, Map<String, Object?>>{}, this.unknown = const <String, Object?>{}, this.rights})
+  const ModelProject({this.profile = const ProjectProfile(), this.objects = const <ModelObject>[], this.materials = const <ProjectMaterial>[], this.images = const <EncodedImage>[], this.nextId = 1, this.skeletons = const <ProjectSkeleton>[], this.clips = const <ProjectClip>[], this.lighting = const SceneLighting(), this.animationGraphs = const <String, Map<String, Object?>>{}, this.unknown = const <String, Object?>{}, this.unknownSections = const <ProjectExtraSection>[], this.rights})
   final DocumentAsset? rights
   final List<EncodedImage> images
   final List<ModelObject> objects
   final List<ProjectClip> clips
+  final List<ProjectExtraSection> unknownSections
   final List<ProjectMaterial> materials
   final List<ProjectSkeleton> skeletons
   final Map<String, Map<String, Object?>> animationGraphs
@@ -1509,6 +1510,16 @@ final class ProjectClip
   final Map<String, Object?>? extras
   final String? name
 
+final class ProjectExtraSection
+  ProjectExtraSection({required this.kind, required Uint8List bytes, this.count = 0, this.flags = 0})
+  String toString()
+  bool operator ==(Object other)
+  final Uint8List bytes
+  final int count
+  final int flags
+  final int kind
+  int get hashCode
+
 final class ProjectFormatException extends Flutter3dFormatException
   String toString()
   const ProjectFormatException(this.message)
@@ -1594,6 +1605,7 @@ final class ProjectRefused extends ProjectRead
   final String because
 
 abstract final class ProjectSection
+  static const Set<int> known = <int>{manifest, editMeshes, blob, importedMeshes, images, checksums, history, historyImages, simulationCaches}
   static const int blob = 3
   static const int checksums = 6
   static const int editMeshes = 2
@@ -2891,9 +2903,13 @@ const int projectChecksumEntryBytes = 8
 
 const int projectChecksumOffset = 12
 
+const int projectEntryBytesOffset = 16
+
 const FormatSpec projectFormat = …
 
 const int projectHeaderBytes = 16
+
+const int projectHeaderBytesV3 = 20
 
 const int projectImageEntryBytes = 8
 
@@ -2901,13 +2917,17 @@ const int projectImportedEntryBytes = 16
 
 const int projectMagic = 0x50443346
 
+const int projectMaxSectionEntryBytes = 256
+
 const int projectMeshEntryBytes = 8
 
 const int projectSectionEntryBytes = 16
 
+const int projectSectionEntryBytesV3 = 20
+
 const int projectSimulationEntryBytes = 8
 
-const int projectVersion = 2
+const int projectVersion = 3
 
 Map<int, List<WeightPair>> pruneSkinWeights(Map<int, List<WeightPair>> weights, {int maxInfluences = maxSkinInfluences, double threshold = 1e-3})
 

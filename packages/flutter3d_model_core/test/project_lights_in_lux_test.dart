@@ -27,9 +27,11 @@ ModelProject _withLight(double intensity) => ModelProject(
 
 void main() {
   test('a project is written at version 2', () {
+    // Version 3 is the flagged directory, written only for a section that
+    // carries flags; the lux and candela of version 2 are what it reads.
     final bytes = writeProject(_withLight(800.0));
     expect(ByteData.sublistView(bytes).getUint32(4, Endian.little), 2);
-    expect(projectVersion, 2);
+    expect(projectVersion, 3);
   });
 
   test('a light keeps its candela through a save', () {

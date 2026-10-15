@@ -141,3 +141,53 @@ ModelProject fixtureProject() {
   // caught rather than agreeing with the default.
   return project.withObject(project.objects[1].copyWith(name: 'lid'));
 }
+
+/// The image a step of [fixtureHistory] samples and the live project does
+/// not: what puts a row in the history's own image table.
+EncodedImage fixtureOldImage() => EncodedImage(
+  bytes: Uint8List.fromList(<int>[9, 8, 7]),
+  name: 'old atlas',
+  mimeType: 'image/png',
+);
+
+/// Three frames of two vertices, every value its own number.
+SimulationCache fixtureCache() => SimulationCache(
+  vertexCount: 2,
+  frames: <Float32List>[
+    for (var f = 0; f < 3; f++)
+      Float32List.fromList(<double>[
+        for (var v = 0; v < 6; v++) f * 100.0 + v + 0.5,
+      ]),
+  ],
+);
+
+/// A section of a kind no build of this version writes, as a later minor
+/// would add one, flagged safe-to-copy: what makes a file version 3.
+ProjectExtraSection fixtureLaterSection() => ProjectExtraSection(
+  kind: 0x80000001,
+  bytes: Uint8List.fromList('a later minor\u0000\u0000\u0000'.codeUnits),
+  count: 1,
+  flags: F3dSectionFlags.safeToCopy,
+);
+
+/// The fixture project with a step of history behind it — `body` renamed,
+/// and an image the step before sampled since dropped — and a baked
+/// simulation on `lid`: what puts sections 7, 8 and 9 in a file.
+ModelHistory fixtureHistory() {
+  final before = fixtureProject();
+  final body = before.objects.first;
+  final lid = before.objects[1];
+  final earlier = before.copyWith(
+    images: <EncodedImage>[...before.images, fixtureOldImage()],
+  );
+  final live = before
+      .withObject(body.copyWith(name: 'body renamed'))
+      .withObject(lid.copyWith(simulationCache: fixtureCache()));
+  return ModelHistory.withSteps(live, <HistoryStep>[
+    HistoryStep(
+      command: Rename(id: body.id, to: 'body renamed'),
+      before: earlier.withObject(lid.copyWith(simulationCache: fixtureCache())),
+      selectionBefore: ProjectSelection.none,
+    ),
+  ]);
+}

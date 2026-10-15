@@ -199,6 +199,129 @@ void main() {
     });
   });
 
+  group('the version 3 fixture', () {
+    test('has the flagged directory: a fifth header word and 20-byte '
+        'entries', () {
+      final view = ByteData.sublistView(fixtureBytes(3));
+      expect(view.getUint32(4, Endian.little), 3);
+      expect(
+        view.getUint32(projectEntryBytesOffset, Endian.little),
+        projectSectionEntryBytesV3,
+      );
+    });
+
+    test('keeps the later minor\'s section, flags and all, through a '
+        'save', () {
+      // Minted on 2026-10-15 by `tool/mint_fixture.dart`. Mutation: write
+      // only the sections this build builds, and a project a 1.1 editor
+      // saved loses what 1.1 added the first time 1.0 saves it.
+      final project = fixtureOpened(3);
+      expect(project.unknownSections, <ProjectExtraSection>[
+        fixtureLaterSection(),
+      ]);
+      final again = readProject(writeProject(project));
+      expect(
+        (again as ProjectOpened).project.unknownSections,
+        project.unknownSections,
+      );
+      expect(
+        ByteData.sublistView(writeProject(project)).getUint32(4, Endian.little),
+        3,
+        reason: 'a flagged section needs the directory that carries flags',
+      );
+    });
+
+    test('carries history, its own image and a baked simulation', () {
+      final read = readProject(fixtureBytes(3)) as ProjectOpened;
+      expect(read.history, hasLength(1));
+      expect(
+        read.history.single.before.images.map((EncodedImage i) => i.name),
+        <String>['atlas', fixtureOldImage().name!],
+      );
+      expect(read.project.objects.first.name, 'body renamed');
+      final cache = read.project.objects[1].simulationCache!;
+      expect(cache.frameCount, fixtureCache().frameCount);
+      expect(cache.frame(2), fixtureCache().frame(2));
+    });
+  });
+
+  test('the version 2 history fixture opens with its step, image and '
+      'cache', () {
+    final read =
+        readProject(File('test/fixtures/v2/history.f3dproj').readAsBytesSync())
+            as ProjectOpened;
+    expect(read.history, hasLength(1));
+    expect(read.history.single.before.images, hasLength(2));
+    expect(read.project.objects[1].simulationCache?.frameCount, 3);
+    expect(read.project.unknownSections, isEmpty);
+  });
+
+  group('the flags of a version 3 directory', () {
+    /// The version 3 fixture with [flags] on the entry of section [kind].
+    Uint8List flagged(int kind, int flags) {
+      final bytes = Uint8List.fromList(fixtureBytes(3));
+      final view = ByteData.sublistView(bytes);
+      for (var i = 0; i < view.getUint32(8, Endian.little); i++) {
+        final entry = projectHeaderBytesV3 + i * projectSectionEntryBytesV3;
+        if (view.getUint32(entry, Endian.little) == kind) {
+          view.setUint32(entry + 16, flags, Endian.little);
+        }
+      }
+      return bytes;
+    }
+
+    test('a section nobody knows, marked must-understand, refuses', () {
+      // Mutation: step over a flagged section like any other, and a project
+      // whose 1.x section changes what the objects are opens as others.
+      expect(
+        readProject(flagged(0x80000001, F3dSectionFlags.mustUnderstand)),
+        isA<ProjectRefused>(),
+      );
+    });
+
+    test('an unknown high bit on a known section refuses', () {
+      expect(
+        readProject(flagged(ProjectSection.manifest, 1 << 24)),
+        isA<ProjectRefused>().having(
+          (ProjectRefused r) => r.because,
+          'because',
+          contains('newer build'),
+        ),
+      );
+    });
+
+    test('an ignorable bit reads on', () {
+      expect(
+        readProject(flagged(ProjectSection.manifest, 1 << 5)),
+        isA<ProjectOpened>(),
+      );
+    });
+
+    test('a directory entry size past the cap is refused', () {
+      final bytes = Uint8List.fromList(fixtureBytes(3));
+      ByteData.sublistView(
+        bytes,
+      ).setUint32(projectEntryBytesOffset, 0xFFFFFFF0, Endian.little);
+      expect(readProject(bytes), isA<ProjectRefused>());
+    });
+  });
+
+  test('a writer refuses an unknown section of a kind it writes itself', () {
+    expect(
+      () => writeProject(
+        fixtureProject().copyWith(
+          unknownSections: <ProjectExtraSection>[
+            ProjectExtraSection(
+              kind: ProjectSection.images,
+              bytes: Uint8List(4),
+            ),
+          ],
+        ),
+      ),
+      throwsArgumentError,
+    );
+  });
+
   test('every fixture directory is a version this build can read', () {
     final directory = Directory('test/fixtures');
     final versions = <int>[

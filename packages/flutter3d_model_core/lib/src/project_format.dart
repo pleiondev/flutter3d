@@ -104,7 +104,15 @@ const int projectMagic = 0x50443346;
 /// for the others, as `LightNode.intensity` is. Version 1 held the engine's
 /// pre-1.0 unit, and [readProject] lifts it by `LightNode.defaultIntensity`,
 /// one of that unit, as it reads.
-const int projectVersion = 2;
+///
+/// **3:** `.f3d`'s version 2 directory. The header grows a fifth word, the
+/// size of a directory entry (20 or more), and each entry a flags word with
+/// `.f3d`'s bits (`F3dSectionFlags`): a section this build does not know and
+/// marked must-understand refuses the file, and a known section carrying a
+/// high bit this build does not know refuses it too. [writeProject] writes
+/// version 3 only when a section carries flags, so every file this build
+/// makes of its own is still the version 2 a 1.0 reader opens.
+const int projectVersion = 3;
 
 /// What one of the pre-1.0 light unit a version 1 file holds is worth in lux
 /// or candela.
@@ -154,6 +162,21 @@ const int projectHeaderBytes = 16;
 /// so nothing about an older file changes meaning.
 const int projectChecksumOffset = 12;
 const int projectSectionEntryBytes = 16;
+
+/// The header of a version 3 file: the four words of version 2 and the size
+/// of a directory entry, which the CRC in word 12 left no room for.
+const int projectHeaderBytesV3 = 20;
+
+/// Where a version 3 header keeps the size of a directory entry.
+const int projectEntryBytesOffset = 16;
+
+/// A version 3 directory entry: kind, offset, length, count and flags. The
+/// header's fifth word says the size a file uses, so a later version may
+/// grow the entry at its tail.
+const int projectSectionEntryBytesV3 = 20;
+
+/// The largest directory entry a reader accepts, as `.f3d`'s.
+const int projectMaxSectionEntryBytes = 256;
 
 /// One entry of the edited-mesh table: u32 offset into the blob, u32 length.
 const int projectMeshEntryBytes = 8;
@@ -298,6 +321,21 @@ abstract final class ProjectSection {
   /// Written only for a project that has one, and absent from every file
   /// written before this existed — the additive rule, same as [historyImages].
   static const int simulationCaches = 9;
+
+  /// Every kind above, the ones this build reads and writes itself. A
+  /// section of any other kind is kept in `ModelProject.unknownSections` and
+  /// written back on save.
+  static const Set<int> known = <int>{
+    manifest,
+    editMeshes,
+    blob,
+    importedMeshes,
+    images,
+    checksums,
+    history,
+    historyImages,
+    simulationCaches,
+  };
 }
 
 /// What [readProject] gives back.
@@ -423,6 +461,15 @@ Uint8List writeProject(
   ModelHistory? history,
   int maxHistoryBytes = 4 * 1024 * 1024,
 }) {
+  for (final ProjectExtraSection extra in project.unknownSections) {
+    if (ProjectSection.known.contains(extra.kind)) {
+      throw ArgumentError.value(
+        extra.kind,
+        'unknownSections',
+        'is one of the sections this build writes itself',
+      );
+    }
+  }
   final meshes = <Uint8List>[];
 
   // Edited meshes, deduplicated by identity *and* by how far that mesh's
@@ -852,6 +899,11 @@ Uint8List writeProject(
     // to know this section exists.
     if (caches.isNotEmpty)
       (ProjectSection.simulationCaches, cacheTable, caches.length),
+    // What a later build wrote and this one does not read, back where it
+    // was: a project opened and saved here keeps it. Summed below like any
+    // other section.
+    for (final ProjectExtraSection extra in project.unknownSections)
+      (extra.kind, extra.bytes, extra.count),
   ];
 
   // Computed over the section data, before anything knows where in the file it
@@ -872,9 +924,22 @@ Uint8List writeProject(
   }
   sections.add((ProjectSection.checksums, checksums, sections.length));
 
+  // Version 3 only for a file that needs the flags word, as `.f3d` does, so a
+  // project with nothing flagged stays the version 2 file a 1.0 reader opens.
+  final flagsOf = <int, int>{
+    for (final ProjectExtraSection extra in project.unknownSections)
+      extra.kind: extra.flags,
+  };
+  final flagged = flagsOf.values.any((int flags) => flags != 0);
+  final version = flagged ? 3 : 2;
+  final headerBytes = flagged ? projectHeaderBytesV3 : projectHeaderBytes;
+  final entryBytes = flagged
+      ? projectSectionEntryBytesV3
+      : projectSectionEntryBytes;
+
   final offsets = <int>[];
   final total = sections.fold<int>(
-    _align(projectHeaderBytes + sections.length * projectSectionEntryBytes),
+    _align(headerBytes + sections.length * entryBytes),
     (int at, (int, Uint8List, int) section) {
       offsets.add(at);
       return _align(at + section.$2.lengthInBytes);
@@ -885,16 +950,19 @@ Uint8List writeProject(
   final view = ByteData.view(out.buffer);
   view
     ..setUint32(0, projectMagic, Endian.little)
-    ..setUint32(4, projectVersion, Endian.little)
+    ..setUint32(4, version, Endian.little)
     ..setUint32(8, sections.length, Endian.little)
     // The sum of the checksum table, which is the one thing the table cannot
     // sum. Zero means a file with no checksums in it, so an older file keeps
     // its meaning.
     ..setUint32(projectChecksumOffset, crc32(checksums), Endian.little);
+  if (flagged) {
+    view.setUint32(projectEntryBytesOffset, entryBytes, Endian.little);
+  }
 
   for (var i = 0; i < sections.length; i++) {
     final (int kind, Uint8List data, int count) = sections[i];
-    final entry = projectHeaderBytes + i * projectSectionEntryBytes;
+    final entry = headerBytes + i * entryBytes;
     view
       ..setUint32(entry, kind, Endian.little)
       ..setUint32(entry + 4, offsets[i], Endian.little)
@@ -903,6 +971,9 @@ Uint8List writeProject(
       // takes the entry count from the length instead: two numbers that can
       // disagree are a file that has to say which of them wins.
       ..setUint32(entry + 12, count, Endian.little);
+    if (flagged) {
+      view.setUint32(entry + 16, flagsOf[kind] ?? 0, Endian.little);
+    }
     out.setRange(offsets[i], offsets[i] + data.lengthInBytes, data);
   }
 
@@ -948,32 +1019,90 @@ ProjectRead readProject(Uint8List bytes) {
     );
   }
 
-  final sectionCount = view.getUint32(8, Endian.little);
-  final directoryEnd =
-      projectHeaderBytes + sectionCount * projectSectionEntryBytes;
-  if (directoryEnd > bytes.lengthInBytes) {
+  if (version == 0) {
+    return const ProjectRefused(
+      'This project claims version 0, which no build has ever written.',
+    );
+  }
+
+  // Version 3 is `.f3d`'s version 2 directory: the header says how long an
+  // entry is, and each entry carries flags.
+  final headerBytes = version >= 3 ? projectHeaderBytesV3 : projectHeaderBytes;
+  final leastEntry = version >= 3
+      ? projectSectionEntryBytesV3
+      : projectSectionEntryBytes;
+  if (bytes.lengthInBytes < headerBytes) {
     return ProjectRefused(
-      'The header claims $sectionCount sections, whose directory ends at byte '
-      '$directoryEnd, past the end of a ${bytes.lengthInBytes}-byte file.',
+      'A version $version project starts with a $headerBytes-byte header and '
+      'this one is ${bytes.lengthInBytes} bytes long.',
+    );
+  }
+  final entryBytes = version >= 3
+      ? view.getUint32(projectEntryBytesOffset, Endian.little)
+      : projectSectionEntryBytes;
+  if (entryBytes < leastEntry || entryBytes > projectMaxSectionEntryBytes) {
+    return ProjectRefused(
+      'Directory entries are $entryBytes bytes; a version $version entry is '
+      '$leastEntry to $projectMaxSectionEntryBytes.',
+    );
+  }
+
+  final sectionCount = view.getUint32(8, Endian.little);
+  // Divided rather than multiplied, so two words from the file cannot
+  // overflow past the bound.
+  if (sectionCount > (bytes.lengthInBytes - headerBytes) ~/ entryBytes) {
+    return ProjectRefused(
+      'The header claims $sectionCount sections of $entryBytes bytes, whose '
+      'directory runs past the end of a ${bytes.lengthInBytes}-byte file.',
     );
   }
 
   final sections = <int, ({int offset, int length})>{};
+  final unknownSections = <int, ProjectExtraSection>{};
   for (var i = 0; i < sectionCount; i++) {
-    final entry = projectHeaderBytes + i * projectSectionEntryBytes;
+    final entry = headerBytes + i * entryBytes;
     final kind = view.getUint32(entry, Endian.little);
     final offset = view.getUint32(entry + 4, Endian.little);
     final length = view.getUint32(entry + 8, Endian.little);
+    final count = view.getUint32(entry + 12, Endian.little);
+    final flags = version >= 3 ? view.getUint32(entry + 16, Endian.little) : 0;
     if (offset + length > bytes.lengthInBytes) {
       return ProjectRefused(
         'Section $kind runs from byte $offset for $length bytes, past the end '
         'of a ${bytes.lengthInBytes}-byte file.',
       );
     }
-    // A kind this build has never heard of is kept in the map and never looked
-    // at, which is the whole point of a directory: a project saved by a build
-    // that writes materials opens here as the objects it also wrote.
+    final known = ProjectSection.known.contains(kind);
+    if (!known && flags & F3dSectionFlags.mustUnderstand != 0) {
+      return ProjectRefused(
+        'Section $kind is marked must-understand and this build does not know '
+        'it: the project was written by a newer build. Open it in one.',
+      );
+    }
+    final unread =
+        flags &
+        F3dSectionFlags.mustUnderstandIfSet &
+        ~F3dSectionFlags.understood;
+    if (known && unread != 0) {
+      return ProjectRefused(
+        'Section $kind carries flag bits 0x${unread.toRadixString(16)}, which '
+        'change how it reads and which this build does not know: the project '
+        'was written by a newer build. Open it in one.',
+      );
+    }
+    // A kind this build has never heard of is kept aside and written back on
+    // save, which is the whole point of a directory: a project saved by a
+    // build that writes materials opens here as the objects it also wrote,
+    // and saved again here keeps the materials. Later duplicates win.
     sections[kind] = (offset: offset, length: length);
+    if (!known) {
+      unknownSections[kind] = ProjectExtraSection(
+        kind: kind,
+        bytes: Uint8List.sublistView(bytes, offset, offset + length),
+        count: count,
+        flags: flags,
+      );
+    }
   }
 
   // Before anything is decoded. A manifest that parses as JSON after a byte
@@ -1125,6 +1254,7 @@ ProjectRead readProject(Uint8List bytes) {
       lighting: lighting,
       animationGraphs: animationGraphs,
       unknown: unknown,
+      unknownSections: unknownSections.values.toList(),
       rights: rights,
       nextId: nextId,
       warnings: warnings,
@@ -1144,6 +1274,7 @@ ProjectRead readProject(Uint8List bytes) {
         lighting: lighting,
         animationGraphs: animationGraphs,
         unknown: unknown,
+        unknownSections: unknownSections.values.toList(),
         rights: rights,
         nextId: nextId,
       ),
@@ -1189,6 +1320,7 @@ ProjectRead readProject(Uint8List bytes) {
   required SceneLighting lighting,
   required Map<String, Map<String, Object?>> animationGraphs,
   required Map<String, Object?> unknown,
+  required List<ProjectExtraSection> unknownSections,
   required DocumentAsset? rights,
   required int nextId,
   required List<String> warnings,
@@ -1385,6 +1517,7 @@ ProjectRead readProject(Uint8List bytes) {
           // Not kept per step: what a later build added is the file's, and
           // an undo puts back the edit, not the file. Its rights likewise.
           unknown: unknown,
+          unknownSections: unknownSections,
           rights: rights,
           nextId: carriedNextId,
         ),
