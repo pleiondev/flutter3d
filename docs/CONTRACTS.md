@@ -1225,14 +1225,16 @@ follows its counterpart's:
 - `flame_flutter3d` takes `tiled`'s `TiledMap`, `TiledObject` and
   `TileLayer`, the map a Flame game loaded through `flame_tiled`.
 
-Four packages whose signatures cannot leave such types out are not 1.x at
-all: `flame_multiplayer_dashwire` (`dashwire`'s `WireConnection`),
-`flutter3d_lints` (a `Plugin` of `analysis_server_plugin`, and the
-analyzer's `CompilationUnit`), `flutter3d_editor_play` (`vm_service`) and
-`flutter3d_education_lti` (pointycastle's and dart_jsonwebtoken's keys)
-stay on a 0.9 line outside the 1.0 promise, named with their reasons in
-`ownVersionLines` (`tool/structure/repository.dart`), and every pin
-written on one, a template's included, admits its version.
+Four packages whose signatures cannot leave such types out are outside
+the 1.0 promise: `flame_multiplayer_dashwire` (`dashwire`'s
+`WireConnection`), `flutter3d_lints` (a `Plugin` of
+`analysis_server_plugin`, and the analyzer's `CompilationUnit`),
+`flutter3d_editor_play` (`vm_service`) and `flutter3d_education_lti`
+(pointycastle's and dart_jsonwebtoken's keys). They carry the engine's
+number like every package that names a sibling, so the number says which
+engine release each goes with; SUPPORT.md names them, and each type that
+puts one outside is a reasoned entry of `thirdPartyTypeAllowed`
+(`tool/structure/repository.dart`).
 
 Each constrains its counterpart to one 0.x minor, and when the counterpart
 moves to its next minor the bridge releases a minor of its own that

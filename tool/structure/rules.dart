@@ -498,9 +498,9 @@ List<Rule> get allRules => <Rule>[
   ),
   (
     name:
-        'a package off the engine\'s number is named, and every pin on it '
-        'admits it',
-    run: _ownLinesNamedAndPinned,
+        'every package that names a sibling carries the engine\'s number, '
+        'and every pin on a sibling admits it',
+    run: _onTheEngineNumberAndPinned,
   ),
   (
     name: 'a platform channel is named under dev.flutter3d/',
@@ -683,48 +683,54 @@ List<Finding> _platformCallsCatchMissing() => <Finding>[
           ),
 ];
 
-/// Every published package off the engine's number is in [ownVersionLines]
-/// with its reason, every entry there is off it, and every caret pin the
+/// Every published package that names a sibling in its `dependencies` is
+/// on the engine's number (`offTheEngineNumber`), and every caret pin the
 /// code and the docs write on a sibling (a template's `flutter3d_lints:
 /// ^…`, a README's `flutter3d_lints: ^…`) admits that sibling's version.
 ///
-/// **A package leaving the number moved five places at once**, and the one
-/// nobody saw was a template: the plugin template pinned the lints at
-/// `^1.0.0-rc.1`, which no 0.x release satisfies.
+/// **A package outside the 1.0 promise still carries the engine's
+/// number.** Four packages left it for 0.9.0 once, and the move touched
+/// five places at once, a template the one nobody saw: the plugin template
+/// pinned the lints at `^1.0.0-rc.1`, which no 0.x release satisfies.
+/// SUPPORT.md and their reasoned third-party exemptions say they are
+/// outside; the number says which engine they go with.
 ///
-/// Mutation: write `flutter3d_lints: ^1.0.0-rc.1` back into the plugin
-/// template, and this names it.
-List<Finding> _ownLinesNamedAndPinned() {
+/// Mutation: set `flutter3d_lints` to `0.9.0`, or write `flutter3d_lints:
+/// ^0.9.0` into the plugin template, and this names it.
+List<Finding> _onTheEngineNumberAndPinned() {
   final found = <Finding>[];
   final engine = _pubspecVersionText(
     File('${packages['flutter3d']!.path}/pubspec.yaml').readAsStringSync(),
   );
-  final versions = <String, String>{
+  final pubspecs = <String, String>{
     for (final MapEntry(key: name, value: dir) in _publishedPackages.entries)
-      name: ?_pubspecVersionText(
-        File('${dir.path}/pubspec.yaml').readAsStringSync(),
-      ),
+      name: File('${dir.path}/pubspec.yaml').readAsStringSync(),
+  };
+  final versions = <String, String>{
+    for (final MapEntry(key: name, value: pubspec) in pubspecs.entries)
+      name: ?_pubspecVersionText(pubspec),
   };
   if (engine != null) {
-    for (final MapEntry(key: name, value: version) in versions.entries) {
-      final off = !onEngineNumber(version, engine);
-      if (off && !ownVersionLines.containsKey(name)) {
-        found.add(
-          Finding(
-            'packages/$name/pubspec.yaml',
-            'is at $version, off the engine\'s $engine, and '
-                '`ownVersionLines` does not say why',
-          ),
-        );
-      } else if (!off && ownVersionLines.containsKey(name)) {
-        found.add(
-          Finding(
-            'tool/structure/repository.dart',
-            '`ownVersionLines` names `$name`, which is on the engine\'s '
-                'number again: take the entry out',
-          ),
-        );
-      }
+    final names = pubspecs.keys.toSet();
+    for (final name
+        in offTheEngineNumber(<String, ({String version, bool namesSibling})>{
+          for (final MapEntry(key: name, value: version) in versions.entries)
+            name: (
+              version: version,
+              namesSibling: pubspecSection(
+                pubspecs[name]!,
+                'dependencies',
+              ).any(names.contains),
+            ),
+        }, engine)) {
+      found.add(
+        Finding(
+          'packages/$name/pubspec.yaml',
+          'is at ${versions[name]}, off the engine\'s $engine: a package '
+              'that names a sibling carries the engine\'s number, and one '
+              'outside the 1.0 promise says so in SUPPORT.md',
+        ),
+      );
     }
   }
   final siblings = versions.keys.toSet();
@@ -6185,20 +6191,7 @@ List<Finding> _breaksSinceRelease({
           '${changes.length} changes; run `$diff` in tool/api against '
           '`git show $tag:$path` to see them';
 
-      // A package that left the engine's number for a 0.x line of its own
-      // (`ownVersionLines`, with the reason) starts a new line: 0.9.0 after
-      // 1.0.0-rc.1 is the move itself, which a `^1.0.0-rc.1` never reached,
-      // and its CHANGELOG still labels every break below.
-      final leftTheNumber =
-          then != null &&
-          now != null &&
-          ownVersionLines.containsKey(name) &&
-          majorVersionOf(now) == 0 &&
-          (majorVersionOf(then) ?? 0) >= 1;
-      if (then != null &&
-          now != null &&
-          !leftTheNumber &&
-          !bumpIsEnoughFrom(needed, then, now)) {
+      if (then != null && now != null && !bumpIsEnoughFrom(needed, then, now)) {
         found.add(
           Finding(
             '$home/pubspec.yaml',

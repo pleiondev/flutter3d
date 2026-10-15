@@ -125,10 +125,6 @@ guide: https://flutter3d.pleion.dev/reference/migrating-to-1.0/
 packages:
   constraint: ^1.0.0-rc.1
   versions:
-    flame_multiplayer_dashwire: ^0.9.0
-    flutter3d_editor_play: ^0.9.0
-    flutter3d_education_lti: ^0.9.0
-    flutter3d_lints: ^0.9.0
     flutter3d_pointer_lock: ^0.5.1
     pad_input: ^0.5.1
   renamed:

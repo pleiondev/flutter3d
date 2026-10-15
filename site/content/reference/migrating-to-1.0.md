@@ -27,7 +27,7 @@ Commit or stash first: the migration edits your files in place, and a clean
 
 ```bash
 dart pub global activate flutter3d_build 1.0.0-rc.1
-dart pub global activate flutter3d_lints 0.9.0
+dart pub global activate flutter3d_lints 1.0.0-rc.1
 dart pub global run flutter3d_build:migrate --dry-run .   # see what it would do
 dart pub global run flutter3d_build:migrate .
 ```
@@ -82,7 +82,7 @@ cannot.
 
 ```yaml
 plugins:
-  flutter3d_lints: ^0.9.0
+  flutter3d_lints: ^1.0.0-rc.1
 ```
 
 The plugin also turns on the fixed-step rules described in its README. A

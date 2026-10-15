@@ -3525,7 +3525,7 @@ final Map<String, String> thirdPartyTypeAllowed = <String, String>{
       'the engine\'s sound',
   'flame_multiplayer_dashwire:WireConnection':
       'dashwire\'s: the package is the adapter from dashwire\'s connection '
-      'to the engine\'s transport',
+      'to the engine\'s transport, and dashwire is before 1.0; it is why the package is outside the 1.0 promise (SUPPORT.md)',
   'flutter3d_conformance:FuzzVertex':
       'ours, a vertex of a generated fuzz draw: the generator and the shrinker make every one, and a caller hands `FuzzDraw.triangles` back to `copyWith` without writing its name',
   'flutter3d_webgpu:WebGpuStage':
@@ -3549,7 +3549,7 @@ final Map<String, String> thirdPartyTypeAllowed = <String, String>{
       'hook protocol, which the device classes are chosen by',
   'flutter3d_editor_play:Event':
       '`package:vm_service`\'s: the editor\'s play tooling reads a running '
-      'game through the VM service protocol, and is a tool, not a runtime',
+      'game through the VM service protocol, and is a tool, not a runtime; it is why the package is outside the 1.0 promise (SUPPORT.md)',
   'flutter3d_editor_play:RPCError': '`package:vm_service`\'s, as `Event`',
   'flutter3d_editor_play:VmService': '`package:vm_service`\'s, as `Event`',
   'flutter3d_education_lti:Client':
@@ -3557,7 +3557,7 @@ final Map<String, String> thirdPartyTypeAllowed = <String, String>{
       'test or a platform with its own client passes one',
   'flutter3d_education_lti:RSAPrivateKey':
       '`pointycastle`\'s: an LTI tool signs with the key its platform '
-      'registered, read from a PEM it already holds',
+      'registered, read from a PEM it already holds; it is why the package is outside the 1.0 promise (SUPPORT.md)',
   'flutter3d_education_lti:RSAPublicKey':
       '`pointycastle`\'s, as `RSAPrivateKey`',
   'flutter3d_game:Client':
@@ -3567,7 +3567,7 @@ final Map<String, String> thirdPartyTypeAllowed = <String, String>{
   'flutter3d_lints:Plugin':
       'the analyzer plugin API\'s: `main.dart`\'s `plugin` is what the '
       'analyzer loads, and the rule classes it registers are the package\'s '
-      'own',
+      'own; it is why the package is outside the 1.0 promise (SUPPORT.md)',
   'flutter3d_mcp:StreamChannel':
       '`package:stream_channel`\'s, the Dart team\'s two-way channel the MCP '
       'transport is written over',
@@ -4156,28 +4156,4 @@ const Map<String, String> slowTestsPending = <String, String>{
       'this runs out',
   'packages/flutter3d_testing/test/flip_test.dart':
       'runs only with FLIP_IMAGES set: FLIP over full reference images',
-};
-
-// --------------------------------------------- packages on lines of their own
-
-/// The published packages off the engine's number, each with why.
-///
-/// **Named, so a package cannot slip off the number unseen, nor stay off
-/// it once the reason is gone.** The rule `a package off the engine's
-/// number is named, and every pin on it admits it` fails on a package off
-/// the number that is not here and on an entry that is back on it; README
-/// and SUPPORT say the same in prose.
-const Map<String, String> ownVersionLines = <String, String>{
-  'pad_input': 'names no sibling; a gamepad plugin on its 0.5 line',
-  'flutter3d_pointer_lock':
-      'names no sibling; a platform plugin on its 0.5 line',
-  'flame_multiplayer_dashwire':
-      'its signatures carry `WireConnection` from dashwire 0.1, before 1.0',
-  'flutter3d_lints':
-      'its signatures carry `analysis_server_plugin` 0.3 and the analyzer, '
-      'which takes a major a year',
-  'flutter3d_editor_play':
-      'its signatures carry `vm_service` types, which take a major a year',
-  'flutter3d_education_lti':
-      'its signatures carry pointycastle and dart_jsonwebtoken key types',
 };

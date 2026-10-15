@@ -1,6 +1,6 @@
 name: flutter3d_editor_play
 description: "Play from a level editor: the game a level belongs to run with `flutter run --machine`, reloaded, stopped, and handed a saved level while it runs."
-version: 0.9.0
+version: 1.0.0-rc.1+1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues

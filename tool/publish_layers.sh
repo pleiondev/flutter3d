@@ -31,9 +31,10 @@
 #
 # **Not every package is the 1.0 set.** `pad_input` and `flutter3d_pointer_lock`
 # keep their 0.5 line, and `flame_multiplayer_dashwire`, `flutter3d_lints`,
-# `flutter3d_editor_play` and `flutter3d_education_lti` a 0.9 line outside the
-# 1.0 promise (SUPPORT.md says why). They go up in their layer like the rest,
-# at the version their pubspec says, and the dry run marks each with a `*`.
+# `flutter3d_editor_play` and `flutter3d_education_lti` carry the engine's
+# number outside the 1.0 promise (SUPPORT.md says why). They go up in their
+# layer like the rest, at the version their pubspec says, and the dry run
+# marks each with a `*`.
 #
 # Publishing needs `flutter pub login` done first. Nothing here pushes or tags.
 set -uo pipefail
@@ -54,7 +55,7 @@ while [ $# -gt 0 ]; do
     --to) TO="${2#L}"; shift ;;
     --layer) FROM="${2#L}"; TO="${2#L}"; shift ;;
     -h|--help)
-      sed -n '2,38p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,39p' "$0" | sed 's/^# \{0,1\}//'
       exit 0
       ;;
     *)
@@ -163,10 +164,12 @@ while read -r layer names; do
       continue
     }
     version="$(local_version "$dir")"
-    # A 0.x package is on a line of its own, outside the 1.0 set.
+    # A package outside the 1.0 set, by name (SUPPORT.md).
     shown="$version"
-    case "$version" in
-      0.*) shown="$version*" ;;
+    case "$name" in
+      pad_input|flutter3d_pointer_lock|flame_multiplayer_dashwire|\
+      flutter3d_lints|flutter3d_editor_play|flutter3d_education_lti)
+        shown="$version*" ;;
     esac
     if on_pub "$name" "$version"; then
       printf '  %-30s %-12s already on pub.dev, skipped\n' "$name" "$shown"

@@ -70,7 +70,7 @@ dependencies:
 
   # Play: the game the level belongs to, run with `flutter run --machine`
   # and sent the level when it is saved — the editor application's own.
-  flutter3d_editor_play: ^0.9.0
+  flutter3d_editor_play: '>=1.0.0-rc.1 <1.1.0'
 
   # `Level`, `LevelIssue` and `LevelValidator`, which `validate` reports.
   flutter3d_sim: '>=1.0.0-rc.1 <1.1.0'

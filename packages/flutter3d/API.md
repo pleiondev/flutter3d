@@ -926,7 +926,7 @@ pipeline's next input is a `PipelineDescriptor` field, read by
 
 ```bash
 dart pub global activate flutter3d_build 1.0.0-rc.1
-dart pub global activate flutter3d_lints 0.9.0
+dart pub global activate flutter3d_lints 1.0.0-rc.1
 dart pub global run flutter3d_build:migrate --dry-run .
 dart pub global run flutter3d_build:migrate .
 ```

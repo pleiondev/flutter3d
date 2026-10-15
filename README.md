@@ -24,7 +24,7 @@ that draws starts with two of them,
 widgets that run it. A game starts with
 [`flutter3d_game`](https://pub.dev/packages/flutter3d_game) instead: it is
 the one facade, re-exporting the renderer, the view and what a first game
-uses of the simulation, the physics and the audio. 55 of them are at
+uses of the simulation, the physics and the audio. 59 of them are at
 `1.0.0-rc.1`, one number for all, and it goes out first as that release
 candidate, so ask for `^1.0.0-rc.1`: that resolves against every other and
 admits 1.0.0 itself, which follows. Until then pub.dev keeps 0.8.x as the
@@ -36,9 +36,9 @@ releases are supported.
 the candidate too, with an API version of its own that breaks more rarely
 still; [`pad_input`](https://pub.dev/packages/pad_input) and
 [`flutter3d_pointer_lock`](https://pub.dev/packages/flutter3d_pointer_lock) keep a line of their
-own at 0.5.0, since neither names a sibling. Four more stay below 1.0, at
-0.9.0 and outside the 1.0 promise, because their signatures carry types of
-packages that are themselves before 1.0 or break once a year:
+own at 0.5.1, since neither names a sibling. Four carry the engine's
+number and are outside the 1.0 promise, because their signatures carry
+types of packages that are themselves before 1.0 or break once a year:
 `flame_multiplayer_dashwire` (dashwire), `flutter3d_lints` (the analyzer),
 `flutter3d_editor_play` (`vm_service`) and `flutter3d_education_lti`
 (pointycastle). To work on the engine itself,
@@ -192,7 +192,7 @@ to you; 380 are backend internals no application called. One command does the re
 
 ```bash
 dart pub global activate flutter3d_build 1.0.0-rc.1
-dart pub global activate flutter3d_lints 0.9.0
+dart pub global activate flutter3d_lints 1.0.0-rc.1
 dart pub global run flutter3d_build:migrate --dry-run path/to/your_game
 ```
 

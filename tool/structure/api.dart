@@ -1710,6 +1710,18 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
         "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
   ),
   BuildAllowance(
+    package: 'flutter3d_editor_play',
+    members: <String>['callGameExtension', 'eventsSince', 'fakeFlutterRun'],
+    reason:
+        "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_education_lti',
+    members: <String>['generateRsaKeyPair'],
+    reason:
+        "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
     package: 'flutter3d_audio_core',
     members: <String>['AudioListener.right'],
     reason:

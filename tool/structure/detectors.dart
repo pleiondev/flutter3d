@@ -5324,6 +5324,32 @@ dev_dependencies:
     );
   }
 
+  // Every package that names a sibling is on the engine's number. Four
+  // left it for 0.9.0 once; a package of the repository at 0.9.0 is what
+  // this exists to name.
+  fires(
+    'off the engine number',
+    offTheEngineNumber(<String, ({String version, bool namesSibling})>{
+          'flutter3d_lints': (version: '0.9.0', namesSibling: true),
+          'flutter3d_editor_play': (
+            version: '1.0.0-rc.1+1',
+            namesSibling: true,
+          ),
+        }, '1.0.0-rc.1').join(',') ==
+        'flutter3d_lints',
+    'a package of the repository at 0.9.0',
+  );
+  quiet(
+    'off the engine number',
+    offTheEngineNumber(<String, ({String version, bool namesSibling})>{
+      'pad_input': (version: '0.5.0', namesSibling: false),
+      'flutter3d_editor_play': (version: '1.0.0-rc.1+1', namesSibling: true),
+      'flutter3d_impeller': (version: '1.0.1', namesSibling: true),
+    }, '1.0.0-rc.1').isEmpty,
+    'a plugin that names no sibling, a build and a patch',
+    'each is on the number, or stands on nothing of the engine',
+  );
+
   // A policy document's revision line. The SECURITY.md of 0.x said "nothing
   // is published to pub.dev yet" for months after 0.4.0 went up, and ROADMAP
   // described a quarter that had closed.
@@ -5933,6 +5959,25 @@ bool onEngineNumber(String version, String engine) {
       v.minor == e.minor &&
       caretAdmits(engine, version);
 }
+
+/// The packages of [packages] off the engine's number [engine], in order:
+/// each at a version [onEngineNumber] does not put on it, unless it names
+/// no sibling.
+///
+/// **Every package that stands on another of the repository carries the
+/// engine's number.** A number of its own says nothing a reader can use and
+/// moves five places at once when it changes; a package outside the 1.0
+/// promise says so in SUPPORT.md and by its reasoned third-party
+/// exemptions, not by a 0.x line. A package that names no sibling
+/// (`pad_input`, `flutter3d_pointer_lock`) is a platform plugin anybody may
+/// use without the engine, on a line of its own.
+List<String> offTheEngineNumber(
+  Map<String, ({String version, bool namesSibling})> packages,
+  String engine,
+) => <String>[
+  for (final MapEntry(key: name, value: p) in packages.entries)
+    if (p.namesSibling && !onEngineNumber(p.version, engine)) name,
+];
 
 // ------------------------------------------------------- a policy's revision
 
