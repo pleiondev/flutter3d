@@ -76,7 +76,7 @@ dependencies:
   flutter3d_physics: '>=1.0.0-rc.1 <1.1.0'
 
   # The graphics vocabulary, named here directly.
-  flutter3d_hardware: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_hardware: ^1.0.0-rc.1
 
 dev_dependencies:
   flutter_test:

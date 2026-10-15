@@ -7,14 +7,13 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 import '../flutter3d_conformance.dart';
 
 /// The color each view is cleared to: view 0 red, view 1 blue.
-final List<Vector4> _viewColors = <Vector4>[
-  Vector4(1.0, 0.0, 0.0, 1.0),
-  Vector4(0.0, 0.0, 1.0, 1.0),
+const List<ClearColor> _viewColors = <ClearColor>[
+  ClearColor(1.0, 0.0, 0.0, 1.0),
+  ClearColor(0.0, 0.0, 1.0, 1.0),
 ];
 
 const int _size = 4;
@@ -76,16 +75,11 @@ Future<void> _requireLayer(
   GraphicsDevice device,
   TextureHandle image,
   int layer,
-  Vector4 color,
+  ClearColor color,
   String how,
 ) async {
   final bytes = await _readLayer(device, image, layer);
-  final want = <int>[
-    (color.x * 255).round(),
-    (color.y * 255).round(),
-    (color.z * 255).round(),
-    (color.w * 255).round(),
-  ];
+  final want = <int>[for (final c in color.channels) (c * 255).round()];
   for (var texel = 0; texel < _size * _size; texel++) {
     for (var channel = 0; channel < 4; channel++) {
       final got = bytes.getUint8(texel * 4 + channel);

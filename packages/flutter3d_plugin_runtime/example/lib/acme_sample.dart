@@ -10,9 +10,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart'
-    show ColorTarget, DepthTarget, RenderPassDescriptor;
+    show ClearColor, ColorTarget, DepthTarget, RenderPassDescriptor;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 /// A light type of the plugin's own: a tube, lit as a point by the engine's
 /// stages until its own model reads it.
@@ -163,7 +162,7 @@ final class LampAtlasNode extends RenderNode {
           colors: <ColorTarget>[
             ColorTarget(
               texture: atlas.atlas,
-              clearValue: Vector4(1.0, 1.0, 1.0, 1.0),
+              clearValue: ClearColor(1.0, 1.0, 1.0, 1.0),
             ),
           ],
           depth: DepthTarget(texture: atlas.depth),

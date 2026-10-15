@@ -45,7 +45,7 @@ final class _EmptyAtlas extends RenderNode {
             colors: <ColorTarget>[
               ColorTarget(
                 texture: atlas.atlas,
-                clearValue: Vector4(1.0, 1.0, 1.0, 1.0),
+                clearValue: ClearColor(1.0, 1.0, 1.0, 1.0),
               ),
             ],
             depth: DepthTarget(texture: atlas.depth),

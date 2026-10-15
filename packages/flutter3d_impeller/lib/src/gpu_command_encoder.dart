@@ -66,10 +66,25 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
 
   gpu.BufferView _emplace(ByteData bytes) => _backend.emplace(bytes);
 
+  /// Whole pixels, as flutter_gpu's `Viewport` takes them, with its depth
+  /// range; a fractional rectangle is refused rather than truncated.
   @override
-  void setViewport(ScreenRect rect) => _pass.setViewport(
-    gpu.Viewport(x: rect.x, y: rect.y, width: rect.width, height: rect.height),
-  );
+  void setViewport(PassViewport viewport) {
+    viewport.checkFeatures(_features, backend: impellerBackendName);
+    final rect = viewport.rect;
+    _pass.setViewport(
+      gpu.Viewport(
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+        depthRange: gpu.DepthRange(
+          zNear: viewport.minDepth,
+          zFar: viewport.maxDepth,
+        ),
+      ),
+    );
+  }
 
   @override
   void setScissor(ScreenRect rect) => _pass.setScissor(
@@ -77,8 +92,10 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
   );
 
   @override
-  void setPrimitiveType(PrimitiveType type) =>
-      _pass.setPrimitiveType(type.toGpu());
+  void setPrimitiveType(PrimitiveType type) {
+    type.checkFeatures(_features, backend: impellerBackendName);
+    _pass.setPrimitiveType(type.toGpu());
+  }
 
   /// A line mode on a device without `DeviceFeature.wireframe` (Impeller's
   /// OpenGL ES path) is refused, rather than drawn filled.
@@ -362,6 +379,7 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
       _bindIndices(_emplace(bytes), type, indexCount);
 
   void _bindIndices(gpu.BufferView view, IndexType type, int indexCount) {
+    type.checkFeatures(_features, backend: impellerBackendName);
     _pass.bindIndexBuffer(view, type.toGpu());
     _indexView = view;
     _indexType = type;

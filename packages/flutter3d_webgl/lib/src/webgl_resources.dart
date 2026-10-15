@@ -453,9 +453,10 @@ void webglOverwriteTexture(
     // A renderbuffer — a multisampled or `deviceTransient` target — has no
     // `texSubImage2D`, and binding null in its place makes the write an
     // `INVALID_OPERATION` that nothing reports.
-    throw UnsupportedError(
+    throw webglRefusal(
+      'overwriteTexture',
       'overwriteTexture: this target is attachment-only (multisampled or '
-      'deviceTransient) and has no texels to write on this backend',
+          'deviceTransient) and has no texels to write on this backend',
     );
   }
   final bytes = Uint8List.view(
@@ -620,7 +621,10 @@ GeometryBuffer webglUploadGeometry(
   final target = switch (usage) {
     GeometryUsage.vertices => web.WebGLRenderingContext.ARRAY_BUFFER,
     GeometryUsage.indices => web.WebGLRenderingContext.ELEMENT_ARRAY_BUFFER,
-    _ => throw UnsupportedError('WebGL2 has no buffer target for $usage'),
+    _ => throw webglRefusal(
+      'webglUploadGeometry',
+      'WebGL2 has no buffer target for $usage',
+    ),
   };
   gl.bindBuffer(target, buffer);
   gl.bufferData(

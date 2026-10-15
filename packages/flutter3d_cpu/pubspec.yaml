@@ -27,7 +27,7 @@ platforms:
   windows:
 
 dependencies:
-  flutter3d_hardware: '>=1.0.0-rc.1+1 <1.1.0'
+  flutter3d_hardware: ^1.0.0-rc.1+2
   # `stageBindings`: what each of the engine's compiled stages keeps, which
   # the library hands every stage as `ShaderHandle.kept` and the encoder
   # refuses binds against — `gfx-92n`. A table of names and nothing else.

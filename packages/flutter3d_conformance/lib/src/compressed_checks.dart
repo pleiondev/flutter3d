@@ -166,7 +166,7 @@ Future<List<int>> _sampleCentre(
         ColorTarget(
           texture: target,
           loadAction: LoadAction.clear,
-          clearValue: Vector4.zero(),
+          clearValue: ClearColor.transparentBlack,
         ),
       ],
     ),

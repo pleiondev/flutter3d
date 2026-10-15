@@ -1,5 +1,23 @@
 ## 1.0.0-rc.1+1
 
+- **Strips and points are drawn.** The software rasteriser drew triangle and
+  line lists and threw an untyped `UnsupportedError` from the draw for the
+  other three topologies. It assembles all five now and lists
+  `primitiveStrips` and `pointPrimitives`: a triangle strip faces one way
+  all along, an all-ones index restarts a strip, and a point is the one
+  pixel its vertex lands in. It lists `indexUint32`, `blendConstantAlpha`
+  and `fractionalViewport` too.
+- **The viewport's depth range and fraction.** `setViewport` takes a
+  `PassViewport`: window positions are measured from its corner in
+  doubles, and clip depth lands in its `minDepth`..`maxDepth`. A viewport on
+  whole pixels over the whole range draws the bits it always drew.
+- **Every refusal is typed.** A compressed format is refused by its
+  family's feature, an `overwriteTexture` outside `readbackFormats` or above
+  level zero, a stage not written in Dart, a stride the vertex fetch cannot
+  read and a value a later version names by a `DeviceResourceException`
+  (`cpuRefusal`), where each was an `UnsupportedError`. The opener takes the
+  HAL's `DeviceRequest`.
+
 - **The scene's colour copy is `SceneColorCopyShader`** in `builtin.dart`,
   after the stage it draws, which the shader ABI spells the American way
   now. `builtin.dart` is outside semver.

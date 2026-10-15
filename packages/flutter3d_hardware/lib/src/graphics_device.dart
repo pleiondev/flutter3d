@@ -8,7 +8,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show UnsupportedCapabilityException;
+    show Flutter3dException, UnsupportedCapabilityException;
 import 'package:meta/meta.dart';
 
 import 'capabilities.dart';
@@ -326,7 +326,8 @@ abstract base class GraphicsDevice with TextureAllocator {
   /// caller round-tripping a region — read it, edit it, write it back —
   /// needs the two ends to agree on what the bytes mean, and a third format
   /// each backend would decode differently is exactly the mismatch
-  /// [readback] already refuses. Refuses (throws `UnsupportedError`) any
+  /// [readback] already refuses. Refuses (throws a [DeviceResourceException]
+  /// built by [refuseResource], since 1.0.0-rc.1+2) any
   /// other [target].format, including every compressed one — a block
   /// covers a 4x4 texel footprint, and a region write that lands mid-block
   /// would ask a backend to rewrite a compressed block from decoded bytes
@@ -405,6 +406,13 @@ abstract base class GraphicsDevice with TextureAllocator {
   /// reset in place because `submit` is asynchronous and the GPU may still be
   /// reading the frame before last. A backend with nothing to rotate implements
   /// this as nothing.
+  ///
+  /// **Never throws what the device said about an earlier frame**, since
+  /// 1.0.0-rc.1+2. An API that answers late (WebGPU's error scopes and
+  /// `uncapturederror`) reports a refusal it heard after the call on
+  /// [errors], and one that cannot go on reports a [DeviceLoss] on [lost]; a
+  /// throw here would land in whichever frame happened to start next, a long
+  /// way from the call it was about, and fail that frame for nothing it did.
   void beginFrame();
 
   /// Runs [whenDone] once the GPU has finished with the frame being encoded now.
@@ -1017,6 +1025,23 @@ abstract base class GraphicsDevice with TextureAllocator {
   /// backend that reports on [lost] answers here too.
   bool get isLost => false;
 
+  /// What the device refused after the call that asked, and survived — since
+  /// 1.0.0-rc.1+2.
+  ///
+  /// **For an API that answers late.** WebGPU hands a pipeline, a texture or
+  /// a submit back at once and says whether it accepted it later, through an
+  /// error scope or `uncapturederror`; a synchronous call has already
+  /// returned by then. Each such verdict is a [DeviceError] here, at the
+  /// earliest point after it arrives, carrying the typed refusal the call
+  /// would have thrown ([DeviceError.exception]). A refusal the device does
+  /// not survive is a [DeviceLoss] on [lost] instead, never both: the loss is
+  /// the news, and the refusals before it its echo.
+  ///
+  /// Empty by default, which is the whole of it on a backend whose every
+  /// refusal is thrown from the call (the software rasteriser, WebGL2,
+  /// Impeller). [beginFrame] never throws one of these.
+  Stream<DeviceError> get errors => const Stream<DeviceError>.empty();
+
   /// Names [resource] — a [TextureHandle], [GeometryBuffer], [StorageBuffer],
   /// [PipelineHandle], [QuerySet] or [RenderBundle] this device made — for a
   /// GPU debugger, a frame capture and the memory report.
@@ -1060,6 +1085,86 @@ final class DeviceLoss {
   String toString() =>
       'DeviceLoss(${reason.name}${restored ? ', restored' : ''}'
       '${message.isEmpty ? '' : ': $message'})';
+}
+
+/// A refusal the device heard after the call that caused it, and survived —
+/// `GraphicsDevice.errors`, since 1.0.0-rc.1+2.
+@immutable
+final class DeviceError {
+  /// An error of [kind] about [operation], as the backend said it in
+  /// [message], with the typed refusal it stands for in [exception].
+  const DeviceError({
+    required this.kind,
+    required this.operation,
+    required this.message,
+    required this.exception,
+  });
+
+  /// What sort of refusal: a call the API found invalid, memory it could
+  /// not find, a stage it would not compile.
+  final DeviceErrorKind kind;
+
+  /// The call or the object the refusal was about, as the backend names it
+  /// (`createRenderPipeline`, `the WGSL of "Lit"`).
+  final String operation;
+
+  /// The API's own words, for a log.
+  final String message;
+
+  /// The refusal as the call would have thrown it, had the API answered in
+  /// time: a `ShaderCompileException` for a stage the compiler refused, a
+  /// [DeviceResourceException] for anything else.
+  final Flutter3dException exception;
+
+  @override
+  String toString() =>
+      'DeviceError(${kind.name}, $operation${message.isEmpty ? '' : ': $message'})';
+}
+
+/// The kinds of [DeviceError]: WebGPU's three error types, and a stage the
+/// compiler refused. An open set: a backend may report a kind a later minor
+/// names.
+@immutable
+final class DeviceErrorKind {
+  const DeviceErrorKind._(this.name);
+
+  /// The kind's stable name, as reports and logs spell it.
+  final String name;
+
+  /// A call the API found invalid: WebGPU's `GPUValidationError`.
+  static const DeviceErrorKind validation = DeviceErrorKind._('validation');
+
+  /// Memory the API could not find: WebGPU's `GPUOutOfMemoryError`.
+  static const DeviceErrorKind outOfMemory = DeviceErrorKind._('out-of-memory');
+
+  /// The implementation failed for a reason of its own: WebGPU's
+  /// `GPUInternalError`.
+  static const DeviceErrorKind internal = DeviceErrorKind._('internal');
+
+  /// A stage the compiler would not compile, reported after the module was
+  /// made.
+  static const DeviceErrorKind shaderCompile = DeviceErrorKind._(
+    'shader-compile',
+  );
+
+  /// Every kind this version names.
+  static const List<DeviceErrorKind> values = <DeviceErrorKind>[
+    validation,
+    outOfMemory,
+    internal,
+    shaderCompile,
+  ];
+
+  /// The kind called [name], or null for a name this version does not know.
+  static DeviceErrorKind? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  @override
+  String toString() => 'DeviceErrorKind.$name';
 }
 
 /// The reasons a [DeviceLoss] can give. An open set: a backend may report a

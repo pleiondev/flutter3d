@@ -60,7 +60,7 @@ double _twoCoincidentTriangles({required bool askForDepthWriteOff}) {
         ColorTarget(
           texture: color,
           loadAction: LoadAction.clear,
-          clearValue: Vector4.zero(),
+          clearValue: ClearColor.transparentBlack,
         ),
       ],
       depth: DepthTarget(texture: depth, clearValue: 1.0),

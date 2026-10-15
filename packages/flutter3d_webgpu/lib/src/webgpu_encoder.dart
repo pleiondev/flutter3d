@@ -63,7 +63,6 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show LinearColor, UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 import 'webgpu_bundle_section.dart';
 import 'webgpu_compute.dart'
@@ -178,8 +177,13 @@ abstract base class WebGpuRecorder extends PassEncoder {
 
   // ---------------------------------------------- accumulated for the draw
 
+  /// Every topology; a strip restarts on an all-ones index, which WebGPU does
+  /// whenever the pipeline's `stripIndexFormat` is the bound index format.
   @override
-  void setPrimitiveType(PrimitiveType type) => _primitive = type;
+  void setPrimitiveType(PrimitiveType type) {
+    type.checkFeatures(_device.features, backend: _backend);
+    _primitive = type;
+  }
 
   @override
   void setCullMode(CullMode mode) => _cull = mode;
@@ -261,18 +265,19 @@ abstract base class WebGpuRecorder extends PassEncoder {
   /// hint, and is refused: the other backends' silent substitution is what
   /// makes it worth stopping for here.
   ///
-  /// A state naming a constant-reading factor is refused as [setBlendColor]
-  /// is; one naming a dual-source factor needs `dual-source-blending`, which
+  /// A state naming the constant's alpha pair is refused, since WebGPU
+  /// cannot form it (`blend-constant-alpha`); the colour pair is honoured.
+  /// One naming a dual-source factor needs `dual-source-blending`, which
   /// the adapter may not offer; min and max are core.
   @override
   void setBlend(BlendState? state, {int attachment = 0}) {
     _checkAttachment(attachment);
     if (state != null) {
-      if (state.usesBlendColor) {
+      if (state.usesBlendAlpha) {
         _device.features.require(
-          DeviceFeature.blendConstant,
+          DeviceFeature.blendConstantAlpha,
           backend: _backend,
-          reason: _noBlendConstant,
+          reason: _noBlendConstantAlpha,
         );
       }
       if (state.usesDualSource) {
@@ -339,6 +344,7 @@ abstract base class WebGpuRecorder extends PassEncoder {
   @override
   void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) {
     debugCheckLive(buffer, 'bindIndexBuffer');
+    type.checkFeatures(_device.features, backend: _backend);
     final geometry = buffer.backend as WebGpuGeometry;
     _indexBuffer = (
       buffer: geometry.buffer,
@@ -351,6 +357,7 @@ abstract base class WebGpuRecorder extends PassEncoder {
 
   @override
   void bindIndexData(ByteData bytes, IndexType type, int indexCount) {
+    type.checkFeatures(_device.features, backend: _backend);
     _indexBuffer = _device.indexArena.write(bytes);
     _indexType = type;
     _indexCount = indexCount;
@@ -1077,10 +1084,9 @@ GPURenderPipelineDescriptor webgpuRenderPipelineDescriptor(
   );
 }
 
-const String _noBlendConstant =
+const String _noBlendConstantAlpha =
     'WebGPU has "constant" and "one-minus-constant" and no equivalent of '
-    'CONSTANT_ALPHA, so two of the four factors BlendFactor names cannot be '
-    'formed';
+    'CONSTANT_ALPHA, so the constant alpha in every channel cannot be formed';
 
 const String _noRenderStorage =
     'the WebGPU section reflects no storage bindings for vertex and fragment '
@@ -1281,12 +1287,17 @@ final class WebGpuEncoder extends WebGpuRecorder with CommandEncoder {
     );
   }
 
-  static GPUColorDict _colorOf(Vector4? color) => GPUColorDict(
-    r: color?.x ?? 0.0,
-    g: color?.y ?? 0.0,
-    b: color?.z ?? 0.0,
-    a: color?.w ?? 0.0,
-  );
+  /// A `GPUColor` is four doubles for every kind of target, and a double
+  /// holds an integer clear exactly.
+  static GPUColorDict _colorOf(ClearColor? color) {
+    final channels = (color ?? ClearColor.transparentBlack).channels;
+    return GPUColorDict(
+      r: channels[0],
+      g: channels[1],
+      b: channels[2],
+      a: channels[3],
+    );
+  }
 
   late final GPUCommandEncoder _encoder;
   late final GPURenderPassEncoder _pass;
@@ -1300,18 +1311,21 @@ final class WebGpuEncoder extends WebGpuRecorder with CommandEncoder {
   // -------------------------------------------------- dynamic in WebGPU
 
   /// Straight through: WebGPU states a viewport from the top left in pixels,
-  /// which is where this contract states every rectangle. It is the place the
-  /// WebGL2 backend has to turn a rectangle over, and there is nothing to do
-  /// here at all.
+  /// in floats and with a depth range, which is exactly what a
+  /// [PassViewport] says. It is the place the WebGL2 backend has to turn a
+  /// rectangle over, and there is nothing to do here at all.
   @override
-  void setViewport(ScreenRect rect) => _pass.setViewport(
-    rect.x.toDouble(),
-    rect.y.toDouble(),
-    rect.width.toDouble(),
-    rect.height.toDouble(),
-    0.0,
-    1.0,
-  );
+  void setViewport(PassViewport viewport) {
+    viewport.checkFeatures(_device.features, backend: _backend);
+    _pass.setViewport(
+      viewport.x,
+      viewport.y,
+      viewport.width,
+      viewport.height,
+      viewport.minDepth,
+      viewport.maxDepth,
+    );
+  }
 
   @override
   void setScissor(ScreenRect rect) =>
@@ -1321,21 +1335,24 @@ final class WebGpuEncoder extends WebGpuRecorder with CommandEncoder {
   void setStencilReference(int value) =>
       _pass.setStencilReference(StencilState.narrowReference(value));
 
-  /// Refused, and the refusal is the promise `blend-constant` being absent
-  /// from `features` makes.
+  /// Straight through to `setBlendConstant`, since 1.0.0-rc.1+2.
   ///
-  /// WebGPU has `setBlendConstant` and two of the four constant-reading
+  /// WebGPU has `setBlendConstant`, and two of the four constant-reading
   /// `BlendFactor` values map straight onto `"constant"` and
-  /// `"one-minus-constant"`. The other two are OpenGL's `CONSTANT_ALPHA`, which
-  /// this API cannot form in a colour equation at all — so a backend answering
-  /// true would promise four factors and honour two. The capability is one
-  /// answer for all four, so the honest answer loses the two it could have had.
+  /// `"one-minus-constant"`. The other two are OpenGL's `CONSTANT_ALPHA`,
+  /// which this API cannot form in a colour equation at all. While one
+  /// capability answered for all four, the honest answer here lost the two
+  /// it could have had; the colour pair is `blend-constant` now and the alpha
+  /// pair `blend-constant-alpha`, which [setBlend] refuses through
+  /// `BlendState.checkFeatures`. A pass starts with the constant at
+  /// transparent black, which is WebGPU's own default for a pass.
   @override
-  void setBlendColor(LinearColor color) => _device.features.require(
-    DeviceFeature.blendConstant,
-    backend: _backend,
-    reason: _noBlendConstant,
-  );
+  void setBlendColor(LinearColor color) {
+    _device.features.require(DeviceFeature.blendConstant, backend: _backend);
+    _pass.setBlendConstant(
+      GPUColorDict(r: color.r, g: color.g, b: color.b, a: color.a),
+    );
+  }
 
   // ------------------------------------------------------------- queries
 
@@ -1507,7 +1524,7 @@ final class WebGpuBundleEncoder extends WebGpuRecorder
   );
 
   @override
-  void setViewport(ScreenRect rect) => _passOnly('setViewport');
+  void setViewport(PassViewport viewport) => _passOnly('setViewport');
 
   @override
   void setScissor(ScreenRect rect) => _passOnly('setScissor');

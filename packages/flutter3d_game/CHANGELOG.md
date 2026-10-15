@@ -17,6 +17,10 @@
   carry, and a channel name cannot change once a 1.0 build answers on it.
   The engine ships no native half of it, so only an application that
   answers the channel itself renames its handler.
+- **The HAL's new names are exported**: `ClearColor`, `ClearColorKind`,
+  `DeviceError`, `DeviceErrorKind`, `DeviceRequest`, `PassViewport` and
+  `PowerPreference`.
+
 - **Breaking: results that were records are final classes.** `ActionInput`,
   `ActorVisuals`, `AxisSettings` and `ColorRoles` answered or held a record,
   which can never gain a field. Each answers a final class now, with the

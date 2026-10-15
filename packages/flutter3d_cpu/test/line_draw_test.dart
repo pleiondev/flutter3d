@@ -85,7 +85,7 @@ Float32List _draw({required bool withChain}) {
         ColorTarget(
           texture: color,
           loadAction: LoadAction.clear,
-          clearValue: Vector4.zero(),
+          clearValue: ClearColor.transparentBlack,
         ),
       ],
     ),

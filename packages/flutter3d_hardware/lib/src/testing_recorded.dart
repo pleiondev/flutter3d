@@ -97,8 +97,14 @@ final class RecordedIndices extends Recorded {
 }
 
 final class RecordedViewport extends Recorded {
-  const RecordedViewport(this.rect);
-  final ScreenRect rect;
+  const RecordedViewport(this.viewport);
+
+  /// The viewport as it was set — a [PassViewport] since 1.0.0-rc.1+2.
+  final PassViewport viewport;
+
+  /// [viewport]'s rectangle in whole pixels, which is what every pass of
+  /// the engine sets and what a test asserts on.
+  ScreenRect get rect => viewport.rect;
 }
 
 final class RecordedScissor extends Recorded {

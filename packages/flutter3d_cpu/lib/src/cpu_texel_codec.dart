@@ -20,6 +20,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
+import 'cpu_resources.dart' show cpuRefusal;
 import 'cpu_texture.dart';
 
 /// Reads one texel of [format] at [offset] in [bytes] into `into[at..at+3]`.
@@ -115,9 +116,10 @@ void decodeTexel(
         1,
       );
     default:
-      throw UnsupportedError(
+      throw cpuRefusal(
+        'decodeTexel',
         'the software rasteriser has no texel layout for '
-        'TextureFormat.${format.name}',
+            'TextureFormat.${format.name}',
       );
   }
 }
@@ -230,9 +232,10 @@ void encodeTexel(
         Endian.little,
       );
     default:
-      throw UnsupportedError(
+      throw cpuRefusal(
+        'encodeTexel',
         'the software rasteriser has no texel layout for '
-        'TextureFormat.${format.name}',
+            'TextureFormat.${format.name}',
       );
   }
 }

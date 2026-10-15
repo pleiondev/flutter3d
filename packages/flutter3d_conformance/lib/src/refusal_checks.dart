@@ -96,11 +96,12 @@ Future<void> checkWireframeIsDrawnOrRefused(GraphicsDevice device) async {
 
 /// Every [PrimitiveType] is assembled as itself, or refused as one.
 ///
-/// The software rasteriser draws two of the five and throws for the other
-/// three; both hardware backends draw all five. Neither half was checked, and
-/// the interesting half is not the throw — it is that a backend which quietly
-/// assembled `point` as `triangle` would draw a plausible frame and pass
-/// everything else here.
+/// Every backend in the repository that draws assembles all five since
+/// 1.0.0-rc.1+2, strips and points behind `DeviceFeature.primitiveStrips` and
+/// `DeviceFeature.pointPrimitives`; one without them refuses from
+/// `setPrimitiveType`. The interesting half is not the refusal — it is that
+/// a backend which quietly assembled `point` as `triangle` would draw a
+/// plausible frame and pass everything else here.
 ///
 /// Coverage is the discriminator and it is a blunt one on purpose: three
 /// vertices make one filled triangle of some four hundred pixels, one or two
@@ -143,11 +144,11 @@ Future<void> checkPrimitiveTypesAreDrawnOrRefused(GraphicsDevice device) async {
     'so nothing below can be compared against it',
   );
 
-  // Mutation: delete the `_primitive != PrimitiveType.triangle` guard in
-  // `CpuEncoder._drawOnce`, so the software rasteriser assembles a point or a
-  // strip as a triangle instead of refusing. Every count then equals the
-  // filled one and the three requires below fail — which is the silent
-  // substitution the guard exists to prevent, and which no picture would show.
+  // Mutation: make `CpuEncoder._drawOnce` read three corners a primitive
+  // whatever the topology, so the software rasteriser assembles a point or a
+  // line strip as a triangle. Every count then equals the filled one and the
+  // requires below fail — which is the silent substitution the contract
+  // forbids, and which no picture would show.
   for (final type in <PrimitiveType>[
     PrimitiveType.line,
     PrimitiveType.lineStrip,
@@ -178,7 +179,69 @@ Future<void> checkPrimitiveTypesAreDrawnOrRefused(GraphicsDevice device) async {
       'vertices as a triangle list drew $filled. A strip of three vertices is '
       'one triangle, so this backend assembled it as edges or points.',
     );
+
+    // **Primitive restart is always on for strips**, since 1.0.0-rc.1+2:
+    // the same two triangles drawn as a list and as one strip broken by an
+    // all-ones index cover the same pixels. Mutation: treat 0xFFFF as an
+    // index in the software rasteriser's `_assembleStrip`, and the strip
+    // stops at the vertex that does not exist, the second triangle missing.
+    final list = await _paintedPixels(
+      device,
+      _twoTriangles(device, PrimitiveType.triangle, <int>[0, 1, 2, 3, 4, 5]),
+    );
+    final restarted = await _paintedPixels(
+      device,
+      _twoTriangles(device, PrimitiveType.triangleStrip, <int>[
+        0,
+        1,
+        2,
+        IndexType.int16.restartIndex,
+        3,
+        4,
+        5,
+      ]),
+    );
+    require(
+      (restarted - list).abs() * 20 <= list,
+      'two triangles drawn as a strip broken by an all-ones index painted '
+      '$restarted pixels where the same two as a list painted $list. A '
+      'backend that lists primitive-strips restarts a strip at 0xFFFF; see '
+      'PassEncoder.setPrimitiveType.',
+    );
   }
+}
+
+/// Two triangles side by side, drawn as [type] through [indices] into a
+/// fresh target, which is returned once the pass is submitted.
+TextureHandle _twoTriangles(
+  GraphicsDevice device,
+  PrimitiveType type,
+  List<int> indices,
+) {
+  final (:pass, :target, draw: _) = _oneTriangle(device);
+  final vertex = device.shaders['DebugLineVertex']!;
+  final vertices = Float32List.fromList(<double>[
+    -0.9, -0.6, 0.5, 1, 1, 1, 1, //
+    -0.1, -0.6, 0.5, 1, 1, 1, 1,
+    -0.5, 0.6, 0.5, 1, 1, 1, 1,
+    0.1, -0.6, 0.5, 1, 1, 1, 1,
+    0.9, -0.6, 0.5, 1, 1, 1, 1,
+    0.5, 0.6, 0.5, 1, 1, 1, 1,
+  ]);
+  pass
+    ..setPrimitiveType(type)
+    ..bindUniformBlock(vertex, 'LineInfo', <String, Float32List>{
+      'view_projection': Float32List.fromList(Matrix4.identity().storage),
+    })
+    ..bindVertexData(ByteData.sublistView(vertices), 6)
+    ..bindIndexData(
+      ByteData.sublistView(Uint16List.fromList(indices)),
+      IndexType.int16,
+      indices.length,
+    )
+    ..draw()
+    ..submit();
+  return target;
 }
 
 /// A pass open on a fresh target, and the one triangle to draw into it.
@@ -208,7 +271,7 @@ _oneTriangle(GraphicsDevice device) {
         ColorTarget(
           texture: target,
           loadAction: LoadAction.clear,
-          clearValue: Vector4.zero(),
+          clearValue: ClearColor.transparentBlack,
         ),
       ],
     ),

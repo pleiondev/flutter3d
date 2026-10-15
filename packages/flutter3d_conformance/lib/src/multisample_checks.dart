@@ -117,7 +117,7 @@ Future<void> checkMultisampleResolveResolves(GraphicsDevice device) async {
           resolveTexture: resolved,
           loadAction: LoadAction.clear,
           storeAction: StoreAction.multisampleResolve,
-          clearValue: Vector4(0.0, 0.0, 0.0, 1.0),
+          clearValue: ClearColor(0.0, 0.0, 0.0, 1.0),
         ),
       ],
     ),

@@ -14,7 +14,6 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:vector_math/vector_math.dart';
 
 import '../flutter3d_conformance.dart';
 
@@ -96,8 +95,8 @@ Future<void> checkColorAttachmentLimitIsHonoured(GraphicsDevice device) async {
   final pass = device.beginRenderPass(
     RenderPassDescriptor(
       colors: <ColorTarget>[
-        ColorTarget(texture: first, clearValue: Vector4.zero()),
-        ColorTarget(texture: second, clearValue: Vector4.zero()),
+        ColorTarget(texture: first, clearValue: ClearColor.transparentBlack),
+        ColorTarget(texture: second, clearValue: ClearColor.transparentBlack),
       ],
     ),
   );

@@ -856,7 +856,8 @@ WebGpuTextureDimension webgpuViewDimension(TextureDimension dimension) =>
       TextureDimension.cube => WebGpuTextureDimension.cube,
       TextureDimension.cubeArray => WebGpuTextureDimension.cubeArray,
 
-      _ => throw UnsupportedError(
+      _ => throw webgpuRefusal(
+        'webgpuViewDimension',
         'WebGPU has no view dimension for $dimension',
       ),
     };
@@ -931,7 +932,10 @@ TextureHandle webgpuCreateTextureWithDescriptor(
         refuse('depthOrArrayLayers', layers, 'is past maxTextureArrayLayers');
       }
     default:
-      throw UnsupportedError('WebGPU cannot allocate a ${d.dimension} texture');
+      throw webgpuRefusal(
+        'createTexture',
+        'WebGPU cannot allocate a ${d.dimension} texture',
+      );
   }
   switch (d.dimension) {
     case TextureDimension.d2 when layers != 1:

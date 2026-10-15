@@ -46,15 +46,17 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
     for (final color in _descriptor.colors) {
       final texture = _attachment(color);
       if (color.loadAction != LoadAction.clear) continue;
-      final value = color.clearValue ?? Vector4.zero();
+      // Every kind as doubles: the texels here are floats whatever the
+      // format, and a double holds an integer clear exactly.
+      final value = (color.clearValue ?? ClearColor.transparentBlack).channels;
       // The whole attachment, whatever the scissor says. Here that is the
       // natural way to write it, which is the point of the rule being stated
       // rather than inherited from what one API happened to do.
       for (var i = 0; i < texture.pixels.length; i += 4) {
-        texture.pixels[i] = value.x;
-        texture.pixels[i + 1] = value.y;
-        texture.pixels[i + 2] = value.z;
-        texture.pixels[i + 3] = value.w;
+        texture.pixels[i] = value[0];
+        texture.pixels[i + 1] = value[1];
+        texture.pixels[i + 2] = value[2];
+        texture.pixels[i + 3] = value[3];
       }
     }
     final depth = _descriptor.depth;
@@ -168,7 +170,7 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
         layer: color.layer,
       );
 
-  ScreenRect? _viewport;
+  PassViewport? _viewport;
   ScreenRect? _scissor;
   PrimitiveType _primitive = PrimitiveType.triangle;
   CullMode _cull = CullMode.none;
@@ -218,14 +220,26 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
     return false;
   }
 
+  /// Any rectangle and any depth range: window positions are measured from
+  /// the viewport's corner in doubles, and clip depth is mapped onto the
+  /// range before it is tested — see [_Window].
   @override
-  void setViewport(ScreenRect rect) => _viewport = rect;
+  void setViewport(PassViewport viewport) {
+    viewport.checkFeatures(_features, backend: cpuBackendName);
+    _viewport = viewport;
+  }
 
   @override
   void setScissor(ScreenRect rect) => _scissor = rect;
 
+  /// All five, since 1.0.0-rc.1+2: strips through [_assembleStrip], with
+  /// restart on an all-ones index, and points through [_rasterisePoint].
+  /// It refused three of them from the draw with an untyped error before.
   @override
-  void setPrimitiveType(PrimitiveType type) => _primitive = type;
+  void setPrimitiveType(PrimitiveType type) {
+    type.checkFeatures(_features, backend: cpuBackendName);
+    _primitive = type;
+  }
 
   @override
   void setPolygonMode(PolygonMode mode) {
@@ -379,6 +393,7 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
 
   @override
   void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) {
+    type.checkFeatures(_features, backend: cpuBackendName);
     final backend = buffer.backend as ({ByteData bytes, GeometryUsage usage});
     _indices = _range(backend.bytes, buffer);
     _indexType = type;
@@ -387,6 +402,7 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
 
   @override
   void bindIndexData(ByteData bytes, IndexType type, int indexCount) {
+    type.checkFeatures(_features, backend: cpuBackendName);
     _indices = bytes;
     _indexType = type;
     _indexCount = indexCount;
@@ -933,19 +949,15 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
     final vertices = _vertices;
     if (pipeline == null || vertices == null) return;
     if (_descriptor.colors.isEmpty) return;
-    if (_primitive != PrimitiveType.triangle &&
-        _primitive != PrimitiveType.line) {
-      throw UnsupportedError(
-        'this backend rasterises triangles and lines. $_primitive would have '
-        'to be drawn as something else, and drawing a primitive as a '
-        'different one is how a picture comes back plausible and wrong.',
-      );
-    }
 
     final target = _attachment(_descriptor.colors.first);
-    final view =
-        _viewport ??
-        ScreenRect(x: 0, y: 0, width: target.width, height: target.height);
+    final view = _Window(
+      _viewport ??
+          PassViewport(
+            width: target.width.toDouble(),
+            height: target.height.toDouble(),
+          ),
+    );
 
     final layout = pipeline.layout;
     final fetch = layout == null
@@ -965,13 +977,25 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
     final varyings = _scratch.varyingsFor(varyingCount);
     final attributes = _scratch.attributesFor(stride);
 
-    final perPrimitive = _primitive == PrimitiveType.line ? 2 : 3;
-    final primitives = count ~/ perPrimitive;
+    final perPrimitive = switch (_primitive) {
+      PrimitiveType.line || PrimitiveType.lineStrip => 2,
+      PrimitiveType.point => 1,
+      _ => 3,
+    };
+    // A list reads its corners in runs straight off the binding, which is
+    // every draw the engine makes; a strip's overlap and restarts are worked
+    // out once into the corners they make, and read from there.
+    final strip = _primitive.isStrip
+        ? _assembleStrip(first, count, indexed: indexed, baseVertex: baseVertex)
+        : null;
+    final primitives = (strip?.length ?? count) ~/ perPrimitive;
 
     for (var t = 0; t < primitives; t++) {
       for (var corner = 0; corner < perPrimitive; corner++) {
         final at = first + t * perPrimitive + corner;
-        final vertex = indexed ? _indexAt(at) + baseVertex : at;
+        final vertex =
+            strip?[t * perPrimitive + corner] ??
+            (indexed ? _indexAt(at) + baseVertex : at);
         if (!fetch.into(attributes, vertex)) return;
         _statistics.add(PipelineStatistic.vertexShaderInvocations, 1);
         // A stage that wants its own index gets it — see
@@ -992,27 +1016,159 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
             : stage.run(attributes, bindings, varyings[corner]);
       }
       _statistics.add(PipelineStatistic.clipperInvocations, 1);
-      if (perPrimitive == 2) {
-        _rasteriseLine(
-          pipeline,
-          target,
-          view,
-          clip,
-          varyings,
-          varyingCount,
-          bindings,
-        );
-      } else {
-        _rasterise(
-          pipeline,
-          target,
-          view,
-          clip,
-          varyings,
-          varyingCount,
-          bindings,
-        );
+      switch (perPrimitive) {
+        case 1:
+          _rasterisePoint(
+            pipeline,
+            target,
+            view,
+            clip,
+            varyings,
+            varyingCount,
+            bindings,
+          );
+        case 2:
+          _rasteriseLine(
+            pipeline,
+            target,
+            view,
+            clip,
+            varyings,
+            varyingCount,
+            bindings,
+          );
+        default:
+          _rasterise(
+            pipeline,
+            target,
+            view,
+            clip,
+            varyings,
+            varyingCount,
+            bindings,
+          );
       }
+    }
+  }
+
+  /// The vertex each corner of each primitive of a strip reads, in order:
+  /// three per triangle for [PrimitiveType.triangleStrip], two per segment
+  /// for [PrimitiveType.lineStrip].
+  ///
+  /// **An all-ones index restarts the strip**, as the contract promises on
+  /// every backend that lists `primitiveStrips`: the run so far ends, and
+  /// the next index starts a new one, its first two vertices making no
+  /// triangle on their own. Every other triangle swaps its first two corners,
+  /// which is how every API keeps a strip facing one way.
+  List<int> _assembleStrip(
+    int first,
+    int count, {
+    required bool indexed,
+    required int baseVertex,
+  }) {
+    final triangles = _primitive == PrimitiveType.triangleStrip;
+    final restart = _indexType.restartIndex;
+    final corners = <int>[];
+    // The two vertices before the one being read, and how far into the run
+    // it is: the state a strip's assembly is, one index at a time.
+    var secondLast = 0;
+    var last = 0;
+    var inRun = 0;
+    for (var i = 0; i < count; i++) {
+      final raw = indexed ? _indexAt(first + i) : first + i;
+      if (indexed && raw == restart) {
+        inRun = 0;
+        continue;
+      }
+      final vertex = indexed ? raw + baseVertex : raw;
+      if (triangles && inRun >= 2) {
+        corners.addAll(
+          inRun.isEven
+              ? <int>[secondLast, last, vertex]
+              : <int>[last, secondLast, vertex],
+        );
+      } else if (!triangles && inRun >= 1) {
+        corners.addAll(<int>[last, vertex]);
+      }
+      secondLast = last;
+      last = vertex;
+      inRun++;
+    }
+    return corners;
+  }
+
+  /// One point, one pixel: the pixel its window position lands in.
+  ///
+  /// A point outside the clip volume is dropped whole, as every API clips a
+  /// point — it has no area to cut, so a point is in or out. Its depth is
+  /// tested and written as a line's is, with no bias: no API offsets a point
+  /// by a slope it does not have. The size is one pixel on every backend
+  /// that lists `pointPrimitives`, whatever a stage writes.
+  void _rasterisePoint(
+    CpuPipeline pipeline,
+    CpuTexture target,
+    _Window view,
+    List<Vector4> clip,
+    List<Float32List> varyings,
+    int varyingCount,
+    ShaderBindings bindings,
+  ) {
+    final c = clip[0];
+    if (c.w <= _nearEpsilon) return;
+    if (c.x.abs() > c.w || c.y.abs() > c.w) return;
+    final invW = 1.0 / c.w;
+    final z = _asStored(view.depthOf(c.z * invW));
+    if (!_depthClamp && (z < view.minDepth || z > view.maxDepth)) return;
+    _statistics.add(PipelineStatistic.clipperPrimitivesOut, 1);
+
+    final x =
+        ((c.x * invW * 0.5 + 0.5) * view.width + view.fractionX).floor() +
+        view.originX;
+    final y =
+        ((0.5 - c.y * invW * 0.5) * view.height + view.fractionY).floor() +
+        view.originY;
+    final clipRect = _clipRect(view, target);
+    if (x < clipRect.x ||
+        y < clipRect.y ||
+        x >= clipRect.x + clipRect.width ||
+        y >= clipRect.y + clipRect.height) {
+      return;
+    }
+
+    final stored = _depthClamp
+        ? _asStored(z.clamp(view.minDepth, view.maxDepth))
+        : z;
+    final depth = _depthTarget?.depthBuffer();
+    final stencil = _activeStencil;
+    final stencilState = _stencilFront;
+    final index = y * target.width + x;
+    final fate = _fateOf(stencil, stencilState, index, stored, depth);
+    final op = _operationFor(fate, stencilState);
+    if (fate != _fatePass && op == StencilOperation.keep) return;
+
+    final context = FragmentContext()
+      ..coord.setValues(x + 0.5, y + 0.5, stored, invW);
+    _statistics.add(PipelineStatistic.fragmentShaderInvocations, 1);
+    final color = pipeline.fragment.run(
+      Float32List.sublistView(varyings[0], 0, varyingCount),
+      bindings,
+      context,
+    );
+    if (color == null) return;
+    if (stencil != null) _stencilWrite(stencil, index, stencilState, op);
+    if (fate != _fatePass) return;
+    _samplesPassed++;
+
+    final at = index * 4;
+    final mask = _writeMasks[0];
+    if (mask != ColorWriteMask.all) _keep(target.pixels, at);
+    target.pixels[at] = color.x;
+    target.pixels[at + 1] = color.y;
+    target.pixels[at + 2] = color.z;
+    target.pixels[at + 3] = color.w;
+    if (mask != ColorWriteMask.all) _restore(target.pixels, at, mask);
+    if (depth != null && _depthWrite && !_depthReadOnly) {
+      depth[index] = context.fragDepth ?? stored;
     }
   }
 
@@ -1031,7 +1187,7 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
   void _rasteriseLine(
     CpuPipeline pipeline,
     CpuTexture target,
-    ScreenRect view,
+    _Window view,
     List<Vector4> clip,
     List<Float32List> varyings,
     int varyingCount,
@@ -1048,9 +1204,9 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
       invW[i] = 1.0 / clip[i].w;
       // From the viewport's corner, as the triangle path measures them, and
       // for its reason; the corner goes back on to the whole pixel below.
-      sx[i] = (clip[i].x * invW[i] * 0.5 + 0.5) * view.width;
-      sy[i] = (0.5 - clip[i].y * invW[i] * 0.5) * view.height;
-      sz[i] = clip[i].z * invW[i];
+      sx[i] = (clip[i].x * invW[i] * 0.5 + 0.5) * view.width + view.fractionX;
+      sy[i] = (0.5 - clip[i].y * invW[i] * 0.5) * view.height + view.fractionY;
+      sz[i] = view.depthOf(clip[i].z * invW[i]);
     }
 
     final dx = sx[1] - sx[0];
@@ -1084,8 +1240,8 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
 
     for (var step = 0; step <= steps; step++) {
       final t = step / steps;
-      final x = (sx[0] + dx * t).floor() + view.x;
-      final y = (sy[0] + dy * t).floor() + view.y;
+      final x = (sx[0] + dx * t).floor() + view.originX;
+      final y = (sy[0] + dy * t).floor() + view.originY;
       if (x < clipRect.x ||
           y < clipRect.y ||
           x >= clipRect.x + clipRect.width ||
@@ -1257,7 +1413,8 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
       StencilOperation.invert => ~stored,
       StencilOperation.incrementWrap => stored + 1,
       StencilOperation.decrementWrap => stored - 1,
-      _ => throw UnsupportedError(
+      _ => throw cpuRefusal(
+        '_stencilWrite',
         'the software rasteriser has no stencil operation $op',
       ),
     };
@@ -1309,12 +1466,12 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
 
   /// Where a primitive may write: the viewport, the scissor and the target,
   /// intersected. Empty (zero width or height) where they do not meet.
-  ScreenRect _clipRect(ScreenRect view, CpuTexture target) {
+  ScreenRect _clipRect(_Window view, CpuTexture target) {
     final scissor = _scissor;
-    var x0 = view.x < 0 ? 0 : view.x;
-    var y0 = view.y < 0 ? 0 : view.y;
-    var x1 = view.x + view.width;
-    var y1 = view.y + view.height;
+    var x0 = view.left < 0 ? 0 : view.left;
+    var y0 = view.top < 0 ? 0 : view.top;
+    var x1 = view.right;
+    var y1 = view.bottom;
     if (scissor != null) {
       if (scissor.x > x0) x0 = scissor.x;
       if (scissor.y > y0) y0 = scissor.y;
@@ -1352,7 +1509,7 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
   void _rasterise(
     CpuPipeline pipeline,
     CpuTexture target,
-    ScreenRect view,
+    _Window view,
     List<Vector4> clip,
     List<Float32List> varyings,
     int varyingCount,
@@ -1436,7 +1593,7 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
   void _rasteriseTriangle(
     CpuPipeline pipeline,
     CpuTexture target,
-    ScreenRect view,
+    _Window view,
     List<Vector4> clip,
     List<Float32List> varyings,
     int varyingCount,
@@ -1448,7 +1605,7 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
       invW[i] = 1.0 / clip[i].w;
       final ndcX = clip[i].x * invW[i];
       final ndcY = clip[i].y * invW[i];
-      sz[i] = clip[i].z * invW[i];
+      sz[i] = view.depthOf(clip[i].z * invW[i]);
       // NDC to the viewport, with +Y up in clip space and row zero at the top.
       //
       // **Measured from the viewport's own corner, not the target's.** The
@@ -1459,8 +1616,8 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
       // the same numbers the whole frame did, so a tile is that frame's
       // pixels byte for byte. Added here, the corner rounded each position a
       // different way in each tile.
-      sx[i] = (ndcX * 0.5 + 0.5) * view.width;
-      sy[i] = (0.5 - ndcY * 0.5) * view.height;
+      sx[i] = (ndcX * 0.5 + 0.5) * view.width + view.fractionX;
+      sy[i] = (0.5 - ndcY * 0.5) * view.height + view.fractionY;
     }
 
     var area =
@@ -1557,8 +1714,8 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
     final clipRect = _clipRect(view, target);
     // The box in target pixels: the viewport's corner goes back on here, as
     // whole numbers.
-    final originX = view.x;
-    final originY = view.y;
+    final originX = view.originX;
+    final originY = view.originY;
     var minX = sx.reduce((a, b) => a < b ? a : b).floor() + originX;
     var maxX = sx.reduce((a, b) => a > b ? a : b).ceil() + originX;
     var minY = sy.reduce((a, b) => a < b ? a : b).floor() + originY;
@@ -1670,14 +1827,17 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
         // instead — what a caster behind a light's near plane wants. The
         // clip at `w` above still stands: that one is about dividing by
         // nought, and no API's depth clamp lifts it.
-        if (!depthClamp && (interpolatedZ < 0.0 || interpolatedZ > 1.0)) {
+        if (!depthClamp &&
+            (interpolatedZ < view.minDepth || interpolatedZ > view.maxDepth)) {
           continue;
         }
         // The bias after the clip, as every API orders them, and the result
         // held to the depth range.
         final z = bias == 0.0 && !depthClamp
             ? interpolatedZ
-            : _asStored((interpolatedZ + bias).clamp(0.0, 1.0));
+            : _asStored(
+                (interpolatedZ + bias).clamp(view.minDepth, view.maxDepth),
+              );
         final index = y * target.width + x;
         final fate = _fateOf(stencil, stencilState, index, z, depth);
         final op = _operationFor(fate, stencilState);
@@ -1895,7 +2055,8 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
     BlendOperation.reverseSubtract => d - s,
     BlendOperation.min => math.min(rawS, rawD),
     BlendOperation.max => math.max(rawS, rawD),
-    _ => throw UnsupportedError(
+    _ => throw cpuRefusal(
+      '_combine',
       'the software rasteriser has no blend operation $op',
     ),
   };
@@ -1937,7 +2098,8 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
     BlendFactor.oneMinusSource1Color => 1.0 - s1,
     BlendFactor.source1Alpha => s1a,
     BlendFactor.oneMinusSource1Alpha => 1.0 - s1a,
-    _ => throw UnsupportedError(
+    _ => throw cpuRefusal(
+      '_factor',
       'the software rasteriser has no blend factor $factor',
     ),
   };
@@ -2000,3 +2162,67 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
 
 /// How a target keeps what is written to it.
 enum _Storage { float, unorm8, unorm8Srgb }
+
+/// A [PassViewport] as the rasteriser measures it — since 1.0.0-rc.1+2.
+///
+/// **Its corner split in two**: the whole pixel window positions are counted
+/// from ([originX], [originY]), which is added to a pixel's index where the
+/// addition is exact, and the fraction a fractional corner moves them by
+/// ([fractionX], [fractionY]), which is added to the positions themselves.
+/// A viewport on whole pixels has no fraction, and adding nought moves no
+/// bit, so every such pass draws what it drew when the viewport was a
+/// `ScreenRect`.
+final class _Window {
+  _Window(PassViewport viewport)
+    : originX = viewport.x.floor(),
+      originY = viewport.y.floor(),
+      fractionX = viewport.x - viewport.x.floor(),
+      fractionY = viewport.y - viewport.y.floor(),
+      width = viewport.width,
+      height = viewport.height,
+      minDepth = viewport.minDepth,
+      maxDepth = viewport.maxDepth,
+      // The pixels whose centres lie inside the rectangle: from the first
+      // centre at or right of the left edge to the last left of the right.
+      left = (viewport.x - 0.5).ceil(),
+      top = (viewport.y - 0.5).ceil(),
+      right = (viewport.x + viewport.width - 0.5).ceil(),
+      bottom = (viewport.y + viewport.height - 0.5).ceil(),
+      _fullDepth = viewport.coversFullDepth;
+
+  /// The whole-pixel corner window positions are counted from, in target
+  /// pixels.
+  final int originX;
+  final int originY;
+
+  /// What the corner's fraction moves every window position by, in pixels.
+  final double fractionX;
+
+  /// The same for rows, in pixels.
+  final double fractionY;
+
+  /// The viewport's size, in pixels.
+  final double width;
+
+  /// The viewport's height, in pixels.
+  final double height;
+
+  /// The window depth range: depths from 0 to 1, unitless.
+  final double minDepth;
+
+  /// The far end of the window depth range: a depth from 0 to 1, unitless.
+  final double maxDepth;
+
+  /// The first column and row inside, and the first past, in target pixels.
+  final int left;
+  final int top;
+  final int right;
+  final int bottom;
+
+  final bool _fullDepth;
+
+  /// Clip depth [z] as window depth: mapped onto [minDepth]..[maxDepth], and
+  /// left exactly as it is for the whole range.
+  double depthOf(double z) =>
+      _fullDepth ? z : minDepth + z * (maxDepth - minDepth);
+}

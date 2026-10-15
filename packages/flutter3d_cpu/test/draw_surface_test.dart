@@ -189,7 +189,7 @@ void main() {
       (BlendOperation.min, 0.2, 0.5),
     ]) {
       final rig = Rig(color: Vector4(0.2, 0.9, 0, 1));
-      rig.pass(clear: Vector4(0.5, 0.5, 0.5, 0.5))
+      rig.pass(clear: ClearColor(0.5, 0.5, 0.5, 0.5))
         ..setBlend(BlendState(colorOperation: op, alphaOperation: op))
         ..bindVertexData(fullScreen(), 3)
         ..draw()
@@ -206,7 +206,7 @@ void main() {
       color: Vector4(0.1, 0.1, 0.1, 1),
       second: Vector4(0.25, 0.25, 0.25, 0.5),
     );
-    rig.pass(clear: Vector4(1, 1, 1, 1))
+    rig.pass(clear: ClearColor(1, 1, 1, 1))
       ..setBlend(
         const BlendState(destinationColorFactor: BlendFactor.source1Color),
       )
@@ -291,7 +291,7 @@ void main() {
       ),
     );
     expect(
-      () => recorder.setViewport(const ScreenRect(width: 1, height: 1)),
+      () => recorder.setViewport(const PassViewport(width: 1, height: 1)),
       throwsStateError,
     );
     recorder

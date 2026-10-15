@@ -14,7 +14,7 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:web/web.dart' as web;
 
-import 'webgl_types.dart' show webglBackendName;
+import 'webgl_types.dart' show webglBackendName, webglRefusal;
 
 /// The comparison function, as `gl.depthFunc` wants it.
 int compareFunctionToGl(CompareFunction f) => switch (f) {
@@ -38,7 +38,10 @@ int stencilOperationToGl(StencilOperation op) => switch (op) {
   StencilOperation.invert => web.WebGLRenderingContext.INVERT,
   StencilOperation.incrementWrap => web.WebGLRenderingContext.INCR_WRAP,
   StencilOperation.decrementWrap => web.WebGLRenderingContext.DECR_WRAP,
-  _ => throw UnsupportedError('WebGL2 has no stencil operation for $op'),
+  _ => throw webglRefusal(
+    'stencilOperationToGl',
+    'WebGL2 has no stencil operation for $op',
+  ),
 };
 
 /// Which faces the rasteriser discards.
@@ -49,7 +52,7 @@ int? cullModeToGl(CullMode mode) => switch (mode) {
   CullMode.none => null,
   CullMode.frontFace => web.WebGLRenderingContext.FRONT,
   CullMode.backFace => web.WebGLRenderingContext.BACK,
-  _ => throw UnsupportedError('WebGL2 has no cull face for $mode'),
+  _ => throw webglRefusal('cullModeToGl', 'WebGL2 has no cull face for $mode'),
 };
 
 int windingOrderToGl(WindingOrder order) => switch (order) {
@@ -63,7 +66,10 @@ int primitiveTypeToGl(PrimitiveType type) => switch (type) {
   PrimitiveType.line => web.WebGLRenderingContext.LINES,
   PrimitiveType.lineStrip => web.WebGLRenderingContext.LINE_STRIP,
   PrimitiveType.point => web.WebGLRenderingContext.POINTS,
-  _ => throw UnsupportedError('WebGL2 has no primitive for $type'),
+  _ => throw webglRefusal(
+    'primitiveTypeToGl',
+    'WebGL2 has no primitive for $type',
+  ),
 };
 
 int blendFactorToGl(BlendFactor factor) => switch (factor) {
@@ -97,7 +103,10 @@ int blendFactorToGl(BlendFactor factor) => switch (factor) {
   BlendFactor.oneMinusSource1Color => 0x88FA, // ONE_MINUS_SRC1_COLOR_WEBGL
   BlendFactor.source1Alpha => 0x8589, // SRC1_ALPHA_WEBGL
   BlendFactor.oneMinusSource1Alpha => 0x88FB, // ONE_MINUS_SRC1_ALPHA_WEBGL,
-  _ => throw UnsupportedError('WebGL2 has no blend factor for $factor'),
+  _ => throw webglRefusal(
+    'blendFactorToGl',
+    'WebGL2 has no blend factor for $factor',
+  ),
 };
 
 /// Min and max are WebGL2 core (`EXT_blend_minmax` in WebGL1), so every
@@ -109,20 +118,26 @@ int blendOperationToGl(BlendOperation op) => switch (op) {
     web.WebGLRenderingContext.FUNC_REVERSE_SUBTRACT,
   BlendOperation.min => web.WebGL2RenderingContext.MIN,
   BlendOperation.max => web.WebGL2RenderingContext.MAX,
-  _ => throw UnsupportedError('WebGL2 has no blend equation for $op'),
+  _ => throw webglRefusal(
+    'blendOperationToGl',
+    'WebGL2 has no blend equation for $op',
+  ),
 };
 
 int indexTypeToGl(IndexType type) => switch (type) {
   IndexType.int16 => web.WebGLRenderingContext.UNSIGNED_SHORT,
   IndexType.int32 => web.WebGLRenderingContext.UNSIGNED_INT,
-  _ => throw UnsupportedError('WebGL2 has no index type for $type'),
+  _ => throw webglRefusal(
+    'indexTypeToGl',
+    'WebGL2 has no index type for $type',
+  ),
 };
 
 /// Bytes per index, for turning a count into a buffer length.
 int indexSizeInBytes(IndexType type) => switch (type) {
   IndexType.int16 => 2,
   IndexType.int32 => 4,
-  _ => throw UnsupportedError('no index size for $type'),
+  _ => throw webglRefusal('indexSizeInBytes', 'no index size for $type'),
 };
 
 /// How the host's bytes for [format] are handed to `texSubImage2D`: the
@@ -351,19 +366,26 @@ int textureFormatToGl(TextureFormat format) => switch (format) {
   TextureFormat.astc8x8LDR ||
   TextureFormat.astc8x8LDRSRGB ||
   TextureFormat.astc4x4HDR ||
-  TextureFormat.astc8x8HDR => throw UnsupportedError(
+  TextureFormat.astc8x8HDR => throw webglRefusal(
+    'createTexture',
     'WebGL2 has no sized internal format for TextureFormat.${format.name}. '
-    'If the engine needs it, the HAL needs a capability query rather than '
-    'this backend needs a substitute.',
+        'If the engine needs it, the HAL needs a capability query rather than '
+        'this backend needs a substitute.',
   ),
-  _ => throw UnsupportedError('WebGL2 has no internal format for $format'),
+  _ => throw webglRefusal(
+    'textureFormatToGl',
+    'WebGL2 has no internal format for $format',
+  ),
 };
 
 /// The filter, as `gl.texParameteri` wants it.
 int minMagFilterToGl(MinMagFilter filter) => switch (filter) {
   MinMagFilter.nearest => web.WebGLRenderingContext.NEAREST,
   MinMagFilter.linear => web.WebGLRenderingContext.LINEAR,
-  _ => throw UnsupportedError('WebGL2 has no filter for $filter'),
+  _ => throw webglRefusal(
+    'minMagFilterToGl',
+    'WebGL2 has no filter for $filter',
+  ),
 };
 
 /// The minification filter, with the mip filter folded in the way GL wants.
@@ -398,7 +420,8 @@ int minFilterToGl(MinMagFilter filter, MipFilter mip) =>
       (MinMagFilter.linear, MipFilter.linear) =>
         web.WebGLRenderingContext.LINEAR_MIPMAP_LINEAR,
       (final MinMagFilter plain, MipFilter.nearest) => minMagFilterToGl(plain),
-      _ => throw UnsupportedError(
+      _ => throw webglRefusal(
+        'minFilterToGl',
         'WebGL2 has no minification filter for ${(filter, mip)}',
       ),
     };
@@ -413,7 +436,10 @@ int addressModeToGl(SamplerAddressMode mode) => switch (mode) {
     backend: webglBackendName,
     reason: 'WebGL2 has no CLAMP_TO_BORDER',
   ),
-  _ => throw UnsupportedError('WebGL2 has no wrap mode for $mode'),
+  _ => throw webglRefusal(
+    'addressModeToGl',
+    'WebGL2 has no wrap mode for $mode',
+  ),
 };
 
 /// Whether WebGL2 can draw this polygon mode at all.
@@ -541,7 +567,7 @@ TextureFormatSupport webglTextureFormatSupport(
     try {
       compressedTextureFormatToGl(format, caps.compressed);
       return const TextureFormatSupport(sampled: true, filterable: true);
-    } on UnsupportedError {
+    } on DeviceResourceException {
       return TextureFormatSupport.none;
     }
   }
@@ -638,9 +664,10 @@ int compressedTextureFormatToGl(
 ) {
   int need(bool has, String extension, int glEnum) {
     if (!has) {
-      throw UnsupportedError(
+      throw webglRefusal(
+        'createTexture',
         'TextureFormat.${format.name} needs the WebGL2 extension '
-        '"$extension", which this context does not have.',
+            '"$extension", which this context does not have.',
       );
     }
     return glEnum;
@@ -732,8 +759,8 @@ int compressedTextureFormatToGl(
     ),
     // WebGL has no ASTC HDR extension — `WEBGL_compressed_texture_astc` is
     // LDR-only, and nothing else exposes the profile.
-    TextureFormat.astc4x4HDR ||
-    TextureFormat.astc8x8HDR => throw UnsupportedError(
+    TextureFormat.astc4x4HDR || TextureFormat.astc8x8HDR => throw webglRefusal(
+      'createTexture',
       'TextureFormat.${format.name}: WebGL2 has no ASTC HDR extension.',
     ),
     _ => throw ArgumentError(

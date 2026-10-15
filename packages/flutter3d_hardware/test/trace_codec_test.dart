@@ -13,12 +13,20 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/trace.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 ByteData _bytes(List<int> values) =>
     ByteData.sublistView(Uint8List.fromList(values));
 
 const ScreenRect _rect = ScreenRect(x: 1, y: 2, width: 30, height: 40);
+const PassViewport _viewport = PassViewport(x: 1, y: 2, width: 30, height: 40);
+const PassViewport _depthViewport = PassViewport(
+  x: 0.5,
+  y: 2,
+  width: 30.25,
+  height: 40,
+  minDepth: 0.25,
+  maxDepth: 0.75,
+);
 const TraceGeometryRange _range = (buffer: 0, offset: 16, length: 48);
 
 /// One of every event, with every optional field filled, so nothing a
@@ -106,10 +114,19 @@ List<TraceEvent> _everyEvent() => <TraceEvent>[
         resolveTexture: 2,
         loadAction: LoadAction.load,
         storeAction: StoreAction.multisampleResolve,
-        clearValue: Vector4(0.1, 0.2, 0.3, 1.0),
+        clearValue: const ClearColor(0.1, 0.2, 0.3, 1.0),
         face: 2,
         mipLevel: 1,
         layer: 3,
+      ),
+      // An id buffer clears past 2^24 exactly, which a float32 could not.
+      const TraceColorTarget(
+        texture: 3,
+        clearValue: ClearColor.uint(4294967295, 16777217, 0, 1),
+      ),
+      const TraceColorTarget(
+        texture: 4,
+        clearValue: ClearColor.sint(-2147483648, -1, 0, 1),
       ),
     ],
     depth: const TraceDepthTarget(
@@ -127,7 +144,8 @@ List<TraceEvent> _everyEvent() => <TraceEvent>[
       stencilReadOnly: true,
     ),
   ),
-  const TraceSetViewport(0, _rect),
+  const TraceSetViewport(0, _viewport),
+  const TraceSetViewport(0, _depthViewport),
   const TraceSetScissor(0, _rect),
   const TraceSetPrimitiveType(0, PrimitiveType.lineStrip),
   const TraceSetPolygonMode(0, PolygonMode.line),

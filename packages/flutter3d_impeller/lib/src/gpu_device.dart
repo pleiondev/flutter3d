@@ -19,6 +19,7 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
 import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
+import 'package:vector_math/vector_math.dart' as vm show Vector4;
 
 import 'gpu_buffer.dart';
 import 'gpu_capabilities.dart';
@@ -29,6 +30,7 @@ import 'gpu_frame.dart';
 import 'gpu_loaded_shaders.dart';
 import 'gpu_pipeline.dart';
 import 'gpu_readback.dart';
+import 'gpu_refusal.dart' show impellerRefusal;
 import 'gpu_shader_library.dart';
 import 'gpu_texture.dart';
 import 'gpu_transfer_encoder.dart';
@@ -680,15 +682,17 @@ final class GpuRenderBackend extends GraphicsDevice {
     int mipLevel = 0,
   }) async {
     if (!readbackFormats.contains(target.format)) {
-      throw UnsupportedError(
+      throw impellerRefusal(
+        'overwriteTexture',
         'overwriteTexture: TextureFormat.${target.format.name} is not one '
-        'of readbackFormats — the two this call, like readback, insists on.',
+            'of readbackFormats — the two this call, like readback, insists on.',
       );
     }
     if (mipLevel != 0) {
-      throw UnsupportedError(
+      throw impellerRefusal(
+        'overwriteTexture',
         'overwriteTexture: mip level $mipLevel is refused; only the base '
-        'level (0) may be overwritten.',
+            'level (0) may be overwritten.',
       );
     }
     final rect =
@@ -1135,7 +1139,8 @@ final class GpuRenderBackend extends GraphicsDevice {
       TextureDimension.d2Array => DeviceFeature.textureArrays,
       TextureDimension.d3 => DeviceFeature.texture3D,
       TextureDimension.cubeArray => DeviceFeature.cubeArrayTextures,
-      _ => throw UnsupportedError(
+      _ => throw impellerRefusal(
+        'createTexture',
         'flutter_gpu cannot allocate a ${descriptor.dimension} texture',
       ),
     };
@@ -1522,6 +1527,13 @@ final class GpuRenderBackend extends GraphicsDevice {
     reason: 'flutter_gpu has no render bundles',
   );
 
+  /// [clear] as the four floats flutter_gpu clears with.
+  static vm.Vector4? _clearOf(ClearColor? clear) {
+    if (clear == null) return null;
+    final channels = clear.channels;
+    return vm.Vector4(channels[0], channels[1], channels[2], channels[3]);
+  }
+
   static gpu.RenderTarget _toRenderTarget(RenderPassDescriptor descriptor) =>
       gpu.RenderTarget(
         colorAttachments: <gpu.ColorAttachment>[
@@ -1531,7 +1543,10 @@ final class GpuRenderBackend extends GraphicsDevice {
               resolveTexture: color.resolveTexture?.gpuTexture,
               loadAction: color.loadAction.toGpu(),
               storeAction: color.storeAction.toGpu(),
-              clearValue: color.clearValue,
+              // flutter_gpu's clear is four float32s for every kind of
+              // target, so an integer clear past 2^24 is as exact here as
+              // the API allows and no more.
+              clearValue: _clearOf(color.clearValue),
               // A cube face is a slice here, in the same +X, −X, +Y, −Y, +Z,
               // −Z order `overwrite` takes one in. flutter_gpu validates both
               // against the texture and throws with the range, which is the

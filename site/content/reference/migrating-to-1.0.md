@@ -5,7 +5,7 @@ description: Move a project written against flutter3d 0.8 to 1.0.0-rc.1, with on
 # Migrating from 0.8 to 1.0
 
 1.0 is the release the engine promises to keep: from it on, a break comes
-only in a major version. To get there, and on to this release, the API changed in 2346 places,
+only in a major version. To get there, and on to this release, the API changed in 2358 places,
 314 of them left to you; 380 are backend internals no application called.
 The rest a program carries out for you, and three
 tools share the work. All three read the same tables,
@@ -225,7 +225,7 @@ carried out:
 
 <!-- migration-table:start -->
 
-*Generated from `flutter3d_build/lib/migrations/` — 251 entries from 1.0.0-rc.1 to 1.0.0-rc.1+1, 11 by hand: 23 `dart fix`, 150 `migrate`, 11 by hand, 67 nothing to do.*
+*Generated from `flutter3d_build/lib/migrations/` — 263 entries from 1.0.0-rc.1 to 1.0.0-rc.1+1, 13 by hand: 23 `dart fix`, 158 `migrate`, 13 by hand, 69 nothing to do.*
 
 ### `flame_flutter3d`
 
@@ -433,9 +433,12 @@ carried out:
 
 ### `flutter3d_hardware`
 
+- <a id="hardware-BackendOpener"></a>**`BackendOpener`** (by hand). An opener takes one `DeviceRequest`. A closure written `({required int width, required int height}) => MyDevice.open(width: width, height: height)` is `(DeviceRequest request) => MyDevice.open(width: request.width, height: request.height)`, and a call `open(width: w, height: h)` of an opener is `open(DeviceRequest(width: w, height: h))`. A device's own static `open` keeps its named size.
+- <a id="hardware-ColorTarget-clearValue"></a>**`ColorTarget.clearValue`** (`migrate`). `clearValue: Vector4(x, y, z, w)` of `ColorTarget.clearValue` is `clearValue: ClearColor(x, y, z, w)`. The clear colour is an immutable `ClearColor`, and it holds every integer exactly: `clearValue: Vector4(r, g, b, a)` is `clearValue: ClearColor(r, g, b, a)`, `Vector4.zero()` is `ClearColor.transparentBlack`, and an integer target takes `ClearColor.uint` or `ClearColor.sint`. `channels` reads the four back as doubles.
 - <a id="hardware-ComputeExecutor"></a>**`ComputeExecutor`** (`dart fix`). `ComputeExecutor` is imported from `package:flutter3d_hardware/flutter3d_hardware.dart`. The facades no longer re-export it: a step is told a `ComputeSite` now, whose `device` is what an executor's was.
 - <a id="hardware-ComputeExecutors"></a>**`ComputeExecutors`** (`dart fix`). `ComputeExecutors` is imported from `package:flutter3d_hardware/flutter3d_hardware.dart`. The facades no longer re-export it: it is the hardware layer's and the backends' own. A backend imports it from `flutter3d_hardware`; anything else asks `FrameCompute` and is told a `ComputeSite`.
 - <a id="hardware-ComputeExecutors-place"></a>**`ComputeExecutors.place`** (`dart fix`). The rule places a step on the first device of the frame's that runs it, and nothing asks it for another. A test that wanted a particular device configures the devices or the registry it builds.
+- <a id="hardware-ComputeOpener"></a>**`ComputeOpener`** (by hand). A compute opener takes one `DeviceRequest` too: `() async => device` is `(DeviceRequest _) async => device`, and a call `open()` is `open(const DeviceRequest.compute())`.
 - <a id="hardware-ComputePlacement"></a>**`ComputePlacement`** (`dart fix`). `ComputePlacement` is imported from `package:flutter3d_hardware/flutter3d_hardware.dart`. The facades no longer re-export it: a placement is named only by the hardware layer and the backends that add compute devices.
 - <a id="hardware-ComputePlacementException-new"></a>**`ComputePlacementException.ComputePlacementException`** (`dart fix`). A step no longer demands a placement, so a refusal has no demand to carry.
 - <a id="hardware-ComputePlacementException-demand"></a>**`ComputePlacementException.demand`** (`migrate`). `ComputePlacementException.demand` becomes `null`. Nothing demands a placement any more, so there is none to read: the refusal says why nothing ran (`reason`, `tried`), never where it was asked to.
@@ -443,6 +446,15 @@ carried out:
 - <a id="hardware-FakeBackend-overwrites-record"></a>**`FakeBackend.overwrites`** (`migrate`). `FakeBackend` is a class: `.backend` is `.backend`, `.offsetInBytes` is `.offsetInBytes`, `.lengthInBytes` is `.lengthInBytes`; a destructuring pattern is yours to rewrite. `overwrites` lists `FakeGeometryOverwrite`s with the same three fields, where it listed records; field reads keep compiling.
 - <a id="hardware-FakeBackend-overwrittenTextures-record"></a>**`FakeBackend.overwrittenTextures`** (`migrate`). `FakeBackend` is a class: `.format` is `.format`, `.region` is `.region`, `.mipLevel` is `.mipLevel`; a destructuring pattern is yours to rewrite. `overwrittenTextures` lists `FakeTextureOverwrite`s with the same three fields, where it listed records; field reads keep compiling.
 - <a id="hardware-FakeBackend-readbacks-record"></a>**`FakeBackend.readbacks`** (`migrate`). `FakeBackend` is a class: `.texture` is `.texture`, `.region` is `.region`; a destructuring pattern is yours to rewrite. `readbacks` lists `FakeReadback`s with `texture` and `region`, where it listed records; field reads keep compiling.
+- <a id="hardware-FakePass-setViewport"></a>**`FakePass.setViewport`** (`migrate`). `FakePass.setViewport` becomes `x.setViewport(PassViewport.ofRect({0}))`. The fake pass takes a `PassViewport`, as every pass does.
+- <a id="hardware-PassEncoder-setViewport"></a>**`PassEncoder.setViewport`** (`migrate`). `PassEncoder.setViewport` becomes `x.setViewport(PassViewport.ofRect({0}))`. The viewport is a `PassViewport`, a rectangle in doubles with a depth range: `setViewport(rect)` is `setViewport(PassViewport.ofRect(rect))`. A backend's override takes a `PassViewport` and calls `viewport.checkFeatures` on the way in; a rectangle off whole pixels needs `DeviceFeature.fractionalViewport`.
+- <a id="hardware-PassState-copyWith"></a>**`PassState.copyWith`** (`migrate`). `viewport: ScreenRect(x)` of `PassState.copyWith` is `viewport: PassViewport.ofRect(ScreenRect(x))`. `copyWith(viewport: rect)` is `copyWith(viewport: PassViewport.ofRect(rect))`; the four setters `PassState` carries now (`colorWriteMask`, `depthBias`, `depthClamp`, `alphaToCoverage`) are new named parameters, left out as before.
+- <a id="hardware-PassState-viewport"></a>**`PassState.viewport`** (`migrate`). `viewport: ScreenRect(x)` of `PassState.viewport` is `viewport: PassViewport.ofRect(ScreenRect(x))`. `PassState(viewport: rect)` is `PassState(viewport: PassViewport.ofRect(rect))`; a read of `state.viewport` is a `PassViewport`, whose `rect` is the whole pixels.
+- <a id="hardware-RecordedViewport-new"></a>**`RecordedViewport.RecordedViewport`** (nothing to do). A fake pass records it; a test reads it. `rect` still answers the rectangle in whole pixels, and `viewport` the `PassViewport` set.
+- <a id="hardware-RecordedViewport-rect"></a>**`RecordedViewport.rect`** (nothing to do). A getter where it was a field, answering the same `ScreenRect`.
+- <a id="hardware-TraceColorTarget-clearValue"></a>**`TraceColorTarget.clearValue`** (`migrate`). `clearValue: Vector4(x, y, z, w)` of `TraceColorTarget.clearValue` is `clearValue: ClearColor(x, y, z, w)`. A traced attachment's clear is a `ClearColor`, as `ColorTarget`'s is.
+- <a id="hardware-TraceSetViewport-new"></a>**`TraceSetViewport.TraceSetViewport`** (`migrate`). `TraceSetViewport.TraceSetViewport` becomes `TraceSetViewport({0}, PassViewport.ofRect({1}))`. A traced viewport is a `PassViewport`; a trace written before it reads as one over the same pixels.
+- <a id="hardware-TraceSetViewport-rect"></a>**`TraceSetViewport.rect`** (`migrate`). `TraceSetViewport.rect` becomes `x.viewport.rect`. The event carries the `PassViewport` as `viewport`; its `rect` is the whole pixels the field held.
 - <a id="hardware-cappedImageSize-record"></a>**`cappedImageSize`** (`migrate`). `cappedImageSize` is a class: `.width` is `.width`, `.height` is `.height`; a destructuring pattern is yours to rewrite. `cappedImageSize` answers an `ImageExtent` with `width` and `height`, where it answered a record; field reads keep compiling, and a comparison against `(width: w, height: h)` becomes one against `ImageExtent(width: w, height: h)`.
 - <a id="hardware-encodedImageSize-record"></a>**`encodedImageSize`** (`migrate`). `encodedImageSize` is a class: `.width` is `.width`, `.height` is `.height`; a destructuring pattern is yours to rewrite. `encodedImageSize` answers an `ImageExtent` (or null) with `width` and `height`, where it answered a record; field reads keep compiling.
 - <a id="hardware-indexWindow-record"></a>**`indexWindow`** (`migrate`). `indexWindow` is a class: `.first` is `.first`, `.count` is `.count`; a destructuring pattern is yours to rewrite. `indexWindow` answers an `IndexWindow` with `first` and `count`, where it answered a record; field reads keep compiling, and a list typed `List<({int first, int count})>` becomes `List<IndexWindow>`.

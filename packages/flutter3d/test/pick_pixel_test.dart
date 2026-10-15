@@ -141,7 +141,7 @@ void main() {
 
     final pass = idPasses().single;
     expect(pass.submitted, isTrue);
-    expect(pass.color.clearValue?.storage, <double>[
+    expect(pass.color.clearValue?.channels, <double>[
       0.0,
       0.0,
       0.0,

@@ -18,7 +18,6 @@ import 'package:flutter3d_webgl/engine_shaders.dart';
 import 'package:flutter3d_webgl/flutter3d_webgl.dart';
 import 'package:flutter3d_webgl/src/webgl_shaders.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 const String _vertex = '''#version 300 es
 layout(location = 0) in vec3 position;
@@ -109,7 +108,7 @@ void main() {
     ColorTarget cleared(TextureHandle texture) => ColorTarget(
       texture: texture,
       loadAction: LoadAction.clear,
-      clearValue: Vector4(0.25, 0.25, 0.25, 1.0),
+      clearValue: ClearColor(0.25, 0.25, 0.25, 1.0),
     );
     void drawWith(CommandEncoder pass, PipelineHandle pipeline) => pass
       ..bindPipeline(pipeline)

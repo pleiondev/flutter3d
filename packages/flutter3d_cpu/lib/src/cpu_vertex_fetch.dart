@@ -10,6 +10,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
+import 'cpu_resources.dart' show cpuBackendName;
+
 abstract final class VertexFetch {
   /// How many floats one vertex amounts to.
   int get floatsPerVertex;
@@ -105,9 +107,12 @@ final class LayoutFetch implements VertexFetch {
         ),
       );
       if (buffer.strideInBytes % 4 != 0) {
-        throw UnsupportedError(
-          'slot $slot has a stride of ${buffer.strideInBytes} bytes. This '
-          'backend reads floats, so a stride has to be a multiple of four.',
+        throw DeviceResourceException(
+          operation: 'draw',
+          backend: cpuBackendName,
+          reason:
+              'slot $slot has a stride of ${buffer.strideInBytes} bytes. This '
+              'backend reads floats, so a stride has to be a multiple of four',
         );
       }
       strides.add(buffer.strideInBytes ~/ 4);

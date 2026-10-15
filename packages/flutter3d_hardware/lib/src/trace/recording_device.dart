@@ -56,6 +56,9 @@ final class RecordingDevice extends GraphicsDevice
   @override
   bool get isLost => inner.isLost;
 
+  @override
+  Stream<DeviceError> get errors => inner.errors;
+
   /// The inner device's: its encoders are the ones that report, and a
   /// renderer drawing through this recorder takes the reports from here.
   @override
@@ -448,7 +451,7 @@ final class RecordingDevice extends GraphicsDevice
                   : _texture(c.resolveTexture!),
               loadAction: c.loadAction,
               storeAction: c.storeAction,
-              clearValue: c.clearValue?.clone(),
+              clearValue: c.clearValue,
               face: c.face,
               mipLevel: c.mipLevel,
               layer: c.layer,
@@ -765,9 +768,9 @@ final class _RecordingEncoder extends PassEncoder with CommandEncoder {
   List<TraceEvent> get _events => _device.events;
 
   @override
-  void setViewport(ScreenRect rect) {
-    _events.add(TraceSetViewport(_pass, rect));
-    _inner.setViewport(rect);
+  void setViewport(PassViewport viewport) {
+    _events.add(TraceSetViewport(_pass, viewport));
+    _inner.setViewport(viewport);
   }
 
   @override
@@ -1033,6 +1036,24 @@ final class _RecordingEncoder extends PassEncoder with CommandEncoder {
   bool bindUniformBytes(ShaderHandle shader, String blockName, ByteData bytes) {
     _unrecorded('bindUniformBytes');
     return _inner.bindUniformBytes(shader, blockName, bytes);
+  }
+
+  @override
+  bool bindUniformBuffer(
+    ShaderHandle stage,
+    String blockName,
+    StorageBuffer buffer,
+    int offsetInBytes,
+    int sizeInBytes,
+  ) {
+    _unrecorded('bindUniformBuffer');
+    return _inner.bindUniformBuffer(
+      stage,
+      blockName,
+      buffer,
+      offsetInBytes,
+      sizeInBytes,
+    );
   }
 
   @override

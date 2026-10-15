@@ -99,7 +99,7 @@ dev_dependencies:
 
   # A device that records rather than draws, to see what a component gave
   # back when it went.
-  flutter3d_hardware: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_hardware: ^1.0.0-rc.1
 
   # A runner that climbs, for the character body's own test.
   flutter3d_game_platformer: '>=1.0.0-rc.1 <1.1.0'

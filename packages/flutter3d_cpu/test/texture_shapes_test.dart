@@ -60,7 +60,7 @@ void main() {
               ColorTarget(
                 texture: array,
                 layer: 2,
-                clearValue: Vector4(0, 0, 1, 1),
+                clearValue: ClearColor(0, 0, 1, 1),
               ),
             ],
           ),

@@ -42,7 +42,7 @@ Future<void> checkInstancedDraw(GraphicsDevice device) async {
           ColorTarget(
             texture: target,
             loadAction: LoadAction.clear,
-            clearValue: Vector4.zero(),
+            clearValue: ClearColor.transparentBlack,
           ),
         ],
       ),
@@ -148,7 +148,7 @@ Future<void> checkIndexWindowDraw(GraphicsDevice device) async {
           ColorTarget(
             texture: target,
             loadAction: LoadAction.clear,
-            clearValue: Vector4.zero(),
+            clearValue: ClearColor.transparentBlack,
           ),
         ],
       ),
@@ -216,7 +216,7 @@ Future<void> checkIndexWindowDraw(GraphicsDevice device) async {
         ColorTarget(
           texture: target,
           loadAction: LoadAction.clear,
-          clearValue: Vector4.zero(),
+          clearValue: ClearColor.transparentBlack,
         ),
       ],
     ),
@@ -312,7 +312,7 @@ Future<void> checkGeometryUsage(GraphicsDevice device) async {
         ColorTarget(
           texture: target,
           loadAction: LoadAction.clear,
-          clearValue: Vector4.zero(),
+          clearValue: ClearColor.transparentBlack,
         ),
       ],
     ),
@@ -485,7 +485,7 @@ Future<void> checkCubeFaces(GraphicsDevice device) async {
             loadAction: LoadAction.clear,
             // Grey, so a draw that never happened is told apart from a face
             // whose colour is black in some channel.
-            clearValue: Vector4(0.5, 0.5, 0.5, 1.0),
+            clearValue: ClearColor(0.5, 0.5, 0.5, 1.0),
           ),
         ],
       ),

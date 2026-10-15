@@ -24,6 +24,15 @@ import 'null_texels.dart';
 /// Opened as every backend is, with [open], so `DeviceRegistry.addBackend`,
 /// `flutter3d_testing`'s `renderFrame(device:)` and the conformance suite
 /// take it as they take the four in the engine's repository.
+///
+/// **A member of a backend's own is best private, or named for the
+/// backend.** A 1.x minor adds members with bodies to [GraphicsDevice] and
+/// [PassEncoder], and a public member here that a later minor names too
+/// either stops compiling against it or, with the same signature, silently
+/// replaces the new default. [texelsOf] and [isDisposed] are public for this
+/// package's tests, and are the two names this device would have to change
+/// if a minor took them. That risk is the backend author's; the stability
+/// section of `HAL.md` says so.
 final class NullDevice extends GraphicsDevice {
   NullDevice._();
 
@@ -47,15 +56,17 @@ final class NullDevice extends GraphicsDevice {
   @override
   String get backendId => name;
 
-  /// Little beyond the base contract: texture-to-texture copies, and 32-bit
-  /// float targets, which it holds as it holds every other. A capability is
-  /// reported when the device does it, and refused by name when asked of it
-  /// otherwise; a backend grows this set as it grows, and the conformance
-  /// suite holds each answer true both ways.
+  /// Little beyond the base contract: texture-to-texture copies, 32-bit
+  /// float targets, which it holds as it holds every other, and 32-bit
+  /// indices, which it takes as it takes any. A capability is reported when
+  /// the device does it, and refused by name when asked of it otherwise; a
+  /// backend grows this set as it grows, and the conformance suite holds
+  /// each answer true both ways.
   @override
   final DeviceFeatures features = DeviceFeatures(const <DeviceFeature>{
     DeviceFeature.textureCopy,
     DeviceFeature.float32Renderable,
+    DeviceFeature.indexUint32,
   });
 
   /// The defaults, with no compute: this device has no compute pass.
@@ -286,15 +297,16 @@ final class NullDevice extends GraphicsDevice {
     int mipLevel = 0,
   }) async {
     if (!readbackFormats.contains(target.format)) {
-      throw UnsupportedError(
-        'overwriteTexture: TextureFormat.${target.format.name} is not one of '
-        'readbackFormats',
+      throw refuseResource(
+        'overwriteTexture',
+        'TextureFormat.${target.format.name} is not one of readbackFormats',
       );
     }
     if (mipLevel != 0) {
-      throw UnsupportedError(
-        'overwriteTexture: mip level $mipLevel is refused; only the base '
-        'level (0) may be overwritten.',
+      throw refuseResource(
+        'overwriteTexture',
+        'mip level $mipLevel is refused; only the base level (0) may be '
+            'overwritten',
       );
     }
     final rect = region ?? ScreenRect.of(target);
@@ -385,14 +397,15 @@ final class NullDevice extends GraphicsDevice {
       ..checkFeatures(features, backend: name);
     for (final color in descriptor.colors) {
       if (color.loadAction != LoadAction.clear) continue;
-      final clear = color.clearValue;
+      // Every kind of clear as doubles, which hold an integer one exactly.
+      final clear = (color.clearValue ?? ClearColor.transparentBlack).channels;
       texelsOf(color.texture).fill(
         layer: color.layer + color.face,
         level: color.mipLevel,
-        r: clear?.x ?? 0.0,
-        g: clear?.y ?? 0.0,
-        b: clear?.z ?? 0.0,
-        a: clear?.w ?? 0.0,
+        r: clear[0],
+        g: clear[1],
+        b: clear[2],
+        a: clear[3],
       );
     }
     final depth = descriptor.depth;
@@ -431,8 +444,31 @@ final class NullDevice extends GraphicsDevice {
   /// Whether [dispose] has run.
   bool get isDisposed => _disposed;
 
+  final StreamController<DeviceLoss> _lost =
+      StreamController<DeviceLoss>.broadcast();
+
+  /// One [DeviceLossReason.destroyed], when [dispose] runs: nothing else can
+  /// take a device with no GPU away, and every backend owes a caller at
+  /// least the loss it causes itself.
   @override
-  void dispose() => _disposed = true;
+  Stream<DeviceLoss> get lost => _lost.stream;
+
+  @override
+  bool get isLost => _disposed;
+
+  /// Says so on [lost], once, and closes it.
+  @override
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    _lost.add(
+      const DeviceLoss(
+        reason: DeviceLossReason.destroyed,
+        message: 'the device was disposed',
+      ),
+    );
+    unawaited(_lost.close());
+  }
 }
 
 /// Every stage name, answered with a handle that compiles to nothing.

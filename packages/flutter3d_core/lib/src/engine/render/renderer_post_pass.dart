@@ -161,7 +161,7 @@ extension _PostPasses on Renderer {
 
     pass.setState(
       Renderer._kFullscreenAdditiveState.copyWith(
-        viewport: ScreenRect.of(target),
+        viewport: PassViewport.of(target),
         scissor: ScreenRect.of(target),
       ),
     );
@@ -1679,7 +1679,10 @@ extension _PostPasses on Renderer {
 
     final full = ScreenRect(width: width, height: height);
     pass.setState(
-      Renderer._kFullscreenState.copyWith(viewport: full, scissor: full),
+      Renderer._kFullscreenState.copyWith(
+        viewport: PassViewport.ofRect(full),
+        scissor: full,
+      ),
     );
 
     // `gfx-22n`. One draw covering everything, unless each view is exposing
@@ -1918,7 +1921,7 @@ extension _PostPasses on Renderer {
         // painting the whole attachment with that view's exposure and the
         // last one would win.
         pass
-          ..setViewport(rect)
+          ..setViewport(PassViewport.ofRect(rect))
           ..setScissor(rect);
         _compositeParams[0] = _exposureForView(settings, i);
         pass
@@ -1928,7 +1931,7 @@ extension _PostPasses on Renderer {
       // Back to the whole frame, because the overlay loop below sets its own
       // viewport and trusts the scissor to be the pass's.
       pass
-        ..setViewport(full)
+        ..setViewport(PassViewport.ofRect(full))
         ..setScissor(full);
     }
 
@@ -1955,7 +1958,7 @@ extension _PostPasses on Renderer {
       final vh = rect.height;
       // The viewport alone, inside a scissor that already covers the whole
       // frame: the overlay is clipped by the pass, not by the view.
-      pass.setViewport(rect);
+      pass.setViewport(PassViewport.ofRect(rect));
 
       if (_encodeDebugLines(
         encoder: pass,

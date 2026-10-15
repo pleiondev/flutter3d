@@ -80,7 +80,7 @@ Future<void> checkStencilKeepsWhatItShould(GraphicsDevice device) async {
         ColorTarget(
           texture: target,
           loadAction: LoadAction.clear,
-          clearValue: Vector4(1.0, 0.0, 0.0, 1.0),
+          clearValue: ClearColor(1.0, 0.0, 0.0, 1.0),
         ),
       ],
       depth: DepthTarget(texture: depth),
@@ -228,7 +228,7 @@ Future<void> checkPassStartsWithStencilOff(GraphicsDevice device) async {
   /// A pass with its own colour and its own depth-stencil, because the rule is
   /// about what a *new* pass inherits and a shared attachment would let the
   /// first pass's stencil contents answer for it.
-  CommandEncoder open(TextureHandle target, Vector4 clear) =>
+  CommandEncoder open(TextureHandle target, ClearColor clear) =>
       device.beginRenderPass(
         RenderPassDescriptor(
           colors: <ColorTarget>[
@@ -271,7 +271,7 @@ Future<void> checkPassStartsWithStencilOff(GraphicsDevice device) async {
       format: TextureFormat.r8g8b8a8UNormInt,
     ),
   );
-  final firstPass = open(first, Vector4(0.0, 0.0, 0.0, 1.0));
+  final firstPass = open(first, ClearColor(0.0, 0.0, 0.0, 1.0));
   firstPass.setStencil(const StencilState(compare: CompareFunction.never));
   draw(firstPass, <double>[1, 1, 1, 1]);
   // No `setStencil(StencilState.disabled)` here, and that omission is the
@@ -286,7 +286,7 @@ Future<void> checkPassStartsWithStencilOff(GraphicsDevice device) async {
       format: TextureFormat.r8g8b8a8UNormInt,
     ),
   );
-  final secondPass = open(second, Vector4(1.0, 0.0, 0.0, 1.0));
+  final secondPass = open(second, ClearColor(1.0, 0.0, 0.0, 1.0));
   draw(secondPass, <double>[0, 1, 0, 1]);
   secondPass.submit();
 

@@ -64,7 +64,7 @@ abstract base class DepthTurningEncoder extends PassEncoder {
   );
 
   @override
-  void setViewport(ScreenRect rect) => _inner.setViewport(rect);
+  void setViewport(PassViewport viewport) => _inner.setViewport(viewport);
 
   @override
   void setScissor(ScreenRect rect) => _inner.setScissor(rect);
@@ -230,6 +230,21 @@ abstract base class DepthTurningEncoder extends PassEncoder {
     String blockName,
     ByteData bytes,
   ) => _inner.bindUniformBytes(shader, blockName, bytes);
+
+  @override
+  bool bindUniformBuffer(
+    ShaderHandle stage,
+    String blockName,
+    StorageBuffer buffer,
+    int offsetInBytes,
+    int sizeInBytes,
+  ) => _inner.bindUniformBuffer(
+    stage,
+    blockName,
+    buffer,
+    offsetInBytes,
+    sizeInBytes,
+  );
 
   @override
   void drawIndirect(StorageBuffer arguments, {int offsetInBytes = 0}) =>

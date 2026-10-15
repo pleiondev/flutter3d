@@ -104,7 +104,7 @@ extension _TransmissionPasses on Renderer {
       RenderPassDescriptor(
         label: _passLabel,
         colors: <ColorTarget>[
-          ColorTarget(texture: target, clearValue: vm.Vector4.zero()),
+          ColorTarget(texture: target, clearValue: ClearColor.transparentBlack),
         ],
       ),
     );
@@ -132,7 +132,10 @@ extension _TransmissionPasses on Renderer {
       _sceneCopyInfo.params[0] = chain.taps(level).toDouble();
       pass
         ..setState(
-          Renderer._kFullscreenState.copyWith(viewport: rect, scissor: rect),
+          Renderer._kFullscreenState.copyWith(
+            viewport: PassViewport.ofRect(rect),
+            scissor: rect,
+          ),
         )
         ..bindBlock(_sceneColorCopyShader, _sceneCopyInfo)
         ..draw();

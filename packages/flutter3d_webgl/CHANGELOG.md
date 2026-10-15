@@ -1,3 +1,23 @@
+## 1.0.0-rc.1+1
+
+- **Strips, points and 32-bit indices are listed**, with the alpha pair of
+  the blend constant (`blendConstantAlpha`): all WebGL2 core, and named as
+  features of the HAL before the freeze. The topology and the index width
+  are asked of the device on the way in.
+- **The viewport sets the depth range.** `setViewport` takes a
+  `PassViewport` and passes its depth range to `gl.depthRange`, reset at
+  every pass; a rectangle off whole pixels is refused, since GL would
+  truncate it.
+- **An integer target clears to every bit of its value.** A
+  `ClearColor.uint` or `.sint` clears through `clearBufferuiv` or
+  `clearBufferiv`, where the clear was a float32 `clearBufferfv`.
+- **Its own dispose is a loss.** `dispose` reports
+  `DeviceLossReason.destroyed` on `lost` before the stream closes.
+- **Every refusal is typed.** What this backend cannot honour (a format with
+  no layout, a copy between kinds it keeps apart, a value a later version
+  names) is a `DeviceResourceException` (`webglRefusal`), where it was an
+  `UnsupportedError`. The opener takes the HAL's `DeviceRequest`.
+
 ## 1.0.0-rc.1
 
 - **An axis clamped to the border is refused by `samplerBorderColor`**;

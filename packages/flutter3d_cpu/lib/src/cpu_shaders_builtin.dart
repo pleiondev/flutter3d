@@ -44,8 +44,11 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show DeviceResourceException;
 import 'package:vector_math/vector_math.dart';
 
+import 'cpu_resources.dart' show cpuBackendName;
 import 'cpu_shader.dart';
 import 'cpu_shaders_bloom.dart';
 import 'cpu_shaders_compute.dart';
@@ -136,10 +139,13 @@ final class _UnimplementedFragment extends CpuFragmentShader {
       throw _refusal(name);
 }
 
-UnsupportedError _refusal(String name) => UnsupportedError(
-  '$name is not written in Dart. This backend answers to every name the '
-  'engine asks for so that it can start, and refuses the ones it cannot '
-  'draw rather than drawing something else.',
+DeviceResourceException _refusal(String name) => DeviceResourceException(
+  operation: name,
+  backend: cpuBackendName,
+  reason:
+      'the stage is not written in Dart. This backend answers to every name '
+      'the engine asks for so that it can start, and refuses the ones it '
+      'cannot draw rather than drawing something else',
 );
 
 /// The stages that are not written in Dart, by name.

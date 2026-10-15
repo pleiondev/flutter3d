@@ -254,7 +254,7 @@ extension _PickPass on Renderer {
         colors: <ColorTarget>[
           // Zero is the id nothing has, so the clear is the answer for a pixel
           // no mesh reaches.
-          ColorTarget(texture: target, clearValue: vm.Vector4.zero()),
+          ColorTarget(texture: target, clearValue: ClearColor.transparentBlack),
         ],
         depth: DepthTarget(texture: depth),
       ),
@@ -274,7 +274,7 @@ extension _PickPass on Renderer {
       // wall behind every face.
       pass.setState(
         Renderer._kSceneViewState.copyWith(
-          viewport: rect,
+          viewport: PassViewport.ofRect(rect),
           scissor: rect,
           polygonMode: PolygonMode.fill,
           blend: null,

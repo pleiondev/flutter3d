@@ -33,7 +33,6 @@ import 'package:flutter3d_webgl/flutter3d_webgl.dart';
 // own business since 1.0.
 // ignore: implementation_imports
 import 'package:flutter3d_webgl/src/webgl_types.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 const int kWidth = 256;
 const int kHeight = 192;
@@ -229,7 +228,10 @@ class _HarnessAppState extends State<HarnessApp> {
     final pass = device.beginRenderPass(
       RenderPassDescriptor(
         colors: <ColorTarget>[
-          ColorTarget(texture: color, clearValue: Vector4(0.0, 0.0, 0.0, 1.0)),
+          ColorTarget(
+            texture: color,
+            clearValue: ClearColor(0.0, 0.0, 0.0, 1.0),
+          ),
         ],
         depth: DepthTarget(texture: depth),
       ),
@@ -243,7 +245,7 @@ class _HarnessAppState extends State<HarnessApp> {
 
     const full = ScreenRect(width: kWidth, height: kHeight);
     pass
-      ..setViewport(full)
+      ..setViewport(PassViewport.ofRect(full))
       ..setScissor(full)
       ..setPrimitiveType(PrimitiveType.triangle)
       ..setPolygonMode(PolygonMode.fill)

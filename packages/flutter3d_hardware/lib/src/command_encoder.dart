@@ -10,21 +10,21 @@
 /// set some rasteriser state, bind a pipeline and some buffers and textures,
 /// draw, submit. That shape is what [CommandEncoder] models. It was derived by
 /// reading all eight pass sites in the renderer plus the two in the extension
-/// API, and **every member here has at least one caller**; anything flutter_gpu
-/// offers that no pass in this engine uses — depth range, separate depth
-/// load/store actions, non-indexed draws — is absent rather than passed
-/// through. An interface member with no user is a guess about a second
-/// backend, and this file was written when there was no second backend to
-/// check a guess against.
+/// API, and **every member above the 1.0 line has at least one caller**;
+/// what flutter_gpu offered that no pass in this engine used was left out
+/// rather than passed through. An interface member with no user is a guess
+/// about a second backend, and this file was written when there was no
+/// second backend to check a guess against. The members below the line came
+/// with 1.0, from what WebGPU and WebGL2 can do between them.
 ///
 /// Instancing was on that list until mesh particles needed it, which is the
 /// rule working rather than failing. It arrived when something asked, and it
 /// arrived in this engine's shape — an argument on [PassEncoder.draw] and a
 /// slot on the vertex binds — rather than as flutter_gpu's split into
 /// `draw(vertexCount)` and `drawIndexed(indexCount)`, which would have added a
-/// member no pass here has ever wanted. There are three backends now, so the
-/// guess can be checked, and it is: by a conformance test rather than a
-/// golden, because the three reach instancing three different ways.
+/// member no pass here had wanted. There are four drawing backends now, so
+/// the guess can be checked, and it is: by a conformance test rather than a
+/// golden, because they reach instancing different ways.
 ///
 /// The stencil was on it too, and left it the same way: the x-ray stage marks
 /// where an enemy is visible and paints a silhouette where it is not, and
@@ -123,28 +123,44 @@ export 'render_pass_descriptor.dart';
 /// on a base class — so an implementation written against 1.0 keeps
 /// compiling.
 abstract base mixin class PassEncoder {
-  /// Where the rasteriser may write.
-  void setViewport(ScreenRect rect);
+  /// Where the rasteriser maps clip space, and onto which depths.
+  ///
+  /// **A [PassViewport] since 1.0.0-rc.1+2**: a rectangle in doubles and a depth
+  /// range, where it was a [ScreenRect] of whole pixels with the depth range
+  /// fixed at `[0, 1]`. A rectangle that is not whole pixels needs
+  /// `DeviceFeature.fractionalViewport`; a backend calls
+  /// [PassViewport.checkFeatures] on the way in and refuses one by name rather
+  /// than round it. `PassViewport.ofRect` is the viewport over a [ScreenRect]'s
+  /// pixels.
+  void setViewport(PassViewport viewport);
 
   /// Where fragments survive. Bounds a draw, and — unlike a clear — is honoured
-  /// by one.
+  /// by one. Whole pixels on every API, so a [ScreenRect].
   void setScissor(ScreenRect rect);
 
   /// How the following draws assemble their vertices.
   ///
-  /// **A backend need not have all five, and one here does not.** The software
-  /// rasteriser draws [PrimitiveType.triangle] and [PrimitiveType.line] and
-  /// throws an [UnsupportedError] for the other three — from the draw rather
-  /// than from here, because that is where it finds out. There is no capability
-  /// to ask first, unlike wireframe or the stencil: nothing in this engine has
-  /// ever wanted a strip or a point, so no query would have had a caller. What
-  /// the contract does promise is the refusal — a backend may not assemble one
+  /// **Strips and points are capabilities, since 1.0.0-rc.1+2**:
+  /// [PrimitiveType.triangleStrip] and [PrimitiveType.lineStrip] need
+  /// `DeviceFeature.primitiveStrips`, [PrimitiveType.point] needs
+  /// `DeviceFeature.pointPrimitives`, and triangle and line lists need
+  /// nothing. A backend calls `PrimitiveTypeFeatures.checkFeatures` here, so
+  /// a topology it lacks is refused by name from this call, before a draw.
+  /// Every backend in this repository that draws lists both.
+  ///
+  /// **Primitive restart is always on for strips**, on every backend that
+  /// lists `primitiveStrips`: an all-ones index (`IndexTypeFeatures.restartIndex`)
+  /// in an indexed strip ends it, and the next index starts a new one —
+  /// WebGPU's rule, and WebGL2's fixed-index restart. A list has no restart.
+  ///
+  /// What the contract also promises is that a backend never assembles one
   /// primitive as another, because three points drawn as a triangle is a
   /// picture nobody asked for and no error anywhere.
   ///
   /// Held by the conformance check
   /// `every primitive type is assembled as itself or refused`, which draws all
-  /// five and compares how much each one painted.
+  /// five and compares how much each one painted, and draws a strip through a
+  /// restart.
   void setPrimitiveType(PrimitiveType type);
 
   /// Filled or drawn as edges. Ask `features.has(DeviceFeature.wireframe)`
@@ -222,7 +238,10 @@ abstract base mixin class PassEncoder {
   /// channel of [color] per channel, [BlendFactor.blendAlpha] and
   /// [BlendFactor.oneMinusBlendAlpha] read its alpha for every channel — GL's
   /// `CONSTANT_COLOR`/`CONSTANT_ALPHA` split, which is what Metal and Vulkan
-  /// spell the same way.
+  /// spell the same way. **Two features since 1.0.0-rc.1+2**:
+  /// `DeviceFeature.blendConstant` is this setter and the colour pair, which
+  /// WebGPU has; `DeviceFeature.blendConstantAlpha` is the alpha pair, which
+  /// it has not.
   ///
   /// **A pass starts with it at transparent black**, whatever the pass before
   /// it set, and that is the same promise [setStencilReference] makes for the
@@ -235,7 +254,9 @@ abstract base mixin class PassEncoder {
   /// without it throws `UnsupportedCapabilityException` from here *and* from
   /// [setBlend] when the state names one of the four factors, rather than
   /// drawing the term as zero — flutter_gpu exposes no blend-constant setter,
-  /// so the Impeller backend is that backend today. The refusal is the
+  /// so the Impeller backend is that backend today. One with the colour pair
+  /// and not the alpha pair (WebGPU) refuses a state naming the alpha pair
+  /// from [setBlend], through `BlendState.checkFeatures`. The refusal is the
   /// default.
   ///
   /// Held by the conformance check
@@ -284,9 +305,13 @@ abstract base mixin class PassEncoder {
   /// simulation, which is exactly what this method is for.
   void bindVertexData(ByteData bytes, int vertexCount, {int slot = 0});
 
+  /// Binds indices the device already holds. [IndexType.int32] needs
+  /// `DeviceFeature.indexUint32` since 1.0.0-rc.1+2; a backend calls
+  /// `IndexTypeFeatures.checkFeatures` here and in [bindIndexData].
   void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount);
 
-  /// Binds indices built this frame. See [bindVertexData].
+  /// Binds indices built this frame. See [bindVertexData] and
+  /// [bindIndexBuffer].
   void bindIndexData(ByteData bytes, IndexType type, int indexCount);
 
   /// Fills the uniform block [blockName] of [shader] from [members] and binds
@@ -387,8 +412,9 @@ abstract base mixin class PassEncoder {
   /// this call re-drew the last mesh there and drew nothing everywhere else.
   void clearBindings();
 
-  /// Draws what is bound. Always indexed — there is no non-indexed path in this
-  /// engine, which is why the debug overlay keeps an identity index sequence.
+  /// Draws what is bound: indexed when an index buffer is bound, and the
+  /// vertices in order otherwise. [drawNonIndexed] is the 1.0 call for the
+  /// second, with a first vertex and a first instance.
   ///
   /// [instanceCount] draws the bound geometry that many times, with the vertex
   /// stage seeing an instance index and reading any attribute whose
@@ -576,6 +602,26 @@ abstract base mixin class PassEncoder {
     String blockName,
     ByteData bytes,
   ) => refuseByDefault(this, DeviceFeature.uniformBytes);
+
+  /// Binds [sizeInBytes] bytes of [buffer] from [offsetInBytes] as the
+  /// uniform block [blockName] of [stage] — `DeviceFeature.uniformBuffers`,
+  /// since 1.0.0-rc.1+2. False when the stage declares no such block, as
+  /// [bindUniformBlock] answers.
+  ///
+  /// The buffer must have been made with `BufferUsage.uniform`; the bytes
+  /// are laid out as the block's `UniformMemberLayout` says, as
+  /// [bindUniformBytes]'s are. [offsetInBytes] is a multiple of
+  /// `DeviceLimits.minUniformBufferOffsetAlignment` and [sizeInBytes] at most
+  /// `DeviceLimits.maxUniformBufferBindingSize`. The bytes are read when the
+  /// draw executes, not when this returns: a `GraphicsDevice.writeBuffer`
+  /// before the pass is submitted is what the draw sees.
+  bool bindUniformBuffer(
+    ShaderHandle stage,
+    String blockName,
+    StorageBuffer buffer,
+    int offsetInBytes,
+    int sizeInBytes,
+  ) => refuseByDefault(this, DeviceFeature.uniformBuffers);
 
   /// An indexed draw whose counts [arguments] holds at [offsetInBytes] — see
   /// `drawIndexedIndirectArguments` for the twenty bytes — against the bound

@@ -64,7 +64,7 @@ final class VulkanDevice extends GraphicsDevice {
 }
 ```
 
-That shape is `BackendOpener`, and it is the only one the engine knows. `DeviceRegistry.addBackend` takes it, `flutter3d_testing`'s `renderFrame(device:)` and `testReplay(device:)` take it, and `runDeviceConformance(makeDevice:)` takes it. A backend that sizes its targets per frame takes the size and is not held to it; one that cannot (a canvas, a swapchain) draws at it.
+`runDeviceConformance(makeDevice:)` takes that function as it is. What a registry and `flutter3d_testing`'s `renderFrame(device:)` and `testReplay(device:)` take is a `BackendOpener`, which is handed one `DeviceRequest`: the size, and what the application cannot do without (`requiredFeatures`, `requiredLimits`), which GPU it prefers, whether it wants the API's validation layer, and a label. Every field after the size has a default, so a field a minor adds breaks no opener; a backend whose API takes such options (WebGPU's `requestDevice`) passes them on, and the registry holds whatever device comes back to the request, so one that ignores them still never hands an application a device without a feature it required. A backend that sizes its targets per frame takes the size and is not held to it; one that cannot (a canvas, a swapchain) draws at it.
 
 Your package adds itself to an engine's registry with a function of its own, which an application calls:
 
@@ -76,7 +76,11 @@ Registration registerVulkanBackend(
   DeviceRegistry<Object> registry, {
   MaterialCompilerRegistry? compilers,
 }) {
-  final backend = registry.addBackend('Vulkan', VulkanDevice.open);
+  final backend = registry.addBackend(
+    'Vulkan',
+    (DeviceRequest request) =>
+        VulkanDevice.open(width: request.width, height: request.height),
+  );
   final compiler = compilers?.register(const VulkanMaterialCompiler());
   return Registration(() {
     compiler?.cancel();
@@ -93,6 +97,10 @@ Last added, first tried: an application that registers yours after the engine's 
 
 - **The members without a body** are the ones every backend has: the formats (`defaultColorFormat`, `defaultDepthStencilFormat`, `hdrColorFormat`), `framebufferOrigin`, `depthRange`, `preferredSampleCount`, `features`, `limits`, `textureFormatSupport`, `shaders` and `loadShaders`, the texture, geometry and pipeline creators, `beginFrame`, `onFrameComplete`, `beginRenderPass`, `readback`, the releases and `dispose`. They will not compile until they are all there, which is the one part of the contract that needs no reading.
 - **Every feature-gated member has a body** that refuses with the feature named: compute, storage buffers, queries, transfers, render bundles, shared textures and fences, mapped buffers, multiview. You override a member when you implement it and add its feature to `features`; until then the default is your answer. **A new member arrives in a minor with a body**, so a backend written against 1.0.0 keeps compiling against every 1.x.
+
+**Keep your own members private, or named for your backend.** That a minor adds members with bodies is what keeps your backend compiling, and it has one cost the contract cannot carry for you: a public member you added that a later minor names too either stops compiling, if its signature differs, or silently replaces the new default, if it does not. The second is the worse one. A private member, or one called `vkQueueFamily` rather than `queueFamily`, is never in the way. The risk is the backend author's, and `HAL.md` says so where it lists what a minor may add.
+
+`flutter3d_hardware` is versioned with the engine and **asked for with a caret** (`flutter3d_hardware: ^1.0.0`), by the engine's own backends as by yours: it has no internal library, so nothing a backend reads changes within a major.
 
 `PassEncoder`, `TransferEncoder` and `ComputeEncoder` follow the same rule. A pass implements the state setters, the binds, `clearBindings`, `draw` and `submit` (from the `CommandEncoder` mixin); the indirect draws, storage bindings, the blend constant, uniform bytes, debug groups and the rest have default bodies. The null backend's pass is the whole of what you must write.
 
@@ -124,7 +132,7 @@ Last added, first tried: an application that registers yours after the engine's 
 
 A handle's constructor is private since 1.0, so code that draws cannot make a texture or a pipeline that no device made. Your device wraps its own objects with the constructors in `package:flutter3d_hardware/backend.dart` (`wrapTexture`, `wrapGeometry`, `wrapPipeline`, `wrapShader`, `wrapStorageBuffer`, `wrapQuerySet`, `wrapFence`), naming itself as the owner so that a handle's `dispose` comes back to your `release…`, and calls `debugCheckLive` before handing a handle it was given to its API. That library is part of the package's snapshot and follows the same strict semver: a constructor there gains only optional parameters within a major.
 
-**A handle is disposed exactly once.** A second dispose, and a handle used after its owner gave it back, fail in debug builds with the operation named; `DeviceLoss` on `lost` is how a backend tells the engine every handle is spent.
+**A handle is disposed exactly once.** A second dispose, and a handle used after its owner gave it back, fail in debug builds with the operation named; `DeviceLoss` on `lost` is how a backend tells the engine every handle is spent, and **your own `dispose` owes one too**, as `DeviceLossReason.destroyed`. An API that refuses after the call returned (WebGPU's error scopes) reports a `DeviceError` on `errors` instead; `beginFrame` never throws what an earlier frame did.
 
 ## Resources, frames and passes
 

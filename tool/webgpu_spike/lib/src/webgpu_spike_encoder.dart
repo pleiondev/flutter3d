@@ -16,7 +16,6 @@ import 'dart:typed_data';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show LinearColor, UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 import 'package:web/web.dart' as web;
 
 import 'webgpu_conventions.dart';
@@ -71,12 +70,10 @@ final class WebGpuSpikeEncoder extends PassEncoder with CommandEncoder {
     );
   }
 
-  static GPUColorDict _clearOf(Vector4? color) => GPUColorDict(
-    r: color?.x ?? 0.0,
-    g: color?.y ?? 0.0,
-    b: color?.z ?? 0.0,
-    a: color?.w ?? 0.0,
-  );
+  static GPUColorDict _clearOf(ClearColor? color) {
+    final c = (color ?? ClearColor.transparentBlack).channels;
+    return GPUColorDict(r: c[0], g: c[1], b: c[2], a: c[3]);
+  }
 
   final WebGpuSpikeDevice _device;
   final List<String> _colorFormats;
@@ -118,13 +115,13 @@ final class WebGpuSpikeEncoder extends PassEncoder with CommandEncoder {
   /// WebGL2 backend has to turn a rectangle over, and there is nothing to do
   /// here at all.
   @override
-  void setViewport(ScreenRect rect) => _pass.setViewport(
-    rect.x.toDouble(),
-    rect.y.toDouble(),
-    rect.width.toDouble(),
-    rect.height.toDouble(),
-    0.0,
-    1.0,
+  void setViewport(PassViewport viewport) => _pass.setViewport(
+    viewport.x,
+    viewport.y,
+    viewport.width,
+    viewport.height,
+    viewport.minDepth,
+    viewport.maxDepth,
   );
 
   @override

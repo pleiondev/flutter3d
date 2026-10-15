@@ -65,7 +65,7 @@ dev_dependencies:
 
   # A fake device that records what is handed back to it, for the release
   # test.
-  flutter3d_hardware: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_hardware: ^1.0.0-rc.1
 
   # Flame's own harness, so a test can mount the game and step it.
   flame_test: ^2.3.1

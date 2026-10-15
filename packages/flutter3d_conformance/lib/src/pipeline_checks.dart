@@ -73,7 +73,7 @@ Future<void> checkPipelineSwitchKeepsBindingsApart(
           ColorTarget(
             texture: target,
             loadAction: LoadAction.clear,
-            clearValue: Vector4.zero(),
+            clearValue: ClearColor.transparentBlack,
           ),
         ],
       ),
@@ -228,7 +228,7 @@ Future<void> checkRefusedPipelineSkipsDraws(GraphicsDevice device) async {
           ColorTarget(
             texture: target,
             loadAction: LoadAction.clear,
-            clearValue: Vector4.zero(),
+            clearValue: ClearColor.transparentBlack,
           ),
         ],
       ),

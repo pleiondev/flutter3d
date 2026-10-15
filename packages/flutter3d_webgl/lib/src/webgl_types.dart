@@ -15,6 +15,18 @@ import 'package:web/web.dart' as web;
 /// `UnsupportedCapabilityException.backend`.
 const String webglBackendName = 'WebGL2';
 
+/// What [operation] throws for a request this backend has the feature for
+/// and still cannot honour — a format WebGL2 has no layout for, a copy
+/// between two kinds of buffer it keeps apart — since 1.0.0-rc.1+2: the
+/// HAL's `DeviceResourceException`, in the words every backend refuses with,
+/// where it was an untyped `UnsupportedError`.
+DeviceResourceException webglRefusal(String operation, String reason) =>
+    DeviceResourceException(
+      operation: operation,
+      backend: webglBackendName,
+      reason: reason,
+    );
+
 /// What a [TextureHandle] carries on this backend.
 ///
 /// Either a texture or a renderbuffer: WebGL2 cannot sample a multisampled

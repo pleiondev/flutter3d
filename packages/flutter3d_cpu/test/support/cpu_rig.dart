@@ -101,7 +101,7 @@ final class Rig {
   /// — [fragment] chooses the fragment stage — and depth writes on when
   /// there is a depth target.
   CommandEncoder pass({
-    Vector4? clear,
+    ClearColor? clear,
     String fragment = 'Solid',
     QuerySet? occlusion,
     PassTimestampWrites? timestamps,
@@ -110,7 +110,10 @@ final class Rig {
     final pass = device.beginRenderPass(
       RenderPassDescriptor(
         colors: <ColorTarget>[
-          ColorTarget(texture: target, clearValue: clear ?? Vector4.zero()),
+          ColorTarget(
+            texture: target,
+            clearValue: clear ?? ClearColor.transparentBlack,
+          ),
         ],
         depth: depthTexture == null ? null : DepthTarget(texture: depthTexture),
         occlusionQuerySet: occlusion,

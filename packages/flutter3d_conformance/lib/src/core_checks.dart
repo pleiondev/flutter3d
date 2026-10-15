@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:vector_math/vector_math.dart';
 
 import '../flutter3d_conformance.dart';
 
@@ -74,7 +73,7 @@ Future<void> checkHdrRenderable(GraphicsDevice device) async {
             ColorTarget(
               texture: target,
               loadAction: LoadAction.clear,
-              clearValue: Vector4(1.0, 1.0, 1.0, 1.0),
+              clearValue: ClearColor(1.0, 1.0, 1.0, 1.0),
             ),
           ],
         ),
@@ -103,7 +102,7 @@ Future<void> checkClearCoversAll(GraphicsDevice device) async {
           ColorTarget(
             texture: target,
             loadAction: LoadAction.clear,
-            clearValue: Vector4(0.0, 1.0, 0.0, 1.0),
+            clearValue: ClearColor(0.0, 1.0, 0.0, 1.0),
           ),
         ],
       ),
@@ -194,7 +193,7 @@ Future<void> checkReadbackReturnsTheFrameBefore(GraphicsDevice device) async {
     ),
   );
 
-  void clearTo(Vector4 color) => device
+  void clearTo(ClearColor color) => device
       .beginRenderPass(
         RenderPassDescriptor(
           colors: <ColorTarget>[
@@ -208,9 +207,9 @@ Future<void> checkReadbackReturnsTheFrameBefore(GraphicsDevice device) async {
       )
       .submit();
 
-  clearTo(Vector4(1.0, 0.0, 0.0, 1.0));
+  clearTo(ClearColor(1.0, 0.0, 0.0, 1.0));
   final asked = device.readback(target);
-  clearTo(Vector4(0.0, 0.0, 1.0, 1.0));
+  clearTo(ClearColor(0.0, 0.0, 1.0, 1.0));
 
   final red = (await asked).buffer.asUint8List();
   require(
@@ -300,7 +299,7 @@ Future<void> checkReadbackReturnsTheFrameBefore(GraphicsDevice device) async {
             ColorTarget(
               texture: hdr,
               loadAction: LoadAction.clear,
-              clearValue: Vector4(0.0, 1.0, 0.0, 1.0),
+              clearValue: ClearColor(0.0, 1.0, 0.0, 1.0),
             ),
           ],
         ),

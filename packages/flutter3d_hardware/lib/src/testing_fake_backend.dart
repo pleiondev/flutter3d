@@ -235,6 +235,13 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
          // answer is the one that lets a caller under test set the constant
          // and be recorded doing it.
          DeviceFeature.blendConstant,
+         DeviceFeature.blendConstantAlpha,
+         // What every drawing backend in the repository lists since
+         // 1.0.0-rc.1+2, so a caller under test can name them and be
+         // recorded doing it.
+         DeviceFeature.primitiveStrips,
+         DeviceFeature.pointPrimitives,
+         DeviceFeature.indexUint32,
          // True, because a fake has nothing to be incapable with. The real
          // answer is a device property, and the backends disagree.
          DeviceFeature.manualMipmaps,
@@ -323,7 +330,8 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
       TextureDimension.cubeArray => DeviceFeature.cubeArrayTextures,
       TextureDimension.d1 => DeviceFeature.texture1D,
       TextureDimension.d2 => null,
-      _ => throw UnsupportedError(
+      _ => throw refuseResource(
+        'createTexture',
         'the fake backend cannot allocate a ${descriptor.dimension} texture',
       ),
     };
@@ -659,15 +667,17 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
     int mipLevel = 0,
   }) async {
     if (!readbackFormats.contains(target.format)) {
-      throw UnsupportedError(
-        'overwriteTexture: TextureFormat.${target.format.name} is not one '
-        'of readbackFormats — the two this call, like readback, insists on.',
+      throw refuseResource(
+        'overwriteTexture',
+        'TextureFormat.${target.format.name} is not one '
+            'of readbackFormats — the two this call, like readback, insists on.',
       );
     }
     if (mipLevel != 0) {
-      throw UnsupportedError(
-        'overwriteTexture: mip level $mipLevel is refused; only the base '
-        'level (0) may be overwritten.',
+      throw refuseResource(
+        'overwriteTexture',
+        'mip level $mipLevel is refused; only the base '
+            'level (0) may be overwritten.',
       );
     }
     final rect =
@@ -872,12 +882,34 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
   bool get isDisposed => _isDisposed;
   bool _isDisposed = false;
 
+  /// Says [DeviceLossReason.destroyed] on [lost] the first time, as every
+  /// backend owes for its own dispose, and closes [lost] and [errors].
   @override
   void dispose() {
+    if (!_isDisposed) {
+      _isLost = true;
+      _lost.add(
+        const DeviceLoss(
+          reason: DeviceLossReason.destroyed,
+          message: 'the fake device was disposed',
+        ),
+      );
+    }
     _isDisposed = true;
     _live.clear();
     unawaited(_lost.close());
+    unawaited(_errors.close());
   }
+
+  /// Reports [error] on [errors], as a backend whose API answers late would
+  /// — for a test of whoever listens.
+  void reportError(DeviceError error) => _errors.add(error);
+
+  final StreamController<DeviceError> _errors =
+      StreamController<DeviceError>.broadcast();
+
+  @override
+  Stream<DeviceError> get errors => _errors.stream;
 
   /// Loses the device as a backend would, for a test of whoever listens to
   /// [lost]: [isLost] becomes true unless [loss] is the `restored` event that

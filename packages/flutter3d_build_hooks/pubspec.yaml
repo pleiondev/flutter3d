@@ -33,7 +33,7 @@ dependencies:
   flutter3d_core: '>=1.0.0-rc.1 <1.1.0'
 
   # `ShaderBundle`, the container a material is written into.
-  flutter3d_hardware: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_hardware: ^1.0.0-rc.1
 
   # `Flutter3dFormatException`, the family `MaterialBuildException` is of.
   flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'

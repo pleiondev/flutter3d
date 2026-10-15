@@ -82,7 +82,7 @@ Future<int> _drawThrough(WebGlDevice device, int taps) async {
         ColorTarget(
           texture: target,
           loadAction: LoadAction.clear,
-          clearValue: Vector4(0.0, 1.0, 0.0, 1.0),
+          clearValue: ClearColor(0.0, 1.0, 0.0, 1.0),
         ),
       ],
     ),

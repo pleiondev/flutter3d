@@ -55,6 +55,7 @@ final class WebGpuDevice extends GraphicsDevice with WgslModuleCompiler, Encoded
   RenderBundleEncoder createRenderBundleEncoder(RenderBundleDescriptor descriptor)
   ShaderLibrary get shaders
   StorageBuffer createBuffer(BufferDescriptor descriptor, {ByteData? contents})
+  Stream<DeviceError> get errors
   Stream<DeviceLoss> get lost
   String get backendId
   String get backendName

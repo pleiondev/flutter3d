@@ -95,8 +95,8 @@ DeviceRegistry<FramePresenter> platformDevices() {
     registry
       ..addBackend(
         'WebGPU',
-        ({required int width, required int height}) =>
-            WebGpuDevice.open(width: width, height: height),
+        (DeviceRequest request) =>
+            WebGpuDevice.open(width: request.width, height: request.height),
       )
       ..addPresenter<WebGpuDevice>(
         (

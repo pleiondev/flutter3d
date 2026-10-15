@@ -78,7 +78,10 @@ extension _PlanarPasses on Renderer {
       RenderPassDescriptor(
         label: _passLabel,
         colors: <ColorTarget>[
-          ColorTarget(texture: color, clearValue: clearColor.toVector4()),
+          ColorTarget(
+            texture: color,
+            clearValue: ClearColor.fromLinear(clearColor),
+          ),
         ],
         depth: DepthTarget(texture: depth),
       ),
@@ -95,7 +98,7 @@ extension _PlanarPasses on Renderer {
     _suppressDebugViews();
     pass.setState(
       Renderer._kSceneViewState.copyWith(
-        viewport: rect,
+        viewport: PassViewport.ofRect(rect),
         scissor: rect,
         polygonMode: PolygonMode.fill,
       ),

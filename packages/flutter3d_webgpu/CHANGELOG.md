@@ -1,5 +1,21 @@
 ## 1.0.0-rc.1+2
 
+- **The blend constant reaches the blend.** `setBlendColor` calls
+  `setBlendConstant`, and the colour pair (`"constant"`,
+  `"one-minus-constant"`) is honoured: `blendConstant` is listed now that
+  the HAL names the alpha pair, which WebGPU cannot form, as a feature of its
+  own (`blendConstantAlpha`, still refused).
+- **The browser's late refusals go to `errors`.** `beginFrame` threw the
+  previous frame's refusals; it reports them as a `DeviceError` on
+  `WebGpuDevice.errors` (new) instead, carrying the same
+  `ShaderCompileException` or `DeviceResourceException`, and never throws.
+- **The viewport is passed whole.** `setViewport` takes a `PassViewport`
+  and hands WebGPU its doubles and its depth range; `fractionalViewport`,
+  `primitiveStrips`, `pointPrimitives` and `indexUint32` are listed.
+- **Every refusal is typed.** A value WebGPU has no spelling for is a
+  `DeviceResourceException` (`webgpuRefusal`), where it was an
+  `UnsupportedError`.
+
 - **A compute pass keeps the bind groups it made.** A dispatch that binds the
   same storage ranges as one before it — a workload's kernel every frame —
   sets the bind group made then rather than asking the browser for another;

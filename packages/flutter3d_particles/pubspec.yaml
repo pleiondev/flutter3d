@@ -36,7 +36,7 @@ dependencies:
   # `PlacedEvent`, the shape of an event that says where an effect goes off:
   # the simulation's events implement it without depending on the particles.
   flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
-  flutter3d_hardware: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_hardware: ^1.0.0-rc.1
   # `WorldProperties` and `standardGravity`: what a system's particles fall
   # by and drift on until a game hands it its world's. What a world is made
   # of, with nothing that steps a body.

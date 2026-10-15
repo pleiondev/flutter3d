@@ -194,11 +194,15 @@ void main() {
     // sidecar's water never reaches the frame — or place it on the CPU
     // device, and the binding names the wrong site.
     final registry = DeviceRegistry<Object>()
-      ..addComputeDevice(ComputePlacement.sidecar, 'beside', () async => _gpu())
+      ..addComputeDevice(
+        ComputePlacement.sidecar,
+        'beside',
+        (_) async => _gpu(),
+      )
       ..addComputeDevice(
         ComputePlacement.cpu,
         'cpu',
-        () async => cpuComputeDevice(),
+        (_) async => cpuComputeDevice(),
       );
     final ran = await _run(drawing: _noCompute(), registry: registry);
     expect(computePlacementOf(ran.binding!.site!), ComputePlacement.sidecar);
@@ -257,7 +261,7 @@ void main() {
       ..addComputeDevice(
         ComputePlacement.cpu,
         'cpu',
-        () async => cpuComputeDevice(),
+        (_) async => cpuComputeDevice(),
       );
     final ran = await _run(drawing: _noCompute(), registry: registry);
     expect(ran.binding!.isOnHost, isTrue);

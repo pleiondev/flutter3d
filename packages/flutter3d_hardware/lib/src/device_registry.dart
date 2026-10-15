@@ -23,24 +23,224 @@ library;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show Registration;
+import 'package:meta/meta.dart';
 
+import 'capabilities.dart';
 import 'compute_placement.dart';
 import 'device_exceptions.dart';
 import 'graphics_device.dart';
 
 /// Opens a compute-only [GraphicsDevice] for a [ComputePlacement], or
-/// throws: the wgpu sidecar, a CPU device — 1.0. No size, because it
-/// presents nothing.
-typedef ComputeOpener = Future<GraphicsDevice> Function();
+/// throws: the wgpu sidecar, a CPU device — 1.0. Its [DeviceRequest] has no
+/// size ([DeviceRequest.compute]), because it presents nothing.
+typedef ComputeOpener = Future<GraphicsDevice> Function(DeviceRequest request);
 
-/// Opens a [GraphicsDevice] at [width] by [height], or throws.
+/// Opens a [GraphicsDevice] for [request], or throws.
 ///
 /// **The one shape of opening, on every backend**, since 1.0: asynchronous,
 /// and given the size of the surface it starts at. A backend that sizes its
 /// targets per frame (Impeller) takes the size and is not held to it; one
 /// that cannot (the software rasteriser, WebGL2's canvas) draws at it.
-typedef BackendOpener =
-    Future<GraphicsDevice> Function({required int width, required int height});
+///
+/// **One [DeviceRequest], since 1.0.0-rc.1+2**, where it was a width and a
+/// height as named parameters: an opener is a function type every backend
+/// assigns to, so a parameter added later would make every `open` written
+/// before it unassignable. A field with a default on the request breaks
+/// nobody, and a backend that does not read it is still asked for what it
+/// says: the registry holds the device [open] answers to
+/// [DeviceRequest.checkSatisfiedBy].
+typedef BackendOpener = Future<GraphicsDevice> Function(DeviceRequest request);
+
+/// What an application asks of the device it opens — since 1.0.0-rc.1+2.
+///
+/// The size of the surface it starts at, and what WebGPU's `requestAdapter`
+/// and `requestDevice` take: the features and limits the application cannot
+/// do without, which GPU to prefer, whether the API's validation layer is
+/// wanted, and a label. Every field after the size has a default that asks
+/// for nothing, so a field a minor adds breaks no backend.
+@immutable
+final class DeviceRequest {
+  /// A device for a surface [width] by [height] pixels.
+  const DeviceRequest({
+    required this.width,
+    required this.height,
+    this.requiredFeatures = const <DeviceFeature>{},
+    this.requiredLimits = const <String, int>{},
+    this.powerPreference = PowerPreference.none,
+    this.validation = false,
+    this.label,
+  });
+
+  /// A device that presents nothing — what a [ComputeOpener] is handed.
+  const DeviceRequest.compute({
+    this.requiredFeatures = const <DeviceFeature>{},
+    this.requiredLimits = const <String, int>{},
+    this.powerPreference = PowerPreference.none,
+    this.validation = false,
+    this.label,
+  }) : width = 0,
+       height = 0;
+
+  /// The width of the surface the device starts at, in pixels; zero for a
+  /// compute device.
+  final int width;
+
+  /// The height of the surface the device starts at, in pixels; zero for a
+  /// compute device.
+  final int height;
+
+  /// Features the device must have, or not be opened. A backend that can
+  /// ask its API for them (WebGPU's `requiredFeatures`) does; every device
+  /// is held to them by [checkSatisfiedBy] when the registry opens it.
+  final Set<DeviceFeature> requiredFeatures;
+
+  /// Limits the device must reach, by their `DeviceLimits.toMap` names: at
+  /// least the value for a `max…` limit, at most it for a `min…` alignment.
+  /// A name `DeviceLimits` does not know is refused, as WebGPU refuses one.
+  final Map<String, int> requiredLimits;
+
+  /// Which GPU to prefer where there is a choice.
+  final PowerPreference powerPreference;
+
+  /// Whether the API's validation layer is wanted, where it has one that
+  /// can be switched on (Vulkan's, Metal's API validation). Ignored where it
+  /// cannot; WebGPU and WebGL2 always validate.
+  final bool validation;
+
+  /// What the device is called, for a GPU debugger; null for nothing.
+  final String? label;
+
+  /// Why [device] does not satisfy this request, one sentence per shortfall;
+  /// empty when it does.
+  List<String> shortfallsOf(GraphicsDevice device) {
+    final limits = device.limits.toMap();
+    return <String?>[
+      for (final feature in DeviceFeature.values)
+        if (requiredFeatures.contains(feature) && !device.features.has(feature))
+          'it has no ${feature.name}',
+      for (final MapEntry(key: name, value: wanted) in requiredLimits.entries)
+        switch (limits[name]) {
+          null => 'no limit is called $name',
+          final int has when name.startsWith('min') && has > wanted =>
+            '$name is $has, above the $wanted asked for',
+          final int has when !name.startsWith('min') && has < wanted =>
+            '$name is $has, below the $wanted asked for',
+          _ => null,
+        },
+    ].nonNulls.toList();
+  }
+
+  /// Throws a [DeviceUnavailableException] naming every shortfall when
+  /// [device] does not satisfy this request.
+  ///
+  /// **Called by the registry on every device an opener answers**, so a
+  /// backend that never reads [requiredFeatures] still cannot hand an
+  /// application a device without them; a backend that asks its API for
+  /// them may call it too, before it hands the device over.
+  void checkSatisfiedBy(GraphicsDevice device) {
+    final shortfalls = shortfallsOf(device);
+    if (shortfalls.isEmpty) return;
+    throw DeviceUnavailableException(
+      '${device.backendName} does not satisfy the request: '
+      '${shortfalls.join('; ')}',
+      refusals: List<String>.unmodifiable(shortfalls),
+    );
+  }
+
+  /// This request at another size — what a registry hands each backend it
+  /// tries for the same surface.
+  DeviceRequest sized({required int width, required int height}) =>
+      DeviceRequest(
+        width: width,
+        height: height,
+        requiredFeatures: requiredFeatures,
+        requiredLimits: requiredLimits,
+        powerPreference: powerPreference,
+        validation: validation,
+        label: label,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      other is DeviceRequest &&
+      other.width == width &&
+      other.height == height &&
+      other.requiredFeatures.length == requiredFeatures.length &&
+      other.requiredFeatures.containsAll(requiredFeatures) &&
+      other.requiredLimits.length == requiredLimits.length &&
+      requiredLimits.entries.every(
+        (MapEntry<String, int> e) => other.requiredLimits[e.key] == e.value,
+      ) &&
+      other.powerPreference == powerPreference &&
+      other.validation == validation &&
+      other.label == label;
+
+  @override
+  int get hashCode => Object.hash(
+    width,
+    height,
+    Object.hashAllUnordered(requiredFeatures),
+    Object.hashAllUnordered(<Object>[
+      for (final MapEntry(:key, :value) in requiredLimits.entries)
+        Object.hash(key, value),
+    ]),
+    powerPreference,
+    validation,
+    label,
+  );
+
+  @override
+  String toString() =>
+      'DeviceRequest(${width}x$height'
+      '${requiredFeatures.isEmpty ? '' : ', features: ${requiredFeatures.map((DeviceFeature f) => f.name).join(', ')}'}'
+      '${requiredLimits.isEmpty ? '' : ', limits: $requiredLimits'}'
+      '${powerPreference == PowerPreference.none ? '' : ', ${powerPreference.name}'}'
+      '${validation ? ', validation' : ''}'
+      '${label == null ? '' : ', "$label"'})';
+}
+
+/// Which GPU a [DeviceRequest] prefers where there is a choice: WebGPU's
+/// `powerPreference`.
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+@immutable
+final class PowerPreference {
+  const PowerPreference._(this.name);
+
+  /// No preference: the API's default.
+  static const PowerPreference none = PowerPreference._('none');
+
+  /// The integrated GPU, where a laptop has two.
+  static const PowerPreference lowPower = PowerPreference._('low-power');
+
+  /// The discrete GPU, where a laptop has two.
+  static const PowerPreference highPerformance = PowerPreference._(
+    'high-performance',
+  );
+
+  /// Every value this version names, in declaration order.
+  static const List<PowerPreference> values = <PowerPreference>[
+    none,
+    lowPower,
+    highPerformance,
+  ];
+
+  /// The value called [name], or null for a name this version does not know.
+  static PowerPreference? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'PowerPreference.$name';
+}
 
 /// The backends one engine may open, in the order it tries them, and the
 /// presenters of type [P] that show their frames.
@@ -120,8 +320,22 @@ final class DeviceRegistry<P extends Object> {
     required int width,
     required int height,
     void Function(String message)? onFallback,
+  }) => openFor(
+    DeviceRequest(width: width, height: height),
+    onFallback: onFallback,
+  );
+
+  /// [open], for everything [request] asks — since 1.0.0-rc.1+2.
+  ///
+  /// Each backend is handed [request]; a device that does not satisfy it
+  /// ([DeviceRequest.checkSatisfiedBy]) is disposed and counted as that
+  /// backend's refusal, and the next one is tried, so an application that
+  /// cannot draw without a feature is never handed a device without it.
+  Future<GraphicsDevice> openFor(
+    DeviceRequest request, {
+    void Function(String message)? onFallback,
   }) async {
-    final device = await _openFirst(width, height, onFallback);
+    final device = await _openFirst(request, onFallback);
     adopt(device, onRefused: onFallback);
     return device;
   }
@@ -142,15 +356,30 @@ final class DeviceRegistry<P extends Object> {
     () => computeExecutors(device, onRefused: onRefused),
   );
 
+  /// [open] of one entry, held to [request]: a device that falls short is
+  /// disposed, and its shortfall thrown as the entry's refusal.
+  static Future<GraphicsDevice> _openHeld(
+    BackendOpener open,
+    DeviceRequest request,
+  ) async {
+    final device = await open(request);
+    try {
+      request.checkSatisfiedBy(device);
+    } on DeviceUnavailableException {
+      device.dispose();
+      rethrow;
+    }
+    return device;
+  }
+
   Future<GraphicsDevice> _openFirst(
-    int width,
-    int height,
+    DeviceRequest request,
     void Function(String message)? onFallback,
   ) async {
     final refusals = <String>[];
     for (final entry in _preferred.reversed.toList()) {
       try {
-        return await entry.open(width: width, height: height);
+        return await _openHeld(entry.open, request);
       } catch (error) {
         refusals.add('${entry.name}: $error');
         onFallback?.call(
@@ -161,7 +390,7 @@ final class DeviceRegistry<P extends Object> {
     if (_fallbacks.isNotEmpty) {
       final fallback = _fallbacks.last;
       try {
-        return await fallback.open(width: width, height: height);
+        return await _openHeld(fallback.open, request);
       } catch (error) {
         refusals.add('${fallback.name}: $error');
       }
@@ -225,15 +454,19 @@ final class DeviceRegistry<P extends Object> {
   /// itself, and the newest sidecar and CPU device added that will start.
   /// One that refuses to start is left out and [onRefused] told why; the
   /// frame then places its steps on what is left.
+  ///
+  /// Each compute device is opened with [request] (no requirements by
+  /// default) and held to it, as [openFor] holds a drawing device.
   Future<ComputeExecutors> computeExecutors(
     GraphicsDevice device, {
     void Function(String message)? onRefused,
+    DeviceRequest request = const DeviceRequest.compute(),
   }) async {
     Future<GraphicsDevice?> openFor(ComputePlacement placement) async {
       for (final entry in _compute.reversed) {
         if (entry.placement != placement) continue;
         try {
-          return await entry.open();
+          return await _openHeld(entry.open, request);
         } catch (error) {
           onRefused?.call(
             '${entry.name} (${placement.name} compute) would not start: '

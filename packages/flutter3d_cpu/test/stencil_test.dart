@@ -63,7 +63,7 @@ final class _Fixture {
           ColorTarget(
             texture: color,
             loadAction: LoadAction.clear,
-            clearValue: Vector4.zero(),
+            clearValue: ClearColor.transparentBlack,
           ),
         ],
         depth: DepthTarget(
@@ -363,7 +363,7 @@ void main() {
     final pass = device.beginRenderPass(
       RenderPassDescriptor(
         colors: <ColorTarget>[
-          ColorTarget(texture: color, clearValue: Vector4.zero()),
+          ColorTarget(texture: color, clearValue: ClearColor.transparentBlack),
         ],
       ),
     );

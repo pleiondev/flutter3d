@@ -37,9 +37,10 @@ StorageBuffer webglCreateBuffer(
     // One buffer for both is ordinary in WebGPU and impossible here: the
     // first binding types it for life (see [WebGlBuffer]), and the second
     // kind of binding would be an INVALID_OPERATION at every draw.
-    throw UnsupportedError(
+    throw webglRefusal(
+      'createBuffer',
       'WebGL2 cannot make one buffer both index data and $usage: a buffer '
-      'holds indices or other data for life there. Make two buffers.',
+          'holds indices or other data for life there. Make two buffers.',
     );
   }
   if (contents != null && contents.lengthInBytes > length) {

@@ -36,7 +36,7 @@ extension _OutlinePass on Renderer {
         label: _passLabel,
         colors: <ColorTarget>[
           // Nought is "not marked", which is what the look reads alpha for.
-          ColorTarget(texture: target, clearValue: vm.Vector4.zero()),
+          ColorTarget(texture: target, clearValue: ClearColor.transparentBlack),
         ],
       ),
     );
@@ -85,7 +85,7 @@ extension _OutlinePass on Renderer {
       _velocityCamera(camera);
       pass.setState(
         Renderer._kSceneViewState.copyWith(
-          viewport: rect,
+          viewport: PassViewport.ofRect(rect),
           scissor: rect,
           polygonMode: PolygonMode.fill,
           blend: null,

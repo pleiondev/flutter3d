@@ -1,6 +1,6 @@
 name: flutter3d_webgl
 description: "A WebGL2 backend for flutter3d: the second implementation of flutter3d_hardware, and the one that tells us whether the HAL is a seam or a description of Impeller."
-version: 1.0.0-rc.1
+version: 1.0.0-rc.1+1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -29,7 +29,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter3d_hardware: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_hardware: ^1.0.0-rc.1+2
   # `stageBindings`: what each of the engine's compiled stages keeps, which
   # the library hands every stage as `ShaderHandle.kept` and the encoder
   # refuses binds against — `gfx-92n`. A table of names and nothing else.

@@ -436,8 +436,15 @@ final class WebGlDevice extends GraphicsDevice
       if (_msaaSamples > 1) DeviceFeature.offscreenMultisample,
       // `glBlendColor` is WebGL1 core, and `CONSTANT_COLOR`/`CONSTANT_ALPHA`
       // are what the four constant-reading factors already mapped to — the
-      // setter was the missing half, not the reader.
+      // setter was the missing half, not the reader. Both pairs, colour and
+      // alpha.
       DeviceFeature.blendConstant,
+      DeviceFeature.blendConstantAlpha,
+      // WebGL2 core: every topology, a fixed-index primitive restart that is
+      // always on, and `UNSIGNED_INT` indices.
+      DeviceFeature.primitiveStrips,
+      DeviceFeature.pointPrimitives,
+      DeviceFeature.indexUint32,
       // WebGL2 samples a hand-built chain correctly as a matter of
       // specification: `texStorage2D` allocates every level and
       // `TEXTURE_MAX_LEVEL` bounds it. The device this capability exists to
@@ -857,12 +864,25 @@ final class WebGlDevice extends GraphicsDevice
     );
   }
 
+  /// Gives every resource back, and says so on [lost] as
+  /// [DeviceLossReason.destroyed] before the stream closes — since
+  /// 1.0.0-rc.1+2, the loss every backend owes for its own dispose. A context
+  /// the browser already took has said so, and is not lost twice.
   @override
   void dispose() {
     if (_disposed) {
       throw StateError('WebGlDevice.dispose() was already called');
     }
     _disposed = true;
+    if (!_isLost && !_lost.isClosed) {
+      _isLost = true;
+      _lost.add(
+        const DeviceLoss(
+          reason: DeviceLossReason.destroyed,
+          message: 'the WebGL2 device was disposed',
+        ),
+      );
+    }
     unawaited(_lost.close());
     webglDisposePersistentResources(
       _gl,
@@ -1061,7 +1081,8 @@ final class WebGlDevice extends GraphicsDevice
       case TextureDimension.d2:
         break;
       default:
-        throw UnsupportedError(
+        throw webglRefusal(
+          'createTexture',
           'WebGL2 cannot allocate a ${descriptor.dimension} texture',
         );
     }
@@ -1531,15 +1552,17 @@ final class WebGlDevice extends GraphicsDevice
     int mipLevel = 0,
   }) async {
     if (!readbackFormats.contains(target.format)) {
-      throw UnsupportedError(
+      throw webglRefusal(
+        'overwriteTexture',
         'overwriteTexture: TextureFormat.${target.format.name} is not one '
-        'of readbackFormats — the two this call, like readback, insists on.',
+            'of readbackFormats — the two this call, like readback, insists on.',
       );
     }
     if (mipLevel != 0) {
-      throw UnsupportedError(
+      throw webglRefusal(
+        'overwriteTexture',
         'overwriteTexture: mip level $mipLevel is refused; only the base '
-        'level (0) may be overwritten.',
+            'level (0) may be overwritten.',
       );
     }
     final rect =

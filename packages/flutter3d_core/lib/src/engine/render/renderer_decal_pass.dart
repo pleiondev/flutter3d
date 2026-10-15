@@ -244,7 +244,7 @@ extension _DecalPass on Renderer {
           pass
             ..setState(
               Renderer._kFullscreenState.copyWith(
-                viewport: full,
+                viewport: PassViewport.ofRect(full),
                 scissor: scissor,
                 blend: term == 0.0 ? _multiply : _add,
               ),

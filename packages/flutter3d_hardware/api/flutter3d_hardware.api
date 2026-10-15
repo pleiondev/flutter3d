@@ -36,7 +36,7 @@ TextureHandle wrapTexture({required Object backend, required int width, required
 
 library package:flutter3d_hardware/flutter3d_hardware.dart
 
-typedef BackendOpener = Future<GraphicsDevice> Function({required int width, required int height});
+typedef BackendOpener = Future<GraphicsDevice> Function(DeviceRequest request);
 
 extension BindUniformBlockObject on PassEncoder
   bool bindBlock(ShaderHandle stage, UniformBlock block)
@@ -81,6 +81,7 @@ final class BlendOperation
   static const List<BlendOperation> values = <BlendOperation>[add, subtract, reverseSubtract, min, max]
 
 final class BlendState
+  bool get usesBlendAlpha
   bool get usesBlendColor
   bool get usesDualSource
   bool get usesMinMax
@@ -135,8 +136,34 @@ final class BufferLayout
   static const BufferUsage uniform = BufferUsage._(4)
   static const BufferUsage vertex = BufferUsage._(1)
 
+@immutable final class ClearColor
+  List<double> get channels
+  String toString()
+  bool operator ==(Object other)
+  const ClearColor(double this.red, double this.green, double this.blue, double this.alpha)
+  const ClearColor.sint(int this.red, int this.green, int this.blue, int this.alpha)
+  const ClearColor.uint(int this.red, int this.green, int this.blue, int this.alpha)
+  factory ClearColor.fromLinear(LinearColor color)
+  final ClearColorKind kind
+  final num alpha
+  final num blue
+  final num green
+  final num red
+  int get hashCode
+  static const ClearColor transparentBlack = ClearColor(0, 0, 0, 0)
+
+@immutable final class ClearColorKind
+  String toString()
+  final String name
+  static ClearColorKind? byName(String name)
+  static const ClearColorKind float = ClearColorKind._('float')
+  static const ClearColorKind sint = ClearColorKind._('sint')
+  static const ClearColorKind uint = ClearColorKind._('uint')
+  static const List<ClearColorKind> values = <ClearColorKind>[float, uint, sint]
+
 final class ColorTarget
   const ColorTarget({required this.texture, this.resolveTexture, this.loadAction = LoadAction.clear, this.storeAction = StoreAction.store, this.clearValue, this.face = 0, this.mipLevel = 0, this.layer = 0})
+  final ClearColor? clearValue
   final LoadAction loadAction
   final StoreAction storeAction
   final TextureHandle texture
@@ -144,7 +171,6 @@ final class ColorTarget
   final int face
   final int layer
   final int mipLevel
-  final vm.Vector4? clearValue
 
 @immutable final class ColorWriteMask
   ColorWriteMask operator |(ColorWriteMask other)
@@ -206,7 +232,7 @@ final class ComputeExecutors
   final GraphicsDevice? sidecar
   static const List<ComputePlacement> aheadOfHost = <ComputePlacement>[ComputePlacement.device, ComputePlacement.sidecar]
 
-typedef ComputeOpener = Future<GraphicsDevice> Function();
+typedef ComputeOpener = Future<GraphicsDevice> Function(DeviceRequest request);
 
 @immutable final class ComputePipelineDescriptor
   String toString()
@@ -311,6 +337,24 @@ final class DepthTarget
   final int mipLevel
   final int stencilClearValue
 
+@immutable final class DeviceError
+  String toString()
+  const DeviceError({required this.kind, required this.operation, required this.message, required this.exception})
+  final DeviceErrorKind kind
+  final Flutter3dException exception
+  final String message
+  final String operation
+
+@immutable final class DeviceErrorKind
+  String toString()
+  final String name
+  static DeviceErrorKind? byName(String name)
+  static const DeviceErrorKind internal = DeviceErrorKind._('internal')
+  static const DeviceErrorKind outOfMemory = DeviceErrorKind._('out-of-memory')
+  static const DeviceErrorKind shaderCompile = DeviceErrorKind._('shader-compile')
+  static const DeviceErrorKind validation = DeviceErrorKind._('validation')
+  static const List<DeviceErrorKind> values = <DeviceErrorKind>[validation, outOfMemory, internal, shaderCompile]
+
 @immutable final class DeviceFeature extends Capability
   String get askedBy
   String toString()
@@ -323,6 +367,7 @@ final class DepthTarget
   static const baseVertexBaseInstance = DeviceFeature._('base-vertex-base-instance', FeatureStability.stable)
   static const bindlessResources = DeviceFeature._('bindless-resources', FeatureStability.reserved)
   static const blendConstant = DeviceFeature._('blend-constant', FeatureStability.stable)
+  static const blendConstantAlpha = DeviceFeature._('blend-constant-alpha', FeatureStability.stable)
   static const bufferCopy = DeviceFeature._('buffer-copy', FeatureStability.stable)
   static const bufferTextureCopy = DeviceFeature._('buffer-texture-copy', FeatureStability.stable)
   static const buffers = DeviceFeature._('buffers', FeatureStability.stable)
@@ -341,9 +386,11 @@ final class DepthTarget
   static const float32Blendable = DeviceFeature._('float32-blendable', FeatureStability.stable)
   static const float32Filterable = DeviceFeature._('float32-filterable', FeatureStability.stable)
   static const float32Renderable = DeviceFeature._('float32-renderable', FeatureStability.stable)
+  static const fractionalViewport = DeviceFeature._('fractional-viewport', FeatureStability.stable)
   static const gpuTimestamps = DeviceFeature._('gpu-timestamps', FeatureStability.stable)
   static const immediateData = DeviceFeature._('immediate-data', FeatureStability.reserved)
   static const independentBlend = DeviceFeature._('independent-blend', FeatureStability.stable)
+  static const indexUint32 = DeviceFeature._('index-uint32', FeatureStability.stable)
   static const indirectDispatch = DeviceFeature._('indirect-dispatch', FeatureStability.stable)
   static const indirectDraw = DeviceFeature._('indirect-draw', FeatureStability.stable)
   static const indirectFirstInstance = DeviceFeature._('indirect-first-instance', FeatureStability.stable)
@@ -358,7 +405,9 @@ final class DepthTarget
   static const occlusionQuery = DeviceFeature._('occlusion-query', FeatureStability.stable)
   static const offscreenMultisample = DeviceFeature._('offscreen-multisample', FeatureStability.stable)
   static const pipelineStatisticsQuery = DeviceFeature._('pipeline-statistics-query', FeatureStability.stable)
+  static const pointPrimitives = DeviceFeature._('point-primitives', FeatureStability.stable)
   static const presenterColorSpaces = DeviceFeature._('presenter-color-spaces', FeatureStability.reserved)
+  static const primitiveStrips = DeviceFeature._('primitive-strips', FeatureStability.stable)
   static const rayQuery = DeviceFeature._('ray-query', FeatureStability.reserved)
   static const readWriteStorageTextures = DeviceFeature._('read-write-storage-textures', FeatureStability.stable)
   static const renderBundles = DeviceFeature._('render-bundles', FeatureStability.stable)
@@ -389,6 +438,7 @@ final class DepthTarget
   static const textureCopy = DeviceFeature._('texture-copy', FeatureStability.stable)
   static const textureWrites = DeviceFeature._('texture-writes', FeatureStability.stable)
   static const timestampQuery = DeviceFeature._('timestamp-query', FeatureStability.stable)
+  static const uniformBuffers = DeviceFeature._('uniform-buffers', FeatureStability.stable)
   static const uniformBytes = DeviceFeature._('uniform-bytes', FeatureStability.stable)
   static const variableRateShading = DeviceFeature._('variable-rate-shading', FeatureStability.reserved)
   static const viewportBeyondTarget = DeviceFeature._('viewport-beyond-target', FeatureStability.stable)
@@ -464,14 +514,32 @@ final class DepthTarget
 
 final class DeviceRegistry<P extends Object>
   DeviceRegistry()
-  Future<ComputeExecutors> computeExecutors(GraphicsDevice device, {void Function(String message)? onRefused})
+  Future<ComputeExecutors> computeExecutors(GraphicsDevice device, {void Function(String message)? onRefused, DeviceRequest request = const DeviceRequest.compute()})
   Future<GraphicsDevice> open({required int width, required int height, void Function(String message)? onFallback})
+  Future<GraphicsDevice> openFor(DeviceRequest request, {void Function(String message)? onFallback})
   List<String> get backendNames
   P? presenterFor(GraphicsDevice device)
   Registration addBackend(String name, BackendOpener open, {bool asFallback = false})
   Registration addComputeDevice(ComputePlacement placement, String name, ComputeOpener open)
   Registration addPresenter<T extends GraphicsDevice>(P presenter)
   void adopt(GraphicsDevice device, {void Function(String message)? onRefused})
+
+@immutable final class DeviceRequest
+  DeviceRequest sized({required int width, required int height})
+  List<String> shortfallsOf(GraphicsDevice device)
+  String toString()
+  bool operator ==(Object other)
+  const DeviceRequest({required this.width, required this.height, this.requiredFeatures = const <DeviceFeature>{}, this.requiredLimits = const <String, int>{}, this.powerPreference = PowerPreference.none, this.validation = false, this.label})
+  const DeviceRequest.compute({this.requiredFeatures = const <DeviceFeature>{}, this.requiredLimits = const <String, int>{}, this.powerPreference = PowerPreference.none, this.validation = false, this.label})
+  final Map<String, int> requiredLimits
+  final PowerPreference powerPreference
+  final Set<DeviceFeature> requiredFeatures
+  final String? label
+  final bool validation
+  final int height
+  final int width
+  int get hashCode
+  void checkSatisfiedBy(GraphicsDevice device)
 
 final class DeviceResourceException extends ResourceException
   String get message
@@ -571,6 +639,7 @@ abstract base class GraphicsDevice with TextureAllocator
   Set<NativeHandleKind> get shareableKinds
   StorageBuffer createBuffer(BufferDescriptor descriptor, {ByteData? contents})
   StorageBuffer importBuffer(NativeHandle handle, BufferDescriptor descriptor)
+  Stream<DeviceError> get errors
   Stream<DeviceLoss> get lost
   String get backendId
   String get backendName
@@ -632,6 +701,10 @@ final class IndexType
   static const IndexType int16 = IndexType._('int16')
   static const IndexType int32 = IndexType._('int32')
   static const List<IndexType> values = <IndexType>[int16, int32]
+
+extension IndexTypeFeatures on IndexType
+  int get restartIndex
+  void checkFeatures(DeviceFeatures features, {required String backend})
 
 final class IndexWindow
   String toString()
@@ -754,10 +827,11 @@ abstract base mixin class PassEncoder
   abstract void setScissor(ScreenRect rect)
   abstract void setStencil(StencilState front, {StencilState? back})
   abstract void setStencilReference(int value)
-  abstract void setViewport(ScreenRect rect)
+  abstract void setViewport(PassViewport viewport)
   abstract void setWindingOrder(WindingOrder order)
   bool bindStorageBuffer(ShaderHandle shader, String name, StorageBuffer buffer, {int offsetInBytes = 0, int? sizeInBytes})
   bool bindStorageTexture(ShaderHandle shader, String name, TextureHandle texture, {int mipLevel = 0, StorageTextureAccess access = StorageTextureAccess.writeOnly})
+  bool bindUniformBuffer(ShaderHandle stage, String blockName, StorageBuffer buffer, int offsetInBytes, int sizeInBytes)
   bool bindUniformBytes(ShaderHandle shader, String blockName, ByteData bytes)
   void beginOcclusionQuery(int queryIndex)
   void beginPipelineStatisticsQuery(QuerySet querySet, int queryIndex)
@@ -779,23 +853,28 @@ abstract base mixin class PassEncoder
   void setDepthClamp({required bool enabled})
 
 final class PassState
-  PassState copyWith({ScreenRect? viewport, ScreenRect? scissor, PrimitiveType? primitiveType, PolygonMode? polygonMode, CullMode? cullMode, WindingOrder? windingOrder, Object? blend = _unsetBlend, int? blendAttachment, bool? depthWrite, CompareFunction? depthCompare, StencilState? stencil, StencilState? stencilBack, int? stencilReference})
+  PassState copyWith({PassViewport? viewport, ScreenRect? scissor, PrimitiveType? primitiveType, PolygonMode? polygonMode, CullMode? cullMode, WindingOrder? windingOrder, Object? blend = _unsetBlend, int? blendAttachment, bool? depthWrite, CompareFunction? depthCompare, StencilState? stencil, StencilState? stencilBack, int? stencilReference, ColorWriteMask? colorWriteMask, int? colorWriteMaskAttachment, DepthBias? depthBias, bool? depthClamp, bool? alphaToCoverage})
   String toString()
   bool operator ==(Object other)
-  const PassState({this.viewport, this.scissor, this.primitiveType, this.polygonMode, this.cullMode, this.windingOrder, Object? blend = _unsetBlend, this.blendAttachment = 0, this.depthWrite, this.depthCompare, this.stencil, this.stencilBack, this.stencilReference})
+  const PassState({this.viewport, this.scissor, this.primitiveType, this.polygonMode, this.cullMode, this.windingOrder, Object? blend = _unsetBlend, this.blendAttachment = 0, this.depthWrite, this.depthCompare, this.stencil, this.stencilBack, this.stencilReference, this.colorWriteMask, this.colorWriteMaskAttachment = 0, this.depthBias, this.depthClamp, this.alphaToCoverage})
   final BlendState? blend
+  final ColorWriteMask? colorWriteMask
   final CompareFunction? depthCompare
   final CullMode? cullMode
+  final DepthBias? depthBias
+  final PassViewport? viewport
   final PolygonMode? polygonMode
   final PrimitiveType? primitiveType
   final ScreenRect? scissor
-  final ScreenRect? viewport
   final StencilState? stencil
   final StencilState? stencilBack
   final WindingOrder? windingOrder
   final bool setsBlend
+  final bool? alphaToCoverage
+  final bool? depthClamp
   final bool? depthWrite
   final int blendAttachment
+  final int colorWriteMaskAttachment
   final int? stencilReference
   int get hashCode
 
@@ -807,6 +886,24 @@ extension PassStateApply on PassEncoder
   final QuerySet querySet
   final int? beginningOfPassIndex
   final int? endOfPassIndex
+
+@immutable final class PassViewport
+  ScreenRect get rect
+  String toString()
+  bool get coversFullDepth
+  bool get isWholePixels
+  bool operator ==(Object other)
+  const PassViewport({this.x = 0, this.y = 0, required this.width, required this.height, this.minDepth = 0, this.maxDepth = 1})
+  factory PassViewport.of(TextureHandle texture)
+  factory PassViewport.ofRect(ScreenRect rect)
+  final double height
+  final double maxDepth
+  final double minDepth
+  final double width
+  final double x
+  final double y
+  int get hashCode
+  void checkFeatures(DeviceFeatures features, {required String backend})
 
 @immutable final class PipelineDescriptor
   String toString()
@@ -880,6 +977,15 @@ final class PolygonMode
   static const PolygonMode fill = PolygonMode._('fill')
   static const PolygonMode line = PolygonMode._('line')
 
+@immutable final class PowerPreference
+  String toString()
+  final String name
+  static PowerPreference? byName(String name)
+  static const List<PowerPreference> values = <PowerPreference>[none, lowPower, highPerformance]
+  static const PowerPreference highPerformance = PowerPreference._('high-performance')
+  static const PowerPreference lowPower = PowerPreference._('low-power')
+  static const PowerPreference none = PowerPreference._('none')
+
 final class PrimitiveType
   String toString()
   final String name
@@ -890,6 +996,10 @@ final class PrimitiveType
   static const PrimitiveType point = PrimitiveType._('point')
   static const PrimitiveType triangle = PrimitiveType._('triangle')
   static const PrimitiveType triangleStrip = PrimitiveType._('triangleStrip')
+
+extension PrimitiveTypeFeatures on PrimitiveType
+  bool get isStrip
+  void checkFeatures(DeviceFeatures features, {required String backend})
 
 final class QuerySet
   String toString()
@@ -1621,6 +1731,7 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback
   QuerySet createQuerySet(QueryType type, int count)
   RenderBundleEncoder createRenderBundleEncoder(RenderBundleDescriptor descriptor)
   StorageBuffer createBuffer(BufferDescriptor descriptor, {ByteData? contents})
+  Stream<DeviceError> get errors
   Stream<DeviceLoss> get lost
   TextureFormat get defaultColorFormat
   TextureFormat get defaultDepthStencilFormat
@@ -1675,6 +1786,7 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback
   void releaseQuerySet(QuerySet querySet)
   void releaseStorageBuffer(StorageBuffer buffer)
   void releaseTexture(TextureHandle texture)
+  void reportError(DeviceError error)
   void writeBuffer(StorageBuffer target, int offsetInBytes, ByteData bytes)
   void writeTexture(TextureHandle target, ByteData data, {TextureRegion? region, int mipLevel = 0, int? bytesPerRow})
 
@@ -1770,7 +1882,7 @@ final class FakePass extends PassEncoder with CommandEncoder, RenderBundleEncode
   void setScissor(ScreenRect rect)
   void setStencil(StencilState front, {StencilState? back})
   void setStencilReference(int value)
-  void setViewport(ScreenRect rect)
+  void setViewport(PassViewport viewport)
   void setWindingOrder(WindingOrder order)
   void submit()
 
@@ -1904,8 +2016,9 @@ final class RecordedVertices extends Recorded
   final int slot
 
 final class RecordedViewport extends Recorded
-  const RecordedViewport(this.rect)
-  final ScreenRect rect
+  ScreenRect get rect
+  const RecordedViewport(this.viewport)
+  final PassViewport viewport
 
 final class RecordedWindingOrder extends Recorded
   const RecordedWindingOrder(this.order)
@@ -1948,6 +2061,7 @@ final class RecordingDevice extends GraphicsDevice with SynchronousBufferReadbac
   RenderBundleEncoder createRenderBundleEncoder(RenderBundleDescriptor descriptor)
   ShaderLibrary get shaders
   StorageBuffer createBuffer(BufferDescriptor descriptor, {ByteData? contents})
+  Stream<DeviceError> get errors
   Stream<DeviceLoss> get lost
   String get backendId
   String get backendName
@@ -2082,9 +2196,9 @@ final class TraceClearBindings extends TracePassEvent
 
 final class TraceColorTarget
   const TraceColorTarget({required this.texture, this.resolveTexture, this.loadAction = LoadAction.clear, this.storeAction = StoreAction.store, this.clearValue, this.face = 0, this.mipLevel = 0, this.layer = 0})
+  final ClearColor? clearValue
   final LoadAction loadAction
   final StoreAction storeAction
-  final Vector4? clearValue
   final int face
   final int layer
   final int mipLevel
@@ -2405,8 +2519,8 @@ final class TraceSetStencilReference extends TracePassEvent
 final class TraceSetViewport extends TracePassEvent
   Map<String, Object?> toJson(TraceBlobWriter blob)
   String get kind
-  const TraceSetViewport(super.pass, this.rect)
-  final ScreenRect rect
+  const TraceSetViewport(super.pass, this.viewport)
+  final PassViewport viewport
 
 final class TraceSetWindingOrder extends TracePassEvent
   Map<String, Object?> toJson(TraceBlobWriter blob)

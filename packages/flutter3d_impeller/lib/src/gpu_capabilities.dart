@@ -131,6 +131,12 @@ DeviceFeatures impellerFeatures({required bool cubesWork}) {
     DeviceFeature.multiDraw,
     // `RenderPass.bindUniform` takes a buffer view of laid-out bytes.
     DeviceFeature.uniformBytes,
+    // Since 1.0.0-rc.1+2, named for what every flutter_gpu path already
+    // drew: strips (Metal and Vulkan restart on all ones; OpenGL ES 3 has
+    // the fixed-index restart on), points, and `uint32` indices.
+    DeviceFeature.primitiveStrips,
+    DeviceFeature.pointPrimitives,
+    DeviceFeature.indexUint32,
     // Per family, flutter_gpu's own answer.
     if (context.supportsTextureCompression(gpu.TextureCompressionFamily.bc))
       DeviceFeature.textureCompressionBC,

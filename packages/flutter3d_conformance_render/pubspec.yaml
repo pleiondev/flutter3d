@@ -38,7 +38,7 @@ dependencies:
   # not need it, so a backend's dev dependency does not pull it in.
   flutter3d_core: '>=1.0.0-rc.1 <1.1.0'
   flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
-  flutter3d_hardware: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_hardware: ^1.0.0-rc.1
   flutter3d_plugin_api: '>=1.0.0-rc.1 <1.1.0'
   # The loop a plugin is installed into before its frame is drawn.
   flutter3d_sim: '>=1.0.0-rc.1 <1.1.0'

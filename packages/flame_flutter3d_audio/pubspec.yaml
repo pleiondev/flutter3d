@@ -51,4 +51,4 @@ dev_dependencies:
   # The scene nodes a test's bridged craft is drawn as.
   flutter3d: '>=1.0.0-rc.1 <1.1.0'
   # A device that records rather than draws, to open a game's 3D world on.
-  flutter3d_hardware: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_hardware: ^1.0.0-rc.1

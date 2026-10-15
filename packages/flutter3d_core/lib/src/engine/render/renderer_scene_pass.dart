@@ -100,7 +100,7 @@ extension _ScenePasses on Renderer {
     final deferred = <_DeferredTransparency>[];
     // The clear color is linear light, as the scene target holds, and the
     // composite pass encodes it on the way out with everything else.
-    final clear = ordered.first.clearColor.toVector4();
+    final clear = ClearColor.fromLinear(ordered.first.clearColor);
     // `A2.8`: one convention for the frame's depth, which every pass that
     // loads it after this one reads back from the field.
     final reversed = _reversedFor(settings);
@@ -125,12 +125,15 @@ extension _ScenePasses on Renderer {
     final surfaceAttachment = surface == null
         ? null
         : (msaa == null
-              ? ColorTarget(texture: surface, clearValue: vm.Vector4.zero())
+              ? ColorTarget(
+                  texture: surface,
+                  clearValue: ClearColor.transparentBlack,
+                )
               : ColorTarget(
                   texture: _surfaceMsaa!,
                   resolveTexture: surface,
                   storeAction: StoreAction.multisampleResolve,
-                  clearValue: vm.Vector4.zero(),
+                  clearValue: ClearColor.transparentBlack,
                 ));
 
     final pass = _turnDepth(
@@ -145,7 +148,7 @@ extension _ScenePasses on Renderer {
             if (albedoIsRead && surfaceAttachment != null)
               ColorTarget(
                 texture: _albedoColor!,
-                clearValue: vm.Vector4.zero(),
+                clearValue: ClearColor.transparentBlack,
               ),
           ],
           // Clear to the far plane, nearer fragments win — one the ordinary
@@ -238,7 +241,7 @@ extension _ScenePasses on Renderer {
       if (exactWindow) view.camera.projection = window.whole;
       pass.setState(
         Renderer._kSceneViewState.copyWith(
-          viewport: viewRect,
+          viewport: PassViewport.ofRect(viewRect),
           scissor: targetRect,
           polygonMode: wireframe ? PolygonMode.line : PolygonMode.fill,
         ),

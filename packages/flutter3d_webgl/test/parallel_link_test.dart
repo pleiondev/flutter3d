@@ -98,7 +98,7 @@ void main() {
     device.beginRenderPass(
         RenderPassDescriptor(
           colors: <ColorTarget>[
-            ColorTarget(texture: target, clearValue: Vector4(0, 0, 0, 1)),
+            ColorTarget(texture: target, clearValue: ClearColor(0, 0, 0, 1)),
           ],
         ),
       )

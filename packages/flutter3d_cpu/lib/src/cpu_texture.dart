@@ -13,6 +13,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'cpu_resources.dart' show cpuRefusal;
 import 'portable_log2.dart';
 
 /// A texture as this backend holds one: linear float RGBA, row zero at the top.
@@ -444,7 +445,8 @@ final class BoundTexture {
     SamplerBorderColor.transparentBlack => Vector4.zero(),
     SamplerBorderColor.opaqueBlack => Vector4(0, 0, 0, 1),
     SamplerBorderColor.opaqueWhite => Vector4(1, 1, 1, 1),
-    _ => throw UnsupportedError(
+    _ => throw cpuRefusal(
+      '_borderOf',
       'the software rasteriser has no border colour $color',
     ),
   };
@@ -544,7 +546,8 @@ final class BoundTexture {
     SamplerAddressMode.clampToEdge ||
     SamplerAddressMode.clampToBorder => i < 0 ? 0 : (i >= size ? size - 1 : i),
     SamplerAddressMode.mirror => _mirror(i, size),
-    _ => throw UnsupportedError(
+    _ => throw cpuRefusal(
+      '_address',
       'the software rasteriser has no address mode $mode',
     ),
   };

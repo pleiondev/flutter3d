@@ -58,7 +58,8 @@ Future<void> checkBlendColorReachesTheBlend(GraphicsDevice device) async {
 
   // Two thirds and one third: values a byte carries exactly enough of to tell
   // them apart from each other, from zero and from one.
-  const constant = LinearColor(0.6, 0.2, 0.8);
+  // Its alpha is the alpha pair's constant, in every channel.
+  const constant = LinearColor(0.6, 0.2, 0.8, 0.4);
 
   // Only the source term survives, and only through the constant.
   const equation = BlendState(
@@ -106,6 +107,73 @@ Future<void> checkBlendColorReachesTheBlend(GraphicsDevice device) async {
     'pass\'s. See PassEncoder.setBlendColor: the constant is pass state, and a '
     'backend whose setter is global context state has to put it back.',
   );
+
+  // **The alpha pair, since 1.0.0-rc.1+2**: `CONSTANT_ALPHA` reads the
+  // constant's alpha into every channel, behind a feature of its own,
+  // because WebGPU has the colour pair and cannot form this one. Mutation:
+  // map `BlendFactor.blendAlpha` to `CONSTANT_COLOR` on WebGL2, and the
+  // centre comes back the constant's colour rather than (102, 102, 102).
+  const alphaEquation = BlendState(
+    sourceColorFactor: BlendFactor.blendAlpha,
+    destinationColorFactor: BlendFactor.zero,
+    sourceAlphaFactor: BlendFactor.one,
+    destinationAlphaFactor: BlendFactor.zero,
+  );
+  if (!device.features.has(DeviceFeature.blendConstantAlpha)) {
+    _refusesTheAlphaPair(device, alphaEquation);
+    return;
+  }
+  final alpha = await _centerOf(
+    device,
+    vertex: vertex,
+    fragment: fragment,
+    equation: alphaEquation,
+    constant: constant,
+  );
+  require(
+    alpha.every((int channel) => (channel - 102).abs() <= 4),
+    'a white draw blended through BlendFactor.blendAlpha against a constant '
+    'whose alpha is 0.4 should have left (102, 102, 102); the centre came '
+    'back $alpha. The constant\'s colour there means the alpha pair was '
+    'read as the colour pair.',
+  );
+}
+
+/// A backend with the colour pair and not the alpha pair refuses a state
+/// naming the alpha pair by its own feature, `blendConstantAlpha`.
+void _refusesTheAlphaPair(GraphicsDevice device, BlendState equation) {
+  final pass = device.beginRenderPass(
+    RenderPassDescriptor(
+      colors: <ColorTarget>[
+        ColorTarget(
+          texture: device.createTexture(
+            const RenderTargetDescriptor(
+              width: _size,
+              height: _size,
+              format: TextureFormat.r8g8b8a8UNormInt,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+  try {
+    DeviceFeature? refusedBy;
+    try {
+      pass.setBlend(equation);
+    } on UnsupportedCapabilityException catch (refusal) {
+      refusedBy = refusal.feature as DeviceFeature?;
+    }
+    require(
+      refusedBy == DeviceFeature.blendConstantAlpha,
+      'blend-constant-alpha is not listed and a BlendState naming '
+      'BlendFactor.blendAlpha was ${refusedBy == null ? 'accepted' : 'refused as ${refusedBy.name}'}. '
+      'A backend with the colour pair refuses the alpha pair by its own '
+      'feature; see BlendState.checkFeatures.',
+    );
+  } finally {
+    pass.submit();
+  }
 }
 
 /// Draws one full-frame white triangle through [equation], having set
@@ -132,7 +200,7 @@ Future<List<int>> _centerOf(
           loadAction: LoadAction.clear,
           // Opaque black, so the destination term is visible if it survives
           // the zero factor it was given.
-          clearValue: Vector4(0.0, 0.0, 0.0, 1.0),
+          clearValue: ClearColor(0.0, 0.0, 0.0, 1.0),
         ),
       ],
     ),

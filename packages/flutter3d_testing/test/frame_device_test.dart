@@ -23,9 +23,9 @@ final class _Opener {
   final List<({FakeBackend device, int width, int height})> opened =
       <({FakeBackend device, int width, int height})>[];
 
-  Future<GraphicsDevice> call({required int width, required int height}) async {
+  Future<GraphicsDevice> call(DeviceRequest request) async {
     final device = FakeBackend();
-    opened.add((device: device, width: width, height: height));
+    opened.add((device: device, width: request.width, height: request.height));
     return device;
   }
 }

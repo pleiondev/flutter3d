@@ -107,7 +107,7 @@ void main() {
     );
     expect(
       () => device.overwriteTexture(handle, pixels),
-      throwsUnsupportedError,
+      throwsA(isA<DeviceResourceException>()),
     );
   });
 
@@ -116,7 +116,7 @@ void main() {
     final handle = _solidTexture(device, 4, 4, 0xFFFFFFFF);
     expect(
       () => device.overwriteTexture(handle, ByteData(4 * 4), mipLevel: 1),
-      throwsUnsupportedError,
+      throwsA(isA<DeviceResourceException>()),
     );
   });
 

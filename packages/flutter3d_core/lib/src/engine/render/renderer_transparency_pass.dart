@@ -157,7 +157,7 @@ extension _TransparencyPasses on Renderer {
   ) {
     pass.setState(
       Renderer._kSceneViewState.copyWith(
-        viewport: deferred.rect,
+        viewport: PassViewport.ofRect(deferred.rect),
         // The view's rectangle of the target: a window of a larger frame
         // keeps the frame's own viewport, which reaches past it — see the
         // scene pass.
@@ -245,11 +245,11 @@ extension _TransparencyPasses on Renderer {
 
     final accumulation = ColorTarget(
       texture: targets.accumulation,
-      clearValue: vm.Vector4.zero(),
+      clearValue: ClearColor.transparentBlack,
     );
     final revealage = ColorTarget(
       texture: targets.revealage,
-      clearValue: vm.Vector4.all(1.0),
+      clearValue: ClearColor(1.0, 1.0, 1.0, 1.0),
     );
     if (independent) {
       drawLayers(
@@ -295,7 +295,7 @@ extension _TransparencyPasses on Renderer {
     pass
       ..setState(
         _resolveState.copyWith(
-          viewport: ScreenRect.of(hdr),
+          viewport: PassViewport.of(hdr),
           scissor: ScreenRect.of(hdr),
         ),
       )

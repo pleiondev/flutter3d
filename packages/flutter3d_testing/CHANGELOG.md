@@ -13,6 +13,10 @@
   `simulation:`, a tape recorded on another is refused with
   `ReplayException` before a step is played; `testReplay` checks the
   loop's whole `simulationVersion` for a tape that names one.
+- **`renderFrame(device:)` and `testReplay(device:)` hand the opener a
+  `DeviceRequest`** of the frame's size, as the HAL's `BackendOpener` takes
+  one now.
+
 - **Breaking: `RenderView` is `CameraView`.** `QualityScene` changed with
   it. `package:flutter/rendering.dart` exports a `RenderView` too, the root
   of a render tree, so a file importing both had to hide one.

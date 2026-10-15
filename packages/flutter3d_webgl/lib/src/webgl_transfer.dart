@@ -74,9 +74,10 @@ final class WebGlTransferEncoder extends TransferEncoder {
     if (from.elementArray != to.elementArray) {
       // The type a first binding gave each (see `WebGlBuffer`) is for life,
       // and WebGL2 refuses a copy between an index buffer and any other.
-      throw UnsupportedError(
+      throw webglRefusal(
+        'copyBufferToBuffer',
         'WebGL2 copies no bytes between an index buffer and a buffer of '
-        'other data. Copy between two of the same kind.',
+            'other data. Copy between two of the same kind.',
       );
     }
     if (size == 0) return;
@@ -138,28 +139,32 @@ final class WebGlTransferEncoder extends TransferEncoder {
       // The contract allows an sRGB pair; GL ES does not copy between the
       // two encodings with `copyTexSubImage`, and a blit would convert the
       // bytes rather than copy them.
-      throw UnsupportedError(
+      throw webglRefusal(
+        'copyTextureToTexture',
         'WebGL2 copies texels only between textures of one format; '
-        '${from.format.name} and ${to.format.name} differ',
+            '${from.format.name} and ${to.format.name} differ',
       );
     }
     if (from.sampleCount > 1 || to.sampleCount > 1) {
-      throw UnsupportedError(
+      throw webglRefusal(
+        'copyTextureToTexture',
         'WebGL2 cannot copy a multisampled renderbuffer texel for texel; '
-        'resolve it with resolveTexture',
+            'resolve it with resolveTexture',
       );
     }
     if (from.format.isCompressed) {
-      throw UnsupportedError(
+      throw webglRefusal(
+        'copyTextureToTexture',
         'WebGL2 has no copy for a block-compressed texture: it can neither '
-        'read one back nor attach one to read from',
+            'read one back nor attach one to read from',
       );
     }
     final depth = from.format.isDepthOrStencil;
     if (!depth && !_device.textureFormatSupport(from.format).renderable) {
-      throw UnsupportedError(
+      throw webglRefusal(
+        'copyTextureToTexture',
         'WebGL2 copies from a texture by attaching it to read from, and '
-        'TextureFormat.${from.format.name} is not colour-renderable here',
+            'TextureFormat.${from.format.name} is not colour-renderable here',
       );
     }
     final src = _region(source, width, height, depthOrArrayLayers);
@@ -288,7 +293,8 @@ final class WebGlTransferEncoder extends TransferEncoder {
           height,
         );
       default:
-        throw UnsupportedError(
+        throw webglRefusal(
+          '_copyRows',
           'WebGL2 cannot copy into a ${to.texture.dimension} texture',
         );
     }
@@ -339,9 +345,10 @@ final class WebGlTransferEncoder extends TransferEncoder {
       }
       final transfer = webglTransferOf(format);
       if (transfer == null) {
-        throw UnsupportedError(
+        throw webglRefusal(
+          'copyBufferToTexture',
           'WebGL2 fills no texture in TextureFormat.${format.name} from a '
-          'buffer',
+              'buffer',
         );
       }
       final imageStride = _checkLayout(
@@ -445,7 +452,8 @@ final class WebGlTransferEncoder extends TransferEncoder {
           offset.toJS,
         );
       default:
-        throw UnsupportedError(
+        throw webglRefusal(
+          '_unpack',
           'WebGL2 cannot copy into a ${to.texture.dimension} texture',
         );
     }
@@ -469,9 +477,10 @@ final class WebGlTransferEncoder extends TransferEncoder {
     final rowBytes = blocksWide * block.bytesPerBlock;
     if (layout.bytesPerRow != rowBytes ||
         (layout.rowsPerImage ?? blocksHigh) != blocksHigh) {
-      throw UnsupportedError(
+      throw webglRefusal(
+        'copyBufferToTexture',
         'WebGL2 takes compressed blocks from a buffer tightly packed only: '
-        '$rowBytes bytes a row of blocks and $blocksHigh rows an image',
+            '$rowBytes bytes a row of blocks and $blocksHigh rows an image',
       );
     }
     final image = rowBytes * blocksHigh;
@@ -525,7 +534,8 @@ final class WebGlTransferEncoder extends TransferEncoder {
           layout.offsetInBytes.toJS,
         );
       default:
-        throw UnsupportedError(
+        throw webglRefusal(
+          '_unpackCompressed',
           'WebGL2 cannot copy into a ${to.texture.dimension} texture',
         );
     }
@@ -545,19 +555,22 @@ final class WebGlTransferEncoder extends TransferEncoder {
     final texture = source.texture;
     final format = texture.format;
     if (texture.sampleCount > 1) {
-      throw UnsupportedError(
+      throw webglRefusal(
+        'copyTextureToBuffer',
         'WebGL2 reads no multisampled renderbuffer back; resolve it first',
       );
     }
     if (format.isCompressed || format.isDepthOrStencil) {
-      throw UnsupportedError(
+      throw webglRefusal(
+        'copyTextureToBuffer',
         'WebGL2 reads back neither block-compressed nor depth texels: '
-        'TextureFormat.${format.name}',
+            'TextureFormat.${format.name}',
       );
     }
     final transfer = webglTransferOf(format);
     if (transfer == null) {
-      throw UnsupportedError(
+      throw webglRefusal(
+        'copyTextureToBuffer',
         'WebGL2 has no host layout for TextureFormat.${format.name}',
       );
     }
@@ -656,9 +669,10 @@ final class WebGlTransferEncoder extends TransferEncoder {
     );
     final wanted = (transfer.format, transfer.type);
     if (wanted == canonical || wanted == implementation) return;
-    throw UnsupportedError(
+    throw webglRefusal(
+      'copyTextureToBuffer',
       'WebGL2 cannot pack TextureFormat.${format.name} into a buffer as '
-      'itself here: readPixels takes it only as another layout',
+          'itself here: readPixels takes it only as another layout',
     );
   }
 
@@ -826,7 +840,8 @@ final class WebGlTransferEncoder extends TransferEncoder {
     final backend = webglBufferOf(buffer);
     webglRefuseMapped(backend, what);
     if (backend.elementArray) {
-      throw UnsupportedError(
+      throw webglRefusal(
+        what,
         'WebGL2 binds an index buffer to no pixel-transfer target, so $what '
         'cannot use one. Copy through a buffer made without '
         'BufferUsage.index.',

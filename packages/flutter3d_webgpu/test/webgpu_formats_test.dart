@@ -578,11 +578,16 @@ void main() {
         DeviceFeature.compute,
         DeviceFeature.independentBlend,
         DeviceFeature.float32Renderable,
+        DeviceFeature.blendConstant,
+        DeviceFeature.primitiveStrips,
+        DeviceFeature.pointPrimitives,
+        DeviceFeature.indexUint32,
+        DeviceFeature.fractionalViewport,
       ]) {
         expect(bare.has(yes), isTrue, reason: yes.name);
       }
       for (final no in <DeviceFeature>[
-        DeviceFeature.blendConstant,
+        DeviceFeature.blendConstantAlpha,
         DeviceFeature.wireframe,
         DeviceFeature.gpuTimestamps,
         DeviceFeature.float32Filterable,
@@ -634,7 +639,7 @@ void main() {
       // binds a border sampler and the browser has no field to put it in.
       final full = webgpuDeviceFeatures(granted: all);
       for (final no in <DeviceFeature>[
-        DeviceFeature.blendConstant,
+        DeviceFeature.blendConstantAlpha,
         DeviceFeature.wireframe,
         DeviceFeature.renderStageStorage,
         DeviceFeature.samplerBorderColor,

@@ -109,7 +109,12 @@ final class ViewModelNode extends RenderNode {
     );
 
     final full = ScreenRect(width: width, height: height);
-    encoder.setState(_kViewModelState.copyWith(viewport: full, scissor: full));
+    encoder.setState(
+      _kViewModelState.copyWith(
+        viewport: PassViewport.ofRect(full),
+        scissor: full,
+      ),
+    );
 
     // Nothing is bound in a new pass, so the state has to forget what the
     // scene pass left it believing.

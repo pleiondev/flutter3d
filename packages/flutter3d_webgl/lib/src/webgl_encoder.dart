@@ -181,21 +181,36 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
     for (var i = 0; i < descriptor.colors.length; i++) {
       final color = descriptor.colors[i];
       if (color.loadAction != LoadAction.clear) continue;
-      final value = color.clearValue;
-      // Per attachment, which is what `clearBufferfv` is for. A plain `clear`
+      final value = color.clearValue ?? ClearColor.transparentBlack;
+      final channels = value.channels;
+      // Per attachment, which is what `clearBuffer…v` is for. A plain `clear`
       // would cover every attachment with one colour — and, as this engine
       // learned the hard way on the shadow atlas, a clear ignores the viewport
-      // entirely on both backends.
-      _gl.clearBufferfv(
-        web.WebGL2RenderingContext.COLOR,
-        i,
-        Float32List.fromList(<double>[
-          value?.x ?? 0.0,
-          value?.y ?? 0.0,
-          value?.z ?? 0.0,
-          value?.w ?? 0.0,
-        ]).toJS,
-      );
+      // entirely on both backends. An integer target takes the integer form,
+      // which is the only one GL specifies for it, and clears every bit of a
+      // 32-bit id exactly.
+      switch (value.kind) {
+        case ClearColorKind.uint:
+          _gl.clearBufferuiv(
+            web.WebGL2RenderingContext.COLOR,
+            i,
+            Uint32List.fromList(<int>[
+              for (final c in channels) c.toInt(),
+            ]).toJS,
+          );
+        case ClearColorKind.sint:
+          _gl.clearBufferiv(
+            web.WebGL2RenderingContext.COLOR,
+            i,
+            Int32List.fromList(<int>[for (final c in channels) c.toInt()]).toJS,
+          );
+        default:
+          _gl.clearBufferfv(
+            web.WebGL2RenderingContext.COLOR,
+            i,
+            Float32List.fromList(channels).toJS,
+          );
+      }
     }
 
     // **A pass starts covering the whole of what it draws into.** Neither
@@ -219,6 +234,9 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
     // discarded.
     _gl.viewport(0, 0, _targetWidth, _targetHeight);
     _gl.scissor(0, 0, _targetWidth, _targetHeight);
+    // The depth range is context state too, and a viewport that narrowed it
+    // in the last pass would otherwise narrow every draw of this one.
+    _gl.depthRange(0, 1);
 
     // Back on, because everything after this is a draw and the engine sets a
     // scissor per tile.
@@ -449,9 +467,17 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
   final Set<String> _boundSamplers = <String>{};
   final Set<int> _boundSlots = <int>{};
 
+  /// Whole pixels, as `gl.viewport` takes them, and the depth range through
+  /// `gl.depthRange`; a fractional rectangle is refused, since GL would
+  /// truncate it.
   @override
-  void setViewport(ScreenRect rect) =>
-      _gl.viewport(rect.x, _flipY(rect), rect.width, rect.height);
+  void setViewport(PassViewport viewport) {
+    viewport.checkFeatures(_device.features, backend: webglBackendName);
+    final rect = viewport.rect;
+    _gl
+      ..viewport(rect.x, _flipY(rect), rect.width, rect.height)
+      ..depthRange(viewport.minDepth, viewport.maxDepth);
+  }
 
   @override
   void setScissor(ScreenRect rect) =>
@@ -472,9 +498,14 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
   /// content in the wrong half.
   int _flipY(ScreenRect rect) => _targetHeight - rect.y - rect.height;
 
+  /// Every topology: WebGL2 assembles strips and points, and restarts a
+  /// strip on an all-ones index always (`PRIMITIVE_RESTART_FIXED_INDEX` is
+  /// core and on).
   @override
-  void setPrimitiveType(PrimitiveType type) =>
-      _primitive = primitiveTypeToGl(type);
+  void setPrimitiveType(PrimitiveType type) {
+    type.checkFeatures(_device.features, backend: webglBackendName);
+    _primitive = primitiveTypeToGl(type);
+  }
 
   /// Silently ignored for [PolygonMode.fill] and **refused** for
   /// [PolygonMode.line].
@@ -814,6 +845,7 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
   @override
   void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) {
     debugCheckLive(buffer, 'bindIndexBuffer');
+    type.checkFeatures(_device.features, backend: webglBackendName);
     _gl.bindBuffer(
       web.WebGLRenderingContext.ELEMENT_ARRAY_BUFFER,
       buffer.backend as web.WebGLBuffer,
@@ -825,6 +857,7 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
 
   @override
   void bindIndexData(ByteData bytes, IndexType type, int indexCount) {
+    type.checkFeatures(_device.features, backend: webglBackendName);
     final buffer = _gl.createBuffer();
     _gl.bindBuffer(web.WebGLRenderingContext.ELEMENT_ARRAY_BUFFER, buffer);
     _gl.bufferData(
@@ -1789,6 +1822,12 @@ void webglGateBlend(WebGlDevice device, BlendState? state) {
   if (state.usesBlendColor) {
     device.features.require(
       DeviceFeature.blendConstant,
+      backend: webglBackendName,
+    );
+  }
+  if (state.usesBlendAlpha) {
+    device.features.require(
+      DeviceFeature.blendConstantAlpha,
       backend: webglBackendName,
     );
   }

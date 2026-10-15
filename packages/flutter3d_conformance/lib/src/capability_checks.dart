@@ -135,6 +135,7 @@ const Set<DeviceFeature> _stageBound = <DeviceFeature>{
   DeviceFeature.samplerLodClamp,
   DeviceFeature.samplerBorderColor,
   DeviceFeature.uniformBytes,
+  DeviceFeature.uniformBuffers,
 };
 
 TextureHandle _created(GraphicsDevice device, TextureDescriptor descriptor) {
@@ -641,6 +642,70 @@ final Map<DeviceFeature, _Probe> _probes = <DeviceFeature, _Probe>{
       d,
       (CommandEncoder p) => p.setBlend(
         const BlendState(destinationColorFactor: BlendFactor.source1Color),
+      ),
+    ),
+  ),
+  // Since 1.0.0-rc.1+2: the capabilities every backend was assumed to have,
+  // asked for the way a caller asks, from the call that names them.
+  DeviceFeature.blendConstantAlpha: (
+    needs: const <DeviceFeature>[DeviceFeature.blendConstant],
+    refusalOnly: false,
+    run: (GraphicsDevice d) async => _inPass(
+      d,
+      (CommandEncoder p) => p.setBlend(
+        const BlendState(sourceColorFactor: BlendFactor.blendAlpha),
+      ),
+    ),
+  ),
+  DeviceFeature.primitiveStrips: (
+    needs: const <DeviceFeature>[],
+    refusalOnly: false,
+    run: (GraphicsDevice d) async => _inPass(
+      d,
+      (CommandEncoder p) => p
+        ..setPrimitiveType(PrimitiveType.triangleStrip)
+        ..setPrimitiveType(PrimitiveType.lineStrip),
+    ),
+  ),
+  DeviceFeature.pointPrimitives: (
+    needs: const <DeviceFeature>[],
+    refusalOnly: false,
+    run: (GraphicsDevice d) async => _inPass(
+      d,
+      (CommandEncoder p) => p.setPrimitiveType(PrimitiveType.point),
+    ),
+  ),
+  DeviceFeature.indexUint32: (
+    needs: const <DeviceFeature>[],
+    refusalOnly: false,
+    run: (GraphicsDevice d) async => _inPass(
+      d,
+      (CommandEncoder p) => p.bindIndexData(ByteData(12), IndexType.int32, 3),
+    ),
+  ),
+  DeviceFeature.fractionalViewport: (
+    needs: const <DeviceFeature>[],
+    refusalOnly: false,
+    run: (GraphicsDevice d) async => _inPass(
+      d,
+      (CommandEncoder p) =>
+          p.setViewport(const PassViewport(x: 0.5, width: 2.5, height: 3)),
+    ),
+  ),
+  // No backend binds a buffer range as a block yet; the default refuses,
+  // and a backend that overrides it is held to its refusal until it lists
+  // the feature.
+  DeviceFeature.uniformBuffers: (
+    needs: const <DeviceFeature>[DeviceFeature.buffers],
+    refusalOnly: true,
+    run: (GraphicsDevice d) async => _inPass(
+      d,
+      (CommandEncoder p) => p.bindUniformBuffer(
+        _anyStage(d),
+        'Flutter3dNoSuchBlock',
+        _foreignBuffer(),
+        0,
+        16,
       ),
     ),
   ),

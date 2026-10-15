@@ -18,6 +18,7 @@ import 'dart:convert';
 
 import 'api.dart';
 import 'boundaries.dart';
+import 'hal.dart';
 import 'layers.dart';
 import 'migration.dart';
 import 'naming.dart';
@@ -5934,6 +5935,9 @@ abstract final class FrameResourceIds {
     'a call inside a try that catches it, under a nested block',
     'a guarded call is the rule kept',
   );
+
+  // The HAL's contract with its backends: `hal.dart` keeps its own proofs.
+  broken.addAll(proveHalDetectorsWork());
 
   return broken;
 }

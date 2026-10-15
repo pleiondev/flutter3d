@@ -39,7 +39,7 @@ void main() {
             colors: <ColorTarget>[
               ColorTarget(
                 texture: field.current,
-                clearValue: Vector4(2.0, 2.0, 2.0, 2.0),
+                clearValue: ClearColor(2.0, 2.0, 2.0, 2.0),
               ),
             ],
           ),

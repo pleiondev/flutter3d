@@ -43,7 +43,7 @@ final class _EmptyMap extends RenderNode {
             colors: <ColorTarget>[
               ColorTarget(
                 texture: cascades.atlas,
-                clearValue: Vector4(far, 1.0, 1.0, 1.0),
+                clearValue: ClearColor(far, 1.0, 1.0, 1.0),
               ),
             ],
             depth: DepthTarget(texture: cascades.depth, clearValue: far),

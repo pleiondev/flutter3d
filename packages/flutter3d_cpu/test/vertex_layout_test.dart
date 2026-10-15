@@ -75,7 +75,7 @@ double _draw(int instances) {
         ColorTarget(
           texture: color,
           loadAction: LoadAction.clear,
-          clearValue: Vector4.zero(),
+          clearValue: ClearColor.transparentBlack,
         ),
       ],
     ),
@@ -205,7 +205,7 @@ void main() {
             ColorTarget(
               texture: target,
               loadAction: LoadAction.clear,
-              clearValue: Vector4.zero(),
+              clearValue: ClearColor.transparentBlack,
             ),
           ],
         ),

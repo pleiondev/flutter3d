@@ -70,15 +70,26 @@ void main() {
       expect(
         () => device.beginRenderPass(const RenderPassDescriptor(colors: [])),
         throwsA(
-          isA<UnsupportedError>().having(
-            (e) => e.message,
-            'message',
+          isA<DeviceResourceException>().having(
+            (e) => e.reason,
+            'reason',
             contains('draws nothing'),
           ),
         ),
       );
     } finally {
-      device.dispose();
+      // Mutation: dispose without a word on `lost`, as the sidecar did, and
+      // an engine holding it as its compute executor never hears it is gone.
+      final losses = <DeviceLoss>[];
+      device.lost.listen(losses.add);
+      device
+        ..dispose()
+        ..dispose();
+      await Future<void>.delayed(Duration.zero);
+      expect(losses.map((DeviceLoss l) => l.reason), <DeviceLossReason>[
+        DeviceLossReason.destroyed,
+      ]);
+      expect(device.isLost, isTrue);
     }
   });
 

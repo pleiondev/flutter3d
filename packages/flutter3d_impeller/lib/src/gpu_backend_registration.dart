@@ -25,8 +25,8 @@ Registration registerGpuBackend(
 }) {
   final opener = registry.addBackend(
     'Impeller',
-    ({required int width, required int height}) =>
-        GpuRenderBackend.open(width: width, height: height),
+    (DeviceRequest request) =>
+        GpuRenderBackend.open(width: request.width, height: request.height),
   );
   final presenter = registry.addPresenter<GpuRenderBackend>(
     (

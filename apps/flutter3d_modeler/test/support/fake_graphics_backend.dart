@@ -37,7 +37,7 @@ import 'package:flutter_test/flutter_test.dart';
 void useFakeGraphicsBackend() {
   final backend = modelerDevices.addBackend(
     'FakeBackend (test)',
-    ({required int width, required int height}) async => FakeBackend(),
+    (DeviceRequest _) async => FakeBackend(),
   );
   _useFakePresenter();
   addTearDown(backend.cancel);

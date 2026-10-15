@@ -29,7 +29,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter3d_hardware: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_hardware: ^1.0.0-rc.1+2
 
   # `ResourceException`, which `GpuDeviceException` extends.
   flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'

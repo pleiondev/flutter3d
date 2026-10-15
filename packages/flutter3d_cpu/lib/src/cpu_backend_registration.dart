@@ -35,9 +35,9 @@ Registration registerCpuBackend(
 }) {
   final backend = registry.addBackend(
     'the software rasteriser',
-    ({required int width, required int height}) async => CpuDevice(
-      width: width,
-      height: height,
+    (DeviceRequest request) async => CpuDevice(
+      width: request.width,
+      height: request.height,
       shaders: CpuShaderLibrary(builtinCpuShaders()),
       materialCompiler: materialCompiler,
     ),
@@ -46,7 +46,7 @@ Registration registerCpuBackend(
   final compute = registry.addComputeDevice(
     ComputePlacement.cpu,
     'the software rasteriser',
-    () async => cpuComputeDevice(),
+    (DeviceRequest _) async => cpuComputeDevice(),
   );
   final compiler = compilers?.register(const CpuSectionCompiler());
   return Registration(() {

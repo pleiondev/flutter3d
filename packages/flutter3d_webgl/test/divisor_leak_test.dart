@@ -122,7 +122,7 @@ void main() {
             ColorTarget(
               texture: target,
               loadAction: LoadAction.clear,
-              clearValue: Vector4.zero(),
+              clearValue: ClearColor.transparentBlack,
             ),
           ],
         ),

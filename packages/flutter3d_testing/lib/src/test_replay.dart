@@ -289,7 +289,7 @@ Future<void> expectReplayMatches(
       fallbackNormal: kit.normal,
     );
   } else {
-    drawOn = await device(width: width, height: height);
+    drawOn = await device(DeviceRequest(width: width, height: height));
     renderer = Renderer.create(device: drawOn);
   }
   try {

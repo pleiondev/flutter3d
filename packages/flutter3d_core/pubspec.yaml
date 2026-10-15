@@ -28,7 +28,7 @@ dependencies:
   # `WorldPosition`, `LinearColor` and their crossings into `vector_math`,
   # which a scene's origin and every material colour speak.
   flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
-  flutter3d_hardware: '>=1.0.0-rc.1+1 <1.1.0'
+  flutter3d_hardware: ^1.0.0-rc.1+2
   # The typed uniform blocks the renderer fills, generated from the compiled
   # bundle's own layout — `H1`. Pure Dart: the shader sources and two tables.
   flutter3d_shaders: '>=1.0.0-rc.1+1 <1.1.0'

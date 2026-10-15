@@ -1,3 +1,12 @@
+## 1.0.0-rc.1+1
+
+- **Its own dispose is a loss.** The sidecar reported no loss at all; its
+  `dispose` reports `DeviceLossReason.destroyed` on `lost` (new) and
+  `isLost` follows.
+- **What it cannot draw is refused in the HAL's words**: a render pass,
+  pipeline or geometry is a `DeviceResourceException`, where it was an
+  `UnsupportedError`. Its registration takes the HAL's `DeviceRequest`.
+
 ## 1.0.0-rc.1
 
 - **Breaking: `wgpu_native_hook.dart` is no library of this package.** The

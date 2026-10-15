@@ -2,6 +2,11 @@
 
 - **`f3dMaxSectionEntryBytes` is exported**, beside `f3dVendorKindStart`:
   the largest `.f3d` directory entry a reader accepts.
+- **The HAL's new names are exported**: `ClearColor`, `ClearColorKind`,
+  `DeviceError`, `DeviceErrorKind`, `DeviceRequest`, `PassViewport`,
+  `PowerPreference`, `PrimitiveTypeFeatures` and `IndexTypeFeatures`, which
+  the types this package already exported now name.
+
 - **Breaking: `RenderView` is `CameraView`.** `RenderView` and
   `RenderViewSettings` changed with it. `package:flutter/rendering.dart`
   exports a `RenderView` too, the root of a render tree, so a file importing

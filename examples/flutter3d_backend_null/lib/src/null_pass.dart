@@ -31,14 +31,25 @@ final class NullPass extends PassEncoder with CommandEncoder {
   void _need(DeviceFeature feature) =>
       device.features.require(feature, backend: NullDevice.name);
 
+  /// Any depth range; a rectangle off whole pixels is refused, since this
+  /// device reports no fractional viewport. The viewport answers which.
   @override
-  void setViewport(ScreenRect rect) => _open('setViewport');
+  void setViewport(PassViewport viewport) {
+    _open('setViewport');
+    viewport.checkFeatures(device.features, backend: NullDevice.name);
+  }
 
   @override
   void setScissor(ScreenRect rect) => _open('setScissor');
 
+  /// Triangle and line lists; strips and points are refused by the feature
+  /// each needs, none of which this device reports. The topology answers
+  /// which, so one a later release adds is refused here too.
   @override
-  void setPrimitiveType(PrimitiveType type) => _open('setPrimitiveType');
+  void setPrimitiveType(PrimitiveType type) {
+    _open('setPrimitiveType');
+    type.checkFeatures(device.features, backend: NullDevice.name);
+  }
 
   /// A fill is taken; edges are refused, since this device reports no
   /// wireframe and a refused line mode is never quietly filled.
@@ -101,11 +112,14 @@ final class NullPass extends PassEncoder with CommandEncoder {
   void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) {
     _open('bindIndexBuffer');
     debugCheckLive(buffer, 'bindIndexBuffer');
+    type.checkFeatures(device.features, backend: NullDevice.name);
   }
 
   @override
-  void bindIndexData(ByteData bytes, IndexType type, int indexCount) =>
-      _open('bindIndexData');
+  void bindIndexData(ByteData bytes, IndexType type, int indexCount) {
+    _open('bindIndexData');
+    type.checkFeatures(device.features, backend: NullDevice.name);
+  }
 
   /// True: with no compiled stage there is nothing to reflect, so every
   /// block is taken, as a backend without reflection takes it.

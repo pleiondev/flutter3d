@@ -101,7 +101,7 @@ dev_dependencies:
 
   # For `FakeBackend`, which is what lets the teardown tests assert that
   # uploaded meshes are actually handed back rather than merely forgotten.
-  flutter3d_hardware: '>=1.0.0-rc.1+1 <1.1.0'
+  flutter3d_hardware: ^1.0.0-rc.1+1
 
   # An external client for `run_timeline_extensions_test.dart` — the same
   # package DevTools and `flutter attach` use to reach a running app's VM

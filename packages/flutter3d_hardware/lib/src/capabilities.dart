@@ -112,8 +112,16 @@ final class DeviceFeature extends Capability {
     FeatureStability.stable,
   );
 
-  /// `PassEncoder.setBlendColor` reaches the hardware, and the four
-  /// constant-reading `BlendFactor`s may be named. Was `supportsBlendColor`.
+  /// `PassEncoder.setBlendColor` reaches the hardware, and the two
+  /// colour-reading constant factors (`BlendFactor.blendColor`,
+  /// `BlendFactor.oneMinusBlendColor`) may be named: WebGPU's `constant` and
+  /// `one-minus-constant`, which read the constant channel by channel. Was
+  /// `supportsBlendColor`.
+  ///
+  /// **The colour pair only, since 1.0.0-rc.1+2.** It named all four
+  /// constant-reading factors, and WebGPU, which has no factor that reads the
+  /// constant's alpha for every channel, could list none of them. The alpha
+  /// pair is [blendConstantAlpha].
   static const blendConstant = DeviceFeature._(
     'blend-constant',
     FeatureStability.stable,
@@ -609,6 +617,65 @@ final class DeviceFeature extends Capability {
     FeatureStability.stable,
   );
 
+  // 1.0.0-rc.1+2: capabilities every backend was assumed to have, named now,
+  // because a feature that gates a call 1.0 backends already accept can
+  // never be added later — the honesty check would then fail a 1.0 backend
+  // that does not list it.
+
+  /// `PrimitiveType.triangleStrip` and `PrimitiveType.lineStrip` assemble
+  /// as strips, with **primitive restart always on**: an all-ones index
+  /// (`0xFFFF` for `IndexType.int16`, `0xFFFFFFFF` for `IndexType.int32`) in
+  /// an indexed strip ends it, and the next index starts a new one, as WebGPU
+  /// and WebGL2 always do. A list topology has no restart, and an all-ones
+  /// index in one is undefined (WebGL2 restarts on it there too), so none is
+  /// written into a list.
+  static const primitiveStrips = DeviceFeature._(
+    'primitive-strips',
+    FeatureStability.stable,
+  );
+
+  /// `PrimitiveType.point` draws each vertex as one pixel-sized point. A
+  /// point's size is one pixel on every backend; a stage that writes another
+  /// size is not honoured everywhere (WebGPU has none), so nothing may rely
+  /// on it.
+  static const pointPrimitives = DeviceFeature._(
+    'point-primitives',
+    FeatureStability.stable,
+  );
+
+  /// `IndexType.int32` indices bind and draw. Every backend here has them;
+  /// Impeller's OpenGL ES path is the one API with a capability for it.
+  static const indexUint32 = DeviceFeature._(
+    'index-uint32',
+    FeatureStability.stable,
+  );
+
+  /// `BlendFactor.blendAlpha` and `BlendFactor.oneMinusBlendAlpha`: GL's
+  /// `CONSTANT_ALPHA` pair, which read the constant's alpha for every
+  /// channel. Needs [blendConstant] too, for the setter. Not in WebGPU.
+  static const blendConstantAlpha = DeviceFeature._(
+    'blend-constant-alpha',
+    FeatureStability.stable,
+  );
+
+  /// A `PassViewport` whose rectangle is not whole pixels. WebGPU's
+  /// `setViewport` takes floats; WebGL2's `viewport` and flutter_gpu's
+  /// `PassViewport` take integers, and a backend there refuses a fraction rather
+  /// than round it. The depth range needs no feature: every backend has it.
+  static const fractionalViewport = DeviceFeature._(
+    'fractional-viewport',
+    FeatureStability.stable,
+  );
+
+  /// `PassEncoder.bindUniformBuffer`: a range of a buffer made with
+  /// `BufferUsage.uniform` bound as a stage's uniform block, rather than the
+  /// block filled from members or bytes at every bind. flutter_gpu's
+  /// `bindUniform(slot, BufferView)`, WebGPU's uniform buffer binding.
+  static const uniformBuffers = DeviceFeature._(
+    'uniform-buffers',
+    FeatureStability.stable,
+  );
+
   // --------------------------------------------------------------- reserved
   // Named, not built. No backend may report these and no call exists yet.
 
@@ -771,6 +838,12 @@ final class DeviceFeature extends Capability {
     presenterColorSpaces,
     texture1D,
     depthBiasClamp,
+    primitiveStrips,
+    pointPrimitives,
+    indexUint32,
+    blendConstantAlpha,
+    fractionalViewport,
+    uniformBuffers,
   ];
 
   /// The feature called [name], or null for a name this version does not

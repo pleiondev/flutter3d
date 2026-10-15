@@ -19,10 +19,7 @@ import 'package:test/test.dart';
 /// by which instance came back.
 ({BackendOpener open, FakeBackend device}) opener() {
   final device = FakeBackend();
-  return (
-    open: ({required int width, required int height}) async => device,
-    device: device,
-  );
+  return (open: (_) async => device, device: device);
 }
 
 void main() {

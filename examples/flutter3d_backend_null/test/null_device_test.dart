@@ -100,4 +100,20 @@ void main() {
     renderer.dispose();
     device.dispose();
   });
+
+  test('dispose is told on lost, once, as the device it destroyed', () async {
+    // Mutation: dispose without a word on `lost`, as this device did, and a
+    // caller listening for the loss never learns the device is gone.
+    final device = await NullDevice.open(width: 4, height: 4);
+    final losses = <DeviceLoss>[];
+    device.lost.listen(losses.add);
+    device
+      ..dispose()
+      ..dispose();
+    await Future<void>.delayed(Duration.zero);
+    expect(losses.map((DeviceLoss l) => l.reason), <DeviceLossReason>[
+      DeviceLossReason.destroyed,
+    ]);
+    expect(device.isLost, isTrue);
+  });
 }

@@ -130,7 +130,7 @@ Future<RenderedFrame> renderFrame({
   BackendOpener? device,
 }) async {
   if (device != null) {
-    final opened = await device(width: width, height: height);
+    final opened = await device(DeviceRequest(width: width, height: height));
     try {
       final renderer = Renderer.create(device: opened);
       try {

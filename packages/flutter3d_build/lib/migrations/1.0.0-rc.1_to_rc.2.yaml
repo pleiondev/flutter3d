@@ -2908,3 +2908,141 @@ entries:
       a public `final` field, live, as every such vector is. A read
       compiles and answers as before; code that wrote into the answer was
       already writing into the object's own vector.
+
+  # The shapes a backend could not take later, settled before the freeze:
+  # one DeviceRequest for an opener, an immutable ClearColor, a viewport in
+  # doubles with a depth range.
+  - id: hardware-BackendOpener
+    package: flutter3d_hardware
+    symbol: BackendOpener
+    kind: manual
+    guidance: >-
+      An opener takes one `DeviceRequest`. A closure written
+      `({required int width, required int height}) => MyDevice.open(width:
+      width, height: height)` is `(DeviceRequest request) =>
+      MyDevice.open(width: request.width, height: request.height)`, and a
+      call `open(width: w, height: h)` of an opener is
+      `open(DeviceRequest(width: w, height: h))`. A device's own static
+      `open` keeps its named size.
+
+  - id: hardware-ComputeOpener
+    package: flutter3d_hardware
+    symbol: ComputeOpener
+    kind: manual
+    guidance: >-
+      A compute opener takes one `DeviceRequest` too: `() async => device`
+      is `(DeviceRequest _) async => device`, and a call `open()` is
+      `open(const DeviceRequest.compute())`.
+
+  - id: hardware-ColorTarget-clearValue
+    package: flutter3d_hardware
+    symbol: ColorTarget.clearValue
+    kind: argument
+    arguments: [clearValue]
+    types: [Vector4]
+    template: 'ClearColor({components})'
+    reads: {x: red, y: green, z: blue, w: alpha}
+    imports: [package:flutter3d_hardware/flutter3d_hardware.dart]
+    guidance: >-
+      The clear colour is an immutable `ClearColor`, and it holds every
+      integer exactly: `clearValue: Vector4(r, g, b, a)` is
+      `clearValue: ClearColor(r, g, b, a)`, `Vector4.zero()` is
+      `ClearColor.transparentBlack`, and an integer target takes
+      `ClearColor.uint` or `ClearColor.sint`. `channels` reads the four
+      back as doubles.
+
+  - id: hardware-TraceColorTarget-clearValue
+    package: flutter3d_hardware
+    symbol: TraceColorTarget.clearValue
+    kind: argument
+    arguments: [clearValue]
+    types: [Vector4]
+    template: 'ClearColor({components})'
+    reads: {x: red, y: green, z: blue, w: alpha}
+    imports: [package:flutter3d_hardware/flutter3d_hardware.dart]
+    guidance: >-
+      A traced attachment's clear is a `ClearColor`, as `ColorTarget`'s is.
+
+  - id: hardware-PassEncoder-setViewport
+    package: flutter3d_hardware
+    symbol: PassEncoder.setViewport
+    kind: rewrite
+    template: '{target}.setViewport(PassViewport.ofRect({0}))'
+    imports: [package:flutter3d_hardware/flutter3d_hardware.dart]
+    guidance: >-
+      The viewport is a `PassViewport`, a rectangle in doubles with a
+      depth range: `setViewport(rect)` is
+      `setViewport(PassViewport.ofRect(rect))`. A backend's override takes
+      a `PassViewport` and calls `viewport.checkFeatures` on the way in; a
+      rectangle off whole pixels needs `DeviceFeature.fractionalViewport`.
+
+  - id: hardware-FakePass-setViewport
+    package: flutter3d_hardware
+    symbol: FakePass.setViewport
+    kind: rewrite
+    template: '{target}.setViewport(PassViewport.ofRect({0}))'
+    imports: [package:flutter3d_hardware/flutter3d_hardware.dart]
+    guidance: >-
+      The fake pass takes a `PassViewport`, as every pass does.
+
+  - id: hardware-PassState-viewport
+    package: flutter3d_hardware
+    symbol: PassState.viewport
+    kind: argument
+    arguments: [viewport]
+    types: [ScreenRect]
+    template: 'PassViewport.ofRect({value})'
+    imports: [package:flutter3d_hardware/flutter3d_hardware.dart]
+    guidance: >-
+      `PassState(viewport: rect)` is
+      `PassState(viewport: PassViewport.ofRect(rect))`; a read of
+      `state.viewport` is a `PassViewport`, whose `rect` is the whole
+      pixels.
+
+  - id: hardware-PassState-copyWith
+    package: flutter3d_hardware
+    symbol: PassState.copyWith
+    kind: argument
+    arguments: [viewport]
+    types: [ScreenRect]
+    template: 'PassViewport.ofRect({value})'
+    imports: [package:flutter3d_hardware/flutter3d_hardware.dart]
+    guidance: >-
+      `copyWith(viewport: rect)` is
+      `copyWith(viewport: PassViewport.ofRect(rect))`; the four setters
+      `PassState` carries now (`colorWriteMask`, `depthBias`, `depthClamp`,
+      `alphaToCoverage`) are new named parameters, left out as before.
+
+  - id: hardware-RecordedViewport-new
+    package: flutter3d_hardware
+    symbol: RecordedViewport.RecordedViewport
+    kind: none
+    reason: >-
+      A fake pass records it; a test reads it. `rect` still answers the
+      rectangle in whole pixels, and `viewport` the `PassViewport` set.
+
+  - id: hardware-RecordedViewport-rect
+    package: flutter3d_hardware
+    symbol: RecordedViewport.rect
+    kind: none
+    reason: >-
+      A getter where it was a field, answering the same `ScreenRect`.
+
+  - id: hardware-TraceSetViewport-new
+    package: flutter3d_hardware
+    symbol: TraceSetViewport.TraceSetViewport
+    kind: rewrite
+    template: 'TraceSetViewport({0}, PassViewport.ofRect({1}))'
+    imports: [package:flutter3d_hardware/flutter3d_hardware.dart]
+    guidance: >-
+      A traced viewport is a `PassViewport`; a trace written before it
+      reads as one over the same pixels.
+
+  - id: hardware-TraceSetViewport-rect
+    package: flutter3d_hardware
+    symbol: TraceSetViewport.rect
+    kind: rewrite
+    template: '{target}.viewport.rect'
+    guidance: >-
+      The event carries the `PassViewport` as `viewport`; its `rect` is the
+      whole pixels the field held.

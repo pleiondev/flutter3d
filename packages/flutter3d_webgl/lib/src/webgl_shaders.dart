@@ -631,10 +631,11 @@ final class WebGlShaderLibrary with ShaderLibrary {
     web.WebGLRenderingContext.FLOAT_VEC2 => 2,
     web.WebGLRenderingContext.FLOAT_VEC3 => 3,
     web.WebGLRenderingContext.FLOAT_VEC4 => 4,
-    _ => throw UnsupportedError(
+    _ => throw webglRefusal(
+      '_componentsOf',
       'vertex attributes in this engine are floats and vectors of them; '
-      'GL type $type is neither. Integer attributes would need the HAL '
-      'to describe a vertex layout rather than take it from the shader.',
+          'GL type $type is neither. Integer attributes would need the HAL '
+          'to describe a vertex layout rather than take it from the shader.',
     ),
   };
 

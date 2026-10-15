@@ -1,3 +1,65 @@
+## 1.0.0-rc.1+2
+
+- **Breaking: an opener takes one `DeviceRequest`.** `BackendOpener` and
+  `ComputeOpener` were functions of a width and a height, and of nothing;
+  a parameter added later would have made every backend's opener
+  unassignable. Each takes a `DeviceRequest` now (new): the size, and
+  `requiredFeatures`, `requiredLimits` (by `DeviceLimits.toMap` name),
+  `powerPreference` (`PowerPreference`, new), `validation` and `label`, each
+  defaulted. `DeviceRegistry.openFor` (new) opens for a request, `open`
+  keeps its width and height, and the registry holds every device an opener
+  answers to `DeviceRequest.checkSatisfiedBy`, disposing one that falls
+  short and trying the next backend. A backend's own `open` keeps its
+  shape; its registration hands it the request's size.
+- **Breaking: a clear colour is a `ClearColor`.** `ColorTarget.clearValue`
+  and `TraceColorTarget.clearValue` were a `vector_math` `Vector4`: mutable
+  inside an immutable descriptor, the one third-party type in the
+  contract, and float32, so an integer target cleared exactly only up to
+  2^24. `ClearColor` (new) is immutable doubles in three kinds
+  (`ClearColorKind`: `float`, `uint`, `sint`), `channels` reads them back,
+  and `ClearColor.fromLinear` takes a `LinearColor`. A trace writes a float
+  clear as the four numbers it always did.
+- **Breaking: the viewport is a `PassViewport`.** `PassEncoder.setViewport`,
+  `FakePass.setViewport`, `PassState.viewport` and its `copyWith`,
+  `RecordedViewport` and `TraceSetViewport` took a `ScreenRect` of whole
+  pixels with the depth range fixed at `[0, 1]`. `PassViewport` (new) is a
+  rectangle in doubles with a `minDepth`..`maxDepth` window range;
+  `PassViewport.ofRect` is the viewport over a `ScreenRect`'s pixels, and a
+  rectangle off whole pixels needs `DeviceFeature.fractionalViewport` (new),
+  asked through `PassViewport.checkFeatures`. `RecordedViewport.rect` reads
+  the rectangle in whole pixels; `TraceSetViewport.viewport` replaces its
+  `rect`. The scissor stays a `ScreenRect`.
+- **Strips, points and 32-bit indices are capabilities.**
+  `DeviceFeature.primitiveStrips`, `pointPrimitives` and `indexUint32`
+  (new) name what every backend had been assumed to have, before a 1.0
+  backend accepts the calls without listing them. Primitive restart is
+  always on for strips: an all-ones index (`IndexTypeFeatures.restartIndex`)
+  ends one. `PrimitiveTypeFeatures.checkFeatures` and
+  `IndexTypeFeatures.checkFeatures` (new) are what a backend calls from
+  `setPrimitiveType` and the index binds.
+- **The blend constant is two features.** `DeviceFeature.blendConstant`
+  is the setter and the colour pair, which WebGPU has;
+  `DeviceFeature.blendConstantAlpha` (new) is the alpha pair, which it has
+  not. `BlendState.checkFeatures` asks for the second after the first, and
+  `BlendState.usesBlendAlpha` (new) says when.
+- **A refusal that arrives late is a `DeviceError`.** `GraphicsDevice.errors`
+  (new, empty by default) carries what an API refused after the call
+  returned, as a `DeviceError` (`kind`, a `DeviceErrorKind`; `operation`;
+  `message`; the typed `exception`); a fatal one is a `DeviceLoss` instead.
+  `beginFrame` never throws a deferred error. `RecordingDevice` forwards its
+  inner device's, and `FakeBackend.reportError` (new) reports one; the
+  fake's `dispose` reports `DeviceLossReason.destroyed` on `lost`.
+- **A buffer range binds as a uniform block.**
+  `PassEncoder.bindUniformBuffer(stage, blockName, buffer, offsetInBytes,
+  sizeInBytes)` (new) refuses by `DeviceFeature.uniformBuffers` (new)
+  until a backend overrides it.
+- **`PassState` has a field for every setter.** `colorWriteMask` with its
+  `colorWriteMaskAttachment`, `depthBias`, `depthClamp` and
+  `alphaToCoverage` (new) are carried, compared and emitted by `setState`.
+- **`overwriteTexture`'s refusals are typed**: a format outside
+  `readbackFormats` or a level above zero is a `DeviceResourceException`
+  (the fake's too), where the doc said `UnsupportedError`.
+
 ## 1.0.0-rc.1+1
 
 - **Breaking: results that were records are final classes.** `FakeBackend`,

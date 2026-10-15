@@ -1009,7 +1009,7 @@ environment:
   sdk: ">=3.12.0 <4.0.0"
 
 dependencies:
-  flutter3d_hardware: ^1.0.0-rc.1
+  flutter3d_hardware: ^1.0.0-rc.1+2
   flutter3d_shaders: ^1.0.0-rc.1
   flutter3d_foundation: ^1.0.0-rc.1
 
@@ -1110,7 +1110,8 @@ Registration register{{stem}}Backend(
 }) {
   final backend = registry.addBackend(
     {{stem}}Device.name,
-    {{stem}}Device.open,
+    (DeviceRequest request) =>
+        {{stem}}Device.open(width: request.width, height: request.height),
     asFallback: asFallback,
   );
   final compiler = compilers?.register(const {{stem}}MaterialCompiler());
@@ -1183,6 +1184,15 @@ import '{{label}}_texels.dart';
 /// Opened as every backend is, with [open], so `DeviceRegistry.addBackend`,
 /// `flutter3d_testing`'s `renderFrame(device:)` and the conformance suite
 /// take it as they take the four in the engine's repository.
+///
+/// **A member of a backend's own is best private, or named for the
+/// backend.** A 1.x minor adds members with bodies to [GraphicsDevice] and
+/// [PassEncoder], and a public member here that a later minor names too
+/// either stops compiling against it or, with the same signature, silently
+/// replaces the new default. [texelsOf] and [isDisposed] are public for this
+/// package's tests, and are the two names this device would have to change
+/// if a minor took them. That risk is the backend author's; the stability
+/// section of `HAL.md` says so.
 final class {{stem}}Device extends GraphicsDevice {
   {{stem}}Device._();
 
@@ -1206,15 +1216,17 @@ final class {{stem}}Device extends GraphicsDevice {
   @override
   String get backendId => name;
 
-  /// Little beyond the base contract: texture-to-texture copies, and 32-bit
-  /// float targets, which it holds as it holds every other. A capability is
-  /// reported when the device does it, and refused by name when asked of it
-  /// otherwise; a backend grows this set as it grows, and the conformance
-  /// suite holds each answer true both ways.
+  /// Little beyond the base contract: texture-to-texture copies, 32-bit
+  /// float targets, which it holds as it holds every other, and 32-bit
+  /// indices, which it takes as it takes any. A capability is reported when
+  /// the device does it, and refused by name when asked of it otherwise; a
+  /// backend grows this set as it grows, and the conformance suite holds
+  /// each answer true both ways.
   @override
   final DeviceFeatures features = DeviceFeatures(const <DeviceFeature>{
     DeviceFeature.textureCopy,
     DeviceFeature.float32Renderable,
+    DeviceFeature.indexUint32,
   });
 
   /// The defaults, with no compute: this device has no compute pass.
@@ -1445,15 +1457,16 @@ final class {{stem}}Device extends GraphicsDevice {
     int mipLevel = 0,
   }) async {
     if (!readbackFormats.contains(target.format)) {
-      throw UnsupportedError(
-        'overwriteTexture: TextureFormat.${target.format.name} is not one of '
-        'readbackFormats',
+      throw refuseResource(
+        'overwriteTexture',
+        'TextureFormat.${target.format.name} is not one of readbackFormats',
       );
     }
     if (mipLevel != 0) {
-      throw UnsupportedError(
-        'overwriteTexture: mip level $mipLevel is refused; only the base '
-        'level (0) may be overwritten.',
+      throw refuseResource(
+        'overwriteTexture',
+        'mip level $mipLevel is refused; only the base level (0) may be '
+            'overwritten',
       );
     }
     final rect = region ?? ScreenRect.of(target);
@@ -1544,14 +1557,15 @@ final class {{stem}}Device extends GraphicsDevice {
       ..checkFeatures(features, backend: name);
     for (final color in descriptor.colors) {
       if (color.loadAction != LoadAction.clear) continue;
-      final clear = color.clearValue;
+      // Every kind of clear as doubles, which hold an integer one exactly.
+      final clear = (color.clearValue ?? ClearColor.transparentBlack).channels;
       texelsOf(color.texture).fill(
         layer: color.layer + color.face,
         level: color.mipLevel,
-        r: clear?.x ?? 0.0,
-        g: clear?.y ?? 0.0,
-        b: clear?.z ?? 0.0,
-        a: clear?.w ?? 0.0,
+        r: clear[0],
+        g: clear[1],
+        b: clear[2],
+        a: clear[3],
       );
     }
     final depth = descriptor.depth;
@@ -1590,8 +1604,31 @@ final class {{stem}}Device extends GraphicsDevice {
   /// Whether [dispose] has run.
   bool get isDisposed => _disposed;
 
+  final StreamController<DeviceLoss> _lost =
+      StreamController<DeviceLoss>.broadcast();
+
+  /// One [DeviceLossReason.destroyed], when [dispose] runs: nothing else can
+  /// take a device with no GPU away, and every backend owes a caller at
+  /// least the loss it causes itself.
   @override
-  void dispose() => _disposed = true;
+  Stream<DeviceLoss> get lost => _lost.stream;
+
+  @override
+  bool get isLost => _disposed;
+
+  /// Says so on [lost], once, and closes it.
+  @override
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    _lost.add(
+      const DeviceLoss(
+        reason: DeviceLossReason.destroyed,
+        message: 'the device was disposed',
+      ),
+    );
+    unawaited(_lost.close());
+  }
 }
 
 /// Every stage name, answered with a handle that compiles to nothing.
@@ -1710,14 +1747,25 @@ final class {{stem}}Pass extends PassEncoder with CommandEncoder {
   void _need(DeviceFeature feature) =>
       device.features.require(feature, backend: {{stem}}Device.name);
 
+  /// Any depth range; a rectangle off whole pixels is refused, since this
+  /// device reports no fractional viewport. The viewport answers which.
   @override
-  void setViewport(ScreenRect rect) => _open('setViewport');
+  void setViewport(PassViewport viewport) {
+    _open('setViewport');
+    viewport.checkFeatures(device.features, backend: {{stem}}Device.name);
+  }
 
   @override
   void setScissor(ScreenRect rect) => _open('setScissor');
 
+  /// Triangle and line lists; strips and points are refused by the feature
+  /// each needs, none of which this device reports. The topology answers
+  /// which, so one a later release adds is refused here too.
   @override
-  void setPrimitiveType(PrimitiveType type) => _open('setPrimitiveType');
+  void setPrimitiveType(PrimitiveType type) {
+    _open('setPrimitiveType');
+    type.checkFeatures(device.features, backend: {{stem}}Device.name);
+  }
 
   /// A fill is taken; edges are refused, since this device reports no
   /// wireframe and a refused line mode is never quietly filled.
@@ -1780,11 +1828,14 @@ final class {{stem}}Pass extends PassEncoder with CommandEncoder {
   void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) {
     _open('bindIndexBuffer');
     debugCheckLive(buffer, 'bindIndexBuffer');
+    type.checkFeatures(device.features, backend: {{stem}}Device.name);
   }
 
   @override
-  void bindIndexData(ByteData bytes, IndexType type, int indexCount) =>
-      _open('bindIndexData');
+  void bindIndexData(ByteData bytes, IndexType type, int indexCount) {
+    _open('bindIndexData');
+    type.checkFeatures(device.features, backend: {{stem}}Device.name);
+  }
 
   /// True: with no compiled stage there is nothing to reflect, so every
   /// block is taken, as a backend without reflection takes it.
@@ -2147,7 +2198,7 @@ void main() {
     final device = await registry.open(width: 8, height: 8);
     expect(device, isA<{{stem}}Device>());
     // The compiler is found by the id the device gives, exactly.
-    // Mutation: name the compiler "{{stem}}".
+    // Mutation: name the compiler "Null".
     expect(
       compilers.forBackend((device as {{stem}}Device).backendId),
       isA<{{stem}}MaterialCompiler>(),
@@ -2222,6 +2273,22 @@ void main() {
     expect(frame().pipelineRefusals, isEmpty);
     renderer.dispose();
     device.dispose();
+  });
+
+  test('dispose is told on lost, once, as the device it destroyed', () async {
+    // Mutation: dispose without a word on `lost`, as this device did, and a
+    // caller listening for the loss never learns the device is gone.
+    final device = await {{stem}}Device.open(width: 4, height: 4);
+    final losses = <DeviceLoss>[];
+    device.lost.listen(losses.add);
+    device
+      ..dispose()
+      ..dispose();
+    await Future<void>.delayed(Duration.zero);
+    expect(losses.map((DeviceLoss l) => l.reason), <DeviceLossReason>[
+      DeviceLossReason.destroyed,
+    ]);
+    expect(device.isLost, isTrue);
   });
 }
 ''';

@@ -25,8 +25,8 @@ Registration registerWebGlBackend(
 }) {
   final opener = registry.addBackend(
     'WebGL2',
-    ({required int width, required int height}) =>
-        WebGlDevice.open(width: width, height: height),
+    (DeviceRequest request) =>
+        WebGlDevice.open(width: request.width, height: request.height),
     asFallback: true,
   );
   final presenter = registry.addPresenter<WebGlDevice>(

@@ -17,7 +17,6 @@ import 'dart:typed_data';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_webgpu/flutter3d_webgpu_web.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 import 'quad_stages.dart';
 
@@ -66,7 +65,7 @@ void main() {
     device.beginRenderPass(
         RenderPassDescriptor(
           colors: <ColorTarget>[
-            ColorTarget(texture: target, clearValue: Vector4(1, 0, 0, 1)),
+            ColorTarget(texture: target, clearValue: ClearColor(1, 0, 0, 1)),
           ],
           label: 'the one pass',
         ),

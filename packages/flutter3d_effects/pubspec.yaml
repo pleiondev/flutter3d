@@ -57,7 +57,7 @@ dependencies:
   hooks: ^2.0.0
 
   # The graphics vocabulary, named here directly.
-  flutter3d_hardware: '>=1.0.0-rc.1+1 <1.1.0'
+  flutter3d_hardware: ^1.0.0-rc.1+1
 
   # What a world is made of: its properties, the materials and the constants.
   flutter3d_matter: '>=1.0.0-rc.1 <1.1.0'

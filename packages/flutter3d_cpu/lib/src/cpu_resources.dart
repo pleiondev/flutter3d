@@ -14,6 +14,17 @@ import 'cpu_shader.dart';
 /// The name every refusal on this backend gives it.
 const String cpuBackendName = 'the software rasteriser';
 
+/// What [operation] throws for a request this backend has the feature for
+/// and still cannot honour — a format with no texel layout here, a value a
+/// later version names — since 1.0.0-rc.1+2: the HAL's
+/// `DeviceResourceException`, where it was an untyped `UnsupportedError`.
+DeviceResourceException cpuRefusal(String operation, String reason) =>
+    DeviceResourceException(
+      operation: operation,
+      backend: cpuBackendName,
+      reason: reason,
+    );
+
 /// Why there is no wireframe here — the reason every refusal of
 /// `PolygonMode.line` gives.
 ///

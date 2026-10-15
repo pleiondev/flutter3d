@@ -93,7 +93,7 @@ Future<void> checkObjectIdDrawsAndDecodes(GraphicsDevice device) async {
           texture: target,
           loadAction: LoadAction.clear,
           // Zero is the id nothing has, exactly as the pick pass clears it.
-          clearValue: Vector4.zero(),
+          clearValue: ClearColor.transparentBlack,
         ),
       ],
     ),

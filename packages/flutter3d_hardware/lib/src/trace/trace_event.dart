@@ -21,7 +21,6 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show LinearColor;
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 import '../formats.dart';
 import '../geometry_buffer.dart';
@@ -64,7 +63,7 @@ final class TraceColorTarget {
 
   /// The colour a clear writes, linear RGBA, unitless; null clears to
   /// transparent black.
-  final Vector4? clearValue;
+  final ClearColor? clearValue;
 
   /// The cube face, mip level and array layer the pass draws into.
   final int face;
@@ -191,7 +190,7 @@ abstract base class TraceEvent {
             storeAction: storeActionWire.read(c['storeAction']),
             clearValue: c['clearValue'] == null
                 ? null
-                : vector4FromJson(c['clearValue']),
+                : clearColorFromJson(c['clearValue']),
             face: asInt(c['face']),
             mipLevel: asInt(c['mipLevel']),
             // Absent from a trace written before 1.0 recorded layers, and
@@ -211,7 +210,7 @@ abstract base class TraceEvent {
     ),
     'setViewport' => TraceSetViewport(
       asInt(j['pass']),
-      screenRectFromJson(j['rect']),
+      viewportFromJson(j['rect']),
     ),
     'setScissor' => TraceSetScissor(
       asInt(j['pass']),
@@ -667,7 +666,7 @@ final class TraceBeginRenderPass extends TraceEvent {
           'storeAction': storeActionWire.write(c.storeAction),
           'clearValue': c.clearValue == null
               ? null
-              : vector4ToJson(c.clearValue!),
+              : clearColorToJson(c.clearValue!),
           'face': c.face,
           'mipLevel': c.mipLevel,
           // Since 1.0, written only when set, so a trace of a pass at layer
@@ -727,15 +726,19 @@ abstract base class TracePassEvent extends TraceEvent {
   final int pass;
 }
 
+/// `PassEncoder.setViewport`: a [PassViewport] since 1.0.0-rc.1+2, written as
+/// the four whole numbers a `ScreenRect` was whenever it covers whole pixels
+/// and the whole depth range, so older traces read and newer ones of such a
+/// pass are byte for byte what they were.
 final class TraceSetViewport extends TracePassEvent {
-  const TraceSetViewport(super.pass, this.rect);
-  final ScreenRect rect;
+  const TraceSetViewport(super.pass, this.viewport);
+  final PassViewport viewport;
   @override
   String get kind => 'setViewport';
   @override
   Map<String, Object?> toJson(TraceBlobWriter blob) => <String, Object?>{
     'pass': pass,
-    'rect': screenRectToJson(rect),
+    'rect': viewportToJson(viewport),
   };
 }
 

@@ -133,9 +133,9 @@ final class FakePass extends PassEncoder
   Iterable<T> recordedOf<T extends Recorded>() => commands.whereType<T>();
 
   @override
-  void setViewport(ScreenRect rect) {
+  void setViewport(PassViewport viewport) {
     _passOnly('setViewport');
-    commands.add(RecordedViewport(rect));
+    commands.add(RecordedViewport(viewport));
   }
 
   @override

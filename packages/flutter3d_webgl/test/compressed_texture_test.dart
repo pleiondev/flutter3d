@@ -157,7 +157,7 @@ void main() {
       if (thrown != null) {
         expect(
           thrown,
-          isA<UnsupportedError>().having(
+          isA<DeviceResourceException>().having(
             (e) => e.message,
             'message',
             contains(format.name),

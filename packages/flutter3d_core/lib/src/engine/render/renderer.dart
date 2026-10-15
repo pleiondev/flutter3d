@@ -7,7 +7,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show LightType, LinearColorVector, MaterialParameters;
+    show LightType, MaterialParameters;
 import 'package:flutter3d_hardware/backend.dart' show SynchronousBufferReadback;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
@@ -4148,7 +4148,12 @@ final class Renderer with RenderServices {
     // nothing about its size beyond which texture it draws into, and the two
     // used to be passed separately and could disagree.
     final rect = ScreenRect.of(draw.target);
-    pass.setState(_kFullscreenState.copyWith(viewport: rect, scissor: rect));
+    pass.setState(
+      _kFullscreenState.copyWith(
+        viewport: PassViewport.ofRect(rect),
+        scissor: rect,
+      ),
+    );
 
     pass.bindPipeline(
       _fullscreenPipelines[draw.fragment] ??= device.createPipelineFrom(
@@ -6420,14 +6425,25 @@ final class Renderer with RenderServices {
         RenderPassDescriptor(
           label: _passLabel,
           colors: <ColorTarget>[
-            ColorTarget(texture: first, clearValue: vm.Vector4.zero()),
-            ColorTarget(texture: second, clearValue: vm.Vector4.zero()),
+            ColorTarget(
+              texture: first,
+              clearValue: ClearColor.transparentBlack,
+            ),
+            ColorTarget(
+              texture: second,
+              clearValue: ClearColor.transparentBlack,
+            ),
           ],
         ),
       );
 
       final full = ScreenRect(width: size, height: size);
-      pass.setState(_kFullscreenState.copyWith(viewport: full, scissor: full));
+      pass.setState(
+        _kFullscreenState.copyWith(
+          viewport: PassViewport.ofRect(full),
+          scissor: full,
+        ),
+      );
       // The second attachment, which is the whole point of this probe. One
       // `PassState` describes one attachment's blending; a second is a second
       // call, and inventing a list of them for a diagnostic nothing else needs

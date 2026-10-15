@@ -15,6 +15,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show DeviceResourceException;
 import 'package:flutter3d_shaders/flutter3d_shaders.dart';
 import 'package:test/test.dart';
 
@@ -66,7 +68,7 @@ void main() {
           const ShaderBindings({}, {}),
           FragmentContext(),
         ),
-        throwsUnsupportedError,
+        throwsA(isA<DeviceResourceException>()),
         reason: '$name is on the unimplemented list and does not refuse',
       );
     }
@@ -77,7 +79,7 @@ void main() {
           const ShaderBindings({}, {}),
           Float32List(0),
         ),
-        throwsUnsupportedError,
+        throwsA(isA<DeviceResourceException>()),
         reason: '$name is on the unimplemented list and does not refuse',
       );
     }

@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:vector_math/vector_math.dart';
 
 import '../flutter3d_conformance.dart';
 
@@ -68,7 +67,7 @@ Future<void> checkVertexTextureSampling(GraphicsDevice device) async {
           loadAction: LoadAction.clear,
           // Green, so a frame that comes back unpainted is unmistakable
           // against a probe looking for red.
-          clearValue: Vector4(0.0, 1.0, 0.0, 1.0),
+          clearValue: ClearColor(0.0, 1.0, 0.0, 1.0),
         ),
       ],
     ),
@@ -184,7 +183,7 @@ Future<void> checkFloatTextureUpload(GraphicsDevice device) async {
         ColorTarget(
           texture: target,
           loadAction: LoadAction.clear,
-          clearValue: Vector4(0.0, 1.0, 0.0, 1.0),
+          clearValue: ClearColor(0.0, 1.0, 0.0, 1.0),
         ),
       ],
     ),
@@ -289,7 +288,7 @@ Future<void> checkFloat32Filtering(GraphicsDevice device) async {
             ColorTarget(
               texture: target,
               loadAction: LoadAction.clear,
-              clearValue: Vector4(0.0, 1.0, 0.0, 1.0),
+              clearValue: ClearColor(0.0, 1.0, 0.0, 1.0),
             ),
           ],
         ),
@@ -357,7 +356,7 @@ Future<void> checkFloat32Filtering(GraphicsDevice device) async {
             ColorTarget(
               texture: target,
               loadAction: LoadAction.clear,
-              clearValue: Vector4(0.75, 0.0, 0.0, 1.0),
+              clearValue: ClearColor(0.75, 0.0, 0.0, 1.0),
             ),
           ],
         ),

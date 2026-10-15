@@ -34,13 +34,12 @@ Widget _sized(Widget child) => Directionality(
 DeviceRegistry _impellerOff(GraphicsDevice fallback) => DeviceRegistry()
   ..addBackend(
     'fake software',
-    ({required int width, required int height}) async => fallback,
+    (DeviceRequest _) async => fallback,
     asFallback: true,
   )
   ..addBackend(
     'fake impeller',
-    ({required int width, required int height}) async =>
-        throw StateError('Impeller is not enabled'),
+    (DeviceRequest _) async => throw StateError('Impeller is not enabled'),
   );
 
 /// What the isolate builds: a loop counting its steps, and adding what was
@@ -147,10 +146,7 @@ void main() {
       // Mutation: show the banner whenever a registry has a fallback.
       Flutter3dEngine? engine;
       final registry = DeviceRegistry()
-        ..addBackend(
-          'fake',
-          ({required int width, required int height}) async => FakeBackend(),
-        );
+        ..addBackend('fake', (DeviceRequest _) async => FakeBackend());
       await tester.pumpWidget(
         _sized(
           Flutter3dView(

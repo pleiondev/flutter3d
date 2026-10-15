@@ -49,7 +49,7 @@ Future<void> checkPassCoversItsAttachment(GraphicsDevice device) async {
         ColorTarget(
           texture: target,
           loadAction: LoadAction.clear,
-          clearValue: Vector4.zero(),
+          clearValue: ClearColor.transparentBlack,
         ),
       ],
     ),
@@ -136,7 +136,7 @@ Future<void> checkReadbackOfRegion(GraphicsDevice device) async {
         ColorTarget(
           texture: target,
           loadAction: LoadAction.clear,
-          clearValue: Vector4.zero(),
+          clearValue: ClearColor.transparentBlack,
         ),
       ],
     ),
@@ -238,7 +238,7 @@ Future<void> checkPassDoesNotInheritScissor(GraphicsDevice device) async {
           ColorTarget(
             texture: target,
             loadAction: LoadAction.clear,
-            clearValue: Vector4.zero(),
+            clearValue: ClearColor.transparentBlack,
           ),
         ],
       ),

@@ -215,7 +215,7 @@ void main() {
         ),
       );
       expect(
-        () => bundle.setViewport(const ScreenRect(width: 1, height: 1)),
+        () => bundle.setViewport(const PassViewport(width: 1, height: 1)),
         throwsStateError,
       );
       bundle.draw();

@@ -222,6 +222,17 @@ TextureFormatSupport webgpuTextureFormatSupport(
   };
 }
 
+/// What [operation] throws for a request this backend has the feature for
+/// and still cannot honour — a value WebGPU has no spelling for, one a later
+/// version names — since 1.0.0-rc.1+2: the HAL's `DeviceResourceException`,
+/// where it was an untyped `UnsupportedError`.
+DeviceResourceException webgpuRefusal(String operation, String reason) =>
+    DeviceResourceException(
+      operation: operation,
+      backend: 'WebGPU',
+      reason: reason,
+    );
+
 /// The features a WebGPU device has, given the optional ones [granted]
 /// answers true for.
 ///
@@ -231,8 +242,9 @@ TextureFormatSupport webgpuTextureFormatSupport(
 /// requests whenever the adapter offers it, and what came back is what is
 /// reported. The ones never listed are each answered at their refusal:
 ///
-///  * `blend-constant` — two of the four constant-reading factors are
-///    `CONSTANT_ALPHA`, which this API cannot form in a colour equation; see
+///  * `blend-constant-alpha` — GL's `CONSTANT_ALPHA` pair, which this API
+///    cannot form in a colour equation. Until the blend constant was split
+///    in two (1.0.0-rc.1+2) that pair took `blend-constant` with it; see
 ///    `WebGpuEncoder.setBlendColor`.
 ///  * `wireframe` — WebGPU has no polygon fill mode.
 ///  * `render-stage-storage` — the render stages' reflection carries no
@@ -310,6 +322,16 @@ DeviceFeatures webgpuDeviceFeatures({
   // Not `viewportBeyondTarget`: `setViewport` is a validation error unless
   // the rectangle lies inside the attachment, so a window of a larger frame
   // is drawn here through a crop of its projection.
+  //
+  // Since 1.0.0-rc.1+2: `setBlendConstant` and the colour pair it feeds,
+  // every topology with restart always on for strips, `uint32` indices,
+  // and a viewport in floats. Not `blend-constant-alpha`, which this API
+  // cannot form — see [gpuBlendFactor].
+  DeviceFeature.blendConstant,
+  DeviceFeature.primitiveStrips,
+  DeviceFeature.pointPrimitives,
+  DeviceFeature.indexUint32,
+  DeviceFeature.fractionalViewport,
 ]);
 
 /// The `GPUTextureDimension` a texture of [dimension] is allocated as: the
@@ -322,7 +344,10 @@ String gpuTextureDimension(TextureDimension dimension) => switch (dimension) {
   TextureDimension.d2Array ||
   TextureDimension.cube ||
   TextureDimension.cubeArray => '2d',
-  _ => throw UnsupportedError('WebGPU has no texture dimension for $dimension'),
+  _ => throw webgpuRefusal(
+    'gpuTextureDimension',
+    'WebGPU has no texture dimension for $dimension',
+  ),
 };
 
 String gpuStorageTextureAccess(StorageTextureAccess access) => switch (access) {
@@ -503,7 +528,10 @@ String gpuBlendOperation(BlendOperation operation) => switch (operation) {
   BlendOperation.reverseSubtract => 'reverse-subtract',
   BlendOperation.min => 'min',
   BlendOperation.max => 'max',
-  _ => throw UnsupportedError('WebGPU has no blend operation for $operation'),
+  _ => throw webgpuRefusal(
+    'gpuBlendOperation',
+    'WebGPU has no blend operation for $operation',
+  ),
 };
 
 String gpuCompareFunction(CompareFunction compare) => switch (compare) {
@@ -528,7 +556,10 @@ String gpuStencilOperation(StencilOperation operation) => switch (operation) {
   StencilOperation.invert => 'invert',
   StencilOperation.incrementWrap => 'increment-wrap',
   StencilOperation.decrementWrap => 'decrement-wrap',
-  _ => throw UnsupportedError('WebGPU has no stencil operation for $operation'),
+  _ => throw webgpuRefusal(
+    'gpuStencilOperation',
+    'WebGPU has no stencil operation for $operation',
+  ),
 };
 
 String gpuPrimitiveTopology(PrimitiveType type) => switch (type) {
@@ -537,14 +568,17 @@ String gpuPrimitiveTopology(PrimitiveType type) => switch (type) {
   PrimitiveType.line => 'line-list',
   PrimitiveType.lineStrip => 'line-strip',
   PrimitiveType.point => 'point-list',
-  _ => throw UnsupportedError('WebGPU has no primitive topology for $type'),
+  _ => throw webgpuRefusal(
+    'gpuPrimitiveTopology',
+    'WebGPU has no primitive topology for $type',
+  ),
 };
 
 String gpuCullMode(CullMode mode) => switch (mode) {
   CullMode.none => 'none',
   CullMode.frontFace => 'front',
   CullMode.backFace => 'back',
-  _ => throw UnsupportedError('WebGPU has no cull mode for $mode'),
+  _ => throw webgpuRefusal('gpuCullMode', 'WebGPU has no cull mode for $mode'),
 };
 
 /// **Straight through — and it was written crossed first, on an argument that
@@ -591,7 +625,7 @@ String gpuLoadOp(LoadAction action) => switch (action) {
   LoadAction.dontCare => 'clear',
   LoadAction.load => 'load',
   LoadAction.clear => 'clear',
-  _ => throw UnsupportedError('WebGPU has no load op for $action'),
+  _ => throw webgpuRefusal('gpuLoadOp', 'WebGPU has no load op for $action'),
 };
 
 /// The store operation, which in WebGPU says nothing about resolving: a resolve
@@ -606,7 +640,7 @@ String gpuStoreOp(StoreAction action) => switch (action) {
   StoreAction.store => 'store',
   StoreAction.multisampleResolve => 'discard',
   StoreAction.storeAndMultisampleResolve => 'store',
-  _ => throw UnsupportedError('WebGPU has no store op for $action'),
+  _ => throw webgpuRefusal('gpuStoreOp', 'WebGPU has no store op for $action'),
 };
 
 /// Whether a target described by [spec] is allocated as a WebGPU transient
@@ -653,25 +687,37 @@ String gpuAddressMode(SamplerAddressMode mode) => switch (mode) {
       backend: 'WebGPU',
       reason: 'WebGPU has no "clamp-to-border" address mode',
     ),
-  _ => throw UnsupportedError('WebGPU has no address mode for $mode'),
+  _ => throw webgpuRefusal(
+    'gpuAddressMode',
+    'WebGPU has no address mode for $mode',
+  ),
 };
 
 String gpuFilterMode(MinMagFilter filter) => switch (filter) {
   MinMagFilter.nearest => 'nearest',
   MinMagFilter.linear => 'linear',
-  _ => throw UnsupportedError('WebGPU has no filter mode for $filter'),
+  _ => throw webgpuRefusal(
+    'gpuFilterMode',
+    'WebGPU has no filter mode for $filter',
+  ),
 };
 
 String gpuMipmapFilterMode(MipFilter filter) => switch (filter) {
   MipFilter.nearest => 'nearest',
   MipFilter.linear => 'linear',
-  _ => throw UnsupportedError('WebGPU has no mipmap filter mode for $filter'),
+  _ => throw webgpuRefusal(
+    'gpuMipmapFilterMode',
+    'WebGPU has no mipmap filter mode for $filter',
+  ),
 };
 
 String gpuIndexFormat(IndexType type) => switch (type) {
   IndexType.int16 => 'uint16',
   IndexType.int32 => 'uint32',
-  _ => throw UnsupportedError('WebGPU has no index format for $type'),
+  _ => throw webgpuRefusal(
+    'gpuIndexFormat',
+    'WebGPU has no index format for $type',
+  ),
 };
 
 String gpuVertexFormat(VertexFormat format) => switch (format) {
@@ -687,13 +733,19 @@ String gpuVertexFormat(VertexFormat format) => switch (format) {
   VertexFormat.sint32x2 => 'sint32x2',
   VertexFormat.sint32x3 => 'sint32x3',
   VertexFormat.sint32x4 => 'sint32x4',
-  _ => throw UnsupportedError('WebGPU has no vertex format for $format'),
+  _ => throw webgpuRefusal(
+    'gpuVertexFormat',
+    'WebGPU has no vertex format for $format',
+  ),
 };
 
 String gpuVertexStepMode(VertexStepMode mode) => switch (mode) {
   VertexStepMode.vertex => 'vertex',
   VertexStepMode.instance => 'instance',
-  _ => throw UnsupportedError('WebGPU has no vertex step mode for $mode'),
+  _ => throw webgpuRefusal(
+    'gpuVertexStepMode',
+    'WebGPU has no vertex step mode for $mode',
+  ),
 };
 
 /// The row stride `copyTextureToBuffer` demands for a [width]-pixel region of

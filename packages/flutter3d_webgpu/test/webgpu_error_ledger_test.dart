@@ -8,11 +8,12 @@
 /// which production never called: several entries a frame, kept for the life
 /// of the tab, and every complaint in them unread. The ledger holds the two
 /// halves apart: a verdict in flight leaves the set when it settles, and a
-/// complaint that settled is handed over at the next frame as a typed refusal
-/// — a `ShaderCompileException` for WGSL the browser would not compile, a
-/// `DeviceResourceException` for anything else it refused. A device that is
-/// lost reports on `GraphicsDevice.lost` instead, so the frame after a loss
-/// does not also throw what the loss explains.
+/// complaint that settled is handed over at the next frame as a `DeviceError`
+/// carrying a typed refusal — a `ShaderCompileException` for WGSL the
+/// browser would not compile, a `DeviceResourceException` for anything else
+/// it refused — which the device reports on `GraphicsDevice.errors` and never
+/// throws. A device that is lost reports on `GraphicsDevice.lost` instead, so
+/// the frame after a loss does not also report what the loss explains.
 ///
 /// Pure Dart, so it runs on the VM: the device needs a browser with WebGPU to
 /// open, and the ledger does not. On the VM only, because the device's wiring
@@ -51,34 +52,35 @@ void main() {
         ..track(Future<void>.error(StateError('the promise rejected')));
       await pumpEventQueue();
       expect(ledger.inFlight, 0);
-      expect(() => ledger.takeFrame(), throwsA(isA<DeviceResourceException>()));
+      expect(ledger.takeFrame()?.exception, isA<DeviceResourceException>());
     },
   );
 
-  test('a frame with nothing said takes nothing and throws nothing', () {
-    _ledger().takeFrame();
+  test('a frame with nothing said takes nothing', () {
+    expect(_ledger().takeFrame(), isNull);
   });
 
-  test('a refused call is thrown at the next frame, once', () {
+  test('a refused call is reported at the next frame, once', () {
     // Mutation: leave `takeFrame` empty, as production was, and nothing
-    // is ever thrown.
+    // is ever reported.
     final ledger = _ledger()
       ..complain('a pipeline over "pbr"', 'the vertex layout is not legal');
+    final error = ledger.takeFrame();
+    expect(error?.kind, DeviceErrorKind.validation);
+    expect(error?.operation, 'a pipeline over "pbr"');
     expect(
-      ledger.takeFrame,
-      throwsA(
-        isA<DeviceResourceException>()
-            .having((e) => e.operation, 'operation', 'a pipeline over "pbr"')
-            .having((e) => e.backend, 'backend', 'WebGPU')
-            .having(
-              (e) => e.reason,
-              'reason',
-              contains('the vertex layout is not legal'),
-            ),
-      ),
+      error?.exception,
+      isA<DeviceResourceException>()
+          .having((e) => e.operation, 'operation', 'a pipeline over "pbr"')
+          .having((e) => e.backend, 'backend', 'WebGPU')
+          .having(
+            (e) => e.reason,
+            'reason',
+            contains('the vertex layout is not legal'),
+          ),
     );
     // Taken, so the next frame is clean: a refusal is news once.
-    ledger.takeFrame();
+    expect(ledger.takeFrame(), isNull);
   });
 
   test('WGSL that did not compile is a ShaderCompileException', () {
@@ -87,16 +89,16 @@ void main() {
     final ledger = _ledger()
       ..complain('a pipeline over "pbr"', 'Invalid ShaderModule "pbr.frag"')
       ..complainOfShader('pbr.frag', 'line 3, column 7: unknown type');
+    final error = ledger.takeFrame();
+    expect(error?.kind, DeviceErrorKind.shaderCompile);
     expect(
-      ledger.takeFrame,
-      throwsA(
-        isA<ShaderCompileException>()
-            .having((e) => e.shader, 'shader', 'pbr.frag')
-            .having((e) => e.backend, 'backend', 'WebGPU')
-            .having((e) => e.log, 'log', contains('unknown type'))
-            // The pipeline that failed because of it is said too.
-            .having((e) => e.log, 'log', contains('pbr.frag')),
-      ),
+      error?.exception,
+      isA<ShaderCompileException>()
+          .having((e) => e.shader, 'shader', 'pbr.frag')
+          .having((e) => e.backend, 'backend', 'WebGPU')
+          .having((e) => e.log, 'log', contains('unknown type'))
+          // The pipeline that failed because of it is said too.
+          .having((e) => e.log, 'log', contains('pbr.frag')),
     );
   });
 
@@ -115,24 +117,22 @@ void main() {
         ),
       );
     expect(
-      ledger.takeFrame,
-      throwsA(
-        isA<ShaderCompileException>()
-            .having((e) => e.target, 'target', 'webgpu')
-            .having((e) => e.line, 'line', 3)
-            .having((e) => e.column, 'column', 7)
-            .having((e) => e.excerpt, 'excerpt', contains('vex3'))
-            .having((e) => e.diagnostics, 'diagnostics', hasLength(1)),
-      ),
+      ledger.takeFrame()?.exception,
+      isA<ShaderCompileException>()
+          .having((e) => e.target, 'target', 'webgpu')
+          .having((e) => e.line, 'line', 3)
+          .having((e) => e.column, 'column', 7)
+          .having((e) => e.excerpt, 'excerpt', contains('vex3'))
+          .having((e) => e.diagnostics, 'diagnostics', hasLength(1)),
     );
   });
 
-  test('a lost device does not throw what its loss explains', () {
-    // Mutation: ignore `deviceLost`, and the frame after a loss throws a
+  test('a lost device does not report what its loss explains', () {
+    // Mutation: ignore `deviceLost`, and the frame after a loss reports a
     // refusal on top of the event on `lost`.
     final ledger = _ledger()..complain('a submit', 'the device is lost');
-    ledger.takeFrame(deviceLost: true);
-    ledger.takeFrame();
+    expect(ledger.takeFrame(deviceLost: true), isNull);
+    expect(ledger.takeFrame(), isNull);
   });
 
   test('a frame of many complaints keeps a bounded number of them', () {
@@ -144,28 +144,30 @@ void main() {
     }
     expect(ledger.held, WebGpuErrorLedger.maxHeld);
     expect(
-      ledger.takeFrame,
-      throwsA(
-        isA<DeviceResourceException>().having(
-          (e) => e.reason,
-          'reason',
-          contains('and ${10000 - WebGpuErrorLedger.maxHeld} more'),
-        ),
+      ledger.takeFrame()?.exception,
+      isA<DeviceResourceException>().having(
+        (e) => e.reason,
+        'reason',
+        contains('and ${10000 - WebGpuErrorLedger.maxHeld} more'),
       ),
     );
   });
 
-  test('the device files everything here and empties it every frame', () {
+  test('the device files everything here, reports it every frame and never '
+      'throws it', () {
     // The device opens only in a browser with WebGPU, so the wiring is held
     // by reading its source: a ledger nobody empties is the leak this file
-    // exists to close.
+    // exists to close, and a `beginFrame` that throws what it empties fails
+    // a frame for a call it never made.
     //
-    // Mutation: drop the `takeFrame` from `beginFrame`, or the
-    // `uncapturederror` listener, or the call that starts watching in the
-    // constructor, and this fails naming it.
+    // Mutation: drop the `takeFrame` from `beginFrame`, or its report on
+    // `errors`, or the `uncapturederror` listener, or the call that starts
+    // watching in the constructor, and this fails naming it.
     final source = File('lib/src/webgpu_device.dart').readAsStringSync();
     for (final wired in <String>[
-      '_ledger.takeFrame(deviceLost: _isLost);',
+      'final error = _ledger.takeFrame(deviceLost: _isLost);',
+      '_deviceErrors.add(error);',
+      'Stream<DeviceError> get errors => _deviceErrors.stream;',
       "'uncapturederror',",
       '_watchBrowser();',
       'Future<String?> debugDrainErrors({String where = \'\'}) =>',
@@ -174,7 +176,6 @@ void main() {
     }
     // And nothing is kept outside it any more.
     expect(source, isNot(contains('_pending')));
-    expect(source, isNot(contains('_errors')));
   });
 
   test('the debug drain waits for what is in flight and says it all', () async {

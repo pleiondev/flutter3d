@@ -189,7 +189,7 @@ extension _ShadowPasses on Renderer {
             // this subsystem. That is how it was caught: `cube-shadow` has one
             // occupied row of four and 75% of its pixels changed.
             loadAction: cleared ? LoadAction.load : LoadAction.clear,
-            clearValue: vm.Vector4(1.0, 1.0, 1.0, 1.0),
+            clearValue: ClearColor(1.0, 1.0, 1.0, 1.0),
           ),
         ],
         depth: DepthTarget(texture: depth),
@@ -272,7 +272,7 @@ extension _ShadowPasses on Renderer {
         width: tile,
         height: tile,
       );
-      pass.setViewport(tileRect);
+      pass.setViewport(PassViewport.ofRect(tileRect));
       pass.setScissor(tileRect);
 
       // Blank this tile before drawing into it, since the pass no longer
@@ -1320,7 +1320,7 @@ extension _ShadowPasses on Renderer {
       final tile = tileOf(cascade);
       pass.setState(
         Renderer._kShadowCasterState.copyWith(
-          viewport: tile,
+          viewport: PassViewport.ofRect(tile),
           scissor: tile,
           cullMode: casterCull,
         ),
@@ -1374,7 +1374,7 @@ extension _ShadowPasses on Renderer {
         if (wantsEveryFace != everyFace) {
           pass.setState(
             Renderer._kShadowCasterState.copyWith(
-              viewport: casterTile,
+              viewport: PassViewport.ofRect(casterTile),
               scissor: casterTile,
               cullMode: wantsEveryFace ? CullMode.none : casterCull,
             ),
@@ -1464,7 +1464,7 @@ extension _ShadowPasses on Renderer {
         if (!stated) {
           pass.setState(
             Renderer._kShadowTransmittanceState.copyWith(
-              viewport: tile,
+              viewport: PassViewport.ofRect(tile),
               scissor: tile,
             ),
           );
@@ -1571,7 +1571,10 @@ extension _ShadowPasses on Renderer {
     void resetTile(CommandEncoder pass, int cascade) {
       final tile = tileOf(cascade);
       pass.setState(
-        Renderer._kShadowTileResetState.copyWith(viewport: tile, scissor: tile),
+        Renderer._kShadowTileResetState.copyWith(
+          viewport: PassViewport.ofRect(tile),
+          scissor: tile,
+        ),
       );
       pass.bindPipeline(
         // The cube atlas's own: the same stages into the same format.
@@ -1614,8 +1617,8 @@ extension _ShadowPasses on Renderer {
               // Turned round — `A2.8` — the far plane is nought, in red and in
               // the depth both.
               clearValue: transmittance
-                  ? vm.Vector4(reversed ? 0.0 : 1.0, 0.0, 0.0, 1.0)
-                  : vm.Vector4(reversed ? 0.0 : 1.0, 1.0, 1.0, 1.0),
+                  ? ClearColor(reversed ? 0.0 : 1.0, 0.0, 0.0, 1.0)
+                  : ClearColor(reversed ? 0.0 : 1.0, 1.0, 1.0, 1.0),
               loadAction: load ? LoadAction.load : LoadAction.clear,
             ),
           ],
@@ -1645,7 +1648,10 @@ extension _ShadowPasses on Renderer {
     ]) {
       final tile = tileOf(cascade);
       pass.setState(
-        Renderer._kShadowCopyState.copyWith(viewport: tile, scissor: tile),
+        Renderer._kShadowCopyState.copyWith(
+          viewport: PassViewport.ofRect(tile),
+          scissor: tile,
+        ),
       );
       pass.bindPipeline(
         _shadowCopyPipeline ??= device.createPipelineFrom(
@@ -1715,7 +1721,7 @@ extension _ShadowPasses on Renderer {
           colors: <ColorTarget>[
             ColorTarget(
               texture: depthCopy,
-              clearValue: vm.Vector4(1.0, 0.0, 0.0, 1.0),
+              clearValue: ClearColor(1.0, 0.0, 0.0, 1.0),
             ),
           ],
           depth: DepthTarget(texture: copyDepth),
@@ -1736,7 +1742,10 @@ extension _ShadowPasses on Renderer {
         ..[3] = reversed ? 2.0 : 0.0;
       copyPass
         ..setState(
-          Renderer._kShadowCopyState.copyWith(viewport: whole, scissor: whole),
+          Renderer._kShadowCopyState.copyWith(
+            viewport: PassViewport.ofRect(whole),
+            scissor: whole,
+          ),
         )
         ..bindPipeline(
           _shadowCopyPipeline ??= device.createPipelineFrom(
@@ -1843,8 +1852,8 @@ extension _ShadowPasses on Renderer {
                   // No surface: a depth past the far plane for the near
                   // faces, before the near one for the far faces.
                   clearValue: near
-                      ? vm.Vector4(0.0, 0.0, 0.0, 1.0)
-                      : vm.Vector4(0.0, 0.0, 0.0, 0.0),
+                      ? ClearColor(0.0, 0.0, 0.0, 1.0)
+                      : ClearColor.transparentBlack,
                 ),
               ],
               depth: DepthTarget(texture: depth, clearValue: near ? 1.0 : 0.0),
@@ -1855,7 +1864,7 @@ extension _ShadowPasses on Renderer {
             ..setState(
               PassState(
                 primitiveType: PrimitiveType.triangle,
-                viewport: square,
+                viewport: PassViewport.ofRect(square),
                 scissor: square,
                 cullMode: near ? CullMode.backFace : CullMode.frontFace,
                 depthWrite: true,
@@ -1893,7 +1902,10 @@ extension _ShadowPasses on Renderer {
       );
       photonPass
         ..setState(
-          Renderer._kCausticPhotonState.copyWith(viewport: tile, scissor: tile),
+          Renderer._kCausticPhotonState.copyWith(
+            viewport: PassViewport.ofRect(tile),
+            scissor: tile,
+          ),
         )
         ..bindPipeline(
           _causticPhotonPipeline ??= device.createPipelineFrom(

@@ -1018,12 +1018,12 @@ final class IndexType {
 
 /// How vertices are assembled into primitives.
 ///
-/// **Two of these are drawn everywhere and three are not.** The engine asks for
-/// [triangle] and [line] only — the debug overlay is the one caller of the
-/// second — and the software rasteriser implements exactly those two, throwing
-/// an [UnsupportedError] from the draw for the rest. There is no capability to
-/// ask first and `PassEncoder.setPrimitiveType` says why; what a backend may
-/// not do is assemble one of these as another.
+/// **Lists need nothing; strips and points are capabilities**, since
+/// 1.0.0-rc.1+2: [triangleStrip] and [lineStrip] are
+/// `DeviceFeature.primitiveStrips`, with primitive restart always on, and
+/// [point] is `DeviceFeature.pointPrimitives`. `PassEncoder.setPrimitiveType`
+/// has the rules; what a backend may never do is assemble one of these as
+/// another.
 ///
 /// A class with constants rather than an enum, so a value added in a minor
 /// release does not break a `switch` written against it: [name] is what a

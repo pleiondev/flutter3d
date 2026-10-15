@@ -78,7 +78,7 @@ dependencies:
   # includes, the WebGL2 and WebGPU translators, and the WGSL compile. Both
   # flat; the translators moved out of the two web backends for exactly this
   # line, since a package declaring the Flutter SDK cannot be listed here.
-  flutter3d_hardware: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_hardware: ^1.0.0-rc.1
   flutter3d_shaders: '>=1.0.0-rc.1 <1.1.0'
 
   # `hook/build.dart`'s own contract — `ap-00`'s spike proved this is the half

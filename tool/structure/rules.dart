@@ -12,6 +12,7 @@ import 'dart:io';
 import 'api.dart';
 import 'boundaries.dart';
 import 'detectors.dart';
+import 'hal.dart';
 import 'layers.dart';
 import 'migration.dart';
 import 'naming.dart';
@@ -48,6 +49,23 @@ List<Rule> get allRules => <Rule>[
     run: _wireMessagesUnderTheKey,
   ),
   (name: 'the hardware layer names no Flutter', run: _hardwareNamesNoFlutter),
+  (
+    name:
+        "a backend refuses in the HAL's words, never with an UnsupportedError",
+    run: backendsRefuseTyped,
+  ),
+  (
+    name: 'every backend tells its own dispose on lost',
+    run: backendsReportTheirLoss,
+  ),
+  (
+    name: 'PassState has a field for every pass setter',
+    run: passStateCoversTheSetters,
+  ),
+  (
+    name: 'the HAL keeps the shapes it settled before the freeze',
+    run: halKeepsItsShapes,
+  ),
   (name: 'the engine names no backend', run: _engineNamesNoBackend),
   (
     name: "no package reaches into another package's src",
@@ -3190,6 +3208,14 @@ List<Finding> _versionsAgree() {
     }
 
     for (final sibling in declared.entries) {
+      // **The HAL is asked for with a caret** (decision 91): it has no
+      // internal library, outside backends are written against it with a
+      // caret, and the engine's own five ask for it as they tell others to.
+      if (sibling.key == halPackage) {
+        final problem = halPinProblemIn(text, sibling.value);
+        if (problem != null) found.add(Finding(where, problem));
+        continue;
+      }
       // **Within one minor at 1.x** (decision 2 of 2026-10-12): the
       // `internal.dart` and `builtin.dart` libraries are outside semver and
       // may change in a minor, so a package of ours asks for a sibling's

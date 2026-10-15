@@ -322,7 +322,7 @@ extension _VelocityPass on Renderer {
     );
     pass.setState(
       Renderer._kSceneViewState.copyWith(
-        viewport: rect,
+        viewport: PassViewport.ofRect(rect),
         scissor: rect,
         polygonMode: PolygonMode.fill,
         blend: null,
@@ -430,7 +430,7 @@ extension _VelocityPass on Renderer {
     );
     pass.setState(
       Renderer._kSceneViewState.copyWith(
-        viewport: rect,
+        viewport: PassViewport.ofRect(rect),
         scissor: rect,
         polygonMode: PolygonMode.fill,
         blend: ReactiveFrame.state.blend,

@@ -57,7 +57,7 @@ void main() {
       for (final format in compressed) {
         expect(
           () => textureFormatToGl(format),
-          throwsUnsupportedError,
+          throwsA(isA<DeviceResourceException>()),
           reason: '$format',
         );
       }
@@ -73,7 +73,7 @@ void main() {
       ]) {
         expect(
           () => textureFormatToGl(format),
-          throwsUnsupportedError,
+          throwsA(isA<DeviceResourceException>()),
           reason: '$format',
         );
       }
@@ -135,7 +135,7 @@ void main() {
       ]) {
         expect(
           () => compressedTextureFormatToGl(format, fullSupport),
-          throwsUnsupportedError,
+          throwsA(isA<DeviceResourceException>()),
           reason: '$format',
         );
       }
@@ -163,7 +163,7 @@ void main() {
         expect(
           () => compressedTextureFormatToGl(format, noSupport),
           throwsA(
-            isA<UnsupportedError>().having(
+            isA<DeviceResourceException>().having(
               (e) => e.message,
               'message',
               allOf(contains(format.name), contains(extension)),

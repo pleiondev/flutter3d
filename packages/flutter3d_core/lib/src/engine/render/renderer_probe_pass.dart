@@ -265,13 +265,13 @@ extension _ProbePasses on Renderer {
           ColorTarget(
             texture: color,
             face: face,
-            clearValue: clearColor.toVector4(),
+            clearValue: ClearColor.fromLinear(clearColor),
           ),
           if (surface != null)
             ColorTarget(
               texture: surface,
               face: face,
-              clearValue: vm.Vector4.zero(),
+              clearValue: ClearColor.transparentBlack,
             ),
         ],
         depth: DepthTarget(texture: depth),
@@ -288,7 +288,7 @@ extension _ProbePasses on Renderer {
     final rect = ScreenRect(width: size, height: size);
     pass.setState(
       Renderer._kSceneViewState.copyWith(
-        viewport: rect,
+        viewport: PassViewport.ofRect(rect),
         scissor: rect,
         polygonMode: PolygonMode.fill,
       ),
@@ -403,7 +403,10 @@ extension _ProbePasses on Renderer {
           ),
         );
         pass.setState(
-          Renderer._kFullscreenState.copyWith(viewport: rect, scissor: rect),
+          Renderer._kFullscreenState.copyWith(
+            viewport: PassViewport.ofRect(rect),
+            scissor: rect,
+          ),
         );
         pass.bindPipeline(pipeline);
         pass.bindVertexBuffer(_fullscreenTriangle, 3);

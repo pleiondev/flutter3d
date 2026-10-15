@@ -65,7 +65,8 @@ void main() {
     expect(device.framebufferOrigin, FramebufferOrigin.topLeft);
     expect(device.depthRange, DepthRange.zeroToOne);
     expect(device.features.has(DeviceFeature.wireframe), isFalse);
-    expect(device.features.has(DeviceFeature.blendConstant), isFalse);
+    expect(device.features.has(DeviceFeature.blendConstant), isTrue);
+    expect(device.features.has(DeviceFeature.blendConstantAlpha), isFalse);
     expect(device.features.has(DeviceFeature.cubeTextures), isTrue);
 
     for (final (String vertex, String fragment) in _pairs) {

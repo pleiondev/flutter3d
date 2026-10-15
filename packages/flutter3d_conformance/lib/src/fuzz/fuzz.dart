@@ -27,7 +27,6 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/trace.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 import '../../flutter3d_conformance.dart' show DeviceFactory;
 
@@ -164,7 +163,7 @@ final class FuzzProgram {
         colors: <TraceColorTarget>[
           TraceColorTarget(
             texture: 0,
-            clearValue: Vector4(clear[0], clear[1], clear[2], clear[3]),
+            clearValue: ClearColor(clear[0], clear[1], clear[2], clear[3]),
           ),
         ],
         depth: depth ? const TraceDepthTarget(texture: 1) : null,
@@ -176,7 +175,7 @@ final class FuzzProgram {
       final scale = _powerOfTwo(draw.exponent);
       final inverse = _powerOfTwo(-draw.exponent);
       events
-        ..add(TraceSetViewport(0, draw.viewport))
+        ..add(TraceSetViewport(0, PassViewport.ofRect(draw.viewport)))
         ..add(
           TraceSetScissor(
             0,

@@ -34,7 +34,7 @@ void main() {
       registry.addComputeDevice(
         ComputePlacement.sidecar,
         'beside',
-        () async => sidecar,
+        (_) async => sidecar,
       );
       final drawing = FakeBackend();
       registry.adopt(drawing);
@@ -45,7 +45,7 @@ void main() {
       expect(site.isOnFrameDevice, isFalse);
       expect(computePlacementOf(site), ComputePlacement.sidecar);
 
-      registry.addBackend('fake', ({required width, required height}) async {
+      registry.addBackend('fake', (DeviceRequest _) async {
         return FakeBackend();
       });
       final opened = await registry.open(width: 4, height: 4);
@@ -65,9 +65,9 @@ void main() {
       ..addComputeDevice(
         ComputePlacement.sidecar,
         'beside',
-        () async => cpuComputeDevice(),
+        (_) async => cpuComputeDevice(),
       )
-      ..addComputeDevice(ComputePlacement.cpu, 'cpu', () async => cpu);
+      ..addComputeDevice(ComputePlacement.cpu, 'cpu', (_) async => cpu);
     final drawing = FakeBackend();
     registry.adopt(drawing);
     final PlacedWork(:site, :loaded) = await FrameCompute.of(
@@ -83,7 +83,7 @@ void main() {
       // drawing device cannot compile is never tried on the CPU.
       final registry = DeviceRegistry<Object>();
       final cpu = cpuComputeDevice();
-      registry.addComputeDevice(ComputePlacement.cpu, 'cpu', () async => cpu);
+      registry.addComputeDevice(ComputePlacement.cpu, 'cpu', (_) async => cpu);
       final drawing = cpuComputeDevice();
       registry.adopt(drawing);
       final PlacedWork(:site, :loaded) = await FrameCompute.of(drawing).place(
@@ -118,7 +118,7 @@ void main() {
     registry.addComputeDevice(
       ComputePlacement.cpu,
       'cpu',
-      () async => cpuComputeDevice(),
+      (_) async => cpuComputeDevice(),
     );
     final drawing = FakeBackend();
     registry.adopt(drawing);

@@ -44,12 +44,12 @@ void main() {
     final second = FakeBackend();
     final refused = <String>[];
     registry
-      ..addComputeDevice(ComputePlacement.cpu, 'old', () async => first)
-      ..addComputeDevice(ComputePlacement.cpu, 'new', () async => second)
+      ..addComputeDevice(ComputePlacement.cpu, 'old', (_) async => first)
+      ..addComputeDevice(ComputePlacement.cpu, 'new', (_) async => second)
       ..addComputeDevice(
         ComputePlacement.sidecar,
         'wgpu',
-        () async => throw StateError('no adapter'),
+        (_) async => throw StateError('no adapter'),
       );
     final drawing = FakeBackend();
     final executors = await registry.computeExecutors(

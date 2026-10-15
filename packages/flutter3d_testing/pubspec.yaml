@@ -35,7 +35,7 @@ dependencies:
   # neither of them can hold something that needs both.
   flutter3d: '>=1.0.0-rc.1 <1.1.0'
   flutter3d_cpu: '>=1.0.0-rc.1 <1.1.0'
-  flutter3d_hardware: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_hardware: ^1.0.0-rc.1+2
   # `Demo`, `InputTapePlayback` and `InputState` — `rp-01`'s `.f3drun`, for
   # `replayGolden`. A real dependency and not a dev one: replaying a demo
   # to a frame is this package's own job, the same as rendering a

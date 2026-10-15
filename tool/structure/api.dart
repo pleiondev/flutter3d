@@ -1066,6 +1066,28 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
         'rule and its refusal.',
   ),
   BuildAllowance(
+    package: 'flutter3d_hardware',
+    members: <String>[
+      'BackendOpener',
+      'ComputeOpener',
+      'ColorTarget.clearValue',
+      'PassEncoder.setViewport',
+      'PassState.copyWith',
+      'PassState.viewport',
+      'FakePass.setViewport',
+      'RecordedViewport.RecordedViewport',
+      'RecordedViewport.rect',
+      'TraceColorTarget.clearValue',
+      'TraceSetViewport.TraceSetViewport',
+      'TraceSetViewport.rect',
+    ],
+    reason:
+        'The shapes a backend could not take later are settled before the '
+        'freeze (1.0.0-rc.1+2): an opener takes one DeviceRequest, a clear '
+        'colour is an immutable ClearColor holding every integer, and the '
+        'viewport is a PassViewport in doubles with a depth range.',
+  ),
+  BuildAllowance(
     package: 'flutter3d_core',
     members: <String>[
       'BufferField.BufferField',

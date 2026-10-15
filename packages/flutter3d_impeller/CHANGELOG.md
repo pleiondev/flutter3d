@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1+1
 
+- **Strips, points and 32-bit indices are listed**, as the HAL names them
+  before the freeze: every flutter_gpu path draws them.
+- **The viewport carries its depth range** to flutter_gpu's
+  `Viewport.depthRange`; a rectangle off whole pixels is refused rather
+  than truncated.
+- **Every refusal is typed.** A value flutter_gpu has no spelling for is a
+  `DeviceResourceException` (`impellerRefusal`, and `unmirroredFormat`
+  answers one), where it was an `UnsupportedError`. The opener takes the
+  HAL's `DeviceRequest`.
+
 - **The shader bundle is the one the sources compile to.** 1.0.0-rc.1 went
   up with a bundle built before 18 of its shaders last changed, so a stage
   could ask for a slot the compiled one does not have. Nothing else differs.

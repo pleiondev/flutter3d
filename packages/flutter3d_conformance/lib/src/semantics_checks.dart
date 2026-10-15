@@ -87,7 +87,7 @@ Future<void> checkNullSamplerRepeats(GraphicsDevice device) async {
         ColorTarget(
           texture: target,
           loadAction: LoadAction.clear,
-          clearValue: Vector4(0.0, 1.0, 0.0, 1.0),
+          clearValue: ClearColor(0.0, 1.0, 0.0, 1.0),
         ),
       ],
     ),
@@ -183,7 +183,7 @@ Future<void> checkDepthWriteIsHonoured(GraphicsDevice device) async {
         ColorTarget(
           texture: target,
           loadAction: LoadAction.clear,
-          clearValue: Vector4.zero(),
+          clearValue: ClearColor.transparentBlack,
         ),
       ],
       depth: DepthTarget(texture: depth),
@@ -276,7 +276,7 @@ Future<void> checkUniformMemberMismatchIsRefused(GraphicsDevice device) async {
         ColorTarget(
           texture: target,
           loadAction: LoadAction.clear,
-          clearValue: Vector4(0.0, 0.0, 0.0, 1.0),
+          clearValue: ClearColor(0.0, 0.0, 0.0, 1.0),
         ),
       ],
     ),

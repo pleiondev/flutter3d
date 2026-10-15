@@ -18,7 +18,6 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 import 'webgpu_spike_device.dart';
 
@@ -127,13 +126,13 @@ Future<SpikeTriangleResult> drawSpikeTriangle({
           ColorTarget(
             texture: target,
             loadAction: LoadAction.clear,
-            clearValue: Vector4(0.0, 1.0, 0.0, 1.0),
+            clearValue: ClearColor(0.0, 1.0, 0.0, 1.0),
           ),
         ],
       ),
     );
     pass
-      ..setViewport(ScreenRect(width: size, height: size))
+      ..setViewport(PassViewport.ofRect(ScreenRect(width: size, height: size)))
       ..setScissor(ScreenRect(width: size, height: size))
       ..setPrimitiveType(PrimitiveType.triangle)
       // The assertion. A front face here is a triangle wound

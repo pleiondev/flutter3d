@@ -1307,15 +1307,17 @@ final class WebGpuDevice extends GraphicsDevice
     int mipLevel = 0,
   }) async {
     if (!readbackFormats.contains(target.format)) {
-      throw UnsupportedError(
+      throw webgpuRefusal(
+        'overwriteTexture',
         'overwriteTexture: TextureFormat.${target.format.name} is not one '
-        'of readbackFormats — the two this call, like readback, insists on.',
+            'of readbackFormats — the two this call, like readback, insists on.',
       );
     }
     if (mipLevel != 0) {
-      throw UnsupportedError(
+      throw webgpuRefusal(
+        'overwriteTexture',
         'overwriteTexture: mip level $mipLevel is refused; only the base '
-        'level (0) may be overwritten.',
+            'level (0) may be overwritten.',
       );
     }
     final rect =
@@ -1735,11 +1737,21 @@ final class WebGpuDevice extends GraphicsDevice
   final StreamController<DeviceLoss> _lost =
       StreamController<DeviceLoss>.broadcast();
 
+  /// What the browser refused after the call returned, at the start of the
+  /// frame after — the ledger's [DeviceError]s, since 1.0.0-rc.1+2. A loss
+  /// goes to [lost] instead, and the refusals before it are dropped.
+  @override
+  Stream<DeviceError> get errors => _deviceErrors.stream;
+
+  final StreamController<DeviceError> _deviceErrors =
+      StreamController<DeviceError>.broadcast();
+
   /// Starts listening to the browser: the `lost` promise, and
   /// `uncapturederror` for every error no [_guard] scope caught — a per-draw
   /// call, an allocation that did not fit, the implementation's own failure.
-  /// Those go to the ledger like any other complaint and are thrown at the
-  /// next [beginFrame]; unheard, they reach the console and nothing else.
+  /// Those go to the ledger like any other complaint and are reported on
+  /// [errors] at the next [beginFrame]; unheard, they reach the console and
+  /// nothing else.
   void _watchBrowser() {
     unawaited(
       _gpuDevice.lost.toDart.then((GPUDeviceLostInfo info) {
@@ -1833,13 +1845,15 @@ final class WebGpuDevice extends GraphicsDevice
   /// `webgpu_resources.dart` for why rewinding under a frame the GPU has not
   /// finished with is safe, which is the only surprising thing about it.
   ///
-  /// **Throws what the browser refused**, once, at the start of the frame
-  /// after the call: a [ShaderCompileException] for WGSL that did not
-  /// compile, a [DeviceResourceException] for any other refusal — the
-  /// earliest a synchronous caller can hear an answer that arrives as a
-  /// promise. Nothing is thrown once the device is lost; [lost] says that.
-  /// The arenas are rewound first, so the device is ready for the next frame
-  /// whether or not this one is refused.
+  /// **Reports what the browser refused on [errors]**, once, at the start of
+  /// the frame after the call: a [DeviceError] carrying a
+  /// [ShaderCompileException] for WGSL that did not compile, or a
+  /// [DeviceResourceException] for any other refusal — the earliest a
+  /// synchronous caller can hear an answer that arrives as a promise.
+  /// **Never thrown, since 1.0.0-rc.1+2**, as the contract now says of every
+  /// backend's `beginFrame`: a throw here failed the frame that happened to
+  /// start next, for a call it never made. Nothing is reported once the
+  /// device is lost; [lost] says that.
   @override
   void beginFrame() {
     _frame++;
@@ -1847,7 +1861,8 @@ final class WebGpuDevice extends GraphicsDevice
     _uniformArena.reset();
     _vertexArena.reset();
     _indexArena.reset();
-    _ledger.takeFrame(deviceLost: _isLost);
+    final error = _ledger.takeFrame(deviceLost: _isLost);
+    if (error != null && !_deviceErrors.isClosed) _deviceErrors.add(error);
   }
 
   @override
@@ -2413,7 +2428,8 @@ fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
       TextureDimension.cube => DeviceFeature.cubeTextures,
       TextureDimension.cubeArray => DeviceFeature.cubeArrayTextures,
       TextureDimension.d1 || TextureDimension.d2 => null,
-      _ => throw UnsupportedError(
+      _ => throw webgpuRefusal(
+        'createTexture',
         'WebGPU cannot allocate a ${descriptor.dimension} texture',
       ),
     };
@@ -2628,7 +2644,7 @@ fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
         }
         return webgpuMapWrite(_gpuDevice, buffer, offsetInBytes, size);
       default:
-        throw UnsupportedError('WebGPU has no map mode $mode');
+        throw webgpuRefusal('mapBuffer', 'WebGPU has no map mode $mode');
     }
   }
 
@@ -2683,6 +2699,7 @@ fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
       );
     }
     unawaited(_lost.close());
+    unawaited(_deviceErrors.close());
     webgpuDisposePersistentResources(_textures, _buffers);
     _blanks.clear();
     _uniformArena.dispose();

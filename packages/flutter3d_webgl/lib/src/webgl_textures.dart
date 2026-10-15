@@ -94,9 +94,10 @@ TextureHandle webglCreateTextureWithDescriptor(
       (format.isCompressed || format.isDepthOrStencil)) {
     // GL ES 3.0 allocates neither in a 3D texture: block-compressed formats
     // are 2D and 2D-array only, and depth is never volumetric.
-    throw UnsupportedError(
+    throw webglRefusal(
+      'createTexture',
       'WebGL2 makes no 3D texture in TextureFormat.${format.name}: '
-      'compressed and depth formats are 2D, 2D-array and cube only there.',
+          'compressed and depth formats are 2D, 2D-array and cube only there.',
     );
   }
   final deepest = <int>[
@@ -261,9 +262,10 @@ void webglWriteTexture(
 
   final transfer = webglTransferOf(target.format);
   if (transfer == null) {
-    throw UnsupportedError(
+    throw webglRefusal(
+      'writeTexture',
       'writeTexture: WebGL2 fills no texture in TextureFormat.'
-      '${target.format.name} from bytes',
+          '${target.format.name} from bytes',
     );
   }
   final rowBytes = box.width * transfer.texelBytes;
@@ -327,7 +329,8 @@ void webglWriteTexture(
         webglTransferView(ByteData.sublistView(tight), transfer.type),
       );
     default:
-      throw UnsupportedError(
+      throw webglRefusal(
+        'webglWriteTexture',
         'WebGL2 cannot upload into a ${target.dimension} texture',
       );
   }
@@ -416,7 +419,8 @@ void _writeCompressed(
         tight.toJS,
       );
     default:
-      throw UnsupportedError(
+      throw webglRefusal(
+        'writeTexture',
         'WebGL2 cannot upload into a ${target.dimension} texture',
       );
   }

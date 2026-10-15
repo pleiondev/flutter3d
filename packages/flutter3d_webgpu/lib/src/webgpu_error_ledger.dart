@@ -12,12 +12,17 @@
 ///
 /// - a verdict in flight ([track]) leaves [inFlight] the moment it settles;
 /// - a complaint that has settled ([complain], [complainOfShader]) is handed
-///   over at the next frame by [takeFrame], as a typed refusal: a
+///   over at the next frame by [takeFrame], as a [DeviceError] the device
+///   reports on `GraphicsDevice.errors`, carrying a typed refusal: a
 ///   [ShaderCompileException] when the browser would not compile some WGSL,
 ///   since that is the cause the pipelines built from it then report, and a
 ///   [DeviceResourceException] for anything else it refused. A device that is
-///   lost says so on `GraphicsDevice.lost`, and [takeFrame] then throws
+///   lost says so on `GraphicsDevice.lost`, and [takeFrame] then answers
 ///   nothing, because the loss is the news and the refusals are its echo.
+///
+/// **Reported, never thrown, since 1.0.0-rc.1+2.** `beginFrame` threw the
+/// frame's refusals until then, a term of the contract this one backend had
+/// made up; the contract says now that `beginFrame` throws none.
 ///
 /// Pure Dart, so a VM test holds it: the device needs a browser with WebGPU
 /// to open, and this does not.
@@ -28,7 +33,7 @@ import 'dart:async';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show ShaderCompileException, ShaderDiagnostic;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart'
-    show DeviceResourceException;
+    show DeviceError, DeviceErrorKind, DeviceResourceException;
 
 /// The verdicts one `WebGpuDevice` is waiting for, and the complaints it has
 /// not yet handed over.
@@ -100,21 +105,22 @@ final class WebGpuErrorLedger {
     }
   }
 
-  /// Hands over everything that settled since the last frame, as one typed
-  /// refusal, and forgets it.
+  /// Hands over everything that settled since the last frame, as one
+  /// [DeviceError] carrying the typed refusal, and forgets it; null when
+  /// nothing was said.
   ///
-  /// Called by `beginFrame`, so a refusal is thrown once, at the start of the
-  /// frame after the call the browser refused: the earliest point a
-  /// synchronous caller can hear an asynchronous answer. With [deviceLost]
-  /// the complaints are dropped instead; the loss is reported on
-  /// `GraphicsDevice.lost`.
-  void takeFrame({bool deviceLost = false}) {
-    if (_held.isEmpty) return;
+  /// Called by `beginFrame`, which reports what it answers on
+  /// `GraphicsDevice.errors` — **and never throws it**, since 1.0.0-rc.1+2:
+  /// a refusal of the frame before thrown from the start of this one failed
+  /// a frame for nothing it did. With [deviceLost] the complaints are
+  /// dropped instead; the loss is reported on `GraphicsDevice.lost`.
+  DeviceError? takeFrame({bool deviceLost = false}) {
+    if (_held.isEmpty) return null;
     final taken = List<_Complaint>.of(_held);
     final dropped = _dropped;
     _held.clear();
     _dropped = 0;
-    if (deviceLost) return;
+    if (deviceLost) return null;
 
     final said = <String>[
       for (final complaint in taken) complaint.said,
@@ -125,20 +131,33 @@ final class WebGpuErrorLedger {
         if (complaint.shader case final String shader) shader,
     };
     if (shaders.isNotEmpty) {
-      throw ShaderCompileException(
-        shader: shaders.join(', '),
-        backend: backend,
-        log: said,
-        target: 'webgpu',
-        diagnostics: List<ShaderDiagnostic>.unmodifiable(<ShaderDiagnostic>[
-          for (final complaint in taken) ?complaint.diagnostic,
-        ]),
+      return DeviceError(
+        kind: DeviceErrorKind.shaderCompile,
+        operation: shaders.join(', '),
+        message: said,
+        exception: ShaderCompileException(
+          shader: shaders.join(', '),
+          backend: backend,
+          log: said,
+          target: 'webgpu',
+          diagnostics: List<ShaderDiagnostic>.unmodifiable(<ShaderDiagnostic>[
+            for (final complaint in taken) ?complaint.diagnostic,
+          ]),
+        ),
       );
     }
-    throw DeviceResourceException(
+    final reason = taken.length == 1 && dropped == 0
+        ? taken.first.message
+        : said;
+    return DeviceError(
+      kind: DeviceErrorKind.validation,
       operation: taken.first.what,
-      backend: backend,
-      reason: taken.length == 1 && dropped == 0 ? taken.first.message : said,
+      message: reason,
+      exception: DeviceResourceException(
+        operation: taken.first.what,
+        backend: backend,
+        reason: reason,
+      ),
     );
   }
 

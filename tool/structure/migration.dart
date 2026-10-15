@@ -116,6 +116,11 @@ const Map<String, String> manualAllowlist = <String, String>{
       'refused demand to read',
   'core-BufferField-new':
       'the third argument changes type, to a site only a placement makes',
+  'hardware-BackendOpener':
+      "a function literal's parameter list: no kind rewrites the parameters "
+      'of a closure, and the body reads them by name',
+  'hardware-ComputeOpener':
+      "a function literal's parameter list, as hardware-BackendOpener's",
 };
 
 /// Words in what a person reads that belong to the work behind the release,

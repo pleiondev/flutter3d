@@ -51,7 +51,7 @@ Future<void> checkRenderToCubeFaceAndMip(GraphicsDevice device) async {
   // into face three's base, blue into face zero's base, and red into face
   // three's second level last — so a clear that covered every face, or every
   // level, leaves red where green was expected.
-  void clear(int face, int mipLevel, Vector4 color) => device
+  void clear(int face, int mipLevel, ClearColor color) => device
       .beginRenderPass(
         RenderPassDescriptor(
           colors: <ColorTarget>[
@@ -67,9 +67,9 @@ Future<void> checkRenderToCubeFaceAndMip(GraphicsDevice device) async {
       )
       .submit();
 
-  clear(3, 0, Vector4(0.0, 1.0, 0.0, 1.0));
-  clear(0, 0, Vector4(0.0, 0.0, 1.0, 1.0));
-  if (levels > 1) clear(3, 1, Vector4(1.0, 0.0, 0.0, 1.0));
+  clear(3, 0, ClearColor(0.0, 1.0, 0.0, 1.0));
+  clear(0, 0, ClearColor(0.0, 0.0, 1.0, 1.0));
+  if (levels > 1) clear(3, 1, ClearColor(1.0, 0.0, 0.0, 1.0));
 
   final green = await _readFace(device, cube, face: 3, lod: 0);
   require(
@@ -157,7 +157,7 @@ Future<void> checkPassViewportCoversTheLevel(GraphicsDevice device) async {
           face: 0,
           mipLevel: 1,
           loadAction: LoadAction.clear,
-          clearValue: Vector4(0.0, 0.0, 0.0, 1.0),
+          clearValue: ClearColor(0.0, 0.0, 0.0, 1.0),
         ),
       ],
     ),
@@ -243,7 +243,7 @@ Future<List<int>> _readFace(
         ColorTarget(
           texture: target,
           loadAction: LoadAction.clear,
-          clearValue: Vector4.zero(),
+          clearValue: ClearColor.transparentBlack,
         ),
       ],
     ),

@@ -33,10 +33,9 @@ final class TextureDimension {
 
   /// One row of texels.
   ///
-  /// Gated by `DeviceFeature.textureWrites` alone in 1.0, with no feature of
-  /// its own: WebGPU has it and WebGL2 does not, and a backend without it
-  /// refuses the descriptor with an [UnsupportedError] naming the dimension.
-  /// A `texture-1d` feature can be added later without breaking anything.
+  /// Gated by `DeviceFeature.texture1D` (with `textureWrites`): WebGPU has
+  /// it and WebGL2 does not, and [TextureDescriptor.checkFeatures] refuses
+  /// the descriptor by that feature on a backend without it.
   static const TextureDimension d1 = TextureDimension._('d1');
 
   /// A plain 2D image — what every texture before 0.9 was, cubes aside.
@@ -339,6 +338,9 @@ final class BufferUsage {
   /// [uniform] with an [ArgumentError]: WebGL2 binds a buffer to the element
   /// array target for its life and cannot bind it anywhere else.
   static const BufferUsage index = BufferUsage._(2);
+
+  /// Bound as a stage's uniform block by `PassEncoder.bindUniformBuffer` —
+  /// `DeviceFeature.uniformBuffers`, since 1.0.0-rc.1+2.
   static const BufferUsage uniform = BufferUsage._(4);
 
   /// Needs `DeviceFeature.compute` or `DeviceFeature.renderStageStorage`.

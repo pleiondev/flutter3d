@@ -377,7 +377,7 @@ void main() {
             usage: BufferUsage.index | BufferUsage.vertex,
           ),
         ),
-        throwsUnsupportedError,
+        throwsA(isA<DeviceResourceException>()),
       );
       device.dispose();
     });

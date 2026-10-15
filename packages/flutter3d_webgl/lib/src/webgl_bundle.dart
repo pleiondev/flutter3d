@@ -74,7 +74,7 @@ final class WebGlRenderBundleEncoder extends PassEncoder
   // ------------------------------------------------- what a pass owns
 
   @override
-  void setViewport(ScreenRect rect) => _passOnly('setViewport');
+  void setViewport(PassViewport viewport) => _passOnly('setViewport');
 
   @override
   void setScissor(ScreenRect rect) => _passOnly('setScissor');

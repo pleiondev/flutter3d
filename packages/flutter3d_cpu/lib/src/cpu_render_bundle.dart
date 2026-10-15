@@ -70,7 +70,7 @@ final class CpuRenderBundleEncoder extends PassEncoder
   }
 
   @override
-  void setViewport(ScreenRect rect) => _notInBundle('setViewport');
+  void setViewport(PassViewport viewport) => _notInBundle('setViewport');
 
   @override
   void setScissor(ScreenRect rect) => _notInBundle('setScissor');

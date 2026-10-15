@@ -46,7 +46,7 @@ dependencies:
 
   # The vocabulary the backend choice is made in. Neither backend appears in
   # any signature here — `openDevice` returns a `GraphicsDevice`.
-  flutter3d_hardware: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_hardware: ^1.0.0-rc.1+2
 
   # The two implementations the conditional export in `backend_native.dart`/
   # `backend_web.dart` picks between by `dart.library.js_interop`, because the

@@ -26,7 +26,6 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_webgpu/src/webgpu_device.dart';
 import 'package:flutter3d_webgpu/src/webgpu_interop.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 import 'quad_stages.dart';
 
@@ -133,7 +132,7 @@ List<int> _texel(ByteData pixels, int width, int x, int y) {
 }
 
 ColorTarget _clearTo(TextureHandle texture) =>
-    ColorTarget(texture: texture, clearValue: Vector4(0, 0, 0, 1));
+    ColorTarget(texture: texture, clearValue: ClearColor(0, 0, 0, 1));
 
 void main() {
   test('a textured quad comes back with the palette it sampled', () async {
@@ -665,7 +664,7 @@ void main() {
             texture: multisampled,
             resolveTexture: resolved,
             storeAction: StoreAction.multisampleResolve,
-            clearValue: Vector4(0, 0, 0, 1),
+            clearValue: ClearColor(0, 0, 0, 1),
           ),
         ],
       ),
@@ -799,22 +798,34 @@ void main() {
   });
 
   group('what this backend refuses', () {
-    test('a blend constant, from both ends', () async {
+    test("the blend constant's alpha pair, and not its colour pair", () async {
+      // Mutation: refuse the colour pair again, as before the constant was
+      // split. WebGPU has `setBlendConstant` and `"constant"`; it has no
+      // `CONSTANT_ALPHA`, and only that pair is refused.
       final scene = await _scene();
       if (scene == null) return;
-      expect(scene.device.features.has(DeviceFeature.blendConstant), isFalse);
+      expect(scene.device.features.has(DeviceFeature.blendConstant), isTrue);
+      expect(
+        scene.device.features.has(DeviceFeature.blendConstantAlpha),
+        isFalse,
+      );
       final pass = scene.device.beginRenderPass(
         RenderPassDescriptor(colors: <ColorTarget>[_clearTo(scene.target())]),
       );
-      expect(
-        () => pass.setBlendColor(LinearColor.white),
-        throwsA(isA<UnsupportedCapabilityException>()),
-      );
+      pass
+        ..setBlendColor(LinearColor.white)
+        ..setBlend(const BlendState(sourceColorFactor: BlendFactor.blendColor));
       expect(
         () => pass.setBlend(
-          const BlendState(sourceColorFactor: BlendFactor.blendColor),
+          const BlendState(sourceColorFactor: BlendFactor.blendAlpha),
         ),
-        throwsA(isA<UnsupportedCapabilityException>()),
+        throwsA(
+          isA<UnsupportedCapabilityException>().having(
+            (e) => e.feature,
+            'feature',
+            DeviceFeature.blendConstantAlpha,
+          ),
+        ),
       );
       pass.submit();
       scene.device.dispose();
@@ -1069,7 +1080,7 @@ void main() {
     Future<List<int>> read(
       WebGpuDevice device,
       TextureFormat format,
-      Vector4 color,
+      ClearColor color,
     ) async {
       final target = device.createTexture(
         RenderTargetDescriptor(width: 4, height: 4, format: format),
@@ -1111,7 +1122,7 @@ void main() {
       final got = await read(
         scene.device,
         TextureFormat.r16g16b16a16Float,
-        Vector4(0.25, 0.5, 0.75, 1.0),
+        ClearColor(0.25, 0.5, 0.75, 1.0),
       );
       // A quarter, a half and three quarters of 255, to a rounding.
       expect(got[0], closeTo(64, 2));
@@ -1127,7 +1138,7 @@ void main() {
       final got = await read(
         scene.device,
         TextureFormat.r32g32b32a32Float,
-        Vector4(1.0, 0.0, 0.5, 1.0),
+        ClearColor(1.0, 0.0, 0.5, 1.0),
       );
       expect(got[0], 255);
       expect(got[1], 0);
@@ -1145,7 +1156,7 @@ void main() {
       final got = await read(
         scene.device,
         TextureFormat.r16g16b16a16Float,
-        Vector4(4.0, -1.0, 0.5, 1.0),
+        ClearColor(4.0, -1.0, 0.5, 1.0),
       );
       expect(got[0], 255);
       expect(got[1], 0);
@@ -1231,7 +1242,7 @@ void main() {
                   texture: cube,
                   face: 5,
                   mipLevel: 3,
-                  clearValue: Vector4(1, 1, 1, 1),
+                  clearValue: ClearColor(1, 1, 1, 1),
                 ),
               ],
             ),

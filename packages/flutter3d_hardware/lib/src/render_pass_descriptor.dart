@@ -7,7 +7,9 @@
 /// verbs this file's nouns are for.
 library;
 
-import 'package:vector_math/vector_math.dart' as vm;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor, UnsupportedCapabilityException;
+import 'package:meta/meta.dart';
 
 import 'capabilities.dart';
 import 'device_exceptions.dart';
@@ -16,13 +18,13 @@ import 'formats.dart';
 import 'resources.dart';
 import 'texture.dart';
 
-/// A rectangle of a render target, in pixels.
+/// A rectangle of a render target, in whole pixels: the scissor, a readback
+/// region, an overwrite's region.
 ///
-/// One type for both the viewport and the scissor, because every site in this
-/// engine sets them to the same rectangle — with one exception, the composite's
-/// overlay loop, which re-aims the viewport per view inside a scissor that
-/// already covers the whole frame. That exception is why they are still two
-/// methods and not one.
+/// **The viewport is a [PassViewport] since 1.0.0-rc.1+2**, with a rectangle in
+/// doubles and a depth range, which is what WebGPU and flutter_gpu set; the
+/// scissor stays whole pixels on every API. [PassViewport.ofRect] turns one of
+/// these into the viewport over the same pixels.
 final class ScreenRect {
   const ScreenRect({
     this.x = 0,
@@ -53,6 +55,311 @@ final class ScreenRect {
 
   @override
   String toString() => 'ScreenRect($x, $y, ${width}x$height)';
+}
+
+/// Where the rasteriser maps clip space: a rectangle of the target in pixels,
+/// which may be fractional, and the window depth range clip depth maps onto —
+/// `PassEncoder.setViewport`.
+///
+/// **A rectangle in doubles and a depth range**, the two things every native
+/// viewport has that a [ScreenRect] cannot say. Clip depth from the device's
+/// `GraphicsDevice.depthRange` maps linearly onto [minDepth]..[maxDepth],
+/// both in `[0, 1]`; the defaults are the whole range, which is what every
+/// pass had before. A rectangle that is not whole pixels needs
+/// `DeviceFeature.fractionalViewport` ([checkFeatures]); the depth range
+/// needs nothing.
+@immutable
+final class PassViewport {
+  /// The viewport [width] by [height] pixels from ([x], [y]), mapping depth
+  /// onto [minDepth]..[maxDepth].
+  const PassViewport({
+    this.x = 0,
+    this.y = 0,
+    required this.width,
+    required this.height,
+    this.minDepth = 0,
+    this.maxDepth = 1,
+  }) : assert(
+         0 <= minDepth && minDepth <= maxDepth && maxDepth <= 1,
+         'a depth range lies in [0, 1] and starts at or below where it ends',
+       ),
+       assert(width >= 0 && height >= 0, 'a viewport has no negative size');
+
+  /// The viewport over the whole of [texture], with the whole depth range.
+  factory PassViewport.of(TextureHandle texture) => PassViewport(
+    width: texture.width.toDouble(),
+    height: texture.height.toDouble(),
+  );
+
+  /// The viewport over exactly the pixels of [rect], with the whole depth
+  /// range — what a pass that sets its viewport and its scissor to the same
+  /// rectangle says for the first.
+  factory PassViewport.ofRect(ScreenRect rect) => PassViewport(
+    x: rect.x.toDouble(),
+    y: rect.y.toDouble(),
+    width: rect.width.toDouble(),
+    height: rect.height.toDouble(),
+  );
+
+  /// The left edge, in pixels from the target's left.
+  final double x;
+
+  /// The top edge, in pixels from row zero (see `FramebufferOrigin`).
+  final double y;
+
+  /// How wide, in pixels.
+  final double width;
+
+  /// How high, in pixels.
+  final double height;
+
+  /// The window depth the near end of clip depth maps to: a depth from 0 to
+  /// 1, unitless.
+  final double minDepth;
+
+  /// The window depth the far end of clip depth maps to: a depth from 0 to
+  /// 1, unitless.
+  final double maxDepth;
+
+  /// Whether the rectangle lies on whole pixels — what a backend whose API
+  /// takes integers can set exactly.
+  bool get isWholePixels =>
+      x == x.roundToDouble() &&
+      y == y.roundToDouble() &&
+      width == width.roundToDouble() &&
+      height == height.roundToDouble();
+
+  /// Whether the depth range is the whole of `[0, 1]`.
+  bool get coversFullDepth => minDepth == 0 && maxDepth == 1;
+
+  /// The rectangle rounded to whole pixels — for a backend whose API takes
+  /// integers, once [checkFeatures] has let it through.
+  ScreenRect get rect => ScreenRect(
+    x: x.round(),
+    y: y.round(),
+    width: width.round(),
+    height: height.round(),
+  );
+
+  /// Throws [UnsupportedCapabilityException] when this viewport needs a
+  /// feature [features] lacks: a rectangle that is not whole pixels
+  /// (`fractionalViewport`).
+  ///
+  /// **For a backend's `setViewport`**, so that every backend refuses the
+  /// same viewports in the same words, and a field a minor adds with its
+  /// feature is refused by a backend written before it rather than ignored.
+  void checkFeatures(DeviceFeatures features, {required String backend}) {
+    if (!isWholePixels) {
+      features.require(
+        DeviceFeature.fractionalViewport,
+        backend: backend,
+        reason: 'the viewport $this is not whole pixels',
+      );
+    }
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is PassViewport &&
+      other.x == x &&
+      other.y == y &&
+      other.width == width &&
+      other.height == height &&
+      other.minDepth == minDepth &&
+      other.maxDepth == maxDepth;
+
+  @override
+  int get hashCode => Object.hash(x, y, width, height, minDepth, maxDepth);
+
+  @override
+  String toString() =>
+      'PassViewport($x, $y, ${width}x$height'
+      '${coversFullDepth ? '' : ', depth $minDepth..$maxDepth'})';
+}
+
+/// What a colour attachment is cleared to: four channels of one kind.
+///
+/// **An immutable value of doubles, since 1.0.0-rc.1+2.** It was a
+/// `vector_math` `Vector4`: mutable inside an immutable descriptor, the one
+/// third-party type in the contract, and float32, so an integer target (an
+/// `r32UInt` id buffer) cleared exactly only up to 2^24. A double holds every
+/// 32-bit integer exactly, and the three constructors say which kind of
+/// target the value is for: [ClearColor.new] for float and normalised
+/// formats, [ClearColor.uint] and [ClearColor.sint] for the integer ones.
+@immutable
+final class ClearColor {
+  /// A float clear, for a float, normalised or sRGB target. Linear light,
+  /// not sRGB, for anything written into an HDR target.
+  const ClearColor(
+    double this.red,
+    double this.green,
+    double this.blue,
+    double this.alpha,
+  ) : kind = ClearColorKind.float;
+
+  /// An unsigned integer clear, for a `…UInt` target. Each channel is
+  /// written as it is, in the target's own width.
+  const ClearColor.uint(
+    int this.red,
+    int this.green,
+    int this.blue,
+    int this.alpha,
+  ) : kind = ClearColorKind.uint,
+      assert(
+        red >= 0 && green >= 0 && blue >= 0 && alpha >= 0,
+        'an unsigned clear has no negative channel',
+      );
+
+  /// A signed integer clear, for a `…SInt` target.
+  const ClearColor.sint(
+    int this.red,
+    int this.green,
+    int this.blue,
+    int this.alpha,
+  ) : kind = ClearColorKind.sint;
+
+  /// A float clear to [color], channel for channel.
+  factory ClearColor.fromLinear(LinearColor color) =>
+      ClearColor(color.r, color.g, color.b, color.a);
+
+  /// Transparent black, which is what a null `ColorTarget.clearValue` means.
+  static const ClearColor transparentBlack = ClearColor(0, 0, 0, 0);
+
+  /// Which kind of target the channels are for.
+  final ClearColorKind kind;
+
+  /// The red channel: a double for [ClearColorKind.float], an int otherwise.
+  final num red;
+
+  /// The green channel, as [red].
+  final num green;
+
+  /// The blue channel, as [red].
+  final num blue;
+
+  /// The alpha channel, as [red].
+  final num alpha;
+
+  /// The four channels as doubles, in order — exact for every kind, since a
+  /// double holds every 32-bit integer.
+  List<double> get channels => <double>[
+    red.toDouble(),
+    green.toDouble(),
+    blue.toDouble(),
+    alpha.toDouble(),
+  ];
+
+  @override
+  bool operator ==(Object other) =>
+      other is ClearColor &&
+      other.kind == kind &&
+      other.red == red &&
+      other.green == green &&
+      other.blue == blue &&
+      other.alpha == alpha;
+
+  @override
+  int get hashCode => Object.hash(kind, red, green, blue, alpha);
+
+  @override
+  String toString() => 'ClearColor.${kind.name}($red, $green, $blue, $alpha)';
+}
+
+/// Which kind of target a [ClearColor] is for.
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+@immutable
+final class ClearColorKind {
+  const ClearColorKind._(this.name);
+
+  /// Float, normalised and sRGB formats.
+  static const ClearColorKind float = ClearColorKind._('float');
+
+  /// Unsigned integer formats.
+  static const ClearColorKind uint = ClearColorKind._('uint');
+
+  /// Signed integer formats.
+  static const ClearColorKind sint = ClearColorKind._('sint');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<ClearColorKind> values = <ClearColorKind>[
+    float,
+    uint,
+    sint,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static ClearColorKind? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'ClearColorKind.$name';
+}
+
+/// The features a [PrimitiveType] needs — since 1.0.0-rc.1+2.
+extension PrimitiveTypeFeatures on PrimitiveType {
+  /// Throws [UnsupportedCapabilityException] when [features] lacks what
+  /// this topology needs: a strip (`primitiveStrips`) or points
+  /// (`pointPrimitives`). Triangle and line lists need nothing.
+  ///
+  /// **For a backend's `setPrimitiveType`**, so that every backend refuses
+  /// the same topologies in the same words, and a topology a minor adds with
+  /// its feature is refused by a backend written before it rather than
+  /// assembled as something else.
+  void checkFeatures(DeviceFeatures features, {required String backend}) {
+    if (this == PrimitiveType.triangleStrip ||
+        this == PrimitiveType.lineStrip) {
+      features.require(
+        DeviceFeature.primitiveStrips,
+        backend: backend,
+        reason: 'it assembles no strips',
+      );
+    } else if (this == PrimitiveType.point) {
+      features.require(
+        DeviceFeature.pointPrimitives,
+        backend: backend,
+        reason: 'it draws no points',
+      );
+    }
+  }
+
+  /// Whether this is a strip, where an all-ones index restarts.
+  bool get isStrip =>
+      this == PrimitiveType.triangleStrip || this == PrimitiveType.lineStrip;
+}
+
+/// The features an [IndexType] needs, and its restart value — since
+/// 1.0.0-rc.1+2.
+extension IndexTypeFeatures on IndexType {
+  /// Throws [UnsupportedCapabilityException] when [features] lacks what
+  /// this index width needs: 32-bit indices (`indexUint32`).
+  ///
+  /// **For a backend's `bindIndexBuffer` and `bindIndexData`**, for the
+  /// reason [PrimitiveTypeFeatures.checkFeatures] gives.
+  void checkFeatures(DeviceFeatures features, {required String backend}) {
+    if (this == IndexType.int32) {
+      features.require(
+        DeviceFeature.indexUint32,
+        backend: backend,
+        reason: 'its indices are 16 bits',
+      );
+    }
+  }
+
+  /// The all-ones index that ends a strip and starts the next: `0xFFFF` for
+  /// [IndexType.int16], `0xFFFFFFFF` for [IndexType.int32].
+  int get restartIndex => this == IndexType.int16 ? 0xFFFF : 0xFFFFFFFF;
 }
 
 /// How a draw is combined with what the attachment already holds.
@@ -132,6 +439,16 @@ final class BlendState {
       _readsConstant(sourceAlphaFactor) ||
       _readsConstant(destinationAlphaFactor);
 
+  /// Whether any factor is [BlendFactor.blendAlpha] or
+  /// [BlendFactor.oneMinusBlendAlpha], which read the constant's alpha for
+  /// every channel — what a backend without
+  /// `DeviceFeature.blendConstantAlpha` refuses. Since 1.0.0-rc.1+2.
+  bool get usesBlendAlpha =>
+      _readsConstantAlpha(sourceColorFactor) ||
+      _readsConstantAlpha(destinationColorFactor) ||
+      _readsConstantAlpha(sourceAlphaFactor) ||
+      _readsConstantAlpha(destinationAlphaFactor);
+
   /// Whether any factor reads the fragment's second output — what a backend
   /// without `DeviceFeature.dualSourceBlending` refuses.
   bool get usesDualSource =>
@@ -149,8 +466,10 @@ final class BlendState {
 
   /// Throws [UnsupportedCapabilityException] when this state needs a feature
   /// [features] lacks: a factor that reads the blend constant
-  /// (`blendConstant`), a min or max operation (`minMaxBlend`), a factor that
-  /// reads a second fragment output (`dualSourceBlending`).
+  /// (`blendConstant`), one that reads the constant's alpha for every channel
+  /// (`blendConstantAlpha`, asked after `blendConstant`), a min or max
+  /// operation (`minMaxBlend`), a factor that reads a second fragment output
+  /// (`dualSourceBlending`).
   ///
   /// **For a backend's `setBlend`**, so that every backend refuses the same
   /// states in the same words, and an operation a minor adds with its
@@ -162,6 +481,13 @@ final class BlendState {
         DeviceFeature.blendConstant,
         backend: backend,
         reason: 'the blend state reads the blend constant',
+      );
+    }
+    if (usesBlendAlpha) {
+      features.require(
+        DeviceFeature.blendConstantAlpha,
+        backend: backend,
+        reason: "the blend state reads the blend constant's alpha",
       );
     }
     if (usesMinMax) {
@@ -188,6 +514,11 @@ final class BlendState {
     BlendFactor.oneMinusBlendAlpha => true,
     _ => false,
   };
+
+  /// Whether one factor multiplies by the constant's alpha alone.
+  static bool _readsConstantAlpha(BlendFactor factor) =>
+      factor == BlendFactor.blendAlpha ||
+      factor == BlendFactor.oneMinusBlendAlpha;
 
   @override
   bool operator ==(Object other) =>
@@ -300,9 +631,10 @@ final class ColorTarget {
   final LoadAction loadAction;
   final StoreAction storeAction;
 
-  /// Null clears to transparent black. Linear light, not sRGB, for anything
-  /// written into an HDR target.
-  final vm.Vector4? clearValue;
+  /// Null clears to transparent black ([ClearColor.transparentBlack]).
+  /// Linear light, not sRGB, for anything written into an HDR target; an
+  /// integer target takes a [ClearColor.uint] or [ClearColor.sint].
+  final ClearColor? clearValue;
 }
 
 /// How the stencil test treats the draws that follow, for one face.

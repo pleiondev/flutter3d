@@ -4,13 +4,17 @@ library;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
+import 'gpu_refusal.dart' show impellerRefusal;
 
 /// Maps the engine's [IndexType] to its `package:flutter_gpu` equivalent.
 extension IndexTypeToGpu on IndexType {
   gpu.IndexType toGpu() => switch (this) {
     IndexType.int16 => gpu.IndexType.int16,
     IndexType.int32 => gpu.IndexType.int32,
-    _ => throw UnsupportedError('flutter_gpu has no index type for $this'),
+    _ => throw impellerRefusal(
+      'toGpu',
+      'flutter_gpu has no index type for $this',
+    ),
   };
 }
 
@@ -37,7 +41,10 @@ extension VertexFormatToGpu on VertexFormat {
     VertexFormat.sint32x2 => gpu.VertexFormat.sint32x2,
     VertexFormat.sint32x3 => gpu.VertexFormat.sint32x3,
     VertexFormat.sint32x4 => gpu.VertexFormat.sint32x4,
-    _ => throw UnsupportedError('flutter_gpu has no vertex format for $this'),
+    _ => throw impellerRefusal(
+      'toGpu',
+      'flutter_gpu has no vertex format for $this',
+    ),
   };
 }
 
@@ -65,7 +72,8 @@ extension VertexStepModeToGpu on VertexStepMode {
   gpu.VertexStepMode toGpu() => switch (this) {
     VertexStepMode.vertex => gpu.VertexStepMode.vertex,
     VertexStepMode.instance => gpu.VertexStepMode.instance,
-    _ => throw UnsupportedError(
+    _ => throw impellerRefusal(
+      'toGpu',
       'flutter_gpu has no vertex step mode for $this',
     ),
   };

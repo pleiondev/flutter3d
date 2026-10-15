@@ -12,12 +12,11 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show LinearColor, UnsupportedCapabilityException;
+    show UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_webgpu/flutter3d_webgpu_web.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 import 'quad_stages.dart';
 
@@ -272,7 +271,7 @@ void main() {
     final pass = device.beginRenderPass(
       RenderPassDescriptor(
         colors: <ColorTarget>[
-          ColorTarget(texture: target, clearValue: Vector4(1, 0, 0, 1)),
+          ColorTarget(texture: target, clearValue: ClearColor(1, 0, 0, 1)),
         ],
       ),
     )..setColorWriteMask(ColorWriteMask.red);
@@ -296,11 +295,14 @@ void main() {
     );
     _drawQuad(device, recorder);
     final bundle = recorder.finish(label: 'quad');
-    expect(() => recorder.setViewport(ScreenRect.of(target)), throwsStateError);
+    expect(
+      () => recorder.setViewport(PassViewport.of(target)),
+      throwsStateError,
+    );
     device.beginRenderPass(
         RenderPassDescriptor(
           colors: <ColorTarget>[
-            ColorTarget(texture: target, clearValue: Vector4(1, 0, 0, 1)),
+            ColorTarget(texture: target, clearValue: ClearColor(1, 0, 0, 1)),
           ],
         ),
       )
@@ -346,8 +348,12 @@ void main() {
       refuses(DeviceFeature.samplerBorderColor),
     );
     expect(
-      () => pass.setBlendColor(LinearColor.transparent),
-      refuses(DeviceFeature.blendConstant),
+      () => pass.setBlend(
+        const BlendState(
+          destinationColorFactor: BlendFactor.oneMinusBlendAlpha,
+        ),
+      ),
+      refuses(DeviceFeature.blendConstantAlpha),
     );
     expect(
       () => pass.setPolygonMode(PolygonMode.line),

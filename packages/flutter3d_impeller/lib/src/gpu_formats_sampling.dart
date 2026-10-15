@@ -5,13 +5,14 @@ library;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
+import 'gpu_refusal.dart' show impellerRefusal;
 
 /// Maps the engine's [MinMagFilter] to its `package:flutter_gpu` equivalent.
 extension MinMagFilterToGpu on MinMagFilter {
   gpu.MinMagFilter toGpu() => switch (this) {
     MinMagFilter.nearest => gpu.MinMagFilter.nearest,
     MinMagFilter.linear => gpu.MinMagFilter.linear,
-    _ => throw UnsupportedError('flutter_gpu has no filter for $this'),
+    _ => throw impellerRefusal('toGpu', 'flutter_gpu has no filter for $this'),
   };
 }
 
@@ -29,7 +30,10 @@ extension MipFilterToGpu on MipFilter {
   gpu.MipFilter toGpu() => switch (this) {
     MipFilter.nearest => gpu.MipFilter.nearest,
     MipFilter.linear => gpu.MipFilter.linear,
-    _ => throw UnsupportedError('flutter_gpu has no mip filter for $this'),
+    _ => throw impellerRefusal(
+      'toGpu',
+      'flutter_gpu has no mip filter for $this',
+    ),
   };
 }
 
@@ -50,10 +54,14 @@ extension SamplerAddressModeToGpu on SamplerAddressMode {
     SamplerAddressMode.mirror => gpu.SamplerAddressMode.mirror,
     // Not reached through a bind: the encoder refuses a border axis by
     // `DeviceFeature.samplerBorderColor` before a sampler is made.
-    SamplerAddressMode.clampToBorder => throw UnsupportedError(
+    SamplerAddressMode.clampToBorder => throw impellerRefusal(
+      'toGpu',
       'flutter_gpu has no clamp-to-border address mode',
     ),
-    _ => throw UnsupportedError('flutter_gpu has no address mode for $this'),
+    _ => throw impellerRefusal(
+      'toGpu',
+      'flutter_gpu has no address mode for $this',
+    ),
   };
 }
 

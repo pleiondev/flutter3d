@@ -39,7 +39,8 @@ Registration registerNullBackend(
 }) {
   final backend = registry.addBackend(
     NullDevice.name,
-    NullDevice.open,
+    (DeviceRequest request) =>
+        NullDevice.open(width: request.width, height: request.height),
     asFallback: asFallback,
   );
   final compiler = compilers?.register(const NullMaterialCompiler());

@@ -14,6 +14,7 @@
 /// to the drawing device costs a frame.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io' show Platform;
@@ -184,10 +185,16 @@ final class WgpuComputeDevice extends GraphicsDevice
 
   // ---------------------------------------------------------- what it refuses
 
-  Never _drawsNothing(String call) => throw UnsupportedError(
-    '$wgpuBackendName computes and draws nothing, so it has no $call: draw '
-    'on the device the frame is drawn on, and hand it what this computed '
-    'through SharedBuffer or SharedTexture',
+  /// A [DeviceResourceException] from [refuseResource], since 1.0.0-rc.1+2:
+  /// the sidecar has the calls the contract gives every device and no
+  /// surface to draw them on, which is a request it cannot honour rather
+  /// than a feature it lacks. Its limits say the same — no colour
+  /// attachment, no vertex buffer.
+  Never _drawsNothing(String call) => throw refuseResource(
+    call,
+    '$wgpuBackendName computes and draws nothing: draw on the device the '
+    'frame is drawn on, and hand it what this computed through SharedBuffer '
+    'or SharedTexture',
   );
 
   @override
@@ -368,7 +375,11 @@ final class WgpuComputeDevice extends GraphicsDevice
     final texture = target.backend as _Texture;
     final rect = region ?? ScreenRect.of(target);
     if (mipLevel != 0) {
-      throw UnsupportedError('overwriteTexture: only the base level here');
+      throw refuseResource(
+        'overwriteTexture',
+        'mip level $mipLevel is refused; only the base level (0) may be '
+            'overwritten',
+      );
     }
     if (rect.width == texture.width && rect.height == texture.height) {
       _upload(texture, rgba);
@@ -733,6 +744,20 @@ final class WgpuComputeDevice extends GraphicsDevice
   @override
   void releaseComputePipeline(ComputePipelineHandle pipeline) {}
 
+  final StreamController<DeviceLoss> _lost =
+      StreamController<DeviceLoss>.broadcast();
+
+  /// One [DeviceLossReason.destroyed], when [dispose] runs — since
+  /// 1.0.0-rc.1+2. The C side reports no loss of its own to listen to; the
+  /// one this device causes itself it owes every caller, as every backend
+  /// does.
+  @override
+  Stream<DeviceLoss> get lost => _lost.stream;
+
+  @override
+  bool get isLost => _gpu == nullptr;
+
+  /// Releases everything, then says so on [lost], once, and closes it.
   @override
   void dispose() {
     if (_gpu == nullptr) return;
@@ -750,6 +775,13 @@ final class WgpuComputeDevice extends GraphicsDevice
     _buffers.clear();
     w.f3d_wgpu_close(_gpu);
     _gpu = nullptr;
+    _lost.add(
+      const DeviceLoss(
+        reason: DeviceLossReason.destroyed,
+        message: 'the wgpu sidecar was disposed',
+      ),
+    );
+    unawaited(_lost.close());
   }
 }
 

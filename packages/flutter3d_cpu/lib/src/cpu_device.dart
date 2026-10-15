@@ -205,6 +205,17 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
     DeviceFeature.synchronousReadback,
     // Recorded calls, replayed — see `CpuRenderBundleEncoder`.
     DeviceFeature.renderBundles,
+    // Since 1.0.0-rc.1+2. The rasteriser assembles every topology the
+    // contract names: strips with restart on an all-ones index, and points
+    // one pixel wide (`CpuEncoder._assembleStrip`, `_rasterisePoint`).
+    DeviceFeature.primitiveStrips,
+    DeviceFeature.pointPrimitives,
+    DeviceFeature.indexUint32,
+    // The constant's alpha is one more arm in the same blend equation.
+    DeviceFeature.blendConstantAlpha,
+    // Window positions are measured from the viewport's corner in doubles,
+    // so a fractional corner or size moves them by exactly the fraction.
+    DeviceFeature.fractionalViewport,
   ];
 
   @override
@@ -500,10 +511,12 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
     List<List<ByteData>>? mipLevels,
   }) {
     if (format.isCompressed) {
-      throw UnsupportedError(
-        'The software rasteriser samples raw RGBA texels — '
-        'TextureFormat.${format.name} is block-compressed and has no decode '
-        'path here, by design (see ARCHITECTURE.md §15).',
+      throw refuse(
+        _compressionFamily(format),
+        reason:
+            'the software rasteriser samples raw RGBA texels, and '
+            'TextureFormat.${format.name} is block-compressed with no decode '
+            'path here, by design (see ARCHITECTURE.md §15)',
       );
     }
     if (faces.length != 6) {
@@ -599,10 +612,12 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
     List<ByteData>? mipLevels,
   }) {
     if (format.isCompressed) {
-      throw UnsupportedError(
-        'The software rasteriser samples raw RGBA texels — '
-        'TextureFormat.${format.name} is block-compressed and has no decode '
-        'path here, by design (see ARCHITECTURE.md §15).',
+      throw refuse(
+        _compressionFamily(format),
+        reason:
+            'the software rasteriser samples raw RGBA texels, and '
+            'TextureFormat.${format.name} is block-compressed with no decode '
+            'path here, by design (see ARCHITECTURE.md §15)',
       );
     }
     // **Exactly, not "at least"** — the same rule the cube path above spells
@@ -666,15 +681,17 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
     int mipLevel = 0,
   }) async {
     if (!readbackFormats.contains(target.format)) {
-      throw UnsupportedError(
-        'overwriteTexture: TextureFormat.${target.format.name} is not one '
-        'of readbackFormats — the two this call, like readback, insists on.',
+      throw refuseResource(
+        'overwriteTexture',
+        'TextureFormat.${target.format.name} is not one of readbackFormats — '
+            'the two this call, like readback, insists on',
       );
     }
     if (mipLevel != 0) {
-      throw UnsupportedError(
-        'overwriteTexture: mip level $mipLevel is refused; only the base '
-        'level (0) may be overwritten.',
+      throw refuseResource(
+        'overwriteTexture',
+        'mip level $mipLevel is refused; only the base level (0) may be '
+            'overwritten',
       );
     }
     final rect =
@@ -878,7 +895,8 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
           TextureDimension.cubeArray:
         break;
       default:
-        throw UnsupportedError(
+        throw refuseResource(
+          'createTexture',
           'the software rasteriser cannot allocate a ${d.dimension} texture',
         );
     }
@@ -966,7 +984,8 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
         }
         return base;
       }(),
-      _ => throw UnsupportedError(
+      _ => throw cpuRefusal(
+        'createTexture',
         'the software rasteriser cannot allocate a ${d.dimension} texture',
       ),
     };
@@ -995,7 +1014,8 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
       ),
       TextureDimension.cube => (l.maxTextureDimension2D, 6),
       TextureDimension.d2 => (l.maxTextureDimension2D, 1),
-      _ => throw UnsupportedError(
+      _ => throw cpuRefusal(
+        '_checkShape',
         'the software rasteriser cannot allocate a ${d.dimension} texture',
       ),
     };
@@ -1274,7 +1294,10 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
       case MapMode.write:
         requireBufferUsage(buffer, BufferUsage.hostWritable, 'a write mapping');
       default:
-        throw UnsupportedError('the software rasteriser has no map mode $mode');
+        throw refuseResource(
+          'mapBuffer',
+          'the software rasteriser has no map mode $mode',
+        );
     }
     if (mappedBuffers[buffer] != null) {
       throw StateError('the buffer is already mapped');

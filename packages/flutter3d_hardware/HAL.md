@@ -61,9 +61,15 @@ What is deliberately absent:
 
 - **Device enumeration, swapchains and windows.** An application opens a
   backend and hands it over. Each engine owns a `DeviceRegistry`
-  (`addBackend`, `open`), and what shows a finished frame is a presenter
-  added with `addPresenter<T>` and found with `presenterFor`. A device never
-  presents.
+  (`addBackend`, `open`, `openFor`), and what shows a finished frame is a
+  presenter added with `addPresenter<T>` and found with `presenterFor`. A
+  device never presents. A `BackendOpener` and a `ComputeOpener` take one
+  `DeviceRequest` (the size, then `requiredFeatures`, `requiredLimits` by
+  their `DeviceLimits.toMap` names, `powerPreference`, `validation`, a
+  `label`, every one but the size defaulted), so a field a minor adds breaks
+  no opener; the registry holds the device each opener answers to
+  `DeviceRequest.checkSatisfiedBy`, disposing one that falls short and
+  trying the next.
 - **Globals.** A `GraphicsDevice` is a value. Two engines in one isolate open
   devices of their own, and a fake can stand in for any device.
 - **Anything a backend can decide for itself**: memory allocation, staging,
@@ -71,10 +77,16 @@ What is deliberately absent:
 
 ## The stability promise
 
-From 1.0 this package follows strict semver, and every backend depends on it
-through a caret range. The engine's packages share one major.minor, and each
-takes patches of its own; `flutter3d_hardware` is versioned with them. This package has
-no `internal.dart`: everything it exports is promised.
+From 1.0 this package follows strict semver. **It is versioned with the
+engine**: the engine's packages share one major.minor and each takes patches
+of its own, and `flutter3d_hardware` is one of them. **Every backend depends on
+it through a caret range** (`flutter3d_hardware: ^1.0.0`), the engine's own
+five as well as one from outside, and a structure rule holds the in-repo
+pubspecs to it: this package has no `internal.dart`, everything it exports is
+promised, so nothing a backend reads changes within a major and a 1.x minor
+never needs a backend republished. (A sibling with internal libraries is
+asked for within its minor instead; the HAL is the one exception, because
+outside backends are written against it.)
 
 | A 1.x minor may | A 1.x minor may not |
 |---|---|
@@ -84,6 +96,23 @@ no `internal.dart`: everything it exports is promised.
 | turn a reserved `DeviceFeature` stable and give it calls | change what an existing call means to a backend that already implements it |
 | add a field with a default to `StageBindings` or `UniformMemberLayout` (a new binding kind) | change an abstract member's signature, including adding an optional parameter to a member backends override |
 | add a top-level type or function | |
+
+**A backend's own members are its author's risk.** A minor adds members
+with bodies to `GraphicsDevice`, `PassEncoder`, `ComputeEncoder` and
+`TransferEncoder`, which is safe for every backend that declares nothing of
+its own under a name the HAL may take. A public member a backend added
+itself and a later minor names too either stops compiling (another
+signature) or silently replaces the new default (the same one), and the
+second is worse. **Keep a backend's own members private, or name them for
+the backend** (`vkQueueFamily`, not `queueFamily`). The null example and the
+template say so beside their two public helpers, and the
+[backend guide](https://flutter3d.pleion.dev/core/backends/) repeats it.
+
+**A new limit inherits a safe default.** A `DeviceLimits` field a minor adds
+defaults to WebGPU's guaranteed minimum, so a 1.0 backend reports it without
+having asserted it; a limit some backend may fall below defaults to 0 or 1
+instead (`maxMultiviewViews` is 0), so a backend written before it never
+claims more than it has.
 
 **Open classes, not enums.** Every set that can grow is a `final class` with
 `static const` members, a private constructor, `values`, `name` and `byName`
@@ -130,7 +159,7 @@ These members have no body. A backend does not compile until each is there.
 | `TextureHandle createCubeRenderTarget({required int size, required TextureFormat format, int mipLevels = 1})` | A cube a pass draws into, face by face and level by level. |
 | `Future<void> overwriteTexture(TextureHandle target, ByteData rgba, {ScreenRect? region, int mipLevel = 0})` | RGBA8 into the base level of a texture in `readbackFormats`. |
 | `Future<ByteData> readback(TextureHandle texture, {ScreenRect? region})` | The pixels as the passes submitted before the call left them, RGBA8, rows from the top. |
-| `void beginFrame()` | A new frame starts; rotate whatever has to rotate. |
+| `void beginFrame()` | A new frame starts; rotate whatever has to rotate. Never throws what the device said about an earlier frame (that goes to `errors` or `lost`). |
 | `void onFrameComplete(void Function() whenDone)` | Runs `whenDone` once the GPU has finished the frame being encoded. |
 | `CommandEncoder beginRenderPass(RenderPassDescriptor descriptor)` | Opens a pass. |
 | `void dispose()` | Releases everything the device made. |
@@ -183,12 +212,14 @@ adds the feature to `features` in the same change.
 | | `releaseFence(GpuFence)` | nothing |
 | Loss | `Stream<DeviceLoss> get lost` | an empty stream ("never lost") |
 | | `bool get isLost` | false |
+| Late errors | `Stream<DeviceError> get errors` | an empty stream: every refusal is thrown from its call |
 | Timing | `onGpuTimings(void Function(GpuFrameTimings)? listener)` | nothing |
 | Labels | `setLabel(Object resource, String label)`, `labelOf(Object resource)` | kept in an `Expando`, read back by `labelOf` |
 
 A backend whose API carries labels passes `setLabel` on as well. The empty
 `lost` stream is a default to replace, not an answer: every backend owes a
-`DeviceLoss` at least for its own `dispose`.
+`DeviceLoss` at least for its own `dispose`, and a structure rule holds every
+backend package in the repository, the null example and the template to it.
 
 ### `TextureAllocator`
 
@@ -239,6 +270,14 @@ otherwise; `askedBy` answers `` `GraphicsDevice.features` ``. Each carries a
 
 Compare features by identity or by `name`. `DeviceFeature.values` lists all
 of them; `byName` reads a name a report wrote.
+
+**Named before the freeze, since 1.0.0-rc.1+2**: `primitiveStrips`,
+`pointPrimitives` and `indexUint32`, which every backend had been assumed to
+have; `blendConstantAlpha`, the half of the blend constant WebGPU cannot
+form, split from `blendConstant`; `fractionalViewport`; and `uniformBuffers`
+for `PassEncoder.bindUniformBuffer`. A capability every 1.0 backend accepts
+cannot become a feature in a minor: the honesty check would then demand a
+refusal from a backend written before it.
 
 ### `DeviceFeatures`
 
@@ -344,7 +383,7 @@ its target permanently), sliceable with `slice`. `StorageBuffer` is what
 | `BufferUsage` bit | Needs |
 |---|---|
 | `vertex`, `index` | `buffers`; reachable as `StorageBuffer.asVertices` / `asIndices` |
-| `uniform` | `buffers` |
+| `uniform` | `buffers`; bound as a block by `PassEncoder.bindUniformBuffer` (`uniformBuffers`) |
 | `storage` | `compute` or `renderStageStorage` |
 | `indirect` | `indirectDraw` or `indirectDispatch` |
 | `copySource`, `copyDestination` | `buffers` |
@@ -436,8 +475,11 @@ its feature is refused by a backend written before it rather than ignored.
 | `TextureDescriptor.checkFeatures` | `createTexture` | a shape other than 2D (`texture1D`, `textureArrays`, `texture3D`, `cubeTextures`, `cubeArrayTextures`), a storage usage (`storageTextures`), more than one sample (`offscreenMultisample`) |
 | `BufferDescriptor.checkFeatures` | `createBuffer` | a storage usage (`compute` or `renderStageStorage`), an indirect usage (`indirectDraw` or `indirectDispatch`), then `buffers` |
 | `SamplerDescriptor.checkFeatures` | `bindTexture` | `samplerCompare`, `samplerLodClamp`, `samplerBorderColor` for an axis set to `clampToBorder`, each alone |
-| `BlendState.checkFeatures` | `setBlend` | `blendConstant`, `minMaxBlend`, `dualSourceBlending` |
+| `BlendState.checkFeatures` | `setBlend` | `blendConstant` for any of the four constant-reading factors, then `blendConstantAlpha` for the alpha pair, `minMaxBlend`, `dualSourceBlending` |
 | `DepthBias.checkFeatures` | `setDepthBias` | `depthBias`, and `depthBiasClamp` for a non-zero clamp |
+| `PassViewport.checkFeatures` | `setViewport` | `fractionalViewport` for a rectangle off whole pixels |
+| `PrimitiveTypeFeatures.checkFeatures` | `setPrimitiveType` | `primitiveStrips` for a strip, `pointPrimitives` for points |
+| `IndexTypeFeatures.checkFeatures` | `bindIndexBuffer`, `bindIndexData` | `indexUint32` for 32-bit indices |
 | `RenderPassDescriptor.checkFeatures` | `beginRenderPass` | `renderToArrayLayer`, `renderToMipLevel`, `occlusionQuery`, `timestampQuery`, `multiview` for a `viewMask` |
 
 `RenderPassDescriptor.checkAttachmentLimit(limit, backend:)` sits beside the
@@ -485,7 +527,22 @@ attachment), `setColorWriteMask`, `setAlphaToCoverage`, `setDepthBias`
 (`DepthBias`: `constant`, `slopeScale`, `clamp`), `setDepthClamp`. A backend
 built on pipeline state objects accumulates this state and looks a PSO up at
 `draw()`; `PassState` and the `setState` extension exist for it, a hashable
-value whose unset fields mean "emit nothing".
+value whose unset fields mean "emit nothing". **`PassState` has a field for
+every setter** since 1.0.0-rc.1+2 (`colorWriteMask` with its attachment,
+`depthBias`, `depthClamp` and `alphaToCoverage` joined the seven it had), and
+a structure rule holds the two lists together; `setBlendColor` is the one
+setter without a field, since the constant is dynamic state on every API and
+never part of a pipeline object.
+
+**Topology.** Triangle and line lists need nothing. Strips need
+`primitiveStrips`, with **primitive restart always on**: an all-ones index
+(`IndexTypeFeatures.restartIndex`: `0xFFFF`, `0xFFFFFFFF`) in an indexed strip
+ends it and the next index starts a new one, as WebGPU and WebGL2 always do. A
+list has no restart, and an all-ones index in one is undefined. Points need
+`pointPrimitives` and are one pixel wide everywhere. 32-bit indices need
+`indexUint32`. All three became features in 1.0.0-rc.1+2, before the freeze,
+because a feature added later gates a call 1.0 backends already accept, and
+the honesty check would then fail a 1.0 backend that does not list it.
 
 `createPipelineAsync` is where a backend that can compile off the calling
 turn does so; the default links synchronously. `releasePipeline` gives a
@@ -524,7 +581,11 @@ order.
 
 ### `PassEncoder`
 
-Members without a body: the setters `setViewport`, `setScissor`,
+Members without a body: the setters `setViewport` (a `PassViewport`: a
+rectangle in doubles and a `minDepth`..`maxDepth` window range, both in
+`[0, 1]`; `PassViewport.ofRect` is the viewport over a `ScreenRect`'s pixels,
+and a rectangle off whole pixels needs `fractionalViewport`), `setScissor`
+(a `ScreenRect`, whole pixels on every API),
 `setPrimitiveType`, `setPolygonMode`, `setCullMode`, `setWindingOrder`,
 `setDepthWrite`, `setDepthCompare`, `setStencil`, `setStencilReference`,
 `setBlend`; the binds `bindPipeline`, `bindVertexBuffer`, `bindVertexData`,
@@ -543,7 +604,8 @@ Members with a body, and the feature their default refuses with:
 | `executeBundles(List<RenderBundle>)` | `renderBundles` |
 | `bindStorageBuffer`, `bindStorageTexture` | `renderStageStorage` |
 | `bindUniformBytes(ShaderHandle, String, ByteData)` | `uniformBytes` |
-| `setBlendColor(LinearColor)` | `blendConstant` |
+| `bindUniformBuffer(ShaderHandle stage, String blockName, StorageBuffer buffer, int offsetInBytes, int sizeInBytes)` | `uniformBuffers`; no backend overrides it yet |
+| `setBlendColor(LinearColor)` | `blendConstant` (the alpha pair the constant feeds is `blendConstantAlpha`) |
 | `setColorWriteMask(ColorWriteMask, {attachment})` | `colorWriteMask` |
 | `setDepthBias(DepthBias)` | `depthBias` |
 | `setDepthClamp({enabled})` | `depthClamp` |
@@ -789,10 +851,23 @@ subscriber. After a loss every handle is spent. A recoverable loss (a WebGL
 context) is followed by an event with `restored` true, after which the
 application rebuilds its renderer on the same device; any other means a new
 device. `PipelineRefusalReason.deviceLost` reports a pipeline lost with it.
-`dispose` releases everything, and a handle used afterwards draws nothing.
+`dispose` releases everything, reports `DeviceLossReason.destroyed` on `lost`
+once (every backend, the null example and the wgpu sidecar included), and a
+handle used afterwards draws nothing.
+
+**Errors that arrive late.** `errors` is a stream of `DeviceError` (`kind`, a
+`DeviceErrorKind`: `validation`, `outOfMemory`, `internal`, `shaderCompile`;
+`operation`; `message`; `exception`, the typed refusal the call would have
+thrown), for an API that answers after the call returned: WebGPU's error
+scopes and `uncapturederror` reach it at the start of the next frame. A
+refusal the device does not survive is a `DeviceLoss`, never both.
+**`beginFrame` throws none of them**, on any backend, since 1.0.0-rc.1+2;
+WebGPU threw the last frame's refusals there before, a term no other backend
+kept.
 
 **What is frozen**: one owner and one `dispose` per handle, deferred
-destruction, and `lost` as the one place a loss is reported.
+destruction, `lost` as the one place a loss is reported, `errors` as the one
+place a late refusal is, and a `beginFrame` that throws neither.
 
 ## Threading and asynchronous answers
 
@@ -836,6 +911,15 @@ the same everywhere. **A refusal is never a substitution**: a backend that
 cannot draw wireframe refuses `setPolygonMode(PolygonMode.line)` rather than
 filling the triangles. A backend that has not built a feature yet says so
 the same way, with a `TODO(<backend>)` at the refusal.
+
+**No `UnsupportedError` reaches a caller**, since 1.0.0-rc.1+2. A backend's
+own conversions (a format it has no layout for, a value a later version
+names, a copy between kinds it keeps apart) throw a `DeviceResourceException`
+through `refuseResource` or the backend's helper over the same constructor;
+`UnsupportedError` stays only on an arm marked `// unreachable:` with the
+reason, and a structure rule reads every backend's `lib/` for it. A wildcard
+arm over an open set is reachable, by the constant a minor adds, and refuses
+that value by name.
 
 In conformance, a check a device cannot be asked **declines**:
 `decline(device, why)` throws `ConformanceDeclinedException` with the
@@ -901,7 +985,8 @@ What each reports, at this commit. "if …" is decided when the device opens;
 |---|---|---|---|---|---|
 | `alphaToCoverage` | no | if MSAA proven | yes | no | no |
 | `baseVertexBaseInstance` | yes | if `WEBGL_draw_instanced_base_vertex_base_instance` | yes | no | no |
-| `blendConstant` | yes | yes | no | no | no |
+| `blendConstant` | yes | yes | yes | no | no |
+| `blendConstantAlpha` | yes | yes | no | no | no |
 | `bufferCopy`, `bufferTextureCopy` | yes | yes | yes | no | no |
 | `buffers` | yes | yes | yes | yes | yes |
 | `clipDistances` | no | no | if adapter | no | no |
@@ -916,9 +1001,11 @@ What each reports, at this commit. "if …" is decided when the device opens;
 | `float32Blendable` | yes | if `EXT_color_buffer_float` and `EXT_float_blend` | if adapter | Metal on macOS | no |
 | `float32Filterable` | yes | if `OES_texture_float_linear` | if adapter | Metal on macOS | no |
 | `float32Renderable` | yes | if `EXT_color_buffer_float` | yes | Metal on macOS | no |
+| `fractionalViewport` | yes | no | yes | no | no |
 | `gpuTimestamps` | no | no | if adapter | no | no |
 | `independentBlend` | yes | if `OES_draw_buffers_indexed` | yes | yes | no |
 | `indirectDispatch`, `indirectDraw` | yes | no | yes | no | no |
+| `indexUint32` | yes | yes | yes | yes | no |
 | `indirectFirstInstance` | yes | no | if adapter | no | no |
 | `manualMipmaps` | yes | yes | yes | if `flutter_gpu` says so | no |
 | `mappedBuffers` | yes | yes | yes | no | no |
@@ -929,6 +1016,7 @@ What each reports, at this commit. "if …" is decided when the device opens;
 | `occlusionQuery` | yes | yes | yes | no | no |
 | `offscreenMultisample` | no | if MSAA proven | yes | if `flutter_gpu` says so | no |
 | `pipelineStatisticsQuery` | yes | no | no | no | no |
+| `pointPrimitives`, `primitiveStrips` | yes | yes | yes | yes | no |
 | `readWriteStorageTextures` | yes | no | yes | no | no |
 | `renderBundles` | yes | yes | yes | no | no |
 | `renderStageStorage` | yes | no | no | no | no |
@@ -952,6 +1040,7 @@ What each reports, at this commit. "if …" is decided when the device opens;
 | `textureCopy` | yes | yes | yes | no | no |
 | `textureWrites` | yes | yes | yes | yes | no |
 | `timestampQuery` | yes | if the timer extension counts timestamps | if adapter | no | no |
+| `uniformBuffers` | no | no | no | no | no |
 | `uniformBytes` | no | yes | yes | yes | no |
 | `viewportBeyondTarget` | yes | yes | no | no | no |
 | `wireframe` | no | no | no | on Metal and Vulkan, not OpenGL ES | no |
@@ -975,9 +1064,9 @@ a test in `flutter3d_build` holds the template to the example file for file.
 
 | Helper | Library | What it is for |
 |---|---|---|
-| `FakeBackend` | `testing.dart` | a device that records instead of drawing: `calls`, `passes` (`FakePass`, with `commands` of `Recorded` subtypes), `bindingViolations`, `liveHandles` (what a test made and did not give back), `pipelineBuilds`; switches for missing shaders, refused pipelines, missing features, `lose(DeviceLoss)`, and `finishOldestFrame` to drive `onFrameComplete` |
+| `FakeBackend` | `testing.dart` | a device that records instead of drawing: `calls`, `passes` (`FakePass`, with `commands` of `Recorded` subtypes), `bindingViolations`, `liveHandles` (what a test made and did not give back), `pipelineBuilds`; switches for missing shaders, refused pipelines, missing features, `lose(DeviceLoss)`, `reportError(DeviceError)`, and `finishOldestFrame` to drive `onFrameComplete`; its `dispose` reports `destroyed` on `lost` |
 | `RecordingDevice` | `trace.dart` | wraps any device and keeps every call as a `TraceEvent`; `Trace.encode` writes it (`.f3dtrace`), `replayTrace(trace, device)` draws it again on any backend. A created texture keeps its whole `TextureDescriptor` and an attachment its face, level, layer and read-only flags (`TraceColorTarget`, `TraceDepthTarget`, classes that grow with `ColorTarget` and `DepthTarget`), which is format version 2 (`Trace.formatVersion`; a version 1 trace reads unchanged); `unrecorded` lists calls it passed through without recording |
-| `renderFrame(device:)` | `flutter3d_testing` | opens a `BackendOpener` at the frame's size, draws the engine's frame, reads the pixels back, disposes the device; the software rasteriser when `device` is left out |
+| `renderFrame(device:)` | `flutter3d_testing` | opens a `BackendOpener` with a `DeviceRequest` of the frame's size, draws the engine's frame, reads the pixels back, disposes the device; the software rasteriser when `device` is left out |
 | `testReplay(device:)`, `expectReplayMatches(device:)` | `flutter3d_testing` | replay a tape and compare goldens on one device opened for the run |
 | `drawOnce` | `flutter3d_testing` | the layer under both, for a test that keeps its own device and renderer |
 
@@ -1000,22 +1089,30 @@ declaration.
 | Sparse, aliased and heap memory | none; allocation is the backend's | new members with refusing defaults, a `TextureUsage` bit and a feature | none |
 | Formats | eight-bit, half and full float, integer, packed, BC1, BC3, BC5, BC7, ETC2, ASTC 4x4 and 8x8 (LDR and HDR), depth and stencil; `textureFormatSupport` per format | 16-bit normalised and small integer formats, BC4, BC6H, EAC and other ASTC block sizes: `TextureFormat` constants with new indices; half and packed vertex formats: `VertexFormat` constants; 8-bit indices: an `IndexType` constant | none |
 | Samplers | filters, address modes, anisotropy (clamped), comparison, level clamps, a border colour per axis (`clampToBorder`) | a level-of-detail bias, a min or max reduction, a mirrored clamp: `SamplerDescriptor` fields with defaults, `SamplerAddressMode` constants, features; a sampler bound apart from its texture: an encoder member with a default and a `StageBindings` field | none |
-| Pipeline state | a stage pair and a vertex layout per pipeline; raster, depth, stencil and blend state set on the pass; `PassState` for a backend that builds state objects | none needed | none |
+| Pipeline state | a stage pair and a vertex layout per pipeline; raster, depth, stencil and blend state set on the pass; `PassState`, with a field for every setter, for a backend that builds state objects | a sample mask, a provoking vertex: setters with defaults and `PassState` fields | none: the colour write mask, depth bias, depth clamp and alpha to coverage joined `PassState` before the freeze |
 | Pipeline compilation | `createPipelineFrom` and `createComputePipelineFrom` with their descriptors, the async twins, `pipelineRefusals` | a pipeline cache to save and load, a warm-up hint of the pass state: `PipelineDescriptor` fields with defaults, and members with defaults where the cache is the device's | none |
-| Specialisation and constants | uniform blocks by member name, uniform bytes (`uniformBytes`) | specialisation constants: a `PipelineDescriptor` field whose default body refuses a non-empty set by a feature; immediate data (`immediateData` is reserved) with `maxImmediateDataSize` already in `DeviceLimits` | none |
+| Specialisation and constants | uniform blocks by member name, uniform bytes (`uniformBytes`), a buffer range bound as a block (`bindUniformBuffer`, `uniformBuffers`, refused by every backend so far) | specialisation constants: a `PipelineDescriptor` field whose default body refuses a non-empty set by a feature; dynamic offsets: a `bindUniformBuffer` override; immediate data (`immediateData` is reserved) with `maxImmediateDataSize` already in `DeviceLimits` | none |
 | Binding model | by name per stage (`bindTexture`, `bindUniformBlock`, `bindStorageBuffer`, `bindStorageTexture`), reflected in `StageBindings` and `UniformMemberLayout` | bindless resources (`bindlessResources` is reserved) and binding kinds: `StageBindings` fields and encoder members with defaults | none |
-| Render passes | load and store actions, several colour targets, a depth-stencil target, read-only depth, rendering into a face, level or layer, multiview by `viewMask` with a fallback, render bundles | variable rate shading (reserved), depth bounds (reserved) | none |
+| Render passes | load and store actions, several colour targets, a depth-stencil target, read-only depth, rendering into a face, level or layer, multiview by `viewMask` with a fallback, render bundles; a viewport in doubles with a depth range (`PassViewport`); a clear colour of float, unsigned or signed integers (`ClearColor`) | variable rate shading (reserved), depth bounds (reserved) | none: the viewport and the clear colour took their shapes before the freeze |
 | Compute | dispatch, indirect dispatch, storage buffers and textures, workgroup limits, `subgroups`, `shaderF16`, three placements | a second queue (`asyncCompute` is reserved) as a `ComputePlacement` | none |
-| Draws | indexed, non-indexed, instanced, base vertex and instance, indexed indirect, multi-draw, multi-draw indirect with a count buffer | non-indexed indirect draws, mesh and task stages (`meshShaders` is reserved): `ShaderStageKind` values and encoder members with defaults | none |
+| Draws | indexed, non-indexed, instanced, base vertex and instance, indexed indirect, multi-draw, multi-draw indirect with a count buffer; every topology, strips and points behind their features with restart always on, 32-bit indices behind `indexUint32` | non-indexed indirect draws, mesh and task stages (`meshShaders` is reserved): `ShaderStageKind` values and encoder members with defaults; triangle fans: a `PrimitiveType` constant and its feature | none: strips, points and 32-bit indices became features before the freeze |
 | Ray tracing | none | `rayQuery` is reserved; acceleration structures as a new handle type, a `StageBindings` field and members with defaults | none |
 | Synchronisation | ordering by submission; the backend tracks hazards and defers destruction; timeline fences for sharing | a second queue: a new pass-opening member with a default (`beginComputePass` cannot gain a parameter); fences without export, a CPU wait on a fence: a feature and members with defaults | none |
 | Queries | occlusion, timestamp, pipeline statistics (five counters, a fixed stride); whole-frame timings through `onGpuTimings` | timestamps inside a pass, results resolved into a buffer, binary occlusion and conditional drawing: members with defaults and `QueryType` constants; more statistics as a new `QueryType`, since the five are frozen | none |
 | Readback and staging | `readback`, `readBuffer`, `mapBuffer`, transfer copies, synchronous readback for tests | a region readback of another format: a new member with a default, since `readbackFormats` decides for every backend at once | none |
 | Sharing and interop | `NativeHandle` export and import of textures, buffers and fences, `SharedTexture` and `SharedBuffer` with a host-memory fallback | `NativeHandleKind` constants | none |
 | Debugging | debug groups, markers, labels, `RecordingDevice` and replayable traces | a GPU capture trigger: a member with a default | none |
-| Device loss | `lost`, `isLost`, recoverable and restored losses, `DeviceLossReason.byName` | `DeviceLossReason` constants | none |
-| Capabilities | `DeviceFeatures`, `DeviceLimits`, `TextureFormatSupport`, reserved features | features, limit fields with defaults | none |
+| Device loss and late errors | `lost`, `isLost`, recoverable and restored losses, `DeviceLossReason.byName`; `errors` for what an API refuses after the call | `DeviceLossReason` and `DeviceErrorKind` constants | none: where a late refusal goes was decided before the freeze |
+| Capabilities | `DeviceFeatures`, `DeviceLimits`, `TextureFormatSupport`, reserved features; `DeviceRequest` for what a device must have to be opened | features, limit fields with defaults (a safe default, see the stability promise), `DeviceRequest` fields with defaults | none: the opener takes a `DeviceRequest`, so a request can grow |
 | Shader code and reflection | GLSL source compiled per backend into bundle sections, SPIR-V and text through `compileStage`, reflection in the bundle and in `flutter3d_shaders` | a stage kind, a section, a payload version | none |
+
+**Six shapes were settled before the freeze**, each because doing it later
+would have broken a backend written against 1.0: strips, points and 32-bit
+indices as features; the opener's one `DeviceRequest`; the `errors` stream
+and a `beginFrame` that never throws; the immutable `ClearColor`; the
+blend constant in two features; and the viewport in doubles with a depth
+range. They are `1.0.0-rc.1+2`, labelled in the CHANGELOG, with their
+migrations.
 
 Some absences are design rather than gaps: the HAL has no swapchain or
 present (presenters live in `DeviceRegistry`), no explicit barriers or layout
@@ -1047,7 +1144,9 @@ carry the shape.
    done, and on one done and not reported. Run everything but the shader
    tier.
 4. **Queue destruction until the GPU is done** (`onFrameComplete` at the
-   latest) and report a loss on `lost`, including your own `dispose`.
+   latest) and report a loss on `lost`, including your own `dispose`. An API
+   that refuses after the call returns reports on `errors`, never from
+   `beginFrame`.
 5. **Compile the engine's stages** with `compileStage` (or your own
    toolchain), answer them from `shaders`, bind by `stageBindings` and
    `uniformBlocks`, and stop refusing pipelines in `draw`. Report a pipeline
@@ -1077,7 +1176,8 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 final class VulkanDevice extends GraphicsDevice {
   VulkanDevice._();
 
-  /// The `BackendOpener` shape: asynchronous, at the surface's size.
+  /// Asynchronous, at the surface's size; the registration below hands it
+  /// the size of the `DeviceRequest` a `BackendOpener` takes.
   static Future<VulkanDevice> open({
     required int width,
     required int height,
@@ -1256,13 +1356,15 @@ final class VulkanPass extends PassEncoder with CommandEncoder {
   final VulkanDevice device;
 
   @override
-  void setViewport(ScreenRect rect) {}
+  void setViewport(PassViewport viewport) =>
+      viewport.checkFeatures(device.features, backend: device.backendName);
 
   @override
   void setScissor(ScreenRect rect) {}
 
   @override
-  void setPrimitiveType(PrimitiveType type) {}
+  void setPrimitiveType(PrimitiveType type) =>
+      type.checkFeatures(device.features, backend: device.backendName);
 
   @override
   void setPolygonMode(PolygonMode mode) {
@@ -1315,11 +1417,14 @@ final class VulkanPass extends PassEncoder with CommandEncoder {
   void bindVertexData(ByteData bytes, int vertexCount, {int slot = 0}) {}
 
   @override
-  void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) =>
-      debugCheckLive(buffer, 'bindIndexBuffer');
+  void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) {
+    debugCheckLive(buffer, 'bindIndexBuffer');
+    type.checkFeatures(device.features, backend: device.backendName);
+  }
 
   @override
-  void bindIndexData(ByteData bytes, IndexType type, int indexCount) {}
+  void bindIndexData(ByteData bytes, IndexType type, int indexCount) =>
+      type.checkFeatures(device.features, backend: device.backendName);
 
   @override
   bool bindUniformBlock(
@@ -1352,7 +1457,11 @@ final class VulkanPass extends PassEncoder with CommandEncoder {
 
 /// What an application calls to add the backend to an engine.
 Registration registerVulkanBackend(DeviceRegistry<Object> registry) =>
-    registry.addBackend('Vulkan', VulkanDevice.open);
+    registry.addBackend(
+      'Vulkan',
+      (DeviceRequest request) =>
+          VulkanDevice.open(width: request.width, height: request.height),
+    );
 ```
 
 The conformance test beside it is the snippet in [Conformance](#conformance).

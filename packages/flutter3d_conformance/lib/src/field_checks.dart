@@ -10,7 +10,6 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:vector_math/vector_math.dart';
 
 import '../flutter3d_conformance.dart';
 
@@ -71,7 +70,7 @@ Future<void> checkFloatFieldSteps(GraphicsDevice device) async {
             colors: <ColorTarget>[
               ColorTarget(
                 texture: current,
-                clearValue: Vector4(2.0, 2.0, 2.0, 2.0),
+                clearValue: ClearColor(2.0, 2.0, 2.0, 2.0),
               ),
             ],
           ),
@@ -123,7 +122,7 @@ Future<void> checkFloatFieldSteps(GraphicsDevice device) async {
           colors: <ColorTarget>[
             ColorTarget(
               texture: target,
-              clearValue: Vector4(0.0, 1.0, 0.0, 1.0),
+              clearValue: ClearColor(0.0, 1.0, 0.0, 1.0),
             ),
           ],
         ),

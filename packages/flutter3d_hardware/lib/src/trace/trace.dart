@@ -395,8 +395,8 @@ void _replayPassEvent(
   required ShaderHandle Function(String) stage,
 }) {
   switch (event) {
-    case TraceSetViewport(:final rect):
-      pass.setViewport(rect);
+    case TraceSetViewport(:final viewport):
+      pass.setViewport(viewport);
     case TraceSetScissor(:final rect):
       pass.setScissor(rect);
     case TraceSetPrimitiveType(:final value):

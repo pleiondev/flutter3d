@@ -168,7 +168,7 @@ void main() {
         expect(
           () => format.toGpu(),
           throwsA(
-            isA<UnsupportedError>().having(
+            isA<DeviceResourceException>().having(
               (e) => e.message,
               'message',
               contains('TextureFormat.${format.name}'),
@@ -357,7 +357,10 @@ void main() {
     (v) => v.toGpu(),
   );
   test('clampToBorder has no flutter_gpu address mode', () {
-    expect(SamplerAddressMode.clampToBorder.toGpu, throwsUnsupportedError);
+    expect(
+      SamplerAddressMode.clampToBorder.toGpu,
+      throwsA(isA<DeviceResourceException>()),
+    );
   });
   checkRoundTrip(
     'SamplerAddressMode',

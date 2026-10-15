@@ -16,6 +16,14 @@
   and the render checks already said `render.<word>`; a bare word was the
   one name a reader could not place. The structure rule now holds every
   check name to `ToolName.pattern` whole, with no one-word exception.
+- **The honesty check asks the features named before the freeze**:
+  `primitiveStrips`, `pointPrimitives`, `indexUint32`, `blendConstantAlpha`,
+  `fractionalViewport` and, refusal only, `uniformBuffers`.
+- **A strip restarts at an all-ones index**: the primitive check draws two
+  triangles as a list and as one strip broken by `0xFFFF`, and holds the
+  two to the same pixels.
+- **The blend constant's alpha pair** reaches the blend where it is listed
+  and is refused by its own feature where it is not.
 
 ## 1.0.0-rc.1
 

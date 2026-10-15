@@ -59,5 +59,5 @@ Registration registerWgpuSidecar(DeviceRegistry registry) =>
     registry.addComputeDevice(
       ComputePlacement.sidecar,
       'the wgpu sidecar',
-      WgpuSidecar.open,
+      (DeviceRequest _) => WgpuSidecar.open(),
     );
