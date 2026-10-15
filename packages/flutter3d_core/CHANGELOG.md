@@ -59,6 +59,40 @@
   Code that handed `registry.computeExecutors(device)` in drops the
   argument; a test that wanted a particular device configures the
   registry or the device it builds (`DeviceRegistry.adopt`).
+- **Breaking: GLSL's words are not a material's names, in any version.**
+  A `let`, a `uniform` or a full-screen stage's texture called `filter`,
+  `input`, `shared`, `sampler3D` or any other keyword or reserved word of
+  GLSL 4.60 and GLSL ES 3.00 is refused with the sentence any name the
+  generated stage uses gets. It was emitted as `float filter`, which
+  glslang refused with its own message, so such a material ran only on the
+  software backend and through WebGPU's run-time translator: nothing that
+  ever drew on a GPU stops parsing.
+- **Breaking: a `.f3dmat` holds one material, first, and then only
+  kernels.** `parseMaterial` read its first block and dropped the rest
+  without a word: a second `material`, a `fullscreen`, trailing junk. Now
+  only the kernel language's `compute` blocks may follow, and anything else
+  is refused with the line and column it starts at. The file grammar
+  works as CONTRACTS describes it at last: the kernel language's
+  `kernel <N>` line after `f3dmat <N>` is read past, and a kernel's own
+  punctuation (`[`, `>=`) after the material no longer fails the material.
+- **A `lighttype` in a source before version 3 names the version it
+  needs**, as `updates` does, rather than "is not a declaration".
+- **The material language's vocabulary is a file.**
+  `api/material_language.vocabulary` holds every keyword, input, output,
+  builtin, type, engine binding and block name, and every name and prefix
+  a source cannot bind, one a line with the version it arrived in;
+  `dart run tool/material_vocabulary.dart` writes it, a test keeps it
+  current, and a structure rule holds it to the base recorded at the tag,
+  so a word added in a minor under a version 1.0 read is caught. The names
+  the parser keeps from a source live in one table
+  (`material_words.dart`) the file is written from.
+- **Version 3 is in the record of how every `.f3dmat` reads.** The v3
+  fixture's tree, every stage it becomes (the instanced and lightmapped
+  vertex halves among them) and its colours are pinned beside versions 1
+  and 2, with `hatch.f3dmat` and a new v3 fixture whose light block reads
+  the light's row and a light type by name (`tube_light.f3dmat`). The
+  vertex layouts are held to the formats the shader ABI records, and the
+  language's corpus runs through the null backend's compiler.
 - **A compute workload is a step of the frame.**
   `RendererSteps.addWorkload` puts a `ComputeWorkload` in the frame as a
   `WorkloadStep` (new), placed by the hardware layer's workload rule: its

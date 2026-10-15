@@ -73,7 +73,7 @@
 /// `lightDir`, `halfDir`, `nDotL`, `nDotH` and `vDotH`. The fragment body
 /// reads the result as `lit` — see `materialLitInput` for what that adds up.
 ///
-/// /// **The vocabulary is GLSL's, and that is the whole design.** `clamp`, `mix`,
+/// **The vocabulary is GLSL's, and that is the whole design.** `clamp`, `mix`,
 /// `pow`, the swizzles and the broadcasting rules all mean what they mean in
 /// GLSL, because the emitted shader has to read like the source for anybody
 /// debugging the pair — and because a language that invented its own `mix`
@@ -115,6 +115,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
 import 'package:flutter3d_shaders/kernel.dart' show WorkgroupSize;
 
 import 'material_ast.dart';
+import 'material_words.dart';
 
 /// The tokens the material language reads: the expression language's
 /// arithmetic, its own `{ } = ;`, and no units, exponents or comparisons,
@@ -224,66 +225,132 @@ final class MaterialSyntaxException extends Flutter3dFormatException {
 }
 
 /// Reads [source] as one material.
+///
+/// **A `.f3dmat` holds one block of the material language, first**, and
+/// after it only `compute` blocks, which are the kernel language's
+/// (`ComputeKernel.parseAll` reads them, and skips the first block). The
+/// optional `f3dmat <N>` line, and the kernel language's `kernel <N>` after
+/// it, come before the first block. Anything else after it — a second
+/// `material`, a `fullscreen`, a word nobody reads — is refused with where
+/// it starts, rather than dropped without a word.
 MaterialProgram parseMaterial(String source) {
+  // The whole source where the first block never closes, which the parser
+  // then refuses in its own words.
+  final end = _blockEnd(source) ?? source.length;
   final List<ExpressionToken> tokens;
   try {
-    tokens = tokenizeExpression(source, syntax: materialSyntax);
+    tokens = tokenizeExpression(
+      source.substring(0, end),
+      syntax: materialSyntax,
+    );
   } on ExpressionSyntaxException catch (error) {
     throw MaterialSyntaxException(error.message, error.line, error.column);
   }
-  return _Parser(tokens).parseMaterial();
+  final program = _Parser(tokens).parseMaterial();
+  _checkAfterFirstBlock(source, end);
+  return program;
 }
 
-/// Names a `let` would collide with once `emitMaterialFragment` writes it into
-/// `main()` beside what is already there.
+/// One past the brace that closes the first block [source] opens from
+/// [from], or null where none closes. `//` comments are skipped, as the
+/// tokenizer skips them.
+int? _blockEnd(String source, [int from = 0]) {
+  var depth = 0;
+  var at = from;
+  while (at < source.length) {
+    if (source.startsWith('//', at)) {
+      final newline = source.indexOf('\n', at);
+      if (newline < 0) return null;
+      at = newline;
+      continue;
+    }
+    switch (source[at]) {
+      case '{':
+        depth++;
+      case '}':
+        depth--;
+        if (depth == 0) return at + 1;
+    }
+    at++;
+  }
+  return null;
+}
+
+/// Holds what follows the first block of [source], from [from], to the one
+/// thing a `.f3dmat` may hold there: kernel-language `compute` blocks, each
+/// `compute <Name> { … }`, whose insides are the kernel parser's to read.
+void _checkAfterFirstBlock(String source, int from) {
+  Never refuse(int at, String message) {
+    final before = source.substring(0, at);
+    final line = '\n'.allMatches(before).length + 1;
+    throw MaterialSyntaxException(message, line, at - before.lastIndexOf('\n'));
+  }
+
+  var at = from;
+  void skipSpace() {
+    while (at < source.length) {
+      if (source.startsWith('//', at)) {
+        final newline = source.indexOf('\n', at);
+        at = newline < 0 ? source.length : newline;
+      } else if (source[at].trim().isEmpty) {
+        at++;
+      } else {
+        return;
+      }
+    }
+  }
+
+  String word() {
+    final match = RegExp(r'[A-Za-z_][A-Za-z0-9_]*').matchAsPrefix(source, at);
+    if (match == null) return '';
+    at = match.end;
+    return match[0]!;
+  }
+
+  while (true) {
+    skipSpace();
+    if (at >= source.length) return;
+    final start = at;
+    final opening = word();
+    if (opening != 'compute') {
+      final what = opening.isEmpty ? source[start] : opening;
+      refuse(
+        start,
+        opening == 'material' || opening == 'fullscreen'
+            ? 'a .f3dmat holds one material, first, and this "$opening" is '
+                  'a second: put it in a file of its own.'
+            : '"$what" cannot follow the material: after its first block a '
+                  '.f3dmat holds only "compute" blocks of the kernel '
+                  'language.',
+      );
+    }
+    skipSpace();
+    if (word().isEmpty) {
+      refuse(at, 'a "compute" block after the material names its kernel.');
+    }
+    skipSpace();
+    if (at >= source.length || source[at] != '{') {
+      refuse(at, '"{" after the kernel\'s name.');
+    }
+    at =
+        _blockEnd(source, at) ??
+        refuse(start, 'the "compute" block is never closed with "}".');
+  }
+}
+
+/// Names a `let` or a `uniform` would collide with once
+/// `emitMaterialFragment` writes it into `main()` beside what is already
+/// there, in every version.
 ///
 /// **A local is emitted under its own name**, so that the shader reads like
-/// the source, and that makes these its namespace too: `s` and `result` are
-/// the emitter's own locals (a second declaration does not compile), the
-/// samplers and `v_…` varyings are what `sample(…)` and the `uv`/`world`
-/// inputs are written as (shadowing them compiles and reads the wrong value),
-/// and the rest are GLSL words a declaration cannot take.
+/// the source, and that makes these its namespace too: the emitter's own
+/// locals and `surface.glsl`'s names ([materialEmitterNames]), the samplers
+/// `sample(…)` is written as, and every keyword and reserved word of GLSL
+/// 4.60 and GLSL ES 3.00 ([materialGlslWords]).
 const Set<String> _reservedNames = <String>{
-  // The emitter's own, `P8`'s uniform block among them.
-  's', 'result', 'main', 'material_params', 'MaterialParams', 'light', 'lit',
-  // `surface.glsl`'s, as the emitted shader spells them.
-  'Surface', 'LightSample', 'ReadSurface', 'WriteSurface', 'ShadeLight',
-  'LightVisibility', 'v_texcoord', 'v_world_position', 'AccumulateLights',
-  'ShadowFactor', 'ApplyCommonMaps', 'SampleLightmap',
+  ...materialEmitterNames,
   ...materialTextureBindings,
-  // GLSL: the one builtin the emitter calls that is not a [ExpressionBuiltin],
-  // and the keywords and type names a declaration cannot reuse.
-  'texture', 'in', 'out', 'inout', 'uniform', 'const', 'void', 'bool', 'int',
-  'uint', 'true', 'false', 'if', 'else', 'for', 'while', 'do', 'switch',
-  'case', 'default', 'break', 'continue', 'return', 'discard', 'struct',
-  'layout', 'precision', 'highp', 'mediump', 'lowp', 'flat', 'smooth',
-  'centroid', 'invariant', 'attribute', 'varying', 'sampler2D',
-  'samplerCube', 'mat2', 'mat3', 'mat4', 'ivec2', 'ivec3', 'ivec4', 'uvec2',
-  'uvec3', 'uvec4', 'bvec2', 'bvec3', 'bvec4',
-};
-
-/// Names a `let` in a `vertex` block would collide with, on top of
-/// [_reservedNames]: the vertex stage's own attributes and blocks, which the
-/// emitted `main` reads under these names.
-const Set<String> _vertexReservedNames = <String>{
-  'texcoord',
-  'tangent',
-  'joints',
-  'weights',
-  'frame_info',
-  'FrameInfo',
-  'skin_info',
-  'SkinInfo',
-  'material_vertex_info',
-  'MaterialVertexInfo',
-  'v_normal',
-  'v_tangent',
-  'v_color',
-  'v_lightmap_uv',
-  'v_instance',
-  'ApplyMorph',
-  'JointIndex',
-  'SkinMatrix',
+  ...materialGlslWords,
 };
 
 /// Every uniform block one of the engine's own shaders declared at 1.0.0,
@@ -369,41 +436,6 @@ bool isEngineBlockName(String name) =>
     materialReservedBlockNames.contains(name) ||
     name.startsWith('F3d') ||
     name.endsWith('Info');
-
-/// Names the instanced and lightmapped vertex stages declare, which a `let`
-/// in a `vertex` block of version 3 cannot take: those stages are emitted
-/// from version 3 on, so a version 2 source keeps every name it had.
-const Set<String> _variantReservedNames = <String>{
-  'i_row0',
-  'i_row1',
-  'i_row2',
-  'i_color',
-  'i_data',
-  'ApplyMorphInstanced',
-  'F3dInstanceIndex',
-  'morph_instance_weights',
-  'MorphInstanceInfo',
-};
-
-/// Names a version 2 stage declares besides [_reservedNames]: the blocks and
-/// samplers a full-screen stage, a compute kernel and the scene's depth are
-/// read through.
-const Set<String> _version2ReservedNames = <String>{
-  'v_uv',
-  'frag_color',
-  'scene_texture',
-  'surface_texture',
-  'scene_depth_texture',
-  'SceneDepthInfo',
-  'scene_depth_info',
-  'target',
-  'image2D',
-  'imageStore',
-  'textureLod',
-  'ShadeAmbient',
-  'ShadeComposite',
-  'MaterialLights',
-};
 
 /// One body of a source — which block it is, what it reads and what it
 /// returns.
@@ -548,6 +580,13 @@ final class _Parser extends ExpressionParser {
 
   MaterialProgram parseMaterial() {
     version = parseVersion();
+    // The kernel language's version line, which a file holding kernels
+    // beside its material writes after its own; the kernel parser reads it.
+    if (current.kind == 'name' &&
+        current.text == 'kernel' &&
+        tokens[position + 1].kind == 'number') {
+      position += 2;
+    }
     kind = parseKind();
     final surface = kind == MaterialStageKind.surface;
     final name = expectToken('name', 'the material\'s name').text;
@@ -609,6 +648,13 @@ final class _Parser extends ExpressionParser {
         parseParameter(uniform: true);
       } else if (skipWordIf('texture')) {
         parseTexture();
+      } else if (word == 'lighttype' &&
+          surface &&
+          version < materialLanguageUpdatesVersion) {
+        fail(
+          '"lighttype" is material language version 3: open the file with '
+          '"f3dmat 3".',
+        );
       } else if (word == 'lighttype' &&
           surface &&
           version >= materialLanguageUpdatesVersion) {
@@ -1285,7 +1331,7 @@ final class _Parser extends ExpressionParser {
       // the names it declares — `FullscreenEffect.textures` — so the slot
       // is the author's to name, short of the names the stage already uses.
       if (_reservedNames.contains(binding.text) ||
-          _version2ReservedNames.contains(binding.text) ||
+          materialVersion2ReservedNames.contains(binding.text) ||
           binding.text.startsWith('gl_') ||
           binding.text.startsWith('f3d_')) {
         fail(
@@ -1437,13 +1483,13 @@ final class _Parser extends ExpressionParser {
             name.startsWith('gl_') ||
             (version >= materialLanguageStagesVersion &&
                 (name.startsWith('f3d_') ||
-                    _version2ReservedNames.contains(name))) ||
-            (body.isVertex && _vertexReservedNames.contains(name)) ||
+                    materialVersion2ReservedNames.contains(name))) ||
+            (body.isVertex && materialVertexReservedNames.contains(name)) ||
             (body.isVertex &&
                 version >= materialLanguageVariantsVersion &&
-                _variantReservedNames.contains(name)) ||
+                materialVariantReservedNames.contains(name)) ||
             (version >= materialLanguageUpdatesVersion &&
-                name == 'F3dLightRow')) {
+                materialVersion3ReservedNames.contains(name))) {
           fail(
             '"$name" is a name the generated shader already uses — GLSL, '
             '`surface.glsl` or the emitter itself — so a binding of it would '

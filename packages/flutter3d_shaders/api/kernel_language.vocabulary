@@ -1,0 +1,67 @@
+# A language's vocabulary, one fact a line, each ending in the version
+# it arrived in; "<language> version <N>" is the newest this build
+# reads. Generated; a line new since the base recorded at the tag
+# carries a version above the base's newest (the rule `a language's
+# vocabulary grows only with its version`).
+kernel early atomic 2
+kernel early atomicAdd 2
+kernel early atomicExchange 2
+kernel early atomicLoad 2
+kernel early atomicStore 2
+kernel other f3dmat 1
+kernel other fullscreen 1
+kernel other material 1
+kernel other param 1
+kernel other uniform 1
+kernel version 2
+kernel word abs 1
+kernel word atomic 2
+kernel word atomicAdd 2
+kernel word atomicExchange 2
+kernel word atomicLoad 2
+kernel word atomicStore 2
+kernel word bool 1
+kernel word break 1
+kernel word buffer 1
+kernel word ceil 1
+kernel word clamp 1
+kernel word compute 1
+kernel word continue 1
+kernel word cos 1
+kernel word else 1
+kernel word f32 1
+kernel word false 1
+kernel word floor 1
+kernel word for 1
+kernel word height 1
+kernel word i32 1
+kernel word id 1
+kernel word if 1
+kernel word image 1
+kernel word in 1
+kernel word kernel 1
+kernel word len 1
+kernel word let 1
+kernel word load 1
+kernel word max 1
+kernel word min 1
+kernel word pow 1
+kernel word read 1
+kernel word read_write 1
+kernel word return 1
+kernel word rgba8 1
+kernel word round 1
+kernel word select 1
+kernel word sin 1
+kernel word sqrt 1
+kernel word store 1
+kernel word texture 1
+kernel word true 1
+kernel word trunc 1
+kernel word u32 1
+kernel word var 1
+kernel word vec2 1
+kernel word vec3 1
+kernel word vec4 1
+kernel word width 1
+kernel word workgroup 1

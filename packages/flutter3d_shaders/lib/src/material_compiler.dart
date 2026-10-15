@@ -30,8 +30,9 @@ final class MaterialStageSource {
            ? fragment
            : identical(kind, ShaderStageKind.fragment);
 
-  /// The entry point's name: the material's, or `<name>Vertex` and
-  /// `<name>VertexSkinned` for its vertex stages.
+  /// The entry point's name: the material's, or for its vertex stages
+  /// `<name>Vertex` and `<name>VertexSkinned`, and from version 3 of the
+  /// language `<name>VertexInstanced` and `<name>VertexLightmapped`.
   final String name;
 
   /// What the stage runs as.

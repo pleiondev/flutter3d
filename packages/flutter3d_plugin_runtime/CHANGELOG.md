@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **The Wasm plugin ABI's vocabulary is a file.** `api/wasm_abi.vocabulary`
+  holds the newest ABI and the oldest a host runs (1, through 1.x), and
+  every import and export with the ABI it arrived in; `dart run
+  tool/wasm_vocabulary.dart` writes it, a test keeps it current, and a
+  structure rule holds it to the base recorded at the tag, so an import
+  added under an ABI a 1.0 host already runs is caught.
 - **A Wasm system orders itself against another of its plugin's by the
   name the document gives it.** `wasm[].after` and `wasm[].before` naming a
   system of the same document are filed under `<id>.`, as its phases are;

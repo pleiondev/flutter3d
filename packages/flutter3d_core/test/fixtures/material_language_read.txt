@@ -861,3 +861,634 @@ void main() {
   light: 0.699032844089, 0.395253134000, 0.203076362238
   at 0.95: 0.581608846986, 0.560951872543, 0.468823697570, 1.00000000000
   light: 0.699032844089, 0.395253134000, 0.203076362238
+== test/fixtures/v3/rim_glow.f3dmat
+name RimGlow v3 material inputs [albedo, ambient, direct, emissive, indirect, lightmap, lit, nDotV, normal, occlusion, sceneDepth, viewDepth, world]
+params [rimPower:float=[3.0], rimColor:vec3=[0.2, 0.5, 1.0] uniform MaterialParams, breath:float=[0.0] uniform MaterialParams]
+textures []
+fragment:
+  let facing = call:clamp:float(input:nDotV:float, const:float[0.0], const:float[1.0])
+  let rim = call:pow:float(binary:-:float(const:float[1.0], local:facing:float), param:rimPower:float)
+  let soft = call:clamp:float(binary:*:float(binary:-:float(input:sceneDepth:float, input:viewDepth:float), const:float[4.0]), const:float[0.0], const:float[1.0])
+  return construct:vec4(binary:+:vec3(binary:*:vec3(input:lit:vec3, binary:+:float(const:float[0.25], binary:*:float(const:float[0.75], local:facing:float))), binary:*:vec3(param:rimColor:vec3, local:rim:float)), local:soft:float)
+light:
+  return input:albedo:vec3
+vertex:
+  out world = binary:+:vec3(input:world:vec3, binary:*:vec3(input:normal:vec3, binary:*:float(const:float[0.02], param:breath:float)))
+ambient:
+  return binary:*:vec3(binary:*:vec3(input:albedo:vec3, binary:+:vec3(input:ambient:vec3, input:lightmap:vec3)), const:float[0.5])
+composite:
+  return binary:+:vec3(binary:*:vec3(binary:+:vec3(input:direct:vec3, input:indirect:vec3), input:occlusion:float), input:emissive:vec3)
+--- glsl
+#version 460 core
+
+// Generated from a material written in the material language
+// — gfx-84n. The source is the thing to edit; this file is
+// what the shader build compiles and what the three GPU
+// backends translate. The software backend evaluates the same
+// tree instead of reading this.
+#include <lib/material_maps.glsl>
+#include <lib/shadow.glsl>
+
+// The opaque scene's surface buffer: in a, its depth along
+// the view axis in metres, nought where nothing was drawn.
+uniform sampler2D scene_depth_texture;
+
+uniform SceneDepthInfo {
+  // xy: one over the target's size. z: its rows when row
+  // zero is the bottom, nought when it is the top.
+  vec4 target;
+}
+scene_depth_info;
+
+uniform MaterialParams {
+  vec3 rimColor;
+  float breath;
+}
+material_params;
+
+// The material's light block, run once per light.
+vec3 ShadeLight(Surface s, LightSample light) {
+  return s.albedo;
+}
+
+float LightVisibility(Surface s, LightSample light, int i) {
+  return ShadowFactor(s, light, i);
+}
+
+// The material's ambient block: the light the surface takes
+// from its surroundings, in place of the engine's own.
+vec3 ShadeAmbient(Surface s, vec3 f3d_lightmap) {
+  return ((s.albedo * (s.ambient + f3d_lightmap)) * 0.5);
+}
+
+// The material's composite block: how `lit` is added up.
+vec3 ShadeComposite(Surface s, vec3 f3d_direct, vec3 f3d_indirect) {
+  return (((f3d_direct + f3d_indirect) * s.occlusion) + s.emissive);
+}
+
+// `directional off`: every light the draw has but the
+// directional ones, which always sit in its eight slots.
+vec3 MaterialLights(Surface s) {
+  vec3 total = vec3(0.0);
+  int count = LightCount();
+  for (int i = 0; i < kTotalLights; i++) {
+    if (i >= count) break;
+    if (i < kMaxLights && frag_info.light_position[i].w < 0.5) continue;
+    LightSample light = SampleLight(i, s);
+    if (light.n_dot_l <= 0.0) continue;
+    light_transmittance = vec3(1.0);
+    float visibility = LightHasShadow(i)
+        ? LightVisibility(s, light, i) *
+              PointShadowFactor(v_world_position, s.n, i)
+        : 1.0;
+    if (visibility <= 0.0) continue;
+    total += ShadeLight(s, light) * light.radiance * light.n_dot_l * visibility * light_transmittance;
+  }
+  return total;
+}
+
+void main() {
+  Surface s = ReadSurface();
+  ApplyCommonMaps(s);
+  vec3 f3d_direct = MaterialLights(s);
+  vec3 f3d_lightmap = SampleLightmap();
+  vec3 f3d_indirect = ShadeAmbient(s, f3d_lightmap);
+  vec3 lit = ShadeComposite(s, f3d_direct, f3d_indirect);
+  // Keeps what the engine binds to every lit stage; no frame
+  // takes this branch.
+  if (frag_info.frame_params.w < 0.0) {
+    lit += f3d_direct + f3d_lightmap + s.ambient + s.emissive + vec3(s.occlusion);
+  }
+  float f3d_view_depth = ViewDepth();
+  vec2 f3d_scene_uv = FragCoordFromTop(scene_depth_info.target.z) * scene_depth_info.target.xy;
+  float f3d_stored = textureLod(scene_depth_texture, f3d_scene_uv, 0.0).a;
+  float f3d_scene_depth = f3d_stored > 0.0 ? f3d_stored : 1000000.0;
+  vec3 f3d_scene_position = Orthographic()
+      ? v_world_position + fog_info.forward.xyz * (f3d_scene_depth - f3d_view_depth)
+      : fog_info.eye.xyz + (v_world_position - fog_info.eye.xyz) * (f3d_scene_depth / max(f3d_view_depth, 1e-6));
+  float facing = clamp(s.n_dot_v, 0.0, 1.0);
+  float rim = pow((1.0 - facing), 3.0);
+  float soft = clamp(((f3d_scene_depth - f3d_view_depth) * 4.0), 0.0, 1.0);
+  vec4 result = vec4(((lit * (0.25 + (0.75 * facing))) + (material_params.rimColor * rim)), soft);
+  WriteSurface(result.rgb, result.a);
+}
+
+--- vertex glsl
+#version 460 core
+
+// Generated from the vertex block of a material written in
+// the material language, version 2. The source is the thing
+// to edit. `mesh.vert` with the
+// block between the engine's answer and the varyings.
+
+in vec3 position;
+in vec3 normal;
+in vec2 texcoord;
+in vec4 tangent;
+in vec4 color;
+
+#include <lib/morph.glsl>
+
+uniform FrameInfo {
+  mat4 mvp;
+  mat4 model;
+  mat4 normal_matrix;
+}
+frame_info;
+
+// The view-projection alone, for a block that says where in
+// the world the vertex is rather than where in the mesh.
+uniform MaterialVertexInfo {
+  mat4 view_projection;
+}
+material_vertex_info;
+
+uniform MaterialParams {
+  vec3 rimColor;
+  float breath;
+}
+material_params;
+
+out vec3 v_world_position;
+out vec3 v_normal;
+out vec2 v_texcoord;
+out vec4 v_tangent;
+out vec4 v_color;
+out vec2 v_lightmap_uv;
+out vec4 v_instance;
+
+void main() {
+  vec3 morphed_position = position;
+  vec3 morphed_normal = normal;
+  vec4 morphed_tangent = tangent;
+  ApplyMorph(morphed_position, morphed_normal, morphed_tangent);
+  vec4 f3d_instance = vec4(0.0);
+  vec3 f3d_position = morphed_position;
+  vec3 f3d_object_normal = morphed_normal;
+  vec3 f3d_tangent = morphed_tangent.xyz;
+  bool f3d_mirrored = determinant(mat3(frame_info.model)) < 0.0;
+  vec3 f3d_world = (frame_info.model * vec4(f3d_position, 1.0)).xyz;
+  vec3 f3d_normal = mat3(frame_info.normal_matrix) * f3d_object_normal;
+  vec3 f3d_out_position = f3d_position;
+  vec3 f3d_out_world = f3d_world;
+  vec3 f3d_out_normal = f3d_normal;
+
+  // The material's vertex block.
+  f3d_out_world = (f3d_world + (f3d_normal * (0.02 * material_params.breath)));
+
+  v_world_position = f3d_out_world;
+  v_normal = f3d_out_normal;
+  v_texcoord = texcoord;
+  v_tangent = vec4(mat3(frame_info.model) * f3d_tangent,
+                   f3d_mirrored ? -morphed_tangent.w : morphed_tangent.w);
+  v_color = color;
+  v_lightmap_uv = vec2(0.0);
+  v_instance = f3d_instance;
+  gl_Position = material_vertex_info.view_projection * vec4(f3d_out_world, 1.0);
+}
+
+--- vertex glsl RimGlowVertexSkinned
+#version 460 core
+
+// Generated from the vertex block of a material written in
+// the material language, version 2. The source is the thing
+// to edit. `mesh_skinned.vert` with the
+// block between the engine's answer and the varyings.
+
+in vec3 position;
+in vec3 normal;
+in vec2 texcoord;
+in vec4 tangent;
+in vec4 color;
+
+#include <lib/morph.glsl>
+
+in vec4 joints;
+in vec4 weights;
+
+uniform FrameInfo {
+  mat4 mvp;
+  mat4 model;
+  mat4 normal_matrix;
+}
+frame_info;
+
+#define kMaxJoints 64
+
+uniform SkinInfo {
+  mat4 joint_matrices[kMaxJoints];
+}
+skin_info;
+
+int JointIndex(float joint) {
+  return clamp(int(joint), 0, kMaxJoints - 1);
+}
+
+mat4 SkinMatrix() {
+  float total = weights.x + weights.y + weights.z + weights.w;
+  vec4 w = total > 1e-5 ? weights / total : vec4(1.0, 0.0, 0.0, 0.0);
+  return w.x * skin_info.joint_matrices[JointIndex(joints.x)] +
+         w.y * skin_info.joint_matrices[JointIndex(joints.y)] +
+         w.z * skin_info.joint_matrices[JointIndex(joints.z)] +
+         w.w * skin_info.joint_matrices[JointIndex(joints.w)];
+}
+
+// The view-projection alone, for a block that says where in
+// the world the vertex is rather than where in the mesh.
+uniform MaterialVertexInfo {
+  mat4 view_projection;
+}
+material_vertex_info;
+
+uniform MaterialParams {
+  vec3 rimColor;
+  float breath;
+}
+material_params;
+
+out vec3 v_world_position;
+out vec3 v_normal;
+out vec2 v_texcoord;
+out vec4 v_tangent;
+out vec4 v_color;
+out vec2 v_lightmap_uv;
+out vec4 v_instance;
+
+void main() {
+  vec3 morphed_position = position;
+  vec3 morphed_normal = normal;
+  vec4 morphed_tangent = tangent;
+  ApplyMorph(morphed_position, morphed_normal, morphed_tangent);
+  vec4 f3d_instance = vec4(0.0);
+  mat4 skin = SkinMatrix();
+  mat3 f3d_skin_rotation = mat3(skin);
+  vec3 f3d_position = (skin * vec4(morphed_position, 1.0)).xyz;
+  vec3 f3d_object_normal = f3d_skin_rotation * morphed_normal;
+  vec3 f3d_tangent = f3d_skin_rotation * morphed_tangent.xyz;
+  bool f3d_mirrored = (determinant(mat3(frame_info.model)) < 0.0) !=
+                      (determinant(f3d_skin_rotation) < 0.0);
+  vec3 f3d_world = (frame_info.model * vec4(f3d_position, 1.0)).xyz;
+  vec3 f3d_normal = mat3(frame_info.normal_matrix) * f3d_object_normal;
+  vec3 f3d_out_position = f3d_position;
+  vec3 f3d_out_world = f3d_world;
+  vec3 f3d_out_normal = f3d_normal;
+
+  // The material's vertex block.
+  f3d_out_world = (f3d_world + (f3d_normal * (0.02 * material_params.breath)));
+
+  v_world_position = f3d_out_world;
+  v_normal = f3d_out_normal;
+  v_texcoord = texcoord;
+  v_tangent = vec4(mat3(frame_info.model) * f3d_tangent,
+                   f3d_mirrored ? -morphed_tangent.w : morphed_tangent.w);
+  v_color = color;
+  v_lightmap_uv = vec2(0.0);
+  v_instance = f3d_instance;
+  gl_Position = material_vertex_info.view_projection * vec4(f3d_out_world, 1.0);
+}
+
+--- vertex glsl RimGlowVertexInstanced
+#version 460 core
+
+// Generated from the vertex block of a material written in
+// the material language, version 2. The source is the thing
+// to edit. `mesh_instanced.vert` with the
+// block between the engine's answer and the varyings.
+
+in vec3 position;
+in vec3 normal;
+in vec2 texcoord;
+in vec4 tangent;
+in vec4 color;
+
+#include <lib/morph_instanced.glsl>
+
+#include <lib/instance_index.glsl>
+
+in vec4 i_row0;
+in vec4 i_row1;
+in vec4 i_row2;
+in vec4 i_color;
+in vec4 i_data;
+
+uniform FrameInfo {
+  mat4 mvp;
+  mat4 model;
+  mat4 normal_matrix;
+}
+frame_info;
+
+// The view-projection alone, for a block that says where in
+// the world the vertex is rather than where in the mesh.
+uniform MaterialVertexInfo {
+  mat4 view_projection;
+}
+material_vertex_info;
+
+uniform MaterialParams {
+  vec3 rimColor;
+  float breath;
+}
+material_params;
+
+out vec3 v_world_position;
+out vec3 v_normal;
+out vec2 v_texcoord;
+out vec4 v_tangent;
+out vec4 v_color;
+out vec2 v_lightmap_uv;
+out vec4 v_instance;
+
+void main() {
+  vec3 morphed_position = position;
+  vec3 morphed_normal = normal;
+  vec4 morphed_tangent = tangent;
+  ApplyMorphInstanced(F3dInstanceIndex(), morphed_position, morphed_normal, morphed_tangent);
+  vec4 f3d_instance = i_data;
+  mat4 f3d_instance_matrix = mat4(
+      vec4(i_row0.x, i_row1.x, i_row2.x, 0.0),
+      vec4(i_row0.y, i_row1.y, i_row2.y, 0.0),
+      vec4(i_row0.z, i_row1.z, i_row2.z, 0.0),
+      vec4(i_row0.w, i_row1.w, i_row2.w, 1.0));
+  mat3 f3d_instance_rotation = mat3(f3d_instance_matrix);
+  vec3 f3d_position = (f3d_instance_matrix * vec4(morphed_position, 1.0)).xyz;
+  vec3 f3d_object_normal = normalize(f3d_instance_rotation * morphed_normal);
+  vec3 f3d_tangent = f3d_instance_rotation * morphed_tangent.xyz;
+  bool f3d_mirrored = (determinant(mat3(frame_info.model)) < 0.0) !=
+                      (determinant(f3d_instance_rotation) < 0.0);
+  vec3 f3d_world = (frame_info.model * vec4(f3d_position, 1.0)).xyz;
+  vec3 f3d_normal = mat3(frame_info.normal_matrix) * f3d_object_normal;
+  vec3 f3d_out_position = f3d_position;
+  vec3 f3d_out_world = f3d_world;
+  vec3 f3d_out_normal = f3d_normal;
+
+  // The material's vertex block.
+  f3d_out_world = (f3d_world + (f3d_normal * (0.02 * material_params.breath)));
+
+  v_world_position = f3d_out_world;
+  v_normal = f3d_out_normal;
+  v_texcoord = texcoord;
+  v_tangent = vec4(mat3(frame_info.model) * f3d_tangent,
+                   f3d_mirrored ? -morphed_tangent.w : morphed_tangent.w);
+  v_color = color * i_color;
+  v_lightmap_uv = vec2(0.0);
+  v_instance = f3d_instance;
+  gl_Position = material_vertex_info.view_projection * vec4(f3d_out_world, 1.0);
+}
+
+--- vertex glsl RimGlowVertexLightmapped
+#version 460 core
+
+// Generated from the vertex block of a material written in
+// the material language, version 2. The source is the thing
+// to edit. `mesh_lightmapped.vert` with the
+// block between the engine's answer and the varyings.
+
+in vec3 position;
+in vec3 normal;
+in vec2 texcoord;
+in vec4 tangent;
+in vec4 color;
+
+#include <lib/morph.glsl>
+
+uniform FrameInfo {
+  mat4 mvp;
+  mat4 model;
+  mat4 normal_matrix;
+}
+frame_info;
+
+// The view-projection alone, for a block that says where in
+// the world the vertex is rather than where in the mesh.
+uniform MaterialVertexInfo {
+  mat4 view_projection;
+}
+material_vertex_info;
+
+uniform MaterialParams {
+  vec3 rimColor;
+  float breath;
+}
+material_params;
+
+out vec3 v_world_position;
+out vec3 v_normal;
+out vec2 v_texcoord;
+out vec4 v_tangent;
+out vec4 v_color;
+out vec2 v_lightmap_uv;
+out vec4 v_instance;
+
+void main() {
+  vec3 morphed_position = position;
+  vec3 morphed_normal = normal;
+  vec4 morphed_tangent = tangent;
+  ApplyMorph(morphed_position, morphed_normal, morphed_tangent);
+  vec4 f3d_instance = vec4(0.0);
+  vec4 f3d_color = vec4(1.0);
+  vec3 f3d_position = morphed_position;
+  vec3 f3d_object_normal = morphed_normal;
+  vec3 f3d_tangent = morphed_tangent.xyz;
+  bool f3d_mirrored = determinant(mat3(frame_info.model)) < 0.0;
+  vec3 f3d_world = (frame_info.model * vec4(f3d_position, 1.0)).xyz;
+  vec3 f3d_normal = mat3(frame_info.normal_matrix) * f3d_object_normal;
+  vec3 f3d_out_position = f3d_position;
+  vec3 f3d_out_world = f3d_world;
+  vec3 f3d_out_normal = f3d_normal;
+
+  // The material's vertex block.
+  f3d_out_world = (f3d_world + (f3d_normal * (0.02 * material_params.breath)));
+
+  v_world_position = f3d_out_world;
+  v_normal = f3d_out_normal;
+  v_texcoord = texcoord;
+  v_tangent = vec4(mat3(frame_info.model) * f3d_tangent,
+                   f3d_mirrored ? -morphed_tangent.w : morphed_tangent.w);
+  v_color = vec4(1.0);
+  v_lightmap_uv = color.xy;
+  v_instance = f3d_instance;
+  gl_Position = material_vertex_info.view_projection * vec4(f3d_out_world, 1.0);
+}
+
+--- evaluated
+  at 0.05: 0.372725000000, 0.601187500000, 1.00112500000, 1.00000000000
+  light: 0.800000000000, 0.400000000000, 0.200000000000
+  at 0.5: 0.462500000000, 0.437500000000, 0.437500000000, 1.00000000000
+  light: 0.800000000000, 0.400000000000, 0.200000000000
+  at 0.95: 0.673775000000, 0.577562500000, 0.481375000000, 1.00000000000
+  light: 0.800000000000, 0.400000000000, 0.200000000000
+== test/fixtures/v3/tube_light.f3dmat
+name TubeLight v3 material inputs [albedo, alpha, lightKind, lightParams, lit, nDotL]
+params [f3d_lighttype_tube:float=[-1.0] uniform MaterialParams]
+textures []
+fragment:
+  return construct:vec4(input:lit:vec3, input:alpha:float)
+light:
+  let reach = call:clamp:float(binary:-:float(const:float[1.0], binary:*:float(swizzle:float[0](input:lightParams:vec4), const:float[0.1])), const:float[0.0], const:float[1.0])
+  let engine = call:step:float(input:lightKind:float, const:float[15.5])
+  return binary:*:vec3(binary:*:vec3(input:albedo:vec3, input:nDotL:float), call:mix:float(local:engine:float, local:reach:float, input:tube:float))
+--- glsl
+#version 460 core
+
+// Generated from a material written in the material language
+// — gfx-84n. The source is the thing to edit; this file is
+// what the shader build compiles and what the three GPU
+// backends translate. The software backend evaluates the same
+// tree instead of reading this.
+#include <lib/material_maps.glsl>
+#include <lib/shadow.glsl>
+
+uniform MaterialParams {
+  float f3d_lighttype_tube;
+}
+material_params;
+
+// The row of the light being shaded, which the material's
+// loop sets before each call — version 3.
+float f3d_light_kind = 0.0;
+vec4 f3d_light_params = vec4(0.0);
+float f3d_is_tube = 0.0;
+
+// The material's light block, run once per light.
+vec3 ShadeLight(Surface s, LightSample light) {
+  float reach = clamp((1.0 - (f3d_light_params.x * 0.1)), 0.0, 1.0);
+  float engine = step(f3d_light_kind, 15.5);
+  return ((s.albedo * light.n_dot_l) * mix(engine, reach, f3d_is_tube));
+}
+
+float LightVisibility(Surface s, LightSample light, int i) {
+  return ShadowFactor(s, light, i);
+}
+
+// A light's row, as `SampleLight` reads it: the slots, then the
+// list, its cell's when the draw is clustered.
+void F3dLightRow(int index, out vec4 position, out vec4 color,
+                 out vec4 direction, out vec4 cone) {
+  if (index < kMaxLights) {
+    position = frag_info.light_position[index];
+    color = frag_info.light_color[index];
+    direction = frag_info.light_direction[index];
+    cone = frag_info.light_cone[index];
+    return;
+  }
+  int slot = index - kMaxLights;
+  bool clustered = Clustered();
+  float listRow = clustered ? ClusterRow(slot) : LightListRow(slot);
+  float v = (listRow + 0.5) * light_list_info.list.z;
+  float u = light_list_info.list.y;
+  position = textureLod(light_list_texture, vec2(0.5 * u, v), 0.0);
+  color = textureLod(light_list_texture, vec2(1.5 * u, v), 0.0);
+  direction = textureLod(light_list_texture, vec2(2.5 * u, v), 0.0);
+  cone = textureLod(light_list_texture, vec2(3.5 * u, v), 0.0);
+  color.w *= clustered ? (InSlots(listRow) ? 0.0 : 1.0) : LightListScale(slot);
+}
+
+vec3 MaterialLights(Surface s) {
+  vec3 total = vec3(0.0);
+  int count = LightCount();
+  for (int i = 0; i < kTotalLights; i++) {
+    if (i >= count) break;
+    vec4 row_position;
+    vec4 row_color;
+    vec4 row_direction;
+    vec4 row_cone;
+    F3dLightRow(i, row_position, row_color, row_direction, row_cone);
+    f3d_light_kind = row_position.w;
+    f3d_light_params = row_cone;
+    f3d_is_tube = abs(f3d_light_kind - material_params.f3d_lighttype_tube) < 0.5 ? 1.0 : 0.0;
+    if (f3d_light_kind > 15.5) {
+      LightSample own;
+      own.integrated = 0.0;
+      own.ltc = vec3(0.0);
+      own.l = normalize(row_position.xyz - v_world_position);
+      own.h = normalize(own.l + s.v);
+      own.n_dot_l = max(dot(s.n, own.l), 0.0);
+      own.n_dot_h = max(dot(s.n, own.h), 0.0);
+      own.v_dot_h = max(dot(s.v, own.h), 0.0);
+      own.radiance = row_color.rgb * row_color.w;
+      if (own.n_dot_l <= 0.0) continue;
+      total += ShadeLight(s, own) * own.radiance * own.n_dot_l;
+      continue;
+    }
+    LightSample light = SampleLight(i, s);
+    if (light.n_dot_l <= 0.0) continue;
+    light_transmittance = vec3(1.0);
+    float visibility = LightHasShadow(i)
+        ? LightVisibility(s, light, i) *
+              PointShadowFactor(v_world_position, s.n, i)
+        : 1.0;
+    if (visibility <= 0.0) continue;
+    total += ShadeLight(s, light) * light.radiance * light.n_dot_l * visibility * light_transmittance;
+  }
+  return total;
+}
+
+void main() {
+  Surface s = ReadSurface();
+  ApplyCommonMaps(s);
+  vec3 f3d_direct = MaterialLights(s);
+  vec3 f3d_lightmap = SampleLightmap();
+  vec3 f3d_indirect = s.albedo * (s.ambient + f3d_lightmap);
+  vec3 lit = (f3d_direct + f3d_indirect) * s.occlusion + s.emissive;
+  // Keeps what the engine binds to every lit stage; no frame
+  // takes this branch.
+  if (frag_info.frame_params.w < 0.0) {
+    lit += f3d_direct + f3d_lightmap + s.ambient + s.emissive + vec3(s.occlusion);
+  }
+  vec4 result = vec4(lit, s.alpha);
+  WriteSurface(result.rgb, result.a);
+}
+
+--- evaluated
+  at 0.05: 0.700000000000, 0.600000000000, 0.500000000000, 0.900000000000
+  light: 0.332800000000, 0.166400000000, 0.0832000000000
+  at 0.5: 0.700000000000, 0.600000000000, 0.500000000000, 0.900000000000
+  light: 0.332800000000, 0.166400000000, 0.0832000000000
+  at 0.95: 0.700000000000, 0.600000000000, 0.500000000000, 0.900000000000
+  light: 0.332800000000, 0.166400000000, 0.0832000000000
+== ../flutter3d/test/fixtures/materials/hatch.f3dmat
+name Hatch v3 material inputs []
+params [inkColor:vec3=[0.1, 0.1, 0.1] uniform MaterialParams, spacing:float=[4.0] uniform MaterialParams]
+textures []
+fragment:
+  return construct:vec4(binary:*:vec3(param:inkColor:vec3, param:spacing:float), const:float[1.0])
+--- glsl
+#version 460 core
+
+// Generated from a material written in the material language
+// — gfx-84n. The source is the thing to edit; this file is
+// what the shader build compiles and what the three GPU
+// backends translate. The software backend evaluates the same
+// tree instead of reading this.
+#define F3D_NO_POINT_SHADOW
+#define F3D_NO_LIGHT_LIST
+#include <lib/surface.glsl>
+
+uniform MaterialParams {
+  vec3 inkColor;
+  float spacing;
+}
+material_params;
+
+// Never called: this material returns the light its surface
+// emits rather than gathering any. The prototypes in
+// surface.glsl still have to be satisfied.
+vec3 ShadeLight(Surface s, LightSample light) {
+  return s.albedo;
+}
+
+float LightVisibility(Surface s, LightSample light, int i) {
+  return 1.0;
+}
+
+void main() {
+  Surface s = ReadSurface();
+  vec4 result = vec4((material_params.inkColor * material_params.spacing), 1.0);
+  WriteSurface(result.rgb, result.a);
+}
+
+--- evaluated
+  at 0.05: 0.400000000000, 0.400000000000, 0.400000000000, 1.00000000000
+  at 0.5: 0.400000000000, 0.400000000000, 0.400000000000, 1.00000000000
+  at 0.95: 0.400000000000, 0.400000000000, 0.400000000000, 1.00000000000

@@ -524,7 +524,7 @@ const MaterialInput materialLitInput = MaterialInput(
   since: 1,
 );
 
-/// The builtins a material may call, the sixteen versions 1 and 2 have:
+/// The builtins a material may call, the sixteen every version so far has:
 /// `dot`, `length`, `normalize`, `mix`, `clamp`, `smoothstep`, `step`,
 /// `pow`, `min`, `max`, `abs`, `sqrt`, `floor`, `fract`, `sin` and `cos`.
 ///

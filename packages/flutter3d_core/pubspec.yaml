@@ -53,6 +53,12 @@ dev_dependencies:
   # (`test/formats/helpers/load_png.dart`).
   image: ^4.10.1
 
+  # The reference outside backend, whose material compiler the language's
+  # corpus is run through (`test/data_plugin/material_compiler_corpus_test.dart`).
+  # Not a real dependency: nothing in `lib/` reaches it, and it depends on
+  # nothing of this package's.
+  flutter3d_backend_null: '>=1.0.0 <1.1.0'
+
 # **The Flutter-free half of `flutter3d`, mcp-03n's own split.** `flutter3d`
 # named Flutter in five files out of eighty-nine, all of them in
 # `engine/assets/`, and all for one of three reasons: `rootBundle` to read the

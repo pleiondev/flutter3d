@@ -8,6 +8,24 @@
   word there would be frozen for 1.x. A prebuilt plugin stage that reads
   the copy is rebuilt against this bundle.
 
+- **The shader ABI file writes varyings, sampler kinds and attribute
+  formats.** `api/flutter3d_shaders.abi` gains each vertex stage's `out`s
+  and each fragment stage's `in`s and colour outputs in declaration order,
+  each vertex input's `VertexFormat` (`float32x4` for a `vec4`), and a
+  sampler's line ends in the type it is declared as (`sampler2D`,
+  `samplerCube`). A prebuilt plugin stage is paired with the engine's by
+  those, and before they were outside the file: a minor could have
+  inserted a varying before `v_instance`, or turned a decal slot into an
+  array texture, with every check green. The ABI is the one every target
+  shares; the index attributes only Impeller's OpenGL ES target declares
+  are not in it. The base is recorded from the working tree until rc.1 is
+  tagged, and from the tag after (`dart run api_snapshot:abi_base`).
+- **The kernel language's vocabulary is a file.**
+  `api/kernel_language.vocabulary` holds every word with the version it
+  arrived in, the words taken early and the material language's words the
+  parser names; `dart run tool/kernel_vocabulary.dart` writes it, a test
+  keeps it current, and a structure rule holds it to the base recorded at
+  the tag.
 - **Every word of the kernel language says which version it arrived in.**
   The parser kept its words in one list for every version, so a version
   that added `barrier` or `shared` would have refused each older kernel

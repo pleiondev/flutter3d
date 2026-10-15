@@ -27,6 +27,25 @@ void main() {
     expect(abi, contains('entry MeshVertex vertex\n'));
     expect(abi, contains('entry PrefixSum compute\n'));
     expect(abi, contains('vertex MeshInstancedVertex in 9 vec4 i_data\n'));
+    // Mutation: write samplers by name alone, and a decal slot turned into
+    // an array texture keeps its line.
+    expect(
+      abi,
+      contains('stage Pbr sampler environment_texture samplerCube\n'),
+    );
+    expect(abi, contains('stage Decal sampler decal_texture_0 sampler2D\n'));
+    // Mutation: stop writing varyings, and a minor inserting one before
+    // `v_instance` moves the location every prebuilt fragment stage reads.
+    expect(abi, contains('vertex MeshVertex out 6 vec4 v_instance\n'));
+    expect(abi, contains('fragment Pbr in 1 vec3 v_normal\n'));
+    expect(abi, contains('fragment Composite in 0 vec2 v_uv\n'));
+    expect(abi, contains('fragment Pbr out 1 vec4 frag_surface\n'));
+    // Mutation: write formats from the type's name alone, and a packed
+    // colour in a minor would keep the `in vec4 color` line.
+    expect(abi, contains('vertex MeshVertex format 4 color float32x4\n'));
+    // The attribute only Impeller's OpenGL ES target declares is not the
+    // ABI every target shares.
+    expect(abi, isNot(contains('f3d_vertex_index')));
     expect(
       RegExp(
         r'^stage Pbr block FragInfo member \w+ 0 ',

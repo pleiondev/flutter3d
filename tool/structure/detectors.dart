@@ -1841,6 +1841,223 @@ List<String> badCheckNames(Iterable<String> names, {String? area}) {
   ];
 }
 
+// ------------------------------------------- the shader ABI and vocabularies
+
+/// The facts of a one-fact-a-line file: every line but the blank ones and
+/// the `#` comments.
+List<String> factLines(String text) => <String>[
+  for (final line in text.split('\n'))
+    if (line.isNotEmpty && !line.startsWith('#')) line,
+];
+
+/// The shapes a line of `flutter3d_shaders.abi` may have.
+final List<RegExp> _abiLineShapes = <RegExp>[
+  RegExp(r'^entry \w+ (?:vertex|fragment|compute)$'),
+  RegExp(r'^stage \w+ block \w+$'),
+  RegExp(r'^stage \w+ block \w+ member \w+ \d+ \d+ \d+ \w+$'),
+  RegExp(r'^stage \w+ sampler \w+ (?:sampler|image|texture)\w*$'),
+  RegExp(r'^(?:vertex|fragment) \w+ (?:in|out) \d+ \w+ \w+$'),
+  RegExp(r'^vertex \w+ format \d+ \w+ \w+$'),
+];
+
+/// What breaks the shape of the shader ABI file [abi]: a line of no known
+/// shape (a sampler written without its kind among them), a kind of fact
+/// the file must hold and does not (samplers with kinds, varyings both
+/// ways, attribute formats), or a vertex input with no format beside it.
+///
+/// **The only-grows rule is blind to a fact the file never had.** It reads
+/// lines, so a writer that stopped writing varyings or sampler kinds would
+/// leave nothing to lose, and a minor could insert a varying before
+/// `v_instance` or turn a 2D sampler into a cube with every check green.
+List<String> shaderAbiShapeProblems(String abi) {
+  final lines = factLines(abi);
+  final problems = <String>[];
+  for (final line in lines) {
+    if (!_abiLineShapes.any((RegExp shape) => shape.hasMatch(line))) {
+      problems.add(
+        '`$line` is not a line of the shader ABI: an entry, a block, a '
+        'member, a sampler with its kind, an attribute with its format, or '
+        'a varying',
+      );
+    }
+  }
+  for (final (what, shape) in <(String, RegExp)>[
+    ('samplers with their kinds', RegExp(r'^stage \w+ sampler \w+ \w+$')),
+    ('vertex stages\' varyings', RegExp(r'^vertex \w+ out ')),
+    ('fragment stages\' varyings', RegExp(r'^fragment \w+ in ')),
+    ('attribute formats', RegExp(r'^vertex \w+ format ')),
+  ]) {
+    if (!lines.any(shape.hasMatch)) {
+      problems.add('holds no $what, which a prebuilt stage is bound by');
+    }
+  }
+  final formats = <String>{
+    for (final line in lines)
+      if (RegExp(r'^vertex (\w+) format (\d+) (\w+) ').firstMatch(line)
+          case final m?)
+        '${m[1]} ${m[2]} ${m[3]}',
+  };
+  for (final line in lines) {
+    if (RegExp(r'^vertex (\w+) in (\d+) \w+ (\w+)$').firstMatch(line)
+        case final m? when !formats.contains('${m[1]} ${m[2]} ${m[3]}')) {
+      problems.add('`$line` has no format beside it');
+    }
+  }
+  return problems;
+}
+
+/// `<language> version <N>`: the newest version of a language a build
+/// reads, the one line of a vocabulary that is not a word.
+final RegExp _vocabularyVersion = RegExp(r'^\w+ version (\d+)$');
+
+/// What breaks "a language's vocabulary grows only with its version",
+/// given the [base] recorded at the tag and the package's [current] file.
+///
+/// **A word new since 1.0 that arrives in a version 1.0 read is a break**:
+/// a 1.0 build reading a source that uses it refuses with an unknown name,
+/// not with the sentence naming the version to update to, and a 1.x build
+/// takes a name from a source that bound it. So every line the base lacks
+/// carries a version above the base's newest, and at most this build's
+/// newest; every line of the base is still here; and the newest version
+/// never goes down.
+List<String> vocabularyProblems({
+  required String base,
+  required String current,
+}) {
+  int? newest(List<String> lines) {
+    for (final line in lines) {
+      if (_vocabularyVersion.firstMatch(line) case final m?) {
+        return int.parse(m[1]!);
+      }
+    }
+    return null;
+  }
+
+  final was = factLines(base);
+  final now = factLines(current);
+  final (baseNewest, currentNewest) = (newest(was), newest(now));
+  if (baseNewest == null || currentNewest == null) {
+    return <String>[
+      'says no "<language> version <N>", the newest version it reads',
+    ];
+  }
+  final have = now.toSet();
+  final had = was.toSet();
+  String gone(String line) =>
+      '`$line`, which the base recorded, is gone: a word a 1.0 source may '
+      'use is one every 1.x reads as it did';
+  return <String?>[
+    if (currentNewest < baseNewest)
+      'reads up to version $currentNewest, and the base read $baseNewest',
+    for (final line in was)
+      if (!_vocabularyVersion.hasMatch(line) && !have.contains(line))
+        gone(line),
+    for (final line in now)
+      if (!_vocabularyVersion.hasMatch(line) && !had.contains(line))
+        switch (int.tryParse(line.split(' ').last)) {
+          null => '`$line` does not end in the version it arrived in',
+          final since when since <= baseNewest =>
+            '`$line` is new since the base and arrives in version $since, '
+                'which the base already read: a build of that version '
+                'refuses a source using it by an unknown name, not by its '
+                'version. It belongs to version ${baseNewest + 1}',
+          final since when since > currentNewest =>
+            '`$line` arrives in version $since, after $currentNewest, the '
+                'newest this build reads',
+          _ => null,
+        },
+  ].nonNulls.toList();
+}
+
+/// The tag a base under `tool/api/abi_base/` says it was recorded from,
+/// or null for one recorded from the working tree.
+String? abiBaseTag(String base) =>
+    RegExp(r'^# Recorded from (v\S+) \(').firstMatch(base)?.group(1);
+
+/// What breaks "the base is the tag's": [base] says nowhere what it was
+/// recorded from, or names a tag whose file ([atTag], null where this
+/// clone has no such tag) holds other facts.
+///
+/// **A base edited by hand after the tag** would move the promise without
+/// a release that made it. Recorded by `api_snapshot:abi_base`, it says
+/// where it came from on its first line, and a base from a tag is that
+/// tag's file, fact for fact.
+List<String> abiBaseProblems({
+  required String base,
+  required String? Function(String tag) atTag,
+}) {
+  if (!base.startsWith('# Recorded from ')) {
+    const unrecorded =
+        'says nowhere what it was recorded from: record it with `dart run '
+        'api_snapshot:abi_base` in tool/api';
+    return const <String>[unrecorded];
+  }
+  final tag = abiBaseTag(base);
+  final tagged = tag == null ? null : atTag(tag);
+  if (tag == null || tagged == null) return const <String>[];
+  final (was, now) = (factLines(tagged), factLines(base));
+  if (was.length == now.length &&
+      Iterable<int>.generate(was.length).every((int i) => was[i] == now[i])) {
+    return const <String>[];
+  }
+  final first = Iterable<int>.generate(
+    was.length < now.length ? was.length : now.length,
+  ).firstWhere((int i) => was[i] != now[i], orElse: () => was.length);
+  final from = first < was.length ? ', from `${was[first]}`' : '';
+  final differs =
+      'is not what $tag holds (${now.length} facts against ${was.length}'
+      '$from): record it again with `dart run api_snapshot:abi_base $tag`';
+  return <String>[differs];
+}
+
+/// What breaks "every frame resource says what it holds": a resource
+/// [framePlan] declares (`FrameResourceIds`) with no row in the table of
+/// [contracts]' "Frame resources a stage reads", a row naming no resource,
+/// or a row that says nothing.
+///
+/// **A plugin reads every one of them by name**, so each is a contract the
+/// day it is readable, and the table says which encodings are frozen and
+/// which are not; a resource added without a row is one an author cannot
+/// tell the promise of.
+List<String> frameResourceRowProblems({
+  required String framePlan,
+  required String contracts,
+}) {
+  final ids = <String>{
+    for (final m in RegExp(
+      r"static const ResourceId \w+ = ResourceId\(\s*'(f3d\.[a-z_]+)'",
+    ).allMatches(codeOf(framePlan)))
+      m[1]!,
+    // The one family a function names, a cube per probe.
+    if (framePlan.contains("ResourceId('f3d.reflection_probe_\$index')"))
+      'f3d.reflection_probe_<n>',
+  };
+  final start = contracts.indexOf('### Frame resources a stage reads');
+  if (start < 0) {
+    return <String>['has no "Frame resources a stage reads" section'];
+  }
+  final end = contracts.indexOf('\n## ', start);
+  final section = contracts.substring(start, end < 0 ? contracts.length : end);
+  final rows = <String, String>{
+    for (final m in RegExp(
+      r'^\| `([^`]+)` \|([^\n]*)\|\s*$',
+      multiLine: true,
+    ).allMatches(section))
+      m[1]!: m[2]!.trim(),
+  };
+  String unsaid(String id) =>
+      '`$id` is a frame resource a plugin may read, and the table does not '
+      'say what it holds';
+  return <String>[
+    for (final id in ids)
+      if (!rows.containsKey(id)) unsaid(id),
+    for (final MapEntry(key: id, value: text) in rows.entries) ...<String>[
+      if (!ids.contains(id)) '`$id` has a row and is no frame resource',
+      if (text.isEmpty) '`$id` has a row that says nothing',
+    ],
+  ];
+}
+
 // --------------------------------------------------------------- self-checks
 
 /// Proves every detector above fires, and stays quiet on what only looks alike.
@@ -4578,6 +4795,219 @@ final c = switch (s) { 'x' || 'r' => 0, _ => 1 };
     ).isEmpty,
     'a message in a comment and in a string',
     'prose explaining the rule must not break it',
+  );
+
+  // The shader ABI's shape. The clean file has one line of each kind the
+  // real one has; each break is a fact the only-grows rule cannot lose
+  // because the file never had it.
+  const abi = '''
+# header
+entry MeshVertex vertex
+stage Pbr block FragInfo
+stage Pbr block FragInfo member light_color 128 128 8 Vector4
+stage Pbr sampler environment_texture samplerCube
+vertex MeshVertex in 0 vec3 position
+vertex MeshVertex format 0 position float32x3
+vertex MeshVertex out 0 vec3 v_world_position
+fragment Pbr in 0 vec3 v_world_position
+fragment Pbr out 0 vec4 frag_color
+''';
+  quiet(
+    'shader ABI shape',
+    shaderAbiShapeProblems(abi).isEmpty,
+    'one line of every kind',
+    'a sampler with its kind, both varyings and a format are the shape',
+  );
+  fires(
+    'shader ABI shape',
+    shaderAbiShapeProblems(
+      abi.replaceFirst(' environment_texture samplerCube', ' environment'),
+    ).isNotEmpty,
+    'a sampler written by name alone',
+  );
+  fires(
+    'shader ABI shape',
+    shaderAbiShapeProblems(
+      abi.replaceFirst('vertex MeshVertex out 0 vec3 v_world_position\n', ''),
+    ).isNotEmpty,
+    'a file with no vertex varyings',
+  );
+  fires(
+    'shader ABI shape',
+    shaderAbiShapeProblems(
+      abi.replaceFirst('vertex MeshVertex format 0 position float32x3\n', ''),
+    ).isNotEmpty,
+    'an attribute with no format',
+  );
+  // The only-grows check over the new lines: a varying inserted before
+  // another moves its index, a sampler turned into a cube changes its line,
+  // and an array grown past its length moves its byte count (eight forward
+  // lights and sixteen decals a draw are held this way).
+  final abiBase = abi.replaceFirst(
+    'vertex MeshVertex out 0 vec3 v_world_position',
+    'vertex MeshVertex out 0 vec3 v_world_position\n'
+        'vertex MeshVertex out 1 vec3 v_normal',
+  );
+  fires(
+    'shader ABI only grows',
+    factLines(abiBase).any(
+      (String line) => !factLines(
+        abiBase.replaceFirst('out 1 vec3 v_normal', 'out 2 vec3 v_normal'),
+      ).contains(line),
+    ),
+    'a varying moved to another index',
+  );
+  fires(
+    'shader ABI only grows',
+    !factLines(
+      abi.replaceFirst(
+        'member light_color 128 128 8',
+        'member light_color '
+            '128 256 16',
+      ),
+    ).contains('stage Pbr block FragInfo member light_color 128 128 8 Vector4'),
+    'eight lights grown to sixteen',
+  );
+
+  // The vocabularies. The base reads up to version 2; the current file adds
+  // a word, and each break is a way back to a word 1.0 would not know.
+  const vocabularyBase = '''
+# header
+kernel version 2
+kernel word let 1
+kernel word atomicAdd 2
+''';
+  List<String> vocabulary(String current) =>
+      vocabularyProblems(base: vocabularyBase, current: current);
+  quiet(
+    'vocabulary',
+    vocabulary(
+      vocabularyBase
+          .replaceFirst('version 2', 'version 3')
+          .replaceFirst(
+            'atomicAdd 2\n',
+            'atomicAdd 2\nkernel word barrier 3\n',
+          ),
+    ).isEmpty,
+    'a version 3 word in a build that reads version 3',
+    'a word new since the base arrives with a version above its newest',
+  );
+  fires(
+    'vocabulary',
+    vocabulary('${vocabularyBase}kernel word barrier 2\n').isNotEmpty,
+    'a word new since the base, under a version the base read',
+  );
+  fires(
+    'vocabulary',
+    vocabulary('${vocabularyBase}kernel word barrier 3\n').isNotEmpty,
+    'a word of a version this build does not read',
+  );
+  fires(
+    'vocabulary',
+    vocabulary(
+      vocabularyBase.replaceFirst('kernel word let 1\n', ''),
+    ).isNotEmpty,
+    'a word of the base dropped',
+  );
+  fires(
+    'vocabulary',
+    vocabulary('${vocabularyBase}kernel word barrier\n').isNotEmpty,
+    'a word with no version',
+  );
+  fires(
+    'vocabulary',
+    vocabulary(
+      vocabularyBase.replaceFirst('version 2', 'version 1'),
+    ).isNotEmpty,
+    'the newest version going down',
+  );
+
+  // Where a base came from.
+  const recorded = '# Recorded from v1.0.0-rc.1 (abcdef012345) by the tool.\n';
+  quiet(
+    'abi base',
+    abiBaseProblems(
+      base: '$recorded$vocabularyBase',
+      atTag: (_) => vocabularyBase,
+    ).isEmpty,
+    'a base that is the tag\'s file',
+    'the header is not a fact',
+  );
+  quiet(
+    'abi base',
+    abiBaseProblems(
+      base: '# Recorded from the working tree.\n$vocabularyBase',
+      atTag: (_) => throw StateError('no tag to read'),
+    ).isEmpty,
+    'a base recorded before the tag',
+    'before the tag there is nothing to hold it to',
+  );
+  fires(
+    'abi base',
+    abiBaseProblems(
+      base: '$recorded${vocabularyBase}kernel word barrier 3\n',
+      atTag: (_) => vocabularyBase,
+    ).isNotEmpty,
+    'a base edited by hand after the tag',
+  );
+  fires(
+    'abi base',
+    abiBaseProblems(base: vocabularyBase, atTag: (_) => null).isNotEmpty,
+    'a base that says nowhere what it was recorded from',
+  );
+
+  // Every frame resource has a row that says what it holds.
+  const framePlan = '''
+abstract final class FrameResourceIds {
+  static const ResourceId hdrColor = ResourceId('f3d.hdr_color');
+  static const ResourceId cubeShadowStatic = ResourceId(
+    'f3d.cube_shadow_static',
+  );
+  static ResourceId reflectionProbe(int index) =>
+      ResourceId('f3d.reflection_probe_\$index');
+}
+''';
+  const contracts = '''
+### Frame resources a stage reads
+
+| Resource | What it holds |
+|---|---|
+| `f3d.hdr_color` | The scene's light. |
+| `f3d.cube_shadow_static` | Readable, encoding not frozen. |
+| `f3d.reflection_probe_<n>` | Readable, encoding not frozen. |
+
+## Names
+''';
+  quiet(
+    'frame resource rows',
+    frameResourceRowProblems(
+      framePlan: framePlan,
+      contracts: contracts,
+    ).isEmpty,
+    'a row for each resource, the probe family among them',
+    'a constructor spread over lines is a resource too',
+  );
+  fires(
+    'frame resource rows',
+    frameResourceRowProblems(
+      framePlan: framePlan.replaceFirst(
+        '}\n',
+        "  static const ResourceId ao = ResourceId('f3d.ao');\n}\n",
+      ),
+      contracts: contracts,
+    ).isNotEmpty,
+    'a resource added without a row',
+  );
+  fires(
+    'frame resource rows',
+    frameResourceRowProblems(
+      framePlan: framePlan,
+      contracts: contracts.replaceFirst(
+        '| `f3d.hdr_color` | The scene\'s light. |',
+        '| `hdr_color` | The scene\'s light. |',
+      ),
+    ).isNotEmpty,
+    'a row under the name from before the rename',
   );
 
   return broken;

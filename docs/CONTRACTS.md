@@ -480,14 +480,40 @@ shader change and both only grow in a minor.
 
 **Checked, not only promised.** `packages/flutter3d_shaders/api/flutter3d_shaders.abi`
 holds the whole ABI one fact a line: each entry point and its kind, each
-stage's blocks and samplers, each member with its offset, byte length,
-element count and type, and each engine vertex stage's inputs in order.
-The package's test keeps it current (`dart run tool/abi_snapshot.dart`
+stage's blocks, and its samplers with the GLSL type each is declared as
+(`sampler2D`, `samplerCube`), each member with its offset, byte length,
+element count and type, each engine vertex stage's inputs in order with
+the `VertexFormat` the engine's buffer carries each in, and the varyings
+both ways: a vertex stage's `out`s and a fragment stage's `in`s in
+declaration order, which is their location where the source states none,
+and a fragment stage's colour outputs. The ABI is the one every target
+shares: an attribute only Impeller's OpenGL ES target declares
+(`f3d_vertex_index`, `f3d_instance_index`) is that backend's own. The
+package's test keeps the file current (`dart run tool/abi_snapshot.dart`
 writes it), and the structure rule *the shader ABI only grows* fails on any
-line of the base recorded at 1.0.0-rc.1 (`tool/api/abi_base/`) that is
-gone: a dropped stage, a removed or reordered member, a moved offset, a
-renumbered vertex input. Adding lines is a minor; a base is recorded again
-only at a major.
+line of the base that is gone: a dropped stage, a removed or reordered
+member, a moved offset, a renumbered vertex input, a varying inserted
+before another, a sampler turned from a 2D texture into a cube. It also
+fails on a file that lacks one of those kinds of fact, since a fact the
+file never had cannot be lost. Adding lines is a minor; a base is recorded
+again only at a major.
+
+**The base is the tag's.** Tagging a release records the base from the
+tagged commit, as one step of the tag beside the API baseline
+(`dart run api_snapshot:abi_base v1.0.0-rc.1` in `tool/api`, committed after
+the tag); its first line names the tag and commit, and the rule *the ABI
+and vocabulary bases are the tag's* holds it to that tag's files, so a base
+edited by hand afterwards is caught. Until rc.1 is tagged the base is
+recorded from the working tree (`--working-tree`), and a change of the
+release candidate's own that drops or changes a line records it again, in
+the commit that makes the change.
+
+**Array lengths are part of it.** A member's line holds its element
+count, so growing an array moves that line and every later offset:
+**8 forward lights a draw** (`FragInfo.light_*`) **and 16 decals a draw**
+(`DecalInfo.*`) are fixed through 1.x. More lights come through the light
+list, more decals through more draws (`DecalSettings.decalsPerDraw`), and a
+larger array is a new block in a minor, never a longer one.
 
 ### The defines
 
@@ -508,8 +534,11 @@ includes the shared headers, never by the backend:
 | `F3D_NO_SURFACE_BUFFER` | a stage drawn into one attachment writes no surface buffer |
 | `F3D_NO_FOG` | a stage that applies no fog declares no `FogInfo` |
 
-A material written in the material language sets none of them: its stage
-is emitted for the engine's headers as they are.
+A material written in the material language sets two of them and no
+other: a material without a `light` block gathers no lights, so its stage
+is emitted with `F3D_NO_LIGHT_LIST` and `F3D_NO_POINT_SHADOW`, as
+`unlit.frag` is; one with a `light` block is emitted for the engine's lit
+headers as they are.
 
 ### A material's own blocks and textures
 
@@ -579,6 +608,35 @@ a shape the engine keeps for later blocks, `F3d…` and `…Info`, which a
 material's own block was never allowed; a block the engine adds in a minor
 is named in that shape, so `uniform(Hair)` stays a material's to use.
 
+**GLSL's words are taken in every version.** A `let`, a `uniform` and a
+full-screen stage's texture are written into the stage under their own
+names, so none may be a keyword or a word reserved for future use of GLSL
+4.60 (with its Vulkan words) or GLSL ES 3.00 (`filter`, `input`, `shared`,
+`sampler3D` …): a material binding one never compiled on a GPU, so the
+parser refuses it in every version, with the sentence it gives any name
+the generated stage already uses.
+
+**Checked, like the ABI.** Each language's vocabulary is a file of one
+word a line, each ending in the version it arrived in:
+`packages/flutter3d_core/api/material_language.vocabulary` (keywords,
+inputs, outputs, builtins, types, the engine's texture bindings and block
+names, the names and prefixes a source cannot bind),
+`packages/flutter3d_shaders/api/kernel_language.vocabulary` and
+`packages/flutter3d_plugin_runtime/api/wasm_abi.vocabulary` (the imports
+and exports, the newest ABI and the oldest a host runs, which stays 1
+through 1.x). Each package's test keeps its file current, and the
+structure rule *a language's vocabulary grows only with its version* holds
+it to the base recorded at the tag (`tool/api/abi_base/`, recorded as the
+ABI's is): every line of the base stays, and a line new since carries a
+version above the base's newest. So a minor that adds an input or an
+import under a version 1.0 read is caught before a 1.0 build refuses the
+source using it by an unknown name instead of by its version.
+
+**Decided before the tag.** The injection points a material sets in the
+engine's PBR model arrive as `f3dmat 3` if they land before rc.1 is
+tagged, with the version 3 fixture extended and the vocabulary's base
+recorded again; anything after the tag is `f3dmat 4`.
+
 The kernel language grows the same way, under its own `kernel <N>`. Every
 word its parser reads as its own (a declaration, a statement, a type, a
 builtin, a binding's kind, access or format) carries the version it
@@ -600,10 +658,31 @@ kernel language, so it runs wherever a kernel runs and is computed one way.
 A kernel source, a `ComputeStep`'s or a skinning hook's, is read by the
 kernel parser (`ComputeKernel.parse` in `flutter3d_shaders`), whose version
 is the line `kernel <N>`, after the `f3dmat <N>` line where a file has
-both. The kernel parser skips a `material` or `fullscreen` block beside its
-kernels and refuses every other top-level word, naming the material form
-when it meets a material `compute` block. Each language moves its own
-number; neither one's version says anything about the other's.
+both. Each language moves its own number; neither one's version says
+anything about the other's.
+
+**What a `.f3dmat` holds.** At most one block of the material language,
+first (`material`, `fullscreen` or `compute`), and after it only `compute`
+blocks of the kernel language. `parseMaterial` reads the first block and
+refuses anything else after it with a sentence and the line and column
+where it starts: a second `material`, a `fullscreen`, a word nobody reads.
+The kernel parser reads the kernels and skips a `material` or `fullscreen`
+block beside them, and refuses every other top-level word. Both grammars
+open a `compute` block the same way; the kernel parser names the material
+language's form when the block declares a `uniform` or a `param`, which
+only that form has, and refuses any other word it does not read with what
+it expected.
+
+### What a refusal says
+
+The material language, the kernel language and the Wasm plugin ABI refuse
+what they cannot read with a sentence: the material language's with the
+line and column in the source, the kernel language's with its own, a
+module's naming the import or the export. **The wording is not part of the
+contract.** A minor may say it better, and an editor, an MCP tool or a test
+that needs to tell one refusal from another matches the exception's type
+and its line and column, not its text. Stable codes beside the sentence
+(`f3dmat.E012`) arrive in a 1.x minor, as an addition.
 
 ### Light codes
 
@@ -628,20 +707,26 @@ no hook packs the type.
 
 ### Vertex layouts
 
-A material's own vertex stage reads the standard vertex
-(`VertexLayout.standard`). Its skinned half, `<name>Skinned`, reads joints
-and weights beside it; its instanced half, `<name>Instanced`, the
-instance's rows, colour and four numbers in a second buffer stepped per
-instance (`MeshVertexLayouts.instanced`); its lightmapped half,
-`<name>Lightmapped`, the level's baked coordinate. A material lists the
-halves it ships (`LightingModel.vertexVariants`); the others are drawn
-through the engine's. A `vertex` block written in the material language
-ships all four from version 3 (`<name>VertexInstanced`,
-`<name>VertexLightmapped`), each with the engine's inputs in the engine's
-order, and the depth and shadow passes draw an instanced caster through its
-instanced half; an older source's instanced and lightmapped draws keep the
-engine's stages, as they always had. These layouts are frozen within 1.x:
-a stage built against 1.0 reads the same attributes at the same places.
+A material called `<name>` has its own vertex stage, `<name>Vertex`, which
+reads the standard vertex (`VertexLayout.standard`). Its skinned half,
+`<name>VertexSkinned`, reads joints and weights beside it; its instanced
+half, `<name>VertexInstanced`, the instance's rows, colour and four numbers
+in a second buffer stepped per instance (`MeshVertexLayouts.instanced`);
+its lightmapped half, `<name>VertexLightmapped`, the level's baked
+coordinate. A material lists the halves it ships
+(`LightingModel.vertexVariants`); the others are drawn through the
+engine's. A `vertex` block written in the material language ships all four
+from version 3, each with the engine's inputs in the engine's order, and
+the depth and shadow passes draw an instanced caster through its instanced
+half; an older source's instanced and lightmapped draws keep the engine's
+stages, as they always had. These layouts are frozen within 1.x: a stage
+built against 1.0 reads the same attributes at the same places, **every
+attribute 32-bit floats of its input's width** (`float32x3` for a `vec3`),
+packed in declaration order. The `.abi` writes each attribute's format
+(`vertex MeshVertex format 4 color float32x4`), and a test holds the
+engine's layouts to those lines, so a colour packed into four bytes in a
+minor would fail there rather than under every `SkinningHook` written
+against 1.0.
 
 ### Decal stages
 
@@ -650,7 +735,9 @@ full-screen stage with `Decal`'s interface: the `DecalInfo` block (sixteen
 decals a draw), `decal_texture_0` to `decal_texture_3`, `surface_texture`
 and `albedo_texture`, and two terms by `DecalInfo.params.w`: nought for the
 factor multiplied in, one for the light added. `DecalSettings.decalsPerDraw`
-and `picturesPerDraw` cut the draws within those limits.
+and `picturesPerDraw` cut the draws within those limits, and the sixteen a
+draw are fixed through 1.x, as the eight forward lights are ("Array lengths
+are part of it" above).
 
 ### Skinning hooks
 
@@ -716,6 +803,19 @@ writes, is planned for rc.2.
 naga on the machine) hands a backend a stage's SPIR-V and its text in a
 `ShaderTarget`: WGSL, MSL, HLSL or GLSL, or the SPIR-V alone.
 
+**What a GPU backend's compiler accepts.** Every construct of the language
+versions it claims, or it refuses the whole material by name with a
+`MaterialCompileException`; it never compiles part of a material, or a
+construct its device cannot draw into something else. The engine counts
+the budget before it asks: a material past it is refused naming the stage
+and the count, and no compiler is handed it. The corpus the language holds
+a compiler to runs on the null backend
+(`flutter3d_core/test/data_plugin/material_compiler_corpus_test.dart`):
+the version 1 to 3 fixtures, a light row read by type, blocks and textures
+of a material's own, a full-screen stage, every texture of its own a lit
+model may have, and the budget refusal; each reaches the compiler with
+every stage it becomes, and the section it answers is what a device loads.
+
 ### Stages agree before a device sees them
 
 The bundle writer reads every pipeline's stages as `StageInterface`s
@@ -733,16 +833,42 @@ backend at the first draw.
 ### Frame resources a stage reads
 
 A render node or a full-screen stage of a plugin's reads the frame's
-resources by name (`FrameResourceIds`). Their encodings are part of the
-contract and frozen within 1.x: a minor may add a resource, never change
-what the channels of one hold.
+resources by name (`FrameResourceIds`, every one `f3d.<name>`). Every
+resource below is readable; five say what their channels hold, and those
+encodings are part of the contract and frozen within 1.x: a minor may add
+a resource, and may freeze one marked *not frozen*, never change what the
+channels of a frozen one hold. A resource marked *readable, encoding not
+frozen* may be read and ordered against, and what its texels hold may
+change in a minor. The structure rule *every frame resource says what it
+holds* keeps this table to `FrameResourceIds`.
 
 | Resource | What it holds |
 |---|---|
-| `hdr_color` | The scene's light, linear, unbounded and **before exposure**, in the renderer's light scale: one unit is `FrameContext.nitsPerHdrUnit` nits (1 843.2), so a stage adding light of `L` nits adds `L / nitsPerHdrUnit`. Alpha is not read. |
-| `surface_buffer` | `rg` the world normal of the nearest opaque surface, octahedral-encoded (`EncodeOctahedral` in `lib/color.glsl`: the normal over its L1 norm, the lower hemisphere folded over the diagonals, then `* 0.5 + 0.5`), `b` its perceptual roughness, `a` its depth along the view axis in metres. All four are **zero where nothing was drawn**. A debug view (`RenderSettings.debugView`) may take `rgb` over; `a` stays the depth. Read it nearest: a filter averages two encoded normals into a third that is none of them. |
-| `velocity` | `rg` how far the pixel moved on screen since the last frame, **now minus then, in UV units** (nought to one from the top left); zero where nothing was drawn and on a view with no past. Produced while `RenderStep.velocity` is on and something reads it, a placed node's read included. |
-| `frame` | The finished picture, display-referred sRGB after tone mapping: what an effect at `afterTonemap` and after it reads and writes. |
+| `f3d.hdr_color` | The scene's light, linear, unbounded and **before exposure**, in the renderer's light scale: one unit is `FrameContext.nitsPerHdrUnit` nits (1 843.2), so a stage adding light of `L` nits adds `L / nitsPerHdrUnit`. Alpha is not read. |
+| `f3d.surface_buffer` | `rg` the world normal of the nearest opaque surface, octahedral-encoded (`EncodeOctahedral` in `lib/color.glsl`: the normal over its L1 norm, the lower hemisphere folded over the diagonals, then `* 0.5 + 0.5`), `b` its perceptual roughness, `a` its depth along the view axis in metres. All four are **zero where nothing was drawn**. A debug view (`RenderSettings.debugView`) may take `rgb` over; `a` stays the depth. Read it nearest: a filter averages two encoded normals into a third that is none of them. |
+| `f3d.velocity` | `rg` how far the pixel moved on screen since the last frame, **now minus then, in UV units** (nought to one from the top left); zero where nothing was drawn and on a view with no past. Produced while `RenderStep.velocity` is on and something reads it, a placed node's read included. |
+| `f3d.frame` | The finished picture, display-referred sRGB after tone mapping: what an effect at `afterTonemap` and after it reads and writes. |
+| `f3d.skinned_vertices` | A buffer for each mesh a `SkinningHook` claims: its vertices in `VertexLayout.standard` without joints and weights, as "Skinning hooks" says. Produced only while a hook is placed. |
+| `f3d.albedo_buffer` | Readable, encoding not frozen: each surface's own colour, the scene pass's third attachment, present only when a pass reads it. |
+| `f3d.ao` | Readable, encoding not frozen: ambient occlusion, at half the scene's resolution. |
+| `f3d.bloom` | Readable, encoding not frozen: the bloom pyramid. |
+| `f3d.computed_vertices` | Readable, encoding not frozen: what the frame's compute workloads wrote for the scene to draw, a water's surface or particles to instance. |
+| `f3d.contact_shadow` | Readable, encoding not frozen: the short march toward the sun, at the scene's resolution. |
+| `f3d.cube_shadow` | Readable, encoding not frozen: the point lights' cube atlas, drawn this frame. |
+| `f3d.cube_shadow_static` | Readable, encoding not frozen: the point lights' cube atlas, baked. |
+| `f3d.depth_pyramid` | Readable, encoding not frozen: the surface buffer's farthest depth over blocks of it, while `RenderSettings.occlusion` is `OcclusionMode.hiZ`. |
+| `f3d.irradiance_atlas` | Readable, encoding not frozen: the irradiance field's atlas as the GPU keeps it. |
+| `f3d.local_exposure` | Readable, encoding not frozen: the local exposure, at an eighth of the frame, while `RenderSettings.localExposure` is on. |
+| `f3d.luminance` | Readable, encoding not frozen: the scene's log luminance at a fixed small size, while auto exposure is on. |
+| `f3d.object_ids` | Readable, encoding not frozen: which node drew each pixel, on a frame something asked to pick from. |
+| `f3d.outline_mask` | Readable, encoding not frozen: the colour each marked node is ringed in, while the high-contrast look is on. |
+| `f3d.planar_reflections` | Readable, encoding not frozen: the mirrored pictures of the scene's planar reflectors. Read for its order: what reads it draws after them. |
+| `f3d.reflection_probe_<n>` | Readable, encoding not frozen: the filtered cube of the scene's `n`th reflection probe (`FrameResourceIds.reflectionProbe`). |
+| `f3d.render_textures` | Readable, encoding not frozen: what the scene's `RenderTexture`s were drawn into. Read for its order: each picture is its texture's own. |
+| `f3d.scene_color` | Readable, encoding not frozen: the scene as the opaque half left it, at its own size and five halvings side by side, on a frame with a transmissive draw. |
+| `f3d.shadow_map` | Readable, encoding not frozen: the directional light's shadow map. |
+| `f3d.shadow_moments` | Readable, encoding not frozen: the directional map as blurred exponential moments, for the `evsm` filter. |
+| `f3d.temporal_history` | Readable, encoding not frozen: the temporal resolve's history at the output's size, kept across frames. |
 
 The full-screen inputs of the material language read the same encodings
 (`sceneDepth` is the surface buffer's `a`, a million where it is zero).

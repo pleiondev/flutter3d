@@ -219,6 +219,18 @@ List<Rule> get allRules => <Rule>[
   ),
   (name: 'the shader ABI only grows', run: _shaderAbiOnlyGrows),
   (
+    name: 'a language\'s vocabulary grows only with its version',
+    run: _vocabulariesGrowWithVersion,
+  ),
+  (
+    name: 'the ABI and vocabulary bases are the tag\'s',
+    run: _abiBasesAreTheTags,
+  ),
+  (
+    name: 'every frame resource says what it holds',
+    run: _frameResourcesSayWhatTheyHold,
+  ),
+  (
     name: 'every deprecation names its versions and its replacement',
     run: _deprecationsDated,
   ),
@@ -5506,8 +5518,10 @@ List<Finding> _schemaSnapshotsCurrent() => _snapshotsCurrent(
 );
 
 /// The shader ABI of `flutter3d_shaders` (`api/flutter3d_shaders.abi`)
-/// holds every line of the base recorded at 1.0.0-rc.1
-/// (`tool/api/abi_base/flutter3d_shaders.abi`).
+/// holds every line of the base recorded from the rc.1 tag
+/// (`tool/api/abi_base/flutter3d_shaders.abi`), and has the shape that
+/// makes it one: every sampler with its kind, both stages' varyings, each
+/// vertex input with its format.
 ///
 /// **The API snapshot cannot see it.** It writes `uniformBlocks = …` and
 /// `stageBindings = …` for a constant too long to list, and the manifest
@@ -5516,10 +5530,18 @@ List<Finding> _schemaSnapshotsCurrent() => _snapshotsCurrent(
 /// whose offset moved or a vertex input renumbered passed every check, and
 /// a plugin bundle built against 1.0 would have read the wrong offsets. The
 /// file is one fact a line, kept current by the package's own test
-/// (`shader_abi_test.dart`); this rule reads only text.
+/// (`shader_abi_test.dart`); this rule reads only text. An array's length
+/// is in its member's line, so eight forward lights and sixteen decals a
+/// draw are held through 1.x by the same comparison.
+///
+/// **A fact the file never had cannot be lost**, which is why the shape is
+/// checked too: the varyings a prebuilt fragment stage is paired by and a
+/// sampler's kind were outside the file before rc.1, and a writer that
+/// stopped writing them would empty the comparison without a word.
 ///
 /// Mutation: delete a member line from the package's `.abi`, or change an
-/// offset, and this names the line.
+/// offset, and this names the line; write a sampler line without its kind,
+/// and the shape is named.
 List<Finding> _shaderAbiOnlyGrows() {
   final root = repositoryRoot.path;
   const current = 'packages/flutter3d_shaders/api/flutter3d_shaders.abi';
@@ -5537,16 +5559,137 @@ List<Finding> _shaderAbiOnlyGrows() {
         ),
   ];
   if (missing.isNotEmpty) return missing;
-  final have = files[current]!.readAsLinesSync().toSet();
+  final text = files[current]!.readAsStringSync();
+  final have = factLines(text).toSet();
   return <Finding>[
-    for (final line in files[base]!.readAsLinesSync())
-      if (line.isNotEmpty && !line.startsWith('#') && !have.contains(line))
+    for (final problem in shaderAbiShapeProblems(text))
+      Finding(current, problem),
+    for (final line in factLines(files[base]!.readAsStringSync()))
+      if (!have.contains(line))
         Finding(
           current,
-          'no longer has `$line`, which 1.0.0-rc.1 recorded: a minor may add '
+          'no longer has `$line`, which the base recorded: a minor may add '
           'to the shader ABI, never drop or change it. Put it back, or, in a '
           'major, record a new base',
         ),
+  ];
+}
+
+/// The files `tool/api/abi_base/` holds a base of, by their path in the
+/// repository: the shader ABI and the three languages' vocabularies.
+/// `api_snapshot:abi_base` records the same four.
+const Map<String, String> _abiBaseFiles = <String, String>{
+  'packages/flutter3d_shaders/api/flutter3d_shaders.abi':
+      'flutter3d_shaders.abi',
+  'packages/flutter3d_core/api/material_language.vocabulary':
+      'material_language.vocabulary',
+  'packages/flutter3d_shaders/api/kernel_language.vocabulary':
+      'kernel_language.vocabulary',
+  'packages/flutter3d_plugin_runtime/api/wasm_abi.vocabulary':
+      'wasm_abi.vocabulary',
+};
+
+/// Each language's vocabulary (`.f3dmat`, the kernel language, the Wasm
+/// plugin ABI's imports and exports) holds every line of its base, and a
+/// line new since carries a version above the base's newest.
+///
+/// **"A new word comes with a new version" was a sentence.** The API
+/// snapshot writes `materialInputs = …`, the names a material cannot bind
+/// were private to the parser, and the growth tests checked only that a
+/// version was in range; so a minor adding an input under the current
+/// version passed, and a 1.0 build refused a source using it by an unknown
+/// name instead of the sentence naming the version to update to. Each file
+/// is one word a line, kept current by its package's test; this reads text.
+///
+/// Mutation: add `f3dmat input surface sheen vec3 3` to the material
+/// vocabulary (and its base reading up to 3), and this names the line.
+List<Finding> _vocabulariesGrowWithVersion() {
+  final root = repositoryRoot.path;
+  final found = <Finding>[];
+  for (final MapEntry(key: path, value: name) in _abiBaseFiles.entries) {
+    if (!path.endsWith('.vocabulary')) continue;
+    final current = File('$root/$path');
+    final base = File('$root/tool/api/abi_base/$name');
+    if (!current.existsSync() || !base.existsSync()) {
+      found.add(
+        Finding(
+          current.existsSync() ? 'tool/api/abi_base/$name' : path,
+          'is missing: a vocabulary is checked line by line against its '
+          'base',
+        ),
+      );
+      continue;
+    }
+    for (final problem in vocabularyProblems(
+      base: base.readAsStringSync(),
+      current: current.readAsStringSync(),
+    )) {
+      found.add(Finding(path, problem));
+    }
+  }
+  return found;
+}
+
+/// Every base under `tool/api/abi_base/` says what it was recorded from,
+/// and one recorded from a tag is that tag's file, fact for fact.
+///
+/// **Tagging a release records the base**
+/// (`dart run api_snapshot:abi_base v1.0.0-rc.1`), so the promise starts where the release
+/// does. A base recorded from the working tree is the release candidate's
+/// before its tag, and holds nothing here; once it names a tag, a base
+/// edited by hand afterwards is caught. A clone without the tag says
+/// nothing: the tag is the one witness.
+///
+/// Mutation: record a base from a local tag, then add a line to it by
+/// hand, and this names the base.
+List<Finding> _abiBasesAreTheTags() {
+  final root = repositoryRoot.path;
+  String? atTag(String tag, String path) {
+    try {
+      final result = Process.runSync('git', <String>[
+        'show',
+        '$tag:$path',
+      ], workingDirectory: root);
+      return result.exitCode == 0 ? result.stdout as String : null;
+    } on ProcessException {
+      return null;
+    }
+  }
+
+  return <Finding>[
+    for (final MapEntry(key: path, value: name) in _abiBaseFiles.entries)
+      if (File('$root/tool/api/abi_base/$name') case final base
+          when base.existsSync())
+        for (final problem in abiBaseProblems(
+          base: base.readAsStringSync(),
+          atTag: (String tag) => atTag(tag, path),
+        ))
+          Finding('tool/api/abi_base/$name', problem),
+  ];
+}
+
+/// Every frame resource `FrameResourceIds` declares has a row in
+/// CONTRACTS' "Frame resources a stage reads" that says what it holds:
+/// its encoding where it is frozen, "readable, encoding not frozen" where
+/// it is not.
+///
+/// **A plugin reads each by name** (`f3d.<name>`), so a resource added in
+/// a minor without a row is one an author cannot tell the promise of, and
+/// a row left under a name from before a rename promises a resource that
+/// is not there.
+///
+/// Mutation: add a resource to `FrameResourceIds`, or rename one, without
+/// its row, and this names it.
+List<Finding> _frameResourcesSayWhatTheyHold() {
+  final root = repositoryRoot.path;
+  const framePlan =
+      'packages/flutter3d_core/lib/src/engine/render/frame_plan.dart';
+  return <Finding>[
+    for (final problem in frameResourceRowProblems(
+      framePlan: File('$root/$framePlan').readAsStringSync(),
+      contracts: File('$root/docs/CONTRACTS.md').readAsStringSync(),
+    ))
+      Finding('docs/CONTRACTS.md', problem),
   ];
 }
 
