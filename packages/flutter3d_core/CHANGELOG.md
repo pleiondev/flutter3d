@@ -27,6 +27,47 @@
 
 ## 1.0.0-rc.1+1
 
+- **Taking over what the engine draws is declared.** A plugin from outside
+  the engine provides one of the engine's steps only as a
+  `RenderStepAddon` that lists it in `replaces` (new), and a library it
+  adds answers a stage under an engine name only when the addon lists the
+  name in `replacesStages` (new); either puts `PluginPermission.replace` in
+  the addon's manifest, and a manifest without it is refused. Everything
+  else such a plugin adds stays in its namespace: `RendererSteps.provide`
+  refuses it a built-in step, the libraries it hands `addMaterials` answer
+  its `<namespace>__…` stages only, `removeContributor` takes out only the
+  caller's own contributor (a `PluginException` otherwise, and a
+  contributor added twice counts once), a plugin that touches only tooling
+  adds no contributor, and a node somebody placed that declares a resource
+  at run time (`FrameResources.declare`) is held to its namespace — the
+  application's to ids that are not the engine's.
+- **Policies are registrations, and several chain.** `RenderHooks` takes a
+  pacing policy (`addPacingPolicy`), a quality policy (`addQualityPolicy`,
+  asked by an `AdaptiveQuality` handed `hooks:`) and a shadow technique
+  (`addShadowTechnique`: a `ShadowFilter.custom` named after it is drawn
+  with it, `techniqueFor`), each withdrawn with the plugin that added it.
+  Level-of-detail policies, sort keys and these chain in dependency order
+  — the application's first, then each plugin's in install order — the
+  first to answer deciding and `null` passing to the next:
+  `RenderHooks.lodPolicy` is that chain where it was the policy added last,
+  and `lodPolicies`, `pacingPolicies`, `qualityPolicies` and
+  `shadowTechniques` list them. `ShadowFilter.drawnAs` and
+  `givenTechnique` are new.
+- **The engine's readers are handed what its plugins brought.**
+  `ModelLoadRequest.lightingModels` (new) is the table a `.f3d`'s
+  materials are read against, through the built-in decoder, the isolate
+  and the web worker, and `ModelDecoders.withDecoders` keeps it.
+- **A plugin's material is compiled in its namespace.**
+  `materialStageIn(namespace, material)` is the stage a plugin's
+  `material Hair` compiles to, `acme__Hair`, and `renameMaterialSource`
+  the source renamed to it; `RuntimeShaders.addMaterial` applies both
+  through a plugin's view, so a data plugin's `Ink` is `acme.Ink`, and a
+  name in another plugin's namespace is a `PluginException`.
+- **A name taken is a `NameTakenException` in the formats' registries
+  too.** `LightingModels.register`, `TextureCodecs.add`,
+  `ModelDecoders.addSource` and `AssetSources.add` refused a taken name
+  with an `ArgumentError`.
+
 - **Breaking: a registration returns at once, and what it loads follows
   it.** `RendererSteps.addComputeStep`, `addWorkload`, `addFieldUpload`
   and `placeSkinningHook` answer the `Registration` itself, where three of

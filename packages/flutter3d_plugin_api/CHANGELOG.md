@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1+1
 
+- **New: `PluginPermission.replace`.** What a plugin from outside the
+  engine declares to take over a step or a stage the engine draws — the
+  renderer refuses a takeover without it — and the `tools` permission is
+  now checked before the editor's MCP server offers a plugin's commands
+  as tools, as well as by `McpTools.addTool`.
 - **One plugin that throws no longer stops the others.**
   `PluginManager.installAll` checks the whole set first, as before, then
   installs each plugin in turn: one whose `install` throws is left off with

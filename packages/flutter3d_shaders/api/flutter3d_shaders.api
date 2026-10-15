@@ -264,9 +264,13 @@ GlslBindingCount countGlslBindings(String glsl, {Set<String> defines = const <St
 
 const String cubeDimension = 'cube'
 
+MaterialCompileRequest decodeMaterialCompileRequest(String text)
+
 Object? decodeSectionJson(ByteData bytes)
 
 WebGlSectionSources decodeWebGlSection(ByteData bytes)
+
+String encodeMaterialCompileRequest(MaterialCompileRequest request)
 
 ByteData encodeWebGlSection({required Map<String, String> vertex, required Map<String, String> fragment})
 
@@ -291,6 +295,8 @@ PreparedStage prepareStage(String resolved, {required String from, required bool
 void requireBundleAgreement({required Map<String, String> vertex, required Map<String, String> fragment})
 
 String resolveIncludes(String source, GlslSources sources, {required String from, Set<String>? seen, List<String>? stack})
+
+int runMaterialCompiler(MaterialCompiler compiler, List<String> arguments)
 
 Set<String> scanVaryings(String resolved, {required String from, required bool fragment})
 

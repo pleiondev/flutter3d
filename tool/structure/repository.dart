@@ -2638,6 +2638,9 @@ const Map<String, String> hookValueParameters = <String, String>{
   'PhotoSaving.add': 'flutter3d_app: a photo\'s bytes, $_ioSeam',
   'PhotoShelf.open': 'flutter3d_app: a shelf at a path, $_ioSeam',
   'PlatformerHeadlessGame.dress': 'flutter3d_game_platformer: $_stepLength',
+  'PluginSettings.readBundle':
+      'flutter3d_app: a compiled plugin material\'s bytes by its asset key, '
+      'the application\'s bundle read, $_ioSeam',
   'PlatformerSnapshotPart': 'flutter3d_game_platformer: $_ownState',
   'PlaySession.projectRootOf': 'flutter3d_mcp: a test seam, $_ioSeam',
   'PluginChange.at': 'flutter3d_plugin_api: for LoopChange.at\'s reason',
@@ -3030,12 +3033,14 @@ const List<String> _coreMaterialLanguage = <String>[
   'materialParametersBlock',
   'materialReservedBlockNames',
   'materialSceneInputs',
+  'materialStageIn',
   'materialSyntax',
   'materialTextureBindings',
   'materialVertexInputs',
   'materialVertexOutputs',
   'materialVertexVariantStages',
   'materialVertexVariants',
+  'renameMaterialSource',
 ];
 
 const List<String> _coreRendererInternals = <String>[

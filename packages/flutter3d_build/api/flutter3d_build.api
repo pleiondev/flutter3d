@@ -329,6 +329,16 @@ final class AssetRule
   final bool? mips
   final int? chunks
 
+final class BackendCompilerPackage
+  String toString()
+  const BackendCompilerPackage({required this.name, required this.root, required this.backend, required this.section, required this.compiler, required this.packageConfig})
+  final String backend
+  final String compiler
+  final String name
+  final String packageConfig
+  final String root
+  final String section
+
 abstract base class BuildStep
   List<String> get after
   List<String> get before
@@ -502,7 +512,8 @@ base class PluginAuthorMcpServer extends ToolTableServer<PluginWorkshop, Answer>
 typedef PluginAuthorTool = OfferedTool<PluginWorkshop, Answer>;
 
 final class PluginDiscovery
-  const PluginDiscovery({required this.plugins, required this.readFiles, this.warnings = const <String>[], this.excluded = const <DiscoveredPlugin>[], this.packages = const <PluginPackage>[], this.dependencies = const <String>{}})
+  const PluginDiscovery({required this.plugins, required this.readFiles, this.warnings = const <String>[], this.excluded = const <DiscoveredPlugin>[], this.packages = const <PluginPackage>[], this.dependencies = const <String>{}, this.backendCompilers = const <BackendCompilerPackage>[]})
+  final List<BackendCompilerPackage> backendCompilers
   final List<DiscoveredPlugin> excluded
   final List<DiscoveredPlugin> plugins
   final List<PluginPackage> packages
@@ -584,6 +595,14 @@ final class PluginsFileReport
   final String path
   final bool written
 
+final class ProcessMaterialCompiler extends MaterialCompiler
+  MaterialCompileResult compile(MaterialCompileRequest request)
+  ProcessMaterialCompiler(this.package, {String? dart})
+  String get backend
+  String get bundleSection
+  String toString()
+  final BackendCompilerPackage package
+
 final class ShaderBuildReport
   String get summary
   const ShaderBuildReport({required this.ran, this.stages = const <String>[], this.totalStages = 0, this.bytes = 0, this.written = false, this.needs = const <String>[], this.full = false, this.materials = const <String>[], this.dependencies = const <String>[]})
@@ -632,6 +651,10 @@ final class TextureFamily
 
 const int assetPipelineVersion = 3
 
+BackendCompilerPackage? backendCompilerOf(String package, Map<Object?, Object?> pubspec, {required String root, required String packageConfig})
+
+const String backendMarkerKey = 'flutter3d_backend'
+
 Future<ModelDocument> bakeImpostors(ModelDocument document, {int cell = 64, void Function(String message)? report, GraphicsDevice? device})
 
 Future<void> buildAssets(BuildInput input, BuildOutputBuilder output)
@@ -657,6 +680,8 @@ String deviceClassDestination(String destination, DeviceClass deviceClass)
 List<DeviceClass> deviceClassesForTargetOS(OS? targetOS)
 
 PluginDiscovery discoverPlugins(Directory appRoot)
+
+MaterialCompilerRegistry? discoveredCompilers(PluginDiscovery plugins)
 
 Future<ModelDocument> encodeDocumentTextures(ModelDocument document, TextureFamily family, {bool mips = true, void Function(String message)? report})
 
@@ -722,7 +747,7 @@ Future<int> runConvert(List<String> arguments, {IOSink? out, IOSink? err, List<M
 
 Future<int> runInit(List<String> arguments, {IOSink? out, IOSink? err, Directory? projectRoot})
 
-MaterialBuildReport runMaterialBuild(Directory projectRoot, {IOSink? log, MaterialCompilers? compilers, ShaderSet? engine})
+MaterialBuildReport runMaterialBuild(Directory projectRoot, {IOSink? log, MaterialCompilers? compilers, ShaderSet? engine, MaterialCompilerRegistry? registry})
 
 ShaderBuildReport runShaderBuild(Directory projectRoot, {required PluginDiscovery plugins, IOSink? log, bool full = false, ShaderBuildTarget target = ShaderBuildTarget.any, MaterialCompilers? compilers, ShaderSet? engine, String? engineRevision, MaterialCompilerRegistry? registry})
 

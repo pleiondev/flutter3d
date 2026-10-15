@@ -6,6 +6,20 @@
   Impeller they now hand it to the device's `PlatformTextures<ui.Image>`
   and sample the image's own texture, and copy only where the device takes
   no platform image or refuses this one.
+- **A lit-model plugin draws by being installed.** `Flutter3dView` loads,
+  for every lighting model a plugin registers, the stages the build hook
+  compiled for it into the project (`pluginMaterialAssetFor`) and hands
+  them to the renderer in front of whatever the plugin loaded itself, again
+  after a frame that switches plugins; `PluginSettings.readBundle` (new)
+  stands in for the asset bundle.
+- **The view has a `Decoders`, and its loads read through it.**
+  `Flutter3dEngine.decoders` (new) is the registry the loop's plugins add
+  their formats, schemes and image codecs to — the one among
+  `PluginSettings.registries`, or the view's own — and `Model3D`,
+  `LevelLoader.load`/`build` (`lightingModels:`, `codecs:`),
+  `ModelVisuals`, `HotSwap.loadModel` and `HotSwap.loadTexture` hand the
+  readers what the plugins brought.
+
 - **Breaking: `RenderView` is `CameraView`.** `Flutter3dEngine`,
   `LoadedLevel`, `SceneSurface`, `ViewSettings` and `XrDriver` changed with
   it. `package:flutter/rendering.dart` exports a `RenderView` too, the root

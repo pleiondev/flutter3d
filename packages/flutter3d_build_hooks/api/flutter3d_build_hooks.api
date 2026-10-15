@@ -23,7 +23,7 @@ final class MaterialCompilers
 
 typedef WgslStageCompiler = CompiledStage Function(PreparedStage stage, {required String name, required bool fragment});
 
-ShaderBundle compileMaterial(String text, {required String source, required ShaderSet engine, required MaterialCompilers compilers, required Directory scratch})
+ShaderBundle compileMaterial(String text, {required String source, required ShaderSet engine, required MaterialCompilers compilers, required Directory scratch, String? namespace})
 
 String flutterSdkRootFrom(String executable)
 

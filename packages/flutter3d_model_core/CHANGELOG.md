@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1+1
 
+- **The project, its history and the material commands read the engine's
+  lighting models.** `readProject`, `CommandJournal.replay` and
+  `modelCommandFromJson` take `lightingModels:` (`Renderer.lightingModels`),
+  and `SetMaterialField` and `LinkMaterialFile` carry it: a material set
+  to, or a `.fmat` linked with, a plugin's lit model reads as that model,
+  where only the built-in ones were looked up and a plugin's opened unset.
+  A `lightingModel` value is read as `LightingModels.named` reads it, so a
+  built-in model's name matches in any case.
 - **A project keeps the sections it does not know.** A section of a kind
   `ProjectSection.known` does not list is read into
   `ModelProject.unknownSections` (`ProjectExtraSection`) and written back on

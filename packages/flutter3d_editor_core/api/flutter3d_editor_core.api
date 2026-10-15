@@ -276,7 +276,7 @@ final class EditorPieces extends EditorRegistry
   Map<String, Object?> offersFor(Piece piece, Iterable<String> present, {String? type})
   MaterialHint? materialHint(String? model, String key)
   Registration addAssetEntry(String written, AssetBrowserEntry entry)
-  Registration addCommand(String written, CommandReader read, {String? description, List<FieldHint> arguments = const <FieldHint>[]})
+  Registration addCommand(String written, CommandReader read, {String? description, List<FieldHint> arguments = const <FieldHint>[], ToolHints? hints})
   Registration addComponent(EditorComponent written)
   Registration addGizmo(String written, EditorGizmo gizmo)
   Registration addImporter(String written, EditorImporter importer)
@@ -612,11 +612,14 @@ abstract base class PluginCommand extends DocumentCommand
 final class PluginCommandInfo
   String get bareName
   String? get namespace
-  const PluginCommandInfo({required this.name, required this.plugin, required this.description, required this.arguments})
+  ToolHints get toolHints
+  const PluginCommandInfo({required this.name, required this.plugin, required this.description, required this.arguments, this.hints, this.offersTools = false})
   final List<FieldHint> arguments
   final String name
   final String? description
   final String? plugin
+  final ToolHints? hints
+  final bool offersTools
 
 final class ProjectLocation
   String toString()
@@ -844,7 +847,7 @@ MaterialHint? materialDocumentHint(MaterialDocument document, String key, {Edito
 
 MaterialHint? materialHintOf(FieldHint hint)
 
-MaterialDocument? materialWith(MaterialDocument document, String key, Object? value, {MaterialHint? hint})
+MaterialDocument? materialWith(MaterialDocument document, String key, Object? value, {MaterialHint? hint, LightingModels? lightingModels})
 
 Map<String, Object?> mergedOffsets(EntityDef step, String nodePath, Vector3 delta)
 

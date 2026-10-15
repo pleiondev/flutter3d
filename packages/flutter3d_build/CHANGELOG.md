@@ -1,5 +1,25 @@
 ## 1.0.0-rc.1+1
 
+- **A backend from outside is compiled for by being a dependency.** A
+  package that names its material compiler under `flutter3d_backend:` in
+  its pubspec (`backend`, `section`, `compiler`; `backendMarkerKey`) is
+  found by discovery (`PluginDiscovery.backendCompilers`,
+  `BackendCompilerPackage`, `backendCompilerOf`), and the build runs that
+  file as a process (`ProcessMaterialCompiler`, `discoveredCompilers`) for
+  its section of the engine's bundle, of every plugin material and of the
+  project's materials (`runMaterialBuild(registry:)`). The null backend is
+  the reference, and `create plugin --kind backend` writes
+  `bin/material_compiler.dart` and the marker.
+- **A plugin's material is compiled in its package's namespace.** A
+  package from outside the engine writes `material Hair`, and its stage is
+  `<package>__Hair`, the stage of its lighting model `<package>.Hair`; a
+  name in another package's namespace stops the build.
+- **A plugin's shader need resolves, or the build says whose it is.** A
+  need named after a plugin (`acme.hair`) is the plugin material compiled
+  as `acme__hair`; one no installed package compiles stops the build,
+  naming the package or the manifest that declared it, where it was
+  dropped.
+
 - **Breaking: results that were records are final classes.**
   `createProject`, `markerOf`, `selectPlugins` and `splitLargeMeshes`
   answered or held a record, which can never gain a field. Each answers a

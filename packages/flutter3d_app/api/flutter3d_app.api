@@ -132,6 +132,7 @@ final class Flutter3dEngine
   final EngineLog log
   final EngineLoop loop
   final List<String> backendRefusals
+  final ModelDecoders decoders
   final SimulationHandle simulation
   final bool ownsDevice
   final bool ownsRenderer
@@ -201,8 +202,8 @@ final class HotSwap
   Future<String?> putEnvironment(String path, Uint8List bytes)
   Future<String?> putTexture(String path, Uint8List bytes)
   Future<SwappableEnvironment> loadEnvironment(String path, {required GraphicsDevice device, int size = 32, int levels = 4})
-  Future<SwappableModel> loadModel(String sourcePath, {required GraphicsDevice device})
-  Future<SwappableTexture> loadTexture(String path, {required GraphicsDevice device, TextureSampling sampling = const TextureSampling()})
+  Future<SwappableModel> loadModel(String sourcePath, {required GraphicsDevice device, ModelDecoders? decoders, LightingModels? lightingModels})
+  Future<SwappableTexture> loadTexture(String path, {required GraphicsDevice device, TextureSampling sampling = const TextureSampling(), TextureCodecs? codecs})
   HotSwap({this.enabled = kDebugMode})
   SwappableEnvironment registerEnvironment(String path, BuiltEnvironment environment, {required TextureBytesSource read, required EnvironmentBuild build, Uint8List? loadedFrom})
   SwappableModel registerModel(String path, ModelAsset asset, {required ModelBytesSource read, required ModelBuild build, GraphicsDevice? device, Uint8List? loadedFrom})
@@ -253,8 +254,8 @@ final class LevelLoadFailed extends StatelessWidget
   final VoidCallback? onStartOver
 
 final class LevelLoader
-  Future<LoadedLevel> build(Level authored, {required GraphicsDevice device, required EntityRegistry registry, List<LevelRule> rules = const <LevelRule>[], AssetBytes? readAsset, LevelVisibility? visibility, Lightmap? lightmap, List<LevelIssue> issues = const <LevelIssue>[], LevelBatching batching = LevelBatching.perMaterial, PhysicsBackend physics = const DartPhysics(), WorldProperties? gameWorld, Map<String, MaterialProgram> programs = const <String, MaterialProgram>{}})
-  Future<LoadedLevel> load(String assetPath, {required GraphicsDevice device, required EntityRegistry registry, List<LevelRule> rules = const <LevelRule>[], AssetBytes? readAsset, LevelDocumentText? readDocument, bool sidecars = true, LevelBatching batching = LevelBatching.perMaterial, DeviceClass? deviceClass, PhysicsBackend physics = const DartPhysics(), WorldProperties? gameWorld, Map<String, MaterialProgram> programs = const <String, MaterialProgram>{}, AssetRead read = AssetRead.whole})
+  Future<LoadedLevel> build(Level authored, {required GraphicsDevice device, required EntityRegistry registry, List<LevelRule> rules = const <LevelRule>[], AssetBytes? readAsset, LevelVisibility? visibility, Lightmap? lightmap, List<LevelIssue> issues = const <LevelIssue>[], LevelBatching batching = LevelBatching.perMaterial, PhysicsBackend physics = const DartPhysics(), WorldProperties? gameWorld, Map<String, MaterialProgram> programs = const <String, MaterialProgram>{}, LightingModels? lightingModels, TextureCodecs? codecs})
+  Future<LoadedLevel> load(String assetPath, {required GraphicsDevice device, required EntityRegistry registry, List<LevelRule> rules = const <LevelRule>[], AssetBytes? readAsset, LevelDocumentText? readDocument, bool sidecars = true, LevelBatching batching = LevelBatching.perMaterial, DeviceClass? deviceClass, PhysicsBackend physics = const DartPhysics(), WorldProperties? gameWorld, Map<String, MaterialProgram> programs = const <String, MaterialProgram>{}, AssetRead read = AssetRead.whole, LightingModels? lightingModels, TextureCodecs? codecs})
   const LevelLoader()
   static RenderMaterial materialFrom(LevelMaterial source, Map<String, TextureHandle?> textures, {String? name, SamplerDescriptor tiling = SamplerDescriptor.trilinearRepeat, PhysicalMaterial? substance})
   static SamplerDescriptor tilingSamplerFor(GraphicsDevice device)
@@ -429,9 +430,11 @@ final class ModelVisuals
   Future<SceneNode?> add(EntityDef entity)
   Map<String, SceneNode> get nodes
   Map<String, Vector3> get restPositions
-  ModelVisuals(this.scene, {required this.device, AssetSource Function(String path)? source, IssueSink? onIssue})
+  ModelVisuals(this.scene, {required this.device, AssetSource Function(String path)? source, IssueSink? onIssue, this.decoders, this.lightingModels})
   final GraphicsDevice device
   final IssueSink onIssue
+  final LightingModels? lightingModels
+  final ModelDecoders? decoders
   final Scene scene
   static const String entityType = 'model'
   void dispose()
@@ -488,8 +491,9 @@ final class PhotoTaken
   final PhotoSaved saved
 
 final class PluginSettings
-  PluginSettings copyWith({Iterable<Flutter3dPlugin>? plugins, Iterable<FormatSpec>? formats, Iterable<PluginRegistry>? registries})
-  const PluginSettings({this.plugins = const <Flutter3dPlugin>[], this.formats = const <FormatSpec>[], this.registries = const <PluginRegistry>[]})
+  PluginSettings copyWith({Iterable<Flutter3dPlugin>? plugins, Iterable<FormatSpec>? formats, Iterable<PluginRegistry>? registries, Future<ByteData?> Function(String asset)? readBundle, bool clearReadBundle = false})
+  const PluginSettings({this.plugins = const <Flutter3dPlugin>[], this.formats = const <FormatSpec>[], this.registries = const <PluginRegistry>[], this.readBundle})
+  final Future<ByteData?> Function(String asset)? readBundle
   final Iterable<Flutter3dPlugin> plugins
   final Iterable<FormatSpec> formats
   final Iterable<PluginRegistry> registries

@@ -1,5 +1,14 @@
 ## 1.0.0-rc.1+1
 
+- **A command says what it does to an agent, and reaches one only with
+  `tools`.** `EditorPieces.addCommand(hints:)` (new) gives the command's
+  `ToolHints`; `PluginCommandInfo.hints`, `toolHints` (the hints, or
+  `ToolHints.destroys` for a command that gave none) and `offersTools`
+  (its plugin declares `PluginPermission.tools`) are what the editor's MCP
+  server offers it by.
+- **`materialWith(lightingModels:)`** round-trips a material drawn with a
+  plugin's lit model against the engine's table, where the built-in models
+  alone refused the edit.
 - **Breaking: results that were records are final classes.** `GizmoMark`,
   `LightPlan`, `inspectorSections` and `projectAt` answered or held a
   record, which can never gain a field. Each answers a final class now, with

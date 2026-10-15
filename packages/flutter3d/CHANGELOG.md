@@ -5,6 +5,17 @@
 
 ## 1.0.0-rc.1+1
 
+- **Every loader is handed what the engine's plugins brought.**
+  `loadMaterialDocument`, `loadMaterial`, `loadModelAsset`,
+  `loadModelByPath` and `ModelWardrobe.load` take `lightingModels:` (the
+  renderer's table), so a file drawn with a plugin's lit model reads as
+  that model, and one whose plugin is not installed is refused naming it;
+  `bindMaterial`, `loadMaterial` and `ModelAsset.fromDocument` take
+  `codecs:` (`ModelDecoders.textureCodecs`), so an image in a plugin's
+  format is decoded by its codec before the engine's own.
+  `pluginMaterialAssetFor` is where the build hook wrote a plugin
+  material's stages.
+
 - **`f3dMaxSectionEntryBytes` is exported**, beside `f3dVendorKindStart`:
   the largest `.f3d` directory entry a reader accepts.
 - **The HAL's new names are exported**: `ClearColor`, `ClearColorKind`,

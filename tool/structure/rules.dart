@@ -520,6 +520,30 @@ List<Rule> get allRules => <Rule>[
     run: _takenNamesTyped,
   ),
   (
+    name:
+        'an engine reader of a material or a model names the engine\'s '
+        'lighting models',
+    run: () => _readersNameTheirTable(
+      callees: const <String>['readFmat', 'F3dDocument.parse'],
+      argument: 'lightingModels',
+      allowed: lightingModelReadsAllowed,
+    ),
+  ),
+  (
+    name:
+        'an engine reader looks a lighting model up in the table it was '
+        'handed, the built-in models only its fallback',
+    run: _builtInModelLookups,
+  ),
+  (
+    name: 'an engine loader of an image names the plugins\' texture codecs',
+    run: () => _readersNameTheirTable(
+      callees: const <String>['uploadEncodedImage'],
+      argument: 'codecs',
+      allowed: const <String, String>{},
+    ),
+  ),
+  (
     name: 'no public name carries a unit the engine does not use',
     run: () => _namingRule(
       (String snapshot, String package) => unitSuffixesIn(snapshot),
@@ -857,27 +881,98 @@ List<Finding> _renderNamesNamespaced() {
 // ------------------------------------------------------------ taken names
 
 /// Where a plugin registry is held to [NameTakenException] for a name
-/// already taken: the plugin API and its runtime, whole, and the
-/// renderer's registries. A registry elsewhere that still throws an
-/// `ArgumentError` for one is its package's to move, and joins here then.
-const Map<String, String> takenNameScopes = <String, String>{
-  'flutter3d_plugin_api': 'lib',
-  'flutter3d_plugin_runtime': 'lib',
-  'flutter3d_core': 'lib/src/engine/render',
+/// already taken: the plugin API and its runtime, whole, the renderer's
+/// registries, the formats' (lighting models, texture codecs, model
+/// decoders and asset schemes), and the shaders' material compilers. A
+/// registry elsewhere that still throws an `ArgumentError` for one is its
+/// package's to move, and joins here then.
+const Map<String, List<String>> takenNameScopes = <String, List<String>>{
+  'flutter3d_plugin_api': <String>['lib'],
+  'flutter3d_plugin_runtime': <String>['lib'],
+  'flutter3d_core': <String>['lib/src/engine/render', 'lib/src/formats'],
+  'flutter3d_shaders': <String>['lib'],
 };
 
 List<Finding> _takenNamesTyped() => <Finding>[
-  for (final MapEntry(key: package, value: under) in takenNameScopes.entries)
+  for (final MapEntry(key: package, value: dirs) in takenNameScopes.entries)
+    if (packages[package] case final dir?)
+      for (final under in dirs)
+        for (final file in dartFilesIn(Directory('${dir.path}/$under')))
+          if (file.readAsStringSync() case final source
+              when declaresRegistry(source))
+            for (final line in takenNameArgumentErrorsIn(source))
+              Finding(
+                '$package/${relative(file, dir)}:$line',
+                'refuses a name already taken with an ArgumentError: a taken '
+                    'name is a NameTakenException, naming what it is and whose',
+              ),
+];
+
+// ------------------------------------------------- readers and their tables
+
+/// The libraries an engine reads assets in: where a `.fmat` or a `.f3d` is
+/// read against the engine's `LightingModels`, and an image is decoded
+/// through the plugins' `TextureCodecs`. A reader that leaves either out
+/// reads a plugin's lit model as missing, or its image format as no image,
+/// and the plugin the person installed does nothing.
+const Map<String, String> readerScopes = <String, String>{
+  'flutter3d': 'lib',
+  'flutter3d_app': 'lib',
+  'flutter3d_core': 'lib',
+  'flutter3d_editor_core': 'lib',
+  'flutter3d_model_core': 'lib',
+};
+
+/// The reads of a `.fmat` or a `.f3d` in [readerScopes] that need no
+/// engine's table, `<package>/<path>` to why.
+const Map<String, String> lightingModelReadsAllowed = <String, String>{
+  'flutter3d_core/lib/src/formats/model_writer.dart':
+      'reads back the file it has just written, to check its bytes, and a '
+      'model a plugin lights is written by its name whatever the table',
+  'flutter3d_core/lib/src/formats/export_report.dart':
+      'reads back what an export wrote, to count it; the names are counted, '
+      'not drawn',
+};
+
+/// Every look-up among the built-in lighting models alone in
+/// [readerScopes]: a modeller's command, a project's material or a picker
+/// that walks `LightingModels.shipped` cannot name a plugin's model however
+/// many the engine has.
+List<Finding> _builtInModelLookups() => <Finding>[
+  for (final MapEntry(key: package, value: under) in readerScopes.entries)
     if (packages[package] case final dir?)
       for (final file in dartFilesIn(Directory('${dir.path}/$under')))
-        if (file.readAsStringSync() case final source
-            when RegExp(r'extends \w*Registry\b').hasMatch(source))
-          for (final line in takenNameArgumentErrorsIn(source))
-            Finding(
-              '$package/${relative(file, dir)}:$line',
-              'refuses a name already taken with an ArgumentError: a taken '
-                  'name is a NameTakenException, naming what it is and whose',
-            ),
+        for (final line in builtInModelLookupsIn(file.readAsStringSync()))
+          Finding(
+            '$package/${relative(file, dir)}:$line',
+            'looks a lighting model up in `LightingModels.shipped` alone: '
+                'take the engine\'s table (`Renderer.lightingModels`) and fall '
+                'back to the built-in models only when none is handed in',
+          ),
+];
+
+/// Every call of one of [callees] in [readerScopes] that does not name
+/// [argument], unless [allowed] names its file.
+List<Finding> _readersNameTheirTable({
+  required List<String> callees,
+  required String argument,
+  required Map<String, String> allowed,
+}) => <Finding>[
+  for (final MapEntry(key: package, value: under) in readerScopes.entries)
+    if (packages[package] case final dir?)
+      for (final file in dartFilesIn(Directory('${dir.path}/$under')))
+        if ('$package/${relative(file, dir)}' case final path
+            when !allowed.containsKey(path))
+          if (file.readAsStringSync() case final source)
+            for (final callee in callees)
+              for (final line in callsWithoutIn(source, callee, argument))
+                Finding(
+                  '$path:$line',
+                  'calls `$callee` without `$argument:`: an engine\'s reader '
+                      'is handed what its plugins brought, so a plugin\'s '
+                      '${argument == 'codecs' ? 'image format' : 'lit model'} '
+                      'reads as itself and not as missing',
+                ),
 ];
 
 // ------------------------------------------------------------------- genre

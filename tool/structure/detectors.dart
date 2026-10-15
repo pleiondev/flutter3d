@@ -2463,6 +2463,112 @@ List<int> takenNameArgumentErrorsIn(String source) {
   return out;
 }
 
+/// Whether [source] declares a registry: a class that `extends` one
+/// (`extends PluginRegistry`, `extends DecoderRegistry`) or one named so
+/// (`final class MaterialCompilerRegistry {`). A file that only imports or
+/// mentions one in a comment declares none.
+bool declaresRegistry(String source) => RegExp(
+  r'^(?!\s*//).*(\bextends\s+\w*Registry\b|\bclass\s+\w*Registry\b)',
+  multiLine: true,
+).hasMatch(source);
+
+// ------------------------------------------------- readers and their tables
+
+/// The lines of [source] that call [callee] — `readFmat`,
+/// `F3dDocument.parse`, `uploadEncodedImage` — without naming [argument]
+/// among the call's arguments.
+///
+/// The arguments are read to the call's closing parenthesis, balanced and
+/// outside string literals, so a call over several lines is read whole.
+/// Comments are not code, and a declaration is not a call: [callee] after
+/// a type or `factory` (`MaterialDocument readFmat(`) is where it is
+/// defined, while after `=`, `(`, `,`, `=>`, `return` or `await` it is
+/// called.
+List<int> callsWithoutIn(String source, String callee, String argument) {
+  final code = _linesWithoutComments(source);
+  final out = <int>[];
+  final named = RegExp(r'\b' + RegExp.escape(argument) + r'\s*:');
+  final start = RegExp(r'(?<![\w.])' + RegExp.escape(callee) + r'\s*\(');
+  for (final match in start.allMatches(code)) {
+    // Inside a string on its line: a message naming the call, not one.
+    final line = code.substring(
+      code.lastIndexOf('\n', match.start) + 1,
+      match.start,
+    );
+    String? open;
+    for (var k = 0; k < line.length; k++) {
+      final c = line[k];
+      if (open != null && c == r'\') {
+        k++;
+      } else if (c == open) {
+        open = null;
+      } else if (open == null && (c == "'" || c == '"')) {
+        open = c;
+      }
+    }
+    if (open != null) continue;
+    final before = code.substring(0, match.start).trimRight();
+    final word = RegExp(r'(\w+)[?>]?$').firstMatch(before)?.group(1);
+    if (word != null &&
+        !const <String>{
+          'return',
+          'await',
+          'throw',
+          'yield',
+          'else',
+          'in',
+        }.contains(word)) {
+      continue;
+    }
+    var depth = 1;
+    String? quote;
+    var i = match.end;
+    for (; i < code.length && depth > 0; i++) {
+      final c = code[i];
+      if (quote != null) {
+        if (c == r'\') {
+          i++;
+        } else if (c == quote) {
+          quote = null;
+        }
+        continue;
+      }
+      if (c == "'" || c == '"') {
+        quote = c;
+      } else if (c == '(') {
+        depth++;
+      } else if (c == ')') {
+        depth--;
+      }
+    }
+    if (named.hasMatch(code.substring(match.end, i))) continue;
+    out.add(_lineAt(code, match.start));
+  }
+  return out;
+}
+
+/// The lines of [source] that look a lighting model up among the built-in
+/// models alone: `LightingModels.shipped` read anywhere but as the fallback
+/// of a table the caller was handed (`models ?? LightingModels.shipped`).
+/// Comments and strings are not code.
+List<int> builtInModelLookupsIn(String source) {
+  final code = _linesWithoutComments(source);
+  final out = <int>[];
+  for (final match in RegExp(r'\bLightingModels\.shipped\b').allMatches(code)) {
+    final line = code.substring(
+      code.lastIndexOf('\n', match.start) + 1,
+      match.start,
+    );
+    if ("'".allMatches(line).length.isOdd ||
+        '"'.allMatches(line).length.isOdd) {
+      continue;
+    }
+    if (code.substring(0, match.start).trimRight().endsWith('??')) continue;
+    out.add(_lineAt(code, match.start));
+  }
+  return out;
+}
+
 // ------------------------------------------------------ replays and saves
 
 /// [source] with each line's `//` comment blanked, the lines kept, so an
@@ -2866,6 +2972,100 @@ List<Finding> proveDetectorsWork() {
     ).isEmpty,
     'a refusal of something else, the typed throw, a doc and a comment',
     'only a thrown ArgumentError that says the name is taken breaks the rule',
+  );
+  fires(
+    'taken names',
+    declaresRegistry(
+      'final class MaterialCompilerRegistry {\n  Registration register() {}\n}',
+    ),
+    'a registry named so, extending nothing',
+  );
+  fires(
+    'taken names',
+    declaresRegistry('final class TextureCodecs extends PluginRegistry {}'),
+    'a registry extending the plugin API\'s',
+  );
+  quiet(
+    'taken names',
+    !declaresRegistry(
+      "import 'package:x/x.dart' show PluginRegistry;\n"
+      '/// A class that extends PluginRegistry would be scanned.\n'
+      'final registry = MaterialCompilerRegistry();\n',
+    ),
+    'an import, a doc and a use of one',
+    'only a file that declares a registry is held to the rule',
+  );
+
+  // Readers and their tables.
+  fires(
+    'readers and their tables',
+    callsWithoutIn(
+          'final document = readFmat(bytes, name: fileName);\n',
+          'readFmat',
+          'lightingModels',
+        ).join(',') ==
+        '1',
+    'a material read without the engine\'s lighting models',
+  );
+  fires(
+    'readers and their tables',
+    callsWithoutIn(
+          'return Future<ModelDocument>.value(\n'
+              '  F3dDocument.parse(bytes),\n'
+              ');\n',
+          'F3dDocument.parse',
+          'lightingModels',
+        ).join(',') ==
+        '2',
+    'a container parsed inside another call, on its own line',
+  );
+  fires(
+    'readers and their tables',
+    callsWithoutIn(
+      'build: (Uint8List next) => uploadEncodedImage(\n'
+          '  device,\n  next,\n  decodeImage: decode,\n),\n',
+      'uploadEncodedImage',
+      'codecs',
+    ).isNotEmpty,
+    'an image uploaded without the plugins\' codecs, from an arrow',
+  );
+  quiet(
+    'readers and their tables',
+    callsWithoutIn(
+      'MaterialDocument readFmat(\n  Uint8List bytes, {\n  String? name,\n'
+          '}) {}\n'
+          'factory F3dDocument.parse(Uint8List bytes) => x;\n'
+          '/// readFmat(bytes) reads one.\n'
+          'final d = readFmat(\n  bytes,\n  lightingModels: (models),\n);\n'
+          "final s = 'readFmat(bytes)';\n"
+          'final e = myreadFmat(bytes);\n',
+      'readFmat',
+      'lightingModels',
+    ).isEmpty,
+    'a declaration, a factory, a doc, a call that names it over lines, a '
+        'word inside a string and another name ending the same',
+    'only a call that leaves the table out breaks the rule',
+  );
+  fires(
+    'readers and their tables',
+    builtInModelLookupsIn(
+          'for (final model in LightingModels.shipped.all) {\n'
+          '  if (model.shaderName == value) return model;\n'
+          '}\n',
+        ).join(',') ==
+        '1',
+    'a walk over the built-in models alone',
+  );
+  quiet(
+    'readers and their tables',
+    builtInModelLookupsIn(
+      'final named = (models ?? LightingModels.shipped).named(value);\n'
+      'final m = lightingModels ??\n    LightingModels.shipped;\n'
+      '/// Reads against [LightingModels.shipped] when none is given.\n'
+      "throw StateError('LightingModels.shipped takes nothing');\n",
+    ).isEmpty,
+    'the fallback of a table handed in, over two lines, a doc and a message',
+    'only a lookup that never asks for the engine\'s table breaks the rule',
   );
 
   // Shared mutables.

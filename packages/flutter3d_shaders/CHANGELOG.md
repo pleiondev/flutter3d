@@ -1,5 +1,17 @@
 ## 1.0.0-rc.1+1
 
+- **A backend's compiler runs as a process of its own.**
+  `runMaterialCompiler` (in `compile.dart`) is the whole of a backend
+  package's compiler executable, and `encodeMaterialCompileRequest` and
+  `decodeMaterialCompileRequest` what the build hands it: a backend from
+  outside names the file under `flutter3d_backend:` in its pubspec, and
+  `flutter3d_build` runs it for its sections.
+- **A section taken is a `NameTakenException`.**
+  `MaterialCompilerRegistry.register` refused a compiler writing the
+  section another backend's writes with an `ArgumentError`; it is the
+  plugin API's typed refusal now, naming the section and its compiler.
+  The package depends on `flutter3d_plugin_api` for it.
+
 - **Breaking: the scene's colour copy is spelled `SceneColorCopy` in the
   shader ABI.** The entry point `SceneColourCopy`, the `LayerInfo` member
   `scene_colour` and the sampler `scene_colour_texture` are `SceneColorCopy`,

@@ -83,7 +83,7 @@ final class AbsolutePixels extends ResourceSize
   final int width
 
 final class AdaptiveQuality
-  AdaptiveQuality(this.table, {this.settings = const AdaptiveQualitySettings(), this.policy})
+  AdaptiveQuality(this.table, {this.settings = const AdaptiveQualitySettings(), this.policy, this.hooks})
   QualityRow get row
   QualityRow recordFrame(int micros, {double motion = 0.0})
   RenderSettings apply(RenderSettings full)
@@ -91,6 +91,7 @@ final class AdaptiveQuality
   final AdaptiveQualitySettings settings
   final QualityPolicy? policy
   final QualityTable table
+  final RenderHooks? hooks
   int get index
 
 final class AdaptiveQualitySettings
@@ -3302,8 +3303,9 @@ final class ModelLight
   final double? range
 
 final class ModelLoadRequest
-  const ModelLoadRequest({required this.source, this.format = ModelFormat.auto, this.layout = VertexLayout.standard, this.objNormals = ObjNormals.smooth, this.stlNormals = StlNormals.fromFile, this.decoders = const <ModelDecoder>[]})
+  const ModelLoadRequest({required this.source, this.format = ModelFormat.auto, this.layout = VertexLayout.standard, this.objNormals = ObjNormals.smooth, this.stlNormals = StlNormals.fromFile, this.decoders = const <ModelDecoder>[], this.lightingModels})
   final AssetSource source
+  final LightingModels? lightingModels
   final List<ModelDecoder> decoders
   final ModelFormat format
   final ObjNormals objNormals
@@ -4229,13 +4231,24 @@ final class RenderFrame extends FrameContext
 
 final class RenderHooks extends PluginRegistry
   List<DrawListHook> get drawListHooks
+  List<LodPolicy> get lodPolicies
+  List<PacingPolicy> get pacingPolicies
+  List<QualityPolicy> get qualityPolicies
+  List<ShadowTechnique> get shadowTechniques
   List<SkinningHook> get skinningHooks
   LodPolicy? get lodPolicy
+  PacingPolicy? get pacingPolicy
+  QualityPolicy? get qualityPolicy
   Registration addDrawListHook(DrawListHook hook)
   Registration addLodPolicy(LodPolicy policy)
+  Registration addPacingPolicy(PacingPolicy policy)
+  Registration addQualityPolicy(QualityPolicy policy)
+  Registration addShadowTechnique(ShadowTechnique technique)
   Registration addSkinningHook(SkinningHook hook)
   RenderHooks forPlugin(PluginScope scope)
   RenderHooks()
+  ShadowTechnique techniqueFor(ShadowFilter filter)
+  ShadowTechnique? shadowTechniqueNamed(String name)
 
 final class RenderListener
   const RenderListener({this.drawn, this.skipped, this.overTime, this.stalled, this.held, this.frameBudget, this.refused})
@@ -4432,11 +4445,13 @@ final class RenderStep
 
 abstract base class RenderStepAddon extends Flutter3dPlugin
   PluginManifest get manifest
-  const RenderStepAddon({required this.id, required this.provides, this.adds = const <RenderStep>[], this.dependsOn = const <String>[], this.description, this.settings = const <SettingsSlot<Object>>[]})
+  const RenderStepAddon({required this.id, required this.provides, this.adds = const <RenderStep>[], this.replaces = const <RenderStep>[], this.replacesStages = const <String>[], this.dependsOn = const <String>[], this.description, this.settings = const <SettingsSlot<Object>>[]})
   final List<RenderStep> adds
   final List<RenderStep> provides
+  final List<RenderStep> replaces
   final List<SettingsSlot<Object>> settings
   final List<String> dependsOn
+  final List<String> replacesStages
   final String id
   final String? description
   void install(PluginHost host)
@@ -4944,7 +4959,9 @@ final class ShadowFaceScheduler
 
 final class ShadowFilter
   ShadowFilter get base
+  ShadowFilter? get drawnAs
   ShadowTechnique get technique
+  ShadowTechnique? get givenTechnique
   String toString()
   const ShadowFilter.custom(this.name, {required ShadowFilter base, ShadowTechnique? technique})
   final String name
@@ -6114,6 +6131,8 @@ const Set<String> materialReservedBlockNames = …
 
 const List<MaterialInput> materialSceneInputs = …
 
+String? materialStageIn(String namespace, String material)
+
 const ExpressionSyntax materialSyntax = ExpressionSyntax(units: false, exponents: false, logic: false, punctuation: '{}=;:>')
 
 const List<String> materialTextureBindings = <String>['base_color_texture', 'normal_texture', 'occlusion_texture', 'emissive_texture', 'metallic_roughness_texture']
@@ -6209,6 +6228,8 @@ MaterialDocument readFmat(Uint8List bytes, {String name = '', LightingModels? li
 HdrImage readHdr(Uint8List bytes)
 
 ModelFormat? recognizedModelFormat(String fileName)
+
+String renameMaterialSource(String source, String name)
 
 MeshData ribbon(OpenPath path, {required double from, required double to, required double width, double step = 2.0})
 
@@ -7537,8 +7558,9 @@ final class ModelLight
   final double? range
 
 final class ModelLoadRequest
-  const ModelLoadRequest({required this.source, this.format = ModelFormat.auto, this.layout = VertexLayout.standard, this.objNormals = ObjNormals.smooth, this.stlNormals = StlNormals.fromFile, this.decoders = const <ModelDecoder>[]})
+  const ModelLoadRequest({required this.source, this.format = ModelFormat.auto, this.layout = VertexLayout.standard, this.objNormals = ObjNormals.smooth, this.stlNormals = StlNormals.fromFile, this.decoders = const <ModelDecoder>[], this.lightingModels})
   final AssetSource source
+  final LightingModels? lightingModels
   final List<ModelDecoder> decoders
   final ModelFormat format
   final ObjNormals objNormals
@@ -8306,6 +8328,8 @@ const Set<String> materialReservedBlockNames = …
 
 const List<MaterialInput> materialSceneInputs = …
 
+String? materialStageIn(String namespace, String material)
+
 const ExpressionSyntax materialSyntax = ExpressionSyntax(units: false, exponents: false, logic: false, punctuation: '{}=;:>')
 
 const List<String> materialTextureBindings = <String>['base_color_texture', 'normal_texture', 'occlusion_texture', 'emissive_texture', 'metallic_roughness_texture']
@@ -8345,6 +8369,8 @@ MaterialDocument readFmat(Uint8List bytes, {String name = '', LightingModels? li
 HdrImage readHdr(Uint8List bytes)
 
 ModelFormat? recognizedModelFormat(String fileName)
+
+String renameMaterialSource(String source, String name)
 
 String safeRelativeAssetPath(String uri)
 

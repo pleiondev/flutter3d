@@ -528,6 +528,7 @@ final class PluginPermission
   int get hashCode
   static const PluginPermission files = PluginPermission('files')
   static const PluginPermission network = PluginPermission('network')
+  static const PluginPermission replace = PluginPermission('replace')
   static const PluginPermission tools = PluginPermission('tools')
 
 abstract base class PluginRegistry

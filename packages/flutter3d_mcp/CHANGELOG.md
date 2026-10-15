@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1+1
 
+- **A plugin's editor command reaches an agent only with the `tools`
+  permission, and is never safer than it says.** `shareCommands` offers a
+  command as a tool of its own only when its plugin declares
+  `PluginPermission.tools`, as `McpTools.addTool` holds a plugin's own
+  tools to, and carries the command's hints, a command that gave none
+  offered as destructive.
+
 - **Breaking: results that were records are final classes.** `GameAsk`,
   `PieceReport` and `ProjectRoot` answered or held a record, which can never
   gain a field. Each answers a final class now, with the record's field

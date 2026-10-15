@@ -525,7 +525,7 @@ final class CommandJournal
   T transaction<T>(T Function() body)
   Uint8List toBytes()
   int get length
-  static JournalReplay replay(Uint8List bytes, ModelProject initial)
+  static JournalReplay replay(Uint8List bytes, ModelProject initial, {LightingModels? lightingModels})
   void amend(ModelCommand replacement, {StepAuthor author = StepAuthor.person})
   void beginTransaction()
   void endTransaction()
@@ -1025,7 +1025,8 @@ final class LinkMaterialFile extends ModelCommand
   Outcome apply(ModelProject project, ProjectSelection selection)
   String get name
   String get says
-  const LinkMaterialFile({required this.index, required this.path, this.bytes})
+  const LinkMaterialFile({required this.index, required this.path, this.bytes, this.lightingModels})
+  final LightingModels? lightingModels
   final String path
   final Uint8List? bytes
   final int index
@@ -2183,7 +2184,8 @@ final class SetMaterialField extends ModelCommand
   Outcome apply(ModelProject project, ProjectSelection selection)
   String get name
   String get says
-  const SetMaterialField({required this.index, required this.field, required this.value})
+  const SetMaterialField({required this.index, required this.field, required this.value, this.lightingModels})
+  final LightingModels? lightingModels
   final Object? value
   final String field
   final int index
@@ -2869,7 +2871,7 @@ String mirrorBoneName(String name)
 
 Map<int, List<WeightPair>> mirrorSkinWeights(Map<int, List<WeightPair>> weights, List<Vector3> positions, List<BoneSegment> bones, {int axis = 0, double plane = 0.0, double tolerance = 1e-4})
 
-ModelCommand? modelCommandFromJson(Object? json)
+ModelCommand? modelCommandFromJson(Object? json, {LightingModels? lightingModels})
 
 final List<String> modelCommandNames
 
@@ -2931,7 +2933,7 @@ const int projectVersion = 3
 
 Map<int, List<WeightPair>> pruneSkinWeights(Map<int, List<WeightPair>> weights, {int maxInfluences = maxSkinInfluences, double threshold = 1e-3})
 
-ProjectRead readProject(Uint8List bytes)
+ProjectRead readProject(Uint8List bytes, {LightingModels? lightingModels})
 
 String recoveryPathFor(String? path, {required String sessionId})
 
