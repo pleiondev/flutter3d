@@ -4,8 +4,10 @@
 /// The hash is the same number from the native library through `dart:ffi`
 /// and from the WebAssembly module through `dart:js_interop`: the core
 /// steps to the same bits both ways, and the two Dart backends carry them
-/// across unchanged. When the physics changes on purpose, the native test
-/// says what the new number is.
+/// across unchanged. The number is a 1.0 promise, not a record of the last
+/// run: a world restored from a 1.0 save has to step on to the bits it
+/// did, so a change that moves it is a change to fix, not a number to
+/// update.
 library;
 
 import 'dart:typed_data';

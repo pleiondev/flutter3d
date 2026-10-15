@@ -26,6 +26,17 @@ void main() {
     expect(c.f3d_abi_version(), c.abiVersion);
   });
 
+  test('the snapshot\'s major is the core\'s', () {
+    // Mutation: bump F3D_SNAPSHOT_MAJOR in f3d_snapshot.c and not here, and
+    // the committed 1.0 snapshots stop being the version they are listed as.
+    final snapshot = File('csrc/src/f3d_snapshot.c').readAsStringSync();
+    final major = RegExp(
+      r'#define F3D_SNAPSHOT_MAJOR (\d+)u',
+    ).firstMatch(snapshot);
+    expect(major, isNotNull, reason: 'f3d_snapshot.c defines no major');
+    expect(c.snapshotFormatVersion, int.parse(major!.group(1)!));
+  });
+
   test('a contact report and its phases are the header\'s', () {
     // Mutation: a report of nine floats here, or ended numbered one.
     expect(c.reportFloats, define('F3D_REPORT_FLOATS'));

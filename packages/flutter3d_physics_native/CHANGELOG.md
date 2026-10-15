@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1
 
+- **A 1.0 snapshot is committed bytes, not a round trip.** A world of
+  every subsystem (a car, a chain of links, joints, a hull, a mesh, a
+  compound, fire, a stream with spray and bubbles) is kept as the 1.0 core
+  wrote it, in floats and in doubles, under `test/fixtures/v1/`. Each is
+  restored in both builds and stepped two seconds to a recorded digest, in
+  C and through `dart:ffi`, so a later core that reorders a field or reads
+  a 1.0 section another way fails a test instead of every save. Before, the
+  migration tests made their old bytes by rewriting new ones, and a field
+  reorder on both sides passed them all.
+
 - **Results that were records are final classes.** `NativeWorld`'s
   `readTransforms`, `readFires`, `readShallowSurface`, `shallowVolume`,
   `linkJoint`, `linkTurn`, `charOf` and `submergedOf`, and

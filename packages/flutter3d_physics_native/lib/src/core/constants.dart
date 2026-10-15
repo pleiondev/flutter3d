@@ -7,6 +7,13 @@ library;
 /// `F3D_ABI_VERSION` this file was written against.
 const int abiVersion = 42;
 
+/// `F3D_SNAPSHOT_MAJOR` in `csrc/src/f3d_snapshot.c`: the major a world's
+/// snapshot is written at and the only one a restore reads. Its minor grows
+/// as sections are added, and every 1.x core reads every snapshot of this
+/// major; `test/fixtures/v1/world.f32.snapshot` and `world.f64.snapshot`
+/// are the 1.0 bytes `test/snapshot_fixture_test.dart` holds it to.
+const int snapshotFormatVersion = 1;
+
 /// `F3D_TRANSFORM_FLOATS`.
 const int transformFloats = 7;
 

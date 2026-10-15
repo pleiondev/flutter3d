@@ -14,7 +14,9 @@ void main() {
     expect(
       hashOf(sharedSceneSnapshot()),
       sharedSceneHash,
-      reason: 'changed on purpose? set sharedSceneHash in test/scenes',
+      reason:
+          'the core no longer steps the shared scene to the bits it did: do '
+          'not update sharedSceneHash, find what changed the stepping',
     );
   });
 
