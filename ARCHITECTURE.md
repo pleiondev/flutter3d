@@ -3679,7 +3679,7 @@ storage.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **15084 tests** across 62 packages and 18 applications |
+| Unit tests | **15086 tests** across 62 packages and 18 applications |
 | Structure rules | 139, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
