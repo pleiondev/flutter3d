@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1+1
 
+- **Breaking: `CollisionBox.boundsHalfExtents` and
+  `CollisionWedge.boundsHalfExtents` are public `final` fields**, the same
+  vector as `halfExtents`, where a getter answered it. A box and a wedge
+  are their own bounds, so the broadphase reads the live vector and a read
+  compiles as before.
+
 - **Breaking: results that were records are final classes.** `MeshVessel`,
   `RevolvedVessel`, `VesselShape`, `VesselVolumes`, `circularWeir`,
   `orificeFlow` and `overCircularLip` answered or held a record, which can

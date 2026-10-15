@@ -57,9 +57,9 @@ final class AudioEmitter
 final class AudioListener
   AudioListener({Vector3? position, Vector3? forward, Vector3? up})
   PoseSource? get following
-  Vector3 get right
   final Vector3 forward
   final Vector3 position
+  final Vector3 right
   final Vector3 up
   final Vector3 velocity
   void aimAlong(Vector3 at, Vector3 direction)

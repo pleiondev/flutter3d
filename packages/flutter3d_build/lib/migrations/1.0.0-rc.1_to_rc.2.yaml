@@ -2852,3 +2852,63 @@ entries:
       field a getter of the same type: every call compiles as it was, and
       a recording given no simulation names the attached loop's whole
       `simulationVersion` instead of the engine's alone.
+
+  - id: audio-AudioListener-right-field
+    package: flutter3d_audio_core
+    symbol: AudioListener.right
+    kind: none
+    reason: >-
+      A getter that answered a vector the object holds and keeps current is
+      a public `final` field, live, as every such vector is. A read
+      compiles and answers as before; code that wrote into the answer was
+      already writing into the object's own vector.
+
+  - id: core-OcclusionBuffer-viewProjection-field
+    package: flutter3d_core
+    symbol: OcclusionBuffer.viewProjection
+    kind: none
+    reason: >-
+      A getter that answered a vector the object holds and keeps current is
+      a public `final` field, live, as every such vector is. A read
+      compiles and answers as before; code that wrote into the answer was
+      already writing into the object's own vector.
+
+  - id: core-PosedMesh-bounds-field
+    package: flutter3d_core
+    symbol: PosedMesh.bounds
+    kind: none
+    reason: >-
+      A getter that answered a vector the object holds and keeps current is
+      a public `final` field, live, as every such vector is. A read
+      compiles and answers as before; code that wrote into the answer was
+      already writing into the object's own vector.
+
+  - id: platformer-Runner-shove-field
+    package: flutter3d_game_platformer
+    symbol: Runner.shove
+    kind: none
+    reason: >-
+      A getter that answered a vector the object holds and keeps current is
+      a public `final` field, live, as every such vector is. A read
+      compiles and answers as before; code that wrote into the answer was
+      already writing into the object's own vector.
+
+  - id: physics-CollisionBox-boundsHalfExtents-field
+    package: flutter3d_physics
+    symbol: CollisionBox.boundsHalfExtents
+    kind: none
+    reason: >-
+      A getter that answered a vector the object holds and keeps current is
+      a public `final` field, live, as every such vector is. A read
+      compiles and answers as before; code that wrote into the answer was
+      already writing into the object's own vector.
+
+  - id: physics-CollisionWedge-boundsHalfExtents-field
+    package: flutter3d_physics
+    symbol: CollisionWedge.boundsHalfExtents
+    kind: none
+    reason: >-
+      A getter that answered a vector the object holds and keeps current is
+      a public `final` field, live, as every such vector is. A read
+      compiles and answers as before; code that wrote into the answer was
+      already writing into the object's own vector.

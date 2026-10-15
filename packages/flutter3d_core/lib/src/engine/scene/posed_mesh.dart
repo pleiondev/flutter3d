@@ -169,12 +169,11 @@ final class PosedMesh {
     }
 
     if (count == 0) {
-      _bounds = Aabb3();
+      bounds.min.setZero();
+      bounds.max.setZero();
     } else {
-      _bounds = Aabb3.minMax(
-        Vector3(minX, minY, minZ),
-        Vector3(maxX, maxY, maxZ),
-      );
+      bounds.min.setValues(minX, minY, minZ);
+      bounds.max.setValues(maxX, maxY, maxZ);
     }
 
     _mesh = mesh;
@@ -191,7 +190,7 @@ final class PosedMesh {
   ///
   /// Not the mesh's own [MeshData] bounds, which describe the bind pose: this
   /// is what the caster's early rejection has to use, or it throws away the
-  /// rays that the posing exists to catch.
-  Aabb3 get bounds => _bounds;
-  Aabb3 _bounds = Aabb3();
+  /// rays that the posing exists to catch. In metres, live: each pose
+  /// refreshes it in place.
+  final Aabb3 bounds = Aabb3();
 }

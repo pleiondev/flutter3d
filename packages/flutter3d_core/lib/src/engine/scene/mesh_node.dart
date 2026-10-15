@@ -398,6 +398,8 @@ base class MeshNode extends SceneNode {
   ///
   /// The mesh's bounds, unless a subclass draws more than the mesh — an
   /// instanced batch is the mesh at many places, and its extent is theirs.
+  ///
+  /// Live: the mesh's own bounds, read-only by contract.
   Aabb3 get localBounds => mesh.bounds;
 
   /// Says the cached bounds no longer describe the node.
@@ -422,12 +424,16 @@ base class MeshNode extends SceneNode {
   }
 
   /// World-space axis-aligned bounds, recomputed only when the transform changes.
+  ///
+  /// Live: the object's own cache, read-only by contract.
   Aabb3 get worldBounds {
     _refreshBounds();
     return _worldBounds;
   }
 
   /// What a subtree bound has to contain on this node's account — `gfx-66n`.
+  ///
+  /// Live: the object's own cache, read-only by contract.
   @override
   Aabb3? get ownBounds => worldBounds;
 
@@ -435,6 +441,8 @@ base class MeshNode extends SceneNode {
   bool get hasCullableOwnBounds => frustumCulled;
 
   /// Centre of the world bounding sphere used for the cheap culling test.
+  ///
+  /// Live: the object's own cache, read-only by contract.
   Vector3 get worldBoundsCenter {
     _refreshBounds();
     return _boundsCenter;
@@ -455,6 +463,8 @@ base class MeshNode extends SceneNode {
   ///
   /// mat3(model) would be enough while the scale stays uniform, but glTF nodes and
   /// user code both produce non-uniform scale, and that skews normals.
+  ///
+  /// Live: the object's own cache, read-only by contract.
   Matrix4 get worldNormalMatrix {
     final version = worldVersion;
     if (version != _normalVersion) {

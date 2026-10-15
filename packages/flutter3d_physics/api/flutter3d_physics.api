@@ -173,7 +173,6 @@ final class ColliderKind
 final class CollisionBox extends CollisionShape
   CollisionBox(this.halfExtents)
   CollisionBox.size(Vector3 size)
-  Vector3 get boundsHalfExtents
   bool overlaps(Vector3 position, CollisionShape other, Vector3 otherPosition)
   bool overlapsBox(Vector3 position, CollisionBox box, Vector3 boxPosition)
   bool overlapsCapsule(Vector3 position, CollisionCapsule capsule, Vector3 capsulePosition)
@@ -181,6 +180,7 @@ final class CollisionBox extends CollisionShape
   bool overlapsSphere(Vector3 position, CollisionSphere sphere, Vector3 spherePosition)
   bool overlapsWedge(Vector3 position, CollisionWedge wedge, Vector3 wedgePosition)
   double raycast(Vector3 position, Vector3 origin, Vector3 direction, double maxDistance, Vector3 outNormal)
+  final Vector3 boundsHalfExtents
   final Vector3 halfExtents
   int expandedPlanes(Vector3 position, Vector3 half, Float64List out)
   int get expandedPlaneCount
@@ -286,7 +286,6 @@ final class CollisionSphere extends CollisionShape
 final class CollisionWedge extends CollisionShape
   CollisionWedge(this.halfExtents, {this.uphill = WedgeUphill.positiveX})
   CollisionWedge.size(Vector3 size, {WedgeUphill uphill = WedgeUphill.positiveX})
-  Vector3 get boundsHalfExtents
   Vector3 get slopeNormal
   bool containsPoint(Vector3 position, Vector3 point, {double margin = 0.0})
   bool overlaps(Vector3 position, CollisionShape other, Vector3 otherPosition)
@@ -297,6 +296,7 @@ final class CollisionWedge extends CollisionShape
   bool overlapsWedge(Vector3 position, CollisionWedge wedge, Vector3 wedgePosition)
   double get gradient
   double raycast(Vector3 position, Vector3 origin, Vector3 direction, double maxDistance, Vector3 outNormal)
+  final Vector3 boundsHalfExtents
   final Vector3 halfExtents
   final WedgeUphill uphill
   int expandedPlanes(Vector3 position, Vector3 half, Float64List out)

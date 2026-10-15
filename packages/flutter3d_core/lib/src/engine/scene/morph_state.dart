@@ -73,6 +73,8 @@ final class MorphState with MorphSink {
   /// gives: a radius grows the box in directions the deltas never point, and on
   /// a model whose targets are large next to itself that is the difference
   /// between a subject filling a frame and a third of one.
+  ///
+  /// Live: the object's own cache, read-only by contract.
   Aabb3 get growth {
     if (_reachVersion == _version) return _growth;
     _reachVersion = _version;

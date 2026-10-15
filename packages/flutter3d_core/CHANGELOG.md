@@ -81,6 +81,15 @@
 - **`v2/everything.f3d` holds every section kind the engine writes**, minted
   once by `tool/make_everything_fixture.dart`, and the structure check now
   reads each fixture's directory: a kind no committed file holds fails it.
+- **Breaking: `OcclusionBuffer.viewProjection` and `PosedMesh.bounds` are
+  public `final` fields.** Both are vectors the object holds and keeps
+  current itself, `begin` copying into the one and each pose refreshing
+  the other in place, so they say they are live by being fields; a read
+  compiles as before. The scene graph's matrices and bounds stay getters,
+  because each is refreshed when it is read and a field read runs no code,
+  and their docs now say so: live, the object's own cache, read-only by
+  contract.
+
 - **Breaking: results that were records are final classes.**
   `AbsolutePixels`, `AnimationGraph`, `AtmosphereCycle`, `ColorVision`,
   `CubeLut`, `FrameContext`, `FrameFraction`, `IrradianceField`,

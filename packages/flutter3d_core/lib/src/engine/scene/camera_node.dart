@@ -20,6 +20,8 @@ final class CameraNode extends SceneNode {
   /// The view matrix is exactly the node's inverse world transform, so it reuses
   /// the cache every node has rather than keeping a second copy keyed on the
   /// same version.
+  ///
+  /// Live: the object's own cache, read-only by contract.
   Matrix4 get viewMatrix => inverseWorldMatrix;
 
   /// Combined view-projection for a viewport of the given aspect ratio.

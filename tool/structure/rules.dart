@@ -5115,12 +5115,22 @@ List<Finding> _vectorsHaveOneOwner() {
     String where,
     List<({String subject, int line})> hits,
     Map<String, Map<String, String>> allowed,
-    String what,
-  ) {
+    String what, {
+    String? source,
+  }) {
     final excused = allowed[where] ?? const <String, String>{};
     for (final hit in hits) {
       if (excused.containsKey(hit.subject)) {
         (used[where] ??= <String>{}).add(hit.subject);
+        final problem = source == null
+            ? null
+            : liveGetterReasonProblem(
+                excused[hit.subject]!,
+                docAboveLine(source, hit.line),
+              );
+        if (problem != null) {
+          found.add(Finding('$where:${hit.line}', '${hit.subject} $problem'));
+        }
         continue;
       }
       found.add(Finding('$where:${hit.line}', '${hit.subject} $what'));
@@ -5138,6 +5148,7 @@ List<Finding> _vectorsHaveOneOwner() {
         'hands out a vector the object holds: answer a copy (`.clone()`), '
         'make it a public `final` field if it is meant to be live, or '
         'name it in `liveVectorGetterAllowed` with the reason',
+        source: source,
       );
       check(
         where,

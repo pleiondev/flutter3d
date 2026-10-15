@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1+1
 
+- **Breaking: `AudioListener.right` is a public `final` field.** The
+  listener derives it whenever it is aimed and refreshes it in place, so it
+  is live state and says so by its shape; a read compiles as before.
+
 - **Breaking: results that were records are final classes.**
   `EqualPowerPanner` answered or held a record, which can never gain a
   field. Each answers a final class now, with the record's field names (a

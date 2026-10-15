@@ -187,7 +187,7 @@ too.
 
 ## Coming from 0.8
 
-From 0.8 to this release the API changed in 2340 places, 319 of them left
+From 0.8 to this release the API changed in 2346 places, 319 of them left
 to you; 380 are backend internals no application called. One command does the rest:
 
 ```bash
@@ -271,7 +271,7 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-There are 15016 tests across 62 packages and 18 applications. The
+There are 15017 tests across 62 packages and 18 applications. The
 only ones that need a GPU are the Impeller half of the golden set. The other
 half is rendered by the software backend, which is what makes 96 scenes
 checkable in a headless run.

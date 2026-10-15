@@ -1292,14 +1292,18 @@ portableStepExempt = <String, Map<String, String>>{
 /// with the reason: `a getter hands out a copy of a vector, and a parameter
 /// is not kept` reads none of them.
 ///
-/// **Two kinds, and nothing else.** A chain that ends in another getter
-/// which already copies (`rig.eye`, `world.properties.gravity`) answers a
-/// copy too; the reason names the getter. And a getter whose live answer is
-/// read on an inner loop the engine runs per body, per sound or per node,
-/// where a copy would be an allocation each time and no live field stands
-/// beside it to read instead: the reason names the loop. Those are the
-/// open ones, each waiting on a field or an `…Into(out)` reader, which is a
-/// signature change.
+/// **Two kinds, and nothing else** (`liveGetterReasonProblem` holds the
+/// reasons to them). A chain that ends in another getter which already
+/// copies (`rig.eye`, `world.properties.gravity`) answers a copy too; the
+/// reason names the getter. And a cache refreshed when it is read, which a
+/// public `final` field cannot be, because a field read runs no code: the
+/// reason starts "live: the object's own cache, read-only by contract;" and
+/// says what the read refreshes, and the getter's doc says the same words
+/// (`MeshNode.localBounds` says whose instead: the mesh's, which can be
+/// swapped).
+/// A vector the object holds and keeps current itself is a public `final`
+/// field instead, live by the rule (`CollisionBox.boundsHalfExtents`,
+/// `Runner.shove`, `AudioListener.right`).
 const Map<String, Map<String, String>>
 liveVectorGetterAllowed = <String, Map<String, String>>{
   // Chains that end in a copy.
@@ -1334,89 +1338,60 @@ liveVectorGetterAllowed = <String, Map<String, String>>{
   'flutter3d_game_ui/lib/src/photo_mode/photo_mode.dart': <String, String>{
     'PhotoMode.gaze': '`PhotoCamera.forward` builds a new vector',
   },
-  // Live on an inner loop, with no live field beside them.
-  'flutter3d_physics/lib/src/collision_box.dart': <String, String>{
-    'CollisionBox.boundsHalfExtents':
-        'the box\'s own `halfExtents` field, read per shape by the '
-        'broadphase, the sweeps and the solver every step',
-  },
-  'flutter3d_physics/lib/src/collision_wedge.dart': <String, String>{
-    'CollisionWedge.boundsHalfExtents':
-        'the wedge\'s own `halfExtents` field, read per shape by the '
-        'broadphase, the sweeps and the solver every step',
-  },
-  'flutter3d_game_platformer/lib/src/runner.dart': <String, String>{
-    'Runner.shove':
-        'the dynamics\' `CharacterPush` holds it and reads it every '
-        'step, which allocates nothing',
-  },
-  'flutter3d_audio_core/lib/src/listener.dart': <String, String>{
-    'AudioListener.right':
-        'derived once a mix and read by the panner per sound per mix',
-  },
-  // The scene graph's caches, read per node per frame by culling,
-  // drawing and picking.
+  // The caches a field cannot hold: each is refreshed when it is read,
+  // and a field would answer whatever the last read left in it.
   'flutter3d_core/lib/src/engine/scene/scene_node.dart': <String, String>{
     'SceneNode.localMatrix':
-        'the scene graph\'s cache, read per node per '
-        'frame',
+        'live: the object\'s own cache, read-only by contract; '
+        'rebuilt from position, rotation and scale when read after a change',
     'SceneNode.worldMatrix':
-        'the scene graph\'s cache, read per node per '
-        'frame',
+        'live: the object\'s own cache, read-only by contract; '
+        'verified against the ancestors\' epoch when read',
     'SceneNode.inverseWorldMatrix':
-        'the scene graph\'s cache, read per '
-        'node per frame',
+        'live: the object\'s own cache, read-only by contract; '
+        'inverted when read on a new world version',
     'SceneNode.subtreeBounds':
-        'the scene graph\'s cache, read per node '
-        'per frame by culling',
+        'live: the object\'s own cache, read-only by contract; '
+        'gathered from the children when read on a new epoch',
   },
   'flutter3d_core/lib/src/engine/scene/camera_node.dart': <String, String>{
     'CameraNode.viewMatrix':
-        'the node\'s inverse world matrix, read per '
-        'view per frame',
+        'live: the object\'s own cache, read-only by contract; '
+        'the node\'s inverse world matrix, inverted when read',
   },
   'flutter3d_core/lib/src/engine/scene/mesh_node.dart': <String, String>{
     'MeshNode.localBounds':
-        'the mesh\'s cache, read per node per frame '
-        'by culling',
+        'live: the mesh\'s own bounds, read-only by contract; the mesh can '
+        'be swapped, and a field would keep the old one\'s box',
     'MeshNode.worldBounds':
-        'the mesh\'s cache, read per node per frame '
-        'by culling',
+        'live: the object\'s own cache, read-only by contract; '
+        'refreshed when read after the transform or the mesh changed',
     'MeshNode.ownBounds':
-        'the mesh\'s cache, read per node per frame by '
-        'culling',
+        'live: the object\'s own cache, read-only by contract; '
+        'the world bounds, refreshed when read',
     'MeshNode.worldBoundsCenter':
-        'the mesh\'s cache, read per node per '
-        'frame by sorting',
-    'MeshNode.worldNormalMatrix': 'the mesh\'s cache, read per draw',
+        'live: the object\'s own cache, read-only by contract; '
+        'refreshed with the world bounds when read',
+    'MeshNode.worldNormalMatrix':
+        'live: the object\'s own cache, read-only by contract; '
+        'inverted and transposed when read on a new world version',
   },
   'flutter3d_core/lib/src/engine/scene/instanced_mesh_node.dart':
       <String, String>{
         'InstancedMeshNode.localBounds':
-            'the batch\'s cache, read per '
-            'node per frame by culling',
+            'live: the object\'s own cache, read-only by contract; '
+            'gathered from the instances when read after they changed',
       },
   'flutter3d_core/lib/src/engine/scene/line_strip_node.dart': <String, String>{
     'LineStripNode.localBounds':
-        'the strip\'s cache, read per node '
-        'per frame by culling',
-  },
-  'flutter3d_core/lib/src/engine/scene/posed_mesh.dart': <String, String>{
-    'PosedMesh.bounds':
-        'the pose\'s cache, read per node per frame by '
-        'culling',
+        'live: the object\'s own cache, read-only by contract; '
+        'gathered from the points when read',
   },
   'flutter3d_core/lib/src/engine/scene/morph_state.dart': <String, String>{
     'MorphState.growth':
-        'the morph\'s cache, read per node per frame by '
-        'culling',
+        'live: the object\'s own cache, read-only by contract; '
+        'summed from the weights when read after they changed',
   },
-  'flutter3d_core/lib/src/engine/scene/occlusion/occlusion_buffer.dart':
-      <String, String>{
-        'OcclusionBuffer.viewProjection':
-            'the matrix the buffer was '
-            'begun with, read per occluder per frame',
-      },
 };
 
 /// Members that keep a vector they were passed, by library, with the reason.

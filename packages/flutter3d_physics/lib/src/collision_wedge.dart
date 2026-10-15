@@ -51,7 +51,8 @@ enum WedgeUphill {
 /// a level author typed.
 final class CollisionWedge extends CollisionShape {
   CollisionWedge(this.halfExtents, {this.uphill = WedgeUphill.positiveX})
-    : assert(halfExtents.x > 0.0),
+    : boundsHalfExtents = halfExtents,
+      assert(halfExtents.x > 0.0),
       assert(halfExtents.y > 0.0),
       assert(halfExtents.z > 0.0);
 
@@ -65,8 +66,10 @@ final class CollisionWedge extends CollisionShape {
 
   final WedgeUphill uphill;
 
+  /// [halfExtents] itself, in metres: the wedge fills the box it is cut
+  /// from, so this is the same live vector rather than a copy.
   @override
-  Vector3 get boundsHalfExtents => halfExtents;
+  final Vector3 boundsHalfExtents;
 
   /// How far the surface rises for every metre travelled up it.
   double get gradient => halfExtents.y / halfExtents[uphill.axis];

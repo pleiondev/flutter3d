@@ -476,7 +476,6 @@ final class Runner with KeyHolder, Damageable, Rider, Gatherer, KeyTaker, Launch
   Set<String> get keys
   String? get standingOn
   Vector3 get position
-  Vector3 get shove
   Vector3 get wallAway
   Water? inWater
   bool applyDamage(Damage damage)
@@ -498,6 +497,7 @@ final class Runner with KeyHolder, Damageable, Rider, Gatherer, KeyTaker, Launch
   final Purse purse
   final RunnerSettings tuning
   final Surfaces surfaces
+  final Vector3 shove
   final double gravity
   int get airJumpsLeft
   static const double runGravity = 24.0

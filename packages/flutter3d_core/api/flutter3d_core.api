@@ -3572,10 +3572,10 @@ final class ObjectIdFrame
   int idAt(int x, int y)
 
 final class OcclusionBuffer with OcclusionTest
-  Matrix4 get viewProjection
   OcclusionBuffer({this.width = defaultWidth, this.height = defaultHeight})
   bool mayBeVisible(Aabb3 box)
   double depthAt(int x, int y)
+  final Matrix4 viewProjection
   final int height
   final int width
   int draw(MeshData mesh, Matrix4 world, {bool cullBackFaces = true})
@@ -4053,9 +4053,9 @@ final class PointerTargets with AnimationPointerSink
   void setPointer(AnimationPointer pointer, List<double> values)
 
 final class PosedMesh
-  Aabb3 get bounds
   Float32List? positionsOf(MeshData mesh, Skeleton skeleton)
   PosedMesh()
+  final Aabb3 bounds
   int get vertexCount
 
 final class PostFrameResult

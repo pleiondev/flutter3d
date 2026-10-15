@@ -110,6 +110,8 @@ final class LineStripNode extends MeshNode {
   /// Round the points drawn, not the mesh as it was uploaded: the mesh's own
   /// box is the empty line it started as, and a trail culled against that
   /// vanished once its missile had flown out of it.
+  ///
+  /// Live: the object's own cache, read-only by contract.
   @override
   Aabb3 get localBounds {
     if (_points.isEmpty) {

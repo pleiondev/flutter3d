@@ -284,12 +284,18 @@ base class SceneNode with AnimationTarget {
     return result;
   }
 
+  /// The node-to-parent transform, from its position, rotation and
+  /// scale.
+  ///
+  /// Live: the object's own cache, read-only by contract.
   Matrix4 get localMatrix {
     if (_localDirty) _recomputeLocal();
     return _localMatrix;
   }
 
   /// The node-to-world transform, always current.
+  ///
+  /// Live: the object's own cache, read-only by contract.
   Matrix4 get worldMatrix {
     // **The read that does not walk — `gfx-65n`.** Everything below is correct
     // and costs an ancestor walk every time, with no early-out, and a frame is
@@ -339,6 +345,8 @@ base class SceneNode with AnimationTarget {
   /// Wanted by anything that works in a node's own space: a camera's view matrix
   /// is this exact thing, and so is the matrix that carries a picking ray into
   /// mesh space, where testing triangles is far cheaper than transforming them.
+  ///
+  /// Live: the object's own cache, read-only by contract.
   Matrix4 get inverseWorldMatrix {
     final version = worldVersion;
     if (version != _inverseWorldVersion) {
@@ -524,6 +532,8 @@ base class SceneNode with AnimationTarget {
   /// [MeshNode.frustumCulled] refuses: a subtree holding a node that opted out
   /// of culling answers [isSubtreeAlwaysDrawn], and a caller that rejects on this
   /// box has to honour that or a sky dome disappears.
+  ///
+  /// Live: the object's own cache, read-only by contract.
   Aabb3? get subtreeBounds {
     if (_subtreeEpoch == _dirtyEpoch) return _subtreeBounds;
     _subtreeEpoch = _dirtyEpoch;

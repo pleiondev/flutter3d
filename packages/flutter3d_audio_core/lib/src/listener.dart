@@ -164,9 +164,9 @@ final class AudioListener {
     _placed = true;
   }
 
-  /// Derived, and the only one the panning uses.
-  Vector3 get right => _right;
-  final Vector3 _right = Vector3(1.0, 0.0, 0.0);
+  /// Derived, and the only one the panning uses: a unit vector, live, which
+  /// [aimAt] and [aimAlong] refresh in place.
+  final Vector3 right = Vector3(1.0, 0.0, 0.0);
 
   /// Points the listener the way a first-person camera looks.
   ///
@@ -204,11 +204,11 @@ final class AudioListener {
   }
 
   void _refreshRight() {
-    _right
+    right
       ..setFrom(forward)
-      ..crossInto(up, _right);
+      ..crossInto(up, right);
     // A listener looking straight up has no right; keep the last good one
     // rather than dividing by zero and panning everything hard left.
-    if (_right.length2 > 1e-12) _right.normalize();
+    if (right.length2 > 1e-12) right.normalize();
   }
 }

@@ -5,7 +5,7 @@ description: Move a project written against flutter3d 0.8 to 1.0.0-rc.1, with on
 # Migrating from 0.8 to 1.0
 
 1.0 is the release the engine promises to keep: from it on, a break comes
-only in a major version. To get there, and on to this release, the API changed in 2340 places,
+only in a major version. To get there, and on to this release, the API changed in 2346 places,
 314 of them left to you; 380 are backend internals no application called.
 The rest a program carries out for you, and three
 tools share the work. All three read the same tables,
@@ -225,7 +225,7 @@ carried out:
 
 <!-- migration-table:start -->
 
-*Generated from `flutter3d_build/lib/migrations/` — 245 entries from 1.0.0-rc.1 to 1.0.0-rc.1+1, 11 by hand: 23 `dart fix`, 150 `migrate`, 11 by hand, 61 nothing to do.*
+*Generated from `flutter3d_build/lib/migrations/` — 251 entries from 1.0.0-rc.1 to 1.0.0-rc.1+1, 11 by hand: 23 `dart fix`, 150 `migrate`, 11 by hand, 67 nothing to do.*
 
 ### `flame_flutter3d`
 
@@ -253,6 +253,7 @@ carried out:
 
 ### `flutter3d_audio_core`
 
+- <a id="audio-AudioListener-right-field"></a>**`AudioListener.right`** (nothing to do). A getter that answered a vector the object holds and keeps current is a public `final` field, live, as every such vector is. A read compiles and answers as before; code that wrote into the answer was already writing into the object's own vector.
 - <a id="audio_core-EqualPowerPanner-gains-record"></a>**`EqualPowerPanner.gains`** (`migrate`). `EqualPowerPanner` is a class: `.left` is `.left`, `.right` is `.right`; a destructuring pattern is yours to rewrite. `gains` answers a `PanGains` with the same `left` and `right`; only a destructuring pattern names the class.
 
 ### `flutter3d_build`
@@ -318,9 +319,11 @@ carried out:
 - <a id="core-MaterialExtensions-coatMapSources-record"></a>**`MaterialExtensions.coatMapSources`** (`migrate`). `MaterialExtensions` is a class: `.binding` is `.binding`, `.channel` is `.channel`; a destructuring pattern is yours to rewrite. `coatMapSources` is a list of `PackedMapSource?` with `binding` and `channel`, where it was a list of records; field reads are unchanged.
 - <a id="core-MaterialExtensions-sheenMapSources-record"></a>**`MaterialExtensions.sheenMapSources`** (`migrate`). `MaterialExtensions` is a class: `.binding` is `.binding`, `.channel` is `.channel`; a destructuring pattern is yours to rewrite. `sheenMapSources` is a list of `PackedMapSource?` with `binding` and `channel`, where it was a list of records; field reads are unchanged.
 - <a id="core-MeshOverlay"></a>**`MeshOverlay`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
+- <a id="core-OcclusionBuffer-viewProjection-field"></a>**`OcclusionBuffer.viewProjection`** (nothing to do). A getter that answered a vector the object holds and keeps current is a public `final` field, live, as every such vector is. A read compiles and answers as before; code that wrote into the answer was already writing into the object's own vector.
 - <a id="core-OrbitController-suggestedDepthRange-record"></a>**`OrbitController.suggestedDepthRange`** (`migrate`). `OrbitController` is a class: `.near` is `.near`, `.far` is `.far`; a destructuring pattern is yours to rewrite. `suggestedDepthRange` answers `ClipDistances` with `near` and `far`, in metres, where it answered a record; field reads are unchanged.
 - <a id="core-PassContributor"></a>**`PassContributor`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
 - <a id="core-PassSkip-values"></a>**`PassSkip.values`** (nothing to do). Two reasons join the end of the list, `pending` and `failed`, and the seven before them keep their order. A `switch` over `PassSkip` already has a default, since it is an open set; one that lists every reason by hand adds the two.
+- <a id="core-PosedMesh-bounds-field"></a>**`PosedMesh.bounds`** (nothing to do). A getter that answered a vector the object holds and keeps current is a public `final` field, live, as every such vector is. A read compiles and answers as before; code that wrote into the answer was already writing into the object's own vector.
 - <a id="core-ReactiveFrame"></a>**`ReactiveFrame`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
 - <a id="core-RenderStep-f3d"></a>**`RenderStep`** (nothing to do). Each built-in step is named `f3d.<name>` (`f3d.bloom`, `f3d.color_grade`). `RendererSteps.named` still finds one by its old word, and a pass keeps its name; code that compared a step's name with a string uses the new word.
 - <a id="core-RenderView-CameraView"></a>**`RenderView`** (`dart fix`). `RenderView` is `CameraView`. `package:flutter/rendering.dart` exports a `RenderView` too; the engine's camera onto a viewport or a texture is `CameraView`.
@@ -414,6 +417,10 @@ carried out:
 
 - <a id="game_physics-RagdollPart-tailLength-record"></a>**`RagdollPart.tailLength`** (`migrate`). `RagdollPart` is a class: `.of` is `.of`, `.times` is `.times`; a destructuring pattern is yours to rewrite. `tailLength` is a `RagdollTailLength` with the same `of` and `times`; write `RagdollTailLength(of: …, times: …)` where a record literal stood.
 
+### `flutter3d_game_platformer`
+
+- <a id="platformer-Runner-shove-field"></a>**`Runner.shove`** (nothing to do). A getter that answered a vector the object holds and keeps current is a public `final` field, live, as every such vector is. A read compiles and answers as before; code that wrote into the answer was already writing into the object's own vector.
+
 ### `flutter3d_game_strategy`
 
 - <a id="game_strategy-OrderTapePlayback"></a>**`OrderTapePlayback`** (by hand). A recorded match plays through `OrderTapePlayback(match, simulation: strategySimulationVersion)`, which refuses a match recorded on another simulation with `ReplayException`; a tape played as it is goes through `OrderTapePlayback.tape(tape)`, the old call with `.tape` added.
@@ -506,7 +513,9 @@ carried out:
 
 ### `flutter3d_physics`
 
+- <a id="physics-CollisionBox-boundsHalfExtents-field"></a>**`CollisionBox.boundsHalfExtents`** (nothing to do). A getter that answered a vector the object holds and keeps current is a public `final` field, live, as every such vector is. A read compiles and answers as before; code that wrote into the answer was already writing into the object's own vector.
 - <a id="physics-CollisionListener-base"></a>**`CollisionListener`** (`migrate`). `CollisionListener` is a `base` class: a class below it is `base` itself, and `implements CollisionListener` becomes `extends CollisionListener`. `CollisionListener` is a base mixin class: a listener mixes it in and is `base` or `final`; nothing implements it.
+- <a id="physics-CollisionWedge-boundsHalfExtents-field"></a>**`CollisionWedge.boundsHalfExtents`** (nothing to do). A getter that answered a vector the object holds and keeps current is a public `final` field, live, as every such vector is. A read compiles and answers as before; code that wrote into the answer was already writing into the object's own vector.
 - <a id="physics-MeshVessel-span-record"></a>**`MeshVessel.span`** (`migrate`). `MeshVessel` is a class: `.low` is `.low`, `.high` is `.high`; a destructuring pattern is yours to rewrite. `span` answers a `VesselSpan` with `low` and `high`, where it answered a record of them; only a destructuring pattern names the class.
 - <a id="physics-RevolvedVessel-span-record"></a>**`RevolvedVessel.span`** (`migrate`). `RevolvedVessel` is a class: `.low` is `.low`, `.high` is `.high`; a destructuring pattern is yours to rewrite. `span` answers a `VesselSpan` with `low` and `high`, where it answered a record of them; only a destructuring pattern names the class.
 - <a id="physics-RevolvedVessel-wallDistance-record"></a>**`RevolvedVessel.wallDistance`** (`migrate`). `RevolvedVessel` is a class: `.distance` is `.distance`, `.normal` is `.normal`; a destructuring pattern is yours to rewrite. `wallDistance` answers a `VesselWallDistance` with `distance` and `normal`, or null, where it answered a record of them; only a destructuring pattern names the class.

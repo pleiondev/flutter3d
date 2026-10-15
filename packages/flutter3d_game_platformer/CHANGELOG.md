@@ -1,3 +1,10 @@
+## 1.0.0-rc.1+1
+
+- **Breaking: `Runner.shove` is a public `final` field**, where a getter
+  answered the runner's own vector. The runner refreshes it every step and
+  the dynamics read it live to push crates, so its shape says it is live;
+  a read compiles as before.
+
 ## 1.0.0-rc.1
 
 - **`PlatformerHeadlessGame.dress` takes a `PlatformerDressing`** (new:

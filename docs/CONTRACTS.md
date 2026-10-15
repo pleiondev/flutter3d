@@ -90,9 +90,14 @@ one applies:
 
 The structure rule `a getter hands out a copy of a vector, and a parameter
 is not kept` holds the first three, and holds this section to naming all
-four. The getters that answer the object's own cache
-rather than a field are named in its exemption table with the reason, and
-so is the one `const` constructor that keeps its vector through its
+four. A vector the object keeps current itself is a field
+(`CollisionBox.boundsHalfExtents`, `AudioListener.right`, `Runner.shove`,
+`PosedMesh.bounds`). A cache refreshed when it is read cannot be one,
+because reading a field runs no code: `SceneNode.worldMatrix`, the other
+scene-graph matrices and bounds, and `MorphState.growth` stay getters whose
+docs say "live: the object's own cache, read-only by contract", and the
+rule's exemption table names each with what the read refreshes. The table
+also names the one `const` constructor that keeps its vector through its
 initializer list.
 
 ### Three spaces

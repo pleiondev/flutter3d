@@ -528,6 +528,58 @@ const Set<String> _notAMember = <String>{
 /// is how a value type is declared, and a value type takes ownership of the
 /// vectors its constructor is given, the caller not mutating them after
 /// (CONTRACTS "Who owns a vector", which [vectorOwnershipGapsIn] holds).
+/// The doc comment directly above [line] (1-based) of [source], its `///`
+/// markers off and its wrap undone, past any annotation between them; empty
+/// when the member has none.
+String docAboveLine(String source, int line) {
+  final lines = source.split('\n');
+  final doc = <String>[];
+  for (var i = line - 2; i >= 0; i--) {
+    final text = lines[i].trim();
+    if (text.startsWith('@')) continue;
+    if (!text.startsWith('///')) break;
+    doc.insert(0, text.substring(3).trim());
+  }
+  return doc.join(' ').trim();
+}
+
+/// The words a getter that answers its object's own cache says in its doc,
+/// and the reason its `liveVectorGetterAllowed` entry starts with.
+const String liveCacheWords =
+    'live: the object\'s own cache, read-only by contract';
+
+/// What is wrong with a `liveVectorGetterAllowed` [reason] for a getter
+/// documented by [doc], or null when nothing is.
+///
+/// **Two kinds of entry, and each says which it is.** A chain that ends in
+/// a getter that copies names that getter (`… answers a copy`, `… builds a
+/// new vector`). A live answer that cannot be a field, because it is
+/// refreshed when it is read or belongs to an object that can be swapped,
+/// starts `live: <whose>, read-only by contract;` ([liveCacheWords] for the
+/// object's own cache) and gives the reason after the semicolon, and the
+/// getter's own doc carries the clause before it, so a reader of the API is
+/// told the answer is live and not theirs to write.
+String? liveGetterReasonProblem(String reason, String doc) {
+  final chain =
+      reason.contains('answers a copy') ||
+      reason.contains('builds a new vector');
+  final live = RegExp(
+    r'^live: [^;]+, read-only by contract;',
+  ).firstMatch(reason)?.group(0);
+  if (!chain && live == null) {
+    return 'is excused for a reason of neither kind: name the getter its '
+        'chain ends in (`… answers a copy`), or start with '
+        '"$liveCacheWords;" and say why it cannot be a field';
+  }
+  if (live != null) {
+    final clause = live.substring(0, live.length - 1);
+    if (!doc.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').contains(clause)) {
+      return 'answers a live vector and its doc does not say "$clause"';
+    }
+  }
+  return null;
+}
+
 /// The cases of "Who owns a vector" (docs/CONTRACTS.md, "Space") that
 /// [section] does not state, by the words each is stated in, and the gap it
 /// may no longer claim.
@@ -3162,6 +3214,42 @@ List<Finding> proveDetectorsWork() {
         'how a value type is declared',
   );
 
+  fires(
+    'a live getter\'s reason',
+    liveGetterReasonProblem(
+              'read per shape by the broadphase every step',
+              '',
+            ) !=
+            null &&
+        liveGetterReasonProblem(
+              '$liveCacheWords; recomputed when read',
+              'The world transform.',
+            ) !=
+            null &&
+        liveGetterReasonProblem(
+              '$liveCacheWords, recomputed when read',
+              'Live: the object\'s own cache, read-only by contract.',
+            ) !=
+            null,
+    'an inner-loop reason, a cache whose doc does not say it is live, and a '
+        'reason that runs on past the clause',
+  );
+  quiet(
+    'a live getter\'s reason',
+    liveGetterReasonProblem('`CameraRig.eye` answers a copy', '') == null &&
+        liveGetterReasonProblem(
+              '$liveCacheWords; recomputed when read',
+              docAboveLine(
+                '  /// The world transform.\n  ///\n  /// Live: the object\'s '
+                'own cache,\n  /// read-only by contract.\n  @override\n'
+                '  Matrix4 get worldMatrix {',
+                6,
+              ),
+            ) ==
+            null,
+    'a chain that copies, and a cache whose wrapped doc says it is live',
+    'each says which kind it is',
+  );
   fires(
     'vector ownership in the contract',
     vectorOwnershipGapsIn(

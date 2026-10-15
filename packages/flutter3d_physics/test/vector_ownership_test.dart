@@ -51,4 +51,21 @@ void main() {
     expect(player.halfExtents, Vector3(0.3, 0.9, 0.3));
     expect(player.groundNormal, Vector3(0.0, 1.0, 0.0));
   });
+
+  test('a box\'s and a wedge\'s bounds are their own half-extents, live', () {
+    // Mutation: initialise `boundsHalfExtents` with a copy. A level editor
+    // that grows a brush by writing into `halfExtents` would leave the
+    // broadphase sorting it by its old size.
+    final box = CollisionBox.size(Vector3(2.0, 4.0, 6.0));
+    final wedge = CollisionWedge(Vector3(1.0, 0.5, 1.0));
+    for (final (half, bounds) in <(Vector3, Vector3)>[
+      (box.halfExtents, box.boundsHalfExtents),
+      (wedge.halfExtents, wedge.boundsHalfExtents),
+    ]) {
+      expect(identical(half, bounds), isTrue);
+      half.x = 3.0;
+      expect(bounds.x, 3.0);
+    }
+    expect(box.boundsHalfExtents, Vector3(3.0, 2.0, 3.0));
+  });
 }

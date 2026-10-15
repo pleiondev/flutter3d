@@ -490,6 +490,8 @@ final class InstancedMeshNode extends MeshNode {
   /// Recomputed only when the instances or the mesh change. An empty batch
   /// has the mesh's own bounds, so a node with nothing to draw still frames
   /// and culls like a node.
+  ///
+  /// Live: the object's own cache, read-only by contract.
   @override
   Aabb3 get localBounds {
     if (_localBoundsVersion == _dataVersion && _localBoundsMesh == mesh) {

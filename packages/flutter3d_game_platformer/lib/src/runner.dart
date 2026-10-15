@@ -293,7 +293,6 @@ final class Runner
   ];
 
   final Vector3 _wish = Vector3.zero();
-  final Vector3 _shove = Vector3.zero();
   final Vector3 _probe = Vector3.zero();
   final Vector3 _mantleAt = Vector3.zero();
   final SweepHit _hit = SweepHit();
@@ -311,7 +310,9 @@ final class Runner
   /// Intent survives being blocked. This is the direction asked for, at the
   /// speed asked for, and it is zero when the runner is airborne, because
   /// shoving a crate while falling past it is not a thing a platformer does.
-  Vector3 get shove => _shove;
+  ///
+  /// In metres per second, live: the runner refreshes it every step.
+  final Vector3 shove = Vector3.zero();
 
   /// One simulation step.
   ///
@@ -359,11 +360,11 @@ final class Runner
         (sprinting ? body.tuning.sprintSpeed : body.tuning.walkSpeed) *
         _slopeScale();
     if (body.isGrounded) {
-      _shove
+      shove
         ..setFrom(_wish)
         ..scale(asked);
     } else {
-      _shove.setZero();
+      shove.setZero();
     }
     _bleedOffDash(dt, asked);
   }

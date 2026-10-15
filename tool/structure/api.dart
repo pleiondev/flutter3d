@@ -1709,6 +1709,33 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
     reason:
         "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
   ),
+  BuildAllowance(
+    package: 'flutter3d_audio_core',
+    members: <String>['AudioListener.right'],
+    reason:
+        "A vector the object holds and keeps current is a public `final` field, live, where a getter answered it (1.0.0-rc.1+1); a reader reads it as before.",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_core',
+    members: <String>['OcclusionBuffer.viewProjection', 'PosedMesh.bounds'],
+    reason:
+        "A vector the object holds and keeps current is a public `final` field, live, where a getter answered it (1.0.0-rc.1+1); a reader reads it as before.",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_game_platformer',
+    members: <String>['Runner.shove'],
+    reason:
+        "A vector the object holds and keeps current is a public `final` field, live, where a getter answered it (1.0.0-rc.1+1); a reader reads it as before.",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_physics',
+    members: <String>[
+      'CollisionBox.boundsHalfExtents',
+      'CollisionWedge.boundsHalfExtents',
+    ],
+    reason:
+        "A vector the object holds and keeps current is a public `final` field, live, where a getter answered it (1.0.0-rc.1+1); a reader reads it as before.",
+  ),
 ];
 
 /// Whether [change] to [package] is one [buildAllowances] lets through
