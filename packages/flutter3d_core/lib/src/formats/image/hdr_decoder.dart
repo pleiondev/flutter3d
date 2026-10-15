@@ -27,6 +27,8 @@ import 'dart:typed_data';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show Flutter3dFormatException;
 
+import '../pixel_extent.dart';
+
 /// A decoded Radiance image: three floats a pixel, row 0 at the top.
 typedef HdrImage = ({int width, int height, Float32List rgb});
 
@@ -55,10 +57,10 @@ final class HdrFormatException extends Flutter3dFormatException {
 ///
 /// Null for anything [readHdr] would refuse, without saying why: a caller
 /// that wants the reason calls [readHdr] and catches it.
-({int width, int height})? hdrSizeOf(Uint8List bytes) {
+PixelExtent? hdrSizeOf(Uint8List bytes) {
   try {
     final _Header header = _readHeader(bytes);
-    return (width: header.width, height: header.height);
+    return PixelExtent(width: header.width, height: header.height);
   } on HdrFormatException {
     return null;
   }

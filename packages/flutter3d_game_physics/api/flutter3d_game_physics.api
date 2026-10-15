@@ -154,9 +154,9 @@ final class RagdollLying
 
 final class RagdollPart
   const RagdollPart({this.tailAt = const <String>[], this.tailLength, required this.radius, required this.share, this.joint})
-  final ({String of, double times})? tailLength
   final List<String> tailAt
   final RagdollJoint? joint
+  final RagdollTailLength? tailLength
   final double radius
   final double share
 
@@ -165,6 +165,14 @@ final class RagdollProfile
   final Map<String, RagdollPart> parts
   final Map<String, String> followers
   static const RagdollProfile quaternius = …
+
+final class RagdollTailLength
+  String toString()
+  bool operator ==(Object other)
+  const RagdollTailLength({required this.of, required this.times})
+  final String of
+  final double times
+  int get hashCode
 
 final class RoomSession
   Future<void> close()
@@ -315,9 +323,9 @@ final class RagdollLying
 
 final class RagdollPart
   const RagdollPart({this.tailAt = const <String>[], this.tailLength, required this.radius, required this.share, this.joint})
-  final ({String of, double times})? tailLength
   final List<String> tailAt
   final RagdollJoint? joint
+  final RagdollTailLength? tailLength
   final double radius
   final double share
 
@@ -326,6 +334,14 @@ final class RagdollProfile
   final Map<String, RagdollPart> parts
   final Map<String, String> followers
   static const RagdollProfile quaternius = …
+
+final class RagdollTailLength
+  String toString()
+  bool operator ==(Object other)
+  const RagdollTailLength({required this.of, required this.times})
+  final String of
+  final double times
+  int get hashCode
 
 final class SkeletonRagdoll
   RagdollLying lying()

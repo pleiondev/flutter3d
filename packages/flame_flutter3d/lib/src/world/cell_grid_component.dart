@@ -9,6 +9,29 @@ import '../host/has_flutter3d.dart';
 import '../transform/object3d_component.dart';
 import '../transform/plane.dart';
 
+/// One cell of a [CellGridComponent], by column and row: what
+/// [CellGridComponent.cellAt] and `GridMover.cell` answer.
+final class GridCell {
+  /// The cell at [column] and [row].
+  const GridCell({required this.column, required this.row});
+
+  /// The cell's column, counted from nought at the left.
+  final int column;
+
+  /// The cell's row, counted from nought at the top as Flame sees it.
+  final int row;
+
+  @override
+  bool operator ==(Object other) =>
+      other is GridCell && other.column == column && other.row == row;
+
+  @override
+  int get hashCode => Object.hash(column, row);
+
+  @override
+  String toString() => 'GridCell($column, $row)';
+}
+
 /// A [CellGrid] as a bridged component: drawn as blocks, worn away by
 /// [hitAt], grown by [setCell], and a world to move and collide in. A Space
 /// Invaders shield, a Pac-Man maze, a Dig Dug field, a Surround arena.
@@ -81,11 +104,14 @@ base class CellGridComponent extends Object3dComponent {
   BridgePlane get _flat =>
       BridgePlane(axis: plane.axis, constant: 0.0, flipY: plane.flipY);
 
-  /// The cell [at], a point of the game, falls in, as (column, row); it may
-  /// be outside the grid.
-  (int, int) cellAt(Vector2 at) {
+  /// The cell [at], a point of the game, falls in; it may be outside the
+  /// grid.
+  GridCell cellAt(Vector2 at) {
     final local = absoluteToLocal(at);
-    return ((local.x / grid.cell).floor(), (local.y / grid.cell).floor());
+    return GridCell(
+      column: (local.x / grid.cell).floor(),
+      row: (local.y / grid.cell).floor(),
+    );
   }
 
   /// The middle of cell ([column], [row]), in this component's parent's

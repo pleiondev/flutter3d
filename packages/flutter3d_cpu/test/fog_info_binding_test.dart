@@ -78,8 +78,8 @@ Vector3 _center(FogSettings fog) {
     width: _size,
     height: _size,
     scene: scene,
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: camera,
         clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),

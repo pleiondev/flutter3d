@@ -79,7 +79,7 @@ Float32List _frame({required bool withField, double wall = 100.0}) {
     width: _width,
     height: _height,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
     settings: const RenderSettings(
       tonemap: false,
       bloom: BloomSettings(enabled: false),

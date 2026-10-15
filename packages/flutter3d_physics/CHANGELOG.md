@@ -1,5 +1,18 @@
 ## 1.0.0-rc.1+1
 
+- **Breaking: results that were records are final classes.** `MeshVessel`,
+  `RevolvedVessel`, `VesselShape`, `VesselVolumes`, `circularWeir`,
+  `orificeFlow` and `overCircularLip` answered or held a record, which can
+  never gain a field. Each answers a final class now, with the record's
+  field names (a positional `$1` has a name of its own), `==` and
+  `hashCode`. A field read compiles as before; a destructuring pattern names
+  the class, and `flutter3d_build:migrate` rewrites the `$1` reads.
+- **Breaking: what a component mixes in is a base mixin class.**
+  `CollisionListener` changed: a type an outside author writes against is
+  mixed in (`with`) rather than implemented, so a member a minor adds
+  arrives with a body and breaks nobody. Write `with` where a class wrote
+  `implements`; a class that mixes one in is `base` or `final`.
+
 - **Spilt particles can be retired.** `ParticleFluid.retire` takes out the
   particles a caller's test has held true of for a given time, a puddle
   lying on a bench, say, and hands back where they were and what they

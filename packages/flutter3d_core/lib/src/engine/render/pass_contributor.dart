@@ -532,7 +532,7 @@ final class ReactiveFrame {
   final GraphicsDevice device;
 
   /// The view the velocity belongs to.
-  final RenderView view;
+  final CameraView view;
 
   /// The matrix the scene pass drew [view] with — jittered while the resolve
   /// runs — so a mark lands on the pixels the draw covered there.
@@ -695,7 +695,7 @@ final class SceneEncodeRequest {
 ReactiveFrame newReactiveFrame({
   required PassEncoder encoder,
   required GraphicsDevice device,
-  required RenderView view,
+  required CameraView view,
   required vm.Matrix4 viewProjection,
   required TextureHandle surface,
   required TextureHandle white,

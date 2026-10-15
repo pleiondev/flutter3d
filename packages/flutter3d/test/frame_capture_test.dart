@@ -63,8 +63,8 @@ Future<FrameCapture> _capture(
     width: _size,
     height: _size,
     scene: it.scene,
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: it.scene.cameras.single,
         clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
@@ -189,7 +189,7 @@ void main() {
       width: _size,
       height: _size,
       scene: it.scene,
-      views: <RenderView>[RenderView(camera: it.scene.cameras.single)],
+      views: <CameraView>[CameraView(camera: it.scene.cameras.single)],
       settings: const RenderSettings(),
     );
 

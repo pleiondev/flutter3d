@@ -113,7 +113,7 @@ class _InstancingScaleProbeState extends State<InstancingScaleProbe> {
 
   Renderer? _renderer;
   late final Scene _scene;
-  late final RenderView _view;
+  late final CameraView _view;
   late final InstancedMeshNode _crowd;
 
   final List<InstancingScaleRung> _rungs = <InstancingScaleRung>[];
@@ -175,7 +175,7 @@ class _InstancingScaleProbeState extends State<InstancingScaleProbe> {
     final camera = _scene.add(CameraNode(name: 'camera'))
       ..setPosition(0.0, 90.0, 90.0)
       ..lookAt(vm.Vector3.zero());
-    _view = RenderView(camera: camera);
+    _view = CameraView(camera: camera);
 
     setState(() => _renderer = Renderer.create(device: device));
   }
@@ -264,7 +264,7 @@ class _InstancingScaleProbeState extends State<InstancingScaleProbe> {
           width: (constraints.maxWidth * dpr).round().clamp(1, 8192),
           height: (constraints.maxHeight * dpr).round().clamp(1, 8192),
           scene: _scene,
-          views: <RenderView>[_view],
+          views: <CameraView>[_view],
           settings: const RenderSettings(),
         );
         encode.stop();

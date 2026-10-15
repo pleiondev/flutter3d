@@ -1,3 +1,12 @@
+## 1.0.0-rc.1+1
+
+- **Breaking: results that were records are final classes.** `VoxelHit`
+  answered or held a record, which can never gain a field. Each answers a
+  final class now, with the record's field names (a positional `$1` has a
+  name of its own), `==` and `hashCode`. A field read compiles as before; a
+  destructuring pattern names the class, and `flutter3d_build:migrate`
+  rewrites the `$1` reads.
+
 ## 1.0.0-rc.1
 
 - **A voxel world is a format of its own.** `VoxelWorld.toJson` writes the

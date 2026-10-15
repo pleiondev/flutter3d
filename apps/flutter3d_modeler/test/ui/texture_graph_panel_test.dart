@@ -40,12 +40,15 @@ TextureGraph _graph() => TextureGraph(
   // window in a test's fixed-size surface. A person panning the real
   // `InteractiveViewer` would just scroll to it; a test asserting on a
   // specific control needs it on screen without panning first.
-  positions: <int, (double, double)>{1: (20, 8), 2: (220, 8), 3: (420, 8)},
+  positions: <int, NodePosition>{
+    1: NodePosition(x: 20, y: 8),
+    2: NodePosition(x: 220, y: 8),
+    3: NodePosition(x: 420, y: 8),
+  },
 );
 
 final class _Calls {
-  (String kind, Map<String, Object?> fields, (double, double) position)?
-  addNode;
+  (String kind, Map<String, Object?> fields, NodePosition position)? addNode;
   (int nodeId, String input, int from)? link;
   (int nodeId, String input)? unlink;
   (int nodeId, String field, Object? value)? setNodeField;
@@ -279,7 +282,7 @@ void main() {
 
       expect(calls.moveNode, isNotNull);
       expect(calls.moveNode!.$1, 1);
-      final (double startX, double startY) = _graph().positions[1]!;
+      final NodePosition(x: startX, y: startY) = _graph().positions[1]!;
       expect(calls.moveNode!.$2, closeTo(startX + 30, 0.5));
       expect(calls.moveNode!.$3, closeTo(startY + 15, 0.5));
     });

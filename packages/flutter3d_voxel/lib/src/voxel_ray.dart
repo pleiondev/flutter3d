@@ -29,8 +29,33 @@ final class VoxelHit {
 
   /// The voxel in front of the face — where a block placed against this one
   /// goes.
-  ({int x, int y, int z}) get before =>
-      (x: x + normalX, y: y + normalY, z: z + normalZ);
+  VoxelCell get before =>
+      VoxelCell(x: x + normalX, y: y + normalY, z: z + normalZ);
+}
+
+/// One voxel of a [VoxelWorld]'s grid, by its whole-metre coordinates: what
+/// [VoxelHit.before] answers.
+final class VoxelCell {
+  const VoxelCell({required this.x, required this.y, required this.z});
+
+  /// The voxel's column along X, in voxels (a voxel is a metre).
+  final int x;
+
+  /// The voxel's layer along Y, in voxels.
+  final int y;
+
+  /// The voxel's row along Z, in voxels.
+  final int z;
+
+  @override
+  bool operator ==(Object other) =>
+      other is VoxelCell && other.x == x && other.y == y && other.z == z;
+
+  @override
+  int get hashCode => Object.hash(x, y, z);
+
+  @override
+  String toString() => 'VoxelCell($x, $y, $z)';
 }
 
 /// Rays through the grid, voxel by voxel.

@@ -7,8 +7,7 @@ import 'package:pointycastle/export.dart' as pc;
 /// (`LtiToolCredentials`) when nothing in the environment supplies one, and
 /// the same generator a test's fake platform already used privately before
 /// this was promoted out of `test/support/` for that second, real caller.
-({pc.RSAPublicKey publicKey, pc.RSAPrivateKey privateKey})
-generateRsaKeyPair() {
+RsaKeyPair generateRsaKeyPair() {
   final keyGen = pc.RSAKeyGenerator()
     ..init(
       pc.ParametersWithRandom(
@@ -17,7 +16,31 @@ generateRsaKeyPair() {
       ),
     );
   final pair = keyGen.generateKeyPair();
-  return (publicKey: pair.publicKey, privateKey: pair.privateKey);
+  return RsaKeyPair(publicKey: pair.publicKey, privateKey: pair.privateKey);
+}
+
+/// An RSA key pair, as [generateRsaKeyPair] makes one: the half a platform
+/// verifies with and the half this tool signs with.
+final class RsaKeyPair {
+  const RsaKeyPair({required this.publicKey, required this.privateKey});
+
+  /// The half that verifies, published as a JWK.
+  final pc.RSAPublicKey publicKey;
+
+  /// The half that signs, kept secret.
+  final pc.RSAPrivateKey privateKey;
+
+  @override
+  bool operator ==(Object other) =>
+      other is RsaKeyPair &&
+      other.publicKey == publicKey &&
+      other.privateKey == privateKey;
+
+  @override
+  int get hashCode => Object.hash(publicKey, privateKey);
+
+  @override
+  String toString() => 'RsaKeyPair(${publicKey.modulus?.bitLength} bits)';
 }
 
 /// A `pointycastle` `SecureRandom` seeded from `dart:math`'s

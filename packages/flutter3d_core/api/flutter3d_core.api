@@ -76,7 +76,7 @@ PackedStage spliceMaterialWgsl(MaterialProgram program, PackedStage host, {requi
 library package:flutter3d_core/flutter3d_core.dart
 
 final class AbsolutePixels extends ResourceSize
-  (int, int) resolve(int frameWidth, int frameHeight)
+  PixelExtent resolve(int frameWidth, int frameHeight)
   R accept<R>(ResourceSizeVisitor<R> visitor)
   const AbsolutePixels(this.width, this.height)
   final int height
@@ -199,7 +199,7 @@ abstract final class AnimationGoal
 
 final class AnimationGraph
   AnimationPose evaluate(double dt)
-  List<({String state, String name})> get passed
+  List<PassedMarker> get passed
   Map<String, Object?> save()
   String get state
   String? get fadingFrom
@@ -578,13 +578,21 @@ final class Atmosphere
   final double fogHeightFalloff
   final double sunIntensity
   static Atmosphere lerp(Atmosphere a, Atmosphere b, double t)
-  void applyTo(Scene scene, {LightNode? sun, RenderView? view})
+  void applyTo(Scene scene, {LightNode? sun, CameraView? view})
 
 final class AtmosphereCycle
   Atmosphere at(double time)
-  AtmosphereCycle(List<(double, Atmosphere)> keys, {required this.period})
-  final List<(double, Atmosphere)> keys
+  AtmosphereCycle(List<AtmosphereKey> keys, {required this.period})
+  final List<AtmosphereKey> keys
   final double period
+
+final class AtmosphereKey
+  String toString()
+  bool operator ==(Object other)
+  const AtmosphereKey({required this.time, required this.atmosphere})
+  final Atmosphere atmosphere
+  final double time
+  int get hashCode
 
 final class AutoExposureSettings
   AutoExposureSettings copyWith({bool? enabled, double? minExposure, double? maxExposure, double? speedUp, double? speedDown, double? target, double? lowPercentile, double? highPercentile, bool? perView})
@@ -666,6 +674,43 @@ final class CameraNode extends SceneNode
   void onAttachedToScene(Scene scene)
   void onDetachedFromScene(Scene scene)
 
+final class CameraView
+  CameraNode camera
+  CameraView({required this.camera, this.viewportFraction = const ViewportRect(0.0, 0.0, 1.0, 1.0), this.layerMask = ~0, this.priority = 0, LinearColor? clearColor, this.opaqueSort = SortMode.stateThenDepth, this.transparentSort = SortMode.backToFront, this.cut = false, this.options = const CameraViewSettings()})
+  CameraViewSettings options
+  LinearColor clearColor
+  SortMode opaqueSort
+  SortMode transparentSort
+  TextureHandle? get texture
+  ViewportRect viewportFraction
+  bool cut
+  bool get isDisposed
+  bool get isDrawn
+  bool get isDue
+  bool get isTextureView
+  bool get isVisible
+  factory CameraView.texture(GraphicsDevice device, {required CameraNode camera, required int width, required int height, int layerMask = ~0, LinearColor? clearColor, CameraViewSettings options = const CameraViewSettings()})
+  final Set<MeshNode> excluded
+  int get height
+  int get width
+  int layerMask
+  int priority
+  static final LinearColor defaultClearColor
+  void dispose()
+  void invalidate()
+  void markDrawn()
+
+final class CameraViewSettings
+  CameraViewSettings copyWith({RenderSettings? settings, bool Function()? visible, bool? refreshEveryFrame, double? exposure, String? label, double? depthNear, FrameWindow? window, bool clearSettings = false, bool clearVisible = false, bool clearLabel = false, bool clearDepthNear = false, bool clearWindow = false})
+  const CameraViewSettings({this.settings, this.visible, this.refreshEveryFrame = true, this.exposure = 1.0, this.label, this.depthNear, this.window})
+  final FrameWindow? window
+  final RenderSettings? settings
+  final String? label
+  final bool Function()? visible
+  final bool refreshEveryFrame
+  final double exposure
+  final double? depthNear
+
 final class CapsuleShape extends DerivedShape
   Shape get delegate
   String get name
@@ -742,6 +787,23 @@ final class CheckerboardTexture extends ProceduralTexture
   final int light
   final int size
 
+final class ClipAxis
+  String toString()
+  bool operator ==(Object other)
+  const ClipAxis({required this.x, required this.y, required this.z})
+  final double x
+  final double y
+  final double z
+  int get hashCode
+
+final class ClipDistances
+  String toString()
+  bool operator ==(Object other)
+  const ClipDistances({required this.near, required this.far})
+  final double far
+  final double near
+  int get hashCode
+
 final class ClusterDraws
   ClusterDraws(GraphicsDevice this._device, {this.framesInFlight = 3})
   ClusterIndices? indicesFor({required MeshNode node, required DrawableGeometry mesh, required int view, required Frustum frustum, Vector3? eye, OcclusionTest? occlusion})
@@ -761,14 +823,24 @@ final class ClusteredIndices
   final MeshClusters table
   final Uint32List indices
 
+final class ColorConfusion
+  String toString()
+  bool operator ==(Object other)
+  const ColorConfusion({required this.a, required this.b, required this.by, required this.distance})
+  final ColorVisionDeficiency by
+  final String a
+  final String b
+  final double distance
+  int get hashCode
+
 final class ColorHint extends MaterialHintKind
   const ColorHint({this.channels = 4})
   final int channels
 
 final class ColorVision
-  (double, double, double) applyEncoded(double r, double g, double b)
-  (double, double, double) applyLinear(double r, double g, double b)
   List<double> get matrix
+  RgbTriple applyEncoded(double r, double g, double b)
+  RgbTriple applyLinear(double r, double g, double b)
   TextureHandle? upload(GraphicsDevice device, {int size = 33, CubeLut? grade})
   Uint8List toStrip({int size = 33, CubeLut? grade})
   const ColorVision.correct(this.deficiency, {this.severity = 1.0})
@@ -776,8 +848,8 @@ final class ColorVision
   final ColorVisionDeficiency deficiency
   final bool corrects
   final double severity
-  static List<({String a, String b, ColorVisionDeficiency by, double distance})> confusions(Map<String, (double, double, double)> colors, {double within = 20.0})
-  static double difference((double, double, double) a, (double, double, double) b)
+  static List<ColorConfusion> confusions(Map<String, RgbTriple> colors, {double within = 20.0})
+  static double difference(RgbTriple a, RgbTriple b)
 
 final class ColorVisionDeficiency
   String toString()
@@ -892,12 +964,12 @@ final class CropProjection extends Projection
   final double top
 
 final class CubeLut
-  (double, double, double) lookup(double r, double g, double b)
+  RgbTriple lookup(double r, double g, double b)
   TextureHandle? upload(GraphicsDevice device, {int? stripSize})
   Uint8List toStrip({int? stripSize})
   factory CubeLut.parse(String text)
-  final (double, double, double) domainMax
-  final (double, double, double) domainMin
+  final RgbTriple domainMax
+  final RgbTriple domainMin
   final String? title
   final bool isOneD
   final int size
@@ -1064,6 +1136,14 @@ final class DecodedImage
 abstract base class DecoderRegistry extends PluginRegistry
   const DecoderRegistry()
 
+final class DepthMoments
+  String toString()
+  bool operator ==(Object other)
+  const DepthMoments({required this.mean, required this.meanSquare})
+  final double mean
+  final double meanSquare
+  int get hashCode
+
 final class DepthOfFieldSettings
   DepthOfFieldSettings copyWith({bool? enabled, double? focusDistance, double? focalLength, double? aperture, int? samples, double? maxRadius, double? sensorWidth, bool clearFocalLength = false})
   ThinLens lensFor({required double? verticalFieldOfView, required double aspect})
@@ -1209,8 +1289,8 @@ final class DrawJournal
   void endPass(int drawCalls)
 
 final class DrawListContext
+  CameraView get view
   MeshNode get node
-  RenderView get view
   double get viewDepth
 
 abstract base class DrawListHook
@@ -1297,7 +1377,7 @@ final class EnvironmentDepthNode extends RenderNode
   List<ResourceId> get writes
   RenderAnchor get defaultAnchor
   String get name
-  static const ResourceId id = ResourceId('environment_depth')
+  static const ResourceId id = ResourceId('f3d.environment_depth')
   void execute(RenderFrame frame)
   void release()
 
@@ -1617,15 +1697,15 @@ final class FrameCaptureFormatException extends Flutter3dFormatException
   final String message
 
 abstract base class FrameContext
-  ({double x, double y}) get jitter
   FrameContext({required this.device, required this.services, required this.settings, required this.width, required this.height, this.view, this.frameIndex = 0, this.time = 0.0, this.origin = WorldPosition.origin, List<FrameView>? views, this.viewIndex = 0})
   FrameView? get frameView
+  PixelJitter get jitter
   ResourceId perView(ResourceId id)
   double get nitsPerHdrUnit
+  final CameraView? view
   final GraphicsDevice device
   final RenderServices services
   final RenderSettings settings
-  final RenderView? view
   final WorldPosition origin
   final double time
   final int frameIndex
@@ -1648,7 +1728,7 @@ final class FrameDrawn extends BusEvent
   final FrameResult result
 
 final class FrameFraction extends ResourceSize
-  (int, int) resolve(int frameWidth, int frameHeight)
+  PixelExtent resolve(int frameWidth, int frameHeight)
   R accept<R>(ResourceSizeVisitor<R> visitor)
   const FrameFraction([this.divisor = 1])
   final int divisor
@@ -1693,13 +1773,13 @@ final class FrameHeld extends BusEvent
   final FrameResult result
 
 final class FrameHistory
-  NodeHistory? of(MeshNode node, RenderView view)
-  bool moved(MeshNode node, RenderView view)
+  NodeHistory? of(MeshNode node, CameraView view)
+  bool moved(MeshNode node, CameraView view)
   bool tracking
   int get allocations
   int get copies
-  vm.Matrix4? viewProjection(RenderView view)
-  void endFrame({required int frame, required Iterable<MeshNode> meshes, required Iterable<(RenderView, vm.Matrix4)> views})
+  vm.Matrix4? viewProjection(CameraView view)
+  void endFrame({required int frame, required Iterable<MeshNode> meshes, required Iterable<(CameraView, vm.Matrix4)> views})
 
 final class FrameOverTime extends BusEvent
   String get name
@@ -1760,30 +1840,30 @@ abstract base class FramePlacer
 
 abstract final class FrameResourceIds
   static ResourceId reflectionProbe(int index)
-  static const ResourceId albedoBuffer = ResourceId('albedo_buffer')
-  static const ResourceId ao = ResourceId('ao')
-  static const ResourceId bloom = ResourceId('bloom')
-  static const ResourceId computedVertices = ResourceId('computed_vertices')
-  static const ResourceId contactShadow = ResourceId('contact_shadow')
-  static const ResourceId cubeShadow = ResourceId('cube_shadow')
-  static const ResourceId cubeShadowStatic = ResourceId('cube_shadow_static')
-  static const ResourceId depthPyramid = ResourceId('depth_pyramid')
-  static const ResourceId frame = ResourceId('frame')
-  static const ResourceId hdrColor = ResourceId('hdr_color')
-  static const ResourceId irradianceAtlas = ResourceId('irradiance_atlas')
-  static const ResourceId localExposure = ResourceId('local_exposure')
-  static const ResourceId luminance = ResourceId('luminance')
-  static const ResourceId objectIds = ResourceId('object_ids')
-  static const ResourceId outlineMask = ResourceId('outline_mask')
-  static const ResourceId planarReflections = ResourceId('planar_reflections')
-  static const ResourceId renderTextures = ResourceId('render_textures')
-  static const ResourceId sceneColor = ResourceId('scene_color')
-  static const ResourceId shadowMap = ResourceId('shadow_map')
-  static const ResourceId shadowMoments = ResourceId('shadow_moments')
-  static const ResourceId skinnedVertices = ResourceId('skinned_vertices')
-  static const ResourceId surfaceBuffer = ResourceId('surface_buffer')
-  static const ResourceId temporalHistory = ResourceId('temporal_history')
-  static const ResourceId velocity = ResourceId('velocity')
+  static const ResourceId albedoBuffer = ResourceId('f3d.albedo_buffer')
+  static const ResourceId ao = ResourceId('f3d.ao')
+  static const ResourceId bloom = ResourceId('f3d.bloom')
+  static const ResourceId computedVertices = ResourceId('f3d.computed_vertices')
+  static const ResourceId contactShadow = ResourceId('f3d.contact_shadow')
+  static const ResourceId cubeShadow = ResourceId('f3d.cube_shadow')
+  static const ResourceId cubeShadowStatic = ResourceId('f3d.cube_shadow_static')
+  static const ResourceId depthPyramid = ResourceId('f3d.depth_pyramid')
+  static const ResourceId frame = ResourceId('f3d.frame')
+  static const ResourceId hdrColor = ResourceId('f3d.hdr_color')
+  static const ResourceId irradianceAtlas = ResourceId('f3d.irradiance_atlas')
+  static const ResourceId localExposure = ResourceId('f3d.local_exposure')
+  static const ResourceId luminance = ResourceId('f3d.luminance')
+  static const ResourceId objectIds = ResourceId('f3d.object_ids')
+  static const ResourceId outlineMask = ResourceId('f3d.outline_mask')
+  static const ResourceId planarReflections = ResourceId('f3d.planar_reflections')
+  static const ResourceId renderTextures = ResourceId('f3d.render_textures')
+  static const ResourceId sceneColor = ResourceId('f3d.scene_color')
+  static const ResourceId shadowMap = ResourceId('f3d.shadow_map')
+  static const ResourceId shadowMoments = ResourceId('f3d.shadow_moments')
+  static const ResourceId skinnedVertices = ResourceId('f3d.skinned_vertices')
+  static const ResourceId surfaceBuffer = ResourceId('f3d.surface_buffer')
+  static const ResourceId temporalHistory = ResourceId('f3d.temporal_history')
+  static const ResourceId velocity = ResourceId('f3d.velocity')
 
 final class FrameResourceUse
   String toString()
@@ -1869,7 +1949,7 @@ final class FrameView
   ResourceId resource(ResourceId id)
   String toString()
   bool get hasHistory
-  factory FrameView.ofRenderView(RenderView view, {required double aspect, int index = 0, vm.Matrix4? previousViewProjection})
+  factory FrameView.ofCameraView(CameraView view, {required double aspect, int index = 0, vm.Matrix4? previousViewProjection})
   factory FrameView.posed({required vm.Vector3 position, required vm.Quaternion orientation, required Projection projection, double aspect = 1.0, ViewportRect viewport = const ViewportRect(0.0, 0.0, 1.0, 1.0), int index = 0, vm.Matrix4? previousViewProjection})
   final Projection projection
   final ViewportRect viewport
@@ -2014,6 +2094,14 @@ enum GltfComponentType
   final int sizeInBytes
   int readInt(ByteData data, int offset)
   static GltfComponentType fromCode(int code)
+
+final class GltfFilters
+  String toString()
+  bool operator ==(Object other)
+  const GltfFilters({required this.magFilter, required this.minFilter})
+  final int magFilter
+  final int minFilter
+  int get hashCode
 
 final class GltfFormatException extends Flutter3dFormatException
   String toString()
@@ -2177,7 +2265,7 @@ final class IrradianceAtlas
   final int width
 
 final class IrradianceField
-  ({double mean, double meanSquare}) readDepth(int probe, Vector3 direction)
+  DepthMoments readDepth(int probe, Vector3 direction)
   IrradianceAtlas toAtlas()
   IrradianceField({required this.origin, required this.spacing, required this.countX, required this.countY, required this.countZ, this.tile = 8, this.depthTile = 16})
   LinearColor readIrradiance(int probe, Vector3 direction)
@@ -2374,6 +2462,7 @@ final class LightTypes extends PluginRegistry
 
 final class LightingModel
   LightingModel withLayers(MaterialExtensions? layers, {bool textureTransforms = false})
+  String get name
   bool get usesFogInfo
   bool get usesLightList
   bool get usesPointShadow
@@ -2396,6 +2485,7 @@ final class LightingModel
   final bool vertexStageInDepthPasses
   final bool vertexStageMorphs
   int get pipelineGroup
+  static String shaderNameOf(String name)
   static const LightingModel blinnPhong = LightingModel('Blinn-Phong', 'BlinnPhong')
   static const LightingModel impostor = …
   static const LightingModel lambert = LightingModel('Lambert', 'Lambert', usesMetallicRoughnessMap: false)
@@ -2420,7 +2510,7 @@ abstract base class LightingModelAddon extends Flutter3dPlugin
   void install(PluginHost host)
 
 final class LightingModels extends PluginRegistry
-  LightingModel? named(String shaderName)
+  LightingModel? named(String name)
   LightingModels forPlugin(PluginScope scope)
   LightingModels()
   List<LightingModel> get all
@@ -2643,8 +2733,8 @@ abstract base class MaterialExpressionVisitor<R> extends ExpressionVisitor<R>
   const MaterialExpressionVisitor()
 
 final class MaterialExtensions
-  List<({TextureBinding binding, int channel})?> get coatMapSources
-  List<({TextureBinding binding, int channel})?> get sheenMapSources
+  List<PackedMapSource?> get coatMapSources
+  List<PackedMapSource?> get sheenMapSources
   List<TextureBinding> get textures
   MaterialExtensions mapTextures(TextureBinding? Function(TextureBinding binding) map)
   MaterialExtensions({this.ior = 1.5, this.specular = 1.0, this.specularTexture, this.specularColor = LinearColor.white, this.specularColorTexture, this.clearcoat = 0.0, this.clearcoatTexture, this.clearcoatRoughness = 0.0, this.clearcoatRoughnessTexture, this.clearcoatNormalTexture, this.clearcoatNormalScale = 1.0, this.sheenColor = LinearColor.black, this.sheenColorTexture, this.sheenRoughness = 0.0, this.sheenRoughnessTexture, this.anisotropyStrength = 0.0, this.anisotropyRotation = 0.0, this.anisotropyTexture, this.transmission = 0.0, this.transmissionTexture, this.thickness = 0.0, this.thicknessTexture, this.attenuationDistance = double.infinity, this.attenuationColor = LinearColor.white, this.convexVolume = false, this.dispersion = 0.0, this.iridescence = 0.0, this.iridescenceTexture, this.iridescenceIor = 1.3, this.iridescenceThicknessMinimum = 100.0, this.iridescenceThicknessMaximum = 400.0, this.iridescenceThicknessTexture})
@@ -3045,7 +3135,7 @@ base class MeshNode extends SceneNode
   void onDetachedFromScene(Scene scene)
 
 final class MeshOverlay extends PassContributor
-  Aabb3 boundsFor(RenderView view)
+  Aabb3 boundsFor(CameraView view)
   MeshOverlay({required this.vertexShader, required this.fragmentShader})
   bool get isActive
   bool get isOverlay
@@ -3498,7 +3588,7 @@ final class OpenPath
   final Vector3 up
 
 final class OrbitController
-  ({double near, double far}) suggestedDepthRange()
+  ClipDistances suggestedDepthRange()
   OrbitController(this.node, {Vector3? target, this.distance = 3.0, this.yaw = 0.0, this.pitch = 0.35, this.minDistance = 0.05, this.maxDistance = 1e5, this.framingFovY = math.pi / 4})
   SceneNode node
   bool get isTurning
@@ -3566,6 +3656,14 @@ typedef PackedLane = ({Rgba8Image image, int channel})?;
 
 typedef PackedMap = ({TextureHandle texture, SamplerDescriptor sampler});
 
+final class PackedMapSource
+  String toString()
+  bool operator ==(Object other)
+  const PackedMapSource({required this.binding, required this.channel})
+  final TextureBinding binding
+  final int channel
+  int get hashCode
+
 final class PagedSplatOctree
   Future<void> get idle
   Object? lastError
@@ -3599,7 +3697,7 @@ final class PassContribution
   final int worstChannelDelta
 
 abstract base class PassContributor
-  Aabb3? boundsFor(RenderView view)
+  Aabb3? boundsFor(CameraView view)
   abstract void encode(ContributorFrame frame)
   bool get isActive
   bool get isOverlay
@@ -3620,6 +3718,14 @@ final class PassSkip
   static const PassSkip switchedOff = PassSkip._('switched off')
   static const PassSkip unconsumed = PassSkip._('unconsumed')
   static const PassSkip unsupported = PassSkip._('unsupported')
+
+final class PassedMarker
+  String toString()
+  bool operator ==(Object other)
+  const PassedMarker({required this.state, required this.name})
+  final String name
+  final String state
+  int get hashCode
 
 final class PerspectiveProjection extends Projection
   Matrix4 toMatrix(double aspect)
@@ -3821,6 +3927,23 @@ final class PipelineStall
   final int frame
   final int micros
 
+final class PixelExtent
+  String toString()
+  bool operator ==(Object other)
+  const PixelExtent({required this.width, required this.height})
+  final int height
+  final int width
+  int get hashCode
+
+final class PixelJitter
+  String toString()
+  bool operator ==(Object other)
+  const PixelJitter({required this.x, required this.y})
+  final double x
+  final double y
+  int get hashCode
+  static const PixelJitter none = PixelJitter(x: 0.0, y: 0.0)
+
 abstract base class PlacementRequest
   abstract String get name
   const PlacementRequest()
@@ -4000,9 +4123,9 @@ final class ReachGoal extends AnimationGoal
 
 final class ReactiveFrame
   ShaderHandle? get spriteStage
+  final CameraView view
   final GraphicsDevice device
   final PassEncoder encoder
-  final RenderView view
   final vm.Matrix4 viewProjection
   static const PassState state = …
   void bindSprite(ShaderHandle fragment, ReactiveShape shape, {TextureHandle? texture})
@@ -4219,39 +4342,39 @@ final class RenderStep
   final String name
   final String? passPrefix
   static const List<RenderStep> values = …
-  static const RenderStep ambientOcclusion = RenderStep._('ambient occlusion', _aoOff, _aoOn, passes: <String>{'ssao', 'ssao blur'})
-  static const RenderStep autoExposure = RenderStep._('auto exposure', _autoExposureOff, _autoExposureOn, passes: <String>{'luminance'})
-  static const RenderStep bloom = RenderStep._('bloom', _bloomOff, _bloomOn, passes: <String>{'bloom'})
-  static const RenderStep caustics = RenderStep._('caustics', _causticsOff, _causticsOn, needs: <RenderStep>{shadows})
-  static const RenderStep colorGrade = RenderStep._('color grade', _gradeOff, _gradeOn)
-  static const RenderStep contactShadows = RenderStep._('contact shadows', _contactOff, _contactOn, passes: <String>{'contact shadows', 'contact shadow resolve'})
-  static const RenderStep decals = RenderStep._('decals', _decalsOff, _decalsOn, passes: <String>{FramePassNames.decals})
-  static const RenderStep depthOfField = RenderStep._('depth of field', _dofOff, _dofOn, passes: <String>{'depth of field'})
-  static const RenderStep edgeSmoothing = RenderStep._('edge smoothing', _edgesOff, _edgesOn, passes: <String>{'antialias'})
-  static const RenderStep fog = RenderStep._('fog', _fogOff, _fogOn)
-  static const RenderStep hiZOcclusion = RenderStep._('hi-z occlusion', _hiZOff, _hiZOn, passes: <String>{'depth pyramid'})
-  static const RenderStep highContrast = RenderStep._('high contrast', _contrastOff, _contrastOn, passes: <String>{'outline mask', 'high contrast'})
-  static const RenderStep irradianceUpdate = RenderStep._('irradiance update', _irradianceOff, _irradianceOn, passes: <String>{'irradiance update'})
-  static const RenderStep lensDistortion = RenderStep._('lens distortion', _distortionOff, _distortionOn)
-  static const RenderStep lensFlare = RenderStep._('lens flare', _flareOff, _flareOn, passes: <String>{'lens flare'}, needs: <RenderStep>{bloom})
-  static const RenderStep lightShafts = RenderStep._('light shafts', _shaftsOff, _shaftsOn, passes: <String>{'light shafts'})
-  static const RenderStep localExposure = RenderStep._('local exposure', _localExposureOff, _localExposureOn, passes: <String>{'local exposure'})
-  static const RenderStep motionBlur = RenderStep._('motion blur', _motionOff, _motionOn, passes: <String>{'motion blur'}, needs: <RenderStep>{velocity})
-  static const RenderStep planarReflections = RenderStep._('planar reflections', _planarOff, _planarOn, passes: <String>{'planar reflections'})
-  static const RenderStep reflectionProbes = RenderStep._('reflection probes', _probesOff, _probesOn, passPrefix: 'reflection probe ')
-  static const RenderStep reflections = RenderStep._('reflections', _reflectionsOff, _reflectionsOn, passes: <String>{'reflections'})
-  static const RenderStep renderTextures = RenderStep._('render textures', _renderTexturesOff, _renderTexturesOn, passes: <String>{'render textures'})
-  static const RenderStep sceneColorCopy = RenderStep._('scene color copy', _copyOff, _copyOn, passes: <String>{'scene color copy'}, needs: <RenderStep>{transparent})
-  static const RenderStep shadows = RenderStep._('shadows', _shadowsOff, _shadowsOn, passes: <String>{'point shadows (static)', 'point shadows', 'directional shadows', 'shadow moments'})
-  static const RenderStep sharpening = RenderStep._('sharpening', _sharpenOff, _sharpenOn, passes: <String>{'antialias'})
-  static const RenderStep spatialUpscale = RenderStep._('spatial upscale', _upscaleOff, _upscaleOn, passes: <String>{'spatial upscale'})
+  static const RenderStep ambientOcclusion = RenderStep._('f3d.ambient_occlusion', _aoOff, _aoOn, passes: <String>{'ssao', 'ssao blur'})
+  static const RenderStep autoExposure = RenderStep._('f3d.auto_exposure', _autoExposureOff, _autoExposureOn, passes: <String>{'luminance'})
+  static const RenderStep bloom = RenderStep._('f3d.bloom', _bloomOff, _bloomOn, passes: <String>{'bloom'})
+  static const RenderStep caustics = RenderStep._('f3d.caustics', _causticsOff, _causticsOn, needs: <RenderStep>{shadows})
+  static const RenderStep colorGrade = RenderStep._('f3d.color_grade', _gradeOff, _gradeOn)
+  static const RenderStep contactShadows = RenderStep._('f3d.contact_shadows', _contactOff, _contactOn, passes: <String>{'contact shadows', 'contact shadow resolve'})
+  static const RenderStep decals = RenderStep._('f3d.decals', _decalsOff, _decalsOn, passes: <String>{FramePassNames.decals})
+  static const RenderStep depthOfField = RenderStep._('f3d.depth_of_field', _dofOff, _dofOn, passes: <String>{'depth of field'})
+  static const RenderStep edgeSmoothing = RenderStep._('f3d.edge_smoothing', _edgesOff, _edgesOn, passes: <String>{'antialias'})
+  static const RenderStep fog = RenderStep._('f3d.fog', _fogOff, _fogOn)
+  static const RenderStep hiZOcclusion = RenderStep._('f3d.hi_z_occlusion', _hiZOff, _hiZOn, passes: <String>{'depth pyramid'})
+  static const RenderStep highContrast = RenderStep._('f3d.high_contrast', _contrastOff, _contrastOn, passes: <String>{'outline mask', 'high contrast'})
+  static const RenderStep irradianceUpdate = RenderStep._('f3d.irradiance_update', _irradianceOff, _irradianceOn, passes: <String>{'irradiance update'})
+  static const RenderStep lensDistortion = RenderStep._('f3d.lens_distortion', _distortionOff, _distortionOn)
+  static const RenderStep lensFlare = RenderStep._('f3d.lens_flare', _flareOff, _flareOn, passes: <String>{'lens flare'}, needs: <RenderStep>{bloom})
+  static const RenderStep lightShafts = RenderStep._('f3d.light_shafts', _shaftsOff, _shaftsOn, passes: <String>{'light shafts'})
+  static const RenderStep localExposure = RenderStep._('f3d.local_exposure', _localExposureOff, _localExposureOn, passes: <String>{'local exposure'})
+  static const RenderStep motionBlur = RenderStep._('f3d.motion_blur', _motionOff, _motionOn, passes: <String>{'motion blur'}, needs: <RenderStep>{velocity})
+  static const RenderStep planarReflections = RenderStep._('f3d.planar_reflections', _planarOff, _planarOn, passes: <String>{'planar reflections'})
+  static const RenderStep reflectionProbes = RenderStep._('f3d.reflection_probes', _probesOff, _probesOn, passPrefix: 'reflection probe ')
+  static const RenderStep reflections = RenderStep._('f3d.reflections', _reflectionsOff, _reflectionsOn, passes: <String>{'reflections'})
+  static const RenderStep renderTextures = RenderStep._('f3d.render_textures', _renderTexturesOff, _renderTexturesOn, passes: <String>{'render textures'})
+  static const RenderStep sceneColorCopy = RenderStep._('f3d.scene_color_copy', _copyOff, _copyOn, passes: <String>{'scene color copy'}, needs: <RenderStep>{transparent})
+  static const RenderStep shadows = RenderStep._('f3d.shadows', _shadowsOff, _shadowsOn, passes: <String>{'point shadows (static)', 'point shadows', 'directional shadows', 'shadow moments'})
+  static const RenderStep sharpening = RenderStep._('f3d.sharpening', _sharpenOff, _sharpenOn, passes: <String>{'antialias'})
+  static const RenderStep spatialUpscale = RenderStep._('f3d.spatial_upscale', _upscaleOff, _upscaleOn, passes: <String>{'spatial upscale'})
   static const RenderStep temporalAntiAliasing = …
-  static const RenderStep tonemap = RenderStep._('tonemap', _tonemapOff, _tonemapOn)
-  static const RenderStep transparent = RenderStep._('transparent', _transparentOff, _transparentOn, passes: <String>{'transparent'})
-  static const RenderStep velocity = RenderStep._('velocity', null, null, passes: <String>{FramePassNames.cameraVelocity, FramePassNames.objectVelocity})
-  static const RenderStep viewportShading = RenderStep._('viewport shading', _shadingOff, _shadingOn, passes: <String>{'viewport shading'})
-  static const RenderStep vignetteAndGrain = RenderStep._('vignette and grain', _filmOff, _filmOn)
-  static const RenderStep volumetricFog = RenderStep._('volumetric fog', _volumetricOff, _volumetricOn, passes: <String>{'volumetric fog'})
+  static const RenderStep tonemap = RenderStep._('f3d.tonemap', _tonemapOff, _tonemapOn)
+  static const RenderStep transparent = RenderStep._('f3d.transparent', _transparentOff, _transparentOn, passes: <String>{'transparent'})
+  static const RenderStep velocity = RenderStep._('f3d.velocity', null, null, passes: <String>{FramePassNames.cameraVelocity, FramePassNames.objectVelocity})
+  static const RenderStep viewportShading = RenderStep._('f3d.viewport_shading', _shadingOff, _shadingOn, passes: <String>{'viewport shading'})
+  static const RenderStep vignetteAndGrain = RenderStep._('f3d.vignette_and_grain', _filmOff, _filmOn)
+  static const RenderStep volumetricFog = RenderStep._('f3d.volumetric_fog', _volumetricOff, _volumetricOn, passes: <String>{'volumetric fog'})
 
 abstract base class RenderStepAddon extends Flutter3dPlugin
   PluginManifest get manifest
@@ -4271,58 +4394,21 @@ final class RenderStepContext
   final QualitySetting? quality
   final RenderSettings settings
 
-final class RenderView
-  CameraNode camera
-  LinearColor clearColor
-  RenderView({required this.camera, this.viewportFraction = const ViewportRect(0.0, 0.0, 1.0, 1.0), this.layerMask = ~0, this.priority = 0, LinearColor? clearColor, this.opaqueSort = SortMode.stateThenDepth, this.transparentSort = SortMode.backToFront, this.cut = false, this.options = const RenderViewSettings()})
-  RenderViewSettings options
-  SortMode opaqueSort
-  SortMode transparentSort
-  TextureHandle? get texture
-  ViewportRect viewportFraction
-  bool cut
-  bool get isDisposed
-  bool get isDrawn
-  bool get isDue
-  bool get isTextureView
-  bool get isVisible
-  factory RenderView.texture(GraphicsDevice device, {required CameraNode camera, required int width, required int height, int layerMask = ~0, LinearColor? clearColor, RenderViewSettings options = const RenderViewSettings()})
-  final Set<MeshNode> excluded
-  int get height
-  int get width
-  int layerMask
-  int priority
-  static final LinearColor defaultClearColor
-  void dispose()
-  void invalidate()
-  void markDrawn()
-
-final class RenderViewSettings
-  RenderViewSettings copyWith({RenderSettings? settings, bool Function()? visible, bool? refreshEveryFrame, double? exposure, String? label, double? depthNear, FrameWindow? window, bool clearSettings = false, bool clearVisible = false, bool clearLabel = false, bool clearDepthNear = false, bool clearWindow = false})
-  const RenderViewSettings({this.settings, this.visible, this.refreshEveryFrame = true, this.exposure = 1.0, this.label, this.depthNear, this.window})
-  final FrameWindow? window
-  final RenderSettings? settings
-  final String? label
-  final bool Function()? visible
-  final bool refreshEveryFrame
-  final double exposure
-  final double? depthNear
-
 final class Renderer with RenderServices
-  CompiledFrameGraph planFrame({required Scene scene, required List<RenderView> views, RenderSettings settings = const RenderSettings()})
+  CompiledFrameGraph planFrame({required Scene scene, required List<CameraView> views, RenderSettings settings = const RenderSettings()})
   FramePacing pacing
-  FrameResult render({required int width, required int height, required Scene scene, required List<RenderView> views, RenderSettings settings = const RenderSettings()})
+  FrameResult render({required int width, required int height, required Scene scene, required List<CameraView> views, RenderSettings settings = const RenderSettings()})
   FrameWorkBudget get frameWorkBudget
   Future<FrameCapture> captureNextFrame({bool draws = false, Float32List? Function(TextureHandle texture)? readFloats})
   Future<MeshNode?> pickPixel(double u, double v)
   Future<ObjectIdFrame> captureObjectIds()
   Future<String> probeMultipleRenderTargets()
-  Future<void> warmUpInSlices({required int width, required int height, required Scene scene, required List<RenderView> views, RenderSettings settings = const RenderSettings(), Duration slice = const Duration(milliseconds: 8), void Function(double done)? onProgress})
+  Future<void> warmUpInSlices({required int width, required int height, required Scene scene, required List<CameraView> views, RenderSettings settings = const RenderSettings(), Duration slice = const Duration(milliseconds: 8), void Function(double done)? onProgress})
   LightTypes get lightTypes
   LightingModels get lightingModels
   List<PipelineStall> get pipelineStalls
   MemoryReport memoryReport({Scene? scene})
-  PipelineDocument describePipeline({required Scene scene, required List<RenderView> views, RenderSettings settings = const RenderSettings(), String? name})
+  PipelineDocument describePipeline({required Scene scene, required List<CameraView> views, RenderSettings settings = const RenderSettings(), String? name})
   PipelineNodeKinds get pipelineNodeKinds
   PostFrameResult renderPost({required TextureHandle hdr, RenderSettings settings = const RenderSettings(), bool keepHdr = false, TextureHandle? target})
   QualitySetting? quality
@@ -4334,7 +4420,7 @@ final class Renderer with RenderServices
   TextureHandle get fallbackBlack
   TextureHandle get fallbackNormal
   TextureHandle? get irradianceAtlas
-  double depthNearFor({required Scene scene, required RenderView view, required int width, required int height, RenderSettings settings = const RenderSettings()})
+  double depthNearFor({required Scene scene, required CameraView view, required int width, required int height, RenderSettings settings = const RenderSettings()})
   double get exposure
   factory Renderer.create({required GraphicsDevice device, TextureHandle? fallbackAlbedo, TextureHandle? fallbackNormal, ShaderLibrary? materials, Renderer? replacing})
   final DebugDraw debugDraw
@@ -4359,7 +4445,7 @@ final class Renderer with RenderServices
   void releaseMeshAfterFrame(DeviceMesh mesh)
   void releaseTextureAfterFrame(TextureHandle texture)
   void relinkShaders()
-  void warmUp({required int width, required int height, required Scene scene, required List<RenderView> views, RenderSettings settings = const RenderSettings()})
+  void warmUp({required int width, required int height, required Scene scene, required List<CameraView> views, RenderSettings settings = const RenderSettings()})
 
 final class RendererSteps extends RenderStepRegistry
   Future<Registration> addComputeStep(ComputeStep step, {RenderAnchor? at, RenderStep? owner, List<String> after = const <String>[], List<String> before = const <String>[]})
@@ -4465,7 +4551,7 @@ final class ResourceRequest<K, V>
 
 abstract base class ResourceSize
   R accept<R>(ResourceSizeVisitor<R> visitor)
-  abstract (int, int) resolve(int frameWidth, int frameHeight)
+  abstract PixelExtent resolve(int frameWidth, int frameHeight)
   const ResourceSize()
 
 abstract base class ResourceSizeVisitor<R>
@@ -4482,6 +4568,15 @@ final class ResourceVersion
   final int version
   int get hashCode
 
+final class RgbTriple
+  String toString()
+  bool operator ==(Object other)
+  const RgbTriple({required this.r, required this.g, required this.b})
+  final double b
+  final double g
+  final double r
+  int get hashCode
+
 final class Rgba8Image
   Rgba8Image({required this.width, required this.height, required Uint8List pixels})
   final Uint8List pixels
@@ -4492,19 +4587,29 @@ final class Rgba8Image
   int green(int x, int y)
   int red(int x, int y)
 
+final class Rgba8Texel
+  String toString()
+  bool operator ==(Object other)
+  const Rgba8Texel({required this.r, required this.g, required this.b, required this.a})
+  final int a
+  final int b
+  final int g
+  final int r
+  int get hashCode
+
 final class Scene
   Aabb3 computeBounds({bool visibleOnly = true, bool castersOnly = false})
   IrradianceField? irradianceField
   LightNode? firstLightOfType(LightType type)
   LinearColor ambientColor
   List<CameraNode> get cameras
+  List<CameraView> get textureViews
   List<DecalNode> get decals
   List<LightNode> get lights
   List<LodGroup> get lodGroups
   List<MeshNode> get meshes
   List<PlanarReflectorNode> get reflectors
   List<ReflectionProbeNode> get probes
-  List<RenderView> get textureViews
   Registration onOriginShift(void Function(OriginShifted shift) handler)
   Scene({String? name})
   SceneTurn reserveTurn()
@@ -4521,11 +4626,11 @@ final class Scene
   int environmentLevels
   int get overflowingLights
   int get staticShadowGeneration
-  void addTextureView(RenderView texture)
+  void addTextureView(CameraView texture)
   void clear()
   void invalidateStaticShadows()
   void remove(SceneNode node)
-  void removeTextureView(RenderView texture)
+  void removeTextureView(CameraView texture)
   void shiftOrigin(WorldPosition to)
 
 final class SceneBinding
@@ -4667,6 +4772,14 @@ final class SceneTurn
   void release()
 
 typedef ScreenBounds = ({double left, double top, double right, double bottom});
+
+final class ScreenPoint
+  String toString()
+  bool operator ==(Object other)
+  const ScreenPoint({required this.x, required this.y})
+  final double x
+  final double y
+  int get hashCode
 
 final class SettingsExtensions
   Map<String, Object?> toJson()
@@ -4985,9 +5098,9 @@ final class SoftwareOcclusion
 
 final class SolidColorTexture extends ProceduralTexture
   ByteData encode()
-  SolidColorTexture(LinearColor color, {this.size = 1})
-  const SolidColorTexture.texel(double r, double g, double b, {double a = 1, this.size = 1})
-  final ({double r, double g, double b, double a}) texel
+  SolidColorTexture(LinearColor color, {int size = 1})
+  TexelValue get texel
+  const SolidColorTexture.texel(double r, double g, double b, {double this._a = 1, this.size = 1})
   final int size
   static const SolidColorTexture flatNormal = SolidColorTexture.texel(0.5, 0.5, 1.0)
   static const SolidColorTexture white = SolidColorTexture.texel(1, 1, 1)
@@ -5055,7 +5168,7 @@ final class SplatComposite
   static const SplatComposite sorted = SplatComposite._('sorted')
 
 final class SplatContributor extends PassContributor
-  Aabb3? boundsFor(RenderView view)
+  Aabb3? boundsFor(CameraView view)
   SplatCloud get cloud
   SplatComposite composite
   SplatContributor(SplatCloud cloud, {this.node, this.composite = SplatComposite.automatic})
@@ -5232,6 +5345,14 @@ final class SurfaceMaterial
   final double roughness
   final int? materialVersion
 
+final class SymmetricEigen
+  String toString()
+  bool operator ==(Object other)
+  const SymmetricEigen({required this.values, required this.vectors})
+  final Float64List values
+  final Float64List vectors
+  int get hashCode
+
 final class TangentMethod
   String toString()
   final String name
@@ -5250,7 +5371,7 @@ final class TelemetryLevel
   static const TelemetryLevel timings = TelemetryLevel._('timings', 2)
 
 final class TemporalClip
-  List<(double, double, double)> get axes
+  List<ClipAxis> get axes
   String toString()
   final String name
   final int axisCount
@@ -5271,6 +5392,16 @@ final class TemporalSettings
   final double reactive
   final double sharpen
   final int sequenceLength
+
+final class TexelValue
+  String toString()
+  bool operator ==(Object other)
+  const TexelValue({required this.r, required this.g, required this.b, required this.a})
+  final double a
+  final double b
+  final double g
+  final double r
+  int get hashCode
 
 final class Texture3DField extends FieldStorage
   FieldResidence get residence
@@ -5691,11 +5822,11 @@ DecodedImage decodePng(Uint8List bytes)
 
 SplatCloud decodeSplatPage(Uint8List bytes, int count)
 
-List<(int, int, int, int)> decodeUniversalBlock(Uint8List blocks, int index)
+List<Rgba8Texel> decodeUniversalBlock(Uint8List blocks, int index)
 
 const int defaultVertexCacheSize = 32
 
-String? describeEmptyFrame(Scene scene, List<RenderView> views)
+String? describeEmptyFrame(Scene scene, List<CameraView> views)
 
 MaterialBindings describeMaterial(MaterialProgram program)
 
@@ -5709,7 +5840,7 @@ Map<String, String> emitMaterialVertexStages(MaterialProgram program)
 
 Uint8List encodeAstc4x4(Rgba8Image image)
 
-Uint8List encodeAstc4x4Block(List<(int, int, int, int)> pixels)
+Uint8List encodeAstc4x4Block(List<Rgba8Texel> pixels)
 
 Uint8List encodeBc1(Rgba8Image image)
 
@@ -5719,7 +5850,7 @@ Uint8List encodeCompressedPng(int width, int height, Uint8List rgba)
 
 Uint8List encodeEtc2Rgb8(Rgba8Image image)
 
-Uint8List encodeEtc2Rgb8Block(List<(int, int, int, int)> pixels)
+Uint8List encodeEtc2Rgb8Block(List<Rgba8Texel> pixels)
 
 Uint8List encodeModel(ModelWriteRequest request)
 
@@ -5729,7 +5860,7 @@ Vector2 encodeOctahedral(Vector3 direction, [Vector2? out])
 
 Uint8List encodeSplatOctree(SplatOctree tree)
 
-Uint8List encodeUniversalBlock(List<(int, int, int, int)> pixels)
+Uint8List encodeUniversalBlock(List<Rgba8Texel> pixels)
 
 Uint8List encodeUniversalBlocks(Rgba8Image image)
 
@@ -5795,7 +5926,7 @@ void gatherProbe(IrradianceField field, Scene scene, int x, int y, int z, {int r
 
 bool hasConflictingTextureTransforms(SurfaceMaterial material)
 
-({int width, int height})? hdrSizeOf(Uint8List bytes)
+PixelExtent? hdrSizeOf(Uint8List bytes)
 
 MeshData impostorCard({required Vector3 center, required double radius})
 
@@ -5833,7 +5964,7 @@ bool isOrthographic(Matrix4 viewProjection)
 
 bool isPng(Uint8List bytes)
 
-(double, double) jitterOffset(int frame, int length)
+PixelJitter jitterOffset(int frame, int length)
 
 const int ktx2HeaderBytes = 36
 
@@ -5983,9 +6114,9 @@ const int payloadMask = (1 << payloadBits) - 1
 
 PhotoPlan photoSettings(RenderSettings settings, PhotoFilter filter, double exposure)
 
-const FormatSpec pipelineFormat = FormatSpec(id: 'f3d.pipeline', version: pipelineVersion, suffixes: <String>['.pipeline.json'], fixture: 'test/fixtures/v<N>/standard.pipeline.json')
+const FormatSpec pipelineFormat = …
 
-const int pipelineVersion = 1
+const int pipelineVersion = 2
 
 Vector4 planeInEyeSpace(Matrix4 view, Vector3 normal, Vector3 point, {double offset = 0.0})
 
@@ -5993,7 +6124,7 @@ bool probeFaceIsMirrored(FramebufferOrigin origin)
 
 Matrix4 probeFaceViewProjection(int face, Vector3 position, {required double near, required double far, required FramebufferOrigin origin, required DepthRange depthRange})
 
-({double x, double y})? projectPoint(Matrix4 viewProjection, Vector3 point, {required double width, required double height})
+ScreenPoint? projectPoint(Matrix4 viewProjection, Vector3 point, {required double width, required double height})
 
 void radixSortPackedKeys(Int64List buffer, Int64List scratch, int count, {Uint32List? counts})
 
@@ -6095,7 +6226,7 @@ SurfaceMaterial surfaceMaterialFromJson(Map<String, Object?> json, {LightingMode
 
 Map<String, Object?> surfaceMaterialToJson(SurfaceMaterial surface, {LightingModels? lightingModels})
 
-(Float64List, Float64List) symmetricEigen3(Float64List m)
+SymmetricEigen symmetricEigen3(Float64List m)
 
 int textureBytes(TextureHandle texture)
 
@@ -6105,7 +6236,7 @@ Matrix4 toDepthRange(Matrix4 projection, DepthRange range)
 
 Matrix4 toFramebufferOrigin(Matrix4 projection, FramebufferOrigin origin)
 
-(int magFilter, int minFilter) toGltfFilters(TextureSampling sampling)
+GltfFilters toGltfFilters(TextureSampling sampling)
 
 Matrix4 toReversedDepth(Matrix4 projection)
 
@@ -6344,14 +6475,24 @@ abstract base class CheckedModelWriter extends ModelWriter
   abstract double get tolerance
   const CheckedModelWriter()
 
+final class ColorConfusion
+  String toString()
+  bool operator ==(Object other)
+  const ColorConfusion({required this.a, required this.b, required this.by, required this.distance})
+  final ColorVisionDeficiency by
+  final String a
+  final String b
+  final double distance
+  int get hashCode
+
 final class ColorHint extends MaterialHintKind
   const ColorHint({this.channels = 4})
   final int channels
 
 final class ColorVision
-  (double, double, double) applyEncoded(double r, double g, double b)
-  (double, double, double) applyLinear(double r, double g, double b)
   List<double> get matrix
+  RgbTriple applyEncoded(double r, double g, double b)
+  RgbTriple applyLinear(double r, double g, double b)
   TextureHandle? upload(GraphicsDevice device, {int size = 33, CubeLut? grade})
   Uint8List toStrip({int size = 33, CubeLut? grade})
   const ColorVision.correct(this.deficiency, {this.severity = 1.0})
@@ -6359,8 +6500,8 @@ final class ColorVision
   final ColorVisionDeficiency deficiency
   final bool corrects
   final double severity
-  static List<({String a, String b, ColorVisionDeficiency by, double distance})> confusions(Map<String, (double, double, double)> colors, {double within = 20.0})
-  static double difference((double, double, double) a, (double, double, double) b)
+  static List<ColorConfusion> confusions(Map<String, RgbTriple> colors, {double within = 20.0})
+  static double difference(RgbTriple a, RgbTriple b)
 
 final class ColorVisionDeficiency
   String toString()
@@ -6371,12 +6512,12 @@ final class ColorVisionDeficiency
   static const List<ColorVisionDeficiency> values = <ColorVisionDeficiency>[protan, deutan, tritan]
 
 final class CubeLut
-  (double, double, double) lookup(double r, double g, double b)
+  RgbTriple lookup(double r, double g, double b)
   TextureHandle? upload(GraphicsDevice device, {int? stripSize})
   Uint8List toStrip({int? stripSize})
   factory CubeLut.parse(String text)
-  final (double, double, double) domainMax
-  final (double, double, double) domainMin
+  final RgbTriple domainMax
+  final RgbTriple domainMin
   final String? title
   final bool isOneD
   final int size
@@ -6719,6 +6860,14 @@ enum GltfComponentType
   int readInt(ByteData data, int offset)
   static GltfComponentType fromCode(int code)
 
+final class GltfFilters
+  String toString()
+  bool operator ==(Object other)
+  const GltfFilters({required this.magFilter, required this.minFilter})
+  final int magFilter
+  final int minFilter
+  int get hashCode
+
 final class GltfFormatException extends Flutter3dFormatException
   String toString()
   const GltfFormatException(this.message)
@@ -6823,6 +6972,7 @@ final class Ktx2Texture
 
 final class LightingModel
   LightingModel withLayers(MaterialExtensions? layers, {bool textureTransforms = false})
+  String get name
   bool get usesFogInfo
   bool get usesLightList
   bool get usesPointShadow
@@ -6845,6 +6995,7 @@ final class LightingModel
   final bool vertexStageInDepthPasses
   final bool vertexStageMorphs
   int get pipelineGroup
+  static String shaderNameOf(String name)
   static const LightingModel blinnPhong = LightingModel('Blinn-Phong', 'BlinnPhong')
   static const LightingModel impostor = …
   static const LightingModel lambert = LightingModel('Lambert', 'Lambert', usesMetallicRoughnessMap: false)
@@ -6859,7 +7010,7 @@ final class LightingModel
   static const List<LightingModel> builtIn = <LightingModel>[unlit, lambert, blinnPhong, pbr, toon, normals]
 
 final class LightingModels extends PluginRegistry
-  LightingModel? named(String shaderName)
+  LightingModel? named(String name)
   LightingModels forPlugin(PluginScope scope)
   LightingModels()
   List<LightingModel> get all
@@ -6962,8 +7113,8 @@ abstract base class MaterialExpressionVisitor<R> extends ExpressionVisitor<R>
   const MaterialExpressionVisitor()
 
 final class MaterialExtensions
-  List<({TextureBinding binding, int channel})?> get coatMapSources
-  List<({TextureBinding binding, int channel})?> get sheenMapSources
+  List<PackedMapSource?> get coatMapSources
+  List<PackedMapSource?> get sheenMapSources
   List<TextureBinding> get textures
   MaterialExtensions mapTextures(TextureBinding? Function(TextureBinding binding) map)
   MaterialExtensions({this.ior = 1.5, this.specular = 1.0, this.specularTexture, this.specularColor = LinearColor.white, this.specularColorTexture, this.clearcoat = 0.0, this.clearcoatTexture, this.clearcoatRoughness = 0.0, this.clearcoatRoughnessTexture, this.clearcoatNormalTexture, this.clearcoatNormalScale = 1.0, this.sheenColor = LinearColor.black, this.sheenColorTexture, this.sheenRoughness = 0.0, this.sheenRoughnessTexture, this.anisotropyStrength = 0.0, this.anisotropyRotation = 0.0, this.anisotropyTexture, this.transmission = 0.0, this.transmissionTexture, this.thickness = 0.0, this.thicknessTexture, this.attenuationDistance = double.infinity, this.attenuationColor = LinearColor.white, this.convexVolume = false, this.dispersion = 0.0, this.iridescence = 0.0, this.iridescenceTexture, this.iridescenceIor = 1.3, this.iridescenceThicknessMinimum = 100.0, this.iridescenceThicknessMaximum = 400.0, this.iridescenceThicknessTexture})
@@ -7464,6 +7615,14 @@ final class ObjWriter
   final int decimals
   late final List<String> warnings
 
+final class PackedMapSource
+  String toString()
+  bool operator ==(Object other)
+  const PackedMapSource({required this.binding, required this.channel})
+  final TextureBinding binding
+  final int channel
+  int get hashCode
+
 final class PagedSplatOctree
   Future<void> get idle
   Object? lastError
@@ -7510,6 +7669,14 @@ final class PipelineNode
   final String? step
   final bool engine
 
+final class PixelExtent
+  String toString()
+  bool operator ==(Object other)
+  const PixelExtent({required this.width, required this.height})
+  final int height
+  final int width
+  int get hashCode
+
 final class PlainModelDocument extends ModelDocument
   const PlainModelDocument({this.surfaces = const <ModelSurface>[], this.materials = const <SurfaceMaterial>[], this.images = const <EncodedImage>[], this.nodes = const <ModelNode>[], this.animations = const <AnimationClip>[], this.skins = const <ModelSkin>[], this.lights = const <ModelLight>[], this.cameras = const <ModelCamera>[], this.warnings = const <String>[], this.asset, this.variants = const <String>[]})
   final DocumentAsset? asset
@@ -7536,6 +7703,15 @@ final class ResourceLoadCanceledException extends ResourceException
   const ResourceLoadCanceledException(this.key)
   final Object? key
 
+final class RgbTriple
+  String toString()
+  bool operator ==(Object other)
+  const RgbTriple({required this.r, required this.g, required this.b})
+  final double b
+  final double g
+  final double r
+  int get hashCode
+
 final class Rgba8Image
   Rgba8Image({required this.width, required this.height, required Uint8List pixels})
   final Uint8List pixels
@@ -7545,6 +7721,16 @@ final class Rgba8Image
   int blue(int x, int y)
   int green(int x, int y)
   int red(int x, int y)
+
+final class Rgba8Texel
+  String toString()
+  bool operator ==(Object other)
+  const Rgba8Texel({required this.r, required this.g, required this.b, required this.a})
+  final int a
+  final int b
+  final int g
+  final int r
+  int get hashCode
 
 final class SplatAxes
   String toString()
@@ -7680,6 +7866,14 @@ final class SurfaceMaterial
   final double occlusionStrength
   final double roughness
   final int? materialVersion
+
+final class SymmetricEigen
+  String toString()
+  bool operator ==(Object other)
+  const SymmetricEigen({required this.values, required this.vectors})
+  final Float64List values
+  final Float64List vectors
+  int get hashCode
 
 final class TextureBinding
   const TextureBinding({required this.imageIndex, this.texCoordSet = 0, this.sampling = const TextureSampling(), this.transform})
@@ -7851,7 +8045,7 @@ DecodedImage decodePng(Uint8List bytes)
 
 SplatCloud decodeSplatPage(Uint8List bytes, int count)
 
-List<(int, int, int, int)> decodeUniversalBlock(Uint8List blocks, int index)
+List<Rgba8Texel> decodeUniversalBlock(Uint8List blocks, int index)
 
 MaterialBindings describeMaterial(MaterialProgram program)
 
@@ -7863,7 +8057,7 @@ Map<String, String> emitMaterialVertexStages(MaterialProgram program)
 
 Uint8List encodeAstc4x4(Rgba8Image image)
 
-Uint8List encodeAstc4x4Block(List<(int, int, int, int)> pixels)
+Uint8List encodeAstc4x4Block(List<Rgba8Texel> pixels)
 
 Uint8List encodeBc1(Rgba8Image image)
 
@@ -7873,11 +8067,11 @@ Uint8List encodeCompressedPng(int width, int height, Uint8List rgba)
 
 Uint8List encodeEtc2Rgb8(Rgba8Image image)
 
-Uint8List encodeEtc2Rgb8Block(List<(int, int, int, int)> pixels)
+Uint8List encodeEtc2Rgb8Block(List<Rgba8Texel> pixels)
 
 Uint8List encodeSplatOctree(SplatOctree tree)
 
-Uint8List encodeUniversalBlock(List<(int, int, int, int)> pixels)
+Uint8List encodeUniversalBlock(List<Rgba8Texel> pixels)
 
 Uint8List encodeUniversalBlocks(Rgba8Image image)
 
@@ -7929,7 +8123,7 @@ const int fmatVersion = 1
 
 bool hasConflictingTextureTransforms(SurfaceMaterial material)
 
-({int width, int height})? hdrSizeOf(Uint8List bytes)
+PixelExtent? hdrSizeOf(Uint8List bytes)
 
 Uint8List? inflate(Uint8List data)
 
@@ -8057,9 +8251,9 @@ SplatCloud parseSplatPly(Uint8List bytes, {bool keepHigherBands = false, SplatCo
 
 SplatCloud parseSplatSpz(Uint8List bytes, {SplatAxes axes = SplatAxes.rightUpBack, bool keepHigherBands = true, SplatColorSpace colorSpace = SplatColorSpace.srgb})
 
-const FormatSpec pipelineFormat = FormatSpec(id: 'f3d.pipeline', version: pipelineVersion, suffixes: <String>['.pipeline.json'], fixture: 'test/fixtures/v<N>/standard.pipeline.json')
+const FormatSpec pipelineFormat = …
 
-const int pipelineVersion = 1
+const int pipelineVersion = 2
 
 MaterialDocument readFmat(Uint8List bytes, {String name = '', LightingModels? lightingModels})
 
@@ -8107,9 +8301,9 @@ SurfaceMaterial surfaceMaterialFromJson(Map<String, Object?> json, {LightingMode
 
 Map<String, Object?> surfaceMaterialToJson(SurfaceMaterial surface, {LightingModels? lightingModels})
 
-(Float64List, Float64List) symmetricEigen3(Float64List m)
+SymmetricEigen symmetricEigen3(Float64List m)
 
-(int magFilter, int minFilter) toGltfFilters(TextureSampling sampling)
+GltfFilters toGltfFilters(TextureSampling sampling)
 
 Uint8List transcodeUniversal(Uint8List blocks, UniversalTarget target, {required int width, required int height})
 

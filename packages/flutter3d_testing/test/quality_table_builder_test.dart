@@ -14,7 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 const int _width = 48;
 const int _height = 32;
 
-({Scene scene, RenderView view, RenderSettings settings}) _crates(
+({Scene scene, CameraView view, RenderSettings settings}) _crates(
   GraphicsDevice device,
 ) {
   final camera = CameraNode()
@@ -46,7 +46,7 @@ const int _height = 32;
     ..add(camera);
   return (
     scene: scene,
-    view: RenderView(camera: camera),
+    view: CameraView(camera: camera),
     settings: const RenderSettings(
       ambientOcclusion: AmbientOcclusionSettings(enabled: true),
     ),

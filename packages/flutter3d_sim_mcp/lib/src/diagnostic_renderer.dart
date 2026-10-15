@@ -128,17 +128,51 @@ final class DiagnosticFrame {
   /// ordinary, and not what this looks for; a target nothing wrote is a
   /// different, and much easier, question a caller can put to [rawAt](0, 0)
   /// once instead.
-  ({int x, int y, int channel})? firstNonFinite() {
+  NonFinitePixel? firstNonFinite() {
     for (var y = 0; y < height; y++) {
       for (var x = 0; x < width; x++) {
         final i = y * _stride + x * 4;
         for (var c = 0; c < 4; c++) {
-          if (!raw[i + c].isFinite) return (x: x, y: y, channel: c);
+          if (!raw[i + c].isFinite) {
+            return NonFinitePixel(x: x, y: y, channel: c);
+          }
         }
       }
     }
     return null;
   }
+}
+
+/// A pixel of a [DiagnosticFrame] with a channel that is not finite: what
+/// [DiagnosticFrame.firstNonFinite] answers.
+final class NonFinitePixel {
+  const NonFinitePixel({
+    required this.x,
+    required this.y,
+    required this.channel,
+  });
+
+  /// The pixel's column, from the left.
+  final int x;
+
+  /// The pixel's row, from the top.
+  final int y;
+
+  /// Which channel is not finite: 0 to 3 for R, G, B and A.
+  final int channel;
+
+  @override
+  bool operator ==(Object other) =>
+      other is NonFinitePixel &&
+      other.x == x &&
+      other.y == y &&
+      other.channel == channel;
+
+  @override
+  int get hashCode => Object.hash(x, y, channel);
+
+  @override
+  String toString() => 'NonFinitePixel($x, $y, channel $channel)';
 }
 
 /// Decodes [DiagnosticView.normals]'s R and G channels back into a unit
@@ -283,8 +317,8 @@ final class DiagnosticRenderer {
         width: width,
         height: height,
         scene: _scene,
-        views: <RenderView>[
-          RenderView(
+        views: <CameraView>[
+          CameraView(
             camera: camera,
             clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
           ),

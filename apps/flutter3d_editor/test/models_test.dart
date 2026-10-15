@@ -243,8 +243,8 @@ void main() {
       width: 32,
       height: 32,
       scene: scene,
-      views: <RenderView>[
-        RenderView(
+      views: <CameraView>[
+        CameraView(
           camera: camera,
           clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
         ),

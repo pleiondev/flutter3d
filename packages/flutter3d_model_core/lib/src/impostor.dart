@@ -53,6 +53,39 @@ typedef ImpostorView = ({int index, double yaw, AtlasCell cell});
 /// exactly what it was before this comment.
 typedef AtlasCell = ({double x, double y, double width, double height});
 
+/// The two baked views a camera stands between, and how far it has turned
+/// from the first toward the second: what [ImpostorAtlas.pick] answers.
+final class ImpostorPick {
+  /// The pick of [view], cross-fading toward [next] by [blend].
+  const ImpostorPick({
+    required this.view,
+    required this.next,
+    required this.blend,
+  });
+
+  /// The index of the view the camera has most recently turned past.
+  final int view;
+
+  /// The index of the view after [view], the one the camera turns toward.
+  final int next;
+
+  /// How far between [view] and [next] the camera stands, a fraction 0..1.
+  final double blend;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ImpostorPick &&
+      other.view == view &&
+      other.next == next &&
+      other.blend == blend;
+
+  @override
+  int get hashCode => Object.hash(view, next, blend);
+
+  @override
+  String toString() => 'ImpostorPick($view -> $next at $blend)';
+}
+
 /// The angles an impostor holds and where each of them lives in its atlas.
 final class ImpostorAtlas {
   ImpostorAtlas({this.angles = 8, this.size = 1024})
@@ -103,11 +136,11 @@ final class ImpostorAtlas {
   /// handing back how far between them the camera stands lets a shader cross-
   /// fade, which is what turns eight pictures into something that reads as
   /// turning rather than as flicking.
-  ({int view, int next, double blend}) pick(double cameraYaw) {
+  ImpostorPick pick(double cameraYaw) {
     final double step = 2 * math.pi / angles;
     final double turns = (cameraYaw % (2 * math.pi)) / step;
     final int view = turns.floor() % angles;
-    return (
+    return ImpostorPick(
       view: view,
       next: (view + 1) % angles,
       blend: turns - turns.floor(),
@@ -259,7 +292,7 @@ Future<ImpostorBake> bakeImpostor({
   double fovY = math.pi / 8,
   RenderSettings settings = const RenderSettings(),
 
-  /// The background, linear as `RenderView.clearColor` is.
+  /// The background, linear as `CameraView.clearColor` is.
   LinearColor? clearColor,
 }) async {
   final int cell = atlas.cellSize;

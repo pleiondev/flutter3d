@@ -20,7 +20,8 @@ import 'package:flutter/services.dart'
     show KeyDownEvent, LogicalKeyboardKey, rootBundle;
 import 'package:flutter3d_effects/flutter3d_effects.dart'
     show Elements, ElementsQuality, HearingScale, LiquidLook, PhysicsHearing;
-import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Portable, SinCos;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_kit/ghost.dart' show Ghost, RunGhost;
 import 'package:flutter3d_game_kit/reactions.dart' show ReactionsPlugin;
@@ -1976,6 +1977,6 @@ class _GameScreenState extends State<GameScreen> {
 /// cosine: `Quaternion.axisAngle` asks `dart:math`, whose last bits differ
 /// between the VM and a browser.
 Quaternion _turn(Vector3 axis, double angle) {
-  final (:sin, :cos) = Portable.sinCos(angle * 0.5);
+  final SinCos(:sin, :cos) = Portable.sinCos(angle * 0.5);
   return Quaternion(axis.x * sin, axis.y * sin, axis.z * sin, cos);
 }

@@ -704,7 +704,7 @@ final class LayerInfoBlock extends UniformBlock {
   /// `uv_transform`: 10 × Vector4, at byte 112.
   final Float32List uvTransform = Float32List(40);
 
-  /// `scene_colour`: Vector4, at byte 272.
+  /// `scene_color`: Vector4, at byte 272.
   final Float32List sceneColor = Float32List(4);
 
   /// `scene_viewport`: Vector4, at byte 288.
@@ -726,7 +726,7 @@ final class LayerInfoBlock extends UniformBlock {
     'attenuation': attenuation,
     'iridescence': iridescence,
     'uv_transform': uvTransform,
-    'scene_colour': sceneColor,
+    'scene_color': sceneColor,
     'scene_viewport': sceneViewport,
     'scene_levels': sceneLevels,
     'scene_view_projection': sceneViewProjection,

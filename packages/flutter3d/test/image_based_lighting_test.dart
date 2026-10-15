@@ -85,8 +85,8 @@ Future<Uint8List> _draw(
     width: _width,
     height: _height,
     scene: it.scene,
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: it.camera,
         clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),

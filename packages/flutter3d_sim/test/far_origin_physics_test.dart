@@ -122,7 +122,7 @@ double _error(
 ) => <double>[
   for (var i = 0; i < near.length; i++)
     () {
-      final (:x, :y, :z) = far[i].relativeTo(site);
+      final WorldOffset(:x, :y, :z) = far[i].relativeTo(site);
       final n = near[i];
       return math.sqrt(
         (x - n.x) * (x - n.x) + (y - n.y) * (y - n.y) + (z - n.z) * (z - n.z),

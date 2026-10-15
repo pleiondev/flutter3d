@@ -63,23 +63,23 @@ final class AxisSettings {
 
   /// A stick: the dead zone is round, measured on the pair's length, so a
   /// diagonal is not cut where a single axis would not be.
-  (double, double) shapePair(double x, double y) {
-    if (isIdentity) return (x, y);
+  ShapedPair shapePair(double x, double y) {
+    if (isIdentity) return ShapedPair(x: x, y: y);
     final length = math.sqrt(x * x + y * y);
-    if (length <= deadZone || length == 0.0) return (0.0, 0.0);
+    if (length <= deadZone || length == 0.0) return ShapedPair.zero;
     final scale = (length - deadZone) / (1.0 - deadZone) / length * sensitivity;
     final sx = x * scale;
     final sy = y * scale;
-    return (invertX ? -sx : sx, invertY ? -sy : sy);
+    return ShapedPair(x: invertX ? -sx : sx, y: invertY ? -sy : sy);
   }
 
   /// Motion since the last step — a mouse's — which has no rest to cut and
   /// no range to clamp to: sensitivity and invert only.
-  (double, double) shapeDelta(double dx, double dy) {
-    if (isIdentity) return (dx, dy);
+  ShapedPair shapeDelta(double dx, double dy) {
+    if (isIdentity) return ShapedPair(x: dx, y: dy);
     final sx = dx * sensitivity;
     final sy = dy * sensitivity;
-    return (invertX ? -sx : sx, invertY ? -sy : sy);
+    return ShapedPair(x: invertX ? -sx : sx, y: invertY ? -sy : sy);
   }
 
   AxisSettings copyWith({
@@ -111,6 +111,33 @@ final class AxisSettings {
 
   @override
   int get hashCode => Object.hash(deadZone, sensitivity, invertX, invertY);
+}
+
+/// Two numbers of a two-axis source after its [AxisSettings] shaped them:
+/// what [AxisSettings.shapePair] and [AxisSettings.shapeDelta] answer.
+final class ShapedPair {
+  const ShapedPair({required this.x, required this.y});
+
+  /// Both numbers at rest.
+  static const ShapedPair zero = ShapedPair(x: 0.0, y: 0.0);
+
+  /// The first number, rightwards: a fraction of travel from -1 to 1 for a
+  /// stick, pixels of motion for a mouse.
+  final double x;
+
+  /// The second number, upwards for a stick: a fraction of travel from -1
+  /// to 1 for a stick, pixels of motion for a mouse.
+  final double y;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ShapedPair && other.x == x && other.y == y;
+
+  @override
+  int get hashCode => Object.hash(x, y);
+
+  @override
+  String toString() => 'ShapedPair($x, $y)';
 }
 
 /// Which part of a composite binding a source drives.

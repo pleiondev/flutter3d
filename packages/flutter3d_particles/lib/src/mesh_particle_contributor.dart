@@ -151,7 +151,7 @@ final class MeshParticleContributor extends PassContributor {
   /// particle's size and put at its position, as the vertex stage places it
   /// (`i_position + position * i_scale`).
   @override
-  vm.Aabb3 boundsFor(RenderView view) => particles.boundsOf(mesh.bounds);
+  vm.Aabb3 boundsFor(CameraView view) => particles.boundsOf(mesh.bounds);
 
   @override
   void encode(ContributorFrame frame) {

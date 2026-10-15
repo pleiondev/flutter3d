@@ -43,7 +43,7 @@ final class InputFrame {
     this.slot,
     this.tunes = const <String, double>{},
     this.axes = const <String, double>{},
-    this.dualAxes = const <String, ({double x, double y})>{},
+    this.dualAxes = const <String, DualAxisValue>{},
     this.external = const <ExternalStateInput>[],
   });
 
@@ -83,13 +83,16 @@ final class InputFrame {
               .entries)
         entry.key! as String: (entry.value! as num).toDouble(),
     },
-    dualAxes: <String, ({double x, double y})>{
+    dualAxes: <String, DualAxisValue>{
       for (final entry
           in (json['dual'] as Map<Object?, Object?>? ??
                   const <Object?, Object?>{})
               .entries)
         entry.key! as String: switch (entry.value) {
-          [final num x, final num y] => (x: x.toDouble(), y: y.toDouble()),
+          [final num x, final num y] => DualAxisValue(
+            x: x.toDouble(),
+            y: y.toDouble(),
+          ),
           final other => throw InputTapeFormatException(
             'the dual axis ${entry.key} is $other, not a pair of numbers',
           ),
@@ -153,7 +156,7 @@ final class InputFrame {
   /// Each [DualAxisAction] with a value this step, by name, other than
   /// [DualAxisAction.move] and [DualAxisAction.look] — [stickX]/[stickY] and
   /// [lookX]/[lookY] are those two. Written from [InputTape.version] 2.
-  final Map<String, ({double x, double y})> dualAxes;
+  final Map<String, DualAxisValue> dualAxes;
 
   /// State that arrived from outside the simulation for this step, in the
   /// order it was fed (`InputState.feedExternal`): the step's own kind of
@@ -228,10 +231,35 @@ final class InputFrame {
     if (axes.isNotEmpty) 'axes': axes,
     if (dualAxes.isNotEmpty)
       'dual': <String, List<double>>{
-        for (final MapEntry(key: name, value: (:x, :y)) in dualAxes.entries)
+        for (final MapEntry(key: name, value: DualAxisValue(:x, :y))
+            in dualAxes.entries)
           name: <double>[x, y],
       },
   };
+}
+
+/// A [DualAxisAction]'s pair in one [InputFrame], as [InputFrame.dualAxes]
+/// holds it.
+final class DualAxisValue {
+  const DualAxisValue({required this.x, required this.y});
+
+  /// The first number: a unitless fraction of full deflection for a stick,
+  /// the device's own units for a delta.
+  final double x;
+
+  /// The second number: a unitless fraction of full deflection for a
+  /// stick, the device's own units for a delta.
+  final double y;
+
+  @override
+  bool operator ==(Object other) =>
+      other is DualAxisValue && other.x == x && other.y == y;
+
+  @override
+  int get hashCode => Object.hash(x, y);
+
+  @override
+  String toString() => 'DualAxisValue($x, $y)';
 }
 
 /// A run, as the inputs that produced it.
@@ -472,11 +500,11 @@ final class InputTapeRecorder {
           for (final MapEntry(key: axis, :value) in input.axisValues.entries)
             if (value != 0.0) axis.name: value,
         },
-        dualAxes: <String, ({double x, double y})>{
+        dualAxes: <String, DualAxisValue>{
           for (final MapEntry(key: axis, :value)
               in input.dualAxisValues.entries)
             if (value.x != 0.0 || value.y != 0.0)
-              axis.name: (x: value.x, y: value.y),
+              axis.name: DualAxisValue(x: value.x, y: value.y),
         },
         external: input.externalThisStep,
       ),
@@ -563,7 +591,8 @@ final class InputTapePlayback {
         input.clearDualAxis(DualAxisAction(axis));
       }
     }
-    for (final MapEntry(key: name, value: (:x, :y)) in frame.dualAxes.entries) {
+    for (final MapEntry(key: name, value: DualAxisValue(:x, :y))
+        in frame.dualAxes.entries) {
       // Cleared and added, as a delta: the action's own kind is not on the
       // tape, and adding to nothing writes the recorded pair exactly, where
       // setting would clamp a delta that was larger than one. The entry goes

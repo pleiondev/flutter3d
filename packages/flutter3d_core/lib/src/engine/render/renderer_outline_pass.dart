@@ -25,7 +25,7 @@ extension _OutlinePass on Renderer {
     required TextureHandle target,
     required TextureHandle surface,
     required Scene scene,
-    required List<RenderView> views,
+    required List<CameraView> views,
     required RenderSettings settings,
     required int width,
     required int height,

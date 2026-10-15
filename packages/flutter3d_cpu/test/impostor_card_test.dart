@@ -27,7 +27,7 @@ import 'package:flutter3d_core/flutter3d_core.dart'
         MeshNode,
         PerspectiveProjection,
         RenderSettings,
-        RenderView,
+        CameraView,
         Renderer,
         Scene,
         SurfaceAlphaMode,
@@ -261,8 +261,8 @@ Future<Uint8List> shot(
     width: side,
     height: side,
     scene: scene,
-    views: <RenderView>[
-      RenderView(camera: camera, clearColor: kBackdrop.toLinearColor()),
+    views: <CameraView>[
+      CameraView(camera: camera, clearColor: kBackdrop.toLinearColor()),
     ],
     settings: const RenderSettings(),
   );

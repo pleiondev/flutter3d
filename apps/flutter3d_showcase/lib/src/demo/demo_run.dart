@@ -20,7 +20,7 @@ final class DemoRun {
   /// contexts and a page that opened its own would leak one per visit.
   static Future<DemoRun> start(GraphicsDevice device, ShowcaseDemo demo) async {
     final CameraNode camera = CameraNode(name: 'eye');
-    final RenderView view = RenderView(
+    final CameraView view = CameraView(
       camera: camera,
       clearColor: LinearColor.fromSrgb(0.05, 0.05, 0.07, 1.0),
     );

@@ -1,3 +1,10 @@
+## 0.9.0
+
+- **On a 0.9 line of its own, outside the 1.0 promise.** Its signatures
+  carry types of a package before 1.0 or of one that takes a major a year,
+  so a release of that package would break a 1.0 API; on 0.x a minor may
+  break, and says how here. SUPPORT.md names the four packages on this line.
+
 ## 1.0.0-rc.1
 
 - **Breaking: the rule classes are the package's own.**

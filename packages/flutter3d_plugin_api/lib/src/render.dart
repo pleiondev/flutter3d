@@ -61,237 +61,253 @@ final class RenderAnchor {
   // -- Before the scene ---------------------------------------------------
 
   /// The start of the frame: nothing has been drawn.
-  static const RenderAnchor beforeShadows = RenderAnchor._('before shadows');
+  static const RenderAnchor beforeShadows = RenderAnchor._(
+    'f3d.before_shadows',
+  );
 
   /// The shadow maps are drawn: the point lights' atlases, the directional
   /// cascades and their moments. Nothing lit has been drawn yet.
-  static const RenderAnchor afterShadows = RenderAnchor._('after shadows');
+  static const RenderAnchor afterShadows = RenderAnchor._('f3d.after_shadows');
 
   /// Before the captures the scene samples: reflection probes, the
   /// irradiance field's update, render textures and planar reflections.
-  static const RenderAnchor beforeCaptures = RenderAnchor._('before captures');
+  static const RenderAnchor beforeCaptures = RenderAnchor._(
+    'f3d.before_captures',
+  );
 
   /// The captures are taken; the scene has not been drawn.
-  static const RenderAnchor afterCaptures = RenderAnchor._('after captures');
+  static const RenderAnchor afterCaptures = RenderAnchor._(
+    'f3d.after_captures',
+  );
 
   // -- The scene ----------------------------------------------------------
 
   /// Before the opaque half of the scene. The scene pass draws the opaque
   /// geometry and the sky in one render pass, so nothing can run between
   /// the two: a node here runs before both.
-  static const RenderAnchor beforeOpaque = RenderAnchor._('before opaque');
+  static const RenderAnchor beforeOpaque = RenderAnchor._('f3d.before_opaque');
 
   /// The opaque half and the sky are drawn, in HDR, with the surface buffer
   /// beside them. No decal, no glass.
-  static const RenderAnchor afterOpaque = RenderAnchor._('after opaque');
+  static const RenderAnchor afterOpaque = RenderAnchor._('f3d.after_opaque');
 
   /// Before the decals are painted onto the opaque half.
-  static const RenderAnchor beforeDecals = RenderAnchor._('before decals');
+  static const RenderAnchor beforeDecals = RenderAnchor._('f3d.before_decals');
 
   /// The decals are painted; the glass is not drawn.
-  static const RenderAnchor afterDecals = RenderAnchor._('after decals');
+  static const RenderAnchor afterDecals = RenderAnchor._('f3d.after_decals');
 
   /// Before the transparent half: its copy of the scene and the glass drawn
   /// over it.
   static const RenderAnchor beforeTransparent = RenderAnchor._(
-    'before transparent',
+    'f3d.before_transparent',
   );
 
   /// The transparent half is drawn.
   static const RenderAnchor afterTransparent = RenderAnchor._(
-    'after transparent',
+    'f3d.after_transparent',
   );
 
   /// The whole scene is drawn, with the object ids and the outline marks,
   /// and no post step has run. Where `FramePhase.overlay` puts a node.
-  static const RenderAnchor afterScene = RenderAnchor._('after scene');
+  static const RenderAnchor afterScene = RenderAnchor._('f3d.after_scene');
 
   // -- Light and shadow on the lit picture --------------------------------
 
   /// Before the screen-space reflections.
   static const RenderAnchor beforeReflections = RenderAnchor._(
-    'before reflections',
+    'f3d.before_reflections',
   );
 
   /// The screen-space reflections are added.
   static const RenderAnchor afterReflections = RenderAnchor._(
-    'after reflections',
+    'f3d.after_reflections',
   );
 
   /// Before the exposure meter reads the picture.
   static const RenderAnchor beforeAutoExposure = RenderAnchor._(
-    'before auto exposure',
+    'f3d.before_auto_exposure',
   );
 
   /// The exposure meter has read the picture.
   static const RenderAnchor afterAutoExposure = RenderAnchor._(
-    'after auto exposure',
+    'f3d.after_auto_exposure',
   );
 
   /// Before the depth pyramid the next frame culls with.
-  static const RenderAnchor beforeHiZ = RenderAnchor._('before hi-z');
+  static const RenderAnchor beforeHiZ = RenderAnchor._('f3d.before_hi_z');
 
   /// The depth pyramid is built.
-  static const RenderAnchor afterHiZ = RenderAnchor._('after hi-z');
+  static const RenderAnchor afterHiZ = RenderAnchor._('f3d.after_hi_z');
 
   /// Before the ambient occlusion and its blur.
   static const RenderAnchor beforeAmbientOcclusion = RenderAnchor._(
-    'before ambient occlusion',
+    'f3d.before_ambient_occlusion',
   );
 
   /// The ambient occlusion is computed and blurred.
   static const RenderAnchor afterAmbientOcclusion = RenderAnchor._(
-    'after ambient occlusion',
+    'f3d.after_ambient_occlusion',
   );
 
   /// Before the contact shadows and their resolve.
   static const RenderAnchor beforeContactShadows = RenderAnchor._(
-    'before contact shadows',
+    'f3d.before_contact_shadows',
   );
 
   /// The contact shadows are marched and resolved.
   static const RenderAnchor afterContactShadows = RenderAnchor._(
-    'after contact shadows',
+    'f3d.after_contact_shadows',
   );
 
   /// Before the motion of every pixel is written, with the reactive mask
   /// and the two histories the noisy effects are carried in.
-  static const RenderAnchor beforeVelocity = RenderAnchor._('before velocity');
+  static const RenderAnchor beforeVelocity = RenderAnchor._(
+    'f3d.before_velocity',
+  );
 
   /// The velocity, the reactive mask and the histories are written.
-  static const RenderAnchor afterVelocity = RenderAnchor._('after velocity');
+  static const RenderAnchor afterVelocity = RenderAnchor._(
+    'f3d.after_velocity',
+  );
 
   /// Before the fog marched through the light.
   static const RenderAnchor beforeVolumetricFog = RenderAnchor._(
-    'before volumetric fog',
+    'f3d.before_volumetric_fog',
   );
 
   /// The volumetric fog is added.
   static const RenderAnchor afterVolumetricFog = RenderAnchor._(
-    'after volumetric fog',
+    'f3d.after_volumetric_fog',
   );
 
   /// Before the shafts of sunlight.
   static const RenderAnchor beforeLightShafts = RenderAnchor._(
-    'before light shafts',
+    'f3d.before_light_shafts',
   );
 
   /// The light shafts are added.
   static const RenderAnchor afterLightShafts = RenderAnchor._(
-    'after light shafts',
+    'f3d.after_light_shafts',
   );
 
   // -- The lens and the sensor --------------------------------------------
 
   /// Before the depth of field.
   static const RenderAnchor beforeDepthOfField = RenderAnchor._(
-    'before depth of field',
+    'f3d.before_depth_of_field',
   );
 
   /// The depth of field is applied.
   static const RenderAnchor afterDepthOfField = RenderAnchor._(
-    'after depth of field',
+    'f3d.after_depth_of_field',
   );
 
   /// Before the motion blur.
   static const RenderAnchor beforeMotionBlur = RenderAnchor._(
-    'before motion blur',
+    'f3d.before_motion_blur',
   );
 
   /// The motion blur is applied.
   static const RenderAnchor afterMotionBlur = RenderAnchor._(
-    'after motion blur',
+    'f3d.after_motion_blur',
   );
 
   /// Before the jittered frames are blended across time.
   static const RenderAnchor beforeTemporalResolve = RenderAnchor._(
-    'before temporal resolve',
+    'f3d.before_temporal_resolve',
   );
 
   /// The temporal resolve has run. With it on, a node from here to the end
   /// works at the output size.
   static const RenderAnchor afterTemporalResolve = RenderAnchor._(
-    'after temporal resolve',
+    'f3d.after_temporal_resolve',
   );
 
   /// Before the local exposure is measured.
   static const RenderAnchor beforeLocalExposure = RenderAnchor._(
-    'before local exposure',
+    'f3d.before_local_exposure',
   );
 
   /// The local exposure is measured.
   static const RenderAnchor afterLocalExposure = RenderAnchor._(
-    'after local exposure',
+    'f3d.after_local_exposure',
   );
 
   /// Before the glow is taken from the picture.
-  static const RenderAnchor beforeBloom = RenderAnchor._('before bloom');
+  static const RenderAnchor beforeBloom = RenderAnchor._('f3d.before_bloom');
 
   /// The glow is taken; the lens flare is not drawn from it yet.
-  static const RenderAnchor afterBloom = RenderAnchor._('after bloom');
+  static const RenderAnchor afterBloom = RenderAnchor._('f3d.after_bloom');
 
   /// Before the lens flare is drawn from the glow.
   static const RenderAnchor beforeLensFlare = RenderAnchor._(
-    'before lens flare',
+    'f3d.before_lens_flare',
   );
 
   /// The lens flare is added to the glow.
-  static const RenderAnchor afterLensFlare = RenderAnchor._('after lens flare');
+  static const RenderAnchor afterLensFlare = RenderAnchor._(
+    'f3d.after_lens_flare',
+  );
 
   // -- The composite and after it -----------------------------------------
 
   /// The last place the picture is linear and unbounded: the composite that
   /// follows tone maps it, grades it and adds the glow, the lens and the
   /// film.
-  static const RenderAnchor beforeTonemap = RenderAnchor._('before tonemap');
+  static const RenderAnchor beforeTonemap = RenderAnchor._(
+    'f3d.before_tonemap',
+  );
 
   /// The picture is tone mapped and display-referred.
-  static const RenderAnchor afterTonemap = RenderAnchor._('after tonemap');
+  static const RenderAnchor afterTonemap = RenderAnchor._('f3d.after_tonemap');
 
   /// Before a reduced render scale is brought up to the output size.
   static const RenderAnchor beforeSpatialUpscale = RenderAnchor._(
-    'before spatial upscale',
+    'f3d.before_spatial_upscale',
   );
 
   /// The picture is at the output size. With the upscale on, a node from
   /// here to the end works at the output size.
   static const RenderAnchor afterSpatialUpscale = RenderAnchor._(
-    'after spatial upscale',
+    'f3d.after_spatial_upscale',
   );
 
   /// Before the edge smoothing and the sharpening.
   static const RenderAnchor beforeEdgeSmoothing = RenderAnchor._(
-    'before edge smoothing',
+    'f3d.before_edge_smoothing',
   );
 
   /// The edges are smoothed and sharpened.
   static const RenderAnchor afterEdgeSmoothing = RenderAnchor._(
-    'after edge smoothing',
+    'f3d.after_edge_smoothing',
   );
 
   /// Before the high-contrast look and its outlines.
   static const RenderAnchor beforeHighContrast = RenderAnchor._(
-    'before high contrast',
+    'f3d.before_high_contrast',
   );
 
   /// The high-contrast look is applied.
   static const RenderAnchor afterHighContrast = RenderAnchor._(
-    'after high contrast',
+    'f3d.after_high_contrast',
   );
 
   /// Before the editor's viewport shading modes.
   static const RenderAnchor beforeViewportShading = RenderAnchor._(
-    'before viewport shading',
+    'f3d.before_viewport_shading',
   );
 
   /// The viewport shading is applied.
   static const RenderAnchor afterViewportShading = RenderAnchor._(
-    'after viewport shading',
+    'f3d.after_viewport_shading',
   );
 
   /// The end of the frame: the picture is what the caller is about to be
   /// handed. Where `FramePhase.present` puts a node.
-  static const RenderAnchor beforePresent = RenderAnchor._('before present');
+  static const RenderAnchor beforePresent = RenderAnchor._(
+    'f3d.before_present',
+  );
 
   /// Every anchor, in the order the frame meets them.
   static const List<RenderAnchor> values = <RenderAnchor>[
@@ -349,9 +365,16 @@ final class RenderAnchor {
 
   /// The engine anchor called [name], or null. A plugin's anchors are found
   /// through the renderer that added them (`RendererSteps.anchorNamed`).
+  ///
+  /// The word from before the `f3d.` prefix (`after bloom`) finds the anchor
+  /// too, as the files written then name it: a word without a dot was
+  /// always the engine's.
   static RenderAnchor? named(String name) {
+    final word = name.contains('.')
+        ? name
+        : 'f3d.${name.toLowerCase().replaceAll(RegExp('[^a-z0-9]+'), '_')}';
     for (final anchor in values) {
-      if (anchor.name == name) return anchor;
+      if (anchor.name == name || anchor.name == word) return anchor;
     }
     return null;
   }

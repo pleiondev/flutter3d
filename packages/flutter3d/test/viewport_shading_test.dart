@@ -57,8 +57,8 @@ Future<({List<int> pixels, FrameResult result})> _frame(
     width: _size,
     height: _size,
     scene: scene,
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: scene.cameras.single,
         clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
@@ -328,7 +328,7 @@ void main() {
           width: _size,
           height: _size,
           scene: scene,
-          views: <RenderView>[RenderView(camera: scene.cameras.single)],
+          views: <CameraView>[CameraView(camera: scene.cameras.single)],
           settings: RenderSettings(viewportShading: shading),
         );
       }
@@ -354,7 +354,7 @@ void main() {
         width: _size,
         height: _size,
         scene: scene,
-        views: <RenderView>[RenderView(camera: scene.cameras.single)],
+        views: <CameraView>[CameraView(camera: scene.cameras.single)],
         settings: const RenderSettings(
           viewportShading: ViewportShadingSettings(
             mode: ViewportShading.normals,

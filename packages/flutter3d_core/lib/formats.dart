@@ -56,7 +56,7 @@ export 'src/formats/ktx2/encode/etc2_encoder.dart'
 export 'src/formats/ktx2/encode/ktx2_writer.dart' show writeKtx2;
 export 'src/formats/ktx2/encode/mip_chain.dart' show buildMipChain;
 export 'src/formats/ktx2/encode/mipped_ktx2_writer.dart' show writeKtx2WithMips;
-export 'src/formats/ktx2/encode/rgba8_image.dart' show Rgba8Image;
+export 'src/formats/ktx2/encode/rgba8_image.dart' show Rgba8Image, Rgba8Texel;
 export 'src/formats/ktx2/ktx2.dart';
 export 'src/formats/ktx2/universal/universal_block.dart'
     show
@@ -85,6 +85,7 @@ export 'src/formats/model_node.dart';
 export 'src/formats/model_writer.dart';
 export 'src/formats/obj/obj.dart';
 export 'src/formats/pipeline_document.dart';
+export 'src/formats/pixel_extent.dart';
 export 'src/formats/plain_model_document.dart';
 export 'src/formats/splat/splat.dart';
 // The transfer curve, for anybody on the far side of it from the engine: a

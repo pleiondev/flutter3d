@@ -143,7 +143,7 @@ final class XrDriver {
   XrSession get session => settings.session;
 
   final List<CameraNode> _eyes = <CameraNode>[];
-  final List<RenderView> _views = <RenderView>[];
+  final List<CameraView> _views = <CameraView>[];
   XrSwapchain? _swapchain;
   XrFrame? _pending;
   XrFrame? _current;
@@ -165,7 +165,7 @@ final class XrDriver {
 
   /// The views the frame is drawn through: one per view of the runtime's
   /// last frame, side by side in the target, each through its eye.
-  List<RenderView> get views => List<RenderView>.unmodifiable(_views);
+  List<CameraView> get views => List<CameraView>.unmodifiable(_views);
 
   /// Starts the session, makes its swapchain when it is immersive, adds the
   /// nodes the frame needs, and asks for the first frame. Throws the
@@ -266,9 +266,9 @@ final class XrDriver {
       }
       _views
         ..clear()
-        ..addAll(<RenderView>[
+        ..addAll(<CameraView>[
           for (var i = 0; i < count; i++)
-            RenderView(
+            CameraView(
               camera: _eyes[i],
               viewportFraction: ViewportRect(i / count, 0.0, 1 / count, 1.0),
             ),

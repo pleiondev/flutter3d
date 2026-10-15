@@ -34,7 +34,7 @@ Uint8List encodeBc1(Rgba8Image image) {
 
 /// Encodes one 4×4 block (sixteen `(r, g, b, a)` tuples, row-major) as the
 /// eight bytes of a single BC1 block. Alpha is ignored — BC1 has none.
-Uint8List encodeBc1Block(List<(int, int, int, int)> pixels) {
+Uint8List encodeBc1Block(List<Rgba8Texel> pixels) {
   final (:high, :low) = blockEndpoints(pixels);
   var pack0 = _quantize565(high);
   var pack1 = _quantize565(low);
@@ -44,7 +44,7 @@ Uint8List encodeBc1Block(List<(int, int, int, int)> pixels) {
 
   var indices = 0;
   for (var i = 0; i < 16; i++) {
-    final (r, g, b, _) = pixels[i];
+    final Rgba8Texel(:r, :g, :b) = pixels[i];
     var best = 0;
     var bestError = 1 << 30;
     for (var p = 0; p < 4; p++) {

@@ -87,7 +87,7 @@ base class GridMover extends Component with FixedStepUpdate {
   bool _stepped = false;
 
   /// The cell it left last, or stands in.
-  (int, int) get cell => (_column, _row);
+  GridCell get cell => GridCell(column: _column, row: _row);
 
   PositionComponent get _body => parent! as PositionComponent;
 
@@ -96,7 +96,7 @@ base class GridMover extends Component with FixedStepUpdate {
   void onMount() {
     super.onMount();
     _stepped = findGame() is HasFixedStep;
-    final (column, row) = grid.cellAt(_body.absolutePosition);
+    final GridCell(:column, :row) = grid.cellAt(_body.absolutePosition);
     _column = column;
     _row = row;
     _body.position.setFrom(grid.centerOf(column, row));

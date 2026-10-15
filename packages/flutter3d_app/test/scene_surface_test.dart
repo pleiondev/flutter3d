@@ -20,7 +20,7 @@ import 'package:flutter_test/flutter_test.dart';
 ///
 /// Sixteen by nine, because nothing here looks at the picture: every pump draws
 /// a frame in software, and the cost is per pixel.
-({Renderer renderer, Scene scene, RenderView view}) _stage() {
+({Renderer renderer, Scene scene, CameraView view}) _stage() {
   final device = CpuDevice(
     width: 16,
     height: 9,
@@ -29,7 +29,7 @@ import 'package:flutter_test/flutter_test.dart';
   return (
     renderer: Renderer.create(device: device),
     scene: Scene(),
-    view: RenderView(camera: CameraNode()),
+    view: CameraView(camera: CameraNode()),
   );
 }
 

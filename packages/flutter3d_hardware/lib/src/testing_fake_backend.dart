@@ -494,9 +494,7 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
 
   /// Every cube a pass may draw into, with the level count it was asked for,
   /// so a test can see that a probe allocated what it meant to.
-  final List<({int size, TextureFormat format, int mipLevels})>
-  createdCubeRenderTargets =
-      <({int size, TextureFormat format, int mipLevels})>[];
+  final List<FakeCubeTarget> createdCubeRenderTargets = <FakeCubeTarget>[];
 
   @override
   TextureHandle createCubeRenderTarget({
@@ -504,11 +502,9 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
     required TextureFormat format,
     int mipLevels = 1,
   }) {
-    createdCubeRenderTargets.add((
-      size: size,
-      format: format,
-      mipLevels: mipLevels,
-    ));
+    createdCubeRenderTargets.add(
+      FakeCubeTarget(size: size, format: format, mipLevels: mipLevels),
+    );
     return _born(
       wrapTexture(
         owner: this,
@@ -652,9 +648,8 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
   /// Every call [overwriteTexture] has recorded, in order — wiring, not
   /// content, the same promise [uploadedPixels] already makes for a whole
   /// upload.
-  final List<({TextureFormat format, ScreenRect region, int mipLevel})>
-  overwrittenTextures =
-      <({TextureFormat format, ScreenRect region, int mipLevel})>[];
+  final List<FakeTextureOverwrite> overwrittenTextures =
+      <FakeTextureOverwrite>[];
 
   @override
   Future<void> overwriteTexture(
@@ -692,11 +687,13 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
         '${rect.width}x${rect.height} RGBA8',
       );
     }
-    overwrittenTextures.add((
-      format: target.format,
-      region: rect,
-      mipLevel: mipLevel,
-    ));
+    overwrittenTextures.add(
+      FakeTextureOverwrite(
+        format: target.format,
+        region: rect,
+        mipLevel: mipLevel,
+      ),
+    );
   }
 
   /// Every pair linked so far, by name and in order, so a test can tell
@@ -788,8 +785,7 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
   /// Every call [overwriteGeometry] has recorded, in order — a test asks this
   /// rather than the bytes themselves, because this backend keeps none: it
   /// records wiring, not content, the same promise [uploads] already makes.
-  final List<({Object backend, int offsetInBytes, int lengthInBytes})>
-  overwrites = <({Object backend, int offsetInBytes, int lengthInBytes})>[];
+  final List<FakeGeometryOverwrite> overwrites = <FakeGeometryOverwrite>[];
 
   @override
   void overwriteGeometry(
@@ -804,11 +800,13 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
         'fit inside a ${target.lengthInBytes}-byte buffer',
       );
     }
-    overwrites.add((
-      backend: target.backend,
-      offsetInBytes: target.offsetInBytes + offsetInBytes,
-      lengthInBytes: bytes.lengthInBytes,
-    ));
+    overwrites.add(
+      FakeGeometryOverwrite(
+        backend: target.backend,
+        offsetInBytes: target.offsetInBytes + offsetInBytes,
+        lengthInBytes: bytes.lengthInBytes,
+      ),
+    );
   }
 
   @override
@@ -819,8 +817,7 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
   /// Recorded because the thing worth testing about a readback off a device is
   /// that it was asked for at all, of the right texture, for the right pixel —
   /// what comes back is the backend's business, and this one has no pixels.
-  final List<({TextureHandle texture, ScreenRect region})> readbacks =
-      <({TextureHandle texture, ScreenRect region})>[];
+  final List<FakeReadback> readbacks = <FakeReadback>[];
 
   /// What a readback answers, or null for a region of zeros.
   ///
@@ -838,7 +835,7 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
     final resolved = readbackConverts(texture, region: region)
         ? ScreenRect.of(texture)
         : readbackRegionOf(texture, region);
-    readbacks.add((texture: texture, region: resolved));
+    readbacks.add(FakeReadback(texture: texture, region: resolved));
     final answer = answerReadback;
     return Future<ByteData>.value(
       answer == null
@@ -945,4 +942,132 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
     _live.add(handle);
     return handle;
   }
+}
+
+/// One cube render target a [FakeBackend] was asked for, as
+/// [FakeBackend.createdCubeRenderTargets] lists it.
+final class FakeCubeTarget {
+  /// A cube [size] texels on a side, in [format], with [mipLevels] levels.
+  const FakeCubeTarget({
+    required this.size,
+    required this.format,
+    required this.mipLevels,
+  });
+
+  /// The side of each face, in texels.
+  final int size;
+
+  /// What each texel holds.
+  final TextureFormat format;
+
+  /// How many mip levels it was asked for, the base one counted.
+  final int mipLevels;
+
+  @override
+  bool operator ==(Object other) =>
+      other is FakeCubeTarget &&
+      other.size == size &&
+      other.format == format &&
+      other.mipLevels == mipLevels;
+
+  @override
+  int get hashCode => Object.hash(size, format, mipLevels);
+
+  @override
+  String toString() =>
+      'FakeCubeTarget($size, ${format.name}, mipLevels: $mipLevels)';
+}
+
+/// One overwrite of a texture a [FakeBackend] recorded, as
+/// [FakeBackend.overwrittenTextures] lists it: wiring, not content.
+final class FakeTextureOverwrite {
+  /// [region] of level [mipLevel] of a texture in [format] written.
+  const FakeTextureOverwrite({
+    required this.format,
+    required this.region,
+    required this.mipLevel,
+  });
+
+  /// The format of the texture written.
+  final TextureFormat format;
+
+  /// The texels written, the whole texture when the call named none.
+  final ScreenRect region;
+
+  /// The mip level written.
+  final int mipLevel;
+
+  @override
+  bool operator ==(Object other) =>
+      other is FakeTextureOverwrite &&
+      other.format == format &&
+      other.region == region &&
+      other.mipLevel == mipLevel;
+
+  @override
+  int get hashCode => Object.hash(format, region, mipLevel);
+
+  @override
+  String toString() =>
+      'FakeTextureOverwrite(${format.name}, $region, mipLevel: $mipLevel)';
+}
+
+/// One overwrite of a geometry buffer a [FakeBackend] recorded, as
+/// [FakeBackend.overwrites] lists it: wiring, not content.
+final class FakeGeometryOverwrite {
+  /// [lengthInBytes] bytes written at [offsetInBytes] of [backend].
+  const FakeGeometryOverwrite({
+    required this.backend,
+    required this.offsetInBytes,
+    required this.lengthInBytes,
+  });
+
+  /// The backend object of the buffer written, shared by every slice of it.
+  final Object backend;
+
+  /// Where the write starts, in bytes from the start of [backend]: a slice's
+  /// own offset added in.
+  final int offsetInBytes;
+
+  /// How many bytes were written.
+  final int lengthInBytes;
+
+  @override
+  bool operator ==(Object other) =>
+      other is FakeGeometryOverwrite &&
+      other.backend == backend &&
+      other.offsetInBytes == offsetInBytes &&
+      other.lengthInBytes == lengthInBytes;
+
+  @override
+  int get hashCode => Object.hash(backend, offsetInBytes, lengthInBytes);
+
+  @override
+  String toString() =>
+      'FakeGeometryOverwrite($lengthInBytes bytes at $offsetInBytes)';
+}
+
+/// One readback a [FakeBackend] was asked for, as [FakeBackend.readbacks]
+/// lists it.
+final class FakeReadback {
+  /// [region] of [texture] read back.
+  const FakeReadback({required this.texture, required this.region});
+
+  /// The texture read.
+  final TextureHandle texture;
+
+  /// The texels read, resolved: the whole texture when the call named none.
+  final ScreenRect region;
+
+  @override
+  bool operator ==(Object other) =>
+      other is FakeReadback &&
+      other.texture == texture &&
+      other.region == region;
+
+  @override
+  int get hashCode => Object.hash(texture, region);
+
+  @override
+  String toString() => 'FakeReadback($texture, $region)';
 }

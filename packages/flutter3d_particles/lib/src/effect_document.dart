@@ -211,7 +211,7 @@ final class EffectRender {
   final String? mesh;
 
   /// A six-way drawing's two textures: `positive` and `negative`.
-  final ({String positive, String negative})? sheet;
+  final SixWaySheetNames? sheet;
 
   /// Whether two effects can share one pool and one draw: the same drawing,
   /// blend, images and softness.
@@ -220,6 +220,32 @@ final class EffectRender {
       '${sheet?.positive ?? ''}|${sheet?.negative ?? ''}|$softness|'
       '${flipbook == null ? '' : '${flipbook!.columns}x${flipbook!.rows}/'
                 '${flipbook!.frames}/${flipbook!.loops}'}';
+}
+
+/// The two textures of a six-way sheet, by the paths a document names them
+/// — [EffectRender.sheet].
+final class SixWaySheetNames {
+  const SixWaySheetNames({required this.positive, required this.negative});
+
+  /// The positive texture: light from the right, the top and the back, and
+  /// the coverage.
+  final String positive;
+
+  /// The negative texture: light from the left, the bottom and the front,
+  /// and the emission.
+  final String negative;
+
+  @override
+  bool operator ==(Object other) =>
+      other is SixWaySheetNames &&
+      other.positive == positive &&
+      other.negative == negative;
+
+  @override
+  int get hashCode => Object.hash(positive, negative);
+
+  @override
+  String toString() => 'SixWaySheetNames($positive, $negative)';
 }
 
 /// How a trigger emits. A class of constants, for [EffectDrawing]'s reason.
@@ -745,7 +771,7 @@ final class _EffectReader {
     final mesh = _path(json['mesh'], 'mesh');
     final sheet = switch (json['sheet']) {
       null => null,
-      final Map<String, Object?> s => (
+      final Map<String, Object?> s => SixWaySheetNames(
         positive:
             _path(s['positive'], 'sheet.positive') ??
             (throw EffectFormatException(

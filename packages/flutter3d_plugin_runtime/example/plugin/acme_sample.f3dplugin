@@ -19,7 +19,7 @@
     }
   ],
   "pipeline": {
-    "anchors": [{"name": "acme_sample.after haze", "after": "after bloom"}],
+    "anchors": [{"name": "acme_sample.after haze", "after": "f3d.after_bloom"}],
     "nodes": [
       {
         "name": "acme_sample.haze",

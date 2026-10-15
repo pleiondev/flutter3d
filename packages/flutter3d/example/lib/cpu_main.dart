@@ -122,7 +122,7 @@ class _CpuAppState extends State<CpuApp> with SingleTickerProviderStateMixin {
       width: _width,
       height: _height,
       scene: _scene,
-      views: <RenderView>[RenderView(camera: _camera)],
+      views: <CameraView>[CameraView(camera: _camera)],
       settings: paritySettingsFor(ParityScene.plain),
     );
     final ms = DateTime.now().difference(started).inMicroseconds / 1000.0;

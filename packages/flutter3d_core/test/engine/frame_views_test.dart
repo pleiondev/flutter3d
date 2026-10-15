@@ -85,7 +85,7 @@ FrameResult _draw(
   height: 48,
   scene: it.scene,
   settings: settings,
-  views: <RenderView>[RenderView(camera: it.camera)],
+  views: <CameraView>[CameraView(camera: it.camera)],
 );
 
 void main() {
@@ -138,8 +138,8 @@ void main() {
           in it.renderer
               .planFrame(
                 scene: it.scene,
-                views: <RenderView>[
-                  for (final camera in cameras) RenderView(camera: camera),
+                views: <CameraView>[
+                  for (final camera in cameras) CameraView(camera: camera),
                 ],
                 settings: _plain,
               )

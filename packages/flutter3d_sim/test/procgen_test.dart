@@ -130,8 +130,8 @@ void main() {
     test('what stands in a room stands in every room but the first', () {
       final made = generateLevel(
         const LevelRules(
-          perRoom: <({Map<String, Object?> entity, int count})>[
-            (entity: <String, Object?>{'type': 'crate'}, count: 2),
+          perRoom: <RoomScatter>[
+            RoomScatter(entity: <String, Object?>{'type': 'crate'}, count: 2),
           ],
         ),
         seed: 3,

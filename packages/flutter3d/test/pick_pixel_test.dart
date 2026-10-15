@@ -86,7 +86,7 @@ void main() {
   late FakeBackend device;
   late Renderer renderer;
   late Scene scene;
-  late RenderView view;
+  late CameraView view;
   late MeshNode left;
   late MeshNode right;
 
@@ -107,14 +107,14 @@ void main() {
       ..add(left)
       ..add(right)
       ..add(CameraNode());
-    view = RenderView(camera: scene.cameras.single);
+    view = CameraView(camera: scene.cameras.single);
   });
 
   void frame() => renderer.render(
     width: _width,
     height: _height,
     scene: scene,
-    views: <RenderView>[view],
+    views: <CameraView>[view],
   );
 
   /// The pass drawing ids: the only one with a frame-sized eight-bit colour

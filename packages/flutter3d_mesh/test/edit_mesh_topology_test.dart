@@ -165,7 +165,7 @@ void main() {
         ..deleteVertex(3);
       mesh.endStep();
 
-      final (compacted, remap) = mesh.compact();
+      final RemappedMesh(mesh: compacted, :remap) = mesh.compact();
 
       expect(compacted.vertexCount, 4);
       expect(compacted.faceCount, 1);
@@ -190,7 +190,7 @@ void main() {
 
     test('a compacted mesh keeps the shape it had', () {
       final cube = EditMesh.cuboid(size: Vector3(2, 2, 2));
-      final (compacted, _) = cube.compact();
+      final RemappedMesh(mesh: compacted) = cube.compact();
 
       expect(compacted.signedVolume, closeTo(cube.signedVolume, 1e-6));
       expect(compacted.eulerCharacteristic, 2);

@@ -65,7 +65,7 @@ Future<List<int>> _quadWithTangent(Vector4 tangent) async {
     width: _size,
     height: _size,
     scene: scene,
-    views: <RenderView>[RenderView(camera: scene.cameras.single)],
+    views: <CameraView>[CameraView(camera: scene.cameras.single)],
     settings: const RenderSettings(),
   );
   final bytes = await device.readback(result.frame);

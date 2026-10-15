@@ -24,7 +24,7 @@ final Matcher _full = closeTo(1.0, 1e-12);
 
 /// A renderer in software with one cube in front of it, so a frame links a
 /// material pipeline a reload has to drop.
-({Renderer renderer, Scene scene, RenderView view}) _stage() {
+({Renderer renderer, Scene scene, CameraView view}) _stage() {
   final device = CpuDevice(
     width: 16,
     height: 9,
@@ -42,16 +42,16 @@ final Matcher _full = closeTo(1.0, 1e-12);
   return (
     renderer: Renderer.create(device: device),
     scene: scene,
-    view: RenderView(camera: camera),
+    view: CameraView(camera: camera),
   );
 }
 
-void _draw(({Renderer renderer, Scene scene, RenderView view}) it) =>
+void _draw(({Renderer renderer, Scene scene, CameraView view}) it) =>
     it.renderer.render(
       width: 16,
       height: 9,
       scene: it.scene,
-      views: <RenderView>[it.view],
+      views: <CameraView>[it.view],
     );
 
 /// Counts the times a renderer asked it to drop what it linked.
@@ -208,7 +208,7 @@ void main() {
         width: size,
         height: size,
         scene: scene,
-        views: <RenderView>[RenderView(camera: camera)],
+        views: <CameraView>[CameraView(camera: camera)],
         settings: const RenderSettings(
           bloom: BloomSettings(enabled: false),
           tonemap: false,
@@ -280,7 +280,7 @@ void main() {
         width: size,
         height: size,
         scene: scene,
-        views: <RenderView>[RenderView(camera: camera)],
+        views: <CameraView>[CameraView(camera: camera)],
         settings: const RenderSettings(
           bloom: BloomSettings(enabled: false),
           tonemap: false,
@@ -765,13 +765,13 @@ material Paint {
           final renderer = Renderer.create(device: recording);
           final camera = CameraNode()..setPosition(0.0, 0.0, 4.0);
           it.scene.add(camera);
-          final view = RenderView(camera: camera);
+          final view = CameraView(camera: camera);
           swap.registerRenderer(renderer);
           void frame() => renderer.render(
             width: 16,
             height: 9,
             scene: it.scene,
-            views: <RenderView>[view],
+            views: <CameraView>[view],
           );
           for (var i = 0; i < 4; i++) {
             frame();
@@ -948,13 +948,13 @@ material Paint {
         final renderer = Renderer.create(device: recording);
         final camera = CameraNode()..setPosition(0.0, 0.0, 4.0);
         it.lit.add(camera);
-        final view = RenderView(camera: camera);
+        final view = CameraView(camera: camera);
         swap.registerRenderer(renderer);
         void frame() => renderer.render(
           width: 16,
           height: 9,
           scene: it.lit,
-          views: <RenderView>[view],
+          views: <CameraView>[view],
         );
         for (var i = 0; i < 4; i++) {
           frame();

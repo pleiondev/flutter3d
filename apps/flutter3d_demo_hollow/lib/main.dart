@@ -127,7 +127,7 @@ class _HollowScreenState extends State<HollowScreen>
   static Vector3 get _sunAlong => Vector3(0.45, -0.6, -0.65);
 
   final CameraNode _camera = CameraNode(name: 'eye');
-  late final RenderView _view = RenderView(
+  late final CameraView _view = CameraView(
     camera: _camera,
     clearColor: LinearColor.fromSrgb(0.62, 0.76, 0.9, 1.0),
   );

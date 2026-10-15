@@ -574,7 +574,7 @@ final class TextureGraphPanel extends StatefulWidget {
   final void Function(
     String kind,
     Map<String, Object?> fields,
-    (double x, double y) position,
+    NodePosition position,
   )
   onAddNode;
 
@@ -613,8 +613,7 @@ class _TextureGraphPanelState extends State<TextureGraphPanel> {
   /// for it, so an outside edit (undo, another view) is trusted over a stale
   /// gesture. The one piece of mutable state this widget keeps beyond
   /// [_expanded] and [_pendingLinkFrom], per the panel's own standards.
-  final Map<int, (double x, double y)> _dragPositions =
-      <int, (double x, double y)>{};
+  final Map<int, NodePosition> _dragPositions = <int, NodePosition>{};
 
   /// The node id a link is armed from, or null — set by tapping an output
   /// port, cleared by completing (or abandoning, by tapping another output)
@@ -644,10 +643,13 @@ class _TextureGraphPanelState extends State<TextureGraphPanel> {
     super.dispose();
   }
 
-  (double x, double y) _positionOf(TextureNode node, int index) =>
+  NodePosition _positionOf(TextureNode node, int index) =>
       _dragPositions[node.id] ??
       widget.graph.positions[node.id] ??
-      (40.0 + 190.0 * (index % 4), 40.0 + 150.0 * (index ~/ 4));
+      NodePosition(
+        x: 40.0 + 190.0 * (index % 4),
+        y: 40.0 + 150.0 * (index ~/ 4),
+      );
 
   void _onNodeDragStart(int nodeId) {
     setState(() => _draggingNode = true);
@@ -659,16 +661,19 @@ class _TextureGraphPanelState extends State<TextureGraphPanel> {
   /// no further division by the current zoom.
   void _onNodeDragDelta(int nodeId, Offset base, Offset delta) {
     setState(() {
-      final (double x, double y) current =
-          _dragPositions[nodeId] ?? (base.dx, base.dy);
-      _dragPositions[nodeId] = (current.$1 + delta.dx, current.$2 + delta.dy);
+      final NodePosition current =
+          _dragPositions[nodeId] ?? NodePosition(x: base.dx, y: base.dy);
+      _dragPositions[nodeId] = NodePosition(
+        x: current.x + delta.dx,
+        y: current.y + delta.dy,
+      );
     });
   }
 
   void _onNodeDragEnd(int nodeId) {
     setState(() => _draggingNode = false);
-    final (double x, double y)? at = _dragPositions[nodeId];
-    if (at != null) widget.onMoveNode(nodeId, at.$1, at.$2);
+    final NodePosition? at = _dragPositions[nodeId];
+    if (at != null) widget.onMoveNode(nodeId, at.x, at.y);
   }
 
   void _onOutputTap(int nodeId) {
@@ -692,8 +697,8 @@ class _TextureGraphPanelState extends State<TextureGraphPanel> {
     final AppLocalizations l = AppLocalizations.of(context);
     for (var i = 0; i < nodes.length; i++) {
       final TextureNode node = nodes[i];
-      final (double x, double y) at = _positionOf(node, i);
-      positions[node.id] = Offset(at.$1, at.$2);
+      final NodePosition at = _positionOf(node, i);
+      positions[node.id] = Offset(at.x, at.y);
       widths[node.id] = _nodeWidth(node);
     }
 
@@ -710,7 +715,7 @@ class _TextureGraphPanelState extends State<TextureGraphPanel> {
                 onSelected: (String kind) => widget.onAddNode(
                   kind,
                   defaultTextureNodeFields(kind),
-                  (40.0, 40.0),
+                  const NodePosition(x: 40, y: 40),
                 ),
                 itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
                   for (final String kind in textureNodeKinds)

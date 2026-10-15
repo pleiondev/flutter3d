@@ -310,7 +310,7 @@ final class ReefRun {
     free.first.tie(find);
     // What it weighs in the water: its weight less the water it displaces
     // holds up; a litre of air at the surface lifts a kilogram.
-    final (:volume, water: _) = world.submergedOf(find.body);
+    final volume = world.submergedOf(find.body).volume;
     final weight = world.massOf(find.body) - reefSea.density * volume;
     said =
         'A bag on the ${find.name}, ${weight.round()} kg in the water: '

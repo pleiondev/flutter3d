@@ -85,7 +85,7 @@ FrameResult _render(
   width: 64,
   height: 48,
   scene: frame.scene,
-  views: <RenderView>[RenderView(camera: frame.camera)],
+  views: <CameraView>[CameraView(camera: frame.camera)],
   settings: settings,
 );
 

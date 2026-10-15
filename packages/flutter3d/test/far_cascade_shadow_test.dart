@@ -110,7 +110,7 @@ Future<Uint8List> _shot({required bool shadows}) async {
     width: _width,
     height: _height,
     scene: scene,
-    views: <RenderView>[RenderView(camera: _camera())],
+    views: <CameraView>[CameraView(camera: _camera())],
     settings: RenderSettings(
       tonemap: false,
       bloom: const BloomSettings(enabled: false),

@@ -42,7 +42,7 @@ const double wreckHalfLength = 9.0, wreckHalfBeam = 2.6;
 
 /// [wreckHeading] as a direction, worked out once and the same on every
 /// machine: the scour in the floor and the ship's own frame both turn by it.
-final ({double sin, double cos}) wreckTurn = Portable.sinCos(wreckHeading);
+final SinCos wreckTurn = Portable.sinCos(wreckHeading);
 
 double _smooth(double a, double b, double x) {
   final t = ((x - a) / (b - a)).clamp(0.0, 1.0);

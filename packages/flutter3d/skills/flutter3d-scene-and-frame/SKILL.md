@@ -18,7 +18,7 @@ scene.root.add(LightNode(type: LightType.directional, castsShadow: true)
   ..lookAt(Vector3.zero()));
 scene.root.add(MeshNode(mesh, material));
 
-final view = RenderView(camera: camera);
+final view = CameraView(camera: camera);
 ```
 
 `Renderer.create` takes a `GraphicsDevice` and never learns which backend it

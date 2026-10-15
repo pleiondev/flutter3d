@@ -20,6 +20,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
         SceneBindingRegistry,
         SceneBindingSpec;
 
+import '../formats/engine_words.dart';
 import 'runtime_shaders.dart';
 
 /// The sections this package reads from a data plugin: [materialsSection]
@@ -47,7 +48,7 @@ const List<DataSection> renderDataSections = <DataSection>[
 ///
 /// ```json
 /// "pipeline": {
-///   "anchors": [{"name": "acme_glow.after glow", "after": "after bloom"}],
+///   "anchors": [{"name": "acme_glow.after glow", "after": "f3d.after_bloom"}],
 ///   "nodes": [{"name": "acme_glow.streak", "kind": "acme_glow.streak",
 ///              "anchor": "acme_glow.after glow", "options": {"length": 8}}]
 /// }
@@ -83,7 +84,7 @@ const DataSection materialsSection = _MaterialsSection();
 /// A data plugin's `renderSteps`: a full-screen stage per backend at an
 /// anchor, switched like the engine's own steps ([RuntimeRenderStep]).
 ///
-/// The anchor is one of the engine's (`after bloom`, or as Dart spells it,
+/// The anchor is one of the engine's (`f3d.after_bloom`, or as Dart spells it,
 /// `afterBloom`), checked when the document is read, or one another plugin
 /// added to the renderer, resolved and checked when this one is installed.
 /// A step over the scene's light goes before tone mapping, one over the
@@ -514,13 +515,16 @@ DataRenderStep _renderStep(Map<String, Object?> entry) {
   );
 }
 
-/// The anchor of [anchors] called [written], by its name (`after bloom`) or
-/// as Dart spells it (`afterBloom`), which is how a reader of the API will
-/// write it; null when none is.
+/// The anchor of [anchors] called [written], by its name
+/// (`f3d.after_bloom`), by the word from before the `f3d.` prefix that files
+/// written then carry (`after bloom`), or as Dart spells it (`afterBloom`),
+/// which is how a reader of the API will write it; null when none is.
 RenderAnchor? _anchorIn(List<RenderAnchor> anchors, String written) {
-  final spaced = written.replaceAllMapped(
-    RegExp('[A-Z]'),
-    (Match m) => ' ${m[0]!.toLowerCase()}',
+  final spaced = engineWordFor(
+    written.replaceAllMapped(
+      RegExp('[A-Z]'),
+      (Match m) => ' ${m[0]!.toLowerCase()}',
+    ),
   );
   return anchors
       .where((RenderAnchor a) => a.name == written || a.name == spaced)

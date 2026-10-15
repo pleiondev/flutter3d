@@ -27,7 +27,7 @@
 ///    calls `View.of(context)` unconditionally inside
 ///    `EditableTextState.textInputConfiguration` (`editable_text.dart`), to
 ///    tag the platform connection with a `viewId`. `WidgetSurfacePipeline`
-///    has no `View` ancestor by design — it builds its own `RenderView`
+///    has no `View` ancestor by design — it builds its own `CameraView`
 ///    directly, because the surface is not a second window. Reproduced
 ///    twice: without a `View` ancestor, `View.of` throws outright; a `View`
 ///    widget added inside the pipeline's own tree throws its own assertion

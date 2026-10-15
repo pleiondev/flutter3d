@@ -43,8 +43,8 @@ Float32List _render({required bool fxaa, int factor = 1}) {
     scene: Scene()
       ..add(card)
       ..add(camera),
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: camera,
         clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),

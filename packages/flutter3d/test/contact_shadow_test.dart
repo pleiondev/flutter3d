@@ -184,7 +184,7 @@ Future<Uint8List> _draw(
     width: _width,
     height: _height,
     scene: at.scene,
-    views: <RenderView>[RenderView(camera: at.camera)],
+    views: <CameraView>[CameraView(camera: at.camera)],
     settings: settings,
   );
   final pixels = await engine.device.readback(frame.frame);

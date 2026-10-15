@@ -29,6 +29,12 @@
 # it stopped. When an upload fails it stops before the next layer and prints
 # plan B (`tasks/1.0-publish.md`, "Plan B: when a package goes up broken").
 #
+# **Not every package is the 1.0 set.** `pad_input` and `flutter3d_pointer_lock`
+# keep their 0.5 line, and `flame_multiplayer_dashwire`, `flutter3d_lints`,
+# `flutter3d_editor_play` and `flutter3d_education_lti` a 0.9 line outside the
+# 1.0 promise (SUPPORT.md says why). They go up in their layer like the rest,
+# at the version their pubspec says, and the dry run marks each with a `*`.
+#
 # Publishing needs `flutter pub login` done first. Nothing here pushes or tags.
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -48,7 +54,7 @@ while [ $# -gt 0 ]; do
     --to) TO="${2#L}"; shift ;;
     --layer) FROM="${2#L}"; TO="${2#L}"; shift ;;
     -h|--help)
-      sed -n '2,32p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,38p' "$0" | sed 's/^# \{0,1\}//'
       exit 0
       ;;
     *)
@@ -157,13 +163,18 @@ while read -r layer names; do
       continue
     }
     version="$(local_version "$dir")"
+    # A 0.x package is on a line of its own, outside the 1.0 set.
+    shown="$version"
+    case "$version" in
+      0.*) shown="$version*" ;;
+    esac
     if on_pub "$name" "$version"; then
-      printf '  %-30s %-12s already on pub.dev, skipped\n' "$name" "$version"
+      printf '  %-30s %-12s already on pub.dev, skipped\n' "$name" "$shown"
       continue
     fi
     if [ "$PUBLISH" = 0 ]; then
       printf '  %-30s %-12s would run: (cd %s && flutter pub publish --force)\n' \
-        "$name" "$version" "$dir"
+        "$name" "$shown" "$dir"
       if [ "$CHECK" = 1 ]; then
         if ! out="$(cd "$dir" && flutter pub publish --dry-run 2>&1)"; then
           printf '  %-30s %-12s the dry run of pub publish fails:\n' "$name" "$version"

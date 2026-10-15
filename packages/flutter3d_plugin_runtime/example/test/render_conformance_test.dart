@@ -89,8 +89,8 @@ void main() {
         height: 32,
         shaders: CpuShaderLibrary(<String, CpuStage>{
           ...builtinCpuShaders(),
-          'acme_sample_Hair': const CpuStage.fragment(_HairStage()),
-          'acme_sample_Decal': builtinCpuShaders()['Decal']!,
+          'acme_sample__Hair': const CpuStage.fragment(_HairStage()),
+          'acme_sample__Decal': builtinCpuShaders()['Decal']!,
         }),
       ),
     );
@@ -112,8 +112,8 @@ void main() {
         shaders: CpuShaderLibrary(builtinCpuShaders()),
       ),
       materials: (GraphicsDevice device) => CpuShaderLibrary(<String, CpuStage>{
-        'acme_sample_Hair': const CpuStage.fragment(_HairStage()),
-        'acme_sample_Decal': builtinCpuShaders()['Decal']!,
+        'acme_sample__Hair': const CpuStage.fragment(_HairStage()),
+        'acme_sample__Decal': builtinCpuShaders()['Decal']!,
       }),
     );
   });

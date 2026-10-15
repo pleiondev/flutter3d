@@ -69,9 +69,9 @@ mixin HasFlutter3d<W extends World> on FlameGame<W> {
   /// Views drawn after [camera3d]'s, into the same frame: the second
   /// player's half of a split screen, a rear-view mirror. Each has its own
   /// camera, added to [scene] by the game, and its own
-  /// `RenderView.viewportFraction`; a `BridgeProjector` given that part is
+  /// `CameraView.viewportFraction`; a `BridgeProjector` given that part is
   /// its projector.
-  final List<RenderView> moreViews3d = <RenderView>[];
+  final List<CameraView> moreViews3d = <CameraView>[];
 
   /// Behind everything the 3D layer draws, in linear light: read before
   /// every frame and encoded to sRGB for the view there, so assigning a new

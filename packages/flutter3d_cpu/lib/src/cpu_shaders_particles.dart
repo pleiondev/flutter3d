@@ -420,7 +420,9 @@ final class SplatHashedShader extends CpuFragmentShader {
                     v[3] * 255.0 * 127.0)
                 .floorToDouble()) %
         4096.0;
-    final (offsetX, offsetY) = splatNoiseOffset(identity);
+    final NoiseTileCell(column: offsetX, row: offsetY) = splatNoiseOffset(
+      identity,
+    );
 
     // This frame's slice of the blue noise, at the pixel moved by the offset.
     final table = b.textures['blue_noise_texture'];
@@ -464,9 +466,32 @@ final class SplatHashedShader extends CpuFragmentShader {
 /// affine step and `2a² + a` modulo 4096, then the high six bits stirred into
 /// the low six. Every product stays under 2^24 and every divisor is a power
 /// of two, so a GPU's 32-bit floats and these doubles give the same answer.
-(double, double) splatNoiseOffset(double identity) {
+NoiseTileCell splatNoiseOffset(double identity) {
   final affine = (identity * 1597.0 + 2531.0) % 4096.0;
   final mixed = (affine * ((2.0 * affine + 1.0) % 4096.0)) % 4096.0;
   final row = (mixed / 64.0).floorToDouble();
-  return ((mixed + row * 37.0) % 64.0, row);
+  return NoiseTileCell(column: (mixed + row * 37.0) % 64.0, row: row);
+}
+
+/// One cell of the 64 × 64 noise tile, as [splatNoiseOffset] answers it.
+final class NoiseTileCell {
+  /// The cell at [column] and [row].
+  const NoiseTileCell({required this.column, required this.row});
+
+  /// Across the tile, in texels: a whole number in `[0, 64)`, held as a
+  /// double because the shader adds it to a pixel coordinate.
+  final double column;
+
+  /// Down the tile, in texels: a whole number in `[0, 64)`.
+  final double row;
+
+  @override
+  bool operator ==(Object other) =>
+      other is NoiseTileCell && other.column == column && other.row == row;
+
+  @override
+  int get hashCode => Object.hash(column, row);
+
+  @override
+  String toString() => 'NoiseTileCell($column, $row)';
 }

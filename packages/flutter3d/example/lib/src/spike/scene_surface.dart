@@ -16,7 +16,7 @@ class SceneSurface extends StatelessWidget {
 
   final Renderer renderer;
   final Scene scene;
-  final RenderView view;
+  final CameraView view;
   final RenderSettings settings;
   final ValueChanged<FrameResult> onFrame;
 
@@ -46,7 +46,7 @@ class SceneSurface extends StatelessWidget {
           width: width,
           height: height,
           scene: scene,
-          views: <RenderView>[view],
+          views: <CameraView>[view],
           settings: settings,
         );
         onFrame(frame);

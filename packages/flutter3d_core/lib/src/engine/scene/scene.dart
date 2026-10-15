@@ -87,9 +87,9 @@ final class Scene {
   final List<PlanarReflectorNode> _reflectors = <PlanarReflectorNode>[];
 
   /// Cameras drawing into textures — `P4`. Not nodes, so not registered by
-  /// attaching anything: a [RenderView] is added here, and is drawn for as
+  /// attaching anything: a [CameraView] is added here, and is drawn for as
   /// long as it stays.
-  final List<RenderView> _textureViews = <RenderView>[];
+  final List<CameraView> _textureViews = <CameraView>[];
 
   /// Everything drawable currently in the scene, in attachment order.
   ///
@@ -231,20 +231,20 @@ final class Scene {
   late final List<PlanarReflectorNode> _reflectorsView =
       UnmodifiableListView<PlanarReflectorNode>(_reflectors);
 
-  List<RenderView> get textureViews => _textureViewsView;
-  late final List<RenderView> _textureViewsView =
-      UnmodifiableListView<RenderView>(_textureViews);
+  List<CameraView> get textureViews => _textureViewsView;
+  late final List<CameraView> _textureViewsView =
+      UnmodifiableListView<CameraView>(_textureViews);
 
   /// Has [texture]'s camera draw into it every frame, before the scene — or
   /// once, if it does not refresh every frame. Adding it twice draws it once.
-  void addTextureView(RenderView texture) {
+  void addTextureView(CameraView texture) {
     if (!_textureViews.contains(texture)) _textureViews.add(texture);
   }
 
   /// Stops drawing [texture]: for a game switching a monitor off, or taking
   /// a portal down, before it gives the texture back. Nothing here calls it;
   /// the texture itself is its owner's to give back.
-  void removeTextureView(RenderView texture) => _textureViews.remove(texture);
+  void removeTextureView(CameraView texture) => _textureViews.remove(texture);
 
   /// Ambient light applied where no direct light reaches, in **lux**: the
   /// illuminance it puts on a surface from every side.

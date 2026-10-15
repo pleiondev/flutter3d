@@ -367,12 +367,12 @@ void main() {
       // method's own doc comment makes.
       final it = _engine();
       final scene = Scene()..add(CameraNode());
-      final view = RenderView(camera: scene.cameras.single);
+      final view = CameraView(camera: scene.cameras.single);
       final onScreen = it.renderer.render(
         width: 32,
         height: 32,
         scene: scene,
-        views: <RenderView>[view],
+        views: <CameraView>[view],
       );
 
       final hdr = _hdr(it.device);

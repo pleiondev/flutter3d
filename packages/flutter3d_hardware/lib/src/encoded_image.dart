@@ -50,29 +50,48 @@ base mixin EncodedImageUpload on GraphicsDevice {
   });
 }
 
+/// An image's size in whole pixels, as [cappedImageSize] and
+/// [encodedImageSize] answer it.
+final class ImageExtent {
+  /// [width] by [height] pixels.
+  const ImageExtent({required this.width, required this.height});
+
+  /// Across, in pixels.
+  final int width;
+
+  /// Down, in pixels.
+  final int height;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ImageExtent && other.width == width && other.height == height;
+
+  @override
+  int get hashCode => Object.hash(width, height);
+
+  @override
+  String toString() => 'ImageExtent(${width}x$height)';
+}
+
 /// [width] by [height] scaled down so neither side exceeds [maxDimension],
 /// keeping the aspect ratio, or unchanged when it already fits or
 /// [maxDimension] is null.
 ///
 /// Rounded, and never below one texel on either side: a 4096×16 strip capped
 /// at 1024 is 1024×4, and a 100000×1 line is still one texel tall.
-({int width, int height}) cappedImageSize(
-  int width,
-  int height, {
-  int? maxDimension,
-}) {
+ImageExtent cappedImageSize(int width, int height, {int? maxDimension}) {
   if (maxDimension == null || maxDimension < 1) {
-    return (width: width, height: height);
+    return ImageExtent(width: width, height: height);
   }
   final longer = width > height ? width : height;
-  if (longer <= maxDimension) return (width: width, height: height);
+  if (longer <= maxDimension) return ImageExtent(width: width, height: height);
   final scale = maxDimension / longer;
   int side(int v) {
     final scaled = (v * scale).round();
     return scaled < 1 ? 1 : (scaled > maxDimension ? maxDimension : scaled);
   }
 
-  return (width: side(width), height: side(height));
+  return ImageExtent(width: side(width), height: side(height));
 }
 
 /// The pixel size an encoded image's header states, or null when the header
@@ -85,7 +104,7 @@ base mixin EncodedImageUpload on GraphicsDevice {
 /// full-size image never be decoded at all. Null costs one extra step on the
 /// web — decode, then scale — and nothing natively, where the codec reports
 /// the size itself.
-({int width, int height})? encodedImageSize(Uint8List bytes) {
+ImageExtent? encodedImageSize(Uint8List bytes) {
   final n = bytes.length;
   int be16(int i) => (bytes[i] << 8) | bytes[i + 1];
   int le16(int i) => bytes[i] | (bytes[i + 1] << 8);
@@ -101,12 +120,12 @@ base mixin EncodedImageUpload on GraphicsDevice {
       bytes[1] == 0x50 &&
       bytes[2] == 0x4E &&
       bytes[3] == 0x47) {
-    return (width: be32(16), height: be32(20));
+    return ImageExtent(width: be32(16), height: be32(20));
   }
 
   // GIF: logical screen size.
   if (n >= 10 && bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46) {
-    return (width: le16(6), height: le16(8));
+    return ImageExtent(width: le16(6), height: le16(8));
   }
 
   // WebP: RIFF....WEBP and one of three chunk kinds.
@@ -118,16 +137,19 @@ base mixin EncodedImageUpload on GraphicsDevice {
     final kind = String.fromCharCodes(bytes, 12, 16);
     switch (kind) {
       case 'VP8 ':
-        return (width: le16(26) & 0x3FFF, height: le16(28) & 0x3FFF);
+        return ImageExtent(width: le16(26) & 0x3FFF, height: le16(28) & 0x3FFF);
       case 'VP8L':
         final b =
             bytes[21] |
             (bytes[22] << 8) |
             (bytes[23] << 16) |
             (bytes[24] << 24);
-        return (width: (b & 0x3FFF) + 1, height: ((b >> 14) & 0x3FFF) + 1);
+        return ImageExtent(
+          width: (b & 0x3FFF) + 1,
+          height: ((b >> 14) & 0x3FFF) + 1,
+        );
       case 'VP8X':
-        return (
+        return ImageExtent(
           width: (bytes[24] | (bytes[25] << 8) | (bytes[26] << 16)) + 1,
           height: (bytes[27] | (bytes[28] << 8) | (bytes[29] << 16)) + 1,
         );
@@ -156,7 +178,7 @@ base mixin EncodedImageUpload on GraphicsDevice {
           marker != 0xC4 &&
           marker != 0xC8 &&
           marker != 0xCC;
-      if (isFrame) return (width: be16(i + 7), height: be16(i + 5));
+      if (isFrame) return ImageExtent(width: be16(i + 7), height: be16(i + 5));
       i += 2 + be16(i + 2);
     }
   }

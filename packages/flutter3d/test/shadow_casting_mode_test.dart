@@ -59,7 +59,7 @@ void main() {
         ..add(proxy);
 
       final list = RenderList();
-      final view = RenderView(camera: camera);
+      final view = CameraView(camera: camera);
       final projection = PerspectiveProjection().toMatrix(1.0);
       final viewMatrix = Matrix4.identity();
       list.build(

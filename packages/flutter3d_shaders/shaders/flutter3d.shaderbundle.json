@@ -407,9 +407,9 @@
     "type": "fragment",
     "file": "shaders/post/wboit_resolve.frag"
   },
-  "SceneColourCopy": {
+  "SceneColorCopy": {
     "type": "fragment",
-    "file": "shaders/post/scene_colour_copy.frag"
+    "file": "shaders/post/scene_color_copy.frag"
   },
   "ImpostorVertex": {
     "type": "vertex",

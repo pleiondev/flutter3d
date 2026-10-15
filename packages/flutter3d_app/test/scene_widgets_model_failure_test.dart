@@ -46,7 +46,7 @@ Future<Scene3DController> _pump(
         device: DeviceSettings(device: _device(), presenter: _noPresenter),
         view: const ViewSettings(continuous: false, warmUp: false),
         log: log,
-        onSceneCreated: (c) => controller = c,
+        onCreated: (c) => controller = c,
         children: children,
       ),
     ),

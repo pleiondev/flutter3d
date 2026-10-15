@@ -1,3 +1,16 @@
+## 1.0.0-rc.1+1
+
+- **Breaking: results that were records are final classes.** `TouchButton`
+  answered or held a record, which can never gain a field. Each answers a
+  final class now, with the record's field names (a positional `$1` has a
+  name of its own), `==` and `hashCode`. A field read compiles as before; a
+  destructuring pattern names the class, and `flutter3d_build:migrate`
+  rewrites the `$1` reads.
+- **Breaking: `LicenseEntry` is `LicenseSection`.** `LicenseEntry` and
+  `LicenseRecord` changed with it: `package:flutter/foundation.dart` exports
+  a `LicenseEntry`, the license registry's, so a credits screen importing
+  both had to hide one. `dart fix` renames it.
+
 ## 1.0.0-rc.1
 
 - **Breaking: `SpokenEvents` is `flutter3d_game_ui.spoken_events`** by

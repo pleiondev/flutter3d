@@ -71,7 +71,7 @@ Future<Uint8List> _draw(SplatCloud cloud) async {
     width: _width,
     height: _height,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
     settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
   );
   final pixels = await it.device.readback(frame.frame);
@@ -162,8 +162,8 @@ void main() {
           width: _width,
           height: _height,
           scene: Scene(),
-          views: <RenderView>[
-            RenderView(camera: CameraNode()..setPosition(0.0, 0.0, 4.0)),
+          views: <CameraView>[
+            CameraView(camera: CameraNode()..setPosition(0.0, 0.0, 4.0)),
           ],
         );
       expect(contributor.quads.sorts, 1);

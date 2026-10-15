@@ -15,6 +15,7 @@ import '../loop/headless_run.dart';
 import '../loop/run_outcome.dart';
 import '../save/demo.dart';
 import '../save/state_digest.dart';
+import 'heatmap.dart';
 
 /// What [resimulate] found.
 abstract final class Resimulation {
@@ -82,9 +83,9 @@ final class ResimulationRetraced extends Resimulation {
   final int steps;
   final int checkpoints;
 
-  /// `(x, z)` of [HeadlessRun.position] every so many steps, and once more at
-  /// the last step, so a run's end is where its trail ends.
-  final List<(double, double)> trail;
+  /// Where [HeadlessRun.position] was in plan every so many steps, and once
+  /// more at the last step, so a run's end is where its trail ends.
+  final List<TrailPoint> trail;
 
   final int finalDigest;
 
@@ -141,7 +142,7 @@ Resimulation resimulate({
 
   final playback = InputTapePlayback(demo.tape);
   final trace = DigestTrace(every: demo.checkpoints.every);
-  final trail = <(double, double)>[];
+  final trail = <TrailPoint>[];
   for (var step = 1; step <= demo.steps; step++) {
     playback.applyTo(input);
     input.beginStep();
@@ -150,7 +151,7 @@ Resimulation resimulate({
     input.endStep();
     if (step % sampleEvery == 0 || step == demo.steps) {
       final at = run.position;
-      trail.add((at.x, at.z));
+      trail.add(TrailPoint(x: at.x, z: at.z));
     }
   }
 

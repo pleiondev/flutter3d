@@ -28,7 +28,7 @@ Renderer _testRenderer() {
 /// `ModelerViewport` renders every rebuild it is given, including a
 /// dialog's own open/close transition frames, and `pumpAndSettle` waits for
 /// *no* frame to be scheduled at all. A live render loop, embedded here on
-/// purpose the way the design's own screen 09 wants a second `RenderView`,
+/// purpose the way the design's own screen 09 wants a second `CameraView`,
 /// never reaches that; a transition this short settles well within the
 /// frames pumped here regardless.
 Future<void> _settle(WidgetTester tester) async {

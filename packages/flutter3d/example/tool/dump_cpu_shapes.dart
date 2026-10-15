@@ -47,7 +47,7 @@ void main() {
       width: _width,
       height: _height,
       scene: built.scene,
-      views: <RenderView>[RenderView(camera: built.camera)],
+      views: <CameraView>[CameraView(camera: built.camera)],
       settings: const RenderSettings(
         bloom: BloomSettings(enabled: false),
         shadows: ShadowSettings(enabled: false),

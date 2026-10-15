@@ -51,7 +51,7 @@ FrameResult _render(
   width: _size,
   height: _size,
   scene: it.scene,
-  views: <RenderView>[RenderView(camera: it.scene.cameras.single)],
+  views: <CameraView>[CameraView(camera: it.scene.cameras.single)],
   settings: settings,
 );
 
@@ -93,7 +93,12 @@ void main() {
     );
     expect(
       told,
-      contains(SkippedPass(name: 'tonemap', reason: PassSkip.switchedOff)),
+      contains(
+        SkippedPass(
+          name: RenderStep.tonemap.name,
+          reason: PassSkip.switchedOff,
+        ),
+      ),
     );
     // And a pass off by its own default setting, reported as such.
     expect(

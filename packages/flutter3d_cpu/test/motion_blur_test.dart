@@ -71,8 +71,8 @@ Future<List<int>> _draw(_Staged it, RenderSettings settings) async {
     width: _width,
     height: _height,
     scene: it.scene,
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: it.camera,
         clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
@@ -134,7 +134,7 @@ void main() {
       width: _width,
       height: _height,
       scene: it.scene,
-      views: <RenderView>[RenderView(camera: it.camera)],
+      views: <CameraView>[CameraView(camera: it.camera)],
       settings: const RenderSettings(),
     );
     final ran = result.passes.map((p) => p.name);
@@ -148,7 +148,7 @@ void main() {
       width: _width,
       height: _height,
       scene: it.scene,
-      views: <RenderView>[RenderView(camera: it.camera)],
+      views: <CameraView>[CameraView(camera: it.camera)],
       settings: _blur(),
     );
     final ran = result.passes.map((p) => p.name).toList();
@@ -252,7 +252,7 @@ void main() {
       width: _width,
       height: _height,
       scene: it.scene,
-      views: <RenderView>[RenderView(camera: it.camera)],
+      views: <CameraView>[CameraView(camera: it.camera)],
       settings: _blur(shutter: 0.0),
     );
     final ran = result.passes.map((p) => p.name);

@@ -1,6 +1,6 @@
 name: flame_multiplayer_dashwire
 description: "A dashwire connection as a flame_multiplayer wire: rooms, rollback, turns and ghosts over WebSocket, loopback or a simulated network, reliable and unreliable kept apart."
-version: 1.0.0-rc.1
+version: 0.9.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues

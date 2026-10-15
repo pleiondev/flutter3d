@@ -63,7 +63,7 @@ engine.RenderMaterial _distinctive() => engine.RenderMaterial(
 
 List<String> _drawOrder(List<int> buckets) {
   final world = _buckets(buckets);
-  final view = RenderView(camera: world.camera);
+  final view = CameraView(camera: world.camera);
   // Two calls, as the renderer makes them: `build` gathers what is visible and
   // `sort` puts it in order. A test that only builds reads submission order and
   // proves nothing about the key.

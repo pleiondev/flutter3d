@@ -140,8 +140,8 @@ Future<Uint8List> _floorAt(int anisotropy) async {
     width: _width,
     height: _height,
     scene: scene,
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: CameraNode()
           // Just above the plane and looking almost along it: the pitch is
           // what makes the footprint long and thin.

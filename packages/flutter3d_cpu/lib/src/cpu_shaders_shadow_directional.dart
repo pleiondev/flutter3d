@@ -254,7 +254,7 @@ double shadowFactor(
     // Each tap allows for the surface's own slope past the normal offset's
     // reach, as `shadow.glsl` explains.
     for (var i = 0; i < 16; i++) {
-      final (dx, dy) = vogelDisc(i, 16, turn);
+      final VogelTap(x: dx, y: dy) = vogelDisc(i, 16, turn);
       final reachTexels = math.sqrt(dx * dx + dy * dy) * searchRadius;
       final tapBias = bias + math.max(reachTexels - 1.5, 0.0) * receiverSlope;
       final occluder = tap(
@@ -272,7 +272,7 @@ double shadowFactor(
     final gap = (averaged > 0.0 ? averaged : 0.0) * cascadeDepth;
     final radius = (spread * gap / cascadeTexel).clamp(1.0, 16.0);
     for (var i = 0; i < 16; i++) {
-      final (dx, dy) = vogelDisc(i, 16, turn + 1.0);
+      final VogelTap(x: dx, y: dy) = vogelDisc(i, 16, turn + 1.0);
       final reachTexels = math.sqrt(dx * dx + dy * dy) * radius;
       final tapBias = bias + math.max(reachTexels - 1.5, 0.0) * receiverSlope;
       final occluder = tap(dx * texelU * radius, dy * texelV * radius);
@@ -284,10 +284,33 @@ double shadowFactor(
 }
 
 /// `VogelDisc` from `shadow.glsl` — `S3`.
-(double, double) vogelDisc(int i, int n, double turn) {
+VogelTap vogelDisc(int i, int n, double turn) {
   final r = math.sqrt((i + 0.5) / n);
   final theta = i * 2.3999632 + turn;
-  return (r * math.cos(theta), r * math.sin(theta));
+  return VogelTap(x: r * math.cos(theta), y: r * math.sin(theta));
+}
+
+/// One tap of a Vogel disc, a point inside the unit disc, as [vogelDisc]
+/// answers it.
+final class VogelTap {
+  /// The point ([x], [y]).
+  const VogelTap({required this.x, required this.y});
+
+  /// Across, in no unit: a fraction of the disc's radius, -1..1.
+  final double x;
+
+  /// Up, in no unit: a fraction of the disc's radius, -1..1.
+  final double y;
+
+  @override
+  bool operator ==(Object other) =>
+      other is VogelTap && other.x == x && other.y == y;
+
+  @override
+  int get hashCode => Object.hash(x, y);
+
+  @override
+  String toString() => 'VogelTap($x, $y)';
 }
 
 /// `ShadowNoise` from `shadow.glsl` — `S3`: interleaved gradient noise at

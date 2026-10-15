@@ -36,8 +36,8 @@ Scene _scene() => Scene()
   )
   ..add(CameraNode()..setPosition(0.0, 0.0, 5.0));
 
-List<RenderView> _views(Scene scene) => <RenderView>[
-  RenderView(camera: scene.cameras.single),
+List<CameraView> _views(Scene scene) => <CameraView>[
+  CameraView(camera: scene.cameras.single),
 ];
 
 /// The names a plan says would run, and the names a drawn frame ran.
@@ -220,7 +220,7 @@ void main() {
   test('a plan needs a view, like a frame does', () {
     final renderer = Renderer.create(device: FakeBackend());
     expect(
-      () => renderer.planFrame(scene: _scene(), views: const <RenderView>[]),
+      () => renderer.planFrame(scene: _scene(), views: const <CameraView>[]),
       throwsArgumentError,
     );
   });

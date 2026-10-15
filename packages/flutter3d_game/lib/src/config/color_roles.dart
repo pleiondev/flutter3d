@@ -1,7 +1,7 @@
 import 'dart:ui' show Color;
 
 import 'package:flutter3d/flutter3d.dart'
-    show ColorVision, ColorVisionDeficiency;
+    show ColorConfusion, ColorVision, RgbTriple;
 
 import 'game_config.dart';
 
@@ -83,11 +83,15 @@ final class ColorRoles {
   /// Of [names] — the roles that are seen together, a level's keys — the
   /// pairs someone missing a cone runs together, in the colours [config]
   /// gives them. See [ColorVision.confusions].
-  List<({String a, String b, ColorVisionDeficiency by, double distance})>
-  confusions(Iterable<String> names, GameSettings config) =>
-      ColorVision.confusions(<String, (double, double, double)>{
-        for (final name in names)
-          if (named(name) case final ColorRole role)
-            name: (of(role, config).r, of(role, config).g, of(role, config).b),
-      });
+  List<ColorConfusion> confusions(
+    Iterable<String> names,
+    GameSettings config,
+  ) => ColorVision.confusions(<String, RgbTriple>{
+    for (final name in names)
+      if (named(name) case final ColorRole role)
+        name: _channels(of(role, config)),
+  });
+
+  static RgbTriple _channels(Color color) =>
+      RgbTriple(r: color.r, g: color.g, b: color.b);
 }

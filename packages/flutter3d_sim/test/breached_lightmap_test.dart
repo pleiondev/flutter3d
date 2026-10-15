@@ -247,7 +247,7 @@ void main() {
             .toList();
         expect(inside, isNotEmpty);
 
-        final (neutralU, neutralV) = layout.neutralUv;
+        final LightmapUv(u: neutralU, v: neutralV) = layout.neutralUv;
         for (final vertex in inside) {
           expect(vertex.u, closeTo(neutralU, 1e-9), reason: 'at ${vertex.at}');
           expect(vertex.v, closeTo(neutralV, 1e-9), reason: 'at ${vertex.at}');

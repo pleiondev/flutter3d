@@ -42,7 +42,7 @@ Widget _tree(CpuDevice device, void Function(Scene3DController) created) =>
       child: Scene3D(
         device: DeviceSettings(device: device, presenter: _noPresenter),
         view: _view,
-        onSceneCreated: created,
+        onCreated: created,
         children: <Widget>[
           Camera3D(
             position: Vector3(_far, 2.0, 10.0),
@@ -128,7 +128,7 @@ void main() {
       child: Scene3D(
         device: DeviceSettings(device: _device(), presenter: _noPresenter),
         view: _view,
-        onSceneCreated: (c) => controller = c,
+        onCreated: (c) => controller = c,
         children: <Widget>[
           OrbitCamera3D(target: Vector3(_far, 0.0, 0.0), distance: 4.0),
         ],

@@ -31,7 +31,7 @@ typedef _Railing = ({
   CpuDevice device,
   Renderer renderer,
   Scene scene,
-  RenderView view,
+  CameraView view,
   RenderMaterial wall,
 });
 
@@ -73,7 +73,7 @@ _Railing _railing() {
     device: device,
     renderer: Renderer.create(device: device),
     scene: scene,
-    view: RenderView(
+    view: CameraView(
       camera: camera,
       clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
     ),
@@ -86,7 +86,7 @@ List<double> _draw(_Railing it, TemporalClip clip) {
     width: _width,
     height: _height,
     scene: it.scene,
-    views: <RenderView>[it.view],
+    views: <CameraView>[it.view],
     settings: _settings(clip),
   );
   return it.device.readHdrPixels(result.frame);
@@ -162,12 +162,12 @@ void main() {
   test('every axis is a unit vector and every set starts with the box', () {
     for (final clip in TemporalClip.values.skip(1)) {
       expect(clip.axes, hasLength(clip.axisCount));
-      expect(clip.axes.take(3), const [
-        (1.0, 0.0, 0.0),
-        (0.0, 1.0, 0.0),
-        (0.0, 0.0, 1.0),
+      expect(clip.axes.take(3), const <ClipAxis>[
+        ClipAxis(x: 1.0, y: 0.0, z: 0.0),
+        ClipAxis(x: 0.0, y: 1.0, z: 0.0),
+        ClipAxis(x: 0.0, y: 0.0, z: 1.0),
       ]);
-      for (final (x, y, z) in clip.axes) {
+      for (final ClipAxis(:x, :y, :z) in clip.axes) {
         expect(x * x + y * y + z * z, closeTo(1.0, 1e-4));
       }
     }

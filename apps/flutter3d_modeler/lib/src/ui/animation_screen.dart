@@ -58,7 +58,7 @@ final class AnimationScreen extends StatelessWidget {
   });
 
   /// The 3D view, already wired with the mesh and skeleton this screen is
-  /// animating — whatever this app calls its own `RenderView`, today
+  /// animating — whatever this app calls its own `CameraView`, today
   /// `ModelerViewport`. Handed in rather than built here; see this file's
   /// own doc comment.
   final Widget viewport;

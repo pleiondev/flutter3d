@@ -1868,25 +1868,25 @@ const Map<String, String> notAVersionedFormat = <String, String>{
 /// added in a minor release breaks nobody. The exceptions are pure markers
 /// and value shapes, which have nothing to add and have to be implementable
 /// beside a base class the implementer already extends. Keep this short:
-/// every entry is a type that can never grow.
-const Map<String, String> interfaceClassAllowed = <String, String>{};
-
-/// `interface class` types that wave 3 has not converted yet, by package.
+/// every entry is a type that can never grow, or one whose every member
+/// has a body and which a mixin has to `implements`.
 ///
-/// **A to-do list, not an exemption.** This is every interface in the
-/// snapshots on the day the rule was written (2026-10-08, wave 3 step 0). A
-/// wave 3 agent who turns one into an `abstract base class` removes its
-/// entry here in the same change, and the rule fails on an entry whose type
-/// is no longer an interface, so the list only shrinks. A new interface is
-/// not added here: it is a base class from the start, or it goes in
-/// [interfaceClassAllowed] with its reason.
-const Map<String, Set<String>> interfaceClassPending = <String, Set<String>>{
-  'flame_flutter3d': <String>{'Bridged3d', 'Drawn3d', 'StepFollower'},
+/// The to-do list the rule started with (every interface on 2026-10-08) is
+/// gone: its last three, `Bridged3d`, `Drawn3d` and `StepFollower`, are
+/// base mixin classes now.
+const Map<String, String> interfaceClassAllowed = <String, String>{
+  'StepClock':
+      'a mixin class without base, because `HasFixedStep` is a clock and a '
+      'mixin, which can only write `implements StepClock`; a base clock '
+      'would make every game that mixes it in base or final. Every member '
+      'has a body, so a clock mixed in keeps compiling when one is added; '
+      '`HasFixedStep` is in this package and moves with it',
 };
 
 /// Exceptions not yet named `…Exception`, by name, with who renames them.
 ///
-/// **A to-do list, not an exemption**, like [interfaceClassPending]: decision
+/// **A to-do list, not an exemption**, like the interface list the
+/// base-class rule started with: decision
 /// H of `tasks/1.0-arch-review.md` names every thrown type `…Exception`, and
 /// the last two (`GpuUnavailable`, `RenderRefusal`) are `…Exception` now.
 /// The entry goes when its type is renamed (the rule fails on an entry no
@@ -2100,7 +2100,7 @@ const Map<String, String> openedSets = <String, String>{
 /// Sealed types whose conversion belongs to a later step, by name, with who
 /// converts them.
 ///
-/// **A to-do list, not an exemption**, like [interfaceClassPending]: the rule
+/// **A to-do list, not an exemption**, like the base-class rule's was: the rule
 /// passes these while they are sealed and fails on an entry once its type is
 /// not, so the list only shrinks. A new closed set is not added here.
 const Map<String, String> closedSetPending = <String, String>{};
@@ -2207,6 +2207,10 @@ const Map<String, String> hookParametersAllowed = <String, String>{
       'flutter3d_particles: a uniform unit vector written into the caller\'s vector, a maths helper an emitter calls per particle, not a hook it overrides',
   'PassEncoder':
       'flutter3d_hardware: the hardware interface, for GraphicsDevice\'s reason',
+  'ResourceSize.resolve':
+      'flutter3d_core: a size worked out from the frame\'s width and height in '
+      'pixels, the whole of what a frame-relative size is relative to; seen '
+      'once its answer was a class rather than a record',
   'WgslModuleCompiler':
       'flutter3d_webgpu: WGSL text and the name to refuse it under, '
       'the shape of `GPUDevice.createShaderModule` it stands for, for '
@@ -2645,28 +2649,20 @@ const Map<String, String> britishSpellingAllowed = <String, String>{};
 /// Public types named as a library in `tool/structure/sdk_names.txt` names
 /// one, with why each stays (A.8 of the API review).
 ///
-/// **Only names a first game does not meet.** A name `package:flutter/
-/// material.dart` or `dart:core` exports is never listed: a program that
-/// imports a facade and material would read it as ambiguous, which is the
-/// failure the rule exists for. What is here collides with `dart:ui` or
-/// `dart:io`, which a game imports only to reach the engine underneath
-/// Flutter or the file system, and there a `prefix` is the usual way in.
+/// **Only names a first game does not meet.** A name any `package:flutter/`
+/// library or `dart:core` exports is never listed, and the rule refuses an
+/// entry for one: a program that imports a facade beside `widgets.dart`,
+/// `material.dart` or the libraries they are built from would read it as
+/// ambiguous, which is the failure the rule exists for. What is here
+/// collides with `dart:ui` or `dart:io`, which a game imports only to reach
+/// the engine underneath Flutter or the file system, and there a `prefix`
+/// is the usual way in.
+///
+/// `RenderView`, `LicenseEntry` and `AssetManifest` were listed here, each
+/// "renamed before 1.0.0 if a game is seen importing both", a trigger no
+/// rule could see. They are `CameraView`, `LicenseSection` and
+/// `AssetBuildManifest`.
 const Map<String, String> nameCollisionAllowed = <String, String>{
-  'RenderView':
-      'the frame graph\'s view of one camera; `rendering`\'s is the root of '
-      'the render tree, which a game reaches only through a binding. Found '
-      'when the list grew past `material`, and renamed with a migration '
-      'before 1.0.0 if a game is seen importing both',
-  'AssetManifest':
-      'the build hook\'s list of what an asset bundle holds; `services`\' is '
-      'the runtime manifest a game reads through `AssetManifest.loadFromAssetBundle`, '
-      'from a build tool\'s code nobody imports beside it. Found when the '
-      'list grew past `material`',
-  'LicenseEntry':
-      'a credits screen\'s row; `foundation`\'s is the license registry\'s '
-      'entry, which a credits screen built on ours never names. Found when '
-      'the list grew past `material`, and renamed with a migration before '
-      '1.0.0 if a game is seen importing both',
   'Scene':
       'the engine\'s scene graph, its first type; `dart:ui`\'s is a '
       'compositor layer tree that a widget never names',
@@ -2745,12 +2741,6 @@ const Map<String, String> nullAsErrorAllowed = <String, String>{
 const Map<String, String> recordInContractAllowed = <String, String>{
   'CpuComputeShader.runWorkgroup':
       'a workgroup\'s x, y and z: a dispatch has three dimensions',
-  'CpuComputeShader.workgroupSize':
-      'a workgroup\'s x, y and z sizes: a dispatch has three dimensions',
-  'FrameContext.jitter':
-      'a subpixel offset, x and y: the image plane has two axes',
-  'ResourceSize.resolve': 'a width and a height: a 2D resource\'s size',
-  'VesselShape.span': 'an interval\'s two ends along one axis',
 };
 
 /// The packages a user imports instead of the ones beneath them, each with
@@ -2849,6 +2839,7 @@ const List<String> _coreFormatInternals = <String>[
   'F3dSection',
   'GltfAccessorReader',
   'GltfAccessorType',
+  'GltfFilters',
   'GltfPrimitiveMode',
   'Ktx2ColorModel',
   'Ktx2GlobalDataField',
@@ -3035,6 +3026,7 @@ const List<String> _coreRendererInternals = <String>[
 ];
 
 const List<String> _coreHelpers = <String>[
+  'SymmetricEigen',
   'animationTrackKey',
   'escapesAssetBase',
   'hasConflictingTextureTransforms',
@@ -3053,6 +3045,7 @@ const List<String> _coreHelpers = <String>[
 
 const List<String> _hardwareBackendSide = <String>[
   'EncodedImageUpload',
+  'ImageExtent',
   'LayeredShaderLibrary',
   'ShaderLibraryStack',
   'cappedImageSize',
@@ -3071,6 +3064,7 @@ const List<String> _foundationBeneath = <String>[
   'FormatSpecs',
   'PlacedEvent',
   'Portable',
+  'SinCos',
 ];
 
 const List<String> _pluginApiPlumbing = <String>[
@@ -3354,6 +3348,7 @@ const List<String> _physicsBehindTheView = <String>[
   'SweepHit',
   'SweepQuery',
   'VesselShape',
+  'VesselSpan',
   'WedgeUphill',
   'WindSettings',
   'WorldRays',
@@ -3538,12 +3533,17 @@ const Map<String, String> thrownTypeAllowed = <String, String>{
       'hook runner, which reports it; no code of a caller\'s catches it',
 };
 
-/// Records a public result carries, as `Name` or `Type.member`, each with
-/// why it never grows.
+/// Record typedefs a public result carries, by `Name`, each with why it
+/// never grows.
+///
+/// **Typedefs only.** A member or a function whose result is an inline
+/// record is a final class with `==` now — the 139 that were listed as
+/// "pending" went in one change — and the rule refuses a `Type.member`
+/// entry here, so the way back to an inline result is closed.
 ///
 /// **Maths tuples, and pairs that are their two halves.** A coordinate has
 /// as many components as its space; an interval has two ends.
-final Map<String, String> recordInResultAllowed = <String, String>{
+const Map<String, String> recordInResultAllowed = <String, String>{
   'AtlasCell':
       'a rectangle in an atlas: x, y, width, height, a fixed mathematical shape',
   'AvoidanceNeighbor':
@@ -3605,156 +3605,7 @@ final Map<String, String> recordInResultAllowed = <String, String>{
   'VoxelBox': 'integer box bounds, min and max of three axes',
   'WebGlSectionSources': 'vertex and fragment sources by name, two stages',
   'WebGpuSectionStages': 'vertex and fragment stages by name, two stages',
-  for (final name in _recordResultsPending)
-    name:
-        'a result from before the rule, a tuple of its own parts read where '
-        'it is made; it becomes a class with a recordToClass migration '
-        'before it is asked to carry more, and leaves the list',
 };
-
-/// Members and functions that return a record, listed when the rule began
-/// reading results; a list that only shrinks.
-const List<String> _recordResultsPending = <String>[
-  'AbsolutePixels.resolve',
-  'ActionInput.shapeDelta',
-  'ActorVisuals.markersPassed',
-  'AddNode.position',
-  'AnimationGraph.passed',
-  'AtmosphereCycle.keys',
-  'Avoidance.velocity',
-  'AxisSettings.shapeDelta',
-  'AxisSettings.shapePair',
-  'BridgeProjector.rayThrough',
-  'BrushGeometry.faceAxes',
-  'CellGridComponent.cellAt',
-  'ColliderRegistry.raycast',
-  'ColorField.hsvToRgb',
-  'ColorField.rgbToHsv',
-  'ColorRoles.confusions',
-  'ColorVision.applyEncoded',
-  'ColorVision.applyLinear',
-  'ColorVision.confusions',
-  'ConvexHull.faces',
-  'CpuComputeShader.workgroupSize',
-  'CubeLut.domainMax',
-  'CubeLut.domainMin',
-  'CubeLut.lookup',
-  'DiagnosticFrame.firstNonFinite',
-  'EditMesh.compact',
-  'EffectRender.sheet',
-  'Elements.waterAt',
-  'ElementsSimulation.waterAt',
-  'EqualPowerPanner.gains',
-  'FakeBackend.createdCubeRenderTargets',
-  'FakeBackend.overwrites',
-  'FakeBackend.overwrittenTextures',
-  'FakeBackend.readbacks',
-  'FireView.wanted',
-  'Flutter3dFlameWidget.existing',
-  'FrameContext.jitter',
-  'FrameFraction.resolve',
-  'GizmoMark.bounds',
-  'GridMover.cell',
-  'HeatmapTrail.positions',
-  'ImpostorAtlas.pick',
-  'InputFrame.dualAxes',
-  'IrradianceField.readDepth',
-  'LevelRules.perRoom',
-  'LightPlan.pngs',
-  'LightmapLayout.neutralUv',
-  'LightmapLayout.texelOf',
-  'LightmapLayout.uvAt',
-  'LightmapLayout.uvOfPoint',
-  'LiquidView.wanted',
-  'MaterialExtensions.coatMapSources',
-  'MaterialExtensions.sheenMapSources',
-  'MeshVessel.span',
-  'ModelHistory.authorship',
-  'NativeWorld.charOf',
-  'NativeWorld.linkJoint',
-  'NativeWorld.linkTurn',
-  'NativeWorld.readFires',
-  'NativeWorld.readShallowSurface',
-  'NativeWorld.readTransforms',
-  'NativeWorld.shallowVolume',
-  'NativeWorld.submergedOf',
-  'OrbitController.suggestedDepthRange',
-  'OriginShifted.offset',
-  'ParticleEffects.looks',
-  'ParticleEffects.triggerCounts',
-  'PieceReport.covering',
-  'PieceReport.depth',
-  'PieceReport.screenBox',
-  'PlaytestRun.positions',
-  'Portable.sinCos',
-  'ProjectRoot.tryResolve',
-  'RagdollPart.tailLength',
-  'ResimulationRetraced.trail',
-  'ResourceSize.resolve',
-  'RevolvedVessel.span',
-  'RevolvedVessel.wallDistance',
-  'RollbackSession.agreedEnd',
-  'SolidColorTexture.texel',
-  'StaticMeshShape.triangles',
-  'TemporalClip.axes',
-  'TextureGraph.positions',
-  'TouchButton.pedal',
-  'VesselShape.span',
-  'VesselVolumes.lip',
-  'VoxelHit.before',
-  'WorldPosition.relativeTo',
-  'blockLayoutFor',
-  'bloomSource',
-  'bracketFromTraces',
-  'callGameExtension',
-  'cappedImageSize',
-  'circularWeir',
-  'closestPointOn',
-  'clusterAt',
-  'contributorLight',
-  'cpuTestDevice',
-  'createProject',
-  'curveSamples',
-  'customShapeDirections',
-  'decodeUniversalBlock',
-  'dirtyRectOf',
-  'dirtyTilesBetween',
-  'encodedImageSize',
-  'eventsSince',
-  'fakeFlutterRun',
-  'firstDifferingPath',
-  'generateRsaKeyPair',
-  'hdrSizeOf',
-  'importMeshData',
-  'importSixWay',
-  'indexWindow',
-  'inspectorSections',
-  'isotropicRemesh',
-  'jitterOffset',
-  'mapUv',
-  'markerOf',
-  'mergeAt',
-  'mergeByDistance',
-  'orificeFlow',
-  'overCircularLip',
-  'pixelRay',
-  'polygonEdgesOf',
-  'projectAt',
-  'projectPoint',
-  'renderPost',
-  'resolveIkConstraint',
-  'resolveLookAtConstraint',
-  'selectPlugins',
-  'separateComponents',
-  'splatNoiseOffset',
-  'splitLargeMeshes',
-  'subMesh',
-  'symmetricEigen3',
-  'tangentHandles',
-  'toGltfFilters',
-  'valueRange',
-  'vogelDisc',
-];
 
 /// Public plain classes, each with why it says nothing about who extends
 /// it. Empty: every public class is `final`, `base`, `sealed` or
@@ -4145,7 +3996,7 @@ const String minuteConfigGuard =
 /// Longer timeouts that were in the tree before the minute was the rule,
 /// with what each one is for as its own comment or test says it.
 ///
-/// **A to-do list, not an exemption**, like [interfaceClassPending]: none of
+/// **A to-do list, not an exemption**, like the base-class rule's was: none of
 /// these has been timed against the minute yet. When a test here is timed,
 /// it is made to fit the minute and its timeout removed, or it moves to
 /// [slowTestsAllowed] with the measurement beside its reason. A new long
@@ -4220,4 +4071,28 @@ const Map<String, String> slowTestsPending = <String, String>{
       'this runs out',
   'packages/flutter3d_testing/test/flip_test.dart':
       'runs only with FLIP_IMAGES set: FLIP over full reference images',
+};
+
+// --------------------------------------------- packages on lines of their own
+
+/// The published packages off the engine's number, each with why.
+///
+/// **Named, so a package cannot slip off the number unseen, nor stay off
+/// it once the reason is gone.** The rule `a package off the engine's
+/// number is named, and every pin on it admits it` fails on a package off
+/// the number that is not here and on an entry that is back on it; README
+/// and SUPPORT say the same in prose.
+const Map<String, String> ownVersionLines = <String, String>{
+  'pad_input': 'names no sibling; a gamepad plugin on its 0.5 line',
+  'flutter3d_pointer_lock':
+      'names no sibling; a platform plugin on its 0.5 line',
+  'flame_multiplayer_dashwire':
+      'its signatures carry `WireConnection` from dashwire 0.1, before 1.0',
+  'flutter3d_lints':
+      'its signatures carry `analysis_server_plugin` 0.3 and the analyzer, '
+      'which takes a major a year',
+  'flutter3d_editor_play':
+      'its signatures carry `vm_service` types, which take a major a year',
+  'flutter3d_education_lti':
+      'its signatures carry pointycastle and dart_jsonwebtoken key types',
 };

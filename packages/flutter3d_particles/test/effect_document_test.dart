@@ -482,7 +482,7 @@ void main() {
 
       // The smoke is a timed rate: nothing until the system steps.
       effects.system.advance(0.5);
-      expect(effects.triggerCounts, (fired: 3, unplaced: 0));
+      expect(effects.triggerCounts, const TriggerCounts(fired: 3, unplaced: 0));
     });
 
     test(
@@ -494,9 +494,15 @@ void main() {
         );
         effects.addDocument(_fixture(), events: bus);
         bus.show(const _Named('elements.exploded'));
-        expect(effects.triggerCounts, (fired: 0, unplaced: 3));
+        expect(
+          effects.triggerCounts,
+          const TriggerCounts(fired: 0, unplaced: 3),
+        );
         bus.show(const _Named('beacon.lit'));
-        expect(effects.triggerCounts, (fired: 1, unplaced: 3));
+        expect(
+          effects.triggerCounts,
+          const TriggerCounts(fired: 1, unplaced: 3),
+        );
         effects.system.advance(0.5);
         expect(effects.system.aliveCount, greaterThan(0));
       },

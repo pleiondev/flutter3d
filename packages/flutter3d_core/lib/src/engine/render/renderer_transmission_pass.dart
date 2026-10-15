@@ -19,7 +19,7 @@
 ///    weighted blended transparency keeps its layers (`R8`).
 /// 2. **The copy** (`'scene color copy'`): the scene target as it stands,
 ///    at its own size and at five halvings of it, side by side in one
-///    texture — see `SceneColourChain` for why one texture.
+///    texture — see `SceneColorChain` for why one texture.
 /// 3. **The transparent half** (`'transparent'`): the scene target, the
 ///    surface buffer and the albedo buffer loaded rather than cleared, and
 ///    the depth loaded; the transmissive draws, reading the copy where the
@@ -82,7 +82,7 @@ extension _TransmissionPasses on Renderer {
   /// which the scene pass builds later. A transmissive mesh the frustum then
   /// culls still splits the frame; the picture is the same either way, less
   /// the multisampling.
-  static bool _holdsTransmission(Scene scene, List<RenderView> views) {
+  static bool _holdsTransmission(Scene scene, List<CameraView> views) {
     final mask = views.fold<int>(0, (all, view) => all | view.layerMask);
     return scene.meshes.any(
       (node) =>
@@ -95,10 +95,10 @@ extension _TransmissionPasses on Renderer {
 
   /// Draws [chain]'s levels of [source] into [target], each into its own
   /// rectangle, in one pass.
-  void _encodeSceneColourCopy({
+  void _encodeSceneColorCopy({
     required TextureHandle source,
     required TextureHandle target,
-    required SceneColourChain chain,
+    required SceneColorChain chain,
   }) {
     final pass = device.beginRenderPass(
       RenderPassDescriptor(
@@ -111,15 +111,15 @@ extension _TransmissionPasses on Renderer {
     pass
       ..bindPipeline(
         _postPipeline(
-          _sceneColourCopyPipeline,
-          _sceneColourCopyShader,
-          (p) => _sceneColourCopyPipeline = p,
+          _sceneColorCopyPipeline,
+          _sceneColorCopyShader,
+          (p) => _sceneColorCopyPipeline = p,
         ),
       )
       ..bindVertexBuffer(_fullscreenTriangle, 3)
       ..bindIndexBuffer(_identityIndices(3), IndexType.int32, 3)
       ..bindTexture(
-        _sceneColourCopyShader,
+        _sceneColorCopyShader,
         'source_texture',
         source,
         sampler: SamplerDescriptor.linearClamp,
@@ -134,7 +134,7 @@ extension _TransmissionPasses on Renderer {
         ..setState(
           Renderer._kFullscreenState.copyWith(viewport: rect, scissor: rect),
         )
-        ..bindBlock(_sceneColourCopyShader, _sceneCopyInfo)
+        ..bindBlock(_sceneColorCopyShader, _sceneCopyInfo)
         ..draw();
       _frameCounters?.drawCalls++;
     }
@@ -147,9 +147,9 @@ extension _TransmissionPasses on Renderer {
   /// Every rectangle is turned into texture coordinates on the device's own
   /// rows: the engine states them from the top, and a backend whose row zero
   /// is the bottom of the picture keeps its texels that way up too.
-  void _aimSceneColour(_DeferredTransparency deferred) {
+  void _aimSceneColor(_DeferredTransparency deferred) {
     final info = _layerInfo;
-    final read = _sceneColourRead;
+    final read = _sceneColorRead;
     if (read == null) {
       info.sceneColor[0] = 0.0;
       return;
@@ -166,7 +166,7 @@ extension _TransmissionPasses on Renderer {
       ..[1] = 1.0 / atlasWidth
       ..[2] = 1.0 / atlasHeight;
     // Past the last level the table repeats it, so no index reads a zero.
-    for (var k = 0; k < SceneColourChain.maxLevels; k++) {
+    for (var k = 0; k < SceneColorChain.maxLevels; k++) {
       final rect = chain.rect(math.min(k, chain.levels - 1));
       info.sceneLevels
         ..[k * 4] = rect.x / atlasWidth
@@ -208,9 +208,9 @@ extension _TransmissionPasses on Renderer {
         settings.transparency == TransparencyMode.weightedBlended;
     final views = split.views;
     final multiView = views.length > 1;
-    _sceneColourRead = sceneColor == null
+    _sceneColorRead = sceneColor == null
         ? null
-        : (texture: sceneColor, chain: SceneColourChain(hdr.width, hdr.height));
+        : (texture: sceneColor, chain: SceneColorChain(hdr.width, hdr.height));
     try {
       final surface = split.surfaceIsRead ? _surfaceColor : null;
       // The contributors that read the scene's depth, drawn in a pass of
@@ -378,7 +378,7 @@ extension _TransmissionPasses on Renderer {
     } finally {
       // Nothing after this pass reads the copy: a probe's capture, the view
       // model and the next frame all see the environment again.
-      _sceneColourRead = null;
+      _sceneColorRead = null;
       _layerInfo.sceneColor[0] = 0.0;
     }
   }

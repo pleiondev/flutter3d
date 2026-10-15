@@ -223,7 +223,7 @@ Future<void> _warmUp(
   width: 16,
   height: 16,
   scene: stage.scene,
-  views: <RenderView>[RenderView(camera: stage.camera)],
+  views: <CameraView>[CameraView(camera: stage.camera)],
   slice: Duration.zero,
 );
 
@@ -278,7 +278,7 @@ void main() {
       width: 16,
       height: 16,
       scene: stage.scene,
-      views: <RenderView>[RenderView(camera: stage.camera)],
+      views: <CameraView>[CameraView(camera: stage.camera)],
     );
     expect(
       held.inner.linkedPipelines.where((n) => n == _lit).length,

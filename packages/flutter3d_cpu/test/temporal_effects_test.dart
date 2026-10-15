@@ -56,7 +56,7 @@ RenderSettings _settings({required bool temporal}) => RenderSettings(
 
 /// A box standing in the corner of two walls and a floor: creases for the
 /// occlusion to find.
-({Renderer renderer, Scene scene, RenderView view, _AoProbe probe}) _staged() {
+({Renderer renderer, Scene scene, CameraView view, _AoProbe probe}) _staged() {
   final device = CpuDevice(
     width: _width,
     height: _height,
@@ -83,7 +83,7 @@ RenderSettings _settings({required bool temporal}) => RenderSettings(
   return (
     renderer: Renderer.create(device: device)..renderSteps.addNode(probe),
     scene: scene,
-    view: RenderView(
+    view: CameraView(
       camera: camera,
       clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
     ),
@@ -92,14 +92,14 @@ RenderSettings _settings({required bool temporal}) => RenderSettings(
 }
 
 Float32List _ao(
-  ({Renderer renderer, Scene scene, RenderView view, _AoProbe probe}) it,
+  ({Renderer renderer, Scene scene, CameraView view, _AoProbe probe}) it,
   RenderSettings settings,
 ) {
   it.renderer.render(
     width: _width,
     height: _height,
     scene: it.scene,
-    views: <RenderView>[it.view],
+    views: <CameraView>[it.view],
     settings: settings,
   );
   return it.probe.last!;
@@ -151,7 +151,7 @@ void main() {
       width: _width,
       height: _height,
       scene: it.scene,
-      views: <RenderView>[it.view],
+      views: <CameraView>[it.view],
       settings: _settings(temporal: false),
     );
     expect(result.passes.map((p) => p.name), isNot(contains('ssao history')));

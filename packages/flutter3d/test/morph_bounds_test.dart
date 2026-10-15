@@ -120,7 +120,7 @@ Future<int> _litPixels(
     width: _width,
     height: _height,
     scene: it.scene,
-    views: <RenderView>[RenderView(camera: it.camera)],
+    views: <CameraView>[CameraView(camera: it.camera)],
     settings: const RenderSettings(),
   );
   final pixels = await it.device.readback(result.frame);

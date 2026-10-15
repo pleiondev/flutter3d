@@ -11,7 +11,8 @@ import 'dart:typed_data';
 import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
-import 'cpu_shaders_color.dart' show decodeSurfaceNormal, pixelRay, toLinear;
+import 'cpu_shaders_color.dart'
+    show PixelRay, decodeSurfaceNormal, pixelRay, toLinear;
 
 /// `kMaxDecals` in `decal.frag`.
 const int _maxDecals = 16;
@@ -49,7 +50,7 @@ final class DecalShader extends CpuFragmentShader {
 
     // `WorldAt`, with the target's coordinates taken into the view's.
     Vector3 worldAt(double atU, double atV, double depth) {
-      final (:origin, :along) = pixelRay(
+      final PixelRay(:origin, :along) = pixelRay(
         inverse,
         (atU - view.x) / view.z,
         (atV - view.y) / view.w,

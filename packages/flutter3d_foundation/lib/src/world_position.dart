@@ -50,8 +50,8 @@ final class WorldPosition {
   /// This is the step before a caller narrows to float32: subtract in doubles
   /// first, then round the (small) difference, and the rounding costs
   /// micrometres instead of centimetres.
-  ({double x, double y, double z}) relativeTo(WorldPosition origin) =>
-      (x: x - origin.x, y: y - origin.y, z: z - origin.z);
+  WorldOffset relativeTo(WorldPosition origin) =>
+      WorldOffset(x: x - origin.x, y: y - origin.y, z: z - origin.z);
 
   /// The straight-line distance to [other], in metres, for a caller asking
   /// how far apart two things are.
@@ -88,4 +88,33 @@ final class WorldPosition {
 
   @override
   String toString() => 'WorldPosition($x, $y, $z)';
+}
+
+/// How far one [WorldPosition] is from another, in metres along the world
+/// axes and still in double precision: what [WorldPosition.relativeTo]
+/// answers.
+///
+/// Immutable, like the positions it is the difference of.
+final class WorldOffset {
+  /// The offset [x], [y], [z] metres along the world axes.
+  const WorldOffset({required this.x, required this.y, required this.z});
+
+  /// Metres along the world X axis.
+  final double x;
+
+  /// Metres along the world Y axis, which is up.
+  final double y;
+
+  /// Metres along the world Z axis.
+  final double z;
+
+  @override
+  bool operator ==(Object other) =>
+      other is WorldOffset && other.x == x && other.y == y && other.z == z;
+
+  @override
+  int get hashCode => Object.hash(x, y, z);
+
+  @override
+  String toString() => 'WorldOffset($x, $y, $z)';
 }

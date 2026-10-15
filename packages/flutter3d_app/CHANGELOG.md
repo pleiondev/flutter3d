@@ -1,3 +1,16 @@
+## 1.0.0-rc.1+1
+
+- **Breaking: `RenderView` is `CameraView`.** `Flutter3dEngine`,
+  `LoadedLevel`, `SceneSurface`, `ViewSettings` and `XrDriver` changed with
+  it. `package:flutter/rendering.dart` exports a `RenderView` too, the root
+  of a render tree, so a file importing both had to hide one.
+  `RenderViewSettings` is `CameraViewSettings` and `FrameView.ofRenderView`
+  is `FrameView.ofCameraView`; `dart fix` renames them.
+- **Breaking: `Scene3D(onSceneCreated:)` is `onCreated`.** `Scene3D`: every
+  widget of the engine's names its creation callback `onCreated`, as
+  `Flutter3dView` does; it is still handed the scene's controller. `dart
+  fix` renames the argument.
+
 ## 1.0.0-rc.1
 
 - **The facade exports the stock implementations of what it exports**:

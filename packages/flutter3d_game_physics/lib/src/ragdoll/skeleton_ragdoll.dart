@@ -44,6 +44,29 @@ import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
         turnBy;
 import 'package:vector_math/vector_math.dart';
 
+/// How long a [RagdollPart] is when no joint ends it: a multiple of an
+/// earlier part's length, as [RagdollPart.tailLength] holds it.
+final class RagdollTailLength {
+  const RagdollTailLength({required this.of, required this.times});
+
+  /// The earlier part whose length this is measured against, by its joint's
+  /// name.
+  final String of;
+
+  /// How many times that part's length, a unitless multiplier.
+  final double times;
+
+  @override
+  bool operator ==(Object other) =>
+      other is RagdollTailLength && other.of == of && other.times == times;
+
+  @override
+  int get hashCode => Object.hash(of, times);
+
+  @override
+  String toString() => 'RagdollTailLength($times × $of)';
+}
+
 /// One body of a [RagdollProfile].
 final class RagdollPart {
   const RagdollPart({
@@ -57,9 +80,9 @@ final class RagdollPart {
   /// Where the body ends: the first of these joints the rig has.
   final List<String> tailAt;
 
-  /// Else, along the joint's own y, this many times the length of an earlier
+  /// Else, along the joint's own y, a multiple of the length of an earlier
   /// part.
-  final ({String of, double times})? tailLength;
+  final RagdollTailLength? tailLength;
 
   /// How thick, as a share of the figure's height.
   final double radius;
@@ -125,7 +148,7 @@ final class RagdollProfile {
         joint: _spine,
       ),
       'Head': RagdollPart(
-        tailLength: (of: 'Torso', times: 0.9),
+        tailLength: RagdollTailLength(of: 'Torso', times: 0.9),
         radius: 0.07,
         share: SegmentMassShares.head,
         joint: _neck,
@@ -150,14 +173,14 @@ final class RagdollProfile {
   );
   static const RagdollPart _lowerArmL = RagdollPart(
     tailAt: <String>['Fist.L', 'Middle3.L', 'Middle1.L'],
-    tailLength: (of: 'UpperArm.L', times: 0.9),
+    tailLength: RagdollTailLength(of: 'UpperArm.L', times: 0.9),
     radius: 0.03,
     share: SegmentMassShares.forearm + SegmentMassShares.hand,
     joint: _elbow,
   );
   static const RagdollPart _lowerArmR = RagdollPart(
     tailAt: <String>['Fist.R', 'Middle3.R', 'Middle1.R'],
-    tailLength: (of: 'UpperArm.R', times: 0.9),
+    tailLength: RagdollTailLength(of: 'UpperArm.R', times: 0.9),
     radius: 0.03,
     share: SegmentMassShares.forearm + SegmentMassShares.hand,
     joint: _elbow,
@@ -169,7 +192,7 @@ final class RagdollProfile {
     joint: _hip,
   );
   static const RagdollPart _lowerLeg = RagdollPart(
-    tailLength: (of: 'UpperLeg.L', times: 1.2),
+    tailLength: RagdollTailLength(of: 'UpperLeg.L', times: 1.2),
     radius: 0.04,
     share: SegmentMassShares.shank + SegmentMassShares.foot,
     joint: _knee,

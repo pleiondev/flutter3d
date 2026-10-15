@@ -288,12 +288,7 @@ final class PluginSelector {
 /// place, or added at the end), then what its `with:` [add]s. The rest are
 /// `excluded`, and each `without` entry that matched nothing and each `with`
 /// entry the group already held is a warning.
-({
-  List<DiscoveredPlugin> kept,
-  List<DiscoveredPlugin> excluded,
-  List<String> warnings,
-})
-selectPlugins(
+PluginSelection selectPlugins(
   List<DiscoveredPlugin> plugins, {
   List<PluginSelector> without = const <PluginSelector>[],
   Map<PluginSelector, String> set = const <PluginSelector, String>{},
@@ -313,7 +308,7 @@ selectPlugins(
     for (final MapEntry(key: selector, value: arguments) in set.entries)
       if (!kept.any(selector.matches)) selector.plugin.withArguments(arguments),
   ];
-  return (
+  return PluginSelection(
     kept: <DiscoveredPlugin>[
       ...group,
       for (final s in add)
@@ -331,6 +326,48 @@ selectPlugins(
     ],
   );
 }
+
+/// What [selectPlugins] answers: the plugins the application's group holds,
+/// the ones its `without:` left out, and what it wrote that did nothing.
+final class PluginSelection {
+  const PluginSelection({
+    required this.kept,
+    required this.excluded,
+    required this.warnings,
+  });
+
+  /// The plugins of the group, in order, each with the arguments its
+  /// `set:` gave it, then what `with:` added.
+  final List<DiscoveredPlugin> kept;
+
+  /// The dependencies' plugins that `without:` left out.
+  final List<DiscoveredPlugin> excluded;
+
+  /// A sentence for each `without:` entry that matched nothing and each
+  /// `with:` entry the group already held.
+  final List<String> warnings;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PluginSelection &&
+      _sameItems(other.kept, kept, _equal) &&
+      _sameItems(other.excluded, excluded, _equal) &&
+      _sameItems(other.warnings, warnings, _equal);
+
+  @override
+  int get hashCode => Object.hash(
+    Object.hashAll(kept),
+    Object.hashAll(excluded),
+    Object.hashAll(warnings),
+  );
+
+  @override
+  String toString() =>
+      'PluginSelection(${kept.length} kept, ${excluded.length} excluded, '
+      '${warnings.length} warnings)';
+}
+
+bool _equal(Object? a, Object? b) => a == b;
 
 String _unmatched(PluginSelector s) =>
     '`$pluginMarkerKey: without:` names $s, which no dependency declares; '
@@ -475,8 +512,8 @@ PluginDiscovery discoverPlugins(Directory appRoot) {
     if (!roots.containsKey(package)) continue;
     final pubspec = pubspecOf(package);
     final value = switch (markerOf(pubspec)) {
-      (final Object value, legacy: false) => value,
-      (final Object value, legacy: true) => () {
+      PluginMarker(:final value, legacy: false) => value,
+      PluginMarker(:final value, legacy: true) => () {
         warnings.add(
           '$package declares its plugins under `flutter3d: plugin:`, the '
           'key before 1.0; it is read until 2.0. Move them to '
@@ -588,12 +625,65 @@ List<String> shaderNeedsOf(
 /// [pluginMarkerKey] or, from before 1.0, under `flutter3d:`, and whether it
 /// was the old key. Null when it declares none. The new key wins when a
 /// pubspec has both.
-(Object, {bool legacy})? markerOf(Map<Object?, Object?> pubspec) =>
+PluginMarker? markerOf(Map<Object?, Object?> pubspec) =>
     switch ((pubspec[pluginMarkerKey], pubspec[_legacyPluginMarkerKey])) {
-      ({'plugin': final Object value}, _) => (value, legacy: false),
-      (_, {'plugin': final Object value}) => (value, legacy: true),
+      ({'plugin': final Object value}, _) => PluginMarker(
+        value: value,
+        legacy: false,
+      ),
+      (_, {'plugin': final Object value}) => PluginMarker(
+        value: value,
+        legacy: true,
+      ),
       _ => null,
     };
+
+/// What [markerOf] answers: a pubspec's `plugin:` value, and whether it sat
+/// under the key from before 1.0.
+final class PluginMarker {
+  const PluginMarker({required this.value, required this.legacy});
+
+  /// The `plugin:` value as the pubspec wrote it: one string, a list of
+  /// them, or a map from a library to its classes; [markerEntries] reads it.
+  final Object value;
+
+  /// Whether it was under `flutter3d: plugin:`, the key before 1.0, rather
+  /// than under [pluginMarkerKey].
+  final bool legacy;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PluginMarker &&
+      other.legacy == legacy &&
+      _sameYaml(other.value, value);
+
+  @override
+  int get hashCode => Object.hash(legacy, switch (value) {
+    final String one => one,
+    final List<Object?> many => many.length,
+    final Map<Object?, Object?> byLibrary => byLibrary.length,
+    _ => value,
+  });
+
+  @override
+  String toString() =>
+      'PluginMarker($value${legacy ? ', under the key before 1.0' : ''})';
+}
+
+/// Whether two values read from YAML hold the same thing, lists and maps
+/// compared entry by entry.
+bool _sameYaml(Object? a, Object? b) => switch ((a, b)) {
+  (final Map<Object?, Object?> a, final Map<Object?, Object?> b) =>
+    a.length == b.length &&
+        a.keys.every((key) => b.containsKey(key) && _sameYaml(a[key], b[key])),
+  (final List<Object?> a, final List<Object?> b) => _sameItems(a, b, _sameYaml),
+  _ => a == b,
+};
+
+/// Whether [a] and [b] are as long and [same] holds for each pair in turn.
+bool _sameItems<T>(List<T> a, List<T> b, bool Function(T, T) same) =>
+    a.length == b.length &&
+    Iterable<int>.generate(a.length).every((i) => same(a[i], b[i]));
 
 /// The `<import>#<Class>` entries a `flutter3d_plugins: plugin:` [value] of
 /// [package] names, in its order: one string, a list of them, or a map from

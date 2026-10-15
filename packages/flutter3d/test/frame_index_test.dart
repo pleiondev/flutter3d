@@ -30,7 +30,7 @@ Future<Uint8List> _draw(
     width: kParityWidth,
     height: kParityHeight,
     scene: built.scene,
-    views: <RenderView>[RenderView(camera: built.camera)],
+    views: <CameraView>[CameraView(camera: built.camera)],
     settings: temporal
         ? base.copyWith(
             antiAlias: base.antiAlias.copyWith(
@@ -86,7 +86,7 @@ void main() {
         width: kParityWidth,
         height: kParityHeight,
         scene: built.scene,
-        views: <RenderView>[RenderView(camera: built.camera)],
+        views: <CameraView>[CameraView(camera: built.camera)],
         settings: paritySettingsFor(ParityScene.values.first),
       );
       expect(renderer.frameIndex, i);

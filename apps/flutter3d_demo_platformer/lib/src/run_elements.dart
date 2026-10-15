@@ -31,7 +31,7 @@ import 'package:flutter3d_effects/flutter3d_effects.dart'
 import 'package:flutter3d_elements/flutter3d_elements.dart'
     show Bed, Igniter, Solid;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show LinearColor, Portable;
+    show LinearColor, Portable, SinCos;
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
@@ -808,6 +808,6 @@ void stepElements(PlatformerSimulation sim, RunElements? elements, double dt) {
 /// cosine: `Quaternion.axisAngle` asks `dart:math`, whose last bits differ
 /// between the VM and a browser.
 Quaternion _turn(Vector3 axis, double angle) {
-  final (:sin, :cos) = Portable.sinCos(angle * 0.5);
+  final SinCos(:sin, :cos) = Portable.sinCos(angle * 0.5);
   return Quaternion(axis.x * sin, axis.y * sin, axis.z * sin, cos);
 }

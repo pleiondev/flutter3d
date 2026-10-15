@@ -156,7 +156,7 @@ final class DeviceSettings {
 final class ViewSettings {
   const ViewSettings({
     this.settings = const RenderSettings(),
-    this.render = const RenderViewSettings(),
+    this.render = const CameraViewSettings(),
     this.resolution = ViewResolution.native,
     this.views,
     this.continuous = true,
@@ -171,7 +171,7 @@ final class ViewSettings {
   final RenderSettings settings;
 
   /// The view's own settings: a visibility hook, a label.
-  final RenderViewSettings render;
+  final CameraViewSettings render;
 
   /// How many device pixels the view draws per logical pixel.
   final ViewResolution resolution;
@@ -185,7 +185,7 @@ final class ViewSettings {
   /// views' projections to the size it is laid out at; the views are the
   /// caller's, and the view leaves them undisposed. `onListenerMoved` still
   /// follows the camera.
-  final List<RenderView>? views;
+  final List<CameraView>? views;
 
   /// Whether the view draws a frame on every display refresh, stepping the
   /// loop before each. True by default. False draws a frame only when the
@@ -222,9 +222,9 @@ final class ViewSettings {
   /// back to null.
   ViewSettings copyWith({
     RenderSettings? settings,
-    RenderViewSettings? render,
+    CameraViewSettings? render,
     ViewResolution? resolution,
-    List<RenderView>? views,
+    List<CameraView>? views,
     bool? continuous,
     double? frameRateCap,
     Widget? placeholder,

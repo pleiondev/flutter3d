@@ -94,7 +94,7 @@ final class AddNode extends ModelCommand {
     required this.materialIndex,
     required this.kind,
     this.fields = const <String, Object?>{},
-    this.position = (0.0, 0.0),
+    this.position = NodePosition.origin,
   });
 
   final int materialIndex;
@@ -109,7 +109,7 @@ final class AddNode extends ModelCommand {
 
   /// Where `TextureGraphPanel` draws the new node. See
   /// [TextureGraph.positions].
-  final (double x, double y) position;
+  final NodePosition position;
 
   @override
   String get name => 'addNode';
@@ -122,8 +122,8 @@ final class AddNode extends ModelCommand {
     'materialIndex': materialIndex,
     'kind': kind,
     'fields': fields,
-    'x': position.$1,
-    'y': position.$2,
+    'x': position.x,
+    'y': position.y,
   };
 
   @override
@@ -144,7 +144,7 @@ final class AddNode extends ModelCommand {
     final TextureGraph graph = material.graph ?? const TextureGraph();
     final nextGraph = TextureGraph(
       nodes: <TextureNode>[...graph.nodes, node],
-      positions: <int, (double, double)>{...graph.positions, id: position},
+      positions: <int, NodePosition>{...graph.positions, id: position},
     );
     return Outcome.done(
       ModelProject(
@@ -413,7 +413,10 @@ final class MoveNode extends ModelCommand {
     }
     final nextGraph = TextureGraph(
       nodes: graph.nodes,
-      positions: <int, (double, double)>{...graph.positions, nodeId: (x, y)},
+      positions: <int, NodePosition>{
+        ...graph.positions,
+        nodeId: NodePosition(x: x, y: y),
+      },
     );
     return Outcome.done(
       _withMaterial(
@@ -486,7 +489,7 @@ final class RemoveNode extends ModelCommand {
       for (final n in graph.nodes)
         if (n.id != nodeId) _withoutLinksTo(n, nodeId),
     ];
-    final nextPositions = <int, (double, double)>{...graph.positions}
+    final nextPositions = <int, NodePosition>{...graph.positions}
       ..remove(nodeId);
     final nextGraph = TextureGraph(nodes: nextNodes, positions: nextPositions);
     return Outcome.done(

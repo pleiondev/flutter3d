@@ -1,4 +1,4 @@
-/// One `RenderView` cropped to a rectangle, and two combined in one frame.
+/// One `CameraView` cropped to a rectangle, and two combined in one frame.
 library;
 
 import 'package:flutter3d/flutter3d.dart';
@@ -72,12 +72,12 @@ final class MultiViewDemo extends ShowcaseDemo {
   @override
   void update(DemoContext context, double dt) {
     // #region split
-    final RenderView left = RenderView(
+    final CameraView left = CameraView(
       camera: context.camera,
       viewportFraction: const ViewportRect(0.0, 0.0, 0.5, 1.0),
       layerMask: 1,
     );
-    final RenderView right = RenderView(
+    final CameraView right = CameraView(
       camera: context.camera,
       viewportFraction: const ViewportRect(0.5, 0.0, 0.5, 1.0),
       layerMask: 2,
@@ -86,7 +86,7 @@ final class MultiViewDemo extends ShowcaseDemo {
       width: 320,
       height: 180,
       scene: _scene,
-      views: <RenderView>[left, right],
+      views: <CameraView>[left, right],
       settings: const RenderSettings(),
     );
     // #endregion split

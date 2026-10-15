@@ -110,7 +110,7 @@ Future<List<int>> _grid(ShadowSettings shadows) async {
     width: _width,
     height: _height,
     scene: room.scene,
-    views: <RenderView>[RenderView(camera: room.camera)],
+    views: <CameraView>[CameraView(camera: room.camera)],
     settings: RenderSettings(
       bloom: const BloomSettings(enabled: false),
       shadows: shadows,
@@ -211,7 +211,7 @@ void main() {
       width: _width,
       height: _height,
       scene: room.scene,
-      views: <RenderView>[RenderView(camera: room.camera)],
+      views: <CameraView>[CameraView(camera: room.camera)],
       settings: const RenderSettings(
         bloom: BloomSettings(enabled: false),
         shadows: ShadowSettings(

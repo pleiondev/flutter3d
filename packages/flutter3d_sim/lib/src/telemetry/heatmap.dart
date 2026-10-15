@@ -11,6 +11,28 @@ library;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show Flutter3dFormatException;
 
+/// One sample of where a run was, in plan: a point of a [HeatmapTrail], a
+/// [ResimulationRetraced] trail or a playtest run's path.
+final class TrailPoint {
+  const TrailPoint({required this.x, required this.z});
+
+  /// Along the world's X axis, in metres.
+  final double x;
+
+  /// Along the world's Z axis, in metres.
+  final double z;
+
+  @override
+  bool operator ==(Object other) =>
+      other is TrailPoint && other.x == x && other.z == z;
+
+  @override
+  int get hashCode => Object.hash(x, z);
+
+  @override
+  String toString() => 'TrailPoint($x, $z)';
+}
+
 /// The path of one run across a level, as [Heatmap.bin] takes it.
 final class HeatmapTrail {
   const HeatmapTrail({
@@ -31,8 +53,8 @@ final class HeatmapTrail {
   /// How it ended, in the source's own word — counted under [Heatmap.outcomes].
   final String outcome;
 
-  /// `(x, z)` samples, in order.
-  final List<(double, double)> positions;
+  /// Where the run was, sampled, in order.
+  final List<TrailPoint> positions;
 
   /// Whether the last of [positions] is a place worth marking: where the run
   /// was lost.
@@ -113,7 +135,7 @@ final class Heatmap {
     final samples = <(int, int), int>{};
     final runsThrough = <(int, int), Set<int>>{};
     for (final trail in listed) {
-      for (final (x, z) in trail.positions) {
+      for (final TrailPoint(:x, :z) in trail.positions) {
         final cell = ((x / cellSize).floor(), (z / cellSize).floor());
         samples[cell] = (samples[cell] ?? 0) + 1;
         (runsThrough[cell] ??= <int>{}).add(trail.run);
@@ -136,8 +158,8 @@ final class Heatmap {
             HeatmapEnd(
               run: trail.run,
               step: trail.steps,
-              x: trail.positions.last.$1,
-              z: trail.positions.last.$2,
+              x: trail.positions.last.x,
+              z: trail.positions.last.z,
             ),
       ],
       outcomes: <String, int>{

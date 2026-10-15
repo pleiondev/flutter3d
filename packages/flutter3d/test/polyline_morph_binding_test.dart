@@ -28,7 +28,7 @@ int _morphBinds(MeshNode Function(FakeBackend device) mesh) {
     width: 64,
     height: 64,
     scene: scene,
-    views: <RenderView>[RenderView(camera: scene.cameras.single)],
+    views: <CameraView>[CameraView(camera: scene.cameras.single)],
     // No shadow map, whose caster pass draws through the engine's own stage.
     settings: const RenderSettings(shadows: ShadowSettings(enabled: false)),
   );

@@ -114,7 +114,7 @@ restoration and teardown.
 |---|---|---|
 | `scene`, `camera` | `Scene?`, `CameraNode?` | What is drawn and from where |
 | `device` | `DeviceSettings` | The device and renderer, borrowed or opened; `onDeviceLost`, `onDeviceRestored`, `fallbackBanner`, `presenter` |
-| `view` | `ViewSettings` | `settings` (`RenderSettings`), `render` (`RenderViewSettings`), `resolution` (`ViewResolution.native`, `.capped(pixels)`, `.scaled(factor)`), `views`, `continuous`, `frameRateCap`, `placeholder`, `failure`, `warmUp`, `onWarmUpProgress` |
+| `view` | `ViewSettings` | `settings` (`RenderSettings`), `render` (`CameraViewSettings`), `resolution` (`ViewResolution.native`, `.capped(pixels)`, `.scaled(factor)`), `views`, `continuous`, `frameRateCap`, `placeholder`, `failure`, `warmUp`, `onWarmUpProgress` |
 | `loop` | `LoopSettings` | `timing` (`WorldTiming`), `input`, `drainLook`, `originShift` (meters, 1000 by default, `null` off), `simulation` (`SimulationPlacement`), `profile` (`SimulationProfile`) |
 | `plugins` | `PluginSettings` | `plugins`, `formats`, `registries` handed to the loop |
 | `time` | `TimeSource?` | How many steps a frame brings (see [the simulation loop](#the-simulation-loop)) |
@@ -129,7 +129,7 @@ The four settings groups are `final` classes with `const` constructors and
 
 `Flutter3dEngine`, handed to `onCreated` and in every `EngineFrame`, holds
 what the view made: `device`, `renderer`, `scene` (settable), `camera`,
-`view` (`RenderView`), `loop` (`EngineLoop`), `simulation`
+`view` (`CameraView`), `loop` (`EngineLoop`), `simulation`
 (`SimulationHandle`), `published` (a `ValueListenable<PublishedState>`),
 `devices`, `log`, `backendRefusals`, `loss`, and `ownsDevice` and
 `ownsRenderer`.
@@ -153,7 +153,7 @@ Widget view(Scene scene, CameraNode camera) => Flutter3dView(
 
 `Scene3D` is the same view with the scene written as widgets. It takes the
 same four settings groups, handed on whole, plus `children`, `clearColor`,
-`materials` (a `ShaderLibrary`) and `onSceneCreated`
+`materials` (a `ShaderLibrary`) and `onCreated`
 (`Scene3DController`: `engine`, `scene`, `camera`, `device`, `renderer`).
 
 | Widget | What it puts in the scene |
@@ -207,7 +207,7 @@ Widget teapotScene() => Scene3D(
 
 `SceneSurface` is the widget that hands a frame to Flutter, with nothing
 around it: no loop, no device opening, no fallback. It takes a `renderer`, a
-`scene`, a `view` (`RenderView`), `settings` (a function called once per
+`scene`, a `view` (`CameraView`), `settings` (a function called once per
 frame, so anything derived from the camera is read after it moved),
 `onBeforeFrame`, `presentFrame` (a `FramePresenter`), and optionally
 `moreViews`, `onFrame`, `cadence` (`FrameCadence`) and `pixelRatio`.
@@ -923,7 +923,7 @@ pipeline's next input is a `PipelineDescriptor` field, read by
 
 ```bash
 dart pub global activate flutter3d_build 1.0.0-rc.1
-dart pub global activate flutter3d_lints 1.0.0-rc.1
+dart pub global activate flutter3d_lints 0.9.0
 dart pub global run flutter3d_build:migrate --dry-run .
 dart pub global run flutter3d_build:migrate .
 ```

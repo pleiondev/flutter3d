@@ -34,6 +34,7 @@ import 'package:flutter3d_shaders/translate.dart'
         translateGlsl,
         wgslSectionDocument;
 
+import '../formats/engine_words.dart';
 import 'material_wgsl.dart';
 
 /// A shader a plugin brought at run time that this engine cannot compile,
@@ -824,8 +825,9 @@ final class RuntimeShaders extends PluginRegistry {
   }
 
   RenderStep _builtInStep(String name, String wanted) {
+    final word = engineWordFor(name);
     for (final step in RenderStep.values) {
-      if (step.name == name) return step;
+      if (step.name == name || step.name == word) return step;
     }
     throw PluginException(
       'render step "$wanted" needs "$name", which is not one of the '

@@ -677,7 +677,7 @@ final class _PlanarReflectionNode extends RenderNode {
   final Scene scene;
 
   /// Every view, by priority — each gets its own mirrored camera.
-  final List<RenderView> views;
+  final List<CameraView> views;
   final RenderSettings settings;
   final int shadowCaster;
 
@@ -795,7 +795,7 @@ final class _SceneNode extends RenderNode {
     // `RenderStep.transparent` and `RenderStep.sceneColorCopy`: the split
     // follows content, and these two steps are how a caller draws the frame
     // unsplit anyway.
-    copy = _SceneColourCopyNode(
+    copy = _SceneColorCopyNode(
       _renderer,
       active:
           transmits &&
@@ -817,7 +817,7 @@ final class _SceneNode extends RenderNode {
   final Scene scene;
 
   /// Every view, by priority — all of them drawn by this one pass.
-  final List<RenderView> ordered;
+  final List<CameraView> ordered;
 
   /// Handed in rather than looked up, so a node somebody else supplies can be
   /// given its own set. See [Renderer._encodeScene].
@@ -834,7 +834,7 @@ final class _SceneNode extends RenderNode {
 
   /// The copy of the scene the transmissive draws read, and the pass that
   /// draws them over it — `M3`.
-  late final _SceneColourCopyNode copy;
+  late final _SceneColorCopyNode copy;
   late final _TransparentNode transparent;
 
   @override
@@ -1032,7 +1032,7 @@ final class _DecalNode extends RenderNode {
   final Scene _scene;
 
   /// Every view, each painted with its own camera inside its own rectangle.
-  final List<RenderView> _views;
+  final List<CameraView> _views;
   final RenderSettings _settings;
 
   @override
@@ -1084,8 +1084,8 @@ final class _DecalNode extends RenderNode {
 /// The scene as the opaque half left it, in levels for the transmissive
 /// draws to read — `M3`. Active only on a frame that holds one; see
 /// `renderer_transmission_pass.dart`.
-final class _SceneColourCopyNode extends RenderNode {
-  _SceneColourCopyNode(this._renderer, {required this.active});
+final class _SceneColorCopyNode extends RenderNode {
+  _SceneColorCopyNode(this._renderer, {required this.active});
 
   final Renderer _renderer;
 
@@ -1109,10 +1109,10 @@ final class _SceneColourCopyNode extends RenderNode {
   @override
   void execute(RenderFrame frame) {
     final source = frame.resources.texture(FrameResourceIds.hdrColor);
-    _renderer._encodeSceneColourCopy(
+    _renderer._encodeSceneColorCopy(
       source: source,
       target: frame.resources.texture(FrameResourceIds.sceneColor),
-      chain: SceneColourChain(source.width, source.height),
+      chain: SceneColorChain(source.width, source.height),
     );
   }
 }
@@ -1261,7 +1261,7 @@ final class _ReflectionsNode extends RenderNode with _NeedsSurfaceBuffer {
   Renderer get owner => _renderer;
 
   final Renderer _renderer;
-  final RenderView _view;
+  final CameraView _view;
   final RenderSettings _settings;
 
   /// For its environment, whose reflection a hit replaces.
@@ -1317,7 +1317,7 @@ final class _SsaoNode extends RenderNode with _NeedsSurfaceBuffer {
   Renderer get owner => _renderer;
 
   final Renderer _renderer;
-  final RenderView _view;
+  final CameraView _view;
   final RenderSettings _settings;
 
   @override
@@ -1394,7 +1394,7 @@ final class _ContactShadowNode extends RenderNode with _NeedsSurfaceBuffer {
   Renderer get owner => _renderer;
 
   final Renderer _renderer;
-  final RenderView _view;
+  final CameraView _view;
   final RenderSettings _settings;
 
   /// Which way the sun lies from a surface, or null for a scene with no
@@ -1531,7 +1531,7 @@ final class _CameraVelocityNode extends RenderNode with _NeedsSurfaceBuffer {
   Renderer get owner => _renderer;
 
   final Renderer _renderer;
-  final RenderView _view;
+  final CameraView _view;
   final RenderSettings _settings;
 
   @override
@@ -1582,7 +1582,7 @@ final class _ObjectVelocityNode extends RenderNode with _NeedsSurfaceBuffer {
   Renderer get owner => _renderer;
 
   final Renderer _renderer;
-  final RenderView _view;
+  final CameraView _view;
   final RenderSettings _settings;
   final Scene _scene;
 
@@ -1635,7 +1635,7 @@ final class _ReactiveNode extends RenderNode with _NeedsSurfaceBuffer {
   Renderer get owner => _renderer;
 
   final Renderer _renderer;
-  final RenderView _view;
+  final CameraView _view;
   final RenderSettings _settings;
   final Scene _scene;
 
@@ -1694,7 +1694,7 @@ final class _AccumulateNode extends RenderNode {
   );
 
   final Renderer _renderer;
-  final RenderView _view;
+  final CameraView _view;
   final RenderSettings _settings;
   final ResourceId _resource;
 
@@ -1741,7 +1741,7 @@ final class _TemporalResolveNode extends RenderNode with _NeedsSurfaceBuffer {
   Renderer get owner => _renderer;
 
   final Renderer _renderer;
-  final RenderView _view;
+  final CameraView _view;
   final RenderSettings _settings;
 
   @override
@@ -1802,7 +1802,7 @@ final class _VolumetricFogNode extends RenderNode with _NeedsSurfaceBuffer {
   Renderer get owner => _renderer;
 
   final Renderer _renderer;
-  final RenderView _view;
+  final CameraView _view;
   final RenderSettings _settings;
 
   /// Towards the light the air scatters as its sun, and its colour times
@@ -1895,7 +1895,7 @@ final class _LightShaftsNode extends RenderNode with _NeedsSurfaceBuffer {
   Renderer get owner => _renderer;
 
   final Renderer _renderer;
-  final RenderView _view;
+  final CameraView _view;
   final RenderSettings _settings;
 
   /// Towards the shadow-casting sun, and its colour times intensity — what
@@ -1977,7 +1977,7 @@ final class _DepthOfFieldNode extends RenderNode with _NeedsSurfaceBuffer {
   final Renderer _renderer;
 
   /// Whose projection the lens is made to agree with.
-  final RenderView _view;
+  final CameraView _view;
   final RenderSettings _settings;
 
   @override
@@ -2117,7 +2117,7 @@ final class _ViewportShadeNode extends RenderNode {
   _ViewportShadeNode(this._renderer, this._view, this._settings);
 
   final Renderer _renderer;
-  final RenderView _view;
+  final CameraView _view;
   final RenderSettings _settings;
 
   @override
@@ -2179,7 +2179,7 @@ final class _OutlineMaskNode extends RenderNode with _NeedsSurfaceBuffer {
   final Renderer _renderer;
   final RenderSettings _settings;
   final Scene _scene;
-  final List<RenderView> _views;
+  final List<CameraView> _views;
 
   @override
   String get name => 'outline mask';
@@ -2495,7 +2495,7 @@ final class _CompositeNode extends RenderNode {
 
   final Renderer _renderer;
   final Scene _scene;
-  final List<RenderView> _views;
+  final List<CameraView> _views;
   final RenderSettings _settings;
 
   /// How many overlay line segments the pass drew, for the frame's counters.
@@ -2833,7 +2833,7 @@ final class _LuminanceNode extends RenderNode {
   _LuminanceNode(
     this._renderer,
     this._settings, [
-    this._views = const <RenderView>[],
+    this._views = const <CameraView>[],
   ]);
 
   final Renderer _renderer;
@@ -2842,7 +2842,7 @@ final class _LuminanceNode extends RenderNode {
   /// The frame's views, for `gfx-22n`: each meters its own rectangle of the
   /// one readback this node asks for. Empty is the frame metering itself,
   /// which is what a single-view frame and every frame before this row did.
-  final List<RenderView> _views;
+  final List<CameraView> _views;
 
   @override
   String get name => 'luminance';
@@ -2885,7 +2885,7 @@ final class _DepthPyramidNode extends RenderNode {
   _DepthPyramidNode(this._renderer, this._view, this._settings, this._views);
 
   final Renderer _renderer;
-  final RenderView _view;
+  final CameraView _view;
   final RenderSettings _settings;
   final int _views;
 
@@ -2952,7 +2952,7 @@ final class _ObjectIdNode extends RenderNode {
 
   final Renderer _renderer;
   final Scene scene;
-  final List<RenderView> ordered;
+  final List<CameraView> ordered;
 
   /// This frame's questions, taken off the renderer when the node was built
   /// so a question asked mid-frame waits for the next one.

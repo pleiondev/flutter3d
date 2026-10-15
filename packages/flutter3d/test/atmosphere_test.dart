@@ -50,9 +50,9 @@ void main() {
   });
 
   test('a day goes round, blending the last key back into the first', () {
-    final day = AtmosphereCycle(<(double, Atmosphere)>[
-      (0.0, _noon()),
-      (60.0, _night()),
+    final day = AtmosphereCycle(<AtmosphereKey>[
+      AtmosphereKey(time: 0.0, atmosphere: _noon()),
+      AtmosphereKey(time: 60.0, atmosphere: _night()),
     ], period: 120.0);
     // Lux since 1.0: the keys are pre-1.0 numbers carried over in
     // `LightNode.defaultIntensity`, and so are the blends of them.
@@ -78,7 +78,7 @@ void main() {
       type: LightType.directional,
       intensity: 1.0 * LightNode.defaultIntensity,
     );
-    final view = RenderView(camera: CameraNode());
+    final view = CameraView(camera: CameraNode());
     _night().applyTo(scene, sun: sun, view: view);
     expect(
       scene.ambientIntensity,
@@ -135,7 +135,7 @@ void main() {
             width: 16,
             height: 16,
             scene: scene,
-            views: <RenderView>[RenderView(camera: camera)],
+            views: <CameraView>[CameraView(camera: camera)],
             settings: RenderSettings(
               tonemap: false,
               fog: FogSettings(color: LinearColor(0.0, 0.0, 1.0), density: 0.2),

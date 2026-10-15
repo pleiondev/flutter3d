@@ -17,7 +17,7 @@ import 'render_node.dart';
 /// and the encoder offers no way to end a pass — the same rule that already
 /// governs the shadow and post passes.
 ///
-/// **It cannot simply be a second `RenderView`.** Every view shares one depth
+/// **It cannot simply be a second `CameraView`.** Every view shares one depth
 /// buffer, so a weapon held at arm's length shares no depth with the world:
 /// every doorway would slice the barrel off, and the model would be buried the
 /// moment the player walked up to a wall. Its own pass with the depth cleared

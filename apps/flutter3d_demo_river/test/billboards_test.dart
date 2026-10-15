@@ -12,7 +12,7 @@ import 'package:flutter3d/flutter3d.dart'
         LinearColor,
         PerspectiveProjection,
         RenderSettings,
-        RenderView,
+        CameraView,
         Renderer;
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_demo_river/src/course.dart' show TargetKind;
@@ -154,8 +154,8 @@ void main() {
         width: 160,
         height: 90,
         scene: game.scene,
-        views: <RenderView>[
-          RenderView(
+        views: <CameraView>[
+          CameraView(
             camera: camera,
             clearColor: LinearColor.fromSrgb(0.27, 0.48, 0.78, 1),
           ),

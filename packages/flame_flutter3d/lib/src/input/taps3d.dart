@@ -27,7 +27,7 @@ import '../world/wrap_space.dart';
 ///
 /// Any bridged component: an `Object3dComponent`, or one instance of a
 /// batch drawn as an `InstancedObject3dComponent`.
-mixin Tap3dCallbacks on Component, HasVisibility, Drawn3d {
+base mixin Tap3dCallbacks on Component, HasVisibility, Drawn3d {
   /// The tap at [screen], in logical pixels from the top left, fell on
   /// this component and on nothing nearer.
   void onTap3d(Vector2 screen) {}
@@ -154,7 +154,7 @@ base class Taps3dComponent extends PositionComponent
   /// The nearest [Tap3dCallbacks] component drawn under [screen], or null.
   Tap3dCallbacks? nearestAt(Vector2 screen) {
     final ray = game.projector.rayThrough(screen);
-    final eye = ray?.$1 ?? game.camera3d.readWorldPosition();
+    final eye = ray?.near ?? game.camera3d.readWorldPosition();
     Tap3dCallbacks? nearest;
     var nearestDistance = double.infinity;
     final probe = Tap3dProbe(screen: screen, projector: game.projector);
@@ -167,7 +167,7 @@ base class Taps3dComponent extends PositionComponent
         if (!_covers(game.projector, box, screen)) continue;
         final distance = ray == null
             ? eye.distanceTo(box.center)
-            : _entry(ray.$1, ray.$2, box) ?? eye.distanceTo(box.center);
+            : _entry(ray.near, ray.far, box) ?? eye.distanceTo(box.center);
         if (distance < nearestDistance) {
           nearestDistance = distance;
           nearest = candidate;

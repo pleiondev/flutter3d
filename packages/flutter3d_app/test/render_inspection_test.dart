@@ -389,7 +389,7 @@ void main() {
       width: size,
       height: size,
       scene: scene,
-      views: <RenderView>[RenderView(camera: scene.cameras.single)],
+      views: <CameraView>[CameraView(camera: scene.cameras.single)],
     );
     final capture = await pending;
 

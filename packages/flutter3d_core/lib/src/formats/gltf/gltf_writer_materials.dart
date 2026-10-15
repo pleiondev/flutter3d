@@ -41,7 +41,7 @@ extension _GltfWriterMaterials on GltfWriter {
       final key = _SamplerKey(sampling);
       final existing = samplerIndexByValue[key];
       if (existing != null) return existing;
-      final (magFilter, minFilter) = toGltfFilters(sampling);
+      final GltfFilters(:magFilter, :minFilter) = toGltfFilters(sampling);
       samplers.add(<String, Object?>{
         'magFilter': magFilter,
         'minFilter': minFilter,

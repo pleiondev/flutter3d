@@ -67,7 +67,7 @@ Future<({List<int> pixels, int lines})> _draw(
     width: _width,
     height: _height,
     scene: it.scene,
-    views: <RenderView>[RenderView(camera: it.camera)],
+    views: <CameraView>[CameraView(camera: it.camera)],
     settings: RenderSettings(
       bloom: const BloomSettings(enabled: false),
       debug: debug,

@@ -107,8 +107,8 @@ final class LightShading {
         width: width,
         height: height,
         scene: _scene,
-        views: <RenderView>[
-          RenderView(
+        views: <CameraView>[
+          CameraView(
             camera: eye,
             clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
           ),

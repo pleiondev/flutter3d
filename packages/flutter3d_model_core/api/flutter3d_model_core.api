@@ -87,9 +87,9 @@ final class AddNode extends ModelCommand
   Outcome apply(ModelProject project, ProjectSelection selection)
   String get name
   String get says
-  const AddNode({required this.materialIndex, required this.kind, this.fields = const <String, Object?>{}, this.position = (0.0, 0.0)})
-  final (double x, double y) position
+  const AddNode({required this.materialIndex, required this.kind, this.fields = const <String, Object?>{}, this.position = NodePosition.origin})
   final Map<String, Object?> fields
+  final NodePosition position
   final String kind
   final int materialIndex
 
@@ -559,6 +559,31 @@ final class CompositePass
   static const CompositePass tonemap = CompositePass._('tonemap', 4, fixed: false)
   static const List<CompositePass> values = <CompositePass>[scene, ambientOcclusion, reflections, bloom, tonemap, look, output]
 
+final class CompressedBlock
+  String toString()
+  bool operator ==(Object other)
+  const CompressedBlock({required this.blockWidth, required this.blockHeight, required this.bytesPerBlock})
+  final int blockHeight
+  final int blockWidth
+  final int bytesPerBlock
+  int get hashCode
+
+final class CurveSample
+  String toString()
+  bool operator ==(Object other)
+  const CurveSample({required this.time, required this.value})
+  final double time
+  final double value
+  int get hashCode
+
+final class CurveValueRange
+  String toString()
+  bool operator ==(Object other)
+  const CurveValueRange({required this.min, required this.max})
+  final double max
+  final double min
+  int get hashCode
+
 final class DeleteElements extends ModelCommand
   Map<String, Object?> get arguments
   Outcome apply(ModelProject project, ProjectSelection selection)
@@ -642,6 +667,14 @@ final class DuplicateObjects extends ModelCommand
   String get name
   String get says
   const DuplicateObjects()
+
+final class EdgeVertices
+  String toString()
+  bool operator ==(Object other)
+  const EdgeVertices({required this.low, required this.high})
+  final int high
+  final int low
+  int get hashCode
 
 final class EditedGeometry extends Geometry
   const EditedGeometry(this.mesh)
@@ -770,6 +803,15 @@ final class IkConstraint
   final int midJointId
   final int rootJointId
 
+final class IkSolution
+  String toString()
+  bool operator ==(Object other)
+  const IkSolution({required this.root, required this.mid, required this.reachError})
+  final Quaternion mid
+  final Quaternion root
+  final double reachError
+  int get hashCode
+
 final class ImageDimensions
   String toString()
   bool operator ==(Object other)
@@ -817,8 +859,8 @@ final class ImportedGeometry extends Geometry
   int get vertexCount
 
 final class ImpostorAtlas
-  ({int view, int next, double blend}) pick(double cameraYaw)
   ImpostorAtlas({this.angles = 8, this.size = 1024})
+  ImpostorPick pick(double cameraYaw)
   ImpostorView viewAt(int index)
   List<ImpostorView> get views
   SnapshotCamera cameraFor(int index, {required Vector3 center, required double distance, double fovY = math.pi / 8})
@@ -841,6 +883,15 @@ final class ImpostorCard
   factory ImpostorCard.framing({required double distance, double fovY = math.pi / 8})
   final double height
   final double width
+
+final class ImpostorPick
+  String toString()
+  bool operator ==(Object other)
+  const ImpostorPick({required this.view, required this.next, required this.blend})
+  final double blend
+  final int next
+  final int view
+  int get hashCode
 
 typedef ImpostorView = ({int index, double yaw, AtlasCell cell});
 
@@ -1025,6 +1076,14 @@ final class LookAtConstraint
   final double maxYaw
   final int jointId
 
+final class LookAtSolution
+  String toString()
+  bool operator ==(Object other)
+  const LookAtSolution({required this.rotation, required this.aimError})
+  final Quaternion rotation
+  final double aimError
+  int get hashCode
+
 final class LoopCut extends ModelCommand
   Map<String, Object?> get arguments
   Map<String, ParamHint> get hints
@@ -1096,9 +1155,9 @@ final class ModelCredit
 final class ModelHistory
   CommandJournal? recoveryJournal
   Future<void> get whenNotInTransaction
-  List<({String says, StepAuthor author, String? client})> get authorship
   List<HistoryStep> get steps
   List<ModelCommand> get journal
+  List<StepAuthorship> get authorship
   Map<EditMesh, int> get openMeshSteps
   ModelHistory(ModelProject this._project, {this.depth = 64, this.historyBudgetBytes = defaultHistoryBudgetBytes, ProjectSelection? selection, this.recoveryJournal})
   ModelHistory.withSteps(ModelProject this._project, List<HistoryStep> steps, {this.depth = 64, this.historyBudgetBytes = defaultHistoryBudgetBytes, ProjectSelection? selection, this.recoveryJournal})
@@ -1219,6 +1278,15 @@ final class MoveNode extends ModelCommand
   final double y
   final int materialIndex
   final int nodeId
+
+final class NodePosition
+  String toString()
+  bool operator ==(Object other)
+  const NodePosition({required this.x, required this.y})
+  final double x
+  final double y
+  int get hashCode
+  static const NodePosition origin = NodePosition(x: 0, y: 0)
 
 final class NoiseTextureNode extends TextureNode
   Map<String, MaterialHint> get hints
@@ -1404,6 +1472,14 @@ final class PoseJoint extends ModelCommand
   final int clipIndex
   final int frame
   final int joint
+
+final class PostEdit
+  String toString()
+  bool operator ==(Object other)
+  const PostEdit({required this.settings, required this.graph})
+  final CompositeGraph graph
+  final RenderSettings settings
+  int get hashCode
 
 final class ProfileBudgetReport
   String toString()
@@ -2374,6 +2450,15 @@ final class StepAuthor
   static const StepAuthor agent = StepAuthor._('agent')
   static const StepAuthor person = StepAuthor._('person')
 
+final class StepAuthorship
+  String toString()
+  bool operator ==(Object other)
+  const StepAuthorship({required this.says, required this.author, required this.client})
+  final StepAuthor author
+  final String says
+  final String? client
+  int get hashCode
+
 final class SubdivideMesh extends ModelCommand
   Map<String, Object?> get arguments
   Map<String, ParamHint> get hints
@@ -2383,6 +2468,24 @@ final class SubdivideMesh extends ModelCommand
   const SubdivideMesh({this.levels = 1, this.smooth = true})
   final bool smooth
   final int levels
+
+final class TangentHandles
+  String toString()
+  bool operator ==(Object other)
+  const TangentHandles({required this.inHandle, required this.outHandle})
+  final Vector2 inHandle
+  final Vector2 outHandle
+  int get hashCode
+
+final class TexelRect
+  String toString()
+  bool operator ==(Object other)
+  const TexelRect({required this.x, required this.y, required this.width, required this.height})
+  final int height
+  final int width
+  final int x
+  final int y
+  int get hashCode
 
 final class TextureBakeCache
   TextureBakeCache()
@@ -2444,9 +2547,9 @@ final class TextureGraph
   List<TextureGraphIssue> validate()
   Map<String, Object?> toJson()
   TextureNode? nodeById(int id)
-  const TextureGraph({this.nodes = const <TextureNode>[], this.positions = const <int, (double, double)>{}})
+  const TextureGraph({this.nodes = const <TextureNode>[], this.positions = const <int, NodePosition>{}})
   final List<TextureNode> nodes
-  final Map<int, (double x, double y)> positions
+  final Map<int, NodePosition> positions
   static TextureGraph fromJson(Map<String, Object?> json)
 
 final class TextureGraphFormatException extends Flutter3dFormatException
@@ -2512,6 +2615,14 @@ final class TextureValueType
   static const List<TextureValueType> values = <TextureValueType>[color, scalar]
   static const TextureValueType color = TextureValueType._('color')
   static const TextureValueType scalar = TextureValueType._('scalar')
+
+final class TileCoord
+  String toString()
+  bool operator ==(Object other)
+  const TileCoord({required this.x, required this.y})
+  final int x
+  final int y
+  int get hashCode
 
 typedef TileDevice = GraphicsDevice Function(int width, int height);
 
@@ -2662,7 +2773,7 @@ Map<int, List<WeightPair>> bindWeights({required List<Vector3> positions, requir
 
 BindWeightsJobRequest? bindWeightsJobRequestFor({required ModelProject project, required int objectId, required List<BoneSegment> bones, double falloffPower = 2.0, bool useVisibility = true, double epsilon = 1e-4, int maxInfluences = maxSkinInfluences, double pruneThreshold = 1e-3})
 
-({int blockWidth, int blockHeight, int bytesPerBlock})? blockLayoutFor(TextureFileFormat format)
+CompressedBlock? blockLayoutFor(TextureFileFormat format)
 
 List<BoneSegment> boneSegmentsOf(RetargetRig rig)
 
@@ -2682,7 +2793,7 @@ List<ModelCredit> creditsIn(ModelProject project)
 
 String? creditsLine(ModelProject project)
 
-List<(double, double)> curveSamples(KeyTable table, int component, {required int sampleCount})
+List<CurveSample> curveSamples(KeyTable table, int component, {required int sampleCount})
 
 RecoveryDecision decideRecovery({DateTime? savedAt, DateTime? autosaveAt})
 
@@ -2690,9 +2801,9 @@ const int defaultHistoryBudgetBytes = 512 * 1024 * 1024
 
 List<DescribedElement> describeElements(EditMesh mesh, ElementLevel level, {Iterable<int>? ids, int limit = 50})
 
-(int, int, int, int)? dirtyRectOf(List<(int, int)> tiles, int canvas)
+TexelRect? dirtyRectOf(List<TileCoord> tiles, int canvas)
 
-List<(int, int)> dirtyTilesBetween(PaintStack? before, PaintStack? after)
+List<TileCoord> dirtyTilesBetween(PaintStack? before, PaintStack? after)
 
 Future<Uint8List> drawTile(ModelProject project, RenderPreset preset, int index, TileDevice tileDevice, {required int tileWidth, required int tileHeight, GraphicsDevice? on})
 
@@ -2770,7 +2881,7 @@ Map<String, Object?> parametricShapeJson(ParametricShape shape)
 
 ExportResult planExport(ModelProject project, {required ExportFormat format, String name = 'model', bool force = false, bool bakeTransforms = false, TextureEncoding textureEncoding = TextureEncoding.png, Set<int> only = const <int>{}, bool applyModifiers = true})
 
-List<(int, int)> polygonEdgesOf(EditMesh mesh)
+List<EdgeVertices> polygonEdgesOf(EditMesh mesh)
 
 AnimationPose poseOf(ModelProject project, ProjectSkeleton skeleton)
 
@@ -2804,7 +2915,7 @@ ProjectRead readProject(Uint8List bytes)
 
 String recoveryPathFor(String? path, {required String sessionId})
 
-({RenderSettings settings, CompositeGraph graph}) renderPost(RenderSettings from, CompositeGraph graph, {BloomSettings? bloom, LookSettings? look, bool? tonemap})
+PostEdit renderPost(RenderSettings from, CompositeGraph graph, {BloomSettings? bloom, LookSettings? look, bool? tonemap})
 
 Future<Uint8List> renderProject(RenderRequest request, {required GraphicsDevice Function(int width, int height) deviceFactory})
 
@@ -2816,9 +2927,9 @@ List<String> requiredMarkers(RigTemplate template)
 
 Uint8List resizeRgba(Uint8List rgba, int width, int height, int newWidth, int newHeight, {ResizeFilter filter = ResizeFilter.bilinear})
 
-({Quaternion root, Quaternion mid, double reachError}) resolveIkConstraint({required ModelProject project, required IkConstraint constraint, ProjectClip? clip, double time = 0.0})
+IkSolution resolveIkConstraint({required ModelProject project, required IkConstraint constraint, ProjectClip? clip, double time = 0.0})
 
-({Quaternion rotation, double aimError}) resolveLookAtConstraint({required ModelProject project, required LookAtConstraint constraint, ProjectClip? clip, double time = 0.0})
+LookAtSolution resolveLookAtConstraint({required ModelProject project, required LookAtConstraint constraint, ProjectClip? clip, double time = 0.0})
 
 ProjectClip retargetClip({required ProjectClip sourceClip, required ModelProject sourceProject, required ProjectSkeleton sourceSkeleton, required ModelProject targetProject, required ProjectSkeleton targetSkeleton, required BoneMap boneMap, bool lockFeet = true, double groundY = 0.0, double footTolerance = 1e-3})
 
@@ -2844,7 +2955,7 @@ Map<int, List<WeightPair>> smoothSkinWeights(Map<int, List<WeightPair>> weights,
 
 TwoBoneIkResult solveTwoBoneIk({required Vector3 rootWorldPosition, required Vector3 midWorldPosition, required Vector3 tipWorldPosition, required Quaternion rootParentWorldRotation, required Quaternion rootWorldRotation, required Quaternion midWorldRotation, required Vector3 target, required Vector3 pole})
 
-({Vector2 inHandle, Vector2 outHandle}) tangentHandles(KeyTable table, int keyIndex, int component, {double handleLength = 0.1})
+TangentHandles tangentHandles(KeyTable table, int keyIndex, int component, {double handleLength = 0.1})
 
 double? texelDensityOf(ModelProject project, ModelObject object)
 
@@ -2864,7 +2975,7 @@ ModelDocument toModelDocument(ModelProject project, {bool withLods = false})
 
 int toPowerOfTwo(int n)
 
-({double min, double max}) valueRange(KeyTable table, int component)
+CurveValueRange valueRange(KeyTable table, int component)
 
 Map<int, List<int>> vertexAdjacency(List<int> triangles)
 

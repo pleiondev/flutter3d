@@ -39,7 +39,6 @@ final class DebrisWorkload extends _VisualWorkload<NativeDebris> with DebrisSyst
   void step(DebrisSystemStep step)
 
 final class Elements
-  ({WaterBody water, NativeShallowSample sample})? waterAt(Vector3 at)
   ElementsListener? get listener
   ElementsSteps get switches
   Fires get fires
@@ -58,6 +57,7 @@ final class Elements
   TrackedBody addBody(Solid solid, {required Vector3 at, Quaternion? turn, Vector3? velocity, Vector3? spin, SceneNode? look, MeshNode? chars, NativeBodyType type = NativeBodyType.dynamic, double? friction, double? restitution, ({int layer, int mask})? collides})
   TrackedBody track(NativeBody native, {SceneNode? look, MeshNode? chars})
   Vector3 get wind
+  WaterAtPoint? waterAt(Vector3 at)
   WaterBody addWater({required ElementHeightfield ground, required Liquid liquid, required Bed bed, MistSettings? mist, LiquidDetail? detail})
   bool get steps
   double heatFluxAt(Vector3 at)
@@ -116,8 +116,8 @@ final class FireLights
 final class FireView
   FireSteps steps
   FireView({required NativeWorld this._world, required GraphicsDevice device, required Scene this._scene, required Renderer renderer, this.detail = FireDetail.full, this.lights = const FireLights.clusters(), this.smokeAlbedo = 0.66})
-  List<(String, int, int)> get wanted
   List<LightNode> get firelight
+  List<StepBudget> get wanted
   Scene get scene
   double watts
   final FireDetail detail
@@ -231,8 +231,8 @@ final class LiquidView
   Future<void> steppedOn(Renderer renderer)
   LiquidSteps steps
   LiquidView({required NativeWorld this._world, required this.liquid, required List<double> ground, required GraphicsDevice device, required Scene scene, required RenderMaterial look, this.detail = LiquidDetail.full, this.mist, NativeLiquidProperties? properties})
-  List<(String, int, int)> get wanted
   List<SceneNode> get nodes
+  List<StepBudget> get wanted
   bool inSight
   final LiquidDetail detail
   final MistSettings? mist
@@ -328,6 +328,15 @@ base class ShallowWaterWorkload extends ComputeWorkload
   void record(WorkloadRecorder recorder)
   void recordAfterStep(WorkloadRecorder recorder)
   void released()
+
+final class StepBudget
+  String toString()
+  bool operator ==(Object other)
+  const StepBudget({required this.step, required this.wanted, required this.holds})
+  final String step
+  final int holds
+  final int wanted
+  int get hashCode
 
 MeshData jetMesh(Jet jet, {int sides = 14})
 

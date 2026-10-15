@@ -152,7 +152,7 @@ _Frame _render({
     width: size,
     height: size,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
     settings: settings.without(stepsOff),
   );
   return (hdr: hdr.last!, result: result, copy: copy.last);
@@ -266,7 +266,7 @@ void main() {
   });
 
   test('each level of the copy is the mean of the scene under it', () {
-    // Mutation: halve the columns' offsets in `SceneColourCopyShader`. A
+    // Mutation: halve the columns' offsets in `SceneColorCopyShader`. A
     // block then averages the wrong texels, and the one on the seam shows.
     const size = 64;
     // The seam off every level's block boundaries, so a block that averages
@@ -491,7 +491,7 @@ void main() {
   });
 
   test('every declared slot is bound on a split frame', () {
-    // `scene_colour_texture` is the layered stage's sixteenth sampler; a
+    // `scene_color_texture` is the layered stage's sixteenth sampler; a
     // draw that left it unbound is a crash on Metal.
     final device = FakeBackend(stageBindings: stageBindings);
     final quad = DeviceMesh.upload(
@@ -506,7 +506,7 @@ void main() {
       width: 32,
       height: 32,
       scene: scene,
-      views: <RenderView>[RenderView(camera: camera)],
+      views: <CameraView>[CameraView(camera: camera)],
     );
     expect(device.bindingViolations, isEmpty);
     expect(result.passes.map((p) => p.name), contains('transparent'));

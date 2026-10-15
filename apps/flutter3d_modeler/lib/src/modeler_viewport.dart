@@ -1,7 +1,7 @@
 /// The picture, and the pointer that turns it.
 ///
 /// **Not `SceneSurface`, and the difference is one word.** That widget takes a
-/// single `RenderView`; a modeller draws a list of them — the viewport now, a
+/// single `CameraView`; a modeller draws a list of them — the viewport now, a
 /// material preview beside it later, three of them side by side when LODs are
 /// being compared. Widening the session's surface is a change to a published
 /// package for a feature that does not exist yet, so this draws the list

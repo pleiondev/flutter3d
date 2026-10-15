@@ -178,7 +178,7 @@ final class Scene3D extends StatefulWidget {
     this.children = const <Widget>[],
     this.clearColor,
     this.materials,
-    this.onSceneCreated,
+    this.onCreated,
     this.onBeforeFrame,
     this.onFrame,
     this.device = const DeviceSettings(),
@@ -213,10 +213,11 @@ final class Scene3D extends StatefulWidget {
   /// Called once, when the scene exists and before its first frame, with
   /// what the scene made: the engine, the scene's graph and the camera.
   ///
-  /// Named apart from `Flutter3dView.onCreated`, which is handed the engine
-  /// alone, so one name never means two shapes; [Scene3DController.engine]
-  /// is that engine.
-  final void Function(Scene3DController scene)? onSceneCreated;
+  /// The name every widget of the engine's gives its creation callback, as
+  /// `Flutter3dView.onCreated` does; what it is handed is the widget's own,
+  /// here the scene's controller, whose [Scene3DController.engine] is the
+  /// engine `Flutter3dView` hands.
+  final void Function(Scene3DController scene)? onCreated;
 
   /// `Flutter3dView.onBeforeFrame`: every frame, before the loop steps.
   final void Function(EngineFrame frame)? onBeforeFrame;
@@ -300,7 +301,7 @@ class _Scene3DState extends State<Scene3D>
   /// The view the frame is drawn through, kept across frames so the
   /// temporal history it carries is this scene's; made again when the
   /// camera or the clear colour changes.
-  RenderView? _view;
+  CameraView? _view;
   LinearColor? _viewClear;
 
   /// Bumped when the device comes back from a loss: the children are built
@@ -354,7 +355,7 @@ class _Scene3DState extends State<Scene3D>
     }
     final controller = Scene3DController._(engine, this);
     setState(() => _controller = controller);
-    widget.onSceneCreated?.call(controller);
+    widget.onCreated?.call(controller);
   }
 
   /// The animations advance by what passed since the last frame, then the
@@ -373,7 +374,7 @@ class _Scene3DState extends State<Scene3D>
     widget.device.onDeviceRestored?.call(engine);
   }
 
-  RenderView _viewFor(CameraNode camera) {
+  CameraView _viewFor(CameraNode camera) {
     final view = _view;
     final clear = widget.clearColor;
     if (view != null && identical(view.camera, camera) && _viewClear == clear) {
@@ -381,7 +382,7 @@ class _Scene3DState extends State<Scene3D>
     }
     view?.dispose();
     _viewClear = clear;
-    return _view = RenderView(camera: camera, clearColor: clear);
+    return _view = CameraView(camera: camera, clearColor: clear);
   }
 
   @override
@@ -419,7 +420,7 @@ class _Scene3DState extends State<Scene3D>
           // did not give is the view's, in the app's language.
           view: controller == null
               ? widget.view.copyWith(clearViews: true)
-              : widget.view.copyWith(views: <RenderView>[_viewFor(_camera)]),
+              : widget.view.copyWith(views: <CameraView>[_viewFor(_camera)]),
           loop: widget.loop,
           plugins: widget.plugins,
           log: widget.log,

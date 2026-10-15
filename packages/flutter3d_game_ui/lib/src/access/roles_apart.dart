@@ -1,7 +1,7 @@
 import 'dart:ui' show Color;
 
 import 'package:flutter3d_core/flutter3d_core.dart'
-    show ColorVision, ColorVisionDeficiency;
+    show ColorVision, ColorVisionDeficiency, RgbTriple;
 import 'package:flutter3d_game/flutter3d_game.dart'
     show ColorRoles, GameSettingKeys, GameSettings, colorVisionOf;
 
@@ -44,7 +44,7 @@ final class RolesApart {
     final deficiency = deficiencyOf(config);
     if (deficiency == null) return const <String, int>{};
     final sees = ColorVision.simulate(deficiency);
-    (double, double, double) seen(Color c) => sees.applyEncoded(c.r, c.g, c.b);
+    RgbTriple seen(Color c) => sees.applyEncoded(c.r, c.g, c.b);
     bool apart(Color a, Color b) =>
         ColorVision.difference(seen(a), seen(b)) >= within;
 

@@ -44,7 +44,7 @@ double _closest(
 
 /// The velocity [_avoid] picks for a body at [at] moving at [v] and wanting
 /// [want], with one neighbour at [other] moving at [ov].
-(double, double) _pick(
+AvoidanceVelocity _pick(
   (double, double) at,
   (double, double) v,
   (double, double) want,
@@ -80,18 +80,18 @@ void main() {
         neighbors: const <AvoidanceNeighbor>[],
         dt: 1 / 60,
       );
-      expect(v, (3.0, -4.0));
+      expect(v, const AvoidanceVelocity(x: 3.0, z: -4.0));
     });
 
     test('is no faster than the body goes', () {
       final v = _pick((0, 0), (0, 0), (30, 0), (0, 4), (0, 0));
-      expect(math.sqrt(v.$1 * v.$1 + v.$2 * v.$2), lessThanOrEqualTo(_speed));
+      expect(math.sqrt(v.x * v.x + v.z * v.z), lessThanOrEqualTo(_speed));
     });
 
     test('is the one wanted when the neighbour is behind and going away', () {
       final v = _pick((0, 0), (5, 0), (5, 0), (-2, 0), (-5, 0));
-      expect(v.$1, closeTo(5.0, 1e-9));
-      expect(v.$2, closeTo(0.0, 1e-9));
+      expect(v.x, closeTo(5.0, 1e-9));
+      expect(v.z, closeTo(0.0, 1e-9));
     });
 
     test('of two bodies head on keeps them apart, both turning', () {
@@ -105,10 +105,13 @@ void main() {
       // Mutation: taking all the turning rather than half leaves each
       // expecting the other to turn as well, and both swerve twice as far;
       // taking none of it meets head on.
-      expect(pa.$2.abs(), greaterThan(0.1));
-      expect(pb.$2.abs(), greaterThan(0.1));
-      expect(pa.$2.sign, isNot(pb.$2.sign));
-      final apart = _closest(a, pa, (4.0, 0.01), pb, _avoid.timeHorizon);
+      expect(pa.z.abs(), greaterThan(0.1));
+      expect(pb.z.abs(), greaterThan(0.1));
+      expect(pa.z.sign, isNot(pb.z.sign));
+      final apart = _closest(a, (pa.x, pa.z), (4.0, 0.01), (
+        pb.x,
+        pb.z,
+      ), _avoid.timeHorizon);
       expect(apart, greaterThanOrEqualTo(2 * _radius - 1e-6));
       // Half each is just enough: they brush past rather than give each
       // other a wide berth.
@@ -118,7 +121,7 @@ void main() {
 
     test('of a body overlapping another points out of it', () {
       final v = _pick((0, 0), (0, 0), (0, 0), (0.3, 0), (0, 0));
-      expect(v.$1, lessThan(0.0));
+      expect(v.x, lessThan(0.0));
     });
   });
 

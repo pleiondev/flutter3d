@@ -96,7 +96,7 @@ void main() {
     await player!.add(mover);
     await game.ready();
     game.update(0.5);
-    expect(mover.cell, (3, 1));
+    expect(mover.cell, const GridCell(column: 3, row: 1));
     expect(dots.grid.isAlive(2, 1), isFalse, reason: 'eaten');
     expect(dots.grid.count, 4);
   });

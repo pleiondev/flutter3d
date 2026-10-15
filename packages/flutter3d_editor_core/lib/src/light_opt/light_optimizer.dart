@@ -391,6 +391,41 @@ final class LightingState {
   final List<LevelLight> lights;
 }
 
+/// A [LightPlan]'s two previews as PNG files: what [LightPlan.pngs]
+/// answers.
+final class LightPlanPngs {
+  /// The previews [before] and [after] the plan.
+  const LightPlanPngs({required this.before, required this.after});
+
+  /// The PNG bytes of the first view under the lights as they were.
+  final Uint8List before;
+
+  /// The PNG bytes of the first view under the lights the plan leaves.
+  final Uint8List after;
+
+  @override
+  bool operator ==(Object other) =>
+      other is LightPlanPngs &&
+      _sameBytes(other.before, before) &&
+      _sameBytes(other.after, after);
+
+  @override
+  int get hashCode =>
+      Object.hash(Object.hashAll(before), Object.hashAll(after));
+
+  @override
+  String toString() =>
+      'LightPlanPngs(${before.length} and ${after.length} bytes)';
+}
+
+bool _sameBytes(Uint8List a, Uint8List b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
+}
+
 /// What [LightOptimizer.optimize] found: the lights before and after, what
 /// it did to get there, and the numbers that say whether to take it.
 final class LightPlan {
@@ -458,7 +493,7 @@ final class LightPlan {
   bool get hasChanges => moves.isNotEmpty && holds;
 
   /// The two previews as PNG files.
-  ({Uint8List before, Uint8List after}) get pngs => (
+  LightPlanPngs get pngs => LightPlanPngs(
     before: encodePng(previewBefore, width, height),
     after: encodePng(previewAfter, width, height),
   );

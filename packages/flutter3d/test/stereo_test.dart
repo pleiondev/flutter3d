@@ -114,7 +114,7 @@ Projection _eyeProjection({required bool left}) => OffAxisProjection(
   return (scene: scene, left: left, right: right);
 }
 
-RenderView _view(CameraNode camera, ViewportRect where) => RenderView(
+CameraView _view(CameraNode camera, ViewportRect where) => CameraView(
   camera: camera,
   viewportFraction: where,
   clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
@@ -124,7 +124,7 @@ Future<Uint8List> _draw({
   required int width,
   required int height,
   required Scene scene,
-  required List<RenderView> views,
+  required List<CameraView> views,
   required RenderSettings settings,
 }) async {
   final it = cpuTestDevice(width: width, height: height);
@@ -185,7 +185,7 @@ void main() {
         width: _eyeWidth * 2,
         height: _eyeHeight,
         scene: world.scene,
-        views: <RenderView>[
+        views: <CameraView>[
           _view(world.left, const ViewportRect(0.0, 0.0, 0.5, 1.0)),
           _view(world.right, const ViewportRect(0.5, 0.0, 0.5, 1.0)),
         ],
@@ -198,7 +198,7 @@ void main() {
         width: _eyeWidth,
         height: _eyeHeight,
         scene: world.scene,
-        views: <RenderView>[
+        views: <CameraView>[
           _view(world.left, const ViewportRect(0.0, 0.0, 1.0, 1.0)),
         ],
         settings: stereoSettings,
@@ -207,7 +207,7 @@ void main() {
         width: _eyeWidth,
         height: _eyeHeight,
         scene: world.scene,
-        views: <RenderView>[
+        views: <CameraView>[
           _view(world.right, const ViewportRect(0.0, 0.0, 1.0, 1.0)),
         ],
         settings: stereoSettings,
@@ -273,7 +273,7 @@ void main() {
         width: _eyeWidth,
         height: _eyeHeight,
         scene: world.scene,
-        views: <RenderView>[
+        views: <CameraView>[
           _view(world.left, const ViewportRect(0.0, 0.0, 1.0, 1.0)),
         ],
         settings: stereoSettings,
@@ -313,7 +313,7 @@ void main() {
         width: _eyeWidth * 2,
         height: _eyeHeight,
         scene: world.scene,
-        views: <RenderView>[
+        views: <CameraView>[
           _view(world.left, const ViewportRect(0.0, 0.0, 0.5, 1.0)),
           _view(world.right, const ViewportRect(0.5, 0.0, 0.5, 1.0)),
         ],
@@ -323,7 +323,7 @@ void main() {
         width: _eyeWidth,
         height: _eyeHeight,
         scene: world.scene,
-        views: <RenderView>[
+        views: <CameraView>[
           _view(world.left, const ViewportRect(0.0, 0.0, 1.0, 1.0)),
         ],
         settings: bloomy,

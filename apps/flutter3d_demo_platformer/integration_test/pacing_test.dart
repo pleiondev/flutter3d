@@ -364,7 +364,7 @@ final class _AscentReplay {
         frameWorkBudget: frameWorkBudget,
       );
 
-  List<RenderView> views() => <RenderView>[RenderView(camera: camera)];
+  List<CameraView> views() => <CameraView>[CameraView(camera: camera)];
 
   /// The runner's [what] (`position` or `velocity`) as [state] published
   /// it, nought before the first step.

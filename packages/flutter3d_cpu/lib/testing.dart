@@ -47,21 +47,51 @@ TextureHandle texelOn(CpuDevice device, List<int> rgba) =>
       pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
     );
 
+/// What [cpuTestDevice] hands a test: a software device and the two fallback
+/// textures a renderer made on it asks for.
+final class CpuTestKit {
+  /// [device], with [albedo] and [normal] made on it.
+  const CpuTestKit({
+    required this.device,
+    required this.albedo,
+    required this.normal,
+  });
+
+  /// The software device, with the builtin shaders.
+  final CpuDevice device;
+
+  /// A one-pixel white texture, a renderer's fallback albedo.
+  final TextureHandle albedo;
+
+  /// A one-pixel flat normal in tangent space, a renderer's fallback normal.
+  final TextureHandle normal;
+
+  @override
+  bool operator ==(Object other) =>
+      other is CpuTestKit &&
+      other.device == device &&
+      other.albedo == albedo &&
+      other.normal == normal;
+
+  @override
+  int get hashCode => Object.hash(device, albedo, normal);
+
+  @override
+  String toString() => 'CpuTestKit($device)';
+}
+
 /// A [CpuDevice] with the builtin shaders, and the fallbacks a renderer needs.
 ///
 /// [width] and [height] default to something small enough that a software frame
 /// is cheap and large enough that a shape has an inside: every caller that had
 /// its own copy of this chose between 64×48 and 240×160.
-({CpuDevice device, TextureHandle albedo, TextureHandle normal}) cpuTestDevice({
-  int width = 96,
-  int height = 72,
-}) {
+CpuTestKit cpuTestDevice({int width = 96, int height = 72}) {
   final device = CpuDevice(
     width: width,
     height: height,
     shaders: CpuShaderLibrary(builtinCpuShaders()),
   );
-  return (
+  return CpuTestKit(
     device: device,
     // White, so a material's own colour is what reaches the target.
     albedo: texelOn(device, <int>[255, 255, 255, 255]),

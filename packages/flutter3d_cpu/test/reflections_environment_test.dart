@@ -137,7 +137,7 @@ Float32List _render({
       width: _width,
       height: _height,
       scene: scene,
-      views: <RenderView>[RenderView(camera: camera)],
+      views: <CameraView>[CameraView(camera: camera)],
       settings: RenderSettings(
         tonemap: false,
         bloom: const BloomSettings(enabled: false),
@@ -259,7 +259,7 @@ void main() {
       width: 32,
       height: 32,
       scene: scene,
-      views: <RenderView>[RenderView(camera: camera)],
+      views: <CameraView>[CameraView(camera: camera)],
       settings: const RenderSettings(
         reflections: ReflectionSettings(enabled: true),
       ),

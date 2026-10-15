@@ -59,8 +59,8 @@ Future<List<int>> _edge({
     width: width,
     height: height,
     scene: scene,
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: scene.cameras.single,
         clearColor: LinearColor.fromSrgb(
           background,

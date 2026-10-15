@@ -46,6 +46,29 @@ final class IdRemap {
   final Int32List faces;
 }
 
+/// A rebuilt mesh and where each of the old mesh's elements went in it: what
+/// [EditMesh.compact], `subMesh` and `separateComponents` answer.
+final class RemappedMesh {
+  /// The rebuilt [mesh] with the [remap] that leads to it.
+  const RemappedMesh({required this.mesh, required this.remap});
+
+  /// The new mesh, numbered from zero and with no history.
+  final EditMesh mesh;
+
+  /// Old vertex and face numbers to the new ones in [mesh].
+  final IdRemap remap;
+
+  @override
+  bool operator ==(Object other) =>
+      other is RemappedMesh && other.mesh == mesh && other.remap == remap;
+
+  @override
+  int get hashCode => Object.hash(mesh, remap);
+
+  @override
+  String toString() => 'RemappedMesh(${mesh.faceCount} faces)';
+}
+
 /// An editable mesh.
 final class EditMesh {
   EditMesh._(
@@ -1432,7 +1455,7 @@ final class EditMesh {
   /// wrong vertices. So compaction produces a mesh with no history, and the
   /// caller — `doc-08` — decides what that means for undo. The plan says it
   /// means the same thing as saving: a boundary the stack does not cross.
-  (EditMesh, IdRemap) compact() {
+  RemappedMesh compact() {
     final vertexMap = Int32List(_vertexSlots)..fillRange(0, _vertexSlots, none);
     final faceMap = Int32List(_faceSlots)..fillRange(0, _faceSlots, none);
 
@@ -1449,7 +1472,10 @@ final class EditMesh {
       forEachVertex(face, (int vertex) => loop.add(vertexMap[vertex]));
       faceMap[face] = builder.addFace(loop);
     }
-    return (builder.build(), IdRemap(vertices: vertexMap, faces: faceMap));
+    return RemappedMesh(
+      mesh: builder.build(),
+      remap: IdRemap(vertices: vertexMap, faces: faceMap),
+    );
   }
 
   // ------------------------------------------------------------- measurements

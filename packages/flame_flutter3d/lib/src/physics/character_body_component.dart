@@ -28,8 +28,7 @@ import '../transform/object3d_component.dart';
 /// `fixedUpdate`, which runs after the game's, kept the place the game had
 /// already moved it to, and the body was drawn with no smoothing at all.
 base class CharacterBodyComponent extends Object3dComponent
-    with CollisionCallbacks, FixedStepUpdate
-    implements StepFollower {
+    with CollisionCallbacks, FixedStepUpdate, StepFollower {
   CharacterBodyComponent({
     required this.body,
     required super.node,

@@ -128,14 +128,14 @@ final class FrameStage {
       ..add(ReflectionProbeNode(faceSize: 8, levels: 2))
       ..add(PlanarReflectorNode(surfaces: <MeshNode>[floor]))
       ..add(camera);
-    return FrameStage._(Renderer.create(device: device), scene, <RenderView>[
-      RenderView(camera: camera),
+    return FrameStage._(Renderer.create(device: device), scene, <CameraView>[
+      CameraView(camera: camera),
     ]);
   }
 
   final Renderer renderer;
   final Scene scene;
-  final List<RenderView> views;
+  final List<CameraView> views;
 
   /// A plugin host over this renderer's registry, with [plugins] installed.
   PluginManager install(Iterable<Flutter3dPlugin> plugins) => PluginManager(

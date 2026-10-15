@@ -117,10 +117,8 @@ final class AnimationGraph {
   /// **The entered state's alone.** One fading out passes its markers too,
   /// but a step from the walk a run is replacing is the run's business now,
   /// and two feet down at once is the sound of a seam.
-  List<({String state, String name})> get passed =>
-      List<({String state, String name})>.unmodifiable(_passed);
-  final List<({String state, String name})> _passed =
-      <({String state, String name})>[];
+  List<PassedMarker> get passed => List<PassedMarker>.unmodifiable(_passed);
+  final List<PassedMarker> _passed = <PassedMarker>[];
 
   /// The node whose travel along the floor is taken out of the pose and
   /// handed over as [rootDelta] — root motion — or null for none.
@@ -604,7 +602,9 @@ final class AnimationGraph {
       for (final (share, name) in marks) {
         final at = n + share;
         if (from <= at && at < to) {
-          _passed.add((state: machine.states[state].name, name: name));
+          _passed.add(
+            PassedMarker(state: machine.states[state].name, name: name),
+          );
         }
       }
     }
@@ -895,4 +895,27 @@ final class _Check {
 
   final int parameter;
   final AnimationCondition condition;
+}
+
+/// A marker an [AnimationGraph] passed in its last step: the state it was
+/// in and the marker's name.
+final class PassedMarker {
+  /// The marker [name], passed in the state named [state].
+  const PassedMarker({required this.state, required this.name});
+
+  /// The name of the state whose clip carries the marker.
+  final String state;
+
+  /// The marker's own name: `step`, `hit`, whatever the clip calls it.
+  final String name;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PassedMarker && other.state == state && other.name == name;
+
+  @override
+  int get hashCode => Object.hash(state, name);
+
+  @override
+  String toString() => 'PassedMarker($state, $name)';
 }

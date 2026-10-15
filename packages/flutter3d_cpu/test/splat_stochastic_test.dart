@@ -91,7 +91,7 @@ Float32List _render(
     bloom: const BloomSettings(enabled: false),
     antiAlias: AntiAliasSettings(temporal: TemporalSettings(enabled: temporal)),
   );
-  final view = RenderView(
+  final view = CameraView(
     camera: camera,
     clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
   );
@@ -101,7 +101,7 @@ Float32List _render(
       width: _width,
       height: _height,
       scene: scene,
-      views: <RenderView>[view],
+      views: <CameraView>[view],
       settings: settings,
     );
     everyFrame?.call(device.readHdrPixels(result.frame));

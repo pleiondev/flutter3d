@@ -63,14 +63,37 @@ final class BrushGeometry {
   /// counter-clockwise seen from outside. Get one of these wrong and the face
   /// is culled as a back face, which looks like a hole rather than like a
   /// winding error.
-  static final List<(Vector3, Vector3, Vector3)>
-  faceAxes = <(Vector3, Vector3, Vector3)>[
-    (Vector3(1.0, 0.0, 0.0), Vector3(0.0, 0.0, -1.0), Vector3(0.0, 1.0, 0.0)),
-    (Vector3(-1.0, 0.0, 0.0), Vector3(0.0, 0.0, 1.0), Vector3(0.0, 1.0, 0.0)),
-    (Vector3(0.0, 1.0, 0.0), Vector3(1.0, 0.0, 0.0), Vector3(0.0, 0.0, -1.0)),
-    (Vector3(0.0, -1.0, 0.0), Vector3(1.0, 0.0, 0.0), Vector3(0.0, 0.0, 1.0)),
-    (Vector3(0.0, 0.0, 1.0), Vector3(1.0, 0.0, 0.0), Vector3(0.0, 1.0, 0.0)),
-    (Vector3(0.0, 0.0, -1.0), Vector3(-1.0, 0.0, 0.0), Vector3(0.0, 1.0, 0.0)),
+  static final List<BrushFaceAxes> faceAxes = <BrushFaceAxes>[
+    BrushFaceAxes(
+      normal: Vector3(1.0, 0.0, 0.0),
+      u: Vector3(0.0, 0.0, -1.0),
+      v: Vector3(0.0, 1.0, 0.0),
+    ),
+    BrushFaceAxes(
+      normal: Vector3(-1.0, 0.0, 0.0),
+      u: Vector3(0.0, 0.0, 1.0),
+      v: Vector3(0.0, 1.0, 0.0),
+    ),
+    BrushFaceAxes(
+      normal: Vector3(0.0, 1.0, 0.0),
+      u: Vector3(1.0, 0.0, 0.0),
+      v: Vector3(0.0, 0.0, -1.0),
+    ),
+    BrushFaceAxes(
+      normal: Vector3(0.0, -1.0, 0.0),
+      u: Vector3(1.0, 0.0, 0.0),
+      v: Vector3(0.0, 0.0, 1.0),
+    ),
+    BrushFaceAxes(
+      normal: Vector3(0.0, 0.0, 1.0),
+      u: Vector3(1.0, 0.0, 0.0),
+      v: Vector3(0.0, 1.0, 0.0),
+    ),
+    BrushFaceAxes(
+      normal: Vector3(0.0, 0.0, -1.0),
+      u: Vector3(-1.0, 0.0, 0.0),
+      v: Vector3(0.0, 1.0, 0.0),
+    ),
   ];
 
   /// One surface per material actually used, per answer about shadows — and,
@@ -202,7 +225,7 @@ final class BrushGeometry {
       final half = brush.halfExtents;
       final ramp = brush.ramp;
       for (var f = 0; f < faceAxes.length; f++) {
-        final (normal, u, v) = faceAxes[f];
+        final BrushFaceAxes(:normal, :u, :v) = faceAxes[f];
         // A ramp keeps two of the block's six faces — the floor and the wall
         // at the top of the climb — loses the one at the thin end entirely,
         // and trades the other three for a slope and two triangles.
@@ -264,11 +287,11 @@ final class BrushGeometry {
       final x = centerX + u.x * halfU * su + v.x * halfV * sv;
       final y = centerY + u.y * halfU * su + v.y * halfV * sv;
       final z = centerZ + u.z * halfU * su + v.z * halfV * sv;
-      final (lu, lv) = switch ((lightmap, placed)) {
+      final LightmapUv(u: lu, v: lv) = switch ((lightmap, placed)) {
         (final layout?, final at?) =>
           measured ? layout.uvOfPoint(at, x, y, z) : layout.uvAt(at, su, sv),
         (final layout?, null) => layout.neutralUv,
-        _ => (0.0, 0.0),
+        _ => const LightmapUv(u: 0.0, v: 0.0),
       };
 
       out.addVertex(
@@ -319,7 +342,8 @@ final class BrushGeometry {
     final scale = material.texelsPerMeter;
     final axis = uphill.axis;
     final side = axis == 0 ? 2 : 0;
-    final (lightmapU, lightmapV) = lightmap?.neutralUv ?? (0.0, 0.0);
+    final LightmapUv(u: lightmapU, v: lightmapV) =
+        lightmap?.neutralUv ?? const LightmapUv(u: 0.0, v: 0.0);
 
     // The slope is a rectangle centred on the brush's own centre, because the
     // cut runs corner to corner. Its two axes are the side of the brush and the
@@ -424,4 +448,33 @@ final class BrushGeometry {
     point[side] = across;
     return point;
   }
+}
+
+/// One of a block's six faces as [BrushGeometry.faceAxes] lists it: the
+/// outward normal and the two axes across the face, all unit vectors, with
+/// `cross(u, v) == normal`.
+final class BrushFaceAxes {
+  const BrushFaceAxes({required this.normal, required this.u, required this.v});
+
+  /// The face's outward normal, a unit vector in the block's frame.
+  final Vector3 normal;
+
+  /// The face's first axis across it, a unit vector.
+  final Vector3 u;
+
+  /// The face's second axis across it, a unit vector.
+  final Vector3 v;
+
+  @override
+  bool operator ==(Object other) =>
+      other is BrushFaceAxes &&
+      other.normal == normal &&
+      other.u == u &&
+      other.v == v;
+
+  @override
+  int get hashCode => Object.hash(normal, u, v);
+
+  @override
+  String toString() => 'BrushFaceAxes(normal: $normal, u: $u, v: $v)';
 }

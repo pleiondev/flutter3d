@@ -4,7 +4,7 @@
 
 library package:flame_flutter3d/flame_flutter3d.dart
 
-final class ActorComponent extends Object3dComponent with CollisionCallbacks implements StepFollower
+final class ActorComponent extends Object3dComponent with CollisionCallbacks, StepFollower
   ActorComponent({required this.actor, required super.node, required super.scene, required super.plane, this.stepper, this.removesFrom, super.direction = SyncDirection.sceneToFlame, super.elevation, super.position, super.size, super.anchor, super.angle, super.scale, super.children, super.priority, super.key})
   final Actor actor
   final ActorSystem? removesFrom
@@ -47,6 +47,14 @@ final class BillboardAtlas
   static Future<Sprite> spriteOfText(String text, TextPaint paint, {double margin = 4.0})
   void dispose({Renderer? drawing})
 
+final class BorrowedRenderer
+  String toString()
+  bool operator ==(Object other)
+  const BorrowedRenderer({required this.device, required this.renderer})
+  final GraphicsDevice device
+  final Renderer renderer
+  int get hashCode
+
 final class BridgeClock extends Component
   BridgeClock({required this.onTick})
   final void Function(double dt) onTick
@@ -82,8 +90,8 @@ abstract final class BridgePriority
   static const int physics = -1000
 
 final class BridgeProjector
-  (Vector3, Vector3)? rayThrough(Vector2 screen)
   BridgeProjector({required this.camera, required this.viewSize, this.viewport})
+  BridgeRay? rayThrough(Vector2 screen)
   ScreenBounds? boundsOf(Aabb3 box)
   Vector2? onPlane(Vector2 screen, BridgePlane plane)
   Vector2? onPlaneOrHorizon(Vector2 screen, BridgePlane plane)
@@ -92,15 +100,25 @@ final class BridgeProjector
   final Vector2 Function() viewSize
   final ViewportRect Function()? viewport
 
+final class BridgeRay
+  String toString()
+  bool operator ==(Object other)
+  const BridgeRay({required this.near, required this.far})
+  final Vector3 far
+  final Vector3 near
+  int get hashCode
+
 abstract base mixin class BridgeSpace
   BridgeSpace()
   abstract void place(double x, double y, double lift, Vector3 out)
   abstract void turn(double x, double y, double angle, Quaternion out)
 
-abstract interface class Bridged3d implements Drawn3d
-  BridgePlane get plane
+abstract base mixin class Bridged3d implements Drawn3d
+  Aabb3? get drawnBounds3d
   BridgeSpace? get space
-  LinearColor tint
+  Bridged3d()
+  abstract BridgePlane get plane
+  abstract LinearColor tint
   double get elevation
 
 final class CameraSyncComponent extends Component with UpdatesAtRoot
@@ -122,8 +140,8 @@ final class CameraSyncController
   void captureRest()
 
 base class CellGridComponent extends Object3dComponent
-  (int, int) cellAt(Vector2 at)
   CellGridComponent({required this.grid, required this.device, required super.scene, required super.plane, required this.material, this.depth, this.color, this.instanced = false, this.hitboxes = false, super.position, super.elevation})
+  GridCell cellAt(Vector2 at)
   Vector2 centerOf(int column, int row)
   bool hitAt(Vector2 at, {double radius = 0.6})
   bool setCell(int column, int row, {bool alive = true})
@@ -137,7 +155,7 @@ base class CellGridComponent extends Object3dComponent
   void onMount()
   void onRemove()
 
-base class CharacterBodyComponent extends Object3dComponent with CollisionCallbacks, FixedStepUpdate implements StepFollower
+base class CharacterBodyComponent extends Object3dComponent with CollisionCallbacks, FixedStepUpdate, StepFollower
   CharacterBodyComponent({required this.body, required super.node, required super.scene, required super.plane, this.drive, this.stepper, this.removeFrom, super.size, super.anchor, super.priority})
   final CharacterController body
   final CollisionWorld? removeFrom
@@ -165,8 +183,17 @@ final class ChunkStreamer<C>
   void clear()
   void cover(int from, int to)
 
+final class ColliderRayHit
+  String toString()
+  bool operator ==(Object other)
+  const ColliderRayHit({required this.component, required this.point, required this.collider})
+  final Collider collider
+  final PositionComponent? component
+  final Vector2 point
+  int get hashCode
+
 final class ColliderRegistry
-  ({PositionComponent? component, Vector2 point, Collider collider})? raycast(CollisionWorld world, BridgePlane plane, Vector2 from, Vector2 to, {double lift = 0.0, int mask = Layers.all, Collider? ignore, bool includeTriggers = false})
+  ColliderRayHit? raycast(CollisionWorld world, BridgePlane plane, Vector2 from, Vector2 to, {double lift = 0.0, int mask = Layers.all, Collider? ignore, bool includeTriggers = false})
   ColliderRegistry()
   CollisionBridge bridge({required Collider collider, required CollisionCallbacks component, PhysicsStepComponent? stepper})
   PositionComponent? componentFor(Collider collider)
@@ -191,9 +218,10 @@ final class CurvilinearSpace implements BridgeSpace
   void place(double x, double y, double lift, Vector3 out)
   void turn(double x, double y, double angle, Quaternion out)
 
-abstract interface class Drawn3d
+abstract base mixin class Drawn3d
   Aabb3? get drawnBounds3d
-  LinearColor tint
+  Drawn3d()
+  abstract LinearColor tint
 
 mixin FixedStepUpdate on Component
   abstract void fixedUpdate(double step)
@@ -255,7 +283,7 @@ final class FlameInputBridge
 final class Flutter3dFlameWidget extends StatelessWidget
   Widget build(BuildContext context)
   const Flutter3dFlameWidget({super.key, required this.game, this.camera, this.buildScene, this.existing, this.onRendererReady, this.onTick, this.clearColor, this.settings, this.width = 1280, this.height = 720, this.overlayBuilderMap, this.initialActiveOverlays, this.focusNode, this.autofocus = true})
-  final ({GraphicsDevice device, Renderer renderer})? existing
+  final BorrowedRenderer? existing
   final CameraNode? camera
   final FlameGame game
   final FocusNode? focusNode
@@ -275,6 +303,14 @@ final class GridArrival
   final int column
   final int row
 
+final class GridCell
+  String toString()
+  bool operator ==(Object other)
+  const GridCell({required this.column, required this.row})
+  final int column
+  final int row
+  int get hashCode
+
 enum GridHeading
   values: none, up, down, left, right
   GridHeading get opposite
@@ -283,7 +319,7 @@ enum GridHeading
   final int dy
 
 base class GridMover extends Component with FixedStepUpdate
-  (int, int) get cell
+  GridCell get cell
   GridHeading heading
   GridHeading wanted
   GridMover({required this.grid, required this.speed, this.passable, this.wraps = false, this.onArrive})
@@ -330,7 +366,7 @@ mixin HasFlutter3d<W extends World> on FlameGame<W>
   ViewportRect viewport3d
   bool get debugHitboxes3d
   bool get has3d
-  final List<RenderView> moreViews3d
+  final List<CameraView> moreViews3d
   late final BridgeProjector projector
   late final CameraNode camera3d
   set debugHitboxes3d(bool on)
@@ -346,7 +382,7 @@ mixin HasFlutter3d<W extends World> on FlameGame<W>
   void redraw3d()
   void replaceScene3d(Scene next)
 
-base class InstancedActorComponent extends Component implements StepFollower
+base class InstancedActorComponent extends Component with StepFollower
   InstanceHandle? get slot
   InstancedActorComponent({required this.actor, required this.batch, this.stepper, this.removesFrom, this.lift = 0.0, super.priority})
   final Actor actor
@@ -359,7 +395,7 @@ base class InstancedActorComponent extends Component implements StepFollower
   void rememberPlace()
   void update(double dt)
 
-base class InstancedObject3dComponent extends PositionComponent with HasVisibility implements OpacityProvider, Bridged3d
+base class InstancedObject3dComponent extends PositionComponent with HasVisibility, Bridged3d implements OpacityProvider
   Aabb3? get drawnBounds3d
   InstanceHandle? get slot
   InstancedObject3dComponent({required this.batch, required this.plane, this.elevation = 0.0, this.color, this.space, super.position, super.size, super.anchor, super.angle, super.scale, super.children, super.priority, super.key})
@@ -416,7 +452,7 @@ base class Model3dComponent extends PositionComponent
   final Vector3 viewFrom
   final double? pixelRatio
   late final CameraNode camera3d
-  late final RenderView view
+  late final CameraView view
   void frameModel(Aabb3 bounds)
   void onMount()
   void onRemove()
@@ -438,7 +474,7 @@ base class Move3dEffect extends ComponentEffect<Node3dComponent>
   void apply(double progress)
   void onStart()
 
-base class Node3dComponent extends Component with HasVisibility implements OpacityProvider, Drawn3d
+base class Node3dComponent extends Component with HasVisibility, Drawn3d implements OpacityProvider
   Aabb3? get drawnBounds3d
   LinearColor tint
   Node3dComponent({required this.node, required this.scene, Vector3? position, Quaternion? rotation, Vector3? scale, super.children, super.priority, super.key})
@@ -452,7 +488,7 @@ base class Node3dComponent extends Component with HasVisibility implements Opaci
   void onRemove()
   void updateTree(double dt)
 
-base class Object3dComponent extends PositionComponent with HasVisibility implements OpacityProvider, Bridged3d
+base class Object3dComponent extends PositionComponent with HasVisibility, Bridged3d implements OpacityProvider
   Aabb3? get drawnBounds3d
   LinearColor tint
   Object3dComponent({required this.node, required this.scene, required this.plane, this.direction = SyncDirection.sceneToFlame, this.elevation = 0.0, this.owns = const <DeviceMesh>[], this.space, this.follows, super.position, super.size, super.anchor, super.angle, super.scale, super.children, super.priority, super.key})
@@ -547,7 +583,7 @@ base class ProjectedViewfinder extends Viewfinder
   final BridgeProjector projector
   void update(double dt)
 
-base class RigidBodyComponent extends Object3dComponent with CollisionCallbacks implements StepFollower
+base class RigidBodyComponent extends Object3dComponent with CollisionCallbacks, StepFollower
   RigidBodyComponent({required this.body, required super.node, required super.scene, required super.plane, this.stepper, this.removeFrom, super.direction, super.elevation, super.position, super.size, super.anchor, super.angle, super.scale, super.children, super.priority, super.key})
   final PhysicsStepComponent? stepper
   final RigidBody body
@@ -589,11 +625,12 @@ base class SpriteBillboardComponent extends Object3dComponent
 
 abstract mixin class StepClock
   StepClock()
-  abstract double get alpha
-  abstract void follow(StepFollower follower)
-  abstract void unfollow(StepFollower follower)
+  double get alpha
+  void follow(StepFollower follower)
+  void unfollow(StepFollower follower)
 
-abstract interface class StepFollower
+abstract base mixin class StepFollower
+  StepFollower()
   void rememberPlace()
 
 final class SwipeInput extends PositionComponent with DragCallbacks
@@ -605,7 +642,7 @@ final class SwipeInput extends PositionComponent with DragCallbacks
 enum SyncDirection
   values: sceneToFlame, flameToScene
 
-mixin Tap3dCallbacks on Component, HasVisibility, Drawn3d
+base mixin Tap3dCallbacks on Component, HasVisibility, Drawn3d
   Iterable<Aabb3> drawnBoxes3d()
   bool hitAt3d(Tap3dProbe probe)
   void onLongTap3d(Vector2 screen)

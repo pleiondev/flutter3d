@@ -48,7 +48,7 @@ final class FrameCaptureDemo extends ShowcaseDemo {
       width: 96,
       height: 96,
       scene: probe,
-      views: <RenderView>[RenderView(camera: probeCamera)],
+      views: <CameraView>[CameraView(camera: probeCamera)],
       settings: const RenderSettings(),
     );
     _capture = await pending;
@@ -87,7 +87,9 @@ final class FrameCaptureDemo extends ShowcaseDemo {
   void verify(Scene scene, FrameResult frame) {
     // #region check
     final CapturedPass? scenePass = _capture.passNamed('scene');
-    final CapturedImage? color = scenePass?.imageOf('hdr_color');
+    final CapturedImage? color = scenePass?.imageOf(
+      FrameResourceIds.hdrColor.name,
+    );
     if (scenePass == null ||
         !scenePass.active ||
         color == null ||

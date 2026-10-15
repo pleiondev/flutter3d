@@ -110,6 +110,28 @@ abstract base class SpatialRenderer {
   void render(SpatialQuery query, SpatialResult out);
 }
 
+/// The two ears' shares of a panned sound: what [EqualPowerPanner.gains]
+/// answers.
+final class PanGains {
+  const PanGains({required this.left, required this.right});
+
+  /// The left ear's gain, a linear factor from 0 to 1.
+  final double left;
+
+  /// The right ear's gain, a linear factor from 0 to 1.
+  final double right;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PanGains && other.left == left && other.right == right;
+
+  @override
+  int get hashCode => Object.hash(left, right);
+
+  @override
+  String toString() => 'PanGains($left, $right)';
+}
+
 /// Distance attenuation, occlusion and an equal-power stereo pan: the
 /// audio model's spatialisation today.
 ///
@@ -158,9 +180,9 @@ final class EqualPowerPanner extends SpatialRenderer {
   /// The two ears' gains for [pan], by the equal-power law: `cos` and `sin`
   /// of `(pan + 1) · π / 4`, so that left² + right² is always one and a
   /// sound crossing the field is as loud in the middle as at the sides.
-  static ({double left, double right}) gains(double pan) {
+  static PanGains gains(double pan) {
     final angle = (pan.clamp(-1.0, 1.0) + 1.0) * math.pi / 4.0;
-    return (left: math.cos(angle), right: math.sin(angle));
+    return PanGains(left: math.cos(angle), right: math.sin(angle));
   }
 
   @override

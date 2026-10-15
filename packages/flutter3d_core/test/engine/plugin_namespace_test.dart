@@ -251,7 +251,7 @@ void main() {
   });
 
   test('a lighting model comes in through the engine\'s own table', () {
-    const ink = LightingModel('Ink', 'acme_glow_Ink');
+    const ink = LightingModel('Ink', 'acme_glow__Ink');
     final renderer = _renderer();
     _install(
       renderer,
@@ -260,8 +260,8 @@ void main() {
         (host) => host.registry<LightingModels>().register(ink),
       ),
     );
-    expect(renderer.lightingModels.named('acme_glow_Ink'), same(ink));
-    expect(_renderer().lightingModels.named('acme_glow_Ink'), isNull);
+    expect(renderer.lightingModels.named('acme_glow.Ink'), same(ink));
+    expect(_renderer().lightingModels.named('acme_glow.Ink'), isNull);
 
     expect(
       () => _install(
@@ -275,5 +275,60 @@ void main() {
       ),
       throwsA(isA<PluginException>()),
     );
+  });
+
+  test(
+    'a plugin\'s model is <namespace>.<Name>, its stage the dot made __',
+    () {
+      // Mutation: drop the `__` test from `LightingModels.register`, and
+      // `acme_glow.in__k` comes in under a stage another plugin could spell.
+      expect(
+        const LightingModel('Ink', 'acme_glow__Ink').name,
+        'acme_glow.Ink',
+      );
+      expect(LightingModel.shaderNameOf('acme_glow.Ink'), 'acme_glow__Ink');
+      expect(LightingModel.pbr.name, 'Pbr');
+      for (final stage in <String>[
+        // The stage name a plugin's model had before the dot.
+        'acme_glow_Ink',
+        // Another plugin's namespace.
+        'acme__Ink',
+        // `__` inside the model's own name.
+        'acme_glow__In__k',
+        // A model name starting with `_`, which `__` would swallow.
+        'acme_glow___Ink',
+      ]) {
+        expect(
+          () => _install(
+            _renderer(),
+            _Plugin(
+              'acme_glow.glow',
+              (host) => host.registry<LightingModels>().register(
+                LightingModel('Ink', stage),
+              ),
+            ),
+          ),
+          throwsA(isA<PluginException>()),
+          reason: stage,
+        );
+      }
+    },
+  );
+
+  test('a file\'s word from before the dot finds the plugin\'s model', () {
+    const ink = LightingModel('Ink', 'acme_glow__Ink');
+    final renderer = _renderer();
+    _install(
+      renderer,
+      _Plugin(
+        'acme_glow.glow',
+        (host) => host.registry<LightingModels>().register(ink),
+      ),
+    );
+    // Mutation: drop the alias loop from `LightingModels.named`, and a
+    // `.fmat` written before the dot opens with the scene's model.
+    expect(renderer.lightingModels.named('acme_glow_Ink'), same(ink));
+    expect(renderer.lightingModels.named('acme_glow__Ink'), same(ink));
+    expect(renderer.lightingModels.named('acme_glow_ink'), isNull);
   });
 }

@@ -39,10 +39,9 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
-// `RenderView` is a name both libraries have, and in this file it is Flutter's:
-// the root of a render tree. The engine's is a camera and a viewport, and
-// nothing here has one.
-import 'package:flutter3d/flutter3d.dart' hide RenderView;
+// `RenderView` here is Flutter's, the root of a render tree; the engine's
+// camera onto a viewport is `CameraView`, so the two never meet.
+import 'package:flutter3d/flutter3d.dart';
 
 import 'widget_surface_pipeline.dart' show unmountWidgetTree;
 

@@ -164,13 +164,13 @@ final class OrbitController {
   /// A fixed 0.1..1000 range wastes most of the depth buffer on empty space and
   /// z-fights on small models; tying the range to the orbit distance keeps
   /// precision where the geometry actually is.
-  ({double near, double far}) suggestedDepthRange() {
+  ClipDistances suggestedDepthRange() {
     final near = math.max(distance * 0.01, 1e-4);
     // 10x the orbit distance covers the far side of anything frameBounds framed,
     // with room to zoom in. A larger multiplier only spends depth precision on
     // empty space, which is the very thing this method exists to avoid.
     final far = distance * 10.0 + 10.0;
-    return (near: near, far: far);
+    return ClipDistances(near: near, far: far);
   }
 
   Vector3 _upVector() {
@@ -289,4 +289,27 @@ final class OrbitController {
     if (t >= 1.0) _turnLength = 0.0;
     apply();
   }
+}
+
+/// A near and a far clip plane, as distances from the camera: what
+/// [OrbitController.suggestedDepthRange] answers.
+final class ClipDistances {
+  /// The planes [near] and [far].
+  const ClipDistances({required this.near, required this.far});
+
+  /// The distance to the near clip plane, in metres.
+  final double near;
+
+  /// The distance to the far clip plane, in metres.
+  final double far;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ClipDistances && other.near == near && other.far == far;
+
+  @override
+  int get hashCode => Object.hash(near, far);
+
+  @override
+  String toString() => 'ClipDistances($near, $far)';
 }

@@ -79,18 +79,18 @@ final class StereoRig {
 
   CameraNode camera(Eye eye) => identical(eye, Eye.left) ? _left : _right;
 
-  /// The pair, side by side in one target: two [RenderView]s kept for the
+  /// The pair, side by side in one target: two [CameraView]s kept for the
   /// rig's life, so each eye keeps its own last frame for the reprojection
   /// (the history is per view since 1.0, not per camera).
   ///
   /// Left in the left half, right in the right, which is the arrangement a
   /// projection layer expects and the one a phone in a holder needs.
-  late final List<RenderView> views = <RenderView>[
-    RenderView(
+  late final List<CameraView> views = <CameraView>[
+    CameraView(
       camera: _left,
       viewportFraction: const ViewportRect(0.0, 0.0, 0.5, 1.0),
     ),
-    RenderView(
+    CameraView(
       camera: _right,
       viewportFraction: const ViewportRect(0.5, 0.0, 0.5, 1.0),
     ),

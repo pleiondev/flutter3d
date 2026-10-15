@@ -908,6 +908,6 @@ final class Volcano {
 /// cosine: `Quaternion.axisAngle` asks `dart:math`, whose last bits differ
 /// between the VM and a browser.
 Quaternion _turn(Vector3 axis, double angle) {
-  final (:sin, :cos) = Portable.sinCos(angle * 0.5);
+  final SinCos(:sin, :cos) = Portable.sinCos(angle * 0.5);
   return Quaternion(axis.x * sin, axis.y * sin, axis.z * sin, cos);
 }

@@ -151,7 +151,7 @@ final class AssetAudit {
           :final data,
         ) when data.triangleCount > 0)
           () {
-            final (_, MeshImportReport report, _) = importMeshData(data);
+            final ImportedMesh(:report) = importMeshData(data);
             return MeshAudit(
               object: object,
               degenerate: report.droppedDegenerate,

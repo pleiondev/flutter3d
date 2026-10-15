@@ -67,7 +67,7 @@ Uint8List encodeEtc2Rgb8(Rgba8Image image) {
 /// Encodes one 4×4 block (row-major, alpha ignored) as the eight bytes of an
 /// ETC1-compatible ETC2 RGB8 block — flip = 0, top and bottom 4×2 halves each
 /// with their own base colour and modifier table.
-Uint8List encodeEtc2Rgb8Block(List<(int, int, int, int)> pixels) {
+Uint8List encodeEtc2Rgb8Block(List<Rgba8Texel> pixels) {
   // Row-major input, top half rows 0-1 (pixels 0-7), bottom half rows 2-3
   // (pixels 8-15) — flip = 0's split.
   final top = pixels.sublist(0, 8);
@@ -120,10 +120,7 @@ final class _BlockFit {
 /// Individual mode: each half's base colour is its own 4-bit-per-channel
 /// average, replicated to 8 bits (`(v << 4) | v`) the same way
 /// `flutter3d_conformance`'s solid block does.
-_BlockFit _fitIndividual(
-  List<(int, int, int, int)> top,
-  List<(int, int, int, int)> bottom,
-) {
+_BlockFit _fitIndividual(List<Rgba8Texel> top, List<Rgba8Texel> bottom) {
   final topAvg = _average4bit(top);
   final bottomAvg = _average4bit(bottom);
 
@@ -158,10 +155,7 @@ _BlockFit _fitIndividual(
 /// range and refit from the clamped base, since a delta ETC2 cannot express
 /// is a block this mode cannot fit exactly and individual mode is what the
 /// caller falls back to when that costs more than it is worth.
-_BlockFit _fitDifferential(
-  List<(int, int, int, int)> top,
-  List<(int, int, int, int)> bottom,
-) {
+_BlockFit _fitDifferential(List<Rgba8Texel> top, List<Rgba8Texel> bottom) {
   final (tr5, tg5, tb5) = _average5bit(top);
   final (br5, bg5, bb5) = _average5bit(bottom);
   final dr = (br5 - tr5).clamp(-4, 3);
@@ -196,9 +190,9 @@ _BlockFit _fitDifferential(
   );
 }
 
-(int, int, int) _average4bit(List<(int, int, int, int)> half) {
+(int, int, int) _average4bit(List<Rgba8Texel> half) {
   var r = 0, g = 0, b = 0;
-  for (final (pr, pg, pb, _) in half) {
+  for (final Rgba8Texel(r: pr, g: pg, b: pb) in half) {
     r += pr;
     g += pg;
     b += pb;
@@ -207,9 +201,9 @@ _BlockFit _fitDifferential(
   return (to4(r), to4(g), to4(b));
 }
 
-(int, int, int) _average5bit(List<(int, int, int, int)> half) {
+(int, int, int) _average5bit(List<Rgba8Texel> half) {
   var r = 0, g = 0, b = 0;
-  for (final (pr, pg, pb, _) in half) {
+  for (final Rgba8Texel(r: pr, g: pg, b: pb) in half) {
     r += pr;
     g += pg;
     b += pb;
@@ -220,7 +214,7 @@ _BlockFit _fitDifferential(
 
 /// The table (0–7) that best fits [half] around [base], and the summed
 /// squared error it leaves — tried exhaustively, since there are only eight.
-(int, int) _bestTable(List<(int, int, int, int)> half, (int, int, int) base) {
+(int, int) _bestTable(List<Rgba8Texel> half, (int, int, int) base) {
   var bestTable = 0;
   var bestError = 1 << 30;
   for (var t = 0; t < _modifierTables.length; t++) {
@@ -236,12 +230,8 @@ _BlockFit _fitDifferential(
   return (bestTable, bestError);
 }
 
-int _nearestModifierError(
-  (int, int, int, int) pixel,
-  (int, int, int) base,
-  int table,
-) {
-  final (pr, pg, pb, _) = pixel;
+int _nearestModifierError(Rgba8Texel pixel, (int, int, int) base, int table) {
+  final Rgba8Texel(r: pr, g: pg, b: pb) = pixel;
   final (br, bg, bb) = base;
   var best = 1 << 30;
   for (final modifier in _modifierTables[table]) {
@@ -268,8 +258,8 @@ int _nearestModifierError(
 /// the modifier lookup `(0,0) -> +table[0]`, `(1,1) -> -table[1]` the
 /// library doc comment states.
 int _packIndices(
-  List<(int, int, int, int)> top,
-  List<(int, int, int, int)> bottom,
+  List<Rgba8Texel> top,
+  List<Rgba8Texel> bottom,
   _BlockFit chosen,
 ) {
   var msb = 0, lsb = 0;
@@ -293,11 +283,11 @@ int _packIndices(
 /// The 2-bit `(msb, lsb)` code whose modifier gets [pixel] closest to [base]
 /// under [table].
 (int, int) _bestModifierCode(
-  (int, int, int, int) pixel,
+  Rgba8Texel pixel,
   (int, int, int) base,
   int table,
 ) {
-  final (pr, pg, pb, _) = pixel;
+  final Rgba8Texel(r: pr, g: pg, b: pb) = pixel;
   final (br, bg, bb) = base;
   final codes = <(int, int, int)>[
     (0, 0, _modifierTables[table][0]),

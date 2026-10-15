@@ -99,7 +99,7 @@ void main() {
       width: _size,
       height: _size,
       scene: built.scene,
-      views: <RenderView>[RenderView(camera: built.camera)],
+      views: <CameraView>[CameraView(camera: built.camera)],
       settings: const RenderSettings(
         shadows: ShadowSettings(enabled: true, cascades: 3),
       ),
@@ -131,8 +131,8 @@ void main() {
         width: _size,
         height: _size,
         scene: scene,
-        views: <RenderView>[
-          RenderView(
+        views: <CameraView>[
+          CameraView(
             camera: camera,
             clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
           ),
@@ -188,7 +188,7 @@ void main() {
       width: _size,
       height: _size,
       scene: built.scene,
-      views: <RenderView>[RenderView(camera: built.camera)],
+      views: <CameraView>[CameraView(camera: built.camera)],
       settings: const RenderSettings(
         shadows: ShadowSettings(enabled: true, cascades: 3),
       ),
@@ -218,7 +218,7 @@ void main() {
       width: _size,
       height: _size,
       scene: built.scene,
-      views: <RenderView>[RenderView(camera: built.camera)],
+      views: <CameraView>[CameraView(camera: built.camera)],
       settings: const RenderSettings(
         shadows: ShadowSettings(enabled: true, cascades: 3),
       ),
@@ -250,7 +250,7 @@ void main() {
       width: _size,
       height: _size,
       scene: built.scene,
-      views: <RenderView>[RenderView(camera: built.camera)],
+      views: <CameraView>[CameraView(camera: built.camera)],
       settings: const RenderSettings(
         shadows: ShadowSettings(enabled: true, cascades: 3),
       ),
@@ -287,7 +287,7 @@ void main() {
         width: _size,
         height: _size,
         scene: built.scene,
-        views: <RenderView>[RenderView(camera: built.camera)],
+        views: <CameraView>[CameraView(camera: built.camera)],
         settings: RenderSettings(
           shadows: ShadowSettings(enabled: true, cascades: cascades),
         ),

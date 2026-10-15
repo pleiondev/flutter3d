@@ -133,7 +133,7 @@ final class PortableMathDemo extends ShowcaseDemo {
       if (_seen.reduce(math.max) > 40) _reseed();
     }
     // The hand goes round the ring through `Portable`, not `dart:math`.
-    final ({double sin, double cos}) at = Portable.sinCos(_clock);
+    final SinCos at = Portable.sinCos(_clock);
     _hand.setPosition(2.5 * at.cos, 0.3, -1.5 + 2.5 * at.sin);
     for (var i = 0; i < 6; i++) {
       _bars[i].set(_seen[i] / 40.0);

@@ -93,7 +93,7 @@ void main() {
             width: _size,
             height: _size,
             scene: built.scene,
-            views: <RenderView>[RenderView(camera: built.camera)],
+            views: <CameraView>[CameraView(camera: built.camera)],
             settings: _settings,
           ),
         ),
@@ -123,7 +123,7 @@ void main() {
       width: _size,
       height: _size,
       scene: built.scene,
-      views: <RenderView>[RenderView(camera: built.camera)],
+      views: <CameraView>[CameraView(camera: built.camera)],
       settings: _settings,
     );
     final first = cascadeDraws(frame());
@@ -148,7 +148,7 @@ void main() {
           width: _size,
           height: _size,
           scene: scene,
-          views: <RenderView>[RenderView(camera: camera)],
+          views: <CameraView>[CameraView(camera: camera)],
           settings: _settings,
         );
 
@@ -201,7 +201,7 @@ void main() {
           width: _size,
           height: _size,
           scene: walk.scene,
-          views: <RenderView>[RenderView(camera: walk.camera)],
+          views: <CameraView>[CameraView(camera: walk.camera)],
           settings: _settings,
         ),
       );
@@ -212,7 +212,7 @@ void main() {
           width: _size,
           height: _size,
           scene: fresh.scene,
-          views: <RenderView>[RenderView(camera: fresh.camera)],
+          views: <CameraView>[CameraView(camera: fresh.camera)],
           settings: _settings,
         ),
       );
@@ -235,7 +235,7 @@ void main() {
         width: _size,
         height: _size,
         scene: scene,
-        views: <RenderView>[RenderView(camera: camera)],
+        views: <CameraView>[CameraView(camera: camera)],
         settings: _settings,
       );
       final bytes = await device.readback(result.frame);

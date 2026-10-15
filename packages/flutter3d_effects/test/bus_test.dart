@@ -79,7 +79,7 @@ void main() {
       width: 16,
       height: 16,
       scene: scene,
-      views: <RenderView>[RenderView(camera: camera)],
+      views: <CameraView>[CameraView(camera: camera)],
     );
     // Mutation: leave `drawn` out of `RenderListener.toBus` — the frame is
     // never heard on the bus, though the field is set.

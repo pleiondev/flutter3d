@@ -62,7 +62,7 @@ import 'package:vector_math/vector_math.dart';
     width: 64,
     height: 48,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
     settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
   );
   // The pass that drew the leaf: the one that bound its material's block.

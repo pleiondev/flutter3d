@@ -125,7 +125,7 @@ FrameResult _render(_Stage it, [RenderSettings settings = _on]) =>
       width: _size,
       height: _size,
       scene: it.scene,
-      views: <RenderView>[RenderView(camera: it.camera)],
+      views: <CameraView>[CameraView(camera: it.camera)],
       settings: settings,
     );
 

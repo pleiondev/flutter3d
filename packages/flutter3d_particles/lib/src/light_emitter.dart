@@ -14,7 +14,11 @@ import 'particle.dart';
 /// Mix it into whatever is passed to [ParticleSystem.emit] as the source.
 /// The system fills [glow] in every step; the owner reads it and does whatever
 /// a light means to it.
-mixin class LightEmitter {
+///
+/// **Mixed in, never implemented**: a base mixin class, so what the system
+/// fills in can grow with a body and an emitter written against 1.0 keeps
+/// compiling.
+base mixin class LightEmitter {
   /// What this emitter's particles currently amount to. Owned here, written by
   /// the particle system, read by anything that wants to be lit by fire.
   final ParticleGlow glow = ParticleGlow._();

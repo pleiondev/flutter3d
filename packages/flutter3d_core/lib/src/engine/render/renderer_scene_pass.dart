@@ -58,7 +58,7 @@ extension _ScenePasses on Renderer {
   /// `ContributorFrame` carries a pass and `RenderFrame` does not.
   _ScenePass _encodeScene({
     required Scene scene,
-    required List<RenderView> ordered,
+    required List<CameraView> ordered,
     required RenderSettings settings,
     required int width,
     required int height,
@@ -219,7 +219,7 @@ extension _ScenePasses on Renderer {
         height,
       );
       // What it draws through: the same rectangle, or for a window of a
-      // larger frame drawn exactly — `RenderViewSettings.window` — the whole
+      // larger frame drawn exactly — `CameraViewSettings.window` — the whole
       // frame, placed so the window lands on the target, with the camera's
       // own projection for the length of this view. Everything below that
       // asks the view's size, its aspect, its height for a level of detail,
@@ -343,7 +343,7 @@ extension _ScenePasses on Renderer {
       // answer, not the setting's: on a device without reversed depth the
       // fit buys nothing and still risks a stale box being clipped.
       // A view drawn as part of a larger picture brings the plane the whole
-      // picture was fitted to (`RenderViewSettings.depthNear`), so every
+      // picture was fitted to (`CameraViewSettings.depthNear`), so every
       // part draws one surface at one depth.
       final near = !reversed
           ? camera.projection.near
@@ -691,7 +691,7 @@ extension _ScenePasses on Renderer {
   /// watching, and would be reprojected the moment the setting came back.
   OcclusionTest? _occlusionFor({
     required Scene scene,
-    required RenderView view,
+    required CameraView view,
     required RenderSettings settings,
     required vm.Frustum frustum,
     required double aspect,

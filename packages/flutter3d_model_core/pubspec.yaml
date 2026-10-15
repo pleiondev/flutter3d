@@ -1,6 +1,6 @@
 name: flutter3d_model_core
 description: "The headless half of a model editor: a project of objects and materials, the commands that change one, the history that takes them back, and what it refuses to export."
-version: 1.0.0-rc.1
+version: 1.0.0-rc.1+1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -32,7 +32,7 @@ dependencies:
   # What a project is read from and written back to — `ModelDocument`,
   # `SurfaceMaterial`, the glTF/OBJ/`.f3d` decoders and the writers beside
   # them — `MeshData` and `VertexLayout`, which an imported object holds as it
-  # arrived, and `Scene`, `MeshNode`, `LightNode`, `CameraNode`, `Renderer`, `RenderView`,
+  # arrived, and `Scene`, `MeshNode`, `LightNode`, `CameraNode`, `Renderer`, `CameraView`,
   # `RenderSettings`, `GraphicsDevice` — `renderProject`'s own scene and the
   # renderer it draws with (`render_project.dart`, `mcp-05n`). The
   # Flutter-free half of the engine, not `flutter3d` itself: a package under

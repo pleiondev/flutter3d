@@ -111,7 +111,7 @@ Future<List<int>> _grid(
     width: _width,
     height: _height,
     scene: room.scene,
-    views: <RenderView>[RenderView(camera: room.camera)],
+    views: <CameraView>[CameraView(camera: room.camera)],
     settings: RenderSettings(
       shadows: shadows,
       bloom: const BloomSettings(enabled: false),
@@ -531,7 +531,7 @@ void main() {
       width: 64,
       height: 48,
       scene: scene,
-      views: <RenderView>[RenderView(camera: camera)],
+      views: <CameraView>[CameraView(camera: camera)],
       settings: const RenderSettings(),
     );
 
@@ -621,7 +621,7 @@ void main() {
           width: _width,
           height: _height,
           scene: scene,
-          views: <RenderView>[RenderView(camera: camera)],
+          views: <CameraView>[CameraView(camera: camera)],
           settings: const RenderSettings(
             shadows: shadows,
             bloom: BloomSettings(enabled: false),

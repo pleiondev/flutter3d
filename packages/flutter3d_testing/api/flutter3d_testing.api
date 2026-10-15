@@ -44,7 +44,7 @@ final class QualityMeasurement
   final double cost
   final double flip
 
-typedef QualityScene = ({Scene scene, RenderView view, RenderSettings settings}) Function(GraphicsDevice device);
+typedef QualityScene = ({Scene scene, CameraView view, RenderSettings settings}) Function(GraphicsDevice device);
 
 final class RenderedFrame
   String toString()

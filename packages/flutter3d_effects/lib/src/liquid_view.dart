@@ -16,12 +16,14 @@ import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show
         NativeLiquidProperties,
         NativeShallowLiquid,
+        NativeShallowSurface,
         NativeWorld,
         nativeBubbleFloats,
         nativeSprayFloats,
         nativeSpraySheet;
 import 'package:vector_math/vector_math.dart';
 
+import 'fire_view.dart' show StepBudget;
 import 'liquid_surface_kernels.dart';
 import 'shallow_water_workload.dart';
 import 'vertices.dart';
@@ -395,7 +397,7 @@ final class LiquidView {
   /// The surface and depth the core mirrors, read once a frame while the
   /// water is stepped elsewhere and something falls or bubbles over it:
   /// what a piece landing and a cloud of bubbles are held against.
-  ({Float32List surface, Float32List depth})? _mirror;
+  NativeShallowSurface? _mirror;
 
   /// The height a vertex of cell [c] is drawn at over the origin, NaN where
   /// it is sunk: the CPU's own while the core steps the water, the mirror's
@@ -412,9 +414,9 @@ final class LiquidView {
   /// What each step wanted to draw this frame and how much it holds: the
   /// pieces of drops in the air and the clouds of bubbles past what the
   /// detail draws.
-  List<(String, int, int)> get wanted => <(String, int, int)>[
-    ('drops', sprayInFlight, detail.drops),
-    ('bubbles', bubbleClouds, detail.bubbles),
+  List<StepBudget> get wanted => <StepBudget>[
+    StepBudget(step: 'drops', wanted: sprayInFlight, holds: detail.drops),
+    StepBudget(step: 'bubbles', wanted: bubbleClouds, holds: detail.bubbles),
   ];
 
   /// Whether what was last drawn may no longer be what the core has.

@@ -53,7 +53,7 @@ final class _Stage {
         width: 8,
         height: 8,
         scene: scene,
-        views: <RenderView>[RenderView(camera: camera)],
+        views: <CameraView>[CameraView(camera: camera)],
       );
     }
   }
@@ -120,7 +120,7 @@ void main() {
               presenter: _noPresenter,
             ),
             view: const ViewSettings(continuous: false),
-            onSceneCreated: (Scene3DController it) => controller = it,
+            onCreated: (Scene3DController it) => controller = it,
             children: <Widget>[
               Node3D(
                 key: const ValueKey<String>('left'),

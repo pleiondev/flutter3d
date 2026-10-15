@@ -138,8 +138,8 @@ final class _Square extends ResourceSize {
   const _Square();
 
   @override
-  (int, int) resolve(int frameWidth, int frameHeight) =>
-      (frameWidth, frameWidth);
+  PixelExtent resolve(int frameWidth, int frameHeight) =>
+      PixelExtent(width: frameWidth, height: frameWidth);
 }
 
 MaterialProgram _withBody(
@@ -251,6 +251,9 @@ material Sampled {
     expect(const FrameFraction(2).accept(name), 'fraction 2');
     expect(const AbsolutePixels(64, 32).accept(name), 'pixels 64x32');
     expect(const _Square().accept(name), 'unknown');
-    expect(const _Square().resolve(640, 480), (640, 640));
+    expect(
+      const _Square().resolve(640, 480),
+      const PixelExtent(width: 640, height: 640),
+    );
   });
 }

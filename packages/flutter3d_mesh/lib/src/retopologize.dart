@@ -44,7 +44,7 @@ EditMesh retopologize(
     sourceData,
     targetTriangleCount: (targetQuads * 2).clamp(1, 1 << 30),
   );
-  final (mesh, _, _) = importMeshData(simplified);
+  final ImportedMesh(:mesh) = importMeshData(simplified);
 
   _greedyQuadrangulate(mesh, coplanarThreshold);
   _shrinkWrap(mesh, TriangleBvh.fromMesh(sourceData));

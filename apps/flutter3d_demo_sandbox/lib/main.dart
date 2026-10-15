@@ -144,7 +144,7 @@ class _SandboxScreenState extends State<SandboxScreen>
 
   /// Nearly nothing shows this: the sky is drawn wherever no block stands.
   /// It is what is behind the first frames, before the world has loaded.
-  late final RenderView _view = RenderView(
+  late final CameraView _view = CameraView(
     camera: _camera,
     clearColor: LinearColor.fromSrgb(0.55, 0.72, 0.9, 1.0),
   );

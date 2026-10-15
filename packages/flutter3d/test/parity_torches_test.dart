@@ -68,7 +68,7 @@ void main() {
       width: 320,
       height: 240,
       scene: built.scene,
-      views: <RenderView>[RenderView(camera: built.camera)],
+      views: <CameraView>[CameraView(camera: built.camera)],
       settings: paritySettingsFor(ParityScene.torchesRunningOut),
     );
 

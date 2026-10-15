@@ -46,7 +46,7 @@ FrameResult _draw(
   width: 16,
   height: 16,
   scene: it.scene,
-  views: <RenderView>[RenderView(camera: it.camera)],
+  views: <CameraView>[CameraView(camera: it.camera)],
 );
 
 void main() {
@@ -115,7 +115,7 @@ void main() {
         width: 16,
         height: 16,
         scene: it.scene,
-        views: <RenderView>[RenderView(camera: it.camera)],
+        views: <CameraView>[CameraView(camera: it.camera)],
       );
     expect(it.renderer.pipelineStalls, isEmpty);
   });
@@ -126,7 +126,7 @@ void main() {
       width: 16,
       height: 16,
       scene: whole.scene,
-      views: <RenderView>[RenderView(camera: whole.camera)],
+      views: <CameraView>[CameraView(camera: whole.camera)],
     );
     final sliced = _stage();
     final progress = <double>[];
@@ -134,7 +134,7 @@ void main() {
       width: 16,
       height: 16,
       scene: sliced.scene,
-      views: <RenderView>[RenderView(camera: sliced.camera)],
+      views: <CameraView>[CameraView(camera: sliced.camera)],
       slice: Duration.zero,
       onProgress: progress.add,
     );

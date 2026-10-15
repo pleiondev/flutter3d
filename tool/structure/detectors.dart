@@ -3165,6 +3165,82 @@ List<Finding> proveDetectorsWork() {
     'a header is not a package',
   );
 
+  // A template's pins on a sibling. Mutation: drop the multiline flag and
+  // only a first line is read; read any name and `vector_math` is a sibling.
+  final pins = siblingPinsIn(
+    "const String _options = '''\n"
+    'plugins:\n'
+    '  flutter3d_lints: ^1.0.0-rc.1\n'
+    "''';\n"
+    '  flutter3d: ^1.0.0-rc.1\n'
+    '  vector_math: ^2.1.4\n'
+    "  flutter3d_core: ^\$version\n",
+    const <String>{'flutter3d_lints', 'flutter3d', 'flutter3d_core'},
+  );
+  fires(
+    'pins on a sibling',
+    pins.contains(('flutter3d_lints', '^1.0.0-rc.1')) &&
+        pins.contains(('flutter3d', '^1.0.0-rc.1')),
+    'a lints pin inside a template string and a facade pin',
+  );
+  quiet(
+    'pins on a sibling',
+    pins.length == 2,
+    'a third-party pin and an interpolated one',
+    'only a sibling at a written version is held to that sibling',
+  );
+
+  // The engine's render names. Mutation: drop `RenderStep\._` from the
+  // pattern and `color grade` passes; accept any dotted word for the engine
+  // and `acme.after_bloom` passes as the engine's; drop the space test and
+  // `acme.after glow` passes.
+  final unprefixed = unprefixedRenderNamesIn(
+    "  static const RenderAnchor afterBloom = RenderAnchor._('after bloom');\n"
+    "  static const RenderStep grade = RenderStep._(\n    'color grade',\n"
+    "  static const ResourceId hdr = ResourceId('hdr_color');\n"
+    "  static const RenderAnchor ok = RenderAnchor._('f3d.after_bloom');\n"
+    "  static const ResourceId good = ResourceId('f3d.scene_color');\n"
+    "  const RenderAnchor odd = RenderAnchor._('acme.after_bloom');\n"
+    "  final id = ResourceId('\${id.name}#\$index');\n"
+    "  /// RenderStep('in a doc') is prose.\n",
+    engine: true,
+  );
+  fires(
+    'render names without f3d.',
+    unprefixed.toSet().containsAll(<String>{
+      'after bloom',
+      'color grade',
+      'hdr_color',
+      'acme.after_bloom',
+    }),
+    "an anchor, a step and a resource in the old words, a plugin's name in "
+        "the engine's package",
+  );
+  quiet(
+    'render names without f3d.',
+    unprefixed.length == 4,
+    'f3d. words, an interpolated name and a doc comment',
+    'they are the words the rule asks for, or not a name declared',
+  );
+  final plugins = unprefixedRenderNamesIn(
+    "const RenderStep sky = RenderStep('sky', isOn: _on, switchOff: _off);\n"
+    "const RenderStep glow = RenderStep('acme.soft_glow');\n"
+    "final at = RenderAnchor.after(RenderAnchor.afterBloom, 'acme.after glow');\n"
+    "final ok = RenderAnchor.after(RenderAnchor.afterBloom, 'acme.after_glow');\n",
+    engine: false,
+  );
+  fires(
+    'render names without a namespace',
+    plugins.toSet().containsAll(<String>{'sky', 'acme.after glow'}),
+    'a step with no namespace, an anchor with a space',
+  );
+  quiet(
+    'render names without a namespace',
+    plugins.length == 2,
+    "a plugin's dotted step and anchor",
+    'they carry their namespace',
+  );
+
   // The public API: the semver classifier, the CHANGELOG label and the
   // deprecation format. Their fixtures live beside them in `api.dart`,
   // because each is a table of cases the classifier's own rules are read
@@ -5072,3 +5148,50 @@ int _topLevelColon(String entry) {
   }
   return -1;
 }
+
+// ------------------------------------------------------- the engine's words
+
+/// Each render name [source] declares that does not carry its namespace:
+/// the literal of a `RenderAnchor._`, `RenderAnchor.after`, `RenderStep._`,
+/// `RenderStep(` or `ResourceId(`, when it is not `<namespace>.<word>` with
+/// no space in it — or, for the [engine]'s own packages, not `f3d.<word>`.
+///
+/// **Decision 23 for the engine's half.** A plugin's names were refused
+/// without their namespace from the start (`PluginManifest.nameProblem`),
+/// and the engine's went on the wire as `after bloom`, `scene_color` and
+/// `color grade`: spaces, no `f3d.`, written into every `f3d.pipeline`. A
+/// name that is interpolated (`'${id.name}#$index'`) is built from one that
+/// was checked and is not read, and neither is a template's `{{name}}`,
+/// which the generated plugin fills with its own namespace.
+List<String> unprefixedRenderNamesIn(String source, {required bool engine}) =>
+    <String>[
+      for (final m in RegExp(
+        r"(?:RenderAnchor\._\(|RenderAnchor\.after\([^,()]+,|"
+        r"RenderStep\._\(|RenderStep\(|ResourceId\()\s*'([^'$]*)'",
+      ).allMatches(codeOf(source)))
+        if (!m.group(1)!.contains('{{') &&
+            !RegExp(
+              engine ? r'^f3d\.[a-z0-9_]+$' : r'^[a-z][a-z0-9_]*\.[^ ]+$',
+            ).hasMatch(m.group(1)!))
+          m.group(1)!,
+    ];
+
+// ---------------------------------------------- pins on a sibling, in text
+
+/// Each `<package>: ^<version>` pin [source] writes on one of [packages],
+/// as package and constraint: the lines a template writes into a project's
+/// `pubspec.yaml` or `analysis_options.yaml`, read where they are quoted.
+///
+/// **What broke when a package left the engine's number.** The plugin
+/// template wrote `flutter3d_lints: ^1.0.0-rc.1` into every generated
+/// plugin's analysis options, which no 0.x release of the lints satisfies,
+/// so the analysis server could not load the plugin and nothing said so.
+List<(String, String)> siblingPinsIn(String source, Set<String> packages) =>
+    <(String, String)>[
+      for (final m in RegExp(
+        r'^\s*([a-z][a-z0-9_]*):\s*(\^[0-9][^\s\x27"]*)',
+        multiLine: true,
+      ).allMatches(source))
+        if (packages.contains(m.group(1)) && !m.group(2)!.contains(r'$'))
+          (m.group(1)!, m.group(2)!),
+    ];

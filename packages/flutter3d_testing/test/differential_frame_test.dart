@@ -97,8 +97,8 @@ Future<RenderedFrame> _renderDocument(ModelDocument document) async {
     width: width,
     height: height,
     scene: scene,
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: camera,
         clearColor: LinearColor.fromSrgb(0.05, 0.05, 0.08, 1.0),
       ),

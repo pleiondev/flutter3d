@@ -39,7 +39,7 @@ double _brightness({required double roughness, required bool compensate}) {
     width: _size,
     height: _size,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
     settings: RenderSettings(
       tonemap: false,
       bloom: const BloomSettings(enabled: false),

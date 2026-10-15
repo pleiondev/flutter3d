@@ -169,7 +169,7 @@ final class WaterRun {
   bool windy = false;
 
   /// What the water holds and what has run off the map, for the panel.
-  ({double held, double lost}) get volume => _world.shallowVolume(water.native);
+  NativeShallowVolume get volume => _world.shallowVolume(water.native);
 
   /// How many pieces of falling water are in the air, and how many clouds
   /// of bubbles are in the water.

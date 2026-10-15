@@ -6,13 +6,13 @@ import 'package:test/test.dart';
 
 void main() {
   test('the frame resources are named in American spelling', () {
-    expect(FrameResourceIds.hdrColor, const ResourceId('hdr_color'));
-    expect(FrameResourceIds.sceneColor, const ResourceId('scene_color'));
+    expect(FrameResourceIds.hdrColor, const ResourceId('f3d.hdr_color'));
+    expect(FrameResourceIds.sceneColor, const ResourceId('f3d.scene_color'));
   });
 
   test('the steps and their passes are named in American spelling', () {
-    expect(RenderStep.colorGrade.name, 'color grade');
-    expect(RenderStep.sceneColorCopy.name, 'scene color copy');
+    expect(RenderStep.colorGrade.name, 'f3d.color_grade');
+    expect(RenderStep.sceneColorCopy.name, 'f3d.scene_color_copy');
     expect(RenderStep.sceneColorCopy.passes, <String>{'scene color copy'});
     for (final step in RenderStep.values) {
       expect(step.name, isNot(contains('colour')), reason: step.name);

@@ -301,7 +301,7 @@ class _LessonViewState extends State<LessonView> {
                                   return SceneSurface(
                                     renderer: widget.renderer,
                                     scene: widget.scene,
-                                    view: RenderView(camera: widget.camera),
+                                    view: CameraView(camera: widget.camera),
                                     settings: () => const RenderSettings(),
                                     // The turntable already wrote the camera's
                                     // transform the moment a gesture moved it;

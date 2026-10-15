@@ -126,7 +126,7 @@ void main() {
       final record = LicenseRecord.parse(_fileTable);
       // Mutation: skip the row after a `File` header as the rule under it —
       // the first tower is lost.
-      expect(record.entries.map((LicenseEntry e) => e.files.single), <String>[
+      expect(record.entries.map((LicenseSection e) => e.files.single), <String>[
         'tower.glb',
         'wall.glb',
       ]);

@@ -115,7 +115,7 @@ void main() {
     );
     mover.wanted = GridHeading.left;
     game.update(0.5);
-    expect(mover.cell, (4, 1));
+    expect(mover.cell, const GridCell(column: 4, row: 1));
     expect(body.position.x, closeTo(4.5, 1e-9));
   });
 

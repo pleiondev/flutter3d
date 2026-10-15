@@ -56,7 +56,7 @@ void main() {
         width: _width,
         height: _height,
         scene: scene,
-        views: <RenderView>[RenderView(camera: camera)],
+        views: <CameraView>[CameraView(camera: camera)],
         settings: const RenderSettings(
           surfaceBuffer: true,
           showSurfaceBuffer: true,

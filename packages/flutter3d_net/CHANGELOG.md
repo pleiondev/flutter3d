@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1+1
 
+- **Breaking: results that were records are final classes.**
+  `RollbackSession` answered or held a record, which can never gain a field.
+  Each answers a final class now, with the record's field names (a
+  positional `$1` has a name of its own), `==` and `hashCode`. A field read
+  compiles as before; a destructuring pattern names the class, and
+  `flutter3d_build:migrate` rewrites the `$1` reads.
+
 - **Breaking: protocol 3.1, and the relay speaks under the reserved key.**
   `WireHello.currentProtocolMinor` is 1. The relay's welcome, `full` and
   `left` are `{"f3d": "relay", "event": …}` (`RelayMessages`, new) where

@@ -43,7 +43,7 @@ FrameResult _render(_Stage it, TelemetryLevel telemetry) => it.renderer.render(
   width: _size,
   height: _size,
   scene: it.scene,
-  views: <RenderView>[RenderView(camera: it.scene.cameras.single)],
+  views: <CameraView>[CameraView(camera: it.scene.cameras.single)],
   settings: RenderSettings(telemetry: telemetry),
 );
 

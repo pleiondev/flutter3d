@@ -167,7 +167,7 @@ const double _epsilon = 1e-6;
 /// and how far the effector still sits from [IkConstraint.target] once
 /// they are applied (zero within floating-point error whenever the target
 /// was within the chain's own reach).
-({Quaternion root, Quaternion mid, double reachError}) _solveTwoBoneIk({
+IkSolution _solveTwoBoneIk({
   required ModelProject project,
   required IkConstraint constraint,
   required Quaternion currentRoot,
@@ -301,12 +301,87 @@ const double _epsilon = 1e-6;
     rotationOverrides: overrides,
   ).getTranslation();
 
-  return (
+  return IkSolution(
     root: overrides[constraint.rootJointId]!,
     mid: overrides[constraint.midJointId]!,
     reachError: (finalTip - constraint.target).length,
   );
 }
+
+/// A two-bone chain solved once: the root and middle joints' new local
+/// rotations, and how far the effector still sits from the target. What
+/// [resolveIkConstraint] answers.
+final class IkSolution {
+  /// The solved [root] and [mid] rotations, [reachError] short of the target.
+  const IkSolution({
+    required this.root,
+    required this.mid,
+    required this.reachError,
+  });
+
+  /// The root joint's new local rotation.
+  final Quaternion root;
+
+  /// The middle joint's new local rotation.
+  final Quaternion mid;
+
+  /// How far the effector still sits from the target, in metres: zero within
+  /// floating-point error whenever the target was within the chain's reach.
+  final double reachError;
+
+  @override
+  bool operator ==(Object other) =>
+      other is IkSolution &&
+      _sameQuaternion(other.root, root) &&
+      _sameQuaternion(other.mid, mid) &&
+      other.reachError == reachError;
+
+  @override
+  int get hashCode => Object.hash(
+    root.x,
+    root.y,
+    root.z,
+    root.w,
+    mid.x,
+    mid.y,
+    mid.z,
+    mid.w,
+    reachError,
+  );
+
+  @override
+  String toString() => 'IkSolution($root, $mid, $reachError m short)';
+}
+
+/// A look-at solved once: the joint's new local rotation, and how much of
+/// the turn its limits refused. What [resolveLookAtConstraint] answers.
+final class LookAtSolution {
+  /// The solved [rotation], [aimError] short of facing the target.
+  const LookAtSolution({required this.rotation, required this.aimError});
+
+  /// The joint's new local rotation.
+  final Quaternion rotation;
+
+  /// The angle between where the joint ends up facing and where the target
+  /// is, in radians: zero when the target was inside the limits.
+  final double aimError;
+
+  @override
+  bool operator ==(Object other) =>
+      other is LookAtSolution &&
+      _sameQuaternion(other.rotation, rotation) &&
+      other.aimError == aimError;
+
+  @override
+  int get hashCode =>
+      Object.hash(rotation.x, rotation.y, rotation.z, rotation.w, aimError);
+
+  @override
+  String toString() => 'LookAtSolution($rotation, $aimError rad short)';
+}
+
+bool _sameQuaternion(Quaternion a, Quaternion b) =>
+    a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;
 
 /// [constraint], solved against [project]'s own rest transforms and
 /// whichever rotations [clip] gives its root and middle joints at [time] —
@@ -315,7 +390,7 @@ const double _epsilon = 1e-6;
 /// chain is already bent, exactly the reasoning `TwoBoneIk.solve`'s own doc
 /// comment gives for reading a live `Pose` instead of constructing a bend
 /// plane from the pole alone.
-({Quaternion root, Quaternion mid, double reachError}) resolveIkConstraint({
+IkSolution resolveIkConstraint({
   required ModelProject project,
   required IkConstraint constraint,
   ProjectClip? clip,
@@ -332,7 +407,7 @@ const double _epsilon = 1e-6;
 /// [constraint] solved once: the joint's own new local rotation, and how
 /// much of the turn its limits refused.
 ///
-/// **[aimError] is the whole point of the limits being here.** A look-at
+/// **[LookAtSolution.aimError] is the whole point of the limits being here.** A look-at
 /// that silently stops short is a head that seems to be ignoring what it
 /// was told to watch, and the caller has no way to tell that from a bug
 /// in its own target. The angle between where the joint ends up facing
@@ -346,7 +421,7 @@ const double _epsilon = 1e-6;
 /// have. A look-at that also twisted would need a second reference the
 /// constraint does not carry, and a head that rolls while tracking looks
 /// broken in a way a head that merely aims does not.
-({Quaternion rotation, double aimError}) resolveLookAtConstraint({
+LookAtSolution resolveLookAtConstraint({
   required ModelProject project,
   required LookAtConstraint constraint,
   ProjectClip? clip,
@@ -378,7 +453,7 @@ const double _epsilon = 1e-6;
   if (toTargetWorld.length2 <= _epsilon) {
     // Nothing to aim at: a target sitting on the joint names no direction,
     // and turning to face it would be turning to face an arbitrary one.
-    return (rotation: restLocal, aimError: 0.0);
+    return LookAtSolution(rotation: restLocal, aimError: 0);
   }
   // A rotation matrix's inverse is its transpose, which is the whole of
   // what "into the parent's frame" means here.
@@ -419,7 +494,7 @@ const double _epsilon = 1e-6;
     _turnAbout(restRight, clampedPitch, restForward),
   )..normalize();
 
-  return (
+  return LookAtSolution(
     rotation: (Quaternion.fromTwoVectors(restForward, allowed) * restLocal)
       ..normalize(),
     aimError: _angleBetween(allowed, desired),

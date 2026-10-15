@@ -12,8 +12,8 @@ final class ColorField extends StatefulWidget
   final bool enabled
   final bool linear
   final int channels
-  static (double r, double g, double b) hsvToRgb(double hue, double saturation, double value)
-  static ({double hue, double saturation, double value}) rgbToHsv(double r, double g, double b)
+  static DisplayRgb hsvToRgb(double hue, double saturation, double value)
+  static HueSaturationValue rgbToHsv(double r, double g, double b)
   static List<double>? parseHex(String said)
   static String hexOf(List<double> displaySrgb)
   static double decodeSrgb(double encoded)
@@ -34,6 +34,15 @@ final class CommandPalette extends StatefulWidget
   State<CommandPalette> createState()
   const CommandPalette({super.key, required this.commands})
   final List<PaletteCommand> commands
+
+final class DisplayRgb
+  String toString()
+  bool operator ==(Object other)
+  const DisplayRgb({required this.r, required this.g, required this.b})
+  final double b
+  final double g
+  final double r
+  int get hashCode
 
 final class DockArrangement
   DockArrangement movedTo(DockPanel panel, DockSide side)
@@ -156,6 +165,15 @@ final class HintTextBox extends StatefulWidget
   const HintTextBox({super.key, required this.text, required this.onWrite})
   final String text
   final void Function(String text) onWrite
+
+final class HueSaturationValue
+  String toString()
+  bool operator ==(Object other)
+  const HueSaturationValue({required this.hue, required this.saturation, required this.value})
+  final double hue
+  final double saturation
+  final double value
+  int get hashCode
 
 final class NumberField extends StatefulWidget
   State<NumberField> createState()

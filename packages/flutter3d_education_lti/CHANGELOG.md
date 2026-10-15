@@ -1,3 +1,16 @@
+## 0.9.0
+
+- **On a 0.9 line of its own, outside the 1.0 promise.** Its signatures
+  carry types of a package before 1.0 or of one that takes a major a year,
+  so a release of that package would break a 1.0 API; on 0.x a minor may
+  break, and says how here. SUPPORT.md names the four packages on this line.
+- **Breaking: results that were records are final classes.**
+  `generateRsaKeyPair` answered or held a record, which can never gain a
+  field. Each answers a final class now, with the record's field names (a
+  positional `$1` has a name of its own), `==` and `hashCode`. A field read
+  compiles as before; a destructuring pattern names the class, and
+  `flutter3d_build:migrate` rewrites the `$1` reads.
+
 ## 1.0.0-rc.1
 
 - **New: a package of its own.** The LTI 1.3 launch, the AGS and xAPI

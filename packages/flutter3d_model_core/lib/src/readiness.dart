@@ -466,7 +466,7 @@ List<ExportIssue> _importedMeshIssues(
   required bool requireManifold,
 }) {
   if (data.triangleCount == 0) return const <ExportIssue>[];
-  final (EditMesh mesh, _, _) = importMeshData(data, weldEpsilon: 0.0);
+  final ImportedMesh(:mesh) = importMeshData(data, weldEpsilon: 0.0);
   return _structuralMeshIssues(
     object,
     MeshChecks(mesh),

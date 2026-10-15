@@ -42,7 +42,7 @@ import 'renderer.dart';
 /// [stages] null says the backend's own bundle already carries them — how
 /// `flutter3d_post/style.dart`'s toon is registered while its stages are
 /// still compiled into the engine's. A model of a plugin's own is named in
-/// its namespace (`acme_ink_Ink`), as [LightingModels] explains. An engine
+/// its namespace (`acme_ink.Ink`, its stage `acme_ink__Ink`), as [LightingModels] explains. An engine
 /// with no renderer installs this as a plugin that does nothing, as a
 /// [RenderStepAddon] does.
 abstract base class LightingModelAddon extends Flutter3dPlugin {

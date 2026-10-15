@@ -351,7 +351,7 @@ void main() {
         expect(drawn, 2);
         expect(driver.projection.target, isNull, reason: 'handed back');
         expect(driver.framesEnded, 4);
-        expect(EnvironmentDepthNode.id.name, 'environment_depth');
+        expect(EnvironmentDepthNode.id.name, 'f3d.environment_depth');
         await driver.dispose();
         expect(session.state, XrSessionState.ended);
         expect(origin.children, isEmpty, reason: 'the eyes are taken away');

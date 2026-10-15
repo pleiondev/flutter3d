@@ -200,7 +200,6 @@ final class ElementsOverBudget extends BusEvent
   static const String eventName = 'elements.overBudget'
 
 final class ElementsSimulation
-  ({WaterBody water, NativeShallowSample sample})? waterAt(Vector3 at)
   ElementsListener? listener
   Follower follow(RigidPose Function() pose, {required NativeShape shape, ({int layer, int mask})? collides})
   List<ElementHook> get elements
@@ -213,6 +212,7 @@ final class ElementsSimulation
   Registration publishTo(EventRegistry bus)
   SnapshotPart snapshotPart({String id = 'elements'})
   TrackedBody track(NativeBody native)
+  WaterAtPoint? waterAt(Vector3 at)
   WaterBody addWater({required ElementHeightfield ground, required NativeLiquidProperties properties, required NativeLiquidHeat heat, required Bed bed})
   double get clock
   double heatFluxAt(Vector3 at)
@@ -371,6 +371,14 @@ final class Solid
 
 final class TrackedBody
   final NativeBody native
+
+final class WaterAtPoint
+  String toString()
+  bool operator ==(Object other)
+  const WaterAtPoint({required this.water, required this.sample})
+  final NativeShallowSample sample
+  final WaterBody water
+  int get hashCode
 
 final class WaterBody
   ElementHeightfield get ground

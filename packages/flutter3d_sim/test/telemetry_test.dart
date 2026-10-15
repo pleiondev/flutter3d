@@ -335,8 +335,8 @@ void main() {
       expect(retraced.outcome, RunOutcome.won);
       expect(retraced.trail, hasLength(6));
       // Twenty steps of a stick at (1, 0.2), which the input normalises.
-      expect(retraced.trail.first.$1, closeTo(0.98, 0.001));
-      expect(retraced.trail.last.$1, greaterThan(4.0));
+      expect(retraced.trail.first.x, closeTo(0.98, 0.001));
+      expect(retraced.trail.last.x, greaterThan(4.0));
     });
 
     test('a level edited since the recording is refused, naming both', () {
@@ -416,14 +416,21 @@ void main() {
         run: 1,
         steps: 30,
         outcome: 'lost',
-        positions: <(double, double)>[(0.5, 0.5), (0.6, 0.4), (1.5, 0.5)],
+        positions: <TrailPoint>[
+          TrailPoint(x: 0.5, z: 0.5),
+          TrailPoint(x: 0.6, z: 0.4),
+          TrailPoint(x: 1.5, z: 0.5),
+        ],
         endedBadly: true,
       ),
       const HeatmapTrail(
         run: 2,
         steps: 20,
         outcome: 'won',
-        positions: <(double, double)>[(0.2, 0.2), (2.5, -0.5)],
+        positions: <TrailPoint>[
+          TrailPoint(x: 0.2, z: 0.2),
+          TrailPoint(x: 2.5, z: -0.5),
+        ],
       ),
     ];
 

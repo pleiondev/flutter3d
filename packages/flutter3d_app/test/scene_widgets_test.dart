@@ -58,7 +58,7 @@ Widget _scene(
             look: LookSettings(dither: 0.0),
           ),
         ),
-        onSceneCreated: onCreated,
+        onCreated: onCreated,
         children: children,
       ),
     ),
@@ -131,7 +131,7 @@ void main() {
           plugins: plugins,
           focusNode: focus,
           restorationId: 'scene',
-          onSceneCreated: (c) => controller = c,
+          onCreated: (c) => controller = c,
           onFrame: (EngineFrame f) => frames.add((f.engine, f.frame)),
         ),
       ),
@@ -410,7 +410,7 @@ void main() {
         width: _width,
         height: _height,
         scene: scene,
-        views: <RenderView>[RenderView(camera: camera)],
+        views: <CameraView>[CameraView(camera: camera)],
         settings: settings,
       );
       return (await device.readback(result.frame)).buffer.asUint8List();
@@ -640,7 +640,7 @@ void main() {
           width: _width,
           height: _height,
           scene: scene,
-          views: <RenderView>[RenderView(camera: camera)],
+          views: <CameraView>[CameraView(camera: camera)],
           settings: settings,
         );
         return (await device.readback(result.frame)).buffer.asUint8List();

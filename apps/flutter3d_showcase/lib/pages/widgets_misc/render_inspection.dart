@@ -124,7 +124,7 @@ final class RenderInspectionDemo extends ShowcaseDemo {
       width: _probeWidth,
       height: _probeHeight,
       scene: _scene,
-      views: <RenderView>[RenderView(camera: eye)],
+      views: <CameraView>[CameraView(camera: eye)],
     );
     _probe = await look;
     eye.removeFromParent();

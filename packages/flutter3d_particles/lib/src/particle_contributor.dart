@@ -126,7 +126,7 @@ final class ParticleContributor extends PassContributor {
   /// half-side √½ of its size about its centre holds the corners — the same
   /// in every view, since the quads are in scene space.
   @override
-  vm.Aabb3 boundsFor(RenderView view) => particles.boundsOf(_billboard);
+  vm.Aabb3 boundsFor(CameraView view) => particles.boundsOf(_billboard);
 
   /// What a billboard of size one can cover: its half-diagonal on each axis.
   static final vm.Aabb3 _billboard = vm.Aabb3.minMax(
@@ -285,7 +285,7 @@ final class ParticleContributor extends PassContributor {
 
   /// Fills the quad buffers for [view]'s camera and returns how many
   /// particles they hold.
-  int _writeQuads(RenderView view) {
+  int _writeQuads(CameraView view) {
     final capacity = particles.capacity;
     final vertices = _vertices ??= Float32List(
       capacity * ParticleSystem.floatsPerParticle,
@@ -409,7 +409,7 @@ final class ParticleContributor extends PassContributor {
     GraphicsDevice device,
     PassEncoder encoder,
     ShaderHandle stage,
-    RenderView view,
+    CameraView view,
     TextureHandle depth,
   ) {
     view.camera.readForward(_axis);

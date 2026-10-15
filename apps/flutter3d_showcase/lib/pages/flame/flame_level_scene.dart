@@ -22,7 +22,10 @@ final class FlameLevelSceneDemo extends ShowcaseDemo {
   late final _Tour _game;
   late final Widget _body = Flutter3dFlameWidget(
     game: _game,
-    existing: (device: _context.device, renderer: _context.renderer),
+    existing: BorrowedRenderer(
+      device: _context.device,
+      renderer: _context.renderer,
+    ),
   );
   late final DemoContext _context;
 

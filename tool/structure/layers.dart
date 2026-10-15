@@ -529,10 +529,17 @@ Set<String> templateRuntimeDependencies(String source) {
 // ------------------------------------------------- a stable package's ground
 
 /// Packages at 1.x whose API names a type of one of this repository's
-/// packages at 0.x, as `'<package> -> <dependency>'`, each with why. Empty:
-/// the game's pad and pointer types are its own since 1.0.0-rc.1. An entry
-/// that no longer names one is a finding, so the list only shrinks.
-const Map<String, String> unstableDependencyAllowed = <String, String>{};
+/// packages at 0.x, as `'<package> -> <dependency>'`, each with why. The
+/// game's pad and pointer types are its own since 1.0.0-rc.1. An entry that
+/// no longer names one is a finding, so the list only shrinks.
+const Map<String, String> unstableDependencyAllowed = <String, String>{
+  'flutter3d_mcp -> flutter3d_editor_play':
+      '`PlaySession`\'s seams for a test (`newRun`, `devices`, `ask`) name '
+      'the runner\'s `FlutterRun`, `FlutterDevice` and `GameExtensionReply`, '
+      'since `flutter3d_editor_play` left the engine\'s number for its '
+      '`vm_service` types; the server pins `^0.9.0` and is released with it. '
+      'The seams take types of the server\'s own before 1.0.0',
+};
 
 /// The major version of a pubspec `version:` value: `1` for `1.0.0-rc.1`,
 /// `0` for `0.5.0`, null for anything that is not a version.

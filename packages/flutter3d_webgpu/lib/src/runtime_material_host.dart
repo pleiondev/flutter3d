@@ -99,10 +99,10 @@ PackedStage webGpuMaterialHost({WebGpuSectionStages? stages}) {
 /// material language while the game runs (version 2) meets the shared
 /// `FullscreenVertex` at the location the engine's own post stages do.
 ///
-/// Read off the engine's compiled `SceneColourCopy` stage in [stages],
+/// Read off the engine's compiled `SceneColorCopy` stage in [stages],
 /// [webGpuEngineShaders] when nothing else was given.
 int webGpuFullscreenUvLocation({WebGpuSectionStages? stages}) {
-  final copy = (stages ?? webGpuEngineShaders).fragment['SceneColourCopy'];
+  final copy = (stages ?? webGpuEngineShaders).fragment['SceneColorCopy'];
   final location = copy == null
       ? null
       : RegExp(r'@location\((\d+)\) v_uv\b').firstMatch(copy.wgsl)?.group(1);

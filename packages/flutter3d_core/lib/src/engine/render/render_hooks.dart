@@ -36,14 +36,14 @@ final class DrawListContext {
   DrawListContext._();
 
   late MeshNode _node;
-  late RenderView _view;
+  late CameraView _view;
   double _viewDepth = 0.0;
 
   /// The mesh.
   MeshNode get node => _node;
 
   /// The view whose list it is in.
-  RenderView get view => _view;
+  CameraView get view => _view;
 
   /// How far in front of the view's eye its bounds' centre is, in metres
   /// along the view axis.
@@ -412,7 +412,7 @@ final class RenderHooks extends PluginRegistry {
 /// exported by `flutter3d_core.dart`.
 extension RenderHooksInternals on RenderHooks {
   /// The context a draw-list hook is handed, filled for [node] in [view].
-  DrawListContext contextFor(MeshNode node, RenderView view, double depth) =>
+  DrawListContext contextFor(MeshNode node, CameraView view, double depth) =>
       _store.context
         .._node = node
         .._view = view

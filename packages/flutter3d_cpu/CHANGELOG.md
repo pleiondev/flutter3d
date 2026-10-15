@@ -1,5 +1,19 @@
 ## 1.0.0-rc.1+1
 
+- **The scene's colour copy is `SceneColorCopyShader`** in `builtin.dart`,
+  after the stage it draws, which the shader ABI spells the American way
+  now. `builtin.dart` is outside semver.
+- **`WorkgroupSize` is the shader package's, imported from there.** A
+  compute stage's `workgroupSize` answers `flutter3d_shaders`'
+  `WorkgroupSize`, which this package does not re-export.
+
+- **Breaking: results that were records are final classes.**
+  `CpuComputeShader` and `cpuTestDevice` answered or held a record, which
+  can never gain a field. Each answers a final class now, with the record's
+  field names (a positional `$1` has a name of its own), `==` and
+  `hashCode`. A field read compiles as before; a destructuring pattern names
+  the class, and `flutter3d_build:migrate` rewrites the `$1` reads.
+
 - **The software rasteriser says it is software.** `CpuDevice.isSoftware`
   answers true, so a compute workload with host code of its own — a physics
   core's water — is not placed on it to be interpreted in Dart while the

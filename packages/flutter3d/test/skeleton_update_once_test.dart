@@ -94,7 +94,7 @@ void main() {
       width: _size,
       height: _size,
       scene: rig.scene,
-      views: <RenderView>[RenderView(camera: rig.scene.cameras.single)],
+      views: <CameraView>[CameraView(camera: rig.scene.cameras.single)],
       settings: const RenderSettings(shadows: ShadowSettings(enabled: true)),
     );
 
@@ -117,7 +117,7 @@ void main() {
       width: _size,
       height: _size,
       scene: rig.scene,
-      views: <RenderView>[RenderView(camera: rig.scene.cameras.single)],
+      views: <CameraView>[CameraView(camera: rig.scene.cameras.single)],
       settings: const RenderSettings(shadows: ShadowSettings(enabled: true)),
     );
 
@@ -146,7 +146,7 @@ void main() {
       width: _size,
       height: _size,
       scene: rig.scene,
-      views: <RenderView>[RenderView(camera: rig.scene.cameras.single)],
+      views: <CameraView>[CameraView(camera: rig.scene.cameras.single)],
       settings: const RenderSettings(shadows: ShadowSettings(enabled: true)),
     );
 

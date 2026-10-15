@@ -277,8 +277,7 @@ final class _Sent implements StreamConsumer<List<int>> {
 /// [game] is the VM service the run finds at the address the tool reports,
 /// for a test that has the game post events; one that posts nothing when
 /// left out.
-({FlutterRun run, FakeFlutterTool tool, List<List<String>> started})
-fakeFlutterRun({
+FakeFlutterRun fakeFlutterRun({
   String projectRoot = '/game',
   String? device = 'macos',
   FakeGame? game,
@@ -286,7 +285,7 @@ fakeFlutterRun({
   final tool = FakeFlutterTool();
   final started = <List<String>>[];
   final reached = game ?? FakeGame();
-  return (
+  return FakeFlutterRun(
     run: FlutterRun(
       projectRoot: projectRoot,
       device: device,
@@ -300,3 +299,50 @@ fakeFlutterRun({
     started: started,
   );
 }
+
+/// What [fakeFlutterRun] answers: the run, the fake tool under it, and the
+/// arguments each start was given.
+final class FakeFlutterRun {
+  const FakeFlutterRun({
+    required this.run,
+    required this.tool,
+    required this.started,
+  });
+
+  /// The run a test drives, as the editor would.
+  final FlutterRun run;
+
+  /// The `flutter run --machine` the run talks to, which the test controls.
+  final FakeFlutterTool tool;
+
+  /// The arguments of each start, the working directory first; it grows as
+  /// the run starts the tool.
+  final List<List<String>> started;
+
+  @override
+  bool operator ==(Object other) =>
+      other is FakeFlutterRun &&
+      other.run == run &&
+      other.tool == tool &&
+      _sameStarts(other.started, started);
+
+  @override
+  int get hashCode => Object.hash(
+    run,
+    tool,
+    Object.hashAll(<Object>[
+      for (final start in started) Object.hashAll(start),
+    ]),
+  );
+
+  @override
+  String toString() => 'FakeFlutterRun(${started.length} starts)';
+}
+
+bool _sameStarts(List<List<String>> a, List<List<String>> b) =>
+    a.length == b.length &&
+    Iterable<int>.generate(a.length).every(
+      (i) =>
+          a[i].length == b[i].length &&
+          Iterable<int>.generate(a[i].length).every((j) => a[i][j] == b[i][j]),
+    );

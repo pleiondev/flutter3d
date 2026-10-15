@@ -37,11 +37,33 @@ int lightCount(ShaderBindings bindings, Vector3 world) {
 bool clustered(ShaderBindings bindings) =>
     bindings.vec4('LightListInfo', 'cluster_grid', Vector4.zero()).w > 0.5;
 
+/// Where a cluster cell's entries start in the light list, and how many there
+/// are, as [clusterAt] reads them from the cell's header texel.
+final class ClusterSpan {
+  /// [count] entries from entry [offset].
+  const ClusterSpan({required this.offset, required this.count});
+
+  /// The first entry of the cell, in no unit: an entry index held as a texel
+  /// value, rounded by its reader.
+  final double offset;
+
+  /// How many entries the cell holds, in no unit: a count held as a texel
+  /// value, rounded by its reader.
+  final double count;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ClusterSpan && other.offset == offset && other.count == count;
+
+  @override
+  int get hashCode => Object.hash(offset, count);
+
+  @override
+  String toString() => 'ClusterSpan(offset: $offset, count: $count)';
+}
+
 /// `FindCluster`: where the entries of [world]'s cell start, and how many.
-({double offset, double count}) clusterAt(
-  ShaderBindings bindings,
-  Vector3 world,
-) {
+ClusterSpan clusterAt(ShaderBindings bindings, Vector3 world) {
   final m = bindings.mat4('LightListInfo', 'cluster_view_projection');
   final grid = bindings.vec4('LightListInfo', 'cluster_grid', Vector4.zero());
   final depth = bindings.vec4('LightListInfo', 'cluster_depth', Vector4.zero());
@@ -60,7 +82,7 @@ bool clustered(ShaderBindings bindings) =>
     depth.z.round() + cell ~/ 4,
     cell % 4,
   );
-  return (offset: header.x, count: header.y);
+  return ClusterSpan(offset: header.x, count: header.y);
 }
 
 /// `ClusterRow`: the row entry [slot] of [world]'s cell names.
@@ -455,7 +477,7 @@ int contributorLightCount(ShaderBindings bindings, Vector3 world) {
 /// `ContributorLight` — `N6`: light [index] as [world] receives it, with no
 /// surface to face. A rectangle is read as a point at its centre, as the GLSL
 /// reads it.
-({Vector3 toLight, Vector3 radiance}) contributorLight(
+ContributorLightSample contributorLight(
   ShaderBindings bindings,
   int index,
   Vector3 world,
@@ -513,8 +535,35 @@ int contributorLightCount(ShaderBindings bindings, Vector3 world) {
   final attenuation = type > 15.5
       ? 0.0
       : (directional ? 1.0 : (degenerate ? 0.0 : falloff * ramp));
-  return (
+  return ContributorLightSample(
     toLight: toLight,
     radiance: Vector3(color.x, color.y, color.z) * (color.w * attenuation),
   );
+}
+
+/// One light as a point with no surface receives it, as [contributorLight]
+/// answers it.
+final class ContributorLightSample {
+  /// Light arriving along [toLight] with [radiance].
+  const ContributorLightSample({required this.toLight, required this.radiance});
+
+  /// The unit direction from the point towards the light, in world space.
+  final Vector3 toLight;
+
+  /// The light's colour times its intensity and its attenuation at the
+  /// point, linear; zero for a light that gives this point nothing.
+  final Vector3 radiance;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ContributorLightSample &&
+      other.toLight == toLight &&
+      other.radiance == radiance;
+
+  @override
+  int get hashCode => Object.hash(toLight, radiance);
+
+  @override
+  String toString() =>
+      'ContributorLightSample(toLight: $toLight, radiance: $radiance)';
 }

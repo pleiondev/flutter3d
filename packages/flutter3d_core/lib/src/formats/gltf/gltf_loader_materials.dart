@@ -185,11 +185,11 @@ TextureSampling _decodeSampler(Map<String, Object?> sampler) {
   );
 }
 
-/// The `(magFilter, minFilter)` GL constant pair a glTF writer should emit
+/// The `magFilter` and `minFilter` GL constant pair a glTF writer should emit
 /// for [sampling] — the exact inverse of [_decodeSampler]'s filter half, so a
 /// document decoded from glTF and written back out names the same constant it
 /// arrived with, mipmap variant included.
-(int magFilter, int minFilter) toGltfFilters(TextureSampling sampling) {
+GltfFilters toGltfFilters(TextureSampling sampling) {
   final magFilter = sampling.magLinear ? 9729 : 9728;
   final minFilter = switch ((
     sampling.useMipmaps,
@@ -203,5 +203,31 @@ TextureSampling _decodeSampler(Map<String, Object?> sampler) {
     (true, false, true) => 9986,
     (true, true, true) => 9987,
   };
-  return (magFilter, minFilter);
+  return GltfFilters(magFilter: magFilter, minFilter: minFilter);
+}
+
+/// A glTF sampler's two filter constants, as GL numbers them: what
+/// [toGltfFilters] answers.
+final class GltfFilters {
+  /// The pair [magFilter] and [minFilter].
+  const GltfFilters({required this.magFilter, required this.minFilter});
+
+  /// The magnification filter: 9728 `NEAREST` or 9729 `LINEAR`.
+  final int magFilter;
+
+  /// The minification filter: 9728 or 9729 without mipmaps, 9984 to 9987
+  /// with them.
+  final int minFilter;
+
+  @override
+  bool operator ==(Object other) =>
+      other is GltfFilters &&
+      other.magFilter == magFilter &&
+      other.minFilter == minFilter;
+
+  @override
+  int get hashCode => Object.hash(magFilter, minFilter);
+
+  @override
+  String toString() => 'GltfFilters($magFilter, $minFilter)';
 }

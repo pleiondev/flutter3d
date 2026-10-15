@@ -76,7 +76,7 @@ final class _AoProbe extends RenderNode {
     width: _width,
     height: _height,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
     settings: RenderSettings(
       ambientOcclusion: AmbientOcclusionSettings(
         enabled: true,

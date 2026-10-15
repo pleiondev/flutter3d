@@ -390,6 +390,33 @@ FittedCapsule fitCapsuleByInertia(EditMesh mesh) {
 
 // ---------------------------------------------------------------- static
 
+/// One triangle as three vertex indices into a point list, in winding
+/// order: [StaticMeshShape.triangles] and [ConvexHull.faces] are lists of
+/// these.
+final class TriangleIndices {
+  /// The triangle with corners [a], [b] and [c], in that winding order.
+  const TriangleIndices({required this.a, required this.b, required this.c});
+
+  /// The index of the first corner.
+  final int a;
+
+  /// The index of the second corner.
+  final int b;
+
+  /// The index of the third corner.
+  final int c;
+
+  @override
+  bool operator ==(Object other) =>
+      other is TriangleIndices && other.a == a && other.b == b && other.c == c;
+
+  @override
+  int get hashCode => Object.hash(a, b, c);
+
+  @override
+  String toString() => 'TriangleIndices($a, $b, $c)';
+}
+
 /// The exact triangle soup of [mesh], for a static (non-moving) body: no
 /// approximation is needed when nothing ever has to sweep this shape
 /// through space, only test a moving body against it — the row's own "сам
@@ -405,7 +432,7 @@ final class StaticMeshShape {
 
   /// Vertex index triples — [mesh]'s own faces, already fan-triangulated,
   /// so a caller never has to handle an n-gon.
-  final List<(int, int, int)> triangles;
+  final List<TriangleIndices> triangles;
 }
 
 /// Triangulates every face of [mesh] by the same origin-vertex fan every
@@ -422,14 +449,16 @@ StaticMeshShape staticMeshShape(EditMesh mesh) {
     if (mesh.isVertexAlive(v)) remap[v] = next++;
   }
 
-  final triangles = <(int, int, int)>[];
-  for (final loop in mesh.faces()) {
-    if (loop.length < 3) continue;
-    final anchor = remap[loop[0]]!;
-    for (var i = 1; i + 1 < loop.length; i++) {
-      triangles.add((anchor, remap[loop[i]]!, remap[loop[i + 1]]!));
-    }
-  }
+  final triangles = <TriangleIndices>[
+    for (final loop in mesh.faces())
+      if (loop.length >= 3)
+        for (var i = 1; i + 1 < loop.length; i++)
+          TriangleIndices(
+            a: remap[loop[0]]!,
+            b: remap[loop[i]]!,
+            c: remap[loop[i + 1]]!,
+          ),
+  ];
   return StaticMeshShape(vertices: vertices, triangles: triangles);
 }
 
@@ -448,7 +477,7 @@ final class ConvexHull {
   });
 
   final List<Vector3> points;
-  final List<(int, int, int)> faces;
+  final List<TriangleIndices> faces;
 
   /// In cubic metres (m³).
   final double volume;
@@ -609,7 +638,7 @@ ConvexHull? computeConvexHull(List<Vector3> points) {
 
   return ConvexHull(
     points: points,
-    faces: [for (final f in faces) (f[0], f[1], f[2])],
+    faces: [for (final f in faces) TriangleIndices(a: f[0], b: f[1], c: f[2])],
     volume: volume.abs(),
     centroid: centroid,
   );

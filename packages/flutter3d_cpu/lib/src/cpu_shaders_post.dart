@@ -993,12 +993,12 @@ final class LocalExposureBlurShader extends CpuFragmentShader {
   }
 }
 
-/// `scene_colour_copy.frag` — `M3`: one level of the copy of the scene the
+/// `scene_color_copy.frag` — `M3`: one level of the copy of the scene the
 /// transmissive draws read, the mean of the block of the scene under each
 /// texel, taken as the stage takes it — bilinear taps on the corners inside
 /// the block, rows outside and columns inside, in the stage's order.
-final class SceneColourCopyShader extends CpuFragmentShader {
-  const SceneColourCopyShader();
+final class SceneColorCopyShader extends CpuFragmentShader {
+  const SceneColorCopyShader();
 
   @override
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {

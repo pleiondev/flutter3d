@@ -57,7 +57,7 @@ void main() {
     // Swaps red and blue: a channel-order mistake reads as this table being
     // the identity.
     final lut = CubeLut.parse(_cube(2, (r, g, b) => (b, g, r)));
-    final (r, g, b) = lut.lookup(0.25, 0.5, 0.75);
+    final RgbTriple(:r, :g, :b) = lut.lookup(0.25, 0.5, 0.75);
     expect(r, closeTo(0.75, 1e-6));
     expect(g, closeTo(0.5, 1e-6));
     expect(b, closeTo(0.25, 1e-6));
@@ -72,9 +72,9 @@ void main() {
       ),
     );
     // Input 1 is halfway along a domain of 0…2.
-    expect(lut.lookup(1.0, 1.0, 1.0).$1, closeTo(0.5, 1e-6));
+    expect(lut.lookup(1.0, 1.0, 1.0).r, closeTo(0.5, 1e-6));
     // Past the edge is held to it.
-    expect(lut.lookup(3.0, 3.0, 3.0).$1, closeTo(1.0, 1e-6));
+    expect(lut.lookup(3.0, 3.0, 3.0).r, closeTo(1.0, 1e-6));
   });
 
   test('a 1D table is three curves', () {
@@ -86,7 +86,7 @@ LUT_1D_SIZE 3
 ''';
     final lut = CubeLut.parse(text);
     expect(lut.isOneD, isTrue);
-    final (r, g, b) = lut.lookup(0.5, 0.5, 0.5);
+    final RgbTriple(:r, :g, :b) = lut.lookup(0.5, 0.5, 0.5);
     expect(r, closeTo(0.25, 1e-6));
     expect(g, closeTo(0.5, 1e-6));
     expect(b, closeTo(0.75, 1e-6));

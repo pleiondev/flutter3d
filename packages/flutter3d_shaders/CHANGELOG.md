@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1+1
 
+- **Breaking: the scene's colour copy is spelled `SceneColorCopy` in the
+  shader ABI.** The entry point `SceneColourCopy`, the `LayerInfo` member
+  `scene_colour` and the sampler `scene_colour_texture` are `SceneColorCopy`,
+  `scene_color` and `scene_color_texture`, before the ABI is recorded at the
+  tag: they are bound by name on Impeller, WebGL2 and the CPU, so a British
+  word there would be frozen for 1.x. A prebuilt plugin stage that reads
+  the copy is rebuilt against this bundle.
+
 - **Every word of the kernel language says which version it arrived in.**
   The parser kept its words in one list for every version, so a version
   that added `barrier` or `shared` would have refused each older kernel

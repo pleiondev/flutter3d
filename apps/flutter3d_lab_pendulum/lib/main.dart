@@ -350,7 +350,7 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
         child: SceneSurface(
           renderer: renderer,
           scene: _scene,
-          view: RenderView(camera: _camera),
+          view: CameraView(camera: _camera),
           settings: () => const RenderSettings(),
           onBeforeFrame: () {},
           presentFrame: presentFrame,

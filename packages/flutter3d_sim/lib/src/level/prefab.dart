@@ -1,5 +1,5 @@
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show Portable, Severity;
+    show Portable, Severity, SinCos;
 import 'package:vector_math/vector_math.dart';
 
 import 'entity_types.dart';
@@ -416,7 +416,7 @@ EntityDef _placed(EntityDef entity, EntityDef parent) {
   // Turned by `Portable`'s sine and cosine, not `Matrix3.rotationY`, which
   // asks libm: a yawed instance expanded to other bits in a browser than in
   // the VM, from step 0, under the same `SimulationVersion`.
-  final (:sin, :cos) = Portable.sinCos(parent.yaw);
+  final SinCos(:sin, :cos) = Portable.sinCos(parent.yaw);
   final local = entity.position;
   final turned = Vector3(
     cos * local.x + sin * local.z,

@@ -3,6 +3,8 @@ import 'dart:convert';
 
 import 'package:dart_mcp/server.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
+import 'package:flutter3d_editor_play/flutter3d_editor_play.dart'
+    show GameExtensionReply;
 import 'package:flutter3d_mcp/kit.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart'
     show LevelRecipe, LevelRules, levelKits;
@@ -172,11 +174,15 @@ List<EditorTool> get _renderTools {
         },
       );
       return switch (answer) {
-        (json: final Map<String, Object?> json, refused: null) => Answer(
-          did: true,
-          says: const JsonEncoder.withIndent('  ').convert(json),
-        ),
-        (json: _, refused: final String? why) => Answer(
+        GameExtensionReply(
+          json: final Map<String, Object?> json,
+          refused: null,
+        ) =>
+          Answer(
+            did: true,
+            says: const JsonEncoder.withIndent('  ').convert(json),
+          ),
+        GameExtensionReply(refused: final String? why) => Answer(
           did: false,
           says: why ?? 'the game did not answer',
         ),
@@ -329,7 +335,7 @@ List<EditorTool> get _renderTools {
         if (asked is! String || asked.isEmpty) {
           return Answer(did: false, says: 'path names the file to write');
         }
-        final (:path, :refused) = session.root.tryResolve(asked);
+        final ResolvedPath(:path, :refused) = session.root.tryResolve(asked);
         if (path == null) return Answer(did: false, says: refused!);
         final answer = await session.play.ask(
           address,
@@ -341,7 +347,10 @@ List<EditorTool> get _renderTools {
           },
         );
         return switch (answer) {
-          (json: final Map<String, Object?> json, refused: null)
+          GameExtensionReply(
+            json: final Map<String, Object?> json,
+            refused: null,
+          )
               when json['capture'] is Map<String, Object?> =>
             Answer(
               did: true,
@@ -349,7 +358,7 @@ List<EditorTool> get _renderTools {
                   'wrote $path, '
                   '${saveCaptureFile(path, json['capture']! as Map<String, Object?>)}',
             ),
-          (json: _, refused: final String? why) => Answer(
+          GameExtensionReply(refused: final String? why) => Answer(
             did: false,
             says: why ?? 'the game did not answer with a capture',
           ),
@@ -392,7 +401,7 @@ List<EditorTool> get _captureTools => <EditorTool>[
           png: null,
         );
       }
-      final (:path, :refused) = session.root.tryResolve(asked);
+      final ResolvedPath(:path, :refused) = session.root.tryResolve(asked);
       if (path == null) return Answer(did: false, says: refused!, png: null);
       final (:open, :why) = openCaptureFile(path);
       if (open == null) return Answer(did: false, says: why!, png: null);

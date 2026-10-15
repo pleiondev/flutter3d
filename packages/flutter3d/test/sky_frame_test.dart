@@ -100,8 +100,8 @@ Future<Uint8List> _draw(
     width: _width,
     height: _height,
     scene: world.scene,
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: world.camera,
         // Black, so that anything not black in the frame was drawn.
         clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),

@@ -27,7 +27,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show RenderAnchor, WorldPosition;
 import 'package:vector_math/vector_math.dart' as vm;
 
-import '../scene/projection.dart' show jitterOffset;
+import '../scene/projection.dart' show PixelJitter, jitterOffset;
 import 'engine_light_units.dart' show nitsPerEngineUnit;
 import 'frame_graph.dart';
 import 'frame_resources.dart';
@@ -85,7 +85,7 @@ abstract base class FrameContext {
 
   /// The view this frame is drawn through — the first of the `render` call's
   /// — or null for a frame with no camera.
-  final RenderView? view;
+  final CameraView? view;
 
   /// Every view of this frame, in order: one for a frame drawn through one
   /// camera, two for a stereo pair or a headset's eyes, none for a frame
@@ -101,7 +101,7 @@ abstract base class FrameContext {
       _views ??
       <FrameView>[
         if (view case final view?)
-          FrameView.ofRenderView(view, aspect: _aspectOf(view)),
+          FrameView.ofCameraView(view, aspect: _aspectOf(view)),
       ];
   final List<FrameView>? _views;
 
@@ -185,14 +185,13 @@ abstract base class FrameContext {
 
   /// The sub-pixel offset the temporal resolve drew this frame's scene with,
   /// in pixels; zero when temporal anti-aliasing is off.
-  ({double x, double y}) get jitter {
+  PixelJitter get jitter {
     final temporal = settings.antiAlias.temporal;
-    if (!temporal.enabled) return (x: 0.0, y: 0.0);
-    final (x, y) = jitterOffset(frameIndex, temporal.sequenceLength);
-    return (x: x, y: y);
+    if (!temporal.enabled) return PixelJitter.none;
+    return jitterOffset(frameIndex, temporal.sequenceLength);
   }
 
-  double _aspectOf(RenderView view) {
+  double _aspectOf(CameraView view) {
     final fraction = view.viewportFraction;
     final w = width * fraction.width;
     final h = height * fraction.height;

@@ -29,10 +29,7 @@ final class CpuKernelStage extends CpuComputeShader with CpuStorageReader {
   DartKernel kernel;
 
   @override
-  (int, int, int) get workgroupSize {
-    final size = kernel.kernel.workgroupSize;
-    return (size.x, size.y, size.z);
-  }
+  WorkgroupSize get workgroupSize => kernel.kernel.workgroupSize;
 
   /// The buffers and images the kernel declares: a bind of anything else
   /// answers false, as on a backend that reflects its stages.

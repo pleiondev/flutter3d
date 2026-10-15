@@ -11,7 +11,7 @@ final class AlivePredicate extends ReadingPredicate
   final bool alive
 
 final class DiagnosticFrame
-  ({int x, int y, int channel})? firstNonFinite()
+  NonFinitePixel? firstNonFinite()
   Vector4 rawAt(int x, int y)
   const DiagnosticFrame({required this.view, required this.width, required this.height, required this.png, required this.raw, required this.passes})
   final DiagnosticView view
@@ -75,6 +75,15 @@ final class NearPredicate extends ReadingPredicate
   final List<double> point
   final double within
 
+final class NonFinitePixel
+  String toString()
+  bool operator ==(Object other)
+  const NonFinitePixel({required this.x, required this.y, required this.channel})
+  final int channel
+  final int x
+  final int y
+  int get hashCode
+
 final class Playtest
   Future<List<PlaytestRun>> run(String levelPath, int runs)
   const Playtest({required this.game, this.maxSteps = 3600, this.sampleEvery = 10, this.stuckAfter = 300, this.stuckStride = 0.5})
@@ -97,7 +106,7 @@ final class PlaytestOutcome
 
 final class PlaytestRun
   const PlaytestRun({required this.seed, required this.steps, required this.outcome, required this.positions})
-  final List<(double x, double z)> positions
+  final List<TrailPoint> positions
   final PlaytestOutcome outcome
   final int seed
   final int steps

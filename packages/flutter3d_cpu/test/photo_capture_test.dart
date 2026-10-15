@@ -87,7 +87,7 @@ Future<Uint8List> _whole(RenderSettings settings) async {
     width: _width,
     height: _height,
     scene: game.scene,
-    views: <RenderView>[RenderView(camera: game.camera)],
+    views: <CameraView>[CameraView(camera: game.camera)],
     settings: settings,
   );
   final pixels = (await game.renderer.device.readback(
@@ -249,7 +249,7 @@ void main() {
         width: _width,
         height: _height,
         scene: scene,
-        views: <RenderView>[RenderView(camera: camera)],
+        views: <CameraView>[CameraView(camera: camera)],
         settings: _noBloom,
       );
       final screen = renderer.debugFittedNears.single;
@@ -384,7 +384,7 @@ void main() {
       width: width,
       height: height,
       scene: scene,
-      views: <RenderView>[RenderView(camera: lens, clearColor: clear)],
+      views: <CameraView>[CameraView(camera: lens, clearColor: clear)],
       settings: photoSettings(_noBloom, PhotoFilter.none, made.exposure).tile,
     );
     final reference = (await renderer.device.readback(

@@ -89,6 +89,29 @@ final class MergeReport {
       'dropped, $splitNonManifold edges split)';
 }
 
+/// The mesh a merge rebuilt and what it had to decide on the way: what
+/// [mergeByDistance] and [mergeAt] answer.
+final class MergedMesh {
+  /// The welded [mesh] with its [report].
+  const MergedMesh({required this.mesh, required this.report});
+
+  /// The new mesh, renumbered and with no history.
+  final EditMesh mesh;
+
+  /// What the merge decided, and where every old element went.
+  final MergeReport report;
+
+  @override
+  bool operator ==(Object other) =>
+      other is MergedMesh && other.mesh == mesh && other.report == report;
+
+  @override
+  int get hashCode => Object.hash(mesh, report);
+
+  @override
+  String toString() => 'MergedMesh($report)';
+}
+
 /// Welds every pair of vertices closer together than [distance].
 ///
 /// [distance] defaults to a millionth of the mesh's own diagonal — under what a
@@ -99,7 +122,7 @@ final class MergeReport {
 /// A welded group lands on its own centre. Taking the first vertex's position
 /// instead would make the answer depend on which one the arrays happened to
 /// hold first, which is not a thing a person can predict or a test can pin.
-(EditMesh, MergeReport) mergeByDistance(
+MergedMesh mergeByDistance(
   EditMesh mesh, {
   double? distance,
   Selection? within,
@@ -174,11 +197,7 @@ final class MergeReport {
 /// The other half of a merge: [mergeByDistance] finds what to weld, and this is
 /// told. Merging at a point a person chose — the cursor, the middle, the vertex
 /// they clicked last — is the same operation with the search left out.
-(EditMesh, MergeReport) mergeAt(
-  EditMesh mesh,
-  Selection selection,
-  Vector3 at,
-) {
+MergedMesh mergeAt(EditMesh mesh, Selection selection, Vector3 at) {
   final chosen = selection.convertedTo(mesh, ElementLevel.vertex);
   final groupOf = Int32List(mesh.vertexSlotCount)
     ..fillRange(0, mesh.vertexSlotCount, EditMesh.none);
@@ -239,7 +258,7 @@ List<Vector3> _centers(EditMesh mesh, List<List<int>> members) {
 }
 
 /// Builds the mesh the grouping describes, and reports what it cost.
-(EditMesh, MergeReport) _rebuild(
+MergedMesh _rebuild(
   EditMesh mesh,
   Int32List groupOf,
   List<List<int>> members,
@@ -358,9 +377,9 @@ List<Vector3> _centers(EditMesh mesh, List<List<int>> members) {
     if (mesh.isVertexAlive(vertex)) vertexMap[vertex] = groupOf[vertex];
   }
 
-  return (
-    result,
-    MergeReport(
+  return MergedMesh(
+    mesh: result,
+    report: MergeReport(
       sourceVertices: mesh.vertexCount,
       vertices: result.vertexCount,
       droppedDegenerate: droppedDegenerate,

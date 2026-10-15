@@ -4,6 +4,14 @@
 
 library package:flutter3d_net/flutter3d_net.dart
 
+final class AgreedEnding<S>
+  String toString()
+  bool operator ==(Object other)
+  const AgreedEnding({required this.step, required this.after})
+  final S after
+  final int step
+  int get hashCode
+
 final class EngineRollback
   EngineRollback({required this.loop, required PeerWire wire, required Map<String, Object?> Function() captureLocalFrame, required this.applyFrames, int? localSlot, int players = 2, int inputDelay = 2, int maxRollbackFrames = 8, int redundancy = 8, bool Function(LoopState after)? endsAt, void Function(SettledStep<LoopState> settled)? onSettled, void Function(PeerMessage message)? onMessage})
   final EngineLoop loop
@@ -172,7 +180,7 @@ abstract final class RelayMessages
   static const String welcome = 'welcome'
 
 final class RollbackSession<S>
-  ({int step, S after})? get agreedEnd
+  AgreedEnding<S>? get agreedEnd
   RollbackSession({required this.wire, required this.captureLocalFrame, required this.applyAndStep, required this.save, required this.restore, int? localSlot, this.players = 2, this.inputDelay = 2, this.maxRollbackFrames = 8, this.redundancy = 8, this.maxStepsAhead = 600, this.endsAt, this.onSettled, this.onMessage, Duration Function()? elapsed})
   RollbackStats get stats
   bool get isConnected

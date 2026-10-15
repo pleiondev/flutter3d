@@ -85,7 +85,7 @@ final class ArrayModifier extends Modifier {
       result.endStep();
     }
     if (mergeDistance != null) {
-      final (EditMesh merged, _) = mergeByDistance(
+      final MergedMesh(mesh: merged) = mergeByDistance(
         result,
         distance: mergeDistance,
       );

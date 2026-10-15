@@ -74,8 +74,8 @@ Future<List<int>> _frame({required bool caustics, bool ball = true}) async {
     width: _size,
     height: _size,
     scene: scene,
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: scene.cameras.single,
         clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),

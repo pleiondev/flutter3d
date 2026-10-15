@@ -45,7 +45,7 @@ double _center(RenderSettings settings, {double linear = 0.18}) {
     scene: Scene()
       ..add(card)
       ..add(camera),
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
     settings: settings,
   );
   final Float32List hdr = device.readHdrPixels(result.frame);

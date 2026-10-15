@@ -151,10 +151,10 @@ void main() {
     final renderer = Renderer.create(device: device)
       ..pacing = const FramePacing(holdWhenBehind: false);
     final scene = Scene()..add(CameraNode());
-    final view = RenderView(camera: scene.cameras.single);
+    final view = CameraView(camera: scene.cameras.single);
 
     Object? drawFrame() => renderer
-        .render(width: 64, height: 64, scene: scene, views: <RenderView>[view])
+        .render(width: 64, height: 64, scene: scene, views: <CameraView>[view])
         .frame
         .backend;
 
@@ -188,7 +188,7 @@ void main() {
         width: 64,
         height: 64,
         scene: quickScene,
-        views: <RenderView>[RenderView(camera: quickScene.cameras.single)],
+        views: <CameraView>[CameraView(camera: quickScene.cameras.single)],
       );
     }
     expect(

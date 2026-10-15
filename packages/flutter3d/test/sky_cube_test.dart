@@ -97,8 +97,8 @@ Future<Uint8List> _look(
     width: _width,
     height: _height,
     scene: scene,
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: camera,
         clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
@@ -332,8 +332,8 @@ void main() {
       width: _width,
       height: _height,
       scene: scene,
-      views: <RenderView>[
-        RenderView(
+      views: <CameraView>[
+        CameraView(
           camera: camera,
           clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
         ),
@@ -377,7 +377,7 @@ void main() {
         width: _width,
         height: _height,
         scene: scene,
-        views: <RenderView>[RenderView(camera: camera)],
+        views: <CameraView>[CameraView(camera: camera)],
         settings: RenderSettings(
           sky: SkySettings(enabled: true, cubemap: flat),
         ),

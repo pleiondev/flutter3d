@@ -1,5 +1,5 @@
 /// `ap-04`'s other half: where `assets_src/` and `flutter3d_generated/` sit
-/// in a project, and what to convert given an optional [AssetManifest] —
+/// in a project, and what to convert given an optional [AssetBuildManifest] —
 /// models, and since P8 materials written in the material language.
 library;
 
@@ -21,11 +21,11 @@ final class AssetPlan {
 /// A project's asset directories, and the plan a hook (`ap-05`) or the CLI's
 /// own batch mode reads to know what to convert and where.
 final class AssetLayout {
-  AssetLayout({required this.projectRoot, AssetManifest? manifest})
-    : manifest = manifest ?? AssetManifest.readFrom(projectRoot);
+  AssetLayout({required this.projectRoot, AssetBuildManifest? manifest})
+    : manifest = manifest ?? AssetBuildManifest.readFrom(projectRoot);
 
   final Directory projectRoot;
-  final AssetManifest manifest;
+  final AssetBuildManifest manifest;
 
   /// Every source a project author writes by hand.
   Directory get sourcesDir => Directory('${projectRoot.path}/assets_src');

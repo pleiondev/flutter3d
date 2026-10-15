@@ -73,7 +73,8 @@ void _useFakePresenter() {
 
 /// `cpuTestDevice`'s shape, backed by a device that draws nothing.
 ///
-/// **The same record, so the swap is one word at the call site.** A test that
+/// **The same fields as its `CpuTestKit`, so the swap is one word at the call
+/// site.** A test that
 /// built a software rasteriser to hold a stage together — not to look at what
 /// it drew — changes `cpuTestDevice(...)` to `fakeTestDevice(...)` and
 /// nothing else: `it.device`, `it.albedo` and `it.normal` keep working.

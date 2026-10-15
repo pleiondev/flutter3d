@@ -88,7 +88,7 @@ Future<(Uint8List, FrameResult)> _draw(ShadowSettings shadows) async {
     width: _width,
     height: _height,
     scene: _floorAndBox(device),
-    views: <RenderView>[RenderView(camera: _camera())],
+    views: <CameraView>[CameraView(camera: _camera())],
     settings: _settings(shadows),
   );
   final pixels = (await device.readback(frame.frame)).buffer.asUint8List();
@@ -193,7 +193,7 @@ void main() {
                   width: _width,
                   height: _height,
                   scene: scene,
-                  views: <RenderView>[RenderView(camera: camera)],
+                  views: <CameraView>[CameraView(camera: camera)],
                   settings: _settings(shadows),
                 )
                 .drawCalls,
@@ -219,7 +219,7 @@ void main() {
       width: _width,
       height: _height,
       scene: _floorAndBox(device),
-      views: <RenderView>[RenderView(camera: _camera())],
+      views: <CameraView>[CameraView(camera: _camera())],
       settings: _settings(_base.copyWith(filter: ShadowFilter.evsm)),
     );
     expect(frame.skipReasonOf('shadow moments'), PassSkip.unsupported);

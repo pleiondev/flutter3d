@@ -1,5 +1,42 @@
 ## 1.0.0-rc.1+1
 
+- **Breaking: results that were records are final classes.**
+  `AbsolutePixels`, `AnimationGraph`, `AtmosphereCycle`, `ColorVision`,
+  `CubeLut`, `FrameContext`, `FrameFraction`, `IrradianceField`,
+  `MaterialExtensions`, `OrbitController`, `ResourceSize`,
+  `SolidColorTexture`, `TemporalClip`, `decodeUniversalBlock`,
+  `encodeAstc4x4Block`, `encodeEtc2Rgb8Block`, `encodeUniversalBlock`,
+  `hdrSizeOf`, `jitterOffset`, `projectPoint`, `symmetricEigen3` and
+  `toGltfFilters` answered or held a record, which can never gain a field.
+  Each answers a final class now, with the record's field names (a
+  positional `$1` has a name of its own), `==` and `hashCode`. A field read
+  compiles as before; a destructuring pattern names the class, and
+  `flutter3d_build:migrate` rewrites the `$1` reads.
+- **Breaking: the engine's own frame resources and steps are named
+  `f3d.<name>`.** `EnvironmentDepthNode`, `FrameResourceIds`, `RenderStep`
+  and `pipelineVersion` changed: `FrameResourceIds.sceneColor` is
+  `f3d.scene_color`, `RenderStep.colorGrade.name` is `f3d.color_grade`, as
+  every plugin's name carries its namespace. `f3d.pipeline` is version 2 and
+  writes only the new words; a version 1 file reads, its words renamed on
+  the way in, and `RendererSteps.named` and `anchorNamed` still find the old
+  ones. The frame's pass names are what they were.
+- **Breaking: `RenderView` is `CameraView`.** `Atmosphere`,
+  `DrawListContext`, `FrameContext`, `FrameHistory`, `FrameView`,
+  `MeshOverlay`, `PassContributor`, `ReactiveFrame`, `RenderView`,
+  `RenderViewSettings`, `Renderer`, `Scene`, `SplatContributor` and
+  `describeEmptyFrame` changed with it. `package:flutter/rendering.dart`
+  exports a `RenderView` too, the root of a render tree, so a file importing
+  both had to hide one. `RenderViewSettings` is `CameraViewSettings` and
+  `FrameView.ofRenderView` is `FrameView.ofCameraView`; `dart fix` renames
+  them.
+- **Breaking: a plugin's lighting model is `<namespace>.<Name>`.**
+  `LightingModels` changed: `LightingModel.name` is `acme_ink.Ink` for the
+  stage `acme_ink__Ink` (`LightingModel.shaderNameOf`), and
+  `LightingModels.named` takes that name, the stage's, or the `acme_ink_Ink`
+  a file wrote before. `register` refuses a model outside the plugin's
+  namespace or with `__` in its own name, and a plugin id with `__` in it is
+  refused.
+
 - **Breaking: the engine asks the hardware layer where compute runs, and
   says nothing about it.** A compute step, a skinning hook and a field are
   placed by `FrameCompute` for the device the renderer draws on, from the

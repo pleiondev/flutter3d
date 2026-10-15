@@ -89,8 +89,8 @@ Future<_Shot> _shot({required double viewDistance}) async {
     width: _width,
     height: _height,
     scene: scene,
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: CameraNode()
           ..setPosition(0.0, 5.0, 8.0)
           ..lookAt(Vector3(0.0, 1.5, -60.0)),

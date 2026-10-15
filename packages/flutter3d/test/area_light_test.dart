@@ -165,7 +165,7 @@ Future<Uint8List> _draw(({Scene scene, CameraNode camera}) room) async {
     width: _width,
     height: _height,
     scene: room.scene,
-    views: <RenderView>[RenderView(camera: room.camera)],
+    views: <CameraView>[CameraView(camera: room.camera)],
     settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
   );
   final pixels = await engine.device.readback(frame.frame);

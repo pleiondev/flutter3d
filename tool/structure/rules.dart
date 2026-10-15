@@ -296,6 +296,19 @@ List<Rule> get allRules => <Rule>[
     ),
   ),
   (
+    // The shader ABI is bound by name on three backends, so a British
+    // `scene_colour` in it was an identifier frozen for 1.x that the Dart
+    // snapshots never showed: the stage, block, member and sampler names are
+    // identifiers too. Mutation: write `entry SceneColourCopy fragment` into
+    // `flutter3d_shaders.abi`, and this names it.
+    name: 'the shader ABI spells in American',
+    run: () => _namingRule(
+      (String snapshot, String package) => britishIdentifiersIn(snapshot),
+      britishSpellingAllowed,
+      extension: 'abi',
+    ),
+  ),
+  (
     name: 'no public name collides with Flutter, Dart or vector_math',
     run: () {
       final sdk = sdkNamesFrom(
@@ -303,10 +316,23 @@ List<Rule> get allRules => <Rule>[
           '${repositoryRoot.path}/tool/structure/sdk_names.txt',
         ).readAsStringSync(),
       )..removeWhere((String uri, _) => sdkLibrariesKnownOnly.contains(uri));
-      return _namingRule(
-        (String snapshot, String package) => nameCollisionsIn(snapshot, sdk),
-        nameCollisionAllowed,
-      );
+      return <Finding>[
+        ..._namingRule(
+          (String snapshot, String package) => nameCollisionsIn(snapshot, sdk),
+          nameCollisionAllowed,
+        ),
+        for (final name in flutterCollisionsAllowedIn(
+          nameCollisionAllowed.keys,
+          sdk,
+        ))
+          Finding(
+            'tool/structure/repository.dart',
+            '`nameCollisionAllowed` keeps `$name`, which a Flutter library a '
+                'widget file imports beside ours exports too: rename it with '
+                'a migration; only a collision with `dart:ui` or `dart:io` '
+                'may be kept',
+          ),
+      ];
     },
   ),
   (
@@ -338,10 +364,24 @@ List<Rule> get allRules => <Rule>[
   ),
   (
     name: 'a result a caller reads names no record',
-    run: () => _namingRule(
-      (String snapshot, String package) => recordsInResultsIn(snapshot),
-      recordInResultAllowed,
-    ),
+    run: () => <Finding>[
+      ..._namingRule(
+        (String snapshot, String package) => recordsInResultsIn(snapshot),
+        recordInResultAllowed,
+      ),
+      // A member's inline record is never let through: what a caller reads
+      // is a final class with `==`, and only a named record typedef with
+      // its reason stays. Mutation: list `Portable.sinCos` in
+      // `recordInResultAllowed`, and this names it.
+      for (final name in recordInResultAllowed.keys)
+        if (name.contains('.') || name.startsWith(RegExp('[a-z]')))
+          Finding(
+            'tool/structure/repository.dart',
+            '`recordInResultAllowed` lets `$name` return an inline record; '
+                'a member or a function answers a final class with named '
+                'fields and `==`, and only a record typedef is listed',
+          ),
+    ],
   ),
   (
     name: 'every public class says how it may be extended',
@@ -412,7 +452,129 @@ List<Rule> get allRules => <Rule>[
     run: () => _namingRule(settingsProblemsIn, settingsAllowed),
   ),
   (name: 'every public number says its unit in its doc', run: _unitsDocumented),
+  (
+    name: 'a render name carries its namespace, f3d. for the engine',
+    run: _renderNamesNamespaced,
+  ),
+  (
+    name:
+        'a package off the engine\'s number is named, and every pin on it '
+        'admits it',
+    run: _ownLinesNamedAndPinned,
+  ),
 ];
+
+/// Every published package off the engine's number is in [ownVersionLines]
+/// with its reason, every entry there is off it, and every caret pin the
+/// code and the docs write on a sibling (a template's `flutter3d_lints:
+/// ^…`, a README's `flutter3d_lints: ^…`) admits that sibling's version.
+///
+/// **A package leaving the number moved five places at once**, and the one
+/// nobody saw was a template: the plugin template pinned the lints at
+/// `^1.0.0-rc.1`, which no 0.x release satisfies.
+///
+/// Mutation: write `flutter3d_lints: ^1.0.0-rc.1` back into the plugin
+/// template, and this names it.
+List<Finding> _ownLinesNamedAndPinned() {
+  final found = <Finding>[];
+  final engine = _pubspecVersionText(
+    File('${packages['flutter3d']!.path}/pubspec.yaml').readAsStringSync(),
+  );
+  final versions = <String, String>{
+    for (final MapEntry(key: name, value: dir) in _publishedPackages.entries)
+      name: ?_pubspecVersionText(
+        File('${dir.path}/pubspec.yaml').readAsStringSync(),
+      ),
+  };
+  if (engine != null) {
+    for (final MapEntry(key: name, value: version) in versions.entries) {
+      final off = !onEngineNumber(version, engine);
+      if (off && !ownVersionLines.containsKey(name)) {
+        found.add(
+          Finding(
+            'packages/$name/pubspec.yaml',
+            'is at $version, off the engine\'s $engine, and '
+                '`ownVersionLines` does not say why',
+          ),
+        );
+      } else if (!off && ownVersionLines.containsKey(name)) {
+        found.add(
+          Finding(
+            'tool/structure/repository.dart',
+            '`ownVersionLines` names `$name`, which is on the engine\'s '
+                'number again: take the entry out',
+          ),
+        );
+      }
+    }
+  }
+  final siblings = versions.keys.toSet();
+  final texts = <File>[
+    for (final dir in _publishedPackages.values) ...<File>[
+      if (Directory('${dir.path}/lib').existsSync())
+        ...dartFilesIn(Directory('${dir.path}/lib')),
+      if (File('${dir.path}/README.md') case final readme
+          when readme.existsSync())
+        readme,
+    ],
+    for (final name in <String>['README.md', 'SUPPORT.md'])
+      File('${repositoryRoot.path}/$name'),
+    if (Directory('${repositoryRoot.path}/site/content') case final site
+        when site.existsSync())
+      for (final file in site.listSync(recursive: true))
+        if (file is File && file.path.endsWith('.md')) file,
+  ];
+  for (final file in texts) {
+    if (!file.existsSync()) continue;
+    for (final (name, pin) in siblingPinsIn(
+      file.readAsStringSync(),
+      siblings,
+    )) {
+      final version = versions[name]!;
+      if (caretAdmits(pin.substring(1), version)) continue;
+      found.add(
+        Finding(
+          relative(file, repositoryRoot),
+          'pins `$name: $pin`, which does not admit $version, the version '
+          'its pubspec says',
+        ),
+      );
+    }
+  }
+  return found;
+}
+
+/// Every anchor, step and frame resource a published package names in its
+/// `lib/` is `<namespace>.<word>` with no space, and the engine's own
+/// (`flutter3d_core`, `flutter3d_plugin_api`) is `f3d.<word>`.
+///
+/// **Decision 23 had two halves and only one was held.** A plugin's names
+/// were refused without a namespace at registration; the engine's went on
+/// the wire as `after bloom`, `scene_color` and `color grade`, into every
+/// `f3d.pipeline` file, with spaces no other id has. They are
+/// `f3d.after_bloom`, `f3d.scene_color` and `f3d.color_grade` from pipeline
+/// version 2, and this keeps a new one from arriving in the old words.
+///
+/// Mutation: name an anchor `RenderAnchor._('after glow')`, and this names
+/// it.
+List<Finding> _renderNamesNamespaced() {
+  const engine = <String>{'flutter3d_core', 'flutter3d_plugin_api'};
+  return <Finding>[
+    for (final MapEntry(key: package, value: dir) in _publishedPackages.entries)
+      if (Directory('${dir.path}/lib').existsSync())
+        for (final file in dartFilesIn(Directory('${dir.path}/lib')))
+          for (final name in unprefixedRenderNamesIn(
+            file.readAsStringSync(),
+            engine: engine.contains(package),
+          ))
+            Finding(
+              '$package/${relative(file, dir)}',
+              'names the render anchor, step or resource "$name": '
+                  '${engine.contains(package) ? 'the engine\'s are `f3d.<word>`' : 'a plugin\'s are `<namespace>.<word>`'}, '
+                  'lowercase, underscores for spaces',
+            ),
+  ];
+}
 
 // ------------------------------------------------------------------- genre
 
@@ -5603,7 +5765,20 @@ List<Finding> _breaksSinceRelease({
           '${changes.length} changes; run `$diff` in tool/api against '
           '`git show $tag:$path` to see them';
 
-      if (then != null && now != null && !bumpIsEnoughFrom(needed, then, now)) {
+      // A package that left the engine's number for a 0.x line of its own
+      // (`ownVersionLines`, with the reason) starts a new line: 0.9.0 after
+      // 1.0.0-rc.1 is the move itself, which a `^1.0.0-rc.1` never reached,
+      // and its CHANGELOG still labels every break below.
+      final leftTheNumber =
+          then != null &&
+          now != null &&
+          ownVersionLines.containsKey(name) &&
+          majorVersionOf(now) == 0 &&
+          (majorVersionOf(then) ?? 0) >= 1;
+      if (then != null &&
+          now != null &&
+          !leftTheNumber &&
+          !bumpIsEnoughFrom(needed, then, now)) {
         found.add(
           Finding(
             '$home/pubspec.yaml',
@@ -6553,14 +6728,14 @@ Map<String, String> get _publishedSnapshots => <String, String>{
 ///
 /// **It reads the snapshots, not the source**, because the snapshot is the
 /// promise: an interface behind a `src/` path nobody exports is nobody's
-/// problem. And it starts with a debt: [interfaceClassPending] is every
-/// interface on the day this was written, which wave 3 converts. The rule
-/// fails on an interface in neither table, and on an entry in either that no
-/// snapshot declares as an interface any more, so the pending list cannot
-/// outlive its work.
+/// problem. A `mixin class` without `base` is read as one too: code outside
+/// may `implements` it the same way. The rule fails on an interface the
+/// table does not name, and on an entry no snapshot declares as an
+/// interface any more.
 ///
 /// Mutation: make `abstract base class BusEvent` an `abstract interface
-/// class`, regenerate the snapshot, and this names it.
+/// class`, or `base mixin class LightEmitter` a `mixin class`, regenerate
+/// the snapshot, and this names it.
 List<Finding> _noNewInterfaces() {
   final found = <Finding>[];
   final declared = <String, Set<String>>{
@@ -6568,30 +6743,16 @@ List<Finding> _noNewInterfaces() {
       entry.key: interfaceClassesIn(entry.value),
   };
   for (final entry in declared.entries) {
-    final pending = interfaceClassPending[entry.key] ?? const <String>{};
     for (final name in entry.value.toList()..sort()) {
       if (interfaceClassAllowed.containsKey(name)) continue;
-      if (pending.contains(name)) continue;
       found.add(
         Finding(
           '${entry.key}/api/${entry.key}.api',
-          '`$name` is an interface class. Make it an abstract base class with '
-              'default bodies (a member added to it later then breaks nobody), '
-              'or say in `interfaceClassAllowed` why it is a marker or a value '
-              'shape that can never grow',
-        ),
-      );
-    }
-  }
-  for (final entry in interfaceClassPending.entries) {
-    for (final name in entry.value) {
-      if (declared[entry.key]?.contains(name) ?? false) continue;
-      found.add(
-        Finding(
-          'tool/structure/repository.dart',
-          '`interfaceClassPending` still lists `$name` under ${entry.key}, '
-              'which no longer declares it as an interface. Take the entry '
-              'out, so the list says what is left to convert',
+          '`$name` is an interface class, or a mixin class without base. '
+              'Make it an abstract base class (or a base mixin class) with '
+              'default bodies (a member added to it later then breaks '
+              'nobody), or say in `interfaceClassAllowed` why it is a marker '
+              'or a value shape that can never grow',
         ),
       );
     }
@@ -7415,7 +7576,7 @@ List<Finding> _thrownTypesArePublic() {
 /// package's count, and a package may be at or under its count, never over.
 /// A package that has paid some of it down is held to the new number — the
 /// count has to come down with it — so the table only ever shrinks, the way
-/// [interfaceClassPending] did.
+/// the base-class rule's to-do list did.
 ///
 /// Mutation: delete the unit from a field's doc ("in metres"), and the
 /// package is one over its count.

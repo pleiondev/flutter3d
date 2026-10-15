@@ -121,7 +121,7 @@ void main() {
       final at = Vector3.zero();
       layout.texelCenter(floor, 3, 7, at);
       expect(at.y, closeTo(0.0, 1e-6));
-      expect(layout.texelOf(floor, at), (3, 7));
+      expect(layout.texelOf(floor, at), const LightmapTexel(x: 3, y: 7));
     });
   });
 
@@ -147,8 +147,8 @@ void main() {
       final level = _room();
       final layout = LightmapLayout.plan(level);
       final floor = _floorTop(layout);
-      final (u0, v0) = layout.uvAt(floor, -1.0, -1.0);
-      final (u1, v1) = layout.uvAt(floor, 1.0, 1.0);
+      final LightmapUv(u: u0, v: v0) = layout.uvAt(floor, -1.0, -1.0);
+      final LightmapUv(u: u1, v: v1) = layout.uvAt(floor, 1.0, 1.0);
       expect(u0 * layout.width, closeTo(floor.x, 1e-6));
       expect(v0 * layout.height, closeTo(floor.y, 1e-6));
       expect(u1 * layout.width, closeTo(floor.x + floor.width, 1e-6));

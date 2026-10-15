@@ -9,6 +9,35 @@ import 'bridge_clock.dart';
 import 'has_flutter3d.dart';
 import 'transparent_flame_game.dart';
 
+/// A device and a renderer a host opened and keeps, lent to a
+/// [Flutter3dFlameWidget] through [Flutter3dFlameWidget.existing] rather
+/// than the widget opening its own.
+///
+/// **Lent, not given.** The widget draws with them and never closes them:
+/// they stay their owner's to close.
+final class BorrowedRenderer {
+  /// [renderer], which draws on [device].
+  const BorrowedRenderer({required this.device, required this.renderer});
+
+  /// The device [renderer] draws on.
+  final GraphicsDevice device;
+
+  /// The renderer the 3D layer draws with.
+  final Renderer renderer;
+
+  @override
+  bool operator ==(Object other) =>
+      other is BorrowedRenderer &&
+      other.device == device &&
+      other.renderer == renderer;
+
+  @override
+  int get hashCode => Object.hash(device, renderer);
+
+  @override
+  String toString() => 'BorrowedRenderer($device)';
+}
+
 /// A 3D flutter3d layer and a 2D Flame layer, composited in one `Stack`, one
 /// frame each.
 ///
@@ -89,7 +118,7 @@ final class Flutter3dFlameWidget extends StatelessWidget {
   /// opening a second `GraphicsDevice` just to show a bridged demo would be
   /// two GPU contexts open for one picture. `openDevice` runs only when this
   /// is null.
-  final ({GraphicsDevice device, Renderer renderer})? existing;
+  final BorrowedRenderer? existing;
 
   /// Called once with the [Renderer] the 3D layer draws with, as soon as
   /// there is one: after [buildScene], whether this widget opened the device
@@ -172,9 +201,9 @@ class _Flutter3dFlameHostState extends State<_Flutter3dFlameHost> {
 
   CameraNode get _camera => _config.camera ?? _owner!.camera3d;
 
-  late RenderView _view = _viewFor();
+  late CameraView _view = _viewFor();
 
-  RenderView _viewFor() => RenderView(camera: _camera, clearColor: _clear);
+  CameraView _viewFor() => CameraView(camera: _camera, clearColor: _clear);
 
   static final LinearColor _defaultClear = LinearColor.fromSrgb(
     0.05,
@@ -488,7 +517,7 @@ class _Flutter3dFlameHostState extends State<_Flutter3dFlameHost> {
                   // `replaceScene3d` is drawn there.
                   scene: _owner?.has3d ?? false ? _owner!.scene : scene,
                   view: _view,
-                  moreViews: _owner?.moreViews3d ?? const <RenderView>[],
+                  moreViews: _owner?.moreViews3d ?? const <CameraView>[],
                   settings: _settings,
                   // The game's part of the canvas, read each frame: a split
                   // screen opened or closed mid-game.

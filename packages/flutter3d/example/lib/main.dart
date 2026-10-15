@@ -129,7 +129,7 @@ class _SpikePageState extends State<SpikePage>
   /// Set when the ground was wanted but the scene could not be measured yet.
   bool _groundPending = false;
   late final OrbitController _orbit;
-  late final RenderView _view;
+  late final CameraView _view;
 
   /// Nullable, because the backend may never open.
   ///
@@ -407,7 +407,7 @@ class _SpikePageState extends State<SpikePage>
     }
 
     _orbit = OrbitController(_camera, distance: 3.0, yaw: 0.6, pitch: 0.35);
-    _view = RenderView(camera: _camera);
+    _view = CameraView(camera: _camera);
 
     try {
       _checkerAlbedo = const CheckerboardTexture().upload(device);

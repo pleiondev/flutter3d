@@ -882,7 +882,7 @@ final class ActorSystem {
     if (near.isEmpty) return;
     near.sort((a, b) => a.$1 != b.$1 ? a.$1.compareTo(b.$1) : a.$2 - b.$2);
     final speed = body.tuning.walkSpeed;
-    final (vx, vz) = avoid.velocity(
+    final AvoidanceVelocity(x: vx, z: vz) = avoid.velocity(
       x: here.x,
       z: here.z,
       vx: body.velocity.x,

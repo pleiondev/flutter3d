@@ -54,7 +54,7 @@ void main() {
       ).map((c) => c.kind),
       containsAll(<String>['type:ember', 'acme_sample.heat']),
     );
-    expect(pieces.materialHint('acme_sample_Hair', 'gloss'), isNotNull);
+    expect(pieces.materialHint('acme_sample__Hair', 'gloss'), isNotNull);
     // A command, a gizmo and an entry are under the package's namespace, as
     // its MCP tools, its hints and the runtime half's names are: the editor
     // half publishes no namespace of its own.

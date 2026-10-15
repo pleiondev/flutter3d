@@ -111,7 +111,7 @@ void main() {
         width: _size,
         height: _size,
         scene: scene,
-        views: <RenderView>[RenderView(camera: camera)],
+        views: <CameraView>[CameraView(camera: camera)],
         settings: _settings,
       );
 

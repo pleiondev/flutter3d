@@ -139,7 +139,7 @@ void main() {
       width: 64,
       height: 48,
       scene: scene.scene,
-      views: <RenderView>[RenderView(camera: scene.camera)],
+      views: <CameraView>[CameraView(camera: scene.camera)],
       settings: _everything,
     );
     device.finishOldestFrame();

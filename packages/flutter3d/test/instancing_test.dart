@@ -127,7 +127,7 @@ Future<Uint8List> _draw(
     width: _width,
     height: _height,
     scene: it.scene,
-    views: <RenderView>[RenderView(camera: it.camera)],
+    views: <CameraView>[CameraView(camera: it.camera)],
     settings: const RenderSettings(),
   );
   final pixels = await it.device.readback(result.frame);
@@ -183,14 +183,14 @@ void main() {
       width: _width,
       height: _height,
       scene: asNodes.scene,
-      views: <RenderView>[RenderView(camera: asNodes.camera)],
+      views: <CameraView>[CameraView(camera: asNodes.camera)],
       settings: const RenderSettings(),
     );
     final batch = asBatch.renderer.render(
       width: _width,
       height: _height,
       scene: asBatch.scene,
-      views: <RenderView>[RenderView(camera: asBatch.camera)],
+      views: <CameraView>[CameraView(camera: asBatch.camera)],
       settings: const RenderSettings(),
     );
 

@@ -198,25 +198,23 @@ TextureFileFormat? _fileFormatFor(int vkFormat) => switch (vkFormat) {
   _ => null,
 };
 
-/// The block a compressed [format] is stored in — [blockWidth] by
-/// [blockHeight] texels, [bytesPerBlock] bytes each — or null for
+/// The block a compressed [format] is stored in — a [CompressedBlock] of
+/// texels across, texels down and bytes per block — or null for
 /// [TextureFileFormat.rgba8] (one texel a value, no block at all) and
 /// [TextureFileFormat.other] (unknown, so no block size to name).
 ///
 /// Shared with `texture_budget.dart`'s own re-encode estimate, so a block's
 /// byte size is stated in exactly one place rather than twice.
-({int blockWidth, int blockHeight, int bytesPerBlock})? blockLayoutFor(
-  TextureFileFormat format,
-) => switch (format) {
-  TextureFileFormat.bc1 => (blockWidth: 4, blockHeight: 4, bytesPerBlock: 8),
-  TextureFileFormat.bc3 => (blockWidth: 4, blockHeight: 4, bytesPerBlock: 16),
-  TextureFileFormat.bc7 => (blockWidth: 4, blockHeight: 4, bytesPerBlock: 16),
-  TextureFileFormat.etc2Rgba8 => (
+CompressedBlock? blockLayoutFor(TextureFileFormat format) => switch (format) {
+  TextureFileFormat.bc1 => const CompressedBlock(
     blockWidth: 4,
     blockHeight: 4,
-    bytesPerBlock: 16,
+    bytesPerBlock: 8,
   ),
-  TextureFileFormat.astc4x4 => (
+  TextureFileFormat.bc3 ||
+  TextureFileFormat.bc7 ||
+  TextureFileFormat.etc2Rgba8 ||
+  TextureFileFormat.astc4x4 => const CompressedBlock(
     blockWidth: 4,
     blockHeight: 4,
     bytesPerBlock: 16,
@@ -224,6 +222,40 @@ TextureFileFormat? _fileFormatFor(int vkFormat) => switch (vkFormat) {
   TextureFileFormat.rgba8 || TextureFileFormat.other => null,
   _ => null,
 };
+
+/// The block a compressed texture format is stored in: what
+/// [blockLayoutFor] answers.
+final class CompressedBlock {
+  /// A block of [blockWidth] by [blockHeight] texels in [bytesPerBlock] bytes.
+  const CompressedBlock({
+    required this.blockWidth,
+    required this.blockHeight,
+    required this.bytesPerBlock,
+  });
+
+  /// How many texels wide one block is.
+  final int blockWidth;
+
+  /// How many texels tall one block is.
+  final int blockHeight;
+
+  /// How many bytes one block takes.
+  final int bytesPerBlock;
+
+  @override
+  bool operator ==(Object other) =>
+      other is CompressedBlock &&
+      other.blockWidth == blockWidth &&
+      other.blockHeight == blockHeight &&
+      other.bytesPerBlock == bytesPerBlock;
+
+  @override
+  int get hashCode => Object.hash(blockWidth, blockHeight, bytesPerBlock);
+
+  @override
+  String toString() =>
+      'CompressedBlock(${blockWidth}x$blockHeight, $bytesPerBlock bytes)';
+}
 
 const int _kKtx2HeaderOffset = 12;
 const int _kKtx2HeaderBytes = 36;
@@ -272,7 +304,7 @@ int _compressedBytes(
   int width,
   int height,
   int levels,
-  ({int blockWidth, int blockHeight, int bytesPerBlock}) layout,
+  CompressedBlock layout,
 ) {
   var total = 0;
   var w = width;

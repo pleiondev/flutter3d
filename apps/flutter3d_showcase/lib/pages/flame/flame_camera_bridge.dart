@@ -25,7 +25,7 @@ final class FlameCameraBridgeDemo extends ShowcaseDemo {
   int _leader = 0;
 
   late final CameraNode _lens;
-  late final RenderView _view;
+  late final CameraView _view;
   late final Scene _scene;
   late final TransparentFlameGame _game;
   late final CameraSyncController _sceneLeads;
@@ -34,7 +34,10 @@ final class FlameCameraBridgeDemo extends ShowcaseDemo {
   late final Widget _body = Flutter3dFlameWidget(
     game: _game,
     camera: _lens,
-    existing: (device: _context.device, renderer: _context.renderer),
+    existing: BorrowedRenderer(
+      device: _context.device,
+      renderer: _context.renderer,
+    ),
     buildScene: (GraphicsDevice device) => _scene,
   );
   double _clock = 0.0;
@@ -56,7 +59,7 @@ final class FlameCameraBridgeDemo extends ShowcaseDemo {
   static const double _eyeHeight = 6.0;
 
   @override
-  List<RenderView> views(DemoContext context) => <RenderView>[_view];
+  List<CameraView> views(DemoContext context) => <CameraView>[_view];
 
   @override
   Scene build(DemoContext context) {
@@ -84,7 +87,7 @@ final class FlameCameraBridgeDemo extends ShowcaseDemo {
           // downwards and the plane maps it to z, so the two agree on which way
           // is up.
           ..lookAt(Vector3.zero(), up: Vector3(0.0, 0.0, -1.0));
-    _view = RenderView(
+    _view = CameraView(
       camera: _lens,
       clearColor: LinearColor.fromSrgb(0.05, 0.05, 0.07, 1.0),
     );

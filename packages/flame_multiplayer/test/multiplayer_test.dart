@@ -277,7 +277,7 @@ void main() {
         expect(settled[0][step], truthSettled[step], reason: 'step $step');
       }
       expect(plays.every((p) => p.isConnected), isTrue);
-      final ends = <({int step, Map<String, Object?> after})>[
+      final ends = <AgreedEnding<Map<String, Object?>>>[
         plays[0].agreedEnd!,
         plays[1].agreedEnd!,
       ];

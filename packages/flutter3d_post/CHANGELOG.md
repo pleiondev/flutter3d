@@ -1,3 +1,11 @@
+## 1.0.0-rc.1+1
+
+- **Breaking: the sky and the outlines are steps in this package's
+  namespace.** `outlinesStep` and `skyStep` are `flutter3d_post.sky` and
+  `flutter3d_post.outlines`, where they had no namespace: every name a
+  plugin registers carries one, and a structure rule now holds it. Code that
+  found them by name uses the new words.
+
 ## 1.0.0-rc.1
 
 - **Breaking: each effect's plugin id is this package's.** `BloomAddon` is

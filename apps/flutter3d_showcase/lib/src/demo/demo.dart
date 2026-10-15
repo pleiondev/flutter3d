@@ -33,7 +33,7 @@ final class DemoContext {
 
   /// The camera the viewport draws through. The host adds it to the scene.
   final CameraNode camera;
-  final RenderView view;
+  final CameraView view;
 
   /// Turns [camera] as the pointer drags. A demo that wants a different start
   /// sets it in [ShowcaseDemo.configureView].
@@ -118,7 +118,7 @@ abstract class ShowcaseDemo {
   /// The views one frame is made of. One, the viewport's own, unless a page
   /// is about drawing the same scene several ways at once — tiles of one
   /// picture, say — and hands back more.
-  List<RenderView> views(DemoContext context) => <RenderView>[context.view];
+  List<CameraView> views(DemoContext context) => <CameraView>[context.view];
 
   /// What to draw it with, read every frame, so a control that changes a
   /// setting only has to change a field.

@@ -37,7 +37,7 @@ final class SixWaySmokeDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region upload
-    final ({Uint8List positive, Uint8List negative}) baked = _bakeBall(_cell);
+    final SixWayTextures baked = _bakeBall(_cell);
     TextureHandle upload(Uint8List bytes) =>
         context.device.createTextureFromPixels(
           width: _cell,
@@ -188,7 +188,7 @@ final class SixWaySmokeDemo extends ShowcaseDemo {
 /// one `SixWayMaterial` reads: positive holds right, top, back and coverage,
 /// negative holds left, bottom, front and emission, unpremultiplied, and the
 /// rows run bottom to top.
-({Uint8List positive, Uint8List negative}) _bakeBall(int n) {
+SixWayTextures _bakeBall(int n) {
   const double extinction = 6.0;
   final double step = 2.0 / n;
   double at(int i) => -1.0 + (i + 0.5) * step;
@@ -263,7 +263,7 @@ final class SixWaySmokeDemo extends ShowcaseDemo {
         ..[out + 3] = 0;
     }
   }
-  return (positive: positive, negative: negative);
+  return SixWayTextures(positive: positive, negative: negative);
 }
 
 // #endregion bake

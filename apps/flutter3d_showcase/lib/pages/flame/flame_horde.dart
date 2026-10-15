@@ -42,7 +42,10 @@ final class FlameHordeDemo extends ShowcaseDemo {
     _context,
     Flutter3dFlameWidget(
       game: _game,
-      existing: (device: _context.device, renderer: _context.renderer),
+      existing: BorrowedRenderer(
+        device: _context.device,
+        renderer: _context.renderer,
+      ),
     ),
   );
 

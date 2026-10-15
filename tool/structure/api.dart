@@ -1133,6 +1133,500 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
         'The servers stop listing the old names of renamed tools '
         '(1.0.0-rc.1+1), and the version each announces follows the pubspec.',
   ),
+  BuildAllowance(
+    package: 'flame_flutter3d',
+    members: <String>[
+      'ActorComponent',
+      'BridgeProjector.rayThrough',
+      'Bridged3d',
+      'Bridged3d.plane',
+      'Bridged3d.tint',
+      'CellGridComponent.cellAt',
+      'CharacterBodyComponent',
+      'ColliderRegistry.raycast',
+      'Drawn3d',
+      'Drawn3d.tint',
+      'Flutter3dFlameWidget.existing',
+      'GridMover.cell',
+      'HasFlutter3d.moreViews3d',
+      'InstancedActorComponent',
+      'InstancedObject3dComponent',
+      'Model3dComponent.view',
+      'Node3dComponent',
+      'Object3dComponent',
+      'RigidBodyComponent',
+      'StepFollower',
+      'Tap3dCallbacks',
+    ],
+    reason: "Results that were records are final classes with `==`, so a result can gain a field; what an outside author mixes in is a base mixin class, so a member added later arrives with a body; `RenderView` is `CameraView`, a name `rendering.dart` does not export (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d',
+    members: <String>[
+      'RenderView',
+      'RenderViewSettings',
+    ],
+    reason: "`RenderView` is `CameraView`, a name `rendering.dart` does not export (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_app',
+    members: <String>[
+      'Flutter3dEngine.view',
+      'LoadedLevel.LoadedLevel',
+      'LoadedLevel.screens',
+      'Scene3D.Scene3D',
+      'Scene3D.onSceneCreated',
+      'SceneSurface.SceneSurface',
+      'SceneSurface.moreViews',
+      'SceneSurface.view',
+      'ViewSettings.ViewSettings',
+      'ViewSettings.copyWith',
+      'ViewSettings.render',
+      'ViewSettings.views',
+      'XrDriver.views',
+    ],
+    reason: "`RenderView` is `CameraView`, a name `rendering.dart` does not export; `Scene3D` names its creation callback `onCreated`, as `Flutter3dView` does (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_audio_core',
+    members: <String>[
+      'EqualPowerPanner.gains',
+    ],
+    reason: "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_build',
+    members: <String>[
+      'AssetLayout.AssetLayout',
+      'AssetLayout.manifest',
+      'AssetManifest',
+      'createProject',
+      'markerOf',
+      'selectPlugins',
+      'splitLargeMeshes',
+    ],
+    reason: "Results that were records are final classes with `==`, so a result can gain a field; `AssetManifest` is `AssetBuildManifest`, a name `services.dart` does not export (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_core',
+    members: <String>[
+      'AbsolutePixels.resolve',
+      'AnimationGraph.passed',
+      'Atmosphere.applyTo',
+      'AtmosphereCycle.AtmosphereCycle',
+      'AtmosphereCycle.keys',
+      'ColorVision.applyEncoded',
+      'ColorVision.applyLinear',
+      'ColorVision.confusions',
+      'ColorVision.difference',
+      'CubeLut.domainMax',
+      'CubeLut.domainMin',
+      'CubeLut.lookup',
+      'DrawListContext.view',
+      'EnvironmentDepthNode.id',
+      'FrameContext.jitter',
+      'FrameContext.view',
+      'FrameFraction.resolve',
+      'FrameHistory.endFrame',
+      'FrameHistory.moved',
+      'FrameHistory.of',
+      'FrameHistory.viewProjection',
+      'FrameResourceIds.albedoBuffer',
+      'FrameResourceIds.ao',
+      'FrameResourceIds.bloom',
+      'FrameResourceIds.contactShadow',
+      'FrameResourceIds.cubeShadow',
+      'FrameResourceIds.cubeShadowStatic',
+      'FrameResourceIds.depthPyramid',
+      'FrameResourceIds.frame',
+      'FrameResourceIds.hdrColor',
+      'FrameResourceIds.irradianceAtlas',
+      'FrameResourceIds.localExposure',
+      'FrameResourceIds.luminance',
+      'FrameResourceIds.objectIds',
+      'FrameResourceIds.outlineMask',
+      'FrameResourceIds.planarReflections',
+      'FrameResourceIds.renderTextures',
+      'FrameResourceIds.sceneColor',
+      'FrameResourceIds.shadowMap',
+      'FrameResourceIds.shadowMoments',
+      'FrameResourceIds.skinnedVertices',
+      'FrameResourceIds.surfaceBuffer',
+      'FrameResourceIds.temporalHistory',
+      'FrameResourceIds.velocity',
+      'FrameView.FrameView.ofRenderView',
+      'IrradianceField.readDepth',
+      'LightingModels.named',
+      'MaterialExtensions.coatMapSources',
+      'MaterialExtensions.sheenMapSources',
+      'MeshOverlay.boundsFor',
+      'OrbitController.suggestedDepthRange',
+      'PassContributor.boundsFor',
+      'ReactiveFrame.view',
+      'RenderStep.ambientOcclusion',
+      'RenderStep.autoExposure',
+      'RenderStep.bloom',
+      'RenderStep.caustics',
+      'RenderStep.colorGrade',
+      'RenderStep.contactShadows',
+      'RenderStep.decals',
+      'RenderStep.depthOfField',
+      'RenderStep.edgeSmoothing',
+      'RenderStep.fog',
+      'RenderStep.hiZOcclusion',
+      'RenderStep.highContrast',
+      'RenderStep.irradianceUpdate',
+      'RenderStep.lensDistortion',
+      'RenderStep.lensFlare',
+      'RenderStep.lightShafts',
+      'RenderStep.localExposure',
+      'RenderStep.motionBlur',
+      'RenderStep.planarReflections',
+      'RenderStep.reflectionProbes',
+      'RenderStep.reflections',
+      'RenderStep.renderTextures',
+      'RenderStep.sceneColorCopy',
+      'RenderStep.shadows',
+      'RenderStep.sharpening',
+      'RenderStep.spatialUpscale',
+      'RenderStep.tonemap',
+      'RenderStep.transparent',
+      'RenderStep.velocity',
+      'RenderStep.viewportShading',
+      'RenderStep.vignetteAndGrain',
+      'RenderStep.volumetricFog',
+      'RenderView',
+      'RenderViewSettings',
+      'Renderer.depthNearFor',
+      'Renderer.describePipeline',
+      'Renderer.planFrame',
+      'Renderer.render',
+      'Renderer.warmUp',
+      'Renderer.warmUpInSlices',
+      'ResourceSize.resolve',
+      'Scene.addTextureView',
+      'Scene.removeTextureView',
+      'Scene.textureViews',
+      'SolidColorTexture.SolidColorTexture',
+      'SolidColorTexture.SolidColorTexture.texel',
+      'SolidColorTexture.texel',
+      'SplatContributor.boundsFor',
+      'TemporalClip.axes',
+      'decodeUniversalBlock',
+      'describeEmptyFrame',
+      'encodeAstc4x4Block',
+      'encodeEtc2Rgb8Block',
+      'encodeUniversalBlock',
+      'hdrSizeOf',
+      'jitterOffset',
+      'pipelineVersion',
+      'projectPoint',
+      'symmetricEigen3',
+      'toGltfFilters',
+    ],
+    reason: "Results that were records are final classes with `==`, so a result can gain a field; the engine's own anchors, resources and steps are named `f3d.<name>`, written by `f3d.pipeline` version 2; `RenderView` is `CameraView`, a name `rendering.dart` does not export; a plugin's lighting model is named `<namespace>.<Name>`, its stage the dot made `__` (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_cpu',
+    members: <String>[
+      'CpuComputeShader.workgroupSize',
+      'cpuTestDevice',
+    ],
+    reason: "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_editor_core',
+    members: <String>[
+      'GizmoMark.bounds',
+      'LightPlan.pngs',
+      'inspectorSections',
+      'projectAt',
+    ],
+    reason: "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_editor_widgets',
+    members: <String>[
+      'ColorField.hsvToRgb',
+      'ColorField.rgbToHsv',
+    ],
+    reason: "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_effects',
+    members: <String>[
+      'Elements.waterAt',
+      'FireView.wanted',
+      'LiquidView.wanted',
+    ],
+    reason: "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_elements',
+    members: <String>[
+      'ElementsSimulation.waterAt',
+    ],
+    reason: "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_foundation',
+    members: <String>[
+      'Portable.sinCos',
+      'WorldPosition.relativeTo',
+    ],
+    reason: "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_game',
+    members: <String>[
+      'ActionInput.shapeDelta',
+      'ActorVisuals.markersPassed',
+      'AxisSettings.shapeDelta',
+      'AxisSettings.shapePair',
+      'ColorRoles.confusions',
+      'RenderView',
+      'RenderViewSettings',
+    ],
+    reason: "Results that were records are final classes with `==`, so a result can gain a field; `RenderView` is `CameraView`, a name `rendering.dart` does not export (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_game_physics',
+    members: <String>[
+      'RagdollPart.tailLength',
+    ],
+    reason: "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_game_ui',
+    members: <String>[
+      'LicenseEntry',
+      'LicenseRecord.entries',
+      'LicenseRecord.entryFor',
+      'TouchButton.pedal',
+    ],
+    reason: "Results that were records are final classes with `==`, so a result can gain a field; `LicenseEntry` is `LicenseSection`, a name `foundation.dart` does not export (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_hardware',
+    members: <String>[
+      'FakeBackend.createdCubeRenderTargets',
+      'FakeBackend.overwrites',
+      'FakeBackend.overwrittenTextures',
+      'FakeBackend.readbacks',
+      'cappedImageSize',
+      'encodedImageSize',
+      'indexWindow',
+    ],
+    reason: "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_level_scene',
+    members: <String>[
+      'LevelScene.screenOf',
+      'LevelSceneParts.LevelSceneParts',
+      'LevelSceneParts.screens',
+    ],
+    reason: "`RenderView` is `CameraView`, a name `rendering.dart` does not export (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_mcp',
+    members: <String>[
+      'GameAsk',
+      'PieceReport.covering',
+      'PieceReport.depth',
+      'PieceReport.screenBox',
+      'ProjectRoot.tryResolve',
+    ],
+    reason: "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_mesh',
+    members: <String>[
+      'ConvexHull.faces',
+      'EditMesh.compact',
+      'StaticMeshShape.triangles',
+      'closestPointOn',
+      'importMeshData',
+      'isotropicRemesh',
+      'mergeAt',
+      'mergeByDistance',
+      'separateComponents',
+      'subMesh',
+    ],
+    reason: "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_model_core',
+    members: <String>[
+      'AddNode.AddNode',
+      'AddNode.position',
+      'ImpostorAtlas.pick',
+      'ModelHistory.authorship',
+      'TextureGraph.TextureGraph',
+      'TextureGraph.positions',
+      'blockLayoutFor',
+      'curveSamples',
+      'dirtyRectOf',
+      'dirtyTilesBetween',
+      'polygonEdgesOf',
+      'renderPost',
+      'resolveIkConstraint',
+      'resolveLookAtConstraint',
+      'tangentHandles',
+      'valueRange',
+    ],
+    reason: "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_net',
+    members: <String>[
+      'RollbackSession.agreedEnd',
+    ],
+    reason: "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_particles',
+    members: <String>[
+      'EffectRender.sheet',
+      'LightEmitter',
+      'MeshParticleContributor.boundsFor',
+      'ParticleContributor.boundsFor',
+      'ParticleEffects.looks',
+      'ParticleEffects.triggerCounts',
+      'importSixWay',
+    ],
+    reason: "Results that were records are final classes with `==`, so a result can gain a field; what an outside author mixes in is a base mixin class, so a member added later arrives with a body; `RenderView` is `CameraView`, a name `rendering.dart` does not export (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_physics',
+    members: <String>[
+      'CollisionListener',
+      'MeshVessel.span',
+      'RevolvedVessel.span',
+      'RevolvedVessel.wallDistance',
+      'VesselShape.span',
+      'VesselVolumes.lip',
+      'circularWeir',
+      'orificeFlow',
+      'overCircularLip',
+    ],
+    reason: "Results that were records are final classes with `==`, so a result can gain a field; what an outside author mixes in is a base mixin class, so a member added later arrives with a body (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_plugin_api',
+    members: <String>[
+      'OriginShifted.offset',
+      'RenderAnchor.afterAmbientOcclusion',
+      'RenderAnchor.afterAutoExposure',
+      'RenderAnchor.afterBloom',
+      'RenderAnchor.afterCaptures',
+      'RenderAnchor.afterContactShadows',
+      'RenderAnchor.afterDecals',
+      'RenderAnchor.afterDepthOfField',
+      'RenderAnchor.afterEdgeSmoothing',
+      'RenderAnchor.afterHiZ',
+      'RenderAnchor.afterHighContrast',
+      'RenderAnchor.afterLensFlare',
+      'RenderAnchor.afterLightShafts',
+      'RenderAnchor.afterLocalExposure',
+      'RenderAnchor.afterMotionBlur',
+      'RenderAnchor.afterOpaque',
+      'RenderAnchor.afterReflections',
+      'RenderAnchor.afterScene',
+      'RenderAnchor.afterShadows',
+      'RenderAnchor.afterSpatialUpscale',
+      'RenderAnchor.afterTemporalResolve',
+      'RenderAnchor.afterTonemap',
+      'RenderAnchor.afterTransparent',
+      'RenderAnchor.afterVelocity',
+      'RenderAnchor.afterViewportShading',
+      'RenderAnchor.afterVolumetricFog',
+      'RenderAnchor.beforeAmbientOcclusion',
+      'RenderAnchor.beforeAutoExposure',
+      'RenderAnchor.beforeBloom',
+      'RenderAnchor.beforeCaptures',
+      'RenderAnchor.beforeContactShadows',
+      'RenderAnchor.beforeDecals',
+      'RenderAnchor.beforeDepthOfField',
+      'RenderAnchor.beforeEdgeSmoothing',
+      'RenderAnchor.beforeHiZ',
+      'RenderAnchor.beforeHighContrast',
+      'RenderAnchor.beforeLensFlare',
+      'RenderAnchor.beforeLightShafts',
+      'RenderAnchor.beforeLocalExposure',
+      'RenderAnchor.beforeMotionBlur',
+      'RenderAnchor.beforeOpaque',
+      'RenderAnchor.beforePresent',
+      'RenderAnchor.beforeReflections',
+      'RenderAnchor.beforeShadows',
+      'RenderAnchor.beforeSpatialUpscale',
+      'RenderAnchor.beforeTemporalResolve',
+      'RenderAnchor.beforeTonemap',
+      'RenderAnchor.beforeTransparent',
+      'RenderAnchor.beforeVelocity',
+      'RenderAnchor.beforeViewportShading',
+      'RenderAnchor.beforeVolumetricFog',
+    ],
+    reason: "Results that were records are final classes with `==`, so a result can gain a field; the engine's own anchors, resources and steps are named `f3d.<name>`, written by `f3d.pipeline` version 2 (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_post',
+    members: <String>[
+      'outlinesStep',
+      'skyStep',
+    ],
+    reason: "The engine's own anchors, resources and steps are named `f3d.<name>`, written by `f3d.pipeline` version 2 (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_sim',
+    members: <String>[
+      'Avoidance.velocity',
+      'BrushGeometry.faceAxes',
+      'HeatmapTrail.positions',
+      'InputFrame.InputFrame',
+      'InputFrame.dualAxes',
+      'KeyHolder',
+      'LevelRules.LevelRules',
+      'LevelRules.perRoom',
+      'LightmapLayout.neutralUv',
+      'LightmapLayout.texelOf',
+      'LightmapLayout.uvAt',
+      'LightmapLayout.uvOfPoint',
+      'ResimulationRetraced.trail',
+      'bracketFromTraces',
+      'firstDifferingPath',
+    ],
+    reason: "Results that were records are final classes with `==`, so a result can gain a field; what an outside author mixes in is a base mixin class, so a member added later arrives with a body (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_sim_mcp',
+    members: <String>[
+      'DiagnosticFrame.firstNonFinite',
+      'PlaytestRun.positions',
+    ],
+    reason: "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_stereo',
+    members: <String>[
+      'StereoRig.views',
+    ],
+    reason: "`RenderView` is `CameraView`, a name `rendering.dart` does not export (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_testing',
+    members: <String>[
+      'QualityScene',
+    ],
+    reason: "`RenderView` is `CameraView`, a name `rendering.dart` does not export (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_voxel',
+    members: <String>[
+      'VoxelHit.before',
+    ],
+    reason: "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+  ),
 ];
 
 /// Whether [change] to [package] is one [buildAllowances] lets through
@@ -1350,13 +1844,22 @@ String? _stringLiterals(String text) {
 // ------------------------------------------------- the shape of a type
 
 /// Every type a snapshot declares as an `interface class`, abstract or not,
-/// once each however many of its libraries declare it.
+/// or as a `mixin class` without `base`, once each however many of its
+/// libraries declare it.
 ///
 /// Decision 5 of `tasks/1.0-api-review.md`: a type somebody outside
 /// implements is an `abstract base class` with default bodies, because a
 /// member added to an interface in a minor release breaks every one of its
 /// implementations, and a member added to a base class with a body breaks
 /// none.
+///
+/// **A mixin class without `base` is an interface too.** Code outside may
+/// write `implements` against it as it may against an `interface class`,
+/// and a member it gains then breaks that code whatever body it has. The
+/// rule read only `interface class`, and `StepClock`, `LightEmitter`,
+/// `KeyHolder` and `CollisionListener` sat outside it. A plain `mixin` is
+/// not read: it declares what it adds to the class it is mixed into, and
+/// the hook rules read it.
 Set<String> interfaceClassesIn(String snapshot) => <String>{
   for (final library in parseApi(snapshot).values)
     for (final entry in library.declarations.entries)
@@ -1366,8 +1869,9 @@ Set<String> interfaceClassesIn(String snapshot) => <String>{
 
 bool _isInterfaceClass(String bare) {
   final m = _modifiers(bare);
-  return m.contains('interface') &&
-      bare.split(' ').skip(m.length).firstOrNull == 'class';
+  if (bare.split(' ').skip(m.length).firstOrNull != 'class') return false;
+  return m.contains('interface') ||
+      (m.contains('mixin') && !m.contains('base'));
 }
 
 /// Every type a snapshot declares as an `enum` or a `sealed` class, with
@@ -1955,26 +2459,35 @@ List<(String, String)> proveApiDetectorsWork() {
   }
 
   // Interfaces. Mutation: drop the `interface` test and every base class is
-  // reported; match the word anywhere and a member named `interfaceName` is.
+  // reported; match the word anywhere and a member named `interfaceName` is;
+  // read `interface` alone and the mixin classes without `base` (the shape
+  // `StepClock` and `LightEmitter` escaped through) are missed; drop the
+  // `base` test and a base mixin class is reported.
   final interfaces = interfaceClassesIn(
     '${lib}abstract interface class Ab\n  void f()\n'
     'interface class Cd\n'
     'abstract base class Ef\n  String get interfaceName\n'
     'sealed class Gh\n'
+    'abstract mixin class Ij\n  double get alpha\n'
+    'mixin class Kl\n'
+    'abstract base mixin class Mn\n'
+    'base mixin class Op\n'
+    'mixin Qr on Object\n'
     'library package:p/q.dart\nabstract interface class Ab\n',
   );
-  if (!interfaces.containsAll(<String>{'Ab', 'Cd'})) {
+  if (!interfaces.containsAll(<String>{'Ab', 'Cd', 'Ij', 'Kl'})) {
     broken.add((
       'interface classes',
-      'missed one of an abstract and a plain interface class: $interfaces',
+      'missed one of an abstract and a plain interface class, or an abstract '
+          'and a plain mixin class without base: $interfaces',
     ));
   }
-  if (interfaces.length != 2) {
+  if (interfaces.length != 4) {
     broken.add((
       'interface classes',
-      'found $interfaces, where a base class, a sealed class and a member '
-          'named interfaceName are not interfaces and a name declared in two '
-          'libraries is one type',
+      'found $interfaces, where a base class, a sealed class, a base mixin '
+          'class, a plain mixin and a member named interfaceName are not '
+          'interfaces and a name declared in two libraries is one type',
     ));
   }
 

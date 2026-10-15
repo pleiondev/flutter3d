@@ -56,7 +56,7 @@ void main() {
         width: kParityWidth,
         height: kParityHeight,
         scene: built.scene,
-        views: <RenderView>[RenderView(camera: built.camera)],
+        views: <CameraView>[CameraView(camera: built.camera)],
         settings: paritySettingsFor(which),
       );
       expect(_askedForDropped(device), isEmpty);
@@ -95,7 +95,7 @@ void main() {
       width: 32,
       height: 32,
       scene: scene,
-      views: <RenderView>[RenderView(camera: camera)],
+      views: <CameraView>[CameraView(camera: camera)],
     );
     expect(_askedForDropped(device), isEmpty);
   });

@@ -57,6 +57,7 @@ export 'package:flutter3d_foundation/flutter3d_foundation.dart'
         RigidPose,
         Severity,
         Unit,
+        WorldOffset,
         WorldPosition;
 
 export 'src/changes.dart';

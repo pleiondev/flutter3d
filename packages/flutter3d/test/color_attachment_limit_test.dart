@@ -43,7 +43,7 @@ FrameResult _recorded(RenderSettings settings, {required int attachments}) {
     width: _size,
     height: _size,
     scene: scene,
-    views: <RenderView>[RenderView(camera: scene.cameras.single)],
+    views: <CameraView>[CameraView(camera: scene.cameras.single)],
     settings: settings,
   );
 }
@@ -104,7 +104,7 @@ Future<List<int>> _pixels(
     width: _size,
     height: _size,
     scene: scene,
-    views: <RenderView>[RenderView(camera: scene.cameras.single)],
+    views: <CameraView>[CameraView(camera: scene.cameras.single)],
     settings: settings,
   );
   final bytes = await device.readback(frame.frame);
@@ -201,7 +201,7 @@ void main() {
         width: _size,
         height: _size,
         scene: scene,
-        views: <RenderView>[RenderView(camera: scene.cameras.single)],
+        views: <CameraView>[CameraView(camera: scene.cameras.single)],
         settings: _wantsSurface,
       );
 
@@ -218,7 +218,7 @@ void main() {
         width: _size,
         height: _size,
         scene: scene,
-        views: <RenderView>[RenderView(camera: scene.cameras.single)],
+        views: <CameraView>[CameraView(camera: scene.cameras.single)],
         settings: _wantsSurface,
       );
 

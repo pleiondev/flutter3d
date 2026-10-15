@@ -26,7 +26,10 @@ final class FlameOverviewDemo extends ShowcaseDemo {
     Flutter3dFlameWidget(
       game: _game,
       camera: _context.camera,
-      existing: (device: _context.device, renderer: _context.renderer),
+      existing: BorrowedRenderer(
+        device: _context.device,
+        renderer: _context.renderer,
+      ),
       buildScene: (GraphicsDevice device) => _scene,
     ),
   );

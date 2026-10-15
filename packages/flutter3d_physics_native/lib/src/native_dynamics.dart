@@ -853,10 +853,10 @@ final class NativeDynamics extends RigidDynamics with WorldMirror {
   /// convex shape is the hull of its supports.
   (NativeHull, Vector3) _hullOfCustom(CollisionShape shape) {
     final points = <Vector3>[
-      for (final (dx, dy, dz) in customShapeDirections)
+      for (final ShapeSampleDirection(:x, :y, :z) in customShapeDirections)
         () {
           final out = Vector3.zero();
-          shape.supportPoint(dx, dy, dz, out);
+          shape.supportPoint(x, y, z, out);
           return out;
         }(),
     ];
@@ -1196,14 +1196,49 @@ final class NativeWorldSweeps extends WorldSweeps {
 /// axes, the twelve edge diagonals and the eight corner diagonals of a cube,
 /// and the sixteen between them on the two tilted belts — forty-two, the
 /// count `ShapePhysics.customShapeSamples` names.
-final List<(double, double, double)> customShapeDirections =
-    List<(double, double, double)>.unmodifiable(<(double, double, double)>[
+final List<ShapeSampleDirection> customShapeDirections =
+    List<ShapeSampleDirection>.unmodifiable(<ShapeSampleDirection>[
       for (final x in <double>[-1, 0, 1])
         for (final y in <double>[-1, 0, 1])
           for (final z in <double>[-1, 0, 1])
-            if (x != 0 || y != 0 || z != 0) (x, y, z),
+            if (x != 0 || y != 0 || z != 0)
+              ShapeSampleDirection(x: x, y: y, z: z),
       for (final (a, b) in <(double, double)>[(2, 1), (1, 2), (2, -1), (1, -2)])
         for (final s in <double>[-1, 1])
           for (final axis in <int>[0, 1])
-            axis == 0 ? (s * a, b, 0.0) : (0.0, b, s * a),
+            axis == 0
+                ? ShapeSampleDirection(x: s * a, y: b, z: 0.0)
+                : ShapeSampleDirection(x: 0.0, y: b, z: s * a),
     ]);
+
+/// One direction of [customShapeDirections]: not of unit length, only its
+/// way counts.
+final class ShapeSampleDirection {
+  const ShapeSampleDirection({
+    required this.x,
+    required this.y,
+    required this.z,
+  });
+
+  /// Its x, in no unit.
+  final double x;
+
+  /// Its y, in no unit.
+  final double y;
+
+  /// Its z, in no unit.
+  final double z;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ShapeSampleDirection &&
+      other.x == x &&
+      other.y == y &&
+      other.z == z;
+
+  @override
+  int get hashCode => Object.hash(x, y, z);
+
+  @override
+  String toString() => 'ShapeSampleDirection($x, $y, $z)';
+}

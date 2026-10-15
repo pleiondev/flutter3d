@@ -7,7 +7,7 @@ part of 'scene_widgets.dart';
 ///
 /// ```dart
 /// Scene3D(
-///   onSceneCreated: (controller) => controller.renderer.sceneBindings
+///   onCreated: (controller) => controller.renderer.sceneBindings
 ///     ..addKind(const EmberKind())
 ///     ..add(const SceneBindingSpec(
 ///       component: 'acme.heat',

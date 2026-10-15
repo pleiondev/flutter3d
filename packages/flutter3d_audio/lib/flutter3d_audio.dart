@@ -38,6 +38,7 @@ export 'package:flutter3d_audio_core/flutter3d_audio_core.dart'
         Mixer,
         MixingBackend,
         NoAttenuation,
+        PanGains,
         PoseSource,
         ReverbEffect,
         SilentBackend,

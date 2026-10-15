@@ -54,6 +54,27 @@ final class _Line {
   double dz;
 }
 
+/// The velocity [Avoidance.velocity] picks for a body, in plan.
+final class AvoidanceVelocity {
+  const AvoidanceVelocity({required this.x, required this.z});
+
+  /// Along the world's X axis, in metres per second.
+  final double x;
+
+  /// Along the world's Z axis, in metres per second.
+  final double z;
+
+  @override
+  bool operator ==(Object other) =>
+      other is AvoidanceVelocity && other.x == x && other.z == z;
+
+  @override
+  int get hashCode => Object.hash(x, z);
+
+  @override
+  String toString() => 'AvoidanceVelocity($x, $z)';
+}
+
 const double _epsilon = 1e-5;
 
 double _det(double ax, double az, double bx, double bz) => ax * bz - az * bx;
@@ -81,7 +102,7 @@ final class Avoidance {
   /// meets none of [neighbors] within [timeHorizon], for a body of
   /// [radius] at `(x, z)` moving at `(vx, vz)`. [dt] is the step, for a body
   /// that already overlaps one: it is asked to be out by the next.
-  (double, double) velocity({
+  AvoidanceVelocity velocity({
     required double x,
     required double z,
     required double vx,
@@ -101,7 +122,7 @@ final class Avoidance {
     final result = _Line(prefX, prefZ, 0.0, 0.0);
     final failed = _program2(lines, maxSpeed, prefX, prefZ, false, result);
     if (failed < lines.length) _program3(lines, failed, maxSpeed, result);
-    return (result.px, result.pz);
+    return AvoidanceVelocity(x: result.px, z: result.pz);
   }
 
   static _Line _lineFor(

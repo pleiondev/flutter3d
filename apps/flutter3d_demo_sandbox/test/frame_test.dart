@@ -39,8 +39,8 @@ void main() {
       width: 160,
       height: 90,
       scene: scene,
-      views: <RenderView>[
-        RenderView(
+      views: <CameraView>[
+        CameraView(
           camera: camera,
           clearColor: LinearColor.fromSrgb(0.55, 0.72, 0.9, 1),
         ),
@@ -77,7 +77,7 @@ void main() {
           width: 96,
           height: 72,
           scene: Scene()..add(camera),
-          views: <RenderView>[RenderView(camera: camera)],
+          views: <CameraView>[CameraView(camera: camera)],
           settings: RenderSettings(sky: Daylight(hour: hour).sky),
         );
         return (await it.device.readback(result.frame)).buffer.asUint8List();

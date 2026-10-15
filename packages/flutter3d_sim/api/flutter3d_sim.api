@@ -237,13 +237,21 @@ final class Automap
   void revealAll(Vector3 at)
 
 final class Avoidance
-  (double, double) velocity({required double x, required double z, required double vx, required double vz, required double radius, required double maxSpeed, required double prefX, required double prefZ, required List<AvoidanceNeighbor> neighbors, required double dt})
+  AvoidanceVelocity velocity({required double x, required double z, required double vx, required double vz, required double radius, required double maxSpeed, required double prefX, required double prefZ, required List<AvoidanceNeighbor> neighbors, required double dt})
   const Avoidance({this.timeHorizon = 1.5, this.neighborDistance = 5.0, this.maxNeighbors = 8})
   final double neighborDistance
   final double timeHorizon
   final int maxNeighbors
 
 typedef AvoidanceNeighbor = ({double x, double z, double vx, double vz, double radius});
+
+final class AvoidanceVelocity
+  String toString()
+  bool operator ==(Object other)
+  const AvoidanceVelocity({required this.x, required this.z})
+  final double x
+  final double z
+  int get hashCode
 
 final class AxisAction implements InputAction<double>
   ActionKind get kind
@@ -456,6 +464,15 @@ final class Brush
 
 typedef BrushFace = ({int brush, int face, Vector3 normal, Vector3 u, Vector3 v, double centerX, double centerY, double centerZ, double halfU, double halfV});
 
+final class BrushFaceAxes
+  String toString()
+  bool operator ==(Object other)
+  const BrushFaceAxes({required this.normal, required this.u, required this.v})
+  final Vector3 normal
+  final Vector3 u
+  final Vector3 v
+  int get hashCode
+
 final class BrushGeometry
   Iterable<BrushFace> blockFaces(Level level)
   List<BrushSurface> build(Level level, {LevelVisibility? visibility, LightmapLayout? lightmap, List<int>? origins, bool perBrush = false})
@@ -463,7 +480,7 @@ final class BrushGeometry
   final bool cullHiddenFaces
   final double cellSize
   static bool rampKeeps(WedgeUphill uphill, Vector3 normal)
-  static final List<(Vector3, Vector3, Vector3)> faceAxes
+  static final List<BrushFaceAxes> faceAxes
 
 final class BrushSurface
   BrushSurface({required this.material, required this.shadowCasting, this.drawOrder = 0, this.depthLayer = 0, required this.positions, required this.normals, required this.texcoords, required this.tangents, required this.indices, this.lightmapUvs, this.brush})
@@ -676,6 +693,15 @@ final class DeterminismError extends Error
   String toString()
   final StepDivergence divergence
 
+final class DifferingPath
+  String toString()
+  bool operator ==(Object other)
+  const DifferingPath({required this.path, required this.a, required this.b})
+  final Object? a
+  final Object? b
+  final String path
+  int get hashCode
+
 final class Difficulty
   String toString()
   bool operator ==(Object other)
@@ -760,6 +786,14 @@ final class DualAxisAction implements InputAction<Vector2>
   int get hashCode
   static const DualAxisAction look = DualAxisAction('look', isDelta: true)
   static const DualAxisAction move = DualAxisAction('move')
+
+final class DualAxisValue
+  String toString()
+  bool operator ==(Object other)
+  const DualAxisValue({required this.x, required this.y})
+  final double x
+  final double y
+  int get hashCode
 
 final class EcsWorld extends SimWorld
   ComponentRegistry get components
@@ -1296,7 +1330,7 @@ final class HeatmapFormatException extends Flutter3dFormatException
 
 final class HeatmapTrail
   const HeatmapTrail({required this.run, required this.steps, required this.outcome, required this.positions, this.endedBadly = false})
-  final List<(double, double)> positions
+  final List<TrailPoint> positions
   final String outcome
   final bool endedBadly
   final int run
@@ -1350,12 +1384,12 @@ final class InputFrame
   Map<String, Object?> toJson()
   bool get isIdle
   bool get needsVersion2
-  const InputFrame({this.pressed = const <String>[], this.released = const <String>[], this.stickX = 0.0, this.stickY = 0.0, this.lookX = 0.0, this.lookY = 0.0, this.values = const <String, double>{}, this.slot, this.tunes = const <String, double>{}, this.axes = const <String, double>{}, this.dualAxes = const <String, ({double x, double y})>{}, this.external = const <ExternalStateInput>[]})
+  const InputFrame({this.pressed = const <String>[], this.released = const <String>[], this.stickX = 0.0, this.stickY = 0.0, this.lookX = 0.0, this.lookY = 0.0, this.values = const <String, double>{}, this.slot, this.tunes = const <String, double>{}, this.axes = const <String, double>{}, this.dualAxes = const <String, DualAxisValue>{}, this.external = const <ExternalStateInput>[]})
   factory InputFrame.fromJson(Map<String, Object?> json)
   final List<ExternalStateInput> external
   final List<String> pressed
   final List<String> released
-  final Map<String, ({double x, double y})> dualAxes
+  final Map<String, DualAxisValue> dualAxes
   final Map<String, double> axes
   final Map<String, double> tunes
   final Map<String, double> values
@@ -1518,9 +1552,9 @@ final class JumpReach
   final double runSpeed
   int get hashCode
 
-abstract mixin class KeyHolder
+abstract base mixin class KeyHolder
   KeyHolder()
-  abstract Set<String> get keys
+  Set<String> get keys
 
 final class KeyRing with KeyHolder
   KeyRing()
@@ -1686,9 +1720,9 @@ abstract base class LevelRule
 
 final class LevelRules
   Map<String, Object?> toJson()
-  const LevelRules({this.columns = 4, this.rows = 3, this.cell = 16.0, this.room = 10.0, this.height = 4.0, this.corridor = 3.0, this.density = 0.7, this.materials = _materials, this.perRoom = const <({Map<String, Object?> entity, int count})>[], this.clutter = 0, this.name})
+  const LevelRules({this.columns = 4, this.rows = 3, this.cell = 16.0, this.room = 10.0, this.height = 4.0, this.corridor = 3.0, this.density = 0.7, this.materials = _materials, this.perRoom = const <RoomScatter>[], this.clutter = 0, this.name})
   factory LevelRules.fromJson(Map<String, Object?> json)
-  final List<({Map<String, Object?> entity, int count})> perRoom
+  final List<RoomScatter> perRoom
   final Map<String, Map<String, Object?>> materials
   final String? name
   final double cell
@@ -1828,11 +1862,11 @@ final class LightmapFormatException extends Flutter3dFormatException
   final String message
 
 final class LightmapLayout
-  (double, double) get neutralUv
-  (double, double) uvAt(LightmapFace face, double su, double sv)
-  (double, double) uvOfPoint(LightmapFace face, double x, double y, double z)
-  (int, int) texelOf(LightmapFace face, Vector3 point)
   LightmapFace? faceOf(int brush, int face)
+  LightmapTexel texelOf(LightmapFace face, Vector3 point)
+  LightmapUv get neutralUv
+  LightmapUv uvAt(LightmapFace face, double su, double sv)
+  LightmapUv uvOfPoint(LightmapFace face, double x, double y, double z)
   bool isOnPlane(LightmapFace face, double x, double y, double z)
   final List<LightmapFace> faces
   final double texelsPerMeter
@@ -1845,6 +1879,22 @@ final class LightmapLayout
   static const int reservedY = 0
   static int get maxSize
   void texelCenter(LightmapFace face, int i, int j, Vector3 out)
+
+final class LightmapTexel
+  String toString()
+  bool operator ==(Object other)
+  const LightmapTexel({required this.x, required this.y})
+  final int x
+  final int y
+  int get hashCode
+
+final class LightmapUv
+  String toString()
+  bool operator ==(Object other)
+  const LightmapUv({required this.u, required this.v})
+  final double u
+  final double v
+  int get hashCode
 
 final class LocalSimulation extends SimulationHandle
   Future<Object?> ask(String name, {Object? arguments})
@@ -2443,7 +2493,7 @@ final class ResimulationRetraced extends Resimulation
   RunOutcome get outcome
   const ResimulationRetraced({required this.run, required this.steps, required this.checkpoints, required this.trail, required this.finalDigest})
   final HeadlessRun run
-  final List<(double, double)> trail
+  final List<TrailPoint> trail
   final int checkpoints
   final int finalDigest
   final int steps
@@ -2498,6 +2548,14 @@ final class RoomDoor
 
 abstract final class RoomKit
   static void build(LevelSketch sketch, LevelRecipe recipe)
+
+final class RoomScatter
+  String toString()
+  bool operator ==(Object other)
+  const RoomScatter({required this.entity, required this.count})
+  final Map<String, Object?> entity
+  final int count
+  int get hashCode
 
 final class RowEdit
   Map<String, Object?> toJson()
@@ -3081,12 +3139,28 @@ abstract base class TimeSource
   factory TimeSource.scaled(double factor)
   void reset()
 
+final class TraceBracket
+  String toString()
+  bool operator ==(Object other)
+  const TraceBracket({required this.agreedAt, required this.differsAt})
+  final int agreedAt
+  final int differsAt
+  int get hashCode
+
 final class TrackSample
   Map<String, Object?> toJson()
   const TrackSample(this.step, this.value, {this.present = true})
   final Object? value
   final bool present
   final int step
+
+final class TrailPoint
+  String toString()
+  bool operator ==(Object other)
+  const TrailPoint({required this.x, required this.z})
+  final double x
+  final double z
+  int get hashCode
 
 final class TriggerKind extends EntityKind
   const TriggerKind()
@@ -3322,7 +3396,7 @@ List<JumpLink> bakeJumpLinks(NavGrid grid, JumpReach reach)
 
 TapeBisection bisectTapes({required ReplaySide a, required ReplaySide b, EntityLayout? layout, int agreedAt = 0, int? differsAt})
 
-({int agreedAt, int differsAt})? bracketFromTraces(DigestTrace a, DigestTrace b)
+TraceBracket? bracketFromTraces(DigestTrace a, DigestTrace b)
 
 List<int>? collapse({required int width, required int height, required List<WfcTile> tiles, required GameRandom random, String? edge, Map<int, int> fixed = const <int, int>{}})
 
@@ -3346,7 +3420,7 @@ Level expandRecipes(Level level)
 
 List<AttributeMatch> findByAttribute(Iterable<EntityDef> entities, String name, Object? value)
 
-({String path, Object? a, Object? b})? firstDifferingPath(Object? a, Object? b, {String prefix = ''})
+DifferingPath? firstDifferingPath(Object? a, Object? b, {String prefix = ''})
 
 Generated generateLevel(LevelRules rules, {required int seed, int attempts = 32})
 

@@ -80,10 +80,10 @@ typedef EffectPlacer = EffectPlace? Function(BusEvent event);
 final class EffectRender
   String get key
   const EffectRender({this.drawing = EffectDrawing.billboard, this.blend = EffectBlend.additive, this.texture, this.flipbook, this.softness = 0.0, this.mesh, this.sheet})
-  final ({String positive, String negative})? sheet
   final EffectBlend blend
   final EffectDrawing drawing
   final Flipbook? flipbook
+  final SixWaySheetNames? sheet
   final String? mesh
   final String? texture
   final double softness
@@ -153,7 +153,7 @@ final class KeyEase
   static const KeyEase smooth = KeyEase('smooth', _smooth)
   static const KeyEase step = KeyEase('step', _step)
 
-mixin class LightEmitter
+base mixin class LightEmitter
   LightEmitter()
   final ParticleGlow glow
 
@@ -164,7 +164,7 @@ final class MeshParticleContributor extends PassContributor
   final DrawableGeometry mesh
   final ParticleSystem particles
   static const BlendState darkening = …
-  vm.Aabb3 boundsFor(RenderView view)
+  vm.Aabb3 boundsFor(CameraView view)
   void encode(ContributorFrame frame)
   void relinkShaders()
 
@@ -215,7 +215,7 @@ final class ParticleContributor extends PassContributor
   final SixWayMaterial? sixWay
   final TextureHandle? texture
   final double softness
-  vm.Aabb3 boundsFor(RenderView view)
+  vm.Aabb3 boundsFor(CameraView view)
   void encode(ContributorFrame frame)
   void encodeReactive(ReactiveFrame frame)
   void relinkShaders()
@@ -242,9 +242,8 @@ final class ParticleEffect
   final int count
 
 final class ParticleEffects extends PluginRegistry
-  ({int fired, int unplaced}) get triggerCounts
   EffectDescription? operator [](String name)
-  List<({EffectRender render, ParticleSystem system})> get looks
+  List<ParticleLook> get looks
   List<String> get names
   Map<String, List<String>> get unsupported
   ParticleEffects forPlugin(PluginScope scope)
@@ -253,6 +252,7 @@ final class ParticleEffects extends PluginRegistry
   ParticleSystem? systemOf(String name)
   Registration add(EffectDescription effect, {EventRegistry? events, EffectPlacer? place, String Function(String event)? eventName})
   Registration addDocument(EffectDocument document, {EventRegistry? events, EffectPlacer? place, String Function(String event)? eventName})
+  TriggerCounts get triggerCounts
   int burst(String name, Vector3 at, {Vector3? direction, Object? source})
   int burstInWorld(String name, WorldPosition at, {required Scene scene, Vector3? direction, Object? source})
   void emit(Object key, String name, Vector3 at, {double? perSecond, Vector3? direction})
@@ -291,6 +291,14 @@ final class ParticleGravity extends ParticleAffector
   final double scale
   final double? acceleration
   void apply(ParticleStep step)
+
+final class ParticleLook
+  String toString()
+  bool operator ==(Object other)
+  const ParticleLook({required this.render, required this.system})
+  final EffectRender render
+  final ParticleSystem system
+  int get hashCode
 
 final class ParticlePlaneCollision extends ParticleAffector
   const ParticlePlaneCollision({this.height = 0.0, this.bounce = 0.0, this.friction = 0.0})
@@ -422,11 +430,35 @@ final class SixWaySheet
   int get height
   int get width
 
+final class SixWaySheetNames
+  String toString()
+  bool operator ==(Object other)
+  const SixWaySheetNames({required this.positive, required this.negative})
+  final String negative
+  final String positive
+  int get hashCode
+
+final class SixWayTextures
+  String toString()
+  bool operator ==(Object other)
+  const SixWayTextures({required this.positive, required this.negative})
+  final Uint8List negative
+  final Uint8List positive
+  int get hashCode
+
 final class SphereEmitter extends ParticleEmitter
   const SphereEmitter({this.speed = const Range(2.0, 6.0), this.radius = const Range.exact(0.0)})
   final Range radius
   final Range speed
   void emit(ParticleBirth birth)
+
+final class TriggerCounts
+  String toString()
+  bool operator ==(Object other)
+  const TriggerCounts({required this.fired, required this.unplaced})
+  final int fired
+  final int unplaced
+  int get hashCode
 
 SixWaySheet bakeSixWay({required SixWayField density, SixWayField? emission, int frames = 16, int columns = 4, int cell = 64, double extinction = 6.0})
 
@@ -436,6 +468,6 @@ const String effectDocumentExtension = '.f3dfx'
 
 const DataSection effectsSection = _EffectsSection()
 
-({Uint8List positive, Uint8List negative}) importSixWay({required List<Uint8List> images, required int width, required int height, int columns = 1, int rows = 1, SixWayLayout layout = SixWayLayout.positiveNegative, bool flipCells = true})
+SixWayTextures importSixWay({required List<Uint8List> images, required int width, required int height, int columns = 1, int rows = 1, SixWayLayout layout = SixWayLayout.positiveNegative, bool flipCells = true})
 
 SixWayField smokePuff({int seed = 1})

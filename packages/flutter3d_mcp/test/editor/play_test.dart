@@ -437,15 +437,14 @@ void main() {
               }) async {
                 asked.add('$vmService $method $args');
                 return switch (method) {
-                  'ext.flutter3d.render.pick' => (
+                  'ext.flutter3d.render.pick' => GameExtensionReply(
                     json: <String, Object?>{
                       'frame': 3,
                       'node': 'crypt_wall',
                       'draws': <int>[4, 9],
                     },
-                    refused: null,
                   ),
-                  _ => (json: null, refused: 'there is no draw 40'),
+                  _ => const GameExtensionReply(refused: 'there is no draw 40'),
                 };
               },
         );
@@ -496,7 +495,7 @@ void main() {
               String vmService,
               String method, {
               Map<String, String> args = const <String, String>{},
-            }) async => (
+            }) async => GameExtensionReply(
               json: <String, Object?>{
                 'version': 1,
                 'level': 'assets/levels/crypt.json',
@@ -510,7 +509,6 @@ void main() {
                 'checkpoints': DigestTrace().toJson(),
                 'physics': 'native',
               },
-              refused: null,
             ),
       );
       await _played(it);

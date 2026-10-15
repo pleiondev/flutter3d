@@ -344,7 +344,7 @@ Future<Uint8List> renderProject(
     width: width,
     height: height,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
     settings: settings,
   );
   final pixels = (await device.readback(frame.frame)).buffer.asUint8List();

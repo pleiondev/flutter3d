@@ -124,7 +124,7 @@ void main() {
         width: _width,
         height: _height,
         scene: scene,
-        views: <RenderView>[RenderView(camera: camera)],
+        views: <CameraView>[CameraView(camera: camera)],
         settings: _settings.copyWith(occlusion: mode),
       );
       final pixels = await it.device.readback(frame.frame);
@@ -150,7 +150,7 @@ void main() {
         fallbackNormal: it.normal,
       );
       final (:scene, :camera) = _city(it.device);
-      final views = <RenderView>[RenderView(camera: camera)];
+      final views = <CameraView>[CameraView(camera: camera)];
 
       Future<({Uint8List pixels, int culled})> draw(OcclusionMode mode) async {
         final frame = renderer.render(

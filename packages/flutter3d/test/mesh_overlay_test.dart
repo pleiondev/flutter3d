@@ -387,7 +387,7 @@ void main() {
     // (a gizmo pulled towards the lens) would be cut away by the fitted near
     // plane if it went uncounted, and the default null kept the camera's own
     // plane for every view an overlay was active in.
-    final view = RenderView(camera: CameraNode());
+    final view = CameraView(camera: CameraNode());
 
     test('holds every vertex of every batch, the through ones too', () {
       // Mutation: return the base class's null — fails on the first line.

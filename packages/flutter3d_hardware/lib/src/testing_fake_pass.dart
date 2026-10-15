@@ -311,13 +311,13 @@ final class FakePass extends PassEncoder
         firstIndex: firstIndex,
         indexCount: indexCount,
       ),
-      null => (first: firstIndex, count: indexCount),
+      null => null,
     };
     commands.add(
       RecordedDraw(
         instanceCount: instanceCount,
-        firstIndex: window.first,
-        indexCount: indexCount == null ? null : window.count,
+        firstIndex: window?.first ?? firstIndex,
+        indexCount: indexCount == null ? null : window?.count ?? indexCount,
       ),
     );
     final bindings = stageBindings;

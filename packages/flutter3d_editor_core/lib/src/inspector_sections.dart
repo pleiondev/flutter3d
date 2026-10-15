@@ -106,7 +106,7 @@ List<EditorComponent> inspectorComponents(
 ///
 /// A key two sections name goes to the first; a key none names goes to the
 /// last, so the grouping can never hide a field.
-List<(String, List<String>)> inspectorSections(
+List<InspectorSection> inspectorSections(
   Piece piece,
   Iterable<String> keys, {
   String? type,
@@ -115,7 +115,7 @@ List<(String, List<String>)> inspectorSections(
   final all = inspectorComponents(piece, type: type, pieces: pieces);
   final sorted = keys.toList()..sort();
   final placed = <String>{};
-  return <(String, List<String>)>[
+  return <InspectorSection>[
     for (final (index, component) in all.indexed)
       if (<String>[
             for (final key in sorted)
@@ -126,6 +126,39 @@ List<(String, List<String>)> inspectorSections(
                 key,
           ]
           case final held when held.isNotEmpty)
-        (component.title, held),
+        InspectorSection(title: component.title, keys: held),
   ];
+}
+
+/// One section of an inspector: its title and the keys it shows, in order.
+/// What [inspectorSections] answers a list of.
+final class InspectorSection {
+  /// The section called [title], holding [keys].
+  const InspectorSection({required this.title, required this.keys});
+
+  /// The section's heading, the component's own title.
+  final String title;
+
+  /// The keys the section shows, in order.
+  final List<String> keys;
+
+  @override
+  bool operator ==(Object other) =>
+      other is InspectorSection &&
+      other.title == title &&
+      _sameKeys(other.keys, keys);
+
+  @override
+  int get hashCode => Object.hash(title, Object.hashAll(keys));
+
+  @override
+  String toString() => 'InspectorSection($title: ${keys.join(', ')})';
+}
+
+bool _sameKeys(List<String> a, List<String> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
 }

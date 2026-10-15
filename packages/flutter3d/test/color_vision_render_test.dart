@@ -59,8 +59,8 @@ Future<Uint8List> _draw(LookSettings Function(CpuDevice device) look) async {
     width: _width,
     height: _height,
     scene: _colors(device),
-    views: <RenderView>[
-      RenderView(camera: CameraNode()..setPosition(0.0, 0.0, 5.0)),
+    views: <CameraView>[
+      CameraView(camera: CameraNode()..setPosition(0.0, 0.0, 5.0)),
     ],
     settings: RenderSettings(look: look(device)),
   );
@@ -81,7 +81,7 @@ void main() {
       var worst = 0;
       var moved = 0;
       for (var at = 0; at < plain.length; at += 4) {
-        final (r, g, b) = vision.applyEncoded(
+        final RgbTriple(:r, :g, :b) = vision.applyEncoded(
           plain[at] / 255,
           plain[at + 1] / 255,
           plain[at + 2] / 255,

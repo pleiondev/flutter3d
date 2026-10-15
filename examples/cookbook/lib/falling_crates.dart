@@ -28,8 +28,7 @@ class _FallingCratesState extends State<FallingCrates> {
   @override
   Widget build(BuildContext context) => Scene3D(
     // The bodies move in the loop's fixed step; a frame shows where they are.
-    onSceneCreated: (s) =>
-        s.engine.loop.addSystem('drop', LoopPhase.physics, fall),
+    onCreated: (s) => s.engine.loop.addSystem('drop', LoopPhase.physics, fall),
     onFrame: (_) => setState(() {}),
     children: <Widget>[
       Camera3D(position: Vector3(4.0, 3.0, 6.0), target: Vector3(0, 1, 0)),

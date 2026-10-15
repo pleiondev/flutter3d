@@ -124,7 +124,7 @@ Future<_Shot> _draw({
       castsShadow: true,
     )..setLocalForward(Vector3(-0.4, -0.9, -0.3)),
   );
-  final view = RenderView(
+  final view = CameraView(
     camera: CameraNode()
       ..setPosition(1.8, 1.2, 1.8)
       ..lookAt(Vector3(-0.6, -0.8, -0.6)),
@@ -137,7 +137,7 @@ Future<_Shot> _draw({
       width: _width,
       height: _height,
       scene: scene,
-      views: <RenderView>[view],
+      views: <CameraView>[view],
       settings: settings.copyWith(aliasTargets: alias),
     );
   }

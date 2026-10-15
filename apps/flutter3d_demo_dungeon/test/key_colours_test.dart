@@ -8,7 +8,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d/flutter3d.dart' show ColorVision;
+import 'package:flutter3d/flutter3d.dart' show ColorVision, RgbTriple;
 import 'package:flutter3d_demo_content/shooter_sample.dart';
 import 'package:flutter3d_demo_dungeon/src/fixture_looks.dart';
 import 'package:flutter3d_demo_dungeon/src/hud.dart';
@@ -31,7 +31,7 @@ Map<String, Set<String>> _keysByLevel() => <String, Set<String>>{
       },
 };
 
-(double, double, double) _srgb(Color c) => (c.r, c.g, c.b);
+RgbTriple _srgb(Color c) => RgbTriple(r: c.r, g: c.g, b: c.b);
 
 void main() {
   test('every key a level has is a colour of its own, carried and lying', () {
@@ -47,11 +47,9 @@ void main() {
 
   test('no level has two keys a deficiency runs together', () {
     for (final MapEntry(key: level, value: keys) in _keysByLevel().entries) {
-      final confusions = ColorVision.confusions(
-        <String, (double, double, double)>{
-          for (final key in keys) key: _srgb(keyPipColours[key]!),
-        },
-      );
+      final confusions = ColorVision.confusions(<String, RgbTriple>{
+        for (final key in keys) key: _srgb(keyPipColours[key]!),
+      });
       expect(confusions, isEmpty, reason: '$level: $confusions');
     }
   });

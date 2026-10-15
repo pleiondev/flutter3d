@@ -420,7 +420,7 @@ final class BuildTopology extends ModelCommand {
         data,
         weldEpsilon: weld,
       )) {
-        (final EditMesh mesh, _, _) => Outcome.done(
+        ImportedMesh(:final mesh) => Outcome.done(
           project.withObject(object.copyWith(geometry: EditedGeometry(mesh))),
         ),
       },

@@ -1266,17 +1266,17 @@ extension _MeshEncode on Renderer {
       );
     }
     // `M3`: the scene behind, while the transparent pass lends it, and black
-    // otherwise — the stage reads it only when `LayerInfo.scene_colour` says
+    // otherwise — the stage reads it only when `LayerInfo.scene_color` says
     // there is one, but a declared sampler nobody binds is a crash on Metal.
     if (_keepsSampler(
       fragmentShader,
-      _kSceneColourTextureSlot,
+      _kSceneColorTextureSlot,
       declared: layered,
     )) {
       encoder.bindTexture(
         fragmentShader,
-        _kSceneColourTextureSlot,
-        _sceneColourRead?.texture ?? fallbackBlack,
+        _kSceneColorTextureSlot,
+        _sceneColorRead?.texture ?? fallbackBlack,
         sampler: SamplerDescriptor.linearClamp,
       );
     }

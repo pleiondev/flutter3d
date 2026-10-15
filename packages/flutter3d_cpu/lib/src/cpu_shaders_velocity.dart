@@ -304,7 +304,7 @@ final class CameraVelocityShader extends CpuFragmentShader {
     // direction goes through last frame's matrix with w zero.
     final Vector4 then;
     if (surface.w <= 0.0) {
-      final (origin: _, :along) = pixelRay(inverse, u, w);
+      final along = pixelRay(inverse, u, w).along;
       then = previous * Vector4(along.x, along.y, along.z, 0.0);
     } else {
       final eye4 = b.vec4('CameraVelocityInfo', 'camera', Vector4.zero());

@@ -38,7 +38,7 @@ final class Rgba8Image {
 }
 
 /// Reads one 4×4 block of [image] starting at pixel ([blockX]*4, [blockY]*4)
-/// as sixteen `(r, g, b, a)` tuples in row-major order — pixel 0 is the
+/// as sixteen [Rgba8Texel]s in row-major order — pixel 0 is the
 /// block's top-left corner, pixel 15 its bottom-right.
 ///
 /// [image]'s dimensions must be whole 4×4 blocks: every encoder in this
@@ -46,20 +46,22 @@ final class Rgba8Image {
 /// `texture_upload.dart` refuses to *upload* a compressed texture that is
 /// not whole blocks — a partial block is a decision (pad how, with what)
 /// that belongs to whoever calls the encoder, not to the encoder itself.
-List<(int, int, int, int)> readBlock(Rgba8Image image, int blockX, int blockY) {
-  final block = <(int, int, int, int)>[];
+List<Rgba8Texel> readBlock(Rgba8Image image, int blockX, int blockY) {
+  final block = <Rgba8Texel>[];
   final x0 = blockX * 4;
   final y0 = blockY * 4;
   for (var dy = 0; dy < 4; dy++) {
     for (var dx = 0; dx < 4; dx++) {
       final x = x0 + dx;
       final y = y0 + dy;
-      block.add((
-        image.red(x, y),
-        image.green(x, y),
-        image.blue(x, y),
-        image.alpha(x, y),
-      ));
+      block.add(
+        Rgba8Texel(
+          r: image.red(x, y),
+          g: image.green(x, y),
+          b: image.blue(x, y),
+          a: image.alpha(x, y),
+        ),
+      );
     }
   }
   return block;
@@ -73,4 +75,42 @@ void requireWholeBlocks(Rgba8Image image, String encoderName) {
       'is not one.',
     );
   }
+}
+
+/// One pixel of eight bits a channel: what a 4x4 block encoder takes sixteen
+/// of, and what `decodeUniversalBlock` answers sixteen of.
+final class Rgba8Texel {
+  /// The texel with channels [r], [g], [b] and [a].
+  const Rgba8Texel({
+    required this.r,
+    required this.g,
+    required this.b,
+    required this.a,
+  });
+
+  /// Red, 0 to 255.
+  final int r;
+
+  /// Green, 0 to 255.
+  final int g;
+
+  /// Blue, 0 to 255.
+  final int b;
+
+  /// Alpha, 0 to 255; 255 is opaque.
+  final int a;
+
+  @override
+  bool operator ==(Object other) =>
+      other is Rgba8Texel &&
+      other.r == r &&
+      other.g == g &&
+      other.b == b &&
+      other.a == a;
+
+  @override
+  int get hashCode => Object.hash(r, g, b, a);
+
+  @override
+  String toString() => 'Rgba8Texel($r, $g, $b, $a)';
 }

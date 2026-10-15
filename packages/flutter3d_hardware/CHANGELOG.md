@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1+1
 
+- **Breaking: results that were records are final classes.** `FakeBackend`,
+  `cappedImageSize`, `encodedImageSize` and `indexWindow` answered or held a
+  record, which can never gain a field. Each answers a final class now, with
+  the record's field names (a positional `$1` has a name of its own), `==`
+  and `hashCode`. A field read compiles as before; a destructuring pattern
+  names the class, and `flutter3d_build:migrate` rewrites the `$1` reads.
+
 - **Breaking: where compute runs is this package's alone.** A step no
   longer demands a placement: `ComputeExecutors.place` takes no `demand`,
   and `ComputePlacementException` has none to report (its constructor

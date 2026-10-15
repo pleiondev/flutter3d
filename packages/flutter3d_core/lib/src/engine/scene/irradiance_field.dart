@@ -421,10 +421,10 @@ final class IrradianceField {
   }
 
   /// The two moments stored for [direction] at probe [probe].
-  ({double mean, double meanSquare}) readDepth(int probe, Vector3 direction) {
+  DepthMoments readDepth(int probe, Vector3 direction) {
     final uv = encodeOctahedral(direction);
     final at = _texelOf(probe, uv, depthTile, 2);
-    return (mean: depth[at], meanSquare: depth[at + 1]);
+    return DepthMoments(mean: depth[at], meanSquare: depth[at + 1]);
   }
 
   /// How much of probe [probe] a point [distance] away along [direction] can
@@ -546,4 +546,30 @@ final class IrradianceField {
     if (total > 0.0) result.scale(1.0 / total);
     return LinearColor(result.x, result.y, result.z);
   }
+}
+
+/// The two moments a probe of an [IrradianceField] keeps of the distance to
+/// what it sees in one direction: what [IrradianceField.readDepth] answers.
+final class DepthMoments {
+  /// The moments [mean] and [meanSquare].
+  const DepthMoments({required this.mean, required this.meanSquare});
+
+  /// The mean distance to what the probe sees, in metres.
+  final double mean;
+
+  /// The mean of the squared distance, in square metres; less the square of
+  /// [mean], it is the variance.
+  final double meanSquare;
+
+  @override
+  bool operator ==(Object other) =>
+      other is DepthMoments &&
+      other.mean == mean &&
+      other.meanSquare == meanSquare;
+
+  @override
+  int get hashCode => Object.hash(mean, meanSquare);
+
+  @override
+  String toString() => 'DepthMoments($mean, $meanSquare)';
 }

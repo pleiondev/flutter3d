@@ -171,7 +171,7 @@ void main() {
         width: 256,
         height: 192,
         scene: built.scene,
-        views: <RenderView>[RenderView(camera: built.camera)],
+        views: <CameraView>[CameraView(camera: built.camera)],
       );
     }
 
@@ -272,7 +272,7 @@ void main() {
           width: 256,
           height: 192,
           scene: scene,
-          views: <RenderView>[RenderView(camera: camera)],
+          views: <CameraView>[CameraView(camera: camera)],
         );
         counts.add(
           device.passes
@@ -360,7 +360,7 @@ void main() {
         width: 256,
         height: 192,
         scene: built.scene,
-        views: <RenderView>[RenderView(camera: built.camera)],
+        views: <CameraView>[CameraView(camera: built.camera)],
       );
       final skinnedDraws = _atlasPasses(device)
           .expand((pass) => pass.recordedOf<RecordedPipeline>())
@@ -404,7 +404,7 @@ void main() {
         width: 64,
         height: 64,
         scene: built.scene,
-        views: <RenderView>[RenderView(camera: built.camera)],
+        views: <CameraView>[CameraView(camera: built.camera)],
         settings: const RenderSettings(),
       );
 

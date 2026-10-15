@@ -8,9 +8,9 @@ and `package:flutter3d_plugin_runtime`, no `src/` import. Its namespace is
 `lib/acme_sample.dart` is the Dart half. Installed, it adds
 
 - a light type of its own, `acme_sample.tube`, packed by a `LightTypeHook`;
-- a lighting model, `acme_sample_Hair`, written in the material language
+- a lighting model, `acme_sample.Hair` (its stage `acme_sample__Hair`), written in the material language
   with a uniform block and a texture of its own (its slot table);
-- a decal stage, `acme_sample_Decal`;
+- a decal stage, `acme_sample__Decal`;
 - a post effect, `acme_sample.smear`, that reads the velocity with the
   temporal resolve and the motion blur both off;
 - a shadow technique with a producer of its own;
@@ -24,7 +24,7 @@ same pipeline as a document, read by `DataPluginLoader`.
 
 `lib/acme_editor.dart` is the editor half. Its hints, written against
 `package:flutter3d_plugin_api/editor.dart` alone, give the `acme_sample.heat`
-component, the `ember` entity kind and the `acme_sample_Hair` lit model
+component, the `ember` entity kind and the `acme_sample.Hair` lit model
 their inspector controls; its editor pieces add a command
 (`acme_sample.editor.stoke`, also a tool an agent sees), a gizmo ringing an
 ember with its reach, an importer for `.embers` lists and an asset-browser

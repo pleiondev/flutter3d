@@ -49,7 +49,7 @@ import 'chunk_generate.dart';
 import 'convert.dart';
 import 'device_classes.dart';
 
-/// Thrown by [AssetManifest.parse] — always names the line the problem is
+/// Thrown by [AssetBuildManifest.parse] — always names the line the problem is
 /// on, because a manifest's own author is the one who reads this, not a
 /// user of the finished game.
 final class ManifestFormatException extends Flutter3dFormatException {
@@ -148,14 +148,14 @@ const Set<String> _ruleKeys = <String>{
 /// A parsed `flutter3d_assets.yaml`, or the empty manifest a project without
 /// one gets — the same object either way, so nothing downstream branches on
 /// whether a file existed.
-final class AssetManifest {
-  const AssetManifest({
+final class AssetBuildManifest {
+  const AssetBuildManifest({
     this.rules = const <AssetRule>[],
     this.classes = const <DeviceClassBudget>[],
     this.shaders = ShaderSelection.none,
   });
 
-  static const AssetManifest empty = AssetManifest();
+  static const AssetBuildManifest empty = AssetBuildManifest();
 
   /// The manifest's version, read from `format:`; absent is 1.
   static const int formatVersion = 1;
@@ -182,13 +182,13 @@ final class AssetManifest {
 
   /// Reads a project's manifest if it has one, or [empty] if it does not —
   /// the "no configuration" half of `ap-04`'s own acceptance.
-  static AssetManifest readFrom(Directory projectRoot) {
+  static AssetBuildManifest readFrom(Directory projectRoot) {
     final file = File('${projectRoot.path}/flutter3d_assets.yaml');
     if (!file.existsSync()) return empty;
-    return AssetManifest.parse(file.readAsStringSync());
+    return AssetBuildManifest.parse(file.readAsStringSync());
   }
 
-  factory AssetManifest.parse(String yamlText) {
+  factory AssetBuildManifest.parse(String yamlText) {
     final YamlNode document;
     try {
       document = loadYamlNode(yamlText);
@@ -249,7 +249,7 @@ final class AssetManifest {
       return empty;
     }
 
-    return AssetManifest(
+    return AssetBuildManifest(
       rules: <AssetRule>[
         if (rulesNode is YamlList)
           for (final ruleNode in rulesNode.nodes) _parseRule(ruleNode),

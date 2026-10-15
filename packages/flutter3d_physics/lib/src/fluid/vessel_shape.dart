@@ -21,9 +21,10 @@ abstract base class VesselShape {
   /// vector in the vessel's frame.
   double volumeBelow(Vector3 up, double height);
 
-  /// The least and greatest `up · p` over the inside: below [low] the plane
-  /// holds nothing, above [high] all of it.
-  ({double low, double high}) span(Vector3 up);
+  /// The least and greatest `up · p` over the inside: below
+  /// [VesselSpan.low] the plane holds nothing, above [VesselSpan.high] all
+  /// of it.
+  VesselSpan span(Vector3 up);
 
   /// The edge of the mouth, as points round it; empty for a closed vessel,
   /// which nothing leaves.
@@ -33,12 +34,83 @@ abstract base class VesselShape {
   bool contains(Vector3 point);
 }
 
+/// How far a vessel's inside reaches along a direction — [VesselShape.span]:
+/// the least and greatest `up · p` over it.
+final class VesselSpan {
+  const VesselSpan({required this.low, required this.high});
+
+  /// The least `up · p` over the inside, in metres: below it the plane
+  /// holds nothing.
+  final double low;
+
+  /// The greatest `up · p` over the inside, in metres: above it the plane
+  /// holds all of it.
+  final double high;
+
+  @override
+  bool operator ==(Object other) =>
+      other is VesselSpan && other.low == low && other.high == high;
+
+  @override
+  int get hashCode => Object.hash(low, high);
+
+  @override
+  String toString() => 'VesselSpan($low, $high)';
+}
+
+/// The lowest point of a vessel's rim along a direction, where liquid leaves
+/// first — [VesselVolumes.lip].
+final class VesselLip {
+  const VesselLip({required this.point, required this.height});
+
+  /// The point of the rim, in the vessel's frame.
+  final Vector3 point;
+
+  /// Its `up · p`, in metres.
+  final double height;
+
+  @override
+  bool operator ==(Object other) =>
+      other is VesselLip && other.point == point && other.height == height;
+
+  @override
+  int get hashCode => Object.hash(point, height);
+
+  @override
+  String toString() => 'VesselLip($point, height: $height)';
+}
+
+/// How far a point is from a vessel's wall, and the wall's way out there —
+/// [RevolvedVessel.wallDistance].
+final class VesselWallDistance {
+  const VesselWallDistance({required this.distance, required this.normal});
+
+  /// The distance across the wall, in metres: negative inside, positive in
+  /// or beyond the glass.
+  final double distance;
+
+  /// The wall's outward unit normal there, in the vessel's frame.
+  final Vector3 normal;
+
+  @override
+  bool operator ==(Object other) =>
+      other is VesselWallDistance &&
+      other.distance == distance &&
+      other.normal == normal;
+
+  @override
+  int get hashCode => Object.hash(distance, normal);
+
+  @override
+  String toString() => 'VesselWallDistance($distance, normal: $normal)';
+}
+
 /// The questions a [VesselShape] answers through its volume.
 extension VesselVolumes on VesselShape {
   /// The height along [up] at which the plane square to it leaves [volume]
   /// under it: where the surface of that much liquid stands.
   double surfaceFor(Vector3 up, double volume) {
-    final (:low, :high) = span(up);
+    final VesselSpan(:low, :high) = span(up);
     var lo = low;
     var hi = high;
     for (var i = 0; i < 52; i++) {
@@ -63,7 +135,7 @@ extension VesselVolumes on VesselShape {
     double guess, {
     double tolerance = 1e-10,
   }) {
-    final (:low, :high) = span(up);
+    final VesselSpan(:low, :high) = span(up);
     final size = high - low;
     if (!(guess > low && guess < high) || volume <= 0.0) {
       return surfaceFor(up, volume);
@@ -92,7 +164,7 @@ extension VesselVolumes on VesselShape {
 
   /// The lowest point of the [rim] along [up], and its height: where liquid
   /// leaves first. Null for a closed vessel.
-  ({Vector3 point, double height})? lip(Vector3 up) {
+  VesselLip? lip(Vector3 up) {
     if (rim.isEmpty) return null;
     var best = rim.first;
     var height = up.dot(best);
@@ -103,7 +175,7 @@ extension VesselVolumes on VesselShape {
         best = p;
       }
     }
-    return (point: best, height: height);
+    return VesselLip(point: best, height: height);
   }
 
   /// The most the vessel holds with [up] as it is before liquid runs over
@@ -158,7 +230,7 @@ final class RevolvedVessel implements VesselShape {
   /// piece of the profile, so it holds round a rounded bottom as up a
   /// straight side, where the radius at a height says nothing of how near
   /// the bottom is. Null above the mouth, where there is no wall.
-  ({double distance, Vector3 normal})? wallDistance(Vector3 point) {
+  VesselWallDistance? wallDistance(Vector3 point) {
     if (point.y > top) return null;
     final r = math.sqrt(point.x * point.x + point.z * point.z);
     final out = r > 1e-12
@@ -185,7 +257,7 @@ final class RevolvedVessel implements VesselShape {
         normal = right;
       }
     }
-    return (
+    return VesselWallDistance(
       distance: sign * best,
       normal: out * normal.x + Vector3(0, normal.y, 0),
     );
@@ -226,7 +298,7 @@ final class RevolvedVessel implements VesselShape {
   ]);
 
   @override
-  ({double low, double high}) span(Vector3 up) {
+  VesselSpan span(Vector3 up) {
     final across = math.sqrt(up.x * up.x + up.z * up.z);
     var lo = double.infinity;
     var hi = -double.infinity;
@@ -234,7 +306,7 @@ final class RevolvedVessel implements VesselShape {
       lo = math.min(lo, up.y * p.y - across * p.x);
       hi = math.max(hi, up.y * p.y + across * p.x);
     }
-    return (low: lo, high: hi);
+    return VesselSpan(low: lo, high: hi);
   }
 
   @override
@@ -337,7 +409,7 @@ final class MeshVessel implements VesselShape {
   }
 
   @override
-  ({double low, double high}) span(Vector3 up) {
+  VesselSpan span(Vector3 up) {
     var lo = double.infinity;
     var hi = -double.infinity;
     for (final p in positions) {
@@ -345,7 +417,7 @@ final class MeshVessel implements VesselShape {
       lo = math.min(lo, h);
       hi = math.max(hi, h);
     }
-    return (low: lo, high: hi);
+    return VesselSpan(low: lo, high: hi);
   }
 
   @override

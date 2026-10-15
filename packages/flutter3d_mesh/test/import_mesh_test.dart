@@ -32,7 +32,7 @@ void main() {
       // What the GPU needs: a corner per face normal meeting there.
       expect(drawn.vertexCount, 24);
 
-      final (mesh, report, _) = importMeshData(drawn);
+      final ImportedMesh(:mesh, :report) = importMeshData(drawn);
 
       // Eight corners, eighteen edges, twelve triangles — a triangulated cube,
       // and χ is still 2, which is the cheapest statement that nothing came
@@ -59,7 +59,7 @@ void main() {
         rings: 12,
       ).build();
 
-      final (mesh, report, _) = importMeshData(drawn);
+      final ImportedMesh(:mesh, :report) = importMeshData(drawn);
 
       expect(report.weldedVertices, lessThan(report.sourceVertices));
       // Mutation: quantise coordinates into one cell and look no further, and
@@ -88,10 +88,10 @@ void main() {
         <int>[0, 1, 2, 3, 4, 5],
       );
 
-      final (welded, _, _) = importMeshData(drawn);
+      final ImportedMesh(mesh: welded) = importMeshData(drawn);
       expect(welded.vertexCount, 4);
 
-      final (apart, _, _) = importMeshData(drawn, weldEpsilon: 0);
+      final ImportedMesh(mesh: apart) = importMeshData(drawn, weldEpsilon: 0);
       expect(apart.vertexCount, 5, reason: 'exact matches still weld');
     });
 
@@ -109,7 +109,7 @@ void main() {
         <int>[0, 1, 2, 3, 4, 5],
       );
 
-      final (mesh, report, _) = importMeshData(drawn);
+      final ImportedMesh(:mesh, :report) = importMeshData(drawn);
 
       expect(report.droppedDegenerate, 1);
       expect(mesh.faceCount, 1);
@@ -132,7 +132,7 @@ void main() {
         <int>[0, 1, 2, 1, 2, 3],
       );
 
-      final (mesh, report, _) = importMeshData(drawn);
+      final ImportedMesh(:mesh, :report) = importMeshData(drawn);
 
       // Mutation: skip `_repairOrientation` and the builder refuses the second
       // face outright — "the edge 1-2 is used twice the same way round" — so
@@ -165,7 +165,7 @@ void main() {
         indices: flipped,
       );
 
-      final (mesh, report, _) = importMeshData(reversed);
+      final ImportedMesh(:mesh, :report) = importMeshData(reversed);
 
       // Consistent, which is what the repair promises. Whether the whole shell
       // is inside out is a different question — the volume answers it, and the
@@ -190,7 +190,7 @@ void main() {
         <int>[0, 1, 2, 3, 4, 5],
       );
 
-      final (mesh, report, _) = importMeshData(drawn);
+      final ImportedMesh(:mesh, :report) = importMeshData(drawn);
 
       // Nothing to disagree about: neither island touches the other, so no
       // flip is warranted and none happens.
@@ -215,7 +215,7 @@ void main() {
         <int>[0, 1, 2, 1, 0, 3, 0, 1, 4],
       );
 
-      final (mesh, report, _) = importMeshData(drawn);
+      final ImportedMesh(:mesh, :report) = importMeshData(drawn);
 
       // Mutation: let the builder see the third face and it throws — an import
       // that refuses a model somebody has is an import nobody can use, so the
@@ -231,7 +231,7 @@ void main() {
     });
 
     test('an ordinary model reports nothing worth reporting', () {
-      final (_, report, _) = importMeshData(CuboidShape().build());
+      final ImportedMesh(:report) = importMeshData(CuboidShape().build());
 
       expect(report.isWorthReporting, isFalse);
       expect(report.toString(), contains('12 faces'));
@@ -244,7 +244,7 @@ void main() {
       final uvAt = drawn.layout.floatOffsetOf(VertexLayout.texcoord.name);
       expect(uvAt, greaterThanOrEqualTo(0));
 
-      final (mesh, _, _) = importMeshData(drawn);
+      final ImportedMesh(:mesh) = importMeshData(drawn);
 
       expect(mesh.hasLayer(MeshDomain.corner, MeshAttribute.uv0), isTrue);
       // A plane's corners span the unit square, so the imported corners do too.
@@ -262,7 +262,7 @@ void main() {
     });
 
     test('an import is the document\'s starting point, not an edit', () {
-      final (mesh, _, _) = importMeshData(CuboidShape().build());
+      final ImportedMesh(:mesh) = importMeshData(CuboidShape().build());
 
       // Nothing to undo: there is no state before the model existed, and a
       // history that offered one would empty the viewport.
@@ -293,7 +293,7 @@ void main() {
     }
 
     test('no morph targets means no shape keys', () {
-      final (_, _, shapeKeys) = importMeshData(
+      final ImportedMesh(:shapeKeys) = importMeshData(
         quadWithTargets(const <MorphTarget>[]),
       );
       expect(shapeKeys, isEmpty);
@@ -304,7 +304,7 @@ void main() {
       final lift = Float32List.fromList(<double>[
         for (var i = 0; i < 6; i++) ...<double>[0, 0, 1],
       ]);
-      final (mesh, _, shapeKeys) = importMeshData(
+      final ImportedMesh(:mesh, :shapeKeys) = importMeshData(
         quadWithTargets(<MorphTarget>[
           MorphTarget(vertexCount: 6, positions: lift, name: 'lift'),
         ]),
@@ -346,7 +346,7 @@ void main() {
         0, 0, 2, // source 4: p2, again
         3, 3, 3, // source 5: p3
       ]);
-      final (mesh, _, shapeKeys) = importMeshData(
+      final ImportedMesh(:mesh, :shapeKeys) = importMeshData(
         quadWithTargets(<MorphTarget>[
           MorphTarget(vertexCount: 6, positions: delta),
         ]),
@@ -380,7 +380,7 @@ void main() {
       final push = Float32List.fromList(<double>[
         for (var i = 0; i < 6; i++) ...<double>[2, 0, 0],
       ]);
-      final (mesh, _, shapeKeys) = importMeshData(
+      final ImportedMesh(:mesh, :shapeKeys) = importMeshData(
         quadWithTargets(<MorphTarget>[
           MorphTarget(vertexCount: 6, positions: lift, name: 'lift'),
           MorphTarget(vertexCount: 6, positions: push, name: 'push'),
@@ -403,7 +403,7 @@ void main() {
     test('an unnamed target counts its own position rather than sharing '
         'one name', () {
       final zero = Float32List(18);
-      final (_, _, shapeKeys) = importMeshData(
+      final ImportedMesh(:shapeKeys) = importMeshData(
         quadWithTargets(<MorphTarget>[
           MorphTarget(vertexCount: 6, positions: zero),
           MorphTarget(vertexCount: 6, positions: zero),

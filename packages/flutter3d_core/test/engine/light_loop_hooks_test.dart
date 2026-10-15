@@ -108,7 +108,7 @@ void main() {
       final device = FakeBackend(maxColorAttachments: 4);
       final camera = CameraNode()..setPosition(0.0, 3.0, 0.0);
       camera.lookAt(Vector3.zero());
-      const ink = LightingModel('Ink decal', 'acme_ink_Decal');
+      const ink = LightingModel('Ink decal', 'acme_ink__Decal');
       final scene = Scene()
         ..add(
           MeshNode(
@@ -124,9 +124,9 @@ void main() {
         height: 32,
         scene: scene,
         settings: const RenderSettings(decals: DecalSettings(enabled: true)),
-        views: <RenderView>[RenderView(camera: camera)],
+        views: <CameraView>[CameraView(camera: camera)],
       );
-      expect(device.linkedPipelines, contains(endsWith('+acme_ink_Decal')));
+      expect(device.linkedPipelines, contains(endsWith('+acme_ink__Decal')));
       expect(device.linkedPipelines, contains(endsWith('+Decal')));
     });
   });

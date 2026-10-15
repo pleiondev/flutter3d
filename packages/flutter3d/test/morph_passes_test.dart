@@ -142,7 +142,7 @@ Future<Uint8List> _draw(
     width: _width,
     height: _height,
     scene: it.scene,
-    views: <RenderView>[RenderView(camera: it.camera)],
+    views: <CameraView>[CameraView(camera: it.camera)],
     settings: settings,
   );
   final pixels = await it.device.readback(result.frame);
@@ -208,7 +208,7 @@ void main() {
       width: _width,
       height: _height,
       scene: it.scene,
-      views: <RenderView>[RenderView(camera: it.camera)],
+      views: <CameraView>[CameraView(camera: it.camera)],
     );
 
     expect(

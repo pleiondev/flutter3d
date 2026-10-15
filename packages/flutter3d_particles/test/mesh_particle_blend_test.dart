@@ -53,8 +53,8 @@ double _middle(BlendState blend, LinearColor color) {
     width: _size,
     height: _size,
     scene: scene,
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: camera,
         clearColor: LinearColor.fromSrgb(_grey, _grey, _grey, 1.0),
       ),

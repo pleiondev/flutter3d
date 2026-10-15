@@ -128,8 +128,8 @@ Future<Uint8List> _render(
     width: _width,
     height: _height,
     scene: scene,
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: sun
             // Aimed, so the box and the shadow it throws on the slab are
             // both in the frame.

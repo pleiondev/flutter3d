@@ -22,7 +22,7 @@ void main() {
     expect((hit.normalX, hit.normalY, hit.normalZ), (0, 1, 0));
     // A `Vector3` holds single precision.
     expect(hit.distance, closeTo(3.2, 1e-6));
-    expect(hit.before, (x: 5, y: 4, z: 5));
+    expect(hit.before, const VoxelCell(x: 5, y: 4, z: 5));
   });
 
   test('a shallow ray meets the first block on its way, not one past it', () {
@@ -37,7 +37,7 @@ void main() {
     // nearest, skips through the block into the ground behind it.
     expect((hit.x, hit.y, hit.z), (9, 4, 5));
     expect((hit.normalX, hit.normalY, hit.normalZ), (1, 0, 0));
-    expect(hit.before, (x: 10, y: 4, z: 5));
+    expect(hit.before, const VoxelCell(x: 10, y: 4, z: 5));
   });
 
   test('nothing within reach, or nowhere to look, is no hit', () {

@@ -81,7 +81,7 @@ void main() {
       )..lookAt(vm.Vector3(0.35, -1.0, 0.5)),
     );
     final camera = scene.add(CameraNode(name: 'camera'));
-    final views = <RenderView>[RenderView(camera: camera)];
+    final views = <CameraView>[CameraView(camera: camera)];
 
     // One step of the game, as a frame runs it, without drawing anything.
     void advance() {

@@ -119,7 +119,7 @@ Future<Uint8List> _renderPatch(
     width: _width,
     height: _height,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
   );
   final frame = (await device.readback(result.frame)).buffer.asUint8List();
 

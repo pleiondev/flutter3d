@@ -107,7 +107,7 @@ final class GameEventLog {
 /// event there is — a cursor from a run that has since been replaced by a
 /// new one, numbered from 1 again — and the answer then starts from the
 /// beginning rather than waiting for the new run to catch the old one up.
-({List<PostedEvent> events, int next, int missed, bool restarted}) eventsSince(
+PostedEventPage eventsSince(
   List<PostedEvent> events,
   int since, {
   Set<String>? kinds,
@@ -116,7 +116,7 @@ final class GameEventLog {
   final restarted = since > last;
   final from = restarted ? 0 : since;
   final first = events.isEmpty ? from + 1 : events.first.sequence;
-  return (
+  return PostedEventPage(
     events: <PostedEvent>[
       for (final event in events)
         if (event.sequence > from &&
@@ -127,6 +127,50 @@ final class GameEventLog {
     missed: first > from + 1 ? first - from - 1 : 0,
     restarted: restarted,
   );
+}
+
+/// What [eventsSince] answers: the events after a cursor, the cursor to ask
+/// with next, and what the cap or a new run took away.
+final class PostedEventPage {
+  const PostedEventPage({
+    required this.events,
+    required this.next,
+    required this.missed,
+    required this.restarted,
+  });
+
+  /// The events after the cursor, of the kinds asked for, oldest first.
+  final List<PostedEvent> events;
+
+  /// The cursor to ask with next: the sequence of the last event kept.
+  final int next;
+
+  /// How many events after the cursor the cap dropped before anyone asked.
+  final int missed;
+
+  /// Whether the cursor was past the last event — a cursor from a run that
+  /// has since been replaced — so the page starts from the beginning.
+  final bool restarted;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PostedEventPage &&
+      other.next == next &&
+      other.missed == missed &&
+      other.restarted == restarted &&
+      other.events.length == events.length &&
+      Iterable<int>.generate(
+        events.length,
+      ).every((i) => other.events[i] == events[i]);
+
+  @override
+  int get hashCode =>
+      Object.hash(Object.hashAll(events), next, missed, restarted);
+
+  @override
+  String toString() =>
+      'PostedEventPage(${events.length} events, next: $next, '
+      'missed: $missed${restarted ? ', restarted' : ''})';
 }
 
 /// A new [GameEventLog], for a run, which fills it from the game it attached

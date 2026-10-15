@@ -70,7 +70,7 @@ class PaintUpload {
     _canvas = null;
     if (rect == null) return 0;
 
-    final (int x, int y, int width, int height) = rect;
+    final TexelRect(:x, :y, :width, :height) = rect;
     // The region's own rows, cut out of the flattened canvas: a region write
     // takes the bytes for that region and nothing else, so the rows are
     // packed here rather than sent with the whole canvas's stride.

@@ -38,7 +38,7 @@ void main() {
       width: 320,
       height: 180,
       scene: scene,
-      views: <RenderView>[RenderView(camera: scene.cameras.first)],
+      views: <CameraView>[CameraView(camera: scene.cameras.first)],
       settings: arcadeRenderSettings,
     );
 
@@ -60,7 +60,7 @@ void main() {
         width: 320,
         height: 180,
         scene: scene,
-        views: <RenderView>[RenderView(camera: scene.cameras.first)],
+        views: <CameraView>[CameraView(camera: scene.cameras.first)],
         settings: settings,
       );
       // The edge pass is what this frame said it ran.
@@ -108,7 +108,7 @@ void main() {
       width: 320,
       height: 180,
       scene: scene,
-      views: <RenderView>[RenderView(camera: scene.cameras.first)],
+      views: <CameraView>[CameraView(camera: scene.cameras.first)],
       settings: arcadeRenderSettings,
     );
     final pixels = await it.device.readback(result.frame);

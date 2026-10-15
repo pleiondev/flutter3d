@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter3d_core/flutter3d_core.dart' show DebugView;
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
-import 'package:flutter3d_mcp/kit.dart' show Answer, ProjectRoot;
+import 'package:flutter3d_mcp/kit.dart' show Answer, ProjectRoot, ResolvedPath;
 import 'package:flutter3d_plugin_api/editor.dart'
     show ComponentHints, FieldHint;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
@@ -76,7 +76,7 @@ final class EditorSession {
   /// one open before; refused, with the reader's words, for one it does not
   /// open.
   Answer openExperiment(String path) {
-    final (path: inside, :refused) = root.tryResolve(path);
+    final ResolvedPath(path: inside, :refused) = root.tryResolve(path);
     if (inside == null) return Answer(did: false, says: refused!);
     final file = File(inside);
     if (!file.existsSync()) {
@@ -209,7 +209,7 @@ final class EditorSession {
     if (path == null) {
       to = open.path!;
     } else {
-      final (path: inside, :refused) = root.tryResolve(path);
+      final ResolvedPath(path: inside, :refused) = root.tryResolve(path);
       if (inside == null) return Answer(did: false, says: refused!);
       to = inside;
     }
@@ -640,7 +640,7 @@ final class EditorSession {
                   '${known.join(', ')}',
       );
     }
-    final (path: source, :refused) = root.tryResolve(path);
+    final ResolvedPath(path: source, :refused) = root.tryResolve(path);
     if (source == null) return Answer(did: false, says: refused!);
     final file = File(source);
     if (!file.existsSync()) {
@@ -664,7 +664,7 @@ final class EditorSession {
     }
     final targets = <String, String>{};
     for (final written in result.files.keys) {
-      final (path: inside, :refused) = root.tryResolve(written);
+      final ResolvedPath(path: inside, :refused) = root.tryResolve(written);
       if (inside == null) {
         return Answer(
           did: false,
@@ -725,7 +725,7 @@ final class EditorSession {
     if (path == null) {
       asked = null;
     } else {
-      final (path: inside, :refused) = root.tryResolve(path);
+      final ResolvedPath(path: inside, :refused) = root.tryResolve(path);
       if (inside == null) return Answer(did: false, says: refused!);
       asked = inside;
     }

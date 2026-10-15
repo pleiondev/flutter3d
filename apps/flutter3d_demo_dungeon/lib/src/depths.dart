@@ -42,13 +42,13 @@ abstract final class Depths {
         'roughness': 0.95,
       },
     },
-    perRoom: <({Map<String, Object?> entity, int count})>[
-      (
+    perRoom: <RoomScatter>[
+      RoomScatter(
         entity: const <String, Object?>{'type': 'monster', 'kind': 'runner'},
         count: 1 + depth ~/ 3,
       ),
-      (
-        entity: const <String, Object?>{
+      const RoomScatter(
+        entity: <String, Object?>{
           'type': 'pickup',
           'gives': 'health',
           'amount': 25,

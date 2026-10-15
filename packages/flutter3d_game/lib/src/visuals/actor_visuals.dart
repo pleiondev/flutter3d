@@ -245,10 +245,9 @@ final class ActorVisuals {
   /// Every marker an actor's graph passed in the last [animate], with whose
   /// and in which state: a monster's foot down is a footstep a game plays
   /// where it is.
-  List<({Actor actor, String state, String name})> get markersPassed =>
-      List<({Actor actor, String state, String name})>.unmodifiable(_markers);
-  final List<({Actor actor, String state, String name})> _markers =
-      <({Actor actor, String state, String name})>[];
+  List<ActorMarkerPassed> get markersPassed =>
+      List<ActorMarkerPassed>.unmodifiable(_markers);
+  final List<ActorMarkerPassed> _markers = <ActorMarkerPassed>[];
 
   /// The graph animating [actor], if one does: to ask what state it is in.
   AnimationGraph? graphOf(Actor actor) =>
@@ -658,7 +657,13 @@ final class ActorVisuals {
         });
         graph.evaluate(dt).writeTo(entry.value.targets);
         for (final passed in graph.passed) {
-          _markers.add((actor: actor, state: passed.state, name: passed.name));
+          _markers.add(
+            ActorMarkerPassed(
+              actor: actor,
+              state: passed.state,
+              name: passed.name,
+            ),
+          );
         }
         if (corpses != null && alive) _keepPose(actor);
         continue;
@@ -929,4 +934,36 @@ final class _CapsuleKind extends SceneNodeKind {
   @override
   SceneNode create(SceneBindingContext context) =>
       visuals._capsuleFor(context.entity);
+}
+
+/// A marker an actor's animation graph passed in one
+/// [ActorVisuals.animate]: whose it was, in which state, and its name.
+final class ActorMarkerPassed {
+  const ActorMarkerPassed({
+    required this.actor,
+    required this.state,
+    required this.name,
+  });
+
+  /// The actor whose graph passed the marker.
+  final Actor actor;
+
+  /// The graph's state the marker belongs to, by name.
+  final String state;
+
+  /// The marker's own name: `step` for a foot down, say.
+  final String name;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ActorMarkerPassed &&
+      other.actor == actor &&
+      other.state == state &&
+      other.name == name;
+
+  @override
+  int get hashCode => Object.hash(actor, state, name);
+
+  @override
+  String toString() => 'ActorMarkerPassed($state.$name)';
 }

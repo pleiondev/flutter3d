@@ -34,7 +34,7 @@ int _drawCalls({required bool sunCasts}) {
         width: kParityWidth,
         height: kParityHeight,
         scene: built.scene,
-        views: <RenderView>[RenderView(camera: built.camera)],
+        views: <CameraView>[CameraView(camera: built.camera)],
         settings: paritySettingsFor(ParityScene.directionalShadow),
       )
       .drawCalls;

@@ -191,7 +191,7 @@ final class EnvironmentDepthNode extends RenderNode {
   EnvironmentDepthNode();
 
   /// Where the frame carries the real world's depth.
-  static const ResourceId id = ResourceId('environment_depth');
+  static const ResourceId id = ResourceId('f3d.environment_depth');
 
   /// The depth the next frame uploads, or null for none.
   EnvironmentDepth? depth;

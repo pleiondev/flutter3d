@@ -23,7 +23,7 @@ final class LevelRules {
     this.corridor = 3.0,
     this.density = 0.7,
     this.materials = _materials,
-    this.perRoom = const <({Map<String, Object?> entity, int count})>[],
+    this.perRoom = const <RoomScatter>[],
     this.clutter = 0,
     this.name,
   }) : assert(room < cell, 'a room fills less than its cell, or no corridor'),
@@ -52,9 +52,9 @@ final class LevelRules {
         ),
         _ => defaults.materials,
       },
-      perRoom: <({Map<String, Object?> entity, int count})>[
+      perRoom: <RoomScatter>[
         for (final row in (json['perRoom'] as List<Object?>?) ?? const [])
-          (
+          RoomScatter(
             entity: ((row! as Map)['entity']! as Map).cast<String, Object?>(),
             count: ((row as Map)['count'] as num?)?.toInt() ?? 1,
           ),
@@ -88,7 +88,7 @@ final class LevelRules {
 
   /// What stands in every room but the first: an entity row and how many,
   /// scattered by the seed — a game's monsters, its pickups.
-  final List<({Map<String, Object?> entity, int count})> perRoom;
+  final List<RoomScatter> perRoom;
 
   /// Boxes the seed places against each room's walls.
   final int clutter;
@@ -128,6 +128,44 @@ final class LevelRules {
         <String, Object?>{'entity': row.entity, 'count': row.count},
     ],
   };
+}
+
+/// What [LevelRules.perRoom] scatters in a room: an entity row and how many
+/// of it.
+final class RoomScatter {
+  const RoomScatter({required this.entity, required this.count});
+
+  /// The entity row each copy is made from, as a level file writes one.
+  final Map<String, Object?> entity;
+
+  /// How many copies stand in each room.
+  final int count;
+
+  @override
+  bool operator ==(Object other) =>
+      other is RoomScatter &&
+      other.count == count &&
+      _sameRow(other.entity, entity);
+
+  @override
+  int get hashCode => Object.hash(
+    count,
+    Object.hashAllUnordered(
+      entity.entries.map(
+        (MapEntry<String, Object?> e) => Object.hash(e.key, e.value),
+      ),
+    ),
+  );
+
+  @override
+  String toString() => 'RoomScatter($entity × $count)';
+
+  static bool _sameRow(Map<String, Object?> a, Map<String, Object?> b) =>
+      a.length == b.length &&
+      a.entries.every(
+        (MapEntry<String, Object?> e) =>
+            b.containsKey(e.key) && b[e.key] == e.value,
+      );
 }
 
 /// Why [generateLevel] could not, or the level it made and the seed that

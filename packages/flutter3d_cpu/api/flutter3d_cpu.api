@@ -12,6 +12,16 @@ final class BloomDownsampleShader extends CpuFragmentShader
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
   const BloomDownsampleShader()
 
+final class BloomSource
+  String toString()
+  bool operator ==(Object other)
+  const BloomSource({required this.source, required this.tx, required this.ty, required this.params})
+  final BoundTexture source
+  final Vector4 params
+  final double tx
+  final double ty
+  int get hashCode
+
 final class BloomThresholdShader extends CpuFragmentShader
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
   const BloomThresholdShader()
@@ -38,6 +48,14 @@ final class CausticSurfaceShader extends CpuFragmentShader
   Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c)
   const CausticSurfaceShader()
 
+final class ClusterSpan
+  String toString()
+  bool operator ==(Object other)
+  const ClusterSpan({required this.offset, required this.count})
+  final double count
+  final double offset
+  int get hashCode
+
 final class CompositeShader extends CpuFragmentShader
   Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c)
   const CompositeShader()
@@ -49,6 +67,14 @@ final class ContactShadowResolveShader extends CpuFragmentShader
 final class ContactShadowShader extends CpuFragmentShader
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
   const ContactShadowShader()
+
+final class ContributorLightSample
+  String toString()
+  bool operator ==(Object other)
+  const ContributorLightSample({required this.toLight, required this.radiance})
+  final Vector3 radiance
+  final Vector3 toLight
+  int get hashCode
 
 abstract final class CpuMeshLayout
   static const int color = 12
@@ -141,6 +167,15 @@ final class LuminanceShader extends CpuFragmentShader
   Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c)
   const LuminanceShader()
 
+final class MappedUv
+  String toString()
+  bool operator ==(Object other)
+  const MappedUv({required this.u, required this.v, required this.footprint})
+  final UvFootprint footprint
+  final double u
+  final double v
+  int get hashCode
+
 final class MeshInstancedVertexShader extends CpuVertexShaderByIndex
   Vector4 run(Float32List a, ShaderBindings bindings, Float32List out)
   Vector4 runAt(int vertexIndex, int instanceIndex, Float32List a, ShaderBindings bindings, Float32List out)
@@ -174,6 +209,14 @@ final class MotionBlurShader extends CpuFragmentShader
 final class MrtProbeShader extends CpuFragmentShader
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
   const MrtProbeShader()
+
+final class NoiseTileCell
+  String toString()
+  bool operator ==(Object other)
+  const NoiseTileCell({required this.column, required this.row})
+  final double column
+  final double row
+  int get hashCode
 
 final class NormalsShader extends CpuFragmentShader
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
@@ -225,6 +268,14 @@ final class PbrShader extends CpuFragmentShader
   static Vector3 eonLobe(Vector3 rho, double r, double muI, double muO, double lDotV)
   static const double minGgxRoughness = 0.045
   static double sheenLobe(double roughness, Surface s, LightSample light)
+
+final class PixelRay
+  String toString()
+  bool operator ==(Object other)
+  const PixelRay({required this.origin, required this.along})
+  final Vector3 along
+  final Vector3 origin
+  int get hashCode
 
 final class PlanarReflectionShader extends CpuFragmentShader
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
@@ -409,6 +460,14 @@ final class ViewportShadeShader extends CpuFragmentShader
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
   const ViewportShadeShader()
 
+final class VogelTap
+  String toString()
+  bool operator ==(Object other)
+  const VogelTap({required this.x, required this.y})
+  final double x
+  final double y
+  int get hashCode
+
 final class VolumetricFogShader extends CpuFragmentShader
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
   const VolumetricFogShader()
@@ -447,19 +506,19 @@ double attenuation(double distance, double range)
 
 double bayerCell(double x, double y)
 
-({BoundTexture source, double tx, double ty, Vector4 params})? bloomSource(ShaderBindings b)
+BloomSource? bloomSource(ShaderBindings b)
 
 double blueNoise(ShaderBindings b, double x, double y)
 
 Map<String, CpuStage> builtinCpuShaders()
 
-({double offset, double count}) clusterAt(ShaderBindings bindings, Vector3 world)
+ClusterSpan clusterAt(ShaderBindings bindings, Vector3 world)
 
 int clusterRow(ShaderBindings bindings, Vector3 world, int slot)
 
 bool clustered(ShaderBindings bindings)
 
-({Vector3 toLight, Vector3 radiance}) contributorLight(ShaderBindings bindings, int index, Vector3 world)
+ContributorLightSample contributorLight(ShaderBindings bindings, int index, Vector3 world)
 
 int contributorLightCount(ShaderBindings bindings, Vector3 world)
 
@@ -491,7 +550,7 @@ double lightListScale(ShaderBindings bindings, int slot)
 
 Vector4 lightListTexel(ShaderBindings bindings, int row, int column)
 
-({double u, double v, UvFootprint footprint}) mapUv(int slot, Float32List v, ShaderBindings b, FragmentContext c, {bool transformed = false})
+MappedUv mapUv(int slot, Float32List v, ShaderBindings b, FragmentContext c, {bool transformed = false})
 
 double materialLodBias(ShaderBindings b)
 
@@ -501,7 +560,7 @@ bool orthographic(ShaderBindings b)
 
 double pixelNoise(ShaderBindings b, double x, double y)
 
-({Vector3 origin, Vector3 along}) pixelRay(Matrix4 inverse, double u, double v)
+PixelRay pixelRay(Matrix4 inverse, double u, double v)
 
 double pointShadowFactor(ShaderBindings b, Vector3 world, Vector3 normal, int lightIndex, FragmentContext c)
 
@@ -533,7 +592,7 @@ double smoothstep(double edge0, double edge1, double x)
 
 double softParticleFade(ShaderBindings b, FragmentContext c, double x, double y, double z)
 
-(double, double) splatNoiseOffset(double identity)
+NoiseTileCell splatNoiseOffset(double identity)
 
 const List<List<double>> ssaoKernel = …
 
@@ -563,7 +622,7 @@ UvFootprint uvFootprint(FragmentContext c, {double bias = 0.0})
 
 double viewDepth(Float32List v, ShaderBindings b)
 
-(double, double) vogelDisc(int i, int n, double turn)
+VogelTap vogelDisc(int i, int n, double turn)
 
 double weightedBlendedWeight(double alpha, Float32List v, ShaderBindings b)
 
@@ -601,7 +660,7 @@ final class CpuComputeBindings
   final Map<String, Map<String, Float32List>> blocks
 
 abstract base class CpuComputeShader
-  abstract (int, int, int) get workgroupSize
+  abstract WorkgroupSize get workgroupSize
   abstract void runWorkgroup((int, int, int) group, CpuComputeBindings bindings)
   const CpuComputeShader()
 
@@ -788,7 +847,16 @@ Registration registerCpuBackend(DeviceRegistry registry, {CpuMaterialCompiler? m
 
 library package:flutter3d_cpu/testing.dart
 
-({CpuDevice device, TextureHandle albedo, TextureHandle normal}) cpuTestDevice({int width = 96, int height = 72})
+final class CpuTestKit
+  String toString()
+  bool operator ==(Object other)
+  const CpuTestKit({required this.device, required this.albedo, required this.normal})
+  final CpuDevice device
+  final TextureHandle albedo
+  final TextureHandle normal
+  int get hashCode
+
+CpuTestKit cpuTestDevice({int width = 96, int height = 72})
 
 const CpuStage cpuUnlitStage = CpuStage.fragment(UnlitShader())
 

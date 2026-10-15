@@ -28,7 +28,7 @@ final class _LoggedPart extends Component with FixedStepUpdate {
   void fixedUpdate(double step) => log.add('component');
 }
 
-final class _Follower implements StepFollower {
+final class _Follower with StepFollower {
   _Follower(this.log);
 
   final List<String> log;

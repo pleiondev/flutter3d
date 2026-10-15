@@ -102,7 +102,7 @@ const RenderSettings _everything = RenderSettings(
   planarReflections: PlanarReflectionSettings(enabled: true),
 );
 
-typedef _Stage = ({Renderer renderer, Scene scene, List<RenderView> views});
+typedef _Stage = ({Renderer renderer, Scene scene, List<CameraView> views});
 
 /// The scene the fixture was written against, object for object: something
 /// for every step to do, a reflection probe among it.
@@ -177,12 +177,12 @@ _Stage _stage() {
     ..add(camera)
     ..irradianceField = field;
   scene.addTextureView(
-    RenderView.texture(device, camera: camera, width: 8, height: 8),
+    CameraView.texture(device, camera: camera, width: 8, height: 8),
   );
   return (
     renderer: Renderer.create(device: device),
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
   );
 }
 

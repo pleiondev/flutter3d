@@ -253,7 +253,7 @@ void main() {
     late FakeBackend device;
     late Renderer renderer;
     late Scene scene;
-    late RenderView view;
+    late CameraView view;
 
     setUp(() {
       device = FakeBackend();
@@ -266,14 +266,14 @@ void main() {
           )..setPosition(0.0, 0.0, -5.0),
         )
         ..add(CameraNode());
-      view = RenderView(camera: scene.cameras.single);
+      view = CameraView(camera: scene.cameras.single);
     });
 
     FrameResult frame(RenderSettings settings) => renderer.render(
       width: 64,
       height: 48,
       scene: scene,
-      views: <RenderView>[view],
+      views: <CameraView>[view],
       settings: settings,
     );
 

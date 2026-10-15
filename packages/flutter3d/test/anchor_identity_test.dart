@@ -99,8 +99,8 @@ Future<({List<int> pixels, FrameResult result})> _frame(
     width: _size,
     height: _size,
     scene: scene,
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: scene.cameras.single,
         clearColor: LinearColor.fromSrgb(0.05, 0.05, 0.08, 1.0),
       ),
@@ -136,7 +136,7 @@ FrameResult _recorded({List<RenderNode> nodes = const <RenderNode>[]}) {
     width: _size,
     height: _size,
     scene: scene,
-    views: <RenderView>[RenderView(camera: scene.cameras.single)],
+    views: <CameraView>[CameraView(camera: scene.cameras.single)],
     settings: const RenderSettings(),
   );
 }

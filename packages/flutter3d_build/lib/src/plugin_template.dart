@@ -293,7 +293,7 @@ analyzer:
 # transcendentals. An analysis server plugin, resolved by the analysis server
 # on its own, so it is not a dependency of this package.
 plugins:
-  flutter3d_lints: ^1.0.0-rc.1
+  flutter3d_lints: ^0.9.0
 ''';
 
 const String _readme = '''
@@ -2202,7 +2202,7 @@ void main() {
       width: 32,
       height: 24,
       scene: scene,
-      views: <RenderView>[RenderView(camera: camera)],
+      views: <CameraView>[CameraView(camera: camera)],
     );
 
     final first = frame();

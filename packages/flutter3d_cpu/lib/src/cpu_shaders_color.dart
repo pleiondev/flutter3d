@@ -145,7 +145,7 @@ Vector3 worldAtDepth(
   double v,
   double depth,
 ) {
-  final (:origin, :along) = pixelRay(inverse, u, v);
+  final PixelRay(:origin, :along) = pixelRay(inverse, u, v);
   return origin +
       along * ((depth - (origin - eye).dot(axis)) / along.dot(axis));
 }
@@ -156,23 +156,41 @@ Vector3 worldAtDepth(
 /// whole of what makes an orthographic camera work here — see [worldAtDepth].
 /// The direction is also the direction the pixel *looks*, which is what a
 /// reflection reflects about.
-({Vector3 origin, Vector3 along}) pixelRay(
-  Matrix4 inverse,
-  double u,
-  double v,
-) {
+PixelRay pixelRay(Matrix4 inverse, double u, double v) {
   final x = u * 2.0 - 1.0;
   final y = 1.0 - v * 2.0;
   final Vector4 nearH = inverse * Vector4(x, y, 0.0, 1.0);
   final Vector4 farH = inverse * Vector4(x, y, 1.0, 1.0);
   final origin = Vector3(nearH.x, nearH.y, nearH.z)..scale(1.0 / nearH.w);
-  return (
+  return PixelRay(
     origin: origin,
     along: Vector3(farH.x, farH.y, farH.z)
       ..scale(1.0 / farH.w)
       ..sub(origin)
       ..normalize(),
   );
+}
+
+/// The ray through one pixel, as [pixelRay] answers it.
+final class PixelRay {
+  /// A ray from [origin] going [along].
+  const PixelRay({required this.origin, required this.along});
+
+  /// Where the ray starts, on the near plane, in world space.
+  final Vector3 origin;
+
+  /// Which way it goes, a unit vector in world space.
+  final Vector3 along;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PixelRay && other.origin == origin && other.along == along;
+
+  @override
+  int get hashCode => Object.hash(origin, along);
+
+  @override
+  String toString() => 'PixelRay(origin: $origin, along: $along)';
 }
 
 /// `WriteSurfaceGeometry`: the octahedral normal, the roughness, the depth.

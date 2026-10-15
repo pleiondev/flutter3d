@@ -1,6 +1,6 @@
 name: flutter3d_sim_mcp
 description: "A level of any game an agent can play blind, and why a frame of it is wrong: a debug view of normals and depth, the HDR value of one pixel, the passes the frame graph ran."
-version: 1.0.0-rc.1
+version: 1.0.0-rc.1+1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues

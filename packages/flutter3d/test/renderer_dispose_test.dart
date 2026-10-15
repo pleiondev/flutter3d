@@ -56,7 +56,7 @@ void main() {
       width: 32,
       height: 32,
       scene: scene,
-      views: <RenderView>[RenderView(camera: camera)],
+      views: <CameraView>[CameraView(camera: camera)],
     );
     expect(
       renderer.pipelineCount,
@@ -93,7 +93,7 @@ void main() {
         width: 32,
         height: 32,
         scene: scene,
-        views: <RenderView>[RenderView(camera: scene.cameras.single)],
+        views: <CameraView>[CameraView(camera: scene.cameras.single)],
       );
       device.finishOldestFrame();
     }
@@ -101,7 +101,7 @@ void main() {
       width: 32,
       height: 32,
       scene: scene,
-      views: <RenderView>[RenderView(camera: scene.cameras.single)],
+      views: <CameraView>[CameraView(camera: scene.cameras.single)],
     );
 
     renderer.dispose();
@@ -140,7 +140,7 @@ void main() {
       width: 32,
       height: 32,
       scene: drawn.scene,
-      views: <RenderView>[RenderView(camera: drawn.camera)],
+      views: <CameraView>[CameraView(camera: drawn.camera)],
     );
     expect(_livePipelines(device), greaterThan(0));
 
@@ -160,7 +160,7 @@ void main() {
       width: 32,
       height: 32,
       scene: drawn.scene,
-      views: <RenderView>[RenderView(camera: drawn.camera)],
+      views: <CameraView>[CameraView(camera: drawn.camera)],
     );
     for (var i = 0; i < 4; i++) {
       frame();

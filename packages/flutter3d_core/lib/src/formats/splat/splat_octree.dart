@@ -374,7 +374,7 @@ SplatCloud mergeSplats(
       ..[6] = xz
       ..[7] = yz
       ..[8] = zz;
-    final (values, vectors) = symmetricEigen3(sigma);
+    final SymmetricEigen(:values, :vectors) = symmetricEigen3(sigma);
 
     centers[k * 3] = mx + center.x;
     centers[k * 3 + 1] = my + center.y;
@@ -426,7 +426,7 @@ SplatCloud mergeSplats(
 /// Jacobi rather than a closed form because a covariance is often nearly
 /// degenerate (a flat splat, a line of them), which is exactly where the
 /// cubic's closed form loses its digits and the rotations do not.
-(Float64List, Float64List) symmetricEigen3(Float64List m) {
+SymmetricEigen symmetricEigen3(Float64List m) {
   final a = Float64List.fromList(m);
   final v = Float64List(9)
     ..[0] = 1
@@ -480,7 +480,43 @@ SplatCloud mergeSplats(
       vectors[6 + row] = -vectors[6 + row];
     }
   }
-  return (values, vectors);
+  return SymmetricEigen(values: values, vectors: vectors);
+}
+
+/// The eigenvalues and eigenvectors of a symmetric 3×3 matrix: what
+/// [symmetricEigen3] answers.
+final class SymmetricEigen {
+  /// The decomposition into [values] and [vectors].
+  const SymmetricEigen({required this.values, required this.vectors});
+
+  /// The three eigenvalues, in the matrix's own unit, in the order of the
+  /// columns of [vectors].
+  final Float64List values;
+
+  /// The unit eigenvectors, as the columns of a column-major 3×3 whose
+  /// determinant is +1: nine numbers, in no unit.
+  final Float64List vectors;
+
+  @override
+  bool operator ==(Object other) =>
+      other is SymmetricEigen &&
+      _sameDoubles(other.values, values) &&
+      _sameDoubles(other.vectors, vectors);
+
+  @override
+  int get hashCode =>
+      Object.hash(Object.hashAll(values), Object.hashAll(vectors));
+
+  @override
+  String toString() => 'SymmetricEigen($values, $vectors)';
+}
+
+bool _sameDoubles(Float64List a, Float64List b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
 }
 
 // --- The file ------------------------------------------------------------

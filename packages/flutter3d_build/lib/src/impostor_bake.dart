@@ -185,8 +185,8 @@ Future<ModelDocument> bakeImpostors(
                 width: cell,
                 height: cell,
                 scene: scene,
-                views: <RenderView>[
-                  RenderView(camera: camera, clearColor: clear),
+                views: <CameraView>[
+                  CameraView(camera: camera, clearColor: clear),
                 ],
                 settings: settings,
               );

@@ -154,7 +154,7 @@ import 'package:flutter3d_hardware/testing.dart';
 
 final device = FakeBackend();
 final renderer = Renderer.create(device: device);
-renderer.render(width: 64, height: 64, scene: scene, views: [RenderView(camera: camera)]);
+renderer.render(width: 64, height: 64, scene: scene, views: [CameraView(camera: camera)]);
 
 final pass = device.passes.last;
 expect(pass.recordedOf<RecordedDraw>(), hasLength(3));

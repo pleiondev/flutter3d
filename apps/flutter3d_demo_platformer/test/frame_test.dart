@@ -245,7 +245,7 @@ final class _Shown {
       width: _width,
       height: _height,
       scene: scene,
-      views: <RenderView>[RenderView(camera: camera)],
+      views: <CameraView>[CameraView(camera: camera)],
       settings: const RenderSettings(),
     );
     final pixels = await device.readback(result.frame);
@@ -276,7 +276,7 @@ final class _Shown {
       width: _width,
       height: _height,
       scene: scene,
-      views: <RenderView>[RenderView(camera: camera)],
+      views: <CameraView>[CameraView(camera: camera)],
       settings: RenderSettings(shadows: ShadowSettings(enabled: !shadows)),
     );
     final pixels = await device.readback(result.frame);
@@ -301,7 +301,7 @@ final class _Shown {
       width: _width,
       height: _height,
       scene: scene,
-      views: <RenderView>[RenderView(camera: camera)],
+      views: <CameraView>[CameraView(camera: camera)],
       settings: const RenderSettings(),
     );
     final pixels = await device.readback(result.frame);

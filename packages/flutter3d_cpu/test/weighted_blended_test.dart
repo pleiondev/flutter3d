@@ -103,7 +103,7 @@ Float32List _render({
     width: _size,
     height: _size,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera, transparentSort: sort)],
+    views: <CameraView>[CameraView(camera: camera, transparentSort: sort)],
     settings: RenderSettings(
       bloom: const BloomSettings(enabled: false),
       transparency: mode,

@@ -127,8 +127,8 @@ Future<({Uint8List pixels, List<String> passes})> _frame(
     width: _width,
     height: _height,
     scene: stage.scene,
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: stage.scene.cameras.single,
         clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),

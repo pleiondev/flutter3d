@@ -36,12 +36,12 @@ final class CubeLut {
     String? title;
     int? size3;
     int? size1;
-    var domainMin = (0.0, 0.0, 0.0);
-    var domainMax = (1.0, 1.0, 1.0);
+    var domainMin = const RgbTriple(r: 0.0, g: 0.0, b: 0.0);
+    var domainMax = const RgbTriple(r: 1.0, g: 1.0, b: 1.0);
     final values = <double>[];
     final lines = text.split(RegExp(r'\r\n|\r|\n'));
 
-    (double, double, double) triple(List<String> words, int line) {
+    RgbTriple triple(List<String> words, int line) {
       if (words.length != 3) {
         throw CubeLutFormatException('line $line: expected three numbers');
       }
@@ -52,7 +52,7 @@ final class CubeLut {
           'numbers',
         );
       }
-      return (parsed[0]!, parsed[1]!, parsed[2]!);
+      return RgbTriple(r: parsed[0]!, g: parsed[1]!, b: parsed[2]!);
     }
 
     for (var i = 0; i < lines.length; i++) {
@@ -90,10 +90,10 @@ final class CubeLut {
               'line $line: an input range is two numbers',
             );
           }
-          domainMin = (range[0]!, range[0]!, range[0]!);
-          domainMax = (range[1]!, range[1]!, range[1]!);
+          domainMin = RgbTriple(r: range[0]!, g: range[0]!, b: range[0]!);
+          domainMax = RgbTriple(r: range[1]!, g: range[1]!, b: range[1]!);
         default:
-          final (r, g, b) = triple(words, line);
+          final RgbTriple(:r, :g, :b) = triple(words, line);
           values
             ..add(r)
             ..add(g)
@@ -116,9 +116,9 @@ final class CubeLut {
         '${values.length ~/ 3}',
       );
     }
-    if (domainMax.$1 <= domainMin.$1 ||
-        domainMax.$2 <= domainMin.$2 ||
-        domainMax.$3 <= domainMin.$3) {
+    if (domainMax.r <= domainMin.r ||
+        domainMax.g <= domainMin.g ||
+        domainMax.b <= domainMin.b) {
       throw const CubeLutFormatException('DOMAIN_MAX must be above DOMAIN_MIN');
     }
     return CubeLut._(
@@ -140,21 +140,23 @@ final class CubeLut {
   /// Whether this is three curves rather than a cube.
   final bool isOneD;
 
-  /// The input the first and last entries stand for, per channel.
-  final (double, double, double) domainMin;
-  final (double, double, double) domainMax;
+  /// The input the first entries stand for, per channel.
+  final RgbTriple domainMin;
+
+  /// The input the last entries stand for, per channel.
+  final RgbTriple domainMax;
 
   final Float32List _values;
 
   /// What the table makes of ([r], [g], [b]): trilinear between the eight
   /// nearest entries of a 3D table, linear along each curve of a 1D one.
   /// Inputs outside the domain are held to its edge.
-  (double, double, double) lookup(double r, double g, double b) {
+  RgbTriple lookup(double r, double g, double b) {
     double at(double value, double min, double max) =>
         ((value - min) / (max - min)).clamp(0.0, 1.0) * (size - 1);
-    final x = at(r, domainMin.$1, domainMax.$1);
-    final y = at(g, domainMin.$2, domainMax.$2);
-    final z = at(b, domainMin.$3, domainMax.$3);
+    final x = at(r, domainMin.r, domainMax.r);
+    final y = at(g, domainMin.g, domainMax.g);
+    final z = at(b, domainMin.b, domainMax.b);
     if (isOneD) {
       double curve(double position, int channel) {
         final lower = position.floor();
@@ -164,7 +166,7 @@ final class CubeLut {
         return a + (_values[upper * 3 + channel] - a) * t;
       }
 
-      return (curve(x, 0), curve(y, 1), curve(z, 2));
+      return RgbTriple(r: curve(x, 0), g: curve(y, 1), b: curve(z, 2));
     }
     final x0 = x.floor();
     final y0 = y.floor();
@@ -184,7 +186,7 @@ final class CubeLut {
       return across(z0) + (across(z1) - across(z0)) * tz;
     }
 
-    return (channel(0), channel(1), channel(2));
+    return RgbTriple(r: channel(0), g: channel(1), b: channel(2));
   }
 
   /// [toStrip] uploaded through [device], ready for `LookSettings.lut`; null
@@ -225,10 +227,10 @@ final class CubeLut {
     for (var blue = 0; blue < n; blue++) {
       for (var green = 0; green < n; green++) {
         for (var red = 0; red < n; red++) {
-          final (r, g, b) = lookup(
-            input(red, domainMin.$1, domainMax.$1),
-            input(green, domainMin.$2, domainMax.$2),
-            input(blue, domainMin.$3, domainMax.$3),
+          final RgbTriple(:r, :g, :b) = lookup(
+            input(red, domainMin.r, domainMax.r),
+            input(green, domainMin.g, domainMax.g),
+            input(blue, domainMin.b, domainMax.b),
           );
           final at = ((green * width) + blue * n + red) * 4;
           pixels[at] = byte(r);
@@ -240,4 +242,31 @@ final class CubeLut {
     }
     return pixels;
   }
+}
+
+/// Three channels of a colour, red, green and blue, as a colour table or a
+/// colour transform reads and answers them. Whether they are linear or
+/// sRGB encoded is the answering member's to say.
+final class RgbTriple {
+  /// The channels [r], [g] and [b].
+  const RgbTriple({required this.r, required this.g, required this.b});
+
+  /// Red, in no unit: nought to one for a colour a display shows.
+  final double r;
+
+  /// Green, in no unit: nought to one for a colour a display shows.
+  final double g;
+
+  /// Blue, in no unit: nought to one for a colour a display shows.
+  final double b;
+
+  @override
+  bool operator ==(Object other) =>
+      other is RgbTriple && other.r == r && other.g == g && other.b == b;
+
+  @override
+  int get hashCode => Object.hash(r, g, b);
+
+  @override
+  String toString() => 'RgbTriple($r, $g, $b)';
 }

@@ -110,7 +110,7 @@ void main() {
         width: _width,
         height: _height,
         scene: scene,
-        views: <RenderView>[RenderView(camera: camera)],
+        views: <CameraView>[CameraView(camera: camera)],
         // Exact colours matter here — this test reads them back to find a
         // ribbon's own edges — and tonemapping exists to make a picture look
         // right, not to preserve the byte a caller asked for.

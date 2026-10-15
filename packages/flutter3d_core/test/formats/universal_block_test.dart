@@ -120,7 +120,12 @@ void main() {
       for (var i = 0; i < 16; i++) {
         final at = ((y0 + i ~/ 4) * source.width + x0 + i % 4) * 4;
         expect(
-          (bytes[at], bytes[at + 1], bytes[at + 2], bytes[at + 3]),
+          Rgba8Texel(
+            r: bytes[at],
+            g: bytes[at + 1],
+            b: bytes[at + 2],
+            a: bytes[at + 3],
+          ),
           texels[i],
           reason: 'block $block texel $i',
         );

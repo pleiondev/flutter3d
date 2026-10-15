@@ -3219,8 +3219,8 @@ final class TemporalClip {
   final int axisCount;
 
   /// The slabs' axes, in weighted YCoCg; empty for the box.
-  List<(double, double, double)> get axes => switch (this) {
-    aabb => const <(double, double, double)>[],
+  List<ClipAxis> get axes => switch (this) {
+    aabb => const <ClipAxis>[],
     kdop8 => kdop8Axes,
     kdop16 => kdop16Axes,
     kdop32 => kdop32Axes,
@@ -3229,6 +3229,32 @@ final class TemporalClip {
 
   @override
   String toString() => 'TemporalClip.$name';
+}
+
+/// One axis of a [TemporalClip]'s slabs: a unit direction in the weighted
+/// YCoCg colour space the temporal resolve clips in.
+final class ClipAxis {
+  /// The direction ([x], [y], [z]).
+  const ClipAxis({required this.x, required this.y, required this.z});
+
+  /// The luma component, in no unit.
+  final double x;
+
+  /// The orange-blue chroma component, in no unit.
+  final double y;
+
+  /// The green-purple chroma component, in no unit.
+  final double z;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ClipAxis && other.x == x && other.y == y && other.z == z;
+
+  @override
+  int get hashCode => Object.hash(x, y, z);
+
+  @override
+  String toString() => 'ClipAxis($x, $y, $z)';
 }
 
 /// The colour table that changes nothing, [size] slices wide — `gfx-18n`.

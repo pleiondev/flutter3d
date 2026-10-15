@@ -761,7 +761,7 @@ final class BoundTexture {
     // reads each texel's centre through a coordinate interpolated in single
     // precision, a few hundred-thousandths of a texel off, and which way off
     // depends on the size of the target. A tile of a photo
-    // (`RenderViewSettings.window`) then composited the same light to a
+    // (`CameraViewSettings.window`) then composited the same light to a
     // different last bit than the photo drawn whole, at edges where the
     // neighbour is bright. Snapped as the hardware rounds, the centre is
     // the centre at any size.

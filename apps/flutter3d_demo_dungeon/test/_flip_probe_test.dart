@@ -56,7 +56,7 @@ void main() {
       width: 64,
       height: 64,
       scene: scene,
-      views: <RenderView>[RenderView(camera: camera)],
+      views: <CameraView>[CameraView(camera: camera)],
       settings: const RenderSettings(),
     );
     final readback = await device.readback(result.frame);

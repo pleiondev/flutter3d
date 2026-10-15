@@ -16714,7 +16714,7 @@ layout(std140) uniform LayerInfo {
   /// levels the copy has, its base included, and nought outside the pass
   /// that draws them, where the environment stands in as it always did. y,
   /// z: one over the copy's width and height in texels. w: unused.
-  vec4 scene_colour;
+  vec4 scene_color;
 
   /// Where this view sits in the copy's base level, in its texture
   /// coordinates: xy the corner, zw the size.
@@ -16722,7 +16722,7 @@ layout(std140) uniform LayerInfo {
 
   /// Each level's rectangle in the copy, in its texture coordinates: xy the
   /// corner, zw the size. The levels share one texture side by side — see
-  /// `SceneColourChain`.
+  /// `SceneColorChain`.
   vec4 scene_levels[6];
 
   /// The view-projection the draw was made with, turned to the rows of the
@@ -16756,7 +16756,7 @@ uniform sampler2D sheen_texture;
 /// The scene as it stood before the transmissive draws, every level of it in
 /// one texture — `M3`. Black, and never read, outside the pass that draws
 /// them. The stage's sixteenth sampler, and the last WebGL2 promises.
-uniform sampler2D scene_colour_texture;
+uniform sampler2D scene_color_texture;
 
 /// The layers at this fragment, resolved once by [ReadLayers] and read by
 /// every light: the dielectric's reflectance head-on and at grazing, and the
@@ -17110,33 +17110,33 @@ vec3 TransmittedRadiance(Surface s, float levels) {
 }
 
 /// Whether this draw has the copy of the scene to read — `M3`.
-bool SceneColourBound() { return layer_info.scene_colour.x > 0.0; }
+bool SceneColorBound() { return layer_info.scene_color.x > 0.0; }
 
 /// Level [level] of the copy at [uv], a coordinate of the picture as a whole.
 /// Held half a texel inside the level's rectangle, so a bilinear tap never
 /// reaches the level beside it in the same texture.
-vec3 SceneColourLevel(vec2 uv, int level) {
+vec3 SceneColorLevel(vec2 uv, int level) {
   vec4 rect = layer_info.scene_levels[level];
-  vec2 inset = 0.5 * layer_info.scene_colour.yz;
+  vec2 inset = 0.5 * layer_info.scene_color.yz;
   vec2 at = rect.xy + clamp(uv * rect.zw, inset, max(rect.zw - inset, inset));
-  return textureLod(scene_colour_texture, at, 0.0).rgb;
+  return textureLod(scene_color_texture, at, 0.0).rgb;
 }
 
 /// The copy where [world] lands on the screen, blurred to level [lod] and
 /// blended between the two levels either side of it, as a trilinear sampler
 /// would. Held inside this view, so a ray bent past its edge reads the edge
 /// rather than the view beside it.
-vec3 SceneColourAt(vec3 world, float lod) {
+vec3 SceneColorAt(vec3 world, float lod) {
   vec4 clip = layer_info.scene_view_projection * vec4(world, 1.0);
   vec2 ndc = clip.xy / max(clip.w, 1e-6);
   vec2 view = clamp(vec2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5), vec2(0.0),
                     vec2(1.0));
   vec2 uv = layer_info.scene_viewport.xy + view * layer_info.scene_viewport.zw;
-  float top = layer_info.scene_colour.x - 1.0;
+  float top = layer_info.scene_color.x - 1.0;
   float level = clamp(lod, 0.0, top);
   float lower = floor(level);
-  vec3 near = SceneColourLevel(uv, int(lower));
-  vec3 far = SceneColourLevel(uv, int(min(lower + 1.0, top)));
+  vec3 near = SceneColorLevel(uv, int(lower));
+  vec3 far = SceneColorLevel(uv, int(min(lower + 1.0, top)));
   return mix(near, far, level - lower);
 }
 
@@ -17153,7 +17153,7 @@ vec3 SceneColourAt(vec3 world, float lod) {
 /// single texel. Scaled by the chain instead, a 0.5-rough glass at an index
 /// of 1.5 read level 2.5 where it should read 5, a blur of about six texels
 /// against thirty-two, and frosted glass looked nearly clear. The chain
-/// still ends at `SceneColourChain.maxLevels`, where [SceneColourAt] clamps,
+/// still ends at `SceneColorChain.maxLevels`, where [SceneColorAt] clamps,
 /// so at a thousand texels wide anything rougher than about half reads its
 /// last level.
 ///
@@ -17169,16 +17169,16 @@ vec3 SceneBehind(Surface s) {
   float ior = RefractionIor();
   float spread = DispersionSpread(ior);
   float width =
-      layer_info.scene_levels[0].z / max(layer_info.scene_colour.y, 1e-9);
+      layer_info.scene_levels[0].z / max(layer_info.scene_color.y, 1e-9);
   float lod = log2(max(width, 1.0)) * s.roughness *
               clamp(ior * 2.0 - 2.0, 0.0, 1.0);
   bool thin = g_thickness <= 0.0;
   vec3 red = thin ? -s.v : refract(-s.v, s.n, 1.0 / max(ior - spread, 1.0));
   vec3 green = thin ? -s.v : refract(-s.v, s.n, 1.0 / ior);
   vec3 blue = thin ? -s.v : refract(-s.v, s.n, 1.0 / (ior + spread));
-  return vec3(SceneColourAt(v_world_position + red * g_thickness, lod).r,
-              SceneColourAt(v_world_position + green * g_thickness, lod).g,
-              SceneColourAt(v_world_position + blue * g_thickness, lod).b);
+  return vec3(SceneColorAt(v_world_position + red * g_thickness, lod).r,
+              SceneColorAt(v_world_position + green * g_thickness, lod).g,
+              SceneColorAt(v_world_position + blue * g_thickness, lod).b);
 }
 
 /// Neubelt and Pettineo's visibility for cloth.
@@ -17412,7 +17412,7 @@ void main() {
   // there to be read, when that share is the scene instead (below).
   g_pane = g_premultiply && g_transmission > 0.0 && g_thickness <= 0.0;
   ambient *= mix(vec3(1.0),
-                 SceneColourBound() || g_pane ? vec3(0.0) : g_transmittance,
+                 SceneColorBound() || g_pane ? vec3(0.0) : g_transmittance,
                  g_transmission);
 #endif
 
@@ -17494,7 +17494,7 @@ void main() {
     // and the scene's added below.
     vec3 reflects =
         mix(g_f0_dielectric, g_irid_fresnel, g_iridescence) * ab.x + g_f90 * ab.y;
-    vec3 through = SceneColourBound() || g_pane
+    vec3 through = SceneColorBound() || g_pane
                        ? vec3(0.0)
                        : TransmittedRadiance(s, levels) * g_transmittance *
                              (vec3(1.0) - min(reflects, vec3(1.0)));
@@ -17530,7 +17530,7 @@ void main() {
     // One alpha for the three colours: a pane's tint is kept as its mean,
     // which is what clear and faintly tinted glass needs.
     g_pass_through = clamp((passes.r + passes.g + passes.b) / 3.0, 0.0, 1.0);
-  } else if (SceneColourBound()) {
+  } else if (SceneColorBound()) {
     ambient += SceneBehind(s) * passes;
   }
 #endif
@@ -20575,7 +20575,7 @@ layout(std140) uniform LayerInfo {
   /// levels the copy has, its base included, and nought outside the pass
   /// that draws them, where the environment stands in as it always did. y,
   /// z: one over the copy's width and height in texels. w: unused.
-  vec4 scene_colour;
+  vec4 scene_color;
 
   /// Where this view sits in the copy's base level, in its texture
   /// coordinates: xy the corner, zw the size.
@@ -20583,7 +20583,7 @@ layout(std140) uniform LayerInfo {
 
   /// Each level's rectangle in the copy, in its texture coordinates: xy the
   /// corner, zw the size. The levels share one texture side by side — see
-  /// `SceneColourChain`.
+  /// `SceneColorChain`.
   vec4 scene_levels[6];
 
   /// The view-projection the draw was made with, turned to the rows of the
@@ -20617,7 +20617,7 @@ uniform sampler2D sheen_texture;
 /// The scene as it stood before the transmissive draws, every level of it in
 /// one texture — `M3`. Black, and never read, outside the pass that draws
 /// them. The stage's sixteenth sampler, and the last WebGL2 promises.
-uniform sampler2D scene_colour_texture;
+uniform sampler2D scene_color_texture;
 
 /// The layers at this fragment, resolved once by [ReadLayers] and read by
 /// every light: the dielectric's reflectance head-on and at grazing, and the
@@ -20971,33 +20971,33 @@ vec3 TransmittedRadiance(Surface s, float levels) {
 }
 
 /// Whether this draw has the copy of the scene to read — `M3`.
-bool SceneColourBound() { return layer_info.scene_colour.x > 0.0; }
+bool SceneColorBound() { return layer_info.scene_color.x > 0.0; }
 
 /// Level [level] of the copy at [uv], a coordinate of the picture as a whole.
 /// Held half a texel inside the level's rectangle, so a bilinear tap never
 /// reaches the level beside it in the same texture.
-vec3 SceneColourLevel(vec2 uv, int level) {
+vec3 SceneColorLevel(vec2 uv, int level) {
   vec4 rect = layer_info.scene_levels[level];
-  vec2 inset = 0.5 * layer_info.scene_colour.yz;
+  vec2 inset = 0.5 * layer_info.scene_color.yz;
   vec2 at = rect.xy + clamp(uv * rect.zw, inset, max(rect.zw - inset, inset));
-  return textureLod(scene_colour_texture, at, 0.0).rgb;
+  return textureLod(scene_color_texture, at, 0.0).rgb;
 }
 
 /// The copy where [world] lands on the screen, blurred to level [lod] and
 /// blended between the two levels either side of it, as a trilinear sampler
 /// would. Held inside this view, so a ray bent past its edge reads the edge
 /// rather than the view beside it.
-vec3 SceneColourAt(vec3 world, float lod) {
+vec3 SceneColorAt(vec3 world, float lod) {
   vec4 clip = layer_info.scene_view_projection * vec4(world, 1.0);
   vec2 ndc = clip.xy / max(clip.w, 1e-6);
   vec2 view = clamp(vec2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5), vec2(0.0),
                     vec2(1.0));
   vec2 uv = layer_info.scene_viewport.xy + view * layer_info.scene_viewport.zw;
-  float top = layer_info.scene_colour.x - 1.0;
+  float top = layer_info.scene_color.x - 1.0;
   float level = clamp(lod, 0.0, top);
   float lower = floor(level);
-  vec3 near = SceneColourLevel(uv, int(lower));
-  vec3 far = SceneColourLevel(uv, int(min(lower + 1.0, top)));
+  vec3 near = SceneColorLevel(uv, int(lower));
+  vec3 far = SceneColorLevel(uv, int(min(lower + 1.0, top)));
   return mix(near, far, level - lower);
 }
 
@@ -21014,7 +21014,7 @@ vec3 SceneColourAt(vec3 world, float lod) {
 /// single texel. Scaled by the chain instead, a 0.5-rough glass at an index
 /// of 1.5 read level 2.5 where it should read 5, a blur of about six texels
 /// against thirty-two, and frosted glass looked nearly clear. The chain
-/// still ends at `SceneColourChain.maxLevels`, where [SceneColourAt] clamps,
+/// still ends at `SceneColorChain.maxLevels`, where [SceneColorAt] clamps,
 /// so at a thousand texels wide anything rougher than about half reads its
 /// last level.
 ///
@@ -21030,16 +21030,16 @@ vec3 SceneBehind(Surface s) {
   float ior = RefractionIor();
   float spread = DispersionSpread(ior);
   float width =
-      layer_info.scene_levels[0].z / max(layer_info.scene_colour.y, 1e-9);
+      layer_info.scene_levels[0].z / max(layer_info.scene_color.y, 1e-9);
   float lod = log2(max(width, 1.0)) * s.roughness *
               clamp(ior * 2.0 - 2.0, 0.0, 1.0);
   bool thin = g_thickness <= 0.0;
   vec3 red = thin ? -s.v : refract(-s.v, s.n, 1.0 / max(ior - spread, 1.0));
   vec3 green = thin ? -s.v : refract(-s.v, s.n, 1.0 / ior);
   vec3 blue = thin ? -s.v : refract(-s.v, s.n, 1.0 / (ior + spread));
-  return vec3(SceneColourAt(v_world_position + red * g_thickness, lod).r,
-              SceneColourAt(v_world_position + green * g_thickness, lod).g,
-              SceneColourAt(v_world_position + blue * g_thickness, lod).b);
+  return vec3(SceneColorAt(v_world_position + red * g_thickness, lod).r,
+              SceneColorAt(v_world_position + green * g_thickness, lod).g,
+              SceneColorAt(v_world_position + blue * g_thickness, lod).b);
 }
 
 /// Neubelt and Pettineo's visibility for cloth.
@@ -21273,7 +21273,7 @@ void main() {
   // there to be read, when that share is the scene instead (below).
   g_pane = g_premultiply && g_transmission > 0.0 && g_thickness <= 0.0;
   ambient *= mix(vec3(1.0),
-                 SceneColourBound() || g_pane ? vec3(0.0) : g_transmittance,
+                 SceneColorBound() || g_pane ? vec3(0.0) : g_transmittance,
                  g_transmission);
 #endif
 
@@ -21355,7 +21355,7 @@ void main() {
     // and the scene's added below.
     vec3 reflects =
         mix(g_f0_dielectric, g_irid_fresnel, g_iridescence) * ab.x + g_f90 * ab.y;
-    vec3 through = SceneColourBound() || g_pane
+    vec3 through = SceneColorBound() || g_pane
                        ? vec3(0.0)
                        : TransmittedRadiance(s, levels) * g_transmittance *
                              (vec3(1.0) - min(reflects, vec3(1.0)));
@@ -21391,7 +21391,7 @@ void main() {
     // One alpha for the three colours: a pane's tint is kept as its mean,
     // which is what clear and faintly tinted glass needs.
     g_pass_through = clamp((passes.r + passes.g + passes.b) / 3.0, 0.0, 1.0);
-  } else if (SceneColourBound()) {
+  } else if (SceneColorBound()) {
     ambient += SceneBehind(s) * passes;
   }
 #endif
@@ -35387,7 +35387,7 @@ layout(std140) uniform LayerInfo {
   /// levels the copy has, its base included, and nought outside the pass
   /// that draws them, where the environment stands in as it always did. y,
   /// z: one over the copy's width and height in texels. w: unused.
-  vec4 scene_colour;
+  vec4 scene_color;
 
   /// Where this view sits in the copy's base level, in its texture
   /// coordinates: xy the corner, zw the size.
@@ -35395,7 +35395,7 @@ layout(std140) uniform LayerInfo {
 
   /// Each level's rectangle in the copy, in its texture coordinates: xy the
   /// corner, zw the size. The levels share one texture side by side — see
-  /// `SceneColourChain`.
+  /// `SceneColorChain`.
   vec4 scene_levels[6];
 
   /// The view-projection the draw was made with, turned to the rows of the
@@ -35429,7 +35429,7 @@ uniform sampler2D sheen_texture;
 /// The scene as it stood before the transmissive draws, every level of it in
 /// one texture — `M3`. Black, and never read, outside the pass that draws
 /// them. The stage's sixteenth sampler, and the last WebGL2 promises.
-uniform sampler2D scene_colour_texture;
+uniform sampler2D scene_color_texture;
 
 /// The layers at this fragment, resolved once by [ReadLayers] and read by
 /// every light: the dielectric's reflectance head-on and at grazing, and the
@@ -35783,33 +35783,33 @@ vec3 TransmittedRadiance(Surface s, float levels) {
 }
 
 /// Whether this draw has the copy of the scene to read — `M3`.
-bool SceneColourBound() { return layer_info.scene_colour.x > 0.0; }
+bool SceneColorBound() { return layer_info.scene_color.x > 0.0; }
 
 /// Level [level] of the copy at [uv], a coordinate of the picture as a whole.
 /// Held half a texel inside the level's rectangle, so a bilinear tap never
 /// reaches the level beside it in the same texture.
-vec3 SceneColourLevel(vec2 uv, int level) {
+vec3 SceneColorLevel(vec2 uv, int level) {
   vec4 rect = layer_info.scene_levels[level];
-  vec2 inset = 0.5 * layer_info.scene_colour.yz;
+  vec2 inset = 0.5 * layer_info.scene_color.yz;
   vec2 at = rect.xy + clamp(uv * rect.zw, inset, max(rect.zw - inset, inset));
-  return textureLod(scene_colour_texture, at, 0.0).rgb;
+  return textureLod(scene_color_texture, at, 0.0).rgb;
 }
 
 /// The copy where [world] lands on the screen, blurred to level [lod] and
 /// blended between the two levels either side of it, as a trilinear sampler
 /// would. Held inside this view, so a ray bent past its edge reads the edge
 /// rather than the view beside it.
-vec3 SceneColourAt(vec3 world, float lod) {
+vec3 SceneColorAt(vec3 world, float lod) {
   vec4 clip = layer_info.scene_view_projection * vec4(world, 1.0);
   vec2 ndc = clip.xy / max(clip.w, 1e-6);
   vec2 view = clamp(vec2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5), vec2(0.0),
                     vec2(1.0));
   vec2 uv = layer_info.scene_viewport.xy + view * layer_info.scene_viewport.zw;
-  float top = layer_info.scene_colour.x - 1.0;
+  float top = layer_info.scene_color.x - 1.0;
   float level = clamp(lod, 0.0, top);
   float lower = floor(level);
-  vec3 near = SceneColourLevel(uv, int(lower));
-  vec3 far = SceneColourLevel(uv, int(min(lower + 1.0, top)));
+  vec3 near = SceneColorLevel(uv, int(lower));
+  vec3 far = SceneColorLevel(uv, int(min(lower + 1.0, top)));
   return mix(near, far, level - lower);
 }
 
@@ -35826,7 +35826,7 @@ vec3 SceneColourAt(vec3 world, float lod) {
 /// single texel. Scaled by the chain instead, a 0.5-rough glass at an index
 /// of 1.5 read level 2.5 where it should read 5, a blur of about six texels
 /// against thirty-two, and frosted glass looked nearly clear. The chain
-/// still ends at `SceneColourChain.maxLevels`, where [SceneColourAt] clamps,
+/// still ends at `SceneColorChain.maxLevels`, where [SceneColorAt] clamps,
 /// so at a thousand texels wide anything rougher than about half reads its
 /// last level.
 ///
@@ -35842,16 +35842,16 @@ vec3 SceneBehind(Surface s) {
   float ior = RefractionIor();
   float spread = DispersionSpread(ior);
   float width =
-      layer_info.scene_levels[0].z / max(layer_info.scene_colour.y, 1e-9);
+      layer_info.scene_levels[0].z / max(layer_info.scene_color.y, 1e-9);
   float lod = log2(max(width, 1.0)) * s.roughness *
               clamp(ior * 2.0 - 2.0, 0.0, 1.0);
   bool thin = g_thickness <= 0.0;
   vec3 red = thin ? -s.v : refract(-s.v, s.n, 1.0 / max(ior - spread, 1.0));
   vec3 green = thin ? -s.v : refract(-s.v, s.n, 1.0 / ior);
   vec3 blue = thin ? -s.v : refract(-s.v, s.n, 1.0 / (ior + spread));
-  return vec3(SceneColourAt(v_world_position + red * g_thickness, lod).r,
-              SceneColourAt(v_world_position + green * g_thickness, lod).g,
-              SceneColourAt(v_world_position + blue * g_thickness, lod).b);
+  return vec3(SceneColorAt(v_world_position + red * g_thickness, lod).r,
+              SceneColorAt(v_world_position + green * g_thickness, lod).g,
+              SceneColorAt(v_world_position + blue * g_thickness, lod).b);
 }
 
 /// Neubelt and Pettineo's visibility for cloth.
@@ -36085,7 +36085,7 @@ void main() {
   // there to be read, when that share is the scene instead (below).
   g_pane = g_premultiply && g_transmission > 0.0 && g_thickness <= 0.0;
   ambient *= mix(vec3(1.0),
-                 SceneColourBound() || g_pane ? vec3(0.0) : g_transmittance,
+                 SceneColorBound() || g_pane ? vec3(0.0) : g_transmittance,
                  g_transmission);
 #endif
 
@@ -36167,7 +36167,7 @@ void main() {
     // and the scene's added below.
     vec3 reflects =
         mix(g_f0_dielectric, g_irid_fresnel, g_iridescence) * ab.x + g_f90 * ab.y;
-    vec3 through = SceneColourBound() || g_pane
+    vec3 through = SceneColorBound() || g_pane
                        ? vec3(0.0)
                        : TransmittedRadiance(s, levels) * g_transmittance *
                              (vec3(1.0) - min(reflects, vec3(1.0)));
@@ -36203,7 +36203,7 @@ void main() {
     // One alpha for the three colours: a pane's tint is kept as its mean,
     // which is what clear and faintly tinted glass needs.
     g_pass_through = clamp((passes.r + passes.g + passes.b) / 3.0, 0.0, 1.0);
-  } else if (SceneColourBound()) {
+  } else if (SceneColorBound()) {
     ambient += SceneBehind(s) * passes;
   }
 #endif
@@ -39245,7 +39245,7 @@ layout(std140) uniform LayerInfo {
   /// levels the copy has, its base included, and nought outside the pass
   /// that draws them, where the environment stands in as it always did. y,
   /// z: one over the copy's width and height in texels. w: unused.
-  vec4 scene_colour;
+  vec4 scene_color;
 
   /// Where this view sits in the copy's base level, in its texture
   /// coordinates: xy the corner, zw the size.
@@ -39253,7 +39253,7 @@ layout(std140) uniform LayerInfo {
 
   /// Each level's rectangle in the copy, in its texture coordinates: xy the
   /// corner, zw the size. The levels share one texture side by side — see
-  /// `SceneColourChain`.
+  /// `SceneColorChain`.
   vec4 scene_levels[6];
 
   /// The view-projection the draw was made with, turned to the rows of the
@@ -39287,7 +39287,7 @@ uniform sampler2D sheen_texture;
 /// The scene as it stood before the transmissive draws, every level of it in
 /// one texture — `M3`. Black, and never read, outside the pass that draws
 /// them. The stage's sixteenth sampler, and the last WebGL2 promises.
-uniform sampler2D scene_colour_texture;
+uniform sampler2D scene_color_texture;
 
 /// The layers at this fragment, resolved once by [ReadLayers] and read by
 /// every light: the dielectric's reflectance head-on and at grazing, and the
@@ -39641,33 +39641,33 @@ vec3 TransmittedRadiance(Surface s, float levels) {
 }
 
 /// Whether this draw has the copy of the scene to read — `M3`.
-bool SceneColourBound() { return layer_info.scene_colour.x > 0.0; }
+bool SceneColorBound() { return layer_info.scene_color.x > 0.0; }
 
 /// Level [level] of the copy at [uv], a coordinate of the picture as a whole.
 /// Held half a texel inside the level's rectangle, so a bilinear tap never
 /// reaches the level beside it in the same texture.
-vec3 SceneColourLevel(vec2 uv, int level) {
+vec3 SceneColorLevel(vec2 uv, int level) {
   vec4 rect = layer_info.scene_levels[level];
-  vec2 inset = 0.5 * layer_info.scene_colour.yz;
+  vec2 inset = 0.5 * layer_info.scene_color.yz;
   vec2 at = rect.xy + clamp(uv * rect.zw, inset, max(rect.zw - inset, inset));
-  return textureLod(scene_colour_texture, at, 0.0).rgb;
+  return textureLod(scene_color_texture, at, 0.0).rgb;
 }
 
 /// The copy where [world] lands on the screen, blurred to level [lod] and
 /// blended between the two levels either side of it, as a trilinear sampler
 /// would. Held inside this view, so a ray bent past its edge reads the edge
 /// rather than the view beside it.
-vec3 SceneColourAt(vec3 world, float lod) {
+vec3 SceneColorAt(vec3 world, float lod) {
   vec4 clip = layer_info.scene_view_projection * vec4(world, 1.0);
   vec2 ndc = clip.xy / max(clip.w, 1e-6);
   vec2 view = clamp(vec2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5), vec2(0.0),
                     vec2(1.0));
   vec2 uv = layer_info.scene_viewport.xy + view * layer_info.scene_viewport.zw;
-  float top = layer_info.scene_colour.x - 1.0;
+  float top = layer_info.scene_color.x - 1.0;
   float level = clamp(lod, 0.0, top);
   float lower = floor(level);
-  vec3 near = SceneColourLevel(uv, int(lower));
-  vec3 far = SceneColourLevel(uv, int(min(lower + 1.0, top)));
+  vec3 near = SceneColorLevel(uv, int(lower));
+  vec3 far = SceneColorLevel(uv, int(min(lower + 1.0, top)));
   return mix(near, far, level - lower);
 }
 
@@ -39684,7 +39684,7 @@ vec3 SceneColourAt(vec3 world, float lod) {
 /// single texel. Scaled by the chain instead, a 0.5-rough glass at an index
 /// of 1.5 read level 2.5 where it should read 5, a blur of about six texels
 /// against thirty-two, and frosted glass looked nearly clear. The chain
-/// still ends at `SceneColourChain.maxLevels`, where [SceneColourAt] clamps,
+/// still ends at `SceneColorChain.maxLevels`, where [SceneColorAt] clamps,
 /// so at a thousand texels wide anything rougher than about half reads its
 /// last level.
 ///
@@ -39700,16 +39700,16 @@ vec3 SceneBehind(Surface s) {
   float ior = RefractionIor();
   float spread = DispersionSpread(ior);
   float width =
-      layer_info.scene_levels[0].z / max(layer_info.scene_colour.y, 1e-9);
+      layer_info.scene_levels[0].z / max(layer_info.scene_color.y, 1e-9);
   float lod = log2(max(width, 1.0)) * s.roughness *
               clamp(ior * 2.0 - 2.0, 0.0, 1.0);
   bool thin = g_thickness <= 0.0;
   vec3 red = thin ? -s.v : refract(-s.v, s.n, 1.0 / max(ior - spread, 1.0));
   vec3 green = thin ? -s.v : refract(-s.v, s.n, 1.0 / ior);
   vec3 blue = thin ? -s.v : refract(-s.v, s.n, 1.0 / (ior + spread));
-  return vec3(SceneColourAt(v_world_position + red * g_thickness, lod).r,
-              SceneColourAt(v_world_position + green * g_thickness, lod).g,
-              SceneColourAt(v_world_position + blue * g_thickness, lod).b);
+  return vec3(SceneColorAt(v_world_position + red * g_thickness, lod).r,
+              SceneColorAt(v_world_position + green * g_thickness, lod).g,
+              SceneColorAt(v_world_position + blue * g_thickness, lod).b);
 }
 
 /// Neubelt and Pettineo's visibility for cloth.
@@ -39943,7 +39943,7 @@ void main() {
   // there to be read, when that share is the scene instead (below).
   g_pane = g_premultiply && g_transmission > 0.0 && g_thickness <= 0.0;
   ambient *= mix(vec3(1.0),
-                 SceneColourBound() || g_pane ? vec3(0.0) : g_transmittance,
+                 SceneColorBound() || g_pane ? vec3(0.0) : g_transmittance,
                  g_transmission);
 #endif
 
@@ -40025,7 +40025,7 @@ void main() {
     // and the scene's added below.
     vec3 reflects =
         mix(g_f0_dielectric, g_irid_fresnel, g_iridescence) * ab.x + g_f90 * ab.y;
-    vec3 through = SceneColourBound() || g_pane
+    vec3 through = SceneColorBound() || g_pane
                        ? vec3(0.0)
                        : TransmittedRadiance(s, levels) * g_transmittance *
                              (vec3(1.0) - min(reflects, vec3(1.0)));
@@ -40061,7 +40061,7 @@ void main() {
     // One alpha for the three colours: a pane's tint is kept as its mean,
     // which is what clear and faintly tinted glass needs.
     g_pass_through = clamp((passes.r + passes.g + passes.b) / 3.0, 0.0, 1.0);
-  } else if (SceneColourBound()) {
+  } else if (SceneColorBound()) {
     ambient += SceneBehind(s) * passes;
   }
 #endif
@@ -58155,7 +58155,7 @@ void main() {
 }
 
 ''',
-    'SceneColourCopy': r'''#version 300 es
+    'SceneColorCopy': r'''#version 300 es
 precision highp float;
 precision highp int;
 precision highp sampler2D;
@@ -58165,7 +58165,7 @@ precision highp samplerCube;
 //
 // Drawn once per level into its own rectangle of one texture: the base at
 // the scene's size, and each level after it half the one before, side by
-// side — see `SceneColourChain`. Every level is taken from the scene itself
+// side — see `SceneColorChain`. Every level is taken from the scene itself
 // rather than from the level above it, because a pass cannot read the
 // texture it draws into, and one texture is what the lit stage has a
 // sampler left for.

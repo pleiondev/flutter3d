@@ -85,7 +85,7 @@ void main() {
       width: 32,
       height: 24,
       scene: scene,
-      views: <RenderView>[RenderView(camera: camera)],
+      views: <CameraView>[CameraView(camera: camera)],
     );
 
     final first = frame();

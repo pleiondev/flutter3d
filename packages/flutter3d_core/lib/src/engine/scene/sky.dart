@@ -1,6 +1,6 @@
 /// A sky: a gradient overhead instead of one flat colour behind everything.
 ///
-/// What this replaces is `RenderView.clearColor`, which is a single colour and
+/// What this replaces is `CameraView.clearColor`, which is a single colour and
 /// therefore the same colour whichever way the camera turns. That is fine for a
 /// dungeon and wrong for anywhere outdoors, where the difference between
 /// looking towards the sun and away from it is most of what tells a player
@@ -38,7 +38,7 @@
 /// ```
 ///
 /// **Colours here are linear**, as the clear colour it replaces is
-/// (`RenderView.clearColor`) and as a vertex colour is by the glTF spec. A
+/// (`CameraView.clearColor`) and as a vertex colour is by the glTF spec. A
 /// colour read off a picker is sRGB and goes in through
 /// `LinearColor.fromSrgb`.
 library;

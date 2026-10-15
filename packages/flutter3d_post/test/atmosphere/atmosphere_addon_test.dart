@@ -53,7 +53,10 @@ void main() {
     ]) {
       expect(installed.plan(settings), FrameStage().plan(settings));
     }
-    expect(installed.renderer.renderSteps.named('sky'), same(skyStep));
+    expect(
+      installed.renderer.renderSteps.named('flutter3d_post.sky'),
+      same(skyStep),
+    );
   });
 
   test('switched off, the volumetric fog is withdrawn and reported', () {

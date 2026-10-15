@@ -14,7 +14,7 @@ import 'package:flutter3d_editor/src/editor_theme.dart';
 import 'package:flutter3d_editor/src/render_graph_view.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-({Renderer renderer, Scene scene, RenderView view}) _stage() {
+({Renderer renderer, Scene scene, CameraView view}) _stage() {
   final device = CpuDevice(
     width: 16,
     height: 9,
@@ -23,7 +23,7 @@ import 'package:flutter_test/flutter_test.dart';
   return (
     renderer: Renderer.create(device: device),
     scene: Scene(),
-    view: RenderView(camera: CameraNode()),
+    view: CameraView(camera: CameraNode()),
   );
 }
 
@@ -74,7 +74,7 @@ TextureHandle _texture() {
         width: 16,
         height: 9,
         scene: it.scene,
-        views: <RenderView>[it.view],
+        views: <CameraView>[it.view],
         settings: const RenderSettings(),
       )
       .frame;

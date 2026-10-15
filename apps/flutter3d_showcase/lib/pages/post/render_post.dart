@@ -16,7 +16,7 @@ final class RenderPostDemo extends ShowcaseDemo {
   static const int _height = 180;
 
   late final Scene _source;
-  late final RenderView _sourceView;
+  late final CameraView _sourceView;
   late final TextureHandle _output;
 
   /// What the last call to `renderPost` handed back.
@@ -53,7 +53,7 @@ final class RenderPostDemo extends ShowcaseDemo {
         ),
       )
       ..add(eye);
-    _sourceView = RenderView(
+    _sourceView = CameraView(
       camera: eye,
       clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
     );
@@ -92,7 +92,7 @@ final class RenderPostDemo extends ShowcaseDemo {
           width: _width,
           height: _height,
           scene: _source,
-          views: <RenderView>[_sourceView],
+          views: <CameraView>[_sourceView],
           settings: const RenderSettings(
             bloom: BloomSettings(enabled: false),
             shadows: ShadowSettings(enabled: false),

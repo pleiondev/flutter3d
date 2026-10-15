@@ -303,15 +303,15 @@ void main() {
       final parts = separateComponents(mesh);
 
       expect(parts, hasLength(2));
-      for (final (part, _) in parts) {
+      for (final RemappedMesh(mesh: part) in parts) {
         expect(part.vertexCount, 8);
         expect(part.faceCount, 6);
         expect(part.eulerCharacteristic, 2);
         expect(part.signedVolume, closeTo(1, 1e-5));
         part.validate();
       }
-      expect(parts.first.$2.faces[0], 0);
-      expect(parts.last.$2.faces[6], 0);
+      expect(parts.first.remap.faces[0], 0);
+      expect(parts.last.remap.faces[6], 0);
     });
 
     test('two boxes meeting at a corner are one part', () {
@@ -356,8 +356,8 @@ void main() {
       // two pieces — which is not what a person means by a loose part, and not
       // the relation `Selection.linked` uses either.
       expect(parts, hasLength(1));
-      expect(parts.single.$1.faceCount, 12);
-      expect(parts.single.$1.vertexCount, 15);
+      expect(parts.single.mesh.faceCount, 12);
+      expect(parts.single.mesh.vertexCount, 15);
     });
 
     test('one box is one part, and the remap says nothing moved', () {
@@ -366,7 +366,7 @@ void main() {
       final parts = separateComponents(mesh);
 
       expect(parts, hasLength(1));
-      final (part, remap) = parts.single;
+      final RemappedMesh(mesh: part, :remap) = parts.single;
       expect(part.faceCount, 6);
       for (var vertex = 0; vertex < mesh.vertexSlotCount; vertex++) {
         expect(remap.vertices[vertex], isNot(EditMesh.none));
@@ -381,7 +381,7 @@ void main() {
       });
 
       final parts = separateComponents(mesh);
-      final (second, remap) = parts.last;
+      final RemappedMesh(mesh: second, :remap) = parts.last;
       final face = remap.faces[7];
 
       expect(second.materialSlotOf(face), 5);

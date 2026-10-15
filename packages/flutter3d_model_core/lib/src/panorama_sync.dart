@@ -73,7 +73,7 @@ final class PanoramaSync {
 
     final ByteData? pixels = panoramaPixels(image.bytes);
     if (pixels == null) return;
-    final ({int width, int height})? size = hdrSizeOf(image.bytes);
+    final PixelExtent? size = hdrSizeOf(image.bytes);
     if (size == null) return;
 
     if (!EnvironmentMap.isSupportedOn(device)) return;

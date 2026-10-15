@@ -1001,7 +1001,7 @@ final class ModelSession {
         // of the mesh's diagonal) when on, `0` (exact duplicates only) when
         // off — `import_plan.dart`'s own `weldEpsilonFor`, restated here
         // rather than reached for across the app/package boundary.
-        final (EditMesh mesh, _, _) = importMeshData(
+        final ImportedMesh(:mesh) = importMeshData(
           data,
           weldEpsilon: weld ? null : 0.0,
         );

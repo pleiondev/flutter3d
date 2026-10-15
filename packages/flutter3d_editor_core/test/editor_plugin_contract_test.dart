@@ -342,23 +342,23 @@ void main() {
 
     test('a material file naming a plugin\'s stage gets its hints', () {
       final pieces = EditorPieces();
-      // A stage name cannot hold a dot, so `<namespace>_<name>` is taken.
+      // A stage name cannot hold a dot, so `<namespace>__<Name>` is taken.
       pieces
           .forPlugin(_Scope('acme', 0))
           .hints
           .addMaterial(
             const MaterialHints(
-              model: 'acme_Velvet',
+              model: 'acme__Velvet',
               fields: <FieldHint>[FieldHint.number('sheen', min: 0, max: 1)],
             ),
           );
-      expect(pieces.hints.materials.single.model, 'acme_Velvet');
+      expect(pieces.hints.materials.single.model, 'acme__Velvet');
       final file = readFmat(
         Uint8List.fromList(utf8.encode('{"fmat": 1, "name": "cloth"}')),
       );
       final velvet = MaterialDocument(
         surface: file.surface,
-        lighting: const LightingModel('Velvet', 'acme_Velvet'),
+        lighting: const LightingModel('Velvet', 'acme__Velvet'),
       );
       // Mutation: look the plugin up by the model's label.
       expect(

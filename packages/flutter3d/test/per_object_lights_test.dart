@@ -135,8 +135,8 @@ void main() {
       width: _width,
       height: _height,
       scene: room.scene,
-      views: <RenderView>[
-        RenderView(
+      views: <CameraView>[
+        CameraView(
           camera: room.camera,
           clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
         ),

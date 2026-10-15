@@ -73,7 +73,7 @@ Future<int> _litPixels(
     width: _size,
     height: _size,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
     settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
   );
   final pixels = (await device.readback(frame.frame)).buffer.asUint8List();

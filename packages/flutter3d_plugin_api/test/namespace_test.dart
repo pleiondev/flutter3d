@@ -186,6 +186,14 @@ void main() {
     expect(_manifest('flutter3d_addons_standard').idProblem, isNull);
   });
 
+  test('an id has no "__", the dot of a shader\'s name', () {
+    // `acme.Ink` is compiled as the stage `acme__Ink`, so `acme__ink` could
+    // spell `acme` + `ink__Glow`. Mutation: drop the check from `idProblem`.
+    expect(_manifest('acme__ink.glow').idProblem, contains('"__"'));
+    expect(_manifest('acme__ink').idProblem, isNotNull);
+    expect(_manifest('acme_ink.glow').idProblem, isNull);
+  });
+
   test('every engine plugin is named after the package that ships it', () {
     // Mutation: give one of the engine's plugins an id under another name —
     // it loses its engine rights, and the naming rule it holds others to

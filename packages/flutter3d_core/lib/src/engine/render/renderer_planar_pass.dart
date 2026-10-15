@@ -162,7 +162,7 @@ extension _PlanarPasses on Renderer {
   void _drawRenderTexture({
     required FrameResources resources,
     required Scene scene,
-    required RenderView texture,
+    required CameraView texture,
     required RenderSettings settings,
     required SceneShadows shadows,
     required FramePassState passState,
@@ -236,7 +236,7 @@ extension _PlanarPasses on Renderer {
     required Scene scene,
     required PlanarReflectorNode reflector,
     required _PlanarState state,
-    required List<RenderView> views,
+    required List<CameraView> views,
     required int width,
     required int height,
     required RenderSettings settings,
@@ -349,7 +349,7 @@ extension _PlanarPasses on Renderer {
   void _encodePlanarReflections({
     required PassEncoder encoder,
     required Scene scene,
-    required RenderView view,
+    required CameraView view,
     required int viewNumber,
     required ScreenRect rect,
     required vm.Frustum frustum,

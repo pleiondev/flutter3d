@@ -64,7 +64,7 @@ Future<List<int>> _frame({
     width: _size,
     height: _size,
     scene: scene,
-    views: <RenderView>[RenderView(camera: scene.cameras.single)],
+    views: <CameraView>[CameraView(camera: scene.cameras.single)],
     settings: RenderSettings(
       shadows: ShadowSettings(enabled: shadows),
       lightShafts: LightShaftSettings(

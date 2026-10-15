@@ -136,7 +136,7 @@ Future<Uint8List> _frame({
     width: _width,
     height: _height,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
     settings: RenderSettings(
       bloom: const BloomSettings(enabled: false),
       shadows: const ShadowSettings(enabled: false),
@@ -214,7 +214,7 @@ Future<Uint8List> _surfaceFrame({required bool xray}) async {
     width: _width,
     height: _height,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
     settings: RenderSettings(
       bloom: const BloomSettings(enabled: false),
       shadows: const ShadowSettings(enabled: false),

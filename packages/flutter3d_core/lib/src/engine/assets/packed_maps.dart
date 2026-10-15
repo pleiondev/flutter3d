@@ -85,7 +85,7 @@ Future<PackedMap?> uploadSheenMap(
 
 Future<PackedMap?> _uploadPacked(
   GraphicsDevice device,
-  List<({TextureBinding binding, int channel})?> sources,
+  List<PackedMapSource?> sources,
   Future<Rgba8Image?> Function(TextureBinding binding) image,
 ) async {
   final lanes = <PackedLane>[

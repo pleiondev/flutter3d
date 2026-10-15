@@ -78,7 +78,7 @@ Future<Uint8List> _draw(double gap, {required double radius}) async {
     width: _width,
     height: _height,
     scene: _floorAndBox(device, gap),
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
     settings: RenderSettings(
       shadows: ShadowSettings(
         cascades: 1,

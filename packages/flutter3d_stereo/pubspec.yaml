@@ -1,6 +1,6 @@
 name: flutter3d_stereo
 description: "Stereo rendering for flutter3d: a rig of two eyes under a head, the widget that draws the pair into one frame, and the settings a pair can actually have."
-version: 1.0.0-rc.1
+version: 1.0.0-rc.1+1
 resolution: workspace
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
@@ -30,7 +30,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # The renderer: `RenderView`, `OffAxisProjection`, `RenderSettings.forStereo`.
+  # The renderer: `CameraView`, `OffAxisProjection`, `RenderSettings.forStereo`.
   # All three exist because of this package and are used by nothing else yet.
   flutter3d: '>=1.0.0-rc.1 <1.1.0'
 

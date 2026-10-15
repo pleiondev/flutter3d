@@ -163,8 +163,8 @@ Future<Uint8List> _frameAt(double at, {required double fadeBand}) async {
     width: _width,
     height: _height,
     scene: scene,
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: CameraNode()
           ..setPosition(at, 9.0, 0.01)
           ..lookAt(Vector3(at, 0.0, 0.0)),

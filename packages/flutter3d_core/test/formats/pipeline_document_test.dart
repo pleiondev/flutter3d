@@ -52,16 +52,17 @@ final class _StreakKind extends PipelineNodeKind {
   );
 }
 
-PipelineDocument _standard() => PipelineDocument.parse(
-  File('test/fixtures/v1/standard.pipeline.json').readAsStringSync(),
-);
+PipelineDocument _standard({int version = pipelineVersion}) =>
+    PipelineDocument.parse(
+      File('test/fixtures/v$version/standard.pipeline.json').readAsStringSync(),
+    );
 
-({Renderer renderer, Scene scene, List<RenderView> views}) _stage() {
+({Renderer renderer, Scene scene, List<CameraView> views}) _stage() {
   final camera = CameraNode();
   return (
     renderer: Renderer.create(device: FakeBackend()),
     scene: Scene()..add(camera),
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
   );
 }
 
@@ -89,6 +90,21 @@ void main() {
     expect(standard.nodes.every((node) => node.engine), isTrue);
     final again = PipelineDocument.fromJson(standard.toJson());
     expect(again.encode(), standard.encode());
+  });
+
+  test('the version 1 pipeline reads as version 2, every engine word with '
+      'f3d. before it', () {
+    // Mutation: drop `_engineWords` from the format's migrations, and the v1
+    // anchors, steps and resources keep their old spelling.
+    final v1 = _standard(version: 1);
+    expect(v1.encode(), _standard().encode());
+    final first = v1.nodes.first;
+    expect(first.anchor, RenderAnchor.beforeShadows.name);
+    expect(first.anchor, 'f3d.before_shadows');
+    expect(first.step, RenderStep.shadows.name);
+    expect(first.keeps, <String>[FrameResourceIds.cubeShadowStatic.name]);
+    // The node's own name is what the frame reports, and stays.
+    expect(first.name, 'point shadows (static)');
   });
 
   test('a renderer with nothing added describes the standard pipeline', () {
@@ -148,13 +164,13 @@ void main() {
     expect(
       () => PipelineDocument.fromJson(<String, Object?>{
         'format': 'f3d.pipeline',
-        'version': 2,
+        'version': 3,
       }),
       throwsA(
         isA<DocumentFormatException>().having(
           (e) => e.message,
           'message',
-          allOf(contains('version 2'), contains('(1)')),
+          allOf(contains('version 3'), contains('(2)')),
         ),
       ),
     );
@@ -182,6 +198,16 @@ void main() {
         pipelineSection.read(DataSectionRead(body, context: context))
             as PipelineDocument;
     expect(read.added.single.kind, 'acme_glow.streak');
-    expect(pipelineSection.write(read), body);
+    // A body from before the prefix reads, and is written in the new words.
+    expect(read.anchors.single.after, RenderAnchor.afterBloom.name);
+    expect(pipelineSection.write(read), <String, Object?>{
+      ...body,
+      'anchors': <Object?>[
+        <String, Object?>{
+          'name': 'acme_glow.after glow',
+          'after': 'f3d.after_bloom',
+        },
+      ],
+    });
   });
 }

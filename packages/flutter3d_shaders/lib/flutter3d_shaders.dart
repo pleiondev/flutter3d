@@ -198,7 +198,7 @@ const List<RequiredShader> requiredShaders = <RequiredShader>[
   RequiredShader(name: 'FieldDecay', fragment: true),
   RequiredShader(name: 'Xray', fragment: true),
   RequiredShader(name: 'WboitResolve', fragment: true),
-  RequiredShader(name: 'SceneColourCopy', fragment: true),
+  RequiredShader(name: 'SceneColorCopy', fragment: true),
   RequiredShader(name: 'ImpostorVertex', fragment: false),
   RequiredShader(name: 'Impostor', fragment: true),
 ];

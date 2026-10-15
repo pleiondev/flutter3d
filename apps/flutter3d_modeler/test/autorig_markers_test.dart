@@ -354,7 +354,7 @@ void main() {
         // .dart`'s own `anim-30` scenario takes for the same reason.
         for (final object in project.objects) {
           if (object.geometry case ImportedGeometry(:final data)) {
-            final (mesh, _, _) = importMeshData(data);
+            final ImportedMesh(:mesh) = importMeshData(data);
             project = project.withObject(
               object.copyWith(geometry: EditedGeometry(mesh)),
             );

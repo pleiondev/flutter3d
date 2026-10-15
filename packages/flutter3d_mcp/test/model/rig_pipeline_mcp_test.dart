@@ -86,7 +86,7 @@ void _buildTopologyForImportedMeshes(ModelSession session) {
   var next = session.history.project;
   for (final object in next.objects) {
     if (object.geometry case ImportedGeometry(:final data)) {
-      final (mesh, _, _) = importMeshData(data);
+      final mesh = importMeshData(data).mesh;
       next = next.withObject(object.copyWith(geometry: EditedGeometry(mesh)));
     }
   }

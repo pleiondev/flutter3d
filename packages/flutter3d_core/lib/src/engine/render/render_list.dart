@@ -173,7 +173,7 @@ final class RenderList {
   /// the same reason: its bounds do not say where it is drawn.
   void build(
     Scene scene,
-    RenderView view, {
+    CameraView view, {
     required Matrix4 viewMatrix,
     required Frustum frustum,
     OcclusionTest? occlusion,
@@ -341,14 +341,14 @@ final class RenderList {
   final List<SceneNode> _walk = <SceneNode>[];
 
   /// Sorts both halves according to the view's sort modes.
-  void sort(RenderView view) {
+  void sort(CameraView view) {
     _sortView = view;
     _sortRange(opaque, view.opaqueSort);
     _sortRange(transparent, view.transparentSort);
   }
 
   /// The view [sort] is ordering, for a draw-list hook's sort key.
-  RenderView? _sortView;
+  CameraView? _sortView;
 
   void _sortRange(List<int> indices, SortMode mode) {
     final count = indices.length;

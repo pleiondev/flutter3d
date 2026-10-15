@@ -78,7 +78,7 @@ List<(String, Set<String>)> components(
 /// [keys] sorted into [components] of [kind]: each section with the keys it
 /// holds, in order, and sections left empty dropped. `inspectorSections`
 /// decides; this is its name in the app.
-List<(String, List<String>)> sectionsOf(
+List<InspectorSection> sectionsOf(
   Piece kind,
   Iterable<String> keys, {
   String? type,
@@ -217,7 +217,7 @@ final class EditorInspector extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  for (final (title, keys) in sectionsOf(
+                  for (final InspectorSection(:title, :keys) in sectionsOf(
                     kind,
                     fields.keys,
                     type: type,

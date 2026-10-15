@@ -186,7 +186,7 @@ final class Flutter3dEngine {
 
   /// The view onto it: the camera, the settings, the history the temporal
   /// resolve keeps.
-  final RenderView view;
+  final CameraView view;
 
   /// The loop: systems, plugins, input and the fixed step, advanced once a
   /// frame while the view is shown and the application in the foreground.
@@ -265,7 +265,7 @@ final class ViewResolution {
 
 /// An engine as a widget: it opens a device, makes a renderer, runs an
 /// [EngineLoop] with the plugins of [plugins], draws [scene] through a
-/// [RenderView], and owns focus, input, lifecycle and teardown — item 25 of
+/// [CameraView], and owns focus, input, lifecycle and teardown — item 25 of
 /// the 1.0 scope. `SceneSurface` stays as the low level it is built on, and
 /// `Scene3D` is sugar over this widget for a scene written as widgets.
 ///
@@ -615,7 +615,7 @@ class _Flutter3dViewState extends State<Flutter3dView>
         device: device,
         renderer: renderer,
         scene: scene,
-        view: RenderView(camera: camera, options: widget.view.render),
+        view: CameraView(camera: camera, options: widget.view.render),
         loop: loop,
         simulation: placed.handle,
         log: log,
@@ -690,7 +690,7 @@ class _Flutter3dViewState extends State<Flutter3dView>
   /// meanwhile are ordinary ones.
   void _warmUp(Flutter3dEngine engine, int width, int height) {
     if (!widget.view.warmUp) return;
-    final views = widget.view.views ?? <RenderView>[engine.view];
+    final views = widget.view.views ?? <CameraView>[engine.view];
     // The slices yield through a timer; run in a zone that keeps the one
     // pending, so a view that goes mid-way stops the warm-up there rather
     // than letting its next slice draw with a disposed renderer (and leave
@@ -1020,13 +1020,13 @@ class _Flutter3dViewState extends State<Flutter3dView>
             }
             // A session's eyes, once its first frame has placed them; the
             // view's own until then.
-            final eyes = _xr?.views ?? const <RenderView>[];
+            final eyes = _xr?.views ?? const <CameraView>[];
             final views = eyes.isNotEmpty ? eyes : view.views;
             return SceneSurface(
               renderer: engine.renderer,
               scene: engine.scene,
               view: views?.first ?? engine.view,
-              moreViews: views?.skip(1).toList() ?? const <RenderView>[],
+              moreViews: views?.skip(1).toList() ?? const <CameraView>[],
               settings: () => eyes.length > 1
                   ? widget.view.settings.forStereo()
                   : widget.view.settings,

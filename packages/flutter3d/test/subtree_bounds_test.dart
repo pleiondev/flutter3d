@@ -38,7 +38,7 @@ SceneNode _cluster(String name, int count) {
 
 void buildFor(RenderList list, Scene scene, CameraNode camera) => list.build(
   scene,
-  RenderView(camera: camera),
+  CameraView(camera: camera),
   viewMatrix: camera.viewMatrix,
   frustum: Frustum.matrix(camera.viewProjection(1.0)),
 );

@@ -4,7 +4,8 @@ library;
 
 import 'dart:math' as math;
 
-import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Portable, SinCos;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -52,7 +53,7 @@ abstract final class Ballistics {
       throw ArgumentError.value(to, 'to', 'straight over or under the throw');
     }
     flat.scale(1.0 / reach);
-    final (:sin, :cos) = Portable.sinCos(elevation);
+    final SinCos(:sin, :cos) = Portable.sinCos(elevation);
     final along = flat * cos + Vector3(0.0, sin, 0.0);
     final rise = to.y - from.y;
     final g = world.gravityMagnitude;

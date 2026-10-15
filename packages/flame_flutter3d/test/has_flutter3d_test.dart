@@ -87,7 +87,7 @@ void main() {
       MaterialApp(
         home: Flutter3dFlameWidget(
           game: game,
-          existing: (device: device, renderer: renderer),
+          existing: BorrowedRenderer(device: device, renderer: renderer),
         ),
       ),
     );
@@ -208,7 +208,7 @@ void main() {
     game
       ..viewport3d = const ViewportRect(0.0, 0.0, 0.5, 1.0)
       ..moreViews3d.add(
-        RenderView(
+        CameraView(
           camera: second,
           viewportFraction: const ViewportRect(0.5, 0.0, 0.5, 1.0),
         ),

@@ -205,7 +205,7 @@ extension _DepthConvention on Renderer {
   /// camera's plane for the view, and so does a view with nothing in it —
   /// there is nothing to fit to — and an orthographic one, whose depth is
   /// linear and gains nothing from it.
-  double _fittedNear(RenderView view, List<PassContributor> contributors) {
+  double _fittedNear(CameraView view, List<PassContributor> contributors) {
     final camera = view.camera;
     final projection = camera.projection;
     final authored = projection.near;

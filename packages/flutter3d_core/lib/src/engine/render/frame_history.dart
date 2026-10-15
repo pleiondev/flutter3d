@@ -77,7 +77,7 @@ final class _NodeStore {
 
   /// The view whose `render` call fills this store: the call's first view,
   /// or the view it was carried on to.
-  RenderView owner;
+  CameraView owner;
 
   final Expando<NodeHistory> nodes = Expando<NodeHistory>('frame history');
 }
@@ -127,7 +127,7 @@ final class FrameHistory {
   /// [view], or null when it has not been recorded for that view — a node
   /// that has just appeared has no past, and an effect treats it as standing
   /// still.
-  NodeHistory? of(MeshNode node, RenderView view) {
+  NodeHistory? of(MeshNode node, CameraView view) {
     final entry = _views[view]?.store.nodes[node];
     if (entry != null) _rebase(entry);
     return entry;
@@ -135,7 +135,7 @@ final class FrameHistory {
 
   /// Whether [node] has changed since [view] last recorded it. False for a
   /// node never recorded, for the same reason [of] is null for one.
-  bool moved(MeshNode node, RenderView view) {
+  bool moved(MeshNode node, CameraView view) {
     final entry = _views[view]?.store.nodes[node];
     return entry != null && entry._key != _keyOf(node);
   }
@@ -152,7 +152,7 @@ final class FrameHistory {
   /// (`CameraNode.viewProjection`), before any backend's depth range or
   /// framebuffer origin, so a reader adjusts it the way it adjusts the
   /// current one.
-  vm.Matrix4? viewProjection(RenderView view) {
+  vm.Matrix4? viewProjection(CameraView view) {
     final entry = _views[view];
     if (entry == null || entry.frame < 0) return null;
     // Recorded relative to another origin: the scene moved every node by
@@ -181,7 +181,7 @@ final class FrameHistory {
   void endFrame({
     required int frame,
     required Iterable<MeshNode> meshes,
-    required Iterable<(RenderView, vm.Matrix4)> views,
+    required Iterable<(CameraView, vm.Matrix4)> views,
   }) {
     _NodeStore? store;
     for (final (view, matrix) in views) {
@@ -206,7 +206,7 @@ final class FrameHistory {
 
   void _recordView(
     _ViewHistory? entry,
-    RenderView view,
+    CameraView view,
     _NodeStore store,
     vm.Matrix4 matrix,
     int frame,
@@ -320,7 +320,7 @@ extension FrameHistoryInternals on FrameHistory {
   /// and [of] with it from now on, and [from] with nothing: a view made
   /// afresh each frame for the same camera carries on the last one's past
   /// rather than having none, and the two never share one.
-  void carryView(RenderView from, RenderView to) {
+  void carryView(CameraView from, CameraView to) {
     final entry = _views[from];
     if (entry == null || _views[to] != null) return;
     _views[from] = null;
@@ -331,7 +331,7 @@ extension FrameHistoryInternals on FrameHistory {
 
   /// Forgets [view]'s past: what the renderer calls when it gives up the
   /// view's state after the view went undrawn for a while.
-  void forgetView(RenderView view) => _views[view] = null;
+  void forgetView(CameraView view) => _views[view] = null;
 
   /// The scene origin of the frame about to be drawn. The renderer's to set
   /// before any pass reads this history.

@@ -218,6 +218,28 @@ final class LightingModel {
     usesMaterialParameters: false,
   );
 
+  /// The word a document names this model by: `<namespace>.<Name>` for a
+  /// plugin's (`acme_ink.Ink`), whose [shaderName] is `<namespace>__<Name>`
+  /// ([shaderNameOf]); the [shaderName] itself for a built-in model and one
+  /// an application describes from its own bundle (`Pbr`).
+  ///
+  /// **A name like every other registration's**, with the dot a shader's
+  /// entry point cannot carry made `__` in the stage, so the two are one
+  /// word spelled twice. `__` is refused in plugin ids and in model names
+  /// (`PluginManifest.idProblem`, [LightingModels.register]), which keeps
+  /// the spelling one to one: `acme` + `ink__Glow` and `acme_ink` + `Glow`
+  /// cannot both exist.
+  String get name => switch (shaderName.lastIndexOf('__')) {
+    -1 => shaderName,
+    final at =>
+      '${shaderName.substring(0, at)}.${shaderName.substring(at + 2)}',
+  };
+
+  /// The [shaderName] a model called [name] is compiled under: every `.`
+  /// made `__`, so `acme_ink.Ink` is the stage `acme_ink__Ink`, and its
+  /// vertex stages `acme_ink__InkVertex` and so on.
+  static String shaderNameOf(String name) => name.replaceAll('.', '__');
+
   /// The models this engine ships, in the order a picker should show them.
   ///
   /// `builtIn` and not `values`: there is no longer a complete list to have.
@@ -537,7 +559,7 @@ final class VertexStageVariant {
 /// one entrance, `host.registry<LightingModels>()` (a `LightingModelAddon`
 /// does this), with its stages through `RendererSteps.addMaterials`. From
 /// then on a material file read against this engine's table naming the
-/// model's [LightingModel.shaderName] reads as that model, and a picker
+/// model's [LightingModel.name] reads as that model, and a picker
 /// walking [all] offers it. Cancelling the registration takes the name back
 /// out. The renderer's own table is `Renderer.lightingModels`, and a host
 /// handed `renderer.renderSteps` finds it among that registry's companions.
@@ -552,17 +574,24 @@ final class VertexStageVariant {
 ///
 /// **A plugin's name is compared exactly; a built-in one in any case.** A
 /// name matched in any case could not tell two plugins' apart, so
-/// `acme_ink_Ink` is not `acme_ink_ink`. The built-in models are a fixed set
+/// `acme_ink.Ink` is not `acme_ink.ink`. The built-in models are a fixed set
 /// with names that differ in more than case, and material files have always
 /// named them so (`"lighting": "pbr"`), so `pbr` still reads as `Pbr`.
 ///
-/// **A plugin's model is in its namespace.** A shader's entry point cannot
-/// carry a dot, so a plugin's [LightingModel.shaderName] begins with its
-/// namespace and an underscore — `acme_ink_Ink` for `acme_ink.ink` — and a
-/// model the engine adds in a minor (which never does) cannot take its
-/// name. The built-in names stay the built-in models: one is refused unless
-/// it is that very constant, which is how `flutter3d_post/style.dart`
-/// registers [LightingModel.toon].
+/// **A plugin's model is in its namespace, `<namespace>.<Name>`**, like
+/// every other registration ([LightingModel.name]). A shader's entry point
+/// cannot carry a dot, so its [LightingModel.shaderName] is the same word
+/// with the dot made `__` — `acme_ink__Ink` for `acme_ink.Ink` — and a model
+/// the engine adds in a minor (which never does) cannot take its name. The
+/// built-in names stay the built-in models: one is refused unless it is
+/// that very constant, which is how `flutter3d_post/style.dart` registers
+/// [LightingModel.toon].
+///
+/// **The words from before the dot still read.** Files written then name a
+/// plugin's model by its old stage name, `<namespace>_<Name>`
+/// (`acme_ink_Ink`); [named] finds the registered model that word meant, so
+/// `.fmat` and `.f3d` stay at their versions — the word is a value, not a
+/// key — and are written in the new word from then on.
 final class LightingModels extends PluginRegistry {
   /// An engine's table: the built-in models, and nothing registered yet.
   LightingModels() : _store = _ModelStore(), _scope = null;
@@ -592,14 +621,24 @@ final class LightingModels extends PluginRegistry {
           if (!LightingModel.builtIn.contains(entry.model)) entry.model,
       ]);
 
-  /// The model whose [LightingModel.shaderName] is [shaderName], or null: a
-  /// built-in one matched in any case, a registered one exactly.
-  LightingModel? named(String shaderName) {
-    final lower = shaderName.toLowerCase();
+  /// The model called [name], or null: a built-in one matched in any case,
+  /// a registered one exactly — by its [LightingModel.name]
+  /// (`acme_ink.Ink`), its [LightingModel.shaderName] (`acme_ink__Ink`), or
+  /// the stage name a file wrote before the dot (`acme_ink_Ink`).
+  LightingModel? named(String name) {
+    final lower = name.toLowerCase();
     for (final model in LightingModel.builtIn) {
       if (model.shaderName.toLowerCase() == lower) return model;
     }
-    return _store.registered[shaderName]?.model;
+    final registered =
+        _store.registered[LightingModel.shaderNameOf(name)]?.model;
+    if (registered != null) return registered;
+    for (final entry in _store.registered.values) {
+      if (entry.model.name.replaceFirst('.', '_') == name) {
+        return entry.model;
+      }
+    }
+    return null;
   }
 
   /// Makes [model] one a document read against this table may name, until
@@ -633,14 +672,26 @@ final class LightingModels extends PluginRegistry {
     if (scope != null &&
         !LightingModel.builtIn.any((built) => identical(built, model))) {
       final manifest = scope.manifest;
-      final prefix = '${manifest.namespace}_';
-      if (!manifest.isEngine &&
-          (!name.startsWith(prefix) || name.length == prefix.length)) {
-        throw PluginException(
-          'plugin "${manifest.id}" registered the lighting model "$name": a '
-          'plugin\'s model is in its namespace, and a shader\'s name cannot '
-          'carry a dot, so it is "$prefix<Name>"',
-        );
+      if (!manifest.isEngine) {
+        final word = model.name;
+        final rest = word.contains('.')
+            ? word.substring(word.indexOf('.') + 1)
+            : '';
+        final problem =
+            manifest.nameProblem(word, what: 'the lighting model') ??
+            (rest.contains('__') || rest.contains('.') || rest.startsWith('_')
+                ? 'plugin "${manifest.id}" registered the lighting model '
+                      '"$word": a model\'s name after its namespace has no '
+                      '"__", no "." and no leading "_", because its shader is '
+                      'named with the dot made "__"'
+                : null);
+        if (problem != null) {
+          throw PluginException(
+            '$problem. A plugin\'s model is "${manifest.namespace}.<Name>", '
+            'compiled as the stage "${manifest.namespace}__<Name>" '
+            '(LightingModel.shaderNameOf)',
+          );
+        }
       }
     }
     final existing = _store.registered[name];

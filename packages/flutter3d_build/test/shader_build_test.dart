@@ -396,7 +396,7 @@ done
 
   test('the manifest refuses a need that is nobody\'s, on its line', () {
     expect(
-      () => AssetManifest.parse('format: 1\nshaders: [toon, sparkle]\n'),
+      () => AssetBuildManifest.parse('format: 1\nshaders: [toon, sparkle]\n'),
       throwsA(
         isA<ManifestFormatException>()
             .having((e) => e.line, 'line', 2)
@@ -404,7 +404,7 @@ done
       ),
     );
     expect(
-      AssetManifest.parse('shaders: [toon, acme.glow]\n').shaders.needs,
+      AssetBuildManifest.parse('shaders: [toon, acme.glow]\n').shaders.needs,
       <String>['toon', 'acme.glow'],
     );
   });

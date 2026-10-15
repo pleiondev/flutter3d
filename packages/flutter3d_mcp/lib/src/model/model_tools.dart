@@ -3097,8 +3097,10 @@ List<ModelTool> get modelTools => <ModelTool>[
       final path = arguments['path'];
       if (path is! String) return session.save(null);
       return switch (session.root.tryResolve(path)) {
-        (path: final String inside, refused: null) => session.save(inside),
-        (path: _, :final refused) => Answer(did: false, says: refused!),
+        ResolvedPath(path: final String inside, refused: null) => session.save(
+          inside,
+        ),
+        ResolvedPath(:final refused) => Answer(did: false, says: refused!),
       };
     }),
   ),
@@ -3134,12 +3136,13 @@ List<ModelTool> get modelTools => <ModelTool>[
         return Answer(did: false, says: 'export needs a "to" path');
       }
       return switch (session.root.tryResolve(to)) {
-        (path: final String inside, refused: null) => session.export(
-          inside,
-          format: arguments['format'] as String?,
-          force: arguments['force'] == true,
-        ),
-        (path: _, :final refused) => Answer(did: false, says: refused!),
+        ResolvedPath(path: final String inside, refused: null) =>
+          session.export(
+            inside,
+            format: arguments['format'] as String?,
+            force: arguments['force'] == true,
+          ),
+        ResolvedPath(:final refused) => Answer(did: false, says: refused!),
       };
     }),
   ),
@@ -3191,7 +3194,9 @@ List<ModelTool> get modelTools => <ModelTool>[
           Answer(did: false, says: 'import needs a "from" path'),
         );
       }
-      final (path: inside, :refused) = session.root.tryResolve(from);
+      final ResolvedPath(path: inside, :refused) = session.root.tryResolve(
+        from,
+      );
       if (inside == null) {
         return Future<Answer>.value(Answer(did: false, says: refused!));
       }
@@ -3227,8 +3232,9 @@ List<ModelTool> get modelTools => <ModelTool>[
         return Answer(did: false, says: 'journal needs a "to" path');
       }
       return switch (session.root.tryResolve(to)) {
-        (path: final String inside, refused: null) => session.journal(inside),
-        (path: _, :final refused) => Answer(did: false, says: refused!),
+        ResolvedPath(path: final String inside, refused: null) =>
+          session.journal(inside),
+        ResolvedPath(:final refused) => Answer(did: false, says: refused!),
       };
     }),
   ),

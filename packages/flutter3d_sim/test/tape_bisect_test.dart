@@ -303,7 +303,7 @@ void main() {
       trace(_Toy()),
       trace(_Toy(defectAt: 613)),
     )!;
-    expect(bracket, (agreedAt: 601, differsAt: 626));
+    expect(bracket, const TraceBracket(agreedAt: 601, differsAt: 626));
 
     final diverge =
         bisectTapes(

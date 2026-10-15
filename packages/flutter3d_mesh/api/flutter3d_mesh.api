@@ -60,7 +60,7 @@ final class BrushResult
 
 final class ConvexHull
   const ConvexHull({required this.points, required this.faces, required this.volume, required this.centroid})
-  final List<(int, int, int)> faces
+  final List<TriangleIndices> faces
   final List<Vector3> points
   final Vector3 centroid
   final double volume
@@ -131,7 +131,6 @@ abstract final class EdgeFlags
   static const int sharp = 1 << 0
 
 final class EditMesh
-  (EditMesh, IdRemap) compact()
   CornerAttributes cornerOf(int halfEdge)
   EditMesh extrudeFace(int face, double distance)
   Float32List get positions
@@ -140,6 +139,7 @@ final class EditMesh
   List<int> neighborsOf(int vertex)
   List<int> verticesOf(int face)
   MeshData toMeshData({VertexLayout layout = VertexLayout.standard, double smoothAngle = MeshNormals.defaultSmoothAngle, int? materialSlot})
+  RemappedMesh compact()
   Uint8List toBytes()
   Vector2 uvOf(int halfEdge, [Vector2? out])
   Vector3 normalOf(int face, [Vector3? out])
@@ -262,6 +262,15 @@ final class IdRemap
   final Int32List faces
   final Int32List vertices
 
+final class ImportedMesh
+  String toString()
+  bool operator ==(Object other)
+  const ImportedMesh({required this.mesh, required this.report, required this.shapeKeys})
+  final EditMesh mesh
+  final List<ShapeKey> shapeKeys
+  final MeshImportReport report
+  int get hashCode
+
 final class JournalStep
   const JournalStep(this.indices, this.before)
   final Int32List indices
@@ -322,6 +331,14 @@ final class MergeReport
   final int splitNonManifold
   final int vertices
   int get merged
+
+final class MergedMesh
+  String toString()
+  bool operator ==(Object other)
+  const MergedMesh({required this.mesh, required this.report})
+  final EditMesh mesh
+  final MergeReport report
+  int get hashCode
 
 final class MeshAttribute
   String toString()
@@ -641,6 +658,14 @@ final class RecipeCategory
   static const RecipeCategory lighting = RecipeCategory._('lighting', 'Lighting')
   static const RecipeCategory tableware = RecipeCategory._('tableware', 'Tableware')
 
+final class RemappedMesh
+  String toString()
+  bool operator ==(Object other)
+  const RemappedMesh({required this.mesh, required this.remap})
+  final EditMesh mesh
+  final IdRemap remap
+  int get hashCode
+
 final class RemeshReport
   String toString()
   const RemeshReport({required this.iterations, required this.targetEdgeLength, required this.edgeSplits, required this.edgeCollapses, required this.edgeFlips, required this.before, required this.after})
@@ -651,6 +676,14 @@ final class RemeshReport
   final int edgeFlips
   final int edgeSplits
   final int iterations
+
+final class RemeshedMesh
+  String toString()
+  bool operator ==(Object other)
+  const RemeshedMesh({required this.mesh, required this.report})
+  final EditMesh mesh
+  final RemeshReport report
+  int get hashCode
 
 final class SculptMesh
   BrushResult applyBrush({required Vector3 center, required double radius, required Vector3 Function(int vertex, Vector3 position, double falloff) displace})
@@ -737,7 +770,7 @@ final class SmoothModifier extends Modifier
 
 final class StaticMeshShape
   const StaticMeshShape({required this.vertices, required this.triangles})
-  final List<(int, int, int)> triangles
+  final List<TriangleIndices> triangles
   final List<Vector3> vertices
 
 final class SubdivisionModifier extends Modifier
@@ -747,6 +780,24 @@ final class SubdivisionModifier extends Modifier
   final int levels
   final int viewLevels
   static SubdivisionModifier fromJson(Map<String, Object?> json)
+
+final class SurfacePoint
+  String toString()
+  bool operator ==(Object other)
+  const SurfacePoint({required this.triangle, required this.distance, required this.point})
+  final Vector3 point
+  final double distance
+  final int triangle
+  int get hashCode
+
+final class TriangleIndices
+  String toString()
+  bool operator ==(Object other)
+  const TriangleIndices({required this.a, required this.b, required this.c})
+  final int a
+  final int b
+  final int c
+  int get hashCode
 
 final class UvProjection
   String toString()
@@ -813,7 +864,7 @@ EditMesh cabinet({double width = 0.9, double height = 0.85, double depth = 0.45}
 
 EditMesh catmullClark(EditMesh mesh, {int levels = 1})
 
-({int triangle, double distance, Vector3 point})? closestPointOn(TriangleBvh tree, Vector3 point, {double within = double.infinity})
+SurfacePoint? closestPointOn(TriangleBvh tree, Vector3 point, {double within = double.infinity})
 
 Vector3 closestPointOnTriangle(Vector3 point, Vector3 a, Vector3 b, Vector3 c, Vector3 into)
 
@@ -855,13 +906,13 @@ EditMesh floorLamp({double height = 1.55, double shadeTop = 0.16, double shadeBo
 
 void gradientWeights(EditMesh mesh, Iterable<int> vertices, {required int jointA, required int jointB, required Vector3 start, required Vector3 end})
 
-(EditMesh, MeshImportReport, List<ShapeKey>) importMeshData(MeshData mesh, {double? weldEpsilon})
+ImportedMesh importMeshData(MeshData mesh, {double? weldEpsilon})
 
 List<Vector3> insetCornerPositions(List<Vector3> positions, Vector3 normal, double thickness, double depth)
 
 OpResult insetFaces(EditMesh mesh, Selection selection, {required double thickness, double depth = 0.0, bool individual = true})
 
-(EditMesh, RemeshReport) isotropicRemesh(EditMesh mesh, {required double targetEdgeLength, int iterations = 5, double tangentialLambda = 1.0})
+RemeshedMesh isotropicRemesh(EditMesh mesh, {required double targetEdgeLength, int iterations = 5, double tangentialLambda = 1.0})
 
 EditMesh joinMeshes(List<PlacedMesh> parts)
 
@@ -873,9 +924,9 @@ void lscm(EditMesh mesh, List<int> island, {int? pinVertex1, Vector2? pinUv1, in
 
 Vector3 medianOf(EditMesh mesh, Selection selection)
 
-(EditMesh, MergeReport) mergeAt(EditMesh mesh, Selection selection, Vector3 at)
+MergedMesh mergeAt(EditMesh mesh, Selection selection, Vector3 at)
 
-(EditMesh, MergeReport) mergeByDistance(EditMesh mesh, {double? distance, Selection? within})
+MergedMesh mergeByDistance(EditMesh mesh, {double? distance, Selection? within})
 
 const bool meshWorkStaysHere = bool.fromEnvironment('dart.library.js_interop')
 
@@ -919,7 +970,7 @@ OpResult rotateSelection(EditMesh mesh, Selection selection, {required Quaternio
 
 OpResult scaleSelection(EditMesh mesh, Selection selection, {required Vector3 by, Vector3? pivot})
 
-List<(EditMesh, IdRemap)> separateComponents(EditMesh mesh)
+List<RemappedMesh> separateComponents(EditMesh mesh)
 
 double shapeFalloff(BrushFalloff falloff, double t)
 
@@ -949,7 +1000,7 @@ EditMesh stool({double height = 0.65, double top = 0.32})
 
 double stretchOf(EditMesh mesh, List<int> island)
 
-(EditMesh, IdRemap) subMesh(EditMesh mesh, Iterable<int> wanted)
+RemappedMesh subMesh(EditMesh mesh, Iterable<int> wanted)
 
 EditMesh subdivideSimple(EditMesh mesh)
 

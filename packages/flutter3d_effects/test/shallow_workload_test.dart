@@ -94,7 +94,7 @@ void Function() _frames(Renderer renderer) {
     width: 8,
     height: 8,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
   );
 }
 

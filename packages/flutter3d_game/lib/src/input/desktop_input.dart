@@ -230,7 +230,7 @@ final class DesktopInput {
   /// add its share on top.
   void drainLook(Vector2 out) {
     final delta = capture.drainDelta();
-    final (x, y) = _actionInput.shapeDelta(
+    final ShapedPair(:x, :y) = _actionInput.shapeDelta(
       DualAxisAction.look,
       InputSource.pointerMotion,
       delta.dx,

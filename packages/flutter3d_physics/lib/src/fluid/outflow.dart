@@ -17,9 +17,83 @@ import 'fluid_medium.dart';
 /// contracts to about 0.62 of the opening past a sharp edge.
 const double sharpEdgeDischarge = 0.62;
 
+/// What a submerged opening passes — [orificeFlow].
+final class OrificeStream {
+  const OrificeStream({required this.flow, required this.speed});
+
+  /// The flow it passes, in m³ a second: [speed] over the contracted
+  /// section.
+  final double flow;
+
+  /// Torricelli's speed the stream leaves at, in m/s.
+  final double speed;
+
+  @override
+  bool operator ==(Object other) =>
+      other is OrificeStream && other.flow == flow && other.speed == speed;
+
+  @override
+  int get hashCode => Object.hash(flow, speed);
+
+  @override
+  String toString() => 'OrificeStream(flow: $flow, speed: $speed)';
+}
+
+/// What passes a weir round a circular mouth — [circularWeir].
+final class WeirFlow {
+  const WeirFlow({required this.flow, required this.area});
+
+  /// The flow over the crest, in m³ a second.
+  final double flow;
+
+  /// The section of the sheet at the crest, in square metres.
+  final double area;
+
+  @override
+  bool operator ==(Object other) =>
+      other is WeirFlow && other.flow == flow && other.area == area;
+
+  @override
+  int get hashCode => Object.hash(flow, area);
+
+  @override
+  String toString() => 'WeirFlow(flow: $flow, area: $area)';
+}
+
+/// The sheet a flow makes over a circular mouth's lip — [overCircularLip].
+final class LipOverflow {
+  const LipOverflow({
+    required this.head,
+    required this.speed,
+    required this.width,
+  });
+
+  /// The head over the lip that passes the flow, in metres.
+  final double head;
+
+  /// The speed the sheet leaves at, the flow over its crest section, in m/s.
+  final double speed;
+
+  /// The sheet's width, the chord of the wetted edge, in metres.
+  final double width;
+
+  @override
+  bool operator ==(Object other) =>
+      other is LipOverflow &&
+      other.head == head &&
+      other.speed == speed &&
+      other.width == width;
+
+  @override
+  int get hashCode => Object.hash(head, speed, width);
+
+  @override
+  String toString() => 'LipOverflow(head: $head, speed: $speed, width: $width)';
+}
+
 /// What a submerged opening of [area] passes under a [head] of liquid, in
 /// gravity [g]: Torricelli's speed, and that over the contracted section.
-({double flow, double speed}) orificeFlow({
+OrificeStream orificeFlow({
   required double area,
   required double head,
   required double g,
@@ -28,9 +102,11 @@ const double sharpEdgeDischarge = 0.62;
   /// the opening's area times Torricelli's speed.
   double discharge = sharpEdgeDischarge,
 }) {
-  if (head <= 0.0 || area <= 0.0) return (flow: 0.0, speed: 0.0);
+  if (head <= 0.0 || area <= 0.0) {
+    return const OrificeStream(flow: 0.0, speed: 0.0);
+  }
   final speed = math.sqrt(2.0 * g * head);
-  return (flow: discharge * area * speed, speed: speed);
+  return OrificeStream(flow: discharge * area * speed, speed: speed);
 }
 
 /// How much passes a weir round a circular mouth of [radius] tipped [tilt]
@@ -45,7 +121,7 @@ const double sharpEdgeDischarge = 0.62;
 /// nought. At the crest the flow is critical, about two thirds of the head
 /// deep, which is the section the sheet leaves with. Nothing passes at a
 /// head of nought or less: the liquid has drawn back from the edge.
-({double flow, double area}) circularWeir({
+WeirFlow circularWeir({
   required double head,
   required double radius,
   required double tilt,
@@ -55,7 +131,7 @@ const double sharpEdgeDischarge = 0.62;
   double discharge = sharpEdgeDischarge,
   int steps = 360,
 }) {
-  if (head <= 0.0) return (flow: 0.0, area: 0.0);
+  if (head <= 0.0) return const WeirFlow(flow: 0.0, area: 0.0);
   final dip = radius * math.max(Portable.sin(tilt).abs(), 1e-3);
   var q = 0.0;
   var area = 0.0;
@@ -68,7 +144,7 @@ const double sharpEdgeDischarge = 0.62;
     q += Portable.pow(depth, 1.5) * edge;
     area += depth * edge;
   }
-  return (
+  return WeirFlow(
     flow: discharge * (2.0 / 3.0) * math.sqrt(2.0 * g) * q,
     area: (2.0 / 3.0) * area,
   );
@@ -77,7 +153,7 @@ const double sharpEdgeDischarge = 0.62;
 /// The other way round: the head over a circular mouth's lip that passes
 /// [flow], the speed the sheet leaves at — the flow over its crest section —
 /// and the sheet's width, the chord of the wetted edge.
-({double head, double speed, double width}) overCircularLip({
+LipOverflow overCircularLip({
   required double flow,
   required double radius,
   required double tilt,
@@ -98,7 +174,7 @@ const double sharpEdgeDischarge = 0.62;
   final head = 0.5 * (lo + hi);
   final crest = circularWeir(head: head, radius: radius, tilt: tilt, g: g);
   final reach = (1.0 - head / dip).clamp(-1.0, 1.0);
-  return (
+  return LipOverflow(
     head: head,
     speed: crest.area > 0.0 ? flow / crest.area : math.sqrt(g * head),
     width: 2.0 * radius * Portable.sin(Portable.acos(reach)),

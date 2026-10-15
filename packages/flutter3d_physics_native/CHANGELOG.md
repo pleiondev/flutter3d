@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **Results that were records are final classes.** `NativeWorld`'s
+  `readTransforms`, `readFires`, `readShallowSurface`, `shallowVolume`,
+  `linkJoint`, `linkTurn`, `charOf` and `submergedOf`, and
+  `customShapeDirections`, answer final classes with the record's field
+  names (`x`, `y`, `z` for a direction), `==` and `hashCode`, so a result
+  can gain a field in a minor.
+
 - **The browser's physics core gives back what a step borrowed.** The
   allocator in the WebAssembly build split freed blocks and never joined
   them, so a world that borrows scratch every step (the shallow water, the

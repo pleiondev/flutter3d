@@ -184,7 +184,7 @@ class _IncidentScreenState extends State<IncidentScreen>
           SceneSurface(
             renderer: renderer,
             scene: _scene,
-            view: RenderView(camera: _camera),
+            view: CameraView(camera: _camera),
             settings: () => const RenderSettings(),
             onBeforeFrame: () {},
             // Required since the package merge: what hands a finished frame

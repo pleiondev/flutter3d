@@ -5,8 +5,12 @@ import 'dart:collection';
 /// A mixin on whatever a collider's `userData` happens to be, so a door can ask
 /// the body in front of it what it holds without the physics knowing that keys
 /// exist and without a lookup table from colliders to inventories.
-abstract mixin class KeyHolder {
-  Set<String> get keys;
+///
+/// **Mixed in, never implemented**: a base mixin class, so a member a minor
+/// adds arrives with a body.
+abstract base mixin class KeyHolder {
+  /// The keys held, by colour; none by default.
+  Set<String> get keys => const <String>{};
 }
 
 /// The keys one body is carrying, by colour.

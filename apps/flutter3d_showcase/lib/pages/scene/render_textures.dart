@@ -14,7 +14,7 @@ final class RenderTexturesDemo extends ShowcaseDemo {
   bool _retakeAsked = false;
 
   late final CameraNode _watcher;
-  late final RenderView _picture;
+  late final CameraView _picture;
   late final MeshNode _spinner;
   late final Renderer _renderer;
   double _age = 0.0;
@@ -92,7 +92,7 @@ final class RenderTexturesDemo extends ShowcaseDemo {
     // #endregion watcher
 
     // #region texture
-    _picture = RenderView.texture(
+    _picture = CameraView.texture(
       context.device,
       camera: _watcher,
       width: 160,

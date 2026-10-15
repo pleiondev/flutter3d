@@ -29,7 +29,7 @@ void main() {
         width: 16,
         height: 12,
         scene: scene,
-        views: <RenderView>[RenderView(camera: camera)],
+        views: <CameraView>[CameraView(camera: camera)],
       );
 
       frame();

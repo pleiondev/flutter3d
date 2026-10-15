@@ -186,12 +186,12 @@ Future<int> _perClass(
 /// A level lives somewhere under its project (`assets/levels/crypt.json`),
 /// and the command is run from wherever its author is, so the project is
 /// found from the level rather than from the working directory.
-AssetManifest _manifestAbove(Directory directory) {
+AssetBuildManifest _manifestAbove(Directory directory) {
   for (var at = directory.absolute; ; at = at.parent) {
     if (File('${at.path}/flutter3d_assets.yaml').existsSync()) {
-      return AssetManifest.readFrom(at);
+      return AssetBuildManifest.readFrom(at);
     }
-    if (at.parent.path == at.path) return AssetManifest.empty;
+    if (at.parent.path == at.path) return AssetBuildManifest.empty;
   }
 }
 

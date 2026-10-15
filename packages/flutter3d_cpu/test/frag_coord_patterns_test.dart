@@ -32,14 +32,17 @@ double _mod32(double x, double y) =>
     _f32(x - _f32(y * _f32(_f32(x / y).floorToDouble())));
 
 /// [splatNoiseOffset] with every intermediate a 32-bit float.
-(double, double) _offset32(double identity) {
+NoiseTileCell _offset32(double identity) {
   final affine = _mod32(_f32(_f32(identity * 1597.0) + 2531.0), 4096.0);
   final mixed = _mod32(
     _f32(affine * _mod32(_f32(_f32(2.0 * affine) + 1.0), 4096.0)),
     4096.0,
   );
   final row = _f32(_f32(mixed / 64.0).floorToDouble());
-  return (_mod32(_f32(mixed + _f32(row * 37.0)), 64.0), row);
+  return NoiseTileCell(
+    column: _mod32(_f32(mixed + _f32(row * 37.0)), 64.0),
+    row: row,
+  );
 }
 
 void main() {
@@ -122,16 +125,18 @@ void main() {
     // repeat, and the 32-bit run parts from the 64-bit one.
     final cells = <int>{};
     for (var identity = 0; identity < 4096; identity++) {
-      final (x, y) = splatNoiseOffset(identity.toDouble());
+      final offset = splatNoiseOffset(identity.toDouble());
+      final NoiseTileCell(column: x, row: y) = offset;
       expect(x, inInclusiveRange(0.0, 63.0));
       expect(y, inInclusiveRange(0.0, 63.0));
       expect(x, x.floorToDouble());
       expect(y, y.floorToDouble());
       cells.add(y.toInt() * 64 + x.toInt());
-      expect(_offset32(identity.toDouble()), (
-        x,
-        y,
-      ), reason: 'identity $identity in 32-bit floats');
+      expect(
+        _offset32(identity.toDouble()),
+        offset,
+        reason: 'identity $identity in 32-bit floats',
+      );
     }
     expect(cells, hasLength(4096));
   });

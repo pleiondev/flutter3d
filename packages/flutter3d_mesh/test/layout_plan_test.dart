@@ -83,8 +83,8 @@ void main() {
         segments: 16,
         rings: 8,
       ).build();
-      final (flatMesh, _, _) = importMeshData(drawn);
-      final (smoothMesh, _, _) = importMeshData(drawn);
+      final ImportedMesh(mesh: flatMesh) = importMeshData(drawn);
+      final ImportedMesh(mesh: smoothMesh) = importMeshData(drawn);
       edit(smoothMesh, () {
         for (var face = 0; face < smoothMesh.faceSlotCount; face++) {
           if (smoothMesh.isFaceAlive(face)) {

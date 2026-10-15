@@ -62,7 +62,7 @@ void main() {
       width: _width,
       height: _height,
       scene: scene,
-      views: <RenderView>[RenderView(camera: camera)],
+      views: <CameraView>[CameraView(camera: camera)],
     );
 
     expect(frame.triangles, 0);
@@ -91,7 +91,7 @@ void main() {
       width: _width,
       height: _height,
       scene: scene,
-      views: <RenderView>[RenderView(camera: camera)],
+      views: <CameraView>[CameraView(camera: camera)],
     );
 
     expect(frame.triangles, 12);
@@ -143,7 +143,7 @@ void main() {
       width: _width,
       height: _height,
       scene: scene,
-      views: <RenderView>[RenderView(camera: camera)],
+      views: <CameraView>[CameraView(camera: camera)],
     );
 
     expect(frame.triangles, 12 + 12 * instanceCount);
@@ -174,7 +174,7 @@ void main() {
       width: _width,
       height: _height,
       scene: scene,
-      views: <RenderView>[RenderView(camera: camera)],
+      views: <CameraView>[CameraView(camera: camera)],
     );
 
     expect(frame.triangles, 0);

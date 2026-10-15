@@ -129,7 +129,7 @@ void main() {
 
     for (final entry in cases.entries) {
       final camera = entry.value;
-      final view = RenderView(camera: camera);
+      final view = CameraView(camera: camera);
       final viewMatrix = camera.viewMatrix;
       final frustum = Frustum.matrix(camera.viewProjection(1.0));
 

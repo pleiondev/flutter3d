@@ -670,11 +670,7 @@ base mixin RenderBundleEncoder on PassEncoder {
 /// windows in the same words rather than each reaching its driver's own
 /// answer. Throws a [RangeError] naming the three numbers when the window
 /// does not lie inside the binding.
-({int first, int count}) indexWindow(
-  int bound, {
-  int firstIndex = 0,
-  int? indexCount,
-}) {
+IndexWindow indexWindow(int bound, {int firstIndex = 0, int? indexCount}) {
   final count = indexCount ?? bound - firstIndex;
   if (firstIndex < 0 || count < 0 || firstIndex + count > bound) {
     throw RangeError(
@@ -683,7 +679,30 @@ base mixin RenderBundleEncoder on PassEncoder {
       'buffer whose indices the window means.',
     );
   }
-  return (first: firstIndex, count: count);
+  return IndexWindow(first: firstIndex, count: count);
+}
+
+/// The run of bound indices one draw reads, as [indexWindow] answers it.
+final class IndexWindow {
+  /// [count] indices from index [first].
+  const IndexWindow({required this.first, required this.count});
+
+  /// The first index the draw reads, counted in indices from the start of
+  /// the binding.
+  final int first;
+
+  /// How many indices the draw reads from [first].
+  final int count;
+
+  @override
+  bool operator ==(Object other) =>
+      other is IndexWindow && other.first == first && other.count == count;
+
+  @override
+  int get hashCode => Object.hash(first, count);
+
+  @override
+  String toString() => 'IndexWindow(first: $first, count: $count)';
 }
 
 /// A pass somebody opened, and must therefore close.

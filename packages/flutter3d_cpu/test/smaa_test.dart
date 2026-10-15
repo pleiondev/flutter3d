@@ -51,8 +51,8 @@ Float32List _render({
     scene: Scene()
       ..add(card)
       ..add(camera),
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: camera,
         clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
@@ -136,8 +136,8 @@ void main() {
         width: 16,
         height: 16,
         scene: Scene()..add(camera),
-        views: <RenderView>[
-          RenderView(
+        views: <CameraView>[
+          CameraView(
             camera: camera,
             clearColor: LinearColor.fromSrgb(0.3, 0.5, 0.7, 1.0),
           ),

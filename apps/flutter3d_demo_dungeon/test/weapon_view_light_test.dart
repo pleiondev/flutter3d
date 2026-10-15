@@ -81,8 +81,8 @@ Future<Uint8List> _drawn({required bool stepped}) async {
     width: _width,
     height: _height,
     scene: world,
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: camera,
         clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),

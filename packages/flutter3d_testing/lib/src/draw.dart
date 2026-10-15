@@ -28,8 +28,8 @@ Future<RenderedFrame> drawOnce({
     width: width,
     height: height,
     scene: subject.scene,
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: subject.camera,
         clearColor: clearColor ?? LinearColor.black,
       ),

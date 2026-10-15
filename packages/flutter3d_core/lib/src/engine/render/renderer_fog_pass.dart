@@ -33,7 +33,7 @@ extension _FogPass on Renderer {
     required TextureHandle? contactShadow,
     required RenderSettings renderSettings,
     required VolumetricFogSettings settings,
-    required RenderView view,
+    required CameraView view,
     required FrameResources resources,
     required int width,
     required int height,

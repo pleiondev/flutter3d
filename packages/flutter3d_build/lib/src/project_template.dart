@@ -6,6 +6,8 @@ library;
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter3d_mcp/kit.dart' show Answer;
+
 import 'init.dart';
 import 'project_kinds.dart';
 import 'project_model.dart';
@@ -194,13 +196,13 @@ flutter3d convert path/to/Chair.prefab -o assets_src/imported
 /// Writes a new project called [name], of [kind], into [target], which must
 /// be empty or not exist, and wires the build hook. Returns what it did, or
 /// why it did not.
-({bool did, String says}) createProject(
+Answer createProject(
   String target,
   String name, {
   ProjectKind kind = ProjectKind.scene,
 }) {
   if (!isPackageName(name)) {
-    return (
+    return Answer(
       did: false,
       says:
           '"$name" is not a package name: lower case letters, digits and '
@@ -210,7 +212,7 @@ flutter3d convert path/to/Chair.prefab -o assets_src/imported
   }
   final root = Directory(target);
   if (root.existsSync() && root.listSync().isNotEmpty) {
-    return (
+    return Answer(
       did: false,
       says: '$target is not empty; a new project goes in an empty directory',
     );
@@ -233,7 +235,7 @@ flutter3d convert path/to/Chair.prefab -o assets_src/imported
   for (final step in steps) {
     if (!step.blocked) step.apply!();
   }
-  return (
+  return Answer(
     did: true,
     says: <String>[
       'created $name ($kind) in $target:',

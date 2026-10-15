@@ -1,5 +1,7 @@
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
+import '../../formats/pixel_extent.dart';
+
 import 'frame_graph.dart';
 
 /// How large a resource is, relative to the frame or in its own right.
@@ -15,7 +17,7 @@ abstract base class ResourceSize {
   const ResourceSize();
 
   /// The size in pixels, given the frame's.
-  (int, int) resolve(int frameWidth, int frameHeight);
+  PixelExtent resolve(int frameWidth, int frameHeight);
 
   /// Hands this size to the [visitor]'s method for its kind;
   /// [ResourceSizeVisitor.visitUnknown] by default.
@@ -49,13 +51,13 @@ final class FrameFraction extends ResourceSize {
   final int divisor;
 
   @override
-  (int, int) resolve(int frameWidth, int frameHeight) {
+  PixelExtent resolve(int frameWidth, int frameHeight) {
     // Never below one pixel: a chain taken far enough would otherwise ask for
     // a zero-sized texture, and that is a driver error rather than an
     // exception. The pool's `scaled` guards the same way for the same reason.
     final w = frameWidth ~/ divisor;
     final h = frameHeight ~/ divisor;
-    return (w < 1 ? 1 : w, h < 1 ? 1 : h);
+    return PixelExtent(width: w < 1 ? 1 : w, height: h < 1 ? 1 : h);
   }
 
   @override
@@ -72,7 +74,8 @@ final class AbsolutePixels extends ResourceSize {
   final int height;
 
   @override
-  (int, int) resolve(int frameWidth, int frameHeight) => (width, height);
+  PixelExtent resolve(int frameWidth, int frameHeight) =>
+      PixelExtent(width: width, height: height);
 
   @override
   R accept<R>(ResourceSizeVisitor<R> visitor) =>
@@ -144,7 +147,7 @@ final class ResourceDesc {
   final StorageMode storageMode;
 
   RenderTargetDescriptor resolve(int frameWidth, int frameHeight) {
-    final (width, height) = size.resolve(frameWidth, frameHeight);
+    final PixelExtent(:width, :height) = size.resolve(frameWidth, frameHeight);
     return RenderTargetDescriptor(
       width: width,
       height: height,

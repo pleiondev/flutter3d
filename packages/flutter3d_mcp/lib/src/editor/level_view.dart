@@ -177,7 +177,7 @@ final class LevelView {
       for (final piece in _pieces)
         if (idOf[piece.node] case final int id) id: piece,
     };
-    final depths = <_Piece, ({double near, double far})?>{
+    final depths = <_Piece, DepthSpan?>{
       for (final piece in _pieces) piece: _depthOf(view, piece.box),
     };
     // The ray through the middle of each pixel, from the eye: two points of
@@ -232,9 +232,9 @@ final class LevelView {
           }
         }
       }
-      final covering = <({String who, double share})>[
+      final covering = <PieceCover>[
         for (final entry in inFront.entries)
-          (who: entry.key.row.label, share: entry.value / silhouette),
+          PieceCover(who: entry.key.row.label, share: entry.value / silhouette),
       ]..sort((a, b) => b.share.compareTo(a.share));
       final box = id == null ? null : boxes[id];
       return PieceReport(
@@ -242,7 +242,12 @@ final class LevelView {
         pixels: id == null ? 0 : owned[id],
         screenBox: box == null
             ? null
-            : (left: box[0], top: box[1], right: box[2], bottom: box[3]),
+            : PixelBox(
+                left: box[0],
+                top: box[1],
+                right: box[2],
+                bottom: box[3],
+              ),
         depth: depth,
         inView: silhouette > 0,
         covering: covering,
@@ -269,8 +274,8 @@ final class LevelView {
       width: width,
       height: height,
       scene: _scene,
-      views: <RenderView>[
-        RenderView(
+      views: <CameraView>[
+        CameraView(
           camera: eye,
           clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
         ),
@@ -282,7 +287,7 @@ final class LevelView {
 
   /// How far in front of the eye [box] reaches, nearest and farthest, or
   /// null when all of it is behind the eye.
-  static ({double near, double far})? _depthOf(Matrix4 view, Aabb3 box) {
+  static DepthSpan? _depthOf(Matrix4 view, Aabb3 box) {
     var near = double.infinity;
     var far = double.negativeInfinity;
     final corner = Vector3.zero();
@@ -298,7 +303,7 @@ final class LevelView {
       if (ahead > far) far = ahead;
     }
     if (far <= 0.0) return null;
-    return (near: near < 0.0 ? 0.0 : near, far: far);
+    return DepthSpan(near: near < 0.0 ? 0.0 : near, far: far);
   }
 
   /// How far along [ray] from [origin] it enters [box] — zero when it starts
@@ -365,11 +370,11 @@ final class PieceReport {
 
   /// The box around the pixels it owns, in pixels from the top left and
   /// inclusive; null when it owns none.
-  final ({int left, int top, int right, int bottom})? screenBox;
+  final PixelBox? screenBox;
 
-  /// How far in front of the eye its box reaches, in metres; null when all of
-  /// it is behind the eye.
-  final ({double near, double far})? depth;
+  /// How far in front of the eye its box reaches; null when all of it is
+  /// behind the eye.
+  final DepthSpan? depth;
 
   /// Whether the box it fills in the world lands on the frame at all.
   final bool inView;
@@ -377,7 +382,7 @@ final class PieceReport {
   /// What owns the pixels of the part of the screen its world box would fill
   /// — only the pieces that can be in front of it — with the share of that
   /// part each owns, most first.
-  final List<({String who, double share})> covering;
+  final List<PieceCover> covering;
 
   /// One line, the way the listing prints one.
   String get says {
@@ -404,4 +409,114 @@ final class PieceReport {
       if (covers.isNotEmpty) 'covered by ${covers.join(', ')}',
     ].join(' · ');
   }
+
+  @override
+  bool operator ==(Object other) =>
+      other is PieceReport &&
+      other.label == label &&
+      other.pixels == pixels &&
+      other.screenBox == screenBox &&
+      other.depth == depth &&
+      other.inView == inView &&
+      _sameCovers(other.covering, covering);
+
+  @override
+  int get hashCode => Object.hash(
+    label,
+    pixels,
+    screenBox,
+    depth,
+    inView,
+    Object.hashAll(covering),
+  );
+
+  @override
+  String toString() => 'PieceReport($says)';
+}
+
+bool _sameCovers(List<PieceCover> a, List<PieceCover> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
+}
+
+/// A box of whole pixels on the frame, from the top left, every edge
+/// inclusive.
+final class PixelBox {
+  const PixelBox({
+    required this.left,
+    required this.top,
+    required this.right,
+    required this.bottom,
+  });
+
+  /// The leftmost column, in pixels from the left edge.
+  final int left;
+
+  /// The topmost row, in pixels from the top edge.
+  final int top;
+
+  /// The rightmost column, in pixels from the left edge.
+  final int right;
+
+  /// The bottom row, in pixels from the top edge.
+  final int bottom;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PixelBox &&
+      other.left == left &&
+      other.top == top &&
+      other.right == right &&
+      other.bottom == bottom;
+
+  @override
+  int get hashCode => Object.hash(left, top, right, bottom);
+
+  @override
+  String toString() => 'PixelBox($left,$top–$right,$bottom)';
+}
+
+/// How far in front of the eye something reaches, nearest and farthest.
+final class DepthSpan {
+  const DepthSpan({required this.near, required this.far});
+
+  /// The nearest distance ahead of the eye, in metres; never below zero.
+  final double near;
+
+  /// The farthest distance ahead of the eye, in metres.
+  final double far;
+
+  @override
+  bool operator ==(Object other) =>
+      other is DepthSpan && other.near == near && other.far == far;
+
+  @override
+  int get hashCode => Object.hash(near, far);
+
+  @override
+  String toString() => 'DepthSpan($near–$far m)';
+}
+
+/// One piece in front of another, and how much of the other it hides.
+final class PieceCover {
+  const PieceCover({required this.who, required this.share});
+
+  /// The covering piece's label, as [PieceReport.label] prints it.
+  final String who;
+
+  /// The share of the covered piece's screen part it owns, a fraction 0..1.
+  final double share;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PieceCover && other.who == who && other.share == share;
+
+  @override
+  int get hashCode => Object.hash(who, share);
+
+  @override
+  String toString() => 'PieceCover($who, $share)';
 }

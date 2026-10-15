@@ -63,7 +63,7 @@ _stage({required int boxes, required int lamps}) {
   return (renderer: renderer, device: device, scene: scene, lamps: lights);
 }
 
-FrameResult _render(Renderer renderer, Scene scene, List<RenderView> views) =>
+FrameResult _render(Renderer renderer, Scene scene, List<CameraView> views) =>
     renderer.render(
       width: _size,
       height: _size,
@@ -75,7 +75,7 @@ FrameResult _render(Renderer renderer, Scene scene, List<RenderView> views) =>
 void main() {
   test('a view of many lit draws builds its light list once', () {
     final (:renderer, :device, :scene, lamps: _) = _stage(boxes: 24, lamps: 12);
-    final views = <RenderView>[RenderView(camera: scene.cameras.single)];
+    final views = <CameraView>[CameraView(camera: scene.cameras.single)];
 
     final frame = _render(renderer, scene, views);
     expect(frame.drawCalls, greaterThan(12), reason: 'many lit draws');
@@ -92,9 +92,9 @@ void main() {
       ..lookAt(Vector3.zero());
     scene.add(other);
 
-    _render(renderer, scene, <RenderView>[
-      RenderView(camera: scene.cameras.first),
-      RenderView(
+    _render(renderer, scene, <CameraView>[
+      CameraView(camera: scene.cameras.first),
+      CameraView(
         camera: other,
         viewportFraction: const ViewportRect(0.5, 0.0, 0.5, 1.0),
       ),
@@ -104,7 +104,7 @@ void main() {
 
   test('a light changed between frames reaches the next frame', () async {
     final (:renderer, :device, :scene, :lamps) = _stage(boxes: 6, lamps: 12);
-    final views = <RenderView>[RenderView(camera: scene.cameras.single)];
+    final views = <CameraView>[CameraView(camera: scene.cameras.single)];
 
     Future<int> brightness() async {
       final frame = _render(renderer, scene, views);
@@ -126,8 +126,8 @@ void main() {
 
   test('a scene inside the eight slots builds none', () {
     final (:renderer, :device, :scene, lamps: _) = _stage(boxes: 6, lamps: 4);
-    _render(renderer, scene, <RenderView>[
-      RenderView(camera: scene.cameras.single),
+    _render(renderer, scene, <CameraView>[
+      CameraView(camera: scene.cameras.single),
     ]);
     expect(renderer.debugLightListBuilds, 0);
   });

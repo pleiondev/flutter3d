@@ -115,17 +115,40 @@ final class GizmoMark {
   Vector3 get center => shape == GizmoShape.line ? (from + to) * 0.5 : from;
 
   /// The box that holds it, for a pointer to hit.
-  (Vector3, Vector3) get bounds {
+  GizmoBounds get bounds {
     if (shape == GizmoShape.line) {
       final half = size * 0.5;
       final low = Vector3.zero();
       final high = Vector3.zero();
       Vector3.min(from, to, low);
       Vector3.max(from, to, high);
-      return (low - half, high + half);
+      return GizmoBounds(min: low - half, max: high + half);
     }
-    return (from - size * 0.5, from + size * 0.5);
+    return GizmoBounds(min: from - size * 0.5, max: from + size * 0.5);
   }
+}
+
+/// The axis-aligned box that holds a [GizmoMark], for a pointer to hit: what
+/// [GizmoMark.bounds] answers.
+final class GizmoBounds {
+  /// The box from corner [min] to corner [max].
+  const GizmoBounds({required this.min, required this.max});
+
+  /// The corner with the smallest coordinate on every axis, in metres.
+  final Vector3 min;
+
+  /// The corner with the largest coordinate on every axis, in metres.
+  final Vector3 max;
+
+  @override
+  bool operator ==(Object other) =>
+      other is GizmoBounds && other.min == min && other.max == max;
+
+  @override
+  int get hashCode => Object.hash(min.x, min.y, min.z, max.x, max.y, max.z);
+
+  @override
+  String toString() => 'GizmoBounds($min, $max)';
 }
 
 /// What a gizmo is asked about: one thing of the level, where it is, and
@@ -271,8 +294,8 @@ DrawnMark? markUnder(List<DrawnMark> marks, Vector3 from, Vector3 along) {
   var nearestAt = double.infinity;
   for (final drawn in marks) {
     if (drawn.mark.handle == null) continue;
-    final (low, high) = drawn.mark.bounds;
-    final distance = Picking.hit(low, high, from, along);
+    final GizmoBounds(:min, :max) = drawn.mark.bounds;
+    final distance = Picking.hit(min, max, from, along);
     if (distance != null && distance < nearestAt) {
       nearestAt = distance;
       nearest = drawn;

@@ -156,6 +156,28 @@ final class RemeshReport {
       'after $after)';
 }
 
+/// The mesh [isotropicRemesh] produced and what the pass measured.
+final class RemeshedMesh {
+  /// The remeshed [mesh] with its [report].
+  const RemeshedMesh({required this.mesh, required this.report});
+
+  /// The remeshed mesh, which is not the input once an edge has collapsed.
+  final EditMesh mesh;
+
+  /// What the pass did, and the quality before and after.
+  final RemeshReport report;
+
+  @override
+  bool operator ==(Object other) =>
+      other is RemeshedMesh && other.mesh == mesh && other.report == report;
+
+  @override
+  int get hashCode => Object.hash(mesh, report);
+
+  @override
+  String toString() => 'RemeshedMesh($report)';
+}
+
 /// Remeshes [mesh] toward uniform triangles of edge length [targetEdgeLength],
 /// the Botsch–Kobbelt loop: split what is too long, collapse what is too
 /// short, flip edges to push vertex valence toward six, and smooth each
@@ -240,7 +262,7 @@ final class RemeshReport {
 /// to `mergeAt`'s own general-purpose behaviour rather than a boundary-aware
 /// target valence of four. Both are exactly the kind of thing a spike is for
 /// finding before the real row pays to discover them.
-(EditMesh, RemeshReport) isotropicRemesh(
+RemeshedMesh isotropicRemesh(
   EditMesh mesh, {
   required double targetEdgeLength,
   int iterations = 5,
@@ -283,9 +305,9 @@ final class RemeshReport {
     current.endStep();
   }
 
-  return (
-    current,
-    RemeshReport(
+  return RemeshedMesh(
+    mesh: current,
+    report: RemeshReport(
       iterations: iterations,
       targetEdgeLength: targetEdgeLength,
       edgeSplits: splits,
@@ -401,7 +423,7 @@ int _splitEdgeKeepingTriangles(EditMesh mesh, int halfEdge) {
     final midpoint = (current.positionOf(a) + current.positionOf(b)).scaled(
       0.5,
     );
-    final (merged, report) = mergeAt(
+    final MergedMesh(mesh: merged, :report) = mergeAt(
       current,
       Selection.of(ElementLevel.vertex, <int>[a, b]),
       midpoint,

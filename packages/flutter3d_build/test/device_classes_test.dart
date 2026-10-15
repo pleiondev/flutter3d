@@ -79,12 +79,14 @@ IOSink _quiet([StringBuffer? into]) {
 void main() {
   group('the manifest', () {
     test('names no classes by default', () {
-      expect(AssetManifest.parse('rules: []').classes, isEmpty);
-      expect(AssetManifest.empty.classes, isEmpty);
+      expect(AssetBuildManifest.parse('rules: []').classes, isEmpty);
+      expect(AssetBuildManifest.empty.classes, isEmpty);
     });
 
     test('a list takes the presets', () {
-      final manifest = AssetManifest.parse('classes: [phone, web, desktop]');
+      final manifest = AssetBuildManifest.parse(
+        'classes: [phone, web, desktop]',
+      );
       expect(manifest.classes, <DeviceClassBudget>[
         DeviceClassBudget.phone,
         DeviceClassBudget.web,
@@ -94,7 +96,7 @@ void main() {
     });
 
     test('a mapping changes the numbers it names and keeps the rest', () {
-      final manifest = AssetManifest.parse('''
+      final manifest = AssetBuildManifest.parse('''
 classes:
   phone:
     maxTextureSide: 256
@@ -112,7 +114,7 @@ classes:
 
     test('an unknown class, key or a class named twice names its line', () {
       expect(
-        () => AssetManifest.parse('classes: [phone, console]'),
+        () => AssetBuildManifest.parse('classes: [phone, console]'),
         throwsA(
           isA<ManifestFormatException>()
               .having((e) => e.line, 'line', 1)
@@ -120,13 +122,13 @@ classes:
         ),
       );
       expect(
-        () => AssetManifest.parse('classes:\n  phone:\n    tris: 3\n'),
+        () => AssetBuildManifest.parse('classes:\n  phone:\n    tris: 3\n'),
         throwsA(
           isA<ManifestFormatException>().having((e) => e.line, 'line', 3),
         ),
       );
       expect(
-        () => AssetManifest.parse('classes: [web, web]'),
+        () => AssetBuildManifest.parse('classes: [web, web]'),
         throwsA(isA<ManifestFormatException>()),
       );
     });

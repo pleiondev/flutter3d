@@ -355,7 +355,7 @@ final class PadInput {
   /// contribution is added on top, so moving both at once turns the view by the
   /// sum rather than by whichever ran last.
   void drainLook(Vector2 out) {
-    final (x, y) = _actionInput.shapeDelta(
+    final ShapedPair(:x, :y) = _actionInput.shapeDelta(
       DualAxisAction.look,
       InputSource.padStick('right'),
       _look.x,

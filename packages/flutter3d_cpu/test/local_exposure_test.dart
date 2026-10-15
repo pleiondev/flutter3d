@@ -47,8 +47,8 @@ Float32List _render({required bool local}) {
     width: _width,
     height: _height,
     scene: scene,
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: camera,
         clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
@@ -93,7 +93,7 @@ double _card({required double exposure, required bool local}) {
     scene: Scene()
       ..add(card)
       ..add(camera),
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
     settings: RenderSettings(
       exposure: exposure,
       bloom: const BloomSettings(enabled: false),

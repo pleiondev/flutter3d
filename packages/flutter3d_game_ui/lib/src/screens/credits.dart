@@ -198,8 +198,8 @@ final class CreditLedger {
 
 /// One section of a `LICENSES.md`: the files it covers and the rows its
 /// table gives for them.
-final class LicenseEntry {
-  const LicenseEntry({
+final class LicenseSection {
+  const LicenseSection({
     required this.files,
     this.author,
     this.source,
@@ -242,7 +242,7 @@ final class LicenseRecord {
   /// Reads [markdown]. Never throws: a section with no table is an entry
   /// with its files and nothing else.
   factory LicenseRecord.parse(String markdown) {
-    final entries = <LicenseEntry>[];
+    final entries = <LicenseSection>[];
     List<String>? files;
     final rows = <String, String>{};
     var inFileTable = false;
@@ -279,24 +279,27 @@ final class LicenseRecord {
         // note about them (which is which), not an entry of its own.
         final named = _fileNames(cells.first);
         if (files == null && named.isNotEmpty) {
-          entries.add(LicenseEntry(files: named));
+          entries.add(LicenseSection(files: named));
         }
         continue;
       }
       if (cells.length >= 2) rows[cells[0].toLowerCase()] = cells[1];
     }
     close();
-    return LicenseRecord._(List<LicenseEntry>.unmodifiable(entries), markdown);
+    return LicenseRecord._(
+      List<LicenseSection>.unmodifiable(entries),
+      markdown,
+    );
   }
 
   /// Every section and file row, in the order the file has them.
-  final List<LicenseEntry> entries;
+  final List<LicenseSection> entries;
 
   /// The whole file.
   final String text;
 
   /// The entry that names [fileName], or null.
-  LicenseEntry? entryFor(String fileName) {
+  LicenseSection? entryFor(String fileName) {
     for (final entry in entries) {
       if (entry.files.contains(fileName)) return entry;
     }
@@ -342,9 +345,9 @@ List<String> _cells(String row) {
   return cells;
 }
 
-LicenseEntry _entry(List<String> files, Map<String, String> rows) {
+LicenseSection _entry(List<String> files, Map<String, String> rows) {
   final license = rows['licence'] ?? rows['license'];
-  return LicenseEntry(
+  return LicenseSection(
     files: List<String>.unmodifiable(files),
     author: switch (rows['author']) {
       final author? => _beforeLink(author),

@@ -52,7 +52,11 @@ final class LightShaftsAddon extends RenderStepAddon {
 /// drawn inside the scene pass and owns no pass of its own; its switch is
 /// `SkySettings.enabled`. Off, the frame is cleared to the view's colour
 /// where the sky was.
-const RenderStep skyStep = RenderStep('sky', switchOff: _skyOff, isOn: _skyOn);
+const RenderStep skyStep = RenderStep(
+  'flutter3d_post.sky',
+  switchOff: _skyOff,
+  isOn: _skyOn,
+);
 
 RenderSettings _skyOff(RenderStepContext context) => context.settings.copyWith(
   sky: context.settings.sky.copyWith(enabled: false),

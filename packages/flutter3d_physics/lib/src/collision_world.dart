@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show SnapshotPart, SnapshotRestoreContext, WorldPosition;
+    show SnapshotPart, SnapshotRestoreContext, WorldOffset, WorldPosition;
 import 'package:vector_math/vector_math.dart';
 
 import 'character_mover.dart';
@@ -338,7 +338,7 @@ final class CollisionWorld {
   void moveOriginTo(WorldPosition to) {
     final by = to.relativeTo(_origin);
     _origin = to;
-    final (:x, :y, :z) = by;
+    final WorldOffset(:x, :y, :z) = by;
     if (x == 0.0 && y == 0.0 && z == 0.0) return;
     for (final collider in <Collider>[..._statics, ..._movers]) {
       final p = collider.position;

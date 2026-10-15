@@ -32,7 +32,7 @@ final class TouchButton extends StatefulWidget {
     required this.action,
     required this.label,
     this.radius = 34.0,
-  }) : pedal = null;
+  }) : _pedal = null;
 
   /// A pedal: a rounded rectangle of [width] by [height], its label across
   /// it. Until 1.0.0-rc.1 this was a widget of its own, `Pedal`, doing the
@@ -45,7 +45,7 @@ final class TouchButton extends StatefulWidget {
     double width = 84.0,
     double height = 108.0,
   }) : radius = 0.0,
-       pedal = (width: width, height: height);
+       _pedal = (width: width, height: height);
 
   final InputState state;
   final GameAction action;
@@ -56,12 +56,39 @@ final class TouchButton extends StatefulWidget {
   /// The radius of a round button, in logical pixels; nought for a pedal.
   final double radius;
 
-  /// A pedal's width and height, in logical pixels, or null for a round
-  /// button.
-  final ({double width, double height})? pedal;
+  /// A pedal's width and height, or null for a round button.
+  PedalSize? get pedal => switch (_pedal) {
+    (:final width, :final height) => PedalSize(width: width, height: height),
+    null => null,
+  };
+
+  /// [pedal] as the constructor can hold it: a const constructor cannot make
+  /// a [PedalSize] of its parameters.
+  final ({double width, double height})? _pedal;
 
   @override
   State<TouchButton> createState() => _TouchButtonState();
+}
+
+/// The size of a [TouchButton.pedal], as [TouchButton.pedal] holds it.
+final class PedalSize {
+  const PedalSize({required this.width, required this.height});
+
+  /// Side to side, in logical pixels.
+  final double width;
+
+  /// Top to bottom, in logical pixels.
+  final double height;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PedalSize && other.width == width && other.height == height;
+
+  @override
+  int get hashCode => Object.hash(width, height);
+
+  @override
+  String toString() => 'PedalSize($width × $height)';
 }
 
 class _TouchButtonState extends State<TouchButton> {
@@ -148,7 +175,7 @@ class _TouchButtonState extends State<TouchButton> {
     ),
   );
 
-  Widget _pedal(({double width, double height}) pedal, bool down) {
+  Widget _pedal(PedalSize pedal, bool down) {
     final theme = GameUiTheme.of(context);
     return Container(
       width: pedal.width,

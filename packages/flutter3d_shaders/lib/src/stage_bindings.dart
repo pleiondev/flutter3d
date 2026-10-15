@@ -378,7 +378,7 @@ const Map<String, StageBindings> stageBindings = <String, StageBindings>{
       'occlusion_texture',
       'point_shadow_static_texture',
       'point_shadow_texture',
-      'scene_colour_texture',
+      'scene_color_texture',
       'shadow_texture',
       'sheen_texture',
     },
@@ -406,7 +406,7 @@ const Map<String, StageBindings> stageBindings = <String, StageBindings>{
       'occlusion_texture',
       'point_shadow_static_texture',
       'point_shadow_texture',
-      'scene_colour_texture',
+      'scene_color_texture',
       'shadow_texture',
       'sheen_texture',
     },
@@ -468,7 +468,7 @@ const Map<String, StageBindings> stageBindings = <String, StageBindings>{
     blocks: <String>{'RenderTextureInfo'},
     samplers: <String>{'source_texture'},
   ),
-  'SceneColourCopy': StageBindings(
+  'SceneColorCopy': StageBindings(
     blocks: <String>{'SceneCopyInfo'},
     samplers: <String>{'source_texture'},
   ),

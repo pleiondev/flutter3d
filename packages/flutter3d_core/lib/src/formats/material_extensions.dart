@@ -205,31 +205,31 @@ final class MaterialExtensions {
   /// its own image the lane takes: red the clear coat (its red), green its
   /// roughness (its green), blue the transmission (its red), alpha the
   /// thickness (its green). Null where a lane keeps its neutral white.
-  List<({TextureBinding binding, int channel})?> get coatMapSources =>
-      <({TextureBinding binding, int channel})?>[
-        for (final (binding, channel) in <(TextureBinding?, int)>[
-          (clearcoatTexture, 0),
-          (clearcoatRoughnessTexture, 1),
-          (transmissionTexture, 0),
-          (thicknessTexture, 1),
-        ])
-          binding == null ? null : (binding: binding, channel: channel),
-      ];
+  List<PackedMapSource?> get coatMapSources => <PackedMapSource?>[
+    for (final (binding, channel) in <(TextureBinding?, int)>[
+      (clearcoatTexture, 0),
+      (clearcoatRoughnessTexture, 1),
+      (transmissionTexture, 0),
+      (thicknessTexture, 1),
+    ])
+      binding == null
+          ? null
+          : PackedMapSource(binding: binding, channel: channel),
+  ];
 
   /// The textures a sheen map packs: the colour's red, green and blue, and
   /// the roughness in alpha. Null where a lane keeps its neutral white.
-  List<({TextureBinding binding, int channel})?> get sheenMapSources =>
-      <({TextureBinding binding, int channel})?>[
-        for (var channel = 0; channel < 3; channel++)
-          if (sheenColorTexture case final binding?)
-            (binding: binding, channel: channel)
-          else
-            null,
-        if (sheenRoughnessTexture case final binding?)
-          (binding: binding, channel: 3)
-        else
-          null,
-      ];
+  List<PackedMapSource?> get sheenMapSources => <PackedMapSource?>[
+    for (var channel = 0; channel < 3; channel++)
+      if (sheenColorTexture case final binding?)
+        PackedMapSource(binding: binding, channel: channel)
+      else
+        null,
+    if (sheenRoughnessTexture case final binding?)
+      PackedMapSource(binding: binding, channel: 3)
+    else
+      null,
+  ];
 
   /// Every texture this carries, for a writer that has to know which images
   /// a material still refers to.
@@ -542,3 +542,30 @@ LinearColor? _color(Object? value) =>
         _number(value[2], 1.0),
       )
     : null;
+
+/// One lane of a packed map: the texture it is read from and the channel of
+/// that texture's own image it takes. See
+/// [MaterialExtensions.coatMapSources].
+final class PackedMapSource {
+  /// The lane read from [channel] of [binding]'s image.
+  const PackedMapSource({required this.binding, required this.channel});
+
+  /// The texture the lane is read from.
+  final TextureBinding binding;
+
+  /// Which channel of [binding]'s image the lane takes: 0 red, 1 green,
+  /// 2 blue, 3 alpha.
+  final int channel;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PackedMapSource &&
+      other.binding == binding &&
+      other.channel == channel;
+
+  @override
+  int get hashCode => Object.hash(binding, channel);
+
+  @override
+  String toString() => 'PackedMapSource($binding, $channel)';
+}

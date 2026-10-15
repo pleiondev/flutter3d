@@ -95,8 +95,8 @@ Future<({List<int> pixels, FrameResult frame})> _draw(
     width: _size,
     height: _size,
     scene: scene,
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: scene.cameras.single,
         clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
@@ -234,7 +234,7 @@ void main() {
       width: _size,
       height: _size,
       scene: scene,
-      views: <RenderView>[RenderView(camera: scene.cameras.single)],
+      views: <CameraView>[CameraView(camera: scene.cameras.single)],
       settings: const RenderSettings(batchIdenticalDraws: true),
     );
 

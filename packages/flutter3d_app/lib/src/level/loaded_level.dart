@@ -26,7 +26,7 @@ final class LoadedLevel {
     List<ReflectionProbeNode>? probes,
     this.decals = const <DecalNode>[],
     this.reflectors = const <PlanarReflectorNode>[],
-    this.screens = const <RenderView>[],
+    this.screens = const <CameraView>[],
     this.culler,
     this.batching = LevelBatching.perMaterial,
   }) : issues = List.unmodifiable(issues),
@@ -59,7 +59,7 @@ final class LoadedLevel {
 
   /// The cameras the document placed, drawing into the materials they
   /// name; given back in [dispose].
-  final List<RenderView> screens;
+  final List<CameraView> screens;
 
   /// Whether the level has decals for the frame to paint.
   bool get wantsDecals => decals.isNotEmpty;

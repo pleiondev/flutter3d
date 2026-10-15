@@ -217,7 +217,7 @@ final class PhotoModeDemo extends ShowcaseDemo {
       width: width,
       height: height,
       scene: _scene,
-      views: <RenderView>[RenderView(camera: _lens, clearColor: _clear)],
+      views: <CameraView>[CameraView(camera: _lens, clearColor: _clear)],
       settings: photoSettings(_noBloom, PhotoFilter.none, made.exposure).tile,
     );
     final ByteBuffer read = (await renderer.device.readback(

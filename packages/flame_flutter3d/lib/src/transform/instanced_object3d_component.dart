@@ -37,8 +37,8 @@ import 'plane.dart';
 /// fades an instance only when that material blends; over an opaque one it
 /// changes nothing.
 base class InstancedObject3dComponent extends PositionComponent
-    with HasVisibility
-    implements OpacityProvider, Bridged3d {
+    with HasVisibility, Bridged3d
+    implements OpacityProvider {
   InstancedObject3dComponent({
     required this.batch,
     required this.plane,

@@ -7,6 +7,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show Registration;
+import 'package:flutter3d_sim/flutter3d_sim.dart' show firstDifferingPath;
 
 import 'peer_wire.dart';
 import 'rollback_clock.dart';
@@ -19,6 +20,38 @@ final class _Ran<S> {
   final S before;
   final Map<int, Map<String, Object?>> frames;
   final Set<int> guessed;
+}
+
+/// The first settled step a [RollbackSession] found an ending in, and the
+/// state it left: what [RollbackSession.agreedEnd] answers, the same on
+/// every machine.
+final class AgreedEnding<S> {
+  const AgreedEnding({required this.step, required this.after});
+
+  /// The step the ending came on, in the session's own counting.
+  final int step;
+
+  /// The state that step left.
+  final S after;
+
+  /// Two endings are the same when their steps are and their states compare
+  /// equal value by value, so a JSON-shaped state settled on two machines is
+  /// the same ending.
+  @override
+  bool operator ==(Object other) =>
+      other is AgreedEnding<S> &&
+      other.step == step &&
+      firstDifferingPath(other.after, after) == null;
+
+  @override
+  int get hashCode => Object.hash(step, switch (after) {
+    final Map<Object?, Object?> map => map.length,
+    final List<Object?> list => list.length,
+    final value => value.hashCode,
+  });
+
+  @override
+  String toString() => 'AgreedEnding(step $step)';
 }
 
 /// A fixed-step game kept in step on [players] machines over a [PeerWire],
@@ -235,8 +268,8 @@ final class RollbackSession<S> {
 
   /// The first settled ending and the step it came on; null until there is
   /// one.
-  ({int step, S after})? get agreedEnd => _agreedEnd;
-  ({int step, S after})? _agreedEnd;
+  AgreedEnding<S>? get agreedEnd => _agreedEnd;
+  AgreedEnding<S>? _agreedEnd;
 
   final Map<int, Map<String, Object?>> _pendingLocal =
       <int, Map<String, Object?>>{};
@@ -422,7 +455,7 @@ final class RollbackSession<S> {
       );
       final ends = endsAt;
       if (_agreedEnd == null && ends != null && ends(next.before)) {
-        _agreedEnd = (step: s, after: next.before);
+        _agreedEnd = AgreedEnding<S>(step: s, after: next.before);
       }
     }
     _history.removeWhere((s, _) => s < horizon);

@@ -185,7 +185,7 @@ void main() {
       fallbackNormal: it.normal,
     );
     final room = _scene(it.device);
-    final views = <RenderView>[RenderView(camera: room.camera)];
+    final views = <CameraView>[CameraView(camera: room.camera)];
     var frame = 0;
     int draw() {
       frame++;

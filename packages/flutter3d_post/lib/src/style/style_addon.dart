@@ -30,7 +30,7 @@ final class HighContrastAddon extends RenderStepAddon {
 /// own; the switch is `HighContrastSettings.outlineWidth`, nought when off,
 /// and the look stays. Needs [RenderStep.highContrast].
 const RenderStep outlinesStep = RenderStep(
-  'outlines',
+  'flutter3d_post.outlines',
   needs: <RenderStep>{RenderStep.highContrast},
   switchOff: _outlinesOff,
   isOn: _outlinesOn,

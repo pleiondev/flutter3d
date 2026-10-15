@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 3ee1a412a54de439
+# table-stamp: 13d14d5676f1ddbf
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -111,3 +111,11 @@ transforms:
               value: 'arguments[1]'
       - kind: 'removeParameter'
         index: 1
+  - title: 'flutter3d 1.0.0-rc.1+1: build-AssetManifest-AssetBuildManifest'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_build/flutter3d_build.dart']
+      class: 'AssetManifest'
+    changes:
+      - kind: 'rename'
+        newName: 'AssetBuildManifest'

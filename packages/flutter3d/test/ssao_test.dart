@@ -126,7 +126,7 @@ Future<Uint8List> _draw(RenderSettings settings, {bool lone = false}) async {
     width: _width,
     height: _height,
     scene: room.scene,
-    views: <RenderView>[RenderView(camera: room.camera)],
+    views: <CameraView>[CameraView(camera: room.camera)],
     settings: settings,
   );
   final pixels = await engine.device.readback(frame.frame);

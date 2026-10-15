@@ -358,7 +358,7 @@ PhotoPlan photoSettings(
 /// [onRows] a row of tiles at a time, top to bottom, finished and opaque.
 ///
 /// Each tile is [tileWidth] × [tileHeight] of the picture drawn with [margin]
-/// pixels more on every side, as a [RenderViewSettings.window] of the whole
+/// pixels more on every side, as a [CameraViewSettings.window] of the whole
 /// picture; the margin is thrown away. **A window, not a crop**, so a tile is
 /// the picture's own pixels: on a device that lists
 /// `DeviceFeature.viewportBeyondTarget` every fragment is shaded from the
@@ -426,7 +426,7 @@ Future<PhotoCaptureReport> capturePhoto({
   // next.
   final near = renderer.depthNearFor(
     scene: scene,
-    view: RenderView(camera: camera, layerMask: layerMask),
+    view: CameraView(camera: camera, layerMask: layerMask),
     width: width,
     height: height,
     settings: chosen.tile,
@@ -442,13 +442,13 @@ Future<PhotoCaptureReport> capturePhoto({
         width: drawWidth,
         height: drawHeight,
         scene: scene,
-        views: <RenderView>[
-          RenderView(
+        views: <CameraView>[
+          CameraView(
             camera: camera,
             clearColor: clearColor,
             layerMask: layerMask,
             cut: true,
-            options: RenderViewSettings(
+            options: CameraViewSettings(
               depthNear: near,
               // The tile, margin and all, as a window of the photo: drawn
               // through the photo's own projection, so each of its pixels is

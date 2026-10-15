@@ -64,7 +64,7 @@ const int _height = 64;
     width: _width,
     height: _height,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
     settings: RenderSettings(
       tonemap: false,
       bloom: const BloomSettings(enabled: false),

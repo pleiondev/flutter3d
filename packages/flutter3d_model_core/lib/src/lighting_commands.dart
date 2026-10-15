@@ -245,7 +245,7 @@ final class SetPanorama extends ModelCommand {
     if (at < 0 || at >= project.images.length) {
       return Outcome.refused('there is no image $at in this project');
     }
-    final ({int width, int height})? size = hdrSizeOf(project.images[at].bytes);
+    final PixelExtent? size = hdrSizeOf(project.images[at].bytes);
     if (size == null) {
       return Outcome.refused(
         'image $at is not a Radiance .hdr this build can read',

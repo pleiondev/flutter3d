@@ -269,7 +269,7 @@ void main() {
       final vp = camera.viewProjection(_aspect);
       list.build(
         scene,
-        RenderView(camera: camera),
+        CameraView(camera: camera),
         viewMatrix: camera.viewMatrix,
         frustum: Frustum.matrix(vp),
         occlusion: test,

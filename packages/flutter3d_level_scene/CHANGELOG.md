@@ -1,3 +1,12 @@
+## 1.0.0-rc.1+1
+
+- **Breaking: `RenderView` is `CameraView`.** `LevelScene` and
+  `LevelSceneParts` changed with it. `package:flutter/rendering.dart`
+  exports a `RenderView` too, the root of a render tree, so a file importing
+  both had to hide one. `RenderViewSettings` is `CameraViewSettings` and
+  `FrameView.ofRenderView` is `FrameView.ofCameraView`; `dart fix` renames
+  them.
+
 ## 1.0.0-rc.1
 
 - **Breaking: `LevelBatch` is a class** with the same `node`, `mesh`,

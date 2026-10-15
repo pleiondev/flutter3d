@@ -176,7 +176,67 @@ final class PaintLayer {
   }
 }
 
-/// Which tiles differ between [before] and [after], as `(tx, ty)` pairs.
+/// One tile's place in a [PaintLayer]'s grid, counted in tiles: what
+/// [dirtyTilesBetween] answers a list of.
+final class TileCoord {
+  /// The tile in column [x] of row [y].
+  const TileCoord({required this.x, required this.y});
+
+  /// The column, counted from the left in tiles.
+  final int x;
+
+  /// The row, counted from the top in tiles.
+  final int y;
+
+  @override
+  bool operator ==(Object other) =>
+      other is TileCoord && other.x == x && other.y == y;
+
+  @override
+  int get hashCode => Object.hash(x, y);
+
+  @override
+  String toString() => 'TileCoord($x, $y)';
+}
+
+/// A rectangle of texels on a paint canvas: what [dirtyRectOf] answers.
+final class TexelRect {
+  /// The rectangle [width] by [height] texels with its top-left at ([x], [y]).
+  const TexelRect({
+    required this.x,
+    required this.y,
+    required this.width,
+    required this.height,
+  });
+
+  /// The left edge, in texels.
+  final int x;
+
+  /// The top edge, in texels.
+  final int y;
+
+  /// How wide it is, in texels.
+  final int width;
+
+  /// How tall it is, in texels.
+  final int height;
+
+  @override
+  bool operator ==(Object other) =>
+      other is TexelRect &&
+      other.x == x &&
+      other.y == y &&
+      other.width == width &&
+      other.height == height;
+
+  @override
+  int get hashCode => Object.hash(x, y, width, height);
+
+  @override
+  String toString() => 'TexelRect($x, $y, ${width}x$height)';
+}
+
+/// Which tiles differ between [before] and [after], as [TileCoord]s.
 ///
 /// **What copy-on-write is for, read back.** `pro-pt-03`'s stroke replaces
 /// the tiles it touched and shares the rest *by reference*, so `identical`
@@ -188,9 +248,9 @@ final class PaintLayer {
 /// A tile present in one stack and absent from the other counts as changed:
 /// absent is transparent, and a stroke that put paint where there was none
 /// is the ordinary case.
-List<(int, int)> dirtyTilesBetween(PaintStack? before, PaintStack? after) {
-  if (after == null) return const <(int, int)>[];
-  final out = <(int, int)>{};
+List<TileCoord> dirtyTilesBetween(PaintStack? before, PaintStack? after) {
+  if (after == null) return const <TileCoord>[];
+  final out = <TileCoord>{};
   for (var i = 0; i < after.layers.length; i++) {
     final PaintLayer now = after.layers[i];
     final PaintLayer? was = before != null && i < before.layers.length
@@ -202,24 +262,22 @@ List<(int, int)> dirtyTilesBetween(PaintStack? before, PaintStack? after) {
         final PaintTile? b = now.tileAt(tx, ty);
         if (identical(a, b)) continue;
         if (a == null && b == null) continue;
-        out.add((tx, ty));
+        out.add(TileCoord(x: tx, y: ty));
       }
     }
   }
-  final list = out.toList()
-    ..sort(((int, int) a, (int, int) b) {
-      final int byRow = a.$2.compareTo(b.$2);
-      return byRow != 0 ? byRow : a.$1.compareTo(b.$1);
-    });
-  return list;
+  return out.toList()..sort((TileCoord a, TileCoord b) {
+    final int byRow = a.y.compareTo(b.y);
+    return byRow != 0 ? byRow : a.x.compareTo(b.x);
+  });
 }
 
 /// The texel rectangle [tiles] cover, or null when there are none —
-/// `(x, y, width, height)`, clamped to a canvas of [canvas] texels a side.
-(int, int, int, int)? dirtyRectOf(List<(int, int)> tiles, int canvas) {
+/// clamped to a canvas of [canvas] texels a side.
+TexelRect? dirtyRectOf(List<TileCoord> tiles, int canvas) {
   if (tiles.isEmpty) return null;
   var minX = canvas, minY = canvas, maxX = 0, maxY = 0;
-  for (final (int tx, int ty) in tiles) {
+  for (final TileCoord(x: tx, y: ty) in tiles) {
     minX = tx * paintTileSize < minX ? tx * paintTileSize : minX;
     minY = ty * paintTileSize < minY ? ty * paintTileSize : minY;
     final int right = (tx + 1) * paintTileSize;
@@ -229,7 +287,7 @@ List<(int, int)> dirtyTilesBetween(PaintStack? before, PaintStack? after) {
   }
   maxX = maxX > canvas ? canvas : maxX;
   maxY = maxY > canvas ? canvas : maxY;
-  return (minX, minY, maxX - minX, maxY - minY);
+  return TexelRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY);
 }
 
 /// An ordered stack of [PaintLayer]s, bottom ([layers] index 0) to top.

@@ -203,7 +203,7 @@ void main() {
       width: width,
       height: width,
       scene: scene,
-      views: <RenderView>[RenderView(camera: camera)],
+      views: <CameraView>[CameraView(camera: camera)],
     );
 
     mesh.skeleton!.update(mesh.worldMatrix);
@@ -237,7 +237,7 @@ void main() {
       width: 16,
       height: 16,
       scene: scene,
-      views: <RenderView>[RenderView(camera: camera)],
+      views: <CameraView>[CameraView(camera: camera)],
     );
     // The CPU's vertices reached the drawing device by an upload, and no
     // texture or buffer of it was read back.

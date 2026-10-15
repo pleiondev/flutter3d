@@ -16,17 +16,17 @@ void main() {
     await initializeGame(() => game);
     final sun = LightNode(type: LightType.directional);
     final day = AtmosphereComponent(
-      cycle: AtmosphereCycle(<(double, Atmosphere)>[
-        (
-          0.0,
-          Atmosphere(
+      cycle: AtmosphereCycle(<AtmosphereKey>[
+        AtmosphereKey(
+          time: 0.0,
+          atmosphere: Atmosphere(
             sky: LinearColor(0.4, 0.6, 0.9),
             sunColor: LinearColor(1.0, 1.0, 1.0),
           ),
         ),
-        (
-          10.0,
-          Atmosphere(
+        AtmosphereKey(
+          time: 10.0,
+          atmosphere: Atmosphere(
             sky: LinearColor(0.0, 0.0, 0.1),
             fogDensity: 0.02,
             sunColor: LinearColor(0.2, 0.2, 0.2),

@@ -82,7 +82,7 @@ void _play(
       width: 16,
       height: 16,
       scene: it.scene,
-      views: <RenderView>[RenderView(camera: it.camera)],
+      views: <CameraView>[CameraView(camera: it.camera)],
       settings: settings,
     );
   }
@@ -96,7 +96,7 @@ void main() {
       width: 16,
       height: 16,
       scene: it.scene,
-      views: <RenderView>[RenderView(camera: it.camera)],
+      views: <CameraView>[CameraView(camera: it.camera)],
     );
     final linked = it.device.linkedPipelines.length;
     _play(it, 300);
@@ -115,7 +115,7 @@ void main() {
       width: 16,
       height: 16,
       scene: it.scene,
-      views: <RenderView>[RenderView(camera: it.camera)],
+      views: <CameraView>[CameraView(camera: it.camera)],
     );
     final linked = it.device.linkedPipelines.length;
     _play(it, 300);
@@ -131,7 +131,7 @@ void main() {
       width: 16,
       height: 16,
       scene: it.scene,
-      views: <RenderView>[RenderView(camera: it.camera)],
+      views: <CameraView>[CameraView(camera: it.camera)],
       settings: _settings,
     );
     // Mutation: keep the one-a-frame ration while warming up. A probe
@@ -150,7 +150,7 @@ void main() {
       width: 16,
       height: 16,
       scene: it.scene,
-      views: <RenderView>[RenderView(camera: it.camera)],
+      views: <CameraView>[CameraView(camera: it.camera)],
       settings: _settings,
     );
     final made = it.device.createdTextures.length;

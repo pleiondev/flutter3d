@@ -1,6 +1,6 @@
 name: flutter3d_game_physics
 description: "Gameplay parts for flutter3d games that need the native physics core: ragdolls, burning wrecks, party sessions and the elements heard."
-version: 1.0.0-rc.1
+version: 1.0.0-rc.1+1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues

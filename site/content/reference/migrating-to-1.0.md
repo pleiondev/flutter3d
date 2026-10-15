@@ -5,7 +5,7 @@ description: Move a project written against flutter3d 0.8 to 1.0.0-rc.1, with on
 # Migrating from 0.8 to 1.0
 
 1.0 is the release the engine promises to keep: from it on, a break comes
-only in a major version. To get there, and on to this release, the API changed in 2126 places,
+only in a major version. To get there, and on to this release, the API changed in 2324 places,
 314 of them left to you; 380 are backend internals no application called.
 The rest a program carries out for you, and three
 tools share the work. All three read the same tables,
@@ -27,7 +27,7 @@ Commit or stash first: the migration edits your files in place, and a clean
 
 ```bash
 dart pub global activate flutter3d_build 1.0.0-rc.1
-dart pub global activate flutter3d_lints 1.0.0-rc.1
+dart pub global activate flutter3d_lints 0.9.0
 dart pub global run flutter3d_build:migrate --dry-run .   # see what it would do
 dart pub global run flutter3d_build:migrate .
 ```
@@ -82,7 +82,7 @@ cannot.
 
 ```yaml
 plugins:
-  flutter3d_lints: ^1.0.0-rc.1
+  flutter3d_lints: ^0.9.0
 ```
 
 The plugin also turns on the fixed-step rules described in its README. A
@@ -180,7 +180,7 @@ the game reads every version of them as before.
 | `f3d.materialLanguage` | `.f3dmat` | `flutter3d_core` | v1–v3 | read as it is: its version is in its own header |
 | `f3d.splat` | `.f3dsplat` | `flutter3d_core` | v1 | read as it is: its version is in its own header |
 | `f3d.frameCapture` | `.capture.json` | `flutter3d_core` | v1–v2 | lifted to v2 through its chain |
-| `f3d.pipeline` | `.pipeline.json` | `flutter3d_core` | v1 | nothing to lift |
+| `f3d.pipeline` | `.pipeline.json` | `flutter3d_core` | v1–v2 | lifted to v2 through its chain |
 | `f3d.shaderBundle` | `.f3dshaders` | `flutter3d_hardware` | v1–v2 | read as it is: its version is in its own header |
 | `f3d.trace` | `.f3dtrace` | `flutter3d_hardware` | v1–v2 | read as it is: its version is in its own header |
 | `f3d.project` | `.f3dproj` | `flutter3d_model_core` | v1–v2 | read as it is: its version is in its own header |
@@ -225,13 +225,47 @@ carried out:
 
 <!-- migration-table:start -->
 
-*Generated from `flutter3d_build/lib/migrations/` — 31 entries from 1.0.0-rc.1 to 1.0.0-rc.1+1, 6 by hand: 12 `dart fix`, 3 `migrate`, 6 by hand, 10 nothing to do.*
+*Generated from `flutter3d_build/lib/migrations/` — 229 entries from 1.0.0-rc.1 to 1.0.0-rc.1+1, 6 by hand: 19 `dart fix`, 149 `migrate`, 6 by hand, 55 nothing to do.*
+
+### `flame_flutter3d`
+
+- <a id="flame_flutter3d-BridgeProjector-rayThrough-record"></a>**`BridgeProjector.rayThrough`** (`migrate`). `BridgeProjector` is a class: `.$1` is `.near`, `.$2` is `.far`; a destructuring pattern is yours to rewrite. `rayThrough` answers a `BridgeRay` with `near` and `far`, where it answered a pair; read `ray.near` for `ray.$1` and `ray.far` for `ray.$2`, and a destructuring pattern names the class.
+- <a id="flame-Bridged3d-mixin"></a>**`Bridged3d`** (`migrate`). `Bridged3d` is a base mixin class: `implements Bridged3d` becomes `with Bridged3d`, on a `base` class. `Bridged3d` is a base mixin class: write `with Bridged3d` where a component wrote `implements Bridged3d`. `elevation`, `space` and `drawnBounds3d` have bodies now; `plane` and `tint` are still the component's to say.
+- <a id="flame_flutter3d-CellGridComponent-cellAt-record"></a>**`CellGridComponent.cellAt`** (`migrate`). `CellGridComponent` is a class: `.$1` is `.column`, `.$2` is `.row`; a destructuring pattern is yours to rewrite. `cellAt` answers a `GridCell` with `column` and `row`, where it answered a pair; `final (c, r) = grid.cellAt(p)` becomes `final GridCell(column: c, row: r) = grid.cellAt(p)`.
+- <a id="flame_flutter3d-ColliderRegistry-raycast-record"></a>**`ColliderRegistry.raycast`** (`migrate`). `ColliderRegistry` is a class: `.component` is `.component`, `.point` is `.point`, `.collider` is `.collider`; a destructuring pattern is yours to rewrite. `raycast` answers a `ColliderRayHit` with the same three fields, where it answered a record; field reads keep compiling, and only a destructuring pattern names the class.
+- <a id="flame-Drawn3d-mixin"></a>**`Drawn3d`** (`migrate`). `Drawn3d` is a base mixin class: `implements Drawn3d` becomes `with Drawn3d`, on a `base` class. `Drawn3d` is a base mixin class: write `with Drawn3d` where a component wrote `implements Drawn3d`, and keep its `tint`; `drawnBounds3d` has a body now (nothing drawn) and may be left out.
+- <a id="flame_flutter3d-Flutter3dFlameWidget-existing-record"></a>**`Flutter3dFlameWidget.existing`** (`migrate`). `Flutter3dFlameWidget` is a class: `.device` is `.device`, `.renderer` is `.renderer`; a destructuring pattern is yours to rewrite. `existing` takes a `BorrowedRenderer`, where it took a record: write `existing: BorrowedRenderer(device: d, renderer: r)` for `existing: (device: d, renderer: r)`.
+- <a id="flame_flutter3d-GridMover-cell-record"></a>**`GridMover.cell`** (`migrate`). `GridMover` is a class: `.$1` is `.column`, `.$2` is `.row`; a destructuring pattern is yours to rewrite. `cell` is a `GridCell` with `column` and `row`, where it was a pair; a comparison against `(3, 1)` becomes one against `const GridCell(column: 3, row: 1)`.
+- <a id="flame_flutter3d-HasFlutter3d"></a>**`HasFlutter3d`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
+- <a id="flame_flutter3d-Model3dComponent"></a>**`Model3dComponent`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
+- <a id="flame-StepFollower-mixin"></a>**`StepFollower`** (`migrate`). `StepFollower` is a base mixin class: `implements StepFollower` becomes `with StepFollower`, on a `base` class. `StepFollower` is a base mixin class: write `with StepFollower` where a component wrote `implements StepFollower`.
+- <a id="flame-Tap3dCallbacks-base"></a>**`Tap3dCallbacks`** (`migrate`). `Tap3dCallbacks` is a `base` class: a class below it is `base` itself, and `implements Tap3dCallbacks` becomes `extends Tap3dCallbacks`. `Tap3dCallbacks` is a base mixin, because the `Drawn3d` it sits on is base: a component that mixes it in is `base` or `final`.
+
+### `flutter3d_app`
+
+- <a id="app-Flutter3dEngine"></a>**`Flutter3dEngine`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
+- <a id="app-LoadedLevel"></a>**`LoadedLevel`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
+- <a id="app-Scene3D-onSceneCreated"></a>**`Scene3D.Scene3D`** (`dart fix`). Every widget of the engine's names its creation callback `onCreated`, as `Flutter3dView` does; it is still handed the scene's controller.
+- <a id="app-Scene3D-onSceneCreated-field"></a>**`Scene3D.onSceneCreated`** (`dart fix`). `Scene3D.onSceneCreated` is `Scene3D.onCreated`.
+- <a id="app-SceneSurface"></a>**`SceneSurface`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
+- <a id="app-ViewSettings"></a>**`ViewSettings`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
+- <a id="app-XrDriver"></a>**`XrDriver`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
+
+### `flutter3d_audio_core`
+
+- <a id="audio_core-EqualPowerPanner-gains-record"></a>**`EqualPowerPanner.gains`** (`migrate`). `EqualPowerPanner` is a class: `.left` is `.left`, `.right` is `.right`; a destructuring pattern is yours to rewrite. `gains` answers a `PanGains` with the same `left` and `right`; only a destructuring pattern names the class.
 
 ### `flutter3d_build`
 
+- <a id="build-AssetLayout"></a>**`AssetLayout`** (nothing to do). Its manifest is typed `AssetBuildManifest`, which `AssetManifest` is now; `dart fix` renames the type where code names it.
+- <a id="build-AssetManifest-AssetBuildManifest"></a>**`AssetManifest`** (`dart fix`). `AssetManifest` is `AssetBuildManifest`. `package:flutter/services.dart` exports an `AssetManifest` too, the runtime one; the parsed `flutter3d_assets.yaml` is `AssetBuildManifest`.
+- <a id="build-createProject-record"></a>**`createProject`** (`migrate`). `createProject` is a class: `.did` is `.did`, `.says` is `.says`; a destructuring pattern is yours to rewrite. `createProject` answers an `Answer` (from `package:flutter3d_mcp/kit.dart`, the type `PluginWorkshop.create` answers) with `did` and `says`, where it answered a `(did:, says:)` record; only a destructuring pattern names the class.
 - <a id="build-flutter3dBuildVersionConstraint"></a>**`flutter3dBuildVersionConstraint`** (nothing to do). The constraint `init` writes follows the package's version.
+- <a id="build-markerOf-record"></a>**`markerOf`** (`migrate`). `markerOf` is a class: `.$1` is `.value`, `.legacy` is `.legacy`; a destructuring pattern is yours to rewrite. `markerOf` answers a `PluginMarker?` with `value` and `legacy`, where it answered `(value, legacy:)`; a pattern `(final Object v, legacy: false)` becomes `PluginMarker(value: final Object v, legacy: false)`.
 - <a id="build-pluginAuthorMcpVersion"></a>**`pluginAuthorMcpVersion`** (nothing to do). The version the plugin MCP server announces follows the package's.
 - <a id="build-pluginConformanceChecks"></a>**`pluginConformanceChecks`** (nothing to do). The list adds `names` and `materials`, the 7 checks of the plugin suite, so `plugin.report` gives no badge to a suite that did not run them. Nothing to change in code that reads it.
+- <a id="build-selectPlugins-record"></a>**`selectPlugins`** (`migrate`). `selectPlugins` is a class: `.kept` is `.kept`, `.excluded` is `.excluded`, `.warnings` is `.warnings`; a destructuring pattern is yours to rewrite. `selectPlugins` answers a `PluginSelection` with `kept`, `excluded` and `warnings`, where it answered a record of the same three names; only a destructuring pattern names the class.
+- <a id="build-splitLargeMeshes-record"></a>**`splitLargeMeshes`** (`migrate`). `splitLargeMeshes` is a class: `.$1` is `.document`, `.$2` is `.meshesSplit`; a destructuring pattern is yours to rewrite. `splitLargeMeshes` answers a `MeshSplit` with `document` and `meshesSplit`, where it answered `(document, count)`; `final (doc, n) =` becomes `final MeshSplit(document: doc, meshesSplit: n) =`.
 
 ### `flutter3d_conformance_render`
 
@@ -239,25 +273,138 @@ carried out:
 
 ### `flutter3d_core`
 
+- <a id="core-AbsolutePixels-resolve-record"></a>**`AbsolutePixels.resolve`** (`migrate`). `AbsolutePixels` is a class: `.$1` is `.width`, `.$2` is `.height`; a destructuring pattern is yours to rewrite. `resolve` answers a `PixelExtent` with `width` and `height`, where it answered a pair; only a destructuring pattern names the class.
+- <a id="core-AnimationGraph-passed-record"></a>**`AnimationGraph.passed`** (`migrate`). `AnimationGraph` is a class: `.state` is `.state`, `.name` is `.name`; a destructuring pattern is yours to rewrite. `passed` is a list of `PassedMarker` with `state` and `name`, where it was a list of records; field reads are unchanged.
+- <a id="core-Atmosphere"></a>**`Atmosphere`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
+- <a id="core-AtmosphereCycle-keys-record"></a>**`AtmosphereCycle.keys`** (`migrate`). `AtmosphereCycle` is a class: `.$1` is `.time`, `.$2` is `.atmosphere`; a destructuring pattern is yours to rewrite. `keys`, and the list the constructor takes, are `AtmosphereKey`s with `time` and `atmosphere`, where they were `(double, Atmosphere)` pairs: write `AtmosphereKey(time: 0.0, atmosphere: noon)`.
 - <a id="core-BufferField-new"></a>**`BufferField.BufferField`** (by hand). A buffer field is made by `FieldUpload` where the hardware layer put it, and takes that `ComputeSite` as its third argument where it took an executor.
 - <a id="core-BufferField-executor"></a>**`BufferField.executor`** (`dart fix`). `BufferField.executor` is `BufferField.site`. Where the field lives is a `ComputeSite`, whose `device` is the executor's.
+- <a id="core-ColorVision"></a>**`ColorVision`** (nothing to do). It takes or answers the final class that replaced a record (its own entry names the fields): a record literal passed to it is written as that class, with the same field names.
+- <a id="core-ColorVision-applyEncoded-record"></a>**`ColorVision.applyEncoded`** (`migrate`). `ColorVision` is a class: `.$1` is `.r`, `.$2` is `.g`, `.$3` is `.b`; a destructuring pattern is yours to rewrite. `applyEncoded` answers an `RgbTriple` with `r`, `g` and `b`, where it answered a triple; destructure with `final RgbTriple(:r, :g, :b) = ...`.
+- <a id="core-ColorVision-applyLinear-record"></a>**`ColorVision.applyLinear`** (`migrate`). `ColorVision` is a class: `.$1` is `.r`, `.$2` is `.g`, `.$3` is `.b`; a destructuring pattern is yours to rewrite. `applyLinear` answers an `RgbTriple` with `r`, `g` and `b`, where it answered a triple; destructure with `final RgbTriple(:r, :g, :b) = ...`.
+- <a id="core-ColorVision-confusions-record"></a>**`ColorVision.confusions`** (`migrate`). `ColorVision` is a class: `.a` is `.a`, `.b` is `.b`, `.by` is `.by`, `.distance` is `.distance`; a destructuring pattern is yours to rewrite. `confusions` takes a `Map<String, RgbTriple>` and answers a list of `ColorConfusion` with `a`, `b`, `by` and `distance`; field reads are unchanged, the palette's values are written `RgbTriple(r:, g:, b:)`. `ColorVision.difference` takes two `RgbTriple`s too.
 - <a id="core-ComputeContext-executor"></a>**`ComputeContext.executor`** (`dart fix`). `ComputeContext.executor` is `ComputeContext.site`. The context carries a `ComputeSite`, whose `device` is the executor's; `device` and `isOnFrameDevice` read as before.
 - <a id="core-ComputeContext-placement"></a>**`ComputeContext.placement`** (by hand). A step is no longer told which placement it runs at, only the device it encodes on (`device`) and whether that is the frame's (`isOnFrameDevice`). Branch on those.
 - <a id="core-ComputeStep-demand"></a>**`ComputeStep.demand`** (by hand). Delete the override: a step no longer asks where it runs, the hardware layer decides. A test that wanted the step on a particular device configures the devices or the registry it builds (`DeviceRegistry.adopt`, `CpuDevice(standInForGpu:)`).
 - <a id="core-ComputeStep-executor"></a>**`ComputeStep.executor`** (`dart fix`). `ComputeStep.executor` is `ComputeStep.site`. The step learns a `ComputeSite`: its `device` is the executor's, and no placement comes with it.
 - <a id="core-ComputeStep-prepare"></a>**`ComputeStep.prepare`** (`migrate`). `ComputeStep.prepare` becomes `x.prepare({0}.device)`. A step is placed for frames drawn on a device, from the compute the registry that opened it has; it is no longer handed executors.
+- <a id="core-CubeLut-domainMax-record"></a>**`CubeLut.domainMax`** (`migrate`). `CubeLut` is a class: `.$1` is `.r`, `.$2` is `.g`, `.$3` is `.b`; a destructuring pattern is yours to rewrite. `domainMax` is an `RgbTriple` with `r`, `g` and `b`, where it was a triple read with `$1`, `$2`, `$3`.
+- <a id="core-CubeLut-domainMin-record"></a>**`CubeLut.domainMin`** (`migrate`). `CubeLut` is a class: `.$1` is `.r`, `.$2` is `.g`, `.$3` is `.b`; a destructuring pattern is yours to rewrite. `domainMin` is an `RgbTriple` with `r`, `g` and `b`, where it was a triple read with `$1`, `$2`, `$3`.
+- <a id="core-CubeLut-lookup-record"></a>**`CubeLut.lookup`** (`migrate`). `CubeLut` is a class: `.$1` is `.r`, `.$2` is `.g`, `.$3` is `.b`; a destructuring pattern is yours to rewrite. `lookup` answers an `RgbTriple` with `r`, `g` and `b`, where it answered a triple; destructure with `final RgbTriple(:r, :g, :b) = ...`.
+- <a id="core-DrawListContext"></a>**`DrawListContext`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
+- <a id="core-EnvironmentDepthNode-id-f3d"></a>**`EnvironmentDepthNode.id`** (nothing to do). The environment depth is the resource `f3d.environment_depth`; code that reads it through the constant is unchanged.
 - <a id="core-FieldUpload-executor"></a>**`FieldUpload.executor`** (`dart fix`). `FieldUpload.executor` is `FieldUpload.site`.
 - <a id="core-FieldUpload-place"></a>**`FieldUpload.place`** (`migrate`). `FieldUpload.place` becomes `x.place({0}.device)`. It takes the device the frame is drawn on and answers a `Future`, as a compute step's placement does: `await` it where its refusal is read.
+- <a id="core-FrameContext"></a>**`FrameContext`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
+- <a id="core-FrameContext-jitter-record"></a>**`FrameContext.jitter`** (`migrate`). `FrameContext` is a class: `.x` is `.x`, `.y` is `.y`; a destructuring pattern is yours to rewrite. `jitter` is a `PixelJitter` with `x` and `y`, in pixels, where it was a record; field reads are unchanged.
+- <a id="core-FrameFraction-resolve-record"></a>**`FrameFraction.resolve`** (`migrate`). `FrameFraction` is a class: `.$1` is `.width`, `.$2` is `.height`; a destructuring pattern is yours to rewrite. `resolve` answers a `PixelExtent` with `width` and `height`, where it answered a pair; only a destructuring pattern names the class.
+- <a id="core-FrameHistory"></a>**`FrameHistory`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
+- <a id="core-FrameResourceIds-f3d"></a>**`FrameResourceIds`** (nothing to do). Each frame resource is named `f3d.<name>` (`f3d.scene_color`, `f3d.hdr_color`); code that reads it through the constant is unchanged. Code that compared the name with a string uses the new word.
+- <a id="core-FrameView"></a>**`FrameView`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
+- <a id="core-FrameView-ofRenderView"></a>**`FrameView.ofRenderView`** (`dart fix`). `FrameView.ofRenderView` is `FrameView.ofCameraView`.
+- <a id="core-IrradianceField-readDepth-record"></a>**`IrradianceField.readDepth`** (`migrate`). `IrradianceField` is a class: `.mean` is `.mean`, `.meanSquare` is `.meanSquare`; a destructuring pattern is yours to rewrite. `readDepth` answers `DepthMoments` with `mean` and `meanSquare`, where it answered a record; field reads are unchanged.
+- <a id="core-LightingModels-named-name"></a>**`LightingModels.named`** (nothing to do). It takes the model's name, `<namespace>.<Name>` for a plugin's, as well as the stage's `<namespace>__<Name>` and the `<namespace>_<Name>` a file wrote before; a call passing a built-in's name is unchanged.
+- <a id="core-MaterialExtensions-coatMapSources-record"></a>**`MaterialExtensions.coatMapSources`** (`migrate`). `MaterialExtensions` is a class: `.binding` is `.binding`, `.channel` is `.channel`; a destructuring pattern is yours to rewrite. `coatMapSources` is a list of `PackedMapSource?` with `binding` and `channel`, where it was a list of records; field reads are unchanged.
+- <a id="core-MaterialExtensions-sheenMapSources-record"></a>**`MaterialExtensions.sheenMapSources`** (`migrate`). `MaterialExtensions` is a class: `.binding` is `.binding`, `.channel` is `.channel`; a destructuring pattern is yours to rewrite. `sheenMapSources` is a list of `PackedMapSource?` with `binding` and `channel`, where it was a list of records; field reads are unchanged.
+- <a id="core-MeshOverlay"></a>**`MeshOverlay`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
+- <a id="core-OrbitController-suggestedDepthRange-record"></a>**`OrbitController.suggestedDepthRange`** (`migrate`). `OrbitController` is a class: `.near` is `.near`, `.far` is `.far`; a destructuring pattern is yours to rewrite. `suggestedDepthRange` answers `ClipDistances` with `near` and `far`, in metres, where it answered a record; field reads are unchanged.
+- <a id="core-PassContributor"></a>**`PassContributor`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
+- <a id="core-ReactiveFrame"></a>**`ReactiveFrame`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
+- <a id="core-RenderStep-f3d"></a>**`RenderStep`** (nothing to do). Each built-in step is named `f3d.<name>` (`f3d.bloom`, `f3d.color_grade`). `RendererSteps.named` still finds one by its old word, and a pass keeps its name; code that compared a step's name with a string uses the new word.
+- <a id="core-RenderView-CameraView"></a>**`RenderView`** (`dart fix`). `RenderView` is `CameraView`. `package:flutter/rendering.dart` exports a `RenderView` too; the engine's camera onto a viewport or a texture is `CameraView`.
+- <a id="core-RenderViewSettings-CameraViewSettings"></a>**`RenderViewSettings`** (`dart fix`). `RenderViewSettings` is `CameraViewSettings`.
+- <a id="core-Renderer"></a>**`Renderer`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
 - <a id="core-RendererSteps-addComputeStep"></a>**`RendererSteps.addComputeStep`** (`dart fix`). The renderer's own device and the registry that opened it say where the step may run; nothing is handed in.
 - <a id="core-RendererSteps-addFieldUpload"></a>**`RendererSteps.addFieldUpload`** (`dart fix`). Nothing is handed in, and the result is a `Future<Registration>`, as `addComputeStep`'s is: `await` it where the registration is kept.
 - <a id="core-RendererSteps-placeSkinningHook"></a>**`RendererSteps.placeSkinningHook`** (`dart fix`). 
 - <a id="core-RendererSteps-skinningPlacement"></a>**`RendererSteps.skinningPlacement`** (by hand). Nothing above the hardware layer reports where a hook runs. A hook that writes its output was placed; one nothing could place is reported by the frame as `PassSkip.unsupported`, as any compute step is.
 - <a id="core-RendererSteps-skinningRefusal"></a>**`RendererSteps.skinningRefusal`** (by hand). A hook no longer demands a placement, so there is no refused demand to read. One nothing could place is reported by the frame as `PassSkip.unsupported`, with the refusal in the frame's report.
+- <a id="core-ResourceSize-resolve-record"></a>**`ResourceSize.resolve`** (`migrate`). `ResourceSize` is a class: `.$1` is `.width`, `.$2` is `.height`; a destructuring pattern is yours to rewrite. `resolve` answers a `PixelExtent` with `width` and `height`, where it answered a pair; a size of your own overrides it to return `PixelExtent(width: ..., height: ...)`.
+- <a id="core-Scene"></a>**`Scene`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
 - <a id="core-SkinningHook-demand"></a>**`SkinningHook.demand`** (by hand). Delete the override: a hook no longer asks where it runs. The hardware layer places it on the drawing device or the CPU.
+- <a id="core-SolidColorTexture"></a>**`SolidColorTexture`** (nothing to do). It takes or answers the final class that replaced a record (its own entry names the fields): a record literal passed to it is written as that class, with the same field names.
+- <a id="core-SolidColorTexture-texel-record"></a>**`SolidColorTexture.texel`** (`migrate`). `SolidColorTexture` is a class: `.r` is `.r`, `.g` is `.g`, `.b` is `.b`, `.a` is `.a`; a destructuring pattern is yours to rewrite. `texel` is a `TexelValue` with `r`, `g`, `b` and `a`, where it was a record; field reads are unchanged, and the `SolidColorTexture.texel` constructor is as it was.
+- <a id="core-SplatContributor"></a>**`SplatContributor`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
+- <a id="core-TemporalClip-axes-record"></a>**`TemporalClip.axes`** (`migrate`). `TemporalClip` is a class: `.$1` is `.x`, `.$2` is `.y`, `.$3` is `.z`; a destructuring pattern is yours to rewrite. `axes` is a list of `ClipAxis` with `x`, `y` and `z`, where it was a list of triples; destructure with `ClipAxis(:x, :y, :z)`.
+- <a id="core-decodeUniversalBlock-record"></a>**`decodeUniversalBlock`** (`migrate`). `decodeUniversalBlock` is a class: `.$1` is `.r`, `.$2` is `.g`, `.$3` is `.b`, `.$4` is `.a`; a destructuring pattern is yours to rewrite. `decodeUniversalBlock` answers sixteen `Rgba8Texel`s with `r`, `g`, `b` and `a`, where it answered four-int tuples; `encodeUniversalBlock`, `encodeEtc2Rgb8Block` and `encodeAstc4x4Block` take the same list.
+- <a id="core-describeEmptyFrame"></a>**`describeEmptyFrame`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
+- <a id="core-encodeAstc4x4Block"></a>**`encodeAstc4x4Block`** (nothing to do). It takes or answers the final class that replaced a record (its own entry names the fields): a record literal passed to it is written as that class, with the same field names.
+- <a id="core-encodeEtc2Rgb8Block"></a>**`encodeEtc2Rgb8Block`** (nothing to do). It takes or answers the final class that replaced a record (its own entry names the fields): a record literal passed to it is written as that class, with the same field names.
+- <a id="core-encodeUniversalBlock"></a>**`encodeUniversalBlock`** (nothing to do). It takes or answers the final class that replaced a record (its own entry names the fields): a record literal passed to it is written as that class, with the same field names.
+- <a id="core-hdrSizeOf-record"></a>**`hdrSizeOf`** (`migrate`). `hdrSizeOf` is a class: `.width` is `.width`, `.height` is `.height`; a destructuring pattern is yours to rewrite. `hdrSizeOf` answers a `PixelExtent?`, where it answered a `({int width, int height})?`; `width` and `height` read as before.
+- <a id="core-jitterOffset-record"></a>**`jitterOffset`** (`migrate`). `jitterOffset` is a class: `.$1` is `.x`, `.$2` is `.y`; a destructuring pattern is yours to rewrite. `jitterOffset` answers a `PixelJitter` with `x` and `y`, where it answered a pair; only a destructuring pattern names the class.
+- <a id="core-pipelineVersion-2"></a>**`pipelineVersion`** (nothing to do). `f3d.pipeline` is version 2, which writes the engine's anchors, resources and steps as `f3d.<name>`; a version 1 file reads, its words renamed. Code that compared a document's version with this constant reads the newer number.
+- <a id="core-projectPoint-record"></a>**`projectPoint`** (`migrate`). `projectPoint` is a class: `.x` is `.x`, `.y` is `.y`; a destructuring pattern is yours to rewrite. `projectPoint` answers a `ScreenPoint?` with `x` and `y`, in logical pixels, where it answered a record; field reads are unchanged.
+- <a id="core-symmetricEigen3-record"></a>**`symmetricEigen3`** (`migrate`). `symmetricEigen3` is a class: `.$1` is `.values`, `.$2` is `.vectors`; a destructuring pattern is yours to rewrite. `symmetricEigen3` answers a `SymmetricEigen` with `values` and `vectors`, where it answered a pair; destructure with `final SymmetricEigen(:values, :vectors) = ...`.
+- <a id="core-toGltfFilters-record"></a>**`toGltfFilters`** (`migrate`). `toGltfFilters` is a class: `.$1` is `.magFilter`, `.$2` is `.minFilter`; a destructuring pattern is yours to rewrite. `toGltfFilters` answers `GltfFilters` with `magFilter` and `minFilter`, where it answered a pair; destructure with `final GltfFilters(:magFilter, :minFilter) = ...`.
+
+### `flutter3d_cpu`
+
+- <a id="cpu-CpuComputeShader-workgroupSize-record"></a>**`CpuComputeShader.workgroupSize`** (`migrate`). `CpuComputeShader` is a class: `.$1` is `.x`, `.$2` is `.y`, `.$3` is `.z`; a destructuring pattern is yours to rewrite. `workgroupSize` is a `WorkgroupSize` (the shader package's own type, re-exported from `flutter3d_cpu`), where it was a triple; a stage writes `WorkgroupSize get workgroupSize => const WorkgroupSize(64, 1, 1);`.
+- <a id="cpu-bloomSource-record"></a>**`bloomSource`** (`migrate`). `bloomSource` is a class: `.source` is `.source`, `.tx` is `.tx`, `.ty` is `.ty`, `.params` is `.params`; a destructuring pattern is yours to rewrite. `bloomSource` answers a `BloomSource` with the same four fields, where it answered a record; field reads keep compiling.
+- <a id="cpu-clusterAt-record"></a>**`clusterAt`** (`migrate`). `clusterAt` is a class: `.offset` is `.offset`, `.count` is `.count`; a destructuring pattern is yours to rewrite. `clusterAt` answers a `ClusterSpan` with `offset` and `count`, where it answered a record; field reads keep compiling.
+- <a id="cpu-contributorLight-record"></a>**`contributorLight`** (`migrate`). `contributorLight` is a class: `.toLight` is `.toLight`, `.radiance` is `.radiance`; a destructuring pattern is yours to rewrite. `contributorLight` answers a `ContributorLightSample` with `toLight` and `radiance`, where it answered a record; field reads keep compiling.
+- <a id="cpu-cpuTestDevice-record"></a>**`cpuTestDevice`** (`migrate`). `cpuTestDevice` is a class: `.device` is `.device`, `.albedo` is `.albedo`, `.normal` is `.normal`; a destructuring pattern is yours to rewrite. `cpuTestDevice` answers a `CpuTestKit` with `device`, `albedo` and `normal`, where it answered a record; `it.device` and the rest keep compiling.
+- <a id="cpu-mapUv-record"></a>**`mapUv`** (`migrate`). `mapUv` is a class: `.u` is `.u`, `.v` is `.v`, `.footprint` is `.footprint`; a destructuring pattern is yours to rewrite. `mapUv` answers a `MappedUv` with `u`, `v` and `footprint`, where it answered a record; `final (u: a, v: b, footprint: f) = mapUv(...)` becomes `final MappedUv(u: a, v: b, footprint: f) = mapUv(...)`.
+- <a id="cpu-pixelRay-record"></a>**`pixelRay`** (`migrate`). `pixelRay` is a class: `.origin` is `.origin`, `.along` is `.along`; a destructuring pattern is yours to rewrite. `pixelRay` answers a `PixelRay` with `origin` and `along`, where it answered a record; `final (:origin, :along) = pixelRay(...)` becomes `final PixelRay(:origin, :along) = pixelRay(...)`.
+- <a id="cpu-splatNoiseOffset-record"></a>**`splatNoiseOffset`** (`migrate`). `splatNoiseOffset` is a class: `.$1` is `.column`, `.$2` is `.row`; a destructuring pattern is yours to rewrite. `splatNoiseOffset` answers a `NoiseTileCell` with `column` and `row`, where it answered a pair; `final (x, y) = splatNoiseOffset(id)` becomes `final NoiseTileCell(column: x, row: y) = splatNoiseOffset(id)`.
+- <a id="cpu-vogelDisc-record"></a>**`vogelDisc`** (`migrate`). `vogelDisc` is a class: `.$1` is `.x`, `.$2` is `.y`; a destructuring pattern is yours to rewrite. `vogelDisc` answers a `VogelTap` with `x` and `y`, where it answered a pair; `final (dx, dy) = vogelDisc(...)` becomes `final VogelTap(x: dx, y: dy) = vogelDisc(...)`.
+
+### `flutter3d_editor_core`
+
+- <a id="editor_core-GizmoMark-bounds-record"></a>**`GizmoMark.bounds`** (`migrate`). `GizmoMark` is a class: `.$1` is `.min`, `.$2` is `.max`; a destructuring pattern is yours to rewrite. `bounds` answers a `GizmoBounds` with `min` and `max` corners where it answered a pair; only a destructuring pattern names the class.
+- <a id="editor_core-LightPlan-pngs-record"></a>**`LightPlan.pngs`** (`migrate`). `LightPlan` is a class: `.before` is `.before`, `.after` is `.after`; a destructuring pattern is yours to rewrite. `pngs` answers a `LightPlanPngs` with the same `before` and `after`; field reads keep compiling, a pattern names the class.
+- <a id="editor_core-inspectorSections-record"></a>**`inspectorSections`** (`migrate`). `inspectorSections` is a class: `.$1` is `.title`, `.$2` is `.keys`; a destructuring pattern is yours to rewrite. `inspectorSections` answers a list of `InspectorSection` with `title` and `keys` where it held pairs; `$1`/`$2` become `title`/`keys`, and two sections compare equal key by key.
+- <a id="editor_core-projectAt-record"></a>**`projectAt`** (`migrate`). `projectAt` is a class: `.root` is `.root`, `.level` is `.level`; a destructuring pattern is yours to rewrite. `projectAt` answers a `ProjectLocation` with the same `root` and `level`; field reads keep compiling, a pattern names the class.
+
+### `flutter3d_editor_play`
+
+- <a id="editor_play-callGameExtension-record"></a>**`callGameExtension`** (`migrate`). `callGameExtension` is a class: `.json` is `.json`, `.refused` is `.refused`; a destructuring pattern is yours to rewrite. `callGameExtension` answers a `GameExtensionReply` with `json` and `refused`, where it answered a `(json:, refused:)` record; a fake `ask` returns `GameExtensionReply(json: ...)` or `GameExtensionReply(refused: ...)`, and a switch case names the class.
+- <a id="editor_play-eventsSince-record"></a>**`eventsSince`** (`migrate`). `eventsSince` is a class: `.events` is `.events`, `.next` is `.next`, `.missed` is `.missed`, `.restarted` is `.restarted`; a destructuring pattern is yours to rewrite. `eventsSince` answers a `PostedEventPage` with `events`, `next`, `missed` and `restarted`, where it answered a record of the same four names; only a destructuring pattern names the class.
+- <a id="editor_play-fakeFlutterRun-record"></a>**`fakeFlutterRun`** (`migrate`). `fakeFlutterRun` is a class: `.run` is `.run`, `.tool` is `.tool`, `.started` is `.started`; a destructuring pattern is yours to rewrite. `fakeFlutterRun` answers a `FakeFlutterRun` with `run`, `tool` and `started`, where it answered a record of the same three names; only a destructuring pattern names the class.
+
+### `flutter3d_editor_widgets`
+
+- <a id="editor_widgets-ColorField-hsvToRgb-record"></a>**`ColorField.hsvToRgb`** (`migrate`). `ColorField` is a class: `.$1` is `.r`, `.$2` is `.g`, `.$3` is `.b`; a destructuring pattern is yours to rewrite. `hsvToRgb` answers a `DisplayRgb` with `r`, `g` and `b` where it answered a triple; only a destructuring pattern names the class.
+- <a id="editor_widgets-ColorField-rgbToHsv-record"></a>**`ColorField.rgbToHsv`** (`migrate`). `ColorField` is a class: `.hue` is `.hue`, `.saturation` is `.saturation`, `.value` is `.value`; a destructuring pattern is yours to rewrite. `rgbToHsv` answers a `HueSaturationValue` with the same `hue`, `saturation` and `value`; field reads keep compiling, a type annotation or pattern names the class.
+
+### `flutter3d_education_lti`
+
+- <a id="education_lti-generateRsaKeyPair-record"></a>**`generateRsaKeyPair`** (`migrate`). `generateRsaKeyPair` is a class: `.publicKey` is `.publicKey`, `.privateKey` is `.privateKey`; a destructuring pattern is yours to rewrite. `generateRsaKeyPair` answers an `RsaKeyPair` with `publicKey` and `privateKey`, where it answered a record of the same two names; only a destructuring pattern names the class.
+
+### `flutter3d_effects`
+
+- <a id="effects-Elements-waterAt-record"></a>**`Elements.waterAt`** (`migrate`). `Elements` is a class: `.water` is `.water`, `.sample` is `.sample`; a destructuring pattern is yours to rewrite. `waterAt` answers a `WaterAtPoint` with `water` and `sample`, where it answered a record of them; only a destructuring pattern names the class.
+- <a id="effects-FireView-wanted-record"></a>**`FireView.wanted`** (`migrate`). `FireView` is a class: `.$1` is `.step`, `.$2` is `.wanted`, `.$3` is `.holds`; a destructuring pattern is yours to rewrite. `wanted` lists `StepBudget`s with `step`, `wanted` and `holds`, where it listed `(String, int, int)` triples; `$1`/`$2`/`$3` become those names.
+- <a id="effects-LiquidView-wanted-record"></a>**`LiquidView.wanted`** (`migrate`). `LiquidView` is a class: `.$1` is `.step`, `.$2` is `.wanted`, `.$3` is `.holds`; a destructuring pattern is yours to rewrite. `wanted` lists `StepBudget`s with `step`, `wanted` and `holds`, where it listed `(String, int, int)` triples; `$1`/`$2`/`$3` become those names.
+
+### `flutter3d_elements`
+
+- <a id="elements-ElementsSimulation-waterAt-record"></a>**`ElementsSimulation.waterAt`** (`migrate`). `ElementsSimulation` is a class: `.water` is `.water`, `.sample` is `.sample`; a destructuring pattern is yours to rewrite. `waterAt` answers a `WaterAtPoint` with `water` and `sample`, where it answered a record of them; only a destructuring pattern names the class.
+
+### `flutter3d_foundation`
+
+- <a id="foundation-Portable-sinCos-record"></a>**`Portable.sinCos`** (`migrate`). `Portable` is a class: `.sin` is `.sin`, `.cos` is `.cos`; a destructuring pattern is yours to rewrite. `sinCos` answers a `SinCos` with `sin` and `cos`, where it answered a record; field reads are unchanged, a destructuring pattern becomes `final SinCos(:sin, :cos) = ...`.
+- <a id="foundation-WorldPosition-relativeTo-record"></a>**`WorldPosition.relativeTo`** (`migrate`). `WorldPosition` is a class: `.x` is `.x`, `.y` is `.y`, `.z` is `.z`; a destructuring pattern is yours to rewrite. `relativeTo` answers a `WorldOffset` with `x`, `y` and `z`, in metres, where it answered a record; field reads are unchanged, a destructuring pattern becomes `final WorldOffset(:x, :y, :z) = ...`.
 
 ### `flutter3d_game`
 
+- <a id="game-ActionInput-shapeDelta-record"></a>**`ActionInput.shapeDelta`** (`migrate`). `ActionInput` is a class: `.$1` is `.x`, `.$2` is `.y`; a destructuring pattern is yours to rewrite. `shapeDelta` answers a `ShapedPair` with `x` and `y`, where it answered a pair; only a destructuring pattern names the class.
+- <a id="game-ActorVisuals-markersPassed-record"></a>**`ActorVisuals.markersPassed`** (`migrate`). `ActorVisuals` is a class: `.actor` is `.actor`, `.state` is `.state`, `.name` is `.name`; a destructuring pattern is yours to rewrite. `markersPassed` is a list of `ActorMarkerPassed` with the same `actor`, `state` and `name`; a list typed by the record shape names the class.
+- <a id="game-AxisSettings-shapeDelta-record"></a>**`AxisSettings.shapeDelta`** (`migrate`). `AxisSettings` is a class: `.$1` is `.x`, `.$2` is `.y`; a destructuring pattern is yours to rewrite. `shapeDelta` answers a `ShapedPair` with `x` and `y`, where it answered a pair; only a destructuring pattern names the class.
+- <a id="game-AxisSettings-shapePair-record"></a>**`AxisSettings.shapePair`** (`migrate`). `AxisSettings` is a class: `.$1` is `.x`, `.$2` is `.y`; a destructuring pattern is yours to rewrite. `shapePair` answers a `ShapedPair` with `x` and `y`, where it answered a pair; only a destructuring pattern names the class.
+- <a id="game-ColorRoles-confusions-record"></a>**`ColorRoles.confusions`** (`migrate`). `ColorRoles` is a class: `.a` is `.a`, `.b` is `.b`, `.by` is `.by`, `.distance` is `.distance`; a destructuring pattern is yours to rewrite. `confusions` answers a list of `ColorConfusion`, the class `ColorVision.confusions` answers, with the same `a`, `b`, `by` and `distance`; a list typed by the record shape names the class.
 - <a id="game-flutter3d-export"></a>**`package:flutter3d/flutter3d.dart`** (nothing to do). The facade still re-exports the engine through this one line; only the names in it changed, `ComputeExecutor`, `ComputeExecutors` and `ComputePlacement` out and `ComputeSite` in, which their own entries cover.
+
+### `flutter3d_game_physics`
+
+- <a id="game_physics-RagdollPart-tailLength-record"></a>**`RagdollPart.tailLength`** (`migrate`). `RagdollPart` is a class: `.of` is `.of`, `.times` is `.times`; a destructuring pattern is yours to rewrite. `tailLength` is a `RagdollTailLength` with the same `of` and `times`; write `RagdollTailLength(of: …, times: …)` where a record literal stood.
+
+### `flutter3d_game_ui`
+
+- <a id="game_ui-LicenseEntry-LicenseSection"></a>**`LicenseEntry`** (`dart fix`). `LicenseEntry` is `LicenseSection`. `package:flutter/foundation.dart` exports a `LicenseEntry` too, the license registry's; a section of a `LICENSES.md` is `LicenseSection`.
+- <a id="game_ui-LicenseRecord"></a>**`LicenseRecord`** (nothing to do). Its sections are typed `LicenseSection`, which `LicenseEntry` is now; `dart fix` renames the type where code names it.
+- <a id="game_ui-TouchButton-pedal-record"></a>**`TouchButton.pedal`** (`migrate`). `TouchButton` is a class: `.width` is `.width`, `.height` is `.height`; a destructuring pattern is yours to rewrite. `pedal` is a `PedalSize` with the same `width` and `height`, and a getter where it was a field; the `TouchButton.pedal` constructor takes the same parameters.
 
 ### `flutter3d_hardware`
 
@@ -267,20 +414,149 @@ carried out:
 - <a id="hardware-ComputePlacement"></a>**`ComputePlacement`** (`dart fix`). `ComputePlacement` is imported from `package:flutter3d_hardware/flutter3d_hardware.dart`. The facades no longer re-export it: a placement is named only by the hardware layer and the backends that add compute devices.
 - <a id="hardware-ComputePlacementException-new"></a>**`ComputePlacementException.ComputePlacementException`** (`dart fix`). A step no longer demands a placement, so a refusal has no demand to carry.
 - <a id="hardware-ComputePlacementException-demand"></a>**`ComputePlacementException.demand`** (`migrate`). `ComputePlacementException.demand` becomes `null`. Nothing demands a placement any more, so there is none to read: the refusal says why nothing ran (`reason`, `tried`), never where it was asked to.
+- <a id="hardware-FakeBackend-createdCubeRenderTargets-record"></a>**`FakeBackend.createdCubeRenderTargets`** (`migrate`). `FakeBackend` is a class: `.size` is `.size`, `.format` is `.format`, `.mipLevels` is `.mipLevels`; a destructuring pattern is yours to rewrite. `createdCubeRenderTargets` lists `FakeCubeTarget`s with the same three fields, where it listed records; field reads keep compiling.
+- <a id="hardware-FakeBackend-overwrites-record"></a>**`FakeBackend.overwrites`** (`migrate`). `FakeBackend` is a class: `.backend` is `.backend`, `.offsetInBytes` is `.offsetInBytes`, `.lengthInBytes` is `.lengthInBytes`; a destructuring pattern is yours to rewrite. `overwrites` lists `FakeGeometryOverwrite`s with the same three fields, where it listed records; field reads keep compiling.
+- <a id="hardware-FakeBackend-overwrittenTextures-record"></a>**`FakeBackend.overwrittenTextures`** (`migrate`). `FakeBackend` is a class: `.format` is `.format`, `.region` is `.region`, `.mipLevel` is `.mipLevel`; a destructuring pattern is yours to rewrite. `overwrittenTextures` lists `FakeTextureOverwrite`s with the same three fields, where it listed records; field reads keep compiling.
+- <a id="hardware-FakeBackend-readbacks-record"></a>**`FakeBackend.readbacks`** (`migrate`). `FakeBackend` is a class: `.texture` is `.texture`, `.region` is `.region`; a destructuring pattern is yours to rewrite. `readbacks` lists `FakeReadback`s with `texture` and `region`, where it listed records; field reads keep compiling.
+- <a id="hardware-cappedImageSize-record"></a>**`cappedImageSize`** (`migrate`). `cappedImageSize` is a class: `.width` is `.width`, `.height` is `.height`; a destructuring pattern is yours to rewrite. `cappedImageSize` answers an `ImageExtent` with `width` and `height`, where it answered a record; field reads keep compiling, and a comparison against `(width: w, height: h)` becomes one against `ImageExtent(width: w, height: h)`.
+- <a id="hardware-encodedImageSize-record"></a>**`encodedImageSize`** (`migrate`). `encodedImageSize` is a class: `.width` is `.width`, `.height` is `.height`; a destructuring pattern is yours to rewrite. `encodedImageSize` answers an `ImageExtent` (or null) with `width` and `height`, where it answered a record; field reads keep compiling.
+- <a id="hardware-indexWindow-record"></a>**`indexWindow`** (`migrate`). `indexWindow` is a class: `.first` is `.first`, `.count` is `.count`; a destructuring pattern is yours to rewrite. `indexWindow` answers an `IndexWindow` with `first` and `count`, where it answered a record; field reads keep compiling, and a list typed `List<({int first, int count})>` becomes `List<IndexWindow>`.
+
+### `flutter3d_level_scene`
+
+- <a id="level_scene-LevelScene"></a>**`LevelScene`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
+- <a id="level_scene-LevelSceneParts"></a>**`LevelSceneParts`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
 
 ### `flutter3d_mcp`
 
+- <a id="mcp-GameAsk"></a>**`GameAsk`** (nothing to do). It takes or answers the final class that replaced a record (its own entry names the fields): a record literal passed to it is written as that class, with the same field names.
+- <a id="mcp-PieceReport-covering-record"></a>**`PieceReport.covering`** (`migrate`). `PieceReport` is a class: `.who` is `.who`, `.share` is `.share`; a destructuring pattern is yours to rewrite. `covering` is a list of `PieceCover`, each with `who` and `share`, where it was a list of `(who:, share:)` records; only a destructuring pattern names the class.
+- <a id="mcp-PieceReport-depth-record"></a>**`PieceReport.depth`** (`migrate`). `PieceReport` is a class: `.near` is `.near`, `.far` is `.far`; a destructuring pattern is yours to rewrite. `depth` is a `DepthSpan?` with `near` and `far` in metres, where it was a `(near:, far:)` record; only a destructuring pattern names the class.
+- <a id="mcp-PieceReport-screenBox-record"></a>**`PieceReport.screenBox`** (`migrate`). `PieceReport` is a class: `.left` is `.left`, `.top` is `.top`, `.right` is `.right`, `.bottom` is `.bottom`; a destructuring pattern is yours to rewrite. `screenBox` is a `PixelBox?` with `left`, `top`, `right` and `bottom`, where it was a record of the same four names; only a destructuring pattern names the class.
+- <a id="mcp-ProjectRoot-tryResolve-record"></a>**`ProjectRoot.tryResolve`** (`migrate`). `ProjectRoot` is a class: `.path` is `.path`, `.refused` is `.refused`; a destructuring pattern is yours to rewrite. `tryResolve` answers a `ResolvedPath` with `path` and `refused`, where it answered a `(path:, refused:)` record; a destructuring pattern or a switch case becomes `ResolvedPath(:path, :refused)`.
 - <a id="mcp-editorMcpVersion"></a>**`editorMcpVersion`** (nothing to do). The version the editor server announces follows the package's.
 - <a id="mcp-modelMcpVersion"></a>**`modelMcpVersion`** (nothing to do). The version the modelling server announces follows the package's.
 - <a id="mcp-projectMcpVersion"></a>**`projectMcpVersion`** (nothing to do). The version the project server announces follows the package's.
 
+### `flutter3d_mesh`
+
+- <a id="mesh-ConvexHull-faces-record"></a>**`ConvexHull.faces`** (`migrate`). `ConvexHull` is a class: `.$1` is `.a`, `.$2` is `.b`, `.$3` is `.c`; a destructuring pattern is yours to rewrite. `ConvexHull.faces` is a list of `TriangleIndices` with `a`, `b` and `c` where it held index triples; `$1`/`$2`/`$3` become `a`/`b`/`c`.
+- <a id="mesh-EditMesh-compact-record"></a>**`EditMesh.compact`** (`migrate`). `EditMesh` is a class: `.$1` is `.mesh`, `.$2` is `.remap`; a destructuring pattern is yours to rewrite. `compact` answers a `RemappedMesh` with `mesh` and `remap` where it answered a pair; only a destructuring pattern names the class.
+- <a id="mesh-StaticMeshShape-triangles-record"></a>**`StaticMeshShape.triangles`** (`migrate`). `StaticMeshShape` is a class: `.$1` is `.a`, `.$2` is `.b`, `.$3` is `.c`; a destructuring pattern is yours to rewrite. `StaticMeshShape.triangles` is a list of `TriangleIndices` with `a`, `b` and `c` where it held index triples; `$1`/`$2`/`$3` become `a`/`b`/`c`.
+- <a id="mesh-closestPointOn-record"></a>**`closestPointOn`** (`migrate`). `closestPointOn` is a class: `.triangle` is `.triangle`, `.distance` is `.distance`, `.point` is `.point`; a destructuring pattern is yours to rewrite. `closestPointOn` answers a `SurfacePoint` (or null) with the same `triangle`, `distance` and `point`; field reads keep compiling.
+- <a id="mesh-importMeshData-record"></a>**`importMeshData`** (`migrate`). `importMeshData` is a class: `.$1` is `.mesh`, `.$2` is `.report`, `.$3` is `.shapeKeys`; a destructuring pattern is yours to rewrite. `importMeshData` answers an `ImportedMesh` with `mesh`, `report` and `shapeKeys` where it answered a triple; read `importMeshData(d).mesh` or destructure with `ImportedMesh(:mesh)`.
+- <a id="mesh-isotropicRemesh-record"></a>**`isotropicRemesh`** (`migrate`). `isotropicRemesh` is a class: `.$1` is `.mesh`, `.$2` is `.report`; a destructuring pattern is yours to rewrite. `isotropicRemesh` answers a `RemeshedMesh` with `mesh` and `report` where it answered a pair; only a destructuring pattern names the class.
+- <a id="mesh-mergeAt-record"></a>**`mergeAt`** (`migrate`). `mergeAt` is a class: `.$1` is `.mesh`, `.$2` is `.report`; a destructuring pattern is yours to rewrite. `mergeAt` answers a `MergedMesh` with `mesh` and `report` where it answered a pair; only a destructuring pattern names the class.
+- <a id="mesh-mergeByDistance-record"></a>**`mergeByDistance`** (`migrate`). `mergeByDistance` is a class: `.$1` is `.mesh`, `.$2` is `.report`; a destructuring pattern is yours to rewrite. `mergeByDistance` answers a `MergedMesh` with `mesh` and `report` where it answered a pair; only a destructuring pattern names the class.
+- <a id="mesh-separateComponents-record"></a>**`separateComponents`** (`migrate`). `separateComponents` is a class: `.$1` is `.mesh`, `.$2` is `.remap`; a destructuring pattern is yours to rewrite. `separateComponents` answers a list of `RemappedMesh` with `mesh` and `remap` where it held pairs; `$1`/`$2` become `mesh`/`remap`.
+- <a id="mesh-subMesh-record"></a>**`subMesh`** (`migrate`). `subMesh` is a class: `.$1` is `.mesh`, `.$2` is `.remap`; a destructuring pattern is yours to rewrite. `subMesh` answers a `RemappedMesh` with `mesh` and `remap` where it answered a pair; only a destructuring pattern names the class.
+
+### `flutter3d_model_core`
+
+- <a id="model_core-AddNode"></a>**`AddNode`** (nothing to do). It takes or answers the final class that replaced a record (its own entry names the fields): a record literal passed to it is written as that class, with the same field names.
+- <a id="model_core-AddNode-position-record"></a>**`AddNode.position`** (`migrate`). `AddNode` is a class: `.$1` is `.x`, `.$2` is `.y`; a destructuring pattern is yours to rewrite. `AddNode.position` is a `NodePosition` with `x` and `y` where it was a pair; build it as `NodePosition(x: 12, y: 34)` (default `NodePosition.origin`).
+- <a id="model_core-ImpostorAtlas-pick-record"></a>**`ImpostorAtlas.pick`** (`migrate`). `ImpostorAtlas` is a class: `.view` is `.view`, `.next` is `.next`, `.blend` is `.blend`; a destructuring pattern is yours to rewrite. `pick` answers an `ImpostorPick` with the same `view`, `next` and `blend`; field reads keep compiling, a pattern names the class.
+- <a id="model_core-ModelHistory-authorship-record"></a>**`ModelHistory.authorship`** (`migrate`). `ModelHistory` is a class: `.says` is `.says`, `.author` is `.author`, `.client` is `.client`; a destructuring pattern is yours to rewrite. `authorship` is a list of `StepAuthorship` with the same `says`, `author` and `client`; field reads keep compiling, a type annotation names the class.
+- <a id="model_core-TextureGraph"></a>**`TextureGraph`** (nothing to do). It takes or answers the final class that replaced a record (its own entry names the fields): a record literal passed to it is written as that class, with the same field names.
+- <a id="model_core-TextureGraph-positions-record"></a>**`TextureGraph.positions`** (`migrate`). `TextureGraph` is a class: `.$1` is `.x`, `.$2` is `.y`; a destructuring pattern is yours to rewrite. `TextureGraph.positions` maps a node id to a `NodePosition` with `x` and `y` where it mapped to a pair; `$1`/`$2` become `x`/`y`.
+- <a id="model_core-blockLayoutFor-record"></a>**`blockLayoutFor`** (`migrate`). `blockLayoutFor` is a class: `.blockWidth` is `.blockWidth`, `.blockHeight` is `.blockHeight`, `.bytesPerBlock` is `.bytesPerBlock`; a destructuring pattern is yours to rewrite. `blockLayoutFor` answers a `CompressedBlock` (or null) with the same `blockWidth`, `blockHeight` and `bytesPerBlock`; field reads keep compiling.
+- <a id="model_core-curveSamples-record"></a>**`curveSamples`** (`migrate`). `curveSamples` is a class: `.$1` is `.time`, `.$2` is `.value`; a destructuring pattern is yours to rewrite. `curveSamples` answers a list of `CurveSample` with `time` and `value` where it held pairs; `for (final CurveSample(:time, :value) in ...)` replaces the record pattern.
+- <a id="model_core-dirtyRectOf-record"></a>**`dirtyRectOf`** (`migrate`). `dirtyRectOf` is a class: `.$1` is `.x`, `.$2` is `.y`, `.$3` is `.width`, `.$4` is `.height`; a destructuring pattern is yours to rewrite. `dirtyRectOf` takes a `List<TileCoord>` and answers a `TexelRect` (or null) with `x`, `y`, `width` and `height` where it answered a four-tuple; only a destructuring pattern names the class.
+- <a id="model_core-dirtyTilesBetween-record"></a>**`dirtyTilesBetween`** (`migrate`). `dirtyTilesBetween` is a class: `.$1` is `.x`, `.$2` is `.y`; a destructuring pattern is yours to rewrite. `dirtyTilesBetween` answers a list of `TileCoord` with `x` (column) and `y` (row) where it held `(tx, ty)` pairs; `$1`/`$2` become `x`/`y`.
+- <a id="model_core-polygonEdgesOf-record"></a>**`polygonEdgesOf`** (`migrate`). `polygonEdgesOf` is a class: `.$1` is `.low`, `.$2` is `.high`; a destructuring pattern is yours to rewrite. `polygonEdgesOf` answers a list of `EdgeVertices` with `low` and `high` where it held pairs; `$1`/`$2` become `low`/`high`.
+- <a id="model_core-renderPost-record"></a>**`renderPost`** (`migrate`). `renderPost` is a class: `.settings` is `.settings`, `.graph` is `.graph`; a destructuring pattern is yours to rewrite. `renderPost` answers a `PostEdit` with the same `settings` and `graph`; field reads keep compiling, `final PostEdit(:settings, :graph) = ...` replaces the record pattern.
+- <a id="model_core-resolveIkConstraint-record"></a>**`resolveIkConstraint`** (`migrate`). `resolveIkConstraint` is a class: `.root` is `.root`, `.mid` is `.mid`, `.reachError` is `.reachError`; a destructuring pattern is yours to rewrite. `resolveIkConstraint` answers an `IkSolution` with the same `root`, `mid` and `reachError`; field reads keep compiling.
+- <a id="model_core-resolveLookAtConstraint-record"></a>**`resolveLookAtConstraint`** (`migrate`). `resolveLookAtConstraint` is a class: `.rotation` is `.rotation`, `.aimError` is `.aimError`; a destructuring pattern is yours to rewrite. `resolveLookAtConstraint` answers a `LookAtSolution` with the same `rotation` and `aimError`; field reads keep compiling.
+- <a id="model_core-tangentHandles-record"></a>**`tangentHandles`** (`migrate`). `tangentHandles` is a class: `.inHandle` is `.inHandle`, `.outHandle` is `.outHandle`; a destructuring pattern is yours to rewrite. `tangentHandles` answers a `TangentHandles` with the same `inHandle` and `outHandle`; field reads keep compiling.
+- <a id="model_core-valueRange-record"></a>**`valueRange`** (`migrate`). `valueRange` is a class: `.min` is `.min`, `.max` is `.max`; a destructuring pattern is yours to rewrite. `valueRange` answers a `CurveValueRange` with the same `min` and `max`; field reads keep compiling, a type annotation names the class.
+
 ### `flutter3d_net`
 
+- <a id="net-RollbackSession-agreedEnd-record"></a>**`RollbackSession.agreedEnd`** (`migrate`). `RollbackSession` is a class: `.step` is `.step`, `.after` is `.after`; a destructuring pattern is yours to rewrite. `agreedEnd` answers an `AgreedEnding<S>` with the same `step` and `after`; only a destructuring pattern or a type written out names the class.
 - <a id="net-WireHello-currentProtocolMinor"></a>**`WireHello.currentProtocolMinor`** (nothing to do). The protocol is 3.1 now: the relay's, the route's and the party's messages carry the reserved key, and a party says the hello. A build on 3.1 meets every other build of major 3, so code that compared a hello's minor with this constant reads the newer number.
+
+### `flutter3d_particles`
+
+- <a id="particles-EffectRender-sheet-record"></a>**`EffectRender.sheet`** (`migrate`). `EffectRender` is a class: `.positive` is `.positive`, `.negative` is `.negative`; a destructuring pattern is yours to rewrite. `sheet` is a `SixWaySheetNames` with `positive` and `negative`, where it was a record of the two paths; a constructor call passes `SixWaySheetNames(positive: ..., negative: ...)`.
+- <a id="particles-LightEmitter-base"></a>**`LightEmitter`** (`migrate`). `LightEmitter` is a `base` class: a class below it is `base` itself, and `implements LightEmitter` becomes `extends LightEmitter`. `LightEmitter` is a base mixin class: an emitter mixes it in and is `base` or `final`; nothing implements it.
+- <a id="particles-MeshParticleContributor"></a>**`MeshParticleContributor`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
+- <a id="particles-ParticleContributor"></a>**`ParticleContributor`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
+- <a id="particles-ParticleEffects-looks-record"></a>**`ParticleEffects.looks`** (`migrate`). `ParticleEffects` is a class: `.render` is `.render`, `.system` is `.system`; a destructuring pattern is yours to rewrite. `looks` lists `ParticleLook`s with `render` and `system`, where it listed records of them; only a destructuring pattern names the class.
+- <a id="particles-ParticleEffects-triggerCounts-record"></a>**`ParticleEffects.triggerCounts`** (`migrate`). `ParticleEffects` is a class: `.fired` is `.fired`, `.unplaced` is `.unplaced`; a destructuring pattern is yours to rewrite. `triggerCounts` answers a `TriggerCounts` with `fired` and `unplaced`; a comparison with a record literal compares with `TriggerCounts(fired: ..., unplaced: ...)` instead.
+- <a id="particles-importSixWay-record"></a>**`importSixWay`** (`migrate`). `importSixWay` is a class: `.positive` is `.positive`, `.negative` is `.negative`; a destructuring pattern is yours to rewrite. `importSixWay` answers a `SixWayTextures` with `positive` and `negative`, where it answered a record of the two byte lists; only a variable typed with the record shape needs the class name.
+
+### `flutter3d_physics`
+
+- <a id="physics-CollisionListener-base"></a>**`CollisionListener`** (`migrate`). `CollisionListener` is a `base` class: a class below it is `base` itself, and `implements CollisionListener` becomes `extends CollisionListener`. `CollisionListener` is a base mixin class: a listener mixes it in and is `base` or `final`; nothing implements it.
+- <a id="physics-MeshVessel-span-record"></a>**`MeshVessel.span`** (`migrate`). `MeshVessel` is a class: `.low` is `.low`, `.high` is `.high`; a destructuring pattern is yours to rewrite. `span` answers a `VesselSpan` with `low` and `high`, where it answered a record of them; only a destructuring pattern names the class.
+- <a id="physics-RevolvedVessel-span-record"></a>**`RevolvedVessel.span`** (`migrate`). `RevolvedVessel` is a class: `.low` is `.low`, `.high` is `.high`; a destructuring pattern is yours to rewrite. `span` answers a `VesselSpan` with `low` and `high`, where it answered a record of them; only a destructuring pattern names the class.
+- <a id="physics-RevolvedVessel-wallDistance-record"></a>**`RevolvedVessel.wallDistance`** (`migrate`). `RevolvedVessel` is a class: `.distance` is `.distance`, `.normal` is `.normal`; a destructuring pattern is yours to rewrite. `wallDistance` answers a `VesselWallDistance` with `distance` and `normal`, or null, where it answered a record of them; only a destructuring pattern names the class.
+- <a id="physics-VesselShape-span-record"></a>**`VesselShape.span`** (`migrate`). `VesselShape` is a class: `.low` is `.low`, `.high` is `.high`; a destructuring pattern is yours to rewrite. `span` answers a `VesselSpan` with `low` and `high`; a shape of your own returns `VesselSpan(low: ..., high: ...)` where it returned `(low: ..., high: ...)`.
+- <a id="physics-VesselVolumes-lip-record"></a>**`VesselVolumes.lip`** (`migrate`). `VesselVolumes` is a class: `.point` is `.point`, `.height` is `.height`; a destructuring pattern is yours to rewrite. `lip` answers a `VesselLip` with `point` and `height`, or null, where it answered a record of them; only a destructuring pattern names the class.
+- <a id="physics-circularWeir-record"></a>**`circularWeir`** (`migrate`). `circularWeir` is a class: `.flow` is `.flow`, `.area` is `.area`; a destructuring pattern is yours to rewrite. `circularWeir` answers a `WeirFlow` with `flow` and `area`, where it answered a record of them; only a destructuring pattern names the class.
+- <a id="physics-orificeFlow-record"></a>**`orificeFlow`** (`migrate`). `orificeFlow` is a class: `.flow` is `.flow`, `.speed` is `.speed`; a destructuring pattern is yours to rewrite. `orificeFlow` answers an `OrificeStream` with `flow` and `speed`, where it answered a record of them; only a destructuring pattern names the class.
+- <a id="physics-overCircularLip-record"></a>**`overCircularLip`** (`migrate`). `overCircularLip` is a class: `.head` is `.head`, `.speed` is `.speed`, `.width` is `.width`; a destructuring pattern is yours to rewrite. `overCircularLip` answers a `LipOverflow` with `head`, `speed` and `width`, where it answered a record of them; only a destructuring pattern names the class.
+
+### `flutter3d_physics_native`
+
+- <a id="physics_native-NativeWorld-charOf-record"></a>**`NativeWorld.charOf`** (`migrate`). `NativeWorld` is a class: `.share` is `.share`, `.depth` is `.depth`, `.temperature` is `.temperature`; a destructuring pattern is yours to rewrite. `charOf` answers a `NativeChar` with `share`, `depth` and `temperature`, where it answered a record of them; only a destructuring pattern names the class.
+- <a id="physics_native-NativeWorld-linkJoint-record"></a>**`NativeWorld.linkJoint`** (`migrate`). `NativeWorld` is a class: `.position` is `.position`, `.speed` is `.speed`; a destructuring pattern is yours to rewrite. `linkJoint` answers a `NativeLinkJoint` with `position` and `speed`, where it answered a record of them; only a destructuring pattern names the class.
+- <a id="physics_native-NativeWorld-linkTurn-record"></a>**`NativeWorld.linkTurn`** (`migrate`). `NativeWorld` is a class: `.turn` is `.turn`, `.spin` is `.spin`; a destructuring pattern is yours to rewrite. `linkTurn` answers a `NativeLinkTurn` with `turn` and `spin`, where it answered a record of them; only a destructuring pattern names the class.
+- <a id="physics_native-NativeWorld-readFires-record"></a>**`NativeWorld.readFires`** (`migrate`). `NativeWorld` is a class: `.fires` is `.fires`, `.bodies` is `.bodies`; a destructuring pattern is yours to rewrite. `readFires` answers a `NativeFireBlock` with `fires` and `bodies`, where it answered a record of them; only a destructuring pattern names the class.
+- <a id="physics_native-NativeWorld-readShallowSurface-record"></a>**`NativeWorld.readShallowSurface`** (`migrate`). `NativeWorld` is a class: `.surface` is `.surface`, `.depth` is `.depth`; a destructuring pattern is yours to rewrite. `readShallowSurface` answers a `NativeShallowSurface` with `surface` and `depth`, where it answered a record of them; a variable typed with the record shape takes the class name instead.
+- <a id="physics_native-NativeWorld-readTransforms-record"></a>**`NativeWorld.readTransforms`** (`migrate`). `NativeWorld` is a class: `.transforms` is `.transforms`, `.bodies` is `.bodies`; a destructuring pattern is yours to rewrite. `readTransforms` answers a `NativeTransformBlock` with `transforms` and `bodies`, where it answered a record of them; only a destructuring pattern names the class.
+- <a id="physics_native-NativeWorld-shallowVolume-record"></a>**`NativeWorld.shallowVolume`** (`migrate`). `NativeWorld` is a class: `.held` is `.held`, `.lost` is `.lost`; a destructuring pattern is yours to rewrite. `shallowVolume` answers a `NativeShallowVolume` with `held` and `lost`, where it answered a record of them; a getter or variable typed with the record shape takes the class name instead.
+- <a id="physics_native-NativeWorld-submergedOf-record"></a>**`NativeWorld.submergedOf`** (`migrate`). `NativeWorld` is a class: `.volume` is `.volume`, `.water` is `.water`; a destructuring pattern is yours to rewrite. `submergedOf` answers a `NativeSubmersion` with `volume` and `water`, where it answered a record of them; only a destructuring pattern names the class.
+- <a id="physics_native-customShapeDirections-record"></a>**`customShapeDirections`** (`migrate`). `customShapeDirections` is a class: `.$1` is `.x`, `.$2` is `.y`, `.$3` is `.z`; a destructuring pattern is yours to rewrite. `customShapeDirections` lists `ShapeSampleDirection`s with `x`, `y` and `z`, where it listed `(double, double, double)` triples; a loop writes `for (final ShapeSampleDirection(:x, :y, :z) in ...)`.
+
+### `flutter3d_plugin_api`
+
+- <a id="plugin_api-OriginShifted-offset-record"></a>**`OriginShifted.offset`** (`migrate`). `OriginShifted` is a class: `.x` is `.x`, `.y` is `.y`, `.z` is `.z`; a destructuring pattern is yours to rewrite. `offset` is a `WorldOffset` with `x`, `y` and `z`, in metres, where it was a record; field reads are unchanged.
+- <a id="plugin_api-RenderAnchor-f3d"></a>**`RenderAnchor`** (nothing to do). Each engine anchor is named `f3d.<name>` (`f3d.after_bloom` where it was `after bloom`); `RenderAnchor.named` still finds one by its old word. Code that compared an anchor's name with a string uses the new word.
+
+### `flutter3d_post`
+
+- <a id="post-outlinesStep-namespace"></a>**`outlinesStep`** (nothing to do). The outlines step is named `flutter3d_post.outlines`, in the package's namespace; code that holds the constant is unchanged.
+- <a id="post-skyStep-namespace"></a>**`skyStep`** (nothing to do). The sky step is named `flutter3d_post.sky`, in the package's namespace; code that holds the constant is unchanged.
 
 ### `flutter3d_shaders`
 
 - <a id="shaders-kernelLanguageVersion"></a>**`kernelLanguageVersion`** (nothing to do). The kernel language reads version 2 now, which adds atomic buffers; every version 1 source reads as it did. Code that compared a source's version with this constant reads the newer number.
+
+### `flutter3d_sim`
+
+- <a id="sim-Avoidance-velocity-record"></a>**`Avoidance.velocity`** (`migrate`). `Avoidance` is a class: `.$1` is `.x`, `.$2` is `.z`; a destructuring pattern is yours to rewrite. `velocity` answers an `AvoidanceVelocity` with `x` and `z`, where it answered a pair; only a destructuring pattern names the class.
+- <a id="sim-BrushGeometry-faceAxes-record"></a>**`BrushGeometry.faceAxes`** (`migrate`). `BrushGeometry` is a class: `.$1` is `.normal`, `.$2` is `.u`, `.$3` is `.v`; a destructuring pattern is yours to rewrite. `faceAxes` is a list of `BrushFaceAxes` with `normal`, `u` and `v`, where each was a triple; `$1` is `normal`, and a destructuring pattern names the class.
+- <a id="sim-HeatmapTrail-positions-record"></a>**`HeatmapTrail.positions`** (`migrate`). `HeatmapTrail` is a class: `.$1` is `.x`, `.$2` is `.z`; a destructuring pattern is yours to rewrite. `positions` is a list of `TrailPoint` with `x` and `z`, where each was a pair; build them with `TrailPoint(x: …, z: …)`.
+- <a id="sim-InputFrame"></a>**`InputFrame`** (nothing to do). It takes or answers the final class that replaced a record (its own entry names the fields): a record literal passed to it is written as that class, with the same field names.
+- <a id="sim-InputFrame-dualAxes-record"></a>**`InputFrame.dualAxes`** (`migrate`). `InputFrame` is a class: `.x` is `.x`, `.y` is `.y`; a destructuring pattern is yours to rewrite. `dualAxes` maps each name to a `DualAxisValue` with the same `x` and `y`; a map typed by the record shape, or a record literal put in it, names the class.
+- <a id="sim-KeyHolder-base"></a>**`KeyHolder`** (`migrate`). `KeyHolder` is a `base` class: a class below it is `base` itself, and `implements KeyHolder` becomes `extends KeyHolder`. `KeyHolder` is a base mixin class: a holder mixes it in and is `base` or `final`; nothing implements it.
+- <a id="sim-LevelRules"></a>**`LevelRules`** (nothing to do). It takes or answers the final class that replaced a record (its own entry names the fields): a record literal passed to it is written as that class, with the same field names.
+- <a id="sim-LevelRules-perRoom-record"></a>**`LevelRules.perRoom`** (`migrate`). `LevelRules` is a class: `.entity` is `.entity`, `.count` is `.count`; a destructuring pattern is yours to rewrite. `perRoom` is a list of `RoomScatter` with the same `entity` and `count`; write `RoomScatter(entity: …, count: …)` where a record literal stood.
+- <a id="sim-LightmapLayout-neutralUv-record"></a>**`LightmapLayout.neutralUv`** (`migrate`). `LightmapLayout` is a class: `.$1` is `.u`, `.$2` is `.v`; a destructuring pattern is yours to rewrite. `neutralUv` answers a `LightmapUv` with `u` and `v`, where it answered a pair; only a destructuring pattern names the class.
+- <a id="sim-LightmapLayout-texelOf-record"></a>**`LightmapLayout.texelOf`** (`migrate`). `LightmapLayout` is a class: `.$1` is `.x`, `.$2` is `.y`; a destructuring pattern is yours to rewrite. `texelOf` answers a `LightmapTexel` with `x` and `y`, where it answered a pair; only a destructuring pattern names the class.
+- <a id="sim-LightmapLayout-uvAt-record"></a>**`LightmapLayout.uvAt`** (`migrate`). `LightmapLayout` is a class: `.$1` is `.u`, `.$2` is `.v`; a destructuring pattern is yours to rewrite. `uvAt` answers a `LightmapUv` with `u` and `v`, where it answered a pair; only a destructuring pattern names the class.
+- <a id="sim-LightmapLayout-uvOfPoint-record"></a>**`LightmapLayout.uvOfPoint`** (`migrate`). `LightmapLayout` is a class: `.$1` is `.u`, `.$2` is `.v`; a destructuring pattern is yours to rewrite. `uvOfPoint` answers a `LightmapUv` with `u` and `v`, where it answered a pair; only a destructuring pattern names the class.
+- <a id="sim-ResimulationRetraced-trail-record"></a>**`ResimulationRetraced.trail`** (`migrate`). `ResimulationRetraced` is a class: `.$1` is `.x`, `.$2` is `.z`; a destructuring pattern is yours to rewrite. `trail` is a list of `TrailPoint` with `x` and `z`, where each was a pair, the same points `HeatmapTrail.positions` takes.
+- <a id="sim-bracketFromTraces-record"></a>**`bracketFromTraces`** (`migrate`). `bracketFromTraces` is a class: `.agreedAt` is `.agreedAt`, `.differsAt` is `.differsAt`; a destructuring pattern is yours to rewrite. `bracketFromTraces` answers a `TraceBracket` with the same `agreedAt` and `differsAt`; only a destructuring pattern names the class.
+- <a id="sim-firstDifferingPath-record"></a>**`firstDifferingPath`** (`migrate`). `firstDifferingPath` is a class: `.path` is `.path`, `.a` is `.a`, `.b` is `.b`; a destructuring pattern is yours to rewrite. `firstDifferingPath` answers a `DifferingPath` with the same `path`, `a` and `b`; only a destructuring pattern names the class.
+
+### `flutter3d_sim_mcp`
+
+- <a id="sim_mcp-DiagnosticFrame-firstNonFinite-record"></a>**`DiagnosticFrame.firstNonFinite`** (`migrate`). `DiagnosticFrame` is a class: `.x` is `.x`, `.y` is `.y`, `.channel` is `.channel`; a destructuring pattern is yours to rewrite. `firstNonFinite` answers a `NonFinitePixel` with the same `x`, `y` and `channel`; only a destructuring pattern names the class.
+- <a id="sim_mcp-PlaytestRun-positions-record"></a>**`PlaytestRun.positions`** (`migrate`). `PlaytestRun` is a class: `.x` is `.x`, `.z` is `.z`; a destructuring pattern is yours to rewrite. `positions` is a list of `flutter3d_sim`'s `TrailPoint` with the same `x` and `z`, the points `HeatmapTrail.positions` takes.
+
+### `flutter3d_stereo`
+
+- <a id="stereo-StereoRig"></a>**`StereoRig`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
+
+### `flutter3d_testing`
+
+- <a id="testing-QualityScene"></a>**`QualityScene`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
+
+### `flutter3d_voxel`
+
+- <a id="voxel-VoxelHit-before-record"></a>**`VoxelHit.before`** (`migrate`). `VoxelHit` is a class: `.x` is `.x`, `.y` is `.y`, `.z` is `.z`; a destructuring pattern is yours to rewrite. `before` answers a `VoxelCell` with the same `x`, `y` and `z`; only a destructuring pattern names the class.
 
 *Generated from `flutter3d_build/lib/migrations/` — 2095 entries from 0.8.5 to 1.0.0-rc.1, 308 by hand: 425 `migrate`, 308 by hand, 329 nothing to do, 528 `dart fix`, 380 gone internal, 125 `migrate`, with a TODO.*
 

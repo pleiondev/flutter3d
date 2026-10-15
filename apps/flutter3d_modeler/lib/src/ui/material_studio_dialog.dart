@@ -6,7 +6,7 @@
 /// **A stage of its own, the same shape `lathe_dialog.dart` already
 /// committed to for exactly this reason.** `ModelerStage.build`'s own doc
 /// comment names "a material preview beside it later" as the very next
-/// thing a single `RenderView` was not enough for — this is that preview,
+/// thing a single `CameraView` was not enough for — this is that preview,
 /// built the same way: `ModelerStage.build` gives a fresh `Scene`, two
 /// `LightNode`s and an `OrbitController` for free, and this dialog mutates
 /// the one thing it does not give — the subject's own mesh and material,

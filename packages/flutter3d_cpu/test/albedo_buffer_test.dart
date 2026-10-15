@@ -95,7 +95,7 @@ void main() {
         width: _size,
         height: _size,
         scene: it.scene,
-        views: <RenderView>[RenderView(camera: it.camera)],
+        views: <CameraView>[CameraView(camera: it.camera)],
       );
     final at = (_size ~/ 2 * _size + _size ~/ 2) * 4;
     final albedo = probe.last!;
@@ -121,7 +121,7 @@ void main() {
         width: _size,
         height: _size,
         scene: it.scene,
-        views: <RenderView>[RenderView(camera: it.camera)],
+        views: <CameraView>[CameraView(camera: it.camera)],
       );
     expect(probe.albedo, isNotNull);
     expect(probe.surface, isNotNull);
@@ -142,7 +142,7 @@ void main() {
         width: _size,
         height: _size,
         scene: it.scene,
-        views: <RenderView>[RenderView(camera: it.camera)],
+        views: <CameraView>[CameraView(camera: it.camera)],
       );
     final at = (_size ~/ 2 * _size + _size ~/ 2) * 4;
     expect(probe.last![at], 0.0);
@@ -155,7 +155,7 @@ void main() {
       width: _size,
       height: _size,
       scene: it.scene,
-      views: <RenderView>[RenderView(camera: it.camera)],
+      views: <CameraView>[CameraView(camera: it.camera)],
     );
     expect(probe.last, isNull);
   });

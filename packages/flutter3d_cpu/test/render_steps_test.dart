@@ -155,7 +155,7 @@ _Stage _stage() {
     ..add(camera)
     ..irradianceField = field;
   scene.addTextureView(
-    RenderView.texture(device, camera: camera, width: 8, height: 8),
+    CameraView.texture(device, camera: camera, width: 8, height: 8),
   );
   return (
     device: device,
@@ -168,7 +168,7 @@ FrameResult _render(_Stage it, RenderSettings settings) => it.renderer.render(
   width: _size,
   height: _size,
   scene: it.scene,
-  views: <RenderView>[RenderView(camera: it.scene.cameras.single)],
+  views: <CameraView>[CameraView(camera: it.scene.cameras.single)],
   settings: settings,
 );
 
@@ -263,12 +263,19 @@ Map<String, PassSkip> _expectedSkips(Set<RenderStep> off) {
   return <String, PassSkip>{
     ...skips,
     for (final step in off)
-      if (!skips.containsKey(step.name)) step.name: PassSkip.switchedOff,
+      if (!skips.keys.any((String pass) => _stepWord(pass) == step.name))
+        step.name: PassSkip.switchedOff,
     // Not a step: the software device has no multisampled target, and every
     // frame on it says it declined the renderer's multisampling.
     'multisampling': PassSkip.declined,
   };
 }
+
+/// The step's name for the pass called [pass]: the engine's `f3d.` word,
+/// spaces and dashes made underscores (`hi-z occlusion` is
+/// `f3d.hi_z_occlusion`).
+String _stepWord(String pass) =>
+    'f3d.${pass.replaceAll(RegExp('[^a-z0-9]+'), '_')}';
 
 /// Draws [off] switched off and holds the frame to the model.
 void _expectFrame(_Stage it, Set<RenderStep> asked) {
@@ -482,7 +489,7 @@ void main() {
           .copyWith(shadows: _everything.shadows);
       final result = _render(_stage(), settings);
       expect(result.passes.map((p) => p.name), contains('directional shadows'));
-      expect(result.skipReasonOf('shadows'), isNull);
+      expect(result.skipReasonOf(RenderStep.shadows.name), isNull);
     });
 
     test('every step without a pass of its own is still named', () {

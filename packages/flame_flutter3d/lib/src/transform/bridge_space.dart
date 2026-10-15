@@ -58,7 +58,7 @@ final class CurvilinearSpace implements BridgeSpace {
     // `setAxisAngle` would take the half angle's sine and cosine from
     // `dart:math`; the heading above is already `Portable`'s.
     final up = path.up;
-    final (:sin, :cos) = Portable.sinCos(phi * 0.5);
+    final SinCos(:sin, :cos) = Portable.sinCos(phi * 0.5);
     final s = sin / up.length;
     out.setValues(up.x * s, up.y * s, up.z * s, cos);
   }

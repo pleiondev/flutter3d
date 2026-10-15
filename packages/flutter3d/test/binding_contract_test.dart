@@ -49,7 +49,7 @@ void main() {
           width: kParityWidth,
           height: kParityHeight,
           scene: built.scene,
-          views: <RenderView>[RenderView(camera: built.camera)],
+          views: <CameraView>[CameraView(camera: built.camera)],
           settings: paritySettingsFor(which),
         );
       });
@@ -97,7 +97,7 @@ void main() {
         width: 64,
         height: 64,
         scene: scene,
-        views: <RenderView>[RenderView(camera: scene.cameras.single)],
+        views: <CameraView>[CameraView(camera: scene.cameras.single)],
       );
     });
     expect(unbound, isEmpty, reason: unbound.join('\n'));
@@ -143,7 +143,7 @@ void main() {
         width: 64,
         height: 64,
         scene: scene,
-        views: <RenderView>[RenderView(camera: scene.cameras.single)],
+        views: <CameraView>[CameraView(camera: scene.cameras.single)],
       );
     });
     expect(unbound, isEmpty, reason: unbound.join('\n'));
@@ -185,7 +185,7 @@ void main() {
         width: 64,
         height: 64,
         scene: scene,
-        views: <RenderView>[RenderView(camera: scene.cameras.single)],
+        views: <CameraView>[CameraView(camera: scene.cameras.single)],
         settings: const RenderSettings(decals: DecalSettings(enabled: true)),
       );
       ran.addAll(result.passes.map((p) => p.name));
@@ -231,13 +231,13 @@ void main() {
         )
         ..add(camera)
         ..addTextureView(
-          RenderView.texture(device, camera: camera, width: 16, height: 16),
+          CameraView.texture(device, camera: camera, width: 16, height: 16),
         );
       final result = renderer.render(
         width: 64,
         height: 64,
         scene: scene,
-        views: <RenderView>[RenderView(camera: camera)],
+        views: <CameraView>[CameraView(camera: camera)],
         settings: const RenderSettings(
           planarReflections: PlanarReflectionSettings(enabled: true),
         ),

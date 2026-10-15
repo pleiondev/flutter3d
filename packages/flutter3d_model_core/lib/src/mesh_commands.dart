@@ -540,7 +540,7 @@ final class MergeByDistance extends ModelCommand {
     if (found.target == null) return Outcome.refused(found.refused!);
     final _MeshTarget target = found.target!;
 
-    final (EditMesh merged, MergeReport report) = mergeByDistance(
+    final MergedMesh(mesh: merged, :report) = mergeByDistance(
       target.mesh,
       distance: distance,
       within: target.elements.isEmpty ? null : target.elements,
@@ -792,7 +792,7 @@ final class Separate extends ModelCommand {
       );
     }
 
-    final (EditMesh part, IdRemap _) = subMesh(target.mesh, faces.ids);
+    final RemappedMesh(mesh: part) = subMesh(target.mesh, faces.ids);
 
     target.mesh.beginStep();
     final OpResult cut = deleteSelection(target.mesh, faces);

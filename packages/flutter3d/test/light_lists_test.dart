@@ -116,7 +116,7 @@ Renderer _renderer(FakeBackend device) => Renderer.create(
     width: 128,
     height: 96,
     scene: built.scene,
-    views: <RenderView>[RenderView(camera: built.camera)],
+    views: <CameraView>[CameraView(camera: built.camera)],
   );
   return _fragInfo(device);
 }
@@ -164,7 +164,7 @@ void main() {
       width: 128,
       height: 96,
       scene: built.scene,
-      views: <RenderView>[RenderView(camera: built.camera)],
+      views: <CameraView>[CameraView(camera: built.camera)],
     );
 
     // `ShadowDistance` is only ever paired in the cube atlas pass, so a

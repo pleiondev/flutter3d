@@ -113,7 +113,7 @@ int _renderMs(int width, int height, RenderSettings settings) {
     width: width,
     height: height,
     scene: room.scene,
-    views: <RenderView>[RenderView(camera: room.camera)],
+    views: <CameraView>[CameraView(camera: room.camera)],
     settings: settings,
   );
   stopwatch.stop();

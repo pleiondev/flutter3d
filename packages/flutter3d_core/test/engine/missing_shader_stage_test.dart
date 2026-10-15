@@ -30,7 +30,7 @@ FrameResult _draw(FakeBackend device, LightingModel lighting) {
     width: 64,
     height: 48,
     scene: scene,
-    views: <RenderView>[RenderView(camera: scene.cameras.single)],
+    views: <CameraView>[CameraView(camera: scene.cameras.single)],
   );
 }
 

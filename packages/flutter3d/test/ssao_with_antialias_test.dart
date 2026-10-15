@@ -76,8 +76,8 @@ Future<_Shot> _corner({
     width: _width,
     height: _height,
     scene: scene,
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: CameraNode()
           ..setPosition(1.8, 1.5, 1.8)
           ..lookAt(Vector3(-0.6, -0.6, -0.6)),

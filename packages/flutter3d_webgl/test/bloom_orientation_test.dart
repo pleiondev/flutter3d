@@ -91,10 +91,10 @@ void main() {
       width: _width,
       height: _height,
       scene: scene,
-      views: <RenderView>[
+      views: <CameraView>[
         // Black, so "glowing" and "not glowing" cannot be confused by a
         // background that is already lit.
-        RenderView(
+        CameraView(
           camera: camera,
           clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
         ),

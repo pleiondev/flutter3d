@@ -88,7 +88,7 @@ final class PlaytestRun {
 
   /// Sampled every [Playtest.sampleEvery] steps — the trail
   /// [Playtest.heatmap] bins into cells.
-  final List<(double x, double z)> positions;
+  final List<TrailPoint> positions;
 }
 
 /// `ai-01`: many independent playthroughs of the same level of [game], run in
@@ -253,7 +253,7 @@ PlaytestRun _playOneForIsolate(_PlaytestArgs args) {
     GameRandom(args.seed + 1),
     args.game.buttons.values.toList(),
   );
-  final positions = <(double, double)>[];
+  final positions = <TrailPoint>[];
   var stuckSince = 0;
   var lastStuckCheck = run.position;
 
@@ -265,7 +265,7 @@ PlaytestRun _playOneForIsolate(_PlaytestArgs args) {
 
     if (step % args.sampleEvery == 0) {
       final at = run.position;
-      positions.add((at.x, at.z));
+      positions.add(TrailPoint(x: at.x, z: at.z));
     }
 
     if (run.outcome.isOver) {

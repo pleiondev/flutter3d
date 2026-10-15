@@ -11,7 +11,7 @@ through `renderPost`, and shows the answer on a screen in a second scene.
 ## Step 1: Make a picture
 
 The source is a small scene with one very bright bar on black. It has its own
-`Scene`, its own camera and its own `RenderView`, so nothing in it is shared with
+`Scene`, its own camera and its own `CameraView`, so nothing in it is shared with
 what you see on the screen.
 
 {{code source}}

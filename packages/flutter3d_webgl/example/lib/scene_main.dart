@@ -1,7 +1,7 @@
 /// The engine's own renderer, drawing through the WebGL2 backend.
 ///
 /// Everything above the device is the ordinary `flutter3d` frame: a `Scene`, a
-/// `CameraNode`, a `RenderView`, `Renderer.render`. The only line that knows
+/// `CameraNode`, a `CameraView`, `Renderer.render`. The only line that knows
 /// which backend is underneath is the one that builds the device.
 ///
 /// This is the claim the split was made for, so it is worth stating precisely
@@ -85,7 +85,7 @@ class _SceneAppState extends State<SceneApp>
       width: _width,
       height: _height,
       scene: scene,
-      views: <RenderView>[RenderView(camera: camera)],
+      views: <CameraView>[CameraView(camera: camera)],
       settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
     );
     // Blitted here, ahead of the widget's own build, so `debugCanvasState`
@@ -192,7 +192,7 @@ class _SceneAppState extends State<SceneApp>
         width: _width,
         height: _height,
         scene: scene,
-        views: <RenderView>[RenderView(camera: camera)],
+        views: <CameraView>[CameraView(camera: camera)],
         settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
       );
       say(

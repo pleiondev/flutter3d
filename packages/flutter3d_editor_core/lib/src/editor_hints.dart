@@ -41,8 +41,8 @@ final class EditorHints extends EditorHintRegistry {
   /// through a plugin's view (the namespace every registry holds a plugin
   /// to, `PluginManifest.namespace`), the name itself when it is already in
   /// that namespace or comes through the root. A lit model's name may also
-  /// be the stage name a shader has, `<namespace>_<name>`, since a stage
-  /// name cannot hold a dot.
+  /// be the stage name its shader has, `<namespace>__<Name>`, the dot of
+  /// `<namespace>.<Name>` a stage name cannot hold.
   ///
   /// Throws an [ArgumentError] for an empty name, and for one in another
   /// namespace than the plugin's.
@@ -51,7 +51,7 @@ final class EditorHints extends EditorHintRegistry {
     final scope = _scope;
     if (scope == null || scope.manifest.isEngine) return name;
     final namespace = scope.manifest.namespace;
-    if (stage && name.startsWith('${namespace}_')) return name;
+    if (stage && name.startsWith('${namespace}__')) return name;
     if (!name.contains('.')) return '$namespace.$name';
     if (scope.manifest.nameProblem(name, what: what) case final String no) {
       throw ArgumentError.value(name, what, no);

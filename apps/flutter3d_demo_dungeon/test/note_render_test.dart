@@ -55,8 +55,8 @@ void main() {
       width: width,
       height: height,
       scene: scene,
-      views: <RenderView>[
-        RenderView(
+      views: <CameraView>[
+        CameraView(
           camera: camera,
           clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.2, 1.0),
         ),

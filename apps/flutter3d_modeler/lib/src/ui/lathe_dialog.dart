@@ -1,5 +1,5 @@
 /// `ui-13`'s own modal — the design hand-over's screen 09, "Тело вращения":
-/// `profile_editor.dart` on the left, a second live `RenderView` on the
+/// `profile_editor.dart` on the left, a second live `CameraView` on the
 /// right updated on every edit, and the segment count and summary between
 /// them.
 ///

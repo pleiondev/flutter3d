@@ -373,8 +373,8 @@ abstract base class LoopRegistry extends PluginRegistry
 typedef LoopSystem = void Function(LoopContext context);
 
 final class OriginShifted extends BusEvent
-  ({double x, double y, double z}) get offset
   String get name
+  WorldOffset get offset
   const OriginShifted({required this.from, required this.to})
   final WorldPosition from
   final WorldPosition to
@@ -674,56 +674,56 @@ final class RenderAnchor
   int get hashCode
   static RenderAnchor? named(String name)
   static const List<RenderAnchor> values = …
-  static const RenderAnchor afterAmbientOcclusion = RenderAnchor._('after ambient occlusion')
-  static const RenderAnchor afterAutoExposure = RenderAnchor._('after auto exposure')
-  static const RenderAnchor afterBloom = RenderAnchor._('after bloom')
-  static const RenderAnchor afterCaptures = RenderAnchor._('after captures')
-  static const RenderAnchor afterContactShadows = RenderAnchor._('after contact shadows')
-  static const RenderAnchor afterDecals = RenderAnchor._('after decals')
-  static const RenderAnchor afterDepthOfField = RenderAnchor._('after depth of field')
-  static const RenderAnchor afterEdgeSmoothing = RenderAnchor._('after edge smoothing')
-  static const RenderAnchor afterHiZ = RenderAnchor._('after hi-z')
-  static const RenderAnchor afterHighContrast = RenderAnchor._('after high contrast')
-  static const RenderAnchor afterLensFlare = RenderAnchor._('after lens flare')
-  static const RenderAnchor afterLightShafts = RenderAnchor._('after light shafts')
-  static const RenderAnchor afterLocalExposure = RenderAnchor._('after local exposure')
-  static const RenderAnchor afterMotionBlur = RenderAnchor._('after motion blur')
-  static const RenderAnchor afterOpaque = RenderAnchor._('after opaque')
-  static const RenderAnchor afterReflections = RenderAnchor._('after reflections')
-  static const RenderAnchor afterScene = RenderAnchor._('after scene')
-  static const RenderAnchor afterShadows = RenderAnchor._('after shadows')
-  static const RenderAnchor afterSpatialUpscale = RenderAnchor._('after spatial upscale')
-  static const RenderAnchor afterTemporalResolve = RenderAnchor._('after temporal resolve')
-  static const RenderAnchor afterTonemap = RenderAnchor._('after tonemap')
-  static const RenderAnchor afterTransparent = RenderAnchor._('after transparent')
-  static const RenderAnchor afterVelocity = RenderAnchor._('after velocity')
-  static const RenderAnchor afterViewportShading = RenderAnchor._('after viewport shading')
-  static const RenderAnchor afterVolumetricFog = RenderAnchor._('after volumetric fog')
-  static const RenderAnchor beforeAmbientOcclusion = RenderAnchor._('before ambient occlusion')
-  static const RenderAnchor beforeAutoExposure = RenderAnchor._('before auto exposure')
-  static const RenderAnchor beforeBloom = RenderAnchor._('before bloom')
-  static const RenderAnchor beforeCaptures = RenderAnchor._('before captures')
-  static const RenderAnchor beforeContactShadows = RenderAnchor._('before contact shadows')
-  static const RenderAnchor beforeDecals = RenderAnchor._('before decals')
-  static const RenderAnchor beforeDepthOfField = RenderAnchor._('before depth of field')
-  static const RenderAnchor beforeEdgeSmoothing = RenderAnchor._('before edge smoothing')
-  static const RenderAnchor beforeHiZ = RenderAnchor._('before hi-z')
-  static const RenderAnchor beforeHighContrast = RenderAnchor._('before high contrast')
-  static const RenderAnchor beforeLensFlare = RenderAnchor._('before lens flare')
-  static const RenderAnchor beforeLightShafts = RenderAnchor._('before light shafts')
-  static const RenderAnchor beforeLocalExposure = RenderAnchor._('before local exposure')
-  static const RenderAnchor beforeMotionBlur = RenderAnchor._('before motion blur')
-  static const RenderAnchor beforeOpaque = RenderAnchor._('before opaque')
-  static const RenderAnchor beforePresent = RenderAnchor._('before present')
-  static const RenderAnchor beforeReflections = RenderAnchor._('before reflections')
-  static const RenderAnchor beforeShadows = RenderAnchor._('before shadows')
-  static const RenderAnchor beforeSpatialUpscale = RenderAnchor._('before spatial upscale')
-  static const RenderAnchor beforeTemporalResolve = RenderAnchor._('before temporal resolve')
-  static const RenderAnchor beforeTonemap = RenderAnchor._('before tonemap')
-  static const RenderAnchor beforeTransparent = RenderAnchor._('before transparent')
-  static const RenderAnchor beforeVelocity = RenderAnchor._('before velocity')
-  static const RenderAnchor beforeViewportShading = RenderAnchor._('before viewport shading')
-  static const RenderAnchor beforeVolumetricFog = RenderAnchor._('before volumetric fog')
+  static const RenderAnchor afterAmbientOcclusion = RenderAnchor._('f3d.after_ambient_occlusion')
+  static const RenderAnchor afterAutoExposure = RenderAnchor._('f3d.after_auto_exposure')
+  static const RenderAnchor afterBloom = RenderAnchor._('f3d.after_bloom')
+  static const RenderAnchor afterCaptures = RenderAnchor._('f3d.after_captures')
+  static const RenderAnchor afterContactShadows = RenderAnchor._('f3d.after_contact_shadows')
+  static const RenderAnchor afterDecals = RenderAnchor._('f3d.after_decals')
+  static const RenderAnchor afterDepthOfField = RenderAnchor._('f3d.after_depth_of_field')
+  static const RenderAnchor afterEdgeSmoothing = RenderAnchor._('f3d.after_edge_smoothing')
+  static const RenderAnchor afterHiZ = RenderAnchor._('f3d.after_hi_z')
+  static const RenderAnchor afterHighContrast = RenderAnchor._('f3d.after_high_contrast')
+  static const RenderAnchor afterLensFlare = RenderAnchor._('f3d.after_lens_flare')
+  static const RenderAnchor afterLightShafts = RenderAnchor._('f3d.after_light_shafts')
+  static const RenderAnchor afterLocalExposure = RenderAnchor._('f3d.after_local_exposure')
+  static const RenderAnchor afterMotionBlur = RenderAnchor._('f3d.after_motion_blur')
+  static const RenderAnchor afterOpaque = RenderAnchor._('f3d.after_opaque')
+  static const RenderAnchor afterReflections = RenderAnchor._('f3d.after_reflections')
+  static const RenderAnchor afterScene = RenderAnchor._('f3d.after_scene')
+  static const RenderAnchor afterShadows = RenderAnchor._('f3d.after_shadows')
+  static const RenderAnchor afterSpatialUpscale = RenderAnchor._('f3d.after_spatial_upscale')
+  static const RenderAnchor afterTemporalResolve = RenderAnchor._('f3d.after_temporal_resolve')
+  static const RenderAnchor afterTonemap = RenderAnchor._('f3d.after_tonemap')
+  static const RenderAnchor afterTransparent = RenderAnchor._('f3d.after_transparent')
+  static const RenderAnchor afterVelocity = RenderAnchor._('f3d.after_velocity')
+  static const RenderAnchor afterViewportShading = RenderAnchor._('f3d.after_viewport_shading')
+  static const RenderAnchor afterVolumetricFog = RenderAnchor._('f3d.after_volumetric_fog')
+  static const RenderAnchor beforeAmbientOcclusion = RenderAnchor._('f3d.before_ambient_occlusion')
+  static const RenderAnchor beforeAutoExposure = RenderAnchor._('f3d.before_auto_exposure')
+  static const RenderAnchor beforeBloom = RenderAnchor._('f3d.before_bloom')
+  static const RenderAnchor beforeCaptures = RenderAnchor._('f3d.before_captures')
+  static const RenderAnchor beforeContactShadows = RenderAnchor._('f3d.before_contact_shadows')
+  static const RenderAnchor beforeDecals = RenderAnchor._('f3d.before_decals')
+  static const RenderAnchor beforeDepthOfField = RenderAnchor._('f3d.before_depth_of_field')
+  static const RenderAnchor beforeEdgeSmoothing = RenderAnchor._('f3d.before_edge_smoothing')
+  static const RenderAnchor beforeHiZ = RenderAnchor._('f3d.before_hi_z')
+  static const RenderAnchor beforeHighContrast = RenderAnchor._('f3d.before_high_contrast')
+  static const RenderAnchor beforeLensFlare = RenderAnchor._('f3d.before_lens_flare')
+  static const RenderAnchor beforeLightShafts = RenderAnchor._('f3d.before_light_shafts')
+  static const RenderAnchor beforeLocalExposure = RenderAnchor._('f3d.before_local_exposure')
+  static const RenderAnchor beforeMotionBlur = RenderAnchor._('f3d.before_motion_blur')
+  static const RenderAnchor beforeOpaque = RenderAnchor._('f3d.before_opaque')
+  static const RenderAnchor beforePresent = RenderAnchor._('f3d.before_present')
+  static const RenderAnchor beforeReflections = RenderAnchor._('f3d.before_reflections')
+  static const RenderAnchor beforeShadows = RenderAnchor._('f3d.before_shadows')
+  static const RenderAnchor beforeSpatialUpscale = RenderAnchor._('f3d.before_spatial_upscale')
+  static const RenderAnchor beforeTemporalResolve = RenderAnchor._('f3d.before_temporal_resolve')
+  static const RenderAnchor beforeTonemap = RenderAnchor._('f3d.before_tonemap')
+  static const RenderAnchor beforeTransparent = RenderAnchor._('f3d.before_transparent')
+  static const RenderAnchor beforeVelocity = RenderAnchor._('f3d.before_velocity')
+  static const RenderAnchor beforeViewportShading = RenderAnchor._('f3d.before_viewport_shading')
+  static const RenderAnchor beforeVolumetricFog = RenderAnchor._('f3d.before_volumetric_fog')
 
 abstract base class RenderStepRegistry extends PluginRegistry
   List<RenderAnchor> get anchors
@@ -891,7 +891,7 @@ const String vmSchemaVersion = '1.0.0'
 
 const String vmVersionExtension = 'ext.flutter3d.version'
 
-export package:flutter3d_foundation/flutter3d_foundation.dart show CapabilityException, DocumentFormatException, Flutter3dException, Flutter3dFormatException, FormatDocument, FormatMigration, FormatRefusal, FormatSpec, Issue, IssueSink, LightType, LinearColor, PluginException, Quantity, Registration, ResourceException, RigidPose, Severity, Unit, WorldPosition
+export package:flutter3d_foundation/flutter3d_foundation.dart show CapabilityException, DocumentFormatException, Flutter3dException, Flutter3dFormatException, FormatDocument, FormatMigration, FormatRefusal, FormatSpec, Issue, IssueSink, LightType, LinearColor, PluginException, Quantity, Registration, ResourceException, RigidPose, Severity, Unit, WorldOffset, WorldPosition
   CapabilityException
   DocumentFormatException
   Flutter3dException
@@ -911,6 +911,7 @@ export package:flutter3d_foundation/flutter3d_foundation.dart show CapabilityExc
   RigidPose
   Severity
   Unit
+  WorldOffset
   WorldPosition
 
 library package:flutter3d_plugin_api/tools.dart

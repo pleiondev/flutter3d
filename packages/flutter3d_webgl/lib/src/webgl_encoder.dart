@@ -1502,7 +1502,7 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
       draws.forEach(drawIndexed);
       return;
     }
-    final windows = <({int first, int count})>[
+    final windows = <IndexWindow>[
       for (final draw in draws)
         indexWindow(
           _indexCount,

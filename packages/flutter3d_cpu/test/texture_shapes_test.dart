@@ -11,6 +11,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/src/cpu_texel_codec.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/kernel.dart' show WorkgroupSize;
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -26,7 +27,7 @@ final class _StoreOnce extends CpuComputeShader {
   const _StoreOnce();
 
   @override
-  (int, int, int) get workgroupSize => (1, 1, 1);
+  WorkgroupSize get workgroupSize => const WorkgroupSize(1, 1, 1);
 
   @override
   void runWorkgroup((int, int, int) group, CpuComputeBindings bindings) =>

@@ -617,6 +617,14 @@ abstract base class GraphicsDevice with TextureAllocator
   void writeBuffer(StorageBuffer target, int offsetInBytes, ByteData bytes)
   void writeTexture(TextureHandle target, ByteData data, {TextureRegion? region, int mipLevel = 0, int? bytesPerRow})
 
+final class ImageExtent
+  String toString()
+  bool operator ==(Object other)
+  const ImageExtent({required this.width, required this.height})
+  final int height
+  final int width
+  int get hashCode
+
 final class IndexType
   String toString()
   final String name
@@ -624,6 +632,14 @@ final class IndexType
   static const IndexType int16 = IndexType._('int16')
   static const IndexType int32 = IndexType._('int32')
   static const List<IndexType> values = <IndexType>[int16, int32]
+
+final class IndexWindow
+  String toString()
+  bool operator ==(Object other)
+  const IndexWindow({required this.first, required this.count})
+  final int count
+  final int first
+  int get hashCode
 
 @immutable final class IndexedDraw
   String toString()
@@ -1482,7 +1498,7 @@ abstract base class WorkloadRecorder
   abstract void dispatch(String kernel, int x, {int y = 1, int z = 1})
   abstract void write(String buffer, ByteData bytes, {int offsetInBytes = 0})
 
-({int width, int height}) cappedImageSize(int width, int height, {int? maxDimension})
+ImageExtent cappedImageSize(int width, int height, {int? maxDimension})
 
 Map<String, String> decodeKernelSection(ShaderBundle bundle)
 
@@ -1496,7 +1512,7 @@ ByteData encodeKernelSection(Map<String, String> sources)
 
 ByteData encodeMaterialSection(Map<String, String> sources)
 
-({int width, int height})? encodedImageSize(Uint8List bytes)
+ImageExtent? encodedImageSize(Uint8List bytes)
 
 const List<BlendFactor> extendedBlendFactors = <BlendFactor>[BlendFactor.source1Color, BlendFactor.oneMinusSource1Color, BlendFactor.source1Alpha, BlendFactor.oneMinusSource1Alpha]
 
@@ -1506,7 +1522,7 @@ const List<TextureFormat> extendedTextureFormats = …
 
 const List<FormatSpec> hardwareFormats = <FormatSpec>[ShaderBundle.format, Trace.format]
 
-({int first, int count}) indexWindow(int bound, {int firstIndex = 0, int? indexCount})
+IndexWindow indexWindow(int bound, {int firstIndex = 0, int? indexCount})
 
 const int kernelSectionVersion = 1
 
@@ -1621,13 +1637,13 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback
   final DeviceLimits limits
   final FakeShaderLibrary shaders
   final FramebufferOrigin framebufferOrigin
-  final List<({Object backend, int offsetInBytes, int lengthInBytes})> overwrites
-  final List<({TextureFormat format, ScreenRect region, int mipLevel})> overwrittenTextures
-  final List<({TextureHandle texture, ScreenRect region})> readbacks
-  final List<({int size, TextureFormat format, int mipLevels})> createdCubeRenderTargets
   final List<ByteData> uploadedPixels
+  final List<FakeCubeTarget> createdCubeRenderTargets
+  final List<FakeGeometryOverwrite> overwrites
   final List<FakeLoadedShaderLibrary> loadedLibraries
   final List<FakePass> passes
+  final List<FakeReadback> readbacks
+  final List<FakeTextureOverwrite> overwrittenTextures
   final List<GeometryBuffer> releasedGeometry
   final List<GeometryUsage> uploads
   final List<List<ByteData>?> uploadedMipLevels
@@ -1661,6 +1677,24 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback
   void releaseTexture(TextureHandle texture)
   void writeBuffer(StorageBuffer target, int offsetInBytes, ByteData bytes)
   void writeTexture(TextureHandle target, ByteData data, {TextureRegion? region, int mipLevel = 0, int? bytesPerRow})
+
+final class FakeCubeTarget
+  String toString()
+  bool operator ==(Object other)
+  const FakeCubeTarget({required this.size, required this.format, required this.mipLevels})
+  final TextureFormat format
+  final int mipLevels
+  final int size
+  int get hashCode
+
+final class FakeGeometryOverwrite
+  String toString()
+  bool operator ==(Object other)
+  const FakeGeometryOverwrite({required this.backend, required this.offsetInBytes, required this.lengthInBytes})
+  final Object backend
+  final int lengthInBytes
+  final int offsetInBytes
+  int get hashCode
 
 final class FakeLoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary
   FakeLoadedShaderLibrary(ShaderBundle bundle)
@@ -1740,11 +1774,28 @@ final class FakePass extends PassEncoder with CommandEncoder, RenderBundleEncode
   void setWindingOrder(WindingOrder order)
   void submit()
 
+final class FakeReadback
+  String toString()
+  bool operator ==(Object other)
+  const FakeReadback({required this.texture, required this.region})
+  final ScreenRect region
+  final TextureHandle texture
+  int get hashCode
+
 final class FakeShaderLibrary with ShaderLibrary
   FakeShaderLibrary({this.missing = const <String>{}, this.stageBindings})
   ShaderHandle? operator [](String name)
   final Map<String, StageBindings>? stageBindings
   final Set<String> missing
+
+final class FakeTextureOverwrite
+  String toString()
+  bool operator ==(Object other)
+  const FakeTextureOverwrite({required this.format, required this.region, required this.mipLevel})
+  final ScreenRect region
+  final TextureFormat format
+  final int mipLevel
+  int get hashCode
 
 final class FakeTransfer extends TransferEncoder
   FakeTransfer(this.features, this.calls)

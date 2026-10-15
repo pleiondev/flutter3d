@@ -209,7 +209,7 @@ void main() {
         width: 32,
         height: 32,
         scene: scene,
-        views: <RenderView>[RenderView(camera: scene.cameras.single)],
+        views: <CameraView>[CameraView(camera: scene.cameras.single)],
         settings: settings,
       );
       return device.passes.last

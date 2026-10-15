@@ -15,7 +15,7 @@ typedef NewRun = FlutterRun Function(String projectRoot, String? device);
 /// [callGameExtension], which is what a session asks with unless a test
 /// hands in its own.
 typedef GameAsk =
-    Future<({Map<String, Object?>? json, String? refused})> Function(
+    Future<GameExtensionReply> Function(
       String vmService,
       String method, {
       Map<String, String> args,

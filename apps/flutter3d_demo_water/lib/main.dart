@@ -79,7 +79,7 @@ class _WaterScreenState extends State<WaterScreen>
   static Vector3 get _sunAlong => Vector3(0.35, -0.7, -0.6);
 
   final CameraNode _camera = CameraNode(name: 'eye');
-  late final RenderView _view = RenderView(
+  late final CameraView _view = CameraView(
     camera: _camera,
     clearColor: LinearColor.fromSrgb(0.62, 0.76, 0.9, 1.0),
   );

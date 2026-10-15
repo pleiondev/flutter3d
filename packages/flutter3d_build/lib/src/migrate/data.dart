@@ -60,7 +60,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart'
 import 'package:flutter3d_voxel/flutter3d_voxel.dart' show VoxelWorld;
 
 import '../convert/report.dart' show convertReportFormat;
-import '../manifest.dart' show AssetManifest;
+import '../manifest.dart' show AssetBuildManifest;
 
 /// The formats each package this command loads owns, by package: what
 /// `migrate --data` and `doctor` know.
@@ -91,7 +91,10 @@ const Map<String, List<FormatSpec>> formatsByPackage =
       'flutter3d_matter': <FormatSpec>[PhysicalMaterial.format],
       'flutter3d_voxel': <FormatSpec>[VoxelWorld.format],
       'flutter3d_education': <FormatSpec>[experimentFormat],
-      'flutter3d_build': <FormatSpec>[AssetManifest.spec, convertReportFormat],
+      'flutter3d_build': <FormatSpec>[
+        AssetBuildManifest.spec,
+        convertReportFormat,
+      ],
     };
 
 /// A format of the engine this command cannot load, the version its

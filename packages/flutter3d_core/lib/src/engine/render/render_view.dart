@@ -69,10 +69,10 @@ final class SortMode {
 ///  * The surface: `Renderer.render` draws every surface view of the call
 ///    into the frame it hands back, each into its [viewportFraction] of it —
 ///    a split screen is two views. This is what the constructor makes.
-///  * A texture: [RenderView.texture] makes a view that draws into a texture
+///  * A texture: [CameraView.texture] makes a view that draws into a texture
 ///    of its own, for a material to show — a security monitor, a portal, a
 ///    minimap. Added to a scene with `Scene.addTextureView`, it is drawn
-///    every frame (or once, see [RenderViewSettings.refreshEveryFrame]) with
+///    every frame (or once, see [CameraViewSettings.refreshEveryFrame]) with
 ///    the scene's lights and shadows, before the scene that shows it. It is
 ///    what `RenderTexture` was before 1.0.
 ///
@@ -83,9 +83,9 @@ final class SortMode {
 /// [layerMask], [priority], [clearColor], the two sorts and [cut] — stay
 /// mutable fields, as they were on the descriptor this grew from; anything
 /// added from 1.0 on arrives in [options], so the constructor does not grow.
-final class RenderView {
+final class CameraView {
   /// A view of [camera] onto the frame's surface.
-  RenderView({
+  CameraView({
     required this.camera,
     this.viewportFraction = const ViewportRect(0.0, 0.0, 1.0, 1.0),
     this.layerMask = ~0,
@@ -94,7 +94,7 @@ final class RenderView {
     this.opaqueSort = SortMode.stateThenDepth,
     this.transparentSort = SortMode.backToFront,
     this.cut = false,
-    this.options = const RenderViewSettings(),
+    this.options = const CameraViewSettings(),
   }) : clearColor = clearColor ?? defaultClearColor,
        _texture = null,
        _device = null;
@@ -104,21 +104,21 @@ final class RenderView {
   ///
   /// [texture] holds sRGB bytes, the way a picture loaded from a file does,
   /// so it goes into a material's albedo or emissive slot as one. The light
-  /// is multiplied by [RenderViewSettings.exposure] and clipped at one; tone
+  /// is multiplied by [CameraViewSettings.exposure] and clipped at one; tone
   /// mapping is left to the frame that shows it. Its first row is the top of
   /// the picture on every backend, as an uploaded image's is.
   ///
   /// Drawn by the same pass as a planar reflection's: the scene's meshes
   /// with the frame's lights and shadows and its sky, before the frame's own
   /// scene, with no post chain and nothing a contributor draws.
-  factory RenderView.texture(
+  factory CameraView.texture(
     GraphicsDevice device, {
     required CameraNode camera,
     required int width,
     required int height,
     int layerMask = ~0,
     LinearColor? clearColor,
-    RenderViewSettings options = const RenderViewSettings(),
+    CameraViewSettings options = const CameraViewSettings(),
   }) {
     if (width < 1 || height < 1) {
       throw ArgumentError(
@@ -126,7 +126,7 @@ final class RenderView {
         'for at least one each way',
       );
     }
-    return RenderView._texture(
+    return CameraView._texture(
       device,
       device.createTexture(
         RenderTargetDescriptor(
@@ -142,7 +142,7 @@ final class RenderView {
     );
   }
 
-  RenderView._texture(
+  CameraView._texture(
     GraphicsDevice this._device,
     TextureHandle this._texture, {
     required this.camera,
@@ -197,7 +197,7 @@ final class RenderView {
 
   /// Everything about this view that is not one of the fields above, as one
   /// value — replaced whole, `view.options = view.options.copyWith(...)`.
-  RenderViewSettings options;
+  CameraViewSettings options;
 
   final TextureHandle? _texture;
   final GraphicsDevice? _device;
@@ -220,7 +220,7 @@ final class RenderView {
   /// picture, most often, which would otherwise show itself.
   final Set<MeshNode> excluded = <MeshNode>{};
 
-  /// Whether this view is drawn this frame: [RenderViewSettings.visible]
+  /// Whether this view is drawn this frame: [CameraViewSettings.visible]
   /// asked, or true when there is no hook.
   bool get isVisible => options.visible?.call() ?? true;
 
@@ -263,21 +263,21 @@ final class RenderView {
 
 /// What a renderer keeps per view: called by the renderer, not an
 /// application. Not exported by `flutter3d_core.dart`.
-extension RenderViewInternals on RenderView {
+extension CameraViewInternals on CameraView {
   /// Runs [release] when the view is disposed — how a renderer gives back
   /// the history textures it kept for this view.
   void whenDisposed(void Function() release) => _onDispose.add(release);
 }
 
-/// The settings of one [RenderView] that are not its camera, target or
+/// The settings of one [CameraView] that are not its camera, target or
 /// rectangle — the object its growing parameters go into, so that adding one
 /// in a minor release changes no constructor.
 ///
 /// Immutable; [copyWith] makes the next one.
-final class RenderViewSettings {
+final class CameraViewSettings {
   /// Options with every default: the frame's own settings, always visible,
   /// redrawn every frame, at an exposure of one.
-  const RenderViewSettings({
+  const CameraViewSettings({
     this.settings,
     this.visible,
     this.refreshEveryFrame = true,
@@ -300,7 +300,7 @@ final class RenderViewSettings {
   final bool Function()? visible;
 
   /// For a texture view: whether every frame draws it again. False draws it
-  /// once and then only after `RenderView.invalidate`: a portrait of a room
+  /// once and then only after `CameraView.invalidate`: a portrait of a room
   /// nobody changes is one picture, not sixty a second.
   final bool refreshEveryFrame;
 
@@ -347,7 +347,7 @@ final class RenderViewSettings {
   /// [label], [depthNear] and [window] are reset to null by passing
   /// [clearSettings], [clearVisible], [clearLabel], [clearDepthNear] or
   /// [clearWindow].
-  RenderViewSettings copyWith({
+  CameraViewSettings copyWith({
     RenderSettings? settings,
     bool Function()? visible,
     bool? refreshEveryFrame,
@@ -360,7 +360,7 @@ final class RenderViewSettings {
     bool clearLabel = false,
     bool clearDepthNear = false,
     bool clearWindow = false,
-  }) => RenderViewSettings(
+  }) => CameraViewSettings(
     settings: clearSettings ? null : settings ?? this.settings,
     visible: clearVisible ? null : visible ?? this.visible,
     refreshEveryFrame: refreshEveryFrame ?? this.refreshEveryFrame,
@@ -373,7 +373,7 @@ final class RenderViewSettings {
 
 /// Where a render target sits in a larger frame: the frame is [width] ×
 /// [height] pixels, and the target's top-left pixel is the frame's pixel
-/// ([left], [top]). See [RenderViewSettings.window].
+/// ([left], [top]). See [CameraViewSettings.window].
 ///
 /// A photo drawn in tiles names one per tile, each with the photo's size
 /// and the tile's corner, margin included.

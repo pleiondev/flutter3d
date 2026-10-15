@@ -668,8 +668,8 @@ void main() {
           width: 240,
           height: 160,
           scene: stage.scene,
-          views: <RenderView>[
-            RenderView(
+          views: <CameraView>[
+            CameraView(
               camera: stage.camera,
               clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
             ),
@@ -758,8 +758,8 @@ void main() {
         width: 240,
         height: 160,
         scene: stage.scene,
-        views: <RenderView>[
-          RenderView(
+        views: <CameraView>[
+          CameraView(
             camera: stage.camera,
             clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
           ),

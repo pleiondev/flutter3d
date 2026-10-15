@@ -345,12 +345,9 @@ TapesDiverge _diverge(
 /// A component present on one side only reads as a whole-value difference
 /// at the component itself, which `firstDifferingPath` reports with an empty
 /// path under it.
-({String path, Object? a, Object? b})? _withPrefix(
-  String prefix,
-  ({String path, Object? a, Object? b})? inner,
-) => inner == null
-    ? (path: prefix, a: null, b: null)
-    : (
+DifferingPath _withPrefix(String prefix, DifferingPath? inner) => inner == null
+    ? DifferingPath(path: prefix, a: null, b: null)
+    : DifferingPath(
         path: inner.path.isEmpty
             ? prefix
             : inner.path.startsWith('[')
@@ -366,15 +363,36 @@ TapesDiverge _diverge(
 /// run (`DigestTrace.observe`), so it is the state after `s + 1` steps. The
 /// bracket is the last checkpoint both traces agree on and the first they do
 /// not; null when they never disagree.
-({int agreedAt, int differsAt})? bracketFromTraces(
-  DigestTrace a,
-  DigestTrace b,
-) {
+TraceBracket? bracketFromTraces(DigestTrace a, DigestTrace b) {
   final divergence = a.divergenceFrom(b.digests);
   if (divergence == null) return null;
   final before = divergence.step - a.every;
-  return (
+  return TraceBracket(
     agreedAt: before < 0 ? 0 : before + 1,
     differsAt: divergence.step + 1,
   );
+}
+
+/// The steps [bracketFromTraces] narrows a search to, in [bisectTapes]'
+/// counting: pass them as its `agreedAt` and `differsAt`.
+final class TraceBracket {
+  const TraceBracket({required this.agreedAt, required this.differsAt});
+
+  /// The step count after which both runs are known to agree.
+  final int agreedAt;
+
+  /// The step count after which the runs are known to differ.
+  final int differsAt;
+
+  @override
+  bool operator ==(Object other) =>
+      other is TraceBracket &&
+      other.agreedAt == agreedAt &&
+      other.differsAt == differsAt;
+
+  @override
+  int get hashCode => Object.hash(agreedAt, differsAt);
+
+  @override
+  String toString() => 'TraceBracket($agreedAt, $differsAt)';
 }

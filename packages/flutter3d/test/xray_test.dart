@@ -92,7 +92,7 @@ final class _Frame {
       width: 64,
       height: 48,
       scene: scene,
-      views: <RenderView>[RenderView(camera: camera)],
+      views: <CameraView>[CameraView(camera: camera)],
       settings: RenderSettings(
         bloom: const BloomSettings(enabled: false),
         shadows: const ShadowSettings(enabled: false),

@@ -141,7 +141,7 @@ final class RenderPreset {
   final int tilesX;
   final int tilesY;
 
-  /// The background, linear as `RenderView.clearColor` is; opaque
+  /// The background, linear as `CameraView.clearColor` is; opaque
   /// black when null.
   final LinearColor? clearColor;
 }
@@ -710,8 +710,8 @@ Future<Uint8List> drawTile(
     width: tileWidth,
     height: tileHeight,
     scene: scene,
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: camera,
         clearColor: preset.clearColor ?? LinearColor.black,
       ),

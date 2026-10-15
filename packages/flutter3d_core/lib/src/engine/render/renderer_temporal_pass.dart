@@ -28,7 +28,7 @@ extension _TemporalPass on Renderer {
     required ResourceId resource,
     required TextureHandle current,
     required TextureHandle velocity,
-    required RenderView view,
+    required CameraView view,
   }) {
     developer.Timeline.startSync('Renderer.accumulate');
     final history = _effectHistories.putIfAbsent(resource, _EffectHistory.new);
@@ -107,7 +107,7 @@ extension _TemporalPass on Renderer {
     required TextureHandle scene,
     required TextureHandle velocity,
     required TextureHandle surface,
-    required RenderView view,
+    required CameraView view,
     required RenderSettings settings,
     required int outputWidth,
     required int outputHeight,
@@ -122,7 +122,10 @@ extension _TemporalPass on Renderer {
     // UV the textures are read by: the same NDC shift `JitteredProjection`
     // applied, carried through the framebuffer origin the way every
     // reconstruction here carries a matrix.
-    final (jx, jy) = jitterOffset(_frameIndex, temporal.sequenceLength);
+    final PixelJitter(x: jx, y: jy) = jitterOffset(
+      _frameIndex,
+      temporal.sequenceLength,
+    );
     final flip = toFramebufferOrigin(
       vm.Matrix4.identity(),
       device.framebufferOrigin,
@@ -153,7 +156,7 @@ extension _TemporalPass on Renderer {
     // The k-DOP's axes — `N4`; with none, the shader clips to its box.
     final clip = temporal.clip;
     _temporalInfo.clip[0] = clip.axisCount.toDouble();
-    for (final (i, (x, y, z)) in clip.axes.indexed) {
+    for (final (i, ClipAxis(:x, :y, :z)) in clip.axes.indexed) {
       _temporalInfo.clipAxes
         ..[i * 4] = x
         ..[i * 4 + 1] = y

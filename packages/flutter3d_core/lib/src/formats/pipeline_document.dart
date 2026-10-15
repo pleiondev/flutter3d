@@ -6,10 +6,18 @@ library;
 import 'dart:convert';
 
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show DocumentFormatException, FormatDocument, FormatSpec;
+    show DocumentFormatException, FormatDocument, FormatMigration, FormatSpec;
+
+import 'engine_words.dart';
 
 /// The `f3d.pipeline` version this build writes and the newest it reads.
-const int pipelineVersion = 1;
+///
+/// **Version 2 names the engine's anchors, resources and steps `f3d.<name>`**
+/// (`f3d.after_bloom`, `f3d.scene_color`, `f3d.color_grade`), as every
+/// other registration carries its namespace. A version 1 document reads,
+/// its words renamed on the way in ([engineWordFor]); this build writes
+/// only the new ones.
+const int pipelineVersion = 2;
 
 /// `f3d.pipeline` in the format registry.
 const FormatSpec pipelineFormat = FormatSpec(
@@ -17,7 +25,56 @@ const FormatSpec pipelineFormat = FormatSpec(
   version: pipelineVersion,
   suffixes: <String>['.pipeline.json'],
   fixture: 'test/fixtures/v<N>/standard.pipeline.json',
+  migrations: <FormatMigration>[_engineWords],
 );
+
+/// Version 1 to 2: every anchor, resource and step a document names, in
+/// the engine's `f3d.` words. Node names are what the frame reports and
+/// stay as they are.
+Map<String, Object?> _engineWords(Map<String, Object?> document) {
+  Object? words(Object? value) => switch (value) {
+    final List<Object?> list => <Object?>[
+      for (final word in list) word is String ? engineWordFor(word) : word,
+    ],
+    _ => value,
+  };
+  Object? word(Object? value) => value is String ? engineWordFor(value) : value;
+  Object? each(Object? entries, Map<String, Object?> Function(Map) lift) =>
+      switch (entries) {
+        final List<Object?> list => <Object?>[
+          for (final entry in list) entry is Map ? lift(entry) : entry,
+        ],
+        _ => entries,
+      };
+  return <String, Object?>{
+    ...document,
+    if (document.containsKey('anchors'))
+      'anchors': each(
+        document['anchors'],
+        (Map anchor) => <String, Object?>{
+          ...anchor.cast<String, Object?>(),
+          if (anchor.containsKey('after')) 'after': word(anchor['after']),
+        },
+      ),
+    if (document.containsKey('nodes'))
+      'nodes': each(
+        document['nodes'],
+        (Map node) => <String, Object?>{
+          ...node.cast<String, Object?>(),
+          if (node.containsKey('anchor')) 'anchor': word(node['anchor']),
+          if (node.containsKey('step')) 'step': word(node['step']),
+          for (final key in const <String>[
+            'reads',
+            'optionalReads',
+            'writes',
+            'keeps',
+          ])
+            if (node.containsKey(key)) key: words(node[key]),
+        },
+      ),
+    if (document.containsKey('off')) 'off': words(document['off']),
+  };
+}
 
 /// An anchor a pipeline adds: a plugin's own, standing right after another.
 final class PipelineAnchor {

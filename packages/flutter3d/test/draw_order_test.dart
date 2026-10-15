@@ -62,7 +62,7 @@ List<String> _sorted(
               : MaterialAlphaMode.opaque,
         ),
   );
-  final view = RenderView(camera: world.camera);
+  final view = CameraView(camera: world.camera);
   final list = RenderList()
     ..build(
       world.scene,
@@ -128,7 +128,7 @@ void main() {
           width: size,
           height: size,
           scene: world.scene,
-          views: <RenderView>[RenderView(camera: world.camera)],
+          views: <CameraView>[CameraView(camera: world.camera)],
           settings: RenderSettings(batchIdenticalDraws: batched),
         );
     final batched = draw(batched: true);

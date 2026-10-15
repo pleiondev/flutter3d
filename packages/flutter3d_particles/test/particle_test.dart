@@ -871,7 +871,7 @@ void _glowCentreTests() {
   });
 }
 
-class _Torch with LightEmitter {}
+final class _Torch with LightEmitter {}
 
 /// A source that is not a light, for keying a standing emission.
 final class _Torchless {

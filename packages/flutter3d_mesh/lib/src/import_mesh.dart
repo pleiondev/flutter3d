@@ -95,6 +95,47 @@ final class MeshImportReport {
       '$splitNonManifold edges split, $droppedDegenerate degenerate dropped)';
 }
 
+/// An editable mesh rebuilt from a drawable one, what the import decided,
+/// and the morph targets it carried: what [importMeshData] answers.
+final class ImportedMesh {
+  /// The rebuilt [mesh] with its [report] and [shapeKeys].
+  const ImportedMesh({
+    required this.mesh,
+    required this.report,
+    required this.shapeKeys,
+  });
+
+  /// The editable mesh.
+  final EditMesh mesh;
+
+  /// What the import had to decide, and how often.
+  final MeshImportReport report;
+
+  /// One shape key per morph target, empty when the source had none.
+  final List<ShapeKey> shapeKeys;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ImportedMesh &&
+      other.mesh == mesh &&
+      other.report == report &&
+      _sameKeys(other.shapeKeys, shapeKeys);
+
+  @override
+  int get hashCode => Object.hash(mesh, report, Object.hashAll(shapeKeys));
+
+  @override
+  String toString() => 'ImportedMesh($report, ${shapeKeys.length} shape keys)';
+}
+
+bool _sameKeys(List<ShapeKey> a, List<ShapeKey> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
+}
+
 /// Rebuilds an editable mesh from a drawable one.
 ///
 /// [weldEpsilon] defaults to a millionth of the model's diagonal, which is
@@ -115,10 +156,7 @@ final class MeshImportReport {
 /// answers with a neutral value" rule every other per-vertex layer in this
 /// package already follows. Named from [MorphTarget.name] when the file
 /// gave one, `shape 1`/`shape 2`/... by position otherwise.
-(EditMesh, MeshImportReport, List<ShapeKey>) importMeshData(
-  MeshData mesh, {
-  double? weldEpsilon,
-}) {
+ImportedMesh importMeshData(MeshData mesh, {double? weldEpsilon}) {
   final layout = mesh.layout;
   final stride = layout.floatsPerVertex;
   final positionAt = layout.floatOffsetOf(VertexLayout.position.name);
@@ -350,9 +388,9 @@ final class MeshImportReport {
     }
   }
 
-  return (
-    result,
-    MeshImportReport(
+  return ImportedMesh(
+    mesh: result,
+    report: MeshImportReport(
       sourceVertices: sourceVertices,
       weldedVertices: unique.length,
       faces: triangles.length,
@@ -361,7 +399,7 @@ final class MeshImportReport {
       droppedDegenerate: dropped,
       weldEpsilon: epsilon,
     ),
-    shapeKeys,
+    shapeKeys: shapeKeys,
   );
 }
 

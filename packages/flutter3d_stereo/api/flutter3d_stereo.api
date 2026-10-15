@@ -78,7 +78,7 @@ final class StereoRig
   final double far
   final double interpupillaryDistance
   final double near
-  late final List<RenderView> views
+  late final List<CameraView> views
   void applyEye(Eye eye, {required OffAxisProjection projection, Vector3? offset, Quaternion? rotation})
   void applyHead(RigidPose pose)
   void dispose()

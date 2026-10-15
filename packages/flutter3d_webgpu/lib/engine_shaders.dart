@@ -19113,7 +19113,7 @@ struct LayerInfo {
     attenuation: vec4<f32>,
     iridescence: vec4<f32>,
     uv_transform: array<vec4<f32>, 10>,
-    scene_colour: vec4<f32>,
+    scene_color: vec4<f32>,
     scene_viewport: vec4<f32>,
     scene_levels: array<vec4<f32>, 6>,
     scene_view_projection: mat4x4<f32>,
@@ -19238,9 +19238,9 @@ var environment_texture_tex: texture_cube<f32>;
 @group(1) @binding(13) 
 var environment_texture_smp: sampler;
 @group(1) @binding(32) 
-var scene_colour_texture_tex: texture_2d<f32>;
+var scene_color_texture_tex: texture_2d<f32>;
 @group(1) @binding(33) 
-var scene_colour_texture_smp: sampler;
+var scene_color_texture_smp: sampler;
 
 fn ViewDepth_u0028_() -> f32 {
     let _e303 = v_world_position_1;
@@ -22743,7 +22743,7 @@ fn SampleLightmap_u0028_() -> vec3<f32> {
     return ((_e306.xyz * _e309) * 8f);
 }
 
-fn SceneColourLevel_u0028_vf2_u003b_i1_u003b(uv_7: ptr<function, vec2<f32>>, level: ptr<function, i32>) -> vec3<f32> {
+fn SceneColorLevel_u0028_vf2_u003b_i1_u003b(uv_7: ptr<function, vec2<f32>>, level: ptr<function, i32>) -> vec3<f32> {
     var rect: vec4<f32>;
     var inset_1: vec2<f32>;
     var at_4: vec2<f32>;
@@ -22751,7 +22751,7 @@ fn SceneColourLevel_u0028_vf2_u003b_i1_u003b(uv_7: ptr<function, vec2<f32>>, lev
     let _e308 = (*level);
     let _e311 = layer_info.scene_levels[_e308];
     rect = _e311;
-    let _e313 = layer_info.scene_colour;
+    let _e313 = layer_info.scene_color;
     inset_1 = (_e313.yz * 0.5f);
     let _e316 = rect;
     let _e318 = (*uv_7);
@@ -22762,11 +22762,11 @@ fn SceneColourLevel_u0028_vf2_u003b_i1_u003b(uv_7: ptr<function, vec2<f32>>, lev
     let _e327 = inset_1;
     at_4 = (_e316.xy + clamp((_e318 * _e319.zw), _e322, max((_e323.zw - _e325), _e327)));
     let _e331 = at_4;
-    let _e332 = textureSampleLevel(scene_colour_texture_tex, scene_colour_texture_smp, _e331, 0f);
+    let _e332 = textureSampleLevel(scene_color_texture_tex, scene_color_texture_smp, _e331, 0f);
     return _e332.xyz;
 }
 
-fn SceneColourAt_u0028_vf3_u003b_f1_u003b(world_4: ptr<function, vec3<f32>>, lod: ptr<function, f32>) -> vec3<f32> {
+fn SceneColorAt_u0028_vf3_u003b_f1_u003b(world_4: ptr<function, vec3<f32>>, lod: ptr<function, f32>) -> vec3<f32> {
     var clip_2: vec4<f32>;
     var ndc_2: vec2<f32>;
     var view_1: vec2<f32>;
@@ -22794,7 +22794,7 @@ fn SceneColourAt_u0028_vf3_u003b_f1_u003b(world_4: ptr<function, vec3<f32>>, lod
     let _e346 = view_1;
     let _e348 = layer_info.scene_viewport;
     uv_8 = (_e344.xy + (_e346 * _e348.zw));
-    let _e354 = layer_info.scene_colour[0u];
+    let _e354 = layer_info.scene_color[0u];
     top = (_e354 - 1f);
     let _e356 = (*lod);
     let _e357 = top;
@@ -22805,14 +22805,14 @@ fn SceneColourAt_u0028_vf3_u003b_f1_u003b(world_4: ptr<function, vec3<f32>>, lod
     let _e363 = uv_8;
     param_202 = _e363;
     param_203 = i32(_e361);
-    let _e364 = SceneColourLevel_u0028_vf2_u003b_i1_u003b((&param_202), (&param_203));
+    let _e364 = SceneColorLevel_u0028_vf2_u003b_i1_u003b((&param_202), (&param_203));
     near_2 = _e364;
     let _e365 = lower;
     let _e367 = top;
     let _e370 = uv_8;
     param_204 = _e370;
     param_205 = i32(min((_e365 + 1f), _e367));
-    let _e371 = SceneColourLevel_u0028_vf2_u003b_i1_u003b((&param_204), (&param_205));
+    let _e371 = SceneColorLevel_u0028_vf2_u003b_i1_u003b((&param_204), (&param_205));
     far_1 = _e371;
     let _e372 = near_2;
     let _e373 = far_1;
@@ -22882,7 +22882,7 @@ fn SceneBehind_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3
     let _e324 = DispersionSpread_u0028_f1_u003b((&param_206));
     spread_1 = _e324;
     let _e328 = layer_info.scene_levels[0i][2u];
-    let _e331 = layer_info.scene_colour[1u];
+    let _e331 = layer_info.scene_color[1u];
     width = (_e328 / max(_e331, 0.000000001f));
     let _e334 = width;
     let _e338 = (*s_9).roughness;
@@ -22934,21 +22934,21 @@ fn SceneBehind_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3
     param_207 = (_e391 + (_e392 * _e393));
     let _e396 = lod_1;
     param_208 = _e396;
-    let _e397 = SceneColourAt_u0028_vf3_u003b_f1_u003b((&param_207), (&param_208));
+    let _e397 = SceneColorAt_u0028_vf3_u003b_f1_u003b((&param_207), (&param_208));
     let _e399 = v_world_position_1;
     let _e400 = green;
     let _e401 = g_thickness;
     param_209 = (_e399 + (_e400 * _e401));
     let _e404 = lod_1;
     param_210 = _e404;
-    let _e405 = SceneColourAt_u0028_vf3_u003b_f1_u003b((&param_209), (&param_210));
+    let _e405 = SceneColorAt_u0028_vf3_u003b_f1_u003b((&param_209), (&param_210));
     let _e407 = v_world_position_1;
     let _e408 = blue;
     let _e409 = g_thickness;
     param_211 = (_e407 + (_e408 * _e409));
     let _e412 = lod_1;
     param_212 = _e412;
-    let _e413 = SceneColourAt_u0028_vf3_u003b_f1_u003b((&param_211), (&param_212));
+    let _e413 = SceneColorAt_u0028_vf3_u003b_f1_u003b((&param_211), (&param_212));
     return vec3<f32>(_e397.x, _e405.y, _e413.z);
 }
 
@@ -23027,8 +23027,8 @@ fn TransmittedRadiance_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u
     return vec3<f32>(_e376.x, _e380.y, _e384.z);
 }
 
-fn SceneColourBound_u0028_() -> bool {
-    let _e305 = layer_info.scene_colour[0u];
+fn SceneColorBound_u0028_() -> bool {
+    let _e305 = layer_info.scene_color[0u];
     return (_e305 > 0f);
 }
 
@@ -24303,7 +24303,7 @@ fn main_1() {
     let _e390 = g_transmission;
     let _e393 = g_thickness;
     g_pane = ((_e389 && (_e390 > 0f)) && (_e393 <= 0f));
-    let _e396 = SceneColourBound_u0028_();
+    let _e396 = SceneColorBound_u0028_();
     let _e397 = g_pane;
     let _e399 = g_transmittance;
     let _e402 = g_transmission;
@@ -24406,7 +24406,7 @@ fn main_1() {
         let _e541 = g_f90_;
         let _e543 = ab_4[1u];
         reflects = ((mix(_e533, _e534, vec3(_e535)) * _e539) + vec3((_e541 * _e543)));
-        let _e547 = SceneColourBound_u0028_();
+        let _e547 = SceneColorBound_u0028_();
         let _e548 = g_pane;
         if (_e547 || _e548) {
             local_59 = vec3<f32>(0f, 0f, 0f);
@@ -24481,7 +24481,7 @@ fn main_1() {
         let _e652 = passes[2u];
         g_pass_through = clamp((((_e647 + _e649) + _e652) / 3f), 0f, 1f);
     } else {
-        let _e656 = SceneColourBound_u0028_();
+        let _e656 = SceneColorBound_u0028_();
         if _e656 {
             let _e657 = s_20;
             param_275 = _e657;
@@ -24753,7 +24753,7 @@ fn main(@location(7) v_world_position: vec3<f32>, @location(3) v_normal: vec3<f3
               sizeInBytes: 160,
             ),
             WebGpuBlockMember(
-              name: 'scene_colour',
+              name: 'scene_color',
               offsetInBytes: 272,
               sizeInBytes: 16,
             ),
@@ -24945,7 +24945,7 @@ fn main(@location(7) v_world_position: vec3<f32>, @location(3) v_normal: vec3<f3
           dimension: WebGpuTextureDimension.twoDimensional,
         ),
         WebGpuSampler(
-          name: 'scene_colour_texture',
+          name: 'scene_color_texture',
           group: 1,
           textureBinding: 32,
           samplerBinding: 33,
@@ -42069,7 +42069,7 @@ struct LayerInfo {
     attenuation: vec4<f32>,
     iridescence: vec4<f32>,
     uv_transform: array<vec4<f32>, 10>,
-    scene_colour: vec4<f32>,
+    scene_color: vec4<f32>,
     scene_viewport: vec4<f32>,
     scene_levels: array<vec4<f32>, 6>,
     scene_view_projection: mat4x4<f32>,
@@ -42194,9 +42194,9 @@ var environment_texture_tex: texture_cube<f32>;
 @group(1) @binding(13) 
 var environment_texture_smp: sampler;
 @group(1) @binding(32) 
-var scene_colour_texture_tex: texture_2d<f32>;
+var scene_color_texture_tex: texture_2d<f32>;
 @group(1) @binding(33) 
-var scene_colour_texture_smp: sampler;
+var scene_color_texture_smp: sampler;
 
 fn ViewDepth_u0028_() -> f32 {
     let _e297 = v_world_position_1;
@@ -45699,7 +45699,7 @@ fn SampleLightmap_u0028_() -> vec3<f32> {
     return ((_e300.xyz * _e303) * 8f);
 }
 
-fn SceneColourLevel_u0028_vf2_u003b_i1_u003b(uv_7: ptr<function, vec2<f32>>, level: ptr<function, i32>) -> vec3<f32> {
+fn SceneColorLevel_u0028_vf2_u003b_i1_u003b(uv_7: ptr<function, vec2<f32>>, level: ptr<function, i32>) -> vec3<f32> {
     var rect: vec4<f32>;
     var inset_1: vec2<f32>;
     var at_4: vec2<f32>;
@@ -45707,7 +45707,7 @@ fn SceneColourLevel_u0028_vf2_u003b_i1_u003b(uv_7: ptr<function, vec2<f32>>, lev
     let _e302 = (*level);
     let _e305 = layer_info.scene_levels[_e302];
     rect = _e305;
-    let _e307 = layer_info.scene_colour;
+    let _e307 = layer_info.scene_color;
     inset_1 = (_e307.yz * 0.5f);
     let _e310 = rect;
     let _e312 = (*uv_7);
@@ -45718,11 +45718,11 @@ fn SceneColourLevel_u0028_vf2_u003b_i1_u003b(uv_7: ptr<function, vec2<f32>>, lev
     let _e321 = inset_1;
     at_4 = (_e310.xy + clamp((_e312 * _e313.zw), _e316, max((_e317.zw - _e319), _e321)));
     let _e325 = at_4;
-    let _e326 = textureSampleLevel(scene_colour_texture_tex, scene_colour_texture_smp, _e325, 0f);
+    let _e326 = textureSampleLevel(scene_color_texture_tex, scene_color_texture_smp, _e325, 0f);
     return _e326.xyz;
 }
 
-fn SceneColourAt_u0028_vf3_u003b_f1_u003b(world_4: ptr<function, vec3<f32>>, lod: ptr<function, f32>) -> vec3<f32> {
+fn SceneColorAt_u0028_vf3_u003b_f1_u003b(world_4: ptr<function, vec3<f32>>, lod: ptr<function, f32>) -> vec3<f32> {
     var clip_2: vec4<f32>;
     var ndc_2: vec2<f32>;
     var view_1: vec2<f32>;
@@ -45750,7 +45750,7 @@ fn SceneColourAt_u0028_vf3_u003b_f1_u003b(world_4: ptr<function, vec3<f32>>, lod
     let _e340 = view_1;
     let _e342 = layer_info.scene_viewport;
     uv_8 = (_e338.xy + (_e340 * _e342.zw));
-    let _e348 = layer_info.scene_colour[0u];
+    let _e348 = layer_info.scene_color[0u];
     top = (_e348 - 1f);
     let _e350 = (*lod);
     let _e351 = top;
@@ -45761,14 +45761,14 @@ fn SceneColourAt_u0028_vf3_u003b_f1_u003b(world_4: ptr<function, vec3<f32>>, lod
     let _e357 = uv_8;
     param_202 = _e357;
     param_203 = i32(_e355);
-    let _e358 = SceneColourLevel_u0028_vf2_u003b_i1_u003b((&param_202), (&param_203));
+    let _e358 = SceneColorLevel_u0028_vf2_u003b_i1_u003b((&param_202), (&param_203));
     near_2 = _e358;
     let _e359 = lower;
     let _e361 = top;
     let _e364 = uv_8;
     param_204 = _e364;
     param_205 = i32(min((_e359 + 1f), _e361));
-    let _e365 = SceneColourLevel_u0028_vf2_u003b_i1_u003b((&param_204), (&param_205));
+    let _e365 = SceneColorLevel_u0028_vf2_u003b_i1_u003b((&param_204), (&param_205));
     far_1 = _e365;
     let _e366 = near_2;
     let _e367 = far_1;
@@ -45838,7 +45838,7 @@ fn SceneBehind_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3
     let _e318 = DispersionSpread_u0028_f1_u003b((&param_206));
     spread_1 = _e318;
     let _e322 = layer_info.scene_levels[0i][2u];
-    let _e325 = layer_info.scene_colour[1u];
+    let _e325 = layer_info.scene_color[1u];
     width = (_e322 / max(_e325, 0.000000001f));
     let _e328 = width;
     let _e332 = (*s_9).roughness;
@@ -45890,21 +45890,21 @@ fn SceneBehind_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3
     param_207 = (_e385 + (_e386 * _e387));
     let _e390 = lod_1;
     param_208 = _e390;
-    let _e391 = SceneColourAt_u0028_vf3_u003b_f1_u003b((&param_207), (&param_208));
+    let _e391 = SceneColorAt_u0028_vf3_u003b_f1_u003b((&param_207), (&param_208));
     let _e393 = v_world_position_1;
     let _e394 = green;
     let _e395 = g_thickness;
     param_209 = (_e393 + (_e394 * _e395));
     let _e398 = lod_1;
     param_210 = _e398;
-    let _e399 = SceneColourAt_u0028_vf3_u003b_f1_u003b((&param_209), (&param_210));
+    let _e399 = SceneColorAt_u0028_vf3_u003b_f1_u003b((&param_209), (&param_210));
     let _e401 = v_world_position_1;
     let _e402 = blue;
     let _e403 = g_thickness;
     param_211 = (_e401 + (_e402 * _e403));
     let _e406 = lod_1;
     param_212 = _e406;
-    let _e407 = SceneColourAt_u0028_vf3_u003b_f1_u003b((&param_211), (&param_212));
+    let _e407 = SceneColorAt_u0028_vf3_u003b_f1_u003b((&param_211), (&param_212));
     return vec3<f32>(_e391.x, _e399.y, _e407.z);
 }
 
@@ -45983,8 +45983,8 @@ fn TransmittedRadiance_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u
     return vec3<f32>(_e370.x, _e374.y, _e378.z);
 }
 
-fn SceneColourBound_u0028_() -> bool {
-    let _e299 = layer_info.scene_colour[0u];
+fn SceneColorBound_u0028_() -> bool {
+    let _e299 = layer_info.scene_color[0u];
     return (_e299 > 0f);
 }
 
@@ -47209,7 +47209,7 @@ fn main_1() {
     let _e384 = g_transmission;
     let _e387 = g_thickness;
     g_pane = ((_e383 && (_e384 > 0f)) && (_e387 <= 0f));
-    let _e390 = SceneColourBound_u0028_();
+    let _e390 = SceneColorBound_u0028_();
     let _e391 = g_pane;
     let _e393 = g_transmittance;
     let _e396 = g_transmission;
@@ -47312,7 +47312,7 @@ fn main_1() {
         let _e535 = g_f90_;
         let _e537 = ab_4[1u];
         reflects = ((mix(_e527, _e528, vec3(_e529)) * _e533) + vec3((_e535 * _e537)));
-        let _e541 = SceneColourBound_u0028_();
+        let _e541 = SceneColorBound_u0028_();
         let _e542 = g_pane;
         if (_e541 || _e542) {
             local_59 = vec3<f32>(0f, 0f, 0f);
@@ -47387,7 +47387,7 @@ fn main_1() {
         let _e646 = passes[2u];
         g_pass_through = clamp((((_e641 + _e643) + _e646) / 3f), 0f, 1f);
     } else {
-        let _e650 = SceneColourBound_u0028_();
+        let _e650 = SceneColorBound_u0028_();
         if _e650 {
             let _e651 = s_20;
             param_273 = _e651;
@@ -47659,7 +47659,7 @@ fn main(@location(7) v_world_position: vec3<f32>, @location(3) v_normal: vec3<f3
               sizeInBytes: 160,
             ),
             WebGpuBlockMember(
-              name: 'scene_colour',
+              name: 'scene_color',
               offsetInBytes: 272,
               sizeInBytes: 16,
             ),
@@ -47851,7 +47851,7 @@ fn main(@location(7) v_world_position: vec3<f32>, @location(3) v_normal: vec3<f3
           dimension: WebGpuTextureDimension.twoDimensional,
         ),
         WebGpuSampler(
-          name: 'scene_colour_texture',
+          name: 'scene_color_texture',
           group: 1,
           textureBinding: 32,
           samplerBinding: 33,
@@ -72021,7 +72021,7 @@ fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
         ),
       ],
     ),
-    'SceneColourCopy': WebGpuStage(
+    'SceneColorCopy': WebGpuStage(
       wgsl: r'''
 struct SceneCopyInfo {
     params: vec4<f32>,

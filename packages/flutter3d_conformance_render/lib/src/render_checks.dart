@@ -138,7 +138,7 @@ final class _Stage {
         height: _size,
         scene: scene,
         settings: settings ?? _settings,
-        views: <RenderView>[RenderView(camera: camera)],
+        views: <CameraView>[CameraView(camera: camera)],
       );
 
   Future<Uint8List> picture(Scene scene, {RenderSettings? settings}) async {

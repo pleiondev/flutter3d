@@ -7,6 +7,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/kernel.dart' show WorkgroupSize;
 import 'package:test/test.dart';
 
 /// Adds one to the first word of `Count` per workgroup.
@@ -14,7 +15,7 @@ final class _CountGroups extends CpuComputeShader {
   const _CountGroups();
 
   @override
-  (int, int, int) get workgroupSize => (1, 1, 1);
+  WorkgroupSize get workgroupSize => const WorkgroupSize(1, 1, 1);
 
   @override
   void runWorkgroup((int, int, int) group, CpuComputeBindings bindings) {

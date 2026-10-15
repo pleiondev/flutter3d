@@ -204,11 +204,11 @@ class _RaceScreenState extends State<RaceScreen>
   /// purpose, and a window that opens black and turns blue a second later reads
   /// as a fault.
   ///
-  /// `RenderView` clears to a very dark blue by default, which is right for a
+  /// `CameraView` clears to a very dark blue by default, which is right for a
   /// dungeon and wrong for anywhere outdoors. Kept in step with the sky's own
   /// horizon by [_skyColour], though it is authored in sRGB and the sky is not
   /// — see [_skySettings].
-  late final RenderView _view = RenderView(
+  late final CameraView _view = CameraView(
     camera: _camera,
     // Daylight from the first frame. This is `late` and so is worked out when
     // the first frame is built, which is before any circuit has loaded — and a

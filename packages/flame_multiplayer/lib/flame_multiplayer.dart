@@ -45,6 +45,7 @@ library;
 // names the wire, the room and the rollback from this one import.
 export 'package:flutter3d_net/flutter3d_net.dart'
     show
+        AgreedEnding,
         InputStatus,
         LoopbackPair,
         LoopbackParty,

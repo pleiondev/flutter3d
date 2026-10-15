@@ -98,7 +98,7 @@ void main() {
     );
     loop.frame(0.0);
     expect(particles.aliveCount, 12);
-    expect(effects.triggerCounts, (fired: 1, unplaced: 0));
+    expect(effects.triggerCounts, const TriggerCounts(fired: 1, unplaced: 0));
 
     // Switched off, its effect and its subscriptions go with it.
     loop.plugins.disable('sparks');

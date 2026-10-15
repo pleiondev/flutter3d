@@ -72,6 +72,16 @@ final class PostedEvent
   final String kind
   final int sequence
 
+final class PostedEventPage
+  String toString()
+  bool operator ==(Object other)
+  const PostedEventPage({required this.events, required this.next, required this.missed, required this.restarted})
+  final List<PostedEvent> events
+  final bool restarted
+  final int missed
+  final int next
+  int get hashCode
+
 final class Watched<T>
   Future<void> close()
   Stream<T> get changes
@@ -87,7 +97,7 @@ Future<VmService> connectVmService(String uri)
 
 String describeLevelApplied(Map<String, Object?> answer)
 
-({List<PostedEvent> events, int next, int missed, bool restarted}) eventsSince(List<PostedEvent> events, int since, {Set<String>? kinds})
+PostedEventPage eventsSince(List<PostedEvent> events, int since, {Set<String>? kinds})
 
 Map<String, String> levelApplyArguments(String document)
 
@@ -151,6 +161,14 @@ final class GameEventLog
   static const int limit = 2000
   void record(Event event)
 
+final class GameExtensionReply
+  String toString()
+  bool operator ==(Object other)
+  const GameExtensionReply({this.json, this.refused})
+  final Map<String, Object?>? json
+  final String? refused
+  int get hashCode
+
 typedef KillFlutter = void Function(Process process);
 
 final class PlayIdle extends PlayState
@@ -194,6 +212,16 @@ final class PostedEvent
   final String kind
   final int sequence
 
+final class PostedEventPage
+  String toString()
+  bool operator ==(Object other)
+  const PostedEventPage({required this.events, required this.next, required this.missed, required this.restarted})
+  final List<PostedEvent> events
+  final bool restarted
+  final int missed
+  final int next
+  int get hashCode
+
 typedef RunFlutter = Future<ProcessResult> Function(List<String> arguments);
 
 typedef StartFlutter = Future<Process> Function(List<String> arguments, String workingDirectory);
@@ -209,13 +237,13 @@ List<T> appendCapped<T>(List<T> items, T item, int limit)
 
 List<String> appendLine(List<String> lines, String line, int limit)
 
-Future<({Map<String, Object?>? json, String? refused})> callGameExtension(String vmService, String method, {Map<String, String> args = const <String, String>{}, ConnectVmService connect = connectVmService})
+Future<GameExtensionReply> callGameExtension(String vmService, String method, {Map<String, String> args = const <String, String>{}, ConnectVmService connect = connectVmService})
 
 Future<VmService> connectVmService(String uri)
 
 String describeLevelApplied(Map<String, Object?> answer)
 
-({List<PostedEvent> events, int next, int missed, bool restarted}) eventsSince(List<PostedEvent> events, int since, {Set<String>? kinds})
+PostedEventPage eventsSince(List<PostedEvent> events, int since, {Set<String>? kinds})
 
 Future<List<FlutterDevice>> flutterDevices({RunFlutter run = _runFlutter})
 
@@ -238,6 +266,15 @@ List<String>? treeKillCommand(int pid, {required bool windows})
 String vmServiceWebSocket(String uri)
 
 library package:flutter3d_editor_play/testing.dart
+
+final class FakeFlutterRun
+  String toString()
+  bool operator ==(Object other)
+  const FakeFlutterRun({required this.run, required this.tool, required this.started})
+  final FakeFlutterTool tool
+  final FlutterRun run
+  final List<List<String>> started
+  int get hashCode
 
 final class FakeFlutterTool implements Process
   FakeFlutterTool()
@@ -271,4 +308,4 @@ final class FakeGame
 
 AttachedRun fakeAttachedRun(FakeGame game, {String uri = 'ws://game/ws'})
 
-({FlutterRun run, FakeFlutterTool tool, List<List<String>> started}) fakeFlutterRun({String projectRoot = '/game', String? device = 'macos', FakeGame? game})
+FakeFlutterRun fakeFlutterRun({String projectRoot = '/game', String? device = 'macos', FakeGame? game})

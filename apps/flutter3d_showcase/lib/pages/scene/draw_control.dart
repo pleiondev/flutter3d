@@ -138,7 +138,7 @@ final class DrawControlDemo extends ShowcaseDemo {
   /// The six faces of the panel's cube as windows of its one index buffer,
   /// six indices each.
   // #region windows
-  List<({int first, int count})> _faces() => <({int first, int count})>[
+  List<IndexWindow> _faces() => <IndexWindow>[
     for (var face = 0; face < 6; face++)
       indexWindow(_panel.indexCount, firstIndex: face * 6, indexCount: 6),
   ];
@@ -163,7 +163,7 @@ final class DrawControlDemo extends ShowcaseDemo {
   void verify(Scene scene, FrameResult frame) {
     // #region check
     // The sorted list puts the panel with the lower order first.
-    final RenderView view = RenderView(camera: _camera);
+    final CameraView view = CameraView(camera: _camera);
     final RenderList list = RenderList()
       ..build(
         scene,
@@ -193,7 +193,7 @@ final class DrawControlDemo extends ShowcaseDemo {
     }
 
     // Six windows tile the cube's 36 indices; one past the end is refused.
-    final List<({int first, int count})> faces = _faces();
+    final List<IndexWindow> faces = _faces();
     if (faces.last.first + faces.last.count != _panel.indexCount) {
       throw StateError('the faces do not cover the index buffer');
     }

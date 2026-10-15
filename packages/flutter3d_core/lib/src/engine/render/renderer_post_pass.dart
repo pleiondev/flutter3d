@@ -564,7 +564,7 @@ extension _PostPasses on Renderer {
     required TextureHandle target,
     required TextureHandle surface,
     required ContactShadowSettings options,
-    required RenderView view,
+    required CameraView view,
     required vm.Vector3 toLight,
   }) {
     developer.Timeline.startSync('Renderer.contactShadow');
@@ -637,7 +637,7 @@ extension _PostPasses on Renderer {
   void _encodeCameraVelocity({
     required TextureHandle target,
     required TextureHandle surface,
-    required RenderView view,
+    required CameraView view,
   }) {
     developer.Timeline.startSync('Renderer.cameraVelocity');
 
@@ -694,7 +694,7 @@ extension _PostPasses on Renderer {
     required TextureHandle target,
     required TextureHandle surface,
     required AmbientOcclusionSettings options,
-    required RenderView view,
+    required CameraView view,
     TextureHandle? scene,
     TextureHandle? albedo,
   }) {
@@ -793,7 +793,7 @@ extension _PostPasses on Renderer {
     required TextureHandle surface,
     required TextureHandle shadow,
     required LightShaftSettings settings,
-    required RenderView view,
+    required CameraView view,
     required FrameResources resources,
     required int width,
     required int height,
@@ -910,7 +910,7 @@ extension _PostPasses on Renderer {
     required TextureHandle scene,
     required TextureHandle surface,
     required DepthOfFieldSettings settings,
-    required RenderView view,
+    required CameraView view,
     required FrameResources resources,
     required int width,
     required int height,
@@ -1272,7 +1272,7 @@ extension _PostPasses on Renderer {
     required TextureHandle scene,
     required TextureHandle? surface,
     required ViewportShadingSettings settings,
-    required RenderView view,
+    required CameraView view,
     required FrameResources resources,
   }) {
     if (surface == null) return scene;
@@ -1360,7 +1360,7 @@ extension _PostPasses on Renderer {
     required TextureHandle scene,
     required Scene sceneGraph,
     required RenderSettings settings,
-    required RenderView view,
+    required CameraView view,
     required int width,
     required int height,
   }) {
@@ -1501,7 +1501,7 @@ extension _PostPasses on Renderer {
   void _meterExposure(
     TextureHandle target,
     AutoExposureSettings settings, {
-    List<RenderView> views = const <RenderView>[],
+    List<CameraView> views = const <CameraView>[],
   }) {
     final adapter = _autoExposure;
     if (adapter == null || _meterInFlight) return;
@@ -1663,7 +1663,7 @@ extension _PostPasses on Renderer {
     required TextureHandle? shadowView,
     TextureHandle? velocity,
     required Scene sceneGraph,
-    required List<RenderView> views,
+    required List<CameraView> views,
     required RenderSettings settings,
     required int width,
     required int height,

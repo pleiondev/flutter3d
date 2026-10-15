@@ -8,6 +8,15 @@ typedef ChunkKey = ({int x, int y, int z});
 
 typedef VoxelBox = ({int minX, int minY, int minZ, int maxX, int maxY, int maxZ});
 
+final class VoxelCell
+  String toString()
+  bool operator ==(Object other)
+  const VoxelCell({required this.x, required this.y, required this.z})
+  final int x
+  final int y
+  final int z
+  int get hashCode
+
 final class VoxelChanges
   bool get isEmpty
   const VoxelChanges({required this.chunks, required this.surfaces, required this.bounds})
@@ -32,7 +41,7 @@ final class VoxelFormatException extends Flutter3dFormatException
   final String message
 
 final class VoxelHit
-  ({int x, int y, int z}) get before
+  VoxelCell get before
   const VoxelHit({required this.x, required this.y, required this.z, required this.normalX, required this.normalY, required this.normalZ, required this.distance})
   final double distance
   final int normalX

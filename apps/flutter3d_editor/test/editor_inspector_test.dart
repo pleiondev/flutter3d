@@ -566,8 +566,8 @@ void main() {
       // row. Mutation: drop the "last section takes the rest" clause. The
       // unknown key disappears from every section.
       final sections = sectionsOf(Piece.brush, <String>['at', 'rain']);
-      expect(sections.last.$1, 'Other');
-      expect(sections.last.$2, <String>['rain']);
+      expect(sections.last.title, 'Other');
+      expect(sections.last.keys, <String>['rain']);
     });
 
     testWidgets("an entity's own properties are its last component", (

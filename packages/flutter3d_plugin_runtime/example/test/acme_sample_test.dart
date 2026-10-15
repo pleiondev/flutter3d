@@ -64,13 +64,13 @@ void main() {
       renderer.lightTypes.codeOf(tubeLight),
       greaterThanOrEqualTo(LightTypes.firstPluginCode),
     );
-    expect(renderer.lightingModels.named('acme_sample_Hair'), same(hairModel));
+    expect(renderer.lightingModels.named('acme_sample__Hair'), same(hairModel));
     expect(hairModel.slots.blocks.map((b) => b.name), <String>[
       'MaterialParams',
       'Strands',
     ]);
     expect(hairModel.slots.textures.single.binding, 'material_fur');
-    expect(renderer.lightingModels.named('acme_sample_Decal'), decalStage);
+    expect(renderer.lightingModels.named('acme_sample__Decal'), decalStage);
     expect(renderer.hooks.drawListHooks.single, isA<HideHook>());
     expect(renderer.hooks.lodPolicy, isA<CoarsePolicy>());
     expect(engine.decoders.textureCodecs.codecs.single.name, 'acme_sample.pix');
@@ -120,7 +120,7 @@ void main() {
       height: 32,
       scene: scene,
       settings: _settings,
-      views: <RenderView>[RenderView(camera: camera)],
+      views: <CameraView>[CameraView(camera: camera)],
     );
     final ran = <String>{for (final pass in result.passes) pass.name};
     expect(
@@ -136,9 +136,9 @@ void main() {
     // bundle has one, as the built-in models do.
     expect(
       device.linkedPipelines,
-      contains(matches(r'\+acme_sample_Hair(Opaque)?$')),
+      contains(matches(r'\+acme_sample__Hair(Opaque)?$')),
     );
-    expect(device.linkedPipelines, contains(endsWith('+acme_sample_Decal')));
+    expect(device.linkedPipelines, contains(endsWith('+acme_sample__Decal')));
   });
 
   test('an image of its own format is read', () async {

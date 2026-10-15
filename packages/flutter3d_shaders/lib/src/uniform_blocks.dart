@@ -3251,7 +3251,7 @@ const Map<String, Map<String, Map<String, UniformMemberLayout>>> uniformBlocks =
             elements: 10,
             type: 'Vector4',
           ),
-          'scene_colour': UniformMemberLayout(
+          'scene_color': UniformMemberLayout(
             offset: 272,
             byteLength: 16,
             elements: 1,
@@ -3589,7 +3589,7 @@ const Map<String, Map<String, Map<String, UniformMemberLayout>>> uniformBlocks =
             elements: 10,
             type: 'Vector4',
           ),
-          'scene_colour': UniformMemberLayout(
+          'scene_color': UniformMemberLayout(
             offset: 272,
             byteLength: 16,
             elements: 1,
@@ -4177,7 +4177,7 @@ const Map<String, Map<String, Map<String, UniformMemberLayout>>> uniformBlocks =
           ),
         },
       },
-      'SceneColourCopy': <String, Map<String, UniformMemberLayout>>{
+      'SceneColorCopy': <String, Map<String, UniformMemberLayout>>{
         'SceneCopyInfo': <String, UniformMemberLayout>{
           'params': UniformMemberLayout(
             offset: 0,

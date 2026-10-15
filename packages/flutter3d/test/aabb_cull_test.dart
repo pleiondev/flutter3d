@@ -41,7 +41,7 @@ FrameResult _frame(Vector3 at) {
     width: 64,
     height: 64,
     scene: scene,
-    views: <RenderView>[RenderView(camera: scene.cameras.single)],
+    views: <CameraView>[CameraView(camera: scene.cameras.single)],
     settings: const RenderSettings(),
   );
 }
@@ -91,7 +91,7 @@ void main() {
       width: 64,
       height: 64,
       scene: scene,
-      views: <RenderView>[RenderView(camera: scene.cameras.single)],
+      views: <CameraView>[CameraView(camera: scene.cameras.single)],
       settings: const RenderSettings(),
     );
 

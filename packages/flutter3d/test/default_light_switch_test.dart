@@ -29,7 +29,7 @@ LightBuffer _framedLights(Scene scene) {
     width: 64,
     height: 64,
     scene: scene,
-    views: <RenderView>[RenderView(camera: scene.cameras.single)],
+    views: <CameraView>[CameraView(camera: scene.cameras.single)],
   );
   return renderer.lights;
 }

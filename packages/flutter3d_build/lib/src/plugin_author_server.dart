@@ -21,7 +21,12 @@ import 'package:yaml/yaml.dart';
 
 import 'mcp_tool.dart';
 import 'plugin_discovery.dart'
-    show PluginDiscoveryException, markerEntries, markerOf, pluginMarkerKey;
+    show
+        PluginDiscoveryException,
+        PluginMarker,
+        markerEntries,
+        markerOf,
+        pluginMarkerKey;
 import 'plugin_template.dart';
 
 /// The version this server tells a client it is: the pubspec's.
@@ -396,9 +401,9 @@ final class PluginWorkshop {
       'package: ${name ?? '(no name)'}',
       switch (marker) {
         null => 'no `$pluginMarkerKey:` marker, so discovery will not find it',
-        (final Object plugin, legacy: false) =>
+        PluginMarker(value: final Object plugin, legacy: false) =>
           'plugin: ${_markerText('${name ?? ''}', plugin)}',
-        (final Object plugin, legacy: true) =>
+        PluginMarker(value: final Object plugin, legacy: true) =>
           'plugin: ${_markerText('${name ?? ''}', plugin)} (under the '
               'pre-1.0 `flutter3d: plugin:` key, read until 2.0: move it to '
               '`$pluginMarkerKey:`)',

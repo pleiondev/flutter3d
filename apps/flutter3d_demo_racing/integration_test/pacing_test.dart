@@ -355,5 +355,5 @@ final class _CircuitReplay {
     );
   }
 
-  List<RenderView> views() => <RenderView>[RenderView(camera: camera)];
+  List<CameraView> views() => <CameraView>[CameraView(camera: camera)];
 }

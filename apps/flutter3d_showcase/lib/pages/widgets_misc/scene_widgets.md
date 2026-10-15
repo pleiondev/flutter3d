@@ -57,4 +57,4 @@ scene. A rebuild with that box gone has to take its node out again.
 > put back by a rebuild that does not say where it goes. The widgets cover
 > meshes, models, lights, cameras, materials, reflection probes, decals,
 > mirrors and particles; anything else is added by `Contributor3D` or by
-> reaching the scene in `Scene3D.onSceneCreated`.
+> reaching the scene in `Scene3D.onCreated`.

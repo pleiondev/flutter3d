@@ -24,7 +24,7 @@ const int defaultChunkThreshold = 65536;
 /// culled where its triangles have gone into view; those are left whole, and
 /// the renderer would draw them whole anyway. A mesh shared by several
 /// surfaces is split once and shared again, so the file still holds it once.
-(ModelDocument, int) splitLargeMeshes(
+MeshSplit splitLargeMeshes(
   ModelDocument document, {
   int threshold = defaultChunkThreshold,
 }) {
@@ -62,10 +62,10 @@ const int defaultChunkThreshold = 65536;
           variantMaterials: surface.variantMaterials,
         ),
   ];
-  if (split.isEmpty) return (document, 0);
+  if (split.isEmpty) return MeshSplit(document: document, meshesSplit: 0);
 
-  return (
-    PlainModelDocument(
+  return MeshSplit(
+    document: PlainModelDocument(
       surfaces: surfaces,
       materials: document.materials,
       images: document.images,
@@ -78,8 +78,33 @@ const int defaultChunkThreshold = 65536;
       asset: document.asset,
       variants: document.variants,
     ),
-    split.length,
+    meshesSplit: split.length,
   );
+}
+
+/// What [splitLargeMeshes] answers: the document with its huge static
+/// meshes cut into clusters, and how many meshes that was.
+final class MeshSplit {
+  const MeshSplit({required this.document, required this.meshesSplit});
+
+  /// The document after the split; the one given when nothing was split.
+  final ModelDocument document;
+
+  /// How many distinct meshes were split; a mesh shared by several surfaces
+  /// counts once.
+  final int meshesSplit;
+
+  @override
+  bool operator ==(Object other) =>
+      other is MeshSplit &&
+      other.document == document &&
+      other.meshesSplit == meshesSplit;
+
+  @override
+  int get hashCode => Object.hash(document, meshesSplit);
+
+  @override
+  String toString() => 'MeshSplit($meshesSplit meshes split)';
 }
 
 /// `--chunks=<triangles>`'s number, or null when it is not a positive whole

@@ -1,0 +1,521 @@
+{
+  "format": "f3d.pipeline",
+  "version": 2,
+  "requires": [],
+  "generator": "flutter3d",
+  "name": "standard",
+  "nodes": [
+    {
+      "name": "point shadows (static)",
+      "anchor": "f3d.before_shadows",
+      "engine": true,
+      "step": "f3d.shadows",
+      "keeps": [
+        "f3d.cube_shadow_static"
+      ]
+    },
+    {
+      "name": "point shadows",
+      "anchor": "f3d.before_shadows",
+      "engine": true,
+      "step": "f3d.shadows",
+      "keeps": [
+        "f3d.cube_shadow"
+      ]
+    },
+    {
+      "name": "directional shadows",
+      "anchor": "f3d.before_shadows",
+      "engine": true,
+      "step": "f3d.shadows",
+      "writes": [
+        "f3d.shadow_map"
+      ]
+    },
+    {
+      "name": "shadow moments",
+      "anchor": "f3d.before_shadows",
+      "engine": true,
+      "step": "f3d.shadows",
+      "reads": [
+        "f3d.shadow_map"
+      ],
+      "writes": [
+        "f3d.shadow_moments"
+      ]
+    },
+    {
+      "name": "irradiance update",
+      "anchor": "f3d.before_captures",
+      "engine": true,
+      "step": "f3d.irradiance_update",
+      "optionalReads": [
+        "f3d.shadow_map",
+        "f3d.shadow_moments",
+        "f3d.cube_shadow",
+        "f3d.cube_shadow_static"
+      ],
+      "keeps": [
+        "f3d.irradiance_atlas"
+      ]
+    },
+    {
+      "name": "render textures",
+      "anchor": "f3d.before_captures",
+      "engine": true,
+      "step": "f3d.render_textures",
+      "optionalReads": [
+        "f3d.shadow_map",
+        "f3d.shadow_moments",
+        "f3d.cube_shadow",
+        "f3d.cube_shadow_static"
+      ],
+      "keeps": [
+        "f3d.render_textures"
+      ]
+    },
+    {
+      "name": "planar reflections",
+      "anchor": "f3d.before_captures",
+      "engine": true,
+      "step": "f3d.planar_reflections",
+      "optionalReads": [
+        "f3d.shadow_map",
+        "f3d.shadow_moments",
+        "f3d.cube_shadow",
+        "f3d.cube_shadow_static"
+      ],
+      "keeps": [
+        "f3d.planar_reflections"
+      ]
+    },
+    {
+      "name": "scene",
+      "anchor": "f3d.before_opaque",
+      "engine": true,
+      "optionalReads": [
+        "f3d.shadow_map",
+        "f3d.shadow_moments",
+        "f3d.cube_shadow",
+        "f3d.cube_shadow_static",
+        "f3d.irradiance_atlas",
+        "f3d.render_textures",
+        "f3d.planar_reflections"
+      ],
+      "writes": [
+        "f3d.hdr_color",
+        "f3d.surface_buffer",
+        "f3d.albedo_buffer"
+      ]
+    },
+    {
+      "name": "decals",
+      "anchor": "f3d.before_decals",
+      "engine": true,
+      "step": "f3d.decals",
+      "reads": [
+        "f3d.hdr_color",
+        "f3d.surface_buffer",
+        "f3d.albedo_buffer"
+      ],
+      "writes": [
+        "f3d.hdr_color"
+      ]
+    },
+    {
+      "name": "scene color copy",
+      "anchor": "f3d.before_transparent",
+      "engine": true,
+      "step": "f3d.scene_color_copy",
+      "reads": [
+        "f3d.hdr_color"
+      ],
+      "writes": [
+        "f3d.scene_color"
+      ]
+    },
+    {
+      "name": "transparent",
+      "anchor": "f3d.before_transparent",
+      "engine": true,
+      "step": "f3d.transparent",
+      "reads": [
+        "f3d.hdr_color"
+      ],
+      "optionalReads": [
+        "f3d.scene_color",
+        "f3d.shadow_map",
+        "f3d.shadow_moments",
+        "f3d.cube_shadow",
+        "f3d.cube_shadow_static",
+        "f3d.irradiance_atlas",
+        "f3d.render_textures",
+        "f3d.planar_reflections"
+      ],
+      "writes": [
+        "f3d.hdr_color",
+        "f3d.surface_buffer",
+        "f3d.albedo_buffer"
+      ]
+    },
+    {
+      "name": "object ids",
+      "anchor": "f3d.after_transparent",
+      "engine": true,
+      "writes": [
+        "f3d.object_ids"
+      ]
+    },
+    {
+      "name": "outline mask",
+      "anchor": "f3d.after_transparent",
+      "engine": true,
+      "step": "f3d.high_contrast",
+      "reads": [
+        "f3d.surface_buffer"
+      ],
+      "writes": [
+        "f3d.outline_mask"
+      ]
+    },
+    {
+      "name": "reflections",
+      "anchor": "f3d.before_reflections",
+      "engine": true,
+      "step": "f3d.reflections",
+      "reads": [
+        "f3d.hdr_color",
+        "f3d.surface_buffer"
+      ],
+      "writes": [
+        "f3d.hdr_color"
+      ]
+    },
+    {
+      "name": "luminance",
+      "anchor": "f3d.before_auto_exposure",
+      "engine": true,
+      "step": "f3d.auto_exposure",
+      "reads": [
+        "f3d.hdr_color"
+      ],
+      "writes": [
+        "f3d.luminance"
+      ]
+    },
+    {
+      "name": "depth pyramid",
+      "anchor": "f3d.before_hi_z",
+      "engine": true,
+      "step": "f3d.hi_z_occlusion",
+      "reads": [
+        "f3d.surface_buffer"
+      ],
+      "writes": [
+        "f3d.depth_pyramid"
+      ]
+    },
+    {
+      "name": "ssao",
+      "anchor": "f3d.before_ambient_occlusion",
+      "engine": true,
+      "step": "f3d.ambient_occlusion",
+      "reads": [
+        "f3d.surface_buffer"
+      ],
+      "writes": [
+        "f3d.ao"
+      ]
+    },
+    {
+      "name": "ssao blur",
+      "anchor": "f3d.before_ambient_occlusion",
+      "engine": true,
+      "step": "f3d.ambient_occlusion",
+      "reads": [
+        "f3d.ao",
+        "f3d.surface_buffer"
+      ],
+      "writes": [
+        "f3d.ao"
+      ]
+    },
+    {
+      "name": "contact shadows",
+      "anchor": "f3d.before_contact_shadows",
+      "engine": true,
+      "step": "f3d.contact_shadows",
+      "reads": [
+        "f3d.surface_buffer"
+      ],
+      "writes": [
+        "f3d.contact_shadow"
+      ]
+    },
+    {
+      "name": "contact shadow resolve",
+      "anchor": "f3d.before_contact_shadows",
+      "engine": true,
+      "step": "f3d.contact_shadows",
+      "reads": [
+        "f3d.contact_shadow",
+        "f3d.surface_buffer"
+      ],
+      "writes": [
+        "f3d.contact_shadow"
+      ]
+    },
+    {
+      "name": "camera velocity",
+      "anchor": "f3d.before_velocity",
+      "engine": true,
+      "step": "f3d.velocity",
+      "reads": [
+        "f3d.surface_buffer"
+      ],
+      "writes": [
+        "f3d.velocity"
+      ]
+    },
+    {
+      "name": "object velocity",
+      "anchor": "f3d.before_velocity",
+      "engine": true,
+      "step": "f3d.velocity",
+      "reads": [
+        "f3d.velocity",
+        "f3d.surface_buffer"
+      ],
+      "writes": [
+        "f3d.velocity"
+      ]
+    },
+    {
+      "name": "reactive mask",
+      "anchor": "f3d.before_velocity",
+      "engine": true,
+      "step": "f3d.temporal_anti_aliasing",
+      "reads": [
+        "f3d.velocity",
+        "f3d.surface_buffer"
+      ],
+      "writes": [
+        "f3d.velocity"
+      ]
+    },
+    {
+      "name": "ssao history",
+      "anchor": "f3d.before_velocity",
+      "engine": true,
+      "step": "f3d.temporal_anti_aliasing",
+      "reads": [
+        "f3d.ao",
+        "f3d.velocity"
+      ],
+      "writes": [
+        "f3d.ao"
+      ]
+    },
+    {
+      "name": "contact shadow history",
+      "anchor": "f3d.before_velocity",
+      "engine": true,
+      "step": "f3d.temporal_anti_aliasing",
+      "reads": [
+        "f3d.contact_shadow",
+        "f3d.velocity"
+      ],
+      "writes": [
+        "f3d.contact_shadow"
+      ]
+    },
+    {
+      "name": "volumetric fog",
+      "anchor": "f3d.before_volumetric_fog",
+      "engine": true,
+      "step": "f3d.volumetric_fog",
+      "reads": [
+        "f3d.hdr_color",
+        "f3d.surface_buffer"
+      ],
+      "optionalReads": [
+        "f3d.shadow_map",
+        "f3d.cube_shadow",
+        "f3d.cube_shadow_static",
+        "f3d.ao",
+        "f3d.contact_shadow"
+      ],
+      "writes": [
+        "f3d.hdr_color"
+      ]
+    },
+    {
+      "name": "light shafts",
+      "anchor": "f3d.before_light_shafts",
+      "engine": true,
+      "step": "f3d.light_shafts",
+      "reads": [
+        "f3d.hdr_color",
+        "f3d.surface_buffer"
+      ],
+      "optionalReads": [
+        "f3d.shadow_map"
+      ],
+      "writes": [
+        "f3d.hdr_color"
+      ]
+    },
+    {
+      "name": "depth of field",
+      "anchor": "f3d.before_depth_of_field",
+      "engine": true,
+      "step": "f3d.depth_of_field",
+      "reads": [
+        "f3d.hdr_color",
+        "f3d.surface_buffer"
+      ],
+      "writes": [
+        "f3d.hdr_color"
+      ]
+    },
+    {
+      "name": "motion blur",
+      "anchor": "f3d.before_motion_blur",
+      "engine": true,
+      "step": "f3d.motion_blur",
+      "reads": [
+        "f3d.hdr_color",
+        "f3d.velocity",
+        "f3d.surface_buffer"
+      ],
+      "writes": [
+        "f3d.hdr_color"
+      ]
+    },
+    {
+      "name": "temporal resolve",
+      "anchor": "f3d.before_temporal_resolve",
+      "engine": true,
+      "step": "f3d.temporal_anti_aliasing",
+      "reads": [
+        "f3d.hdr_color",
+        "f3d.velocity",
+        "f3d.surface_buffer"
+      ],
+      "writes": [
+        "f3d.hdr_color"
+      ],
+      "keeps": [
+        "f3d.temporal_history"
+      ]
+    },
+    {
+      "name": "local exposure",
+      "anchor": "f3d.before_local_exposure",
+      "engine": true,
+      "step": "f3d.local_exposure",
+      "reads": [
+        "f3d.hdr_color"
+      ],
+      "writes": [
+        "f3d.local_exposure"
+      ]
+    },
+    {
+      "name": "bloom",
+      "anchor": "f3d.before_bloom",
+      "engine": true,
+      "step": "f3d.bloom",
+      "reads": [
+        "f3d.hdr_color"
+      ],
+      "writes": [
+        "f3d.bloom"
+      ]
+    },
+    {
+      "name": "lens flare",
+      "anchor": "f3d.before_lens_flare",
+      "engine": true,
+      "step": "f3d.lens_flare",
+      "reads": [
+        "f3d.bloom"
+      ],
+      "writes": [
+        "f3d.bloom"
+      ]
+    },
+    {
+      "name": "composite",
+      "anchor": "f3d.before_tonemap",
+      "engine": true,
+      "reads": [
+        "f3d.hdr_color"
+      ],
+      "optionalReads": [
+        "f3d.bloom",
+        "f3d.ao",
+        "f3d.contact_shadow",
+        "f3d.local_exposure"
+      ],
+      "writes": [
+        "f3d.frame"
+      ]
+    },
+    {
+      "name": "spatial upscale",
+      "anchor": "f3d.before_spatial_upscale",
+      "engine": true,
+      "step": "f3d.spatial_upscale",
+      "reads": [
+        "f3d.frame"
+      ],
+      "writes": [
+        "f3d.frame"
+      ]
+    },
+    {
+      "name": "antialias",
+      "anchor": "f3d.before_edge_smoothing",
+      "engine": true,
+      "step": "f3d.edge_smoothing",
+      "reads": [
+        "f3d.frame"
+      ],
+      "writes": [
+        "f3d.frame"
+      ]
+    },
+    {
+      "name": "high contrast",
+      "anchor": "f3d.before_high_contrast",
+      "engine": true,
+      "step": "f3d.high_contrast",
+      "reads": [
+        "f3d.frame"
+      ],
+      "optionalReads": [
+        "f3d.surface_buffer",
+        "f3d.outline_mask"
+      ],
+      "writes": [
+        "f3d.frame"
+      ]
+    },
+    {
+      "name": "viewport shading",
+      "anchor": "f3d.before_viewport_shading",
+      "engine": true,
+      "step": "f3d.viewport_shading",
+      "reads": [
+        "f3d.frame"
+      ],
+      "optionalReads": [
+        "f3d.surface_buffer"
+      ],
+      "writes": [
+        "f3d.frame"
+      ]
+    }
+  ]
+}

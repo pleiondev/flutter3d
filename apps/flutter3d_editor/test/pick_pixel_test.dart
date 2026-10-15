@@ -103,7 +103,7 @@ void main() {
     )..setPosition(0.0, 1.0, -6.0);
     camera.lookAt(Vector3(0.0, 0.5, -12.0));
     scene.add(camera);
-    final view = RenderView(camera: camera);
+    final view = CameraView(camera: camera);
     final eye = Vector3(0.0, 1.0, -6.0);
 
     final monster = handlesOf(
@@ -119,7 +119,7 @@ void main() {
       width: _width,
       height: _height,
       scene: scene,
-      views: <RenderView>[view],
+      views: <CameraView>[view],
     );
 
     // The mark: the mesh drawn there was placed for the monster, and the

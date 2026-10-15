@@ -440,8 +440,8 @@ final class ModelerStage {
   /// A list because the viewport is one of several — a second one arrives with
   /// the material preview and again with the LOD comparison — and because the
   /// renderer takes a list either way. One today.
-  List<RenderView> views() => <RenderView>[
-    RenderView(
+  List<CameraView> views() => <CameraView>[
+    CameraView(
       camera: camera,
       clearColor: LinearColor.fromSrgb(
         background.x,

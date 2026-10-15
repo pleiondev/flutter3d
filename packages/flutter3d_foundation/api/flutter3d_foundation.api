@@ -441,7 +441,7 @@ base class PluginException extends Flutter3dException
   final String message
 
 abstract final class Portable
-  static ({double sin, double cos}) sinCos(double radians)
+  static SinCos sinCos(double radians)
   static double acos(double x)
   static double asin(double x)
   static double atan(double x)
@@ -529,6 +529,14 @@ final class ShaderDiagnostic
   int get hashCode
   static List<ShaderDiagnostic> parseLog(String log, {String? stage, String? source})
   static ShaderDiagnostic fromJson(Object? json)
+
+final class SinCos
+  String toString()
+  bool operator ==(Object other)
+  const SinCos({required this.sin, required this.cos})
+  final double cos
+  final double sin
+  int get hashCode
 
 final class SrgbColor
   LinearColor toLinear()
@@ -632,9 +640,18 @@ extension Vector3Foundation on Vector3
 extension Vector4Foundation on Vector4
   LinearColor toLinearColor()
 
-final class WorldPosition
-  ({double x, double y, double z}) relativeTo(WorldPosition origin)
+final class WorldOffset
   String toString()
+  bool operator ==(Object other)
+  const WorldOffset({required this.x, required this.y, required this.z})
+  final double x
+  final double y
+  final double z
+  int get hashCode
+
+final class WorldPosition
+  String toString()
+  WorldOffset relativeTo(WorldPosition origin)
   WorldPosition translated(double dx, double dy, double dz)
   bool get isFinite
   bool operator ==(Object other)

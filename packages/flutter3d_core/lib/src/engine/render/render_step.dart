@@ -27,6 +27,7 @@ library;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart' show GraphicsDevice;
 
+import '../../formats/engine_words.dart';
 import '../scene/occlusion/occlusion_test.dart';
 import 'frame_graph.dart' show PassSkip, SkippedPass;
 import 'frame_plan.dart' show FramePassNames;
@@ -165,8 +166,12 @@ final class RenderStep {
 
   /// What the step is called in `FrameResult.skipped` when it is off.
   ///
-  /// The same string as the pass it owns where it owns one pass of that name
-  /// — `bloom`, `decals` — so a reader holding either finds the other.
+  /// A built-in step's is `f3d.<name>`, as every plugin's carries its own
+  /// namespace: the pass it owns with `f3d.` before it and its spaces made
+  /// underscores where it owns one pass of that name (`f3d.bloom` owns
+  /// `bloom`), so a reader holding either finds the other. Files written
+  /// before the prefix name it without, and `RendererSteps.named` finds it
+  /// by that word too.
   final String name;
 
   /// The frame-graph nodes this step's switch decides, by name.
@@ -236,7 +241,7 @@ final class RenderStep {
   /// blurred moments the `evsm` filter reads. Off is `shadows.enabled`
   /// false, and every lit pass then shades unshadowed.
   static const RenderStep shadows = RenderStep._(
-    'shadows',
+    'f3d.shadows',
     _shadowsOff,
     _shadowsOn,
     passes: <String>{
@@ -251,7 +256,7 @@ final class RenderStep {
   /// `ShadowSettings.caustics`. Drawn inside the shadow pass, so it owns no
   /// pass of its own, and needs [shadows].
   static const RenderStep caustics = RenderStep._(
-    'caustics',
+    'f3d.caustics',
     _causticsOff,
     _causticsOn,
     needs: <RenderStep>{shadows},
@@ -261,7 +266,7 @@ final class RenderStep {
   /// `RenderSettings.reflectionProbes` false: the probes keep the last
   /// picture they took and the scene goes on sampling it.
   static const RenderStep reflectionProbes = RenderStep._(
-    'reflection probes',
+    'f3d.reflection_probes',
     _probesOff,
     _probesOn,
     passPrefix: 'reflection probe ',
@@ -271,7 +276,7 @@ final class RenderStep {
   /// `RenderSettings.irradianceUpdates` false: the field keeps the light it
   /// has gathered and the scene goes on reading it.
   static const RenderStep irradianceUpdate = RenderStep._(
-    'irradiance update',
+    'f3d.irradiance_update',
     _irradianceOff,
     _irradianceOn,
     passes: <String>{'irradiance update'},
@@ -281,7 +286,7 @@ final class RenderStep {
   /// `RenderSettings.renderTextures` false: each texture keeps its last
   /// picture.
   static const RenderStep renderTextures = RenderStep._(
-    'render textures',
+    'f3d.render_textures',
     _renderTexturesOff,
     _renderTexturesOn,
     passes: <String>{'render textures'},
@@ -290,7 +295,7 @@ final class RenderStep {
   /// The mirrored pictures behind each planar reflector. Off is
   /// `planarReflections.enabled` false.
   static const RenderStep planarReflections = RenderStep._(
-    'planar reflections',
+    'f3d.planar_reflections',
     _planarOff,
     _planarOn,
     passes: <String>{'planar reflections'},
@@ -300,7 +305,7 @@ final class RenderStep {
 
   /// Decals painted onto the opaque half. Off is `decals.enabled` false.
   static const RenderStep decals = RenderStep._(
-    'decals',
+    'f3d.decals',
     _decalsOff,
     _decalsOn,
     passes: <String>{FramePassNames.decals},
@@ -320,7 +325,7 @@ final class RenderStep {
   /// [RenderSettings.stepsOff] holds it, which [RenderSettings.without]
   /// writes and a `copyWith(stepsOff: …)` that leaves it out undoes.
   static const RenderStep transparent = RenderStep._(
-    'transparent',
+    'f3d.transparent',
     _transparentOff,
     _transparentOn,
     passes: <String>{'transparent'},
@@ -331,7 +336,7 @@ final class RenderStep {
   /// reads the environment. Needs [transparent], its only reader; switched,
   /// like it, by [RenderSettings.stepsOff].
   static const RenderStep sceneColorCopy = RenderStep._(
-    'scene color copy',
+    'f3d.scene_color_copy',
     _copyOff,
     _copyOn,
     passes: <String>{'scene color copy'},
@@ -340,14 +345,14 @@ final class RenderStep {
 
   /// The distance and height fog the lit stages mix in. Off is a density of
   /// nought; arithmetic inside the scene pass, so no pass of its own.
-  static const RenderStep fog = RenderStep._('fog', _fogOff, _fogOn);
+  static const RenderStep fog = RenderStep._('f3d.fog', _fogOff, _fogOn);
 
   /// The occlusion read back for culling by the next frame — `C3`, the
   /// depth pyramid. Off sets `occlusion` from `OcclusionMode.hiZ` to
   /// `OcclusionMode.none`; a software occlusion test, which needs no
   /// pyramid, is left alone.
   static const RenderStep hiZOcclusion = RenderStep._(
-    'hi-z occlusion',
+    'f3d.hi_z_occlusion',
     _hiZOff,
     _hiZOn,
     passes: <String>{'depth pyramid'},
@@ -357,7 +362,7 @@ final class RenderStep {
 
   /// Screen-space reflections. Off is `reflections.enabled` false.
   static const RenderStep reflections = RenderStep._(
-    'reflections',
+    'f3d.reflections',
     _reflectionsOff,
     _reflectionsOn,
     passes: <String>{'reflections'},
@@ -366,7 +371,7 @@ final class RenderStep {
   /// Ambient occlusion and its blur, whichever method. Off is
   /// `ambientOcclusion.enabled` false.
   static const RenderStep ambientOcclusion = RenderStep._(
-    'ambient occlusion',
+    'f3d.ambient_occlusion',
     _aoOff,
     _aoOn,
     passes: <String>{'ssao', 'ssao blur'},
@@ -375,7 +380,7 @@ final class RenderStep {
   /// The short march towards the sun at every pixel, and the resolve that
   /// averages its dither. Off is `contactShadows.enabled` false.
   static const RenderStep contactShadows = RenderStep._(
-    'contact shadows',
+    'f3d.contact_shadows',
     _contactOff,
     _contactOn,
     passes: <String>{'contact shadows', 'contact shadow resolve'},
@@ -384,7 +389,7 @@ final class RenderStep {
   /// The fog marched through the light. Off is `volumetricFog.enabled`
   /// false.
   static const RenderStep volumetricFog = RenderStep._(
-    'volumetric fog',
+    'f3d.volumetric_fog',
     _volumetricOff,
     _volumetricOn,
     passes: <String>{'volumetric fog'},
@@ -392,7 +397,7 @@ final class RenderStep {
 
   /// Shafts of sunlight through the air. Off is `lightShafts.enabled` false.
   static const RenderStep lightShafts = RenderStep._(
-    'light shafts',
+    'f3d.light_shafts',
     _shaftsOff,
     _shaftsOn,
     passes: <String>{'light shafts'},
@@ -402,7 +407,7 @@ final class RenderStep {
 
   /// Off is `depthOfField.enabled` false.
   static const RenderStep depthOfField = RenderStep._(
-    'depth of field',
+    'f3d.depth_of_field',
     _dofOff,
     _dofOn,
     passes: <String>{'depth of field'},
@@ -418,7 +423,7 @@ final class RenderStep {
   /// through [RenderSettings.stepsOff] (`without`), and that takes the two
   /// readers that need it, [motionBlur] and [temporalAntiAliasing], with it.
   static const RenderStep velocity = RenderStep._(
-    'velocity',
+    'f3d.velocity',
     null,
     null,
     passes: <String>{
@@ -429,7 +434,7 @@ final class RenderStep {
 
   /// Off is `motionBlur.enabled` false. Needs [velocity].
   static const RenderStep motionBlur = RenderStep._(
-    'motion blur',
+    'f3d.motion_blur',
     _motionOff,
     _motionOn,
     passes: <String>{'motion blur'},
@@ -444,7 +449,7 @@ final class RenderStep {
   /// what lets an upscale that was asked for appear — the one step whose
   /// absence adds a pass.
   static const RenderStep temporalAntiAliasing = RenderStep._(
-    'temporal anti-aliasing',
+    'f3d.temporal_anti_aliasing',
     _temporalOff,
     _temporalOn,
     passes: <String>{
@@ -459,7 +464,7 @@ final class RenderStep {
   /// The meter that adapts the exposure. Off is `autoExposure.enabled`
   /// false; the composite then uses `RenderSettings.exposure`.
   static const RenderStep autoExposure = RenderStep._(
-    'auto exposure',
+    'f3d.auto_exposure',
     _autoExposureOff,
     _autoExposureOn,
     passes: <String>{'luminance'},
@@ -467,7 +472,7 @@ final class RenderStep {
 
   /// Off is `localExposure.enabled` false.
   static const RenderStep localExposure = RenderStep._(
-    'local exposure',
+    'f3d.local_exposure',
     _localExposureOff,
     _localExposureOn,
     passes: <String>{'local exposure'},
@@ -475,7 +480,7 @@ final class RenderStep {
 
   /// Off is `bloom.enabled` false.
   static const RenderStep bloom = RenderStep._(
-    'bloom',
+    'f3d.bloom',
     _bloomOff,
     _bloomOn,
     passes: <String>{'bloom'},
@@ -484,7 +489,7 @@ final class RenderStep {
   /// Ghosts and a halo drawn from the glow, so it needs [bloom]. Off is
   /// `bloom.lensFlare.enabled` false.
   static const RenderStep lensFlare = RenderStep._(
-    'lens flare',
+    'f3d.lens_flare',
     _flareOff,
     _flareOn,
     passes: <String>{'lens flare'},
@@ -496,7 +501,7 @@ final class RenderStep {
   /// The tone curve, and a display transform in its place. Off is
   /// `tonemap` false: the composite clamps instead.
   static const RenderStep tonemap = RenderStep._(
-    'tonemap',
+    'f3d.tonemap',
     _tonemapOff,
     _tonemapOn,
   );
@@ -505,7 +510,7 @@ final class RenderStep {
   /// balance, tint and the colour table. Off sets each to its neutral value
   /// and leaves the lens, the film and the dither as they were.
   static const RenderStep colorGrade = RenderStep._(
-    'color grade',
+    'f3d.color_grade',
     _gradeOff,
     _gradeOn,
   );
@@ -513,14 +518,14 @@ final class RenderStep {
   /// The lens's bend and its colour fringes — `look.distortion` and
   /// `look.chromaticAberration`, both nought when off.
   static const RenderStep lensDistortion = RenderStep._(
-    'lens distortion',
+    'f3d.lens_distortion',
     _distortionOff,
     _distortionOn,
   );
 
   /// The film: `look.vignette` and `look.grain`, both nought when off.
   static const RenderStep vignetteAndGrain = RenderStep._(
-    'vignette and grain',
+    'f3d.vignette_and_grain',
     _filmOff,
     _filmOn,
   );
@@ -531,7 +536,7 @@ final class RenderStep {
   /// `spatialUpscale.enabled` false, and the frame is stretched by the
   /// present instead.
   static const RenderStep spatialUpscale = RenderStep._(
-    'spatial upscale',
+    'f3d.spatial_upscale',
     _upscaleOff,
     _upscaleOn,
     passes: <String>{'spatial upscale'},
@@ -544,7 +549,7 @@ final class RenderStep {
   /// Multisampling is not here: it is the device's sample count, chosen when
   /// the renderer is made, rather than a step of the frame.
   static const RenderStep edgeSmoothing = RenderStep._(
-    'edge smoothing',
+    'f3d.edge_smoothing',
     _edgesOff,
     _edgesOn,
     passes: <String>{'antialias'},
@@ -554,7 +559,7 @@ final class RenderStep {
   /// resolve or the upscale, whichever asked for it. Off sets all three
   /// strengths to nought.
   static const RenderStep sharpening = RenderStep._(
-    'sharpening',
+    'f3d.sharpening',
     _sharpenOff,
     _sharpenOn,
     passes: <String>{'antialias'},
@@ -563,7 +568,7 @@ final class RenderStep {
   /// The high-contrast look and the outlines it rings marked nodes in. Off
   /// is `highContrast.enabled` false.
   static const RenderStep highContrast = RenderStep._(
-    'high contrast',
+    'f3d.high_contrast',
     _contrastOff,
     _contrastOn,
     passes: <String>{'outline mask', 'high contrast'},
@@ -572,7 +577,7 @@ final class RenderStep {
   /// The editor's normals, clay, outline and curvature views. Off is
   /// `ViewportShading.off`.
   static const RenderStep viewportShading = RenderStep._(
-    'viewport shading',
+    'f3d.viewport_shading',
     _shadingOff,
     _shadingOn,
     passes: <String>{'viewport shading'},
@@ -716,7 +721,8 @@ abstract final class RenderStepInternals {
   /// switched off named in it.
   ///
   /// A step whose name a skipped pass already carries is that entry, so a
-  /// name is never listed twice. A step recorded as off whose switch has
+  /// name is never listed twice: `bloom` the pass stands for `f3d.bloom` the
+  /// step, as [engineWordFor] spells one in the other's words. A step recorded as off whose switch has
   /// since been turned back on through `copyWith` is not listed: the
   /// switch is what decides the frame, and the list reports the frame.
   ///
@@ -730,7 +736,12 @@ abstract final class RenderStepInternals {
   }) {
     final off = switchedOffIn(settings, also: also);
     if (off.isEmpty) return nodeSkips;
-    final named = <String>{for (final skip in nodeSkips) skip.name};
+    final named = <String>{
+      for (final skip in nodeSkips) ...<String>{
+        skip.name,
+        engineWordFor(skip.name),
+      },
+    };
     return List<SkippedPass>.unmodifiable(<SkippedPass>[
       ...nodeSkips,
       for (final step in <RenderStep>[

@@ -94,7 +94,7 @@ void main() {
     test('round-trips an ordinary colour', () {
       const double r = 0.373, g = 0.831, b = 0.894;
       final hsv = ColorField.rgbToHsv(r, g, b);
-      final (double gotR, double gotG, double gotB) = ColorField.hsvToRgb(
+      final DisplayRgb(r: gotR, g: gotG, b: gotB) = ColorField.hsvToRgb(
         hsv.hue,
         hsv.saturation,
         hsv.value,

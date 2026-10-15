@@ -4,7 +4,7 @@
   names one (docs/CONTRACTS.md).
 - **Breaking: American spelling in identifiers, as Flutter and Dart
   use.** `colour` is `color`, `licence` is `license`, `LicenceEntry` is
-  `LicenseEntry`, `LicenceRecord` is `LicenseRecord`, `licenceUrl` is
+  `LicenseSection`, `LicenceRecord` is `LicenseRecord`, `licenceUrl` is
   `licenseUrl`. Only the Dart names changed: a file keeps the keys it was
   written with, and `dart fix` carries the renames.
 - **Breaking: one home for `Credit`.** The barrel re-exported `Credit` and

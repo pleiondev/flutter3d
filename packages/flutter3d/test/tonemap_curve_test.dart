@@ -212,8 +212,8 @@ void main() {
         width: 32,
         height: 32,
         scene: scene,
-        views: <RenderView>[
-          RenderView(camera: CameraNode()..setPosition(0.0, 0.0, 3.0)),
+        views: <CameraView>[
+          CameraView(camera: CameraNode()..setPosition(0.0, 0.0, 3.0)),
         ],
         settings: RenderSettings(tonemapCurve: curve),
       );

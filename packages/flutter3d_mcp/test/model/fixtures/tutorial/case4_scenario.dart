@@ -117,7 +117,7 @@ Future<ModelProject> case4StartingProject({
 
   for (final object in project.objects) {
     if (object.geometry case ImportedGeometry(:final data)) {
-      final (mesh, _, _) = importMeshData(data);
+      final mesh = importMeshData(data).mesh;
       project = project.withObject(
         object.copyWith(geometry: EditedGeometry(mesh)),
       );

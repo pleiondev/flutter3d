@@ -155,6 +155,14 @@ final class OidcLoginRedirect
   final String state
   final Uri uri
 
+final class RsaKeyPair
+  String toString()
+  bool operator ==(Object other)
+  const RsaKeyPair({required this.publicKey, required this.privateKey})
+  final pc.RSAPrivateKey privateKey
+  final pc.RSAPublicKey publicKey
+  int get hashCode
+
 final class XapiActivity
   Map<String, dynamic> toJson()
   const XapiActivity({required this.id, required this.name})
@@ -211,7 +219,7 @@ final class XapiVerb
   static const answered = XapiVerb(id: 'http://adlnet.gov/expapi/verbs/answered', display: 'answered')
   static const completed = XapiVerb(id: 'http://adlnet.gov/expapi/verbs/completed', display: 'completed')
 
-({pc.RSAPublicKey publicKey, pc.RSAPrivateKey privateKey}) generateRsaKeyPair()
+RsaKeyPair generateRsaKeyPair()
 
 String generateUuidV4()
 

@@ -78,28 +78,34 @@ final class _DecodingDevice extends GraphicsDevice with EncodedImageUpload {
 void main() {
   group('cappedImageSize', () {
     test('keeps an image that fits, and the aspect of one that does not', () {
-      expect(cappedImageSize(512, 256, maxDimension: 1024), (
-        width: 512,
-        height: 256,
-      ));
-      expect(cappedImageSize(4096, 2048, maxDimension: 1024), (
-        width: 1024,
-        height: 512,
-      ));
-      expect(cappedImageSize(4096, 16, maxDimension: 1024), (
-        width: 1024,
-        height: 4,
-      ));
-      expect(cappedImageSize(100000, 1, maxDimension: 1024), (
-        width: 1024,
-        height: 1,
-      ));
-      expect(cappedImageSize(4096, 4096), (width: 4096, height: 4096));
+      expect(
+        cappedImageSize(512, 256, maxDimension: 1024),
+        const ImageExtent(width: 512, height: 256),
+      );
+      expect(
+        cappedImageSize(4096, 2048, maxDimension: 1024),
+        const ImageExtent(width: 1024, height: 512),
+      );
+      expect(
+        cappedImageSize(4096, 16, maxDimension: 1024),
+        const ImageExtent(width: 1024, height: 4),
+      );
+      expect(
+        cappedImageSize(100000, 1, maxDimension: 1024),
+        const ImageExtent(width: 1024, height: 1),
+      );
+      expect(
+        cappedImageSize(4096, 4096),
+        const ImageExtent(width: 4096, height: 4096),
+      );
     });
   });
 
   test('encodedImageSize reads a PNG header and nothing it does not know', () {
-    expect(encodedImageSize(_pngHeader(640, 480)), (width: 640, height: 480));
+    expect(
+      encodedImageSize(_pngHeader(640, 480)),
+      const ImageExtent(width: 640, height: 480),
+    );
     expect(encodedImageSize(Uint8List.fromList(List<int>.filled(40, 7))), null);
   });
 

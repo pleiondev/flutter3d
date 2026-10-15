@@ -4,7 +4,7 @@
 //
 // Drawn once per level into its own rectangle of one texture: the base at
 // the scene's size, and each level after it half the one before, side by
-// side — see `SceneColourChain`. Every level is taken from the scene itself
+// side — see `SceneColorChain`. Every level is taken from the scene itself
 // rather than from the level above it, because a pass cannot read the
 // texture it draws into, and one texture is what the lit stage has a
 // sampler left for.

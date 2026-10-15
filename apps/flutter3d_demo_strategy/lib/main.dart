@@ -188,7 +188,7 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
   bool _panning = false;
 
   late final Scene _scene;
-  late final RenderView _view;
+  late final CameraView _view;
   late final CameraNode _camera;
 
   /// The frame source, once there is something to spend a frame on.
@@ -436,7 +436,7 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
       )..lookAt(vm.Vector3(0.35, -1.0, 0.5)),
     );
     _camera = _scene.add(CameraNode(name: 'camera'));
-    _view = RenderView(camera: _camera);
+    _view = CameraView(camera: _camera);
 
     final run = StrategyRun(
       firstLevel: mapAsset,
@@ -870,7 +870,7 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
               width: (constraints.maxWidth * dpr).round().clamp(1, 8192),
               height: (constraints.maxHeight * dpr).round().clamp(1, 8192),
               scene: _scene,
-              views: <RenderView>[_view],
+              views: <CameraView>[_view],
               settings: _settings,
             );
             return Stack(

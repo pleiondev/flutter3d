@@ -27,7 +27,7 @@ import 'package:flutter_test/flutter_test.dart';
     width: asked,
     height: asked,
     scene: scene,
-    views: <RenderView>[RenderView(camera: scene.cameras.single)],
+    views: <CameraView>[CameraView(camera: scene.cameras.single)],
     settings: RenderSettings(renderScale: scale),
   );
   return (width: frame.frame.width, height: frame.frame.height);
@@ -90,7 +90,7 @@ void main() {
       width: 64,
       height: 64,
       scene: scene,
-      views: <RenderView>[RenderView(camera: scene.cameras.single)],
+      views: <CameraView>[CameraView(camera: scene.cameras.single)],
       settings: const RenderSettings(
         renderScale: 0.5,
         bloom: BloomSettings(enabled: true),

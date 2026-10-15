@@ -236,7 +236,7 @@ final class CollisionHeightfield extends CollisionShape
   int partSeams(int part)
   int partsIn(Vector3 position, Vector3 min, Vector3 max, Int32List out)
 
-abstract mixin class CollisionListener
+abstract base mixin class CollisionListener
   CollisionListener()
   void onCollision(CollisionContext context)
   void onCollisionEnd(CollisionContext context)
@@ -609,6 +609,15 @@ final class JointType
 abstract final class Layers
   static const int all = 0xFFFFFFFF
 
+final class LipOverflow
+  String toString()
+  bool operator ==(Object other)
+  const LipOverflow({required this.head, required this.speed, required this.width})
+  final double head
+  final double speed
+  final double width
+  int get hashCode
+
 final class LiquidBody with JetReceiver
   FluidMedium get medium
   FluidMedium get mediumInState
@@ -654,8 +663,8 @@ final class LiquidLayer
   void add(LiquidLayer other)
 
 final class MeshVessel implements VesselShape
-  ({double low, double high}) span(Vector3 up)
   MeshVessel({required List<Vector3> positions, required List<int> indices, List<Vector3> rim = const []})
+  VesselSpan span(Vector3 up)
   bool contains(Vector3 point)
   double volumeBelow(Vector3 up, double height)
   final List<Vector3> positions
@@ -706,6 +715,14 @@ final class ObstacleTouch
   const ObstacleTouch({required this.normal, required this.depth})
   final Vector3 normal
   final double depth
+  int get hashCode
+
+final class OrificeStream
+  String toString()
+  bool operator ==(Object other)
+  const OrificeStream({required this.flow, required this.speed})
+  final double flow
+  final double speed
   int get hashCode
 
 final class OutsideWalls with JetObstacle
@@ -857,9 +874,9 @@ final class RetiredParticles
   static final RetiredParticles none
 
 final class RevolvedVessel implements VesselShape
-  ({double distance, Vector3 normal})? wallDistance(Vector3 point)
-  ({double low, double high}) span(Vector3 up)
   RevolvedVessel(List<Vector2> wall, {this.slices = 240, this.rimPoints = 48})
+  VesselSpan span(Vector3 up)
+  VesselWallDistance? wallDistance(Vector3 point)
   bool contains(Vector3 point)
   double get mouthRadius
   double radiusAt(double height)
@@ -1010,21 +1027,45 @@ final class TubeMeniscus
   late final double peak
   late final double wallRise
 
+final class VesselLip
+  String toString()
+  bool operator ==(Object other)
+  const VesselLip({required this.point, required this.height})
+  final Vector3 point
+  final double height
+  int get hashCode
+
 abstract base class VesselShape
   VesselShape()
-  abstract ({double low, double high}) span(Vector3 up)
   abstract List<Vector3> get rim
+  abstract VesselSpan span(Vector3 up)
   abstract bool contains(Vector3 point)
   abstract double volumeBelow(Vector3 up, double height)
 
+final class VesselSpan
+  String toString()
+  bool operator ==(Object other)
+  const VesselSpan({required this.low, required this.high})
+  final double high
+  final double low
+  int get hashCode
+
 extension VesselVolumes on VesselShape
-  ({Vector3 point, double height})? lip(Vector3 up)
+  VesselLip? lip(Vector3 up)
   double get capacity
   double holds(Vector3 up)
   double levelFor(double volume)
   double surfaceFor(Vector3 up, double volume)
   double surfaceNear(Vector3 up, double volume, double guess, {double tolerance = 1e-10})
   double volumeUpTo(double level)
+
+final class VesselWallDistance
+  String toString()
+  bool operator ==(Object other)
+  const VesselWallDistance({required this.distance, required this.normal})
+  final Vector3 normal
+  final double distance
+  int get hashCode
 
 enum WedgeUphill
   values: positiveX, negativeX, positiveZ, negativeZ
@@ -1033,6 +1074,14 @@ enum WedgeUphill
   final double x
   final double z
   int get axis
+
+final class WeirFlow
+  String toString()
+  bool operator ==(Object other)
+  const WeirFlow({required this.flow, required this.area})
+  final double area
+  final double flow
+  int get hashCode
 
 final class WindSettings
   WindSettings copyWith({double? velocityX, double? velocityY, double? velocityZ, double? drag, double? airDensity})
@@ -1059,7 +1108,7 @@ abstract base class WorldSweeps
 
 double circularSegment(double radius, double offset)
 
-({double flow, double area}) circularWeir({required double head, required double radius, required double tilt, required double g, double discharge = sharpEdgeDischarge, int steps = 360})
+WeirFlow circularWeir({required double head, required double radius, required double tilt, required double g, double discharge = sharpEdgeDischarge, int steps = 360})
 
 void contactBetween(CollisionShape a, Vector3 aAt, CollisionShape b, Vector3 bAt, Contact out, {double margin = 0.02})
 
@@ -1075,9 +1124,9 @@ double jurinHeight(FluidMedium medium, double radius, double g)
 
 List<JetObstacle> obstaclesNear(List<JetObstacle> obstacles, Vector3 center, double distance)
 
-({double flow, double speed}) orificeFlow({required double area, required double head, required double g, double discharge = sharpEdgeDischarge})
+OrificeStream orificeFlow({required double area, required double head, required double g, double discharge = sharpEdgeDischarge})
 
-({double head, double speed, double width}) overCircularLip({required double flow, required double radius, required double tilt, required double g})
+LipOverflow overCircularLip({required double flow, required double radius, required double tilt, required double g})
 
 double pipeFlow({required double length, required double radius, required double head, required FluidMedium medium, required double g})
 

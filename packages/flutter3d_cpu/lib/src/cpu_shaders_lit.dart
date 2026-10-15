@@ -373,10 +373,10 @@ final class _Layers {
   /// bends leaves the far side of the volume, at the level the roughness
   /// chooses; straight behind for a thin wall.
   Vector3 sceneBehind(Surface s, Float32List v, ShaderBindings b) {
-    final info = b.vec4('LayerInfo', 'scene_colour', Vector4.zero());
+    final info = b.vec4('LayerInfo', 'scene_color', Vector4.zero());
     final viewport = b.vec4('LayerInfo', 'scene_viewport', Vector4.zero());
     final matrix = b.mat4('LayerInfo', 'scene_view_projection');
-    final copy = b.textures['scene_colour_texture'];
+    final copy = b.textures['scene_color_texture'];
     final ior = f0Ior;
     final spread = _spread(ior);
     final top = info.x - 1.0;
@@ -393,7 +393,7 @@ final class _Layers {
     final incident = -s.view;
     final position = Vector3(v[kVWorld], v[kVWorld + 1], v[kVWorld + 2]);
 
-    // `SceneColourLevel`: held half a texel inside the level's rectangle.
+    // `SceneColorLevel`: held half a texel inside the level's rectangle.
     Vector4 level(double u, double w, int index) {
       if (copy == null) return Vector4.zero();
       final rect = b.vec4(
@@ -410,7 +410,7 @@ final class _Layers {
       );
     }
 
-    // `SceneColourAt`.
+    // `SceneColorAt`.
     Vector4 at(Vector3 ray) {
       final world = position + ray * thickness;
       final clip = matrix.transform(Vector4(world.x, world.y, world.z, 1.0));
@@ -850,11 +850,11 @@ final class PbrShader extends CpuFragmentShader {
     var ambient = (diffuseColour.clone()..multiply(s.ambient)).scaled(
       s.occlusion,
     );
-    // `SceneColourBound()` — `M3`: the transparent pass lends a copy of the
+    // `SceneColorBound()` — `M3`: the transparent pass lends a copy of the
     // scene, and the transmitted share is read from it instead.
     final sceneBound =
         layers != null &&
-        b.vec4('LayerInfo', 'scene_colour', Vector4.zero()).x > 0.0;
+        b.vec4('LayerInfo', 'scene_color', Vector4.zero()).x > 0.0;
     // `g_pane`: a blended, transmitting surface with no volume lets the
     // target through the blend rather than reading what is behind it.
     final pane =

@@ -141,8 +141,8 @@ final class CryptReplay {
   /// The views [draw] draws: the player's eye, clearing to black. Also what
   /// a warm-up is handed, since a probe captures against the first view's
   /// clear colour.
-  List<RenderView> views() => <RenderView>[
-    RenderView(
+  List<CameraView> views() => <CameraView>[
+    CameraView(
       camera: camera,
       clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
     ),

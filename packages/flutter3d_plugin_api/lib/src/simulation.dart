@@ -355,7 +355,7 @@ final class OriginShifted extends BusEvent {
 
   /// How far the origin moved, in doubles: subtract it from a local
   /// position to keep it at the same place in the world.
-  ({double x, double y, double z}) get offset => to.relativeTo(from);
+  WorldOffset get offset => to.relativeTo(from);
 
   /// The name it is published under, which the engine's loop declares.
   static const String eventName = 'origin.shifted';

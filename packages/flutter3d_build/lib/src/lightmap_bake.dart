@@ -290,7 +290,7 @@ final class LightmapBaker {
             if (faceIndex < 0) continue;
             final landed = plan.faceOf(index, faceIndex);
             if (landed == null) continue;
-            final (ti, tj) = plan.texelOf(landed, hit.point);
+            final LightmapTexel(x: ti, y: tj) = plan.texelOf(landed, hit.point);
             final from = ((landed.y + tj) * plan.width + landed.x + ti) * 3;
             final albedo = albedos[index];
             r += albedo.x * previous[from];
@@ -312,7 +312,7 @@ final class LightmapBaker {
   static int _faceFacing(Vector3 normal) {
     final axes = BrushGeometry.faceAxes;
     for (var f = 0; f < axes.length; f++) {
-      if (axes[f].$1.dot(normal) > 0.99) return f;
+      if (axes[f].normal.dot(normal) > 0.99) return f;
     }
     return -1;
   }

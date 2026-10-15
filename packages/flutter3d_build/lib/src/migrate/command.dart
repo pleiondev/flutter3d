@@ -3,7 +3,7 @@
 ///
 /// ```
 /// dart pub global activate flutter3d_build 1.0.0-rc.1
-/// dart pub global activate flutter3d_lints 1.0.0-rc.1
+/// dart pub global activate flutter3d_lints 0.9.0
 /// flutter3d migrate [--dry-run] [--from 0.8] <project>
 /// ```
 ///

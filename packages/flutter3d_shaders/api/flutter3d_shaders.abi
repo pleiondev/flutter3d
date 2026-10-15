@@ -66,7 +66,7 @@ entry Reactive fragment
 entry ReactiveSprite fragment
 entry Reflections fragment
 entry RenderTextureEncode fragment
-entry SceneColourCopy fragment
+entry SceneColorCopy fragment
 entry ShadowCopy fragment
 entry ShadowDepth fragment
 entry ShadowDepthMasked fragment
@@ -829,7 +829,7 @@ stage PbrLayered block LayerInfo member anisotropy 48 16 1 Vector4
 stage PbrLayered block LayerInfo member attenuation 80 16 1 Vector4
 stage PbrLayered block LayerInfo member coat 16 16 1 Vector4
 stage PbrLayered block LayerInfo member iridescence 96 16 1 Vector4
-stage PbrLayered block LayerInfo member scene_colour 272 16 1 Vector4
+stage PbrLayered block LayerInfo member scene_color 272 16 1 Vector4
 stage PbrLayered block LayerInfo member scene_levels 304 96 6 Vector4
 stage PbrLayered block LayerInfo member scene_view_projection 400 64 1 Matrix
 stage PbrLayered block LayerInfo member scene_viewport 288 16 1 Vector4
@@ -865,7 +865,7 @@ stage PbrLayered sampler normal_texture
 stage PbrLayered sampler occlusion_texture
 stage PbrLayered sampler point_shadow_static_texture
 stage PbrLayered sampler point_shadow_texture
-stage PbrLayered sampler scene_colour_texture
+stage PbrLayered sampler scene_color_texture
 stage PbrLayered sampler shadow_texture
 stage PbrLayered sampler sheen_texture
 stage PbrLayeredOpaque block FogInfo
@@ -905,7 +905,7 @@ stage PbrLayeredOpaque block LayerInfo member anisotropy 48 16 1 Vector4
 stage PbrLayeredOpaque block LayerInfo member attenuation 80 16 1 Vector4
 stage PbrLayeredOpaque block LayerInfo member coat 16 16 1 Vector4
 stage PbrLayeredOpaque block LayerInfo member iridescence 96 16 1 Vector4
-stage PbrLayeredOpaque block LayerInfo member scene_colour 272 16 1 Vector4
+stage PbrLayeredOpaque block LayerInfo member scene_color 272 16 1 Vector4
 stage PbrLayeredOpaque block LayerInfo member scene_levels 304 96 6 Vector4
 stage PbrLayeredOpaque block LayerInfo member scene_view_projection 400 64 1 Matrix
 stage PbrLayeredOpaque block LayerInfo member scene_viewport 288 16 1 Vector4
@@ -941,7 +941,7 @@ stage PbrLayeredOpaque sampler normal_texture
 stage PbrLayeredOpaque sampler occlusion_texture
 stage PbrLayeredOpaque sampler point_shadow_static_texture
 stage PbrLayeredOpaque sampler point_shadow_texture
-stage PbrLayeredOpaque sampler scene_colour_texture
+stage PbrLayeredOpaque sampler scene_color_texture
 stage PbrLayeredOpaque sampler shadow_texture
 stage PbrLayeredOpaque sampler sheen_texture
 stage PbrOpaque block FogInfo
@@ -1055,9 +1055,9 @@ stage Reflections sampler surface_texture
 stage RenderTextureEncode block RenderTextureInfo
 stage RenderTextureEncode block RenderTextureInfo member params 0 16 1 Vector4
 stage RenderTextureEncode sampler source_texture
-stage SceneColourCopy block SceneCopyInfo
-stage SceneColourCopy block SceneCopyInfo member params 0 16 1 Vector4
-stage SceneColourCopy sampler source_texture
+stage SceneColorCopy block SceneCopyInfo
+stage SceneColorCopy block SceneCopyInfo member params 0 16 1 Vector4
+stage SceneColorCopy sampler source_texture
 stage ShadowCopy block ShadowCopyInfo
 stage ShadowCopy block ShadowCopyInfo member shift 16 16 1 Vector4
 stage ShadowCopy block ShadowCopyInfo member tile 0 16 1 Vector4

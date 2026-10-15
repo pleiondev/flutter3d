@@ -232,7 +232,7 @@ class _EditorScreenState extends State<EditorScreen>
   );
   final FocusNode _keyboard = FocusNode();
 
-  late final RenderView _view = RenderView(
+  late final CameraView _view = CameraView(
     camera: _camera,
     clearColor: LinearColor.fromSrgb(0.06, 0.07, 0.09, 1.0),
   );
@@ -760,8 +760,8 @@ class _EditorScreenState extends State<EditorScreen>
     final along = _rayThrough(at, size);
     final hit = markUnder(marks, _fly.position, along);
     if (hit == null) return null;
-    final (low, high) = hit.mark.bounds;
-    final distance = Picking.hit(low, high, _fly.position, along) ?? 0.0;
+    final GizmoBounds(:min, :max) = hit.mark.bounds;
+    final distance = Picking.hit(min, max, _fly.position, along) ?? 0.0;
     return (
       mark: hit,
       distance: distance,

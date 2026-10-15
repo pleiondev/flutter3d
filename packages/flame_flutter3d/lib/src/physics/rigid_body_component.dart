@@ -40,8 +40,7 @@ import 'physics_step_component.dart';
 /// [Collider], because [Collider.moveTo] is [Dynamics]'s to call, not a
 /// transform bridge's.
 base class RigidBodyComponent extends Object3dComponent
-    with CollisionCallbacks
-    implements StepFollower {
+    with CollisionCallbacks, StepFollower {
   RigidBodyComponent({
     required this.body,
     required super.node,

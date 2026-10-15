@@ -2748,7 +2748,7 @@ void main() {
           fields: <String, Object?>{
             'value': <double>[1, 1, 1, 1],
           },
-          position: (12, 34),
+          position: NodePosition(x: 12, y: 34),
         ),
         const Link(materialIndex: 0, nodeId: 2, input: 'result', from: 1),
         const Unlink(materialIndex: 0, nodeId: 2, input: 'result'),

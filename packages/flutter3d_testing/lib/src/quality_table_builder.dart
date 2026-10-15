@@ -23,7 +23,7 @@ import 'flip.dart';
 /// One scene to measure: built on the device it will be drawn on, with the
 /// settings it considers full quality.
 typedef QualityScene =
-    ({Scene scene, RenderView view, RenderSettings settings}) Function(
+    ({Scene scene, CameraView view, RenderSettings settings}) Function(
       GraphicsDevice device,
     );
 
@@ -215,7 +215,7 @@ FrameResult Function() _drawer(
     width: width,
     height: height,
     scene: subject.scene,
-    views: <RenderView>[subject.view],
+    views: <CameraView>[subject.view],
     settings: settings,
   );
 }

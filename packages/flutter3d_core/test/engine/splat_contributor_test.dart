@@ -63,7 +63,7 @@ void main() {
         settings: const RenderSettings(),
         width: 320,
         height: 200,
-        view: RenderView(camera: CameraNode()..setPosition(0.0, 0.0, 5.0)),
+        view: CameraView(camera: CameraNode()..setPosition(0.0, 0.0, 5.0)),
         viewProjection: vm.Matrix4.identity(),
       )..state = FramePassState(),
     );
@@ -96,7 +96,7 @@ void main() {
           settings: const RenderSettings(),
           width: 320,
           height: 200,
-          view: RenderView(camera: CameraNode()..setPosition(0.0, 0.0, 5.0)),
+          view: CameraView(camera: CameraNode()..setPosition(0.0, 0.0, 5.0)),
           viewProjection: vm.Matrix4.identity(),
           frameIndex: frameIndex,
           temporal: temporal,
@@ -211,7 +211,7 @@ void main() {
     // `PassContributor.boundsFor`: a cloud drawn nearer than every mesh has
     // to be counted, or the fitted near plane cuts it away; the default null
     // kept the camera's own plane for every view a cloud was in.
-    final view = RenderView(camera: CameraNode());
+    final view = CameraView(camera: CameraNode());
 
     test('holds every splat to the reach its quad is drawn to', () {
       // Mutation: return the base class's null — fails on the first line.

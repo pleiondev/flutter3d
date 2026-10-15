@@ -67,7 +67,7 @@ final class SceneSurface extends StatefulWidget {
     required this.settings,
     required this.onBeforeFrame,
     required this.presentFrame,
-    this.moreViews = const <RenderView>[],
+    this.moreViews = const <CameraView>[],
     this.onFrame,
     this.cadence,
     this.pixelRatio,
@@ -91,15 +91,15 @@ final class SceneSurface extends StatefulWidget {
 
   final Renderer renderer;
   final Scene scene;
-  final RenderView view;
+  final CameraView view;
 
   /// Views drawn into the same frame after [view], each through its own
-  /// camera into its own `RenderView.viewportFraction`: the other half of a
+  /// camera into its own `CameraView.viewportFraction`: the other half of a
   /// split screen, a rear-view mirror.
   ///
   /// **The renderer drew several views, and this surface handed it one.** A
   /// two-player game had to leave this widget and drive the renderer itself.
-  final List<RenderView> moreViews;
+  final List<CameraView> moreViews;
 
   /// What this frame should be drawn with.
   ///
@@ -230,7 +230,7 @@ class _SceneSurfaceState extends State<SceneSurface> {
           width: width,
           height: height,
           scene: scene,
-          views: <RenderView>[view, ...moreViews],
+          views: <CameraView>[view, ...moreViews],
           settings: settings(),
         );
         _last = frame;

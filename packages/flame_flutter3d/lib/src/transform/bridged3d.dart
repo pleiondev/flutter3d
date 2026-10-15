@@ -14,19 +14,23 @@ import 'plane.dart';
 /// asked for an `Object3dComponent`, and an invader drawn as one instance of
 /// fifty-five could neither be tapped nor have its hitbox seen.
 ///
-/// **Implementable outside this package, and stays so through 1.x.** Games
-/// subclass the components that implement it, and closing it would make
-/// every one of those subclasses `base`. It does not grow within a major: a
-/// capability added later arrives beside it, as a second interface.
-abstract interface class Bridged3d implements Drawn3d {
+/// **Mixed in, not implemented** (`extends PositionComponent with
+/// Bridged3d`): a base mixin class, so a member a minor adds arrives with a
+/// body and a component written against 1.0 keeps compiling. What it can
+/// answer for itself it does: no [elevation], no [space], nothing drawn.
+abstract base mixin class Bridged3d implements Drawn3d {
   /// The plane its Flame point is on.
   BridgePlane get plane;
 
-  /// Metres off [plane] along its normal.
-  double get elevation;
+  /// Metres off [plane] along its normal; none by default.
+  double get elevation => 0.0;
 
-  /// Where its Flame point is placed instead of flat on [plane], if bent.
-  BridgeSpace? get space;
+  /// Where its Flame point is placed instead of flat on [plane], if bent;
+  /// flat by default.
+  BridgeSpace? get space => null;
+
+  @override
+  Aabb3? get drawnBounds3d => null;
 
   /// The linear colour what it draws is multiplied by: what a
   /// [TintEffect] moves.
@@ -38,14 +42,13 @@ abstract interface class Bridged3d implements Drawn3d {
 /// its colour. Every [Bridged3d] is one, and so is a `Node3dComponent`,
 /// which stands in full 3D rather than on a plane.
 ///
-/// **Implementable outside this package, and stays so through 1.x.** Games
-/// subclass the components that implement it, and closing it would make
-/// every one of those subclasses `base`. It does not grow within a major: a
-/// capability added later arrives beside it, as a second interface.
-abstract interface class Drawn3d {
+/// **Mixed in, not implemented** (`extends Component with Drawn3d`): a base
+/// mixin class, so a member a minor adds arrives with a body and a
+/// component written against 1.0 keeps compiling.
+abstract base mixin class Drawn3d {
   /// The box in the scene round what it draws, or null when it draws
-  /// nothing: what a tap is tested against.
-  Aabb3? get drawnBounds3d;
+  /// nothing: what a tap is tested against. Nothing by default.
+  Aabb3? get drawnBounds3d => null;
 
   /// The linear colour what it draws is multiplied by, assigned whole.
   abstract LinearColor tint;

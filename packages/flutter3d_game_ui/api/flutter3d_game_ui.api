@@ -406,20 +406,20 @@ final class Lens
   final PerspectiveProjection base
   final double? designAspect
 
-final class LicenseEntry
-  const LicenseEntry({required this.files, this.author, this.source, this.license, this.licenseUrl})
+final class LicenseRecord
+  LicenseSection? entryFor(String fileName)
+  bool mentions(String fileName)
+  factory LicenseRecord.parse(String markdown)
+  final List<LicenseSection> entries
+  final String text
+
+final class LicenseSection
+  const LicenseSection({required this.files, this.author, this.source, this.license, this.licenseUrl})
   final List<String> files
   final String? author
   final String? license
   final String? licenseUrl
   final String? source
-
-final class LicenseRecord
-  LicenseEntry? entryFor(String fileName)
-  bool mentions(String fileName)
-  factory LicenseRecord.parse(String markdown)
-  final List<LicenseEntry> entries
-  final String text
 
 final class MiniMap extends StatelessWidget
   Widget build(BuildContext context)
@@ -457,6 +457,14 @@ final class MomentHints<E>
 final class MouseSection extends SettingsSection
   Widget build(SettingsSectionContext section)
   const MouseSection()
+
+final class PedalSize
+  String toString()
+  bool operator ==(Object other)
+  const PedalSize({required this.width, required this.height})
+  final double height
+  final double width
+  int get hashCode
 
 final class PhotoBar extends StatelessWidget
   Widget build(BuildContext context)
@@ -645,10 +653,10 @@ final class TouchAction
   final String label
 
 final class TouchButton extends StatefulWidget
+  PedalSize? get pedal
   State<TouchButton> createState()
   const TouchButton({super.key, required this.state, required this.action, required this.label, this.radius = 34.0})
   const TouchButton.pedal({super.key, required this.state, required this.action, required this.label, double width = 84.0, double height = 108.0})
-  final ({double width, double height})? pedal
   final GameAction action
   final InputState state
   final String label
@@ -1004,20 +1012,20 @@ final class Lens
   final PerspectiveProjection base
   final double? designAspect
 
-final class LicenseEntry
-  const LicenseEntry({required this.files, this.author, this.source, this.license, this.licenseUrl})
+final class LicenseRecord
+  LicenseSection? entryFor(String fileName)
+  bool mentions(String fileName)
+  factory LicenseRecord.parse(String markdown)
+  final List<LicenseSection> entries
+  final String text
+
+final class LicenseSection
+  const LicenseSection({required this.files, this.author, this.source, this.license, this.licenseUrl})
   final List<String> files
   final String? author
   final String? license
   final String? licenseUrl
   final String? source
-
-final class LicenseRecord
-  LicenseEntry? entryFor(String fileName)
-  bool mentions(String fileName)
-  factory LicenseRecord.parse(String markdown)
-  final List<LicenseEntry> entries
-  final String text
 
 final class TallyView extends StatelessWidget
   Widget build(BuildContext context)
@@ -1295,6 +1303,14 @@ abstract final class Wcag
 
 library package:flutter3d_game_ui/touch.dart
 
+final class PedalSize
+  String toString()
+  bool operator ==(Object other)
+  const PedalSize({required this.width, required this.height})
+  final double height
+  final double width
+  int get hashCode
+
 final class SteeringBand extends StatefulWidget
   State<SteeringBand> createState()
   const SteeringBand({super.key, required this.state, required this.left, required this.right, this.width = 220.0, this.height = 72.0, this.axis, this.label})
@@ -1313,10 +1329,10 @@ final class TouchAction
   final String label
 
 final class TouchButton extends StatefulWidget
+  PedalSize? get pedal
   State<TouchButton> createState()
   const TouchButton({super.key, required this.state, required this.action, required this.label, this.radius = 34.0})
   const TouchButton.pedal({super.key, required this.state, required this.action, required this.label, double width = 84.0, double height = 108.0})
-  final ({double width, double height})? pedal
   final GameAction action
   final InputState state
   final String label

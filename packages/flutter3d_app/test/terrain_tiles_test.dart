@@ -69,8 +69,8 @@ Future<Uint8List> _draw(
     width: _width,
     height: _height,
     scene: scene,
-    views: <RenderView>[
-      RenderView(camera: camera, clearColor: LinearColor.fromSrgb(1, 0, 0, 1)),
+    views: <CameraView>[
+      CameraView(camera: camera, clearColor: LinearColor.fromSrgb(1, 0, 0, 1)),
     ],
     settings: const RenderSettings(),
   );

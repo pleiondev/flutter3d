@@ -199,7 +199,7 @@ final class HotSwapDemo extends ShowcaseDemo {
       width: _probeWidth,
       height: _probeHeight,
       scene: _scene,
-      views: <RenderView>[RenderView(camera: eye)],
+      views: <CameraView>[CameraView(camera: eye)],
     );
     eye.removeFromParent();
     final ByteData read = await context.device.readback(frame.frame);

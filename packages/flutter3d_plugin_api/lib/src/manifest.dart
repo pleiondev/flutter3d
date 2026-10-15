@@ -206,14 +206,23 @@ final class PluginManifest {
   static final RegExp _idPattern = RegExp(r'^[a-z][a-z0-9_.\-]*$');
 
   /// Why [id] is not a usable name, or null when it is: an id that is not
-  /// lower case letters, digits, `_`, `.` and `-`, or, when the plugin is
-  /// not the engine's own, whose [namespace] is one of the engine's
-  /// [reservedAreas], or the namespace of a 0.8 add-on whose plugins' ids
-  /// readers lift to the engine's.
+  /// lower case letters, digits, `_`, `.` and `-`, one with `__` in it, or,
+  /// when the plugin is not the engine's own, whose [namespace] is one of
+  /// the engine's [reservedAreas], or the namespace of a 0.8 add-on whose
+  /// plugins' ids readers lift to the engine's.
+  ///
+  /// **`__` is the dot of a shader's name.** A lighting model `acme.Ink` is
+  /// compiled as the stage `acme__Ink`, and an id with `__` in it could
+  /// spell another plugin's stage (`acme__ink` + `Glow` is `acme` +
+  /// `ink__Glow`).
   String? get idProblem {
     if (!_idPattern.hasMatch(id)) {
       return 'a plugin id is lower case letters, digits, "_", "." and "-", '
           'starting with a letter; "$id" is not one';
+    }
+    if (id.contains('__')) {
+      return 'a plugin id has no "__", which is how a shader spells the dot '
+          'of a name in the plugin\'s namespace; "$id" has one';
     }
     if (isEngine) return null;
     if (reservedAreas.contains(namespace)) {

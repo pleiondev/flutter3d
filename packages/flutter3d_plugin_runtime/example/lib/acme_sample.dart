@@ -45,7 +45,7 @@ final class TubeHook extends LightTypeHook {
 /// `nDotL`, which is what lights a box under a tube alone on every backend.
 const String hairSource = '''
 f3dmat 3
-material acme_sample_Hair {
+material acme_sample__Hair {
   uniform float gloss = 0.5;
   uniform(Strands) vec3 tint = vec3(0.4, 0.3, 0.2);
   uniform(Strands) float shift = 0.1;
@@ -66,12 +66,12 @@ material acme_sample_Hair {
 /// [hairSource] described as a lighting model.
 final LightingModel hairModel = describeMaterial(
   parseMaterial(hairSource),
-).lightingModel(label: 'Hair', shaderName: 'acme_sample_Hair');
+).lightingModel(label: 'Hair', shaderName: 'acme_sample__Hair');
 
 /// A decal stage of the plugin's own, with the engine's decal interface.
 const LightingModel decalStage = LightingModel(
   'Scorch decal',
-  'acme_sample_Decal',
+  'acme_sample__Decal',
 );
 
 /// The post effect's step.
@@ -279,7 +279,7 @@ final class StreakNode extends RenderNode {
 /// it.
 final PipelineDocument glowPipeline = PipelineDocument(
   anchors: const <PipelineAnchor>[
-    PipelineAnchor(name: 'acme_sample.after glow', after: 'after bloom'),
+    PipelineAnchor(name: 'acme_sample.after glow', after: 'f3d.after_bloom'),
   ],
   nodes: const <PipelineNode>[
     PipelineNode(

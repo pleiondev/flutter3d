@@ -127,11 +127,11 @@ final class Flutter3dEngine
   Renderer get renderer
   Scene get scene
   ValueListenable<PublishedState> get published
+  final CameraView view
   final DeviceRegistry devices
   final EngineLog log
   final EngineLoop loop
   final List<String> backendRefusals
-  final RenderView view
   final SimulationHandle simulation
   final bool ownsDevice
   final bool ownsRenderer
@@ -295,7 +295,7 @@ final class ListenerPose
 final class LoadedLevel
   LightmapLayout? lightmapLayout
   List<DeviceMesh> brushMeshes
-  LoadedLevel({required this.level, required this.scene, required this.collision, required List<LevelIssue> issues, required this.drawCallCount, Map<String, TextureHandle?>? materialTextures, List<DeviceMesh>? brushMeshes, List<ReflectionProbeNode>? probes, this.decals = const <DecalNode>[], this.reflectors = const <PlanarReflectorNode>[], this.screens = const <RenderView>[], this.culler, this.batching = LevelBatching.perMaterial})
+  LoadedLevel({required this.level, required this.scene, required this.collision, required List<LevelIssue> issues, required this.drawCallCount, Map<String, TextureHandle?>? materialTextures, List<DeviceMesh>? brushMeshes, List<ReflectionProbeNode>? probes, this.decals = const <DecalNode>[], this.reflectors = const <PlanarReflectorNode>[], this.screens = const <CameraView>[], this.culler, this.batching = LevelBatching.perMaterial})
   PhysicsBackend get physics
   TextureHandle? lightmap
   VisibilityCuller? culler
@@ -304,12 +304,12 @@ final class LoadedLevel
   final CollisionWorld collision
   final Level level
   final LevelBatching batching
+  final List<CameraView> screens
   final List<DecalNode> decals
   final List<LevelIssue> issues
   final List<MeshNode> brushNodes
   final List<PlanarReflectorNode> reflectors
   final List<ReflectionProbeNode> probes
-  final List<RenderView> screens
   final List<SwappableTexture> watchedTextures
   final List<TextureHandle> boundTextures
   final Map<String, TextureHandle?> materialTextures
@@ -531,7 +531,7 @@ final class RendererFailure extends StatelessWidget
 
 final class Scene3D extends StatefulWidget
   State<Scene3D> createState()
-  const Scene3D({super.key, this.children = const <Widget>[], this.clearColor, this.materials, this.onSceneCreated, this.onBeforeFrame, this.onFrame, this.device = const DeviceSettings(), this.view = const ViewSettings(), this.loop = const LoopSettings(), this.plugins = const PluginSettings(), this.log, this.focusNode, this.autofocus = false, this.onKeyEvent, this.restorationId, this.saveState, this.restoreState, this.onPausedChanged, this.onListenerMoved, this.time, this.xr})
+  const Scene3D({super.key, this.children = const <Widget>[], this.clearColor, this.materials, this.onCreated, this.onBeforeFrame, this.onFrame, this.device = const DeviceSettings(), this.view = const ViewSettings(), this.loop = const LoopSettings(), this.plugins = const PluginSettings(), this.log, this.focusNode, this.autofocus = false, this.onKeyEvent, this.restorationId, this.saveState, this.restoreState, this.onPausedChanged, this.onListenerMoved, this.time, this.xr})
   final DeviceSettings device
   final EngineLog? log
   final FocusNode? focusNode
@@ -551,7 +551,7 @@ final class Scene3D extends StatefulWidget
   final void Function(EngineFrame frame)? onFrame
   final void Function(ListenerPose ears)? onListenerMoved
   final void Function(Object? saved)? restoreState
-  final void Function(Scene3DController scene)? onSceneCreated
+  final void Function(Scene3DController scene)? onCreated
   final void Function(bool paused)? onPausedChanged
 
 final class Scene3DController
@@ -579,12 +579,12 @@ final class SceneSemantics extends StatelessWidget
 
 final class SceneSurface extends StatefulWidget
   State<SceneSurface> createState()
-  const SceneSurface({super.key, required this.renderer, required this.scene, required this.view, required this.settings, required this.onBeforeFrame, required this.presentFrame, this.moreViews = const <RenderView>[], this.onFrame, this.cadence, this.pixelRatio})
+  const SceneSurface({super.key, required this.renderer, required this.scene, required this.view, required this.settings, required this.onBeforeFrame, required this.presentFrame, this.moreViews = const <CameraView>[], this.onFrame, this.cadence, this.pixelRatio})
+  final CameraView view
   final FrameCadence? cadence
   final FramePresenter presentFrame
-  final List<RenderView> moreViews
+  final List<CameraView> moreViews
   final RenderSettings Function() settings
-  final RenderView view
   final Renderer renderer
   final Scene scene
   final VoidCallback onBeforeFrame
@@ -697,11 +697,11 @@ final class ViewResolution
   static const ViewResolution native = ViewResolution._(1.0, null)
 
 final class ViewSettings
-  ViewSettings copyWith({RenderSettings? settings, RenderViewSettings? render, ViewResolution? resolution, List<RenderView>? views, bool? continuous, double? frameRateCap, Widget? placeholder, Widget Function(Object error)? failure, bool? warmUp, void Function(double done)? onWarmUpProgress, bool clearViews = false, bool clearFrameRateCap = false, bool clearFailure = false, bool clearOnWarmUpProgress = false})
-  const ViewSettings({this.settings = const RenderSettings(), this.render = const RenderViewSettings(), this.resolution = ViewResolution.native, this.views, this.continuous = true, this.frameRateCap, this.placeholder = const SizedBox.expand(), this.failure, this.warmUp = true, this.onWarmUpProgress})
-  final List<RenderView>? views
+  ViewSettings copyWith({RenderSettings? settings, CameraViewSettings? render, ViewResolution? resolution, List<CameraView>? views, bool? continuous, double? frameRateCap, Widget? placeholder, Widget Function(Object error)? failure, bool? warmUp, void Function(double done)? onWarmUpProgress, bool clearViews = false, bool clearFrameRateCap = false, bool clearFailure = false, bool clearOnWarmUpProgress = false})
+  const ViewSettings({this.settings = const RenderSettings(), this.render = const CameraViewSettings(), this.resolution = ViewResolution.native, this.views, this.continuous = true, this.frameRateCap, this.placeholder = const SizedBox.expand(), this.failure, this.warmUp = true, this.onWarmUpProgress})
+  final CameraViewSettings render
+  final List<CameraView>? views
   final RenderSettings settings
-  final RenderViewSettings render
   final ViewResolution resolution
   final Widget Function(Object error)? failure
   final Widget placeholder
@@ -822,7 +822,7 @@ final class XrDriver
   Future<void> dispose()
   Future<void> endFrame()
   Future<void> start({InputState? input})
-  List<RenderView> get views
+  List<CameraView> get views
   XrDriver({required this.settings, required this.renderer, required this.origin, this.drawPanel})
   XrFrame? beginFrame(InputState input)
   XrSession get session
@@ -1123,13 +1123,15 @@ export package:flutter3d_physics/flutter3d_physics.dart show ClothObstacle, Coll
   SweptContact
   WorldMirror
 
-export package:flutter3d_sim/flutter3d_sim.dart show ActorHurt, AvoidanceNeighbor, Brush, CollisionLayers, ContactEvent, DisplayTime, EngineLoop, EntityDef, EntityKind, EntityRegistry, FocusPoint, FrameCadence, GameEvent, HeightfieldTiles, InputAction, InputFrame, InputState, InputTapeRecorder, IsolateSimulation, JsonLinearColorWriter, Level, LevelCheck, LevelCollision, LevelIssue, LevelLight, LevelMaterial, LevelRecipe, LevelRule, LevelVisibility, Lightmap, LightmapLayout, LocalSimulation, LogTime, ManualTime, NavMeshLink, PlayerStart, Prefab, SeatInput, ShadowCasting, SimulationFactory, SimulationHandle, SimulationQuestion, SimulationSetup, TileLevelChooser, TimeSource, WorldTiming, XrControl, XrControlReading, XrHand, XrPlane, XrPlaneOrientation, XrPoseInput, XrSceneMesh
+export package:flutter3d_sim/flutter3d_sim.dart show ActorHurt, AvoidanceNeighbor, AvoidanceVelocity, Brush, CollisionLayers, ContactEvent, DisplayTime, DualAxisValue, EngineLoop, EntityDef, EntityKind, EntityRegistry, FocusPoint, FrameCadence, GameEvent, HeightfieldTiles, InputAction, InputFrame, InputState, InputTapeRecorder, IsolateSimulation, JsonLinearColorWriter, Level, LevelCheck, LevelCollision, LevelIssue, LevelLight, LevelMaterial, LevelRecipe, LevelRule, LevelVisibility, Lightmap, LightmapLayout, LightmapTexel, LightmapUv, LocalSimulation, LogTime, ManualTime, NavMeshLink, PlayerStart, Prefab, SeatInput, ShadowCasting, SimulationFactory, SimulationHandle, SimulationQuestion, SimulationSetup, TileLevelChooser, TimeSource, WorldTiming, XrControl, XrControlReading, XrHand, XrPlane, XrPlaneOrientation, XrPoseInput, XrSceneMesh
   ActorHurt
   AvoidanceNeighbor
+  AvoidanceVelocity
   Brush
   CollisionLayers
   ContactEvent
   DisplayTime
+  DualAxisValue
   EngineLoop
   EntityDef
   EntityKind
@@ -1155,6 +1157,8 @@ export package:flutter3d_sim/flutter3d_sim.dart show ActorHurt, AvoidanceNeighbo
   LevelVisibility
   Lightmap
   LightmapLayout
+  LightmapTexel
+  LightmapUv
   LocalSimulation
   LogTime
   ManualTime

@@ -49,8 +49,8 @@ Float32List _render(RenderSettings settings, {RenderMaterial? material}) {
       ..add(card)
       ..add(light)
       ..add(camera),
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: camera,
         clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),

@@ -180,7 +180,7 @@ String typedBlocksSource(
       }
     }
   }
-  // A shader's names are its own and stay as written (`scene_colour`); the
+  // A shader's names are its own and stay as written (`scene_color`); the
   // Dart identifier made from one spells in American, as every identifier
   // in the API does (the structure rule `public identifiers spell in
   // American` holds the rest).

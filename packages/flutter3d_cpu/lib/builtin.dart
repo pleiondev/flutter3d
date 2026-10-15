@@ -19,7 +19,7 @@ export 'src/cpu_mesh_layout.dart';
 // reads.
 export 'src/cpu_shaders_builtin.dart'
     hide
-        SceneColourCopyShader,
+        SceneColorCopyShader,
         debugIdentityColour,
         kColour,
         kExtraLights,

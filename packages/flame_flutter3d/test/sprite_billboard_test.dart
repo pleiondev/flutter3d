@@ -84,8 +84,8 @@ void main() {
         width: _size,
         height: _size,
         scene: game.scene,
-        views: <RenderView>[
-          RenderView(
+        views: <CameraView>[
+          CameraView(
             camera: game.camera3d,
             clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
           ),

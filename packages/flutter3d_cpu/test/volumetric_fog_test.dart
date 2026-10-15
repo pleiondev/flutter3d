@@ -65,7 +65,7 @@ Float32List _cardAndWall(
     width: _size,
     height: _size,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
     settings: RenderSettings(
       tonemap: false,
       bloom: const BloomSettings(enabled: false),
@@ -133,7 +133,7 @@ Float32List _fogTorches({required bool clustered, required double albedo}) {
     width: _torchWidth,
     height: _torchHeight,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
     settings: settings,
   );
   for (var i = 0; i < 7; i++) {
@@ -204,7 +204,7 @@ Float32List _torchBehindWall({
     width: _size,
     height: _size,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
     settings: settings,
   );
   for (var i = 0; i < 3; i++) {
@@ -240,7 +240,7 @@ Float32List _crease(VolumetricFogSettings fog, {required bool occlusion}) {
     width: _creaseWidth,
     height: _creaseHeight,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
     settings: RenderSettings(
       tonemap: false,
       bloom: const BloomSettings(enabled: false),

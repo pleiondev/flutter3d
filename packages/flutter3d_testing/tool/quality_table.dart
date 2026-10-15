@@ -44,7 +44,7 @@ MeshNode _box(GraphicsDevice device, Vector3 size, Vector3 color) => MeshNode(
 
 /// A room in daylight: a floor, a wall, crates, the sun casting and a lamp,
 /// with ambient occlusion, reflections and contact shadows on.
-({Scene scene, RenderView view, RenderSettings settings}) _room(
+({Scene scene, CameraView view, RenderSettings settings}) _room(
   GraphicsDevice device,
 ) {
   final camera = CameraNode()
@@ -88,7 +88,7 @@ MeshNode _box(GraphicsDevice device, Vector3 size, Vector3 color) => MeshNode(
     );
   return (
     scene: scene,
-    view: RenderView(camera: camera),
+    view: CameraView(camera: camera),
     settings: const RenderSettings(
       shadows: ShadowSettings(resolution: 512, cubeResolution: 128),
       ambientOcclusion: AmbientOcclusionSettings(enabled: true),
@@ -100,7 +100,7 @@ MeshNode _box(GraphicsDevice device, Vector3 size, Vector3 color) => MeshNode(
 
 /// A colonnade in haze: pillars on a floor, the sun low through them, with
 /// volumetric fog and light shafts on.
-({Scene scene, RenderView view, RenderSettings settings}) _colonnade(
+({Scene scene, CameraView view, RenderSettings settings}) _colonnade(
   GraphicsDevice device,
 ) {
   final camera = CameraNode()
@@ -128,7 +128,7 @@ MeshNode _box(GraphicsDevice device, Vector3 size, Vector3 color) => MeshNode(
   );
   return (
     scene: scene,
-    view: RenderView(camera: camera),
+    view: CameraView(camera: camera),
     settings: RenderSettings(
       shadows: const ShadowSettings(resolution: 512, cubeResolution: 128),
       volumetricFog: const VolumetricFogSettings(

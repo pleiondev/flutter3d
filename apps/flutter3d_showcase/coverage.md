@@ -134,7 +134,7 @@ Avoid a file name that contains `camera` (structure rule); say `view` or `orbit`
 | vertex-cache | Vertex cache ordering | `optimizeTriangleOrder`, `optimizeVertexFetch` | unknown |
 | procedural-textures | Procedural textures | `SolidColorTexture`, `CheckerboardTexture` | F3D 0.5.0 |
 | view-model | The held item's own pass | `ViewModelNode` | F3D 0.4.0 |
-| multi-view | Several views in one frame | `RenderView`, `ViewportRect`, `layerMask` | unknown |
+| multi-view | Several views in one frame | `CameraView`, `ViewportRect`, `layerMask` | unknown |
 | frame-stats | What a frame reports | `FrameResult` counts, `FramePass` timings | F3D 0.7.0 |
 | frame-graph | The frame graph | `Renderer.planFrame`, `FrameResult.skipped`, `passOrder` | F3D 0.1.0; planFrame F3D 0.7.0 |
 | frame-capture | Capturing a frame | `Renderer.captureNextFrame`, `FrameCapture` | F3D 0.7.0 |

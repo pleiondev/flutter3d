@@ -100,7 +100,7 @@ Float32List _velocity(_Staged it) {
     width: _width,
     height: _height,
     scene: it.scene,
-    views: <RenderView>[RenderView(camera: it.camera)],
+    views: <CameraView>[CameraView(camera: it.camera)],
     settings: _settings,
   );
   return it.probe.last!;
@@ -169,7 +169,7 @@ void main() {
       width: _width,
       height: _height,
       scene: it.scene,
-      views: <RenderView>[RenderView(camera: it.camera)],
+      views: <CameraView>[CameraView(camera: it.camera)],
       settings: const RenderSettings(showVelocity: true),
     );
     expect(

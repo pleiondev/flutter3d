@@ -126,8 +126,8 @@ Future<Uint8List> _drawFromTheStart(
   camera.lookAt(eye + aim);
   scene.add(camera);
 
-  final views = <RenderView>[
-    RenderView(
+  final views = <CameraView>[
+    CameraView(
       camera: camera,
       clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
     ),

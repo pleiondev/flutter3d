@@ -585,6 +585,219 @@ final class NativeFire {
   final double sootYield;
 }
 
+/// Every body's transform and its handle, in the world's slot order —
+/// [NativeWorld.readTransforms].
+final class NativeTransformBlock {
+  const NativeTransformBlock({required this.transforms, required this.bodies});
+
+  /// Seven floats a body: position xyz relative to the origin, then the
+  /// orientation quaternion xyzw.
+  final Float32List transforms;
+
+  /// The bodies the transforms are of, one for every seven floats.
+  final List<NativeBody> bodies;
+
+  @override
+  bool operator ==(Object other) =>
+      other is NativeTransformBlock &&
+      _sameItems(other.transforms, transforms) &&
+      _sameItems(other.bodies, bodies);
+
+  @override
+  int get hashCode =>
+      Object.hash(Object.hashAll(transforms), Object.hashAll(bodies));
+
+  @override
+  String toString() => 'NativeTransformBlock(${bodies.length} bodies)';
+}
+
+/// Every burning body, or burning part of a compound, and its fire's
+/// numbers — [NativeWorld.readFires].
+final class NativeFireBlock {
+  const NativeFireBlock({required this.fires, required this.bodies});
+
+  /// [nativeFireFloats] floats a fire, in the order [NativeFire]'s fields
+  /// are given.
+  final Float32List fires;
+
+  /// What burns, one for every [nativeFireFloats] floats of [fires].
+  final List<NativeBody> bodies;
+
+  @override
+  bool operator ==(Object other) =>
+      other is NativeFireBlock &&
+      _sameItems(other.fires, fires) &&
+      _sameItems(other.bodies, bodies);
+
+  @override
+  int get hashCode =>
+      Object.hash(Object.hashAll(fires), Object.hashAll(bodies));
+
+  @override
+  String toString() => 'NativeFireBlock(${bodies.length} fires)';
+}
+
+/// Every cell of a shallow water, x fastest — [NativeWorld.readShallowSurface].
+final class NativeShallowSurface {
+  const NativeShallowSurface({required this.surface, required this.depth});
+
+  /// Each cell's surface height above the water's origin, in metres; where
+  /// it is dry, the ground's.
+  final Float32List surface;
+
+  /// Each cell's depth of water, in metres.
+  final Float32List depth;
+
+  @override
+  bool operator ==(Object other) =>
+      other is NativeShallowSurface &&
+      _sameItems(other.surface, surface) &&
+      _sameItems(other.depth, depth);
+
+  @override
+  int get hashCode =>
+      Object.hash(Object.hashAll(surface), Object.hashAll(depth));
+
+  @override
+  String toString() => 'NativeShallowSurface(${surface.length} cells)';
+}
+
+/// The water a shallow water holds and what it has lost —
+/// [NativeWorld.shallowVolume].
+final class NativeShallowVolume {
+  const NativeShallowVolume({required this.held, required this.lost});
+
+  /// The water in its cells and in the air as spray, in cubic metres.
+  final double held;
+
+  /// The water that has run off its open edges and out of its outlets, in
+  /// cubic metres.
+  final double lost;
+
+  @override
+  bool operator ==(Object other) =>
+      other is NativeShallowVolume && other.held == held && other.lost == lost;
+
+  @override
+  int get hashCode => Object.hash(held, lost);
+
+  @override
+  String toString() => 'NativeShallowVolume(held: $held, lost: $lost)';
+}
+
+/// A revolute or prismatic link's joint as the last step left it —
+/// [NativeWorld.linkJoint].
+final class NativeLinkJoint {
+  const NativeLinkJoint({required this.position, required this.speed});
+
+  /// A revolute link's angle, in radians, or a prismatic link's travel, in
+  /// metres.
+  final double position;
+
+  /// How fast [position] changes: radians per second for a revolute link,
+  /// m/s for a prismatic one.
+  final double speed;
+
+  @override
+  bool operator ==(Object other) =>
+      other is NativeLinkJoint &&
+      other.position == position &&
+      other.speed == speed;
+
+  @override
+  int get hashCode => Object.hash(position, speed);
+
+  @override
+  String toString() => 'NativeLinkJoint(position: $position, speed: $speed)';
+}
+
+/// A spherical link's joint as the last step left it —
+/// [NativeWorld.linkTurn].
+final class NativeLinkTurn {
+  const NativeLinkTurn({required this.turn, required this.spin});
+
+  /// The link's turn in its parent's frame.
+  final Quaternion turn;
+
+  /// Its angular velocity relative to the parent, radians per second.
+  final Vector3 spin;
+
+  @override
+  bool operator ==(Object other) =>
+      other is NativeLinkTurn && other.turn == turn && other.spin == spin;
+
+  @override
+  int get hashCode => Object.hash(turn, spin);
+
+  @override
+  String toString() => 'NativeLinkTurn(turn: $turn, spin: $spin)';
+}
+
+/// The char a fire has left on a body — [NativeWorld.charOf].
+final class NativeChar {
+  const NativeChar({
+    required this.share,
+    required this.depth,
+    required this.temperature,
+  });
+
+  /// The share of its surface under char, nought to one.
+  final double share;
+
+  /// How deep the char has grown at its deepest, in metres.
+  final double depth;
+
+  /// The char's surface temperature, in K.
+  final double temperature;
+
+  @override
+  bool operator ==(Object other) =>
+      other is NativeChar &&
+      other.share == share &&
+      other.depth == depth &&
+      other.temperature == temperature;
+
+  @override
+  int get hashCode => Object.hash(share, depth, temperature);
+
+  @override
+  String toString() =>
+      'NativeChar(share: $share, depth: $depth, temperature: $temperature)';
+}
+
+/// What of a body stands in a liquid — [NativeWorld.submergedOf].
+final class NativeSubmersion {
+  const NativeSubmersion({required this.volume, required this.water});
+
+  /// The body's volume under the water's surface, in cubic metres.
+  final double volume;
+
+  /// The id of the water it stands in ([NativeShallowLiquid.id]), nought for
+  /// none.
+  final int water;
+
+  @override
+  bool operator ==(Object other) =>
+      other is NativeSubmersion &&
+      other.volume == volume &&
+      other.water == water;
+
+  @override
+  int get hashCode => Object.hash(volume, water);
+
+  @override
+  String toString() => 'NativeSubmersion(volume: $volume, water: $water)';
+}
+
+bool _sameItems<T>(List<T> a, List<T> b) {
+  if (identical(a, b)) return true;
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
+}
+
 const int nativeSpraySheet = c.spraySheet;
 const int nativeSprayDrops = c.sprayDrops;
 
@@ -2022,20 +2235,20 @@ final class NativeWorld {
   /// the origin, then the orientation quaternion xyzw — and its handle, in
   /// the world's slot order: what the renderer uploads as instance
   /// transforms.
-  ({Float32List transforms, List<NativeBody> bodies}) readTransforms() =>
+  NativeTransformBlock readTransforms() =>
       _readPer(bodyCount, c.transformFloats, c.f3d_world_read_transforms);
 
   /// Every burning body, or burning part of a compound, [nativeFireFloats]
   /// floats apiece, as [fires] reads them.
-  ({Float32List fires, List<NativeBody> bodies}) readFires() {
+  NativeFireBlock readFires() {
     final read = _readPer(bodyCount, nativeFireFloats, c.f3d_world_read_fires);
-    return (fires: read.transforms, bodies: read.bodies);
+    return NativeFireBlock(fires: read.transforms, bodies: read.bodies);
   }
 
   /// Every burning body, or burning part of a compound, as the last step
   /// left it — the parts of one compound in part order.
   List<NativeFire> fires() {
-    final (:fires, :bodies) = readFires();
+    final NativeFireBlock(:fires, :bodies) = readFires();
     const n = nativeFireFloats;
     return <NativeFire>[
       for (var k = 0; k < bodies.length; k++)
@@ -2054,19 +2267,22 @@ final class NativeWorld {
     ];
   }
 
-  ({Float32List transforms, List<NativeBody> bodies}) _readPer(
+  NativeTransformBlock _readPer(
     int count,
     int floats,
     int Function(int, c.F32s, c.U64s, int) read,
   ) {
     if (count == 0) {
-      return (transforms: Float32List(0), bodies: const <NativeBody>[]);
+      return NativeTransformBlock(
+        transforms: Float32List(0),
+        bodies: const <NativeBody>[],
+      );
     }
     final values = c.F32s.alloc(count * floats);
     final handles = c.U64s.alloc(count);
     try {
       final written = read(_live, values, handles, count);
-      return (
+      return NativeTransformBlock(
         transforms: values.copy(written * floats),
         bodies: <NativeBody>[
           for (var i = 0; i < written; i++) NativeBody(handles[i]),
@@ -3693,15 +3909,16 @@ final class NativeWorld {
 
   /// Every cell's surface height above the water's origin and its depth,
   /// x fastest; where it is dry the surface is the ground.
-  ({Float32List surface, Float32List depth}) readShallowSurface(
-    NativeShallowLiquid water,
-  ) {
+  NativeShallowSurface readShallowSurface(NativeShallowLiquid water) {
     final n = water.cells;
     final surface = c.F32s.alloc(n);
     final depth = c.F32s.alloc(n);
     try {
       c.f3d_shallow_read(_live, water.id, surface, depth);
-      return (surface: surface.copy(n), depth: depth.copy(n));
+      return NativeShallowSurface(
+        surface: surface.copy(n),
+        depth: depth.copy(n),
+      );
     } finally {
       surface.free();
       depth.free();
@@ -3829,11 +4046,11 @@ final class NativeWorld {
 
   /// The water it holds, m³, in its cells and in the air as spray, and what
   /// has run off its open edges.
-  ({double held, double lost}) shallowVolume(NativeShallowLiquid water) {
+  NativeShallowVolume shallowVolume(NativeShallowLiquid water) {
     final out = c.F32s.alloc(2);
     try {
       c.f3d_shallow_volume(_live, water.id, out, out + 4);
-      return (held: out[0], lost: out[1]);
+      return NativeShallowVolume(held: out[0], lost: out[1]);
     } finally {
       out.free();
     }
@@ -4059,16 +4276,13 @@ final class NativeWorld {
 
   /// A revolute link's angle or a prismatic link's travel, and its speed,
   /// as the last step left them.
-  ({double position, double speed}) linkJoint(
-    NativeMultibody multibody,
-    int link,
-  ) {
+  NativeLinkJoint linkJoint(NativeMultibody multibody, int link) {
     final out = c.F32s.alloc(8);
     try {
       if (c.f3d_multibody_read_joint(_live, multibody.id, link, out) == 0) {
         throw ArgumentError.value(link, 'link', 'not in this multibody');
       }
-      return (position: out[0], speed: out[1]);
+      return NativeLinkJoint(position: out[0], speed: out[1]);
     } finally {
       out.free();
     }
@@ -4103,16 +4317,13 @@ final class NativeWorld {
 
   /// A spherical link's turn in its parent's frame and its spin relative to
   /// the parent, as the last step left them.
-  ({Quaternion turn, Vector3 spin}) linkTurn(
-    NativeMultibody multibody,
-    int link,
-  ) {
+  NativeLinkTurn linkTurn(NativeMultibody multibody, int link) {
     final out = c.F32s.alloc(8);
     try {
       if (c.f3d_multibody_read_joint(_live, multibody.id, link, out) == 0) {
         throw ArgumentError.value(link, 'link', 'not in this multibody');
       }
-      return (
+      return NativeLinkTurn(
         turn: Quaternion(out[0], out[1], out[2], out[3]),
         spin: Vector3(out[4], out[5], out[6]),
       );
@@ -4605,7 +4816,7 @@ final class NativeWorld {
   /// what the burning patch's heat balance gives it, elsewhere its
   /// surface's. Char stays when the fire goes out; wood that never burnt
   /// has none.
-  ({double share, double depth, double temperature}) charOf(NativeBody body) {
+  NativeChar charOf(NativeBody body) {
     _check(
       c.f3d_body_get_char(
         _live,
@@ -4616,18 +4827,18 @@ final class NativeWorld {
       ),
       body,
     );
-    return (share: _out[0], depth: _out[1], temperature: _out[2]);
+    return NativeChar(share: _out[0], depth: _out[1], temperature: _out[2]);
   }
 
   /// What of [body] stands in a liquid, as the water's last step measured
   /// it: the m³ under its surface, and the id of the water
   /// ([NativeShallowLiquid.id]) it stands in, nought for none. The water
   /// holds it up by that volume times its density and gravity.
-  ({double volume, int water}) submergedOf(NativeBody body) {
+  NativeSubmersion submergedOf(NativeBody body) {
     final water = c.U32s.alloc(1);
     try {
       _check(c.f3d_body_get_submerged(_live, body.raw, _out, water), body);
-      return (volume: _out[0], water: water[0]);
+      return NativeSubmersion(volume: _out[0], water: water[0]);
     } finally {
       water.free();
     }

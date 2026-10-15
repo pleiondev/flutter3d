@@ -20,7 +20,7 @@ import 'render_view.dart';
 /// [projection] the eye to clip space in the engine's `[0, 1]` depth
 /// convention.
 ///
-/// **Made by the renderer from a [RenderView], or from outside.** An XR
+/// **Made by the renderer from a [CameraView], or from outside.** An XR
 /// runtime knows each eye's pose and its four field-of-view angles before
 /// the engine does; [FrameView.posed] takes them as they come
 /// (`OffAxisProjection.fromAngles` for the angles), so the session only
@@ -67,8 +67,8 @@ final class FrameView {
 
   /// [view]'s camera, drawn at [aspect]: the view a renderer makes for each
   /// of a `render` call's views.
-  factory FrameView.ofRenderView(
-    RenderView view, {
+  factory FrameView.ofCameraView(
+    CameraView view, {
     required double aspect,
     int index = 0,
     vm.Matrix4? previousViewProjection,

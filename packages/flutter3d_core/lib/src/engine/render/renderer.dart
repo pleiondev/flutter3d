@@ -31,6 +31,7 @@ import 'package:flutter3d_shaders/internal.dart';
 import 'package:flutter3d_shaders/kernel.dart' show ComputeKernel;
 import 'package:vector_math/vector_math.dart' as vm;
 
+import '../../formats/engine_words.dart';
 import '../geometry/device_mesh.dart';
 import '../scene/camera_node.dart';
 import '../scene/decal_node.dart';
@@ -89,7 +90,7 @@ import 'render_listener.dart';
 import 'render_node.dart';
 import 'render_settings.dart';
 import 'render_view.dart';
-import 'scene_colour_chain.dart';
+import 'scene_color_chain.dart';
 import 'shadow_slots.dart';
 import 'sky_settings.dart';
 import 'static_bake_key.dart';
@@ -156,7 +157,7 @@ const String _kCoatTextureSlot = 'coat_texture';
 const String _kSheenTextureSlot = 'sheen_texture';
 
 /// The copy of the scene a transmissive draw reads — `M3`. Layered only.
-const String _kSceneColourTextureSlot = 'scene_colour_texture';
+const String _kSceneColorTextureSlot = 'scene_color_texture';
 const String _kOcclusionTextureSlot = 'occlusion_texture';
 const String _kEmissiveTextureSlot = 'emissive_texture';
 const String _kLightmapTextureSlot = 'lightmap_texture';
@@ -169,7 +170,7 @@ const String _kAoTextureSlot = 'ao_texture';
 const String _kLutTextureSlot = 'lut_texture';
 const String _kContactShadowTextureSlot = 'contact_shadow_texture';
 
-/// Draws a [Scene] through one or more [RenderView]s.
+/// Draws a [Scene] through one or more [CameraView]s.
 ///
 /// **A frame graph, compiled once per frame.** Every pass is a node that
 /// declares what it reads and what it writes — the two cube shadow atlases and
@@ -240,7 +241,7 @@ final class Renderer with RenderServices {
        _highContrastShader = require('HighContrast'),
        _decalShader = require('Decal'),
        _wboitResolveShader = require('WboitResolve'),
-       _sceneColourCopyShader = require('SceneColourCopy'),
+       _sceneColorCopyShader = require('SceneColorCopy'),
        // `prefer_initializing_formals` wants `this._fallbackAlbedo` here and
        // Dart will not have it: a named parameter may not be private, so the
        // only way to satisfy the lint is to make the fields public — which is
@@ -458,7 +459,7 @@ final class Renderer with RenderServices {
   set _historyValid(bool value) => _viewState.historyValid = value;
 
   /// What the frame being drawn remembers from the last one: the state of
-  /// the first view of the [render] call — item 26. Each [RenderView] keeps
+  /// the first view of the [render] call — item 26. Each [CameraView] keeps
   /// its own, so two views drawn by separate calls (an editor's viewports, a
   /// texture view drawn as a frame of its own) never blend one another's
   /// history; a view's is given back when it is disposed.
@@ -485,10 +486,10 @@ final class Renderer with RenderServices {
   /// after that starts its resolve from nothing, as a new one does.
   static const int viewIdleFrames = 16;
 
-  _ViewState _stateFor(RenderView view) {
+  _ViewState _stateFor(CameraView view) {
     final known = _viewStates[view];
     if (known != null) return _remember(view, known);
-    // A view made afresh for every frame — `views: [RenderView(camera: c)]`
+    // A view made afresh for every frame — `views: [CameraView(camera: c)]`
     // in a build method — is the same view to whoever wrote it. It carries
     // on the history of the latest view that looked through the same camera
     // and was not drawn yet this frame, rather than starting the resolve
@@ -503,7 +504,7 @@ final class Renderer with RenderServices {
     // one camera drawn by separate calls would otherwise hand one state back
     // and forth every frame and blend each other's pictures.
     _ViewState? carried;
-    RenderView? from;
+    CameraView? from;
     if (_retiredViews[view] == null) {
       for (final state in _allViewStates) {
         final owner = state.view?.target;
@@ -542,11 +543,11 @@ final class Renderer with RenderServices {
     return _remember(view, state);
   }
 
-  _ViewState _remember(RenderView view, _ViewState state) {
+  _ViewState _remember(CameraView view, _ViewState state) {
     _allViewStates.add(state);
     state
       ..lastUsed = _frameIndex
-      ..view = WeakReference<RenderView>(view);
+      ..view = WeakReference<CameraView>(view);
     return state;
   }
 
@@ -680,7 +681,7 @@ final class Renderer with RenderServices {
   final ShaderHandle _wboitResolveShader;
 
   /// `M3`'s copy: one level of the scene behind the transmissive draws.
-  final ShaderHandle _sceneColourCopyShader;
+  final ShaderHandle _sceneColorCopyShader;
 
   /// 1x1 opaque white, bound when a material has no base-colour texture.
   ///
@@ -1432,7 +1433,7 @@ final class Renderer with RenderServices {
     _instancedMaskedCubeShadowPipeline = null;
     _bloomUpsamplePipeline = null;
     _wboitResolvePipeline = null;
-    _sceneColourCopyPipeline = null;
+    _sceneColorCopyPipeline = null;
     _compositePipeline = null;
     _probePrefilterPipeline = null;
     _skyPipeline = null;
@@ -1645,7 +1646,7 @@ final class Renderer with RenderServices {
   /// texture and the layout of its levels, for exactly as long as that pass
   /// draws, and null everywhere else. Every other draw of the layered model
   /// binds black in its place and reads the environment, as it always did.
-  ({TextureHandle texture, SceneColourChain chain})? _sceneColourRead;
+  ({TextureHandle texture, SceneColorChain chain})? _sceneColorRead;
 
   // `hdrFormat` is declared in `renderer_resources.dart`, alongside the
   // caches that key off it.
@@ -1741,7 +1742,7 @@ final class Renderer with RenderServices {
   PipelineHandle? _instancedShadowPipeline;
   PipelineHandle? _bloomUpsamplePipeline;
   PipelineHandle? _wboitResolvePipeline;
-  PipelineHandle? _sceneColourCopyPipeline;
+  PipelineHandle? _sceneColorCopyPipeline;
   PipelineHandle? _compositePipeline;
 
   /// Positions and UVs of the one triangle every full-screen pass draws.
@@ -2046,7 +2047,7 @@ final class Renderer with RenderServices {
   /// Nothing is drawn.
   ///
   /// **For a picture drawn in parts**, which hands the answer to each part as
-  /// [RenderViewSettings.depthNear]. Each part would otherwise fit the plane
+  /// [CameraViewSettings.depthNear]. Each part would otherwise fit the plane
   /// to the little it sees, and the same surface would be drawn at a
   /// different depth in each — two coplanar faces then settle their tie one
   /// way in one tile and the other way in the next. `capturePhoto` asks this
@@ -2057,7 +2058,7 @@ final class Renderer with RenderServices {
   /// frame's.
   double depthNearFor({
     required Scene scene,
-    required RenderView view,
+    required CameraView view,
     required int width,
     required int height,
     RenderSettings settings = const RenderSettings(),
@@ -2972,7 +2973,7 @@ final class Renderer with RenderServices {
   /// would do cannot disturb the scratch the last frame left.
   void _collectShadowCandidates(
     Scene scene,
-    List<RenderView> views, {
+    List<CameraView> views, {
     List<ShadowCandidate>? into,
   }) {
     final candidates = into ?? _shadowCandidates;
@@ -3197,7 +3198,7 @@ final class Renderer with RenderServices {
   /// Which of [_frameViews] stands for [view]: its place in the `render`
   /// call's views, or nought for a view drawn outside one (a probe face, a
   /// texture view).
-  int _frameViewIndex(RenderView? view) {
+  int _frameViewIndex(CameraView? view) {
     for (final frameView in _frameViews) {
       if (identical(_frameViewSources[frameView.index], view)) {
         return frameView.index;
@@ -3207,17 +3208,17 @@ final class Renderer with RenderServices {
   }
 
   /// The `render` call's views, by index, beside [_frameViews].
-  List<RenderView> _frameViewSources = const <RenderView>[];
+  List<CameraView> _frameViewSources = const <CameraView>[];
 
   /// [views] as the frame's [FrameView]s, each with the view-projection it
   /// drew through the frame before.
   List<FrameView> _frameViewsOf(
-    List<RenderView> views,
+    List<CameraView> views,
     int width,
     int height,
   ) => <FrameView>[
     for (final (index, view) in views.indexed)
-      FrameView.ofRenderView(
+      FrameView.ofCameraView(
         view,
         aspect: _aspectOfView(view, width, height),
         index: index,
@@ -3227,7 +3228,7 @@ final class Renderer with RenderServices {
 
   /// The width over the height of the pixels [view] lands on in a
   /// [width] × [height] frame.
-  static double _aspectOfView(RenderView view, int width, int height) {
+  static double _aspectOfView(CameraView view, int width, int height) {
     final rect = _viewportPixels(view.viewportFraction, width, height);
     return rect.width / rect.height;
   }
@@ -3248,7 +3249,7 @@ final class Renderer with RenderServices {
   /// and [views] decides only which reflection probes there are.
   PipelineDocument describePipeline({
     required Scene scene,
-    required List<RenderView> views,
+    required List<CameraView> views,
     RenderSettings settings = const RenderSettings(),
     String? name,
   }) {
@@ -3339,7 +3340,7 @@ final class Renderer with RenderServices {
   /// the schedule left to right. With nothing placed, that is the order this
   /// method registered by hand before the anchors existed, pass for pass.
   CompiledFrameGraph _compileFrameGraph(
-    RenderView view,
+    CameraView view,
     RenderSettings s, {
     required _CubeShadowStaticNode cubeStatic,
     required _CubeShadowNode cube,
@@ -4638,11 +4639,11 @@ final class Renderer with RenderServices {
   /// occlusion here" during start-up rather than after the first frame.
   CompiledFrameGraph planFrame({
     required Scene scene,
-    required List<RenderView> views,
+    required List<CameraView> views,
     RenderSettings settings = const RenderSettings(),
   }) {
     if (views.isEmpty) {
-      throw ArgumentError('At least one RenderView is required.');
+      throw ArgumentError('At least one CameraView is required.');
     }
     // Without the steps whose addon was switched off; the same object while
     // none was. See `RendererSteps.provide`.
@@ -4673,7 +4674,7 @@ final class Renderer with RenderServices {
       if (assignment.owners[row] is LightNode) slot = math.max(slot, row + 1);
     }
 
-    final ordered = List<RenderView>.of(views)
+    final ordered = List<CameraView>.of(views)
       ..sort((a, b) => a.priority.compareTo(b.priority));
 
     return _compileFrameGraph(
@@ -4817,7 +4818,7 @@ final class Renderer with RenderServices {
     required int width,
     required int height,
     required Scene scene,
-    required List<RenderView> views,
+    required List<CameraView> views,
     RenderSettings settings = const RenderSettings(),
   }) {
     final steps = _warmUpSteps(
@@ -4861,7 +4862,7 @@ final class Renderer with RenderServices {
     required int width,
     required int height,
     required Scene scene,
-    required List<RenderView> views,
+    required List<CameraView> views,
     RenderSettings settings = const RenderSettings(),
     Duration slice = const Duration(milliseconds: 8),
     void Function(double done)? onProgress,
@@ -4945,7 +4946,7 @@ final class Renderer with RenderServices {
     required int width,
     required int height,
     required Scene scene,
-    required List<RenderView> views,
+    required List<CameraView> views,
     required RenderSettings settings,
   }) => <void Function()>[
     for (final node in scene.meshes)
@@ -4983,19 +4984,19 @@ final class Renderer with RenderServices {
   ];
 
   /// The views of this frame that are windows of a larger frame
-  /// (`RenderViewSettings.window`): the camera's own projection, the window,
+  /// (`CameraViewSettings.window`): the camera's own projection, the window,
   /// and whether the scene pass draws it exactly — through that projection
   /// and a viewport the size of the frame — or through the crop every other
   /// pass sees it by. Filled by [_openWindows] for the length of one frame.
-  final Map<RenderView, ({Projection whole, FrameWindow window, bool exact})>
+  final Map<CameraView, ({Projection whole, FrameWindow window, bool exact})>
   _windows =
-      <RenderView, ({Projection whole, FrameWindow window, bool exact})>{};
+      <CameraView, ({Projection whole, FrameWindow window, bool exact})>{};
 
   FrameResult render({
     required int width,
     required int height,
     required Scene scene,
-    required List<RenderView> views,
+    required List<CameraView> views,
     RenderSettings settings = const RenderSettings(),
   }) {
     final opened = _openWindows(views, width, height, settings);
@@ -5026,7 +5027,7 @@ final class Renderer with RenderServices {
   /// see `renderer_scene_pass.dart` — and that is what makes a window the
   /// frame's own pixels rather than a crop's.
   List<(CameraNode, Projection)> _openWindows(
-    List<RenderView> views,
+    List<CameraView> views,
     int width,
     int height,
     RenderSettings settings,
@@ -5097,11 +5098,11 @@ final class Renderer with RenderServices {
     required int width,
     required int height,
     required Scene scene,
-    required List<RenderView> views,
+    required List<CameraView> views,
     RenderSettings settings = const RenderSettings(),
   }) {
     if (views.isEmpty) {
-      throw ArgumentError('At least one RenderView is required.');
+      throw ArgumentError('At least one CameraView is required.');
     }
     // `A1.4`: the GPU is behind by every frame in flight, so this one is not
     // drawn — the last picture is presented again and the UI thread goes on.
@@ -5127,12 +5128,12 @@ final class Renderer with RenderServices {
     for (final view in views) {
       if (view.isDisposed) {
         throw StateError(
-          'a RenderView was disposed and then handed to render; make a new '
+          'a CameraView was disposed and then handed to render; make a new '
           'one, or keep it until the last frame that draws it',
         );
       }
     }
-    final shown = <RenderView>[
+    final shown = <CameraView>[
       for (final view in views)
         if (view.isVisible) view,
     ];
@@ -5370,7 +5371,7 @@ final class Renderer with RenderServices {
     // are active before either one runs.
     _cubeShadowLight = slot > 0 ? slot : -1;
 
-    final ordered = List<RenderView>.of(views)
+    final ordered = List<CameraView>.of(views)
       ..sort((a, b) => a.priority.compareTo(b.priority));
 
     // The meter's adaptation, by the time since the last frame. Stepped before
@@ -5575,7 +5576,7 @@ final class Renderer with RenderServices {
       // the finished image, and each of them does it from inside the node that
       // produced it. What is left in this method is the one thing the graph
       // allocates for itself.
-      final sceneColourChain = SceneColourChain(width, height);
+      final sceneColorChain = SceneColorChain(width, height);
       resources =
           FrameResources(
               source: _DeferredTextureSource(this),
@@ -5690,8 +5691,8 @@ final class Renderer with RenderServices {
                 id: FrameResourceIds.sceneColor,
                 format: hdrFormat,
                 size: AbsolutePixels(
-                  sceneColourChain.atlasWidth,
-                  sceneColourChain.atlasHeight,
+                  sceneColorChain.atlasWidth,
+                  sceneColorChain.atlasHeight,
                 ),
               ),
             );
@@ -5725,7 +5726,7 @@ final class Renderer with RenderServices {
     // this frame is encoding is the *next* frame's — `gfx-70n`.
     // Every view of the frame as a node reads it (D20), each with the
     // view-projection it drew through the frame before.
-    _frameViewSources = List<RenderView>.of(views);
+    _frameViewSources = List<CameraView>.of(views);
     _frameViews = _frameViewsOf(views, width, height);
     final capturing = _captureWanted;
     _captureWanted = null;
@@ -5782,7 +5783,7 @@ final class Renderer with RenderServices {
               width: _outputSized.contains(node) ? _outputWidth : width,
               height: _outputSized.contains(node) ? _outputHeight : height,
               // Only for a node that asked for it. This convenience used to
-              // hand the scene colour to every node in the frame, including
+              // hand the scene color to every node in the frame, including
               // the shadow passes that run before one exists and never wanted
               // it — a read the graph was never told about, ordered against
               // nothing. It was invisible until an undeclared read became an
@@ -5915,7 +5916,7 @@ final class Renderer with RenderServices {
       frameHistory.endFrame(
         frame: _frameIndex,
         meshes: scene.meshes,
-        views: <(RenderView, vm.Matrix4)>[
+        views: <(CameraView, vm.Matrix4)>[
           for (final view in views)
             if (_viewportPixels(view.viewportFraction, width, height)
                 case final rect)
@@ -6267,7 +6268,7 @@ final class Renderer with RenderServices {
       surface: null,
       shadowView: null,
       sceneGraph: Scene(),
-      views: const <RenderView>[],
+      views: const <CameraView>[],
       settings: settings,
       width: hdr.width,
       height: hdr.height,
@@ -6529,7 +6530,7 @@ final class Renderer with RenderServices {
     _causticPhotonPipeline,
     _bloomUpsamplePipeline,
     _wboitResolvePipeline,
-    _sceneColourCopyPipeline,
+    _sceneColorCopyPipeline,
     _compositePipeline,
     _probePrefilterPipeline,
     _skyPipeline,
@@ -6586,7 +6587,7 @@ final class Renderer with RenderServices {
   bool _encodeDebugLines({
     required PassEncoder encoder,
     required Scene scene,
-    required RenderView view,
+    required CameraView view,
     required vm.Matrix4 viewProjection,
     required double aspect,
     required RenderSettings settings,
@@ -6696,7 +6697,7 @@ final class _ViewState {
 
   /// The view this state belongs to, weakly, so a dropped view is not kept
   /// alive by the state that is waiting to be evicted.
-  WeakReference<RenderView>? view;
+  WeakReference<CameraView>? view;
 
   final List<TextureHandle?> history = <TextureHandle?>[null, null];
   int historyRead = 0;

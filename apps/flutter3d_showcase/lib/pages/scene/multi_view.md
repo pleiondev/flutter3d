@@ -1,6 +1,6 @@
 # Several views in one frame
 
-A `RenderView` is one camera drawing into one rectangle of the target, filtered
+A `CameraView` is one camera drawing into one rectangle of the target, filtered
 to the nodes whose `layerMask` it shares. A single render call can take more
 than one of them, and every view lands in the same picture.
 
@@ -23,7 +23,7 @@ clear colour, because nothing asked to draw there in this view.
 ## Step 3: Combine two views in one render call
 
 This is the part a single visible viewport cannot show by itself: two
-`RenderView`s, the same camera, opposite halves of the target and opposite
+`CameraView`s, the same camera, opposite halves of the target and opposite
 layer masks, passed to one `Renderer.render` call together. Both draw in the
 same frame. The showcase's own viewport still shows the cropped single view
 from step 2; this second call renders into its own frame so the two can be

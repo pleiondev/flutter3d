@@ -52,7 +52,7 @@ class _WidgetsPageState extends State<WidgetsPage> {
         continuous: false,
         placeholder: ColoredBox(key: Key('opening'), color: Colors.black),
       ),
-      onSceneCreated: widget.onCreated,
+      onCreated: widget.onCreated,
       children: <Widget>[
         Camera3D(position: Vector3(0.0, 1.2, 3.5), target: Vector3.zero()),
         // One point light and nothing else, so the falloff is the picture.

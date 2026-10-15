@@ -14,6 +14,53 @@ typedef EffectPlace = ({Vector3 at, Vector3? direction});
 /// [PlacedEvent] and the trigger.
 typedef EffectPlacer = EffectPlace? Function(BusEvent event);
 
+/// One distinct look among the effects added, and the pool it draws —
+/// [ParticleEffects.looks].
+final class ParticleLook {
+  const ParticleLook({required this.render, required this.system});
+
+  /// How the look is drawn.
+  final EffectRender render;
+
+  /// The pool its effects emit into.
+  final ParticleSystem system;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ParticleLook && other.render == render && other.system == system;
+
+  @override
+  int get hashCode => Object.hash(render, system);
+
+  @override
+  String toString() => 'ParticleLook(${render.key})';
+}
+
+/// How many triggers have fired, and how many could not for want of a
+/// place — [ParticleEffects.triggerCounts].
+final class TriggerCounts {
+  const TriggerCounts({required this.fired, required this.unplaced});
+
+  /// The triggers that fired.
+  final int fired;
+
+  /// The triggers that could not fire: the event was not a [PlacedEvent],
+  /// no placer placed it and the trigger had no `at`.
+  final int unplaced;
+
+  @override
+  bool operator ==(Object other) =>
+      other is TriggerCounts &&
+      other.fired == fired &&
+      other.unplaced == unplaced;
+
+  @override
+  int get hashCode => Object.hash(fired, unplaced);
+
+  @override
+  String toString() => 'TriggerCounts(fired: $fired, unplaced: $unplaced)';
+}
+
 /// The effects an engine has read from documents, the pools they emit into,
 /// and the bus subscriptions that start them.
 ///
@@ -71,12 +118,12 @@ final class ParticleEffects extends PluginRegistry {
 
   /// Each distinct look among the effects added, with its pool: what to
   /// build a `ParticleContributor` or a `MeshParticleContributor` for.
-  List<({EffectRender render, ParticleSystem system})> get looks {
+  List<ParticleLook> get looks {
     final seen = <String>{};
-    return <({EffectRender render, ParticleSystem system})>[
+    return <ParticleLook>[
       for (final added in _store.effects.values)
         if (seen.add(added.description.render.key))
-          (render: added.description.render, system: added.system),
+          ParticleLook(render: added.description.render, system: added.system),
     ];
   }
 
@@ -91,8 +138,8 @@ final class ParticleEffects extends PluginRegistry {
   /// How many triggers have fired, and how many could not, for want of a
   /// place: the event was not a [PlacedEvent], no placer placed it and the
   /// trigger had no `at`.
-  ({int fired, int unplaced}) get triggerCounts =>
-      (fired: _store.fired, unplaced: _store.unplaced);
+  TriggerCounts get triggerCounts =>
+      TriggerCounts(fired: _store.fired, unplaced: _store.unplaced);
 
   /// Adds every effect of [document]. See [add].
   Registration addDocument(

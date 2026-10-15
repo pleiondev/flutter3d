@@ -378,10 +378,10 @@ const List<Feature> shadingFeatures = <Feature>[
     since: '0.8.0',
     evidence: 'Glass that sees the scene.',
     evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
-    keywords: <String>['transmission', 'scenecolourchain'],
+    keywords: <String>['transmission', 'scenecolorchain'],
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/engine/render/renderer_transmission_pass.dart',
-      'packages/flutter3d_core/lib/src/engine/render/scene_colour_chain.dart',
+      'packages/flutter3d_core/lib/src/engine/render/scene_color_chain.dart',
       'packages/flutter3d_core/lib/src/formats/material_extensions.dart',
     ],
   ),

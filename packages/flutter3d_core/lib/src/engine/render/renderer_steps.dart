@@ -108,10 +108,13 @@ final class RendererSteps extends RenderStepRegistry {
     ...added,
   ]);
 
-  /// The step called [name], built in or added, or null.
+  /// The step called [name], built in or added, or null. A built-in step's
+  /// word from before the `f3d.` prefix (`bloom`, `color grade`) finds it
+  /// too, as the files written then name it.
   RenderStep? named(String name) {
+    final word = engineWordFor(name);
     for (final step in all) {
-      if (step.name == name) return step;
+      if (step.name == name || step.name == word) return step;
     }
     return null;
   }
@@ -420,8 +423,9 @@ final class RendererSteps extends RenderStepRegistry {
 
   /// The anchor called [name] — the engine's or an added one — or null.
   RenderAnchor? anchorNamed(String name) {
+    final word = engineWordFor(name);
     for (final anchor in anchors) {
-      if (anchor.name == name) return anchor;
+      if (anchor.name == name || anchor.name == word) return anchor;
     }
     return null;
   }

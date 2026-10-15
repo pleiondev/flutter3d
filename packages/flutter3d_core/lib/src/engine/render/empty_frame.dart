@@ -32,7 +32,7 @@ import 'render_view.dart';
 /// exactly the bug it would be reporting. The last case is therefore phrased as
 /// the elimination it is: meshes exist, they are visible, a mask matches them,
 /// and the viewport has area — so what remains is where they are.
-String? describeEmptyFrame(Scene scene, List<RenderView> views) {
+String? describeEmptyFrame(Scene scene, List<CameraView> views) {
   if (views.isEmpty) {
     return 'nothing drew: the frame was given no views to draw through.';
   }
@@ -96,7 +96,7 @@ String? describeEmptyFrame(Scene scene, List<RenderView> views) {
 }
 
 /// The masks in play, since the numbers are what makes this fixable.
-String _maskSummary(List<RenderView> views, List<MeshNode> meshes) {
+String _maskSummary(List<CameraView> views, List<MeshNode> meshes) {
   var meshBits = 0;
   for (var i = 0; i < meshes.length; i++) {
     if (meshes[i].isVisibleInHierarchy) meshBits |= meshes[i].layerMask;

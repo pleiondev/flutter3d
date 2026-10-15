@@ -118,16 +118,18 @@ abstract final class Portable {
   /// An angle becoming a direction needs the pair, and asking for them
   /// separately reduces the argument twice — the expensive half of the work.
   /// It is also one place rather than two for a caller to get the order wrong.
-  static ({double sin, double cos}) sinCos(double radians) {
-    if (!radians.isFinite) return (sin: double.nan, cos: double.nan);
+  static SinCos sinCos(double radians) {
+    if (!radians.isFinite) {
+      return const SinCos(sin: double.nan, cos: double.nan);
+    }
     final reduced = _quarterTurns(radians);
     final s = _sin(reduced.r, reduced.tail);
     final c = _cos(reduced.r, reduced.tail);
     return switch (reduced.quadrant) {
-      0 => (sin: s, cos: c),
-      1 => (sin: c, cos: -s),
-      2 => (sin: -s, cos: -c),
-      _ => (sin: -c, cos: s),
+      0 => SinCos(sin: s, cos: c),
+      1 => SinCos(sin: c, cos: -s),
+      2 => SinCos(sin: -s, cos: -c),
+      _ => SinCos(sin: -c, cos: s),
     };
   }
 
@@ -839,4 +841,26 @@ abstract final class Portable {
   /// How far above 1024 the exponent has to reach before the answer is not a
   /// double: -(1024 - log2(largest double + half an ulp)).
   static const double _powOvt = 8.0085662595372944372e-17;
+}
+
+/// The sine and the cosine of one angle, as [Portable.sinCos] answers them.
+final class SinCos {
+  /// The pair [sin] and [cos].
+  const SinCos({required this.sin, required this.cos});
+
+  /// The angle's sine, in no unit, between -1 and 1.
+  final double sin;
+
+  /// The angle's cosine, in no unit, between -1 and 1.
+  final double cos;
+
+  @override
+  bool operator ==(Object other) =>
+      other is SinCos && other.sin == sin && other.cos == cos;
+
+  @override
+  int get hashCode => Object.hash(sin, cos);
+
+  @override
+  String toString() => 'SinCos($sin, $cos)';
 }

@@ -92,7 +92,7 @@ void main() {
         width: 16,
         height: 16,
         scene: Scene()..add(camera),
-        views: <RenderView>[RenderView(camera: camera)],
+        views: <CameraView>[CameraView(camera: camera)],
       );
       draw();
       expect(step.ran, <ComputePlacement>[ComputePlacement.cpu]);

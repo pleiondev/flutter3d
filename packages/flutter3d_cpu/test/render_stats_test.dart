@@ -37,7 +37,7 @@ FrameResult _render(RenderSettings settings, {int cubes = 1}) {
     width: _width,
     height: _height,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
     settings: settings,
   );
 }

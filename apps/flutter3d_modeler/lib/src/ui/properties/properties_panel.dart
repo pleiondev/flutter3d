@@ -275,7 +275,7 @@ class PropertiesPanel extends StatelessWidget {
     int materialIndex,
     String kind,
     Map<String, Object?> fields,
-    (double x, double y) position,
+    NodePosition position,
   )
   onAddTextureNode;
 
@@ -788,7 +788,7 @@ class PropertiesPanel extends StatelessWidget {
                   (
                     String kind,
                     Map<String, Object?> fields,
-                    (double, double) position,
+                    NodePosition position,
                   ) => onAddTextureNode(activeMaterial, kind, fields, position),
               onLink: (int nodeId, String input, int from) =>
                   onLinkTextureNode(activeMaterial, nodeId, input, from),

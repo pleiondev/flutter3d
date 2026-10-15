@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1+1
 
+- **Breaking: results that were records are final classes.** `GameAsk`,
+  `PieceReport` and `ProjectRoot` answered or held a record, which can never
+  gain a field. Each answers a final class now, with the record's field
+  names (a positional `$1` has a name of its own), `==` and `hashCode`. A
+  field read compiles as before; a destructuring pattern names the class,
+  and `flutter3d_build:migrate` rewrites the `$1` reads.
+
 - **`tools/list` offers each tool once, under its current name.** The old
   names of renamed tools (209 here: `render`, `addBrush`, `capture_draw`
   and the rest) still answer when called, until 2.0, through the same brake,

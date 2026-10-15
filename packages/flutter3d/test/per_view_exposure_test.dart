@@ -142,7 +142,7 @@ void main() {
         width: _size,
         height: _size,
         scene: scene,
-        views: <RenderView>[RenderView(camera: scene.cameras.single)],
+        views: <CameraView>[CameraView(camera: scene.cameras.single)],
         settings: settings,
       );
       final bytes = await device.readback(result.frame);
@@ -217,12 +217,12 @@ void main() {
         width: _size,
         height: _size,
         scene: scene,
-        views: <RenderView>[
-          RenderView(
+        views: <CameraView>[
+          CameraView(
             camera: cameras[0],
             viewportFraction: const ViewportRect(0.0, 0.0, 0.5, 1.0),
           ),
-          RenderView(
+          CameraView(
             camera: cameras[1],
             priority: 1,
             viewportFraction: const ViewportRect(0.5, 0.0, 0.5, 1.0),

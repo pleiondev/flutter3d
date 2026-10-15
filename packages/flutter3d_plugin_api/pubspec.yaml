@@ -1,6 +1,6 @@
 name: flutter3d_plugin_api
 description: "The interfaces a flutter3d plugin is written against: the manifest, the host and its registries, the loop's phases and the event bus. Plain Dart over flutter3d_foundation."
-version: 1.0.0-rc.1
+version: 1.0.0-rc.1+1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues

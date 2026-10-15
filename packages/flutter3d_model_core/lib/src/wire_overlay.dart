@@ -65,7 +65,7 @@ MeshData? wireMeshFor(EditMesh mesh, {double thickness = wireThickness}) {
   );
   final from = Vector3.zero();
   final to = Vector3.zero();
-  for (final (int a, int b) in edges) {
+  for (final EdgeVertices(low: a, high: b) in edges) {
     mesh.positionOf(a, from);
     mesh.positionOf(b, to);
     _addWire(builder, from, to, radius);
@@ -74,16 +74,39 @@ MeshData? wireMeshFor(EditMesh mesh, {double thickness = wireThickness}) {
   return builder.build();
 }
 
-/// Every edge of every live face of [mesh], each once, as a pair of vertex
-/// indices with the smaller first.
+/// One edge as the two vertex indices it runs between, the smaller first:
+/// what [polygonEdgesOf] answers a list of.
+final class EdgeVertices {
+  /// The edge between vertex [low] and vertex [high].
+  const EdgeVertices({required this.low, required this.high});
+
+  /// The smaller of the two vertex indices.
+  final int low;
+
+  /// The larger of the two vertex indices.
+  final int high;
+
+  @override
+  bool operator ==(Object other) =>
+      other is EdgeVertices && other.low == low && other.high == high;
+
+  @override
+  int get hashCode => Object.hash(low, high);
+
+  @override
+  String toString() => 'EdgeVertices($low, $high)';
+}
+
+/// Every edge of every live face of [mesh], each once, as an [EdgeVertices]
+/// with the smaller index first.
 ///
 /// Walked over half-edges rather than read off a twin table: a boundary edge
 /// has no twin, and an edge between two faces is reached twice — so the pair
 /// is normalised and de-duplicated, which handles both without either being a
 /// special case.
-List<(int, int)> polygonEdgesOf(EditMesh mesh) {
+List<EdgeVertices> polygonEdgesOf(EditMesh mesh) {
   final seen = <int>{};
-  final edges = <(int, int)>[];
+  final edges = <EdgeVertices>[];
   for (var face = 0; face < mesh.faceSlotCount; face++) {
     if (!mesh.isFaceAlive(face)) continue;
     mesh.forEachHalfEdge(face, (int half) {
@@ -96,7 +119,7 @@ List<(int, int)> polygonEdgesOf(EditMesh mesh) {
       // would do, and this is a hot loop over every corner of every face.
       final int key = low * mesh.vertexSlotCount + high;
       if (!seen.add(key)) return;
-      edges.add((low, high));
+      edges.add(EdgeVertices(low: low, high: high));
     });
   }
   return edges;

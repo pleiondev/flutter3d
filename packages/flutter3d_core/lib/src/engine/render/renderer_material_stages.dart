@@ -233,7 +233,7 @@ extension _MaterialStages on Renderer {
   /// Whether this frame has a surface reading the scene behind it for any
   /// of [views] — the question that splits the frame for it, as a
   /// contributor reading the scene's depth splits it.
-  static bool _holdsSceneReaders(Scene scene, List<RenderView> views) {
+  static bool _holdsSceneReaders(Scene scene, List<CameraView> views) {
     final mask = views.fold<int>(0, (all, view) => all | view.layerMask);
     return scene.meshes.any(
       (node) =>

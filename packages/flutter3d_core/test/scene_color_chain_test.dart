@@ -1,16 +1,16 @@
 /// Where each level of the copy of the scene sits in its one texture — `M3`.
 ///
-///     dart test test/scene_colour_chain_test.dart
+///     dart test test/scene_color_chain_test.dart
 library;
 
-import 'package:flutter3d_core/src/engine/render/scene_colour_chain.dart';
+import 'package:flutter3d_core/src/engine/render/scene_color_chain.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
 
 void main() {
   test('the base, then five halvings down a column beside it', () {
-    final chain = SceneColourChain(64, 48);
-    expect(chain.levels, SceneColourChain.maxLevels);
+    final chain = SceneColorChain(64, 48);
+    expect(chain.levels, SceneColorChain.maxLevels);
     expect(chain.atlasWidth, 96);
     expect(chain.atlasHeight, 48);
     expect(chain.rect(0), const ScreenRect(width: 64, height: 48));
@@ -30,7 +30,7 @@ void main() {
     // Mutation: start the column at y 0 for every level. The levels land on
     // each other.
     for (final (w, h) in <(int, int)>[(64, 48), (37, 23), (1, 1), (2, 900)]) {
-      final chain = SceneColourChain(w, h);
+      final chain = SceneColorChain(w, h);
       final rects = <ScreenRect>[
         for (var k = 0; k < chain.levels; k++) chain.rect(k),
       ];
@@ -55,7 +55,7 @@ void main() {
   });
 
   test('a scene too small to halve five times has fewer levels', () {
-    expect(SceneColourChain(1, 1).levels, 1);
-    expect(SceneColourChain(8, 100).levels, 4);
+    expect(SceneColorChain(1, 1).levels, 1);
+    expect(SceneColorChain(8, 100).levels, 4);
   });
 }

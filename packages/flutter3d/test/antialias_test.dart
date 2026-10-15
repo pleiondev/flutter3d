@@ -65,8 +65,8 @@ Future<Uint8List> _draw(
     width: _width,
     height: _height,
     scene: _diagonal(it.device),
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: CameraNode()..setPosition(0.0, 0.0, 4.0),
         clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
@@ -110,8 +110,8 @@ void main() {
         width: _width,
         height: _height,
         scene: _diagonal(it.device),
-        views: <RenderView>[
-          RenderView(camera: CameraNode()..setPosition(0.0, 0.0, 4.0)),
+        views: <CameraView>[
+          CameraView(camera: CameraNode()..setPosition(0.0, 0.0, 4.0)),
         ],
         settings: const RenderSettings(),
       );
@@ -150,8 +150,8 @@ void main() {
         width: _width,
         height: _height,
         scene: _diagonal(it.device),
-        views: <RenderView>[
-          RenderView(camera: CameraNode()..setPosition(0.0, 0.0, 4.0)),
+        views: <CameraView>[
+          CameraView(camera: CameraNode()..setPosition(0.0, 0.0, 4.0)),
         ],
         settings: const RenderSettings(
           antiAlias: AntiAliasSettings(enabled: true),

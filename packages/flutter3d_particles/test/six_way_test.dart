@@ -158,7 +158,7 @@ void main() {
       settings: const RenderSettings(),
       width: 320,
       height: 200,
-      view: RenderView(camera: CameraNode()),
+      view: CameraView(camera: CameraNode()),
       viewProjection: vm.Matrix4.identity(),
       lights: lights,
     )..state = FramePassState();

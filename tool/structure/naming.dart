@@ -226,6 +226,30 @@ const Set<String> sdkLibrariesKnownOnly = <String>{
   'package:meta/meta.dart',
 };
 
+/// The names of [allowed] that a `package:flutter/` library or `dart:core`
+/// in [sdk] exports: collisions the allowlist may not keep (A.8).
+///
+/// **A widget file imports Flutter beside the facade**, so a name
+/// `widgets.dart`, `material.dart` or a library they are built from exports
+/// is one that file reads as ambiguous, or silently as Flutter's. Only a
+/// collision with a library a game imports to reach under Flutter
+/// (`dart:ui`, `dart:io`) may be kept with a reason; `RenderView` and
+/// `LicenseEntry` were kept against `rendering` and `foundation` until "a
+/// game is seen importing both", which nothing could see.
+List<String> flutterCollisionsAllowedIn(
+  Iterable<String> allowed,
+  Map<String, Set<String>> sdk,
+) => <String>[
+  for (final name in allowed)
+    if (sdk.entries.any(
+      (MapEntry<String, Set<String>> library) =>
+          (library.key.startsWith('package:flutter/') ||
+              library.key == 'dart:core') &&
+          library.value.contains(name),
+    ))
+      name,
+];
+
 /// Each type [snapshot] declares under a name one of the [sdk] libraries
 /// exports too (A.8): a game that imports both reads an ambiguous name, or
 /// silently the other one, and needs a `hide` to say which.
@@ -1604,6 +1628,56 @@ List<(String, String)> proveNamingDetectorsWork() {
   }
 
   const lib = 'library package:p/p.dart\n\n';
+
+  // Collisions an allowlist may keep. Mutation: read only `material.dart`,
+  // and a name `rendering` exports (`RenderView`) is kept again.
+  final keptAgainstFlutter = flutterCollisionsAllowedIn(
+    <String>['RenderView', 'LicenseEntry', 'Scene', 'Link'],
+    <String, Set<String>>{
+      'package:flutter/material.dart': <String>{'Scaffold'},
+      'package:flutter/rendering.dart': <String>{'RenderView'},
+      'package:flutter/foundation.dart': <String>{'LicenseEntry'},
+      'dart:ui': <String>{'Scene'},
+      'dart:io': <String>{'Link'},
+    },
+  );
+  fires(
+    'collisions kept against Flutter',
+    keptAgainstFlutter.contains('RenderView') &&
+        keptAgainstFlutter.contains('LicenseEntry'),
+    'a name `rendering` and one `foundation` exports, kept with a reason',
+  );
+  quiet(
+    'collisions kept against Flutter',
+    keptAgainstFlutter.length == 2,
+    'names only `dart:ui` and `dart:io` export',
+    'a game reaches those through a prefix, and the reason may stand',
+  );
+
+  // Spelling, in the shader ABI as in the Dart snapshot: a stage, a member
+  // and a sampler named with underscores are read word by word.
+  final abiBritish = britishIdentifiersIn(
+    '# a comment about colour is not a name\n'
+    'entry SceneColourCopy fragment\n'
+    'stage Pbr block LayerInfo member scene_colour 272 16 1 Vector4\n'
+    'stage Pbr sampler scene_colour_texture\n'
+    'stage Pbr sampler scene_color_texture\n',
+  ).map((NamingProblem p) => p.subject).toSet();
+  fires(
+    'British spelling in the shader ABI',
+    abiBritish.containsAll(<String>{
+      'SceneColourCopy',
+      'scene_colour',
+      'scene_colour_texture',
+    }),
+    'an entry, a member and a sampler spelled British',
+  );
+  quiet(
+    'British spelling in the shader ABI',
+    abiBritish.length == 3,
+    'a comment and an American sampler',
+    'a comment is prose, and `color` is the American word',
+  );
 
   // Spelling.
   final british = britishIdentifiersIn(

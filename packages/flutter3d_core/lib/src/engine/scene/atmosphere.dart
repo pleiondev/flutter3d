@@ -100,10 +100,10 @@ final class Atmosphere {
   );
 
   /// Puts this atmosphere on [scene]'s ambient light and on [sun], and its
-  /// [sky] on [view]'s `RenderView.clearColor` if given (read every frame,
+  /// [sky] on [view]'s `CameraView.clearColor` if given (read every frame,
   /// so setting it is enough). Both are linear, so the color goes over as
   /// it is.
-  void applyTo(Scene scene, {LightNode? sun, RenderView? view}) {
+  void applyTo(Scene scene, {LightNode? sun, CameraView? view}) {
     scene
       ..ambientColor = ambientColor
       ..ambientIntensity = ambientIntensity;
@@ -117,16 +117,16 @@ final class Atmosphere {
 }
 
 final class AtmosphereCycle {
-  AtmosphereCycle(List<(double, Atmosphere)> keys, {required this.period})
-    : keys = List<(double, Atmosphere)>.unmodifiable(
-        List<(double, Atmosphere)>.of(keys)
-          ..sort((a, b) => a.$1.compareTo(b.$1)),
+  AtmosphereCycle(List<AtmosphereKey> keys, {required this.period})
+    : keys = List<AtmosphereKey>.unmodifiable(
+        List<AtmosphereKey>.of(keys)..sort((a, b) => a.time.compareTo(b.time)),
       ) {
     if (keys.isEmpty) throw ArgumentError('A cycle with no atmosphere.');
     if (!(period > 0.0)) throw ArgumentError('A cycle of $period.');
   }
 
-  final List<(double, Atmosphere)> keys;
+  /// The keys the cycle blends between, sorted by [AtmosphereKey.time].
+  final List<AtmosphereKey> keys;
 
   /// How long one cycle is, in the unit the keys' times and [at]'s time are
   /// counted in: seconds, for a clock that adds its `dt`.
@@ -134,19 +134,45 @@ final class AtmosphereCycle {
 
   /// The air at [time], wrapped into the cycle.
   Atmosphere at(double time) {
-    if (keys.length == 1) return keys.single.$2;
+    if (keys.length == 1) return keys.single.atmosphere;
     final t = time % period;
     for (var i = 0; i < keys.length; i++) {
-      final (start, from) = keys[i];
-      final (nextAt, to) = keys[(i + 1) % keys.length];
+      final AtmosphereKey(time: start, atmosphere: from) = keys[i];
+      final AtmosphereKey(time: nextAt, atmosphere: to) =
+          keys[(i + 1) % keys.length];
       final end = i + 1 < keys.length ? nextAt : nextAt + period;
-      final here = t < keys.first.$1 ? t + period : t;
+      final here = t < keys.first.time ? t + period : t;
       if (here >= start && here < end) {
         return Atmosphere.lerp(from, to, (here - start) / (end - start));
       }
     }
-    return keys.last.$2;
+    return keys.last.atmosphere;
   }
+}
+
+/// One key of an [AtmosphereCycle]: the air the cycle shows at a time.
+final class AtmosphereKey {
+  /// The [atmosphere] the cycle shows at [time].
+  const AtmosphereKey({required this.time, required this.atmosphere});
+
+  /// When in the cycle this air is reached, in the cycle's own unit:
+  /// seconds, for a clock that adds its `dt`.
+  final double time;
+
+  /// The air at [time].
+  final Atmosphere atmosphere;
+
+  @override
+  bool operator ==(Object other) =>
+      other is AtmosphereKey &&
+      other.time == time &&
+      other.atmosphere == atmosphere;
+
+  @override
+  int get hashCode => Object.hash(time, atmosphere);
+
+  @override
+  String toString() => 'AtmosphereKey($time, $atmosphere)';
 }
 
 /// Lights turned up and down together: a car's headlamps, a street's

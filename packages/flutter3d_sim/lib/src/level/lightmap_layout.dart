@@ -126,9 +126,9 @@ final class LightmapLayout {
   /// The second texture coordinate of a face's corner, where `su` and `sv`
   /// are −1 or 1 along [LightmapFace.u] and [LightmapFace.v] — the same
   /// corners `BrushGeometry` emits.
-  (double, double) uvAt(LightmapFace face, double su, double sv) => (
-    (face.x + (su + 1.0) * 0.5 * face.extentU * texelsPerMeter) / width,
-    (face.y + (sv + 1.0) * 0.5 * face.extentV * texelsPerMeter) / height,
+  LightmapUv uvAt(LightmapFace face, double su, double sv) => LightmapUv(
+    u: (face.x + (su + 1.0) * 0.5 * face.extentU * texelsPerMeter) / width,
+    v: (face.y + (sv + 1.0) * 0.5 * face.extentV * texelsPerMeter) / height,
   );
 
   /// The second texture coordinate of any point on [face]'s plane.
@@ -142,15 +142,15 @@ final class LightmapLayout {
   /// with the wrong face, and reading a neighbour's texels would look like
   /// light and not like a mistake. Compare [texelOf], which clamps because the
   /// baker is walking texels it already owns.
-  (double, double) uvOfPoint(LightmapFace face, double x, double y, double z) {
+  LightmapUv uvOfPoint(LightmapFace face, double x, double y, double z) {
     final dx = x - face.origin.x;
     final dy = y - face.origin.y;
     final dz = z - face.origin.z;
     final along = dx * face.u.x + dy * face.u.y + dz * face.u.z;
     final across = dx * face.v.x + dy * face.v.y + dz * face.v.z;
-    return (
-      (face.x + along * texelsPerMeter) / width,
-      (face.y + across * texelsPerMeter) / height,
+    return LightmapUv(
+      u: (face.x + along * texelsPerMeter) / width,
+      v: (face.y + across * texelsPerMeter) / height,
     );
   }
 
@@ -168,19 +168,19 @@ final class LightmapLayout {
   }
 
   /// The centre of the reserved texel.
-  (double, double) get neutralUv =>
-      ((reservedX + 0.5) / width, (reservedY + 0.5) / height);
+  LightmapUv get neutralUv =>
+      LightmapUv(u: (reservedX + 0.5) / width, v: (reservedY + 0.5) / height);
 
   /// The texel a point on [face] falls in, clamped to the face's rectangle.
-  (int, int) texelOf(LightmapFace face, Vector3 point) {
+  LightmapTexel texelOf(LightmapFace face, Vector3 point) {
     final dx = point.x - face.origin.x;
     final dy = point.y - face.origin.y;
     final dz = point.z - face.origin.z;
     final along = dx * face.u.x + dy * face.u.y + dz * face.u.z;
     final across = dx * face.v.x + dy * face.v.y + dz * face.v.z;
-    return (
-      (along * texelsPerMeter).floor().clamp(0, face.width - 1),
-      (across * texelsPerMeter).floor().clamp(0, face.height - 1),
+    return LightmapTexel(
+      x: (along * texelsPerMeter).floor().clamp(0, face.width - 1),
+      y: (across * texelsPerMeter).floor().clamp(0, face.height - 1),
     );
   }
 
@@ -317,4 +317,49 @@ final class _Planned {
     width: width,
     height: height,
   );
+}
+
+/// A place in a [LightmapLayout]'s atlas as the second texture coordinate:
+/// what [LightmapLayout.uvAt], [LightmapLayout.uvOfPoint] and
+/// [LightmapLayout.neutralUv] answer.
+final class LightmapUv {
+  const LightmapUv({required this.u, required this.v});
+
+  /// Across the atlas, a fraction of its width from 0 to 1.
+  final double u;
+
+  /// Down the atlas, a fraction of its height from 0 to 1.
+  final double v;
+
+  @override
+  bool operator ==(Object other) =>
+      other is LightmapUv && other.u == u && other.v == v;
+
+  @override
+  int get hashCode => Object.hash(u, v);
+
+  @override
+  String toString() => 'LightmapUv($u, $v)';
+}
+
+/// A texel of a [LightmapFace], counted from the face's own corner: what
+/// [LightmapLayout.texelOf] answers.
+final class LightmapTexel {
+  const LightmapTexel({required this.x, required this.y});
+
+  /// Texels along the face's `u` axis, from 0 to its width less one.
+  final int x;
+
+  /// Texels along the face's `v` axis, from 0 to its height less one.
+  final int y;
+
+  @override
+  bool operator ==(Object other) =>
+      other is LightmapTexel && other.x == x && other.y == y;
+
+  @override
+  int get hashCode => Object.hash(x, y);
+
+  @override
+  String toString() => 'LightmapTexel($x, $y)';
 }

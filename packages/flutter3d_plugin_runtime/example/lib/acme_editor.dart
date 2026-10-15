@@ -4,7 +4,7 @@
 /// - **Hints** (`package:flutter3d_plugin_api/editor.dart`), which need no
 ///   editor to be written: the `acme_sample.heat` component an ember
 ///   carries, the `ember` entity kind the scene binding draws, and the
-///   parameters of the `acme_sample_Hair` lit model. A game installs the
+///   parameters of the `acme_sample__Hair` lit model. A game installs the
 ///   plugin with no editor and the hints are skipped.
 /// - **Editor pieces** (`package:flutter3d_editor_core`): a command an
 ///   agent sees as `acme_sample.stoke` (a plugin's commands, like its MCP
@@ -60,10 +60,10 @@ const EntityKindHints emberHints = EntityKindHints(
   components: <String>{'acme_sample.heat'},
 );
 
-/// The parameters of the `acme_sample_Hair` lit model, as the material
+/// The parameters of the `acme_sample__Hair` lit model, as the material
 /// panel shows them for a material that names it.
 const MaterialHints hairHints = MaterialHints(
-  model: 'acme_sample_Hair',
+  model: 'acme_sample__Hair',
   fields: <FieldHint>[
     FieldHint.number('gloss', min: 0, max: 1, step: 0.05),
     FieldHint.color('tint'),

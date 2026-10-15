@@ -163,11 +163,11 @@ final class ColourVisionDemo extends ShowcaseDemo {
   double _deutanGap(GameSettings config, {bool corrected = false}) {
     const ColorVision seen = ColorVision.simulate(ColorVisionDeficiency.deutan);
     const ColorVision fix = ColorVision.correct(ColorVisionDeficiency.deutan);
-    (double, double, double) through(String name) {
+    RgbTriple through(String name) {
       final Color c = _roles.of(_roles.named(name)!, config);
-      final (double r, double g, double b) = corrected
+      final RgbTriple(:r, :g, :b) = corrected
           ? fix.applyEncoded(c.r, c.g, c.b)
-          : (c.r, c.g, c.b);
+          : RgbTriple(r: c.r, g: c.g, b: c.b);
       return seen.applyEncoded(r, g, b);
     }
 

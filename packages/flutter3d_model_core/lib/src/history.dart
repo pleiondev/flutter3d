@@ -77,6 +77,42 @@ final class StepAuthor {
   String toString() => 'StepAuthor.$name';
 }
 
+/// One step on the undo stack as a panel shows it: what it did and who did
+/// it. [ModelHistory.authorship] is a list of these.
+final class StepAuthorship {
+  /// The step that [says] what it did, made by [author] through [client].
+  const StepAuthorship({
+    required this.says,
+    required this.author,
+    required this.client,
+  });
+
+  /// The step's own one-line description, from its command.
+  final String says;
+
+  /// Whether a person or an agent made the step.
+  final StepAuthor author;
+
+  /// The name the agent's client said hello with, or null for a person's own
+  /// step and for a client that gave no name.
+  final String? client;
+
+  @override
+  bool operator ==(Object other) =>
+      other is StepAuthorship &&
+      other.says == says &&
+      other.author == author &&
+      other.client == client;
+
+  @override
+  int get hashCode => Object.hash(says, author, client);
+
+  @override
+  String toString() =>
+      'StepAuthorship($says by ${author.name}'
+      '${client == null ? '' : ' via $client'})';
+}
+
 /// One entry: what was done, and what the document was before it.
 final class HistoryStep {
   const HistoryStep({
@@ -604,11 +640,14 @@ final class ModelHistory {
 
   /// Every step still on the stack, newest last, with who made each — what a
   /// panel showing "three steps by Claude, then one of yours" reads.
-  List<({String says, StepAuthor author, String? client})> get authorship =>
-      <({String says, StepAuthor author, String? client})>[
-        for (final HistoryStep step in _done)
-          (says: step.command.says, author: step.author, client: step.client),
-      ];
+  List<StepAuthorship> get authorship => <StepAuthorship>[
+    for (final HistoryStep step in _done)
+      StepAuthorship(
+        says: step.command.says,
+        author: step.author,
+        client: step.client,
+      ),
+  ];
 
   /// One step forward.
   bool redo() {

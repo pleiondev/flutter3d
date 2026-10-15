@@ -119,7 +119,7 @@ view can be switched on for one frame and off for the next with no
 `SkySettings`'s colours (`zenith`, `horizon`, `nadir`, `sunColor`) are
 linear and scene-referred: they are multiplied by `RenderSettings.exposure`
 and pass through the tone curve exactly like everything else in the frame.
-`RenderView.clearColor` is a linear `LinearColor` too. A colour picker's
+`CameraView.clearColor` is a linear `LinearColor` too. A colour picker's
 numbers are sRGB: pass them through `LinearColor.fromSrgb`, or the first
 value copied from one will look far too bright, and it reads as a shader
 defect rather than as the units mismatch it is.

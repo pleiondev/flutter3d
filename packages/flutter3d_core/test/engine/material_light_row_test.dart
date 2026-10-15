@@ -107,7 +107,7 @@ void main() {
         width: 8,
         height: 8,
         scene: scene,
-        views: <RenderView>[RenderView(camera: camera)],
+        views: <CameraView>[CameraView(camera: camera)],
       );
       bool ours(ShaderHandle? s) =>
           s?.name.startsWith('acme_hair_Hair') ?? false;

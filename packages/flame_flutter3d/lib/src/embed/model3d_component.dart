@@ -103,7 +103,7 @@ base class Model3dComponent extends PositionComponent {
 
   /// What one frame of [scene] is drawn with. Its clear colour is
   /// transparent, so the 2D game shows round the model.
-  late final RenderView view = RenderView(
+  late final CameraView view = CameraView(
     camera: camera3d,
     clearColor: LinearColor.transparent,
   );
@@ -281,7 +281,7 @@ base class Model3dComponent extends PositionComponent {
           width: (size.x * ratio).clamp(1.0, 4096.0).round(),
           height: (size.y * ratio).clamp(1.0, 4096.0).round(),
           scene: scene,
-          views: <RenderView>[view],
+          views: <CameraView>[view],
         )
         .frame;
     final now = frameImageNow(renderer.device, frame);

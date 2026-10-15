@@ -35,7 +35,7 @@ at the root of your package or workspace:
 
 ```yaml
 plugins:
-  flutter3d_lints: ^1.0.0-rc.1
+  flutter3d_lints: ^0.9.0
 ```
 
 `plugins:` is a section of its own, not a key under `analyzer:`, and it is
@@ -46,7 +46,7 @@ turns all four on; to turn one off:
 ```yaml
 plugins:
   flutter3d_lints:
-    version: ^1.0.0-rc.1
+    version: ^0.9.0
     diagnostics:
       step_prefixes_dart_math: false
 ```

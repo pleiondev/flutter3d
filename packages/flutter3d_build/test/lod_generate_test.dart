@@ -179,7 +179,7 @@ rules:
 
   test('a manifest lods entry that is not a ratio names its line', () {
     expect(
-      () => AssetManifest.parse('''
+      () => AssetBuildManifest.parse('''
 rules:
   - glob: "*.obj"
     lods:

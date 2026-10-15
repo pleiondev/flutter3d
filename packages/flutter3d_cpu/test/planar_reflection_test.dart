@@ -114,7 +114,7 @@ FrameResult _render(_Stage it, [RenderSettings settings = _on]) =>
       width: _size,
       height: _size,
       scene: it.scene,
-      views: <RenderView>[RenderView(camera: it.camera)],
+      views: <CameraView>[CameraView(camera: it.camera)],
       settings: settings,
     );
 
@@ -310,7 +310,7 @@ void main() {
       // An unlit cube emits its base colour as linear light, so a picture
       // encoded right hands the sRGB it was painted with back, unchanged.
       _cube(it, _unlit(0.9, 0.3, 0.1), Vector3.zero(), size: 1.0);
-      final texture = RenderView.texture(
+      final texture = CameraView.texture(
         it.device,
         camera: it.camera,
         width: _size,
@@ -341,7 +341,7 @@ void main() {
         ..lookAt(Vector3(20.0, 0.0, 0.0));
       it.scene.add(watcher);
       _cube(it, _unlit(1.0, 0.0, 0.0), Vector3(20.0, 0.0, 0.0), size: 3.0);
-      final texture = RenderView.texture(
+      final texture = CameraView.texture(
         it.device,
         camera: watcher,
         width: 16,
@@ -366,12 +366,12 @@ void main() {
     test('one that does not refresh is drawn once, and again on asking', () {
       final it = _stage();
       _cube(it, _unlit(0.5, 0.5, 0.5), Vector3.zero());
-      final texture = RenderView.texture(
+      final texture = CameraView.texture(
         it.device,
         camera: it.camera,
         width: 8,
         height: 8,
-        options: RenderViewSettings(refreshEveryFrame: false),
+        options: CameraViewSettings(refreshEveryFrame: false),
       );
       it.scene.addTextureView(texture);
       int drawn() => _render(

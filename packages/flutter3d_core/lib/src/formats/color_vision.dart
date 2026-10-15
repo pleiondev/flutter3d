@@ -143,18 +143,22 @@ final class ColorVision {
   }
 
   /// [matrix] applied to a linear colour, clamped to what a display shows.
-  (double, double, double) applyLinear(double r, double g, double b) {
+  RgbTriple applyLinear(double r, double g, double b) {
     final m = matrix;
     double row(int i) =>
         (m[i * 3] * r + m[i * 3 + 1] * g + m[i * 3 + 2] * b).clamp(0.0, 1.0);
-    return (row(0), row(1), row(2));
+    return RgbTriple(r: row(0), g: row(1), b: row(2));
   }
 
   /// The same for a colour as the display is sent it, sRGB encoded, which is
   /// what the colour table is indexed with and answers in.
-  (double, double, double) applyEncoded(double r, double g, double b) {
-    final (lr, lg, lb) = applyLinear(_linear(r), _linear(g), _linear(b));
-    return (_encoded(lr), _encoded(lg), _encoded(lb));
+  RgbTriple applyEncoded(double r, double g, double b) {
+    final RgbTriple(r: lr, g: lg, b: lb) = applyLinear(
+      _linear(r),
+      _linear(g),
+      _linear(b),
+    );
+    return RgbTriple(r: _encoded(lr), g: _encoded(lg), b: _encoded(lb));
   }
 
   /// This transform as the strip `LookSettings.lut` grades through — the
@@ -171,11 +175,15 @@ final class ColorVision {
     for (var blue = 0; blue < size; blue++) {
       for (var green = 0; green < size; green++) {
         for (var red = 0; red < size; red++) {
-          final input = (red / last, green / last, blue / last);
-          final (r, g, b) = grade == null
+          final input = RgbTriple(
+            r: red / last,
+            g: green / last,
+            b: blue / last,
+          );
+          final RgbTriple(:r, :g, :b) = grade == null
               ? input
-              : grade.lookup(input.$1, input.$2, input.$3);
-          final (or, og, ob) = applyEncoded(r, g, b);
+              : grade.lookup(input.r, input.g, input.b);
+          final RgbTriple(r: or, g: og, b: ob) = applyEncoded(r, g, b);
           final at = ((green * width) + blue * size + red) * 4;
           pixels[at] = byte(or);
           pixels[at + 1] = byte(og);
@@ -211,14 +219,12 @@ final class ColorVision {
   /// colour. Distances are CIE 1976 ΔE in Lab under D65 ([difference]),
   /// where about two is the least anybody notices side by side; the default
   /// of twenty is what still reads at a glance on a small mark.
-  static List<({String a, String b, ColorVisionDeficiency by, double distance})>
-  confusions(
-    Map<String, (double, double, double)> colors, {
+  static List<ColorConfusion> confusions(
+    Map<String, RgbTriple> colors, {
     double within = 20.0,
   }) {
     final names = colors.keys.toList()..sort();
-    final found =
-        <({String a, String b, ColorVisionDeficiency by, double distance})>[];
+    final found = <ColorConfusion>[];
     for (var i = 0; i < names.length; i++) {
       for (var j = i + 1; j < names.length; j++) {
         final first = colors[names[i]]!;
@@ -227,11 +233,18 @@ final class ColorVision {
         for (final kind in ColorVisionDeficiency.values) {
           final sees = ColorVision.simulate(kind);
           final distance = difference(
-            sees.applyEncoded(first.$1, first.$2, first.$3),
-            sees.applyEncoded(second.$1, second.$2, second.$3),
+            sees.applyEncoded(first.r, first.g, first.b),
+            sees.applyEncoded(second.r, second.g, second.b),
           );
           if (distance < within) {
-            found.add((a: names[i], b: names[j], by: kind, distance: distance));
+            found.add(
+              ColorConfusion(
+                a: names[i],
+                b: names[j],
+                by: kind,
+                distance: distance,
+              ),
+            );
           }
         }
       }
@@ -240,10 +253,7 @@ final class ColorVision {
   }
 
   /// How far apart two sRGB colours look: CIE 1976 ΔE in Lab, D65.
-  static double difference(
-    (double, double, double) a,
-    (double, double, double) b,
-  ) {
+  static double difference(RgbTriple a, RgbTriple b) {
     final la = _lab(a);
     final lb = _lab(b);
     return math.sqrt(
@@ -253,10 +263,10 @@ final class ColorVision {
     );
   }
 
-  static (double, double, double) _lab((double, double, double) srgb) {
-    final r = _linear(srgb.$1);
-    final g = _linear(srgb.$2);
-    final b = _linear(srgb.$3);
+  static (double, double, double) _lab(RgbTriple srgb) {
+    final r = _linear(srgb.r);
+    final g = _linear(srgb.g);
+    final b = _linear(srgb.b);
     final x = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047;
     final y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
     final z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883;
@@ -271,4 +281,44 @@ final class ColorVision {
   static double _encoded(double c) => c < 0.0031308
       ? c * 12.92
       : 1.055 * math.pow(c, 1.0 / 2.4).toDouble() - 0.055;
+}
+
+/// Two named colours that someone missing a cone runs together: one pair
+/// [ColorVision.confusions] answers.
+final class ColorConfusion {
+  /// The colours named [a] and [b], [distance] apart to eyes with the
+  /// deficiency [by].
+  const ColorConfusion({
+    required this.a,
+    required this.b,
+    required this.by,
+    required this.distance,
+  });
+
+  /// The name of the first colour, the earlier of the two in sorted order.
+  final String a;
+
+  /// The name of the second colour.
+  final String b;
+
+  /// The deficiency that runs them together.
+  final ColorVisionDeficiency by;
+
+  /// How far apart they look to eyes with [by]: CIE 1976 ΔE in Lab under
+  /// D65, in no unit, where about two is the least anybody notices.
+  final double distance;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ColorConfusion &&
+      other.a == a &&
+      other.b == b &&
+      other.by == by &&
+      other.distance == distance;
+
+  @override
+  int get hashCode => Object.hash(a, b, by, distance);
+
+  @override
+  String toString() => 'ColorConfusion($a, $b, ${by.name}, $distance)';
 }

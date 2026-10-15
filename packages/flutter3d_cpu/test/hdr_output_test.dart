@@ -46,7 +46,7 @@ const int _size = 48;
     width: _size,
     height: _size,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
     settings: RenderSettings(
       bloom: const BloomSettings(enabled: false),
       outputTransform: transform,

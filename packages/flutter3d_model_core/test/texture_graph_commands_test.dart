@@ -58,7 +58,7 @@ void main() {
             fields: <String, Object?>{
               'value': <double>[1, 1, 1, 1],
             },
-            position: (12, 34),
+            position: NodePosition(x: 12, y: 34),
           ),
         ),
         isNull,
@@ -68,7 +68,7 @@ void main() {
       expect(graph.nodes, hasLength(4));
       final added = graph.nodeById(before)! as ColorTextureNode;
       expect(added.value, const LinearColor(1, 1, 1, 1));
-      expect(graph.positions[before], (12.0, 34.0));
+      expect(graph.positions[before], const NodePosition(x: 12, y: 34));
       expect(history.project.nextId, before + 1);
     });
 
@@ -247,7 +247,7 @@ void main() {
       );
 
       final material = history.project.materials.single;
-      expect(material.graph!.positions[1], (5.0, 6.0));
+      expect(material.graph!.positions[1], const NodePosition(x: 5, y: 6));
       expect(material.version, before); // a drag is not an edit to bake over
       expect(material.isGraphStale, isFalse);
     });

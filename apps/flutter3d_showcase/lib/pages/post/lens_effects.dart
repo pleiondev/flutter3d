@@ -138,14 +138,14 @@ final class LensEffectsDemo extends ShowcaseDemo {
     }
     // The table reads back what the file says at a corner, and a middle grey
     // comes out of it warmer than it went in: more red than blue.
-    final (double r, double g, double b) = _warm.lookup(1.0, 1.0, 1.0);
+    final RgbTriple(:r, :g, :b) = _warm.lookup(1.0, 1.0, 1.0);
     // Held as 32-bit floats, so compared to within a millionth.
     if ((r - 1.0).abs() > 1e-6 ||
         (g - 0.97).abs() > 1e-6 ||
         (b - 0.88).abs() > 1e-6) {
       throw StateError('white maps to ($r, $g, $b), not the file\'s corner');
     }
-    final (double gr, _, double gb) = _warm.lookup(0.5, 0.5, 0.5);
+    final RgbTriple(r: gr, b: gb) = _warm.lookup(0.5, 0.5, 0.5);
     if (gr <= gb + 0.05) {
       throw StateError('mid grey is not warmer: red $gr, blue $gb');
     }

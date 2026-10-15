@@ -64,7 +64,7 @@ abstract base class PassContributor {
   /// the camera's own near plane, which is the picture before fitting
   /// existed. A box whose minimum lies past its maximum on any axis says the
   /// contributor draws nothing in [view].
-  Aabb3? boundsFor(RenderView view) => null;
+  Aabb3? boundsFor(CameraView view) => null;
 
   /// Marks where this contributor's draws cover the frame, for the temporal
   /// resolve to keep less history there — `R4`. Called only while the

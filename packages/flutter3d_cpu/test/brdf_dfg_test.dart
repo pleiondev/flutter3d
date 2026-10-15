@@ -78,7 +78,7 @@ Float32List _render({
     width: size,
     height: size,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
     settings: RenderSettings(energyCompensation: compensate).forMeasurement(),
   );
   double linear(double e) =>

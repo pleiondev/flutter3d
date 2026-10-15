@@ -231,7 +231,7 @@ extension _PickPass on Renderer {
     required FrameResources resources,
     required TextureHandle target,
     required Scene scene,
-    required List<RenderView> ordered,
+    required List<CameraView> ordered,
     required RenderSettings settings,
     required int width,
     required int height,

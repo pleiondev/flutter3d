@@ -473,7 +473,7 @@ extension _Interactions on _ModelerScreenState {
     int materialIndex,
     String kind,
     Map<String, Object?> fields,
-    (double x, double y) position,
+    NodePosition position,
   ) => _cubit.ran(
     AddNode(
       materialIndex: materialIndex,

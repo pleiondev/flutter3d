@@ -1,3 +1,17 @@
+## 1.0.0-rc.1+1
+
+- **Breaking: results that were records are final classes.** `OriginShifted`
+  answered or held a record, which can never gain a field. Each answers a
+  final class now, with the record's field names (a positional `$1` has a
+  name of its own), `==` and `hashCode`. A field read compiles as before; a
+  destructuring pattern names the class, and `flutter3d_build:migrate`
+  rewrites the `$1` reads.
+- **Breaking: the engine's anchors are named `f3d.<name>`.** `RenderAnchor`:
+  `RenderAnchor.afterBloom.name` is `f3d.after_bloom` where it was `after
+  bloom`, as every plugin's name carries its namespace and none has a space.
+  `RenderAnchor.named` still finds an anchor by the old word, which files
+  written before carry.
+
 ## 1.0.0-rc.1
 
 - **New: `tools.dart`, what a plugin hands an agent.** `McpTools`,

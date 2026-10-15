@@ -684,7 +684,10 @@ Future<F3dConversion> convertDocument(
   final chunked = switch (chunks) {
     null => levelled,
     final int threshold => () {
-      final (split, count) = splitLargeMeshes(levelled, threshold: threshold);
+      final MeshSplit(document: split, meshesSplit: count) = splitLargeMeshes(
+        levelled,
+        threshold: threshold,
+      );
       say('chunks: $count meshes above $threshold triangles split');
       return split;
     }(),

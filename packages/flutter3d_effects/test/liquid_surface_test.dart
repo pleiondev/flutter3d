@@ -124,7 +124,7 @@ void main() {
         width: 8,
         height: 8,
         scene: scene,
-        views: <RenderView>[RenderView(camera: camera)],
+        views: <CameraView>[CameraView(camera: camera)],
       );
       await Future<void>.delayed(Duration.zero);
     }

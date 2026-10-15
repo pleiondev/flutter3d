@@ -94,7 +94,7 @@ abstract final class Layers {
 /// A mixin class rather than an interface so a monster or a pickup can take the
 /// three defaults and override only the one it cares about — which is almost
 /// always [onCollisionStart].
-abstract mixin class CollisionListener {
+abstract base mixin class CollisionListener {
   void onCollisionStart(CollisionContext context) {}
 
   /// Called for every step the pair stays overlapping, the first one excepted.

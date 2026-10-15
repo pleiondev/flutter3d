@@ -18,7 +18,7 @@ part of 'scene_widgets.dart';
 ///     );
 ///     // each frame:
 ///     mount.advance(seconds);
-///     renderer.render(..., views: [RenderView(camera: mount.camera!)]);
+///     renderer.render(..., views: [CameraView(camera: mount.camera!)]);
 ///
 /// **No screen, and no binding of its own.** The widgets paint nothing — a
 /// [Scene3D] builds them under an `Offstage` for the same reason — so they

@@ -17,9 +17,9 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
 import 'package:test/test.dart';
 
 /// Two eyes a runtime posed, side by side in one target.
-List<RenderView> _eyes(Scene scene) => <RenderView>[
+List<CameraView> _eyes(Scene scene) => <CameraView>[
   for (final (index, x) in <(int, double)>[(0, -0.032), (1, 0.032)])
-    RenderView(
+    CameraView(
       camera: (CameraNode()
         ..setPosition(x, 1.6, 0.0)
         ..projection = OffAxisProjection.fromAngles(
@@ -232,7 +232,7 @@ void main() {
       width: 16,
       height: 16,
       scene: scene,
-      views: <RenderView>[RenderView(camera: camera)],
+      views: <CameraView>[CameraView(camera: camera)],
     );
 
     draw();

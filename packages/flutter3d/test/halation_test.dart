@@ -47,8 +47,8 @@ Future<({List<int> red, List<int> blue})> _glow({
     width: width,
     height: width,
     scene: scene,
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: scene.cameras.single,
         clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),

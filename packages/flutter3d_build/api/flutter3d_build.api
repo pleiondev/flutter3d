@@ -128,7 +128,7 @@ List<Map<String, Object?>> convertReportsFrom(Object? json)
 
 const String convertUsage = …
 
-({bool did, String says}) createProject(String target, String name, {ProjectKind kind = ProjectKind.scene})
+Answer createProject(String target, String name, {ProjectKind kind = ProjectKind.scene})
 
 const String createUsage = …
 
@@ -270,6 +270,18 @@ int exitCodeFor(Iterable<ConvertOutcome> outcomes)
 
 library package:flutter3d_build/flutter3d_build.dart
 
+final class AssetBuildManifest
+  AssetRule? ruleFor(String relativePath)
+  const AssetBuildManifest({this.rules = const <AssetRule>[], this.classes = const <DeviceClassBudget>[], this.shaders = ShaderSelection.none})
+  factory AssetBuildManifest.parse(String yamlText)
+  final List<AssetRule> rules
+  final List<DeviceClassBudget> classes
+  final ShaderSelection shaders
+  static AssetBuildManifest readFrom(Directory projectRoot)
+  static const AssetBuildManifest empty = AssetBuildManifest()
+  static const FormatSpec spec = FormatSpec(id: 'f3d.assets', version: formatVersion, suffixes: <String>['flutter3d_assets.yaml'], fixture: 'test/fixtures/v<N>/flutter3d_assets.yaml')
+  static const int formatVersion = 1
+
 final class AssetBuildReport
   const AssetBuildReport({required this.converted, required this.skipped, required this.dependencies})
   final List<String> converted
@@ -277,25 +289,13 @@ final class AssetBuildReport
   final List<String> skipped
 
 final class AssetLayout
-  AssetLayout({required this.projectRoot, AssetManifest? manifest})
+  AssetLayout({required this.projectRoot, AssetBuildManifest? manifest})
   Directory get generatedDir
   Directory get sourcesDir
   List<AssetPlan> materialPlan()
   List<AssetPlan> plan()
-  final AssetManifest manifest
+  final AssetBuildManifest manifest
   final Directory projectRoot
-
-final class AssetManifest
-  AssetRule? ruleFor(String relativePath)
-  const AssetManifest({this.rules = const <AssetRule>[], this.classes = const <DeviceClassBudget>[], this.shaders = ShaderSelection.none})
-  factory AssetManifest.parse(String yamlText)
-  final List<AssetRule> rules
-  final List<DeviceClassBudget> classes
-  final ShaderSelection shaders
-  static AssetManifest readFrom(Directory projectRoot)
-  static const AssetManifest empty = AssetManifest()
-  static const FormatSpec spec = FormatSpec(id: 'f3d.assets', version: formatVersion, suffixes: <String>['flutter3d_assets.yaml'], fixture: 'test/fixtures/v<N>/flutter3d_assets.yaml')
-  static const int formatVersion = 1
 
 final class AssetPlan
   const AssetPlan({required this.source, required this.destination, this.rule})
@@ -452,6 +452,14 @@ final class MaterialBuildReport
   final List<String> dependencies
   final List<String> skipped
 
+final class MeshSplit
+  String toString()
+  bool operator ==(Object other)
+  const MeshSplit({required this.document, required this.meshesSplit})
+  final ModelDocument document
+  final int meshesSplit
+  int get hashCode
+
 final class MigrationTableException extends Flutter3dFormatException
   String toString()
   const MigrationTableException(this.message)
@@ -490,6 +498,14 @@ final class PluginKind
   static const PluginKind renderStep = PluginKind._('render-step', 'a full-screen pass at a render anchor, switched like a built-in step', simulates: false)
   static const PluginKind tool = PluginKind._('tool', 'an MCP tool published under the plugin\'s id', simulates: false)
 
+final class PluginMarker
+  String toString()
+  bool operator ==(Object other)
+  const PluginMarker({required this.value, required this.legacy})
+  final Object value
+  final bool legacy
+  int get hashCode
+
 final class PluginPackage
   String toString()
   const PluginPackage({required this.name, required this.root, this.shaderNeeds = const <String>[]})
@@ -504,6 +520,15 @@ final class PluginProcessResult
   final int exitCode
 
 typedef PluginProcessRunner = Future<PluginProcessResult> Function(String executable, List<String> arguments, String workingDirectory);
+
+final class PluginSelection
+  String toString()
+  bool operator ==(Object other)
+  const PluginSelection({required this.kept, required this.excluded, required this.warnings})
+  final List<DiscoveredPlugin> excluded
+  final List<DiscoveredPlugin> kept
+  final List<String> warnings
+  int get hashCode
 
 final class PluginSelector
   DiscoveredPlugin get plugin
@@ -626,7 +651,7 @@ double lodScreenFraction(double ratio)
 
 List<String> markerEntries(String package, Object? value)
 
-(Object, {bool legacy})? markerOf(Map<Object?, Object?> pubspec)
+PluginMarker? markerOf(Map<Object?, Object?> pubspec)
 
 const String materialExtension = '.f3dmat'
 
@@ -672,7 +697,7 @@ MaterialBuildReport runMaterialBuild(Directory projectRoot, {IOSink? log, Materi
 
 ShaderBuildReport runShaderBuild(Directory projectRoot, {required PluginDiscovery plugins, IOSink? log, bool full = false, ShaderBuildTarget target = ShaderBuildTarget.any, MaterialCompilers? compilers, ShaderSet? engine, String? engineRevision, MaterialCompilerRegistry? registry})
 
-({List<DiscoveredPlugin> kept, List<DiscoveredPlugin> excluded, List<String> warnings}) selectPlugins(List<DiscoveredPlugin> plugins, {List<PluginSelector> without = const <PluginSelector>[], Map<PluginSelector, String> set = const <PluginSelector, String>{}, List<PluginSelector> add = const <PluginSelector>[]})
+PluginSelection selectPlugins(List<DiscoveredPlugin> plugins, {List<PluginSelector> without = const <PluginSelector>[], Map<PluginSelector, String> set = const <PluginSelector, String>{}, List<PluginSelector> add = const <PluginSelector>[]})
 
 const String shaderBundleExtension = '.f3dshaders'
 
@@ -680,7 +705,7 @@ List<String> shaderNeedsOf(String package, Map<Object?, Object?> pubspec, {Set<S
 
 const Set<String> splatExtensions = <String>{'.ply', '.spz'}
 
-(ModelDocument, int) splitLargeMeshes(ModelDocument document, {int threshold = defaultChunkThreshold})
+MeshSplit splitLargeMeshes(ModelDocument document, {int threshold = defaultChunkThreshold})
 
 PluginsFileReport writeDiscoveredPlugins(Directory appRoot, {bool always = false})
 

@@ -53,6 +53,39 @@ final class FireDetail {
   final int smokeCell;
 }
 
+/// What one step of a view wanted to draw this frame and how much it holds —
+/// [FireView.wanted], [LiquidView.wanted]. Where [wanted] is over [holds],
+/// the step drew fewer, larger or farther apart.
+final class StepBudget {
+  const StepBudget({
+    required this.step,
+    required this.wanted,
+    required this.holds,
+  });
+
+  /// The step's name: `smoke`, `drops`, `bubbles`.
+  final String step;
+
+  /// How many it wanted to draw.
+  final int wanted;
+
+  /// How many it holds at most.
+  final int holds;
+
+  @override
+  bool operator ==(Object other) =>
+      other is StepBudget &&
+      other.step == step &&
+      other.wanted == wanted &&
+      other.holds == holds;
+
+  @override
+  int get hashCode => Object.hash(step, wanted, holds);
+
+  @override
+  String toString() => 'StepBudget($step: $wanted of $holds)';
+}
+
 /// Gas carries what is in it: a tongue of flame and a puff of smoke are
 /// the gas itself and move with it, the wind where their fire is plus the
 /// rise of its hot gas where the particle now is.
@@ -607,8 +640,12 @@ final class FireView {
     final shorter = wanted > 0.7 * detail.smoke
         ? 0.7 * detail.smoke / wanted
         : 1.0;
-    _wanted = <(String, int, int)>[
-      ('smoke', wanted.round(), (0.7 * detail.smoke).round()),
+    _wanted = <StepBudget>[
+      StepBudget(
+        step: 'smoke',
+        wanted: wanted.round(),
+        holds: (0.7 * detail.smoke).round(),
+      ),
     ];
     final now = keys.toSet();
     for (var k = 0; k < burning; k++) {
@@ -653,8 +690,8 @@ final class FireView {
 
   /// What each step wanted to draw this frame and how much it holds:
   /// where it wanted more, it drew fewer, larger or farther apart.
-  List<(String, int, int)> get wanted => _wanted;
-  List<(String, int, int)> _wanted = const <(String, int, int)>[];
+  List<StepBudget> get wanted => _wanted;
+  List<StepBudget> _wanted = const <StepBudget>[];
 
   void _char() {
     for (final w in _watched) {

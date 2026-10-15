@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1+1
 
+- **Breaking: `RenderView` is `CameraView`.** `RenderView` and
+  `RenderViewSettings` changed with it. `package:flutter/rendering.dart`
+  exports a `RenderView` too, the root of a render tree, so a file importing
+  both had to hide one. `RenderViewSettings` is `CameraViewSettings` and
+  `FrameView.ofRenderView` is `FrameView.ofCameraView`; `dart fix` renames
+  them.
+
 - **Breaking: the placement types are no longer re-exported.**
   `ComputeExecutor`, `ComputeExecutors` and `ComputePlacement` are the
   hardware layer's and the backends' own: where compute runs is decided

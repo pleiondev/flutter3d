@@ -89,8 +89,8 @@ void main() {
         width: _width,
         height: _height,
         scene: built.scene,
-        views: <RenderView>[
-          RenderView(
+        views: <CameraView>[
+          CameraView(
             camera: built.camera,
             // Black, so "drew nothing" and "drew something" cannot be confused
             // by a background that is already bright.

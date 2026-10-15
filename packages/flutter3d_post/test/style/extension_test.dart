@@ -79,7 +79,7 @@ final class FrostAddon extends RenderStepAddon {
 
 const ink = LightingModel(
   'Ink',
-  'acme_ink_Ink',
+  'acme_ink__Ink',
   usesMetallicRoughnessMap: false,
 );
 
@@ -222,22 +222,27 @@ void main() {
     test("a plugin's model is named while it is on, and not after", () {
       final stage = FrameStage();
       final models = stage.renderer.lightingModels;
-      expect(models.named('acme_ink_Ink'), isNull);
+      expect(models.named('acme_ink.Ink'), isNull);
       final host = stage.install(const <LightingModelAddon>[InkAddon()]);
+      expect(ink.name, 'acme_ink.Ink');
+      expect(models.named('acme_ink.Ink'), same(ink));
+      // Its stage's name, and the word a file wrote before the dot, find it
+      // too.
+      expect(models.named('acme_ink__Ink'), same(ink));
       expect(models.named('acme_ink_Ink'), same(ink));
       // A plugin's name compares exactly, so two plugins stay apart.
-      expect(models.named('acme_ink_ink'), isNull);
+      expect(models.named('acme_ink.ink'), isNull);
       expect(models.all.last, same(ink));
       // Another engine in the same process never heard of it.
       expect(
-        FrameStage().renderer.lightingModels.named('acme_ink_Ink'),
+        FrameStage().renderer.lightingModels.named('acme_ink.Ink'),
         isNull,
       );
-      expect(LightingModels.shipped.named('acme_ink_Ink'), isNull);
+      expect(LightingModels.shipped.named('acme_ink.Ink'), isNull);
       host
         ..disable(const InkAddon().id)
         ..applyPending(1);
-      expect(models.named('acme_ink_Ink'), isNull);
+      expect(models.named('acme_ink.Ink'), isNull);
     });
 
     test('a built-in name is refused to anything but the built-in model', () {

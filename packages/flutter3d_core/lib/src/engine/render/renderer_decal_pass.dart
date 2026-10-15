@@ -110,7 +110,7 @@ extension _DecalPass on Renderer {
     required TextureHandle surface,
     required TextureHandle albedo,
     required List<DecalNode> decals,
-    required List<RenderView> views,
+    required List<CameraView> views,
     required FramePassState passState,
     DecalSettings settings = const DecalSettings(),
   }) {

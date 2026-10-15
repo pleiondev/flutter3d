@@ -272,6 +272,15 @@ final class NativeBurner
   static NativeBurner charcoal(double surface)
   static NativeBurner kindling()
 
+final class NativeChar
+  String toString()
+  bool operator ==(Object other)
+  const NativeChar({required this.share, required this.depth, required this.temperature})
+  final double depth
+  final double share
+  final double temperature
+  int get hashCode
+
 final class NativeCharacterMove
   String toString()
   bool operator ==(Object other)
@@ -444,6 +453,14 @@ final class NativeFire
   final double sootTemperature
   final double sootYield
 
+final class NativeFireBlock
+  String toString()
+  bool operator ==(Object other)
+  const NativeFireBlock({required this.fires, required this.bodies})
+  final Float32List fires
+  final List<NativeBody> bodies
+  int get hashCode
+
 final class NativeFluid implements FluidSystem
   FluidFrame? read({bool wait = true})
   NativeFluid(int capacity, double spacing)
@@ -532,6 +549,22 @@ final class NativeLawProperty
   static const NativeLawProperty specificHeat = NativeLawProperty._(0, 'specificHeat')
   static const NativeLawProperty surfaceTension = NativeLawProperty._(5, 'surfaceTension')
   static const NativeLawProperty viscosity = NativeLawProperty._(4, 'viscosity')
+
+final class NativeLinkJoint
+  String toString()
+  bool operator ==(Object other)
+  const NativeLinkJoint({required this.position, required this.speed})
+  final double position
+  final double speed
+  int get hashCode
+
+final class NativeLinkTurn
+  String toString()
+  bool operator ==(Object other)
+  const NativeLinkTurn({required this.turn, required this.spin})
+  final Quaternion turn
+  final Vector3 spin
+  int get hashCode
 
 final class NativeLiquid extends FluidSolver
   const NativeLiquid()
@@ -713,6 +746,22 @@ final class NativeShallowLiquid
 
 typedef NativeShallowSample = ({double surface, double depth, double flowX, double flowZ});
 
+final class NativeShallowSurface
+  String toString()
+  bool operator ==(Object other)
+  const NativeShallowSurface({required this.surface, required this.depth})
+  final Float32List depth
+  final Float32List surface
+  int get hashCode
+
+final class NativeShallowVolume
+  String toString()
+  bool operator ==(Object other)
+  const NativeShallowVolume({required this.held, required this.lost})
+  final double held
+  final double lost
+  int get hashCode
+
 final class NativeShape
   NativeShape.box(Vector3 halfExtents)
   const NativeShape.capsule(double radius, double halfLength)
@@ -738,6 +787,22 @@ final class NativeSpring extends NativeForceField
   final double? breakingForce
   void apply(NativeForceContext context)
   void restoreState(Object? state)
+
+final class NativeSubmersion
+  String toString()
+  bool operator ==(Object other)
+  const NativeSubmersion({required this.volume, required this.water})
+  final double volume
+  final int water
+  int get hashCode
+
+final class NativeTransformBlock
+  String toString()
+  bool operator ==(Object other)
+  const NativeTransformBlock({required this.transforms, required this.bodies})
+  final Float32List transforms
+  final List<NativeBody> bodies
+  int get hashCode
 
 extension type const NativeVehicle(int id)
 
@@ -770,14 +835,6 @@ final class NativeWheelState
   int get hashCode
 
 final class NativeWorld
-  ({Float32List fires, List<NativeBody> bodies}) readFires()
-  ({Float32List surface, Float32List depth}) readShallowSurface(NativeShallowLiquid water)
-  ({Float32List transforms, List<NativeBody> bodies}) readTransforms()
-  ({Quaternion turn, Vector3 spin}) linkTurn(NativeMultibody multibody, int link)
-  ({double held, double lost}) shallowVolume(NativeShallowLiquid water)
-  ({double position, double speed}) linkJoint(NativeMultibody multibody, int link)
-  ({double share, double depth, double temperature}) charOf(NativeBody body)
-  ({double volume, int water}) submergedOf(NativeBody body)
   Float32List readBubbles({int capacity = c.shallowMostBubbles, NativeShallowLiquid? of})
   Float32List readShallowFlow(NativeShallowLiquid water)
   Float32List readShallowGround(NativeShallowLiquid water)
@@ -794,13 +851,17 @@ final class NativeWorld
   List<NativeWheelState> wheelsOf(NativeVehicle vehicle)
   Matrix3 inertiaTensorOf(NativeBody body)
   NativeBody addBody({required Vector3 position, NativeBodyType type = NativeBodyType.dynamic, double mass = 1.0})
+  NativeChar charOf(NativeBody body)
   NativeCharacterMove moveCharacter({required NativeShape shape, required Vector3 position, required Vector3 move, Vector3? velocity, double maxSlopeCos = 0.7071067811865476, double stepHeight = 0.35, bool mayStep = true, int mask = 0xffffffff, int fromAbove = 0, NativeBody? ignore})
   NativeCompound createCompound(List<NativeCompoundPart> parts)
+  NativeFireBlock readFires()
   NativeHit? castShape(NativeShape shape, Vector3 position, Vector3 translation, {Quaternion? orientation, double rounding = 0.0, int mask = 0xffffffff, NativeBody? ignore})
   NativeHit? rayCast(Vector3 origin, Vector3 direction, double maxDistance, {int mask = 0xffffffff, NativeBody? ignore})
   NativeHull createHull(List<Vector3> points)
   NativeJoint createDistanceJoint(NativeBody a, NativeBody b, {required Vector3 anchorA, required Vector3 anchorB})
   NativeJoint createJoint(NativeJointType type, NativeBody a, NativeBody b, {required Vector3 anchor, Vector3? axis})
+  NativeLinkJoint linkJoint(NativeMultibody multibody, int link)
+  NativeLinkTurn linkTurn(NativeMultibody multibody, int link)
   NativeLiquidProperties shallowPropertiesOf(NativeShallowLiquid water)
   NativeMaterial materialOf(NativeBody body)
   NativeMesh createMesh(List<Vector3> vertices, List<int> indices)
@@ -809,6 +870,10 @@ final class NativeWorld
   NativeShallowInfo shallowInfoOf(NativeShallowLiquid water)
   NativeShallowLiquid createShallowLiquid({required int nx, required int nz, required double cell, required Vector3 origin, required List<double> ground})
   NativeShallowSample? sampleShallow(NativeShallowLiquid water, double x, double z)
+  NativeShallowSurface readShallowSurface(NativeShallowLiquid water)
+  NativeShallowVolume shallowVolume(NativeShallowLiquid water)
+  NativeSubmersion submergedOf(NativeBody body)
+  NativeTransformBlock readTransforms()
   NativeVehicle createVehicle(NativeBody chassis, {Vector3? up, Vector3? forward})
   NativeWorld()
   Quaternion orientationOf(NativeBody body)
@@ -1029,6 +1094,15 @@ final class RagdollSwing extends RagdollJoint
   final double medial
   final double twist
 
+final class ShapeSampleDirection
+  String toString()
+  bool operator ==(Object other)
+  const ShapeSampleDirection({required this.x, required this.y, required this.z})
+  final double x
+  final double y
+  final double z
+  int get hashCode
+
 const String askedPhysics = String.fromEnvironment('FLUTTER3D_PHYSICS', defaultValue: 'native')
 
 PhysicsBackend choosePhysics(String asked)
@@ -1041,7 +1115,7 @@ const int clothParamFloats = 20
 
 const int clothPointFloats = 4
 
-final List<(double, double, double)> customShapeDirections
+final List<ShapeSampleDirection> customShapeDirections
 
 const int debrisBodyFloats = 16
 

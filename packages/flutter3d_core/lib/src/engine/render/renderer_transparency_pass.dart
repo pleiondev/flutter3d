@@ -45,9 +45,9 @@ typedef _OrderIndependentBlend = ({BlendState first, BlendState? second});
 ///
 /// [rect] is the viewport the view drew through and [target] its rectangle
 /// of the target, the scissor. They differ only for a window of a larger
-/// frame (`RenderViewSettings.window`), whose viewport is the frame's.
+/// frame (`CameraViewSettings.window`), whose viewport is the frame's.
 typedef _DeferredTransparency = ({
-  RenderView view,
+  CameraView view,
   ScreenRect rect,
   ScreenRect target,
   vm.Matrix4 viewProjection,
@@ -136,7 +136,7 @@ extension _TransparencyPasses on Renderer {
     _fogInfo.projection[0] =
         deferred.view.camera.projection is OrthographicProjection ? 1.0 : 0.0;
     _clustersActive = deferred.clustered;
-    _aimSceneColour(deferred);
+    _aimSceneColor(deferred);
     if (deferred.clustered && rebuildClusters) {
       final projection = deferred.view.camera.projection;
       _lightClusters.build(

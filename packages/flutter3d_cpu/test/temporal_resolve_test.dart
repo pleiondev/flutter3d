@@ -34,7 +34,7 @@ typedef _Staged = ({
   CpuDevice device,
   Renderer renderer,
   Scene scene,
-  RenderView view,
+  CameraView view,
 });
 
 _Staged _staged() {
@@ -63,7 +63,7 @@ _Staged _staged() {
     device: device,
     renderer: Renderer.create(device: device),
     scene: scene,
-    view: RenderView(
+    view: CameraView(
       camera: camera,
       clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
     ),
@@ -78,7 +78,7 @@ _Staged _staged() {
     width: _width,
     height: _height,
     scene: it.scene,
-    views: <RenderView>[it.view],
+    views: <CameraView>[it.view],
     settings: settings,
   );
   final hdr = it.device.readHdrPixels(result.frame);

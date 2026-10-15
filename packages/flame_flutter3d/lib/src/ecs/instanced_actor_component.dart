@@ -29,7 +29,7 @@ import '../host/step_clock.dart';
 /// **[batch] sits at the scene's origin, unturned**, as for
 /// `InstancedObject3dComponent`: the transform written is the body's place in
 /// the scene as it is.
-base class InstancedActorComponent extends Component implements StepFollower {
+base class InstancedActorComponent extends Component with StepFollower {
   InstancedActorComponent({
     required this.actor,
     required this.batch,

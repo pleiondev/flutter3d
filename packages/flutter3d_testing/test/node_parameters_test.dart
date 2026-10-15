@@ -52,7 +52,7 @@ Future<(double, double)> _center(
     width: _size,
     height: _size,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
     settings: const RenderSettings(
       bloom: BloomSettings(enabled: false),
       tonemap: false,

@@ -63,7 +63,7 @@ void main() {
     camera
       ..setPosition(hall.center.x, hall.center.y + 30.0, hall.center.z + 22.0)
       ..lookAt(vm.Vector3(hall.center.x, hall.center.y + 1.5, hall.center.z));
-    final views = <RenderView>[RenderView(camera: camera)];
+    final views = <CameraView>[CameraView(camera: camera)];
 
     // Two questions of one frame, which is what the pass is built to take: the
     // middle, where the hall is, and a corner, where it is not. One alone would

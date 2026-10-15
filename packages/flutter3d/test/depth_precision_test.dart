@@ -192,8 +192,8 @@ Future<Uint8List> _frame({
     width: _width,
     height: _height,
     scene: scene,
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: camera,
         clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
@@ -371,8 +371,8 @@ void _nearFit() {
         width: _width,
         height: _height,
         scene: scene,
-        views: <RenderView>[
-          RenderView(
+        views: <CameraView>[
+          CameraView(
             camera: camera,
             clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
           ),
@@ -558,7 +558,7 @@ Future<Uint8List> _shadowShot({
     width: _shadowWidth,
     height: _shadowHeight,
     scene: scene,
-    views: <RenderView>[RenderView(camera: _shadowCamera())],
+    views: <CameraView>[CameraView(camera: _shadowCamera())],
     settings: RenderSettings(
       tonemap: false,
       bloom: const BloomSettings(enabled: false),

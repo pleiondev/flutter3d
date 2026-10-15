@@ -64,7 +64,7 @@ final class FrameGraphDemo extends ShowcaseDemo {
     // #region plan
     final CompiledFrameGraph graph = context.renderer.planFrame(
       scene: _scene,
-      views: <RenderView>[context.view],
+      views: <CameraView>[context.view],
       settings: next,
     );
     _planned = <String>[

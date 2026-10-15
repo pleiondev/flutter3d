@@ -102,7 +102,7 @@ final class ActionInput {
   /// Motion since the last call on [source], shaped by its binding to
   /// [action] — the mouse's sensitivity and inverted look — or as it came
   /// when no binding names that source.
-  (double, double) shapeDelta(
+  ShapedPair shapeDelta(
     DualAxisAction action,
     InputSource source,
     double dx,
@@ -117,7 +117,7 @@ final class ActionInput {
         return tuning.shapeDelta(dx, dy);
       }
     }
-    return (dx, dy);
+    return ShapedPair(x: dx, y: dy);
   }
 
   /// Lets go of every source and every action this wrote — a pad unplugged,
@@ -177,7 +177,7 @@ final class ActionInput {
         state.setAxis(axis, value);
       case final DualAxisAction pair:
         if (pair.isDelta) return; // Motion goes through [shapeDelta].
-        final (x, y) = bindings.fold<(double, double)>((0.0, 0.0), (
+        final ShapedPair(:x, :y) = bindings.fold<ShapedPair>(ShapedPair.zero, (
           best,
           binding,
         ) {
@@ -192,9 +192,9 @@ final class ActionInput {
             DualAxisBinding(:final source, :final tuning) =>
               switch (_pairs[source]) {
                 (final x, final y) => tuning.shapePair(x, y),
-                null => (0.0, 0.0),
+                null => ShapedPair.zero,
               },
-            _ => (0.0, 0.0),
+            _ => ShapedPair.zero,
           };
           return _length(v) > _length(best) ? v : best;
         });
@@ -207,12 +207,13 @@ final class ActionInput {
     }
   }
 
-  static double _length((double, double) v) =>
-      math.sqrt(v.$1 * v.$1 + v.$2 * v.$2);
+  static double _length(ShapedPair v) => math.sqrt(v.x * v.x + v.y * v.y);
 
   /// No longer than one, so a diagonal of two keys is not faster than one.
-  static (double, double) _unit(double x, double y) {
-    final length = _length((x, y));
-    return length > 1.0 ? (x / length, y / length) : (x, y);
+  static ShapedPair _unit(double x, double y) {
+    final length = math.sqrt(x * x + y * y);
+    return length > 1.0
+        ? ShapedPair(x: x / length, y: y / length)
+        : ShapedPair(x: x, y: y);
   }
 }

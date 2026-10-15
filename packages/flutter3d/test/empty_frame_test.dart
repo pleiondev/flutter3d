@@ -30,18 +30,18 @@ CpuMesh _empty() {
 
 void main() {
   late Scene scene;
-  late RenderView view;
+  late CameraView view;
 
   setUp(() {
     scene = Scene();
     final camera = CameraNode();
     scene.root.add(camera);
-    view = RenderView(camera: camera);
+    view = CameraView(camera: camera);
   });
 
   test('no views at all', () {
     expect(
-      describeEmptyFrame(scene, const <RenderView>[]),
+      describeEmptyFrame(scene, const <CameraView>[]),
       contains('no views'),
     );
   });
@@ -49,7 +49,7 @@ void main() {
   test('an empty scene names the registry, not the camera', () {
     // The mistake behind this one is a node built and never attached, and it
     // looks exactly like a camera pointing the wrong way.
-    final why = describeEmptyFrame(scene, <RenderView>[view]);
+    final why = describeEmptyFrame(scene, <CameraView>[view]);
 
     expect(why, contains('no meshes'));
     expect(why, contains('attached'));
@@ -63,7 +63,7 @@ void main() {
     scene.root.add(parent);
     parent.add(MeshNode(_cube(), RenderMaterial()));
 
-    final why = describeEmptyFrame(scene, <RenderView>[view]);
+    final why = describeEmptyFrame(scene, <CameraView>[view]);
 
     expect(why, contains('hidden'));
     expect(why, contains('inherited'));
@@ -73,7 +73,7 @@ void main() {
     scene.root.add(MeshNode(_empty(), RenderMaterial()));
 
     expect(
-      describeEmptyFrame(scene, <RenderView>[view]),
+      describeEmptyFrame(scene, <CameraView>[view]),
       contains('empty geometry'),
     );
   });
@@ -84,7 +84,7 @@ void main() {
     scene.root.add(MeshNode(_cube(), RenderMaterial())..layerMask = 0x4);
     view.layerMask = 0x1;
 
-    final why = describeEmptyFrame(scene, <RenderView>[view]);
+    final why = describeEmptyFrame(scene, <CameraView>[view]);
 
     expect(why, contains('layer mask'));
     expect(why, contains('0x4'));
@@ -107,7 +107,7 @@ void main() {
     // the bug it would be reporting.
     scene.root.add(MeshNode(_cube(), RenderMaterial()));
 
-    final why = describeEmptyFrame(scene, <RenderView>[view]);
+    final why = describeEmptyFrame(scene, <CameraView>[view]);
 
     expect(why, contains('frustum'));
     expect(why, contains('1 visible meshes'));

@@ -100,8 +100,8 @@ Future<Uint8List> _draw(
     width: _width,
     height: _height,
     scene: _colors(it.device),
-    views: <RenderView>[
-      RenderView(camera: CameraNode()..setPosition(0.0, 0.0, 5.0)),
+    views: <CameraView>[
+      CameraView(camera: CameraNode()..setPosition(0.0, 0.0, 5.0)),
     ],
     settings: RenderSettings(look: look),
   );

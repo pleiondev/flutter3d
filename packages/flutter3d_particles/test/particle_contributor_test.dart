@@ -40,7 +40,7 @@ void main() {
         settings: const RenderSettings(),
         width: 320,
         height: 200,
-        view: RenderView(camera: CameraNode()),
+        view: CameraView(camera: CameraNode()),
         viewProjection: vm.Matrix4.identity(),
       )..state = FramePassState();
     }
@@ -251,7 +251,7 @@ void _meshParticleTests() {
       settings: const RenderSettings(),
       width: 320,
       height: 200,
-      view: RenderView(camera: CameraNode()),
+      view: CameraView(camera: CameraNode()),
       viewProjection: vm.Matrix4.identity(),
     )..state = FramePassState();
 

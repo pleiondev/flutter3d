@@ -62,8 +62,8 @@ Future<_Frame> _render(
     width: size,
     height: size,
     scene: scene,
-    views: <RenderView>[
-      RenderView(camera: camera, clearColor: LinearColor.fromSrgb(0, 0, 0, 1)),
+    views: <CameraView>[
+      CameraView(camera: camera, clearColor: LinearColor.fromSrgb(0, 0, 0, 1)),
     ],
     settings: const RenderSettings(),
   );

@@ -304,7 +304,7 @@ class _GameScreenState extends State<GameScreen>
   bool _taughtFirstShot = false;
 
   final CameraNode _camera = CameraNode(name: 'player');
-  late final RenderView _view;
+  late final CameraView _view;
   Renderer? _renderer;
   Object? _initError;
 
@@ -605,7 +605,7 @@ class _GameScreenState extends State<GameScreen>
     // whichever renderer is open when somebody asks.
     registerRenderExtensions(() => _renderer);
 
-    _view = RenderView(camera: _camera);
+    _view = CameraView(camera: _camera);
 
     _settings = GameSettingsController(
       settings: _config,

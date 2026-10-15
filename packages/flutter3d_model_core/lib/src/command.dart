@@ -1057,9 +1057,9 @@ _modelCommandReaders =
             final Map<String, Object?> fields => fields,
             _ => const <String, Object?>{},
           },
-          position: (
-            (json['x'] as num?)?.toDouble() ?? 0.0,
-            (json['y'] as num?)?.toDouble() ?? 0.0,
+          position: NodePosition(
+            x: (json['x'] as num?)?.toDouble() ?? 0.0,
+            y: (json['y'] as num?)?.toDouble() ?? 0.0,
           ),
         ),
         _ => null,

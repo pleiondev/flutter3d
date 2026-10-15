@@ -137,7 +137,7 @@ final class EqualPowerPanner extends SpatialRenderer
   double speedOfSoundIn(WorldProperties world)
   final double dopplerFactor
   final double? speedOfSound
-  static ({double left, double right}) gains(double pan)
+  static PanGains gains(double pan)
   void render(SpatialQuery query, SpatialResult out)
 
 final class ExponentialRolloff extends Attenuation
@@ -233,6 +233,14 @@ final class NoAttenuation extends Attenuation
   bool carriesTo(double distance)
   const NoAttenuation()
   double gainAt(double distance)
+
+final class PanGains
+  String toString()
+  bool operator ==(Object other)
+  const PanGains({required this.left, required this.right})
+  final double left
+  final double right
+  int get hashCode
 
 typedef PoseSource = Matrix4 Function();
 

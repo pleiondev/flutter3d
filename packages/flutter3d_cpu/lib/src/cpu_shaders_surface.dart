@@ -125,6 +125,38 @@ const int kMapNormal = 2;
 const int kMapOcclusion = 3;
 const int kMapEmissive = 4;
 
+/// Where a material map is read and the footprint of a pixel there, as
+/// [mapUv] answers it.
+final class MappedUv {
+  /// The coordinate ([u], [v]) with [footprint].
+  const MappedUv({required this.u, required this.v, required this.footprint});
+
+  /// Across the map, as a fraction 0..1 of its width; outside that range
+  /// where the sampler wraps.
+  final double u;
+
+  /// Down the map, as a fraction 0..1 of its height; outside that range
+  /// where the sampler wraps.
+  final double v;
+
+  /// How far [u] and [v] move from one pixel to the next, for choosing a
+  /// mip level.
+  final UvFootprint footprint;
+
+  @override
+  bool operator ==(Object other) =>
+      other is MappedUv &&
+      other.u == u &&
+      other.v == v &&
+      other.footprint == footprint;
+
+  @override
+  int get hashCode => Object.hash(u, v, footprint);
+
+  @override
+  String toString() => 'MappedUv($u, $v)';
+}
+
 /// `MapUv(slot)`: where map [slot] is read, with the footprint there — `C8`.
 ///
 /// The vertex's own coordinate unless [transformed], which only the layered
@@ -133,7 +165,7 @@ const int kMapEmissive = 4;
 /// draw left in the encoder. The footprint is the vertex coordinate's carried
 /// through the matrix, which is what a GPU's derivative of the transformed
 /// coordinate is. The identity reads both back to the bit.
-({double u, double v, UvFootprint footprint}) mapUv(
+MappedUv mapUv(
   int slot,
   Float32List v,
   ShaderBindings b,
@@ -143,7 +175,7 @@ const int kMapEmissive = 4;
   final plain = uvFootprint(c, bias: materialLodBias(b));
   final rows = transformed ? b.read('LayerInfo', 'uv_transform') : null;
   if (rows == null || rows.length < slot * 8 + 8) {
-    return (u: v[kVUv], v: v[kVUv + 1], footprint: plain);
+    return MappedUv(u: v[kVUv], v: v[kVUv + 1], footprint: plain);
   }
   final o = slot * 8;
   final (m00, m01, m02) = (rows[o], rows[o + 1], rows[o + 2]);
@@ -152,7 +184,7 @@ const int kMapEmissive = 4;
   final dvdx = m10 * plain.dudx + m11 * plain.dvdx;
   final dudy = m00 * plain.dudy + m01 * plain.dvdy;
   final dvdy = m10 * plain.dudy + m11 * plain.dvdy;
-  return (
+  return MappedUv(
     u: m00 * v[kVUv] + m01 * v[kVUv + 1] + m02,
     v: m10 * v[kVUv] + m11 * v[kVUv + 1] + m12,
     footprint: (
@@ -233,7 +265,7 @@ Surface? readSurface(
   FragmentContext c, {
   bool transformed = false,
 }) {
-  final (u: mapU, v: mapV, footprint: uv) = mapUv(
+  final MappedUv(u: mapU, v: mapV, footprint: uv) = mapUv(
     kMapBaseColor,
     v,
     bindings,
@@ -372,7 +404,7 @@ void applyMetallicRoughnessMap(
 }) {
   final orm = b.textures['metallic_roughness_texture'];
   if (orm == null) return;
-  final (u: mu, v: mv, footprint: uv) = mapUv(
+  final MappedUv(u: mu, v: mv, footprint: uv) = mapUv(
     kMapMetallicRoughness,
     v,
     b,
@@ -395,7 +427,7 @@ void applyOcclusionMap(
 }) {
   final map = b.textures['occlusion_texture'];
   if (map == null) return;
-  final (u: mu, v: mv, footprint: uv) = mapUv(
+  final MappedUv(u: mu, v: mv, footprint: uv) = mapUv(
     kMapOcclusion,
     v,
     b,
@@ -434,7 +466,7 @@ void applyEmissiveMap(
 }) {
   final map = b.textures['emissive_texture'];
   if (map == null) return;
-  final (u: mu, v: mv, footprint: uv) = mapUv(
+  final MappedUv(u: mu, v: mv, footprint: uv) = mapUv(
     kMapEmissive,
     v,
     b,
@@ -498,7 +530,7 @@ void applyNormalMap(
   // `material_maps.glsl`.
   if (!c.frontFacing) t.negate();
 
-  final (u: mu, v: mv, footprint: uv) = mapUv(
+  final MappedUv(u: mu, v: mv, footprint: uv) = mapUv(
     kMapNormal,
     v,
     b,
@@ -618,7 +650,7 @@ Vector4? writeDebugView(
     5 => Vector3.all(s.occlusion.clamp(0.0, 1.0)),
     6 => srgbOf(s.emissive),
     7 => () {
-      final (u: u, v: w, footprint: _) = mapUv(
+      final MappedUv(:u, v: w) = mapUv(
         kMapBaseColor,
         v,
         b,
@@ -641,7 +673,7 @@ Vector4? writeDebugView(
           ? ((tangent.normalized()..scale(0.5))..add(Vector3.all(0.5)))
           : Vector3.zero(),
     10 => () {
-      final (u: u, v: w, footprint: _) = mapUv(
+      final MappedUv(:u, v: w) = mapUv(
         kMapBaseColor,
         v,
         b,

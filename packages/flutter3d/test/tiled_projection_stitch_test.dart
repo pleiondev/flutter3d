@@ -71,7 +71,7 @@ Future<Uint8List> _render(
     width: width,
     height: height,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
     // Bloom is a screen-space blur with no idea a tile has an edge: the same
     // bright pixel blurs differently depending on how much of its own
     // neighbourhood the frame it is drawn into actually contains, which has

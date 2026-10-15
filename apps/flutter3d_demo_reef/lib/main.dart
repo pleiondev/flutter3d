@@ -124,7 +124,7 @@ class _ReefScreenState extends State<ReefScreen>
   static Vector3 get _sunLight => Vector3(2.0, 1.95, 1.85);
 
   final CameraNode _camera = CameraNode(name: 'eye');
-  late final RenderView _view = RenderView(
+  late final CameraView _view = CameraView(
     camera: _camera,
     clearColor: LinearColor.fromSrgb(0.55, 0.75, 0.92, 1.0),
   );

@@ -99,7 +99,7 @@ final class LevelSceneParts {
     required this.probes,
     this.decals = const <DecalNode>[],
     this.reflectors = const <PlanarReflectorNode>[],
-    this.screens = const <RenderView>[],
+    this.screens = const <CameraView>[],
   });
 
   final Scene scene;
@@ -122,7 +122,7 @@ final class LevelSceneParts {
 
   /// One per camera-screen entity, already added to the scene. Each is the
   /// caller's to give back with `Renderer.releaseTextureAfterFrame`.
-  final List<RenderView> screens;
+  final List<CameraView> screens;
 }
 
 /// Builds the scene a level document describes.
@@ -215,7 +215,7 @@ final class LevelScene {
       for (final entity in level.ofType(EntityTypes.reflector))
         reflectorOf(entity, batches),
     ];
-    final screens = <RenderView>[
+    final screens = <CameraView>[
       for (final entity in level.ofType(EntityTypes.cameraScreen))
         screenOf(entity, batches, device: device),
     ];
@@ -544,7 +544,7 @@ final class LevelScene {
   /// The camera [entity] asks for, drawing into a texture every batch of
   /// its material gives off as light — and leaves out of its own picture,
   /// or a screen in view would show itself showing itself.
-  static RenderView screenOf(
+  static CameraView screenOf(
     EntityDef entity,
     List<LevelBatch> batches, {
     required GraphicsDevice device,
@@ -559,12 +559,12 @@ final class LevelScene {
           )
           ..setPositionFrom(entity.position)
           ..lookAt(look, up: Vector3(0.0, 1.0, 0.0));
-    final screen = RenderView.texture(
+    final screen = CameraView.texture(
       device,
       camera: camera,
       width: entity.integer('width') ?? 256,
       height: entity.integer('height') ?? 144,
-      options: RenderViewSettings(refreshEveryFrame: !entity.flag('once')),
+      options: CameraViewSettings(refreshEveryFrame: !entity.flag('once')),
     );
     final material = entity.string('material');
     for (final batch in batches) {

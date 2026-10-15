@@ -286,8 +286,8 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 LevelRules crowded(int depth) => LevelRules(
   name: 'Below, ${depth + 1}',
-  perRoom: <({Map<String, Object?> entity, int count})>[
-    (entity: const <String, Object?>{'type': 'pickup'}, count: 1 + depth),
+  perRoom: <RoomScatter>[
+    RoomScatter(entity: const <String, Object?>{'type': 'pickup'}, count: 1 + depth),
   ],
 );
 

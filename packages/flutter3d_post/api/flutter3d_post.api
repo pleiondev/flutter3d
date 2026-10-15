@@ -18,7 +18,7 @@ final class VolumetricFogAddon extends RenderStepAddon
 
 const List<RenderStepAddon> atmosphereAddons = <RenderStepAddon>[SkyAddon(), FogAddon(), VolumetricFogAddon(), LightShaftsAddon()]
 
-const RenderStep skyStep = RenderStep('sky', switchOff: _skyOff, isOn: _skyOn)
+const RenderStep skyStep = RenderStep('flutter3d_post.sky', switchOff: _skyOff, isOn: _skyOn)
 
 library package:flutter3d_post/flutter3d_post.dart
 
@@ -97,13 +97,13 @@ const List<RenderStepAddon> lightAddons = <RenderStepAddon>[AutoExposureAddon(),
 
 const List<RenderStepAddon> motionAddons = <RenderStepAddon>[DepthOfFieldAddon(), MotionBlurAddon(), TemporalAntiAliasingAddon()]
 
-const RenderStep outlinesStep = RenderStep('outlines', needs: <RenderStep>{RenderStep.highContrast}, switchOff: _outlinesOff, isOn: _outlinesOn)
+const RenderStep outlinesStep = RenderStep('flutter3d_post.outlines', needs: <RenderStep>{RenderStep.highContrast}, switchOff: _outlinesOff, isOn: _outlinesOn)
 
 const List<RenderStepAddon> reflectionsAddons = <RenderStepAddon>[ReflectionProbesAddon(), PlanarReflectionsAddon(), ScreenSpaceReflectionsAddon()]
 
 const List<RenderStepAddon> shadingAddons = <RenderStepAddon>[AmbientOcclusionAddon(), ContactShadowsAddon()]
 
-const RenderStep skyStep = RenderStep('sky', switchOff: _skyOff, isOn: _skyOn)
+const RenderStep skyStep = RenderStep('flutter3d_post.sky', switchOff: _skyOff, isOn: _skyOn)
 
 const List<RenderStepAddon> standardAddons = <RenderStepAddon>[...reflectionsAddons, ...atmosphereAddons, ...shadingAddons, ...motionAddons, ...lightAddons, ...styleAddons]
 
@@ -249,13 +249,13 @@ const List<RenderStepAddon> lightAddons = <RenderStepAddon>[AutoExposureAddon(),
 
 const List<RenderStepAddon> motionAddons = <RenderStepAddon>[DepthOfFieldAddon(), MotionBlurAddon(), TemporalAntiAliasingAddon()]
 
-const RenderStep outlinesStep = RenderStep('outlines', needs: <RenderStep>{RenderStep.highContrast}, switchOff: _outlinesOff, isOn: _outlinesOn)
+const RenderStep outlinesStep = RenderStep('flutter3d_post.outlines', needs: <RenderStep>{RenderStep.highContrast}, switchOff: _outlinesOff, isOn: _outlinesOn)
 
 const List<RenderStepAddon> reflectionsAddons = <RenderStepAddon>[ReflectionProbesAddon(), PlanarReflectionsAddon(), ScreenSpaceReflectionsAddon()]
 
 const List<RenderStepAddon> shadingAddons = <RenderStepAddon>[AmbientOcclusionAddon(), ContactShadowsAddon()]
 
-const RenderStep skyStep = RenderStep('sky', switchOff: _skyOff, isOn: _skyOn)
+const RenderStep skyStep = RenderStep('flutter3d_post.sky', switchOff: _skyOff, isOn: _skyOn)
 
 const List<RenderStepAddon> standardAddons = <RenderStepAddon>[...reflectionsAddons, ...atmosphereAddons, ...shadingAddons, ...motionAddons, ...lightAddons, ...styleAddons]
 
@@ -277,7 +277,7 @@ final class ToonLightingAddon extends LightingModelAddon
 final class ViewportShadingAddon extends RenderStepAddon
   const ViewportShadingAddon()
 
-const RenderStep outlinesStep = RenderStep('outlines', needs: <RenderStep>{RenderStep.highContrast}, switchOff: _outlinesOff, isOn: _outlinesOn)
+const RenderStep outlinesStep = RenderStep('flutter3d_post.outlines', needs: <RenderStep>{RenderStep.highContrast}, switchOff: _outlinesOff, isOn: _outlinesOn)
 
 const List<RenderStepAddon> styleAddons = <RenderStepAddon>[HighContrastAddon(), OutlinesAddon(), ViewportShadingAddon()]
 

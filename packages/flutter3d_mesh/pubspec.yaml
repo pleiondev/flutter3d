@@ -1,6 +1,6 @@
 name: flutter3d_mesh
 description: "An editable mesh for flutter3d: half-edge topology on persistent typed arrays, selections, and the operations a modeller runs on them."
-version: 1.0.0-rc.1
+version: 1.0.0-rc.1+1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues

@@ -62,7 +62,7 @@ Future<List<int>> _frame({
     width: width,
     height: height,
     scene: scene,
-    views: <RenderView>[RenderView(camera: scene.cameras.single)],
+    views: <CameraView>[CameraView(camera: scene.cameras.single)],
     settings: RenderSettings(
       ambientOcclusion: AmbientOcclusionSettings(
         enabled: true,

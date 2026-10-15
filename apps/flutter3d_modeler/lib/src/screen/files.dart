@@ -445,7 +445,7 @@ extension _FileHandling on _ModelerScreenState {
     for (final object in project.objects) {
       if (only != null && !only.contains(object.id)) continue;
       if (object.geometry case ImportedGeometry(:final data)) {
-        final (mesh, _, _) = importMeshData(
+        final ImportedMesh(:mesh) = importMeshData(
           data,
           weldEpsilon: weldEpsilonFor(weld: choice.weld),
         );
@@ -651,7 +651,7 @@ extension _FileHandling on _ModelerScreenState {
     // that has to be re-imported again the moment they want to. The first
     // surface, because a link is to one object and a file that grew a second
     // mesh is a file to import rather than to re-read.
-    final (EditMesh mesh, _, _) = importMeshData(
+    final ImportedMesh(:mesh) = importMeshData(
       read,
       weldEpsilon: weldEpsilonFor(weld: true),
     );

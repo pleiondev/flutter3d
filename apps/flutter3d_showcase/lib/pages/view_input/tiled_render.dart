@@ -100,7 +100,7 @@ final class TiledRenderDemo extends ShowcaseDemo {
 
   // #region tile
   @override
-  List<RenderView> views(DemoContext context) {
+  List<CameraView> views(DemoContext context) {
     final int n = tilesAcross;
     final double cell = 1.0 / n;
     final double inset = cell * gap / 2;
@@ -111,10 +111,10 @@ final class TiledRenderDemo extends ShowcaseDemo {
     final double reach = gap == 0.0 ? 0.002 : 0.0;
     final Vector3 eye = context.camera.readPosition();
     final Quaternion facing = context.camera.readRotation();
-    return <RenderView>[
+    return <CameraView>[
       for (var row = 0; row < n; row++)
         for (var column = 0; column < n; column++)
-          RenderView(
+          CameraView(
             // The same eye every tile looks from: what differs is which
             // square of the picture it keeps.
             camera: _cameras[row * n + column]

@@ -146,10 +146,9 @@ final class CpuComputeEncoder extends ComputeEncoder {
         }
       }
     }
-    final (sx, sy, sz) = shader.workgroupSize;
     _statistics.add(
       PipelineStatistic.computeShaderInvocations,
-      x * y * z * sx * sy * sz,
+      x * y * z * shader.workgroupSize.invocations,
     );
   }
 

@@ -32,7 +32,7 @@
     ],
     "materials": [
       {
-        "model": "acme_sample_Hair",
+        "model": "acme_sample__Hair",
         "fields": [
           {"key": "gloss", "kind": "number", "min": 0, "max": 1, "step": 0.05},
           {"key": "tint", "kind": "color"},

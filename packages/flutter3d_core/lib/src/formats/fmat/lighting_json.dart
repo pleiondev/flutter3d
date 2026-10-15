@@ -74,11 +74,8 @@ LightingModel? readLightingJson(
 Object writeLightingJson(LightingModel model, {LightingModels? models}) {
   // By name when the name reads back as this very model — built in or
   // registered — and as a description otherwise.
-  if (identical(
-    (models ?? LightingModels.shipped).named(model.shaderName),
-    model,
-  )) {
-    return model.shaderName;
+  if (identical((models ?? LightingModels.shipped).named(model.name), model)) {
+    return model.name;
   }
   const plain = LightingModel('', '');
   return <String, Object?>{

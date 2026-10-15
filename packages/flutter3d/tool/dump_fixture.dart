@@ -64,7 +64,7 @@ void main() {
         width: _width,
         height: _height,
         scene: built.scene,
-        views: <RenderView>[RenderView(camera: built.camera)],
+        views: <CameraView>[CameraView(camera: built.camera)],
         settings: paritySettingsFor(which),
       );
       final elapsed = DateTime.now().difference(started);

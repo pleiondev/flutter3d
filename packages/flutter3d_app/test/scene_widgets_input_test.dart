@@ -53,7 +53,7 @@ Widget _scene(
           continuous: continuous,
           settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
         ),
-        onSceneCreated: onCreated,
+        onCreated: onCreated,
         children: children,
       ),
     ),

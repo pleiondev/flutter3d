@@ -264,7 +264,7 @@ Map<String, CpuStage> builtinCpuShaders() {
     'RenderTextureEncode': const CpuStage.fragment(RenderTextureEncodeShader()),
     'MrtProbe': const CpuStage.fragment(MrtProbeShader()),
     'WboitResolve': const CpuStage.fragment(WboitResolveShader()),
-    'SceneColourCopy': const CpuStage.fragment(SceneColourCopyShader()),
+    'SceneColorCopy': const CpuStage.fragment(SceneColorCopyShader()),
     'Composite': const CpuStage.fragment(CompositeShader()),
     'Easu': const CpuStage.fragment(EasuShader()),
     'Fxaa': const CpuStage.fragment(FxaaShader()),

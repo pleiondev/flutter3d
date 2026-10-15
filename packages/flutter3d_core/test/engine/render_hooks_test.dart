@@ -89,7 +89,7 @@ FrameResult _draw(
   width: 32,
   height: 32,
   scene: it.scene,
-  views: <RenderView>[RenderView(camera: it.camera)],
+  views: <CameraView>[CameraView(camera: it.camera)],
 );
 
 void main() {

@@ -48,7 +48,7 @@ import 'package:vector_math/vector_math.dart';
         width: 8,
         height: 8,
         scene: scene,
-        views: <RenderView>[RenderView(camera: camera)],
+        views: <CameraView>[CameraView(camera: camera)],
       );
       // The reads back land on the host's own turn.
       await Future<void>.delayed(Duration.zero);

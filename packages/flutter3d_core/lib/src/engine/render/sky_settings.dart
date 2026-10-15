@@ -24,7 +24,7 @@
 /// over it: a sun disc — analytic, so its angular radius is a number rather
 /// than a tessellation — no interaction with fog, nothing written into the
 /// surface buffer, and no geometry to keep out of the shadow bounds. What the
-/// dome still buys: a different sky per `RenderView`, which a frame-wide
+/// dome still buys: a different sky per `CameraView`, which a frame-wide
 /// setting cannot express.
 ///
 /// **Colours are linear and scene-referred.** They are multiplied by

@@ -702,6 +702,28 @@ final class WaterBody {
       _world.sampleShallow(native, at.x, at.z);
 }
 
+/// The water standing at a point, and which water it is —
+/// [ElementsSimulation.waterAt].
+final class WaterAtPoint {
+  const WaterAtPoint({required this.water, required this.sample});
+
+  /// The first water that holds the point.
+  final WaterBody water;
+
+  /// Its surface, depth and flow there.
+  final NativeShallowSample sample;
+
+  @override
+  bool operator ==(Object other) =>
+      other is WaterAtPoint && other.water == water && other.sample == sample;
+
+  @override
+  int get hashCode => Object.hash(water, sample);
+
+  @override
+  String toString() => 'WaterAtPoint($sample)';
+}
+
 /// The fires of the elements' world.
 final class Fires {
   Fires._(this._elements);
@@ -1128,10 +1150,10 @@ final class ElementsSimulation {
 
   /// What water stands at [at], and which: its surface, depth and flow
   /// there, from the first water that holds it; null over none.
-  ({WaterBody water, NativeShallowSample sample})? waterAt(Vector3 at) {
+  WaterAtPoint? waterAt(Vector3 at) {
     for (final w in _waters) {
       final s = w.sample(at);
-      if (s != null && s.depth > 0.0) return (water: w, sample: s);
+      if (s != null && s.depth > 0.0) return WaterAtPoint(water: w, sample: s);
     }
     return null;
   }

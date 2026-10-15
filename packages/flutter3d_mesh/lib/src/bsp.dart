@@ -577,6 +577,6 @@ EditMesh? _fromPolygons(List<CsgPolygon> polygons) {
     mesh.endStep();
   }
 
-  final (welded, _) = mergeByDistance(mesh);
+  final MergedMesh(mesh: welded) = mergeByDistance(mesh);
   return welded;
 }

@@ -63,7 +63,7 @@ Future<(Uint8List, FrameResult)> _draw(ShadowSettings shadows) async {
     width: _width,
     height: _height,
     scene: _floorAndBox(device),
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
     settings: RenderSettings(shadows: shadows),
   );
   final pixels = (await device.readback(frame.frame)).buffer.asUint8List();

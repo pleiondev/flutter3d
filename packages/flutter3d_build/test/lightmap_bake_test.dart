@@ -86,10 +86,16 @@ void main() {
       // Right under the lamp: a metre and a half away, straight down, so
       // 10 / 1.5² = 4.44. Four metres away along the floor: the distance is
       // √(16 + 2.25) = 4.27 and the cosine 1.5 / 4.27, so 10 / 18.25 × 0.35.
-      final (ci, cj) = layout.texelOf(floor, Vector3(0.0, 0.0, 0.0));
+      final LightmapTexel(x: ci, y: cj) = layout.texelOf(
+        floor,
+        Vector3(0.0, 0.0, 0.0),
+      );
       final under = map.irradianceAt(floor.x + ci, floor.y + cj);
       expect(under.x, closeTo(10.0 / 2.25, 0.15));
-      final (fi, fj) = layout.texelOf(floor, Vector3(4.0, 0.0, 0.0));
+      final LightmapTexel(x: fi, y: fj) = layout.texelOf(
+        floor,
+        Vector3(4.0, 0.0, 0.0),
+      );
       final far = map.irradianceAt(floor.x + fi, floor.y + fj);
       expect(far.x, closeTo(10.0 / 18.25 * (1.5 / 4.272), 0.05));
       layout.texelCenter(floor, ci, cj, center);
@@ -106,9 +112,15 @@ void main() {
       ).bake(level, layout: layout);
       final floor = _floorTop(layout);
 
-      final (si, sj) = layout.texelOf(floor, Vector3(3.5, 0.0, 0.0));
+      final LightmapTexel(x: si, y: sj) = layout.texelOf(
+        floor,
+        Vector3(3.5, 0.0, 0.0),
+      );
       final shadowed = map.irradianceAt(floor.x + si, floor.y + sj);
-      final (li, lj) = layout.texelOf(floor, Vector3(-3.5, 0.0, 0.0));
+      final LightmapTexel(x: li, y: lj) = layout.texelOf(
+        floor,
+        Vector3(-3.5, 0.0, 0.0),
+      );
       final lit = map.irradianceAt(floor.x + li, floor.y + lj);
       expect(shadowed.x, 0.0, reason: 'the pillar is between');
       expect(lit.x, greaterThan(0.1));
@@ -134,13 +146,19 @@ void main() {
       ).bake(level, layout: layout);
       final floor = _floorTop(layout);
 
-      final (si, sj) = layout.texelOf(floor, Vector3(3.5, 0.0, 0.0));
+      final LightmapTexel(x: si, y: sj) = layout.texelOf(
+        floor,
+        Vector3(3.5, 0.0, 0.0),
+      );
       final behind = map.irradianceAt(floor.x + si, floor.y + sj);
       expect(behind.x, greaterThan(0.0), reason: 'the walls throw light there');
       // Grey walls: the bounce is grey.
       expect(behind.x, closeTo(behind.y, 1e-6));
       // And less than the direct light where the lamp shines.
-      final (li, lj) = layout.texelOf(floor, Vector3(0.0, 0.0, 0.0));
+      final LightmapTexel(x: li, y: lj) = layout.texelOf(
+        floor,
+        Vector3(0.0, 0.0, 0.0),
+      );
       final direct = const LightmapBaker(
         bounces: 0,
         includeDirect: true,

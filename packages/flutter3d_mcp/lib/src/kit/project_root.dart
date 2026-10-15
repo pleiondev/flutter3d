@@ -89,14 +89,14 @@ final class ProjectRoot {
     return resolved;
   }
 
-  /// [resolve], with the refusal as a sentence: `(path: …, refused: null)`
-  /// or `(path: null, refused: …)`, for a tool that answers rather than
-  /// throws.
-  ({String? path, String? refused}) tryResolve(String requested) {
+  /// [resolve], with the refusal as a sentence: a [ResolvedPath] with its
+  /// `path` and no `refused`, or with `refused` and no `path`, for a tool
+  /// that answers rather than throws.
+  ResolvedPath tryResolve(String requested) {
     try {
-      return (path: resolve(requested), refused: null);
+      return ResolvedPath(path: resolve(requested));
     } on PathOutsideRootException catch (outside) {
-      return (path: null, refused: outside.message);
+      return ResolvedPath(refused: outside.message);
     }
   }
 
@@ -127,6 +127,30 @@ final class ProjectRoot {
 
   @override
   String toString() => 'ProjectRoot($path)';
+}
+
+/// What [ProjectRoot.tryResolve] answers: the resolved path inside the
+/// root, or the sentence that refuses it. Exactly one of the two is set.
+final class ResolvedPath {
+  const ResolvedPath({this.path, this.refused});
+
+  /// The absolute path inside the root, links followed; null when refused.
+  final String? path;
+
+  /// Why the path is refused, as a sentence; null when it resolved.
+  final String? refused;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ResolvedPath && other.path == path && other.refused == refused;
+
+  @override
+  int get hashCode => Object.hash(path, refused);
+
+  @override
+  String toString() => refused == null
+      ? 'ResolvedPath($path)'
+      : 'ResolvedPath(refused: $refused)';
 }
 
 /// A path a file tool was handed that lies outside its [ProjectRoot].

@@ -42,7 +42,7 @@ final class _Crowd {
   /// wants that meets no neighbour within the horizon, all from where they
   /// all were, and only then do they all move.
   void step(double dt) {
-    final List<(double, double)> picked = <(double, double)>[
+    final List<AvoidanceVelocity> picked = <AvoidanceVelocity>[
       for (var i = 0; i < count; i++)
         _avoidance.velocity(
           x: x[i],
@@ -61,7 +61,7 @@ final class _Crowd {
           dt: dt,
         ),
     ];
-    for (final (int i, (double px, double pz)) in picked.indexed) {
+    for (final (int i, AvoidanceVelocity(x: px, z: pz)) in picked.indexed) {
       vx[i] = px;
       vz[i] = pz;
       x[i] += px * dt;

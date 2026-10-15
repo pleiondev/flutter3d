@@ -70,7 +70,7 @@ typedef _Staged = ({
   CpuDevice device,
   Renderer renderer,
   Scene scene,
-  RenderView view,
+  CameraView view,
   _VelocityProbe probe,
 });
 
@@ -102,7 +102,7 @@ _Staged _staged({void Function(CpuDevice device, Scene scene)? extra}) {
     device: device,
     renderer: Renderer.create(device: device)..renderSteps.addNode(probe),
     scene: scene,
-    view: RenderView(
+    view: CameraView(
       camera: camera,
       clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
     ),
@@ -115,7 +115,7 @@ Float32List _draw(_Staged it, RenderSettings settings) {
     width: _width,
     height: _height,
     scene: it.scene,
-    views: <RenderView>[it.view],
+    views: <CameraView>[it.view],
     settings: settings,
   );
   return it.device.readHdrPixels(result.frame);

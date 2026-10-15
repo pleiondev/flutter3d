@@ -351,8 +351,7 @@ final class Elements {
   static double burnDoseRate(double flux) => FireExposure.burnDoseRate(flux);
 
   /// [ElementsSimulation.waterAt].
-  ({WaterBody water, NativeShallowSample sample})? waterAt(Vector3 at) =>
-      simulation.waterAt(at);
+  WaterAtPoint? waterAt(Vector3 at) => simulation.waterAt(at);
 
   /// [ElementsSimulation.seenThroughSmoke].
   double seenThroughSmoke(Vector3 from, Vector3 to) =>
@@ -660,11 +659,11 @@ final class Elements {
     if (_steps.sound) hearing?.update(dt, events: events);
     final l = listener;
     if (l?.budget != null) {
-      for (final (step, wanted, holds) in fireView.wanted) {
+      for (final StepBudget(:step, :wanted, :holds) in fireView.wanted) {
         if (wanted > holds) l!.budget!(ElementsOverBudget(step, wanted, holds));
       }
       for (final w in _waters) {
-        for (final (step, wanted, holds) in w.view.wanted) {
+        for (final StepBudget(:step, :wanted, :holds) in w.view.wanted) {
           if (wanted > holds) {
             l!.budget!(ElementsOverBudget(step, wanted, holds));
           }

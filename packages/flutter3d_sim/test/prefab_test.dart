@@ -8,7 +8,8 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Portable, SinCos;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -83,7 +84,7 @@ void main() {
           ],
         }),
       );
-      final (:sin, :cos) = Portable.sinCos(yaw);
+      final SinCos(:sin, :cos) = Portable.sinCos(yaw);
       final local = Vector3(3.1, 0.5, 7.3);
       final expected =
           Vector3(1.0, 0.0, -2.0) +

@@ -152,7 +152,7 @@ final class MeshOverlay extends PassContributor {
   /// and are what [encode] draws, the same in every view. An empty box,
   /// minimum past maximum, when they hold none.
   @override
-  Aabb3 boundsFor(RenderView view) {
+  Aabb3 boundsFor(CameraView view) {
     final min = Vector3.all(double.infinity);
     final max = Vector3.all(double.negativeInfinity);
     for (final batch in <OverlayBatch>[

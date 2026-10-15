@@ -121,8 +121,8 @@ Future<Uint8List> forest(
     width: device.width,
     height: device.height,
     scene: scene,
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: camera,
         clearColor: LinearColor.fromSrgb(0.6, 0.7, 0.9, 1),
       ),

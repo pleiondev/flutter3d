@@ -120,7 +120,7 @@ final class SixWayLayout {
 /// cell over needs: a flip of the whole image would reverse the order of the
 /// frames with them. [flipCells] false leaves the rows as they are, for a
 /// sheet already written bottom to top — the baker's.
-({Uint8List positive, Uint8List negative}) importSixWay({
+SixWayTextures importSixWay({
   required List<Uint8List> images,
   required int width,
   required int height,
@@ -168,5 +168,41 @@ final class SixWayLayout {
         ..[to + 3] = read(layout.emission, from);
     }
   }
-  return (positive: positive, negative: negative);
+  return SixWayTextures(positive: positive, negative: negative);
+}
+
+/// A six-way sheet as the engine's two RGBA8 textures — what [importSixWay]
+/// answers.
+final class SixWayTextures {
+  const SixWayTextures({required this.positive, required this.negative});
+
+  /// The positive texture: light from the right, the top and the back, and
+  /// the coverage, in R, G, B and A.
+  final Uint8List positive;
+
+  /// The negative texture: light from the left, the bottom and the front,
+  /// and the emission, in R, G, B and A.
+  final Uint8List negative;
+
+  @override
+  bool operator ==(Object other) =>
+      other is SixWayTextures &&
+      _sameBytes(other.positive, positive) &&
+      _sameBytes(other.negative, negative);
+
+  @override
+  int get hashCode =>
+      Object.hash(Object.hashAll(positive), Object.hashAll(negative));
+
+  @override
+  String toString() => 'SixWayTextures(${positive.length} bytes a texture)';
+}
+
+bool _sameBytes(Uint8List a, Uint8List b) {
+  if (identical(a, b)) return true;
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
 }

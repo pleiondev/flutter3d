@@ -207,7 +207,7 @@ void main() {
         1, 3, 0.2, //
         0.5, 0.2, 0.001,
       ]);
-      final (values, v) = symmetricEigen3(m);
+      final SymmetricEigen(:values, vectors: v) = symmetricEigen3(m);
       final det =
           v[0] * (v[4] * v[8] - v[7] * v[5]) -
           v[3] * (v[1] * v[8] - v[7] * v[2]) +

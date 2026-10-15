@@ -332,6 +332,14 @@ abstract base mixin class GeneratorSource
   abstract List<String> list(String directory)
   abstract String read(String path)
 
+final class GizmoBounds
+  String toString()
+  bool operator ==(Object other)
+  const GizmoBounds({required this.min, required this.max})
+  final Vector3 max
+  final Vector3 min
+  int get hashCode
+
 final class GizmoContext
   Brush? get brush
   EntityDef? get entity
@@ -352,7 +360,7 @@ final class GizmoDrag
   final Vector3 to
 
 final class GizmoMark
-  (Vector3, Vector3) get bounds
+  GizmoBounds get bounds
   GizmoMark.ball(Vector3 center, {required double radius, this.tint, this.handle})
   GizmoMark.box(Vector3 center, Vector3 size, {this.tint, this.handle})
   GizmoMark.cage(Vector3 center, Vector3 size, {this.tint, this.handle})
@@ -400,6 +408,14 @@ final class ImportResult
   final List<String> notes
   final Map<String, Uint8List> files
 
+final class InspectorSection
+  String toString()
+  bool operator ==(Object other)
+  const InspectorSection({required this.title, required this.keys})
+  final List<String> keys
+  final String title
+  int get hashCode
+
 typedef LevelGenerator = Map<String, String> Function(GeneratorSource source);
 
 final class LightOptimizer
@@ -415,7 +431,7 @@ final class LightOptimizer
   final int width
 
 final class LightPlan
-  ({Uint8List before, Uint8List after}) get pngs
+  LightPlanPngs get pngs
   String get says
   bool get hasChanges
   const LightPlan({required this.before, required this.after, required this.moves, required this.costBefore, required this.costAfter, required this.overlapBefore, required this.overlapAfter, required this.difference, required this.underLit, this.holds = true, required this.width, required this.height, required this.previewBefore, required this.previewAfter})
@@ -433,6 +449,14 @@ final class LightPlan
   final double underLit
   final int height
   final int width
+
+final class LightPlanPngs
+  String toString()
+  bool operator ==(Object other)
+  const LightPlanPngs({required this.before, required this.after})
+  final Uint8List after
+  final Uint8List before
+  int get hashCode
 
 final class LightShading
   Float32List render(LightView view, Iterable<LevelLight> lights)
@@ -593,6 +617,14 @@ final class PluginCommandInfo
   final String name
   final String? description
   final String? plugin
+
+final class ProjectLocation
+  String toString()
+  bool operator ==(Object other)
+  const ProjectLocation({required this.root, required this.level})
+  final String level
+  final String root
+  int get hashCode
 
 final class RemoveExpectation extends ExperimentEdit
   Map<String, Object?> get arguments
@@ -798,7 +830,7 @@ int? indexOfNamed(Level level, String name)
 
 List<EditorComponent> inspectorComponents(Piece piece, {String? type, EditorPieces? pieces})
 
-List<(String, List<String>)> inspectorSections(Piece piece, Iterable<String> keys, {String? type, EditorPieces? pieces})
+List<InspectorSection> inspectorSections(Piece piece, Iterable<String> keys, {String? type, EditorPieces? pieces})
 
 const double lightViewEyeHeight = 1.6
 
@@ -830,7 +862,7 @@ List<ListedPiece> piecesOf(Level level)
 
 String prefabListing(Level level)
 
-({String root, String level}) projectAt(String levelPath)
+ProjectLocation projectAt(String levelPath)
 
 List<String> projectPluginPaths(Iterable<String> files)
 

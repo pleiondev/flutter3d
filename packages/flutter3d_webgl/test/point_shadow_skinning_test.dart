@@ -150,7 +150,7 @@ Future<int> _recorded(
     width: _width,
     height: _height,
     scene: built.scene,
-    views: <RenderView>[RenderView(camera: built.camera)],
+    views: <CameraView>[CameraView(camera: built.camera)],
     settings: const RenderSettings(
       bloom: BloomSettings(enabled: false),
       showShadowMap: true,

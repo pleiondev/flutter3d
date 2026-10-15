@@ -21,7 +21,7 @@ import 'package:vector_math/vector_math.dart';
 const int _width = 96;
 const int _height = 64;
 
-({CpuDevice device, Renderer renderer, Scene scene, RenderView view})
+({CpuDevice device, Renderer renderer, Scene scene, CameraView view})
 _twoBoxes() {
   final device = CpuDevice(
     width: _width,
@@ -45,7 +45,7 @@ _twoBoxes() {
     device: device,
     renderer: Renderer.create(device: device),
     scene: scene,
-    view: RenderView(camera: camera),
+    view: CameraView(camera: camera),
   );
 }
 
@@ -68,7 +68,7 @@ void main() {
       width: _width,
       height: _height,
       scene: it.scene,
-      views: <RenderView>[it.view],
+      views: <CameraView>[it.view],
     );
 
     expect((await left)?.name, 'left');
@@ -97,7 +97,7 @@ void main() {
       width: _width,
       height: _height,
       scene: it.scene,
-      views: <RenderView>[it.view],
+      views: <CameraView>[it.view],
     );
     expect((await at)?.name, 'near');
   });
@@ -123,7 +123,7 @@ void main() {
       width: _width,
       height: _height,
       scene: it.scene,
-      views: <RenderView>[it.view],
+      views: <CameraView>[it.view],
     );
     expect(identical(await left, batch), isTrue);
     expect(await gap, isNull);
@@ -187,7 +187,7 @@ void main() {
       width: _width,
       height: _height,
       scene: it.scene,
-      views: <RenderView>[it.view],
+      views: <CameraView>[it.view],
     );
     expect((await solid)?.name, 'fence');
     expect((await hole)?.name, 'left');
@@ -254,7 +254,7 @@ void main() {
       width: _width,
       height: _height,
       scene: it.scene,
-      views: <RenderView>[it.view],
+      views: <CameraView>[it.view],
     );
     expect((await through)?.name, 'glass', reason: 'the pane, not the box');
     expect((await alone)?.name, 'glass');
@@ -291,7 +291,7 @@ void main() {
       width: _width,
       height: _height,
       scene: it.scene,
-      views: <RenderView>[it.view],
+      views: <CameraView>[it.view],
     );
     final frame = await whole;
     expect(frame.width, _width);
@@ -338,7 +338,7 @@ void main() {
       width: _width,
       height: _height,
       scene: it.scene,
-      views: <RenderView>[it.view],
+      views: <CameraView>[it.view],
     );
     final before = (await it.device.readback(plain.frame)).buffer.asUint8List();
     it.renderer.pickPixel(0.25, 0.5).ignore();
@@ -346,7 +346,7 @@ void main() {
       width: _width,
       height: _height,
       scene: it.scene,
-      views: <RenderView>[it.view],
+      views: <CameraView>[it.view],
     );
     final after = (await it.device.readback(picked.frame)).buffer.asUint8List();
     expect(after, equals(before));

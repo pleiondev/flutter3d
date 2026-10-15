@@ -79,7 +79,7 @@ Widget _scene({
     height: 24,
     child: Scene3D(
       device: DeviceSettings(device: device, presenter: _noPresenter),
-      onSceneCreated: (controller) {
+      onCreated: (controller) {
         controller.renderer.sceneBindings
           ..addKind(kind)
           ..add(

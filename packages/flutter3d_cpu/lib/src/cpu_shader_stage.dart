@@ -4,11 +4,13 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_shaders/kernel.dart' show WorkgroupSize;
 import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader_bindings.dart';
 import 'cpu_storage_texture.dart';
 import 'cpu_texture.dart';
+
 
 /// Turns one vertex into a clip position and some varyings.
 ///
@@ -259,7 +261,7 @@ abstract base class CpuComputeShader {
   const CpuComputeShader();
 
   /// `local_size_x`, `local_size_y`, `local_size_z`.
-  (int, int, int) get workgroupSize;
+  WorkgroupSize get workgroupSize;
 
   /// Runs every invocation of the workgroup at [group].
   void runWorkgroup((int, int, int) group, CpuComputeBindings bindings);

@@ -142,13 +142,13 @@ class _CurveEditorState extends State<CurveEditor> {
 
   double get _handleLength => 10.0 / widget.pixelsPerSecond;
 
-  ({double min, double max}) _range(KeyTable table) {
+  CurveValueRange _range(KeyTable table) {
     final raw = valueRange(table, _component);
     if (raw.max > raw.min) return raw;
     // A flat curve — every key shares one value — is padded by a whole unit
     // either side so it draws as a visible line rather than a single point
     // with nowhere for a drag to go.
-    return (min: raw.min - 1.0, max: raw.max + 1.0);
+    return CurveValueRange(min: raw.min - 1.0, max: raw.max + 1.0);
   }
 
   double _valueToY(double value, double min, double max, double height) {
@@ -401,7 +401,7 @@ class _CurveEditorPainter extends CustomPainter {
   final double handleLength;
   final int? selectedKey;
   final _Drag? drag;
-  final ({double min, double max}) range;
+  final CurveValueRange range;
   final double currentTime;
   final Color lineColor;
   final Color keyColor;
@@ -429,7 +429,7 @@ class _CurveEditorPainter extends CustomPainter {
     if (samples.length > 1) {
       final path = Path();
       for (var i = 0; i < samples.length; i++) {
-        final (t, v) = samples[i];
+        final CurveSample(time: t, value: v) = samples[i];
         final point = Offset(
           timeToX(t, pixelsPerSecond),
           _valueToY(v, size.height),

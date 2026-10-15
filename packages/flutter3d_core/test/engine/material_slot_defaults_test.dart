@@ -53,7 +53,7 @@ final LightingModel _model = describeMaterial(
     width: 16,
     height: 16,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
   );
   final commands = <Recorded>[
     for (final pass in device.passes) ...pass.commands,

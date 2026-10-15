@@ -66,7 +66,7 @@ Future<Uint8List> _draw(
     width: _width,
     height: _height,
     scene: world,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
     settings: RenderSettings(
       bloom: BloomSettings(enabled: scene.bloom),
       shadows: ShadowSettings(enabled: scene.shadows),

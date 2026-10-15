@@ -661,7 +661,7 @@ final class SplatContributor extends PassContributor {
   /// Null for a tree: its cut is chosen in [encode], after the fit asks, and
   /// a box from the last cut could miss what this frame draws.
   @override
-  Aabb3? boundsFor(RenderView view) {
+  Aabb3? boundsFor(CameraView view) {
     if (quads.lod != null) return null;
     final cloud = this.cloud;
     if (!identical(cloud, _boundsOf)) {

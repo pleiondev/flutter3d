@@ -44,7 +44,7 @@ FrameResult _frame({RenderSettings settings = _everything}) {
     width: 64,
     height: 64,
     scene: scene,
-    views: <RenderView>[RenderView(camera: scene.cameras.single)],
+    views: <CameraView>[CameraView(camera: scene.cameras.single)],
     settings: settings,
   );
 }

@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 3ee1a412a54de439
+# table-stamp: 13d14d5676f1ddbf
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -2091,3 +2091,28 @@ transforms:
     changes:
       - kind: 'removeParameter'
         name: 'executors'
+  - title: 'flutter3d 1.0.0-rc.1+1: core-RenderView-CameraView'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_game/flutter3d_game.dart']
+      class: 'RenderView'
+    changes:
+      - kind: 'rename'
+        newName: 'CameraView'
+  - title: 'flutter3d 1.0.0-rc.1+1: core-RenderViewSettings-CameraViewSettings'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_game/flutter3d_game.dart']
+      class: 'RenderViewSettings'
+    changes:
+      - kind: 'rename'
+        newName: 'CameraViewSettings'
+  - title: 'flutter3d 1.0.0-rc.1+1: core-FrameView-ofRenderView'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_game/flutter3d_game.dart']
+      constructor: 'ofRenderView'
+      inClass: 'FrameView'
+    changes:
+      - kind: 'rename'
+        newName: 'ofCameraView'

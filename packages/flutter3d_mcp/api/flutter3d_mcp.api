@@ -13,6 +13,14 @@ final class Answer
   final bool did
   int get hashCode
 
+final class DepthSpan
+  String toString()
+  bool operator ==(Object other)
+  const DepthSpan({required this.near, required this.far})
+  final double far
+  final double near
+  int get hashCode
+
 base class EditorMcpServer extends ToolTableServer<EditorSession, Answer>
   EditorMcpServer(super.channel, {required EditorSession session, super.projectTools, super.onProjectCall})
 
@@ -52,7 +60,7 @@ final class EditorSession
 
 typedef EditorTool = OfferedTool<EditorSession, Answer>;
 
-typedef GameAsk = Future<({Map<String, Object?>? json, String? refused})> Function(String vmService, String method, {Map<String, String> args});
+typedef GameAsk = Future<GameExtensionReply> Function(String vmService, String method, {Map<String, String> args});
 
 typedef LevelCamera = ({Vector3 from, Vector3 at});
 
@@ -67,15 +75,36 @@ final class LevelView
 
 typedef NewRun = FlutterRun Function(String projectRoot, String? device);
 
+final class PieceCover
+  String toString()
+  bool operator ==(Object other)
+  const PieceCover({required this.who, required this.share})
+  final String who
+  final double share
+  int get hashCode
+
 final class PieceReport
   String get says
+  String toString()
+  bool operator ==(Object other)
   const PieceReport({required this.label, required this.pixels, required this.screenBox, required this.depth, required this.inView, required this.covering})
-  final ({double near, double far})? depth
-  final ({int left, int top, int right, int bottom})? screenBox
-  final List<({String who, double share})> covering
+  final DepthSpan? depth
+  final List<PieceCover> covering
+  final PixelBox? screenBox
   final String label
   final bool inView
   final int pixels
+  int get hashCode
+
+final class PixelBox
+  String toString()
+  bool operator ==(Object other)
+  const PixelBox({required this.left, required this.top, required this.right, required this.bottom})
+  final int bottom
+  final int left
+  final int right
+  final int top
+  int get hashCode
 
 final class PlaySession
   Answer events({int since = 0, Set<String>? kinds})
@@ -140,6 +169,14 @@ final class AnsweredCall<A>
 
 typedef CommandTarget = ({int? object, String? level, List<int>? elements, List<int>? objects});
 
+final class DepthSpan
+  String toString()
+  bool operator ==(Object other)
+  const DepthSpan({required this.near, required this.far})
+  final double far
+  final double near
+  int get hashCode
+
 base class EditorMcpServer extends ToolTableServer<EditorSession, Answer>
   EditorMcpServer(super.channel, {required EditorSession session, super.projectTools, super.onProjectCall})
 
@@ -179,7 +216,7 @@ final class EditorSession
 
 typedef EditorTool = OfferedTool<EditorSession, Answer>;
 
-typedef GameAsk = Future<({Map<String, Object?>? json, String? refused})> Function(String vmService, String method, {Map<String, String> args});
+typedef GameAsk = Future<GameExtensionReply> Function(String vmService, String method, {Map<String, String> args});
 
 typedef LevelCamera = ({Vector3 from, Vector3 at});
 
@@ -279,15 +316,36 @@ final class PathOutsideRootException extends ResourceException
   final String root
   final String? why
 
+final class PieceCover
+  String toString()
+  bool operator ==(Object other)
+  const PieceCover({required this.who, required this.share})
+  final String who
+  final double share
+  int get hashCode
+
 final class PieceReport
   String get says
+  String toString()
+  bool operator ==(Object other)
   const PieceReport({required this.label, required this.pixels, required this.screenBox, required this.depth, required this.inView, required this.covering})
-  final ({double near, double far})? depth
-  final ({int left, int top, int right, int bottom})? screenBox
-  final List<({String who, double share})> covering
+  final DepthSpan? depth
+  final List<PieceCover> covering
+  final PixelBox? screenBox
   final String label
   final bool inView
   final int pixels
+  int get hashCode
+
+final class PixelBox
+  String toString()
+  bool operator ==(Object other)
+  const PixelBox({required this.left, required this.top, required this.right, required this.bottom})
+  final int bottom
+  final int left
+  final int right
+  final int top
+  int get hashCode
 
 final class PlaySession
   Answer events({int since = 0, Set<String>? kinds})
@@ -316,12 +374,20 @@ base class ProjectMcpServer extends ToolTableServer<McpTools, ToolResult>
   ProjectMcpServer(super.channel, {required McpTools tools, super.pausedBecause, super.onProjectCall, super.onInitialize})
 
 final class ProjectRoot
-  ({String? path, String? refused}) tryResolve(String requested)
   ProjectRoot(String directory)
+  ResolvedPath tryResolve(String requested)
   String resolve(String requested)
   String toString()
   factory ProjectRoot.around(String? documentPath)
   final String path
+
+final class ResolvedPath
+  String toString()
+  bool operator ==(Object other)
+  const ResolvedPath({this.path, this.refused})
+  final String? path
+  final String? refused
+  int get hashCode
 
 typedef RunFlutterIn = Future<ProcessResult> Function(List<String> arguments, String workingDirectory);
 
@@ -490,12 +556,20 @@ base class ProjectMcpServer extends ToolTableServer<McpTools, ToolResult>
   ProjectMcpServer(super.channel, {required McpTools tools, super.pausedBecause, super.onProjectCall, super.onInitialize})
 
 final class ProjectRoot
-  ({String? path, String? refused}) tryResolve(String requested)
   ProjectRoot(String directory)
+  ResolvedPath tryResolve(String requested)
   String resolve(String requested)
   String toString()
   factory ProjectRoot.around(String? documentPath)
   final String path
+
+final class ResolvedPath
+  String toString()
+  bool operator ==(Object other)
+  const ResolvedPath({this.path, this.refused})
+  final String? path
+  final String? refused
+  int get hashCode
 
 final class ToolName
   const ToolName(this.name, {this.hints = ToolHints.writes})

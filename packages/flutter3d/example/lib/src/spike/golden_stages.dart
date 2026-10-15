@@ -2252,7 +2252,7 @@ abstract final class GoldenStages {
       )
       ..setPosition(-3.2, 1.6, 2.0)
       ..lookAt(Vector3(0.0, 0.5, -0.4));
-    final picture = RenderView.texture(
+    final picture = CameraView.texture(
       device,
       camera: watcher,
       width: 128,

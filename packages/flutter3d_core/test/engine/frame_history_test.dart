@@ -29,15 +29,15 @@ void main() {
 
   // One view object across frames: the history is kept per view. Through the
   // camera `staged` made, the first, since a test may add a second one.
-  final views = Expando<RenderView>('test view');
-  RenderView viewOf(Scene scene) =>
-      views[scene] ??= RenderView(camera: scene.cameras.first);
+  final views = Expando<CameraView>('test view');
+  CameraView viewOf(Scene scene) =>
+      views[scene] ??= CameraView(camera: scene.cameras.first);
 
   void draw(Renderer renderer, Scene scene) => renderer.render(
     width: 64,
     height: 48,
     scene: scene,
-    views: <RenderView>[viewOf(scene)],
+    views: <CameraView>[viewOf(scene)],
   );
 
   test('a node moved between two frames reports where it was', () {
@@ -97,7 +97,7 @@ void main() {
     expect(renderer.frameHistory.viewProjection(view), isNot(before));
     // A view of the same camera that was not drawn last frame has no past.
     expect(
-      renderer.frameHistory.viewProjection(RenderView(camera: camera)),
+      renderer.frameHistory.viewProjection(CameraView(camera: camera)),
       isNull,
     );
   });
@@ -116,8 +116,8 @@ void main() {
     // the first view's past, and its velocity is computed against nothing.
     final (:renderer, :scene, :moving, still: _) = staged();
     final camera = scene.cameras.single;
-    final left = RenderView(camera: camera);
-    final right = RenderView(camera: CameraNode()..setPosition(5.0, 0.0, 0.0));
+    final left = CameraView(camera: camera);
+    final right = CameraView(camera: CameraNode()..setPosition(5.0, 0.0, 0.0));
     scene.add(right.camera);
     void drawBoth() {
       renderer
@@ -144,7 +144,7 @@ void main() {
     // origin reads as every node and the camera jumping by the shift.
     final (:renderer, :scene, :moving, still: _) = staged();
     final view = viewOf(scene);
-    final other = RenderView(camera: CameraNode());
+    final other = CameraView(camera: CameraNode());
     scene.add(other.camera);
     renderer.render(width: 64, height: 48, scene: scene, views: [view]);
     final world = moving.worldMatrix.clone();
@@ -179,7 +179,7 @@ void main() {
     final (:renderer, :scene, moving: _, still: _) = staged();
     final other = CameraNode()..setPosition(3.0, 0.0, 0.0);
     scene.add(other);
-    final once = RenderView(camera: other);
+    final once = CameraView(camera: other);
     renderer.render(width: 64, height: 48, scene: scene, views: [once]);
     expect(renderer.frameHistory.viewProjection(once), isNotNull);
     for (var i = 0; i <= Renderer.viewIdleFrames + 1; i++) {

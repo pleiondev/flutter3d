@@ -125,19 +125,13 @@ const EditorComponent _buoyancy = EditorComponent(
   types: <String>{'boat'},
 );
 
-/// Sections equal to [expected], title by title and key by key. A record
-/// that holds a `List` compares it by identity, so the records are taken
-/// apart before `equals` sees them.
-Matcher _sections(List<(String, List<String>)> expected) {
-  List<Object> flat(List<(String, List<String>)> sections) => <Object>[
-    for (final (title, keys) in sections) <Object>[title, keys],
-  ];
-  return isA<List<(String, List<String>)>>().having(
-    flat,
-    'sections',
-    flat(expected),
-  );
-}
+/// Sections equal to [expected], title by title and key by key: an
+/// [InspectorSection] compares its keys element by element.
+Matcher _sections(List<(String, List<String>)> expected) =>
+    equals(<InspectorSection>[
+      for (final (title, keys) in expected)
+        InspectorSection(title: title, keys: keys),
+    ]);
 
 void main() {
   group('commands', () {

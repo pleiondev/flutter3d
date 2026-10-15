@@ -48,7 +48,7 @@ Set<String> drawn(RenderList list) => <String>{
 /// Builds [list] for [scene] through [camera].
 void buildFor(RenderList list, Scene scene, CameraNode camera) => list.build(
   scene,
-  RenderView(camera: camera),
+  CameraView(camera: camera),
   viewMatrix: camera.viewMatrix,
   frustum: Frustum.matrix(camera.viewProjection(1.0)),
 );

@@ -92,7 +92,7 @@ EditMesh mirror(
     result.endStep();
   }
   if (mergeDistance != null) {
-    final (EditMesh merged, _) = mergeByDistance(
+    final MergedMesh(mesh: merged) = mergeByDistance(
       result,
       distance: mergeDistance,
     );

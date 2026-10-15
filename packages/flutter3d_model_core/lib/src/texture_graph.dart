@@ -835,17 +835,43 @@ final class OutputTextureNode extends TextureNode {
   R accept<R>(TextureNodeVisitor<R> visitor) => visitor.visitOutput(this);
 }
 
+/// Where a node of a [TextureGraph] is drawn, in the graph panel's own
+/// canvas space: see [TextureGraph.positions].
+final class NodePosition {
+  /// The point ([x], [y]) on the panel's canvas.
+  const NodePosition({required this.x, required this.y});
+
+  /// The canvas origin, where a node with no position of its own goes.
+  static const NodePosition origin = NodePosition(x: 0, y: 0);
+
+  /// The horizontal coordinate, in logical pixels of the panel's canvas.
+  final double x;
+
+  /// The vertical coordinate, in logical pixels of the panel's canvas.
+  final double y;
+
+  @override
+  bool operator ==(Object other) =>
+      other is NodePosition && other.x == x && other.y == y;
+
+  @override
+  int get hashCode => Object.hash(x, y);
+
+  @override
+  String toString() => 'NodePosition($x, $y)';
+}
+
 /// An immutable network of [TextureNode]s.
 final class TextureGraph {
   const TextureGraph({
     this.nodes = const <TextureNode>[],
-    this.positions = const <int, (double, double)>{},
+    this.positions = const <int, NodePosition>{},
   });
 
   final List<TextureNode> nodes;
 
-  /// Where `TextureGraphPanel` (`mat-13`) draws each node, by id — an (x, y)
-  /// pair in the panel's own canvas space.
+  /// Where `TextureGraphPanel` (`mat-13`) draws each node, by id — a
+  /// [NodePosition] in the panel's own canvas space.
   ///
   /// **Presentation only.** Neither [validate] nor `bakeTextureGraph` reads
   /// this: two graphs that differ only in where their nodes are drawn bake to
@@ -854,7 +880,7 @@ final class TextureGraph {
   /// node with no entry here is one `TextureGraphPanel` has never been told
   /// where to put — laid out however the panel's own default placement does,
   /// not treated as a graph a decoder failed to read.
-  final Map<int, (double x, double y)> positions;
+  final Map<int, NodePosition> positions;
 
   /// The node with this id, or null when nothing in [nodes] has it.
   TextureNode? nodeById(int id) {
@@ -941,7 +967,7 @@ final class TextureGraph {
     if (positions.isNotEmpty)
       'positions': <String, Object?>{
         for (final entry in positions.entries)
-          '${entry.key}': <double>[entry.value.$1, entry.value.$2],
+          '${entry.key}': <double>[entry.value.x, entry.value.y],
       },
   };
 
@@ -958,12 +984,15 @@ final class TextureGraph {
         for (final entry in entries)
           TextureNode.fromJson(entry! as Map<String, Object?>),
       ],
-      positions: <int, (double, double)>{
+      positions: <int, NodePosition>{
         if (positionsJson is Map<String, Object?>)
           for (final entry in positionsJson.entries)
             if (int.tryParse(entry.key) case final int id)
               if (entry.value case final List<Object?> xy when xy.length == 2)
-                id: ((xy[0]! as num).toDouble(), (xy[1]! as num).toDouble()),
+                id: NodePosition(
+                  x: (xy[0]! as num).toDouble(),
+                  y: (xy[1]! as num).toDouble(),
+                ),
       },
     );
   }

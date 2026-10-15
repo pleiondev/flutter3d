@@ -253,7 +253,7 @@ void main() {
 
       list.build(
         scene,
-        RenderView(camera: camera),
+        CameraView(camera: camera),
         viewMatrix: camera.viewMatrix,
         frustum: Frustum.matrix(camera.viewProjection(1.0)),
       );
@@ -265,7 +265,7 @@ void main() {
       final scene = gridScene(RenderList.defaultBvhThreshold + 100);
       final camera = scene.add(CameraNode())..setPosition(0.0, 30.0, 90.0);
       camera.lookAt(Vector3.zero());
-      final view = RenderView(camera: camera);
+      final view = CameraView(camera: camera);
       final frustum = Frustum.matrix(camera.viewProjection(1.0));
 
       final accelerated = RenderList()

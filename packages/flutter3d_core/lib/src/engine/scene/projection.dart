@@ -574,7 +574,7 @@ final class JitteredProjection extends Projection {
     required int width,
     required int height,
   }) {
-    final (x, y) = jitterOffset(frame, length);
+    final PixelJitter(:x, :y) = jitterOffset(frame, length);
     return JitteredProjection(base, dx: 2.0 * x / width, dy: 2.0 * y / height);
   }
 
@@ -613,9 +613,35 @@ final class JitteredProjection extends Projection {
 /// Counted from one, as the sequence usually is: its first point, (0, 0), is
 /// the pixel centre on both axes, and a cycle that spent a frame there would
 /// weight the centre twice.
-(double, double) jitterOffset(int frame, int length) {
+PixelJitter jitterOffset(int frame, int length) {
   final index = frame % (length < 1 ? 1 : length) + 1;
-  return (_halton(index, 2) - 0.5, _halton(index, 3) - 0.5);
+  return PixelJitter(x: _halton(index, 2) - 0.5, y: _halton(index, 3) - 0.5);
+}
+
+/// How far off the pixel centre a frame's scene is drawn: what
+/// [jitterOffset] answers and `FrameContext.jitter` reports.
+final class PixelJitter {
+  /// The offset [x] across and [y] up, in pixels.
+  const PixelJitter({required this.x, required this.y});
+
+  /// No offset at all: the pixel centre.
+  static const PixelJitter none = PixelJitter(x: 0.0, y: 0.0);
+
+  /// The horizontal offset, in pixels, within `[-0.5, 0.5)`.
+  final double x;
+
+  /// The vertical offset, in pixels, within `[-0.5, 0.5)`.
+  final double y;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PixelJitter && other.x == x && other.y == y;
+
+  @override
+  int get hashCode => Object.hash(x, y);
+
+  @override
+  String toString() => 'PixelJitter($x, $y)';
 }
 
 double _halton(int index, int base) {

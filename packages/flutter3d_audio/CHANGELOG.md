@@ -1,3 +1,9 @@
+## 1.0.0-rc.1+1
+
+- **`PanGains` comes with the panner.** `EqualPowerPanner.gains` answers a
+  `PanGains` with `left` and `right` where it answered a record, and this
+  package exports it beside the panner it re-exports.
+
 ## 1.0.0-rc.1
 
 - **Breaking: the SoLoud backend takes one context per call**, a
