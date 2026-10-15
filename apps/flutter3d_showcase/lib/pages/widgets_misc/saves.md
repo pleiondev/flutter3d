@@ -103,7 +103,7 @@ calling the store before consent, and both sides end on the same run.
 
 {{code check}}
 
-> **Note.** The native halves of the `flutter3d/cloud_saves` channel are
+> **Note.** The native halves of the `dev.flutter3d/cloud_saves` channel are
 > not written yet. Play Games snapshots in Kotlin and CloudKit or the iCloud
 > key-value store in Swift still need a plugin package to carry them, so
 > `PlatformCloudSaves` answers that the store is unavailable for now. The

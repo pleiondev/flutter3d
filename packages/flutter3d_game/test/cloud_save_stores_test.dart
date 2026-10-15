@@ -114,7 +114,7 @@ void main() {
   });
 
   group('PlatformCloudSaves', () {
-    const channel = MethodChannel('flutter3d/cloud_saves');
+    const channel = MethodChannel('dev.flutter3d/cloud_saves');
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
 

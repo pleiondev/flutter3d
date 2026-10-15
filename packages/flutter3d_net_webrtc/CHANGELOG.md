@@ -1,3 +1,23 @@
+## 1.0.0-rc.1+1
+
+- **A reliable message arrives in order again.** The transport opened one
+  unordered channel, so every message was retransmitted but none was
+  ordered, which broke what `PeerSend.reliable` promises and what a
+  rollback's handshake and an observer rely on. It opens two now: an
+  ordered, retransmitting `f3d.reliable` and an unordered, never
+  retransmitting `f3d.unreliable`, and `send` and `sendBytes` pick one by
+  `reliable`. `ready` waits for both. `flutter_webrtc` leaves a zero
+  `maxRetransmits` out of what it hands the native side, so the unreliable
+  channel's init writes it itself; a browser reads the field with the same
+  test, and there the channel is unordered but still retransmits.
+- **The handshake has a version.** Each signalling message is
+  `{"f3d": "signal", "v": 1, "kind": …}`, under the key the engine's
+  messages carry, so a game's own messages on the relay are never read as
+  an offer. A signal of another version fails `ready` with a `StateError`
+  naming both, a malformed one is dropped, and a field of the wrong type no
+  longer throws inside the signalling listener. Peers of 1.0.0-rc.1, which
+  sent the bare `{"kind": …}`, do not connect to this one.
+
 ## 1.0.0-rc.1
 
 - **Breaking: `WebRtcTransport.send` and `sendBytes` take one context**, a

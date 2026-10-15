@@ -124,7 +124,10 @@ final class MethodChannelGamepad extends GamepadPlatform {
   void _ensureListening() {
     if (_listening || !isSupported) return;
     _listening = true;
-    _subscription = eventChannel.receiveBroadcastStream().listen(_onEvent);
+    _subscription = eventChannel.receiveBroadcastStream().listen(
+      _onEvent,
+      onError: _onChannelError,
+    );
     if (_buttonsThroughKeyboard.contains(defaultTargetPlatform)) {
       HardwareKeyboard.instance.addHandler(_onKey);
     }
@@ -157,6 +160,20 @@ final class MethodChannelGamepad extends GamepadPlatform {
     _connections.add(
       now > was ? PadConnection.connected : PadConnection.disconnected,
     );
+  }
+
+  /// An error from the native side: a [MissingPluginException] where the
+  /// platform has no listener on the channel, or a [PlatformException] it
+  /// raised.
+  ///
+  /// **Answered as no controller, never thrown.** The stream is listened to
+  /// from inside a frame's read, where an unhandled error would surface in
+  /// the zone of whoever read first. Every pad reads as disconnected, which
+  /// is what a platform without the plugin has.
+  void _onChannelError(Object error) {
+    if (error is! MissingPluginException && error is! PlatformException) {
+      Error.throwWithStackTrace(error, StackTrace.current);
+    }
   }
 
   bool _onKey(KeyEvent event) {

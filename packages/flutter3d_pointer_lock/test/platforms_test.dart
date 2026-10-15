@@ -241,4 +241,15 @@ void main() {
       expect(source, contains('"${channel.eventChannel.name}"'), reason: path);
     }
   });
+
+  test('a native side without the method answers nothing', () async {
+    // No handler is registered on the channel, which is what a native side
+    // that predates a method looks like: `invokeMethod` raises
+    // `MissingPluginException`, and every call has to answer instead.
+    // Mutation: drop the catch in `_call`, and these throw.
+    final channel = MethodChannelPointerLock();
+    await expectLater(channel.capture(), completes);
+    await expectLater(channel.release(), completes);
+    await expectLater(channel.reset(), completes);
+  });
 }

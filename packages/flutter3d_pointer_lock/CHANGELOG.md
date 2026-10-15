@@ -1,3 +1,13 @@
+## 0.5.1
+
+* **A native side without a method answers nothing, not an exception.**
+  `capture`, `release` and `reset` catch the `MissingPluginException` a
+  native side raises for a method it has no handler for, and return: the
+  capture state stays where it was, which `stateChanges` already says. The
+  engine pins this package at `^0.5.0`, so a method a later minor adds must
+  not throw on a native side that predates it, and the catch has to be in
+  the Dart side before that minor exists.
+
 ## 0.5.0
 
 * **The package is published as `flutter3d_pointer_lock`**, the name it

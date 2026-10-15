@@ -117,11 +117,29 @@ final class MethodChannelPointerLock extends PointerLockPlatform {
       });
 
   @override
-  Future<void> capture() => methodChannel.invokeMethod<void>('capture');
+  Future<void> capture() => _call('capture');
 
   @override
-  Future<void> release() => methodChannel.invokeMethod<void>('release');
+  Future<void> release() => _call('release');
 
   @override
-  Future<void> reset() => methodChannel.invokeMethod<void>('reset');
+  Future<void> reset() => _call('reset');
+
+  /// Calls [method] on the native side, and answers nothing where that side
+  /// does not have it.
+  ///
+  /// **A missing method is a no-op, never a throw.** A native side that has
+  /// no handler for [method] — an embedding that did not register the
+  /// plugin, or a side that predates a method a later minor adds — answers
+  /// with a `MissingPluginException`, and the engine pins this package at
+  /// `^0.5.0`, so a game cannot choose the minor its players get. The
+  /// capture state then stays where it was, which [stateChanges] already
+  /// reports, and the game keeps its own cursor.
+  Future<void> _call(String method) async {
+    try {
+      await methodChannel.invokeMethod<void>(method);
+    } on MissingPluginException {
+      return;
+    }
+  }
 }

@@ -1,3 +1,16 @@
+## 0.5.1
+
+* **A platform without the native side reads as no controller.** The event
+  channel's subscription handles the `MissingPluginException` and the
+  `PlatformException` a native side can raise, so an error never reaches
+  the zone of whoever read a pad first, and every pad reads disconnected.
+* **The channel and its message words are held against the four native
+  sides.** `test/native_sources_test.dart` reads the Kotlin, Swift, Windows
+  and Linux sources and checks each opens `dev.flutter3d/gamepad/events`
+  and writes the keys (`event`, `device`, `slot`, `axes`, `code`, `down`)
+  and the event words its Dart mirror reads. A key spelled differently on
+  one side used to read as absent there, with nothing to say so.
+
 ## 0.5.0
 
 * **Breaking: `GamepadPlatform.readPad` takes a `PadReadContext`** (new),

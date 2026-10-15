@@ -30,7 +30,7 @@ final class CloudProvider {
 ///
 /// ## The channel
 ///
-/// `flutter3d/cloud_saves`, two methods, each with `provider` (the
+/// `dev.flutter3d/cloud_saves`, two methods, each with `provider` (the
 /// [CloudProvider]'s name) and `slot`:
 ///
 /// | | |
@@ -48,7 +48,7 @@ final class CloudProvider {
 /// settings screen rather than in a crash report.
 final class PlatformCloudSaves extends CloudSaveStore {
   PlatformCloudSaves(this.provider, {MethodChannel? channel})
-    : _channel = channel ?? const MethodChannel('flutter3d/cloud_saves');
+    : _channel = channel ?? const MethodChannel('dev.flutter3d/cloud_saves');
 
   final CloudProvider provider;
   final MethodChannel _channel;

@@ -1,6 +1,6 @@
 name: flutter3d_net_webrtc
 description: "A flutter3d_net PeerWire over a real WebRTC data channel: rollback peer to peer, with the relay carrying only the SDP/ICE handshake."
-version: 1.0.0-rc.1
+version: 1.0.0-rc.1+1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues

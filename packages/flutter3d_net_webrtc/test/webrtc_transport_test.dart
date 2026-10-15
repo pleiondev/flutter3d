@@ -6,6 +6,7 @@ library;
 
 import 'package:flutter3d_net/flutter3d_net.dart';
 import 'package:flutter3d_net_webrtc/flutter3d_net_webrtc.dart';
+import 'package:flutter3d_net_webrtc/src/webrtc_signal.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// A [PeerWire] with no real channel behind it — enough to prove
@@ -51,5 +52,109 @@ void main() {
       () => WebRtcTransport.openAnswering(_NullSignalling()),
       throwsA(anything),
     );
+  });
+
+  group('the wire the two sides agree on', () {
+    // These need no native binding: the signalling words and the channel
+    // layout are what two builds have to agree on, and both are pure.
+
+    test('a reliable ordered channel and an unreliable unordered one', () {
+      // Mutation: open one unordered channel, as before, and a reliable
+      // message stops arriving in order.
+      final inits = dataChannelInits();
+      expect(inits.keys, <String>['f3d.reliable', 'f3d.unreliable']);
+      final reliable = inits['f3d.reliable']!;
+      expect(reliable.ordered, isTrue);
+      expect(reliable.maxRetransmits, -1);
+      final unreliable = inits['f3d.unreliable']!;
+      expect(unreliable.ordered, isFalse);
+      expect(unreliable.maxRetransmits, 0);
+      // What the native side is handed: `flutter_webrtc`'s own map leaves a
+      // zero out, which would bring the channel up reliable.
+      expect(unreliable.toMap()['maxRetransmits'], 0);
+      expect(unreliable.toMap()['ordered'], isFalse);
+      expect(reliable.toMap().containsKey('maxRetransmits'), isFalse);
+    });
+
+    test('each signal is under the engine key, at version 1', () {
+      // The literal shapes, not built from the constants: a renamed key
+      // fails here.
+      expect(const Signal.offer('o').toJson(), <String, Object?>{
+        'f3d': 'signal',
+        'v': 1,
+        'kind': 'offer',
+        'sdp': 'o',
+      });
+      expect(const Signal.answer('a').toJson(), <String, Object?>{
+        'f3d': 'signal',
+        'v': 1,
+        'kind': 'answer',
+        'sdp': 'a',
+      });
+      expect(
+        const Signal.ice('c', sdpMid: '0', sdpMLineIndex: 0).toJson(),
+        <String, Object?>{
+          'f3d': 'signal',
+          'v': 1,
+          'kind': 'ice',
+          'candidate': 'c',
+          'sdpMid': '0',
+          'sdpMLineIndex': 0,
+        },
+      );
+    });
+
+    test('a signal reads back as itself', () {
+      for (final signal in const <Signal>[
+        Signal.offer('o'),
+        Signal.answer('a'),
+        Signal.ice('c', sdpMid: '0', sdpMLineIndex: 2),
+      ]) {
+        final read = readSignal(signal.toJson());
+        expect(read, isA<SignalOf>());
+        expect((read as SignalOf).signal.toJson(), signal.toJson());
+      }
+    });
+
+    test('a game message, or a bare pre-1.0 signal, is not one', () {
+      expect(
+        readSignal(<String, Object?>{'kind': 'offer', 'sdp': 'o'}),
+        isA<NotASignal>(),
+      );
+      expect(
+        readSignal(<String, Object?>{'f3d': 'rollback'}),
+        isA<NotASignal>(),
+      );
+    });
+
+    test('another version is refused for good, a malformed one dropped', () {
+      // Mutation: put the `!`/`as` casts back, and these throw inside the
+      // signalling listener instead of answering.
+      final other = readSignal(<String, Object?>{
+        'f3d': 'signal',
+        'v': 2,
+        'kind': 'offer',
+        'sdp': 'o',
+      });
+      expect(other, isA<SignalRefused>());
+      expect((other as SignalRefused).otherVersion, isTrue);
+      for (final malformed in <Map<String, Object?>>[
+        <String, Object?>{'f3d': 'signal', 'v': 1, 'kind': 'offer'},
+        <String, Object?>{'f3d': 'signal', 'v': 1, 'kind': 'answer', 'sdp': 3},
+        <String, Object?>{'f3d': 'signal', 'v': 1, 'kind': 'ice'},
+        <String, Object?>{
+          'f3d': 'signal',
+          'v': 1,
+          'kind': 'ice',
+          'candidate': 'c',
+          'sdpMLineIndex': 1.5,
+        },
+        <String, Object?>{'f3d': 'signal', 'v': 1, 'kind': 'bye'},
+      ]) {
+        final read = readSignal(malformed);
+        expect(read, isA<SignalRefused>(), reason: '$malformed');
+        expect((read as SignalRefused).otherVersion, isFalse);
+      }
+    });
   });
 }
