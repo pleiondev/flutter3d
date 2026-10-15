@@ -95,8 +95,9 @@ final class PluginSession {
   /// A loop with the dependencies, [withPlugin]'s plugin unless false, the
   /// harness's registries for [backend] and the application's set-up.
   ///
-  /// Throws what the loop throws: a [PluginException] for a plugin refused
-  /// at install.
+  /// Throws a [PluginException] for a plugin refused at install: the loop
+  /// leaves such a plugin switched off with the reason and installs the
+  /// rest, and a check reads that refusal as the plugin failing.
   EngineLoop build({
     String? backend,
     bool withPlugin = true,
@@ -113,6 +114,17 @@ final class PluginSession {
       determinismCheck: check,
       profile: harness.profile,
     );
+    if (withPlugin) {
+      final status = loop.plugins.statuses.firstWhere(
+        (s) => s.id == manifest.id,
+      );
+      switch (status.error) {
+        case final PluginException refused:
+          throw refused;
+        case final Object refused:
+          throw PluginException(status.reason ?? '$refused');
+      }
+    }
     harness.setUp?.call(loop);
     rewindWorld(loop, withPlugin: withPlugin);
     return loop;
