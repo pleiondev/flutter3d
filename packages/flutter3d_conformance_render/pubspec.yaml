@@ -3,7 +3,7 @@ description: >-
   The render checks of flutter3d's conformance suite: what a plugin adds to
   the frame, drawn through the renderer on a backend. Kept apart from
   flutter3d_conformance because it needs the renderer.
-version: 1.0.0-rc.1
+version: 1.0.0-rc.1+1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues

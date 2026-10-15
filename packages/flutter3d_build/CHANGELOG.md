@@ -1,3 +1,16 @@
+## 1.0.0-rc.1+1
+
+- **Breaking: `plugin.report` counts the 7 checks the plugin suite counts.**
+  `pluginConformanceChecks` adds `names` and `materials`, in the suite's
+  order, so a suite that never ran either is told which one it missed and
+  earns no `conformant@1.0`, as the suite's own `earnsBadge` already
+  decided; it counted 5 and could give the badge anyway. A structure rule
+  now holds the list equal to `flutter3d_conformance`'s `pluginCheckNames`.
+  A test is matched to a check by the whole name, dots included and case
+  ignored, so a dotted check name is ready for it.
+- **The plugin MCP server announces `1.0.0-rc.1+1`**, and `init` writes
+  `flutter3d_build: ^1.0.0-rc.1+1`.
+
 ## 1.0.0-rc.1
 
 - **`create plugin --kind tool` depends on the plugin API alone.** The

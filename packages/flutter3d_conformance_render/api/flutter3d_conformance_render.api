@@ -19,6 +19,6 @@ typedef RenderCheckMaterials = FutureOr<ShaderLibrary?> Function(GraphicsDevice 
 
 Future<List<PluginCheckOutcome>> checkPluginRender(Flutter3dPlugin Function() create, {required RenderCheckDevice device, required PluginRenderPoints points, required String backend, RenderCheckMaterials? materials})
 
-const List<String> pluginRenderCheckNames = <String>['render.nodes', 'render.lit model', 'render.lit model defaults', 'render.light type', 'render.decal', 'render.velocity', 'render.shadows']
+const List<String> pluginRenderCheckNames = <String>['render.nodes', 'render.litModel', 'render.litModelDefaults', 'render.lightType', 'render.decal', 'render.velocity', 'render.shadows']
 
 void runPluginRenderConformance(Flutter3dPlugin Function() create, {required RenderCheckDevice device, required PluginRenderPoints points, required String backend, RenderCheckMaterials? materials})

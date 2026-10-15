@@ -386,8 +386,9 @@ changes:
 
 MCP tools and VM service extensions are snapshotted (`api/*.mcp`,
 `api/*.vm`) with their input and output schemas. A rename keeps the old name
-as an alias until the next major, and each server announces its schema
-version. The `flutter3d` command's subcommands, flags and exit codes (0 ok,
+as an alias until the next major: a call to it is answered, `tools/list`
+does not offer it, and the snapshot holds it as an `alias` line. Each server
+announces its schema version. The `flutter3d` command's subcommands, flags and exit codes (0 ok,
 1 failed, 2 usage, 3 refused or out of date, 4 would overwrite) are
 snapshotted in `packages/flutter3d_build/api/flutter3d_build.cli`, and its
 `--json` output starts with the envelope, `"format": "f3d.cli"` and a
@@ -495,7 +496,7 @@ material leaves unset is bound at the default its source declares
 own vertex stage and its instanced and lightmapped variants alike — and a
 texture it names none for at a white texel, so a material written before a
 model grew a member draws the same on every backend. The render check
-`render.lit model defaults` holds each backend to it. **A full-screen stage
+`render.litModelDefaults` holds each backend to it. **A full-screen stage
 too**: `FullscreenEffect.material` binds its `MaterialParams` at the
 source's defaults (`FullscreenEffect.parameters`), the surface buffer when
 it reads `sceneDepth`, and refuses a texture of its own that nothing names;

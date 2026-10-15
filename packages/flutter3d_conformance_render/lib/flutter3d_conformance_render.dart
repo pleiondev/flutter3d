@@ -25,15 +25,15 @@
 ///
 /// * **render.nodes**: every node the plugin places runs in a frame, and
 ///   none once the plugin is switched off.
-/// * **render.lit model**: a box drawn through the plugin's lit model is a
+/// * **render.litModel**: a box drawn through the plugin's lit model is a
 ///   picture of its own, and every block and texture of its slot table
 ///   reaches the stage: moving a block's first member, or darkening a
 ///   texture, moves the picture (D21).
-/// * **render.lit model defaults**: a box drawn through the lit model by a
+/// * **render.litModelDefaults**: a box drawn through the lit model by a
 ///   material that sets nothing is the box drawn with every member at the
 ///   default its source declares and every texture of its own white: no
 ///   slot is left unbound (D21).
-/// * **render.light type**: the type has a hook and a code of a plugin's
+/// * **render.lightType**: the type has a hook and a code of a plugin's
 ///   own, and a box lit by it alone is lit.
 /// * **render.decal**: the decal pass runs with the plugin's stage and
 ///   paints the floor.

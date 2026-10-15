@@ -22,10 +22,10 @@ is drawn through the renderer on the device the suite is given:
 
 - **render.nodes**: every node the plugin places runs in a frame, and none
   once the plugin is switched off.
-- **render.lit model**: a box drawn through the plugin's lit model is a
+- **render.litModel**: a box drawn through the plugin's lit model is a
   picture of its own, and every block and texture of its slot table reaches
   the stage.
-- **render.light type**: a box lit by the plugin's light type alone is lit.
+- **render.lightType**: a box lit by the plugin's light type alone is lit.
 - **render.decal**: the decal pass runs with the plugin's stage and paints
   the floor.
 - **render.velocity**: the node reading the velocity runs after the camera

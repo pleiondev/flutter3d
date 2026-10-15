@@ -1,3 +1,15 @@
+## 1.0.0-rc.1+1
+
+- **Breaking: the render checks are named like tools.**
+  `render.lit model`, `render.lit model defaults` and `render.light type`
+  are `render.litModel`, `render.litModelDefaults` and `render.lightType`;
+  the other four keep their names. A check name is data: the `check` field
+  of a conformance report, an entry of a suite, the word a test runner's
+  name is matched by. A space in it was the one thing in the engine's names
+  a reader had to quote, and after 1.0 a rename would break every report
+  reader. A structure rule holds every check name to the words of
+  `ToolName.pattern`, and every render check to `render.<word>`.
+
 ## 1.0.0-rc.1
 
 - **`render.lit model defaults`** (new, 7 checks): a box drawn through a

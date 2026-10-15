@@ -1,3 +1,14 @@
+## 1.0.0-rc.1+1
+
+- **`tools/list` offers each tool once, under its current name.** The old
+  names of renamed tools (209 here: `render`, `addBrush`, `capture_draw`
+  and the rest) still answer when called, until 2.0, through the same brake,
+  argument check and watcher as before; they are no longer listed, so an
+  agent stops reading every renamed tool twice into its context, and a
+  prompt cannot learn a name that is already on its way out. The snapshot
+  keeps each one as an `alias` line, so dropping one is still a break the
+  schema rule sees. The servers announce `1.0.0-rc.1+1`.
+
 ## 1.0.0-rc.1
 
 - **The tools' contract is the plugin API's.** `McpTools`,

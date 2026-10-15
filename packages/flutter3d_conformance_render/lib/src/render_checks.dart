@@ -56,9 +56,9 @@ final class PluginRenderPoints {
 /// The render checks' names, in the order they are reported.
 const List<String> pluginRenderCheckNames = <String>[
   'render.nodes',
-  'render.lit model',
-  'render.lit model defaults',
-  'render.light type',
+  'render.litModel',
+  'render.litModelDefaults',
+  'render.lightType',
   'render.decal',
   'render.velocity',
   'render.shadows',
@@ -276,17 +276,17 @@ Future<List<PluginCheckOutcome>> checkPluginRender(
         );
       }),
     if (points.litModel case final model?)
-      await guarded('render.lit model', (stage) async {
+      await guarded('render.litModel', (stage) async {
         if (stage.renderer.lightingModels.named(model.shaderName) == null) {
           return outcome(
-            'render.lit model',
+            'render.litModel',
             false,
             '"${model.shaderName}" is not registered with the renderer',
           );
         }
         if (pictures != null) {
           stage.render(stage.scene(material: RenderMaterial(lighting: model)));
-          return outcome('render.lit model', false, pictures, declined: true);
+          return outcome('render.litModel', false, pictures, declined: true);
         }
         // Every member of every block at a half, every texture of its own
         // white; then each block's first member and each texture moved on
@@ -324,7 +324,7 @@ Future<List<PluginCheckOutcome>> checkPluginRender(
         final base = await draw(filled(null, 0), textures(null));
         if (_same(base, await stage.picture(stage.scene()))) {
           return outcome(
-            'render.lit model',
+            'render.litModel',
             false,
             'a box drawn through "${model.shaderName}" is the picture of one '
                 'drawn through the engine\'s: the stage did not draw',
@@ -343,7 +343,7 @@ Future<List<PluginCheckOutcome>> checkPluginRender(
               'texture ${t.binding}',
         ];
         return outcome(
-          'render.lit model',
+          'render.litModel',
           unreached.isEmpty,
           unreached.isEmpty
               ? '"${model.shaderName}" drew, with ${model.slots.blocks.length} '
@@ -353,7 +353,7 @@ Future<List<PluginCheckOutcome>> checkPluginRender(
         );
       }),
     if (points.litModel case final model?)
-      await guarded('render.lit model defaults', (stage) async {
+      await guarded('render.litModelDefaults', (stage) async {
         // A material that sets none of the model's own blocks and names
         // none of its textures: every slot is bound anyway, each member at
         // the default its source declares and each texture to white, so
@@ -362,7 +362,7 @@ Future<List<PluginCheckOutcome>> checkPluginRender(
         if (pictures != null) {
           stage.render(bare);
           return outcome(
-            'render.lit model defaults',
+            'render.litModelDefaults',
             false,
             pictures,
             declined: true,
@@ -387,7 +387,7 @@ Future<List<PluginCheckOutcome>> checkPluginRender(
           ),
         );
         return outcome(
-          'render.lit model defaults',
+          'render.litModelDefaults',
           _same(drawn, given),
           _same(drawn, given)
               ? '"${model.shaderName}" with nothing set drew its defaults'
@@ -396,12 +396,12 @@ Future<List<PluginCheckOutcome>> checkPluginRender(
         );
       }),
     if (points.lightType case final type?)
-      await guarded('render.light type', (stage) async {
+      await guarded('render.lightType', (stage) async {
         final hook = stage.renderer.lightTypes.hookOf(type);
         final code = stage.renderer.lightTypes.codeOf(type);
         if (hook == null || code < LightTypes.firstPluginCode) {
           return outcome(
-            'render.light type',
+            'render.lightType',
             false,
             '$type has no hook or no code of a plugin\'s own (code $code)',
           );
@@ -414,13 +414,13 @@ Future<List<PluginCheckOutcome>> checkPluginRender(
           ..add(LightNode(type: type)..setPosition(1.0, 2.0, 0.5));
         final drawn = await stage.picture(lit);
         if (pictures != null) {
-          return outcome('render.light type', false, pictures, declined: true);
+          return outcome('render.lightType', false, pictures, declined: true);
         }
         final dark = await stage.picture(
           stage.scene(material: material, sun: false),
         );
         return outcome(
-          'render.light type',
+          'render.lightType',
           !_same(drawn, dark),
           'code $code; a box lit by it alone '
               '${_same(drawn, dark) ? 'is the picture of one in the dark' : 'is lit'}',

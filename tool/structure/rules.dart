@@ -231,6 +231,14 @@ List<Rule> get allRules => <Rule>[
     run: _cliSurfaceCurrent,
   ),
   (
+    name: 'a conformance check is named like a tool, without a space',
+    run: _checkNamesFollowToolNames,
+  ),
+  (
+    name: 'plugin.report counts the checks the plugin suite counts',
+    run: _buildCountsTheSuitesChecks,
+  ),
+  (
     name: 'every versioned format has a fixture for each version it reads',
     run: _formatFixtures,
   ),
@@ -6018,6 +6026,143 @@ List<Finding> _kernelWordsVersioned() {
       newest: int.parse(newest.group(1)!),
     ))
       Finding(wordsPath, problem),
+  ];
+}
+
+/// Where the conformance suites keep their check names, and where
+/// `plugin.report` keeps its copy of the plugin suite's.
+const String _toolTable = 'packages/flutter3d_mcp/lib/src/kit/tool_table.dart';
+const String _pluginSuite = 'packages/flutter3d_conformance/lib/plugins.dart';
+const String _pluginSuiteChecks =
+    'packages/flutter3d_conformance/lib/src/plugins/plugin_checks.dart';
+const String _renderSuiteChecks =
+    'packages/flutter3d_conformance_render/lib/src/render_checks.dart';
+const String _pluginReport =
+    'packages/flutter3d_build/lib/src/plugin_author_server.dart';
+
+/// Every check the plugin and render suites name is a word of
+/// `ToolName.pattern`, or such words joined by dots, and every render check
+/// is `render.<word>`: no space, no capital first letter. Every name a
+/// check reports an outcome under is one of its suite's listed names.
+///
+/// **A check's name is data, not a sentence.** It is the `check` field of
+/// the `f3d.conformance` report, an entry in a suite of
+/// `conformanceSuites`, and the word `plugin.report` finds in a test's name.
+/// After 1.0 a rename breaks every report reader and changes what a suite
+/// id means, so the shape is held from the start, the same shape a tool
+/// name has (`render.lit model` became `render.litModel` before 1.0).
+///
+/// `ToolName.pattern` is read from `tool_table.dart` and held to
+/// `toolNamePatternSource`, so the two cannot drift.
+///
+/// Mutation: name a render check `render.lit model` again in
+/// `pluginRenderCheckNames`, or report an outcome under a name the list
+/// does not have, and this names it.
+List<Finding> _checkNamesFollowToolNames() {
+  final root = repositoryRoot.path;
+  String? read(String path) {
+    final file = File('$root/$path');
+    return file.existsSync() ? file.readAsStringSync() : null;
+  }
+
+  final found = <Finding>[];
+  final table = read(_toolTable);
+  final pattern = table == null
+      ? null
+      : RegExp(
+          r"static final RegExp pattern = RegExp\(\s*r'([^']*)'",
+        ).firstMatch(table)?.group(1);
+  if (pattern != toolNamePatternSource) {
+    found.add(
+      Finding(
+        _toolTable,
+        '`ToolName.pattern` is not `$toolNamePatternSource`, which the check '
+        'names are held to: move `toolNamePatternSource` in '
+        'tool/structure/detectors.dart with it',
+      ),
+    );
+  }
+  for (final (list, source, reporter, area)
+      in <(String, String, String, String?)>[
+        ('pluginCheckNames', _pluginSuite, _pluginSuiteChecks, null),
+        (
+          'pluginRenderCheckNames',
+          _renderSuiteChecks,
+          _renderSuiteChecks,
+          'render',
+        ),
+      ]) {
+    final text = read(source);
+    final names = text == null ? null : constStringListIn(text, list);
+    if (names == null) {
+      found.add(Finding(source, 'declares no `const List<String> $list`'));
+      continue;
+    }
+    for (final bad in badCheckNames(names, area: area)) {
+      found.add(
+        Finding(
+          '$source → $list',
+          'names the check `$bad`, which is not '
+              '${area == null ? 'a word or dotted words' : '`$area.<word>`'} '
+              'of `ToolName.pattern`: a check name is data in a report and a '
+              'badge, so it has no space (`render.litModel`)',
+        ),
+      );
+    }
+    final reported = read(reporter);
+    if (reported == null) continue;
+    for (final name in reportedCheckNamesIn(reported)) {
+      if (!names.contains(name)) {
+        found.add(
+          Finding(
+            reporter,
+            'reports an outcome under `$name`, which `$list` does not list',
+          ),
+        );
+      }
+    }
+  }
+  return found;
+}
+
+/// `plugin.report`'s `pluginConformanceChecks` is the plugin suite's
+/// `pluginCheckNames`, item for item.
+///
+/// **Two badge authorities may not disagree.** `flutter3d_build` keeps its
+/// own copy because the suite is a test library a build hook must not
+/// depend on, and its `earnsBadge` counts only the copy. It once counted 5
+/// of the suite's 7, so `plugin.report` could give `conformant@1.0` to a
+/// suite that never ran `names` or `materials`.
+///
+/// Mutation: drop `materials` from `pluginConformanceChecks`, or add a check
+/// to `pluginCheckNames` alone, and this names both lists.
+List<Finding> _buildCountsTheSuitesChecks() {
+  final root = repositoryRoot.path;
+  final suite = File('$root/$_pluginSuite');
+  final report = File('$root/$_pluginReport');
+  if (!suite.existsSync() || !report.existsSync()) return const <Finding>[];
+  final want = constStringListIn(suite.readAsStringSync(), 'pluginCheckNames');
+  final have = constStringListIn(
+    report.readAsStringSync(),
+    'pluginConformanceChecks',
+  );
+  if (want == null || have == null) {
+    return <Finding>[
+      Finding(
+        want == null ? _pluginSuite : _pluginReport,
+        'declares no `const List<String> '
+        '${want == null ? 'pluginCheckNames' : 'pluginConformanceChecks'}`',
+      ),
+    ];
+  }
+  if (want.join(' ') == have.join(' ')) return const <Finding>[];
+  return <Finding>[
+    Finding(
+      '$_pluginReport → pluginConformanceChecks',
+      'is `${have.join(' ')}`, and the suite\'s `pluginCheckNames` is '
+          '`${want.join(' ')}`: `plugin.report` would judge a badge on other '
+          'checks than the suite does',
+    ),
   ];
 }
 

@@ -221,11 +221,16 @@ base class ToolTableServer<S, A> {
   ///
   /// **A rename is a break for every agent prompt and every host config that
   /// names the old tool**, so a renamed tool keeps answering to its old name
-  /// until the next major release. The alias is listed by `tools/list` with
-  /// the current tool's schema and a description that opens by saying it is
-  /// deprecated and what to call instead, and a call to it runs the current
-  /// tool — through the same brake, argument check and watcher, which hears
-  /// the current name.
+  /// until the next major release. A call to it runs the current tool —
+  /// through the same brake, argument check and watcher, which hears the
+  /// current name.
+  ///
+  /// **Answered, not listed.** `tools/list` offers only the current names:
+  /// an agent reads the listing into its context on every session, and a
+  /// copy of each tool under its old name would be paid for there twice,
+  /// for a name no prompt should learn. The old name stays in the snapshot
+  /// (`api/<package>.mcp`) as an `alias` line, so removing one is still a
+  /// break the schema rule sees.
   ///
   /// Every name a tool was written under and published under another (the
   /// `names` the constructor takes) is one of these. An alias that names no
@@ -374,8 +379,8 @@ base class ToolTableServer<S, A> {
     meta: <String, Object?>{schemaVersionMetaKey: ?schemaVersion},
   );
 
-  /// Every tool `tools/list` offers of this server's own, aliases and
-  /// [schemaToolName] included, as the snapshot reads them.
+  /// Every tool `tools/list` offers of this server's own, [schemaToolName]
+  /// included, as the snapshot reads them; the [aliases] are not offered.
   List<ToolSpec> get offeredSpecs => <ToolSpec>[
     for (final OfferedTool<S, A> t in tools) t.spec,
     _schemaTool,
@@ -544,6 +549,19 @@ base class _Wire<S, A> extends MCPServer with ToolsSupport, PromptsSupport {
       };
     }
     return result;
+  }
+
+  /// The listing without the [ToolTableServer.aliases]: they answer when
+  /// called, and an agent is not shown them — see `aliases` for why.
+  @override
+  Future<ListToolsResult> listTools([ListToolsRequest? request]) async {
+    final ListToolsResult all = await super.listTools(request);
+    return ListToolsResult(
+      tools: <Tool>[
+        for (final Tool tool in all.tools)
+          if (!_owner.aliases.containsKey(tool.name)) tool,
+      ],
+    );
   }
 
   @override

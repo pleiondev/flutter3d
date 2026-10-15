@@ -131,30 +131,19 @@ void main() {
       '2.1.0',
     );
 
-    // Mutation: skip the aliases when registering. `tally` disappears from
-    // the list and an agent configured with it is told there is no such
-    // tool — the break an alias exists to defer.
-    // `flutter3d.schema` comes after the server's own tools and aliases.
+    // Mutation: drop the `listTools` filter. `tally` is listed beside
+    // `count`, and every agent pays for a second copy of each renamed tool
+    // in its context for a name no prompt should learn.
+    // `flutter3d.schema` comes after the server's own tools.
     final offered = await connection.listTools(ListToolsRequest());
     expect(offered.tools.map((Tool t) => t.name), <String>[
       'count',
-      'tally',
       schemaToolName,
     ]);
-    final Tool tally = offered.tools[1];
-    expect(
-      tally.description,
-      startsWith(
-        'Deprecated: `tally` is the old name '
-        'of `count`',
-      ),
-    );
-    expect(tally.description, endsWith('Counts.'));
-    expect(
-      tally.inputSchema.properties!.keys,
-      offered.tools.first.inputSchema.properties!.keys,
-    );
 
+    // Mutation: skip the aliases when registering. An agent configured
+    // with `tally` is told there is no such tool — the break an alias
+    // exists to defer.
     final answer = await connection.callTool(
       CallToolRequest(name: 'tally', arguments: <String, Object?>{'by': 1}),
     );

@@ -146,8 +146,12 @@ void main() {
   test('a tool that already names its target is left alone', () async {
     await call('addPrimitive', <String, Object?>{'kind': 'box'});
     final ListToolsResult tools = await connection.listTools();
-    Tool named(String name) =>
-        tools.tools.firstWhere((Tool it) => it.name == name);
+    // Listed under the published name; the written one is an alias, which
+    // answers but is not listed.
+    Tool named(String written) {
+      final String name = modelToolNames[written]?.name ?? written;
+      return tools.tools.firstWhere((Tool it) => it.name == name);
+    }
 
     // `rename` takes an id, so it is aimed already and gains nothing.
     expect(named('rename').inputSchema.properties!.keys, <String>['id', 'to']);

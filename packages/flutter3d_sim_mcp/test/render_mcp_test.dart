@@ -182,21 +182,25 @@ void main() {
 
   test('the five tools an agent is offered are the ones it can call', () async {
     final offered = await connection.listTools(ListToolsRequest());
-    // Published as `area.verb`, the written names kept as aliases until the
-    // next major, and `flutter3d.schema` after them.
+    // Published as `area.verb`, and `flutter3d.schema` after them. The
+    // written names answer as aliases until the next major and are not
+    // listed, so an agent does not read every tool twice.
     expect(offered.tools.map((t) => t.name).toSet(), <String>{
       'level.open',
       'render.frame',
       'render.pixel',
       'render.passes',
       'render.scanNan',
-      'open',
-      'frame',
-      'pixel',
-      'passes',
-      'scanNaN',
       'flutter3d.schema',
     });
+    final byOldName = await connection.callTool(
+      CallToolRequest(name: 'passes'),
+    );
+    expect(
+      (byOldName.content.first as TextContent).text,
+      isNot(startsWith('No tool registered')),
+      reason: 'an alias left the listing and stopped answering too',
+    );
   });
 
   test('a level outside the project, or one naming a file outside it, is '

@@ -30,7 +30,7 @@ export 'cli_contract.dart' show initUsage;
 /// names, the way every sibling in the workspace writes its constraint on
 /// another, and updated by whatever release bumps that version. `init_test`
 /// reads the pubspec and holds the two together.
-const String flutter3dBuildVersionConstraint = '^1.0.0-rc.1';
+const String flutter3dBuildVersionConstraint = '^1.0.0-rc.1+1';
 
 /// `hook/build.dart`'s own body — [buildAssets]'s doc comment names this
 /// exact text, kept here as the one place that spells it out so the two

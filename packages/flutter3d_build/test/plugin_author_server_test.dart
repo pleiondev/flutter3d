@@ -69,9 +69,11 @@ String _stream(Map<String, String> results) {
 const Map<String, String> _allPass = <String, String>{
   'manifest': 'success',
   'switch': 'success',
+  'names': 'success',
   'determinism': 'success',
   'backends on cpu': 'success',
   'budget': 'success',
+  'materials': 'success',
 };
 
 Directory _temp() {
@@ -169,10 +171,10 @@ void main() {
         'dart test test/conformance_test.dart --reporter json',
       ]);
       expect(answer.did, isTrue);
-      expect(answer.says, startsWith('4 of 5 passed'));
+      expect(answer.says, startsWith('6 of 7 passed'));
       expect(answer.says, contains('gave two answers'));
       final run = workshop.lastRun(dir.path)!;
-      expect(run.tests, hasLength(5));
+      expect(run.tests, hasLength(7));
       expect(
         run.tests.map((ConformanceTest t) => t.check),
         pluginConformanceChecks,
@@ -232,5 +234,26 @@ void main() {
       expect(report, contains('budget: not run'));
       expect(report, contains('(not run: budget)'));
     });
+
+    test(
+      'a suite without its names or materials check earns no badge',
+      () async {
+        // Mutation: count five checks here where the suite counts seven, as
+        // before. A suite written before `names` and `materials` joined passes
+        // every test it has and is given `conformant@1.0`, which the suite's
+        // own `earnsBadge` withholds.
+        for (final check in <String>['names', 'materials']) {
+          final dir = _temp();
+          PluginWorkshop().create(dir.path, 'duel', PluginKind.genre);
+          final workshop = _workshop(
+            _stream(Map<String, String>.of(_allPass)..remove(check)),
+          );
+          await workshop.conformance(dir.path);
+          final report = workshop.report(dir.path).says;
+          expect(report, contains('$check: not run'), reason: check);
+          expect(report, contains('badge: not earned'), reason: check);
+        }
+      },
+    );
   });
 }

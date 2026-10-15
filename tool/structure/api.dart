@@ -1093,6 +1093,37 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
         '(1.0.0-rc.1+1); the facade no longer re-exports them, which changes '
         'the one line it re-exports the engine with.',
   ),
+  BuildAllowance(
+    package: 'flutter3d_conformance_render',
+    members: <String>['pluginRenderCheckNames'],
+    reason:
+        'The render checks are named like tools (1.0.0-rc.1+1): '
+        '`render.litModel` where it was `render.lit model`, because a check '
+        'name is data in a report and a badge and has no space in it.',
+  ),
+  BuildAllowance(
+    package: 'flutter3d_build',
+    members: <String>[
+      'pluginConformanceChecks',
+      'pluginAuthorMcpVersion',
+      'flutter3dBuildVersionConstraint',
+    ],
+    reason:
+        '`plugin.report` counts the 7 checks the plugin suite counts '
+        '(1.0.0-rc.1+1), where it counted 5 and could give a badge the suite '
+        'withholds; the version constants follow the pubspec.',
+  ),
+  BuildAllowance(
+    package: 'flutter3d_mcp',
+    members: <String>[
+      'editorMcpVersion',
+      'modelMcpVersion',
+      'projectMcpVersion',
+    ],
+    reason:
+        'The servers stop listing the old names of renamed tools '
+        '(1.0.0-rc.1+1), and the version each announces follows the pubspec.',
+  ),
 ];
 
 /// Whether [change] to [package] is one [buildAllowances] lets through

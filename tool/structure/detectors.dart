@@ -1536,6 +1536,60 @@ List<String> kernelWordProblems({
   return problems;
 }
 
+// -------------------------------------------------------------- check names
+
+/// `ToolName.pattern` as `flutter3d_mcp`'s `tool_table.dart` writes it: a
+/// published tool name, lower-case words joined by dots, at least two.
+/// `_checkNamesFollowToolNames` holds the file to this text, so the two
+/// cannot drift.
+const String toolNamePatternSource =
+    r'^[a-z][A-Za-z0-9_]*(\.[a-z][A-Za-z0-9_]*)+$';
+
+/// A conformance check's name: [toolNamePatternSource]'s words, the dotted
+/// area optional. The plugin suite's checks are one word (`manifest`), the
+/// render checks carry their area (`render.litModel`); neither has a space,
+/// because a check's name is data in a report and a badge.
+final RegExp _checkName = RegExp(
+  r'^[a-z][A-Za-z0-9_]*(\.[a-z][A-Za-z0-9_]*)*$',
+);
+
+/// The string items of `const List<String> [name] = <String>[ … ];` in
+/// [source], in order, or null when [source] declares no such list.
+List<String>? constStringListIn(String source, String name) {
+  final match = RegExp(
+    'const\\s+List<String>\\s+${RegExp.escape(name)}\\s*=\\s*'
+    '(?:<String>)?\\[([^\\]]*)\\]',
+  ).firstMatch(codeOf(source));
+  if (match == null) return null;
+  return <String>[
+    for (final item in RegExp(r"'([^'\\]*)'").allMatches(match.group(1)!))
+      item.group(1)!,
+  ];
+}
+
+/// The check names [source] reports an outcome under: each `check: '…'`
+/// and each `'render.…'` string literal.
+Set<String> reportedCheckNamesIn(String source) => <String>{
+  for (final m in RegExp(
+    r"""\bcheck:\s*'([^'\\]*)'|'(render\.[^'\\]*)'""",
+  ).allMatches(codeOf(source)))
+    m.group(1) ?? m.group(2)!,
+};
+
+/// The names of [names] that are not check names; with [area] set, also
+/// those not in that area (`render.…`), which must match
+/// [toolNamePatternSource] itself.
+List<String> badCheckNames(Iterable<String> names, {String? area}) {
+  final tool = RegExp(toolNamePatternSource);
+  return <String>[
+    for (final name in names)
+      if (!_checkName.hasMatch(name) ||
+          (area != null &&
+              (!name.startsWith('$area.') || !tool.hasMatch(name))))
+        name,
+  ];
+}
+
 // --------------------------------------------------------------- self-checks
 
 /// Proves every detector above fires, and stays quiet on what only looks alike.
@@ -3952,6 +4006,71 @@ final c = switch (s) { 'x' || 'r' => 0, _ => 1 };
       parser: "const Set<String> _reserved = <String>{'let'};\n$kernelParser",
     ).isNotEmpty,
     'an unversioned word list kept in the parser',
+  );
+
+  // Check names. The spaced names are the ones the render suite shipped in
+  // 1.0.0-rc.1; a report and a badge carry them as data.
+  fires(
+    'a check name',
+    badCheckNames(<String>['render.lit model'], area: 'render').isNotEmpty,
+    'render.lit model',
+  );
+  fires(
+    'a check name',
+    badCheckNames(<String>['lit model']).isNotEmpty,
+    'lit model (no area)',
+  );
+  fires(
+    'a check name',
+    badCheckNames(<String>['litModel'], area: 'render').isNotEmpty,
+    'a render check outside render.',
+  );
+  fires(
+    'a check name',
+    badCheckNames(<String>['Manifest']).isNotEmpty,
+    'Manifest (upper case)',
+  );
+  quiet(
+    'a check name',
+    badCheckNames(<String>['manifest', 'determinism']).isEmpty &&
+        badCheckNames(<String>[
+          'render.litModelDefaults',
+          'render.lightType',
+        ], area: 'render').isEmpty,
+    'manifest, render.litModelDefaults',
+    'one word, and a camel-cased word after its area, are both names',
+  );
+  fires(
+    'a const string list',
+    constStringListIn(
+          "/// x\nconst List<String> checks = <String>[\n  'a', // one\n  'b',\n];",
+          'checks',
+        )?.join(',') ==
+        'a,b',
+    'a list of two',
+  );
+  quiet(
+    'a const string list',
+    constStringListIn("const List<String> other = <String>['a'];", 'checks') ==
+        null,
+    'a list of another name',
+    'the rule names the list it compares',
+  );
+  fires(
+    'a reported check name',
+    reportedCheckNamesIn(
+      "outcome('render.light type', false);\n"
+      "PluginCheckOutcome(check: 'names', passed: true);",
+    ).containsAll(<String>['render.light type', 'names']),
+    'an outcome and a render literal',
+  );
+  quiet(
+    'a reported check name',
+    reportedCheckNamesIn(
+      "// 'render.lit model' was the name\nfinal x = 'rendered';",
+    ).isEmpty,
+    'a comment and a word that starts with render',
+    'only code reports a check',
   );
 
   return broken;

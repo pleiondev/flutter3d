@@ -11,7 +11,7 @@ import 'render_tool.dart';
 /// 0.1.0 while the package moved through 0.6.0 to 0.7.0, since "kept beside
 /// the pubspec's" was a comment and nothing checked it;
 /// `server_version_test.dart` does now.
-const String modelMcpVersion = '1.0.0-rc.1';
+const String modelMcpVersion = '1.0.0-rc.1+1';
 
 /// The version of this server's tools — names and input schemas — as the
 /// `initialize` result announces it beside [modelMcpVersion].

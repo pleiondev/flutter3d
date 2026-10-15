@@ -111,11 +111,11 @@ void main() {
 
   test('the tools an agent is offered are the ones it can call', () async {
     final offered = await connection.listTools(ListToolsRequest());
-    // Published under their `area.verb` names, then the written names as
-    // aliases until the next major, then `flutter3d.schema`.
+    // Published under their `area.verb` names, then `flutter3d.schema`. The
+    // written names answer as aliases until the next major and are not
+    // listed.
     expect(offered.tools.map((Tool it) => it.name), <String>[
       for (final tool in server.tools) tool.name,
-      ...server.aliases.keys,
       schemaToolName,
     ], reason: 'tools/list and the table this server was built from disagree');
     expect(server.tools, hasLength(editorTools.length));

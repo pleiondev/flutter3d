@@ -6,9 +6,9 @@ can open a level, step it forward with input, read positions and health back
 in words, capture a headless frame with no GPU, and hand over the run it made
 as a `.f3drun` that any other tool in this repository can open.
 
-A claim about the run comes with its proof. `expect` steps until a
+A claim about the run comes with its proof. `run.expect` steps until a
 predicate over the reading holds (near a point, inside a box, alive,
-health) and writes the `.f3drun` that got there. `verify` replays such a
+health) and writes the `.f3drun` that got there. `run.verify` replays such a
 file in a world of its own and names the first checkpoint where it stops
 matching, if there is one. Claims about what touched what are not possible,
 because game events are not saved in a run.

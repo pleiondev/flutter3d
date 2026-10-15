@@ -610,7 +610,7 @@ AssetUriResolver fileUriResolverFor(String modelPath, {String? root})
 
 ModelDocument fitDocumentTextures(ModelDocument document, int maxSide, {void Function(String message)? report})
 
-const String flutter3dBuildVersionConstraint = '^1.0.0-rc.1'
+const String flutter3dBuildVersionConstraint = '^1.0.0-rc.1+1'
 
 ModelDocument generateLods(ModelDocument document, List<double> ratios, {void Function(LodLevelReport level)? report})
 
@@ -642,13 +642,13 @@ List<InitStep> planInit(Directory projectRoot, {bool force = false})
 
 const String pluginAuthorMcpSchemaVersion = '1.0.0'
 
-const String pluginAuthorMcpVersion = '1.0.0-rc.1'
+const String pluginAuthorMcpVersion = '1.0.0-rc.1+1'
 
 const Map<String, ToolName> pluginAuthorToolNames = …
 
 final List<PluginAuthorTool> pluginAuthorTools
 
-const List<String> pluginConformanceChecks = <String>['manifest', 'switch', 'determinism', 'backends', 'budget']
+const List<String> pluginConformanceChecks = <String>['manifest', 'switch', 'names', 'determinism', 'backends', 'budget', 'materials']
 
 const String pluginMarkerKey = 'flutter3d_plugins'
 

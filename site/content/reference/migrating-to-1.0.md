@@ -5,7 +5,7 @@ description: Move a project written against flutter3d 0.8 to 1.0.0-rc.1, with on
 # Migrating from 0.8 to 1.0
 
 1.0 is the release the engine promises to keep: from it on, a break comes
-only in a major version. To get there, and on to this release, the API changed in 2118 places,
+only in a major version. To get there, and on to this release, the API changed in 2125 places,
 314 of them left to you; 380 are backend internals no application called.
 The rest a program carries out for you, and three
 tools share the work. All three read the same tables,
@@ -225,7 +225,17 @@ carried out:
 
 <!-- migration-table:start -->
 
-*Generated from `flutter3d_build/lib/migrations/` — 23 entries from 1.0.0-rc.1 to 1.0.0-rc.1+1, 6 by hand: 12 `dart fix`, 3 `migrate`, 6 by hand, 2 nothing to do.*
+*Generated from `flutter3d_build/lib/migrations/` — 30 entries from 1.0.0-rc.1 to 1.0.0-rc.1+1, 6 by hand: 12 `dart fix`, 3 `migrate`, 6 by hand, 9 nothing to do.*
+
+### `flutter3d_build`
+
+- <a id="build-flutter3dBuildVersionConstraint"></a>**`flutter3dBuildVersionConstraint`** (nothing to do). The constraint `init` writes follows the package's version.
+- <a id="build-pluginAuthorMcpVersion"></a>**`pluginAuthorMcpVersion`** (nothing to do). The version the plugin MCP server announces follows the package's.
+- <a id="build-pluginConformanceChecks"></a>**`pluginConformanceChecks`** (nothing to do). The list adds `names` and `materials`, the 7 checks of the plugin suite, so `plugin.report` gives no badge to a suite that did not run them. Nothing to change in code that reads it.
+
+### `flutter3d_conformance_render`
+
+- <a id="conformance-render-checkNames"></a>**`pluginRenderCheckNames`** (nothing to do). Three render checks are named like tools: `render.lit model` is `render.litModel`, `render.lit model defaults` is `render.litModelDefaults` and `render.light type` is `render.lightType`. Code that names a check by its string, or reads a report's `check` field, uses the new names.
 
 ### `flutter3d_core`
 
@@ -257,6 +267,12 @@ carried out:
 - <a id="hardware-ComputePlacement"></a>**`ComputePlacement`** (`dart fix`). `ComputePlacement` is imported from `package:flutter3d_hardware/flutter3d_hardware.dart`. The facades no longer re-export it: a placement is named only by the hardware layer and the backends that add compute devices.
 - <a id="hardware-ComputePlacementException-new"></a>**`ComputePlacementException.ComputePlacementException`** (`dart fix`). A step no longer demands a placement, so a refusal has no demand to carry.
 - <a id="hardware-ComputePlacementException-demand"></a>**`ComputePlacementException.demand`** (`migrate`). `ComputePlacementException.demand` becomes `null`. Nothing demands a placement any more, so there is none to read: the refusal says why nothing ran (`reason`, `tried`), never where it was asked to.
+
+### `flutter3d_mcp`
+
+- <a id="mcp-editorMcpVersion"></a>**`editorMcpVersion`** (nothing to do). The version the editor server announces follows the package's.
+- <a id="mcp-modelMcpVersion"></a>**`modelMcpVersion`** (nothing to do). The version the modelling server announces follows the package's.
+- <a id="mcp-projectMcpVersion"></a>**`projectMcpVersion`** (nothing to do). The version the project server announces follows the package's.
 
 ### `flutter3d_shaders`
 

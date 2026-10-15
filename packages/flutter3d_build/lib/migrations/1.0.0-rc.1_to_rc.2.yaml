@@ -346,3 +346,58 @@ entries:
       The kernel language reads version 2 now, which adds atomic buffers;
       every version 1 source reads as it did. Code that compared a source's
       version with this constant reads the newer number.
+
+  - id: conformance-render-checkNames
+    package: flutter3d_conformance_render
+    symbol: pluginRenderCheckNames
+    kind: none
+    reason: >-
+      Three render checks are named like tools: `render.lit model` is
+      `render.litModel`, `render.lit model defaults` is
+      `render.litModelDefaults` and `render.light type` is
+      `render.lightType`. Code that names a check by its string, or reads a
+      report's `check` field, uses the new names.
+
+  - id: build-pluginConformanceChecks
+    package: flutter3d_build
+    symbol: pluginConformanceChecks
+    kind: none
+    reason: >-
+      The list adds `names` and `materials`, the 7 checks of the plugin
+      suite, so `plugin.report` gives no badge to a suite that did not run
+      them. Nothing to change in code that reads it.
+
+  - id: build-pluginAuthorMcpVersion
+    package: flutter3d_build
+    symbol: pluginAuthorMcpVersion
+    kind: none
+    reason: >-
+      The version the plugin MCP server announces follows the package's.
+
+  - id: build-flutter3dBuildVersionConstraint
+    package: flutter3d_build
+    symbol: flutter3dBuildVersionConstraint
+    kind: none
+    reason: >-
+      The constraint `init` writes follows the package's version.
+
+  - id: mcp-editorMcpVersion
+    package: flutter3d_mcp
+    symbol: editorMcpVersion
+    kind: none
+    reason: >-
+      The version the editor server announces follows the package's.
+
+  - id: mcp-modelMcpVersion
+    package: flutter3d_mcp
+    symbol: modelMcpVersion
+    kind: none
+    reason: >-
+      The version the modelling server announces follows the package's.
+
+  - id: mcp-projectMcpVersion
+    package: flutter3d_mcp
+    symbol: projectMcpVersion
+    kind: none
+    reason: >-
+      The version the project server announces follows the package's.

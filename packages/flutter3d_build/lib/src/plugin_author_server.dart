@@ -25,7 +25,7 @@ import 'plugin_discovery.dart'
 import 'plugin_template.dart';
 
 /// The version this server tells a client it is: the pubspec's.
-const String pluginAuthorMcpVersion = '1.0.0-rc.1';
+const String pluginAuthorMcpVersion = '1.0.0-rc.1+1';
 
 /// The version of this server's tools — names and input schemas — announced
 /// beside [pluginAuthorMcpVersion]. It moves only when
@@ -57,13 +57,17 @@ const String _conformanceSuiteVersion = '1.0';
 ///
 /// **Written here rather than imported**, because the suite is a test
 /// library: depending on it would make the `test` package a dependency of
-/// every build hook. The names are the suite's `pluginCheckNames`.
+/// every build hook. The names are the suite's `pluginCheckNames`, in its
+/// order, and `tool/structure` holds the two lists equal: a check the suite
+/// counts and this does not would give a badge the suite withholds.
 const List<String> pluginConformanceChecks = <String>[
   'manifest',
   'switch',
+  'names',
   'determinism',
   'backends',
   'budget',
+  'materials',
 ];
 
 /// What a run of a program answered: its exit code and both streams.
@@ -216,9 +220,15 @@ ConformanceTest _test(
 ) {
   final skipped = finished['skipped'] == true;
   final passed = !skipped && finished['result'] == 'success';
-  final lower = name.toLowerCase();
+  // A check name is a word or dotted words (`render.litModel`), matched
+  // whole and as written, whichever case the test's name has.
   final check = pluginConformanceChecks
-      .where((String c) => RegExp('\\b$c\\b').hasMatch(lower))
+      .where(
+        (String c) => RegExp(
+          '(?<![\\w.])${RegExp.escape(c)}(?![\\w.])',
+          caseSensitive: false,
+        ).hasMatch(name),
+      )
       .firstOrNull;
   return ConformanceTest(
     name: name,
