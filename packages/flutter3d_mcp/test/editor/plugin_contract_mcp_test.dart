@@ -20,11 +20,14 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
+/// A plugin's scope; one that offers tools to agents unless [tools] is
+/// false.
 final class _Scope extends PluginScope {
-  _Scope(String id)
+  _Scope(String id, {bool tools = true})
     : manifest = PluginManifest(
         id: id,
         apiVersion: const PluginApiVersion(1, 0),
+        permissions: <PluginPermission>{if (tools) PluginPermission.tools},
       );
 
   @override
@@ -240,6 +243,28 @@ void main() {
       'boats.raise',
       'boats.sink',
     ]);
+  });
+
+  test('a command reaches an agent only with the tools permission, and '
+      'counts as destructive without hints', () {
+    final tools = McpTools();
+    shareCommands(pieces, tools, session);
+    // Mutation: offer every plugin's commands, as before the permission.
+    pieces
+        .forPlugin(_Scope('quiet', tools: false))
+        .addCommand('hush', (_) => null);
+    expect(tools.named('quiet.hush'), isNull);
+    expect(
+      pieces.pluginCommands.map((PluginCommandInfo c) => c.name),
+      contains('quiet.hush'),
+    );
+
+    // Mutation: offer a command without hints as `ToolHints.writes`.
+    expect(tools.named('boats.raise')!.spec.hints, ToolHints.destroys);
+    pieces
+        .forPlugin(_Scope('sails'))
+        .addCommand('trim', (_) => null, hints: ToolHints.writes);
+    expect(tools.named('sails.trim')!.spec.hints, ToolHints.writes);
   });
 
   test('plugin.list says what the plugins brought', () async {

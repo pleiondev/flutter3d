@@ -23,6 +23,15 @@ import 'editor_session.dart';
 /// tool is the one offered, and the command stays reachable through
 /// `command.run`. A command added by the application, without a plugin's
 /// id, is not offered here: `command.run` reaches it.
+///
+/// **Only with the `tools` permission, and never safer than it says.** A
+/// command reaches an agent as a tool of its own only when its plugin
+/// declares `PluginPermission.tools`, as `McpTools.addTool` holds a
+/// plugin's own tools to; a plugin without it keeps its commands in the
+/// editor. The tool carries the command's hints
+/// (`EditorPieces.addCommand(hints:)`), and a command that gave none is
+/// offered as destructive (`PluginCommandInfo.toolHints`), so an agent asks
+/// before it runs something nobody said is safe.
 Registration shareCommands(
   EditorPieces pieces,
   McpTools tools,
@@ -33,7 +42,8 @@ Registration shareCommands(
   void sync() {
     final wanted = <String, PluginCommandInfo>{
       for (final command in pieces.pluginCommands)
-        if (command.plugin != null) command.name: command,
+        if (command.plugin != null && command.offersTools)
+          command.name: command,
     };
     for (final name in offered.keys.toList()) {
       if (wanted.containsKey(name)) continue;
@@ -49,6 +59,7 @@ Registration shareCommands(
               'The ${command.plugin} plugin\'s editor command '
                   '${command.bareName}.',
           inputSchema: commandInputSchema(command),
+          hints: command.toolHints,
         ),
         (ToolCall call) {
           final read = pieces.readCommand(<String, Object?>{

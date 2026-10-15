@@ -9,7 +9,9 @@
 /// - **Editor pieces** (`package:flutter3d_editor_core`): a command an
 ///   agent sees as `acme_sample.stoke` (a plugin's commands, like its MCP
 ///   tools and every name of the runtime half, are under the package's
-///   namespace, not under this half's whole id), a gizmo that rings an
+///   namespace, not under this half's whole id) — offered to an agent
+///   because the manifest declares `PluginPermission.tools`, and as a change
+///   that can be undone because its hints say so — a gizmo that rings an
 ///   ember with its reach and lets the ring be pulled, an importer that
 ///   brings in a list of embers, and an asset-browser entry for such lists.
 ///
@@ -23,6 +25,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_plugin_api/editor.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
+import 'package:flutter3d_plugin_api/tools.dart' show ToolHints;
 import 'package:vector_math/vector_math.dart';
 
 /// The heat an ember carries, as the inspector shows it.
@@ -188,12 +191,14 @@ final class EmberImporter extends EditorImporter {
 /// The editor half of the sample plugin.
 final class AcmeEditorPlugin extends Flutter3dPlugin {
   @override
-  PluginManifest get manifest => const PluginManifest(
+  PluginManifest get manifest => PluginManifest(
     id: 'acme_sample.editor',
-    apiVersion: PluginApiVersion(1, 0),
+    apiVersion: const PluginApiVersion(1, 0),
     // Tooling only: the editor and its tools. A game need not install it,
     // and a run made with it installed carries nothing of it.
     touches: PluginTouches.tooling,
+    // Its `stoke` command reaches an agent as a tool of its own.
+    permissions: <PluginPermission>{PluginPermission.tools},
     description: 'What the sample brings to a level editor.',
   );
 
@@ -211,6 +216,8 @@ final class AcmeEditorPlugin extends Flutter3dPlugin {
         arguments: const <FieldHint>[
           FieldHint.number('by', unit: Unit.kelvin, defaultValue: 100.0),
         ],
+        // An undo takes it back: it changes, and destroys nothing.
+        hints: ToolHints.writes,
       )
       ..addGizmo('reach', const EmberReach())
       ..addImporter('embers', const EmberImporter())

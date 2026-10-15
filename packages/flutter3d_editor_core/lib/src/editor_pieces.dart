@@ -7,6 +7,7 @@ library;
 import 'package:flutter3d_core/formats.dart' show MaterialHint;
 import 'package:flutter3d_plugin_api/editor.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
+import 'package:flutter3d_plugin_api/tools.dart' show ToolHints;
 import 'package:flutter3d_sim/flutter3d_sim.dart' show Level;
 import 'package:vector_math/vector_math.dart';
 
@@ -293,7 +294,8 @@ final class EditorPieces extends EditorRegistry {
 
   /// Every command the plugins added, in order, with what a tool server
   /// offers each as: its published name, the plugin it came from, its
-  /// description and its arguments.
+  /// description, its arguments, its hints and whether its plugin may offer
+  /// tools to an agent at all.
   List<PluginCommandInfo> get pluginCommands => <PluginCommandInfo>[
     for (final added in _store.ordered(_store.commands))
       PluginCommandInfo(
@@ -301,6 +303,12 @@ final class EditorPieces extends EditorRegistry {
         plugin: added.scope?.manifest.id,
         description: added.description,
         arguments: added.arguments,
+        hints: added.hints,
+        offersTools:
+            added.scope?.manifest.permissions.contains(
+              PluginPermission.tools,
+            ) ??
+            false,
       ),
   ];
 
@@ -331,6 +339,14 @@ final class EditorPieces extends EditorRegistry {
   /// editor's menu can ask for them. Empty for a command that takes none,
   /// or whose arguments only `command.run` passes.
   ///
+  /// [hints] say what the command does to the document, as an MCP tool's
+  /// say what the tool does (`ToolHints.reads`, `writes`, `destroys`): what
+  /// an agent is told before it calls the tool the command is offered as.
+  /// **A command without them counts as destructive**, since nothing says
+  /// it is not. And it is offered to agents at all only when its plugin
+  /// declares `PluginPermission.tools`; without it the command stays the
+  /// editor's, reachable through its menu and `command.run`.
+  ///
   /// Throws an [ArgumentError] for an empty or dotted name, for one of the
   /// editor's own, and for a name another owner already registered, naming
   /// it.
@@ -339,6 +355,7 @@ final class EditorPieces extends EditorRegistry {
     CommandReader read, {
     String? description,
     List<FieldHint> arguments = const <FieldHint>[],
+    ToolHints? hints,
   }) {
     if (written.isEmpty) {
       throw ArgumentError.value(written, 'name', 'a command needs a name');
@@ -366,6 +383,7 @@ final class EditorPieces extends EditorRegistry {
         read,
         description,
         List<FieldHint>.unmodifiable(arguments),
+        hints,
         _owner,
         _scope,
         _store.sequence++,
@@ -744,7 +762,24 @@ final class PluginCommandInfo {
     required this.plugin,
     required this.description,
     required this.arguments,
+    this.hints,
+    this.offersTools = false,
   });
+
+  /// What the command does to the document, as its plugin said with
+  /// `EditorPieces.addCommand(hints:)`, or null where it said nothing:
+  /// then a tool server offers it as [ToolHints.destroys], since nothing
+  /// says it is safer ([toolHints]).
+  final ToolHints? hints;
+
+  /// Whether its plugin declares `PluginPermission.tools`: the one way a
+  /// command reaches an agent as a tool of its own. False for one the
+  /// application added.
+  final bool offersTools;
+
+  /// The hints a tool server offers the command with: [hints], or
+  /// [ToolHints.destroys] when it gave none.
+  ToolHints get toolHints => hints ?? ToolHints.destroys;
 
   /// Its published name, `<namespace>.<name>`.
   final String name;
@@ -846,6 +881,7 @@ final class _Command extends _Named {
     this.read,
     this.description,
     this.arguments,
+    this.hints,
     super.owner,
     super.scope,
     super.sequence,
@@ -854,6 +890,7 @@ final class _Command extends _Named {
   final CommandReader read;
   final String? description;
   final List<FieldHint> arguments;
+  final ToolHints? hints;
 }
 
 final class _Gizmo extends _Named {
