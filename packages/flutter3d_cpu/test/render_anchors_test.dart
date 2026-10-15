@@ -27,6 +27,7 @@ import 'dart:io';
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_core/src/engine/render/render_step.dart'
     show RenderStepInternals;
+import 'package:flutter3d_core/src/formats/engine_words.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
@@ -225,6 +226,32 @@ List<String> _sweep(_Stage it, String prefix) => <String>[
   ],
 ];
 
+/// [line] of the fixture with its step words as the engine spells them now:
+/// the step a case names, and every skip that is not a pass of the plan.
+String _liftedStepWords(String line) {
+  final fields = jsonDecode(line) as Map<String, Object?>;
+  final passes = <Object?>{
+    ...fields['order']! as List<Object?>,
+    ...fields['culled']! as List<Object?>,
+  };
+  final label = fields['case']! as String;
+  final named = RegExp(r'^(.* (?:without|only)) (.+)$').firstMatch(label);
+  return jsonEncode(<String, Object?>{
+    ...fields,
+    'case': named == null
+        ? label
+        : '${named.group(1)} ${engineWordFor(named.group(2)!)}',
+    'skipped': <String>[
+      for (final skip in fields['skipped']! as List<Object?>)
+        switch ((skip! as String).split(':')) {
+          [final name, final reason] when !passes.contains(name) =>
+            '${engineWordFor(name)}:$reason',
+          _ => skip as String,
+        },
+    ],
+  });
+}
+
 /// A pass that reads and writes one resource, and draws nothing.
 final class _Node extends RenderNode {
   _Node(this.name, this._target);
@@ -360,9 +387,17 @@ void main() {
         ..renderSteps.addNode(_hdr('app overlay b'));
       lines.addAll(_sweep(it, 'app nodes, '));
 
+      // The record predates the engine signing its steps `f3d.`, and stays
+      // as it was written: its step words are lifted the way a document's
+      // are, and the passes, which kept their names, are compared as they
+      // stand.
       expect(lines.length, expected.length);
       for (var i = 0; i < lines.length; i++) {
-        expect(lines[i], expected[i], reason: 'line ${i + 1}');
+        expect(
+          lines[i],
+          _liftedStepWords(expected[i]),
+          reason: 'line ${i + 1}',
+        );
       }
     });
 

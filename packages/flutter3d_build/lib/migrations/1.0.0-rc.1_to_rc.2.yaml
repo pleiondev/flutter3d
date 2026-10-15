@@ -392,6 +392,20 @@ entries:
     reason: >-
       The version the editor server announces follows the package's.
 
+  - id: simMcp-simMcpVersion
+    package: flutter3d_sim_mcp
+    symbol: simMcpVersion
+    kind: none
+    reason: >-
+      The version the playing server announces follows the package's.
+
+  - id: simMcp-renderMcpVersion
+    package: flutter3d_sim_mcp
+    symbol: renderMcpVersion
+    kind: none
+    reason: >-
+      The version the diagnostic server announces follows the package's.
+
   - id: mcp-modelMcpVersion
     package: flutter3d_mcp
     symbol: modelMcpVersion

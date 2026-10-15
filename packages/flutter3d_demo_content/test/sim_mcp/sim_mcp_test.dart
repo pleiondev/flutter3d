@@ -147,8 +147,9 @@ void main() {
   test('the nine tools an agent is offered are the ones it can call', () async {
     final offered = await connection.listTools(ListToolsRequest());
     final names = offered.tools.map((t) => t.name).toSet();
-    // Each published as `area.verb`, its written name kept as an alias until
-    // 2.0, and the schema every server answers.
+    // Each published as `area.verb`, and the schema every server answers.
+    // The written names still answer until 2.0, but an agent is not offered
+    // them: each would be a second copy of a tool it already has.
     expect(names, <String>{
       'level.open',
       'run.step',
@@ -160,16 +161,9 @@ void main() {
       'run.verify',
       'run.bisect',
       'flutter3d.schema',
-      'open',
-      'step',
-      'snapshot',
-      'digest',
-      'writeRun',
-      'frame',
-      'expect',
-      'verify',
-      'bisect',
     });
+    // Mutation: list the aliases again, or drop them from the wire.
+    expect((await call('digest')).says, (await call('run.digest')).says);
   });
 
   test('a run before opening a level is refused, not crashed', () async {

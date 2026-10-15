@@ -163,11 +163,11 @@ List<DiagnosticTool> get diagnosticTools
 
 const String renderMcpSchemaVersion = '1.0.0'
 
-const String renderMcpVersion = '1.0.0-rc.1'
+const String renderMcpVersion = '1.0.0-rc.1+1'
 
 const String simMcpSchemaVersion = '1.0.0'
 
-const String simMcpVersion = '1.0.0-rc.1'
+const String simMcpVersion = '1.0.0-rc.1+1'
 
 const Map<String, ToolName> simToolNames = …
 

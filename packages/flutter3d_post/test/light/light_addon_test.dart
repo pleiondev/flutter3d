@@ -130,7 +130,7 @@ void main() {
         expect(stage.passes(everything), FrameStage().passes(everything));
         expect(
           stage.drawnSkips(everything),
-          contains('vignette and grain: switched off'),
+          contains('f3d.vignette_and_grain: switched off'),
         );
       },
     );

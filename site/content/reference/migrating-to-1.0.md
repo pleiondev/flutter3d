@@ -5,7 +5,7 @@ description: Move a project written against flutter3d 0.8 to 1.0.0-rc.1, with on
 # Migrating from 0.8 to 1.0
 
 1.0 is the release the engine promises to keep: from it on, a break comes
-only in a major version. To get there, and on to this release, the API changed in 2324 places,
+only in a major version. To get there, and on to this release, the API changed in 2326 places,
 314 of them left to you; 380 are backend internals no application called.
 The rest a program carries out for you, and three
 tools share the work. All three read the same tables,
@@ -225,7 +225,7 @@ carried out:
 
 <!-- migration-table:start -->
 
-*Generated from `flutter3d_build/lib/migrations/` — 229 entries from 1.0.0-rc.1 to 1.0.0-rc.1+1, 6 by hand: 19 `dart fix`, 149 `migrate`, 6 by hand, 55 nothing to do.*
+*Generated from `flutter3d_build/lib/migrations/` — 231 entries from 1.0.0-rc.1 to 1.0.0-rc.1+1, 6 by hand: 19 `dart fix`, 149 `migrate`, 6 by hand, 57 nothing to do.*
 
 ### `flame_flutter3d`
 
@@ -545,6 +545,8 @@ carried out:
 
 - <a id="sim_mcp-DiagnosticFrame-firstNonFinite-record"></a>**`DiagnosticFrame.firstNonFinite`** (`migrate`). `DiagnosticFrame` is a class: `.x` is `.x`, `.y` is `.y`, `.channel` is `.channel`; a destructuring pattern is yours to rewrite. `firstNonFinite` answers a `NonFinitePixel` with the same `x`, `y` and `channel`; only a destructuring pattern names the class.
 - <a id="sim_mcp-PlaytestRun-positions-record"></a>**`PlaytestRun.positions`** (`migrate`). `PlaytestRun` is a class: `.x` is `.x`, `.z` is `.z`; a destructuring pattern is yours to rewrite. `positions` is a list of `flutter3d_sim`'s `TrailPoint` with the same `x` and `z`, the points `HeatmapTrail.positions` takes.
+- <a id="simMcp-renderMcpVersion"></a>**`renderMcpVersion`** (nothing to do). The version the diagnostic server announces follows the package's.
+- <a id="simMcp-simMcpVersion"></a>**`simMcpVersion`** (nothing to do). The version the playing server announces follows the package's.
 
 ### `flutter3d_stereo`
 

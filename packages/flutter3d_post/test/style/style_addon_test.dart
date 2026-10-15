@@ -95,6 +95,9 @@ void main() {
       ..applyPending(1);
     expect(stage.renderer.renderSteps.withdrawn, <RenderStep>{outlinesStep});
     expect(stage.passes(everything), contains('high contrast'));
-    expect(stage.drawnSkips(everything), contains('outlines: switched off'));
+    expect(
+      stage.drawnSkips(everything),
+      contains('flutter3d_post.outlines: switched off'),
+    );
   });
 }

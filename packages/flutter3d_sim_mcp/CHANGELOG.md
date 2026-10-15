@@ -6,6 +6,10 @@
   field names (a positional `$1` has a name of its own), `==` and
   `hashCode`. A field read compiles as before; a destructuring pattern names
   the class, and `flutter3d_build:migrate` rewrites the `$1` reads.
+- **Breaking: both servers say the version they are.** `simMcpVersion` and
+  `renderMcpVersion` still said `1.0.0-rc.1` after the package moved on, so
+  a client's log named a build that was not running. Each follows the
+  pubspec, and a test holds them to it.
 
 ## 1.0.0-rc.1
 

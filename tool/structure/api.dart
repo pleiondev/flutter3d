@@ -1158,15 +1158,14 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
       'StepFollower',
       'Tap3dCallbacks',
     ],
-    reason: "Results that were records are final classes with `==`, so a result can gain a field; what an outside author mixes in is a base mixin class, so a member added later arrives with a body; `RenderView` is `CameraView`, a name `rendering.dart` does not export (1.0.0-rc.1+1).",
+    reason:
+        "Results that were records are final classes with `==`, so a result can gain a field; what an outside author mixes in is a base mixin class, so a member added later arrives with a body; `RenderView` is `CameraView`, a name `rendering.dart` does not export (1.0.0-rc.1+1).",
   ),
   BuildAllowance(
     package: 'flutter3d',
-    members: <String>[
-      'RenderView',
-      'RenderViewSettings',
-    ],
-    reason: "`RenderView` is `CameraView`, a name `rendering.dart` does not export (1.0.0-rc.1+1).",
+    members: <String>['RenderView', 'RenderViewSettings'],
+    reason:
+        "`RenderView` is `CameraView`, a name `rendering.dart` does not export (1.0.0-rc.1+1).",
   ),
   BuildAllowance(
     package: 'flutter3d_app',
@@ -1185,14 +1184,14 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
       'ViewSettings.views',
       'XrDriver.views',
     ],
-    reason: "`RenderView` is `CameraView`, a name `rendering.dart` does not export; `Scene3D` names its creation callback `onCreated`, as `Flutter3dView` does (1.0.0-rc.1+1).",
+    reason:
+        "`RenderView` is `CameraView`, a name `rendering.dart` does not export; `Scene3D` names its creation callback `onCreated`, as `Flutter3dView` does (1.0.0-rc.1+1).",
   ),
   BuildAllowance(
     package: 'flutter3d_audio_core',
-    members: <String>[
-      'EqualPowerPanner.gains',
-    ],
-    reason: "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+    members: <String>['EqualPowerPanner.gains'],
+    reason:
+        "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
   ),
   BuildAllowance(
     package: 'flutter3d_build',
@@ -1205,7 +1204,8 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
       'selectPlugins',
       'splitLargeMeshes',
     ],
-    reason: "Results that were records are final classes with `==`, so a result can gain a field; `AssetManifest` is `AssetBuildManifest`, a name `services.dart` does not export (1.0.0-rc.1+1).",
+    reason:
+        "Results that were records are final classes with `==`, so a result can gain a field; `AssetManifest` is `AssetBuildManifest`, a name `services.dart` does not export (1.0.0-rc.1+1).",
   ),
   BuildAllowance(
     package: 'flutter3d_core',
@@ -1324,15 +1324,14 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
       'symmetricEigen3',
       'toGltfFilters',
     ],
-    reason: "Results that were records are final classes with `==`, so a result can gain a field; the engine's own anchors, resources and steps are named `f3d.<name>`, written by `f3d.pipeline` version 2; `RenderView` is `CameraView`, a name `rendering.dart` does not export; a plugin's lighting model is named `<namespace>.<Name>`, its stage the dot made `__` (1.0.0-rc.1+1).",
+    reason:
+        "Results that were records are final classes with `==`, so a result can gain a field; the engine's own anchors, resources and steps are named `f3d.<name>`, written by `f3d.pipeline` version 2; `RenderView` is `CameraView`, a name `rendering.dart` does not export; a plugin's lighting model is named `<namespace>.<Name>`, its stage the dot made `__` (1.0.0-rc.1+1).",
   ),
   BuildAllowance(
     package: 'flutter3d_cpu',
-    members: <String>[
-      'CpuComputeShader.workgroupSize',
-      'cpuTestDevice',
-    ],
-    reason: "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+    members: <String>['CpuComputeShader.workgroupSize', 'cpuTestDevice'],
+    reason:
+        "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
   ),
   BuildAllowance(
     package: 'flutter3d_editor_core',
@@ -1342,15 +1341,14 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
       'inspectorSections',
       'projectAt',
     ],
-    reason: "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+    reason:
+        "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
   ),
   BuildAllowance(
     package: 'flutter3d_editor_widgets',
-    members: <String>[
-      'ColorField.hsvToRgb',
-      'ColorField.rgbToHsv',
-    ],
-    reason: "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+    members: <String>['ColorField.hsvToRgb', 'ColorField.rgbToHsv'],
+    reason:
+        "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
   ),
   BuildAllowance(
     package: 'flutter3d_effects',
@@ -1359,22 +1357,20 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
       'FireView.wanted',
       'LiquidView.wanted',
     ],
-    reason: "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+    reason:
+        "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
   ),
   BuildAllowance(
     package: 'flutter3d_elements',
-    members: <String>[
-      'ElementsSimulation.waterAt',
-    ],
-    reason: "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+    members: <String>['ElementsSimulation.waterAt'],
+    reason:
+        "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
   ),
   BuildAllowance(
     package: 'flutter3d_foundation',
-    members: <String>[
-      'Portable.sinCos',
-      'WorldPosition.relativeTo',
-    ],
-    reason: "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+    members: <String>['Portable.sinCos', 'WorldPosition.relativeTo'],
+    reason:
+        "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
   ),
   BuildAllowance(
     package: 'flutter3d_game',
@@ -1387,14 +1383,14 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
       'RenderView',
       'RenderViewSettings',
     ],
-    reason: "Results that were records are final classes with `==`, so a result can gain a field; `RenderView` is `CameraView`, a name `rendering.dart` does not export (1.0.0-rc.1+1).",
+    reason:
+        "Results that were records are final classes with `==`, so a result can gain a field; `RenderView` is `CameraView`, a name `rendering.dart` does not export (1.0.0-rc.1+1).",
   ),
   BuildAllowance(
     package: 'flutter3d_game_physics',
-    members: <String>[
-      'RagdollPart.tailLength',
-    ],
-    reason: "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+    members: <String>['RagdollPart.tailLength'],
+    reason:
+        "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
   ),
   BuildAllowance(
     package: 'flutter3d_game_ui',
@@ -1404,7 +1400,8 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
       'LicenseRecord.entryFor',
       'TouchButton.pedal',
     ],
-    reason: "Results that were records are final classes with `==`, so a result can gain a field; `LicenseEntry` is `LicenseSection`, a name `foundation.dart` does not export (1.0.0-rc.1+1).",
+    reason:
+        "Results that were records are final classes with `==`, so a result can gain a field; `LicenseEntry` is `LicenseSection`, a name `foundation.dart` does not export (1.0.0-rc.1+1).",
   ),
   BuildAllowance(
     package: 'flutter3d_hardware',
@@ -1417,7 +1414,8 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
       'encodedImageSize',
       'indexWindow',
     ],
-    reason: "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+    reason:
+        "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
   ),
   BuildAllowance(
     package: 'flutter3d_level_scene',
@@ -1426,7 +1424,8 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
       'LevelSceneParts.LevelSceneParts',
       'LevelSceneParts.screens',
     ],
-    reason: "`RenderView` is `CameraView`, a name `rendering.dart` does not export (1.0.0-rc.1+1).",
+    reason:
+        "`RenderView` is `CameraView`, a name `rendering.dart` does not export (1.0.0-rc.1+1).",
   ),
   BuildAllowance(
     package: 'flutter3d_mcp',
@@ -1437,7 +1436,8 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
       'PieceReport.screenBox',
       'ProjectRoot.tryResolve',
     ],
-    reason: "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+    reason:
+        "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
   ),
   BuildAllowance(
     package: 'flutter3d_mesh',
@@ -1453,7 +1453,8 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
       'separateComponents',
       'subMesh',
     ],
-    reason: "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+    reason:
+        "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
   ),
   BuildAllowance(
     package: 'flutter3d_model_core',
@@ -1475,14 +1476,14 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
       'tangentHandles',
       'valueRange',
     ],
-    reason: "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+    reason:
+        "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
   ),
   BuildAllowance(
     package: 'flutter3d_net',
-    members: <String>[
-      'RollbackSession.agreedEnd',
-    ],
-    reason: "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+    members: <String>['RollbackSession.agreedEnd'],
+    reason:
+        "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
   ),
   BuildAllowance(
     package: 'flutter3d_particles',
@@ -1495,7 +1496,8 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
       'ParticleEffects.triggerCounts',
       'importSixWay',
     ],
-    reason: "Results that were records are final classes with `==`, so a result can gain a field; what an outside author mixes in is a base mixin class, so a member added later arrives with a body; `RenderView` is `CameraView`, a name `rendering.dart` does not export (1.0.0-rc.1+1).",
+    reason:
+        "Results that were records are final classes with `==`, so a result can gain a field; what an outside author mixes in is a base mixin class, so a member added later arrives with a body; `RenderView` is `CameraView`, a name `rendering.dart` does not export (1.0.0-rc.1+1).",
   ),
   BuildAllowance(
     package: 'flutter3d_physics',
@@ -1510,7 +1512,8 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
       'orificeFlow',
       'overCircularLip',
     ],
-    reason: "Results that were records are final classes with `==`, so a result can gain a field; what an outside author mixes in is a base mixin class, so a member added later arrives with a body (1.0.0-rc.1+1).",
+    reason:
+        "Results that were records are final classes with `==`, so a result can gain a field; what an outside author mixes in is a base mixin class, so a member added later arrives with a body (1.0.0-rc.1+1).",
   ),
   BuildAllowance(
     package: 'flutter3d_plugin_api',
@@ -1567,15 +1570,14 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
       'RenderAnchor.beforeViewportShading',
       'RenderAnchor.beforeVolumetricFog',
     ],
-    reason: "Results that were records are final classes with `==`, so a result can gain a field; the engine's own anchors, resources and steps are named `f3d.<name>`, written by `f3d.pipeline` version 2 (1.0.0-rc.1+1).",
+    reason:
+        "Results that were records are final classes with `==`, so a result can gain a field; the engine's own anchors, resources and steps are named `f3d.<name>`, written by `f3d.pipeline` version 2 (1.0.0-rc.1+1).",
   ),
   BuildAllowance(
     package: 'flutter3d_post',
-    members: <String>[
-      'outlinesStep',
-      'skyStep',
-    ],
-    reason: "The engine's own anchors, resources and steps are named `f3d.<name>`, written by `f3d.pipeline` version 2 (1.0.0-rc.1+1).",
+    members: <String>['outlinesStep', 'skyStep'],
+    reason:
+        "The engine's own anchors, resources and steps are named `f3d.<name>`, written by `f3d.pipeline` version 2 (1.0.0-rc.1+1).",
   ),
   BuildAllowance(
     package: 'flutter3d_sim',
@@ -1596,7 +1598,8 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
       'bracketFromTraces',
       'firstDifferingPath',
     ],
-    reason: "Results that were records are final classes with `==`, so a result can gain a field; what an outside author mixes in is a base mixin class, so a member added later arrives with a body (1.0.0-rc.1+1).",
+    reason:
+        "Results that were records are final classes with `==`, so a result can gain a field; what an outside author mixes in is a base mixin class, so a member added later arrives with a body (1.0.0-rc.1+1).",
   ),
   BuildAllowance(
     package: 'flutter3d_sim_mcp',
@@ -1604,28 +1607,33 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
       'DiagnosticFrame.firstNonFinite',
       'PlaytestRun.positions',
     ],
-    reason: "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+    reason:
+        "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+  ),
+  BuildAllowance(
+    package: 'flutter3d_sim_mcp',
+    members: <String>['renderMcpVersion', 'simMcpVersion'],
+    reason:
+        'The version each server announces follows the pubspec '
+        '(1.0.0-rc.1+1).',
   ),
   BuildAllowance(
     package: 'flutter3d_stereo',
-    members: <String>[
-      'StereoRig.views',
-    ],
-    reason: "`RenderView` is `CameraView`, a name `rendering.dart` does not export (1.0.0-rc.1+1).",
+    members: <String>['StereoRig.views'],
+    reason:
+        "`RenderView` is `CameraView`, a name `rendering.dart` does not export (1.0.0-rc.1+1).",
   ),
   BuildAllowance(
     package: 'flutter3d_testing',
-    members: <String>[
-      'QualityScene',
-    ],
-    reason: "`RenderView` is `CameraView`, a name `rendering.dart` does not export (1.0.0-rc.1+1).",
+    members: <String>['QualityScene'],
+    reason:
+        "`RenderView` is `CameraView`, a name `rendering.dart` does not export (1.0.0-rc.1+1).",
   ),
   BuildAllowance(
     package: 'flutter3d_voxel',
-    members: <String>[
-      'VoxelHit.before',
-    ],
-    reason: "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
+    members: <String>['VoxelHit.before'],
+    reason:
+        "Results that were records are final classes with `==`, so a result can gain a field (1.0.0-rc.1+1).",
   ),
 ];
 

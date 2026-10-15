@@ -91,7 +91,10 @@ void main() {
     });
     expect(
       stage.drawnSkips(everything),
-      containsAll(<String>['sky: switched off', 'fog: switched off']),
+      containsAll(<String>[
+        'flutter3d_post.sky: switched off',
+        'f3d.fog: switched off',
+      ]),
     );
   });
 }
