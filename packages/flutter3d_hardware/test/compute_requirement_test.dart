@@ -212,7 +212,11 @@ void main() {
         release: (ComputePipelineHandle p) => p.dispose(),
       );
       expect(
-        await compute.cached(gpu, 'pipeline', () async => 'another'),
+        await compute.cached<ComputePipelineHandle>(
+          gpu,
+          'pipeline',
+          () async => throw StateError('made twice'),
+        ),
         same(pipeline),
         reason: 'asked again, the same value',
       );
@@ -224,4 +228,35 @@ void main() {
       expect(() => compute.cached(gpu, 'x', () async => 1), throwsStateError);
     },
   );
+
+  test('a cached key answers one type and refuses another', () async {
+    // Mutation: hand back the kept value cast to whatever was asked, and
+    // asking for a String under the pipeline's key is a TypeError at the
+    // cast instead of a refusal that names both types.
+    final gpu = FakeBackend(compute: true);
+    final compute = FrameCompute.of(gpu);
+    final pipeline = await compute.cached(
+      gpu,
+      'pipeline',
+      () async => gpu.createComputePipeline(gpu.shaders['Step']!),
+      release: (ComputePipelineHandle p) => p.dispose(),
+    );
+    expect(
+      await compute.cached<Object>(gpu, 'pipeline', () async => 'another'),
+      same(pipeline),
+      reason: 'a supertype of what is kept is answered',
+    );
+    expect(
+      () => compute.cached(gpu, 'pipeline', () async => 'another'),
+      throwsA(
+        isA<StateError>().having(
+          (e) => e.message,
+          'message',
+          allOf(contains('ComputePipelineHandle'), contains('String')),
+        ),
+      ),
+    );
+    expect(compute.cachedCount, 1, reason: 'the refusal keeps nothing');
+    compute.dispose();
+  });
 }

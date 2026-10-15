@@ -53,7 +53,9 @@
   `FrameCompute` disposes the sidecar and the CPU device it opened, and
   every value `FrameCompute.cached` (new) keeps, when its drawing device is
   lost or disposed, or on `FrameCompute.dispose`; a device adopted again
-  lets go of its old compute.
+  lets go of its old compute. A key holds one type of value: asked for
+  another, `cached` refuses with a `StateError` naming both, where a cast
+  failed inside it.
 - **The one door to a compute pass above the layer.**
   `ComputeSite.beginPass` (new) opens the pass on the site the rule placed,
   and `FrameCompute.placeOnFrame` (new) answers at once for work only the

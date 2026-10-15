@@ -771,6 +771,11 @@ final class FrameCompute {
   /// **Owned here, and let go with it**: [dispose] hands each value made to
   /// its [release]. A [make] that fails is forgotten, so the next asking
   /// tries again.
+  ///
+  /// **One key, one type**: a [key] already holding a value of another type
+  /// than `T` is refused with a [StateError] naming both, rather than
+  /// handing back a value the caller cannot use. Asking with a supertype of
+  /// what is kept is answered.
   Future<T> cached<T>(
     GraphicsDevice on,
     Object key,
@@ -781,12 +786,18 @@ final class FrameCompute {
       throw StateError('the compute of a disposed device was asked for');
     }
     final kept = _kept.putIfAbsent(on, () => <Object, _Kept>{});
-    if (kept[key] case final existing?) return existing.value as Future<T>;
+    switch (kept[key]) {
+      case final _Kept<T> existing:
+        return existing.value;
+      case final existing?:
+        throw StateError(
+          'the compute cache key $key holds a ${existing.type}, and was '
+          'asked for a $T: a key names one kind of value',
+        );
+      case null:
+    }
     final made = make();
-    kept[key] = _Kept(
-      made,
-      release == null ? null : (Object? value) => release(value as T),
-    );
+    kept[key] = _Kept<T>(made, release);
     made.then<void>(
       (_) {},
       onError: (Object _) {
@@ -815,9 +826,7 @@ final class FrameCompute {
     for (final MapEntry(key: on, value: kept) in _kept.entries) {
       if (drawingDeviceGone && identical(on, device)) continue;
       for (final k in kept.values) {
-        if (k.release case final release?) {
-          k.value.then<void>(release, onError: (Object _) {});
-        }
+        k.release();
       }
     }
     _kept.clear();
@@ -851,11 +860,22 @@ final class FrameCompute {
   );
 }
 
-/// One value [FrameCompute.cached] keeps, and how it is let go.
-final class _Kept {
-  _Kept(this.value, this.release);
-  final Future<Object?> value;
-  final void Function(Object? value)? release;
+/// One value [FrameCompute.cached] keeps, of the type it was made as, and
+/// how it is let go.
+final class _Kept<T> {
+  _Kept(this.value, this._release);
+  final Future<T> value;
+  final void Function(T value)? _release;
+
+  /// The type the value was made as, for the refusal of another.
+  Type get type => T;
+
+  /// Hands the value, once made, to its release; a failed make has none.
+  void release() {
+    if (_release case final release?) {
+      value.then<void>(release, onError: (Object _) {});
+    }
+  }
 }
 
 /// Makes [open] the executors of frames drawn on [device], opened the first
