@@ -93,11 +93,11 @@ final class PhotoCamera {
   double _roll = 0.0;
   double _fieldOfView = 0.9;
 
-  /// Where the player was when this began; the centre of the tether.
-  Vector3 get anchor => _anchor;
+  /// Where the player was when this began; the centre of the tether. A copy.
+  Vector3 get anchor => _anchor.clone();
 
-  /// Where the camera is.
-  Vector3 get eye => _eye;
+  /// Where the camera is, as a copy the caller owns.
+  Vector3 get eye => _eye.clone();
 
   /// Heading about +Y, in radians; zero looks down −Z.
   double get yaw => _yaw;

@@ -333,7 +333,7 @@ final class ArcadeGame extends TransparentFlameGame
     levelIndex = index;
     hits = 0;
     _nextLevelIn = levelPause;
-    _shipBody.position.setFrom(shipStart);
+    _shipBody.collider.position.setFrom(shipStart);
     _shipBody.velocity.setZero();
     shipHeading.setZero();
     if (_stoppedStepping) {

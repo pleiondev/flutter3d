@@ -155,7 +155,7 @@ final class Mind {
   bool hurtFocus(Collider? body, double amount) =>
       system.hurtFocus(body, amount);
 
-  /// From the actor to the focus. Live, and not to be kept.
+  /// From the actor to the focus, as a copy.
   Vector3 get toFocus => system.toFocus;
 
   /// How far away the focus is, in metres.

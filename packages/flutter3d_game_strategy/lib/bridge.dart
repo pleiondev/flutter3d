@@ -169,7 +169,7 @@ final class StrategyVisuals {
        _buildingMaterial = buildings ?? _stone(),
        _buildingSides = buildingSides,
        _buildingMesh = buildingMesh,
-       _buildingMeshSize = buildingMeshSize,
+       _buildingMeshSize = buildingMeshSize?.clone(),
        // Not `this._…`: a private named parameter puts the private name in
        // the API and needs the newest language version to call.
        // ignore: prefer_initializing_formals

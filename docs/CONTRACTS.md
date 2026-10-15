@@ -61,6 +61,36 @@ pretending otherwise.
   over five seconds.
   Without the shift the same scene at 5 km is out by up to 41 mm.
 
+### Who owns a vector
+
+`Vector3`, `Quaternion`, `Matrix4` and the rest of `vector_math` are
+mutable, so every signature that hands one over also says who may write
+into it. There are three cases, and the shape of the member says which
+one applies:
+
+- **A public `final` field is the owner's live state.** `RigidBody.velocity`,
+  `Collider.position`, `CharacterController.position`: writing into one
+  changes the object, and that is what the field is for.
+- **A getter and an `…Of` query answer a copy the caller owns.**
+  `RigidBody.position`, `RigidBody.orientation`, `PhotoCamera.eye`,
+  `Actor.position`, `NativeWorld.velocityOf(body)`: writing into the answer
+  changes nothing but the answer, and keeping it keeps a snapshot, not a
+  view. A getter that reads per body on the engine's own inner loops has
+  the live field beside it to read instead (`body.collider.position`).
+- **A vector parameter is read, never kept.** The callee copies what it
+  wants to keep, into a field it owns (`setFrom`) or as a `clone()`, so a
+  caller can pass the same scratch vector to every call.
+
+Each case is a structure rule (`a getter hands out a copy of a vector, and
+a parameter is not kept`). The getters that still answer live state are
+named in its exemption table with the inner loop that reads them, and so
+is the one `const` constructor that keeps its vector. **Not every
+constructor copies yet.** A value type declared with initializing formals
+(`RayQuery(this.origin)`, `ContactEvent(point: …)`, `const NativeHit(…)`)
+holds the vectors it was built with; making those copy changes how their
+signatures read, and drops `const` from some, so the rule does not read
+initializing formals until that is decided.
+
 ### Three spaces
 
 A position is in one of three spaces, and a signature that takes or gives
@@ -270,10 +300,23 @@ renderer looks the same here.
   plain multiple and is converted where the material is made.
 - **A reflection probe's `intensity` is a ratio**, the light it measured times
   it, and so has no unit.
-- **Exposure is in EV100**, which turns those absolute values into an image.
-  The renderer's own scale, in which shaders work, is not an API value
-  anywhere but one: a stage that adds light to `hdr_color` reads it as
-  `FrameContext.nitsPerHdrUnit` ("Frame resources a stage reads" below).
+- **Exposure is a linear factor; EV100 is the camera's.** What turns those
+  absolute values into an image is a photographic exposure, and that is
+  `PhysicalCamera`: an aperture, a shutter and a sensitivity, whose `ev100`
+  is the exposure value in stops at ISO 100 and whose `exposure` is the
+  linear factor it makes. `RenderSettings.exposure` (default
+  `RenderSettings.defaultExposure`, 1.6, the reference camera's: f/4, 1/60 s,
+  ISO 100, about EV 9.9), `RenderViewSettings.exposure`, and the
+  `exposure` that `FrameResult` and `PhotoCaptureReport` report, are that
+  factor, never an EV100. A number written as one (`exposure: 12` for an
+  overcast EV 12) is a factor of twelve and a white frame. To expose for a
+  camera, hand its factor over:
+  `settings.copyWith(exposure: PhysicalCamera.atEv100(12).exposure)`, or
+  `PhysicalCamera.ev100ForExposure(x)` for the EV100 a factor stands for.
+  `FrameResult.ev100` reports in EV100. The renderer's own scale, in which
+  shaders work, is not an API value anywhere but one: a stage that adds
+  light to `hdr_color` reads it as `FrameContext.nitsPerHdrUnit` ("Frame
+  resources a stage reads" below).
 
 Before 1.0, light intensity was in an engine unit where 1.0 was
 1843.2 cd/m² of luminance and π times that in lux. (The reference camera

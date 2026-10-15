@@ -37,7 +37,7 @@ final class Checkpoint extends Mechanism with CollisionListener {
   bool justReached = false;
 
   @override
-  Vector3 get origin => collider.position;
+  Vector3 get origin => collider.position.clone();
 
   @override
   ActivationOutcome activate(Activation by) {

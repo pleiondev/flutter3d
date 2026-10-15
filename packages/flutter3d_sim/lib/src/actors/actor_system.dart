@@ -213,7 +213,7 @@ final class ActorSystem {
   ///
   /// With several foci: inside a brain, the one this actor attends to; outside
   /// [step], the first.
-  Vector3 get focus => _foci[_focusIndex];
+  Vector3 get focus => _foci[_focusIndex].clone();
   Collider? get focusBody => _fociBodies[_focusIndex];
 
   /// Which focus the actor being thought about attends to, by its index in
@@ -243,10 +243,10 @@ final class ActorSystem {
   /// Per focus, and like [focus] this is the attended one inside a brain. Zero
   /// for every focus on the step after their number changed: the list is
   /// matched by index, and a player leaving it shifts everyone after them.
-  Vector3 get focusVelocity => _fociVelocity[_focusIndex];
+  Vector3 get focusVelocity => _fociVelocity[_focusIndex].clone();
 
   /// How fast the focus at [index] is moving, as [focusVelocity] measures it.
-  Vector3 focusVelocityOf(int index) => _fociVelocity[index];
+  Vector3 focusVelocityOf(int index) => _fociVelocity[index].clone();
   final List<Vector3> _fociVelocity = <Vector3>[Vector3.zero()];
   final List<Vector3> _lastFoci = <Vector3>[];
 
@@ -259,7 +259,7 @@ final class ActorSystem {
   static const double _teleport = 2.0;
 
   /// From the actor currently being thought about to the focus.
-  Vector3 get toFocus => _toFocus;
+  Vector3 get toFocus => _toFocus.clone();
 
   /// The length of [toFocus], in metres.
   double get distanceToFocus => _distance;
@@ -593,8 +593,8 @@ final class ActorSystem {
     if (routes != null) {
       final target = routes.targetOf(
         body.position,
-        radius: body.halfExtents.x,
-        height: body.halfExtents.y * 2.0,
+        radius: body.shape.boundsHalfExtents.x,
+        height: body.shape.boundsHalfExtents.y * 2.0,
         jump: routes.grid.jumpLinks.isEmpty
             ? null
             : JumpReach.of(body.tuning, world: body.world.properties),
@@ -689,7 +689,7 @@ final class ActorSystem {
     final squared = radius * radius;
     for (final actor in actors.toList(growable: false)) {
       if (!actor.isAlive) continue;
-      final where = actor.position;
+      final where = actor.body?.position;
       if (where == null) continue;
       if (where.distanceToSquared(at) > squared) continue;
       _mind.actor = actor;
@@ -734,7 +734,7 @@ final class ActorSystem {
   void steerTowards(Actor actor, Vector3 point) {
     final body = actor.body;
     if (body == null) return;
-    final mesh = navMeshFor(body.halfExtents.x);
+    final mesh = navMeshFor(body.shape.boundsHalfExtents.x);
     if (mesh != null && _steerOnMesh(body, mesh, point)) return;
     _wish
       ..setFrom(point)
@@ -757,7 +757,7 @@ final class ActorSystem {
   /// and the wish is straight at [point]; air control only adds speed along
   /// it, so the jump goes where it was aimed.
   bool _steerOnMesh(CharacterController body, NavMesh mesh, Vector3 point) {
-    final half = body.halfExtents.y;
+    final half = body.shape.boundsHalfExtents.y;
     _feet
       ..setFrom(body.position)
       ..y -= half;
@@ -875,7 +875,7 @@ final class ActorSystem {
           z: them.position.z,
           vx: them.velocity.x,
           vz: them.velocity.z,
-          radius: them.halfExtents.x,
+          radius: them.shape.boundsHalfExtents.x,
         ),
       ));
     }
@@ -887,7 +887,7 @@ final class ActorSystem {
       z: here.z,
       vx: body.velocity.x,
       vz: body.velocity.z,
-      radius: body.halfExtents.x,
+      radius: body.shape.boundsHalfExtents.x,
       maxSpeed: speed,
       prefX: _wish.x * speed,
       prefZ: _wish.z * speed,
@@ -945,8 +945,8 @@ final class ActorSystem {
       final routed = routes.steer(
         body.position,
         _wish,
-        radius: body.halfExtents.x,
-        height: body.halfExtents.y * 2.0,
+        radius: body.shape.boundsHalfExtents.x,
+        height: body.shape.boundsHalfExtents.y * 2.0,
         jump: reach,
       );
       if (routed) {
@@ -977,8 +977,8 @@ final class ActorSystem {
     if (!body.isGrounded) return;
     final link = routes.jumpAhead(
       body.position,
-      radius: body.halfExtents.x,
-      height: body.halfExtents.y * 2.0,
+      radius: body.shape.boundsHalfExtents.x,
+      height: body.shape.boundsHalfExtents.y * 2.0,
       jump: reach,
     );
     if (link == null) return;
@@ -996,7 +996,7 @@ final class ActorSystem {
   /// face where it is going rather than where the focus is. Around a corner
   /// those are different directions, and an actor sliding sideways while
   /// staring through a wall is the tell that gives a flow field away.
-  Vector3 get heading => _wish;
+  Vector3 get heading => _wish.clone();
 
   void turnTowards(Actor actor, double x, double z, double dt) {
     if (x == 0.0 && z == 0.0) return;
@@ -1013,7 +1013,7 @@ final class ActorSystem {
   /// Against the level only. A ray that stopped on another actor would mean a
   /// crowd blinds itself, and two of them standing in a doorway would each wait
   /// for the other to move.
-  bool canSee(Actor actor) => canSeePoint(actor, focus);
+  bool canSee(Actor actor) => canSeePoint(actor, _foci[_focusIndex]);
 
   /// Whether there is a clear line from [actor]'s eye to [point].
   ///

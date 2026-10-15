@@ -42,7 +42,7 @@ final class Crate {
 
   Collider get collider => body.collider;
 
-  Vector3 get position => body.position;
+  Vector3 get position => body.collider.position.clone();
 }
 
 /// A crate in a level document.

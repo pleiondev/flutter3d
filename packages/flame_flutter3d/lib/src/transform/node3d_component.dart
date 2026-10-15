@@ -80,7 +80,10 @@ base class Node3dComponent extends Component
   bool _tintWritten = false;
 
   @override
-  Aabb3? get drawnBounds3d => node.subtreeBounds;
+  Aabb3? get drawnBounds3d => switch (node.subtreeBounds) {
+    final Aabb3 bounds => Aabb3.copy(bounds),
+    null => null,
+  };
 
   @override
   void onMount() {

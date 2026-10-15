@@ -128,7 +128,7 @@ abstract base class Mover extends Mechanism {
   bool _wasMoving = false;
 
   @override
-  Vector3 get origin => collider.position;
+  Vector3 get origin => collider.position.clone();
 
   @override
   void collect(MechanismEvents into) {

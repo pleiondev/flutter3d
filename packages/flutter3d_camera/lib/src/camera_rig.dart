@@ -61,23 +61,23 @@ final class CameraRig {
   /// Where the camera is this frame, walls and impulses and all.
   ///
   /// **Not the same vector as the one being smoothed**, and that separation is
-  /// the whole of what stops the camera oscillating — see [place].
-  Vector3 get eye => _shown;
+  /// the whole of what stops the camera oscillating — see [place]. A copy.
+  Vector3 get eye => _shown.clone();
 
   /// Where the camera would be with nothing in the way and nothing shaking it.
   ///
   /// The smoothed state, and the *only* thing [place] eases. Exposed because a
   /// test that wants to know whether the camera has settled has to ask about
   /// this and not about what came out the other end.
-  Vector3 get freeEye => _eye;
+  Vector3 get freeEye => _eye.clone();
 
   /// What [eye] hands back: the free eye, plus the impulses, pulled out of the
   /// walls. Rebuilt from scratch every frame, which is why nothing it does can
   /// accumulate.
   final Vector3 _shown = Vector3.zero();
 
-  /// What it is looking at.
-  Vector3 get target => _target;
+  /// What it is looking at, as a copy.
+  Vector3 get target => _target.clone();
 
   /// A knock, in metres, that decays away. The camera's own recoil.
   final Vector3 _kick = Vector3.zero();

@@ -193,7 +193,7 @@ final class PlatformerSimulation {
   /// Every point that crosses this seam — the player spawn, a checkpoint's
   /// `respawn`, this — is a place on the floor rather than the middle of a
   /// body. [Runner.reviveAt] is the one place that converts.
-  Vector3 get respawnPoint => _respawn;
+  Vector3 get respawnPoint => _respawn.clone();
 
   /// How many deaths this run has left. Negative means the run cannot be lost.
   ///
@@ -388,7 +388,11 @@ final class PlatformerSimulation {
     // last step's place, which is a patrol you can walk through half the time.
     // The shooter puts them at the other end of the step, and `WorldStep` says
     // why neither is wrong.
-    actors?.step(dt, focus: runner.position, focusBody: runner.body.collider);
+    actors?.step(
+      dt,
+      focus: runner.body.position,
+      focusBody: runner.body.collider,
+    );
 
     _world.index(dt);
 
@@ -417,7 +421,7 @@ final class PlatformerSimulation {
     _readExits();
 
     if (state != RunState.finished &&
-        (runner.position.y < killPlane || runner.health.isDead)) {
+        (runner.body.position.y < killPlane || runner.health.isDead)) {
       state = RunState.fallen;
     }
     _run(PlatformerPhases.end, dt);
@@ -473,15 +477,15 @@ final class PlatformerSimulation {
     if (!runner.health.isAlive) return;
 
     final body = runner.body;
-    final mine = body.halfExtents;
+    final mine = body.shape.boundsHalfExtents;
 
     for (final actor in system.actors) {
       if (!actor.isAlive) continue;
       final theirs = actor.body;
       if (theirs == null) continue;
 
-      final where = actor.position;
-      if (where == null) continue;
+      final where = theirs.position;
+      final half = theirs.shape.boundsHalfExtents;
       final apart = where - body.position;
       // A skin, because two solid bodies never overlap: the controller stops
       // one against the other and they come to rest exactly touching, where the
@@ -489,13 +493,9 @@ final class PlatformerSimulation {
       // it an enemy pressed against the player did nothing at all, which is
       // what the first run of these tests reported.
       const touching = 0.06;
-      if (mine.x + theirs.halfExtents.x + touching - apart.x.abs() <= 0.0) {
-        continue;
-      }
-      if (mine.z + theirs.halfExtents.z + touching - apart.z.abs() <= 0.0) {
-        continue;
-      }
-      if (mine.y + theirs.halfExtents.y - apart.y.abs() <= -0.15) continue;
+      if (mine.x + half.x + touching - apart.x.abs() <= 0.0) continue;
+      if (mine.z + half.z + touching - apart.z.abs() <= 0.0) continue;
+      if (mine.y + half.y - apart.y.abs() <= -0.15) continue;
 
       // **Feet against the top of its head, not centre against centre.** The
       // first version compared centres with a margin, which is true whenever
@@ -504,7 +504,7 @@ final class PlatformerSimulation {
       // lose. A stomp is the feet arriving at or above the crown, on the way
       // down.
       final feet = body.position.y - mine.y;
-      final crown = where.y + theirs.halfExtents.y;
+      final crown = where.y + half.y;
       final onTop = feet >= crown - 0.25 && body.velocity.y <= 0.5;
 
       if (onTop) {
@@ -529,7 +529,7 @@ final class PlatformerSimulation {
       runner.inWater = null;
       return;
     }
-    final chest = runner.position;
+    final chest = runner.body.position;
     for (final mechanism in all) {
       if (mechanism is Water && mechanism.holds(chest)) {
         runner.inWater = mechanism;

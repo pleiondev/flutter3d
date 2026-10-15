@@ -456,8 +456,8 @@ final class GameSimulation {
     final controlled = playing && cutscene == null;
 
     if (controlled) {
-      player.look(input.lookDelta);
-      player.moveWish(input.moveAxis, _wish);
+      player.look(input.dualAxis(DualAxisAction.look));
+      player.moveWish(input.dualAxis(DualAxisAction.move), _wish);
       // Asked for every step rather than on an edge: standing up can be refused
       // by a ceiling, and a player who let go under a crawlspace has to keep
       // asking until there is room. See [Player.crouch].

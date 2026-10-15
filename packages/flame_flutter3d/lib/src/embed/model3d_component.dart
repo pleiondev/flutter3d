@@ -165,7 +165,7 @@ base class Model3dComponent extends PositionComponent {
   /// Points [camera3d] at [bounds] from [viewFrom], close enough that the
   /// whole box fits the component at its current shape.
   void frameModel(Aabb3 bounds) {
-    _framed = bounds;
+    _framed = Aabb3.copy(bounds);
     final aspect = size.y > 0.0 ? size.x / size.y : 1.0;
     _framedAspect = aspect;
     final center = bounds.center;

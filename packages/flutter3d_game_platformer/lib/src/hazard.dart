@@ -52,7 +52,7 @@ final class Hazard extends Mechanism with CollisionListener {
   final Vector3 _at = Vector3.zero();
 
   @override
-  Vector3 get origin => collider.position;
+  Vector3 get origin => collider.position.clone();
 
   /// Seconds accumulated this step, so damage does not depend on how many
   /// overlap callbacks the broadphase happened to dispatch.

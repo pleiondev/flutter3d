@@ -69,8 +69,8 @@ final class FlameChaseCamera {
   CameraRig get rig => virtualCamera.rig;
 
   Object3dComponent get target => framing.target;
-  Vector3 get offset => framing.offset;
-  Vector3 get lookOffset => framing.lookOffset;
+  Vector3 get offset => framing.offset.clone();
+  Vector3 get lookOffset => framing.lookOffset.clone();
 
   /// How much of the target's x the camera follows: a fraction.
   double get followAcross => framing.followAcross;

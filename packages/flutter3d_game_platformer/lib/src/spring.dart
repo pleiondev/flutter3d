@@ -53,7 +53,7 @@ final class Spring extends Mechanism with CollisionListener {
   bool firedThisStep = false;
 
   @override
-  Vector3 get origin => collider.position;
+  Vector3 get origin => collider.position.clone();
 
   @override
   void step(double dt) => firedThisStep = false;

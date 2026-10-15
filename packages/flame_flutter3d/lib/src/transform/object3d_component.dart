@@ -138,7 +138,10 @@ base class Object3dComponent extends PositionComponent
 
   /// The box round [node] and everything under it.
   @override
-  Aabb3? get drawnBounds3d => node.subtreeBounds;
+  Aabb3? get drawnBounds3d => switch (node.subtreeBounds) {
+    final Aabb3 bounds => Aabb3.copy(bounds),
+    null => null,
+  };
 
   /// Meshes this component made for itself and lets go of when it is
   /// removed: a bridge's span, a wreck's hull built for the moment.

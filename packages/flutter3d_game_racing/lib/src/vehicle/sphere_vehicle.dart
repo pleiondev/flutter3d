@@ -123,7 +123,7 @@ final class SphereVehicle with VehicleController {
   final Collider collider;
 
   @override
-  Vector3 get position => collider.position;
+  Vector3 get position => collider.position.clone();
 
   @override
   final Vector3 velocity = Vector3.zero();
@@ -178,7 +178,7 @@ final class SphereVehicle with VehicleController {
       _forward.y,
       _forward.z,
     );
-    return _basis;
+    return _basis.clone();
   }
 
   /// How fast the driven wheels are turning, as the speed the car would be
@@ -211,7 +211,7 @@ final class SphereVehicle with VehicleController {
     final input = context.input;
     _scraped = 0.0;
     _struck = 0.0;
-    final found = ground.sample(position, _ground.s, _ground);
+    final found = ground.sample(collider.position, _ground.s, _ground);
     _readGround(found);
     _buildFrame();
 
@@ -267,7 +267,11 @@ final class SphereVehicle with VehicleController {
   /// it never made.
   @override
   Map<String, Object?> save() => <String, Object?>{
-    'at': <double>[position.x, position.y, position.z],
+    'at': <double>[
+      collider.position.x,
+      collider.position.y,
+      collider.position.z,
+    ],
     'velocity': <double>[velocity.x, velocity.y, velocity.z],
     'yaw': _headingYaw,
     'wheelSpeed': _wheelSpeed,
@@ -316,7 +320,7 @@ final class SphereVehicle with VehicleController {
       return;
     }
     final rideTarget = _ground.height + tuning.rideHeight;
-    _grounded = position.y <= rideTarget + tuning.groundStick;
+    _grounded = collider.position.y <= rideTarget + tuning.groundStick;
   }
 
   /// The car's own set of axes: where it points, flattened onto whatever it is
@@ -586,7 +590,7 @@ final class SphereVehicle with VehicleController {
       _hit.reset();
       if (!world.sweep(
         collider.shape,
-        position,
+        collider.position,
         _delta,
         _hit,
         ignore: collider,

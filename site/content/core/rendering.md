@@ -204,11 +204,20 @@ That ordering is what lets bloom exist at all: a bright pass needs values above 
 
 ```dart
 RenderSettings(
-  exposure: 1.6,   // linear multiplier before the tone curve
+  exposure: 1.6,   // a linear factor before the tone curve, not an EV100
   tonemap: true,   // off for a debug view: a normal-as-color is not a light value
   specular: 1.0,
 )
 ```
+
+`exposure` is a factor: twice the number is twice the light. The lights are in lux and candela, and the exposure a photographer would name, in stops, belongs to `PhysicalCamera`, whose `exposure` is the factor it makes. To expose a frame for a camera, hand that factor over:
+
+```dart
+final overcast = PhysicalCamera.atEv100(12.0); // f/4, ISO 100, a 1/256 s shutter
+final settings = RenderSettings().copyWith(exposure: overcast.exposure);
+```
+
+The default, 1.6, is the reference camera's (f/4, 1/60 s, ISO 100, about EV 9.9), and `PhysicalCamera.ev100ForExposure` names the EV100 any factor stands for. Writing an EV100 into `exposure` directly (`exposure: 12`) multiplies the light by twelve and the frame comes out white. `RenderSettings.camera` takes the same camera another way, as a scale on top of `exposure`; give it one way or the other, since both count it twice.
 
 <div class="warn">
 <p>A clear colour is authored display-referred, but the scene target holds linear light and the composite pass encodes on the way out. Convert the clear to linear or it goes through the encode twice and the background washes out.</p>

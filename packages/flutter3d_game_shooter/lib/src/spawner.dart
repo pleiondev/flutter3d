@@ -97,7 +97,7 @@ final class Spawner extends Mechanism {
   bool get isDone => _spent && _wave >= waves.length;
 
   @override
-  Vector3 get origin => at;
+  Vector3 get origin => at.clone();
 
   @override
   ActivationOutcome activate(Activation by) {

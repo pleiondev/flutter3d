@@ -127,11 +127,11 @@ final class Actor with Damageable, Rider {
   @override
   Collider? get carriedBy => body?.groundBody;
 
-  /// Where it is, or null for an actor with no body.
+  /// Where it is, as a copy, or null for an actor with no body.
   ///
   /// A game whose actors are not all bodies gives them a place of its own with
   /// its own component; the engine does not guess one.
-  Vector3? get position => body?.position;
+  Vector3? get position => body?.position.clone();
 
   /// True unless there is health here and it has run out.
   ///
@@ -148,7 +148,7 @@ final class Actor with Damageable, Rider {
     if (body == null) return false;
     out
       ..setFrom(body.position)
-      ..y += body.halfExtents.y * (facing?.eyeFraction ?? 0.32);
+      ..y += body.shape.boundsHalfExtents.y * (facing?.eyeFraction ?? 0.32);
     return true;
   }
 
@@ -167,7 +167,7 @@ final class Actor with Damageable, Rider {
   double? fractionUp(Vector3 point) {
     final body = this.body;
     if (body == null) return null;
-    final half = body.halfExtents.y;
+    final half = body.shape.boundsHalfExtents.y;
     if (half <= 0.0) return 0.5;
     final feet = body.position.y - half;
     return ((point.y - feet) / (half * 2.0)).clamp(0.0, 1.0);

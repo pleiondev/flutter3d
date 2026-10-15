@@ -69,7 +69,7 @@ final class InterpolatedVector3 {
   /// This is what the simulation itself must read — collision, AI and damage all
   /// have to agree on one authoritative position, and the interpolated one is a
   /// display artefact that exists between two of them.
-  Vector3 get current => _current;
+  Vector3 get current => _current.clone();
 
   /// Records a new simulated value, keeping the one before it to blend from.
   ///

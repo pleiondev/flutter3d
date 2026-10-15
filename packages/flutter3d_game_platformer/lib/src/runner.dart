@@ -77,7 +77,11 @@ final class Runner
     body.fromAboveLayers = PlatformerLayers.oneWay;
     _standing = body.shape;
     _crouching = CollisionBox(
-      Vector3(body.halfExtents.x, tuning.crouchHeight, body.halfExtents.z),
+      Vector3(
+        body.shape.boundsHalfExtents.x,
+        tuning.crouchHeight,
+        body.shape.boundsHalfExtents.z,
+      ),
     );
     _ground = body.tuning = _inWorld(body.tuning);
     _land();
@@ -256,7 +260,7 @@ final class Runner
   bool get isOnWall => _onWall;
 
   /// Which way the wall pushes, when there is one. Zero otherwise.
-  Vector3 get wallAway => _wallAway;
+  Vector3 get wallAway => _wallAway.clone();
 
   bool get isGrounded => body.isGrounded;
 
@@ -265,7 +269,7 @@ final class Runner
 
   int get airJumpsLeft => _airJumpsLeft;
 
-  Vector3 get position => body.position;
+  Vector3 get position => body.position.clone();
 
   @override
   Collider? get carriedBy => body.groundBody;
@@ -422,7 +426,7 @@ final class Runner
   late MovementSettings _surfaceTuning = body.tuning;
 
   void _readWish(InputState input, double cameraYaw) {
-    final axis = input.moveAxis;
+    final axis = input.dualAxis(DualAxisAction.move);
     final turn = Portable.sinCos(cameraYaw);
     final sin = turn.sin;
     final cos = turn.cos;
@@ -492,7 +496,7 @@ final class Runner
   /// wherever it is, and a jump off leaves with the speed it had.
   void _climb(double dt, InputState input) {
     final rope = _climbing!;
-    final axis = input.moveAxis;
+    final axis = input.dualAxis(DualAxisAction.move);
 
     if (input.pressed(GameAction.jump)) {
       _letGo();
@@ -518,7 +522,7 @@ final class Runner
 
     final at = rope.origin;
     final climbed = body.position.y + axis.y * rope.climbSpeed * dt;
-    final ceiling = rope.top + body.halfExtents.y;
+    final ceiling = rope.top + body.shape.boundsHalfExtents.y;
 
     body.velocity.setZero();
     body.position.setValues(at.x, math.min(climbed, ceiling), at.z);
@@ -861,7 +865,7 @@ final class Runner
     // test that walks into a pit is what noticed.
     if (_wish.x * -_wallAway.x + _wish.z * -_wallAway.z <= 0.1) return;
 
-    final half = body.halfExtents;
+    final half = body.shape.boundsHalfExtents;
     final feet = body.position.y - half.y;
 
     // A point just beyond the wall, at the height a ledge would be.
@@ -1161,7 +1165,9 @@ final class Runner
   /// and comes back to the same place — a death loop with no way out of it.
   void reviveAt(Vector3 feet) {
     body
-      ..teleport(Vector3(feet.x, feet.y + body.halfExtents.y, feet.z))
+      ..teleport(
+        Vector3(feet.x, feet.y + body.shape.boundsHalfExtents.y, feet.z),
+      )
       ..velocity.setZero();
     health.restore(<String, Object?>{'current': health.maximum, 'armour': 0.0});
     _buffer = 0.0;

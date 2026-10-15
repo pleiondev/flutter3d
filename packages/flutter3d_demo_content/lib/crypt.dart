@@ -1038,7 +1038,10 @@ final class CryptWorld {
   /// and the walker is down to the water's pace in a tenth of a second.
   void _wade(double dt) {
     final body = _sim.player.body;
-    final (:depth, :flow) = wadingOf(body.position, body.halfExtents.y);
+    final (:depth, :flow) = wadingOf(
+      body.position,
+      body.shape.boundsHalfExtents.y,
+    );
     final share = CryptHarm.wadingShare(
       depth,
       flow: flow,
@@ -1253,7 +1256,7 @@ final class CryptWorld {
     _player = _follow(_player, _sim.player.body.position, dt, radius: 0.3);
     final seen = <int>{};
     for (final actor in _sim.actors?.actors ?? const <Actor>[]) {
-      final at = actor.position;
+      final at = actor.body?.position;
       if (at == null || !actor.isAlive) continue;
       final key = actor.ordinal;
       seen.add(key);

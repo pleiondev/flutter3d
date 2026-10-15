@@ -456,10 +456,10 @@ final class InputTapeRecorder {
         released: <String>[
           for (final action in input.releasedThisStep) action.name,
         ],
-        stickX: input.moveAxis.x,
-        stickY: input.moveAxis.y,
-        lookX: input.lookDelta.x,
-        lookY: input.lookDelta.y,
+        stickX: input.dualAxis(DualAxisAction.move).x,
+        stickY: input.dualAxis(DualAxisAction.move).y,
+        lookX: input.dualAxis(DualAxisAction.look).x,
+        lookY: input.dualAxis(DualAxisAction.look).y,
         values: <String, double>{
           for (final entry in input.analogValues.entries)
             entry.key.name: entry.value,

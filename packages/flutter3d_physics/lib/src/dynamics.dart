@@ -195,7 +195,7 @@ final class Dynamics extends RigidDynamics {
   Float64List exactStateOf(RigidBody body) {
     final held = _exact ? _held32(body) : null;
     if (held != null) return Float64List.fromList(held);
-    final p = body.position, v = body.velocity;
+    final p = body.collider.position, v = body.velocity;
     return Float64List.fromList(<double>[p.x, p.y, p.z, v.x, v.y, v.z]);
   }
 
@@ -363,7 +363,7 @@ final class Dynamics extends RigidDynamics {
           _scratch.addScaled(gravity, -_fallShortfall * dt * dt);
         }
         (_moved[body] ??= Vector3.zero()).setFrom(_scratch);
-        body.collider.moveTo(body.position + _scratch);
+        body.collider.moveTo(body.collider.position + _scratch);
       }
       // After the solve, like the position: the spin this step ends with is
       // the one the body turns by. Nothing for a body that cannot turn.
@@ -410,7 +410,7 @@ final class Dynamics extends RigidDynamics {
   /// body was placed, pushed or given an impulse by something other than
   /// this step, and what it was given is the state now.
   Float64List _synced(RigidBody body) {
-    final p = body.position, v = body.velocity;
+    final p = body.collider.position, v = body.velocity;
     final s = _state[body];
     if (s == null) {
       return _state[body] = Float64List.fromList(<double>[
@@ -454,7 +454,7 @@ final class Dynamics extends RigidDynamics {
   /// start of it: the whole of what they do under the deterministic
   /// profile, and what the solver sees of them under the accurate one.
   void _pushByForces(RigidBody body, double dt) {
-    final p = body.position, v = body.velocity;
+    final p = body.collider.position, v = body.velocity;
     final s = _exact ? _state[body] : null;
     final context = BodyForceContext(body, step: dt)
       ..moveTo(
@@ -514,7 +514,7 @@ final class Dynamics extends RigidDynamics {
     } else {
       _fly(body, s, gravity, dt);
     }
-    final p = body.position;
+    final p = body.collider.position;
     (_moved[body] ??= Vector3.zero()).setValues(
       _f32(s[0]) - p.x,
       _f32(s[1]) - p.y,
@@ -697,9 +697,9 @@ final class Dynamics extends RigidDynamics {
     out.setFrom(body.velocity);
     if (_fell.contains(body)) out.addScaled(gravity, -dt);
     final w = body.angularVelocity;
-    final rx = point.x - body.position.x;
-    final ry = point.y - body.position.y;
-    final rz = point.z - body.position.z;
+    final rx = point.x - body.collider.position.x;
+    final ry = point.y - body.collider.position.y;
+    final rz = point.z - body.collider.position.z;
     out.x += w.y * rz - w.z * ry;
     out.y += w.z * rx - w.x * rz;
     out.z += w.x * ry - w.y * rx;
@@ -738,7 +738,7 @@ final class Dynamics extends RigidDynamics {
         // margin has to reach the broadphase, not only the narrow test.
         world.overlap(
           _inflated(body.collider.shape, reach),
-          body.position,
+          body.collider.position,
           _nearby,
           mask: body.collider.mask,
           ignore: body.collider,
@@ -750,7 +750,7 @@ final class Dynamics extends RigidDynamics {
           if (otherBody != null) continue;
           contactBetween(
             body.collider.shape,
-            body.position,
+            body.collider.position,
             other.shape,
             other.position,
             _contact,
@@ -763,7 +763,7 @@ final class Dynamics extends RigidDynamics {
             ..depth = _contact.depth;
           contactPointBetween(
             body.collider.shape,
-            body.position,
+            body.collider.position,
             other.shape,
             other.position,
             pair.normal,
@@ -798,9 +798,9 @@ final class Dynamics extends RigidDynamics {
         if (body.isAsleep && other.isAsleep) continue;
         contactBetween(
           body.collider.shape,
-          body.position,
+          body.collider.position,
           other.collider.shape,
-          other.position,
+          other.collider.position,
           _contact,
           margin: margin + reach + _reach(other, gravity, dt),
         );
@@ -822,9 +822,9 @@ final class Dynamics extends RigidDynamics {
           ..depth = _contact.depth;
         contactPointBetween(
           body.collider.shape,
-          body.position,
+          body.collider.position,
           other.collider.shape,
-          other.position,
+          other.collider.position,
           pair.normal,
           pair.depth,
           pair.point,
@@ -890,7 +890,7 @@ final class Dynamics extends RigidDynamics {
   bool _shouldWake(RigidBody body) {
     world.overlap(
       body.collider.shape,
-      body.position,
+      body.collider.position,
       _nearby,
       mask: body.collider.mask,
       ignore: body.collider,
@@ -1182,10 +1182,10 @@ final class Dynamics extends RigidDynamics {
       if (inverseSum <= 0.0) continue;
 
       final otherShape = b?.collider.shape ?? pair.against!.shape;
-      final otherAt = b?.position ?? pair.against!.position;
+      final otherAt = b?.collider.position ?? pair.against!.position;
       contactBetween(
         a.collider.shape,
-        a.position,
+        a.collider.position,
         otherShape,
         otherAt,
         _contact,
@@ -1200,9 +1200,11 @@ final class Dynamics extends RigidDynamics {
       _scratch
         ..setFrom(_contact.normal)
         ..scale(push);
-      if (invA > 0.0) a.collider.moveTo(a.position + (_scratch * invA));
+      if (invA > 0.0) {
+        a.collider.moveTo(a.collider.position + (_scratch * invA));
+      }
       if (b != null && invB > 0.0) {
-        b.collider.moveTo(b.position - (_scratch * invB));
+        b.collider.moveTo(b.collider.position - (_scratch * invB));
       }
     }
   }

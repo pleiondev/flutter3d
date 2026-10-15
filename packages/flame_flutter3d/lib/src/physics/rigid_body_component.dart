@@ -92,7 +92,7 @@ base class RigidBodyComponent extends Object3dComponent
   /// by [stepper] before each step.
   @override
   void rememberPlace() {
-    _before.setFrom(body.position);
+    _before.setFrom(body.collider.position);
     _remembered = true;
   }
 
@@ -119,7 +119,7 @@ base class RigidBodyComponent extends Object3dComponent
   void shiftScene(Vector3 by) {
     super.shiftScene(by);
     body.collider
-      ..moveTo(body.position + by)
+      ..moveTo(body.collider.position + by)
       ..clearDelta();
     _before.add(by);
   }
@@ -160,10 +160,10 @@ base class RigidBodyComponent extends Object3dComponent
   void update(double dt) {
     final steps = stepper;
     if (steps != null && _remembered) {
-      Vector3.mix(_before, body.position, steps.alpha, _drawn);
+      Vector3.mix(_before, body.collider.position, steps.alpha, _drawn);
       placeNode(_drawn);
     } else {
-      placeNode(body.position);
+      placeNode(body.collider.position);
     }
     super.update(dt);
   }

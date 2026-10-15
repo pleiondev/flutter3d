@@ -74,12 +74,13 @@ final class InputState {
   ///
   /// Clamped rather than left as a sum, or holding forward and right on the
   /// keyboard would move about 1.41 times as fast as holding forward alone —
-  /// the oldest speed exploit there is.
-  Vector2 get moveAxis => _moveAxis;
+  /// the oldest speed exploit there is. A copy the caller owns.
+  Vector2 get moveAxis => _moveAxis.clone();
 
   /// Accumulated view movement since the last step, in whatever units the device
-  /// reports. Sensitivity is applied by the camera, not here.
-  Vector2 get lookDelta => _lookDelta;
+  /// reports. Sensitivity is applied by the camera, not here. A copy the
+  /// caller owns.
+  Vector2 get lookDelta => _lookDelta.clone();
 
   bool held(GameAction action) => _held.contains(action);
 

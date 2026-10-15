@@ -142,7 +142,7 @@ final class LightFixture extends Mechanism {
   /// belongs where the particles currently are rather than at the bracket
   /// holding them. The drift is small — a few centimetres — and it is the
   /// difference between a light that flickers and one that lives.
-  Vector3? get measuredAt => _measuredAt;
+  Vector3? get measuredAt => _measuredAt?.clone();
   Vector3? _measuredAt;
 
   /// Reports what this fixture's fire actually amounts to, from 0 to 1, and

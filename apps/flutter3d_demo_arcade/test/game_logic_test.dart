@@ -127,7 +127,7 @@ void main() {
     final game = _newGame()..startLevel(1);
     final hunter = game.bots.first;
     expect(arcadeLevels[1].hunters, greaterThan(0));
-    game.ship.body.position.setFrom(
+    game.ship.body.collider.position.setFrom(
       hunter.actor.body!.position + Vector3(2.5, -0.1, 0.0),
     );
 

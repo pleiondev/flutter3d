@@ -464,7 +464,7 @@ final class _GoTo extends BehaviorLeaf {
 
   @override
   BehaviorStatus tick(BehaviorContext context) {
-    final position = context.mind.actor.position;
+    final position = context.mind.actor.body?.position;
     if (position == null || !context.board.point(key, _at)) {
       return BehaviorStatus.failure;
     }

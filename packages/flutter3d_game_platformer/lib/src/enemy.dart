@@ -49,7 +49,7 @@ base class Patrol extends Brain {
   /// Which post it is walking towards. For a test, and for a save.
   int get target => _target;
 
-  Vector3 get destination => _route[_target];
+  Vector3 get destination => _route[_target].clone();
 
   @override
   void act(Mind it) {
@@ -115,7 +115,7 @@ base class Patrol extends Brain {
       ..setFrom(body.position)
       ..x += dx / length * ledgeProbe
       ..z += dz / length * ledgeProbe;
-    _down.setValues(0.0, -(body.halfExtents.y + 0.6), 0.0);
+    _down.setValues(0.0, -(body.shape.boundsHalfExtents.y + 0.6), 0.0);
     return !body.world.sweep(
       body.shape,
       _ahead,
@@ -192,7 +192,7 @@ final class Leaper extends Patrol {
         ..setFrom(body.position)
         ..x += dx / length * reach
         ..z += dz / length * reach;
-      _probe.setValues(0.0, -(body.halfExtents.y + 1.2), 0.0);
+      _probe.setValues(0.0, -(body.shape.boundsHalfExtents.y + 1.2), 0.0);
       final ground = body.world.sweep(
         body.shape,
         _landing,

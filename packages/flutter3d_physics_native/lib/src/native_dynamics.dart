@@ -302,13 +302,14 @@ final class NativeDynamics extends RigidDynamics with WorldMirror {
   /// [body] made in the core as it is now, and its mirror.
   _Mirror _mirrorFor(RigidBody body) {
     final (shape, offset) = _shapeOf(body.collider.shape);
+    final turn = body.orientation;
     final handle = native.addBody(
-      position: body.position + _turned(body.orientation, offset),
+      position: body.collider.position + _turned(turn, offset),
       mass: body.mass,
     );
     shape(handle);
     native
-      ..setOrientation(handle, body.orientation)
+      ..setOrientation(handle, turn)
       ..setVelocity(handle, body.velocity)
       ..setAngularVelocity(handle, body.angularVelocity)
       ..lockRotation(handle, locked: !body.canRotate)
@@ -929,7 +930,7 @@ final class _Mirror {
 
   /// Remembers [body] as it is now.
   void take(RigidBody body) {
-    _at.setFrom(body.position);
+    _at.setFrom(body.collider.position);
     _velocity.setFrom(body.velocity);
     _spin.setFrom(body.angularVelocity);
     _turn.setFrom(body.orientation);
@@ -938,13 +939,12 @@ final class _Mirror {
 
   /// Whatever changed in [body] since [take], into the core.
   void give(NativeWorld native, RigidBody body) {
-    final turned = !_same(_turn, body.orientation);
-    if (turned) native.setOrientation(handle, body.orientation);
-    if (turned || _at != body.position) {
-      native.setPosition(
-        handle,
-        body.position + _turned(body.orientation, offset),
-      );
+    final turn = body.orientation;
+    final turned = !_same(_turn, turn);
+    if (turned) native.setOrientation(handle, turn);
+    final at = body.collider.position;
+    if (turned || _at != at) {
+      native.setPosition(handle, at + _turned(turn, offset));
     }
     if (_velocity != body.velocity) native.setVelocity(handle, body.velocity);
     if (_spin != body.angularVelocity) {
@@ -1100,7 +1100,7 @@ final class NativeCharacterMover extends CharacterMover {
     final body = move.body;
     dynamics.placeMovers();
     final moved = dynamics.native.moveCharacter(
-      shape: NativeShape.box(body.halfExtents),
+      shape: NativeShape.box(body.shape.boundsHalfExtents),
       position: body.position,
       move: move.delta,
       velocity: body.velocity,

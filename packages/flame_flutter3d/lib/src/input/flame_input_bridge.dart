@@ -520,7 +520,7 @@ final class PointerTrack extends PositionComponent
 
   /// Where the pointer last was over the game, in logical pixels from the
   /// canvas's top left; null before it has been over it.
-  Vector2? get aim => _aim;
+  Vector2? get aim => _aim?.clone();
   Vector2? _aim;
 
   @override

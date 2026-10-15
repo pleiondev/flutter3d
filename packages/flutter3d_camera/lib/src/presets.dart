@@ -357,7 +357,7 @@ final class OverheadFraming extends CameraFraming {
   double fovY;
 
   /// Where the view is pointed, on the ground.
-  Vector3 get focus => _focus;
+  Vector3 get focus => _focus.clone();
   final Vector3 _focus = Vector3.zero();
 
   /// How far the eye is from [focus], in metres.

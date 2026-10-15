@@ -29,7 +29,7 @@ final class Secret extends Mechanism with CollisionListener {
   bool justFound = false;
 
   @override
-  Vector3 get origin => collider.position;
+  Vector3 get origin => collider.position.clone();
 
   @override
   ActivationOutcome activate(Activation by) {

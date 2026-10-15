@@ -74,7 +74,7 @@ final class BlendedLoop {
   late final List<double> _weights;
 
   /// Where the sound is coming from, for anything that moves.
-  Vector3 get position => _position;
+  Vector3 get position => _position.clone();
 
   /// Mixes the bands for [value], overall as loud as [volume].
   ///

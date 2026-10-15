@@ -114,7 +114,7 @@ final class BakeRigidBodyJobRequest with SimulationBakeRequest {
       for (var v = 0; v < vertexCount; v++) {
         final corner = body.orientation.asRotationMatrix().transformed(
           corners[v],
-        )..add(body.position);
+        )..add(body.collider.position);
         frame[v * 3] = corner.x;
         frame[v * 3 + 1] = corner.y;
         frame[v * 3 + 2] = corner.z;

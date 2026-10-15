@@ -359,7 +359,7 @@ final class _Fall extends Component {
     _rest = _body.isAsleep ? _rest + dt : 0.0;
     if (_rest > 1.2) {
       _body.restore(_start);
-      _body.position.y = _height();
+      _body.collider.position.y = _height();
       _rest = 0.0;
     }
   }

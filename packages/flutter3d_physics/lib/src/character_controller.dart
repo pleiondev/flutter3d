@@ -103,7 +103,8 @@ final class CharacterController {
   final SweptContact _contact = SweptContact();
 
   /// Half the body's bounding box: radius in X and Z, half the height in Y.
-  Vector3 get halfExtents => shape.boundsHalfExtents;
+  /// A copy; the body is resized with [tryResize].
+  Vector3 get halfExtents => _shape.boundsHalfExtents.clone();
 
   /// Every number that decides how this body feels — and **swappable**.
   ///
@@ -158,7 +159,8 @@ final class CharacterController {
   /// Straight up while airborne rather than null, so a caller doing
   /// arithmetic with it does not have to branch: falling is the same as
   /// standing on level ground as far as any slope calculation is concerned.
-  Vector3 get groundNormal => _groundNormal;
+  /// A copy the caller owns, refreshed by each step's probe.
+  Vector3 get groundNormal => _groundNormal.clone();
   final Vector3 _groundNormal = Vector3(0.0, 1.0, 0.0);
 
   /// What the feet are on, **when it moves under its own power**. Null on a
@@ -290,7 +292,7 @@ final class CharacterController {
   /// [restore]; one that forgets restores a standing body inside a crawlspace
   /// and is ejected from it on the next step.
   bool tryResize(CollisionShape to, {bool keepFeet = true}) {
-    final was = halfExtents;
+    final was = _shape.boundsHalfExtents;
     final will = to.boundsHalfExtents;
     final feet = position.y - was.y;
     _resizeAt.setValues(
@@ -494,7 +496,7 @@ final class CharacterController {
   void _resolveOverlap() {
     if (world.depenetrate(
       position,
-      halfExtents,
+      _shape.boundsHalfExtents,
       _correction,
       ignore: collider,
       allow: _allowOverlap,

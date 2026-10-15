@@ -56,7 +56,7 @@ final class Crumbling extends Mechanism with CollisionListener {
   bool crumbledThisStep = false;
 
   @override
-  Vector3 get origin => _restingAt;
+  Vector3 get origin => _restingAt.clone();
 
   @override
   void step(double dt) {
@@ -157,7 +157,7 @@ final class Breakable extends Mechanism {
   bool brokeThisStep = false;
 
   @override
-  Vector3 get origin => _at;
+  Vector3 get origin => _at.clone();
 
   /// Nothing activates a block. A pound breaks it, and a pound is a body
   /// arriving rather than a hand reaching out.
@@ -238,7 +238,7 @@ final class Climbable extends Mechanism {
 
   /// Where it is now, which is where a climber is.
   @override
-  Vector3 get origin => collider.position;
+  Vector3 get origin => collider.position.clone();
 
   /// How fast the volume itself is moving sideways, so a climber who lets go
   /// leaves with it.

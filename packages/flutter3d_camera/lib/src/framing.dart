@@ -107,7 +107,7 @@ final class FollowFraming extends CameraFraming {
   /// The point that is followed: the subject, held back by the dead zone and
   /// the damping. Exposed because a test asking whether the dead zone holds
   /// asks about this.
-  Vector3 get anchor => _anchor;
+  Vector3 get anchor => _anchor.clone();
   final Vector3 _anchor = Vector3.zero();
   bool _anchored = false;
 

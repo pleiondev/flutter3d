@@ -194,7 +194,7 @@ final class ActorVisuals {
     PublishedState? state,
   ) {
     if (state == null) {
-      final at = actor.position;
+      final at = actor.body?.position;
       return at == null
           ? null
           : (
@@ -442,8 +442,8 @@ final class ActorVisuals {
     // Straight off the body, so this works for anything with one. It used to
     // read a `MonsterDef`, which is how the renderer's bridge came to depend on
     // a shooter's idea of what walks about in a level.
-    final radius = body.halfExtents.x;
-    final height = body.halfExtents.y * 2.0;
+    final radius = body.shape.boundsHalfExtents.x;
+    final height = body.shape.boundsHalfExtents.y * 2.0;
     final key = appearance.meshKeyFor(actor);
     final mesh = _meshes.shape(
       'actor:$key',
@@ -572,7 +572,7 @@ final class ActorVisuals {
   /// somebody standing has them at its origin, a body is a shape about its
   /// middle.
   static double feetBelowCenter(Actor actor) =>
-      actor.body?.halfExtents.y ?? 0.0;
+      actor.body?.shape.boundsHalfExtents.y ?? 0.0;
 
   /// Where [actor]'s model is when its body's centre is [center]: feet under
   /// it, turned by [yawFor] — what [sync] places a model by, for a
@@ -888,7 +888,7 @@ final class ActorVisuals {
       node
         ..setPosition(
           position.x,
-          position.y - actor.body!.halfExtents.y * 0.64,
+          position.y - actor.body!.shape.boundsHalfExtents.y * 0.64,
           position.z,
         )
         ..setRotation(

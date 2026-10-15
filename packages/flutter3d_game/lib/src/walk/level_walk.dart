@@ -97,7 +97,7 @@ final class LevelWalk {
     if (input.pressed(GameAction.jump)) body.requestJump();
     body.step(
       dt.clamp(0.0, 0.1),
-      wishDirection: wishFor(input.moveAxis),
+      wishDirection: wishFor(input.dualAxis(DualAxisAction.move)),
       sprint: input.held(GameAction.sprint),
     );
   }

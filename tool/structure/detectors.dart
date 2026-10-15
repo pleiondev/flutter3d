@@ -341,6 +341,257 @@ List<String> sharedMutablesIn(String source) => <String>[
   for (final match in _sharedMutable.allMatches(source)) match.group(0)!.trim(),
 ];
 
+// ------------------------------------------------------------ a vector's owner
+
+/// The mutable value types a vector rule reads: the ones [_sharedMutable]
+/// reads, for the same reason.
+const String _vectorType = r'(?:Vector[234]|Matrix[234]|Quaternion|Aabb[23])';
+
+final RegExp _typeDeclaration = RegExp(
+  r'(?:^|\n)[ \t]*(?:(?:abstract|base|final|interface|sealed|mixin)\s+)*'
+  r'(class|mixin|enum|extension\s+type|extension)\b\s*'
+  r'(?!on\b)([A-Za-z_$][\w$]*)?',
+);
+
+/// A getter (its name in group 1) or an `…Of` query (group 2) answering a
+/// vector, and how its body starts (group 3).
+final RegExp _vectorGetter = RegExp(
+  '(?<![\\w\$.])(?:static\\s+)?$_vectorType\\??\\s+'
+  r'(?:get\s+([A-Za-z$][\w$]*)|([A-Za-z$][\w$]*Of)\s*\([^()]*\))'
+  r'\s*(=>|\{)',
+);
+
+/// An expression that names a vector somebody already holds: a field, a
+/// field's field, an element of a list it keeps. A call, an operator or a
+/// constructor makes a new one.
+final RegExp _heldVector = RegExp(
+  r'^(?:this\.)?[A-Za-z_$][\w$]*(?:\[[^\[\]]*\]|[!?]?\.[A-Za-z_$][\w$]*)*!?$',
+);
+
+final RegExp _cachedVector = RegExp(r'^[A-Za-z_$][\w$.]*\s*\?\?=');
+
+/// The index of the bracket that closes the one at [open], or the end.
+int _matching(String code, int open) {
+  var depth = 0;
+  for (var i = open; i < code.length; i++) {
+    final c = code[i];
+    if (c == '{' || c == '(' || c == '[') depth++;
+    if (c == '}' || c == ')' || c == ']') {
+      depth--;
+      if (depth == 0) return i;
+    }
+  }
+  return code.length - 1;
+}
+
+/// The index of the `;` that ends the statement from [from], or the end.
+int _statementEnd(String code, int from) {
+  var depth = 0;
+  for (var i = from; i < code.length; i++) {
+    final c = code[i];
+    if (c == '{' || c == '(' || c == '[') depth++;
+    if (c == '}' || c == ')' || c == ']') depth--;
+    if (c == ';' && depth <= 0) return i;
+  }
+  return code.length;
+}
+
+/// Each class, mixin, enum and extension in [code], by name (empty for an
+/// unnamed extension), with the braces of its body.
+List<({String type, int open, int close})> _typeBodiesIn(String code) =>
+    <({String type, int open, int close})>[
+      for (final m in _typeDeclaration.allMatches(code))
+        if (code.indexOf('{', m.end) case final open when open >= 0)
+          (type: m.group(2) ?? '', open: open, close: _matching(code, open)),
+    ];
+
+/// Whether a type named [type] is one a caller outside its library can
+/// reach: not private, and not an unnamed extension, which is visible only
+/// where it is declared.
+bool _reachable(String type) => type.isNotEmpty && !type.startsWith('_');
+
+/// Every public getter and `…Of` query in [source] that hands out a vector
+/// somebody holds, as `Type.getter` with its line.
+///
+/// **A getter answers a copy the caller owns** (docs/CONTRACTS.md, "Space").
+/// `PhotoCamera.eye => _eye` handed out the camera's own vector, so a caller
+/// that scaled what it was given moved the camera through its collision,
+/// while `PhotoCamera.target` beside it answered a new one: one class, two
+/// answers, and neither doc said which. A public `final` field is the
+/// owner's live state and says so by being one; a getter is not a field.
+///
+/// What counts as handing one out: an expression body, or a `return`, that
+/// is a bare name, a chain of names or an element of a list (`_eye`,
+/// `collider.position`, `_foci[_at]`), or a `??=` cache. A call, a `clone()`,
+/// an operator or a vector the body declared itself is a new one. A chain
+/// ending in another getter that already copies reads the same as one ending
+/// in a field, so `liveVectorGetterAllowed` names those with the getter they
+/// end in.
+List<({String subject, int line})> liveVectorGettersIn(String source) {
+  final code = codeOf(source);
+  final types = _typeBodiesIn(code);
+  int lineAt(int offset) =>
+      '\n'.allMatches(code.substring(0, offset)).length + 1;
+  final out = <({String subject, int line})>[];
+  for (final m in _vectorGetter.allMatches(code)) {
+    final inner = types
+        .where(
+          (({String type, int open, int close}) t) =>
+              t.open < m.start && m.start < t.close,
+        )
+        .fold<({String type, int open, int close})?>(
+          null,
+          (({String type, int open, int close})? best, t) =>
+              best == null || t.open > best.open ? t : best,
+        );
+    final type = inner?.type;
+    if (type != null && !_reachable(type)) continue;
+    final arrow = m.group(3) == '=>';
+    final name = m.group(1) ?? m.group(2)!;
+    final body = arrow
+        ? ''
+        : code.substring(m.end - 1, _matching(code, m.end - 1) + 1);
+    final answers = arrow
+        ? <String>[code.substring(m.end, _statementEnd(code, m.end)).trim()]
+        : <String>[
+            for (final r in RegExp(r'\breturn\b').allMatches(body))
+              body.substring(r.end, _statementEnd(body, r.end)).trim(),
+          ];
+    bool declaredHere(String name) => RegExp(
+      '(?:final|var|late|$_vectorType\\??)\\s+${RegExp.escape(name)}\\s*[=;]',
+    ).hasMatch(body);
+    final held = answers.any(
+      (String e) =>
+          (_heldVector.hasMatch(e) &&
+              e != 'null' &&
+              e != 'this' &&
+              !declaredHere(e)) ||
+          _cachedVector.hasMatch(e),
+    );
+    if (held) {
+      out.add((
+        subject: type == null ? name : '$type.$name',
+        line: lineAt(m.start),
+      ));
+    }
+  }
+  return out;
+}
+
+final RegExp _vectorField = RegExp(
+  '(?:^|[;{}\\n])\\s*(?:@\\w+\\s+)*(?:static\\s+)?(?:late\\s+)?(?:final\\s+)?'
+  '$_vectorType\\??\\s+([A-Za-z_\$][\\w\$]*)\\s*[;=,]',
+);
+
+final RegExp _memberHead = RegExp(
+  r'(?:\bset\s+)?([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)?)\s*\(',
+);
+
+final RegExp _vectorParameter = RegExp(
+  '(?:^|[,({\\[\\s])$_vectorType\\??\\s+([A-Za-z_\$][\\w\$]*)',
+);
+
+final RegExp _bareAssignment = RegExp(
+  r'(?:^|[;,{}\s:])(?:this\.)?([A-Za-z_$][\w$]*)\s*=\s*([A-Za-z_$][\w$]*)'
+  r'\s*(?=[;,}]|$)',
+);
+
+const Set<String> _notAMember = <String>{
+  'if',
+  'for',
+  'while',
+  'switch',
+  'catch',
+  'return',
+  'assert',
+  'super',
+  'this',
+  'await',
+  'throw',
+};
+
+/// Every public member in [source] that keeps a vector it was passed, as
+/// `Type.member(parameter)` with its line.
+///
+/// **A vector parameter is read and never kept** (docs/CONTRACTS.md,
+/// "Space"): the callee copies, `_target.setFrom(target)` into a field it
+/// owns or `target.clone()`. A member that stores the caller's vector
+/// itself shares it, and the caller who reuses a scratch vector for the
+/// next call moves this one too.
+///
+/// What counts: in a public method, setter or constructor of a public type,
+/// an assignment `field = parameter` (in its body or its initializer list)
+/// where the parameter is a vector and the field is one of the type's own
+/// vector fields. An initializing formal (`this.position`) is not read: it
+/// is how a value type is declared, and it is visible in the API snapshot,
+/// so making one copy is a signature change, decided there.
+List<({String subject, int line})> keptVectorParametersIn(String source) {
+  final code = codeOf(source);
+  int lineAt(int offset) =>
+      '\n'.allMatches(code.substring(0, offset)).length + 1;
+  final out = <({String subject, int line})>[];
+  for (final t in _typeBodiesIn(code)) {
+    if (!_reachable(t.type)) continue;
+    final span = code.substring(t.open, t.close + 1);
+    final depth = List<int>.filled(span.length + 1, 0);
+    var level = 0;
+    for (var i = 0; i < span.length; i++) {
+      depth[i] = level;
+      if (span[i] == '{') level++;
+      if (span[i] == '}') level--;
+    }
+    final fields = <String>{
+      for (final f in _vectorField.allMatches(span))
+        if (depth[f.end - 1] == 1) f.group(1)!,
+    };
+    if (fields.isEmpty) continue;
+    for (final m in _memberHead.allMatches(span)) {
+      if (depth[m.start] != 1) continue;
+      final name = m.group(1)!;
+      final last = name.split('.').last;
+      if (last.startsWith('_') || _notAMember.contains(name)) continue;
+      final open = m.end - 1;
+      final close = _matching(span, open);
+      final vectors = <String>{
+        for (final p in _vectorParameter.allMatches(
+          span.substring(open + 1, close),
+        ))
+          p.group(1)!,
+      };
+      if (vectors.isEmpty) continue;
+      final lead = RegExp(
+        r'^\s*(?:async\s*)?(=>|\{|:)',
+      ).firstMatch(span.substring(close + 1));
+      if (lead == null) continue;
+      final start = close + 1 + lead.end;
+      final body = switch (lead.group(1)) {
+        '=>' => span.substring(start, _statementEnd(span, start)),
+        '{' => span.substring(start - 1, _matching(span, start - 1) + 1),
+        _ => () {
+          final stop = RegExp(r'\{|;|=>').firstMatch(span.substring(start));
+          final at = stop == null ? span.length : start + stop.start;
+          final tail = stop?.group(0) == '{'
+              ? span.substring(at, _matching(span, at) + 1)
+              : '';
+          return '${span.substring(start, at)},$tail';
+        }(),
+      };
+      for (final a in _bareAssignment.allMatches(body)) {
+        if (fields.contains(a.group(1)) && vectors.contains(a.group(2))) {
+          final constructor = name == t.type || name.startsWith('${t.type}.');
+          out.add((
+            subject: constructor
+                ? '$name(${a.group(2)})'
+                : '${t.type}.$last(${a.group(2)})',
+            line: lineAt(t.open + m.start),
+          ));
+        }
+      }
+    }
+  }
+  return out;
+}
+
 // ------------------------------------------------------------- a step's inputs
 
 /// What a step must not reach for, as patterns over the source.
@@ -2081,6 +2332,111 @@ List<Finding> proveDetectorsWork() {
     'a version 1 level, a light in candela and a probe\'s intensity',
     'an old document is lifted by the old unit on reading, and an entity '
         'is not a light',
+  );
+
+  // A vector's owner. The first is the camera that moved through its
+  // collision when a caller scaled its eye; the second the spring whose
+  // event carried its live position; the third the focus a brain read out
+  // of the system's list.
+  final live = liveVectorGettersIn(
+    'final class PhotoCamera {\n'
+    '  final Vector3 _eye = Vector3.zero();\n'
+    '  Vector3 get eye => _eye;\n'
+    '  Vector3 get target => _eye + forward;\n'
+    '}\n'
+    'final class Spring {\n'
+    '  Vector3 get origin => collider.position;\n'
+    '  Vector3 get copied => collider.position.clone();\n'
+    '}\n'
+    'final class ActorSystem {\n'
+    '  Vector3 get focus => _foci[_at];\n'
+    '  Vector3 velocityOf(int i) => _velocities[i];\n'
+    '  Vector3 get heading {\n'
+    '    if (_still) return _zero;\n'
+    '    return _wish;\n'
+    '  }\n'
+    '  Aabb3 get bounds => _bounds ??= Aabb3();\n'
+    '}\n',
+  ).map((({String subject, int line}) h) => h.subject).toSet();
+  fires(
+    'vector getters',
+    live.containsAll(<String>{
+      'PhotoCamera.eye',
+      'Spring.origin',
+      'ActorSystem.focus',
+      'ActorSystem.velocityOf',
+      'ActorSystem.heading',
+      'ActorSystem.bounds',
+    }),
+    'a private field, another object\'s field, a list element, an …Of '
+        'query, a block body and a ??= cache',
+  );
+  quiet(
+    'vector getters',
+    live.length == 6 &&
+        liveVectorGettersIn(
+          'final class _Hidden { Vector3 get at => _at; }\n'
+          'extension on Body { Vector3 get at => _at; }\n'
+          'final class Probe {\n'
+          '  Vector3 get up {\n'
+          '    final out = Vector3.zero();\n'
+          '    return out;\n'
+          '  }\n'
+          '  Vector3? get none => null;\n'
+          '  Vector3 get _own => _at;\n'
+          '  // Vector3 get commented => _at;\n'
+          '}\n',
+        ).isEmpty,
+    'an operator, a clone, a private type, an unnamed extension, a vector '
+        'the getter made, null, a private getter and a comment',
+    'each answers a vector nobody else holds, or none a caller can reach',
+  );
+  final kept = keptVectorParametersIn(
+    'final class Rig {\n'
+    '  Vector3 _target = Vector3.zero();\n'
+    '  final Vector3 _eye;\n'
+    '  Vector3 _look = Vector3.zero();\n'
+    '  Rig(Vector3 eye) : _eye = eye;\n'
+    '  set target(Vector3 value) => _target = value;\n'
+    '  void lookAt(Vector3 at, {double lag = 0.0}) {\n'
+    '    _look = at;\n'
+    '  }\n'
+    '}\n',
+  ).map((({String subject, int line}) h) => h.subject).toSet();
+  fires(
+    'kept vector parameters',
+    kept.containsAll(<String>{
+      'Rig(eye)',
+      'Rig.target(value)',
+      'Rig.lookAt(at)',
+    }),
+    'an initializer list, a setter and a method that keep the caller\'s '
+        'vector',
+  );
+  quiet(
+    'kept vector parameters',
+    kept.length == 3 &&
+        keptVectorParametersIn(
+          'final class Rig {\n'
+          '  final Vector3 _target = Vector3.zero();\n'
+          '  final Vector3 eye;\n'
+          '  Vector3 _look = Vector3.zero();\n'
+          '  Rig(this.eye);\n'
+          '  set target(Vector3 value) => _target.setFrom(value);\n'
+          '  void lookAt(Vector3 at) {\n'
+          '    _look = at.clone();\n'
+          '  }\n'
+          '  void _keep(Vector3 at) => _look = at;\n'
+          '}\n'
+          'final class _Hidden {\n'
+          '  Vector3 _at = Vector3.zero();\n'
+          '  void put(Vector3 at) => _at = at;\n'
+          '}\n',
+        ).isEmpty,
+    'a copy into the field, a clone, an initializing formal, a private '
+        'member and a private type',
+    'a copy is not the caller\'s vector, and an initializing formal is '
+        'how a value type is declared',
   );
 
   // A particle's world. The platformer's sparks fell at the standard

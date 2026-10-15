@@ -96,7 +96,7 @@ final class Water extends Mechanism {
   final SwimSettings tuning;
 
   @override
-  Vector3 get origin => collider.position;
+  Vector3 get origin => collider.position.clone();
 
   /// Whether [point] is under the surface.
   ///

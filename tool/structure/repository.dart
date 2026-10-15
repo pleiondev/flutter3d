@@ -1288,6 +1288,147 @@ portableStepExempt = <String, Map<String, String>>{
   },
 };
 
+/// Getters that answer a vector somebody holds and are right to, by library,
+/// with the reason: `a getter hands out a copy of a vector, and a parameter
+/// is not kept` reads none of them.
+///
+/// **Two kinds, and nothing else.** A chain that ends in another getter
+/// which already copies (`rig.eye`, `world.properties.gravity`) answers a
+/// copy too; the reason names the getter. And a getter whose live answer is
+/// read on an inner loop the engine runs per body, per sound or per node,
+/// where a copy would be an allocation each time and no live field stands
+/// beside it to read instead: the reason names the loop. Those are the
+/// open ones, each waiting on a field or an `…Into(out)` reader, which is a
+/// signature change.
+const Map<String, Map<String, String>>
+liveVectorGetterAllowed = <String, Map<String, String>>{
+  // Chains that end in a copy.
+  'flutter3d_physics/lib/src/dynamics.dart': <String, String>{
+    'Dynamics.gravity': '`WorldProperties.gravity` answers a copy',
+  },
+  'flutter3d_physics_native/lib/src/native_dynamics.dart': <String, String>{
+    'NativeDynamics.gravity': '`WorldProperties.gravity` answers a copy',
+  },
+  'flutter3d_sim/lib/src/actors/brain.dart': <String, String>{
+    'Mind.focus': '`ActorSystem.focus` answers a copy',
+    'Mind.toFocus': '`ActorSystem.toFocus` answers a copy',
+    'Mind.heading': '`ActorSystem.heading` answers a copy',
+  },
+  'flutter3d_game_platformer/lib/src/follow_camera.dart': <String, String>{
+    'FollowCamera.eye': '`CameraRig.eye` answers a copy',
+    'FollowCamera.target': '`CameraRig.target` answers a copy',
+  },
+  'flutter3d_game_racing/lib/src/chase_camera.dart': <String, String>{
+    'ChaseCamera.eye': '`CameraRig.eye` answers a copy',
+    'ChaseCamera.target': '`CameraRig.target` answers a copy',
+  },
+  'flutter3d_game_shooter/lib/src/first_person_camera.dart': <String, String>{
+    'FirstPersonCamera.eye': '`CameraRig.eye` answers a copy',
+    'FirstPersonCamera.target': '`CameraRig.target` answers a copy',
+  },
+  'flutter3d_game_strategy/lib/src/map_camera.dart': <String, String>{
+    'MapCamera.focus': '`OverheadFraming.focus` answers a copy',
+    'MapCamera.eye': '`CameraRig.eye` answers a copy',
+    'MapCamera.target': '`CameraRig.target` answers a copy',
+  },
+  'flutter3d_game_ui/lib/src/photo_mode/photo_mode.dart': <String, String>{
+    'PhotoMode.gaze': '`PhotoCamera.forward` builds a new vector',
+  },
+  // Live on an inner loop, with no live field beside them.
+  'flutter3d_physics/lib/src/collision_box.dart': <String, String>{
+    'CollisionBox.boundsHalfExtents':
+        'the box\'s own `halfExtents` field, read per shape by the '
+        'broadphase, the sweeps and the solver every step',
+  },
+  'flutter3d_physics/lib/src/collision_wedge.dart': <String, String>{
+    'CollisionWedge.boundsHalfExtents':
+        'the wedge\'s own `halfExtents` field, read per shape by the '
+        'broadphase, the sweeps and the solver every step',
+  },
+  'flutter3d_game_platformer/lib/src/runner.dart': <String, String>{
+    'Runner.shove':
+        'the dynamics\' `CharacterPush` holds it and reads it every '
+        'step, which allocates nothing',
+  },
+  'flutter3d_audio_core/lib/src/listener.dart': <String, String>{
+    'AudioListener.right':
+        'derived once a mix and read by the panner per sound per mix',
+  },
+  // The scene graph's caches, read per node per frame by culling,
+  // drawing and picking.
+  'flutter3d_core/lib/src/engine/scene/scene_node.dart': <String, String>{
+    'SceneNode.localMatrix':
+        'the scene graph\'s cache, read per node per '
+        'frame',
+    'SceneNode.worldMatrix':
+        'the scene graph\'s cache, read per node per '
+        'frame',
+    'SceneNode.inverseWorldMatrix':
+        'the scene graph\'s cache, read per '
+        'node per frame',
+    'SceneNode.subtreeBounds':
+        'the scene graph\'s cache, read per node '
+        'per frame by culling',
+  },
+  'flutter3d_core/lib/src/engine/scene/camera_node.dart': <String, String>{
+    'CameraNode.viewMatrix':
+        'the node\'s inverse world matrix, read per '
+        'view per frame',
+  },
+  'flutter3d_core/lib/src/engine/scene/mesh_node.dart': <String, String>{
+    'MeshNode.localBounds':
+        'the mesh\'s cache, read per node per frame '
+        'by culling',
+    'MeshNode.worldBounds':
+        'the mesh\'s cache, read per node per frame '
+        'by culling',
+    'MeshNode.ownBounds':
+        'the mesh\'s cache, read per node per frame by '
+        'culling',
+    'MeshNode.worldBoundsCenter':
+        'the mesh\'s cache, read per node per '
+        'frame by sorting',
+    'MeshNode.worldNormalMatrix': 'the mesh\'s cache, read per draw',
+  },
+  'flutter3d_core/lib/src/engine/scene/instanced_mesh_node.dart':
+      <String, String>{
+        'InstancedMeshNode.localBounds':
+            'the batch\'s cache, read per '
+            'node per frame by culling',
+      },
+  'flutter3d_core/lib/src/engine/scene/line_strip_node.dart': <String, String>{
+    'LineStripNode.localBounds':
+        'the strip\'s cache, read per node '
+        'per frame by culling',
+  },
+  'flutter3d_core/lib/src/engine/scene/posed_mesh.dart': <String, String>{
+    'PosedMesh.bounds':
+        'the pose\'s cache, read per node per frame by '
+        'culling',
+  },
+  'flutter3d_core/lib/src/engine/scene/morph_state.dart': <String, String>{
+    'MorphState.growth':
+        'the morph\'s cache, read per node per frame by '
+        'culling',
+  },
+  'flutter3d_core/lib/src/engine/scene/occlusion/occlusion_buffer.dart':
+      <String, String>{
+        'OcclusionBuffer.viewProjection':
+            'the matrix the buffer was '
+            'begun with, read per occluder per frame',
+      },
+};
+
+/// Members that keep a vector they were passed, by library, with the reason.
+const Map<String, Map<String, String>> keptVectorParameterAllowed =
+    <String, Map<String, String>>{
+      'flutter3d_game_kit/lib/src/reactions/reaction.dart': <String, String>{
+        'Felt.kick(by)':
+            'a `const` constructor, which cannot copy: making '
+            'it copy drops `const`, a signature change',
+      },
+    };
+
 /// Libraries that are where a substance's numbers are written, whole, each
 /// with its reason: `a world's gravity, air and sea are read from the
 /// world` reads none of them.

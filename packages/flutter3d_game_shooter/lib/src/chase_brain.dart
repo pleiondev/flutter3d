@@ -90,8 +90,8 @@ base class ChaseBrain extends Brain {
   /// Where it is aiming, for the shot and for [Bestiary] to read back.
   void _readTarget(Mind it) {
     final other = quarrel;
-    final at = other?.position;
-    final mine = it.actor.position;
+    final at = other?.body?.position;
+    final mine = it.actor.body?.position;
     if (other == null || at == null || mine == null || !other.isAlive) {
       // A quarrel with something dead, or with something that has no body any
       // more, is over: back to the player.
@@ -108,7 +108,7 @@ base class ChaseBrain extends Brain {
 
   /// Whether it can see what it is dealing with.
   bool _canSeeTarget(Mind it) {
-    final at = quarrel?.position;
+    final at = quarrel?.body?.position;
     return at == null ? it.canSee() : it.canSeePoint(at);
   }
 
@@ -183,7 +183,7 @@ base class ChaseBrain extends Brain {
         it.turnTowards(_toTarget.x, _toTarget.z);
 
       case MonsterState.chase:
-        final other = quarrel?.position;
+        final other = quarrel?.body?.position;
         if (other == null) {
           it.steerTowardsFocus();
         } else {

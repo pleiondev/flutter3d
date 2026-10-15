@@ -332,8 +332,8 @@ final class RacingSimulation {
           _between.scale(1.0 / distance);
         }
 
-        a.position.addScaled(_between, -overlap / 2.0);
-        b.position.addScaled(_between, overlap / 2.0);
+        a.collider.position.addScaled(_between, -overlap / 2.0);
+        b.collider.position.addScaled(_between, overlap / 2.0);
 
         // And the part of their speeds that was closing the gap, swapped and
         // damped. Without this they separate and immediately drive back into

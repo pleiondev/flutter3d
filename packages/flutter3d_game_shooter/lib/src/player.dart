@@ -51,8 +51,8 @@ final class Player with KeyHolder, Collector, Damageable, Rider {
   }) : inventory = inventory ?? Inventory() {
     _standing = body.collider.shape;
     _crouching = CollisionCapsule(
-      radius: body.halfExtents.x,
-      halfHeight: math.max(0.01, crouchHeight - body.halfExtents.x),
+      radius: body.shape.boundsHalfExtents.x,
+      halfHeight: math.max(0.01, crouchHeight - body.shape.boundsHalfExtents.x),
     );
     // The one line that makes this worth having: from here on, "who is this
     // collider" has one answer for every collider in the world.
@@ -252,7 +252,7 @@ final class Player with KeyHolder, Collector, Damageable, Rider {
     // than leaving the eye floating where the head used to be. The offset is
     // authored against the standing body, which is what `eyeOffset` means.
     out.y += _crouched
-        ? eyeOffset * (body.halfExtents.y / _standingHalfHeight)
+        ? eyeOffset * (body.shape.boundsHalfExtents.y / _standingHalfHeight)
         : eyeOffset;
   }
 

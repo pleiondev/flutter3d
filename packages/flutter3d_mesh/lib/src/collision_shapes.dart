@@ -625,7 +625,7 @@ final class ConvexPiece {
 
   /// The hull's volume, in cubic metres (m³).
   double get volume => hull.volume;
-  Vector3 get centroid => hull.centroid;
+  Vector3 get centroid => hull.centroid.clone();
 }
 
 /// Approximate convex decomposition of [mesh]: a related algorithm to

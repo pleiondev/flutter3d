@@ -63,7 +63,7 @@ final class Pusher {
 
       contactBetween(
         body.collider.shape,
-        body.position,
+        body.collider.position,
         by.shape,
         by.position,
         _contact,

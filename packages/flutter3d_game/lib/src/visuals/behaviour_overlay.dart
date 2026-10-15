@@ -47,7 +47,7 @@ final class BehaviorOverlay {
       final path = BehaviorBrain.pathOf(actor);
       if (path.isEmpty) continue;
       final at = body.position;
-      final top = at.y + body.halfExtents.y + 0.2;
+      final top = at.y + body.shape.boundsHalfExtents.y + 0.2;
       for (final (i, step) in path.indexed) {
         final y = top + i * _pitch;
         lines.addLine(

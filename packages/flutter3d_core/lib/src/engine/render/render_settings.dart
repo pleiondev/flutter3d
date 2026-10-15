@@ -1666,13 +1666,22 @@ final class RenderSettings {
   /// rejected there is no water line and nothing to fade.
   final double lightFadeBand;
 
-  /// Linear multiplier applied before tone mapping.
+  /// The linear factor the frame's light is multiplied by before tone
+  /// mapping. **A factor, not an EV100:** `exposure: 12` is twelve times the
+  /// light, not an overcast EV 12, and draws white.
   ///
-  /// The default is a demo choice, not a physical constant: with light intensity
-  /// at a unitless 1.0 the scene's brightest values land around linear 0.6, so
-  /// the tone mapper's shoulder would otherwise go unused and the image would
-  /// read as under-exposed. [autoExposure] derives it from the frame instead,
-  /// and while that is on this is only where the meter starts from.
+  /// The photographic exposure is [PhysicalCamera]'s: its `ev100` is in
+  /// stops and its `exposure` is the factor it makes, so a frame exposed
+  /// for a camera is `copyWith(exposure: someCamera.exposure)`, and
+  /// `PhysicalCamera.ev100ForExposure` names the EV100 a factor stands for.
+  /// The default, [defaultExposure], is the reference camera's factor (f/4,
+  /// 1/60 s, ISO 100, about EV 9.9), the one the engine's photometric scale
+  /// is fixed against (docs/CONTRACTS.md, "Light"). While [physicalCamera]
+  /// is on the composite multiplies this by [camera]'s `exposureScale` as
+  /// well ([cameraExposure]), which is one for the default camera; a camera
+  /// given both ways counts twice. [autoExposure] derives the exposure from
+  /// the frame instead, and while that is on this is only where the meter
+  /// starts from.
   final double exposure;
 
   /// What [exposure] is when nothing says otherwise — named, because the

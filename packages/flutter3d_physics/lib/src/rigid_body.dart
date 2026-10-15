@@ -95,7 +95,13 @@ final class RigidBody {
   /// it is actually in.
   late final Collider collider;
 
-  Vector3 get position => collider.position;
+  /// Where the body's centre is, as a copy the caller owns.
+  ///
+  /// Writing into it moves nothing: the position lives on [collider], whose
+  /// `position` field is the live one, and a body is moved through
+  /// `collider.moveTo` (or written there directly by whoever owns the step),
+  /// so the broadphase hears about it.
+  Vector3 get position => collider.position.clone();
 
   final Vector3 velocity = Vector3.zero();
 
@@ -134,12 +140,10 @@ final class RigidBody {
   /// turn, `q* v q`, and is the wrong way to carry a point out of this body.
   ///
   /// For a body that does not [rotates], whatever it was built or set with,
-  /// and nothing a step does changes it. **Assign
-  /// rather than edit in place:** the setter normalises and refreshes
-  /// [inverseInertiaWorld], and a quaternion changed through this getter
-  /// leaves that tensor describing the old turn until [refreshInertia] is
-  /// called.
-  Quaternion get orientation => _orientation;
+  /// and nothing a step does changes it. **A copy the caller owns; assign
+  /// to turn the body:** the setter normalises and refreshes
+  /// [inverseInertiaWorld], which an edit in place could not.
+  Quaternion get orientation => _orientation.clone();
   set orientation(Quaternion value) {
     _setUnit(value);
     refreshInertia();
@@ -279,9 +283,10 @@ final class RigidBody {
     wake();
     velocity.addScaled(impulse, inverseMass);
     if (!rotates) return;
-    final rx = worldPoint.x - position.x;
-    final ry = worldPoint.y - position.y;
-    final rz = worldPoint.z - position.z;
+    final at = collider.position;
+    final rx = worldPoint.x - at.x;
+    final ry = worldPoint.y - at.y;
+    final rz = worldPoint.z - at.z;
     _spin(
       ry * impulse.z - rz * impulse.y,
       rz * impulse.x - rx * impulse.z,

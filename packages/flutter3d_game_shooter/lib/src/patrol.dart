@@ -91,7 +91,7 @@ final class PatrolBrain extends ChaseBrain {
     super.act(it);
     if (state != patrolling) return;
 
-    final here = it.actor.position;
+    final here = it.actor.body?.position;
     if (here == null) return;
 
     _target.setFrom(route[leg % route.length]);

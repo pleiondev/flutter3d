@@ -284,7 +284,7 @@ final class _PlatformerRun extends RestorableRun {
   @override
   WorldPosition get eye {
     final body = staged.runner.body;
-    return position.translated(0.0, body.halfExtents.y, 0.0);
+    return position.translated(0.0, body.shape.boundsHalfExtents.y, 0.0);
   }
 
   /// Level, along the way the runner faces.

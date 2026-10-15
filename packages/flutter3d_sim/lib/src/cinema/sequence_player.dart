@@ -112,7 +112,7 @@ final class SequencePlayer with ActorDirector {
   @override
   bool directs(Actor actor) {
     final name = actor.name;
-    if (name == null || isFinished || actor.position == null) return false;
+    if (name == null || isFinished || actor.body == null) return false;
     final cue = sequence.cueFor(name, _step);
     return cue != null && cue.kind != ActorCueKind.release;
   }
@@ -120,7 +120,7 @@ final class SequencePlayer with ActorDirector {
   @override
   void steer(Mind it) {
     final cue = sequence.cueFor(it.actor.name!, _step)!;
-    final here = it.actor.position;
+    final here = it.actor.body?.position;
     final at = cue.at;
     final kind = cue.kind;
     if (kind == ActorCueKind.goTo) {

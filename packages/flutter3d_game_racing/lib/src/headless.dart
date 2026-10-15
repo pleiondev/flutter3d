@@ -127,7 +127,7 @@ final class _RacingRun extends RestorableRun {
   void step(double dt) {
     // The stick, or the four keys that stand for it: forward is the
     // throttle, back the brake, across the steering.
-    final move = input.moveAxis;
+    final move = input.dualAxis(DualAxisAction.move);
     sim.inputs[0]
       ..throttle = move.y > 0.0 ? move.y : 0.0
       ..brake = move.y < 0.0 ? -move.y : 0.0

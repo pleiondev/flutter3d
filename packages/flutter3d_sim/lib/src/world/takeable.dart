@@ -72,7 +72,7 @@ abstract base class Takeable extends Mechanism with CollisionListener {
   String? message;
 
   @override
-  Vector3 get origin => collider.position;
+  Vector3 get origin => collider.position.clone();
 
   /// Offers this to [taker], and answers whether they took it.
   ///

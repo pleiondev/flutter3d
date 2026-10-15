@@ -49,7 +49,7 @@ final class ParticleGlow {
   /// instead of being nailed to the emitter.
   ///
   /// Meaningless until [isLocated] is true — see there.
-  Vector3 get center => _center;
+  Vector3 get center => _center.clone();
   final Vector3 _center = Vector3.zero();
 
   /// Whether [center] has ever been measured from real particles.

@@ -197,6 +197,10 @@ List<Rule> get allRules => <Rule>[
     run: _lightIntensitiesInLux,
   ),
   (
+    name: 'a getter hands out a copy of a vector, and a parameter is not kept',
+    run: _vectorsHaveOneOwner,
+  ),
+  (
     name: 'particles fall in the world their application sets',
     run: _particlesInTheirWorld,
   ),
@@ -4676,6 +4680,79 @@ List<Finding> _worldNumbersFromTheWorld() {
             'excuses $literal, which is no longer there; take it off the list',
           ),
         );
+      }
+    }
+  }
+  return found;
+}
+
+// ------------------------------------------------------- a vector's owner
+
+/// A vector has one owner: a getter answers a copy, and a parameter is read
+/// and not kept (docs/CONTRACTS.md, "Space").
+///
+/// **Before 1.0 both answers lived in one class.** `PhotoCamera.eye` handed
+/// out the camera's own vector and `PhotoCamera.target` a new one, and a
+/// platformer's `SpringFired(spring.origin)` carried the spring's live
+/// position in an event that was meant to say where it fired. Whatever a
+/// getter does on the day of the tag is what somebody depends on, so the
+/// rule is held over every package's `lib/` rather than the ones that were
+/// audited.
+List<Finding> _vectorsHaveOneOwner() {
+  final found = <Finding>[];
+  final used = <String, Set<String>>{};
+  void check(
+    String where,
+    List<({String subject, int line})> hits,
+    Map<String, Map<String, String>> allowed,
+    String what,
+  ) {
+    final excused = allowed[where] ?? const <String, String>{};
+    for (final hit in hits) {
+      if (excused.containsKey(hit.subject)) {
+        (used[where] ??= <String>{}).add(hit.subject);
+        continue;
+      }
+      found.add(Finding('$where:${hit.line}', '${hit.subject} $what'));
+    }
+  }
+
+  for (final entry in packages.entries) {
+    for (final file in dartFilesIn(Directory('${entry.value.path}/lib'))) {
+      final where = '${entry.key}/${relative(file, entry.value)}';
+      final source = file.readAsStringSync();
+      check(
+        where,
+        liveVectorGettersIn(source),
+        liveVectorGetterAllowed,
+        'hands out a vector the object holds: answer a copy (`.clone()`), '
+        'make it a public `final` field if it is meant to be live, or '
+        'name it in `liveVectorGetterAllowed` with the reason',
+      );
+      check(
+        where,
+        keptVectorParametersIn(source),
+        keptVectorParameterAllowed,
+        'keeps the vector it was passed: copy it into a field the object '
+        'owns (`setFrom`) or keep a `clone()`',
+      );
+    }
+  }
+  for (final allowed in <Map<String, Map<String, String>>>[
+    liveVectorGetterAllowed,
+    keptVectorParameterAllowed,
+  ]) {
+    for (final entry in allowed.entries) {
+      for (final subject in entry.value.keys) {
+        if (!(used[entry.key]?.contains(subject) ?? false)) {
+          found.add(
+            Finding(
+              entry.key,
+              'excuses $subject, which is no longer there; take it off the '
+              'list',
+            ),
+          );
+        }
       }
     }
   }

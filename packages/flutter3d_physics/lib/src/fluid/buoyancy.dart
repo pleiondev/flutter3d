@@ -126,7 +126,9 @@ final class FloatingBody {
   /// The volume of it under the surface of [liquid] as it is now.
   double submergedIn(LiquidBody liquid) {
     final turnBack = liquid.rotation.clone()..transpose();
-    final center = turnBack.transformed(body.position - liquid.position);
+    final center = turnBack.transformed(
+      body.collider.position - liquid.position,
+    );
     if (!liquid.shape.contains(center) &&
         !_overlaps(liquid.shape, center, body.collider.shape)) {
       return 0.0;
