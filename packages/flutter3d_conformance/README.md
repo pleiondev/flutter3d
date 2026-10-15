@@ -43,26 +43,26 @@ a rollback and a replay take.
 
 The 7 plugin checks:
 
-- **manifest**: the id is well formed, the API version installs, every
+- **plugin.manifest**: the id is well formed, the API version installs, every
   permission is one the engine knows, a budget reads, the manifest survives
   being written out and read back, and the plugin installs. A view plugin
   that adds a step system is refused here.
-- **switch**: switched off at a step boundary, the loop is exactly what it is
+- **plugin.switch**: switched off at a step boundary, the loop is exactly what it is
   without the plugin, and switched back on, exactly what it was with it. Both
   switches are journalled at their steps.
-- **names**: every phase, system and event the plugin adds to the loop is in
+- **plugin.names**: every phase, system and event the plugin adds to the loop is in
   its namespace, `<namespace>.<name>`.
-- **determinism**: every step is run twice from one state, and the first
+- **plugin.determinism**: every step is run twice from one state, and the first
   system whose two answers differ is named with its plugin. Two fresh runs
   must also publish the same events and leave the same world.
-- **backends**: the plugin installs and steps on every backend its manifest
+- **plugin.backends**: the plugin installs and steps on every backend its manifest
   names, and is switched off with a reason on one it does not.
-- **budget**: no step publishes more events than `budget.eventsPerStep`, and
+- **plugin.budget**: no step publishes more events than `budget.eventsPerStep`, and
   the median cost of a step with the plugin, less without it, stays within
   `budget.stepMicroseconds`. Timing is measured on the machine running the
   suite, so it takes the median of seven batches and allows the declared
   budget and nothing more.
-- **materials**: every physical material the plugin adds to the engine's
+- **plugin.materials**: every physical material the plugin adds to the engine's
   `MaterialCatalog` is under its own id (`<namespace>.<name>`), names a
   `source` for each property group, gives a liquid's or a gas's density and
   viscosity, and keeps every number in SI within what anything real has, so a

@@ -19,13 +19,13 @@ typedef PluginCheck = ({
 /// them the way it counts those — apart from them, since a plugin check
 /// never sees a device.
 final List<PluginCheck> pluginChecks = <PluginCheck>[
-  (name: 'manifest', run: _manifest),
-  (name: 'switch', run: _switch),
-  (name: 'names', run: _names),
-  (name: 'determinism', run: _determinism),
-  (name: 'backends', run: _backends),
-  (name: 'budget', run: _budget),
-  (name: 'materials', run: _materials),
+  (name: 'plugin.manifest', run: _manifest),
+  (name: 'plugin.switch', run: _switch),
+  (name: 'plugin.names', run: _names),
+  (name: 'plugin.determinism', run: _determinism),
+  (name: 'plugin.backends', run: _backends),
+  (name: 'plugin.budget', run: _budget),
+  (name: 'plugin.materials', run: _materials),
 ];
 
 /// The backends a plugin that names none is installed on: no backend at all
@@ -174,7 +174,7 @@ List<PluginCheckOutcome> _manifest(PluginSession session) {
   } on Object catch (error) {
     return <PluginCheckOutcome>[
       PluginCheckOutcome(
-        check: 'manifest',
+        check: 'plugin.manifest',
         passed: false,
         says: 'the plugin could not be made: $error',
       ),
@@ -238,7 +238,7 @@ List<PluginCheckOutcome> _manifest(PluginSession session) {
 
   return <PluginCheckOutcome>[
     PluginCheckOutcome(
-      check: 'manifest',
+      check: 'plugin.manifest',
       passed: problems.isEmpty,
       says: problems.isEmpty
           ? '${manifest.id} (plugin API ${manifest.apiVersion}, touches '
@@ -272,7 +272,7 @@ Object? _sorted(Object? value) => switch (value) {
 /// and are not held to one.
 List<PluginCheckOutcome> _names(PluginSession session) {
   PluginCheckOutcome outcome(bool passed, String says) =>
-      PluginCheckOutcome(check: 'names', passed: passed, says: says);
+      PluginCheckOutcome(check: 'plugin.names', passed: passed, says: says);
   try {
     final manifest = session.manifest;
     final before = _named(session.build(withPlugin: false));
@@ -320,7 +320,7 @@ Set<(String, String)> _named(EngineLoop loop) => <(String, String)>{
 
 List<PluginCheckOutcome> _switch(PluginSession session) {
   List<PluginCheckOutcome> fail(String says) => <PluginCheckOutcome>[
-    PluginCheckOutcome(check: 'switch', passed: false, says: says),
+    PluginCheckOutcome(check: 'plugin.switch', passed: false, says: says),
   ];
   try {
     final id = session.manifest.id;
@@ -375,7 +375,7 @@ List<PluginCheckOutcome> _switch(PluginSession session) {
     }
     return <PluginCheckOutcome>[
       PluginCheckOutcome(
-        check: 'switch',
+        check: 'plugin.switch',
         passed: true,
         says:
             'off at step $offAt and on at step $onAt, each at a step '
@@ -398,7 +398,7 @@ List<PluginCheckOutcome> _determinism(PluginSession session) {
     required String says,
     bool declined = false,
   }) => PluginCheckOutcome(
-    check: 'determinism',
+    check: 'plugin.determinism',
     passed: passed,
     says: says,
     declined: declined,
@@ -513,7 +513,7 @@ List<PluginCheckOutcome> _backends(PluginSession session) {
         );
         out.add(
           PluginCheckOutcome(
-            check: 'backends',
+            check: 'plugin.backends',
             backend: backend,
             passed: false,
             says: 'on $named it was installed switched off: ${status.reason}',
@@ -524,7 +524,7 @@ List<PluginCheckOutcome> _backends(PluginSession session) {
       loop.runSteps(_backendSteps);
       out.add(
         PluginCheckOutcome(
-          check: 'backends',
+          check: 'plugin.backends',
           backend: backend,
           passed: true,
           says: 'on $named it installs on and steps $_backendSteps steps',
@@ -533,7 +533,7 @@ List<PluginCheckOutcome> _backends(PluginSession session) {
     } on Object catch (error) {
       out.add(
         PluginCheckOutcome(
-          check: 'backends',
+          check: 'plugin.backends',
           backend: backend,
           passed: false,
           says: 'on $named: ${_describe(error)}',
@@ -554,7 +554,7 @@ List<PluginCheckOutcome> _backends(PluginSession session) {
       final off = !status.enabled && status.reason != null;
       out.add(
         PluginCheckOutcome(
-          check: 'backends',
+          check: 'plugin.backends',
           backend: other,
           passed: off,
           says: off
@@ -567,7 +567,7 @@ List<PluginCheckOutcome> _backends(PluginSession session) {
     } on Object catch (error) {
       out.add(
         PluginCheckOutcome(
-          check: 'backends',
+          check: 'plugin.backends',
           backend: other,
           passed: false,
           says:
@@ -592,7 +592,7 @@ List<PluginCheckOutcome> _budget(PluginSession session) {
     bool passed = true,
     bool declined = false,
   }) => PluginCheckOutcome(
-    check: 'budget',
+    check: 'plugin.budget',
     passed: passed,
     declined: declined,
     says: says,
@@ -697,7 +697,7 @@ List<PluginCheckOutcome> _budget(PluginSession session) {
 /// A plugin that declares none passes: it has nothing to be held to.
 List<PluginCheckOutcome> _materials(PluginSession session) {
   PluginCheckOutcome outcome({required bool passed, required String says}) =>
-      PluginCheckOutcome(check: 'materials', passed: passed, says: says);
+      PluginCheckOutcome(check: 'plugin.materials', passed: passed, says: says);
   try {
     final id = session.manifest.id;
     final without = session.build(withPlugin: false).materials;

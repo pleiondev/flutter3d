@@ -38,18 +38,18 @@ written into every run so a replay makes it at the same step.
 
 ## What each check means
 
-- **manifest** — the id is well formed, the API version is one this engine
+- **plugin.manifest** — the id is well formed, the API version is one this engine
   provides, the permissions are ones it knows.
-- **switch** — switched off and on again at a step boundary, the plugin
+- **plugin.switch** — switched off and on again at a step boundary, the plugin
   takes out everything it registered and puts it back.
-- **determinism** — each step is run twice from a snapshot of the world the
+- **plugin.determinism** — each step is run twice from a snapshot of the world the
   conformance test gave, and the two runs must agree after every system. A
   failure names the system and the plugin. With no world given it is
   declined, not passed: give `capture`, `restore` and `digest` in the
   harness, covering the plugin's own state.
-- **backends** — the plugin installs on every backend its manifest names,
+- **plugin.backends** — the plugin installs on every backend its manifest names,
   and is switched off with a reason on one it does not.
-- **budget** — the manifest's `extra: {'budget': {...}}` is declared and
+- **plugin.budget** — the manifest's `extra: {'budget': {...}}` is declared and
   kept: step time and events per step.
 
 ## The badge

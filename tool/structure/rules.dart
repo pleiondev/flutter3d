@@ -6748,9 +6748,9 @@ const String _renderSuiteChecks =
 const String _pluginReport =
     'packages/flutter3d_build/lib/src/plugin_author_server.dart';
 
-/// Every check the plugin and render suites name is a word of
-/// `ToolName.pattern`, or such words joined by dots, and every render check
-/// is `render.<word>`: no space, no capital first letter. Every name a
+/// Every check the plugin and render suites name matches `ToolName.pattern`
+/// whole and carries its suite's area, `plugin.<word>` or `render.<word>`:
+/// no space, no capital first letter, no bare word. Every name a
 /// check reports an outcome under is one of its suite's listed names.
 ///
 /// **A check's name is data, not a sentence.** It is the `check` field of
@@ -6764,8 +6764,9 @@ const String _pluginReport =
 /// `toolNamePatternSource`, so the two cannot drift.
 ///
 /// Mutation: name a render check `render.lit model` again in
-/// `pluginRenderCheckNames`, or report an outcome under a name the list
-/// does not have, and this names it.
+/// `pluginRenderCheckNames`, name a plugin check `manifest` again in
+/// `pluginCheckNames`, or report an outcome under a name the list does not
+/// have, and this names it.
 List<Finding> _checkNamesFollowToolNames() {
   final root = repositoryRoot.path;
   String? read(String path) {
@@ -6791,8 +6792,8 @@ List<Finding> _checkNamesFollowToolNames() {
     );
   }
   for (final (list, source, reporter, area)
-      in <(String, String, String, String?)>[
-        ('pluginCheckNames', _pluginSuite, _pluginSuiteChecks, null),
+      in <(String, String, String, String)>[
+        ('pluginCheckNames', _pluginSuite, _pluginSuiteChecks, 'plugin'),
         (
           'pluginRenderCheckNames',
           _renderSuiteChecks,
@@ -6811,9 +6812,9 @@ List<Finding> _checkNamesFollowToolNames() {
         Finding(
           '$source → $list',
           'names the check `$bad`, which is not '
-              '${area == null ? 'a word or dotted words' : '`$area.<word>`'} '
-              'of `ToolName.pattern`: a check name is data in a report and a '
-              'badge, so it has no space (`render.litModel`)',
+              '`$area.<word>` of `ToolName.pattern`: a check name is data in a report and a '
+              'badge, so it has no space and names its area (`plugin.manifest`, '
+              '`render.litModel`)',
         ),
       );
     }

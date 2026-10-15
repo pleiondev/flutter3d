@@ -218,7 +218,7 @@ refused when `PhysicalMaterial.problems()` finds a number no real substance has
 (a density in g/cm³, a temperature in °C) or an id another plugin took. A level
 or a world that names a material nobody installed is refused with an
 `UnknownMaterialException` that names the plugin it needs. The conformance
-suite's `materials` check holds a plugin's entries to the same rules.
+suite's `plugin.materials` check holds a plugin's entries to the same rules.
 
 Two things are not registries, because they do not run inside an engine. A
 build step (`BuildStep` in `flutter3d_build`) runs in the build hook, so a

@@ -225,7 +225,7 @@ void main() {
     }
     expect(outcomes.map((o) => o.check).toSet(), pluginCheckNames.toSet());
     expect(
-      outcomes.where((o) => o.check == 'backends').map((o) => o.backend),
+      outcomes.where((o) => o.check == 'plugin.backends').map((o) => o.backend),
       <String?>[null, 'cpu', 'webgl', 'webgpu', 'impeller'],
       reason: 'a plugin that names no backend is held to all of them',
     );
@@ -242,7 +242,7 @@ void main() {
       () => _Clocked(world),
       harness: world.harness(),
     );
-    final determinism = _only(outcomes, 'determinism');
+    final determinism = _only(outcomes, 'plugin.determinism');
     expect(determinism.passed, isFalse);
     expect(determinism.says, contains('clocked.read'));
     expect(determinism.says, contains('"clocked"'));
@@ -255,10 +255,10 @@ void main() {
     // The manifest reads and writes back cleanly, so only installing it
     // shows the lie.
     final outcomes = checkPluginConformance(_ViewWithStep.new);
-    final manifest = _only(outcomes, 'manifest');
+    final manifest = _only(outcomes, 'plugin.manifest');
     expect(manifest.passed, isFalse);
     expect(manifest.says, contains('touches only the view'));
-    expect(_only(outcomes, 'switch').passed, isFalse);
+    expect(_only(outcomes, 'plugin.switch').passed, isFalse);
   });
 
   test('a plugin that registers around its host fails the switch', () {
@@ -271,7 +271,7 @@ void main() {
       () => _Leaky(root),
       harness: world.harness(setUp: (loop) => root.loop = loop),
     );
-    final switched = _only(outcomes, 'switch');
+    final switched = _only(outcomes, 'plugin.switch');
     expect(switched.passed, isFalse);
     expect(switched.says, contains('left behind'));
     expect(switched.says, contains('leaked'));
@@ -286,7 +286,9 @@ void main() {
       () => _Good(world, backends: const <String>{'cpu'}),
       harness: world.harness(),
     );
-    final backends = outcomes.where((o) => o.check == 'backends').toList();
+    final backends = outcomes
+        .where((o) => o.check == 'plugin.backends')
+        .toList();
     expect(backends.map((o) => o.backend), <String?>['cpu', 'webgl']);
     expect(backends.first.passed, isTrue, reason: '${backends.first}');
     expect(backends.last.passed, isTrue, reason: '${backends.last}');
@@ -301,7 +303,7 @@ void main() {
       () => _Good(world, budget: null),
       harness: world.harness(),
     );
-    final budget = _only(outcomes, 'budget');
+    final budget = _only(outcomes, 'plugin.budget');
     expect(budget.declined, isTrue);
     expect(budget.says, contains('declares no budget'));
     expect(earnsBadge(outcomes), isFalse);
@@ -320,7 +322,7 @@ void main() {
       ),
       harness: world.harness(),
     );
-    final budget = _only(outcomes, 'budget');
+    final budget = _only(outcomes, 'plugin.budget');
     expect(budget.passed, isFalse);
     expect(budget.says, contains('published 3 events'));
   });
@@ -336,9 +338,12 @@ void main() {
       ),
       harness: world.harness(),
     );
-    expect(_only(outcomes, 'manifest').passed, isFalse);
-    expect(_only(outcomes, 'manifest').says, contains('stepMicroseconds'));
-    expect(_only(outcomes, 'budget').passed, isFalse);
+    expect(_only(outcomes, 'plugin.manifest').passed, isFalse);
+    expect(
+      _only(outcomes, 'plugin.manifest').says,
+      contains('stepMicroseconds'),
+    );
+    expect(_only(outcomes, 'plugin.budget').passed, isFalse);
   });
 
   test('without a world, determinism compares events and is declined', () {
@@ -348,7 +353,7 @@ void main() {
       () => _Good(_World()),
       harness: const PluginHarness(steps: 20),
     );
-    final determinism = _only(outcomes, 'determinism');
+    final determinism = _only(outcomes, 'plugin.determinism');
     expect(determinism.declined, isTrue);
     expect(determinism.says, contains('world was not compared'));
     expect(earnsBadge(outcomes), isFalse);
@@ -388,7 +393,7 @@ void main() {
     // here, and a plugin adding to the catalogue behind its host's back
     // would too.
     final outcomes = checkPluginConformance(() => _Substances(_jam()));
-    final materials = _only(outcomes, 'materials');
+    final materials = _only(outcomes, 'plugin.materials');
     expect(materials.passed, isTrue, reason: materials.says);
     expect(materials.says, contains('1 physical material'));
   });
@@ -399,7 +404,7 @@ void main() {
     final outcomes = checkPluginConformance(
       () => _Substances(_jam(source: ' ')),
     );
-    final materials = _only(outcomes, 'materials');
+    final materials = _only(outcomes, 'plugin.materials');
     expect(materials.passed, isFalse);
     expect(materials.says, contains('names no source'));
     expect(earnsBadge(outcomes), isFalse);
@@ -422,9 +427,9 @@ void main() {
         ),
       ),
     );
-    expect(_only(outcomes, 'materials').passed, isFalse);
-    expect(_only(outcomes, 'materials').says, contains('not plausible'));
-    expect(_only(outcomes, 'manifest').passed, isFalse);
+    expect(_only(outcomes, 'plugin.materials').passed, isFalse);
+    expect(_only(outcomes, 'plugin.materials').says, contains('not plausible'));
+    expect(_only(outcomes, 'plugin.manifest').passed, isFalse);
   });
 
   test('a system named outside the plugin\'s namespace fails names', () {
@@ -435,7 +440,7 @@ void main() {
       () => _Unspaced(world),
       harness: world.harness(),
     );
-    final names = _only(outcomes, 'names');
+    final names = _only(outcomes, 'plugin.names');
     expect(names.passed, isFalse);
     expect(names.says, contains('the system "count"'));
     expect(names.says, contains('"unspaced.<name>"'));

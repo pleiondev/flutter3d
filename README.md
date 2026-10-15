@@ -187,7 +187,7 @@ too.
 
 ## Coming from 0.8
 
-From 0.8 to this release the API changed in 2339 places, 319 of them left
+From 0.8 to this release the API changed in 2340 places, 319 of them left
 to you; 380 are backend internals no application called. One command does the rest:
 
 ```bash

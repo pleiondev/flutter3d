@@ -1260,8 +1260,9 @@ every engine whose minimum is still 1.
 `EngineLoop(determinismCheck: DeterminismCheck(...))` runs each step twice
 in a debug build and names the plugin whose system made them differ.
 `package:flutter3d_conformance/plugins.dart` runs the plugin suite
-(`checkPluginConformance`, `pluginCheckNames`: `manifest`, `switch`,
-`names`, `determinism`, `backends`, `budget`, `materials`), and
+(`checkPluginConformance`, `pluginCheckNames`: `plugin.manifest`,
+`plugin.switch`, `plugin.names`, `plugin.determinism`, `plugin.backends`,
+`plugin.budget`, `plugin.materials`), and
 `earnsBadge` says whether a plugin may show the conformance badge: every
 check passed on every declared backend, with a world given to the
 determinism check and a budget declared.

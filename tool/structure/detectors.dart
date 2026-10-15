@@ -2084,14 +2084,6 @@ List<String> kernelWordProblems({
 const String toolNamePatternSource =
     r'^[a-z][A-Za-z0-9_]*(\.[a-z][A-Za-z0-9_]*)+$';
 
-/// A conformance check's name: [toolNamePatternSource]'s words, the dotted
-/// area optional. The plugin suite's checks are one word (`manifest`), the
-/// render checks carry their area (`render.litModel`); neither has a space,
-/// because a check's name is data in a report and a badge.
-final RegExp _checkName = RegExp(
-  r'^[a-z][A-Za-z0-9_]*(\.[a-z][A-Za-z0-9_]*)*$',
-);
-
 /// The string items of `const List<String> [name] = <String>[ … ];` in
 /// [source], in order, or null when [source] declares no such list.
 List<String>? constStringListIn(String source, String name) {
@@ -2115,16 +2107,15 @@ Set<String> reportedCheckNamesIn(String source) => <String>{
     m.group(1) ?? m.group(2)!,
 };
 
-/// The names of [names] that are not check names; with [area] set, also
-/// those not in that area (`render.…`), which must match
-/// [toolNamePatternSource] itself.
+/// The names of [names] that are not check names: each must match
+/// [toolNamePatternSource] whole, dotted words with no space (`plugin.manifest`,
+/// `render.litModel`), because a check's name is data in a report and a badge;
+/// with [area] set, also those not in that area (`render.…`).
 List<String> badCheckNames(Iterable<String> names, {String? area}) {
   final tool = RegExp(toolNamePatternSource);
   return <String>[
     for (final name in names)
-      if (!_checkName.hasMatch(name) ||
-          (area != null &&
-              (!name.startsWith('$area.') || !tool.hasMatch(name))))
+      if (!tool.hasMatch(name) || (area != null && !name.startsWith('$area.')))
         name,
   ];
 }
@@ -5381,15 +5372,28 @@ final c = switch (s) { 'x' || 'r' => 0, _ => 1 };
     badCheckNames(<String>['Manifest']).isNotEmpty,
     'Manifest (upper case)',
   );
+  fires(
+    'a check name',
+    badCheckNames(<String>['manifest']).isNotEmpty,
+    'manifest (one word, no area)',
+  );
+  fires(
+    'a check name',
+    badCheckNames(<String>['render.manifest'], area: 'plugin').isNotEmpty,
+    'a plugin check outside plugin.',
+  );
   quiet(
     'a check name',
-    badCheckNames(<String>['manifest', 'determinism']).isEmpty &&
+    badCheckNames(<String>[
+          'plugin.manifest',
+          'plugin.determinism',
+        ], area: 'plugin').isEmpty &&
         badCheckNames(<String>[
           'render.litModelDefaults',
           'render.lightType',
         ], area: 'render').isEmpty,
-    'manifest, render.litModelDefaults',
-    'one word, and a camel-cased word after its area, are both names',
+    'plugin.manifest, render.litModelDefaults',
+    'a word, camel-cased or not, after its area is a name',
   );
   fires(
     'a const string list',

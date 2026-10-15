@@ -67,13 +67,13 @@ String _stream(Map<String, String> results) {
 }
 
 const Map<String, String> _allPass = <String, String>{
-  'manifest': 'success',
-  'switch': 'success',
-  'names': 'success',
-  'determinism': 'success',
-  'backends on cpu': 'success',
-  'budget': 'success',
-  'materials': 'success',
+  'plugin.manifest': 'success',
+  'plugin.switch': 'success',
+  'plugin.names': 'success',
+  'plugin.determinism': 'success',
+  'plugin.backends on cpu': 'success',
+  'plugin.budget': 'success',
+  'plugin.materials': 'success',
 };
 
 Directory _temp() {
@@ -126,13 +126,13 @@ Map<String, Object?> _report(Map<String, String> results, {String? badge}) =>
     };
 
 const Map<String, String> _allPassed = <String, String>{
-  'manifest': 'passed',
-  'switch': 'passed',
-  'names': 'passed',
-  'determinism': 'passed',
-  'backends': 'passed',
-  'budget': 'passed',
-  'materials': 'passed',
+  'plugin.manifest': 'passed',
+  'plugin.switch': 'passed',
+  'plugin.names': 'passed',
+  'plugin.determinism': 'passed',
+  'plugin.backends': 'passed',
+  'plugin.budget': 'passed',
+  'plugin.materials': 'passed',
 };
 
 void main() {
@@ -202,7 +202,7 @@ void main() {
       PluginWorkshop().create(dir.path, 'duel', PluginKind.genre);
       final ran = <String>[];
       final workshop = _workshop(
-        _stream(<String, String>{..._allPass, 'determinism': 'failure'}),
+        _stream(<String, String>{..._allPass, 'plugin.determinism': 'failure'}),
         exitCode: 1,
         ran: ran,
       );
@@ -257,7 +257,7 @@ void main() {
       expect(ran.says, contains('earns the badge conformant@1.0'));
       final report = workshop.report(dir.path).says;
       expect(report, contains('plugin: package:duel/duel.dart#DuelPlugin'));
-      expect(report, contains('backends: passed'));
+      expect(report, contains('plugin.backends: passed'));
       expect(report, contains('badge: conformant@1.0'));
     });
 
@@ -269,12 +269,14 @@ void main() {
       PluginWorkshop().create(dir.path, 'duel', PluginKind.genre);
       final workshop = _workshop(
         _stream(_allPass),
-        report: _report(Map<String, String>.of(_allPassed)..remove('names')),
+        report: _report(
+          Map<String, String>.of(_allPassed)..remove('plugin.names'),
+        ),
       );
       await workshop.conformance(dir.path);
       final report = workshop.report(dir.path).says;
       expect(report, contains('badge: not earned'));
-      expect(report, isNot(contains('names:')));
+      expect(report, isNot(contains('plugin.names:')));
     });
 
     test('a declined or failed check is said as the report says it', () async {
@@ -284,14 +286,14 @@ void main() {
         _stream(_allPass),
         report: _report(<String, String>{
           ..._allPassed,
-          'determinism': 'declined',
-          'budget': 'failed',
+          'plugin.determinism': 'declined',
+          'plugin.budget': 'failed',
         }),
       );
       await workshop.conformance(dir.path);
       final report = workshop.report(dir.path).says;
-      expect(report, contains('determinism: declined'));
-      expect(report, contains('budget: failed — gave two answers'));
+      expect(report, contains('plugin.determinism: declined'));
+      expect(report, contains('plugin.budget: failed — gave two answers'));
       expect(report, contains('badge: not earned'));
     });
 

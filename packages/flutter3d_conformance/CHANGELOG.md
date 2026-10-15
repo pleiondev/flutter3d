@@ -8,6 +8,14 @@
   catalogue read it rather than judging again. A suite that calls it twice
   writes one file with every outcome; a run filtered with `--name` earns
   nothing; in a browser nothing is written.
+- **Breaking: the plugin checks carry their area.** `pluginCheckNames`
+  says `plugin.manifest`, `plugin.switch`, `plugin.names`,
+  `plugin.determinism`, `plugin.backends`, `plugin.budget` and
+  `plugin.materials` where it said the bare words, and a backend's test is
+  `plugin.backends on cpu`. A check name is data in a report and a badge,
+  and the render checks already said `render.<word>`; a bare word was the
+  one name a reader could not place. The structure rule now holds every
+  check name to `ToolName.pattern` whole, with no one-word exception.
 
 ## 1.0.0-rc.1
 

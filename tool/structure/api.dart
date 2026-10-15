@@ -1162,6 +1162,14 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
         'name is data in a report and a badge and has no space in it.',
   ),
   BuildAllowance(
+    package: 'flutter3d_conformance',
+    members: <String>['pluginCheckNames'],
+    reason:
+        'The plugin checks carry their area (1.0.0-rc.1+1): '
+        '`plugin.manifest` where it was `manifest`, because every check name '
+        'is a tool-shaped name with its area, as the render checks are.',
+  ),
+  BuildAllowance(
     package: 'flutter3d_build',
     members: <String>[
       'pluginConformanceChecks',

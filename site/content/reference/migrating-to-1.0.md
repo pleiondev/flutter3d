@@ -5,7 +5,7 @@ description: Move a project written against flutter3d 0.8 to 1.0.0-rc.1, with on
 # Migrating from 0.8 to 1.0
 
 1.0 is the release the engine promises to keep: from it on, a break comes
-only in a major version. To get there, and on to this release, the API changed in 2339 places,
+only in a major version. To get there, and on to this release, the API changed in 2340 places,
 314 of them left to you; 380 are backend internals no application called.
 The rest a program carries out for you, and three
 tools share the work. All three read the same tables,
@@ -225,7 +225,7 @@ carried out:
 
 <!-- migration-table:start -->
 
-*Generated from `flutter3d_build/lib/migrations/` — 244 entries from 1.0.0-rc.1 to 1.0.0-rc.1+1, 11 by hand: 23 `dart fix`, 150 `migrate`, 11 by hand, 60 nothing to do.*
+*Generated from `flutter3d_build/lib/migrations/` — 245 entries from 1.0.0-rc.1 to 1.0.0-rc.1+1, 11 by hand: 23 `dart fix`, 150 `migrate`, 11 by hand, 61 nothing to do.*
 
 ### `flame_flutter3d`
 
@@ -271,6 +271,10 @@ carried out:
 - <a id="build-pluginConformanceChecks"></a>**`pluginConformanceChecks`** (by hand). Gone: the plugin server keeps no list of the suite's checks. The checks a run made are the `outcomes` of the report the suite writes, `ConformanceReportFile.readIn(directory, package)`, and the list of the suite itself is `pluginCheckNames` in `package:flutter3d_conformance/plugins.dart`.
 - <a id="build-selectPlugins-record"></a>**`selectPlugins`** (`migrate`). `selectPlugins` is a class: `.kept` is `.kept`, `.excluded` is `.excluded`, `.warnings` is `.warnings`; a destructuring pattern is yours to rewrite. `selectPlugins` answers a `PluginSelection` with `kept`, `excluded` and `warnings`, where it answered a record of the same three names; only a destructuring pattern names the class.
 - <a id="build-splitLargeMeshes-record"></a>**`splitLargeMeshes`** (`migrate`). `splitLargeMeshes` is a class: `.$1` is `.document`, `.$2` is `.meshesSplit`; a destructuring pattern is yours to rewrite. `splitLargeMeshes` answers a `MeshSplit` with `document` and `meshesSplit`, where it answered `(document, count)`; `final (doc, n) =` becomes `final MeshSplit(document: doc, meshesSplit: n) =`.
+
+### `flutter3d_conformance`
+
+- <a id="conformance-pluginCheckNames"></a>**`pluginCheckNames`** (nothing to do). The plugin checks carry their area like every other check name: `manifest` is `plugin.manifest`, and so on for `switch`, `names`, `determinism`, `backends`, `budget` and `materials`; a backend's test is `plugin.backends on cpu`. Code that names a check by its string, or reads a report's `check` field, uses the new names.
 
 ### `flutter3d_conformance_render`
 

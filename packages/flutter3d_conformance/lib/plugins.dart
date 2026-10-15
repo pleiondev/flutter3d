@@ -23,29 +23,29 @@
 ///
 /// ## The 7 plugin checks
 ///
-/// * **manifest** — the id is well formed, the plugin API version installs on
+/// * **plugin.manifest** — the id is well formed, the plugin API version installs on
 ///   this engine, every permission is one the engine knows, a budget reads,
 ///   the manifest is the same written out and read back, and the plugin
 ///   installs: a view plugin that adds a step system is refused here, with
 ///   the loop's own sentence.
-/// * **switch** — switched off at a step boundary, the loop's phases, systems,
+/// * **plugin.switch** — switched off at a step boundary, the loop's phases, systems,
 ///   declared events, fields and subsystems are exactly those of a loop
 ///   without it; switched
 ///   back on, exactly those with it; both journalled at the step they were
 ///   made.
-/// * **names** — every phase, system, event, field and subsystem it adds to
+/// * **plugin.names** — every phase, system, event, field and subsystem it adds to
 ///   the loop is in its namespace, `<namespace>.<name>`; the engine's own packages are not held
 ///   to one.
-/// * **determinism** — every step run twice from one state by the loop's
+/// * **plugin.determinism** — every step run twice from one state by the loop's
 ///   `DeterminismCheck`, which names the system that diverged; and two fresh
 ///   runs publish the same events and leave the same world, step by step.
-/// * **backends** — installed and stepped on every backend the manifest
+/// * **plugin.backends** — installed and stepped on every backend the manifest
 ///   names (on none and all four when it names none), and switched off with
 ///   a reason on one it does not.
-/// * **budget** — no step publishes more events than the manifest's budget
+/// * **plugin.budget** — no step publishes more events than the manifest's budget
 ///   allows, and the median cost of a step with the plugin, less without it,
 ///   is within its `stepMicroseconds`.
-/// * **materials** — every physical material it adds to the engine's
+/// * **plugin.materials** — every physical material it adds to the engine's
 ///   `MaterialCatalog` is under its own id, names a source for each group,
 ///   says a liquid's or a gas's density and viscosity and keeps every number
 ///   in SI within what anything real has (`PhysicalMaterial.problems`);
@@ -85,13 +85,13 @@ export 'src/plugins/harness.dart'
 
 /// The checks' names, in the order they are reported.
 const List<String> pluginCheckNames = <String>[
-  'manifest',
-  'switch',
-  'names',
-  'determinism',
-  'backends',
-  'budget',
-  'materials',
+  'plugin.manifest',
+  'plugin.switch',
+  'plugin.names',
+  'plugin.determinism',
+  'plugin.backends',
+  'plugin.budget',
+  'plugin.materials',
 ];
 
 /// Runs every plugin check against the plugin [create] makes, and returns
@@ -196,7 +196,7 @@ Map<String, Object?> conformanceReport(
 final List<PluginCheckOutcome> _reported = <PluginCheckOutcome>[];
 
 /// Registers the plugin checks as tests: one per check, and one per backend
-/// for the backends check, named "backends on webgl".
+/// for the backends check, named "plugin.backends on webgl".
 ///
 /// A declined check is reported as skipped with its reason, as
 /// `runDeviceConformance` reports a backend that declines: never as a pass.
@@ -242,7 +242,7 @@ void runPluginConformance(
       if (!outcome.passed) fail(outcome.says);
     }
 
-    if (check.name != 'backends') {
+    if (check.name != 'plugin.backends') {
       test(check.name, () => report(outcomes().firstOrNull));
       continue;
     }
@@ -254,7 +254,7 @@ void runPluginConformance(
       if (declared.isNotEmpty) 'undeclared',
     ];
     for (var i = 0; i < backends.length; i++) {
-      test('backends on ${backends[i] ?? 'no backend'}', () {
+      test('plugin.backends on ${backends[i] ?? 'no backend'}', () {
         final all = outcomes();
         report(i < all.length ? all[i] : null);
       });
