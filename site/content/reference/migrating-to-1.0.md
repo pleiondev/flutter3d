@@ -5,8 +5,8 @@ description: Move a project written against flutter3d 0.8 to 1.0.0-rc.1, with on
 # Migrating from 0.8 to 1.0
 
 1.0 is the release the engine promises to keep: from it on, a break comes
-only in a major version. To get there, and on to this release, the API changed in 2358 places,
-314 of them left to you; 380 are backend internals no application called.
+only in a major version. To get there, and on to this release, the API changed in 2362 places,
+316 of them left to you; 380 are backend internals no application called.
 The rest a program carries out for you, and three
 tools share the work. All three read the same tables,
 `flutter3d_build/lib/migrations/`, so they agree about what
@@ -225,7 +225,7 @@ carried out:
 
 <!-- migration-table:start -->
 
-*Generated from `flutter3d_build/lib/migrations/` — 263 entries from 1.0.0-rc.1 to 1.0.0-rc.1+1, 13 by hand: 23 `dart fix`, 158 `migrate`, 13 by hand, 69 nothing to do.*
+*Generated from `flutter3d_build/lib/migrations/` — 267 entries from 1.0.0-rc.1 to 1.0.0-rc.1+1, 15 by hand: 23 `dart fix`, 160 `migrate`, 15 by hand, 69 nothing to do.*
 
 ### `flame_flutter3d`
 
@@ -295,7 +295,7 @@ carried out:
 - <a id="core-ColorVision-confusions-record"></a>**`ColorVision.confusions`** (`migrate`). `ColorVision` is a class: `.a` is `.a`, `.b` is `.b`, `.by` is `.by`, `.distance` is `.distance`; a destructuring pattern is yours to rewrite. `confusions` takes a `Map<String, RgbTriple>` and answers a list of `ColorConfusion` with `a`, `b`, `by` and `distance`; field reads are unchanged, the palette's values are written `RgbTriple(r:, g:, b:)`. `ColorVision.difference` takes two `RgbTriple`s too.
 - <a id="core-ComputeContext-executor"></a>**`ComputeContext.executor`** (`dart fix`). `ComputeContext.executor` is `ComputeContext.site`. The context carries a `ComputeSite`, whose `device` is the executor's; `device` and `isOnFrameDevice` read as before.
 - <a id="core-ComputeContext-placement"></a>**`ComputeContext.placement`** (by hand). A step is no longer told which placement it runs at, only the device it encodes on (`device`) and whether that is the frame's (`isOnFrameDevice`). Branch on those.
-- <a id="core-ComputeStep-demand"></a>**`ComputeStep.demand`** (by hand). Delete the override: a step no longer asks where it runs, the hardware layer decides. A test that wanted the step on a particular device configures the devices or the registry it builds (`DeviceRegistry.adopt`, `CpuDevice(standInForGpu:)`).
+- <a id="core-ComputeStep-demand"></a>**`ComputeStep.demand`** (by hand). Delete the override: a step no longer asks where it runs, the hardware layer decides. A test that wanted the step on a particular device configures the devices or the registry it builds (`DeviceRegistry.adopt`, `cpuComputeDeviceStandingInForGpu()` from `package:flutter3d_cpu/testing.dart`).
 - <a id="core-ComputeStep-executor"></a>**`ComputeStep.executor`** (`dart fix`). `ComputeStep.executor` is `ComputeStep.site`. The step learns a `ComputeSite`: its `device` is the executor's, and no placement comes with it.
 - <a id="core-ComputeStep-prepare"></a>**`ComputeStep.prepare`** (`migrate`). `ComputeStep.prepare` becomes `x.prepare({0}.device)`. A step is placed for frames drawn on a device, from the compute the registry that opened it has; it is no longer handed executors.
 - <a id="core-CubeLut-domainMax-record"></a>**`CubeLut.domainMax`** (`migrate`). `CubeLut` is a class: `.$1` is `.r`, `.$2` is `.g`, `.$3` is `.b`; a destructuring pattern is yours to rewrite. `domainMax` is an `RgbTriple` with `r`, `g` and `b`, where it was a triple read with `$1`, `$2`, `$3`.
@@ -340,6 +340,7 @@ carried out:
 - <a id="core-SolidColorTexture"></a>**`SolidColorTexture`** (nothing to do). It takes or answers the final class that replaced a record (its own entry names the fields): a record literal passed to it is written as that class, with the same field names.
 - <a id="core-SolidColorTexture-texel-record"></a>**`SolidColorTexture.texel`** (`migrate`). `SolidColorTexture` is a class: `.r` is `.r`, `.g` is `.g`, `.b` is `.b`, `.a` is `.a`; a destructuring pattern is yours to rewrite. `texel` is a `TexelValue` with `r`, `g`, `b` and `a`, where it was a record; field reads are unchanged, and the `SolidColorTexture.texel` constructor is as it was.
 - <a id="core-SplatContributor"></a>**`SplatContributor`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
+- <a id="core-SplatGpuSort-new"></a>**`SplatGpuSort.SplatGpuSort`** (`migrate`). `SplatGpuSort.SplatGpuSort(…)` becomes `SplatGpuSort.place(…)!`. The sort is placed by the hardware layer on the drawing device, and `SplatGpuSort.place` answers null where that device cannot run it; check for null where the device may be one without compute or without the `SplatSort` stages, instead of the `!`.
 - <a id="core-SplatGpuSort-release"></a>**`SplatGpuSort.release`** (`dart fix`). `SplatGpuSort.release` is `SplatGpuSort.dispose`. The sorter gives its buffers back with `dispose`, the one teardown verb; the next `sort` makes new ones, as before.
 - <a id="core-TemporalClip-axes-record"></a>**`TemporalClip.axes`** (`migrate`). `TemporalClip` is a class: `.$1` is `.x`, `.$2` is `.y`, `.$3` is `.z`; a destructuring pattern is yours to rewrite. `axes` is a list of `ClipAxis` with `x`, `y` and `z`, where it was a list of triples; destructure with `ClipAxis(:x, :y, :z)`.
 - <a id="core-decodeUniversalBlock-record"></a>**`decodeUniversalBlock`** (`migrate`). `decodeUniversalBlock` is a class: `.$1` is `.r`, `.$2` is `.g`, `.$3` is `.b`, `.$4` is `.a`; a destructuring pattern is yours to rewrite. `decodeUniversalBlock` answers sixteen `Rgba8Texel`s with `r`, `g`, `b` and `a`, where it answered four-int tuples; `encodeUniversalBlock`, `encodeEtc2Rgb8Block` and `encodeAstc4x4Block` take the same list.
@@ -357,9 +358,12 @@ carried out:
 ### `flutter3d_cpu`
 
 - <a id="cpu-CpuComputeShader-workgroupSize-record"></a>**`CpuComputeShader.workgroupSize`** (`migrate`). `CpuComputeShader` is a class: `.$1` is `.x`, `.$2` is `.y`, `.$3` is `.z`; a destructuring pattern is yours to rewrite. `workgroupSize` is a `WorkgroupSize` (the shader package's own type, re-exported from `flutter3d_cpu`), where it was a triple; a stage writes `WorkgroupSize get workgroupSize => const WorkgroupSize(64, 1, 1);`.
+- <a id="cpu-CpuDevice-new-standInForGpu"></a>**`CpuDevice.CpuDevice`** (by hand). `standInForGpu:` is gone from the constructor. A test that made a device stand in for a GPU calls `cpuComputeDeviceStandingInForGpu()` from `package:flutter3d_cpu/testing.dart`; one that passed false drops the argument.
+- <a id="cpu-CpuDevice-standInForGpu"></a>**`CpuDevice.standInForGpu`** (`migrate`). `CpuDevice.standInForGpu` becomes `!x.isSoftware`. Standing in for a GPU is a test's knob in `testing.dart`; the device says it as `isSoftware`, false while it stands in.
 - <a id="cpu-bloomSource-record"></a>**`bloomSource`** (`migrate`). `bloomSource` is a class: `.source` is `.source`, `.tx` is `.tx`, `.ty` is `.ty`, `.params` is `.params`; a destructuring pattern is yours to rewrite. `bloomSource` answers a `BloomSource` with the same four fields, where it answered a record; field reads keep compiling.
 - <a id="cpu-clusterAt-record"></a>**`clusterAt`** (`migrate`). `clusterAt` is a class: `.offset` is `.offset`, `.count` is `.count`; a destructuring pattern is yours to rewrite. `clusterAt` answers a `ClusterSpan` with `offset` and `count`, where it answered a record; field reads keep compiling.
 - <a id="cpu-contributorLight-record"></a>**`contributorLight`** (`migrate`). `contributorLight` is a class: `.toLight` is `.toLight`, `.radiance` is `.radiance`; a destructuring pattern is yours to rewrite. `contributorLight` answers a `ContributorLightSample` with `toLight` and `radiance`, where it answered a record; field reads keep compiling.
+- <a id="cpu-cpuComputeDevice-standInForGpu"></a>**`cpuComputeDevice`** (by hand). `cpuComputeDevice(standInForGpu: true)` is `cpuComputeDeviceStandingInForGpu()` from `package:flutter3d_cpu/testing.dart`; with false, drop the argument.
 - <a id="cpu-cpuTestDevice-record"></a>**`cpuTestDevice`** (`migrate`). `cpuTestDevice` is a class: `.device` is `.device`, `.albedo` is `.albedo`, `.normal` is `.normal`; a destructuring pattern is yours to rewrite. `cpuTestDevice` answers a `CpuTestKit` with `device`, `albedo` and `normal`, where it answered a record; `it.device` and the rest keep compiling.
 - <a id="cpu-mapUv-record"></a>**`mapUv`** (`migrate`). `mapUv` is a class: `.u` is `.u`, `.v` is `.v`, `.footprint` is `.footprint`; a destructuring pattern is yours to rewrite. `mapUv` answers a `MappedUv` with `u`, `v` and `footprint`, where it answered a record; `final (u: a, v: b, footprint: f) = mapUv(...)` becomes `final MappedUv(u: a, v: b, footprint: f) = mapUv(...)`.
 - <a id="cpu-pixelRay-record"></a>**`pixelRay`** (`migrate`). `pixelRay` is a class: `.origin` is `.origin`, `.along` is `.along`; a destructuring pattern is yours to rewrite. `pixelRay` answers a `PixelRay` with `origin` and `along`, where it answered a record; `final (:origin, :along) = pixelRay(...)` becomes `final PixelRay(:origin, :along) = pixelRay(...)`.

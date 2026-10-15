@@ -83,6 +83,13 @@ const int manualCeiling = 308;
 /// `manual` entries past [manualCeiling], each with why no kind carries it
 /// out. Entry id to reason. Empty: the ceiling holds the whole count.
 const Map<String, String> manualAllowlist = <String, String>{
+  'cpu-CpuDevice-new-standInForGpu':
+      'a device made to stand in for a GPU is made by another function, '
+      '`cpuComputeDeviceStandingInForGpu` in `testing.dart`, and which one '
+      'a call means is its argument\'s value, which no rewrite can read',
+  'cpu-cpuComputeDevice-standInForGpu':
+      'the same choice as `cpu-CpuDevice-new-standInForGpu`, made by the '
+      'value of `standInForGpu:`, which no rewrite can read',
   'build-pluginConformanceChecks':
       'nothing replaces it by design: the build keeps no copy of the '
       'suite\'s checks, which a test library the build may not depend on '

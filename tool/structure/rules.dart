@@ -47,6 +47,23 @@ List<Rule> get allRules => <Rule>[
     run: _placementBehindHardware,
   ),
   (
+    name: 'a compute pass is opened by the layer, a backend or a placed site',
+    run: _computePassesBehindHardware,
+  ),
+  (
+    name: 'what compute keeps belongs to the engine instance, not a static',
+    run: _noStaticComputeCaches,
+  ),
+  (
+    name: 'every compute encoder checks its ranges and its dispatches',
+    run: _computeEncodersCheck,
+  ),
+  (name: 'a test knob stays in testing.dart', run: _testKnobsInTesting),
+  (
+    name: 'the kernel guide names every tolerance, and the sample computes',
+    run: _kernelGuideAndSample,
+  ),
+  (
     name: 'an engine wire message carries the reserved key',
     run: _wireMessagesUnderTheKey,
   ),
@@ -4508,6 +4525,324 @@ List<Finding> _placementBehindHardware() {
         ),
       );
     }
+  }
+  return found;
+}
+
+/// The `lib/` files outside [computePlacers] that open a compute pass on a
+/// device directly, each with why. Everything else opens one through the
+/// site the hardware layer placed it on (`ComputeSite.beginPass`).
+const Map<String, String> opensComputePasses = <String, String>{
+  'flutter3d_conformance/lib/src/kernel_checks.dart':
+      'the contract suite holds a device\'s own encoder to the contract, '
+      'below any placement: it is handed the device to check',
+  'flutter3d_conformance/lib/src/compute_checks.dart':
+      'the contract suite, as kernel_checks.dart',
+  'flutter3d_conformance/lib/src/capability_checks.dart':
+      'the contract suite, as kernel_checks.dart: the indirect-dispatch '
+      'refusal is the device\'s',
+  'flutter3d_conformance/lib/src/kernel_tolerance_checks.dart':
+      'the contract suite, as kernel_checks.dart: the device against the '
+      'Dart translation',
+};
+
+/// The `lib/` homes the compute rules read: every package outside
+/// [computePlacers] (its `lib/` and its example's), every application and
+/// every example, as `home/lib` to its directory.
+Map<String, Directory> _computeHomes() => <String, Directory>{
+  for (final MapEntry(key: name, value: dir) in packages.entries)
+    if (!computePlacers.contains(name)) ...<String, Directory>{
+      '$name/lib': Directory('${dir.path}/lib'),
+      '$name/example/lib': Directory('${dir.path}/example/lib'),
+    },
+  for (final MapEntry(key: name, value: dir) in apps.entries)
+    '$name/lib': Directory('${dir.path}/lib'),
+  for (final dir in <Directory>[
+    if (Directory('${repositoryRoot.path}/examples').existsSync())
+      ...Directory(
+        '${repositoryRoot.path}/examples',
+      ).listSync().whereType<Directory>(),
+  ])
+    '${dir.path.split(Platform.pathSeparator).last}/lib': Directory(
+      '${dir.path}/lib',
+    ),
+};
+
+/// **A compute pass is opened by the hardware layer, a backend, or the
+/// site a piece of compute was placed on.** Outside [computePlacers],
+/// `lib/` code never calls `beginComputePass` on a device: a step records
+/// on `ComputeContext.beginPass`, the splat sort and a material's kernel on
+/// `ComputeSite.beginPass`, each a site `FrameCompute` placed — so nothing
+/// above the layer runs compute on a device the rule did not choose.
+/// [opensComputePasses] lists the contract suite, which holds a device's
+/// own encoder, each with why.
+///
+/// Mutation: give `SplatGpuSort.sort` back its
+/// `device.beginComputePass(label: 'splat sort')`, and this names the file
+/// and the line.
+List<Finding> _computePassesBehindHardware() {
+  final found = <Finding>[];
+  final listed = <String>{};
+  for (final MapEntry(key: home, value: dir) in _computeHomes().entries) {
+    if (!dir.existsSync()) continue;
+    for (final file in dartFilesIn(dir)) {
+      final path =
+          '${home.substring(0, home.length - 4)}/lib/${relative(file, dir)}';
+      final lines = computePassesOpenedIn(file.readAsStringSync());
+      if (lines.isEmpty) continue;
+      if (opensComputePasses.containsKey(path)) {
+        listed.add(path);
+        continue;
+      }
+      found.add(
+        Finding(
+          '$path:${lines.first}',
+          'opens a compute pass on a device, and only the hardware layer, '
+              'the backends and a placed site do: record on '
+              '`ComputeContext.beginPass` or `ComputeSite.beginPass`, or name '
+              'the file in `opensComputePasses` with the reason',
+        ),
+      );
+    }
+  }
+  for (final path in opensComputePasses.keys) {
+    if (!listed.contains(path)) {
+      found.add(
+        Finding(
+          path,
+          'is listed in `opensComputePasses` and opens no compute pass any '
+          'more: take it off the list',
+        ),
+      );
+    }
+  }
+  return found;
+}
+
+/// The files whose caches [_noStaticComputeCaches] reads, beyond every
+/// `compute*.dart` of a package: the engine's compute that is not named so.
+const List<String> computeCacheFiles = <String>[
+  'flutter3d_core/lib/src/engine/render/splat_sort_gpu.dart',
+  'flutter3d_core/lib/src/engine/render/field_upload.dart',
+  'flutter3d_core/lib/src/formats/material_language/material_kernel.dart',
+  'flutter3d_wgpu/lib/src/wgpu_device.dart',
+];
+
+/// The static or top-level state compute keeps anyway, by `file name`,
+/// each with why it is no cache shared between engine instances.
+const Map<String, String> computeStaticsAllowed = <String, String>{
+  'flutter3d_hardware/lib/src/compute_placement.dart _of':
+      'the one place a device\'s compute hangs from it: weakly keyed by the '
+      'device, one entry an engine instance, cleared by FrameCompute.dispose',
+};
+
+/// **What compute keeps belongs to the engine instance and goes with it.**
+/// In every `compute*.dart` under a package's `lib/` and the files
+/// [computeCacheFiles] names, no `static final` (or top-level `final`)
+/// `Expando`, `Map` or `Set`: kernels, pipelines and executors are kept by
+/// `FrameCompute` (`FrameCompute.cached`), which disposes them with the
+/// device, so a second engine in the process, or one opened after the
+/// first was torn down, never finds the first one's pipelines.
+/// [computeStaticsAllowed] lists the exception, with why.
+///
+/// Mutation: give `WorkloadStep` back its
+/// `static final Expando<Future<ComputePipelineHandle>> _pipelines`, and
+/// this names the file and the field.
+List<Finding> _noStaticComputeCaches() {
+  final found = <Finding>[];
+  final listed = <String>{};
+  final files = <String, File>{
+    for (final MapEntry(key: name, value: dir) in packages.entries)
+      if (Directory('${dir.path}/lib').existsSync())
+        for (final file in dartFilesIn(Directory('${dir.path}/lib')))
+          if (file.uri.pathSegments.last.startsWith('compute'))
+            '$name/lib/${relative(file, Directory('${dir.path}/lib'))}': file,
+    for (final path in computeCacheFiles)
+      path: File('${repositoryRoot.path}/packages/$path'),
+  };
+  for (final MapEntry(key: path, value: file) in files.entries) {
+    if (!file.existsSync()) {
+      found.add(
+        Finding(path, 'is in `computeCacheFiles` and is not there any more'),
+      );
+      continue;
+    }
+    for (final name in staticComputeCachesIn(file.readAsStringSync())) {
+      final key = '$path $name';
+      if (computeStaticsAllowed.containsKey(key)) {
+        listed.add(key);
+        continue;
+      }
+      found.add(
+        Finding(
+          path,
+          'keeps `$name` in static state, and what compute keeps belongs to '
+          'the engine instance: keep it with `FrameCompute.cached`, or name '
+          '"$key" in `computeStaticsAllowed` with the reason',
+        ),
+      );
+    }
+  }
+  for (final key in computeStaticsAllowed.keys) {
+    if (!listed.contains(key)) {
+      found.add(
+        Finding(
+          key,
+          'is listed in `computeStaticsAllowed` and is not there any more: '
+          'take it off the list',
+        ),
+      );
+    }
+  }
+  return found;
+}
+
+/// The compute encoders that check nothing themselves, each with why: an
+/// encoder that hands every call to another one, which checks it.
+const Map<String, String> delegatingComputeEncoders = <String, String>{
+  'flutter3d_hardware/lib/src/trace/recording_device.dart _RecordingComputeEncoder':
+      'records each call and hands it to the device\'s own encoder, which '
+      'makes the checks',
+};
+
+/// **Every compute encoder checks its ranges and its dispatches.** Each
+/// `extends ComputeEncoder` under a package's `lib/` calls
+/// `checkStorageBinding` and `checkDispatch`
+/// (`package:flutter3d_hardware/backend.dart`), so a storage range at an
+/// offset the device cannot bind, or a dispatch past
+/// `maxComputeWorkgroupsPerDimension`, is a `RangeError` at the call on
+/// every backend — on the CPU as WebGPU would refuse it later in the
+/// browser. [delegatingComputeEncoders] lists the ones that hand every call
+/// on, with why.
+///
+/// Mutation: take `checkDispatch` out of the sidecar's encoder, and this
+/// names `_WgpuComputeEncoder`.
+List<Finding> _computeEncodersCheck() {
+  final found = <Finding>[];
+  final listed = <String>{};
+  for (final MapEntry(key: name, value: dir) in packages.entries) {
+    final lib = Directory('${dir.path}/lib');
+    if (!lib.existsSync()) continue;
+    for (final file in dartFilesIn(lib)) {
+      final path = '$name/lib/${relative(file, lib)}';
+      for (final encoder in uncheckedComputeEncodersIn(
+        file.readAsStringSync(),
+      )) {
+        final key = '$path $encoder';
+        if (delegatingComputeEncoders.containsKey(key)) {
+          listed.add(key);
+          continue;
+        }
+        found.add(
+          Finding(
+            path,
+            '`$encoder` is a compute encoder that does not call both '
+            '`checkStorageBinding` and `checkDispatch`: call them before it '
+            'records a binding or a dispatch, or name "$key" in '
+            '`delegatingComputeEncoders` with the reason',
+          ),
+        );
+      }
+    }
+  }
+  for (final key in delegatingComputeEncoders.keys) {
+    if (!listed.contains(key)) {
+      found.add(
+        Finding(
+          key,
+          'is listed in `delegatingComputeEncoders` and checks for itself, or '
+          'is gone: take it off the list',
+        ),
+      );
+    }
+  }
+  return found;
+}
+
+/// **A test knob stays in `testing.dart`.** No package's API snapshot
+/// (`api/*.api`) shows a `standIn…` name in a library other than a
+/// `testing.dart`: a knob a test turns (the CPU device standing in for a
+/// GPU) does not freeze into the API a game is written against.
+///
+/// Mutation: give `CpuDevice` back its `standInForGpu` parameter and update
+/// the snapshot, and this names it.
+List<Finding> _testKnobsInTesting() => <Finding>[
+  for (final MapEntry(key: name, value: dir) in packages.entries)
+    if (Directory('${dir.path}/api').existsSync())
+      for (final file in Directory(
+        '${dir.path}/api',
+      ).listSync().whereType<File>().where((f) => f.path.endsWith('.api')))
+        for (final knob in testKnobsOutsideTestingIn(file.readAsStringSync()))
+          Finding(
+            '$name/api/${file.uri.pathSegments.last}',
+            'shows $knob: a test\'s knob belongs in testing.dart, where '
+                'nothing a game is written against reaches it',
+          ),
+];
+
+/// **The kernel guide names every tolerance, and the sample plugin
+/// computes.** `docs/kernels.md` names, in backticks, every operation the
+/// hardware layer's `kernelTolerances` declares a tolerance for, so a new
+/// inexact operation cannot arrive undocumented; and
+/// `examples/outside_plugin` has a `ComputeStep`, so the plugin written
+/// outside the engine shows how compute is written.
+///
+/// Mutation: add `'exp'` to `kernelTolerances`, or drop `HeatGlow` from the
+/// sample, and this says which.
+List<Finding> _kernelGuideAndSample() {
+  final found = <Finding>[];
+  final guide = File('${repositoryRoot.path}/docs/kernels.md');
+  final tolerances = File(
+    '${repositoryRoot.path}/packages/flutter3d_hardware/lib/src/'
+    'compute_requirement.dart',
+  );
+  if (!guide.existsSync()) {
+    found.add(const Finding('docs/kernels.md', 'the kernel guide is missing'));
+  } else if (!tolerances.existsSync()) {
+    found.add(
+      const Finding(
+        'flutter3d_hardware/lib/src/compute_requirement.dart',
+        'is where `kernelTolerances` is read from, and is not there',
+      ),
+    );
+  } else {
+    final keys = toleranceKeysIn(tolerances.readAsStringSync());
+    if (keys.isEmpty) {
+      found.add(
+        const Finding(
+          'flutter3d_hardware/lib/src/compute_requirement.dart',
+          'declares no `kernelTolerances` this rule can read',
+        ),
+      );
+    }
+    for (final op in undocumentedTolerancesIn(guide.readAsStringSync(), keys)) {
+      found.add(
+        Finding(
+          'docs/kernels.md',
+          'does not name `$op`, which `kernelTolerances` gives a tolerance: '
+              'say what it is and over which inputs',
+        ),
+      );
+    }
+  }
+  final sample = Directory(
+    '${repositoryRoot.path}/examples/outside_plugin/lib',
+  );
+  final computes =
+      sample.existsSync() &&
+      dartFilesIn(sample).any(
+        (File f) => RegExp(
+          r'extends\s+ComputeStep\b',
+        ).hasMatch(codeOf(f.readAsStringSync())),
+      );
+  if (!computes) {
+    found.add(
+      const Finding(
+        'examples/outside_plugin/lib',
+        'has no ComputeStep: the plugin written outside the engine shows '
+            'how compute is written',
+      ),
+    );
   }
   return found;
 }

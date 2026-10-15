@@ -2531,6 +2531,114 @@ List<({int line, String argument})> snapshotsDroppingRequiresIn(String source) {
   return found;
 }
 
+// ---------------------------------------------------------------- compute
+
+/// The lines of [source] that open a compute pass on a device
+/// (`….beginComputePass(`) in code: what only the hardware layer, the
+/// backends and a placed site (`ComputeSite.beginPass`) may do. A comment
+/// or a string naming it is no call.
+List<int> computePassesOpenedIn(String source) {
+  final code = _stringsEmptied(codeOf(source));
+  return <int>[
+    for (final m in RegExp(r'\.beginComputePass\s*\(').allMatches(code))
+      _lineAt(code, m.start),
+  ];
+}
+
+/// [code] with the inside of every string literal emptied, so a name in a
+/// message is not taken for a call.
+String _stringsEmptied(String code) => code
+    .replaceAll(RegExp("'''.*?'''|\"\"\".*?\"\"\"", dotAll: true), "''")
+    .replaceAll(
+      RegExp(
+        r"'(?:\\.|[^'\\\n])*'|"
+        '"(?:\\\\.|[^"\\\\\\n])*"',
+      ),
+      "''",
+    );
+
+/// The names of the caches [source] keeps in static or top-level state —
+/// a `static final` (or top-level `final`) `Expando`, `Map` or `Set` —
+/// which compute must not: what compute keeps belongs to the engine
+/// instance and goes with it.
+List<String> staticComputeCachesIn(String source) {
+  final code = _stringsEmptied(codeOf(source));
+  final shape = RegExp(
+    r'^([ \t]*)(static\s+)?final\s+(?:Expando|Map|Set|HashMap|LinkedHashMap)'
+    r'\s*<[^;=]*?>\s+(\w+)\s*=',
+    multiLine: true,
+  );
+  return <String>[
+    for (final m in shape.allMatches(code))
+      if (m.group(2) != null || m.group(1)!.isEmpty) m.group(3)!,
+  ];
+}
+
+/// The `extends ComputeEncoder` classes in [source] that do not call both
+/// encoder checks every encoder owes (`checkStorageBinding` and
+/// `checkDispatch`, `package:flutter3d_hardware/backend.dart`), by name.
+List<String> uncheckedComputeEncodersIn(String source) {
+  final code = codeOf(source);
+  final found = <String>[];
+  for (final m in RegExp(
+    r'class\s+(\w+)\s+extends\s+ComputeEncoder\b',
+  ).allMatches(code)) {
+    final open = code.indexOf('{', m.end);
+    if (open < 0) continue;
+    final body = code.substring(open, _matching(code, open) + 1);
+    if (!body.contains('checkStorageBinding(') ||
+        !body.contains('checkDispatch(')) {
+      found.add(m.group(1)!);
+    }
+  }
+  return found;
+}
+
+/// The test knobs (`standIn…` names) [api], an `api/*.api` snapshot, shows
+/// in a library other than a `testing.dart`: a knob a test turns does not
+/// freeze into the API a game is written against.
+List<String> testKnobsOutsideTestingIn(String api) {
+  final found = <String>[];
+  var library = '';
+  for (final line in api.split('\n')) {
+    if (line.startsWith('library ')) {
+      library = line.substring('library '.length).trim();
+      continue;
+    }
+    if (library.endsWith('/testing.dart')) continue;
+    for (final m in RegExp(r'\bstandIn\w*').allMatches(line)) {
+      found.add('${m.group(0)} in $library');
+    }
+  }
+  return found;
+}
+
+/// The operations of [tolerances] (the keys of `kernelTolerances`, as
+/// written in its source) that [guide], the kernel guide, does not name in
+/// backticks: every inexact operation is documented with its tolerance.
+List<String> undocumentedTolerancesIn(
+  String guide,
+  Iterable<String> tolerances,
+) => <String>[
+  for (final op in tolerances)
+    if (!guide.contains('`$op`')) op,
+];
+
+/// The keys of the `kernelTolerances` map in [source], the hardware
+/// layer's `compute_requirement.dart`.
+List<String> toleranceKeysIn(String source) {
+  final start = source.indexOf('kernelTolerances =');
+  if (start < 0) return const <String>[];
+  final end = source.indexOf('};', start);
+  return <String>[
+    for (final m in RegExp(
+      r"^\s*'([^']+)':\s*KernelTolerance\(",
+      multiLine: true,
+    ).allMatches(source.substring(start, end < 0 ? source.length : end)))
+      m.group(1)!,
+  ];
+}
+
 // --------------------------------------------------------------- self-checks
 
 /// Proves every detector above fires, and stays quiet on what only looks alike.
@@ -5936,6 +6044,125 @@ abstract final class FrameResourceIds {
     ).isEmpty,
     'a call inside a try that catches it, under a nested block',
     'a guarded call is the rule kept',
+  );
+
+  // Compute: a pass opened outside the layer, a static cache, an encoder
+  // that does not check, a test knob in the API, an undocumented tolerance.
+  fires(
+    'compute passes opened',
+    computePassesOpenedIn(
+      "final pass = device.beginComputePass(label: 'splat sort');",
+    ).isNotEmpty,
+    "device.beginComputePass(label: 'splat sort')",
+  );
+  fires(
+    'compute passes opened',
+    computePassesOpenedIn('frame.device\n    .beginComputePass()').isNotEmpty,
+    'a call over two lines',
+  );
+  quiet(
+    'compute passes opened',
+    computePassesOpenedIn(
+      "final pass = _site.beginPass(label: 'splat sort');\n"
+      '// device.beginComputePass() is the layer\'s\n'
+      "throw StateError('call beginComputePass() on the site');",
+    ).isEmpty,
+    'the site\'s own door, a comment and a message',
+    'a placed site opening its pass is the rule kept',
+  );
+  fires(
+    'static compute caches',
+    staticComputeCachesIn(
+      '  static final Expando<Future<ComputePipelineHandle>> _pipelines =\n'
+      "      Expando<Future<ComputePipelineHandle>>('workload pipelines');",
+    ).contains('_pipelines'),
+    'a static Expando of pipelines',
+  );
+  fires(
+    'static compute caches',
+    staticComputeCachesIn(
+      'final Map<GraphicsDevice, ShaderHandle> _kernels = {};',
+    ).contains('_kernels'),
+    'a top-level map',
+  );
+  quiet(
+    'static compute caches',
+    staticComputeCachesIn(
+      'final class A {\n'
+      '  final Map<String, ShaderHandle> _stages = <String, ShaderHandle>{};\n'
+      '  static const Object _key = \'kernels\';\n'
+      '}',
+    ).isEmpty,
+    'an instance map and a static constant',
+    'what an instance keeps goes with the instance',
+  );
+  fires(
+    'unchecked compute encoders',
+    uncheckedComputeEncodersIn(
+      'final class E extends ComputeEncoder {\n'
+      '  void dispatch(int x, [int y = 1, int z = 1]) {\n'
+      '    checkDispatch(_limits, x, y, z);\n'
+      '  }\n'
+      '}',
+    ).contains('E'),
+    'an encoder that checks its dispatches and not its ranges',
+  );
+  quiet(
+    'unchecked compute encoders',
+    uncheckedComputeEncodersIn(
+      'final class E extends ComputeEncoder {\n'
+      '  bool bindStorageBuffer(ShaderHandle s, String n, StorageBuffer b) {\n'
+      '    checkStorageBinding(b, _limits);\n    return true;\n  }\n'
+      '  void dispatch(int x, [int y = 1, int z = 1]) =>\n'
+      '      checkDispatch(_limits, x, y, z);\n'
+      '}\n'
+      'final class Other extends TransferEncoder {}',
+    ).isEmpty,
+    'an encoder that makes both checks, and a transfer encoder',
+    'both checks made is the rule kept',
+  );
+  fires(
+    'test knobs in the API',
+    testKnobsOutsideTestingIn(
+      'library package:flutter3d_cpu/flutter3d_cpu.dart\n'
+      'final class CpuDevice\n'
+      '  CpuDevice({required this.width, this.standInForGpu = false})\n',
+    ).isNotEmpty,
+    'CpuDevice(standInForGpu:) in the main library',
+  );
+  quiet(
+    'test knobs in the API',
+    testKnobsOutsideTestingIn(
+      'library package:flutter3d_cpu/flutter3d_cpu.dart\n'
+      'final class CpuDevice\n'
+      'library package:flutter3d_cpu/testing.dart\n'
+      'CpuDevice cpuComputeDeviceStandingInForGpu()\n'
+      'CpuDevice standInForGpuOf(CpuDevice d)\n',
+    ).isEmpty,
+    'a knob in testing.dart',
+    'testing.dart is where a knob belongs',
+  );
+  fires(
+    'undocumented tolerances',
+    undocumentedTolerancesIn(
+      '`sqrt` is within 5 ulp.',
+      toleranceKeysIn(
+        'const Map<String, KernelTolerance> kernelTolerances = {\n'
+        "  '/': KernelTolerance(ulp: 3, over: 'x'),\n"
+        "  'sqrt': KernelTolerance(ulp: 5, over: 'y'),\n"
+        '};',
+      ),
+    ).contains('/'),
+    'a guide that names sqrt and not division',
+  );
+  quiet(
+    'undocumented tolerances',
+    undocumentedTolerancesIn('`/` and `sqrt`', const <String>[
+      '/',
+      'sqrt',
+    ]).isEmpty,
+    'a guide that names both',
+    'every inexact operation documented is the rule kept',
   );
 
   // The HAL's contract with its backends: `hal.dart` keeps its own proofs.

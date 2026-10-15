@@ -2694,6 +2694,8 @@ const Map<String, String> hookValueParameters = <String, String>{
       'flutter3d_plugin_runtime: a module\'s memory and globals as its own capture wrote them; $_ownState',
   'WorkloadRecorder.readBack':
       'flutter3d_hardware: a buffer\'s bytes as a device read them back, the whole answer to the read asked for; a later read is a new member',
+  'WorkloadRecorder.readBackRange':
+      'flutter3d_hardware: a range of a buffer\'s bytes as a device read them back, the whole answer to the read asked for, as `readBack`',
   'XrSession.restoreAnchor':
       'flutter3d_app: an anchor restored by its id, $_ofItsInput',
   'RenderBundleEncoder.finish':
@@ -2862,6 +2864,8 @@ const Map<String, List<String>> facadeShowListsHeld = <String, List<String>>{
 final Map<String, String> facadeLeavesOut = <String, String>{
   for (final name in <String>[..._computePlacement, ..._computeDoor])
     'flutter3d:$name': _placementReason,
+  for (final name in _computeKernelFacts) 'flutter3d:$name': _kernelFactsReason,
+  'flutter3d:ComputeRequirement': _requirementReason,
   for (final name in _computeWorkload)
     'flutter3d:$name':
         'a simulation\'s compute handed to the engine (`RendererSteps.addWorkload`), written by the author of a physics core\'s fluid or of its view, who imports `flutter3d_hardware` and `flutter3d_core`; an application adds the view, which adds the workload',
@@ -3224,6 +3228,8 @@ final Map<String, String> facadeGapAllowed = <String, String>{
   for (final facade in facadePackages.keys)
     for (final name in _computePlacement) '$facade:$name': _placementReason,
   for (final facade in facadePackages.keys)
+    '$facade:ComputeRequirement': _requirementReason,
+  for (final facade in facadePackages.keys)
     for (final name in _computeWorkload)
       '$facade:$name':
           'a simulation\'s compute handed to the engine '
@@ -3456,7 +3462,34 @@ const List<String> _computePlacement = <String>[
 
 /// The hardware layer's door to where compute runs, which the engine's
 /// steps use and nothing a facade serves calls.
-const List<String> _computeDoor = <String>['FrameCompute', 'PlacedWork'];
+const List<String> _computeDoor = <String>[
+  'ComputeFallback',
+  'ComputeFallbackError',
+  'ComputeNeeds',
+  'FrameCompute',
+  'PassedOver',
+  'PlacedWork',
+];
+
+/// What a kernel's author and the conformance suite read in the hardware
+/// layer: the portable profile and the tolerances, which no game writes.
+const List<String> _computeKernelFacts = <String>[
+  'KernelTolerance',
+  'PortableComputeProfile',
+  'kernelTolerances',
+  'ulpsBetween',
+];
+
+const String _kernelFactsReason =
+    'what a kernel\'s author reads about the kernel language (the portable '
+    'profile, the tolerance of each inexact operation) and the conformance '
+    'suite holds a device to; a game a facade serves writes none of it, and '
+    'a kernel\'s author imports `flutter3d_hardware`';
+
+const String _requirementReason =
+    'what a compute step or a workload requires, written by the author of '
+    'one, who imports `flutter3d_hardware` beside `flutter3d_core` as the '
+    'author of a workload does; a game a facade serves never states one';
 
 const String _placementReason =
     'where compute runs, which the hardware layer decides and a backend '
@@ -3887,6 +3920,8 @@ const Map<String, String> optionalPositionalAllowed = <String, String>{
       'a workgroup count\'s y and z after its x: a dispatch has three '
       'dimensions, as every GPU API spells it',
   'DartKernel.dispatch': 'a workgroup count\'s y and z, as `dispatch`',
+  'FakeComputePass.dispatch':
+      'the fake\'s override of `ComputeEncoder.dispatch`, whose shape it keeps',
   'dispatchIndirectArguments': 'a workgroup count\'s y and z, as `dispatch`',
   'BoundTexture.sampleCube':
       'the CPU shading language\'s mirror of GLSL\'s `textureLod`, whose '

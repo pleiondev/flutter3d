@@ -202,7 +202,8 @@ entries:
       Delete the override: a step no longer asks where it runs, the
       hardware layer decides. A test that wanted the step on a particular
       device configures the devices or the registry it builds
-      (`DeviceRegistry.adopt`, `CpuDevice(standInForGpu:)`).
+      (`DeviceRegistry.adopt`, `cpuComputeDeviceStandingInForGpu()` from
+      `package:flutter3d_cpu/testing.dart`).
 
   - id: core-ComputeStep-executor
     package: flutter3d_core
@@ -3046,3 +3047,42 @@ entries:
     guidance: >-
       The event carries the `PassViewport` as `viewport`; its `rect` is the
       whole pixels the field held.
+
+  - id: core-SplatGpuSort-new
+    package: flutter3d_core
+    symbol: SplatGpuSort.SplatGpuSort
+    kind: rewrite
+    template: 'SplatGpuSort.place({arguments})!'
+    guidance: >-
+      The sort is placed by the hardware layer on the drawing device, and
+      `SplatGpuSort.place` answers null where that device cannot run it;
+      check for null where the device may be one without compute or without
+      the `SplatSort` stages, instead of the `!`.
+
+  - id: cpu-CpuDevice-standInForGpu
+    package: flutter3d_cpu
+    symbol: CpuDevice.standInForGpu
+    kind: rewrite
+    template: '!{target}.isSoftware'
+    guidance: >-
+      Standing in for a GPU is a test's knob in `testing.dart`; the device
+      says it as `isSoftware`, false while it stands in.
+
+  - id: cpu-CpuDevice-new-standInForGpu
+    package: flutter3d_cpu
+    symbol: CpuDevice.CpuDevice
+    kind: manual
+    guidance: >-
+      `standInForGpu:` is gone from the constructor. A test that made a
+      device stand in for a GPU calls `cpuComputeDeviceStandingInForGpu()`
+      from `package:flutter3d_cpu/testing.dart`; one that passed false
+      drops the argument.
+
+  - id: cpu-cpuComputeDevice-standInForGpu
+    package: flutter3d_cpu
+    symbol: cpuComputeDevice
+    kind: manual
+    guidance: >-
+      `cpuComputeDevice(standInForGpu: true)` is
+      `cpuComputeDeviceStandingInForGpu()` from
+      `package:flutter3d_cpu/testing.dart`; with false, drop the argument.

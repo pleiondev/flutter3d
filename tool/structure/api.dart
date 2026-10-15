@@ -1770,6 +1770,33 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
     reason:
         "A vector the object holds and keeps current is a public `final` field, live, where a getter answered it (1.0.0-rc.1+1); a reader reads it as before.",
   ),
+  BuildAllowance(
+    package: 'flutter3d_core',
+    members: <String>['SplatGpuSort.SplatGpuSort'],
+    reason:
+        'The splat sort is placed by the hardware layer (1.0.0-rc.1+2): '
+        '`SplatGpuSort.place` asks it for the drawing device\'s site, where '
+        'the constructor took the device as it was.',
+  ),
+  BuildAllowance(
+    package: 'flutter3d_cpu',
+    members: <String>[
+      'CpuDevice.CpuDevice',
+      'CpuDevice.standInForGpu',
+      'cpuComputeDevice',
+    ],
+    reason:
+        'A test\'s knob stays in testing.dart (1.0.0-rc.1+2): the CPU device '
+        'stands in for a GPU through `cpuComputeDeviceStandingInForGpu`, '
+        'and the constructor and `cpuComputeDevice` lose `standInForGpu`.',
+  ),
+  BuildAllowance(
+    package: 'flutter3d_game',
+    members: <String>['package:flutter3d/flutter3d.dart'],
+    reason:
+        'The facade re-exports `MaterialComputePlacement` (1.0.0-rc.1+2), '
+        'which changes the one line it re-exports the engine with.',
+  ),
 ];
 
 /// Whether [change] to [package] is one [buildAllowances] lets through
