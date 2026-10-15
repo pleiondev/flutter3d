@@ -13,6 +13,8 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 
+import 'support/install_refusal.dart';
+
 const LoopPhase _combat = LoopPhase.step('combat');
 const WorldTiming _binary = WorldTiming(stepRate: 64.0);
 const double _tick = 1.0 / 64.0;
@@ -227,18 +229,18 @@ void main() {
       // plugin's system runs inside the step, and its toggle is journalled
       // as one a replay may ignore.
       expect(
-        () => EngineLoop(
-          input: InputState(),
-          plugins: <Flutter3dPlugin>[
-            _Writes('bloom', <String>[], touches: PluginTouches.view),
-          ],
+        installRefusal(
+          EngineLoop(
+            input: InputState(),
+            plugins: <Flutter3dPlugin>[
+              _Writes('bloom', <String>[], touches: PluginTouches.view),
+            ],
+          ).plugins,
         ),
-        throwsA(
-          isA<PluginException>().having(
-            (e) => e.message,
-            'message',
-            allOf(contains('"bloom"'), contains('rules')),
-          ),
+        isA<PluginException>().having(
+          (e) => e.message,
+          'message',
+          allOf(contains('"bloom"'), contains('rules')),
         ),
       );
       final log = <String>[];

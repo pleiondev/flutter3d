@@ -33,6 +33,8 @@ import 'package:flutter3d_sim/data_plugins.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 
+import 'support/install_refusal.dart';
+
 import 'wasm/assemble.dart';
 
 /// A document around [manifest] and [rest], as text.
@@ -872,16 +874,16 @@ void main() {
         _files(const <String, String>{}),
       );
       expect(
-        () => EngineLoop(
-          input: InputState(),
-          plugins: <Flutter3dPlugin>[withKinds],
+        installRefusal(
+          EngineLoop(
+            input: InputState(),
+            plugins: <Flutter3dPlugin>[withKinds],
+          ).plugins,
         ),
-        throwsA(
-          isA<PluginException>().having(
-            (e) => e.message,
-            'message',
-            allOf(contains('vent'), contains('EntityKinds')),
-          ),
+        isA<PluginException>().having(
+          (e) => e.message,
+          'message',
+          allOf(contains('vent'), contains('EntityKinds')),
         ),
       );
       final withMaterial = await DataPluginLoader(sections: _sections).load(
@@ -899,17 +901,17 @@ void main() {
         _files(const <String, String>{}),
       );
       expect(
-        () => EngineLoop(
-          input: InputState(),
-          backend: RuntimeBackends.cpu,
-          plugins: <Flutter3dPlugin>[withMaterial],
+        installRefusal(
+          EngineLoop(
+            input: InputState(),
+            backend: RuntimeBackends.cpu,
+            plugins: <Flutter3dPlugin>[withMaterial],
+          ).plugins,
         ),
-        throwsA(
-          isA<PluginException>().having(
-            (e) => e.message,
-            'message',
-            contains('RuntimeShaders'),
-          ),
+        isA<PluginException>().having(
+          (e) => e.message,
+          'message',
+          contains('RuntimeShaders'),
         ),
       );
       // An engine that draws nothing installs it and says what it left out.
@@ -939,14 +941,16 @@ void main() {
       );
       expect(plugin.document.expressions.single.text, 'heat = heat * 0.99');
       expect(
-        () =>
-            EngineLoop(input: InputState(), plugins: <Flutter3dPlugin>[plugin]),
-        throwsA(
-          isA<PluginException>().having(
-            (e) => e.message,
-            'message',
-            allOf(contains('"gusts"'), contains('settle')),
-          ),
+        installRefusal(
+          EngineLoop(
+            input: InputState(),
+            plugins: <Flutter3dPlugin>[plugin],
+          ).plugins,
+        ),
+        isA<PluginException>().having(
+          (e) => e.message,
+          'message',
+          allOf(contains('"gusts"'), contains('settle')),
         ),
       );
     });
@@ -966,9 +970,13 @@ void main() {
         _files(const <String, String>{}),
       );
       expect(
-        () =>
-            EngineLoop(input: InputState(), plugins: <Flutter3dPlugin>[plugin]),
-        throwsA(isA<PluginException>()),
+        installRefusal(
+          EngineLoop(
+            input: InputState(),
+            plugins: <Flutter3dPlugin>[plugin],
+          ).plugins,
+        ),
+        isA<PluginException>(),
       );
     });
   });

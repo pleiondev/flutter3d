@@ -10,6 +10,8 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 
+import 'support/install_refusal.dart';
+
 /// The profile a minor would add to switch the soak on.
 const SimulationProfile _wet = SimulationProfile(
   'acme.wet',
@@ -342,15 +344,17 @@ void main() {
 
     test('is refused a name outside its namespace', () {
       expect(
-        () => _loop(
-          plugins: <Flutter3dPlugin>[_Acme(subsystem: _soak(id: 'other.soak'))],
+        installRefusal(
+          _loop(
+            plugins: <Flutter3dPlugin>[
+              _Acme(subsystem: _soak(id: 'other.soak')),
+            ],
+          ).plugins,
         ),
-        throwsA(
-          isA<PluginException>().having(
-            (PluginException e) => e.message,
-            'message',
-            contains('"acme.<name>"'),
-          ),
+        isA<PluginException>().having(
+          (PluginException e) => e.message,
+          'message',
+          contains('"acme.<name>"'),
         ),
       );
     });
@@ -370,34 +374,36 @@ void main() {
         SimulationProfile.deterministic,
       ]) {
         expect(
-          () => _loop(
-            plugins: <Flutter3dPlugin>[
-              _Acme(
-                subsystem: _soak(switchedOnBy: <SimulationProfile>[profile]),
-              ),
-            ],
+          installRefusal(
+            _loop(
+              plugins: <Flutter3dPlugin>[
+                _Acme(
+                  subsystem: _soak(switchedOnBy: <SimulationProfile>[profile]),
+                ),
+              ],
+            ).plugins,
           ),
-          returnsNormally,
+          isNull,
           reason: profile.name,
         );
       }
       for (final name in <String>['fast', 'other.wet']) {
         expect(
-          () => _loop(
-            plugins: <Flutter3dPlugin>[
-              _Acme(
-                subsystem: _soak(
-                  switchedOnBy: <SimulationProfile>[named(name)],
+          installRefusal(
+            _loop(
+              plugins: <Flutter3dPlugin>[
+                _Acme(
+                  subsystem: _soak(
+                    switchedOnBy: <SimulationProfile>[named(name)],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ).plugins,
           ),
-          throwsA(
-            isA<PluginException>().having(
-              (PluginException e) => e.message,
-              'message',
-              allOf(contains('"$name"'), contains('acme.')),
-            ),
+          isA<PluginException>().having(
+            (PluginException e) => e.message,
+            'message',
+            allOf(contains('"$name"'), contains('acme.')),
           ),
           reason: name,
         );
@@ -414,10 +420,12 @@ void main() {
 
     test('that touches only the view is refused a subsystem', () {
       expect(
-        () => _loop(
-          plugins: <Flutter3dPlugin>[_Acme(touches: PluginTouches.view)],
+        installRefusal(
+          _loop(
+            plugins: <Flutter3dPlugin>[_Acme(touches: PluginTouches.view)],
+          ).plugins,
         ),
-        throwsA(isA<PluginException>()),
+        isA<PluginException>(),
       );
     });
 

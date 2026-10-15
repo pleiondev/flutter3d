@@ -14,6 +14,8 @@ import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:test/test.dart';
 
+import '../support/install_refusal.dart';
+
 final class _Loop extends LoopRegistry {
   @override
   Registration addPhase(
@@ -106,25 +108,28 @@ final class _Node extends RenderNode {
 
 Renderer _renderer() => Renderer.create(device: FakeBackend());
 
-void _install(Renderer renderer, Flutter3dPlugin plugin) => PluginManager(
-  loop: _Loop(),
-  events: _Events(),
-  registries: <PluginRegistry>[renderer.renderSteps],
-).installAll(<Flutter3dPlugin>[plugin]);
+/// Installs [plugin] with [renderer]'s steps and answers what its install
+/// was refused with, or null when it is on.
+Object? _install(Renderer renderer, Flutter3dPlugin plugin) {
+  final plugins = PluginManager(
+    loop: _Loop(),
+    events: _Events(),
+    registries: <PluginRegistry>[renderer.renderSteps],
+  )..installAll(<Flutter3dPlugin>[plugin]);
+  return installRefusal(plugins);
+}
 
-Matcher _refusedNaming(String name) => throwsA(
-  isA<PluginException>().having(
-    (PluginException e) => e.message,
-    'message',
-    allOf(contains('"$name"'), contains('acme_glow.<name>')),
-  ),
+Matcher _refusedNaming(String name) => isA<PluginException>().having(
+  (PluginException e) => e.message,
+  'message',
+  allOf(contains('"$name"'), contains('acme_glow.<name>')),
 );
 
 void main() {
   test('a step outside the plugin\'s namespace is refused at install', () {
     final renderer = _renderer();
     expect(
-      () => _install(
+      _install(
         renderer,
         _Plugin(
           'acme_glow.glow',
@@ -151,7 +156,7 @@ void main() {
 
   test('a node, and a resource it makes, are held to the namespace', () {
     expect(
-      () => _install(
+      _install(
         _renderer(),
         _Plugin(
           'acme_glow.glow',
@@ -161,7 +166,7 @@ void main() {
       _refusedNaming('blur'),
     );
     expect(
-      () => _install(
+      _install(
         _renderer(),
         _Plugin(
           'acme_glow.glow',
@@ -182,7 +187,7 @@ void main() {
 
   test('an anchor and a settings slot of the plugin\'s own likewise', () {
     expect(
-      () => _install(
+      _install(
         _renderer(),
         _Plugin(
           'acme_glow.glow',
@@ -223,7 +228,7 @@ void main() {
     ]) {
       final renderer = _renderer();
       expect(
-        () => _install(
+        _install(
           renderer,
           _Plugin(
             'acme_glow.editor',
@@ -231,12 +236,10 @@ void main() {
             touches: PluginTouches.tooling,
           ),
         ),
-        throwsA(
-          isA<PluginException>().having(
-            (PluginException e) => e.message,
-            'message',
-            allOf(contains('"acme_glow.editor"'), contains(what)),
-          ),
+        isA<PluginException>().having(
+          (PluginException e) => e.message,
+          'message',
+          allOf(contains('"acme_glow.editor"'), contains(what)),
         ),
         reason: what,
       );
@@ -264,7 +267,7 @@ void main() {
     expect(_renderer().lightingModels.named('acme_glow.Ink'), isNull);
 
     expect(
-      () => _install(
+      _install(
         _renderer(),
         _Plugin(
           'acme_glow.glow',
@@ -273,7 +276,7 @@ void main() {
           ),
         ),
       ),
-      throwsA(isA<PluginException>()),
+      isA<PluginException>(),
     );
   });
 
@@ -299,7 +302,7 @@ void main() {
         'acme_glow___Ink',
       ]) {
         expect(
-          () => _install(
+          _install(
             _renderer(),
             _Plugin(
               'acme_glow.glow',
@@ -308,7 +311,7 @@ void main() {
               ),
             ),
           ),
-          throwsA(isA<PluginException>()),
+          isA<PluginException>(),
           reason: stage,
         );
       }

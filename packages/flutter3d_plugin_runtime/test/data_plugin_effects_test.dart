@@ -21,6 +21,8 @@ import 'package:flutter3d_plugin_runtime/flutter3d_plugin_runtime.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 
+import 'support/install_refusal.dart';
+
 String _document(Map<String, Object?> rest) => jsonEncode(<String, Object?>{
   'f3dplugin': 1,
   'manifest': <String, Object?>{'id': 'sparks', 'apiVersion': '1.0'},
@@ -161,17 +163,17 @@ void main() {
         _files(const <String, String>{'flare.f3dfx': _flare}),
       );
       expect(
-        () => EngineLoop(
-          input: InputState(),
-          backend: RuntimeBackends.cpu,
-          plugins: <Flutter3dPlugin>[plugin],
+        installRefusal(
+          EngineLoop(
+            input: InputState(),
+            backend: RuntimeBackends.cpu,
+            plugins: <Flutter3dPlugin>[plugin],
+          ).plugins,
         ),
-        throwsA(
-          isA<PluginException>().having(
-            (e) => e.message,
-            'message',
-            allOf(contains('flare'), contains('ParticleEffects')),
-          ),
+        isA<PluginException>().having(
+          (e) => e.message,
+          'message',
+          allOf(contains('flare'), contains('ParticleEffects')),
         ),
       );
       // An engine that draws nothing installs the rest and says so.

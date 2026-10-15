@@ -18,6 +18,8 @@ import 'package:flutter3d_plugin_runtime/src/world_fields.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 
+import 'support/install_refusal.dart';
+
 import 'wasm/assemble.dart';
 
 /// A module that copies heat[0] into wind[0] and publishes event 0 with
@@ -196,17 +198,17 @@ void main() {
     // would refuse the step system anyway, but with a sentence about a
     // system rather than about the field written.
     expect(
-      () => EngineLoop(
-        input: InputState(),
-        registries: <PluginRegistry>[fields],
-        plugins: <Flutter3dPlugin>[_plugin(touches: PluginTouches.view)],
+      installRefusal(
+        EngineLoop(
+          input: InputState(),
+          registries: <PluginRegistry>[fields],
+          plugins: <Flutter3dPlugin>[_plugin(touches: PluginTouches.view)],
+        ).plugins,
       ),
-      throwsA(
-        isA<PluginException>().having(
-          (e) => e.message,
-          'message',
-          allOf(contains('touches only the view'), contains('"wind"')),
-        ),
+      isA<PluginException>().having(
+        (e) => e.message,
+        'message',
+        allOf(contains('touches only the view'), contains('"wind"')),
       ),
     );
   });
@@ -216,17 +218,17 @@ void main() {
     // whatever came next, or past the end of the list.
     final onlyHeat = WorldFields(<WorldField>[ListWorldField('heat', heat)]);
     expect(
-      () => EngineLoop(
-        input: InputState(),
-        registries: <PluginRegistry>[onlyHeat],
-        plugins: <Flutter3dPlugin>[_plugin()],
+      installRefusal(
+        EngineLoop(
+          input: InputState(),
+          registries: <PluginRegistry>[onlyHeat],
+          plugins: <Flutter3dPlugin>[_plugin()],
+        ).plugins,
       ),
-      throwsA(
-        isA<PluginException>().having(
-          (e) => e.message,
-          'message',
-          allOf(contains('"wind"'), contains('it has heat')),
-        ),
+      isA<PluginException>().having(
+        (e) => e.message,
+        'message',
+        allOf(contains('"wind"'), contains('it has heat')),
       ),
     );
   });
@@ -263,19 +265,19 @@ void main() {
     // in the browser that recorded the run, and the two part with no
     // sentence saying why.
     expect(
-      () => EngineLoop(
-        input: InputState(),
-        registries: <PluginRegistry>[fields],
-        plugins: <Flutter3dPlugin>[
-          _onRuntime(const _Unmetered(), PluginTouches.simulation),
-        ],
+      installRefusal(
+        EngineLoop(
+          input: InputState(),
+          registries: <PluginRegistry>[fields],
+          plugins: <Flutter3dPlugin>[
+            _onRuntime(const _Unmetered(), PluginTouches.simulation),
+          ],
+        ).plugins,
       ),
-      throwsA(
-        isA<WasmException>().having(
-          (e) => e.message,
-          'message',
-          allOf(contains('unmetered'), contains('deterministic')),
-        ),
+      isA<WasmException>().having(
+        (e) => e.message,
+        'message',
+        allOf(contains('unmetered'), contains('deterministic')),
       ),
     );
     // Under a profile that promises no bits, and for a module that only

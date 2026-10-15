@@ -15,6 +15,8 @@ import 'package:flutter3d_plugin_runtime/flutter3d_plugin_runtime.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 
+import 'support/install_refusal.dart';
+
 final class _Plugin extends Flutter3dPlugin {
   _Plugin(this.id, this.registers);
 
@@ -48,13 +50,16 @@ final class _Section extends DataSection {
   void install(DataSectionInstall step) {}
 }
 
-void _install(String id, void Function(PluginHost host) registers) {
-  EngineLoop(
-    input: InputState(),
-    registries: <PluginRegistry>[DataSections(), WorldFields()],
-    plugins: <Flutter3dPlugin>[_Plugin(id, registers)],
-  );
-}
+/// Installs one plugin named [id] that runs [registers] into a fresh loop,
+/// and answers what its install was refused with, or null when it is on.
+Object? _install(String id, void Function(PluginHost host) registers) =>
+    installRefusal(
+      EngineLoop(
+        input: InputState(),
+        registries: <PluginRegistry>[DataSections(), WorldFields()],
+        plugins: <Flutter3dPlugin>[_Plugin(id, registers)],
+      ).plugins,
+    );
 
 final Map<String, void Function(PluginHost host, String name)> _registries =
     <String, void Function(PluginHost host, String name)>{
@@ -70,28 +75,23 @@ void main() {
     group(what, () {
       test('is refused outside the plugin\'s namespace, by name', () {
         expect(
-          () => _install('acme', (h) => register(h, 'heat')),
-          throwsA(
-            isA<PluginException>().having(
-              (e) => e.message,
-              'message',
-              allOf(contains('"heat"'), contains('acme.<name>')),
-            ),
+          _install('acme', (h) => register(h, 'heat')),
+          isA<PluginException>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('"heat"'), contains('acme.<name>')),
           ),
         );
       });
 
       test('is taken in the plugin\'s namespace', () {
-        expect(
-          () => _install('acme', (h) => register(h, 'acme.heat')),
-          returnsNormally,
-        );
+        expect(_install('acme', (h) => register(h, 'acme.heat')), isNull);
       });
 
       test('is taken bare from one of the engine\'s own packages', () {
         expect(
-          () => _install('flutter3d_elements', (h) => register(h, 'heat')),
-          returnsNormally,
+          _install('flutter3d_elements', (h) => register(h, 'heat')),
+          isNull,
         );
       });
     });

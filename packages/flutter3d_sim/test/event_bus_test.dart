@@ -11,6 +11,8 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 
+import 'support/install_refusal.dart';
+
 final class _Landed extends BusEvent {
   const _Landed(this.x);
 
@@ -218,11 +220,13 @@ void main() {
 
   test('a view plugin cannot subscribe to the step channel', () {
     expect(
-      () => EngineLoop(
-        input: InputState(),
-        plugins: <Flutter3dPlugin>[_ViewListens()],
+      installRefusal(
+        EngineLoop(
+          input: InputState(),
+          plugins: <Flutter3dPlugin>[_ViewListens()],
+        ).plugins,
       ),
-      throwsA(isA<PluginException>()),
+      isA<PluginException>(),
     );
   });
 

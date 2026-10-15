@@ -16,6 +16,8 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 
+import 'support/install_refusal.dart';
+
 /// A plugin that runs [registers] when installed.
 final class _Plugin extends Flutter3dPlugin {
   _Plugin(this.id, this.registers);
@@ -48,25 +50,25 @@ final class _Crate extends EntityKind {
   const _Crate(super.type);
 }
 
-/// Installs one plugin named [id] that runs [registers] into a fresh loop.
-void _install(String id, void Function(PluginHost host) registers) {
-  EngineLoop(
-    input: InputState(),
-    registries: <PluginRegistry>[
-      EntityKinds(),
-      BehaviorKindsRegistry(BehaviorKinds()),
-    ],
-    plugins: <Flutter3dPlugin>[_Plugin(id, registers)],
-  );
-}
+/// Installs one plugin named [id] that runs [registers] into a fresh loop,
+/// and answers what its install was refused with, or null when it is on.
+Object? _install(String id, void Function(PluginHost host) registers) =>
+    installRefusal(
+      EngineLoop(
+        input: InputState(),
+        registries: <PluginRegistry>[
+          EntityKinds(),
+          BehaviorKindsRegistry(BehaviorKinds()),
+        ],
+        plugins: <Flutter3dPlugin>[_Plugin(id, registers)],
+      ).plugins,
+    );
 
 /// A refusal that names [name] and the namespace it should be in.
-Matcher _refused(String name) => throwsA(
-  isA<PluginException>().having(
-    (e) => e.message,
-    'message',
-    allOf(contains('"$name"'), contains('acme.<name>')),
-  ),
+Matcher _refused(String name) => isA<PluginException>().having(
+  (e) => e.message,
+  'message',
+  allOf(contains('"$name"'), contains('acme.<name>')),
 );
 
 /// Each simulation-side registry, as a function registering [name] there.
@@ -113,22 +115,19 @@ void main() {
     group(what, () {
       test('is refused outside the plugin\'s namespace, by name', () {
         expect(
-          () => _install('acme', (h) => register(h, 'health')),
+          _install('acme', (h) => register(h, 'health')),
           _refused('health'),
         );
       });
 
       test('is taken in the plugin\'s namespace', () {
-        expect(
-          () => _install('acme', (h) => register(h, 'acme.health')),
-          returnsNormally,
-        );
+        expect(_install('acme', (h) => register(h, 'acme.health')), isNull);
       });
 
       test('is taken bare from one of the engine\'s own packages', () {
         expect(
-          () => _install('flutter3d_game_racing', (h) => register(h, 'health')),
-          returnsNormally,
+          _install('flutter3d_game_racing', (h) => register(h, 'health')),
+          isNull,
         );
       });
     });
@@ -137,11 +136,11 @@ void main() {
   test('a package named like the engine\'s is held to its namespace', () {
     // Mutation: decide engine-ness by the `flutter3d_` prefix again.
     expect(
-      () => _install(
+      _install(
         'flutter3d_frost',
         (h) => h.loop.addSystem('melt', LoopPhase.rules, (_) {}),
       ),
-      throwsA(isA<PluginException>()),
+      isA<PluginException>(),
     );
   });
 
@@ -149,13 +148,13 @@ void main() {
     // A genre's run is a part under its plugin id, which no other plugin of
     // the engine has.
     expect(
-      () => _install(
+      _install(
         'acme',
         (h) => h.registry<SnapshotRegistry>().add(
           SnapshotPart.of(id: 'acme', capture: () => null, restore: (_) {}),
         ),
       ),
-      returnsNormally,
+      isNull,
     );
   });
 
@@ -163,17 +162,14 @@ void main() {
     // A door is the format's word, not one a plugin takes: a plugin may
     // bring the kind that spawns it.
     expect(
-      () => _install(
-        'acme',
-        (h) => h.registry<EntityKinds>().add(const DoorKind()),
-      ),
-      returnsNormally,
+      _install('acme', (h) => h.registry<EntityKinds>().add(const DoorKind())),
+      isNull,
     );
   });
 
   test('a standard behavior kind may be replaced by a plugin', () {
     expect(
-      () => _install(
+      _install(
         'acme',
         (h) => h.registry<BehaviorKindsRegistry>().leaf(
           'wait',
@@ -181,7 +177,7 @@ void main() {
           replace: true,
         ),
       ),
-      returnsNormally,
+      isNull,
     );
   });
 }

@@ -24,6 +24,8 @@ import 'package:flutter3d_plugin_runtime/flutter3d_plugin_runtime.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 
+import 'support/install_refusal.dart';
+
 /// Plum jam, as a plugin called [plugin] declares it.
 Map<String, Object?> _jam({
   String id = 'orchard.plumJam',
@@ -199,17 +201,17 @@ void main() {
       sections: _sections,
     ).load(_document(materials: <Object?>[_jam()]), _nothing);
     expect(
-      () => EngineLoop(
-        input: InputState(),
-        materials: catalogue,
-        plugins: <Flutter3dPlugin>[again],
+      installRefusal(
+        EngineLoop(
+          input: InputState(),
+          materials: catalogue,
+          plugins: <Flutter3dPlugin>[again],
+        ).plugins,
       ),
-      throwsA(
-        isA<MaterialRegistrationException>().having(
-          (MaterialRegistrationException e) => e.message,
-          'message',
-          allOf(contains('already registered'), contains('orchard')),
-        ),
+      isA<MaterialRegistrationException>().having(
+        (MaterialRegistrationException e) => e.message,
+        'message',
+        allOf(contains('already registered'), contains('orchard')),
       ),
     );
   });

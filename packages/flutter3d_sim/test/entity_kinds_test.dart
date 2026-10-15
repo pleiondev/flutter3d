@@ -12,6 +12,8 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 
+import 'support/install_refusal.dart';
+
 /// A plugin that adds [kinds] when installed.
 final class _Kinds extends Flutter3dPlugin {
   _Kinds(this.id, this.kinds);
@@ -125,23 +127,24 @@ void main() {
     final kinds = EntityKinds();
     // Mutation: let a later kind replace an earlier one of its type. Two
     // genres would then spawn each other's doors without a word.
+    final loop = EngineLoop(
+      input: InputState(),
+      registries: <PluginRegistry>[kinds],
+      plugins: <Flutter3dPlugin>[
+        _Kinds('first', <EntityKind>[const DoorKind()]),
+        _Kinds('second', <EntityKind>[const _OtherDoor()]),
+      ],
+    );
     expect(
-      () => EngineLoop(
-        input: InputState(),
-        registries: <PluginRegistry>[kinds],
-        plugins: <Flutter3dPlugin>[
-          _Kinds('first', <EntityKind>[const DoorKind()]),
-          _Kinds('second', <EntityKind>[const _OtherDoor()]),
-        ],
-      ),
-      throwsA(
-        isA<ArgumentError>().having(
-          (e) => '${e.message}',
-          'message',
-          allOf(contains('first'), contains('second')),
-        ),
+      installRefusal(loop.plugins),
+      isA<ArgumentError>().having(
+        (e) => '${e.message}',
+        'message',
+        allOf(contains('first'), contains('second')),
       ),
     );
+    expect(loop.plugins.isEnabled('first'), isTrue);
+    expect(loop.plugins.isEnabled('second'), isFalse);
   });
 
   test('the same kind from two plugins is shared, and stays until the last '
