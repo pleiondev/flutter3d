@@ -2058,6 +2058,52 @@ List<String> frameResourceRowProblems({
   ];
 }
 
+// ------------------------------------------------------------ taken names
+
+/// The lines of [source] where an `ArgumentError` is thrown for a name
+/// already taken: a `throw ArgumentError(…)` or `throw ArgumentError.value(…)`
+/// whose arguments say `already` or `taken`.
+///
+/// The arguments are read to the end of the throw — its parentheses
+/// balanced, outside string literals — so a message that spans lines, or
+/// holds a `;` or a `)` of its own, is read whole. Comments are not code: a
+/// doc saying a registry throws an `ArgumentError` for a name already taken
+/// is not the throw.
+List<int> takenNameArgumentErrorsIn(String source) {
+  final out = <int>[];
+  final start = RegExp(r'throw\s+ArgumentError(?:\.value)?\s*\(');
+  for (final match in start.allMatches(source)) {
+    final lineStart = source.lastIndexOf('\n', match.start) + 1;
+    final before = source.substring(lineStart, match.start).trimLeft();
+    if (before.startsWith('//')) continue;
+    var depth = 1;
+    String? quote;
+    var i = match.end;
+    for (; i < source.length && depth > 0; i++) {
+      final c = source[i];
+      if (quote != null) {
+        if (c == r'\') {
+          i++;
+        } else if (c == quote) {
+          quote = null;
+        }
+        continue;
+      }
+      if (c == "'" || c == '"') {
+        quote = c;
+      } else if (c == '(') {
+        depth++;
+      } else if (c == ')') {
+        depth--;
+      }
+    }
+    final arguments = source.substring(match.end, i);
+    if (!RegExp(r'\b(already|taken)\b').hasMatch(arguments)) continue;
+    out.add('\n'.allMatches(source.substring(0, match.start)).length + 1);
+  }
+  return out;
+}
+
 // --------------------------------------------------------------- self-checks
 
 /// Proves every detector above fires, and stays quiet on what only looks alike.
@@ -2198,6 +2244,36 @@ List<Finding> proveDetectorsWork() {
     'currentLap',
   );
   fires('genre words', genreWordsIn('void stomp() {}').isNotEmpty, 'stomp');
+
+  // Taken names.
+  fires(
+    'taken names',
+    takenNameArgumentErrorsIn(
+          "    throw ArgumentError.value(\n      step.name,\n      'step',\n"
+          "      'a step of this name is already added, by \$owner',\n    );\n",
+        ).join(',') ==
+        '1',
+    'a value error naming a step already added, over four lines',
+  );
+  fires(
+    'taken names',
+    takenNameArgumentErrorsIn(
+      "final x = y ?? (throw ArgumentError('is (one) of ours; "
+      "the name is taken'));",
+    ).isNotEmpty,
+    'a message with a parenthesis and a semicolon of its own',
+  );
+  quiet(
+    'taken names',
+    takenNameArgumentErrorsIn(
+      "throw ArgumentError.value(name, 'at', 'is not an anchor here');\n"
+      "throw NameTakenException(name, what: 'the node');\n"
+      '/// Throws an [ArgumentError] for a name already taken.\n'
+      "// throw ArgumentError('already');\n",
+    ).isEmpty,
+    'a refusal of something else, the typed throw, a doc and a comment',
+    'only a thrown ArgumentError that says the name is taken breaks the rule',
+  );
 
   // Shared mutables.
   fires(

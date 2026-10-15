@@ -3703,7 +3703,6 @@ const List<String> _openSetsWithoutShape = <String>[
   'PadButton',
   'PaintBlendMode',
   'PaintWeightsMode',
-  'PassSkip',
   'PhaseKind',
   'PhotoFilter',
   'PipelineGeometry',
@@ -3848,6 +3847,13 @@ const Map<String, String> verbAllowed = <String, String>{
       'the ECS pair `get`/`set` the review names for `SimWorld` (§C): a '
       'component is got and set, and neither is a creation',
   'EcsWorld.get': 'the implementation of `SimWorld.get`',
+  'ResourceHandle.release':
+      'a borrowed reference handed back to its cache, not the end of an '
+      'object: the resource goes when its last holder releases it, and a '
+      'handle is the half of a pair whose other half is `acquire`',
+  'SceneTurn.release':
+      'a turn handed on to the next load, as a lock is released: the scene '
+      'the turn belongs to lives on',
   'SaveResolution.takeRemote':
       'a value of an open set, not a call: the answer "take the remote copy" '
       'a comparison gives, named as the enum value it was, beside '

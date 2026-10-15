@@ -439,6 +439,17 @@ List<Rule> get allRules => <Rule>[
     ),
   ),
   (
+    name: 'a registration returns at once, never a Future of one',
+    run: () => _namingRule(
+      (String snapshot, String package) => asyncRegistrationsIn(snapshot),
+      const <String, String>{},
+    ),
+  ),
+  (
+    name: 'a plugin registry refuses a taken name with NameTakenException',
+    run: _takenNamesTyped,
+  ),
+  (
     name: 'no public name carries a unit the engine does not use',
     run: () => _namingRule(
       (String snapshot, String package) => unitSuffixesIn(snapshot),
@@ -587,6 +598,32 @@ List<Finding> _renderNamesNamespaced() {
             ),
   ];
 }
+
+// ------------------------------------------------------------ taken names
+
+/// Where a plugin registry is held to [NameTakenException] for a name
+/// already taken: the plugin API and its runtime, whole, and the
+/// renderer's registries. A registry elsewhere that still throws an
+/// `ArgumentError` for one is its package's to move, and joins here then.
+const Map<String, String> takenNameScopes = <String, String>{
+  'flutter3d_plugin_api': 'lib',
+  'flutter3d_plugin_runtime': 'lib',
+  'flutter3d_core': 'lib/src/engine/render',
+};
+
+List<Finding> _takenNamesTyped() => <Finding>[
+  for (final MapEntry(key: package, value: under) in takenNameScopes.entries)
+    if (packages[package] case final dir?)
+      for (final file in dartFilesIn(Directory('${dir.path}/$under')))
+        if (file.readAsStringSync() case final source
+            when RegExp(r'extends \w*Registry\b').hasMatch(source))
+          for (final line in takenNameArgumentErrorsIn(source))
+            Finding(
+              '$package/${relative(file, dir)}:$line',
+              'refuses a name already taken with an ArgumentError: a taken '
+                  'name is a NameTakenException, naming what it is and whose',
+            ),
+];
 
 // ------------------------------------------------------------------- genre
 

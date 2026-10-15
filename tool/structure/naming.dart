@@ -296,6 +296,12 @@ List<NamingProblem> nameCollisionsIn(
 
 /// The verbs that end an object's life. A type keeps one: `dispose`, or
 /// `close` for a connection or a stream.
+///
+/// **`release` among them, as a synchronous `void release()` with nothing
+/// to release but the object itself** — what a node holding GPU buffers
+/// was given before it became `dispose`. A `release(texture)` hands back
+/// something else, and a `Future<void> release()` lets go of a hold (a
+/// pointer lock), and neither is counted.
 const Set<String> teardownVerbs = <String>{
   'dispose',
   'close',
@@ -303,7 +309,18 @@ const Set<String> teardownVerbs = <String>{
   'destroy',
   'teardown',
   'tearDown',
+  'release',
 };
+
+/// Whether [line], a member named [short], ends its object's life by the
+/// reading of [teardownVerbs]: every one of them does, and `release` only
+/// as a synchronous method with no parameter.
+bool _endsLife(String line, String short) {
+  if (!teardownVerbs.contains(short)) return false;
+  if (short != 'release') return true;
+  final bare = splitAnnotations(line).rest;
+  return RegExp(r'^(?:abstract\s+)?void\s+release\(\)\s*$').hasMatch(bare);
+}
 
 /// The two of [teardownVerbs] a type may keep.
 const Set<String> standardTeardownVerbs = <String>{'dispose', 'close'};
@@ -337,7 +354,7 @@ List<NamingProblem> verbProblemsIn(String snapshot) {
             ).hasMatch(bare)) {
           continue;
         }
-        if (!isHeader && teardownVerbs.contains(short)) ending.add(short);
+        if (!isHeader && _endsLife(line, short)) ending.add(short);
         if (RegExp(r'^(make|take|get)([A-Z_]|$)').hasMatch(short)) {
           out.add((
             subject: subject,
@@ -385,6 +402,52 @@ List<NamingProblem> verbProblemsIn(String snapshot) {
           what:
               'has ${ending.length} teardown verbs (${(ending.toList()..sort()).join(', ')}): '
               'keep `dispose`, or `close` for a connection or a stream',
+        ));
+      }
+    }
+  }
+  return out;
+}
+
+// ------------------------------------------------------- registrations
+
+/// The public members and functions in [snapshot] that answer a
+/// `Registration` asynchronously: `Future<Registration>`,
+/// `FutureOr<Registration>`, or either nullable.
+///
+/// **A registration is synchronous.** A plugin's `install` is, and a
+/// registration it cannot await raced the plugin being switched off, lost
+/// its errors to nobody, and left a node in a frame whose plugin was gone.
+/// What loads behind a registration is the registration's to follow: the
+/// node is in the frame at once and pending until its load is done.
+List<NamingProblem> asyncRegistrationsIn(String snapshot) {
+  final returnsLater = RegExp(r'(^|[\s(])(Future|FutureOr)<Registration\??>\s');
+  final out = <NamingProblem>[];
+  for (final library in parseApi(snapshot).values) {
+    for (final MapEntry(key: type, value: block)
+        in library.declarations.entries) {
+      for (final line in <String>[block.header, ...block.members]) {
+        final isHeader = identical(line, block.header);
+        final bare = splitAnnotations(line).rest;
+        if (!bare.contains('(')) continue;
+        if (isHeader &&
+            RegExp(
+              r'^(?:(?:abstract|base|final|interface|sealed|mixin)\s+)*'
+              r'(class|enum|mixin|extension|typedef)\b',
+            ).hasMatch(bare)) {
+          continue;
+        }
+        final name = memberName(line);
+        final short = name.contains('.') ? name.split('.').last : name;
+        final at = bare.indexOf('$short(');
+        if (at < 0) continue;
+        if (!returnsLater.hasMatch('${bare.substring(0, at)} ')) continue;
+        out.add((
+          subject: isHeader ? short : '$type.$short',
+          what:
+              'answers its `Registration` later: a registration returns at '
+              'once, and what it loads is followed by the registry — the '
+              'thing registered stays pending until the load is done',
         ));
       }
     }
@@ -1853,6 +1916,11 @@ List<(String, String)> proveNamingDetectorsWork() {
     '  static Future<Server> open(int port)\n'
     '  Stream<int> openEvents()\n\n'
     'final class Sink\n  void close()\n\n'
+    'final class GlowNode extends RenderNode\n  void release()\n\n'
+    'final class Upload extends RenderNode\n  void dispose()\n'
+    '  void release()\n\n'
+    'final class Pool\n  void release(TextureHandle texture)\n\n'
+    'final class PointerLock\n  Future<void> release()\n\n'
     'Registry openRegistryFor(Object rules)\n',
   ).map((NamingProblem p) => p.subject).toSet();
   fires(
@@ -1864,9 +1932,13 @@ List<(String, String)> proveNamingDetectorsWork() {
       'Server.shutdown',
       'Server.openLocal',
       'openRegistryFor',
+      'GlowNode.release',
+      'Upload',
     }),
     'two teardown verbs, a lone shutdown, a take-prefixed method, an '
-        'asynchronous create, a synchronous open on a type and at the top',
+        'asynchronous create, a synchronous open on a type and at the top, '
+        'a node that ends its life with `release`, and `release` beside '
+        '`dispose`',
   );
   quiet(
     'verbs',
@@ -1874,11 +1946,44 @@ List<(String, String)> proveNamingDetectorsWork() {
         !verbs.contains('Lock.getter') &&
         !verbs.contains('Server.open') &&
         !verbs.contains('Server.openEvents') &&
-        !verbs.any((String v) => v.startsWith('Sink')),
+        !verbs.any((String v) => v.startsWith('Sink')) &&
+        !verbs.any((String v) => v.startsWith('Pool')) &&
+        !verbs.any((String v) => v.startsWith('PointerLock')),
     'createPipelineAsync, a getter whose name starts with get, an open that '
-        'waits, an open stream, a lone close',
+        'waits, an open stream, a lone close, a release of something else, '
+        'a release that waits',
     'the …Async variant of a synchronous create is the HAL\'s, a getter is no '
-        'verb, and `close` is a standard teardown',
+        'verb, `close` is a standard teardown, and a `release` that hands '
+        'back another object or lets go of a hold ends nothing\'s life',
+  );
+
+  // Registrations that answer later.
+  final later = asyncRegistrationsIn(
+    '${lib}final class Steps extends RenderStepRegistry\n'
+    '  Future<Registration> addComputeStep(ComputeStep step, {RenderAnchor? at})\n'
+    '  FutureOr<Registration?> placeHook(SkinningHook hook)\n'
+    '  Registration addNode(RenderNode node)\n'
+    '  Future<void> whenPlaced()\n'
+    '  Future<Registrations> loadAll()\n\n'
+    'Future<Registration> registerLater(String name)\n',
+  ).map((NamingProblem p) => p.subject).toSet();
+  fires(
+    'asynchronous registrations',
+    later.containsAll(<String>{
+      'Steps.addComputeStep',
+      'Steps.placeHook',
+      'registerLater',
+    }),
+    'a member answering Future<Registration>, one answering a nullable '
+        'FutureOr, and a top-level function',
+  );
+  quiet(
+    'asynchronous registrations',
+    later.length == 3,
+    'a synchronous registration, a wait that answers nothing, and a type '
+        'whose name only starts with Registration',
+    'a registration returned at once is the rule kept, and waiting for '
+        'what loads behind one is what a registry offers beside it',
   );
 
   // Units.
