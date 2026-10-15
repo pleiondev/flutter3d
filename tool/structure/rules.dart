@@ -4544,6 +4544,9 @@ const Map<String, String> opensComputePasses = <String, String>{
   'flutter3d_conformance/lib/src/kernel_tolerance_checks.dart':
       'the contract suite, as kernel_checks.dart: the device against the '
       'Dart translation',
+  'flutter3d_conformance/lib/src/output_resource_checks.dart':
+      'the contract suite, as kernel_checks.dart: a feature\'s output is '
+      'read off the device that claims it',
 };
 
 /// The `lib/` homes the compute rules read: every package outside
