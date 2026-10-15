@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-15",
+  "updated": "2026-10-16",
   "note": "Status of every row of 1.0-rc1-plan.md and 1.0-api-migrations.md, by `<wave>/<row>`: done, partial, active, blocked or todo (the default). Each wave's integration updates it with the plan's status lines; tool/progress.dart draws the dashboard from both.",
   "rows": {
     "0/0.1": "done",
@@ -71,9 +71,9 @@
     "4.3/4.3F": "done",
     "4.3/4.3L": "done",
     "4.3/4.3T": "done",
-    "4.3/4.3D": "todo",
-    "4.3/4.3E": "todo",
-    "4.3/4.3H": "todo",
+    "4.3/4.3D": "done",
+    "4.3/4.3E": "done",
+    "4.3/4.3H": "done",
     "4.3/4.3I": "todo",
     "4.3/4.3B": "todo",
     "4.3/4.3N": "todo",
