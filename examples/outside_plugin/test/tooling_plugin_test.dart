@@ -15,6 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:outside_plugin/outside_plugin.dart';
 
 import 'racing_tape.dart';
+import 'support/install_refusal.dart';
 
 /// The racing tape's digest every 60 steps of 600, as recorded.
 const List<String> _recorded = <String>[
@@ -63,17 +64,27 @@ final class _Tooling extends Flutter3dPlugin {
 /// A step phase of the plugin's own.
 const LoopPhase _cooling = LoopPhase.step('outside.cooling');
 
-Matcher _refused(String what) => throwsA(
-  isA<PluginException>().having(
-    (PluginException e) => e.message,
-    'message',
-    allOf(
-      contains('"outside.editor"'),
-      contains('only tooling'),
-      contains(what),
-    ),
+/// The refusal of the tooling plugin for [what]: kept in its status, the
+/// plugin switched off.
+Matcher _refused(String what) => isA<PluginException>().having(
+  (PluginException e) => e.message,
+  'message',
+  allOf(
+    contains('"outside.editor"'),
+    contains('only tooling'),
+    contains(what),
   ),
 );
+
+/// A loop with only [plugin] beside it, and what its install was refused.
+Object? _refusalOf(Flutter3dPlugin plugin) {
+  final loop = EngineLoop(
+    input: InputState(),
+    plugins: <Flutter3dPlugin>[plugin],
+  );
+  expect(loop.plugins.isEnabled('outside.editor'), isFalse);
+  return installRefusal(loop.plugins);
+}
 
 void main() {
   test('installed beside the racing game, it leaves the version and the '
@@ -99,14 +110,11 @@ void main() {
     // Mutation: refuse only a solver that runs. Switched on by a profile,
     // the plugin would step the world it said it does not touch.
     expect(
-      () => EngineLoop(
-        input: InputState(),
-        plugins: <Flutter3dPlugin>[
-          _Tooling((host) {
-            host.registry<FieldRegistry>().declare(heatField);
-            host.registry<SubsystemRegistry>().register(Warming());
-          }),
-        ],
+      _refusalOf(
+        _Tooling((host) {
+          host.registry<FieldRegistry>().declare(heatField);
+          host.registry<SubsystemRegistry>().register(Warming());
+        }),
       ),
       _refused('the subsystem "${Warming.id}"'),
     );
@@ -124,14 +132,7 @@ void main() {
         (host) => host.events.onStep<ContactEvent>('outside.heard', (_) {}),
       ),
     ]) {
-      expect(
-        () => EngineLoop(
-          input: InputState(),
-          plugins: <Flutter3dPlugin>[_Tooling(body)],
-        ),
-        _refused(what),
-        reason: what,
-      );
+      expect(_refusalOf(_Tooling(body)), _refused(what), reason: what);
     }
   });
 }
