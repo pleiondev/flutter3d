@@ -101,6 +101,8 @@ export 'src/fuzz/fuzz.dart'
         shrinkFinding,
         transformsFor;
 export 'src/kernel_checks.dart' show conformanceKernels, kernelChecks;
+export 'src/kernel_tolerance_checks.dart'
+    show kernelToleranceChecks, toleranceKernels;
 export 'src/loaded_bundle_checks.dart'
     show OwnShaderSection, loadedBundleChecks;
 export 'src/multiview_checks.dart' show multiviewChecks;

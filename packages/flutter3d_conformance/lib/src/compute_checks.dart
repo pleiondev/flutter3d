@@ -82,11 +82,14 @@ Future<void> checkPrefixSum(GraphicsDevice device) async {
 ///
 /// Since 1.0 with the four kernel-language kernels of `kernel_checks.dart`,
 /// which hold every placement — the device's own compute, the wgpu
-/// sidecar, the CPU — to the same bytes.
+/// sidecar, the CPU — to the same bytes; and since 1.0.0-rc.1+2 with the
+/// checks of `kernel_tolerance_checks.dart`, which hold each inexact
+/// operation to its declared tolerance of the CPU's.
 List<ConformanceCheck> get computeChecks => <ConformanceCheck>[
   ConformanceCheck(
     name: 'a compute pass scans a buffer in place',
     run: checkPrefixSum,
   ),
   ...kernelChecks,
+  ...kernelToleranceChecks,
 ];

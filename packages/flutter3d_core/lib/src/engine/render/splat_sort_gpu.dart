@@ -15,11 +15,15 @@
 /// queue before the draw that reads it costs neither, and the draw is the
 /// same draw through a different index buffer.
 ///
-/// **Where a device has no compute, or no `SplatSort` stages, nothing here
-/// runs** and the cloud is sorted on the CPU, which is every backend but
-/// WebGPU today: WebGL2 and Impeller answer `supportsCompute` false, and the
-/// software rasteriser computes but does not carry these stages, so its
-/// clouds stay on the sort the GPU's is held to.
+/// **Placed by the hardware layer, on the drawing device or nowhere.**
+/// [SplatGpuSort.place] asks `FrameCompute.placeOnFrame`: the draw reads
+/// the index buffer the sort writes in the same frame, so a device beside
+/// the frame's would hand it over a frame late through the host, and only
+/// a device that carries the `SplatSort` stages can run it. Where none
+/// does the cloud is sorted on the CPU, which is every backend but WebGPU
+/// today: WebGL2 and Impeller have no compute, and the software rasteriser
+/// computes but does not carry these stages, so its clouds stay on the
+/// sort the GPU's is held to.
 library;
 
 import 'dart:typed_data';
@@ -67,11 +71,29 @@ final class _Output {
 /// Sorts one cloud's keys on [device] and keeps the index buffer the draw
 /// binds. One per drawn cloud, as `SplatSorter` is.
 final class SplatGpuSort {
-  /// [readable] makes every index buffer readable back, for a test that holds
-  /// the order to the CPU's.
-  SplatGpuSort(this.device, {this.readable = false});
+  SplatGpuSort._(this._site, {required this.readable}) : device = _site.device;
 
+  /// The sort for frames drawn on [device], where the hardware layer puts
+  /// it: on that device when it computes and carries the stages
+  /// ([availableOn]), or null, and the cloud is sorted on the CPU.
+  /// [readable] makes every index buffer readable back, for a test that
+  /// holds the order to the CPU's.
+  ///
+  /// **Breaking in 1.0.0-rc.1+2**: in place of the constructor, which took
+  /// the device as it was and bypassed the placement.
+  static SplatGpuSort? place(GraphicsDevice device, {bool readable = false}) {
+    final site = FrameCompute.of(
+      device,
+    ).placeOnFrame('splat sort', availableOn);
+    return site == null ? null : SplatGpuSort._(site, readable: readable);
+  }
+
+  final ComputeSite _site;
+
+  /// The device it sorts on: the one drawing the frame.
   final GraphicsDevice device;
+
+  /// Whether every index buffer can be read back.
   final bool readable;
 
   /// Whether [device] can run this: compute, and all three stages.
@@ -142,7 +164,7 @@ final class SplatGpuSort {
       for (final p in pipelines) p.shader,
     ];
 
-    final pass = device.beginComputePass(label: 'splat sort');
+    final pass = _site.beginPass(label: 'splat sort');
     for (final shift in const <int>[0, 8]) {
       final last = shift == 8;
       final info = <String, Float32List>{

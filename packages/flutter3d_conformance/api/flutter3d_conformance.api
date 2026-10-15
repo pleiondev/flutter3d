@@ -129,6 +129,8 @@ FuzzProgram generateFuzzProgram(int seed)
 
 List<ConformanceCheck> get kernelChecks
 
+List<ConformanceCheck> get kernelToleranceChecks
+
 List<ConformanceCheck> loadedBundleChecks(Future<OwnShaderSection?> Function() ownShaders)
 
 List<ConformanceCheck> get multiviewChecks
@@ -146,6 +148,8 @@ List<ConformanceCheck> get shaderChecks
 List<ConformanceCheck> get sharingChecks
 
 Future<FuzzFinding> shrinkFinding(FuzzFinding finding, DeviceFactory makeDevice)
+
+const String toleranceKernels = …
 
 List<FuzzTransform> transformsFor(FuzzProgram program, int seed)
 

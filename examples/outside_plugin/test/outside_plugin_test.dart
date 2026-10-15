@@ -45,6 +45,21 @@ double _warmth(EngineLoop loop) {
       0.0;
 }
 
+/// A node that reads the glow, as a draw of the field would.
+final class _Glowing extends RenderNode {
+  @override
+  String get name => 'outside.glowing';
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[HeatGlow.glowResource];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[ResourceId('frame')];
+
+  @override
+  void execute(RenderFrame frame) {}
+}
+
 /// A node that reads the field in the frame, as a volume would.
 final class _Volume extends RenderNode {
   FieldStorage? seen;
@@ -230,5 +245,64 @@ void main() {
       expect(read, published.values);
       expect(read.any((v) => v > 0), isTrue);
     });
+  });
+
+  group('its compute step', () {
+    test(
+      'glows where the heat is, on the device the layer placed it on',
+      () async {
+        // Mutation: open the pass on a device of the step's own choosing, and
+        // the structure rule names the file; scale by anything but `*`, and
+        // the CPU and a GPU disagree in the last bit.
+        final loop = _loop()..runSteps(60);
+        final glow = OutsidePlugin.glow(loop.fields)!;
+        final device = _cpu();
+        expect(await glow.prepare(device), isNull);
+        expect(glow.site!.isOnFrameDevice, isTrue);
+        final reader = _Glowing();
+        final graph =
+            (FrameGraph()
+                  ..addNode(glow)
+                  ..addNode(reader))
+                .compile(outputs: const <ResourceId>[ResourceId('frame')]);
+        final resources = FrameResources(
+          source: _Source(),
+          graph: graph,
+          frameWidth: 8,
+          frameHeight: 8,
+        );
+        final frame = RenderFrame(
+          device: device,
+          resources: resources,
+          services: _Services(),
+          settings: const RenderSettings(),
+          width: 8,
+          height: 8,
+        );
+        for (var i = 0; i < graph.order.length; i++) {
+          resources.beginNode(i);
+          (graph.order[i] as RenderNode).execute(frame);
+          resources.endNode(i);
+        }
+        final heat = loop.fields.published(heatField.id)!.values;
+        final read = Float32List.sublistView(
+          await device.readBuffer(glow.glowBuffer!),
+        );
+        expect(read.length, heat.length);
+        for (var i = 0; i < heat.length; i++) {
+          // What the kernel computes: the f32 product, rounded, then clamped.
+          final f = Float32List.fromList(<double>[
+            heat[i],
+            1 / HeatGlow.fullAt,
+          ]);
+          final want = Float32List.fromList(<double>[
+            f[0] * f[1],
+          ])[0].clamp(0.0, 1.0);
+          expect(read[i], want, reason: 'cell $i');
+        }
+        expect(read.any((double v) => v > 0), isTrue);
+        glow.dispose();
+      },
+    );
   });
 }

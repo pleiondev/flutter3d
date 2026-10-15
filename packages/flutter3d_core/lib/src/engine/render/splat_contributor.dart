@@ -595,19 +595,16 @@ final class SplatContributor extends PassContributor {
   SplatGpuSort? _gpuSortFor(ContributorFrame frame, bool hashed) {
     final lod = quads.lod;
     final most = lod != null ? lod.budget : cloud.count;
-    if (!gpuSort ||
-        hashed ||
-        most > splatGpuSortLimit ||
-        !SplatGpuSort.availableOn(frame.device)) {
-      return null;
-    }
+    if (!gpuSort || hashed || most > splatGpuSortLimit) return null;
     final gpu = _gpu;
     if (gpu != null && identical(gpu.device, frame.device)) return gpu;
+    final placed = SplatGpuSort.place(frame.device);
+    if (placed == null) return null;
     gpu?.dispose();
     // A new device has none of the old one's order: the next build sorts.
     quads.invalidateSort();
     _gpuSorted = -1;
-    return _gpu = SplatGpuSort(frame.device);
+    return _gpu = placed;
   }
 
   /// The node the cloud hangs from, when it has one: its world matrix places

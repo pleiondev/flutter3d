@@ -1,6 +1,6 @@
 name: flutter3d_game
 description: "What a game on flutter3d adds to an application: keyboard, mouse, gamepad and touch input, the run being played, the settings and saves, and its actors and fixtures drawn."
-version: 1.0.0-rc.1+1
+version: 1.0.0-rc.1+2
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -34,11 +34,11 @@ dependencies:
   flutter3d_app: '>=1.0.0-rc.1 <1.1.0'
 
   # The renderer, for the actors and fixtures drawn.
-  flutter3d: '>=1.0.0-rc.1+1 <1.1.0'
+  flutter3d: '>=1.0.0-rc.1+2 <1.1.0'
 
   # The scene bindings an actor is drawn through (`SceneBindings`,
   # `SceneNodeKind`), which the facade above does not re-export.
-  flutter3d_core: '>=1.0.0-rc.1+1 <1.1.0'
+  flutter3d_core: '>=1.0.0-rc.1+2 <1.1.0'
 
   # Relative mouse deltas, which Flutter offers on no desktop platform.
   flutter3d_pointer_lock: ^0.5.0

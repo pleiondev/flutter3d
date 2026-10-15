@@ -1,3 +1,30 @@
+## 1.0.0-rc.1+2
+
+- **Breaking: the splat sort is placed, not handed a device.**
+  `SplatGpuSort.place(device)` (new) asks the hardware layer for the
+  drawing device's site (`FrameCompute.placeOnFrame`) and answers null
+  where it cannot run, in place of the constructor, which took the device
+  as it was. Its pass is opened on the site.
+- **A material's compute is placed too.** `MaterialComputeKernel.place`
+  (new) loads the kernel where the hardware layer puts it — the drawing
+  device's compute, or a GPU beside it — and answers a
+  `MaterialComputePlacement` (new), or null, and the texture is baked on
+  the CPU at load, the bake being the kernel's own host code.
+- **A step states what it requires.** `ComputeStep.requirements` (new,
+  none by default) and the workload's own are handed to the placement with
+  the size of the step's kernels, so a `bitExact` step is kept off a GPU
+  where its kernels divide or call `sqrt`, `sin`, `cos` or `pow`, and one
+  past the portable profile is refused unless it says so.
+- **Queue semantics in a workload's frame.** The recorder holds a frame's
+  writes and makes them before its first dispatch, whatever order the
+  workload recorded them in, as a GPU queue does; on the CPU a write
+  recorded after a dispatch used to land after it.
+- **A workload's kernels and pipelines belong to the engine instance.**
+  They are kept by `FrameCompute.cached` and released with the device, where
+  two static `Expando`s kept them, and their pipelines, for good.
+- **A range read back.** `readBackRange` reads only the range where the
+  device maps one.
+
 ## 1.0.0-rc.1+1
 
 - **Breaking: a registration returns at once, and what it loads follows

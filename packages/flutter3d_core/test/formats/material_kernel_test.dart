@@ -228,4 +228,12 @@ compute All {
       throwsArgumentError,
     );
   });
+
+  test('a material\'s kernel is placed by the hardware layer, and baked '
+      'where nothing takes it', () async {
+    // Mutation: load it on the device it was handed, and a frame on
+    // Impeller refuses a kernel a sidecar beside it would have run.
+    final lowered = _lower(_ripples);
+    expect(await lowered.place(FakeBackend()), isNull);
+  });
 }

@@ -31,8 +31,16 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart'
-    show DeviceFeature, GraphicsDevice, ShaderHandle;
+    show
+        ComputeRequirement,
+        ComputeSite,
+        DeviceFeature,
+        FrameCompute,
+        GraphicsDevice,
+        ShaderHandle;
 import 'package:flutter3d_shaders/kernel.dart';
+
+import '../../engine/render/compute_step.dart' show kernelNeeds;
 
 import 'material_ast.dart';
 import 'material_parser.dart' show MaterialSyntaxException;
@@ -42,6 +50,31 @@ const String materialComputeTarget = 'target';
 
 /// The `f32` buffer a lowered kernel reads its uniforms from.
 const String materialComputeParameters = 'params';
+
+/// Where [MaterialComputeKernel.place] put a material's kernel: the site
+/// the hardware layer chose and the kernel's stage there — since
+/// 1.0.0-rc.1+2.
+final class MaterialComputePlacement {
+  const MaterialComputePlacement._(this.site, this.stage);
+
+  /// Where it runs; `site.beginPass()` opens its pass.
+  final ComputeSite site;
+
+  /// The kernel's stage on the site's device.
+  final ShaderHandle stage;
+
+  @override
+  bool operator ==(Object other) =>
+      other is MaterialComputePlacement &&
+      other.site == site &&
+      identical(other.stage, stage);
+
+  @override
+  int get hashCode => Object.hash(site, identityHashCode(stage));
+
+  @override
+  String toString() => 'MaterialComputePlacement($site, ${stage.name})';
+}
 
 /// A material `compute` stage, lowered: the kernel and what binds it.
 final class MaterialComputeKernel {
@@ -110,16 +143,41 @@ final class MaterialComputeKernel {
   /// How many workgroups along y cover a target [height] texels high.
   int groupsY(int height) => (height + workgroupSize.y - 1) ~/ workgroupSize.y;
 
+  /// Where the kernel runs for frames drawn on [device], as the hardware
+  /// layer places it: the stage on the site it chose — the drawing device's
+  /// compute, or a GPU beside it — or null, and the texture is [bake]d on
+  /// the CPU at load, the bake being this kernel's own host code — since
+  /// 1.0.0-rc.1+2. [requirements] as a compute step states them.
+  ///
+  /// A site that is not the frame's own ([ComputeSite.isOnFrameDevice]
+  /// false) hands its texture to the drawing device through
+  /// `SharedTexture`.
+  Future<MaterialComputePlacement?> place(
+    GraphicsDevice device, {
+    Set<ComputeRequirement> requirements = const <ComputeRequirement>{},
+  }) async {
+    final placed = await FrameCompute.of(device).placeHosted(
+      program.name,
+      load,
+      hasHost: true,
+      needs: kernelNeeds(<ComputeKernel>[kernel], requirements),
+    );
+    return placed == null
+        ? null
+        : MaterialComputePlacement._(placed.site, placed.loaded);
+  }
+
   /// The kernel loaded on [device]: the stage a compute pass binds
   /// ([materialComputeTarget], [materialComputeParameters] and [textures]
-  /// by name) and dispatches [groupsX] × [groupsY] times.
+  /// by name) and dispatches [groupsX] × [groupsY] times. What [place]
+  /// loads on each device it tries; a caller that has a device of its own
+  /// to load on asks [place] instead, so the hardware layer chooses.
   ///
   /// **Where the device computes**: WebGPU, the wgpu sidecar and the
   /// software backend. Impeller and WebGL2 have no compute pipelines, and a
   /// device without [DeviceFeature.compute] is refused with an
   /// [UnsupportedCapabilityException] naming it, before anything is
-  /// loaded. There the texture is computed on the CPU at load by [bake]
-  /// and uploaded as any texture is.
+  /// loaded. [place] then finds a GPU beside it, or bakes on the CPU.
   Future<ShaderHandle> load(GraphicsDevice device) async {
     if (!device.features.has(DeviceFeature.compute)) {
       throw UnsupportedCapabilityException(
@@ -127,8 +185,8 @@ final class MaterialComputeKernel {
         backend: device.backendName,
         reason:
             'compute stage "${program.name}" runs only where a device '
-            'computes; compute its texture on the CPU at load with '
-            'MaterialComputeKernel.bake and upload that instead',
+            'computes; MaterialComputeKernel.place finds one beside it, or '
+            'bakes the texture on the CPU at load',
       );
     }
     final library = await device.loadShaders(

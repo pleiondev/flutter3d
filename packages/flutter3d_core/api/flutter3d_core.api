@@ -916,6 +916,7 @@ abstract base class ComputeStep extends RenderNode
   ComputeStep()
   Future<ComputePlacementException?> prepare(GraphicsDevice device)
   RenderAnchor get defaultAnchor
+  Set<ComputeRequirement> get requirements
   ViewRuns get viewRuns
   abstract List<ComputeKernel> get kernels
   abstract void record(ComputeContext context)
@@ -2725,6 +2726,7 @@ final class MaterialBundleException extends Flutter3dFormatException
 
 final class MaterialComputeKernel
   ByteData parameterBytes({Map<String, List<double>> values = const <String, List<double>>{}})
+  Future<MaterialComputePlacement?> place(GraphicsDevice device, {Set<ComputeRequirement> requirements = const <ComputeRequirement>{}})
   Future<ShaderHandle> load(GraphicsDevice device)
   KernelPixels bake(int width, int height, {Map<String, List<double>> parameters = const <String, List<double>>{}, Map<String, KernelTexture> textures = const <String, KernelTexture>{}})
   List<MaterialParameter> get uniforms
@@ -2737,6 +2739,13 @@ final class MaterialComputeKernel
   final MaterialProgram program
   int groupsX(int width)
   int groupsY(int height)
+
+final class MaterialComputePlacement
+  String toString()
+  bool operator ==(Object other)
+  final ComputeSite site
+  final ShaderHandle stage
+  int get hashCode
 
 final class MaterialDocument
   const MaterialDocument({required this.surface, this.images = const <String>[], this.lighting, this.parameterBlock = 'MaterialParams', this.parameters = const <String, Float32List>{}, this.hints = const <String, MaterialHint>{}, this.extraTextures = const <String, TextureBinding>{}, this.warnings = const <String>[], this.unknown = const <String, Object?>{}})
@@ -5234,10 +5243,10 @@ final class SplatGpuSort
   Future<Uint32List> readIndices()
   GeometryBuffer? drawn(int frameIndex)
   GeometryBuffer? get indices
-  SplatGpuSort(this.device, {this.readable = false})
   final GraphicsDevice device
   final bool readable
   int get sorts
+  static SplatGpuSort? place(GraphicsDevice device, {bool readable = false})
   static bool availableOn(GraphicsDevice device)
   void dispose()
   void relink()
@@ -5771,6 +5780,7 @@ abstract final class WebDecodeWorker
 final class WorkloadStep extends ComputeStep
   Future<ComputePlacementException?> prepare(GraphicsDevice device)
   List<ResourceId> get writes
+  Set<ComputeRequirement> get requirements
   String get name
   WorkloadBinding? get binding
   WorkloadStep(this.workload)
@@ -7140,6 +7150,7 @@ final class MaterialBundleException extends Flutter3dFormatException
 
 final class MaterialComputeKernel
   ByteData parameterBytes({Map<String, List<double>> values = const <String, List<double>>{}})
+  Future<MaterialComputePlacement?> place(GraphicsDevice device, {Set<ComputeRequirement> requirements = const <ComputeRequirement>{}})
   Future<ShaderHandle> load(GraphicsDevice device)
   KernelPixels bake(int width, int height, {Map<String, List<double>> parameters = const <String, List<double>>{}, Map<String, KernelTexture> textures = const <String, KernelTexture>{}})
   List<MaterialParameter> get uniforms
@@ -7152,6 +7163,13 @@ final class MaterialComputeKernel
   final MaterialProgram program
   int groupsX(int width)
   int groupsY(int height)
+
+final class MaterialComputePlacement
+  String toString()
+  bool operator ==(Object other)
+  final ComputeSite site
+  final ShaderHandle stage
+  int get hashCode
 
 final class MaterialDocument
   const MaterialDocument({required this.surface, this.images = const <String>[], this.lighting, this.parameterBlock = 'MaterialParams', this.parameters = const <String, Float32List>{}, this.hints = const <String, MaterialHint>{}, this.extraTextures = const <String, TextureBinding>{}, this.warnings = const <String>[], this.unknown = const <String, Object?>{}})

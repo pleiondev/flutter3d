@@ -22,10 +22,20 @@
 library;
 
 import 'dart:collection';
+import 'dart:typed_data';
 
-import 'package:flutter3d_core/flutter3d_core.dart' show FieldUpload;
+import 'package:flutter3d_core/flutter3d_core.dart'
+    show ComputeContext, ComputeStep, FieldUpload, ResourceId;
 import 'package:flutter3d_fields/flutter3d_fields.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show
+        BufferDescriptor,
+        BufferUsage,
+        ComputePipelineHandle,
+        GraphicsDevice,
+        StorageBuffer;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
+import 'package:flutter3d_shaders/kernel.dart' show ComputeKernel;
 import 'package:flutter3d_sim/flutter3d_sim.dart'
     show ContactEvent, MaterialStateComponent;
 
@@ -210,4 +220,116 @@ final class OutsidePlugin extends Flutter3dPlugin {
         final HostField published => FieldUpload(published),
         null => null,
       };
+
+  /// The step that turns the published heat into a glow on the GPU, where
+  /// the hardware layer places it: what an application adds to its
+  /// renderer with `RendererSteps.addComputeStep`. Null where the field is
+  /// not declared.
+  static HeatGlow? glow(FieldRegistry fields) =>
+      switch (fields.published(heatField.id)) {
+        final HostField published => HeatGlow(published),
+        null => null,
+      };
+}
+
+/// How bright the air glows over each cell of the heat field, computed in a
+/// kernel each frame: a compute step of the plugin's own.
+///
+/// **One kernel, every placement.** The kernel is written once in the
+/// kernel language and the hardware layer runs it where it chooses — the
+/// drawing device's compute, the wgpu sidecar, or the CPU translated to
+/// Dart — with the same bytes on each, since it keeps to `*`, `min` and
+/// `max`. The step never asks where it landed beyond whether that is the
+/// frame's own device ([ComputeContext.isOnFrameDevice]), which decides
+/// whether a draw can bind [glowBuffer] as it is.
+final class HeatGlow extends ComputeStep {
+  /// A step over [heat], the field the simulation published.
+  HeatGlow(this.heat);
+
+  /// The field it reads, as the simulation last published it.
+  final HostField heat;
+
+  /// What the frame graph orders it by: the glow a draw of the field reads.
+  static const ResourceId glowResource = ResourceId('outside.glow');
+
+  /// How many kelvin above the air glow at full brightness.
+  static const double fullAt = 50.0;
+
+  @override
+  String get name => 'outside.glow';
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[glowResource];
+
+  /// Its kernel: one invocation a cell, the cell's heat scaled into
+  /// nought to one.
+  @override
+  late final List<ComputeKernel> kernels = ComputeKernel.parseAll('''
+kernel 1
+compute OutsideGlow {
+  workgroup 64;
+  buffer heat: f32[] read;
+  buffer glow: f32[] read_write;
+  kernel {
+    let i = id.x;
+    if i >= len(glow) { return; }
+    glow[i] = min(max(heat[i] * ${1 / fullAt}, 0.0), 1.0);
+  }
+}
+''');
+
+  StorageBuffer? _heat;
+  StorageBuffer? _glow;
+  ComputePipelineHandle? _pipeline;
+  GraphicsDevice? _on;
+
+  /// The glow, one float a cell, on the device the step last ran on; null
+  /// before its first frame.
+  StorageBuffer? get glowBuffer => _glow;
+
+  @override
+  void record(ComputeContext context) {
+    final device = context.device;
+    final cells = heat.values.length;
+    if (!identical(_on, device)) {
+      _release();
+      _on = device;
+      _heat = device.createBuffer(
+        BufferDescriptor(
+          lengthInBytes: cells * 4,
+          usage: BufferUsage.standardStorage,
+          label: 'outside heat',
+        ),
+      );
+      _glow = device.createBuffer(
+        BufferDescriptor(
+          lengthInBytes: cells * 4,
+          usage: BufferUsage.standardStorage | BufferUsage.hostReadable,
+          label: 'outside glow',
+        ),
+      );
+    }
+    final values = Float32List.fromList(heat.values);
+    device.writeBuffer(_heat!, 0, ByteData.sublistView(values));
+    final stage = context.stage('OutsideGlow');
+    final pipeline = _pipeline ??= device.createComputePipeline(stage);
+    context.beginPass()
+      ..bindPipeline(pipeline)
+      ..bindStorageBuffer(stage, 'heat', _heat!)
+      ..bindStorageBuffer(stage, 'glow', _glow!)
+      ..dispatch((cells + 63) ~/ 64)
+      ..submit();
+  }
+
+  void _release() {
+    _heat?.dispose();
+    _glow?.dispose();
+    _pipeline?.dispose();
+    _heat = _glow = _on = null;
+    _pipeline = null;
+  }
+
+  /// Gives its buffers back, when the step leaves the frame.
+  @override
+  void dispose() => _release();
 }

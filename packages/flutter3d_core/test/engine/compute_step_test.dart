@@ -2,6 +2,8 @@
 // step nothing can run is refused by type and reported as unsupported, and
 // what only read its output is culled with it.
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_core/src/engine/render/compute_step.dart'
+    show inexactOperationsIn, kernelNeeds;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
@@ -77,5 +79,49 @@ void main() {
 
   test('compute goes before the opaque scene unless the step says', () {
     expect(_Step().defaultAnchor, RenderAnchor.beforeOpaque);
+  });
+
+  test('what a kernel needs is read from its source', () {
+    // Mutation: miss a division written `/=`, and a bit-exact workload that
+    // divides lands on a GPU.
+    expect(
+      inexactOperationsIn(
+        'let a = sin(x) + pow(y, 2.0);\n'
+        '// sqrt(z) is not called here, nor a / b\n'
+        'v /= 2.0;',
+      ),
+      <String>{'sin', 'pow', '/'},
+    );
+    expect(inexactOperationsIn('let a = x * y + z;'), isEmpty);
+    final needs = kernelNeeds(
+      ComputeKernel.parseAll('''
+compute Wide {
+  workgroup 8, 8;
+  buffer a: f32[] read;
+  buffer b: f32[] read_write;
+  kernel {
+    let i = id.x;
+    if i >= len(b) { return; }
+    b[i] = sqrt(a[i]);
+  }
+}
+'''),
+      const <ComputeRequirement>{ComputeRequirement.bitExact},
+    );
+    expect(needs.invocationsPerWorkgroup, 64);
+    expect(needs.storageBuffersPerStage, 2);
+    expect(needs.inexactOperations, <String>{'sqrt'});
+    expect(needs.requirements, <ComputeRequirement>{
+      ComputeRequirement.bitExact,
+    });
+  });
+
+  test('the splat sort is placed on the drawing device or nowhere', () {
+    // Mutation: hand the sort its device as it was, and WebGL is given a
+    // compute pass it refuses mid-frame.
+    expect(SplatGpuSort.place(FakeBackend()), isNull);
+    final gpu = FakeBackend(compute: true);
+    final sort = SplatGpuSort.place(gpu)!;
+    expect(sort.device, same(gpu));
   });
 }

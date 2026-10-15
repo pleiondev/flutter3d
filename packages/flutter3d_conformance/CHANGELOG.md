@@ -1,3 +1,11 @@
+## 1.0.0-rc.1+2
+
+- **The inexact operations against their declared tolerance.**
+  `kernelToleranceChecks` (new, in `computeChecks`) run `/`, `sqrt`, `sin`,
+  `cos` and `pow` in a kernel on the device and in its Dart translation,
+  and hold every result to the tolerance `kernelTolerances` declares, over
+  the inputs it is declared for. `toleranceKernels` (new) is their source.
+
 ## 1.0.0-rc.1+1
 
 - **Every feature the HAL gained in 1.0 is held by what it draws or

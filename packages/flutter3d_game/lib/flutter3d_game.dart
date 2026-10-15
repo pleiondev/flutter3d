@@ -456,6 +456,7 @@ export 'package:flutter3d/flutter3d.dart'
         MaterialBundleException,
         MaterialCatalog,
         MaterialComputeKernel,
+        MaterialComputePlacement,
         MaterialDecodeContext,
         MaterialDecoder,
         MaterialDocument,

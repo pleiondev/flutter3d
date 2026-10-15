@@ -1,3 +1,8 @@
+## 1.0.0-rc.1+2
+
+- **`MaterialComputePlacement` is re-exported**, what
+  `MaterialComputeKernel.place` answers.
+
 ## 1.0.0-rc.1+1
 
 - **`f3dMaxSectionEntryBytes` is exported**, beside `f3dVendorKindStart`:

@@ -93,7 +93,7 @@ final class ComputeContext {
   /// binds, dispatches and submits. Labelled with the step's name unless
   /// [label] says otherwise.
   ComputeEncoder beginPass({String? label}) =>
-      device.beginComputePass(label: label ?? step);
+      site.beginPass(label: label ?? step);
 }
 
 /// A compute pass in the frame graph, run where [prepare] placed it.
@@ -113,6 +113,13 @@ abstract base class ComputeStep extends RenderNode {
   /// Records this frame's work: binds, dispatches and submits on
   /// `context.beginPass()`.
   void record(ComputeContext context);
+
+  /// What this step cannot do without, which the hardware layer meets when
+  /// it places it: `ComputeRequirement.bitExact` for a step a replay or a
+  /// rollback reads, `beyondPortableProfile` for kernels past the portable
+  /// profile. A requirement, never a placement. None by default — since
+  /// 1.0.0-rc.1+2.
+  Set<ComputeRequirement> get requirements => const <ComputeRequirement>{};
 
   /// Where compute meant for the frame's draws belongs when nobody says:
   /// before the opaque scene, which is what reads a compute step's output
@@ -183,6 +190,7 @@ abstract base class ComputeStep extends RenderNode {
         name,
         (GraphicsDevice on) => _loadKernels(on, name, kernels),
         besideFrame: besideFrame,
+        needs: kernelNeeds(kernels, requirements),
       );
       _place(placed.site, placed.loaded, null);
       return null;
@@ -223,6 +231,43 @@ Future<ComputePlacementException?> prepareForThisFrame(
   ComputeStep step,
   GraphicsDevice device,
 ) => step._waiting(step._prepare(device, besideFrame: false));
+
+/// What the hardware layer weighs of work that dispatches [kernels] and
+/// requires [requirements]: the largest workgroup, the most storage buffers
+/// one kernel binds, and the operations of `kernelTolerances` the kernels
+/// use. Not exported.
+ComputeNeeds kernelNeeds(
+  List<ComputeKernel> kernels, [
+  Set<ComputeRequirement> requirements = const <ComputeRequirement>{},
+]) => ComputeNeeds(
+  requirements: requirements,
+  invocationsPerWorkgroup: kernels.fold(
+    1,
+    (int most, ComputeKernel k) =>
+        k.workgroupSize.invocations > most ? k.workgroupSize.invocations : most,
+  ),
+  storageBuffersPerStage: kernels.fold(0, (int most, ComputeKernel k) {
+    final n = k.bindings
+        .where((KernelBinding b) => b.kind == KernelBindingKind.buffer)
+        .length;
+    return n > most ? n : most;
+  }),
+  inexactOperations: <String>{
+    for (final k in kernels) ...inexactOperationsIn(k.source),
+  },
+);
+
+/// The operations of `kernelTolerances` that [source], kernel language
+/// text, uses: a call of `sqrt`, `sin`, `cos` or `pow`, and a division.
+/// Comments are not code. Not exported.
+Set<String> inexactOperationsIn(String source) {
+  final code = source.replaceAll(RegExp(r'//[^\n]*'), '');
+  return <String>{
+    for (final m in RegExp(r'\b(sqrt|sin|cos|pow)\s*\(').allMatches(code))
+      m.group(1)!,
+    if (RegExp('/').hasMatch(code)) '/',
+  };
+}
 
 /// [kernels] loaded on [device] as one bundle called [name], each kernel's
 /// stage by its name.
@@ -327,6 +372,7 @@ Future<ComputeNodePlacement?> placeComputeRequest(
     final placed = await FrameCompute.of(device).place(
       node,
       (GraphicsDevice on) => _loadKernels(on, node, request.kernels),
+      needs: kernelNeeds(request.kernels),
     );
     return ComputeNodePlacement._(placed.site, placed.loaded);
   } on ComputePlacementException {
@@ -388,33 +434,37 @@ final class WorkloadStep extends ComputeStep {
 
   _WorkloadResources? _resources;
 
-  /// Each device's kernels and pipelines, by the source they were read
-  /// from, so a hundred steps of one workload load and compile them once.
-  static final Expando<Map<String, Future<Map<String, ShaderHandle>>>>
-  _libraries = Expando<Map<String, Future<Map<String, ShaderHandle>>>>(
-    'workload kernels',
-  );
-  static final Expando<Future<ComputePipelineHandle>> _pipelines =
-      Expando<Future<ComputePipelineHandle>>('workload pipelines');
+  /// What the workload requires, as the step's own requirements.
+  @override
+  Set<ComputeRequirement> get requirements => workload.requirements;
 
-  Future<Map<String, ShaderHandle>> _load(GraphicsDevice device) {
-    final libraries = _libraries[device] ??=
-        <String, Future<Map<String, ShaderHandle>>>{};
-    return libraries[workload.kernelSource] ??= () async {
-      final library = await device.loadShaders(
-        kernelBundle(name, kernels).encode(),
-      );
-      return <String, ShaderHandle>{
-        for (final kernel in kernels)
-          kernel.name:
-              library[kernel.name] ??
-              (throw StateError(
-                '${device.backendName} loaded the bundle and has no stage '
-                '"${kernel.name}"',
-              )),
-      };
-    }();
-  }
+  /// Each device's kernels, by the source they were read from, kept by the
+  /// engine instance drawing on [frame] (`FrameCompute.cached`), so a
+  /// hundred steps of one workload load them once and nothing outlives the
+  /// instance. A load that fails is forgotten there, and asked afresh.
+  Future<Map<String, ShaderHandle>> _load(
+    FrameCompute frame,
+    GraphicsDevice device,
+  ) => frame.cached(device, (
+    _kernelsKey,
+    workload.kernelSource,
+  ), () => _loadKernels(device, name, kernels));
+
+  /// The pipeline of [stage] on [device], kept as [_load] keeps kernels and
+  /// given back to the device when the instance goes.
+  Future<ComputePipelineHandle> _pipeline(
+    FrameCompute frame,
+    GraphicsDevice device,
+    ShaderHandle stage,
+  ) => frame.cached(
+    device,
+    (_pipelineKey, stage),
+    () => device.createComputePipelineAsync(stage),
+    release: (ComputePipelineHandle p) => p.dispose(),
+  );
+
+  static const Object _kernelsKey = 'workload kernels';
+  static const Object _pipelineKey = 'workload pipeline';
 
   /// Places the workload for frames drawn on [device] by the hardware
   /// layer's workload rule, makes its buffers there and tells it where it
@@ -428,19 +478,15 @@ final class WorkloadStep extends ComputeStep {
     GraphicsDevice device,
   ) async {
     _release();
+    final frame = FrameCompute.of(device);
     final PlacedWork<Map<String, ShaderHandle>>? placed;
     try {
-      placed = await FrameCompute.of(device).placeHosted(name, (
-        GraphicsDevice on,
-      ) async {
-        try {
-          return await _load(on);
-        } on Object {
-          // A device that refused once refuses again; asked afresh next time.
-          _libraries[on]?.remove(workload.kernelSource)?.ignore();
-          rethrow;
-        }
-      }, hasHost: workload.hasHost);
+      placed = await frame.placeHosted(
+        name,
+        (GraphicsDevice on) => _load(frame, on),
+        hasHost: workload.hasHost,
+        needs: kernelNeeds(kernels, requirements),
+      );
     } on ComputePlacementException catch (refused) {
       _onHost = false;
       _place(null, const <String, ShaderHandle>{}, refused);
@@ -456,8 +502,7 @@ final class WorkloadStep extends ComputeStep {
     final stages = placed.loaded;
     final pipelines = <String, ComputePipelineHandle>{
       for (final MapEntry(key: kernel, value: stage) in stages.entries)
-        kernel: await (_pipelines[stage] ??= site.device
-            .createComputePipelineAsync(stage)),
+        kernel: await _pipeline(frame, site.device, stage),
     };
     final resources = _resources = _WorkloadResources.make(
       workload,
@@ -479,10 +524,9 @@ final class WorkloadStep extends ComputeStep {
   void record(ComputeContext context) {
     final resources = _resources;
     if (resources == null) return;
-    final encoder = context.beginPass(label: name);
-    final recorder = _Recorder(resources, encoder);
+    final recorder = _Recorder(resources);
     workload.record(recorder);
-    encoder.submit();
+    recorder.flush(context.beginPass(label: name));
     resources.afterFrame(recorder.reads);
   }
 
@@ -608,13 +652,15 @@ final class _WorkloadResources {
 
   /// Starts the reads the frame asked for, and the copies of what is drawn
   /// across to the drawing device.
-  void afterFrame(List<(String, void Function(ByteData bytes))> reads) {
+  void afterFrame(List<_Read> reads) {
     final device = site.device;
-    for (final (name, done) in reads) {
+    for (final read in reads) {
       unawaited(
-        device.readBuffer(buffer(name)).then((bytes) {
-          _reading.remove(name);
-          if (!_disposed) done(bytes);
+        _read(device, buffer(read.buffer), read.offset, read.size).then((
+          bytes,
+        ) {
+          _reading.remove(read.buffer);
+          if (!_disposed) read.done(bytes);
         }),
       );
     }
@@ -633,6 +679,41 @@ final class _WorkloadResources {
   /// Whether a read of [name] may start now; marks it started.
   bool startRead(String name) => _reading.add(name);
 
+  /// [size] bytes of [buffer] from [offset] (to its end when [size] is
+  /// null): only that range copied back where the device maps a range, the
+  /// whole buffer cut down otherwise.
+  static Future<ByteData> _read(
+    GraphicsDevice device,
+    StorageBuffer buffer,
+    int offset,
+    int? size,
+  ) async {
+    final n = size ?? buffer.lengthInBytes - offset;
+    if (offset == 0 && n == buffer.lengthInBytes) {
+      return device.readBuffer(buffer);
+    }
+    if (device.features.has(DeviceFeature.mappedBuffers)) {
+      final mapped = await device.mapBuffer(
+        buffer,
+        MapMode.read,
+        offsetInBytes: offset,
+        sizeInBytes: n,
+      );
+      try {
+        final bytes = mapped.bytes;
+        return ByteData.sublistView(
+          Uint8List.fromList(
+            bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+          ),
+        );
+      } finally {
+        mapped.unmap();
+      }
+    }
+    final all = await device.readBuffer(buffer);
+    return ByteData.sublistView(all, offset, offset + n);
+  }
+
   void dispose() {
     _disposed = true;
     for (final b in buffers.values) {
@@ -644,50 +725,119 @@ final class _WorkloadResources {
   }
 }
 
+/// A read a frame asked for: which buffer, which range, and who is told.
+typedef _Read = ({
+  String buffer,
+  int offset,
+  int? size,
+  void Function(ByteData bytes) done,
+});
+
 /// The recorder a frame hands a workload: its names bound to the buffers
 /// and pipelines of the device it runs on.
+///
+/// **Queue semantics on every executor**: the frame's writes are held and
+/// made before its first dispatch is encoded, whatever order the workload
+/// recorded them in, as a GPU queue takes a write ahead of the pass it was
+/// recorded beside. A device that runs a dispatch as it is encoded (the
+/// CPU) then sees what a GPU sees.
 final class _Recorder extends WorkloadRecorder {
-  _Recorder(this._resources, this._encoder);
+  _Recorder(this._resources);
 
   final _WorkloadResources _resources;
-  final ComputeEncoder _encoder;
+
+  /// The writes recorded this frame, made before any dispatch.
+  final List<(StorageBuffer, int, ByteData)> _writes =
+      <(StorageBuffer, int, ByteData)>[];
+
+  /// The dispatches recorded this frame, in order.
+  final List<(String, int, int, int)> _dispatches = <(String, int, int, int)>[];
 
   /// The reads asked for this frame, started once its work is submitted.
-  final List<(String, void Function(ByteData bytes))> reads =
-      <(String, void Function(ByteData bytes))>[];
+  final List<_Read> reads = <_Read>[];
 
   @override
-  void write(String buffer, ByteData bytes, {int offsetInBytes = 0}) =>
-      _resources.site.device.writeBuffer(
-        _resources.buffer(buffer),
-        offsetInBytes,
-        bytes,
+  void write(String buffer, ByteData bytes, {int offsetInBytes = 0}) {
+    final target = _resources.buffer(buffer);
+    if (offsetInBytes < 0 ||
+        offsetInBytes + bytes.lengthInBytes > target.lengthInBytes) {
+      throw RangeError(
+        'write: ${bytes.lengthInBytes} bytes at $offsetInBytes do not fit in '
+        '"$buffer", ${target.lengthInBytes} bytes long',
       );
-
-  @override
-  void dispatch(String kernel, int x, {int y = 1, int z = 1}) {
-    final pipeline =
-        _resources.pipelines[kernel] ??
-        (throw ArgumentError.value(
-          kernel,
-          'kernel',
-          'is not one of the workload\'s kernels '
-              '(${_resources.pipelines.keys.join(', ')})',
-        ));
-    final stage = _resources.stages[kernel]!;
-    _encoder.bindPipeline(pipeline);
-    for (final b in _resources.kernels[kernel]!.bindings) {
-      if (b.kind != KernelBindingKind.buffer) continue;
-      _encoder.bindStorageBuffer(stage, b.name, _resources.buffer(b.name));
     }
-    _encoder.dispatch(x, y, z);
+    // Copied: the workload may reuse its bytes before the frame flushes.
+    _writes.add((
+      target,
+      offsetInBytes,
+      ByteData.sublistView(
+        Uint8List.fromList(
+          bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+        ),
+      ),
+    ));
   }
 
   @override
-  bool readBack(String buffer, void Function(ByteData bytes) done) {
-    _resources.buffer(buffer);
+  void dispatch(String kernel, int x, {int y = 1, int z = 1}) {
+    if (!_resources.pipelines.containsKey(kernel)) {
+      throw ArgumentError.value(
+        kernel,
+        'kernel',
+        'is not one of the workload\'s kernels '
+            '(${_resources.pipelines.keys.join(', ')})',
+      );
+    }
+    _dispatches.add((kernel, x, y, z));
+  }
+
+  @override
+  bool readBack(String buffer, void Function(ByteData bytes) done) =>
+      readBackRange(buffer, 0, null, done);
+
+  @override
+  bool readBackRange(
+    String buffer,
+    int offsetInBytes,
+    int? sizeInBytes,
+    void Function(ByteData bytes) done,
+  ) {
+    final target = _resources.buffer(buffer);
+    final size = sizeInBytes ?? target.lengthInBytes - offsetInBytes;
+    if (offsetInBytes < 0 ||
+        size < 0 ||
+        offsetInBytes + size > target.lengthInBytes) {
+      throw RangeError(
+        'readBackRange: $size bytes at $offsetInBytes leave "$buffer", '
+        '${target.lengthInBytes} bytes long',
+      );
+    }
     if (!_resources.startRead(buffer)) return false;
-    reads.add((buffer, done));
+    reads.add((
+      buffer: buffer,
+      offset: offsetInBytes,
+      size: sizeInBytes,
+      done: done,
+    ));
     return true;
+  }
+
+  /// Makes the frame's writes, then encodes its dispatches on [encoder] and
+  /// submits it.
+  void flush(ComputeEncoder encoder) {
+    final device = _resources.site.device;
+    for (final (target, offset, bytes) in _writes) {
+      device.writeBuffer(target, offset, bytes);
+    }
+    for (final (kernel, x, y, z) in _dispatches) {
+      final stage = _resources.stages[kernel]!;
+      encoder.bindPipeline(_resources.pipelines[kernel]!);
+      for (final b in _resources.kernels[kernel]!.bindings) {
+        if (b.kind != KernelBindingKind.buffer) continue;
+        encoder.bindStorageBuffer(stage, b.name, _resources.buffer(b.name));
+      }
+      encoder.dispatch(x, y, z);
+    }
+    encoder.submit();
   }
 }

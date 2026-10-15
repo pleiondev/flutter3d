@@ -1,3 +1,8 @@
+## 1.0.0-rc.1+2
+
+- **`MaterialComputePlacement` is re-exported**, what
+  `MaterialComputeKernel.place` answers.
+
 ## 1.0.0-rc.1+1
 
 - **Breaking: a replay checks the loop's whole simulation.**

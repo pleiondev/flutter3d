@@ -25,9 +25,16 @@ dependencies:
   flutter3d_sim:
     path: ../../packages/flutter3d_sim
 
-  # The frame graph its field is carried into.
+  # The frame graph its field is carried into, and its compute step.
   flutter3d_core:
     path: ../../packages/flutter3d_core
+
+  # The compute step's kernel, in the kernel language, and the buffers it
+  # binds on whatever device the hardware layer places it on.
+  flutter3d_shaders:
+    path: ../../packages/flutter3d_shaders
+  flutter3d_hardware:
+    path: ../../packages/flutter3d_hardware
 
 dev_dependencies:
   flutter_test:
@@ -45,8 +52,6 @@ dev_dependencies:
   # with no GPU under it, and the graphics vocabulary its checks ask in.
   flutter3d_cpu:
     path: ../../packages/flutter3d_cpu
-  flutter3d_hardware:
-    path: ../../packages/flutter3d_hardware
 
   # The suite a plugin is held to.
   flutter3d_conformance:
