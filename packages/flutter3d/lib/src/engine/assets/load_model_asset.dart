@@ -52,6 +52,15 @@ String generatedMaterialPathFor(String sourcePath) {
   return 'flutter3d_generated/$withoutExtension.f3dshaders';
 }
 
+/// Where the build hook wrote the compiled stages of a plugin's material
+/// named [material] — its stage name, `acme_ink__Ink` — for the SDK the
+/// application builds with: `flutter3d_generated/shaders/acme_ink__Ink.f3dshaders`,
+/// the key `EngineBundleStamp.projectMaterialAsset` in `flutter3d_shaders`
+/// gives, kept beside [generatedMaterialPathFor] for the reason that one is
+/// reimplemented. What `Flutter3dView` loads for every plugin's lit model.
+String pluginMaterialAssetFor(String material) =>
+    'flutter3d_generated/shaders/$material.f3dshaders';
+
 /// Every [sourcePath] this isolate has already warned about — so a control
 /// that calls [loadModelAsset] once per frame (a hot-reload preview, a level
 /// that streams models in) prints the missing-hook warning once for the
@@ -106,6 +115,11 @@ final Set<String> _warnedMissingGenerated = <String>{};
 /// next file is read or decoded, failing it with
 /// `ResourceLoadCanceledException`. A missing class file and the fallback
 /// are read with it too, so one signal stops whichever read is running.
+///
+/// [lightingModels] is the engine's table, `Renderer.lightingModels`, that
+/// a material naming its model by name is read against
+/// ([ModelLoadRequest.lightingModels]): a model drawn with a plugin's lit
+/// model reads as that model. Null reads the built-in models alone.
 Future<ModelDocument> loadModelAsset(
   String sourcePath, {
   bool debugMode = kDebugMode,
@@ -114,10 +128,16 @@ Future<ModelDocument> loadModelAsset(
   AssetSource Function(String path) fallbackSource = FileAssetSource.new,
   ModelDecoders? decoders,
   AssetRead read = AssetRead.whole,
+  LightingModels? lightingModels,
 }) async {
-  ModelLoadRequest request(AssetSource source) =>
-      decoders?.withDecoders(ModelLoadRequest(source: source)) ??
-      ModelLoadRequest(source: source);
+  ModelLoadRequest request(AssetSource source) {
+    final plain = ModelLoadRequest(
+      source: source,
+      lightingModels: lightingModels,
+    );
+    return decoders?.withDecoders(plain) ?? plain;
+  }
+
   if (decoders != null && decoders.sources.handles(sourcePath)) {
     return decodeModelInIsolate(
       request(decoders.sourceFor(sourcePath, fallback: generatedSource)),
@@ -176,39 +196,45 @@ Future<ModelDocument> loadModelAsset(
 /// (`pak:models/crate.glb`) is read through that source, and the decoders
 /// they registered travel with the request. Null reads exactly as before.
 ///
-/// [read] is [loadModelAsset]'s: progress and a cancel signal.
+/// [read] is [loadModelAsset]'s: progress and a cancel signal, and
+/// [lightingModels] its table of the engine's lighting models.
 Future<ModelDocument> loadModelByPath(
   String path, {
   AssetSource Function(String path) bundleSource = BundleAssetSource.new,
   ModelDecoders? decoders,
   DeviceClass? deviceClass,
   AssetRead read = AssetRead.whole,
+  LightingModels? lightingModels,
 }) {
   if (decoders != null && decoders.sources.handles(path)) {
     return decodeModelInIsolate(
       decoders.withDecoders(
         ModelLoadRequest(
           source: decoders.sourceFor(path, fallback: bundleSource),
+          lightingModels: lightingModels,
         ),
       ),
       read: read,
     );
   }
-  return path.startsWith(_sourceDirPrefix)
-      ? loadModelAsset(
-          path,
-          generatedSource: bundleSource,
-          decoders: decoders,
-          deviceClass: deviceClass,
-          read: read,
-        )
-      : decodeModelInIsolate(
-          decoders?.withDecoders(
-                ModelLoadRequest(source: bundleSource(path)),
-              ) ??
-              ModelLoadRequest(source: bundleSource(path)),
-          read: read,
-        );
+  if (path.startsWith(_sourceDirPrefix)) {
+    return loadModelAsset(
+      path,
+      generatedSource: bundleSource,
+      decoders: decoders,
+      deviceClass: deviceClass,
+      read: read,
+      lightingModels: lightingModels,
+    );
+  }
+  final plain = ModelLoadRequest(
+    source: bundleSource(path),
+    lightingModels: lightingModels,
+  );
+  return decodeModelInIsolate(
+    decoders?.withDecoders(plain) ?? plain,
+    read: read,
+  );
 }
 
 Future<ModelDocument> _fallback(

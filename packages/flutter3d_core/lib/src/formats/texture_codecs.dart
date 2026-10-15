@@ -4,7 +4,12 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show PluginException, PluginRegistry, PluginScope, Registration;
+    show
+        NameTakenException,
+        PluginException,
+        PluginRegistry,
+        PluginScope,
+        Registration;
 
 import 'ktx2/encode/rgba8_image.dart';
 
@@ -85,7 +90,7 @@ final class TextureCodecs extends PluginRegistry {
 
   /// Adds [codec] until the result is cancelled. Through a plugin's view, a
   /// [PluginException] for a codec named outside the plugin's namespace;
-  /// an [ArgumentError] for a name another codec has.
+  /// a [NameTakenException] for a name another codec has.
   Registration add(TextureCodec codec) {
     final problem = _scope?.manifest.nameProblem(
       codec.name,
@@ -93,11 +98,7 @@ final class TextureCodecs extends PluginRegistry {
     );
     if (problem != null) throw PluginException(problem);
     if (_codecs.any((other) => other.name == codec.name)) {
-      throw ArgumentError.value(
-        codec.name,
-        'codec',
-        'another texture codec has this name',
-      );
+      throw NameTakenException(codec.name, what: 'the texture codec');
     }
     _codecs.add(codec);
     final registration = Registration(() => _codecs.remove(codec));

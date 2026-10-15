@@ -8,6 +8,8 @@
 /// and a caller that never named it is untouched.
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart'
@@ -346,6 +348,7 @@ final class PluginSettings {
     this.plugins = const <Flutter3dPlugin>[],
     this.formats = const <FormatSpec>[],
     this.registries = const <PluginRegistry>[],
+    this.readBundle,
   });
 
   /// The plugins the loop installs, in order, with the renderer's steps as
@@ -363,15 +366,29 @@ final class PluginSettings {
   /// `VmExtensions` here is used in place of the one the view would build.
   final Iterable<PluginRegistry> registries;
 
-  /// A copy with the fields given replaced.
+  /// Reads the bundle the build hook compiled for a plugin's lighting model,
+  /// by its asset key (`pluginMaterialAssetFor`), or answers null when there
+  /// is none. Null reads the application's asset bundle, which is where the
+  /// hook's `flutter3d_generated/shaders/` is; a test stands its own in.
+  ///
+  /// The view asks it once for every lighting model a plugin registers, and
+  /// hands what it answers to the renderer, so a lit-model plugin draws by
+  /// being installed.
+  final Future<ByteData?> Function(String asset)? readBundle;
+
+  /// A copy with the fields given replaced; [clearReadBundle] goes back to
+  /// the application's bundle.
   PluginSettings copyWith({
     Iterable<Flutter3dPlugin>? plugins,
     Iterable<FormatSpec>? formats,
     Iterable<PluginRegistry>? registries,
+    Future<ByteData?> Function(String asset)? readBundle,
+    bool clearReadBundle = false,
   }) => PluginSettings(
     plugins: plugins ?? this.plugins,
     formats: formats ?? this.formats,
     registries: registries ?? this.registries,
+    readBundle: clearReadBundle ? null : readBundle ?? this.readBundle,
   );
 }
 

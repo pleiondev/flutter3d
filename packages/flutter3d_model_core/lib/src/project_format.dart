@@ -988,7 +988,14 @@ Uint8List writeProject(
 /// did not add up: a file too short to hold a header, a magic from another
 /// format, a version from the future and a section whose length runs past the
 /// end are four different faults and never share a wording.
-ProjectRead readProject(Uint8List bytes) {
+///
+/// [lightingModels] is the engine's table (`Renderer.lightingModels`) a
+/// material's lighting model is read against, and the commands of the
+/// project's history with it (`modelCommandFromJson`): a plugin's model the
+/// engine has installed reads as itself. Null reads against the built-in
+/// models alone, as a tool with no engine does; a name neither knows opens
+/// as unset, with a warning.
+ProjectRead readProject(Uint8List bytes, {LightingModels? lightingModels}) {
   if (bytes.lengthInBytes < projectHeaderBytes) {
     return ProjectRefused(
       'A project file starts with a $projectHeaderBytes-byte header and this '
@@ -1178,6 +1185,7 @@ ProjectRead readProject(Uint8List bytes) {
     document is Map<String, Object?> ? document['materials'] : null,
     warnings,
     pool,
+    lightingModels,
   );
   if (materialRefusal != null) return ProjectRefused(materialRefusal);
 
@@ -1260,6 +1268,7 @@ ProjectRead readProject(Uint8List bytes) {
       warnings: warnings,
       simulationChunks: simulationChunks,
       fileVersion: version,
+      lightingModels: lightingModels,
     );
     if (historyRefusal != null) return ProjectRefused(historyRefusal);
 
@@ -1325,6 +1334,7 @@ ProjectRead readProject(Uint8List bytes) {
   required int nextId,
   required List<String> warnings,
   required int fileVersion,
+  LightingModels? lightingModels,
   List<Uint8List> simulationChunks = const <Uint8List>[],
 }) {
   final at = sections[ProjectSection.history];
@@ -1387,7 +1397,10 @@ ProjectRead readProject(Uint8List bytes) {
               'selectionBefore': final Object? selectionJson,
               'objects': final List<Object?> objectEntries,
             }) {
-      final ModelCommand? command = modelCommandFromJson(commandJson);
+      final ModelCommand? command = modelCommandFromJson(
+        commandJson,
+        lightingModels: lightingModels,
+      );
       if (command == null) {
         return (
           const <HistoryStep>[],
@@ -1450,6 +1463,7 @@ ProjectRead readProject(Uint8List bytes) {
           step['materials'],
           noticed,
           pool,
+          lightingModels,
         );
         if (refusal != null) {
           return (const <HistoryStep>[], 'History step $i: $refusal');
@@ -2146,6 +2160,7 @@ Map<String, Object?>? _bindingJson(TextureBinding? binding) => binding == null
   Object? json,
   List<String> warnings,
   Map<String, String> pool,
+  LightingModels? models,
 ) {
   if (json == null) return (const <ProjectMaterial>[], null);
   if (json is! List) {
@@ -2278,6 +2293,7 @@ Map<String, Object?>? _bindingJson(TextureBinding? binding) => binding == null
               entry['lightingModel'],
               warnings,
               'Material $i\'s lightingModel',
+              models,
             ),
             extensions: switch (entry['extensions']) {
               final Map<String, Object?> layers => materialExtensionsFromJson(
@@ -2491,23 +2507,24 @@ T _named<T extends Object>(
 /// bound. `LightingModel` is not an [Enum] (it is `final` with `const`
 /// instances, the shape a genre-open vocabulary takes in this repository),
 /// so the lookup is by [LightingModel.shaderName] rather than [_named]'s
-/// `Enum.name`. [LightingModels.shipped] is searched — the built-in models;
-/// a plugin's model belongs to the engine it was registered with, and a
-/// project file names the built-in ones. A custom shader `.fmat` can
+/// `Enum.name`. [models] is searched — the engine's table, so a plugin's
+/// model the engine has installed reads as itself — or the built-in models
+/// alone when the reader has no engine at hand. A custom shader `.fmat` can
 /// describe as an object has no representation here yet, since nothing
 /// that writes a project file builds one.
 LightingModel? _lightingModelNamed(
   Object? value,
   List<String> warnings,
   String context,
+  LightingModels? models,
 ) {
   if (value == null) return null;
   if (value is! String) {
     warnings.add('$context is not a shader name; ignored.');
     return null;
   }
-  for (final LightingModel model in LightingModels.shipped.all) {
-    if (model.shaderName == value) return model;
+  if ((models ?? LightingModels.shipped).named(value) case final model?) {
+    return model;
   }
   warnings.add(
     '$context names "$value", which this build does not know; opened as '

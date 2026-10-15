@@ -611,10 +611,34 @@ T? _readOrNull<T>(T Function() read) {
 /// gives: a journal is replayed entry by entry and an entry from a newer
 /// version of the application is one to skip, not one to fail the whole file
 /// over.
-ModelCommand? modelCommandFromJson(Object? json) {
+///
+/// [lightingModels] is the engine's table (`Renderer.lightingModels`) a
+/// command that names a lighting model reads it against — a material field
+/// set to one, a `.fmat` linked — so an agent or a journal can choose a
+/// plugin's model; null reads against the built-in ones alone.
+ModelCommand? modelCommandFromJson(
+  Object? json, {
+  LightingModels? lightingModels,
+}) {
   if (json is! Map<String, Object?>) return null;
   final Object? name = json['name'];
-  return name is String ? _modelCommandReaders[name]?.call(json) : null;
+  final read = name is String ? _modelCommandReaders[name]?.call(json) : null;
+  if (lightingModels == null) return read;
+  return switch (read) {
+    final SetMaterialField set => SetMaterialField(
+      index: set.index,
+      field: set.field,
+      value: set.value,
+      lightingModels: lightingModels,
+    ),
+    final LinkMaterialFile link => LinkMaterialFile(
+      index: link.index,
+      path: link.path,
+      bytes: link.bytes,
+      lightingModels: lightingModels,
+    ),
+    _ => read,
+  };
 }
 
 /// How each command is read back out of its own [ModelCommand.toJson],

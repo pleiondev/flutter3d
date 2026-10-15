@@ -205,9 +205,15 @@ final class HotSwap {
   /// game already holds; see [ModelInstance.adopt] for what follows and what
   /// needs the model instantiated again. Outside a debug build this is
   /// `loadModelAsset` and nothing is watched.
+  ///
+  /// [decoders] and [lightingModels] are what the engine's plugins brought,
+  /// as `loadModelAsset` takes them: the formats and the image codecs the
+  /// model is read with, and the lit models its materials may name.
   Future<SwappableModel> loadModel(
     String sourcePath, {
     required GraphicsDevice device,
+    ModelDecoders? decoders,
+    LightingModels? lightingModels,
   }) async {
     final generated = generatedAssetPathFor(sourcePath);
 
@@ -220,12 +226,17 @@ final class HotSwap {
       null => await _readAsset(generated),
     };
 
-    Future<ModelAsset> build(Uint8List bytes) async => ModelAsset.fromDocument(
-      await decodeModelInIsolate(
-        ModelLoadRequest(source: _MemorySource(generated, bytes)),
-      ),
-      device: device,
-    );
+    Future<ModelAsset> build(Uint8List bytes) async {
+      final plain = ModelLoadRequest(
+        source: _MemorySource(generated, bytes),
+        lightingModels: lightingModels,
+      );
+      return ModelAsset.fromDocument(
+        await decodeModelInIsolate(decoders?.withDecoders(plain) ?? plain),
+        device: device,
+        codecs: decoders?.textureCodecs,
+      );
+    }
 
     // Read once and built from what was read, so the bytes the swap compares
     // against are the ones on screen. A project with no converted file yet
@@ -235,8 +246,13 @@ final class HotSwap {
     final asset = bytes != null
         ? await build(bytes)
         : await ModelAsset.fromDocument(
-            await loadModelAsset(sourcePath),
+            await loadModelAsset(
+              sourcePath,
+              decoders: decoders,
+              lightingModels: lightingModels,
+            ),
             device: device,
+            codecs: decoders?.textureCodecs,
           );
     return registerModel(
       sourcePath,
@@ -321,10 +337,14 @@ final class HotSwap {
   /// **For a game's own images**, the ones no loader reads for it: a decal,
   /// a sign, a picture on a wall set up in code. A level's maps are
   /// `LevelLoader`'s, which registers them itself through [registerTexture].
+  ///
+  /// [codecs] is the image formats the engine's plugins brought
+  /// (`ModelDecoders.textureCodecs`), asked before the engine's own.
   Future<SwappableTexture> loadTexture(
     String path, {
     required GraphicsDevice device,
     TextureSampling sampling = const TextureSampling(),
+    TextureCodecs? codecs,
   }) async {
     Future<Uint8List?> read() => _readAsset(path);
 
@@ -333,6 +353,7 @@ final class HotSwap {
       bytes,
       decodeImage: defaultImageDecoder,
       sampling: sampling,
+      codecs: codecs,
     );
 
     final bytes = await read() ?? (throw AssetNotFoundException(path));

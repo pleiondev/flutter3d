@@ -66,7 +66,8 @@ final class AssetSources {
   static String? schemeOf(String path) => _scheme.firstMatch(path)?.group(1);
 
   /// Makes [make] answer for [scheme]. Throws an [ArgumentError] for a
-  /// scheme that is not one, and for one already taken.
+  /// scheme that is not one, and a [NameTakenException] for one already
+  /// taken.
   void add(String scheme, AssetSourceFactory make) {
     if (schemeOf('$scheme:') != scheme) {
       throw ArgumentError.value(
@@ -77,7 +78,7 @@ final class AssetSources {
       );
     }
     if (_byScheme.containsKey(scheme)) {
-      throw ArgumentError.value(scheme, 'scheme', 'already has a source');
+      throw NameTakenException(scheme, what: 'the asset scheme');
     }
     _byScheme[scheme] = make;
   }
@@ -195,8 +196,8 @@ base class ModelDecoders extends DecoderRegistry {
       _track(_store.models, _Entry<ModelDecoder>('', decoder, this));
 
   /// Makes [make] the source for paths with [scheme]. Throws an
-  /// [ArgumentError] for a scheme that is not one, and for one somebody has
-  /// already added, naming them.
+  /// [ArgumentError] for a scheme that is not one, and a
+  /// [NameTakenException] for one somebody has already added, naming them.
   ///
   /// **A plugin's scheme is in its namespace** (D23): through a plugin's
   /// view it is the plugin's namespace with each `_` as `-` (a scheme has
@@ -220,10 +221,10 @@ base class ModelDecoders extends DecoderRegistry {
     }
     for (final entry in _store.sources) {
       if (entry.key != scheme) continue;
-      throw ArgumentError.value(
+      throw NameTakenException(
         scheme,
-        'scheme',
-        'already has a source, added by ${entry.owner}',
+        what: 'the asset scheme',
+        owner: entry.owner,
       );
     }
     return _track(
@@ -244,6 +245,7 @@ base class ModelDecoders extends DecoderRegistry {
       ...request.decoders,
       ...decoders,
     ]),
+    lightingModels: request.lightingModels,
   );
 
   /// The source for [path]: a registered scheme's, or [fallback]'s.

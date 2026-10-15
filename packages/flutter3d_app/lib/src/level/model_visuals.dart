@@ -24,12 +24,23 @@ final class ModelVisuals {
     required this.device,
     AssetSource Function(String path)? source,
     IssueSink? onIssue,
+    this.decoders,
+    this.lightingModels,
   }) : _source = source ?? BundleAssetSource.new,
        onIssue = onIssue ?? printIssue;
 
   final Scene scene;
   final GraphicsDevice device;
   final IssueSink onIssue;
+
+  /// What the engine's plugins read files with — their formats, schemes
+  /// and image codecs (`Flutter3dEngine.decoders`) — or null for the
+  /// engine's readers alone.
+  final ModelDecoders? decoders;
+
+  /// The engine's lighting models (`Renderer.lightingModels`) a model's
+  /// materials are read against, or null for the built-in ones alone.
+  final LightingModels? lightingModels;
 
   /// How [loadModelByPath] reads a `model` entity's `asset` out of the
   /// bundle. [BundleAssetSource] by default — the same source every
@@ -108,11 +119,17 @@ final class ModelVisuals {
       // Whichever kind of path the level wrote: an `assets_src/` source goes
       // to the file the build hook converted it into, anything else is read
       // as it stands — see [loadModelByPath].
-      final document = await loadModelByPath(path, bundleSource: _source);
+      final document = await loadModelByPath(
+        path,
+        bundleSource: _source,
+        decoders: decoders,
+        lightingModels: lightingModels,
+      );
       asset = await ModelAsset.fromDocument(
         document,
         device: device,
         name: path,
+        codecs: decoders?.textureCodecs,
       );
     } catch (error) {
       onIssue(

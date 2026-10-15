@@ -20,6 +20,7 @@ library;
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
 import 'package:flutter/scheduler.dart';
@@ -64,6 +65,7 @@ final class Flutter3dEngine {
     required this._scene,
     required this.view,
     required this.loop,
+    required this.decoders,
     required this.simulation,
     required this.log,
     required this.backendRefusals,
@@ -191,6 +193,19 @@ final class Flutter3dEngine {
   /// The loop: systems, plugins, input and the fixed step, advanced once a
   /// frame while the view is shown and the application in the foreground.
   final EngineLoop loop;
+
+  /// The readers the loop's plugins brought: their model and material
+  /// decoders, the asset schemes they read and their image formats
+  /// (`ModelDecoders.textureCodecs`). The one among
+  /// `PluginSettings.registries`, or a `Decoders` of the view's own handed
+  /// to the loop beside the renderer's steps.
+  ///
+  /// **What a load in this engine passes**, with the renderer's lighting
+  /// models, so a plugin's format, image codec and lit model reach the files
+  /// it reads: `loadModelAsset(path, decoders: engine.decoders,
+  /// lightingModels: engine.renderer.lightingModels)`, and
+  /// `ModelAsset.fromDocument(..., codecs: engine.decoders.textureCodecs)`.
+  final ModelDecoders decoders;
 
   /// The simulation, wherever `LoopSettings.simulation` placed it: what a
   /// game submits input to and the view reads published state from.
@@ -573,6 +588,8 @@ class _Flutter3dViewState extends State<Flutter3dView>
       if (camera.parent == null) scene.add(camera);
       final loopOptions = widget.loop;
       final plugins = widget.plugins;
+      final given = plugins.registries.whereType<ModelDecoders>().firstOrNull;
+      final decoders = given ?? Decoders();
       final loop = EngineLoop(
         input: loopOptions.input ?? InputState(),
         drainLook: loopOptions.drainLook,
@@ -582,6 +599,9 @@ class _Flutter3dViewState extends State<Flutter3dView>
         registries: <PluginRegistry>[
           ...plugins.registries,
           renderer.renderSteps,
+          // A plugin's model format, asset scheme and image codec land here,
+          // where the engine's loads read them.
+          if (given == null) decoders,
           // A plugin asks the loop for these by type; without them a format
           // or a VM extension it brings had nowhere to go.
           if (!plugins.registries.any((r) => r is FormatRegistry))
@@ -617,6 +637,7 @@ class _Flutter3dViewState extends State<Flutter3dView>
         scene: scene,
         view: CameraView(camera: camera, options: widget.view.render),
         loop: loop,
+        decoders: decoders,
         simulation: placed.handle,
         log: log,
         backendRefusals: List<String>.unmodifiable(refusals),
@@ -624,6 +645,7 @@ class _Flutter3dViewState extends State<Flutter3dView>
         ownsRenderer: borrowedRenderer == null,
       );
       setState(() => _engine = engine);
+      _loadPluginMaterials(engine);
       _guarded('onCreated', () => widget.onCreated?.call(engine));
       if (_hasPendingRestore) {
         widget.restoreState?.call(_pendingRestore);
@@ -674,6 +696,80 @@ class _Flutter3dViewState extends State<Flutter3dView>
         message: '$what threw: $error',
       );
       rethrow;
+    }
+  }
+
+  /// The stage names of the plugins' lighting models whose compiled stages
+  /// the view has asked for, so each is read once per renderer.
+  final Set<String> _materialsAsked = <String>{};
+
+  /// Loads, for every lighting model a plugin registered with [engine]'s
+  /// renderer, the stages the build hook compiled for it
+  /// (`pluginMaterialAssetFor`), and hands them to the renderer: a lit-model
+  /// plugin draws by being installed, with no loader of its own.
+  ///
+  /// **The project's copy, compiled for this SDK, in front.** Added through
+  /// the application's `renderSteps.addMaterials`, so it is asked before
+  /// whatever bundle the plugin shipped and loaded itself. A model the build
+  /// compiled nothing for is left to the plugin; one whose bundle the device
+  /// refuses is said in the log. Asked again once the plugins are ready
+  /// (`PluginManager.whenReady`), and after a frame that switched plugins,
+  /// for the models registered since.
+  void _loadPluginMaterials(Flutter3dEngine engine) {
+    for (final model in engine.renderer.lightingModels.registered) {
+      final name = model.shaderName;
+      if (!_materialsAsked.add(name)) continue;
+      unawaited(_loadPluginMaterial(engine, name));
+    }
+    unawaited(
+      engine.loop.plugins.whenReady().then((_) {
+        if (!mounted || !identical(_engine, engine)) return;
+        for (final model in engine.renderer.lightingModels.registered) {
+          final name = model.shaderName;
+          if (!_materialsAsked.add(name)) continue;
+          unawaited(_loadPluginMaterial(engine, name));
+        }
+      }),
+    );
+  }
+
+  Future<void> _loadPluginMaterial(Flutter3dEngine engine, String name) async {
+    final asset = pluginMaterialAssetFor(name);
+    final renderer = engine.renderer;
+    ByteData? bytes;
+    try {
+      bytes = await (widget.plugins.readBundle ?? _bundled)(asset);
+    } on Object {
+      bytes = null;
+    }
+    if (bytes == null || !mounted || !identical(engine.renderer, renderer)) {
+      return;
+    }
+    try {
+      final library = await loadShaderBundleBytes(
+        engine.device,
+        bytes,
+        asset: asset,
+      );
+      if (!mounted || !identical(engine.renderer, renderer)) return;
+      renderer.renderSteps.addMaterials(library);
+      engine.log.debug('loaded $asset', source: _source);
+    } on Object catch (error, stack) {
+      engine.log.warning(
+        'the stages the build compiled for "$name" would not load',
+        source: _source,
+        error: error,
+        stackTrace: stack,
+      );
+    }
+  }
+
+  /// [asset] from the application's bundle, or null when it has none.
+  static Future<ByteData?> _bundled(String asset) async {
+    try {
+      return await loadRevalidatedAsset(asset);
+    } on FlutterError {
+      return null;
     }
   }
 
@@ -814,6 +910,8 @@ class _Flutter3dViewState extends State<Flutter3dView>
       device: engine.device,
       replacing: engine.renderer,
     );
+    // The stages loaded for the old device went with it.
+    _materialsAsked.clear();
     for (final id in enabled) {
       plugins.enable(id);
     }
@@ -872,12 +970,15 @@ class _Flutter3dViewState extends State<Flutter3dView>
       frame: FrameInfo(seconds: seconds, result: _drawn),
     );
     _guarded('onBeforeFrame', () => widget.onBeforeFrame?.call(frame));
+    final switching = engine.loop.plugins.hasPending;
     _guarded('the loop', () {
       engine.loop.frame(seconds);
       // A simulation placed apart is stepped by the same seconds, so it
       // pauses with the view and runs no faster than the frames.
       _placed?.advance(seconds);
     });
+    // A plugin switched on at this step boundary may have brought a model.
+    if (switching) _loadPluginMaterials(engine);
     // What an isolate published arrives between frames; what the loop here
     // published, during this one. Either way the widgets hear it once.
     engine._republish();

@@ -1,5 +1,10 @@
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show PluginException, PluginRegistry, PluginScope, Registration;
+    show
+        NameTakenException,
+        PluginException,
+        PluginRegistry,
+        PluginScope,
+        Registration;
 
 import 'material_extensions.dart';
 import 'material_language/material_slots.dart';
@@ -644,9 +649,9 @@ final class LightingModels extends PluginRegistry {
   /// Makes [model] one a document read against this table may name, until
   /// the result is cancelled.
   ///
-  /// Throws an [ArgumentError] when another model already answers to its
-  /// [LightingModel.shaderName] — built in, or registered by somebody else
-  /// — and, through a plugin's view, a [PluginException] for a name outside
+  /// Throws a [NameTakenException] when another model already answers to
+  /// its [LightingModel.shaderName] — built in, or registered by somebody
+  /// else — and, through a plugin's view, a [PluginException] for a name outside
   /// the plugin's namespace. Registering the same model again is counted,
   /// not refused. [shipped] takes nothing.
   Registration register(LightingModel model) {
@@ -660,11 +665,13 @@ final class LightingModels extends PluginRegistry {
     final name = model.shaderName;
     for (final built in LightingModel.builtIn) {
       if (built.shaderName == name && !identical(built, model)) {
-        throw ArgumentError.value(
+        throw NameTakenException(
           name,
-          'model',
-          'is the name of a built-in lighting model; replace its stage with '
-              'renderer.renderSteps.addMaterials instead',
+          what: 'the lighting model',
+          owner: 'the engine',
+          detail:
+              'it is a built-in model; a plugin replaces its stage only as '
+              'a RenderStepAddon declaring it in `replacesStages`',
         );
       }
     }
@@ -696,10 +703,10 @@ final class LightingModels extends PluginRegistry {
     }
     final existing = _store.registered[name];
     if (existing != null && !identical(existing.model, model)) {
-      throw ArgumentError.value(
-        name,
-        'model',
-        'a different lighting model is already registered under this name',
+      throw NameTakenException(
+        model.name,
+        what: 'the lighting model',
+        detail: 'a different model is registered under its stage "$name"',
       );
     }
     final entry =

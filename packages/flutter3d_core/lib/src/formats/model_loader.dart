@@ -6,6 +6,7 @@ import 'package:flutter3d_core/geometry.dart';
 import 'asset_source.dart';
 import 'f3d/f3d.dart';
 import 'gltf/gltf.dart';
+import 'lighting_model.dart';
 import 'obj/obj.dart';
 import 'stl/stl.dart';
 
@@ -133,6 +134,7 @@ final class ModelLoadRequest {
     this.objNormals = ObjNormals.smooth,
     this.stlNormals = StlNormals.fromFile,
     this.decoders = const <ModelDecoder>[],
+    this.lightingModels,
   });
 
   final AssetSource source;
@@ -140,6 +142,19 @@ final class ModelLoadRequest {
   final VertexLayout layout;
   final ObjNormals objNormals;
   final StlNormals stlNormals;
+
+  /// The engine's lighting models, `Renderer.lightingModels`, that a
+  /// material naming its model by name is read against: a `.f3d` drawn
+  /// with a plugin's lit model reads as that model, and one naming a model
+  /// of a plugin this engine has not installed is refused, naming the
+  /// plugin. Null reads against the built-in models alone, as a tool with
+  /// no engine does.
+  ///
+  /// **Sent with the request**, for the reason [decoders] gives: the decode
+  /// runs on a background isolate. The engine's table holds descriptions
+  /// only, and crosses as a copy; a plugin's view of it does not, so hand
+  /// the renderer's own.
+  final LightingModels? lightingModels;
 
   /// An application's own decoders, tried in order before the built-in ones.
   ///

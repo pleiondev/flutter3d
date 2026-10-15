@@ -135,7 +135,7 @@ void main() {
     expect(
       () => decoders.forPlugin(_Scope('pak.cache', 1)).addSource('pak', _pak),
       throwsA(
-        isA<ArgumentError>().having(
+        isA<NameTakenException>().having(
           (e) => e.message,
           'message',
           contains('plugin "pak.archive"'),

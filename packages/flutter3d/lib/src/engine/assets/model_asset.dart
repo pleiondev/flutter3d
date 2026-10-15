@@ -191,12 +191,17 @@ final class ModelAsset {
   /// albedo all the way to the draw, where the *renderer* substitutes its own
   /// fallback, which is the only place that can know what white this frame is
   /// being lit against.
+  ///
+  /// [codecs] is the image formats the engine's plugins brought
+  /// (`ModelDecoders.textureCodecs`): an image of the model's in one of them
+  /// is read by its codec before the engine's own decoders.
   static Future<ModelAsset> fromDocument(
     ModelDocument document, {
     required GraphicsDevice device,
     LightingModel lighting = LightingModel.pbr,
     String? name,
     ImageDecoder decodeImage = defaultImageDecoder,
+    TextureCodecs? codecs,
   }) async {
     final warnings = <String>[...document.warnings];
 
@@ -240,6 +245,7 @@ final class ModelAsset {
           device,
           document.images[imageIndex].bytes,
           decodeImage: decodeImage,
+          codecs: codecs,
           sampling: sampling,
           report: (message) => warnings.add('images[$imageIndex]: $message'),
         );

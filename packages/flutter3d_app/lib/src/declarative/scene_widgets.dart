@@ -85,6 +85,10 @@ abstract interface class _SceneHost {
   Scene get scene;
   Renderer get renderer;
 
+  /// What the engine's plugins read files with — their formats, schemes and
+  /// image codecs: the view's under a [Scene3D], null under a mount.
+  ModelDecoders? get decoders;
+
   /// The [Camera3D]s built, in order; the last is the one drawn through.
   List<CameraNode> get cameras;
 
@@ -318,6 +322,9 @@ class _Scene3DState extends State<Scene3D>
 
   @override
   Renderer get renderer => _controller!.renderer;
+
+  @override
+  ModelDecoders? get decoders => _controller?.engine.decoders;
 
   @override
   List<CameraNode> get cameras => _cameras;
@@ -1209,8 +1216,11 @@ class _Model3DState extends _SpatialState<Model3D, SceneNode>
               },
               cancel: _cancel,
             ),
+            decoders: scope.host.decoders,
+            lightingModels: scope.host.renderer.lightingModels,
           ),
           device: scope.device,
+          codecs: scope.host.decoders?.textureCodecs,
         ),
       };
       await turn.ready;

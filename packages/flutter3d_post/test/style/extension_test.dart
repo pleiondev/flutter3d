@@ -6,6 +6,8 @@
 library;
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show NameTakenException;
 import 'package:flutter3d_post/style.dart';
 import 'package:test/test.dart';
 
@@ -249,7 +251,7 @@ void main() {
       final models = LightingModels();
       expect(
         () => models.register(const LightingModel('Mine', 'Pbr')),
-        throwsArgumentError,
+        throwsA(isA<NameTakenException>()),
       );
       final again = models.register(LightingModel.pbr);
       again.cancel();

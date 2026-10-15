@@ -161,6 +161,11 @@ final class LevelLoader {
   /// level's surfaces may be drawn with, by name (`HotMaterials.programs`):
   /// what [build] lifts the parameter values a level wrote for an older
   /// version of one of them with.
+  ///
+  /// [lightingModels] and [codecs] are what the engine's plugins brought,
+  /// passed to [build]: the table a `.fmat` the level defers to is read
+  /// against (`Renderer.lightingModels`), and the image formats its maps
+  /// are decoded with (`ModelDecoders.textureCodecs`).
   Future<LoadedLevel> load(
     String assetPath, {
     required GraphicsDevice device,
@@ -175,6 +180,8 @@ final class LevelLoader {
     WorldProperties? gameWorld,
     Map<String, MaterialProgram> programs = const <String, MaterialProgram>{},
     AssetRead read = AssetRead.whole,
+    LightingModels? lightingModels,
+    TextureCodecs? codecs,
   }) async {
     // Every file the level reads goes through these two, so [read] hears
     // each one arrive and its signal is looked at before and after each.
@@ -225,6 +232,8 @@ final class LevelLoader {
       physics: physics,
       gameWorld: gameWorld,
       programs: programs,
+      lightingModels: lightingModels,
+      codecs: codecs,
     );
   }
 
@@ -447,6 +456,14 @@ final class LevelLoader {
   /// warnings in [LoadedLevel.issues]: the first keeps the material's own
   /// values, the second is left out. A surface drawn with no program known
   /// here takes the values as written.
+  ///
+  /// **What the engine's plugins brought reaches the level's files.** A
+  /// `.fmat` the level defers to is read against [lightingModels] (the
+  /// engine's, `Renderer.lightingModels`), so one drawn with a plugin's lit
+  /// model reads as that model, and every map — the level's own and a
+  /// `.fmat`'s — is decoded through [codecs] (`ModelDecoders.textureCodecs`)
+  /// first, so a plugin's image format draws. Null reads the built-in models
+  /// and formats alone.
   Future<LoadedLevel> build(
     Level authored, {
     required GraphicsDevice device,
@@ -460,6 +477,8 @@ final class LevelLoader {
     PhysicsBackend physics = const DartPhysics(),
     WorldProperties? gameWorld,
     Map<String, MaterialProgram> programs = const <String, MaterialProgram>{},
+    LightingModels? lightingModels,
+    TextureCodecs? codecs,
   }) async {
     final level = expandRecipes(authored);
     // Errors throw with every one listed, because a level with a door whose key
@@ -504,7 +523,13 @@ final class LevelLoader {
       if (source.fmat != null) continue;
       for (final path in <String?>[source.albedo, source.normal, source.orm]) {
         if (path == null || textures.containsKey(path)) continue;
-        final (texture, bytes) = await _upload(device, path, read, loadIssues);
+        final (texture, bytes) = await _upload(
+          device,
+          path,
+          read,
+          loadIssues,
+          codecs,
+        );
         textures[path] = texture;
         if (texture == null || bytes == null) continue;
         final swappable = HotSwap.instance.registerTexture(
@@ -516,6 +541,7 @@ final class LevelLoader {
             device,
             next,
             decodeImage: defaultImageDecoder,
+            codecs: codecs,
           ),
           loadedFrom: bytes,
         );
@@ -559,6 +585,8 @@ final class LevelLoader {
               path,
               readAsset ?? _bundleAsset,
               loadIssues,
+              lightingModels,
+              codecs,
             )
             case final RenderMaterial material) {
           _giveInstance(
@@ -809,12 +837,17 @@ final class LevelLoader {
     String path,
     AssetBytes read,
     List<LevelIssue> issues,
+    LightingModels? lightingModels,
+    TextureCodecs? codecs,
   ) async {
     final source = _LevelMaterialSource(path, read);
     final warnings = <String>[];
     final RenderMaterial material;
     try {
-      final document = await loadMaterialDocument(source);
+      final document = await loadMaterialDocument(
+        source,
+        lightingModels: lightingModels,
+      );
       warnings.addAll(document.warnings);
       material = await bindMaterial(
         document,
@@ -822,6 +855,7 @@ final class LevelLoader {
         resolveUri: source.resolveUri,
         name: name,
         warnings: warnings,
+        codecs: codecs,
       );
     } catch (error) {
       issues.add(
@@ -849,6 +883,7 @@ final class LevelLoader {
     String path,
     AssetBytes read,
     List<LevelIssue> issues,
+    TextureCodecs? codecs,
   ) async {
     try {
       // The view, not the whole buffer: a reader may hand back a window
@@ -861,6 +896,7 @@ final class LevelLoader {
         device,
         bytes,
         decodeImage: defaultImageDecoder,
+        codecs: codecs,
         sampling: const TextureSampling(),
         // A KTX2 the device does not sample, or a feature of one the reader
         // does not have, is a flat wall with a sentence beside it — the same

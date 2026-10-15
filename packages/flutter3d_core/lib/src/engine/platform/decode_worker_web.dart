@@ -43,7 +43,10 @@ Future<ModelDocument?> decodeModelOnWorker(
     read: (String uri) => request.source.resolveUri(AssetRequest(uri)),
   );
   if (reply == null) return null;
-  return F3dDocument.parse(wireBytes(reply, 'f3d')!);
+  return F3dDocument.parse(
+    wireBytes(reply, 'f3d')!,
+    lightingModels: request.lightingModels,
+  );
 }
 
 /// A panorama's faces and chain worked out by the worker, from a Radiance

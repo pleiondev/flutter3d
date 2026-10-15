@@ -342,4 +342,84 @@ void main() {
     expect(firstX(), closeTo(1.0, 1e-4));
     mount.dispose();
   });
+
+  testWidgets('a plugin\'s lit model draws with the stages the build '
+      'compiled for it, and its image format reaches the engine\'s readers', (
+    tester,
+  ) async {
+    // Mutation: leave `_loadPluginMaterials` out of `_open`, and the stages
+    // the hook compiled into the project are never loaded, so a lit-model
+    // plugin draws only if it ships a loader of its own; build the loop
+    // without the view's `Decoders`, and the plugin's codec has nowhere to
+    // go.
+    final device = FakeBackend();
+    final asked = <String>[];
+    ByteData compiled(String stage) => ShaderBundle(
+      name: stage,
+      sdk: '',
+      stages: <ShaderBundleStage>[ShaderBundleStage(stage, fragment: true)],
+      sections: const <String, ByteData>{},
+    ).encode();
+    Flutter3dEngine? engine;
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: SizedBox(
+          width: 32,
+          height: 24,
+          child: Flutter3dView(
+            device: DeviceSettings(device: device, presenter: _noPresenter),
+            view: const ViewSettings(continuous: false),
+            plugins: PluginSettings(
+              plugins: <Flutter3dPlugin>[_InkPlugin()],
+              readBundle: (String asset) async {
+                asked.add(asset);
+                return compiled('acme_ink__Ink');
+              },
+            ),
+            onCreated: (Flutter3dEngine created) => engine = created,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(asked, <String>[pluginMaterialAssetFor('acme_ink__Ink')]);
+    expect(
+      device.loadedLibraries.map((LoadedShaderLibrary l) => l.name),
+      contains('acme_ink__Ink'),
+    );
+    expect(engine!.decoders.textureCodecs.codecs.single.name, 'acme_ink.pix');
+  });
+}
+
+/// A plugin with a lit model and an image format of its own.
+final class _InkPlugin extends Flutter3dPlugin {
+  @override
+  PluginManifest get manifest => const PluginManifest(
+    id: 'acme_ink.view',
+    apiVersion: PluginApiVersion(1, 0),
+    touches: PluginTouches.view,
+  );
+
+  @override
+  void install(PluginHost host) {
+    host.registry<LightingModels>().register(
+      const LightingModel('Ink', 'acme_ink__Ink'),
+    );
+    host.registry<TextureCodecs>().add(const _PixCodec());
+  }
+}
+
+final class _PixCodec extends TextureCodec {
+  const _PixCodec();
+
+  @override
+  String get name => 'acme_ink.pix';
+
+  @override
+  bool sniff(Uint8List head) => false;
+
+  @override
+  Future<Rgba8Image?> decode(TextureDecodeContext context) async => null;
 }

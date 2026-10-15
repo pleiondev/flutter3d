@@ -57,19 +57,30 @@ import 'editor_pieces.dart';
 /// constrains the reader: a roughness of 1.5 is what the shader receives, and
 /// an editor that refused to write it would be an editor that cannot open a
 /// file it can draw. A caller says the value is outside; it does not veto it.
+///
+/// [lightingModels] is the engine's table (`Renderer.lightingModels`) the
+/// document is written and read back against, so a material drawn with a
+/// plugin's lit model — and one set to such a model — round-trips as that
+/// model; null holds it to the built-in models alone.
 MaterialDocument? materialWith(
   MaterialDocument document,
   String key,
   Object? value, {
   MaterialHint? hint,
+  LightingModels? lightingModels,
 }) {
-  final row = jsonDecode(writeFmat(document)) as Map<String, Object?>;
+  final row =
+      jsonDecode(writeFmat(document, lightingModels: lightingModels))
+          as Map<String, Object?>;
   if (!_fits(hint, value, _at(row, key))) return null;
 
   _put(row, key, value);
   final MaterialDocument next;
   try {
-    next = readFmat(Uint8List.fromList(utf8.encode(jsonEncode(row))));
+    next = readFmat(
+      Uint8List.fromList(utf8.encode(jsonEncode(row))),
+      lightingModels: lightingModels,
+    );
   } catch (_) {
     return null;
   }
@@ -77,7 +88,11 @@ MaterialDocument? materialWith(
   final had = document.warnings.toSet();
   if (next.warnings.any((String it) => !had.contains(it))) return null;
 
-  final back = _at(jsonDecode(writeFmat(next)) as Map<String, Object?>, key);
+  final back = _at(
+    jsonDecode(writeFmat(next, lightingModels: lightingModels))
+        as Map<String, Object?>,
+    key,
+  );
   if (back != null && !_sameJson(back, value)) return null;
   return next;
 }

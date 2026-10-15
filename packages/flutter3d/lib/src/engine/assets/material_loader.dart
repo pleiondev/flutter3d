@@ -74,10 +74,17 @@ final class MaterialDecodeContext {
 /// and testable with no Flutter binding, and uploading is neither. [read]
 /// is what the file is read with: progress and a cancel signal
 /// ([AssetRead]).
+///
+/// [lightingModels] is the engine's table, `Renderer.lightingModels`: a
+/// `.fmat` naming a plugin's lit model reads as that model, and one naming
+/// a model of a plugin this engine has not installed is refused, naming the
+/// plugin. Null reads against the built-in models alone, as a tool with no
+/// engine does.
 Future<MaterialDocument> loadMaterialDocument(
   AssetSource source, {
   List<MaterialDecoder> decoders = const <MaterialDecoder>[],
   AssetRead read = AssetRead.whole,
+  LightingModels? lightingModels,
 }) async {
   final bytes = await read.readFrom(source);
   final fileName = source.fileName;
@@ -94,7 +101,7 @@ Future<MaterialDocument> loadMaterialDocument(
       'for it, or convert it to .fmat.',
     );
   }
-  return readFmat(bytes, name: fileName);
+  return readFmat(bytes, name: fileName, lightingModels: lightingModels);
 }
 
 /// Turns a read material into one the renderer can draw with.
@@ -136,6 +143,10 @@ Future<MaterialDocument> loadMaterialDocument(
 /// reaches the member it is now called. A value for a parameter the program
 /// no longer has is left out, and a file from a newer version of the
 /// material keeps its values as written; each says so in [warnings].
+///
+/// [codecs] is the image formats the engine's plugins brought
+/// (`ModelDecoders.textureCodecs`): an image the material names in one of
+/// them is read by its codec before the engine's own decoders.
 Future<RenderMaterial> bindMaterial(
   MaterialDocument document, {
   required GraphicsDevice device,
@@ -145,6 +156,7 @@ Future<RenderMaterial> bindMaterial(
   List<String>? warnings,
   ImageDecoder decodeImage = defaultImageDecoder,
   Map<String, MaterialProgram> programs = const <String, MaterialProgram>{},
+  TextureCodecs? codecs,
 }) async {
   // Keyed on the path **and on whether it carries a chain**, for the reason
   // spelled out where a model does the same: the chain is part of the texture,
@@ -174,6 +186,7 @@ Future<RenderMaterial> bindMaterial(
             device,
             bytes,
             decodeImage: decodeImage,
+            codecs: codecs,
             sampling: binding.sampling,
             report: (message) =>
                 warnings?.add('${document.images[index]}: $message'),
@@ -349,7 +362,9 @@ Map<String, Float32List> _liftedParameters(
 }
 
 /// Reads and binds in one call, which is what an application usually wants.
-/// [programs] lifts the parameters as [bindMaterial] says.
+/// [programs] lifts the parameters as [bindMaterial] says; [lightingModels]
+/// is what the file is read against, as [loadMaterialDocument] says, and
+/// [codecs] what its images are decoded with, as [bindMaterial] says.
 Future<RenderMaterial> loadMaterial(
   AssetSource source, {
   required GraphicsDevice device,
@@ -358,8 +373,14 @@ Future<RenderMaterial> loadMaterial(
   List<String>? warnings,
   ImageDecoder decodeImage = defaultImageDecoder,
   Map<String, MaterialProgram> programs = const <String, MaterialProgram>{},
+  LightingModels? lightingModels,
+  TextureCodecs? codecs,
 }) async {
-  final document = await loadMaterialDocument(source, decoders: decoders);
+  final document = await loadMaterialDocument(
+    source,
+    decoders: decoders,
+    lightingModels: lightingModels,
+  );
   warnings?.addAll(document.warnings);
   return bindMaterial(
     document,
@@ -369,6 +390,7 @@ Future<RenderMaterial> loadMaterial(
     warnings: warnings,
     decodeImage: decodeImage,
     programs: programs,
+    codecs: codecs,
   );
 }
 

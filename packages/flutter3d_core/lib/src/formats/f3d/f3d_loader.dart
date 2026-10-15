@@ -398,9 +398,13 @@ final class F3dDocument extends ModelDocument {
     try {
       return build();
     } on ArgumentError catch (error) {
-      throw F3dFormatException('$what does not hold together: ${error.message}');
+      throw F3dFormatException(
+        '$what does not hold together: ${error.message}',
+      );
     } on UnsupportedError catch (error) {
-      throw F3dFormatException('$what does not hold together: ${error.message}');
+      throw F3dFormatException(
+        '$what does not hold together: ${error.message}',
+      );
     }
   }
 
@@ -474,8 +478,7 @@ final class F3dDocument extends ModelDocument {
   /// (`acme_ink` for `acme_ink.Ink`). [F3dDocument.parse] refuses a file
   /// naming one its `lightingModels` has no model of.
   late final Set<String> requires = Set<String>.unmodifiable(<String>{
-    for (final word in _materialLightingWords().values)
-      ?lightingPluginOf(word),
+    for (final word in _materialLightingWords().values) ?lightingPluginOf(word),
   });
 
   /// Filled by the pointer-track reader; read once, by [warnings].
@@ -659,11 +662,14 @@ final class F3dDecoder extends ModelDecoder {
   }
 
   /// Synchronous underneath: the header is read and every array becomes a
-  /// view over [bytes] when it is asked for.
+  /// view over [bytes] when it is asked for. A material's lighting model is
+  /// read against the request's `ModelLoadRequest.lightingModels`.
   @override
   Future<ModelDocument> decode(ModelDecodeContext context) {
     final bytes = context.bytes;
-    return Future<ModelDocument>.value(F3dDocument.parse(bytes));
+    return Future<ModelDocument>.value(
+      F3dDocument.parse(bytes, lightingModels: context.request.lightingModels),
+    );
   }
 }
 

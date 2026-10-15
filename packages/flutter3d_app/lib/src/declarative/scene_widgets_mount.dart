@@ -128,6 +128,9 @@ final class _MountHost implements _SceneHost {
   final Renderer renderer;
 
   @override
+  ModelDecoders? get decoders => null;
+
+  @override
   final List<CameraNode> cameras = <CameraNode>[];
 
   @override

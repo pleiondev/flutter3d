@@ -181,6 +181,7 @@ final class SetMaterialField extends ModelCommand {
     required this.index,
     required this.field,
     required this.value,
+    this.lightingModels,
   });
 
   final int index;
@@ -189,6 +190,13 @@ final class SetMaterialField extends ModelCommand {
   /// A number, a string, a bool, or a list of three or four numbers,
   /// depending on [field]. See `_fieldSet` for which.
   final Object? value;
+
+  /// The engine's lighting models (`Renderer.lightingModels`) a
+  /// `lightingModel` value is looked up in, so a plugin's model can be
+  /// chosen; null looks among the built-in ones alone. Not written with the
+  /// command: whoever reads it back hands the table again
+  /// (`modelCommandFromJson`).
+  final LightingModels? lightingModels;
 
   @override
   String get name => 'setMaterialField';
@@ -209,7 +217,12 @@ final class SetMaterialField extends ModelCommand {
       return Outcome.refused('there is no material $index');
     }
     final ProjectMaterial material = project.materials[index];
-    final SurfaceMaterial? next = _fieldSet(material.surface, field, value);
+    final SurfaceMaterial? next = _fieldSet(
+      material.surface,
+      field,
+      value,
+      lightingModels ?? LightingModels.shipped,
+    );
     if (next == null) {
       return Outcome.refused(
         '"$field" is not a material field, or its value is the wrong shape',
@@ -641,7 +654,12 @@ final class AssignMaterial extends ModelCommand {
 /// edits by the same names, and "link" ought to mean the file's whole look,
 /// minus only the one part this row does not resolve.
 final class LinkMaterialFile extends ModelCommand {
-  const LinkMaterialFile({required this.index, required this.path, this.bytes});
+  const LinkMaterialFile({
+    required this.index,
+    required this.path,
+    this.bytes,
+    this.lightingModels,
+  });
 
   final int index;
   final String path;
@@ -649,6 +667,12 @@ final class LinkMaterialFile extends ModelCommand {
   /// The `.fmat` already read from disk, or null to link without adopting a
   /// look yet.
   final Uint8List? bytes;
+
+  /// The engine's lighting models (`Renderer.lightingModels`) [bytes] are
+  /// read against, so a file drawn with a plugin's model reads as that
+  /// model; null reads against the built-in ones alone. Not written with the
+  /// command, as [SetMaterialField.lightingModels] is not.
+  final LightingModels? lightingModels;
 
   @override
   String get name => 'linkMaterialFile';
@@ -674,7 +698,7 @@ final class LinkMaterialFile extends ModelCommand {
     if (read != null) {
       final MaterialDocument document;
       try {
-        document = readFmat(read, name: path);
+        document = readFmat(read, name: path, lightingModels: lightingModels);
       } on FmatFormatException catch (error) {
         return Outcome.refused(
           '$path did not read as a material: ${error.message}',
@@ -832,10 +856,16 @@ SurfaceMaterial _surfaceWith(
 ///
 /// The shapes: `name` is a string or null; `baseColor` and `emissive` are four
 /// and three numbers; `alphaMode` is one of [SurfaceAlphaMode]'s names;
-/// `lightingModel` is one of [LightingModels.shipped]'s `shaderName`s or null
-/// to clear it; every other field is a number or, for `doubleSided`/`unlit`,
-/// a bool.
-SurfaceMaterial? _fieldSet(SurfaceMaterial s, String field, Object? value) {
+/// `lightingModel` is a model [models] names (`LightingModels.named`: a
+/// built-in one in any case, a plugin's by its name or stage) or null to
+/// clear it; every other field is a number or, for `doubleSided`/`unlit`, a
+/// bool.
+SurfaceMaterial? _fieldSet(
+  SurfaceMaterial s,
+  String field,
+  Object? value,
+  LightingModels models,
+) {
   switch (field) {
     case 'name':
       return value == null || value is String
@@ -889,12 +919,10 @@ SurfaceMaterial? _fieldSet(SurfaceMaterial s, String field, Object? value) {
     case 'lightingModel':
       if (value == null) return _surfaceWith(s, lightingModel: null);
       if (value is! String) return null;
-      for (final LightingModel model in LightingModels.shipped.all) {
-        if (model.shaderName == value) {
-          return _surfaceWith(s, lightingModel: model);
-        }
-      }
-      return null;
+      return switch (models.named(value)) {
+        final LightingModel model => _surfaceWith(s, lightingModel: model),
+        null => null,
+      };
     default:
       return null;
   }

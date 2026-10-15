@@ -96,15 +96,25 @@ final class ModelWardrobe<K> {
   /// Loads every look that is not loaded yet, one at a time, and dresses
   /// what is waiting for each as it arrives. A file that fails is reported
   /// to [onError] and skipped.
+  ///
+  /// [decoders] and [lightingModels] are what the engine's plugins brought:
+  /// the formats and image codecs a look is read with, and the lit models
+  /// its materials may name (`Renderer.lightingModels`).
   Future<void> load({
     AssetSource Function(String path) source = BundleAssetSource.new,
     void Function(K key, Object error)? onError,
+    ModelDecoders? decoders,
+    LightingModels? lightingModels,
   }) async {
     for (final MapEntry(key: key, value: look) in looks.entries) {
       if (has(key)) continue;
       try {
+        final plain = ModelLoadRequest(
+          source: source(look.file),
+          lightingModels: lightingModels,
+        );
         final document = await decodeModelInIsolate(
-          ModelLoadRequest(source: source(look.file)),
+          decoders?.withDecoders(plain) ?? plain,
         );
         put(
           key,
@@ -112,6 +122,7 @@ final class ModelWardrobe<K> {
             document,
             device: device,
             name: look.file,
+            codecs: decoders?.textureCodecs,
           ),
         );
       } catch (error) {

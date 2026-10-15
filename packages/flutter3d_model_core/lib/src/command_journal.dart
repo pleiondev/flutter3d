@@ -45,6 +45,8 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter3d_core/flutter3d_core.dart' show LightingModels;
+
 import 'command.dart';
 import 'history.dart';
 import 'project.dart';
@@ -221,7 +223,15 @@ final class CommandJournal {
   /// dropped.** That is not a garbled journal; it is the ordinary shape of one
   /// that stops mid-drag — the exact moment `doc-17` exists to recover from —
   /// and everything recorded before the crash is still a real edit.
-  static JournalReplay replay(Uint8List bytes, ModelProject initial) {
+  ///
+  /// [lightingModels] is the engine's table a command naming a lighting
+  /// model is read against (`modelCommandFromJson`); null reads the
+  /// built-in models alone.
+  static JournalReplay replay(
+    Uint8List bytes,
+    ModelProject initial, {
+    LightingModels? lightingModels,
+  }) {
     final history = ModelHistory(initial);
     final lines = utf8.decode(bytes).split('\n');
     // How tall the undo stack was when the open transaction began — what a
@@ -265,7 +275,10 @@ final class CommandJournal {
           continue;
       }
 
-      final ModelCommand? command = modelCommandFromJson(parsed);
+      final ModelCommand? command = modelCommandFromJson(
+        parsed,
+        lightingModels: lightingModels,
+      );
       if (command == null) {
         return JournalReplay.refused(
           'line ${i + 1} names a command this build does not know',

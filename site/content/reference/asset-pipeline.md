@@ -272,7 +272,7 @@ A project needs:
 | What its manifest lists | `shaders: [toon, lambert]` in `flutter3d_assets.yaml`, for lighting its code chooses (`RenderMaterial(lighting: LightingModel.toon)`), which a build cannot see |
 | What its plugins declare | `flutter3d_plugins: shaders: [toon]` in a plugin package's pubspec, or a map from a library to its needs so a library the application leaves out brings nothing |
 
-The engine's needs a project can name are `pbrLayered`, `blinnPhong`, `lambert`, `toon` and `impostor` (`ShaderStageNeed.engine`); a plugin names its own after its id, `acme.glow`. `shaders: full` writes every stage, as does `fullShaders: true` under `hooks: user_defines:` and the project's own name in `pubspec.yaml`, or `flutter3d shaders --full-shaders` by hand. The editor and the modeller carry every stage: they draw whatever a user opens, and they load the bundle `flutter3d_impeller` ships, which has all of them.
+The engine's needs a project can name are `pbrLayered`, `blinnPhong`, `lambert`, `toon` and `impostor` (`ShaderStageNeed.engine`); a plugin names its own after its id, `acme.glow`, which is the plugin material compiled as the stage `acme__glow` (matched in any case), and a need no installed package compiles stops the build, naming the package or the manifest that declared it. `shaders: full` writes every stage, as does `fullShaders: true` under `hooks: user_defines:` and the project's own name in `pubspec.yaml`, or `flutter3d shaders --full-shaders` by hand. The editor and the modeller carry every stage: they draw whatever a user opens, and they load the bundle `flutter3d_impeller` ships, which has all of them.
 
 A stage left out and asked for is a `MissingShaderStageException` when the renderer first draws with it. It names the stage and the need that brings it, which is the word to add under `shaders:`:
 
@@ -290,9 +290,24 @@ On `flutter3d_app`'s example the native bundle is 3.7 MB with 95 of 105 stages, 
 
 ### Plugins' materials {#plugin-materials}
 
-A package that marks plugins and keeps `.f3dmat` sources under its own `assets_src/` has every one compiled into the project, as `flutter3d_generated/shaders/<material>.f3dshaders`, for the SDK that builds the application. On Impeller a data plugin's material is found there by its name (`RuntimeShaders`' `prebuilt`); one the build did not write is off, with a `MissingShaderStageException` in `RuntimeShaders.refusals` that names it and the plugin.
+A package that marks plugins and keeps `.f3dmat` sources under its own `assets_src/` has every one compiled into the project, as `flutter3d_generated/shaders/<material>.f3dshaders`, for the SDK that builds the application. **In the package's namespace:** the source writes the bare name, `material Hair`, and a package `acme_hair` from outside the engine compiles it as `acme_hair__Hair`, the stage of its lighting model `acme_hair.Hair`; the source the bundle carries is renamed to match, and a name in another package's namespace is refused. On Impeller a data plugin's material is found there by its name (`RuntimeShaders`' `prebuilt`); one the build did not write is off, with a `MissingShaderStageException` in `RuntimeShaders.refusals` that names it and the plugin.
 
-A plugin may still ship a bundle it compiled itself, as `flutter3d_effects` does with its water. It is tied to the SDK its author built with: a device refuses it with `ShaderBundleException(stale: true)` on any other, by name. A plugin's own loader asks for `EngineBundleStamp.projectMaterialAsset(name)` first and falls back to its shipped bundle, so the copy compiled for the application's SDK wins wherever the hook ran.
+**`Flutter3dView` loads them itself.** For every lighting model a plugin registers with the engine, the view reads `flutter3d_generated/shaders/<stage>.f3dshaders` (`pluginMaterialAssetFor`) and hands it to the renderer, so a lit-model plugin draws by being installed, with no loader of its own. `PluginSettings.readBundle` stands in for the asset bundle in a test.
+
+A plugin may still ship a bundle it compiled itself, as `flutter3d_effects` does with its water. It is tied to the SDK its author built with: a device refuses it with `ShaderBundleException(stale: true)` on any other, by name. The view's copy, compiled for the application's SDK, is added in front of whatever the plugin loaded, so it wins wherever the hook ran.
+
+### A backend from outside {#backend-compilers}
+
+A graphics backend that is not one of the engine's names its material compiler in its pubspec, and the hook compiles the engine's bundle and every plugin material for it too:
+
+```yaml
+flutter3d_backend:
+  backend: acme_vk                 # the device's backendId
+  section: acme_vk                 # its compiler's bundleSection
+  compiler: bin/material_compiler.dart
+```
+
+The compiler file is one line, `exit(runMaterialCompiler(const AcmeVkMaterialCompiler(), arguments))` (`package:flutter3d_shaders/compile.dart`). The build finds the package among the project's dependencies, runs the file against the project's package config with each request, and writes what it answers under the section. `examples/flutter3d_backend_null` is the reference, and `flutter3d create plugin --kind backend` writes both.
 
 `flutter3d doctor`, run in a project that draws, says whether `hook/build.dart` runs `buildAssets`, whether `pubspec.yaml` ships `flutter3d_generated/shaders/`, whether the bundle there was compiled on the Dart and engine revision that build the project now, and which installed plugin materials are not compiled in yet.
 
