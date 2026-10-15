@@ -9,7 +9,7 @@
 /// Each runs where the hardware layer puts it, read back through its test
 /// seam (`computePlacementOf`), on machines set up the way a registry sets
 /// them up: the software device made to stand in for a GPU
-/// (`CpuDevice.standInForGpu`) drawing the frame, which runs the kernels'
+/// (`cpuComputeDeviceStandingInForGpu`) drawing the frame, which runs the kernels'
 /// Dart translation; the real wgpu sidecar beside a drawing device without
 /// compute, which runs their WGSL on the machine's GPU (skipped where it
 /// will not start); and the plain software device, which leaves each to
@@ -23,6 +23,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_cpu/testing.dart'
+    show cpuComputeDeviceStandingInForGpu;
 import 'package:flutter3d_effects/flutter3d_effects.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart'
@@ -66,7 +68,7 @@ typedef _Machine = ({
 /// The software device standing in for the GPU that draws.
 final _Machine _standIn = (
   name: 'on the software device standing in for a GPU',
-  open: () async => cpuComputeDevice(standInForGpu: true),
+  open: () async => cpuComputeDeviceStandingInForGpu(),
   lands: ComputePlacement.device,
 );
 
@@ -657,7 +659,7 @@ void main() {
     () async {
       // Mutation: drop what was read back when the frame lets go, and the
       // particles start again from nothing.
-      final device = cpuComputeDevice(standInForGpu: true);
+      final device = cpuComputeDeviceStandingInForGpu();
       final (:renderer, :frame) = _renderer(device);
       final onDevice = ParticleCloudWorkload(20)..emit(_spray(20));
       addTearDown(onDevice.dispose);

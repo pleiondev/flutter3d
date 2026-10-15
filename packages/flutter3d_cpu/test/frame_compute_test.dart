@@ -86,12 +86,20 @@ void main() {
       registry.addComputeDevice(ComputePlacement.cpu, 'cpu', (_) async => cpu);
       final drawing = cpuComputeDevice();
       registry.adopt(drawing);
-      final PlacedWork(:site, :loaded) = await FrameCompute.of(drawing).place(
+      // A release build's behaviour: a test's own throws (see
+      // compute_fallback_test.dart).
+      final compute = FrameCompute.of(drawing)..strict = false;
+      final fallbacks = <ComputeFallback>[];
+      compute.fallbacks.listen(fallbacks.add);
+      final PlacedWork(:site, :loaded, :passedOver) = await compute.place(
         'blur',
         (GraphicsDevice d) async =>
             identical(d, drawing) ? throw StateError('no such stage') : true,
       );
       expect(site.device, same(cpu));
+      expect(passedOver.single.didFail, isTrue);
+      await Future<void>.delayed(Duration.zero);
+      expect(fallbacks.single.step, 'blur');
       final alone = cpuComputeDevice();
       await expectLater(
         FrameCompute.of(alone).place(

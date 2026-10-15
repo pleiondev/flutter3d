@@ -94,7 +94,7 @@ Future<void> _expectSameOrder(
 }) async {
   final reference = SplatSorter()..sort(cloud, eye, model: model, axis: axis);
   final keys = SplatSorter()..quantize(cloud, eye, model: model, axis: axis);
-  final gpu = SplatGpuSort(device, readable: true)
+  final gpu = SplatGpuSort.place(device, readable: true)!
     ..sort(keys.keys, cloud.count, frameIndex: 0);
   final indices = await gpu.readIndices();
   gpu.dispose();
@@ -170,7 +170,8 @@ void main() {
       if (device == null) return;
       final cloud = _cloud(2000);
       final keys = SplatSorter()..quantize(cloud, Vector3(0.0, 0.0, 6.0));
-      final gpu = SplatGpuSort(device)..sort(keys.keys, 2000, frameIndex: 1);
+      final gpu = SplatGpuSort.place(device)!
+        ..sort(keys.keys, 2000, frameIndex: 1);
       final first = gpu.drawn(1)!.backend;
       gpu.sort(keys.keys, 2000, frameIndex: 1);
       final second = gpu.drawn(1)!.backend;

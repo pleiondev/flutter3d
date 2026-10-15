@@ -669,7 +669,7 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor)
   ComputeEncoder beginComputePass({String? label, PassTimestampWrites? timestampWrites})
   ComputePipelineHandle createComputePipeline(ShaderHandle shader)
-  CpuDevice({required this.width, required this.height, required this.shaders, int maxColorAttachments = 3, this.hdrOutputFormats = const <TextureFormat>[], bool supportsIndependentBlend = true, Iterable<DeviceFeature> withhold = const <DeviceFeature>[], this.materialCompiler, this.standInForGpu = false})
+  CpuDevice({required this.width, required this.height, required this.shaders, int maxColorAttachments = 3, this.hdrOutputFormats = const <TextureFormat>[], bool supportsIndependentBlend = true, Iterable<DeviceFeature> withhold = const <DeviceFeature>[], this.materialCompiler})
   DepthRange get depthRange
   Float32List readHdrPixels(TextureHandle texture)
   FramebufferOrigin get framebufferOrigin
@@ -703,7 +703,6 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback
   final DeviceFeatures features
   final DeviceLimits limits
   final List<TextureFormat> hdrOutputFormats
-  final bool standInForGpu
   final int height
   final int width
   int get preferredSampleCount
@@ -837,7 +836,7 @@ Map<String, CpuStage> builtinCpuShaders()
 
 FrameDifference compareFrames(Uint8List a, Uint8List b, {int channel = 8, bool alpha = false})
 
-CpuDevice cpuComputeDevice({bool standInForGpu = false})
+CpuDevice cpuComputeDevice()
 
 int differingPixels(Uint8List a, Uint8List b, {int channel = 8, bool alpha = false})
 
@@ -855,6 +854,8 @@ final class CpuTestKit
   final TextureHandle albedo
   final TextureHandle normal
   int get hashCode
+
+CpuDevice cpuComputeDeviceStandingInForGpu()
 
 CpuTestKit cpuTestDevice({int width = 96, int height = 72})
 

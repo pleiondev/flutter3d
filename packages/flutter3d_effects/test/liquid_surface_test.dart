@@ -4,7 +4,7 @@
 ///     dart test test/liquid_surface_test.dart
 ///
 /// The kernels run on the software device's compute, made to stand in for
-/// a GPU (`CpuDevice.standInForGpu`), as a GPU would run them; the water is stepped there, read back into the core, and
+/// a GPU (`cpuComputeDeviceStandingInForGpu`), as a GPU would run them; the water is stepped there, read back into the core, and
 /// a view that never handed its water over writes its vertices from what
 /// the core then holds. Every vertex's sixteen floats agree.
 library;
@@ -12,7 +12,8 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
-import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_cpu/testing.dart'
+    show cpuComputeDeviceStandingInForGpu;
 import 'package:flutter3d_effects/flutter3d_effects.dart';
 import 'package:flutter3d_effects/src/liquid_surface_kernels.dart';
 import 'package:flutter3d_effects/src/vertices.dart' show vertexFloats;
@@ -107,7 +108,7 @@ void main() {
     // surface over it is the water's and what the box fills of it.
     final box = world.addBody(position: Vector3(5.0, 0.6, 1.0), mass: 20.0);
     world.setShape(box, NativeShape.box(Vector3(0.6, 0.15, 0.6)));
-    final device = cpuComputeDevice(standInForGpu: true);
+    final device = cpuComputeDeviceStandingInForGpu();
     final renderer = Renderer.create(device: device);
     final workload = _Surface(world, water);
     final added = renderer.renderSteps.addWorkload(workload);

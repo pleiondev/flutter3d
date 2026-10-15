@@ -8,10 +8,13 @@
 /// software rasteriser. Everything that draws is refused by name: there is
 /// no surface and no render pipeline, by design.
 ///
-/// **Synchronous where the C side is.** Every readback waits on the queue
-/// in the calling turn (wgpu's poll), so [readBuffer] completes at once and
-/// the device also reads synchronously, which is what `SharedBuffer`'s copy
-/// to the drawing device costs a frame.
+/// **A readback that does not hold the caller**, since 1.0.0-rc.1+2:
+/// [readBuffer] starts the copy, maps the staging buffer without waiting
+/// and polls the device on later turns, so a workload's per-frame read
+/// costs the UI isolate the copy's encoding, not the GPU's time. Staging
+/// buffers come from a pool the device keeps, and a kernel keeps the bind
+/// groups it made for the resources it was last handed. `readBufferSync`
+/// still waits, for a test or a tool.
 library;
 
 import 'dart:async';
@@ -128,6 +131,15 @@ final class WgpuComputeDevice extends GraphicsDevice
   final Set<_Buffer> _buffers = <_Buffer>{};
   final Set<_Texture> _textures = <_Texture>{};
   final Set<_Kernel> _kernels = <_Kernel>{};
+
+  /// How many turns of the event loop [readBuffer] polls on before it
+  /// polls a millisecond apart: a few milliseconds of turns, which is where
+  /// a frame's read lands.
+  static const int _eagerPolling = 1000;
+
+  /// Reads in flight, each finished (its bytes dropped) before [dispose]
+  /// closes the device under it.
+  final Set<Pointer<w.F3dWgpuRead>> _reads = <Pointer<w.F3dWgpuRead>>{};
 
   // ------------------------------------------------------------ what it is
 
@@ -534,9 +546,51 @@ final class WgpuComputeDevice extends GraphicsDevice
     }
   }
 
+  /// The bytes of [buffer], once every pass submitted before is done: the
+  /// copy is started now and the device polled on later turns of the
+  /// event loop, so the caller is never held while the GPU works.
   @override
-  Future<ByteData> readBuffer(StorageBuffer buffer) async =>
-      readBufferSync(buffer);
+  Future<ByteData> readBuffer(StorageBuffer buffer) async {
+    debugCheckLive(buffer, 'readBuffer');
+    final n = buffer.lengthInBytes;
+    final read = w.f3d_wgpu_read_begin(
+      _live,
+      (buffer.backend as _Buffer).pointer,
+      0,
+      n,
+    );
+    if (read == nullptr) {
+      throw refuseResource('readBuffer', 'wgpu made no staging buffer');
+    }
+    _reads.add(read);
+    final out = calloc<Uint8>(n < 1 ? 1 : n);
+    var turns = 0;
+    try {
+      while (true) {
+        if (_gpu == nullptr) {
+          throw StateError('$wgpuBackendName was disposed during a read');
+        }
+        final state = w.f3d_wgpu_read_poll(read, out.cast(), 0);
+        if (state != 0) {
+          _reads.remove(read);
+          if (state < 0) {
+            throw refuseResource('readBuffer', 'wgpu would not map the buffer');
+          }
+          return ByteData.sublistView(Uint8List.fromList(out.asTypedList(n)));
+        }
+        // Every turn of the event loop for the first few milliseconds, which
+        // is where a frame's read lands; then a millisecond apart, so a long
+        // one does not keep the loop turning for nothing.
+        await Future<void>.delayed(
+          ++turns < _eagerPolling
+              ? Duration.zero
+              : const Duration(milliseconds: 1),
+        );
+      }
+    } finally {
+      calloc.free(out);
+    }
+  }
 
   @override
   void releaseStorageBuffer(StorageBuffer buffer) {
@@ -761,6 +815,10 @@ final class WgpuComputeDevice extends GraphicsDevice
   @override
   void dispose() {
     if (_gpu == nullptr) return;
+    for (final read in _reads) {
+      w.f3d_wgpu_read_poll(read, nullptr, 1);
+    }
+    _reads.clear();
     for (final k in _kernels) {
       w.f3d_wgpu_kernel_release(k.pointer);
     }
@@ -905,15 +963,12 @@ final class _WgpuComputeEncoder extends ComputeEncoder {
     int? sizeInBytes,
   }) {
     debugCheckLive(buffer, 'bindStorageBuffer');
-    final size = sizeInBytes ?? buffer.lengthInBytes - offsetInBytes;
-    if (offsetInBytes < 0 ||
-        size < 0 ||
-        offsetInBytes + size > buffer.lengthInBytes) {
-      throw RangeError(
-        'bindStorageBuffer: $size bytes from $offsetInBytes leave a buffer '
-        'of ${buffer.lengthInBytes}',
-      );
-    }
+    final size = checkStorageBinding(
+      buffer,
+      _device.limits,
+      offsetInBytes: offsetInBytes,
+      sizeInBytes: sizeInBytes,
+    );
     final binding = _binding(name, KernelBindingKind.buffer);
     if (binding == null) return false;
     _bound[binding.index] = _Bound(
@@ -977,6 +1032,7 @@ final class _WgpuComputeEncoder extends ComputeEncoder {
     if (kernel == null) {
       throw StateError('dispatch before any compute pipeline was bound');
     }
+    checkDispatch(_device.limits, x, y, z);
     for (final b in kernel.kernel.bindings) {
       if (_bound[b.index].target == null) {
         throw StateError(

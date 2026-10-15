@@ -11,7 +11,7 @@ library;
 import 'dart:ffi';
 
 /// `F3D_WGPU_ABI_VERSION` this file was written against.
-const int wgpuAbiVersion = 1;
+const int wgpuAbiVersion = 2;
 
 /// Binding kinds, as `f3d_wgpu.h` numbers them.
 const int wgpuStorage = 0;
@@ -28,6 +28,8 @@ final class F3dWgpuTexture extends Opaque {}
 final class F3dWgpuKernel extends Opaque {}
 
 final class F3dWgpuPass extends Opaque {}
+
+final class F3dWgpuRead extends Opaque {}
 
 @Native<Uint32 Function()>(isLeaf: true)
 external int f3d_wgpu_abi_version();
@@ -90,6 +92,28 @@ external int f3d_wgpu_buffer_read(
   int offset,
   Pointer<Void> out,
   int size,
+);
+
+@Native<
+  Pointer<F3dWgpuRead> Function(
+    Pointer<F3dWgpu>,
+    Pointer<F3dWgpuBuffer>,
+    Uint64,
+    Uint64,
+  )
+>()
+external Pointer<F3dWgpuRead> f3d_wgpu_read_begin(
+  Pointer<F3dWgpu> gpu,
+  Pointer<F3dWgpuBuffer> buffer,
+  int offset,
+  int size,
+);
+
+@Native<Int32 Function(Pointer<F3dWgpuRead>, Pointer<Void>, Int32)>()
+external int f3d_wgpu_read_poll(
+  Pointer<F3dWgpuRead> read,
+  Pointer<Void> out,
+  int wait,
 );
 
 @Native<Void Function(Pointer<F3dWgpuBuffer>)>()

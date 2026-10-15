@@ -397,7 +397,8 @@ final class WebGpuDevice extends GraphicsDevice
       samplerFor: _samplerFor,
       label: label,
       timestampWrites: _timestampWritesOf(timestampWrites),
-      storageAlignment: limits.minStorageBufferOffsetAlignment,
+      limits: limits,
+      uniforms: _uniformArena,
     );
   }
 
@@ -424,7 +425,11 @@ final class WebGpuDevice extends GraphicsDevice
 
   @override
   Future<ByteData> readBuffer(StorageBuffer buffer) =>
-      webgpuReadBuffer(_gpuDevice, buffer);
+      webgpuReadBuffer(_gpuDevice, buffer, staging: _staging);
+
+  /// The staging buffers [readBuffer] and a read [mapBuffer] copy through,
+  /// kept between reads — since 1.0.0-rc.1+2.
+  late final WebGpuStagingPool _staging = WebGpuStagingPool(_gpuDevice);
 
   @override
   void releaseStorageBuffer(StorageBuffer buffer) =>
@@ -2632,6 +2637,7 @@ fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
           buffer,
           offsetInBytes,
           size,
+          staging: _staging,
         );
         return WebGpuMappedBuffer(mapped.bytes, mapped.release);
       case MapMode.write:
@@ -2703,6 +2709,7 @@ fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
     webgpuDisposePersistentResources(_textures, _buffers);
     _blanks.clear();
     _uniformArena.dispose();
+    _staging.dispose();
     _vertexArena.dispose();
     _indexArena.dispose();
     _zeroBlock.destroy();

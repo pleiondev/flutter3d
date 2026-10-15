@@ -1,3 +1,21 @@
+## 1.0.0-rc.1+2
+
+- **A readback that does not hold the caller.** `readBuffer` starts the
+  copy, maps its staging buffer without waiting and polls the device on
+  later turns of the event loop, where it waited on the queue in the
+  calling turn: a frame's read now holds the UI isolate for its encoding,
+  0.09 ms in place of 2.19 ms for 2 MiB on an M-series Mac, and lands in
+  0.74 ms in place of 2.20 ms. `readBufferSync` still waits. The C side is
+  ABI 2 (`f3d_wgpu_read_begin`, `f3d_wgpu_read_poll`).
+- **Staging buffers and bind groups are kept.** A read copies through a
+  staging buffer from a pool the device keeps, and a kernel keeps the last
+  eight bind groups it made, keyed by resource ids that are never reused,
+  and lets go of those of a buffer or texture released; each was made per
+  read and per dispatch.
+- **The encoder checks ranges and dispatches**, as every backend's does: a
+  storage offset off the 256-byte alignment, which wgpu would have refused
+  late, is a `RangeError` at the call.
+
 ## 1.0.0-rc.1+1
 
 - **Its own dispose is a loss.** The sidecar reported no loss at all; its

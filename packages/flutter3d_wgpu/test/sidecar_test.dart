@@ -8,9 +8,12 @@
 /// check with the reason, never passes it.
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter3d_conformance/flutter3d_conformance.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
+import 'package:flutter3d_shaders/kernel.dart';
 import 'package:flutter3d_wgpu/flutter3d_wgpu.dart';
 import 'package:test/test.dart';
 
@@ -90,6 +93,49 @@ void main() {
         DeviceLossReason.destroyed,
       ]);
       expect(device.isLost, isTrue);
+    }
+  });
+
+  test('a read back through the pool comes back whole, twice, and a bad '
+      'range is refused at the call', () async {
+    // Mutation: hand a staging buffer back to the pool still mapped, and the
+    // second read of the same buffer fails to map.
+    final device = await _open();
+    if (device == null) return;
+    try {
+      final bytes = ByteData(64 * 1024);
+      for (var i = 0; i < bytes.lengthInBytes; i += 4) {
+        bytes.setUint32(i, i, Endian.little);
+      }
+      final buffer = device.createBuffer(
+        BufferDescriptor(
+          lengthInBytes: bytes.lengthInBytes,
+          usage: BufferUsage.standardStorage | BufferUsage.hostReadable,
+        ),
+        contents: bytes,
+      );
+      await device.readBuffer(buffer);
+      final read = device.readBuffer(buffer);
+      final back = await read;
+      for (var i = 0; i < bytes.lengthInBytes; i += 4) {
+        expect(back.getUint32(i, Endian.little), i);
+      }
+      // A misaligned range is refused at the call, as WebGPU refuses it.
+      final stage = (await device.loadShaders(
+        kernelBundle(
+          'probe',
+          ComputeKernel.parseAll(conformanceKernels),
+        ).encode(),
+      ))['PrefixSum']!;
+      final pass = device.beginComputePass()
+        ..bindPipeline(device.createComputePipeline(stage));
+      expect(
+        () => pass.bindStorageBuffer(stage, 'sums', buffer, offsetInBytes: 4),
+        throwsRangeError,
+      );
+      expect(() => pass.dispatch(1 << 20), throwsRangeError);
+    } finally {
+      device.dispose();
     }
   });
 

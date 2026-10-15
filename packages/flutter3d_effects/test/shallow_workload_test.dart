@@ -13,7 +13,7 @@
 /// core's own step is written for the CPU, the software device would
 /// interpret kernels written for a GPU — so to run the kernels here the
 /// software device is made to stand in for a GPU
-/// (`CpuDevice.standInForGpu`): for WebGPU drawing the frame, and for wgpu
+/// (`cpuComputeDeviceStandingInForGpu`): for WebGPU drawing the frame, and for wgpu
 /// beside one that does not compute. The workload asks for nothing.
 library;
 
@@ -22,6 +22,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_cpu/testing.dart'
+    show cpuComputeDeviceStandingInForGpu;
 import 'package:flutter3d_effects/flutter3d_effects.dart'
     show ShallowWaterWorkload;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
@@ -163,7 +165,7 @@ double _held(Float32List depth) =>
 FakeBackend _noCompute() => FakeBackend(maxColorAttachments: 4);
 
 /// A software device standing in for a GPU.
-CpuDevice _gpu() => cpuComputeDevice(standInForGpu: true);
+CpuDevice _gpu() => cpuComputeDeviceStandingInForGpu();
 
 void main() {
   test(

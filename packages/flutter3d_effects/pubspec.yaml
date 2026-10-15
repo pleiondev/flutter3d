@@ -65,7 +65,7 @@ dependencies:
 dev_dependencies:
   test: ^1.25.0
   # The software device the tests draw on.
-  flutter3d_cpu: '>=1.0.0-rc.1+1 <1.1.0'
+  flutter3d_cpu: '>=1.0.0-rc.1+2 <1.1.0'
   # The wgpu sidecar: a water's step on a real GPU beside a drawing device
   # without compute, held to the core's (`shallow_workload_test.dart`).
   flutter3d_wgpu: '>=1.0.0-rc.1 <1.1.0'

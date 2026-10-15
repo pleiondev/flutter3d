@@ -19,6 +19,15 @@
 #include "webgpu/wgpu.h"
 
 #define F3D_WGPU_MAX_BINDINGS 16u
+/* Bind groups a kernel keeps; the least recently used goes first. */
+#define F3D_WGPU_GROUPS 8u
+/* Staging buffers kept for readback between reads. */
+#define F3D_WGPU_STAGING 8u
+
+typedef struct Staging {
+  WGPUBuffer buffer;
+  uint64_t size;
+} Staging;
 
 struct F3dWgpu {
   WGPUInstance instance;
@@ -27,12 +36,20 @@ struct F3dWgpu {
   WGPUQueue queue;
   char name[256];
   char error[1024];
+  /* Every resource's id, never reused: what a kept bind group is keyed
+   * by, so a buffer freed and another made at its address never matches. */
+  uint64_t next_id;
+  uint64_t tick;
+  /* Every live kernel, so a released buffer leaves no group behind. */
+  F3dWgpuKernel *kernels;
+  Staging staging[F3D_WGPU_STAGING];
 };
 
 struct F3dWgpuBuffer {
   F3dWgpu *gpu;
   WGPUBuffer buffer;
   uint64_t size;
+  uint64_t id;
 };
 
 struct F3dWgpuTexture {
@@ -41,7 +58,17 @@ struct F3dWgpuTexture {
   WGPUTextureView view;
   uint32_t width;
   uint32_t height;
+  uint64_t id;
 };
+
+/* A bind group a kernel made, and what it binds. */
+typedef struct Group {
+  WGPUBindGroup group;
+  uint64_t used;
+  uint64_t ids[F3D_WGPU_MAX_BINDINGS];
+  uint64_t offsets[F3D_WGPU_MAX_BINDINGS];
+  uint64_t sizes[F3D_WGPU_MAX_BINDINGS];
+} Group;
 
 struct F3dWgpuKernel {
   F3dWgpu *gpu;
@@ -51,6 +78,18 @@ struct F3dWgpuKernel {
   WGPUComputePipeline pipeline;
   uint32_t count;
   uint32_t kinds[F3D_WGPU_MAX_BINDINGS];
+  Group groups[F3D_WGPU_GROUPS];
+  F3dWgpuKernel *next;
+};
+
+struct F3dWgpuRead {
+  F3dWgpu *gpu;
+  WGPUBuffer staging;
+  uint64_t capacity;
+  uint64_t lead;
+  uint64_t size;
+  int done;
+  int ok;
 };
 
 struct F3dWgpuPass {
@@ -170,6 +209,9 @@ F3dWgpu *f3d_wgpu_open(void) {
 
 void f3d_wgpu_close(F3dWgpu *gpu) {
   if (gpu == NULL) return;
+  for (uint32_t i = 0; i < F3D_WGPU_STAGING; i++) {
+    if (gpu->staging[i].buffer != NULL) wgpuBufferRelease(gpu->staging[i].buffer);
+  }
   if (gpu->queue != NULL) wgpuQueueRelease(gpu->queue);
   if (gpu->device != NULL) wgpuDeviceRelease(gpu->device);
   if (gpu->adapter != NULL) wgpuAdapterRelease(gpu->adapter);
@@ -243,6 +285,7 @@ F3dWgpuBuffer *f3d_wgpu_buffer_create(F3dWgpu *gpu, uint64_t size) {
   d.size = padded(size);
   b->gpu = gpu;
   b->size = size;
+  b->id = ++gpu->next_id;
   b->buffer = wgpuDeviceCreateBuffer(gpu->device, &d);
   if (b->buffer == NULL) {
     free(b);
@@ -283,6 +326,53 @@ static void mapped(WGPUMapAsyncStatus status, WGPUStringView message, void *user
   m->done = 1;
 }
 
+/* A staging buffer of at least [size] bytes for reading back: one kept
+ * from an earlier read when one is big enough, a new one otherwise. */
+static Staging take_staging(F3dWgpu *gpu, uint64_t size) {
+  int best = -1;
+  for (uint32_t i = 0; i < F3D_WGPU_STAGING; i++) {
+    const Staging s = gpu->staging[i];
+    if (s.buffer == NULL || s.size < size) continue;
+    if (best < 0 || s.size < gpu->staging[best].size) best = (int)i;
+  }
+  if (best >= 0) {
+    Staging s = gpu->staging[best];
+    gpu->staging[best].buffer = NULL;
+    gpu->staging[best].size = 0;
+    return s;
+  }
+  uint64_t capacity = 4096u;
+  while (capacity < size) capacity *= 2u;
+  WGPUBufferDescriptor d;
+  memset(&d, 0, sizeof d);
+  d.usage = WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst;
+  d.size = capacity;
+  Staging made = {wgpuDeviceCreateBuffer(gpu->device, &d), capacity};
+  if (made.buffer == NULL) made.size = 0;
+  return made;
+}
+
+/* Keeps [s] for the next read, in place of the smallest kept one when
+ * every slot is taken. */
+static void give_staging(F3dWgpu *gpu, Staging s) {
+  int slot = 0;
+  for (uint32_t i = 0; i < F3D_WGPU_STAGING; i++) {
+    if (gpu->staging[i].buffer == NULL) {
+      slot = (int)i;
+      break;
+    }
+    if (gpu->staging[i].size < gpu->staging[slot].size) slot = (int)i;
+  }
+  if (gpu->staging[slot].buffer != NULL) {
+    if (gpu->staging[slot].size >= s.size) {
+      wgpuBufferRelease(s.buffer);
+      return;
+    }
+    wgpuBufferRelease(gpu->staging[slot].buffer);
+  }
+  gpu->staging[slot] = s;
+}
+
 /* Maps [staging] for reading and waits; 1 when it is mapped. */
 static int map_wait(F3dWgpu *gpu, WGPUBuffer staging, uint64_t size) {
   Mapping m = {0, 0};
@@ -304,34 +394,120 @@ int f3d_wgpu_buffer_read(F3dWgpu *gpu, F3dWgpuBuffer *buffer, uint64_t offset, v
   if (size == 0) return 1;
   const uint64_t start = offset & ~(uint64_t)3u;
   const uint64_t span = ((offset + size + 3u) & ~(uint64_t)3u) - start;
-  WGPUBufferDescriptor d;
-  memset(&d, 0, sizeof d);
-  d.usage = WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst;
-  d.size = span;
-  WGPUBuffer staging = wgpuDeviceCreateBuffer(gpu->device, &d);
-  if (staging == NULL) return 0;
+  Staging staging = take_staging(gpu, span);
+  if (staging.buffer == NULL) return 0;
   WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(gpu->device, NULL);
-  wgpuCommandEncoderCopyBufferToBuffer(encoder, buffer->buffer, start, staging, 0, span);
+  wgpuCommandEncoderCopyBufferToBuffer(encoder, buffer->buffer, start, staging.buffer, 0, span);
   WGPUCommandBuffer commands = wgpuCommandEncoderFinish(encoder, NULL);
   wgpuQueueSubmit(gpu->queue, 1, &commands);
   wgpuCommandBufferRelease(commands);
   wgpuCommandEncoderRelease(encoder);
-  int ok = map_wait(gpu, staging, span);
+  int ok = map_wait(gpu, staging.buffer, span);
   if (ok) {
-    const uint8_t *data = (const uint8_t *)wgpuBufferGetConstMappedRange(staging, 0, (size_t)span);
+    const uint8_t *data =
+        (const uint8_t *)wgpuBufferGetConstMappedRange(staging.buffer, 0, (size_t)span);
     if (data == NULL) {
       ok = 0;
     } else {
       memcpy(out, data + (offset - start), (size_t)size);
     }
-    wgpuBufferUnmap(staging);
+    wgpuBufferUnmap(staging.buffer);
   }
-  wgpuBufferRelease(staging);
+  give_staging(gpu, staging);
   return ok;
+}
+
+static void read_mapped(WGPUMapAsyncStatus status, WGPUStringView message, void *userdata1,
+                        void *userdata2) {
+  (void)message;
+  (void)userdata2;
+  F3dWgpuRead *r = (F3dWgpuRead *)userdata1;
+  r->ok = status == WGPUMapAsyncStatus_Success;
+  r->done = 1;
+}
+
+F3dWgpuRead *f3d_wgpu_read_begin(F3dWgpu *gpu, F3dWgpuBuffer *buffer, uint64_t offset,
+                                 uint64_t size) {
+  F3dWgpuRead *r = (F3dWgpuRead *)calloc(1, sizeof(F3dWgpuRead));
+  if (r == NULL) return NULL;
+  r->gpu = gpu;
+  r->size = size;
+  if (size == 0) {
+    r->done = 1;
+    r->ok = 1;
+    return r;
+  }
+  const uint64_t start = offset & ~(uint64_t)3u;
+  const uint64_t span = ((offset + size + 3u) & ~(uint64_t)3u) - start;
+  r->lead = offset - start;
+  Staging staging = take_staging(gpu, span);
+  if (staging.buffer == NULL) {
+    free(r);
+    return NULL;
+  }
+  r->staging = staging.buffer;
+  r->capacity = staging.size;
+  WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(gpu->device, NULL);
+  wgpuCommandEncoderCopyBufferToBuffer(encoder, buffer->buffer, start, staging.buffer, 0, span);
+  WGPUCommandBuffer commands = wgpuCommandEncoderFinish(encoder, NULL);
+  wgpuQueueSubmit(gpu->queue, 1, &commands);
+  wgpuCommandBufferRelease(commands);
+  wgpuCommandEncoderRelease(encoder);
+  WGPUBufferMapCallbackInfo info;
+  memset(&info, 0, sizeof info);
+  info.mode = WGPUCallbackMode_AllowProcessEvents;
+  info.callback = read_mapped;
+  info.userdata1 = r;
+  wgpuBufferMapAsync(staging.buffer, WGPUMapMode_Read, 0, (size_t)span, info);
+  return r;
+}
+
+int f3d_wgpu_read_poll(F3dWgpuRead *read, void *out, int wait) {
+  F3dWgpu *gpu = read->gpu;
+  for (int i = 0; !read->done && (i == 0 || (wait && i < 100000)); i++) {
+    wgpuDevicePoll(gpu->device, wait ? 1 : 0, NULL);
+    wgpuInstanceProcessEvents(gpu->instance);
+  }
+  if (!read->done) return 0;
+  int ok = read->ok;
+  if (read->staging != NULL) {
+    if (ok) {
+      const size_t span = (size_t)((read->lead + read->size + 3u) & ~(uint64_t)3u);
+      const uint8_t *data =
+          (const uint8_t *)wgpuBufferGetConstMappedRange(read->staging, 0, span);
+      if (data == NULL) {
+        ok = 0;
+      } else if (out != NULL) {
+        memcpy(out, data + read->lead, (size_t)read->size);
+      }
+      wgpuBufferUnmap(read->staging);
+    }
+    Staging back = {read->staging, read->capacity};
+    give_staging(gpu, back);
+  }
+  free(read);
+  return ok ? 1 : -1;
+}
+
+/* Lets go of every kept group that binds the resource [id]. */
+static void forget_groups_of(F3dWgpu *gpu, uint64_t id) {
+  for (F3dWgpuKernel *k = gpu->kernels; k != NULL; k = k->next) {
+    for (uint32_t g = 0; g < F3D_WGPU_GROUPS; g++) {
+      Group *group = &k->groups[g];
+      if (group->group == NULL) continue;
+      for (uint32_t i = 0; i < k->count; i++) {
+        if (group->ids[i] != id) continue;
+        wgpuBindGroupRelease(group->group);
+        memset(group, 0, sizeof *group);
+        break;
+      }
+    }
+  }
 }
 
 void f3d_wgpu_buffer_release(F3dWgpuBuffer *buffer) {
   if (buffer == NULL) return;
+  forget_groups_of(buffer->gpu, buffer->id);
   if (buffer->buffer != NULL) wgpuBufferRelease(buffer->buffer);
   free(buffer);
 }
@@ -354,6 +530,7 @@ F3dWgpuTexture *f3d_wgpu_texture_create(F3dWgpu *gpu, uint32_t width, uint32_t h
   t->gpu = gpu;
   t->width = width;
   t->height = height;
+  t->id = ++gpu->next_id;
   t->texture = wgpuDeviceCreateTexture(gpu->device, &d);
   if (t->texture == NULL) {
     free(t);
@@ -431,12 +608,22 @@ void *f3d_wgpu_texture_native_metal(F3dWgpuTexture *texture) {
 
 void f3d_wgpu_texture_release(F3dWgpuTexture *texture) {
   if (texture == NULL) return;
+  forget_groups_of(texture->gpu, texture->id);
   if (texture->view != NULL) wgpuTextureViewRelease(texture->view);
   if (texture->texture != NULL) wgpuTextureRelease(texture->texture);
   free(texture);
 }
 
 static void kernel_free(F3dWgpuKernel *k) {
+  for (F3dWgpuKernel **at = &k->gpu->kernels; *at != NULL; at = &(*at)->next) {
+    if (*at == k) {
+      *at = k->next;
+      break;
+    }
+  }
+  for (uint32_t g = 0; g < F3D_WGPU_GROUPS; g++) {
+    if (k->groups[g].group != NULL) wgpuBindGroupRelease(k->groups[g].group);
+  }
   if (k->pipeline != NULL) wgpuComputePipelineRelease(k->pipeline);
   if (k->pipeline_layout != NULL) wgpuPipelineLayoutRelease(k->pipeline_layout);
   if (k->layout != NULL) wgpuBindGroupLayoutRelease(k->layout);
@@ -516,6 +703,8 @@ F3dWgpuKernel *f3d_wgpu_kernel_create(F3dWgpu *gpu, const char *wgsl, const char
     kernel_free(k);
     return NULL;
   }
+  k->next = gpu->kernels;
+  gpu->kernels = k;
   return k;
 }
 
@@ -540,6 +729,9 @@ int f3d_wgpu_pass_dispatch(F3dWgpuPass *pass, F3dWgpuKernel *kernel, void *const
     pass->failed = 1;
     return 0;
   }
+  F3dWgpu *gpu = pass->gpu;
+  Group key;
+  memset(&key, 0, sizeof key);
   WGPUBindGroupEntry entries[F3D_WGPU_MAX_BINDINGS];
   memset(entries, 0, sizeof entries);
   for (uint32_t i = 0; i < count; i++) {
@@ -550,25 +742,54 @@ int f3d_wgpu_pass_dispatch(F3dWgpuPass *pass, F3dWgpuKernel *kernel, void *const
       entries[i].offset = offsets[i];
       const uint64_t whole = padded(b->size) - offsets[i];
       entries[i].size = sizes[i] == 0 ? whole : sizes[i];
+      key.ids[i] = b->id;
+      key.offsets[i] = entries[i].offset;
+      key.sizes[i] = entries[i].size;
     } else {
-      entries[i].textureView = ((const F3dWgpuTexture *)resources[i])->view;
+      const F3dWgpuTexture *t = (const F3dWgpuTexture *)resources[i];
+      entries[i].textureView = t->view;
+      key.ids[i] = t->id;
     }
   }
-  WGPUBindGroupDescriptor bd;
-  memset(&bd, 0, sizeof bd);
-  bd.layout = kernel->layout;
-  bd.entryCount = count;
-  bd.entries = entries;
-  WGPUBindGroup group = wgpuDeviceCreateBindGroup(pass->gpu->device, &bd);
+  /* The same resources and ranges as a group the kernel kept: that group,
+   * rather than a new one each dispatch. */
+  WGPUBindGroup group = NULL;
+  uint32_t slot = 0;
+  for (uint32_t g = 0; g < F3D_WGPU_GROUPS; g++) {
+    Group *kept = &kernel->groups[g];
+    if (kept->group != NULL && memcmp(kept->ids, key.ids, sizeof key.ids) == 0 &&
+        memcmp(kept->offsets, key.offsets, sizeof key.offsets) == 0 &&
+        memcmp(kept->sizes, key.sizes, sizeof key.sizes) == 0) {
+      kept->used = ++gpu->tick;
+      group = kept->group;
+      break;
+    }
+    /* An empty slot first, else the least recently used. */
+    if (kernel->groups[slot].group != NULL &&
+        (kept->group == NULL || kept->used < kernel->groups[slot].used)) {
+      slot = g;
+    }
+  }
   if (group == NULL) {
-    pass->failed = 1;
-    return 0;
+    WGPUBindGroupDescriptor bd;
+    memset(&bd, 0, sizeof bd);
+    bd.layout = kernel->layout;
+    bd.entryCount = count;
+    bd.entries = entries;
+    group = wgpuDeviceCreateBindGroup(gpu->device, &bd);
+    if (group == NULL) {
+      pass->failed = 1;
+      return 0;
+    }
+    Group *into = &kernel->groups[slot];
+    if (into->group != NULL) wgpuBindGroupRelease(into->group);
+    *into = key;
+    into->group = group;
+    into->used = ++gpu->tick;
   }
   wgpuComputePassEncoderSetPipeline(pass->pass, kernel->pipeline);
   wgpuComputePassEncoderSetBindGroup(pass->pass, 0, group, 0, NULL);
   wgpuComputePassEncoderDispatchWorkgroups(pass->pass, x, y, z);
-  /* Held by the pass until it is submitted. */
-  wgpuBindGroupRelease(group);
   return 1;
 }
 

@@ -32,6 +32,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'flutter3d_cpu.dart';
+import 'src/cpu_device.dart' as device show standInForGpu;
 import 'src/cpu_shaders_builtin.dart' show UnlitShader;
 
 /// A one-pixel texture of [rgba], on [device].
@@ -105,3 +106,15 @@ CpuTestKit cpuTestDevice({int width = 96, int height = 72}) {
 /// material stage the engine does not ship (a game's `Liquid`) and wants it
 /// drawn in its base colour: `'Liquid': cpuUnlitStage`.
 const CpuStage cpuUnlitStage = CpuStage.fragment(UnlitShader());
+
+/// A [cpuComputeDevice] standing in for a GPU — since 1.0.0-rc.1+2, in place
+/// of `CpuDevice(standInForGpu: true)` and `cpuComputeDevice(standInForGpu:
+/// true)`.
+///
+/// It answers `isSoftware` false, so the hardware layer places a workload
+/// with host code of its own on it as on a GPU, rather than leaving it to
+/// that host code: how a simulation's kernels are checked against its own
+/// CPU step without a GPU. Configured by the test, never asked for by the
+/// work.
+CpuDevice cpuComputeDeviceStandingInForGpu() =>
+    device.standInForGpu(cpuComputeDevice());

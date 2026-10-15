@@ -1,3 +1,21 @@
+## 1.0.0-rc.1+2
+
+- **Breaking: standing in for a GPU is a test's knob, in `testing.dart`.**
+  `CpuDevice(standInForGpu:)`, `CpuDevice.standInForGpu` and
+  `cpuComputeDevice(standInForGpu:)` are gone from the main library;
+  `cpuComputeDeviceStandingInForGpu()` (new, in
+  `package:flutter3d_cpu/testing.dart`) makes the device a test places a
+  workload on as on a GPU, so the knob does not freeze into the API.
+- **Queue semantics in a compute pass.** A dispatch is checked when it is
+  recorded and run, with what was bound for it, when the pass is
+  submitted, so a `writeBuffer` made while the pass is open lands before
+  its dispatches as WebGPU's queue puts it; an indirect dispatch reads its
+  arguments when it runs.
+- **The encoder checks ranges and dispatches.** A storage offset off
+  `minStorageBufferOffsetAlignment` or a dispatch past
+  `maxComputeWorkgroupsPerDimension` is a `RangeError` at the call, as on
+  every backend.
+
 ## 1.0.0-rc.1+1
 
 - **An sRGB texture is stored decoded.** The rasteriser kept an sRGB

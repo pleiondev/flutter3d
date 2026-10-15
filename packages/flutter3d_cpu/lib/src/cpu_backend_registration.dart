@@ -59,10 +59,12 @@ Registration registerCpuBackend(
 /// A software rasteriser for running compute and nothing else — the
 /// [ComputePlacement.cpu] executor: one texel, the engine's own stages, and
 /// every kernel a bundle's kernel section carries translated to Dart.
-/// [standInForGpu] is `CpuDevice.standInForGpu`, for a test.
-CpuDevice cpuComputeDevice({bool standInForGpu = false}) => CpuDevice(
+///
+/// **Breaking in 1.0.0-rc.1+2: no `standInForGpu`.** A test that wants the
+/// device to stand in for a GPU asks `cpuComputeDeviceStandingInForGpu`
+/// from `package:flutter3d_cpu/testing.dart`.
+CpuDevice cpuComputeDevice() => CpuDevice(
   width: 1,
   height: 1,
   shaders: CpuShaderLibrary(builtinCpuShaders()),
-  standInForGpu: standInForGpu,
 );

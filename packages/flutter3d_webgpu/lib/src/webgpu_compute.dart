@@ -12,6 +12,7 @@ library;
 import 'dart:js_interop';
 import 'dart:typed_data';
 
+import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'webgpu_bundle_section.dart' show WebGpuSampler;
@@ -19,6 +20,7 @@ import 'webgpu_compute_stage.dart';
 import 'webgpu_formats.dart'
     show gpuStorageTextureAccess, gpuTextureFormat, gpuWritableBytes;
 import 'webgpu_interop.dart';
+import 'webgpu_resources.dart' show WebGpuFrameArena;
 import 'webgpu_types.dart'
     show WebGpuQueries, WebGpuTexture, gpuSamplerLayoutEntries;
 
@@ -256,13 +258,17 @@ void webgpuCheckIndirect(StorageBuffer buffer, int offset, int size) {
 /// A compute pass: bindings gathered, each dispatch encoded as it comes, and
 /// the whole pass handed to the queue at [submit].
 final class WebGpuComputeEncoder extends ComputeEncoder {
+  /// A pass on [_gpu], held to [_limits]. Uniform blocks are written into
+  /// [_uniforms], the device's frame arena, when it is given — since
+  /// 1.0.0-rc.1+2, rather than a buffer made and destroyed per bind.
   WebGpuComputeEncoder(
     this._gpu, {
     required this._features,
     required this._samplerFor,
     String? label,
     GPURenderPassTimestampWrites? timestampWrites,
-    this._storageAlignment = 256,
+    this._limits = DeviceLimits.webgpuDefaults,
+    this._uniforms,
   }) : _encoder = _gpu.createCommandEncoder() {
     final descriptor = GPUComputePassDescriptor(
       label: label ?? 'flutter3d compute',
@@ -274,7 +280,8 @@ final class WebGpuComputeEncoder extends ComputeEncoder {
   final GPUDevice _gpu;
   final DeviceFeatures _features;
   final GPUSampler Function(SamplerDescriptor) _samplerFor;
-  final int _storageAlignment;
+  final DeviceLimits _limits;
+  final WebGpuFrameArena? _uniforms;
   final GPUCommandEncoder _encoder;
   late final GPUComputePassEncoder _pass;
 
@@ -333,14 +340,12 @@ final class WebGpuComputeEncoder extends ComputeEncoder {
       sizeInBytes ?? buffer.lengthInBytes - offsetInBytes,
       what: 'the storage binding "$name"',
     );
-    if (offsetInBytes % _storageAlignment != 0) {
-      throw ArgumentError.value(
-        offsetInBytes,
-        'offsetInBytes',
-        'is not a multiple of minStorageBufferOffsetAlignment '
-            '($_storageAlignment)',
-      );
-    }
+    checkStorageBinding(
+      buffer,
+      _limits,
+      offsetInBytes: offsetInBytes,
+      sizeInBytes: sizeInBytes,
+    );
     final rest = storage.buffer.size - offsetInBytes;
     // A storage binding is a whole number of words. The buffer itself was
     // rounded up to four when it was made, so rounding the range up never
@@ -503,6 +508,23 @@ final class WebGpuComputeEncoder extends ComputeEncoder {
     int binding,
     ByteData data,
   ) {
+    _keys.remove((group, binding));
+    final arena = _uniforms;
+    if (arena != null) {
+      // The device's ring of uniforms, reset at the top of each frame: a
+      // slice of one buffer, where a block bound a dispatch used to cost a
+      // buffer made and destroyed.
+      final slice = arena.write(data);
+      _bound[(group, binding)] = GPUBindGroupEntry.buffer(
+        binding: binding,
+        resource: GPUBufferBinding(
+          buffer: slice.buffer,
+          offset: slice.offset,
+          size: slice.length,
+        ),
+      );
+      return;
+    }
     final buffer = _gpu.createBuffer(
       GPUBufferDescriptor(
         size: _roundUp4(data.lengthInBytes),
@@ -512,7 +534,6 @@ final class WebGpuComputeEncoder extends ComputeEncoder {
     );
     _transient.add(buffer);
     _gpu.queue.writeBuffer(buffer, 0, gpuWritableBytes(data).toJS);
-    _keys.remove((group, binding));
     _bound[(group, binding)] = GPUBindGroupEntry.buffer(
       binding: binding,
       resource: GPUBufferBinding(
@@ -561,6 +582,7 @@ final class WebGpuComputeEncoder extends ComputeEncoder {
 
   @override
   void dispatch(int x, [int y = 1, int z = 1]) {
+    checkDispatch(_limits, x, y, z);
     _setGroups();
     _pass.dispatchWorkgroups(x, y, z);
   }
@@ -698,7 +720,11 @@ void webgpuCheckStorageTexture(
 /// [buffer]'s bytes, once every pass submitted before this call is done with
 /// it: a copy into a mappable staging buffer, a map, and a copy out — or,
 /// for a buffer that is itself mappable for reading, the map alone.
-Future<ByteData> webgpuReadBuffer(GPUDevice gpu, StorageBuffer buffer) async {
+Future<ByteData> webgpuReadBuffer(
+  GPUDevice gpu,
+  StorageBuffer buffer, {
+  WebGpuStagingPool? staging,
+}) async {
   if (!buffer.hostReadable) {
     throw ArgumentError.value(
       buffer,
@@ -706,7 +732,13 @@ Future<ByteData> webgpuReadBuffer(GPUDevice gpu, StorageBuffer buffer) async {
       'was not created hostReadable, so it cannot be read back',
     );
   }
-  final mapped = await webgpuMapRead(gpu, buffer, 0, buffer.lengthInBytes);
+  final mapped = await webgpuMapRead(
+    gpu,
+    buffer,
+    0,
+    buffer.lengthInBytes,
+    staging: staging,
+  );
   try {
     return ByteData.sublistView(Uint8List.fromList(mapped.bytes));
   } finally {
@@ -721,8 +753,9 @@ Future<({Uint8List bytes, void Function() release})> webgpuMapRead(
   GPUDevice gpu,
   StorageBuffer buffer,
   int offset,
-  int size,
-) async {
+  int size, {
+  WebGpuStagingPool? staging,
+}) async {
   final storage = buffer.backend as WebGpuStorage;
   if (storage.buffer.usage & GpuBufferUsage.mapRead != 0) {
     // A mapped range starts on eight bytes and is a whole number of four.
@@ -739,34 +772,104 @@ Future<({Uint8List bytes, void Function() release})> webgpuMapRead(
   }
   final start = offset & ~3;
   final length = _roundUp4(offset + size) - start;
-  final staging = gpu.createBuffer(
-    GPUBufferDescriptor(
-      size: length < 4 ? 4 : length,
-      usage: GpuBufferUsage.copyDst | GpuBufferUsage.mapRead,
-      label: 'storage readback',
-    ),
-  );
+  final pool = staging;
+  final copy =
+      pool?.take(length) ??
+      gpu.createBuffer(
+        GPUBufferDescriptor(
+          size: length < 4 ? 4 : length,
+          usage: GpuBufferUsage.copyDst | GpuBufferUsage.mapRead,
+          label: 'storage readback',
+        ),
+      );
+  void giveBack() {
+    if (pool != null) {
+      pool.give(copy);
+    } else {
+      copy.destroy();
+    }
+  }
+
   try {
     final encoder = gpu.createCommandEncoder()
-      ..copyBufferToBuffer(storage.buffer, start, staging, 0, length);
+      ..copyBufferToBuffer(storage.buffer, start, copy, 0, length);
     gpu.queue.submit(<GPUCommandBuffer>[encoder.finish()].toJS);
-    await staging.mapAsync(GpuMapMode.read).toDart;
+    await copy.mapAsync(GpuMapMode.read, 0, length).toDart;
   } on Object {
-    staging.destroy();
+    copy.destroy();
     rethrow;
   }
-  final range = staging.getMappedRange().toDart.asUint8List(
-    offset - start,
-    size,
-  );
+  final range = copy
+      .getMappedRange(0, length)
+      .toDart
+      .asUint8List(offset - start, size);
   return (
     bytes: range,
     release: () {
-      staging
-        ..unmap()
-        ..destroy();
+      copy.unmap();
+      giveBack();
     },
   );
+}
+
+/// The staging buffers a device reads back through, kept between reads
+/// rather than made per read — since 1.0.0-rc.1+2: a simulation that reads
+/// its state every frame reuses the same few. Owned by the device and
+/// destroyed with it.
+final class WebGpuStagingPool {
+  /// A pool on [_gpu] keeping at most [keep] buffers free.
+  WebGpuStagingPool(this._gpu, {this.keep = 8});
+
+  final GPUDevice _gpu;
+
+  /// How many free buffers it keeps; one given back past that is destroyed.
+  final int keep;
+
+  final List<GPUBuffer> _free = <GPUBuffer>[];
+
+  /// A mappable buffer of at least [bytes]: the smallest free one that is
+  /// big enough, or a new one rounded up to a power of two.
+  GPUBuffer take(int bytes) {
+    GPUBuffer? best;
+    for (final b in _free) {
+      if (b.size >= bytes && (best == null || b.size < best.size)) best = b;
+    }
+    if (best != null) {
+      _free.remove(best);
+      return best;
+    }
+    var size = 4096;
+    while (size < bytes) {
+      size *= 2;
+    }
+    return _gpu.createBuffer(
+      GPUBufferDescriptor(
+        size: size,
+        usage: GpuBufferUsage.copyDst | GpuBufferUsage.mapRead,
+        label: 'storage readback',
+      ),
+    );
+  }
+
+  /// [buffer] back, unmapped, for the next read.
+  void give(GPUBuffer buffer) {
+    if (_free.length >= keep) {
+      buffer.destroy();
+      return;
+    }
+    _free.add(buffer);
+  }
+
+  /// How many free buffers it holds, for a test.
+  int get freeCount => _free.length;
+
+  /// Destroys every free buffer.
+  void dispose() {
+    for (final b in _free) {
+      b.destroy();
+    }
+    _free.clear();
+  }
 }
 
 /// What `GraphicsDevice.mapBuffer` hands back.

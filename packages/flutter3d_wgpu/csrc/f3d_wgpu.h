@@ -23,14 +23,16 @@ extern "C" {
 #define F3D_WGPU_EXPORT __attribute__((visibility("default")))
 #endif
 
-/* Bumped whenever a signature here changes. */
-#define F3D_WGPU_ABI_VERSION 1
+/* Bumped whenever a signature here changes. 2: the readback that does not
+ * wait (f3d_wgpu_read_begin, f3d_wgpu_read_poll). */
+#define F3D_WGPU_ABI_VERSION 2
 
 typedef struct F3dWgpu F3dWgpu;
 typedef struct F3dWgpuBuffer F3dWgpuBuffer;
 typedef struct F3dWgpuTexture F3dWgpuTexture;
 typedef struct F3dWgpuKernel F3dWgpuKernel;
 typedef struct F3dWgpuPass F3dWgpuPass;
+typedef struct F3dWgpuRead F3dWgpuRead;
 
 /* What a kernel binding is, in binding order, group zero. */
 enum {
@@ -62,6 +64,16 @@ F3D_WGPU_EXPORT void f3d_wgpu_buffer_write(F3dWgpu *gpu, F3dWgpuBuffer *buffer, 
  * before is done; 1 on success. */
 F3D_WGPU_EXPORT int f3d_wgpu_buffer_read(F3dWgpu *gpu, F3dWgpuBuffer *buffer, uint64_t offset,
                                          void *out, uint64_t size);
+/* Starts copying [size] bytes from [offset] back, after every pass
+ * submitted before, without waiting: NULL when no staging buffer could be
+ * made. The staging buffer comes from a pool the device keeps. */
+F3D_WGPU_EXPORT F3dWgpuRead *f3d_wgpu_read_begin(F3dWgpu *gpu, F3dWgpuBuffer *buffer,
+                                                 uint64_t offset, uint64_t size);
+/* Turns the device's events over once, or until the read is done when
+ * [wait] is set: 0 while it is in flight; 1 once its bytes are in [out]
+ * (NULL to drop them) and -1 when it failed, the read freed either way. */
+F3D_WGPU_EXPORT int f3d_wgpu_read_poll(F3dWgpuRead *read, void *out, int wait);
+/* Lets go of the buffer and of every bind group a kernel kept for it. */
 F3D_WGPU_EXPORT void f3d_wgpu_buffer_release(F3dWgpuBuffer *buffer);
 
 /* An RGBA8 texture, sampled and copied, and a storage texture when

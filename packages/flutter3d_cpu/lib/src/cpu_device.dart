@@ -50,16 +50,16 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
   String get backendId => 'cpu';
 
   /// Everything here, compute included, runs in Dart on the CPU — unless
-  /// it was made to [standInForGpu].
+  /// a test made it stand in for a GPU (`cpuComputeDeviceStandingInForGpu`
+  /// in `package:flutter3d_cpu/testing.dart`): the hardware layer then
+  /// places work with host code of its own on it as on a GPU, which is how
+  /// a simulation's kernels are checked against its own CPU step on the
+  /// CPU. **A test's knob, since 1.0.0-rc.1+2**, and no longer a parameter
+  /// of the constructor, so it does not freeze into the API.
   @override
-  bool get isSoftware => !standInForGpu;
+  bool get isSoftware => !_standsInForGpu;
 
-  /// Whether this device says it is not software, for a test: the
-  /// hardware layer then places work with host code of its own on it as on
-  /// a GPU, rather than leaving it to that host code, which is how a
-  /// simulation's kernels are checked against its own CPU step on the CPU.
-  /// Configured, never asked for by the work. Since 1.0.0-rc.1+1.
-  final bool standInForGpu;
+  bool _standsInForGpu = false;
 
   // Debug groups, labels and loss: the inherited defaults are the truth
   // here. There is no debugger to show a group to, a label is kept for
@@ -75,7 +75,6 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
     bool supportsIndependentBlend = true,
     Iterable<DeviceFeature> withhold = const <DeviceFeature>[],
     this.materialCompiler,
-    this.standInForGpu = false,
   }) : features = DeviceFeatures(<DeviceFeature>[
          ..._implemented,
          if (supportsIndependentBlend) DeviceFeature.independentBlend,
@@ -360,6 +359,7 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
       features: features,
       support: textureFormatSupport,
       clock: _clock,
+      limits: limits,
       timestampWrites: timestampWrites,
     );
   }
@@ -1579,3 +1579,7 @@ final class _CpuMappedBuffer extends MappedBuffer {
     mappedBuffers[_buffer] = null;
   }
 }
+
+/// Makes [device] stand in for a GPU — `CpuDevice.isSoftware` false — for
+/// `package:flutter3d_cpu/testing.dart`. Not exported from the main library.
+CpuDevice standInForGpu(CpuDevice device) => device.._standsInForGpu = true;

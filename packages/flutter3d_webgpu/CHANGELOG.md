@@ -3,6 +3,15 @@
 - **A second `dispose` does nothing**, as on every backend, where it threw
   a `StateError`: a renderer and the owner that opened the device can both
   let go of it.
+- **A compute pass writes its uniforms into the frame's ring.** A uniform
+  block bound in a compute pass is a slice of the device's uniform arena,
+  where each bind made a GPU buffer and destroyed it at submit.
+- **Readback copies through a pool.** `readBuffer` and a read `mapBuffer`
+  take their staging buffer from `WebGpuStagingPool` (new), which the
+  device keeps and destroys with it, where each read made one.
+- **The encoder checks dispatches** against
+  `maxComputeWorkgroupsPerDimension`, and its storage ranges through the
+  same check every backend makes, a `RangeError` at the call.
 - **The blend constant reaches the blend.** `setBlendColor` calls
   `setBlendConstant`, and the colour pair (`"constant"`,
   `"one-minus-constant"`) is honoured: `blendConstant` is listed now that
