@@ -20,8 +20,10 @@ flutter3d_plugins:
   backends: [webgpu, cpu] # leave out for every backend
   touches: simulation     # or view
   demo: https://example.dev/wind/   # somewhere to run it in a browser
-  conformance: true       # only when the badge below holds
+  conformance: conformant@1.0       # the suite its report says it passed
 ```
+
+`conformance:` names the suite, `conformant@1.0`. The older `true` is read as suite 1.0, and says less, since a badge earned later against a larger suite is `conformant@1.1`.
 
 The catalogue is fetched when the site is built from a fresh checkout by `npm run plugins`, and the result is committed beside this page, so a build with no network shows the list as it was last read and says when that was.
 
@@ -30,6 +32,8 @@ The catalogue is fetched when the site is built from a fresh checkout by `npm ru
 `flutter3d_conformance` has a suite a plugin runs against itself, the way a backend runs the device suite. The badge reads **flutter3d conformant**, and it means: `checkPluginConformance` passes every check on every declared backend, with a world given to determinism and a budget declared and kept, on the plugin API version in its manifest. The seven checks are that the manifest is valid, that the plugin switches off and on at a step boundary and leaves nothing registered behind, that every name it registers is in its namespace, that two runs of one step from one state agree, that it installs on each backend it names and stays off on one it does not, that it keeps the budget it declares, and that the physical materials it declares hold to what the engine's own do.
 
 A plugin with no world handed to the determinism check, or no budget declared, still passes what it can be asked; it does not get the badge, because the two checks that matter most to a replay were declined rather than run.
+
+The suite is the only judge. Once its checks have run, `runPluginConformance` writes `<package>.conformance.json` beside the pubspec: every outcome, and the badge `earnsBadge` gave, `conformant@1.0` or none. Publish it with the package. The catalogue reads the badge from that file, and falls back on the pubspec's `conformance:` only for a package published without one. `plugin.report`, the plugin author's MCP tool, reads the same file and says how each check went.
 
 ## Starting one
 

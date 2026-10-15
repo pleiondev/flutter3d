@@ -12,6 +12,8 @@
 /// exist here, into any project that has no file by that name.
 library;
 
+import 'template_versions.dart';
+
 /// Where a viewer project's starting model is written, and what its
 /// `lib/main.dart` loads.
 const String viewerModelPath = 'assets_src/model.glb';
@@ -130,8 +132,8 @@ List<MeshNode> _meshes(WidgetTester tester) {
 /// and brought closer by a pinch or a scroll.
 Map<String, String> viewerTemplate(String name) => <String, String>{
   'pubspec.yaml': _pubspec(name, 'A model viewer on flutter3d.', '''
-  flutter3d: ^1.0.0-rc.1
-  flutter3d_app: ^1.0.0-rc.1
+${dependencyLine('flutter3d')}
+${dependencyLine('flutter3d_app')}
 '''),
   'analysis_options.yaml': analysisOptions,
   'lib/main.dart':
@@ -357,8 +359,8 @@ to a metre and a half tall.
 Map<String, String> arcadeTemplate(String name) => <String, String>{
   'pubspec.yaml': _pubspec(name, 'A Flame game over a flutter3d layer.', '''
   flame: ^1.38.2
-  flame_flutter3d: ^1.0.0-rc.1
-  flutter3d: ^1.0.0-rc.1
+${dependencyLine('flame_flutter3d')}
+${dependencyLine('flutter3d')}
 '''),
   'analysis_options.yaml': analysisOptions,
   'lib/main.dart':

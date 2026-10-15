@@ -365,11 +365,13 @@ entries:
   - id: build-pluginConformanceChecks
     package: flutter3d_build
     symbol: pluginConformanceChecks
-    kind: none
-    reason: >-
-      The list adds `names` and `materials`, the 7 checks of the plugin
-      suite, so `plugin.report` gives no badge to a suite that did not run
-      them. Nothing to change in code that reads it.
+    kind: manual
+    guidance: >-
+      Gone: the plugin server keeps no list of the suite's checks. The
+      checks a run made are the `outcomes` of the report the suite writes,
+      `ConformanceReportFile.readIn(directory, package)`, and the list of
+      the suite itself is `pluginCheckNames` in
+      `package:flutter3d_conformance/plugins.dart`.
 
   - id: build-pluginAuthorMcpVersion
     package: flutter3d_build
@@ -2748,3 +2750,51 @@ entries:
       seven before them keep their order. A `switch` over `PassSkip` already
       has a default, since it is an open set; one that lists every reason
       by hand adds the two.
+
+  # The conformance badge has one judge: the plugin server reads the
+  # report the suite writes and decides nothing itself.
+
+  - id: build-ConformanceRun-earnsBadge
+    package: flutter3d_build
+    symbol: ConformanceRun.earnsBadge
+    kind: rewrite
+    template: '({target}.badge != null)'
+    guidance: >-
+      Whether a run earns the badge is what the suite's report says:
+      `badge` is the one `earnsBadge` in `flutter3d_conformance` gave, read
+      from `<package>.conformance.json`.
+
+  - id: build-ConformanceRun-missing
+    package: flutter3d_build
+    symbol: ConformanceRun.missing
+    kind: manual
+    guidance: >-
+      Gone with the server's own check list. The checks a run made are its
+      `report`'s `outcomes`; a check of the suite that is not among them did
+      not run, and the report's `badge` is then null.
+
+  - id: build-ConformanceTest-new
+    package: flutter3d_build
+    symbol: ConformanceTest.ConformanceTest
+    kind: parameters
+    changes:
+      - remove: check
+    guidance: >-
+      A test is no longer matched to a check by a word in its name; the
+      suite's report says which check each outcome is.
+
+  - id: build-ConformanceTest-check
+    package: flutter3d_build
+    symbol: ConformanceTest.check
+    kind: manual
+    guidance: >-
+      Gone: which check a test belongs to is in the suite's report, the
+      `check` of each of `ConformanceRun.report`'s `outcomes`.
+
+  - id: build-cliCommands
+    package: flutter3d_build
+    symbol: cliCommands
+    kind: none
+    reason: >-
+      The list gains `visibility` and `decode-worker`, the two commands
+      that joined `flutter3d`. Nothing to change in code that reads it.

@@ -2689,6 +2689,10 @@ const Map<String, String> nameCollisionAllowed = <String, String>{
 /// the whole document over, or text a person typed that `double.tryParse`
 /// would answer null for too.
 const Map<String, String> nullAsErrorAllowed = <String, String>{
+  'ConformanceReportFile.readIn':
+      'absent: a plugin whose suite has not run, or does not call '
+      'runPluginConformance, has no report; a file that is there and does '
+      'not read throws',
   'parseChunkThreshold':
       'a command-line word that is not a count; the command throws its '
       'usage exception',

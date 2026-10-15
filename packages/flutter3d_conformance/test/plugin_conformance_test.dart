@@ -9,6 +9,9 @@
 /// mutation that would defeat it is named in the test.
 library;
 
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter3d_conformance/plugins.dart';
 import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
@@ -354,6 +357,29 @@ void main() {
   group('as tests', () {
     final world = _World();
     runPluginConformance(() => _Good(world), harness: world.harness());
+  });
+
+  test('the tests wrote the report, with the badge earnsBadge gives', () {
+    // Mutation: drop the `tearDownAll` that writes it, and `plugin.report`
+    // and the catalogue have nothing to read but a pubspec's own word.
+    final file = File('flutter3d_conformance.conformance.json');
+    addTearDown(() {
+      if (file.existsSync()) file.deleteSync();
+    });
+    expect(file.existsSync(), isTrue);
+    final report = jsonDecode(file.readAsStringSync()) as Map<String, Object?>;
+    expect(report['format'], conformanceReportFormat.id);
+    expect(report['version'], conformanceReportFormat.version);
+    expect(report['suite'], conformanceSuiteVersion);
+    final world = _World();
+    final judged = badgeFor(
+      checkPluginConformance(() => _Good(world), harness: world.harness()),
+    );
+    expect(report['badge'], judged);
+    expect(<String>{
+      for (final outcome in report['outcomes']! as List<Object?>)
+        (outcome! as Map<String, Object?>)['check']! as String,
+    }, pluginCheckNames.toSet());
   });
 
   test('a plugin that brings a cited substance passes materials, and '

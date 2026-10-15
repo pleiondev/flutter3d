@@ -36,6 +36,12 @@ final class AssetLayout {
   Directory get generatedDir =>
       Directory('${projectRoot.path}/flutter3d_generated');
 
+  /// Where the engine's shader bundle and every installed plugin's
+  /// materials are written, `flutter3d_generated/shaders/`: reserved, so a
+  /// project's material under `assets_src/shaders/` is refused rather than
+  /// written over them.
+  Directory get reservedShaderDir => Directory('${generatedDir.path}/shaders');
+
   /// Every recognised source under [sourcesDir], paired with where it lands
   /// and the rule that applies — empty when [sourcesDir] does not exist or
   /// holds nothing recognised, which is `ap-04`'s own "an empty project

@@ -31,8 +31,10 @@ flutter3d help
 ```
 
 One command for every tool here: `convert`, `create` (`create project <dir>`
-with `--kind scene`, `viewer` or `arcade`, or `create plugin`), `init`, `plugins`, `migrate`, `lights` and `doctor`.
-Each also runs as `dart run flutter3d_build:<name>`, the same code.
+with `--kind scene`, `viewer` or `arcade`, or `create plugin`), `init`,
+`plugins`, `shaders`, `migrate`, `lights`, `lightmap`, `visibility`,
+`decode-worker` and `doctor`. Each also runs as
+`dart run flutter3d_build:<name>` (`decode_worker`), the same code.
 `flutter3d doctor` checks Dart and Flutter against the versions in
 SUPPORT.md and looks for the optional programs: impellerc, glslangValidator
 and naga for building materials, and FBX2glTF, Blender and usdcat for
@@ -50,19 +52,27 @@ gains keys. `api/flutter3d_build.cli` is the whole surface as
 `flutter3d help --surface` prints it, and the repository's structure check
 fails when the two differ.
 
-**Subcommands:** `convert`, `create`, `init`, `plugins`, `migrate`, `lights`,
-`doctor`, `help`. Each also runs as `dart run flutter3d_build:<name>`.
+**Subcommands:** `convert`, `create`, `init`, `plugins`, `shaders`,
+`migrate`, `lights`, `lightmap`, `visibility`, `decode-worker`, `doctor`,
+`help`. Each also runs as `dart run flutter3d_build:<name>`, with
+`decode_worker` for `decode-worker`. `flutter3d --version` prints the
+package's version.
 
-**Flags**, per subcommand:
+**Flags**, per subcommand. Every one also takes `-h`/`--help`, which prints
+its usage to stdout and exits 0; an option not listed exits 2.
 
 | Subcommand | Flags |
 |---|---|
-| `convert <input...>` | `-o`/`--output <dir>`, `--dry-run`, `--overwrite`, `--asset-prefix <path>`, `--split`, `--no-materials`, `--report <file>`, `--json`, `--textures <family>`, `--no-mips`, `--lods <ratios>`, `--impostor`, `--chunks[=<triangles>]`, `-h`/`--help` |
-| `create` | `project <dir> [--name <package>]`; `plugin --kind <kind> --name <name> [--target <dir>]`; `--list` |
-| `init [dir]` | `--check`, `--force`, `-h`/`--help` |
+| `convert <input...>` | `-o`/`--output <dir>`, `--dry-run`, `--overwrite`, `--asset-prefix <path>`, `--split`, `--no-materials`, `--report <file>`, `--json`, `--textures <family>`, `--no-mips`, `--lods <ratios>`, `--impostor`, `--chunks[=<triangles>]` |
+| `create` | `project <dir> [--kind <kind>] [--name <package>]`; `plugin --kind <kind> --name <name> [--target <dir>]`; `--list` |
+| `init [dir]` | `--check`, `--force` |
 | `plugins` | `--check`, `--json` |
-| `migrate <project>` | `--dry-run`, `--from <version>`, `--no-pub-get`, `--lints-from <dir>` |
+| `shaders` | `--full-shaders`, `--target native\|web\|any`, `--json` |
+| `migrate <project>` | `--dry-run`, `--data`, `--backup`, `--from <version>`, `--no-pub-get`, `--lints-from <dir>` |
 | `lights` | `--optimize <level.json>`, `--poses <file>`, `--state <file>`, `-o`/`--out <path>`, `--preview <dir>`, `--dry-run`, `--classes <names>` |
+| `lightmap <level.json...>` | `--density <n>`, `--bounces <n>`, `--samples <n>`, `--direct` |
+| `visibility <level.json...>` | `--cell <metres>` |
+| `decode-worker [<output>]` | none |
 | `doctor` | `--json` |
 | `help [<command>]` | `--surface` |
 
@@ -72,7 +82,7 @@ fails when the two differ.
 | Code | Meaning |
 |---|---|
 | 0 | It did what it was asked, or there was nothing to do. |
-| 1 | It tried and failed: a file it could not read or write, an input that did not convert, a step that broke. |
+| 1 | It tried and failed: a file, directory or pubspec that is not there or could not be read or written, an input that did not convert, a step that broke; under `init --check`, a `hook/build.dart` edited by hand. |
 | 2 | Usage: an unknown subcommand or option, a missing argument. |
 | 3 | Refused or out of date: `--check` with changes pending (`init`, `plugins`), a target directory that is not empty, an external tool `convert` needs that is not installed. Nothing was changed. |
 | 4 | Would overwrite: `convert` found an output with other contents and was not given `--overwrite`. Nothing was written. |
@@ -82,8 +92,12 @@ format envelope every flutter3d document starts with — `"format":
 "f3d.cli"`, `"version": 1`, `"requires"` and `"generator"` — and
 `"command"`, followed by the subcommand's own keys: `convert` gives
 `output`, `dryRun` and `reports`; `doctor` gives `checks`; `plugins` gives
-`check`, `path`, `current` or `written`, and `plugins`. `flutter3d help
---surface` lists them, and `api/flutter3d_build.cli` commits that list.
+`check`, `path`, `current` or `written`, and `plugins`; `shaders` gives
+the bundle it wrote. `flutter3d help --surface` lists them, and
+`api/flutter3d_build.cli` commits that list; a test holds each command's
+printed keys to it, and a key gone since the last release is a break the
+structure check asks a `**Breaking:**` entry for, as an exit code or a flag
+is.
 `version` is the output's own number, not the package's. A key added is a
 minor bump of it, and nothing is removed or retyped within a major.
 `convert --report <file>` writes the same reports in the envelope

@@ -100,6 +100,13 @@ final class AssetRule {
   final bool exclude;
 }
 
+/// The keys the manifest reads, at the top, under a class and in a rule.
+///
+/// **A key added to any of the three moves [AssetBuildManifest.formatVersion]
+/// with it.** A released build refuses a key it does not know and says
+/// "update flutter3d_build" only for a newer `format:`, so a new key within
+/// a format gives a team on two releases the wrong sentence. A structure
+/// rule compares these sets and the version with the last release's.
 const Set<String> _topLevelKeys = <String>{
   'format',
   'rules',

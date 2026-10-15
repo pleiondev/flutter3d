@@ -92,3 +92,12 @@ docs/articles/*.pdf
 
 # very_good test runs write this beside the tests.
 .test_optimizer.dart
+
+# What `runPluginConformance` writes beside the pubspec of the package whose
+# suite runs it: a plugin's author publishes theirs, and this repository's
+# suites that call it (the conformance package's own, the examples) write one
+# on every run. The fixtures under `test/fixtures/` are committed and are not
+# at a package root.
+/packages/*/*.conformance.json
+/packages/*/example/*.conformance.json
+/examples/*/*.conformance.json

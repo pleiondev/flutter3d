@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1+1
 
+- **`dart run flutter3d_sim:bake_visibility` answers like `flutter3d
+  visibility`.** It is the same command, kept for a project without
+  `flutter3d_build`: `--help` prints the usage and exits 0, a `--cell` that
+  is not a size above 0 exits 2 where it threw, and a level that is not
+  one exits 1 with its path.
 - **Breaking: results that were records are final classes.** `Avoidance`,
   `BrushGeometry`, `HeatmapTrail`, `InputFrame`, `LevelRules`,
   `LightmapLayout`, `ResimulationRetraced`, `bracketFromTraces` and

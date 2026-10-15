@@ -85,6 +85,21 @@ MaterialBuildReport runMaterialBuild(
 }) {
   final layout = AssetLayout(projectRoot: projectRoot);
   final plan = layout.materialPlan();
+  // `flutter3d_generated/shaders/` is the engine's: its bundle, the one
+  // before it and every installed plugin's materials. A project material
+  // under `assets_src/shaders/` would land there, and
+  // `assets_src/shaders/flutter3d.f3dmat` on the engine's bundle itself.
+  for (final job in plan) {
+    if (job.destination.startsWith('${layout.reservedShaderDir.path}/')) {
+      throw MaterialBuildException(
+        'flutter3d_generated/shaders/ is the engine\'s shader bundle and the '
+        'plugins\' materials, and a material under assets_src/shaders/ would '
+        'be written among them: move it to another directory under '
+        'assets_src/',
+        source: job.source,
+      );
+    }
+  }
   final cachePath = '${layout.generatedDir.path}/.flutter3d_materials.json';
   final previous = _readCache(cachePath);
   final sink = log ?? stdout;

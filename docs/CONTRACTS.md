@@ -431,12 +431,92 @@ MCP tools and VM service extensions are snapshotted (`api/*.mcp`,
 `api/*.vm`) with their input and output schemas. A rename keeps the old name
 as an alias until the next major: a call to it is answered, `tools/list`
 does not offer it, and the snapshot holds it as an `alias` line. Each server
-announces its schema version. The `flutter3d` command's subcommands, flags and exit codes (0 ok,
+announces its schema version. **What a refusal says is not a contract**: a
+tool that declines answers with `isError` and a sentence, and the sentence
+may be reworded in any release. A client that has to tell refusals apart
+waits for the `refusal` code `structuredContent` gains in 1.1 (`badArgument`,
+`paused`, `notFound`, `permission`, `refused`) rather than matching words.
+
+The `flutter3d` command's subcommands, flags and exit codes (0 ok,
 1 failed, 2 usage, 3 refused or out of date, 4 would overwrite) are
 snapshotted in `packages/flutter3d_build/api/flutter3d_build.cli`, and its
 `--json` output starts with the envelope, `"format": "f3d.cli"` and a
 `version` of its own, with each subcommand's keys snapshotted beside the
-help text.
+help text. The release rule reads the snapshot for every subcommand, flag,
+exit code and `--json` key, nested ones included: one gone since the last
+release tag needs a `**Breaking:**` entry, so within 1.x the JSON only
+grows. Tests hold the snapshot to the code: every option a parser reads is
+in its usage and the reverse, and each `--json` command's printed keys are
+the ones committed.
+
+Every command answers the same situation the same way. `-h`, `--help` and
+`flutter3d help <command>` print the usage to stdout and exit 0. An option
+the command does not take exits 2, with the usage on stderr, `create` and
+`migrate` included. A file, directory or pubspec that is not there exits 1.
+`init --check` exits 3 when changes are pending and 1 when `hook/build.dart`
+was edited by hand, which no run of `init` would make current.
+`flutter3d --version` prints the package's version.
+
+**The command line 1.0 promises** is these and nothing else:
+
+- `flutter3d` and each subcommand under `dart run flutter3d_build:<command>`
+  (`decode_worker` for `decode-worker`). `flutter3d visibility` and
+  `flutter3d decode-worker` are the level visibility bake and the web decode
+  worker; `dart run flutter3d_sim:bake_visibility` and
+  `dart run flutter3d_core:decode_worker` keep working with the same
+  options and exit codes, for a project without `flutter3d_build`.
+- The four MCP servers' entry points: `dart run flutter3d_mcp:editor_mcp`,
+  `:model_mcp`, `:project_mcp` and `dart run flutter3d_build:plugin_mcp`.
+- `dart run flutter3d_lints:migrate --json [--automatic] <project>`, the
+  part of the lints' command `flutter3d migrate` calls.
+
+**Outside the contract**, published and usable but free to change in a
+minor: `flutter3d:skills`, `flutter3d_sim:headless_run` and
+`:f3drun_info`, `flutter3d_model_core:export`, `flutter3d_net:relay`, and
+`flutter3d_impeller:build_shaders` and `:build_shader_bundle`, this
+repository's own shader builders.
+
+**What a project generated from 1.0 relies on.** The files `create` and
+`init` write belong to the project once written; the template's text
+(`main.dart`, the README, the tests) is not a contract. Four things are:
+
+- `hook/build.dart`: every text a release of `init` wrote stays init's own,
+  so `init --check` and `doctor` never call a project's untouched hook
+  edited. `init_test` keeps the list, and a release only adds to it.
+- The `flutter3d_plugins:` pubspec block discovery reads (`plugin`,
+  `shaders`, and an application's `with`, `without` and `set`), and the
+  older `flutter3d:` key, read until 2.0.
+- `lib/plugins.g.dart` and the `installedPlugins` it declares.
+- The layout: sources in `assets_src/`, what the build writes in
+  `flutter3d_generated/`, a material at `assets_src/<path>.f3dmat` compiled
+  to `flutter3d_generated/<path>.f3dshaders`. `flutter3d_generated/shaders/`
+  is the engine's bundle and the plugins' materials, and a project material
+  under `assets_src/shaders/` is refused.
+
+The version constraints a template writes come from each package's own
+version at that release, held to the pubspecs by a test.
+
+**Build configuration.** `flutter3d_assets.yaml` (`f3d.assets`) refuses a
+key it does not read, so a key added in 1.x arrives with a new `format`
+version, held by a structure rule: an older build then says "update
+flutter3d_build" rather than "unknown key". The hook's `user_defines`, under
+the project's own package name, are `textures`, `deviceClasses` and
+`fullShaders`; a
+`textures` or `deviceClasses` value that is not one of the choices fails the
+build naming them, and a key the hook does not read is a warning in the
+build's log.
+
+**Goldens.** `flutter3d_testing`'s references are what the software
+rasteriser draws. A minor release may change that picture, saying so under
+a `**Picture:**` label in its CHANGELOG with the cause; a patch never does.
+The default `channel: 8` of `expectMatchesGolden` is frozen for 1.x. A
+missing reference is recorded locally and fails where `CI` is set in the
+environment.
+
+**The conformance badge** is judged once: `runPluginConformance` writes
+`<package>.conformance.json` (`f3d.conformance`) with the badge
+`earnsBadge` gave, and `plugin.report` and the plugin catalogue read it. A
+plugin's pubspec says `conformance: conformant@1.0`, naming the suite.
 
 ## The shader ABI
 

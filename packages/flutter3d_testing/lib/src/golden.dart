@@ -24,7 +24,10 @@ import 'render_frame.dart';
 /// what the game draws today rather than failing for want of a file nobody could
 /// have written by hand. It says so on the console, because a recorded golden
 /// nobody looked at is a test that will pass forever whatever it draws — the
-/// image is meant to be opened and the commit is meant to say it was.
+/// image is meant to be opened and the commit is meant to say it was. On a
+/// machine with `CI` set in its environment, as every CI runner sets it, a
+/// missing reference fails instead; [recordMissing] says otherwise either
+/// way.
 ///
 /// **Zero [tolerance] by default, and that is on purpose.** The frame comes
 /// from a software rasteriser: the same scene drawn twice is the same bytes
@@ -58,8 +61,11 @@ Future<void> expectMatchesGolden(
   // fresh worktree then turns every golden into a test that writes its own
   // answer and agrees with it. `CI` is what every runner sets, and a caller
   // that knows better can say so.
-  final record =
-      recordMissing ?? !const bool.fromEnvironment('CI', defaultValue: false);
+  //
+  // **The process's environment, not a compile-time define.** `CI` read by
+  // `bool.fromEnvironment` is a `--dart-define` no runner passes, so every
+  // CI run recorded what it was meant to refuse.
+  final record = recordMissing ?? !_onCi();
   final file = File(path);
   if (!file.existsSync()) {
     if (!record) {
@@ -133,6 +139,14 @@ Future<void> expectMatchesGolden(
 /// The size comes back because comparing byte counts is not comparing sizes: a
 /// 480 × 360 golden and a 360 × 480 frame hold the same number of bytes, pass
 /// that check, and then diff as though every row were shifted.
+/// Whether this run is on a CI machine: `CI` set in the environment to
+/// anything but empty, `false` or `0`, as GitHub Actions, GitLab and the
+/// rest set it.
+bool _onCi() {
+  final said = Platform.environment['CI']?.trim().toLowerCase();
+  return said != null && said.isNotEmpty && said != 'false' && said != '0';
+}
+
 Future<({Uint8List pixels, int width, int height})> _readPng(File file) async {
   final codec = await ui.instantiateImageCodec(file.readAsBytesSync());
   final image = (await codec.getNextFrame()).image;

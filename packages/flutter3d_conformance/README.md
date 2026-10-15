@@ -81,6 +81,18 @@ kept, on the plugin API version in its manifest. `earnsBadge(outcomes)`
 answers it. A declined check (no world, no budget, assertions off) is
 reported as skipped, never as passed, and keeps the badge away.
 
+`runPluginConformance` writes what it found to `<package>.conformance.json`
+beside your pubspec once its checks have run: the `f3d.conformance` report,
+with the badge `earnsBadge` gave, `conformant@1.0` or none. That file is the
+badge's one record. `flutter3d_build`'s `plugin.report` reads it, and so does
+the plugin catalogue, so publish it with the package. In the pubspec, say
+which suite it passed:
+
+```yaml
+flutter3d_plugins:
+  conformance: conformant@1.0
+```
+
 ```markdown
 ![flutter3d conformant](https://img.shields.io/badge/flutter3d-conformant-2ea44f)
 ```

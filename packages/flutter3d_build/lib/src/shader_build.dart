@@ -337,8 +337,7 @@ ShaderBuildReport runShaderBuild(
       if (wanted.contains(name)) name,
   ];
 
-  final directory = Directory('${layout.generatedDir.path}/shaders')
-    ..createSync(recursive: true);
+  final directory = layout.reservedShaderDir..createSync(recursive: true);
   final out = File('${directory.path}/flutter3d.f3dshaders');
   final previous = File('${directory.path}/flutter3d.previous.f3dshaders');
   final cachePath = '${directory.path}/.flutter3d_shaders.json';

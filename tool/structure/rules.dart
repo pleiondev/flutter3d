@@ -255,8 +255,17 @@ List<Rule> get allRules => <Rule>[
     run: _checkNamesFollowToolNames,
   ),
   (
-    name: 'plugin.report counts the checks the plugin suite counts',
-    run: _buildCountsTheSuitesChecks,
+    name: 'plugin.report reads the badge the suite judged, and judges none',
+    run: _buildJudgesNoBadge,
+  ),
+  (
+    name: 'a published library reads CI from the environment, not a define',
+    run: _ciReadFromTheEnvironment,
+  ),
+  (
+    name:
+        'a key flutter3d_assets.yaml did not read at the release moves format',
+    run: _assetsKeysMoveFormat,
   ),
   (
     name: 'every versioned format has a fixture for each version it reads',
@@ -6392,8 +6401,8 @@ List<Finding> _migrationNumbers() {
 }
 
 /// `packages/flutter3d_build/api/flutter3d_build.cli` is what the `flutter3d`
-/// command prints for `help --surface`, and a subcommand or a flag gone since
-/// the last release is labelled a break.
+/// command prints for `help --surface`, and a subcommand, a flag, an exit
+/// code or a `--json` key gone since the last release is labelled a break.
 ///
 /// **Item 32 of `tasks/1.0-scope-additions.md`: the command is a contract.**
 /// Its subcommands, flags and exit codes are what CI scripts and the cloud
@@ -6401,10 +6410,17 @@ List<Finding> _migrationNumbers() {
 /// only place a rename shows is a snapshot of the text that lists them.
 /// `tool/cli_surface.dart` imports nothing but the contract's own file, so
 /// this runs in a second without a resolved workspace for the converters.
+/// The words compared are [cliSurfaceWords]: the exit table's codes and
+/// every key of the `--json` bodies count as flags do, since a script
+/// reads `$?` and `.reports[0].mapped` as surely as it passes `--dry-run`.
+/// That the text is what the parsers and the printed JSON do is
+/// `flutter3d_build`'s `cli_options_test` and `cli_json_test`.
 ///
-/// Mutation: drop `--dry-run` from `convertUsage` without regenerating the
-/// snapshot, and this names the file; regenerate it, and with a release tag
-/// before it this asks for the `**Breaking:**` entry naming `--dry-run`.
+/// Mutation: drop `--dry-run` from `convertUsage`, `mapped` from
+/// `cliJsonBodies['convert']`, or renumber `3` in the exit table, without
+/// regenerating the snapshot, and this names the file; regenerate it, and
+/// with a release tag before it this asks for the `**Breaking:**` entry
+/// naming the word.
 List<Finding> _cliSurfaceCurrent() {
   final home = '${repositoryRoot.path}/packages/flutter3d_build';
   final snapshot = File('$home/api/flutter3d_build.cli');
@@ -6630,44 +6646,114 @@ List<Finding> _checkNamesFollowToolNames() {
   return found;
 }
 
-/// `plugin.report`'s `pluginConformanceChecks` is the plugin suite's
-/// `pluginCheckNames`, item for item.
+/// `flutter3d_build`'s plugin server keeps no copy of the plugin suite's
+/// checks and builds no badge: it reads the `<package>.conformance.json`
+/// `runPluginConformance` writes, whose badge `earnsBadge` decided.
 ///
-/// **Two badge authorities may not disagree.** `flutter3d_build` keeps its
-/// own copy because the suite is a test library a build hook must not
-/// depend on, and its `earnsBadge` counts only the copy. It once counted 5
-/// of the suite's 7, so `plugin.report` could give `conformant@1.0` to a
-/// suite that never ran `names` or `materials`.
+/// **One judge.** The build kept its own list because the suite is a test
+/// library a build hook must not depend on, and its own `earnsBadge`
+/// counted only that list. It once counted 5 of the suite's 7, so
+/// `plugin.report` could give `conformant@1.0` to a suite that never ran
+/// `names` or `materials`; a list held equal by a rule still judged twice.
+/// That the suite writes the file is `plugin_conformance_test`'s.
 ///
-/// Mutation: drop `materials` from `pluginConformanceChecks`, or add a check
-/// to `pluginCheckNames` alone, and this names both lists.
-List<Finding> _buildCountsTheSuitesChecks() {
+/// Mutation: put back a `const List<String>` of the suite's checks in
+/// `plugin_author_server.dart`, or a `'conformant@$suite'` built there, and
+/// this names it.
+List<Finding> _buildJudgesNoBadge() {
   final root = repositoryRoot.path;
   final suite = File('$root/$_pluginSuite');
   final report = File('$root/$_pluginReport');
   if (!suite.existsSync() || !report.existsSync()) return const <Finding>[];
-  final want = constStringListIn(suite.readAsStringSync(), 'pluginCheckNames');
-  final have = constStringListIn(
-    report.readAsStringSync(),
-    'pluginConformanceChecks',
+  final checks = constStringListIn(
+    suite.readAsStringSync(),
+    'pluginCheckNames',
   );
-  if (want == null || have == null) {
-    return <Finding>[
+  if (checks == null) {
+    return const <Finding>[
       Finding(
-        want == null ? _pluginSuite : _pluginReport,
-        'declares no `const List<String> '
-        '${want == null ? 'pluginCheckNames' : 'pluginConformanceChecks'}`',
+        _pluginSuite,
+        'declares no `const List<String> pluginCheckNames`',
       ),
     ];
   }
-  if (want.join(' ') == have.join(' ')) return const <Finding>[];
   return <Finding>[
-    Finding(
-      '$_pluginReport → pluginConformanceChecks',
-      'is `${have.join(' ')}`, and the suite\'s `pluginCheckNames` is '
-          '`${want.join(' ')}`: `plugin.report` would judge a badge on other '
-          'checks than the suite does',
-    ),
+    for (final problem in ownBadgeJudgesIn(report.readAsStringSync(), checks))
+      Finding(
+        _pluginReport,
+        '$problem: the badge is the one the suite wrote in '
+        '<package>.conformance.json, judged by `earnsBadge`, and read here',
+      ),
+  ];
+}
+
+/// No published package's library reads `CI` as a compile-time define.
+///
+/// **`bool.fromEnvironment('CI')` is a `--dart-define` no runner passes.**
+/// `expectMatchesGolden` decided "this is CI, refuse to record" that way, so
+/// on every CI machine a missing golden was written fresh and agreed with
+/// itself, the one thing the switch was there to prevent. Every runner sets
+/// `CI` in the process's environment, which `Platform.environment` reads.
+///
+/// Mutation: write `const bool.fromEnvironment('CI')` back in
+/// `flutter3d_testing`'s `golden.dart`, and this names the file.
+List<Finding> _ciReadFromTheEnvironment() => <Finding>[
+  for (final MapEntry(key: name, value: directory) in packages.entries)
+    if (Directory('${directory.path}/lib').existsSync())
+      for (final file
+          in Directory('${directory.path}/lib')
+              .listSync(recursive: true)
+              .whereType<File>()
+              .where((File f) => f.path.endsWith('.dart')))
+        if (readsCiAsDefine(file.readAsStringSync()))
+          Finding(
+            file.path.substring(file.path.indexOf('packages/')),
+            'reads `CI` with `bool.fromEnvironment`, a define no CI runner '
+            'passes ($name): read `Platform.environment[\'CI\']`',
+          ),
+];
+
+/// Every key `flutter3d_assets.yaml`'s reader accepts that the reader at
+/// the last release tag refused comes with a newer `formatVersion`.
+///
+/// **A released build refuses an unknown key**, and only a `format:` newer
+/// than its own gets "update flutter3d_build". A key added within a format
+/// sends a team on two releases the wrong sentence for a file the newer
+/// one wrote correctly. The keys are the reader's three sets in
+/// `manifest.dart`, read at the tag and now.
+///
+/// Mutation: add `'decimate'` to `_ruleKeys` without moving
+/// `AssetBuildManifest.formatVersion`, and this names the key.
+List<Finding> _assetsKeysMoveFormat() {
+  const path = 'packages/flutter3d_build/lib/src/manifest.dart';
+  final file = File('${repositoryRoot.path}/$path');
+  if (!file.existsSync()) return const <Finding>[];
+  String? git(List<String> args) {
+    try {
+      final result = Process.runSync(
+        'git',
+        args,
+        workingDirectory: repositoryRoot.path,
+      );
+      return result.exitCode == 0 ? result.stdout as String : null;
+    } on ProcessException {
+      return null;
+    }
+  }
+
+  final tags = <String>[
+    for (final tag in (git(<String>['tag', '--list', 'v*']) ?? '').split('\n'))
+      if (parseVersion(tag.trim().replaceFirst('v', '')) != null) tag.trim(),
+  ]..sort((a, b) => compareVersionTexts(b.substring(1), a.substring(1))!);
+  if (tags.isEmpty) return const <Finding>[];
+  final released = git(<String>['show', '${tags.first}:$path']);
+  if (released == null) return const <Finding>[];
+  return <Finding>[
+    for (final problem in assetsManifestGrowthProblems(
+      released,
+      file.readAsStringSync(),
+    ))
+      Finding(path, '$problem (against ${tags.first})'),
   ];
 }
 

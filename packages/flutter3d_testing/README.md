@@ -21,6 +21,10 @@ test('the crypt still looks like the crypt', () async {
 
 The first run records the reference and says so. Later runs fail when the
 picture changes, and the message says by how much and how to re-record.
+On CI, a missing reference fails instead of being recorded: the helper reads
+the `CI` variable every runner sets in the environment, so a mistyped or
+gitignored golden cannot write its own answer and agree with it. Pass
+`recordMissing:` to decide it yourself.
 
 ## Replaying a recorded run
 
@@ -86,6 +90,16 @@ The frame comes from a software rasteriser, so the same scene drawn twice is the
 same bytes twice. There is no driver, clock or thread to disagree, which means
 any difference is a change and not noise. Raise `tolerance` only when something
 has been measured to move, and say why in the call.
+
+## How long a picture holds
+
+What the software rasteriser draws for a scene is not frozen for all of 1.x.
+A minor release may change it, and when one does, its CHANGELOG says so
+under a `**Picture:**` label naming the cause (a fixed rounding, a filter
+that now matches the GPU backends). A patch release never changes it. The
+`channel: 8` default is frozen for 1.x, so a reference that passes today is
+judged by the same rule after an upgrade, and a minor that moves the picture
+by less than that does not fail it.
 
 ## On another device
 

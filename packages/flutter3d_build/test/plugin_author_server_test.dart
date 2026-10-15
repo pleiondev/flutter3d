@@ -83,17 +83,57 @@ Directory _temp() {
 }
 
 /// A workshop whose runner answers [stdout] with [exitCode], recording what
-/// it was asked to run.
+/// it was asked to run, and writes [report] as the suite's
+/// `duel.conformance.json` the way `runPluginConformance` does.
 PluginWorkshop _workshop(
   String stdout, {
   int exitCode = 0,
   List<String>? ran,
+  Map<String, Object?>? report,
 }) => PluginWorkshop(
   run: (String executable, List<String> arguments, String directory) async {
     ran?.add('$executable ${arguments.join(' ')}');
+    if (report != null) {
+      File(
+        '$directory/duel.conformance.json',
+      ).writeAsStringSync(jsonEncode(report));
+    }
     return PluginProcessResult(exitCode: exitCode, stdout: stdout, stderr: '');
   },
 );
+
+/// An `f3d.conformance` report as the suite writes it: one outcome a check
+/// in [results] (`passed`, `declined` or `failed`), and the [badge] the
+/// suite's judge gave.
+Map<String, Object?> _report(Map<String, String> results, {String? badge}) =>
+    <String, Object?>{
+      'format': 'f3d.conformance',
+      'version': 1,
+      'requires': const <String>[],
+      'generator': 'flutter3d_conformance',
+      'plugin': 'duel',
+      'suite': '1.0',
+      'badge': badge,
+      'outcomes': <Object?>[
+        for (final MapEntry(key: check, value: result) in results.entries)
+          <String, Object?>{
+            'check': check,
+            'passed': result == 'passed',
+            'declined': result == 'declined',
+            'says': result == 'failed' ? 'gave two answers' : 'fine',
+          },
+      ],
+    };
+
+const Map<String, String> _allPassed = <String, String>{
+  'manifest': 'passed',
+  'switch': 'passed',
+  'names': 'passed',
+  'determinism': 'passed',
+  'backends': 'passed',
+  'budget': 'passed',
+  'materials': 'passed',
+};
 
 void main() {
   test('the server offers three tools, each with a schema and the '
@@ -175,11 +215,23 @@ void main() {
       expect(answer.says, contains('gave two answers'));
       final run = workshop.lastRun(dir.path)!;
       expect(run.tests, hasLength(7));
-      expect(
-        run.tests.map((ConformanceTest t) => t.check),
-        pluginConformanceChecks,
+      expect(run.report, isNull);
+      expect(run.badge, isNull);
+      expect(answer.says, contains('wrote no duel.conformance.json'));
+    });
+
+    test('a report left by an earlier run is not read as this one', () async {
+      // Mutation: keep the old file. A suite that no longer compiles would
+      // be told it earns the badge its last good run earned.
+      final dir = _temp();
+      PluginWorkshop().create(dir.path, 'duel', PluginKind.genre);
+      File('${dir.path}/duel.conformance.json').writeAsStringSync(
+        jsonEncode(_report(_allPassed, badge: 'conformant@1.0')),
       );
-      expect(run.earnsBadge, isFalse);
+      final workshop = _workshop(_stream(_allPass), exitCode: 1);
+      await workshop.conformance(dir.path);
+      expect(workshop.lastRun(dir.path)!.badge, isNull);
+      expect(File('${dir.path}/duel.conformance.json').existsSync(), isFalse);
     });
 
     test('refuses a directory with no conformance suite', () async {
@@ -190,70 +242,81 @@ void main() {
   });
 
   group('plugin.report', () {
-    test('names the marker, and the badge once every check passed', () async {
-      // Mutation: give the badge when the exit code is nought. A suite
-      // missing the budget check exits nought too.
+    test('names the marker, and the badge the suite\'s report gives', () async {
       final dir = _temp();
       PluginWorkshop().create(dir.path, 'duel', PluginKind.genre);
-      final workshop = _workshop(_stream(_allPass));
+      final workshop = _workshop(
+        _stream(_allPass),
+        report: _report(_allPassed, badge: 'conformant@1.0'),
+      );
       expect(
         workshop.report(dir.path).says,
-        contains('no conformance run yet'),
+        contains('no conformance report yet (duel.conformance.json'),
       );
-      await workshop.conformance(dir.path);
+      final ran = await workshop.conformance(dir.path);
+      expect(ran.says, contains('earns the badge conformant@1.0'));
       final report = workshop.report(dir.path).says;
       expect(report, contains('plugin: package:duel/duel.dart#DuelPlugin'));
       expect(report, contains('backends: passed'));
       expect(report, contains('badge: conformant@1.0'));
     });
 
-    test('a declined check is no badge, and says so', () async {
-      // Mutation: count a skipped test as passed. A plugin whose suite gave
-      // determinism no world would wear a badge for a check never made.
+    test('the badge is the report\'s, whatever the tests say', () async {
+      // Mutation: judge the badge here again, from the tests that passed.
+      // Every test passed and the suite's judge gave none (a check its
+      // suite version counts was not run), so there is none.
       final dir = _temp();
       PluginWorkshop().create(dir.path, 'duel', PluginKind.genre);
       final workshop = _workshop(
-        _stream(<String, String>{..._allPass, 'determinism': 'skipped'}),
+        _stream(_allPass),
+        report: _report(Map<String, String>.of(_allPassed)..remove('names')),
+      );
+      await workshop.conformance(dir.path);
+      final report = workshop.report(dir.path).says;
+      expect(report, contains('badge: not earned'));
+      expect(report, isNot(contains('names:')));
+    });
+
+    test('a declined or failed check is said as the report says it', () async {
+      final dir = _temp();
+      PluginWorkshop().create(dir.path, 'duel', PluginKind.genre);
+      final workshop = _workshop(
+        _stream(_allPass),
+        report: _report(<String, String>{
+          ..._allPassed,
+          'determinism': 'declined',
+          'budget': 'failed',
+        }),
       );
       await workshop.conformance(dir.path);
       final report = workshop.report(dir.path).says;
       expect(report, contains('determinism: declined'));
+      expect(report, contains('budget: failed — gave two answers'));
       expect(report, contains('badge: not earned'));
     });
 
-    test('a check no test covered is named as not run', () async {
-      // Mutation: judge the badge on the tests alone. A suite that never
-      // ran the budget check would pass every test it had.
+    test('the report is read from the disk, whoever ran the suite', () {
+      // A suite run from a terminal, not through this server, still says.
       final dir = _temp();
       PluginWorkshop().create(dir.path, 'duel', PluginKind.genre);
-      final workshop = _workshop(
-        _stream(Map<String, String>.of(_allPass)..remove('budget')),
+      File('${dir.path}/duel.conformance.json').writeAsStringSync(
+        jsonEncode(_report(_allPassed, badge: 'conformant@1.0')),
       );
-      await workshop.conformance(dir.path);
-      final report = workshop.report(dir.path).says;
-      expect(report, contains('budget: not run'));
-      expect(report, contains('(not run: budget)'));
+      expect(
+        PluginWorkshop().report(dir.path).says,
+        contains('badge: conformant@1.0'),
+      );
     });
 
-    test(
-      'a suite without its names or materials check earns no badge',
-      () async {
-        // Mutation: count five checks here where the suite counts seven, as
-        // before. A suite written before `names` and `materials` joined passes
-        // every test it has and is given `conformant@1.0`, which the suite's
-        // own `earnsBadge` withholds.
-        for (final check in <String>['names', 'materials']) {
-          final dir = _temp();
-          PluginWorkshop().create(dir.path, 'duel', PluginKind.genre);
-          final workshop = _workshop(
-            _stream(Map<String, String>.of(_allPass)..remove(check)),
-          );
-          await workshop.conformance(dir.path);
-          final report = workshop.report(dir.path).says;
-          expect(report, contains('$check: not run'), reason: check);
-          expect(report, contains('badge: not earned'), reason: check);
-        }
-      },
-    );
+    test('a report newer than this build reads is refused, saying so', () {
+      final dir = _temp();
+      PluginWorkshop().create(dir.path, 'duel', PluginKind.genre);
+      File('${dir.path}/duel.conformance.json').writeAsStringSync(
+        jsonEncode(<String, Object?>{..._report(_allPassed), 'version': 2}),
+      );
+      final answer = PluginWorkshop().report(dir.path);
+      expect(answer.did, isFalse);
+      expect(answer.says, contains('update flutter3d_build'));
+    });
   });
 }

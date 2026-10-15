@@ -43,6 +43,10 @@ int runLightmap(List<String> arguments) {
     return CliExit.usage;
   }
 
+  if (cliOptions['lightmap']!.unknownIn(arguments) case final String unknown) {
+    return usage(unknownOption(unknown));
+  }
+
   for (var i = 0; i < arguments.length; i++) {
     final argument = arguments[i];
     final value = i + 1 < arguments.length ? arguments[i + 1] : null;
@@ -59,7 +63,7 @@ int runLightmap(List<String> arguments) {
       case '--direct':
         direct = true;
       case final String option when option.startsWith('-'):
-        return usage('Unknown option or missing value: $option');
+        return usage('$option needs a number after it');
       default:
         paths.add(argument);
     }

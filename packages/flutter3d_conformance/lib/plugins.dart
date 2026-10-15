@@ -73,10 +73,12 @@ library;
 
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show Flutter3dPlugin, FormatSpec;
-import 'package:test/test.dart' show fail, markTestSkipped, test;
+import 'package:test/test.dart' show fail, markTestSkipped, tearDownAll, test;
 
 import 'src/plugins/harness.dart';
 import 'src/plugins/plugin_checks.dart';
+import 'src/plugins/report_file.dart'
+    if (dart.library.io) 'src/plugins/report_file_io.dart';
 
 export 'src/plugins/harness.dart'
     show PluginBudget, PluginCheckOutcome, PluginHarness;
@@ -189,17 +191,42 @@ Map<String, Object?> conformanceReport(
   ],
 };
 
+/// What every [runPluginConformance] of this test run found so far, in the
+/// order its checks ran: the outcomes the report file is written from.
+final List<PluginCheckOutcome> _reported = <PluginCheckOutcome>[];
+
 /// Registers the plugin checks as tests: one per check, and one per backend
 /// for the backends check, named "backends on webgl".
 ///
 /// A declined check is reported as skipped with its reason, as
 /// `runDeviceConformance` reports a backend that declines: never as a pass.
+///
+/// **Writes `<package>.conformance.json`** (`f3d.conformance`, the
+/// [conformanceReport] of what ran) beside the pubspec of the package the
+/// suite runs in, once its checks are done: the one record of whether the
+/// plugin earns the badge, judged by [earnsBadge] and read by
+/// `flutter3d_build`'s `plugin.report` and the plugin catalogue. A suite
+/// that calls this more than once (under two profiles, say) writes one
+/// file holding every outcome, and earns the badge only if every call
+/// would. A check left out by `--name` is not run, so the file of a
+/// partial run earns nothing. In a browser nothing is written.
 void runPluginConformance(
   Flutter3dPlugin Function() create, {
   PluginHarness harness = const PluginHarness(),
 }) {
   final session = PluginSession(create, harness);
   final found = <String, List<PluginCheckOutcome>>{};
+  tearDownAll(() {
+    for (final check in pluginChecks) {
+      _reported.addAll(found[check.name] ?? const <PluginCheckOutcome>[]);
+    }
+    found.clear();
+    final plugin = session.manifest.id;
+    writeConformanceReportFile(
+      plugin,
+      () => conformanceReport(plugin, _reported),
+    );
+  });
   final declared = session.manifest.backends.toList();
   for (final check in pluginChecks) {
     List<PluginCheckOutcome> outcomes() =>

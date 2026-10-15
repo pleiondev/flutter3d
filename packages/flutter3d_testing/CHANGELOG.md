@@ -1,5 +1,14 @@
 ## 1.0.0-rc.1+1
 
+- **A missing golden fails on CI.** `expectMatchesGolden`, and with it
+  `testReplay` and `expectReplayMatches`, read `CI` from the process's
+  environment, which every runner sets, where they read a compile-time
+  define nobody passed, so a mistyped or gitignored golden was recorded on
+  CI and passed. A suite that passed that way fails now, naming the file;
+  `recordMissing:` still decides it either way.
+- **How long a picture holds is written down.** The software rasteriser's
+  picture may change in a minor, under a `**Picture:**` label naming the
+  cause, and never in a patch; `channel: 8` is frozen for 1.x.
 - **Breaking: `RenderView` is `CameraView`.** `QualityScene` changed with
   it. `package:flutter/rendering.dart` exports a `RenderView` too, the root
   of a render tree, so a file importing both had to hide one.

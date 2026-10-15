@@ -11,14 +11,57 @@
   `AssetManifest` changed with it: `package:flutter/services.dart` exports
   an `AssetManifest`, the runtime one. `dart fix` renames it.
 
-- **Breaking: `plugin.report` counts the 7 checks the plugin suite counts.**
-  `pluginConformanceChecks` adds `names` and `materials`, in the suite's
-  order, so a suite that never ran either is told which one it missed and
-  earns no `conformant@1.0`, as the suite's own `earnsBadge` already
-  decided; it counted 5 and could give the badge anyway. A structure rule
-  now holds the list equal to `flutter3d_conformance`'s `pluginCheckNames`.
-  A test is matched to a check by the whole name, dots included and case
-  ignored, so a dotted check name is ready for it.
+- **Breaking: the conformance badge has one judge, and it is the suite.**
+  `plugin.report` reads `<package>.conformance.json`, the report
+  `flutter3d_conformance`'s `runPluginConformance` writes with the badge its
+  `earnsBadge` gave, and decides nothing itself. It kept its own copy of the
+  suite's checks, and counted 5 of the 7 at rc.1, so it could give
+  `conformant@1.0` to a suite that never ran `names` or `materials`.
+  `pluginConformanceChecks` is gone, `ConformanceTest` loses `check`, and
+  `ConformanceRun` loses `earnsBadge` and `missing` and gains `report`, a
+  `ConformanceReportFile`; its `badge` is the report's. `plugin.conformance`
+  removes a report left by an earlier run before the suite starts, so a
+  suite that no longer compiles is not told it earns the old badge. A
+  structure rule refuses a check list or a `conformant@` badge built in the
+  server again.
+- **Breaking: `cliCommands` gains `visibility` and `decode-worker`.**
+  `flutter3d visibility` bakes a level's visibility table and `flutter3d
+  decode-worker` compiles the web decode worker, with this command's usage
+  and exit codes; `dart run flutter3d_sim:bake_visibility` and
+  `dart run flutter3d_core:decode_worker` keep working.
+  `dart run flutter3d_build:doctor` exists now, as the usage always said,
+  and `flutter3d --version` is in the usage.
+- **Every command answers the same situation the same way.** `-h`,
+  `--help` and `flutter3d help <command>` print the usage to stdout and
+  exit 0, where `init`, `lights`, `plugins` and `shaders` wrote it to
+  stderr and `init` and `lights` exited 2. An option a command does not
+  take exits 2, naming it: `create project --knd=viewer` made a scene,
+  `create plugin --targte dir` wrote into `./<name>`, and `migrate` and
+  `doctor` dropped what they did not know. `migrate` on a directory with no
+  pubspec, or with a migration table that does not read, exits 1, not 2.
+  `init --check` documents the 1 it answers for a hook edited by hand.
+  Each command reads its options from `cliOptions` first, and tests hold
+  every set to its usage both ways and every `--json` command's printed
+  keys to `cliJsonBodies`.
+- **The command's surface counts exit codes and `--json` keys as words.**
+  The release rule asks a `**Breaking:**` entry for an exit code gone or
+  renumbered and for a `--json` key gone, nested ones included, as it did
+  for a flag.
+- **A hook's `user_defines` mistakes are said.** `textures` or
+  `deviceClasses` with a value that is not one of the choices fails the
+  build naming them; it fell back to the platform's choice in silence. A
+  key among the project's defines the hook does not read (`fullShader`) is
+  a warning in the build's log. The shaders usage named the block
+  `flutter3d_build:`; it is the project's own package name, as a hook
+  reads only its own package's defines.
+- **A material under `assets_src/shaders/` is refused.**
+  `flutter3d_generated/shaders/` is the engine's bundle and the plugins'
+  materials, and `assets_src/shaders/flutter3d.f3dmat` compiled onto the
+  engine's own bundle. `AssetLayout.reservedShaderDir` names it.
+- **The templates' constraints follow each package's version.** A project
+  or plugin `create` writes asks for each package of this repository at
+  the version it is released at, from one table a test holds to the
+  pubspecs, where 24 literals said `^1.0.0-rc.1` whatever the release.
 - **The plugin MCP server announces `1.0.0-rc.1+1`**, and `init` writes
   `flutter3d_build: ^1.0.0-rc.1+1`.
 

@@ -1137,6 +1137,21 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
         'withholds; the version constants follow the pubspec.',
   ),
   BuildAllowance(
+    package: 'flutter3d_build',
+    members: <String>[
+      'ConformanceRun.earnsBadge',
+      'ConformanceRun.missing',
+      'ConformanceTest.ConformanceTest',
+      'ConformanceTest.check',
+      'cliCommands',
+    ],
+    reason:
+        'The badge has one judge (1.0.0-rc.1+1): `plugin.report` reads the '
+        '`<package>.conformance.json` the suite writes and keeps no check '
+        'list or verdict of its own; and the command gains `visibility` and '
+        '`decode-worker`, which `cliCommands` lists.',
+  ),
+  BuildAllowance(
     package: 'flutter3d_mcp',
     members: <String>[
       'editorMcpVersion',

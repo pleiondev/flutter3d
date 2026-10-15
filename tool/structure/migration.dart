@@ -83,6 +83,16 @@ const int manualCeiling = 308;
 /// `manual` entries past [manualCeiling], each with why no kind carries it
 /// out. Entry id to reason. Empty: the ceiling holds the whole count.
 const Map<String, String> manualAllowlist = <String, String>{
+  'build-pluginConformanceChecks':
+      'nothing replaces it by design: the build keeps no copy of the '
+      'suite\'s checks, which a test library the build may not depend on '
+      'owns',
+  'build-ConformanceRun-missing':
+      'nothing replaces it by design: what did not run is read from the '
+      'suite\'s report, a file, not a getter a rewrite can name',
+  'build-ConformanceTest-check':
+      'nothing replaces it by design: which check an outcome is lives in '
+      'the suite\'s report, not in a test\'s name',
   'core-ComputeStep-demand':
       'an override to delete: no kind removes a member a class declares',
   'core-SkinningHook-demand':

@@ -5,7 +5,7 @@ description: Move a project written against flutter3d 0.8 to 1.0.0-rc.1, with on
 # Migrating from 0.8 to 1.0
 
 1.0 is the release the engine promises to keep: from it on, a break comes
-only in a major version. To get there, and on to this release, the API changed in 2330 places,
+only in a major version. To get there, and on to this release, the API changed in 2335 places,
 314 of them left to you; 380 are backend internals no application called.
 The rest a program carries out for you, and three
 tools share the work. All three read the same tables,
@@ -225,7 +225,7 @@ carried out:
 
 <!-- migration-table:start -->
 
-*Generated from `flutter3d_build/lib/migrations/` — 235 entries from 1.0.0-rc.1 to 1.0.0-rc.1+1, 6 by hand: 22 `dart fix`, 149 `migrate`, 6 by hand, 58 nothing to do.*
+*Generated from `flutter3d_build/lib/migrations/` — 240 entries from 1.0.0-rc.1 to 1.0.0-rc.1+1, 9 by hand: 23 `dart fix`, 150 `migrate`, 9 by hand, 58 nothing to do.*
 
 ### `flame_flutter3d`
 
@@ -259,11 +259,16 @@ carried out:
 
 - <a id="build-AssetLayout"></a>**`AssetLayout`** (nothing to do). Its manifest is typed `AssetBuildManifest`, which `AssetManifest` is now; `dart fix` renames the type where code names it.
 - <a id="build-AssetManifest-AssetBuildManifest"></a>**`AssetManifest`** (`dart fix`). `AssetManifest` is `AssetBuildManifest`. `package:flutter/services.dart` exports an `AssetManifest` too, the runtime one; the parsed `flutter3d_assets.yaml` is `AssetBuildManifest`.
+- <a id="build-ConformanceRun-earnsBadge"></a>**`ConformanceRun.earnsBadge`** (`migrate`). `ConformanceRun.earnsBadge` becomes `(x.badge != null)`. Whether a run earns the badge is what the suite's report says: `badge` is the one `earnsBadge` in `flutter3d_conformance` gave, read from `<package>.conformance.json`.
+- <a id="build-ConformanceRun-missing"></a>**`ConformanceRun.missing`** (by hand). Gone with the server's own check list. The checks a run made are its `report`'s `outcomes`; a check of the suite that is not among them did not run, and the report's `badge` is then null.
+- <a id="build-ConformanceTest-new"></a>**`ConformanceTest.ConformanceTest`** (`dart fix`). A test is no longer matched to a check by a word in its name; the suite's report says which check each outcome is.
+- <a id="build-ConformanceTest-check"></a>**`ConformanceTest.check`** (by hand). Gone: which check a test belongs to is in the suite's report, the `check` of each of `ConformanceRun.report`'s `outcomes`.
+- <a id="build-cliCommands"></a>**`cliCommands`** (nothing to do). The list gains `visibility` and `decode-worker`, the two commands that joined `flutter3d`. Nothing to change in code that reads it.
 - <a id="build-createProject-record"></a>**`createProject`** (`migrate`). `createProject` is a class: `.did` is `.did`, `.says` is `.says`; a destructuring pattern is yours to rewrite. `createProject` answers an `Answer` (from `package:flutter3d_mcp/kit.dart`, the type `PluginWorkshop.create` answers) with `did` and `says`, where it answered a `(did:, says:)` record; only a destructuring pattern names the class.
 - <a id="build-flutter3dBuildVersionConstraint"></a>**`flutter3dBuildVersionConstraint`** (nothing to do). The constraint `init` writes follows the package's version.
 - <a id="build-markerOf-record"></a>**`markerOf`** (`migrate`). `markerOf` is a class: `.$1` is `.value`, `.legacy` is `.legacy`; a destructuring pattern is yours to rewrite. `markerOf` answers a `PluginMarker?` with `value` and `legacy`, where it answered `(value, legacy:)`; a pattern `(final Object v, legacy: false)` becomes `PluginMarker(value: final Object v, legacy: false)`.
 - <a id="build-pluginAuthorMcpVersion"></a>**`pluginAuthorMcpVersion`** (nothing to do). The version the plugin MCP server announces follows the package's.
-- <a id="build-pluginConformanceChecks"></a>**`pluginConformanceChecks`** (nothing to do). The list adds `names` and `materials`, the 7 checks of the plugin suite, so `plugin.report` gives no badge to a suite that did not run them. Nothing to change in code that reads it.
+- <a id="build-pluginConformanceChecks"></a>**`pluginConformanceChecks`** (by hand). Gone: the plugin server keeps no list of the suite's checks. The checks a run made are the `outcomes` of the report the suite writes, `ConformanceReportFile.readIn(directory, package)`, and the list of the suite itself is `pluginCheckNames` in `package:flutter3d_conformance/plugins.dart`.
 - <a id="build-selectPlugins-record"></a>**`selectPlugins`** (`migrate`). `selectPlugins` is a class: `.kept` is `.kept`, `.excluded` is `.excluded`, `.warnings` is `.warnings`; a destructuring pattern is yours to rewrite. `selectPlugins` answers a `PluginSelection` with `kept`, `excluded` and `warnings`, where it answered a record of the same three names; only a destructuring pattern names the class.
 - <a id="build-splitLargeMeshes-record"></a>**`splitLargeMeshes`** (`migrate`). `splitLargeMeshes` is a class: `.$1` is `.document`, `.$2` is `.meshesSplit`; a destructuring pattern is yours to rewrite. `splitLargeMeshes` answers a `MeshSplit` with `document` and `meshesSplit`, where it answered `(document, count)`; `final (doc, n) =` becomes `final MeshSplit(document: doc, meshesSplit: n) =`.
 

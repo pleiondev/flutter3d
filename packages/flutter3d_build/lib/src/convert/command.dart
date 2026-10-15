@@ -11,7 +11,8 @@ import 'package:glob/list_local_fs.dart';
 
 import '../build_exceptions.dart';
 import '../chunk_generate.dart' show defaultChunkThreshold, parseChunkThreshold;
-import '../cli_contract.dart' show CliExit, cliJson, convertUsage;
+import '../cli_contract.dart'
+    show CliExit, cliJson, cliOptions, convertUsage, unknownOption;
 import '../convert.dart' show TextureFamily;
 import '../lod_generate.dart' show parseLodRatios;
 import 'bundle.dart';
@@ -86,6 +87,12 @@ final class ConvertCommandSettings {
   /// wrong (an unknown option, a missing value, no input), or one whose
   /// [ConvertUsageException.isHelp] is set for `-h` and `--help`.
   static ConvertCommandSettings parse(List<String> arguments) {
+    if (arguments.contains('-h') || arguments.contains('--help')) {
+      throw const ConvertUsageException.helpAsked();
+    }
+    if (cliOptions['convert']!.unknownIn(arguments) case final String bad) {
+      throw ConvertUsageException(unknownOption(bad));
+    }
     final inputs = <String>[];
     var output = '.';
     var dryRun = false, overwrite = false, materials = true, json = false;

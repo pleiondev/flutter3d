@@ -11,6 +11,7 @@ import 'package:flutter3d_mcp/kit.dart' show Answer;
 import 'init.dart';
 import 'project_kinds.dart';
 import 'project_model.dart';
+import 'template_versions.dart';
 
 /// The new project's Flutter import, spelled in two halves: this package is
 /// plain Dart, and the structure rule that keeps it so reads an import line
@@ -119,8 +120,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter3d: ^1.0.0-rc.1
-  flutter3d_app: ^1.0.0-rc.1
+${dependencyLine('flutter3d')}
+${dependencyLine('flutter3d_app')}
 
 dev_dependencies:
   flutter_test:

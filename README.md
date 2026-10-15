@@ -97,7 +97,7 @@ and give your agent's host the two servers:
 
 A project path that does not exist yet starts a fresh one, so the first
 thing to ask for can be "a crate with rounded edges". The model editor's
-`render` tool hands the agent a picture of what it did, and every edit
+`view.render` tool hands the agent a picture of what it did, and every edit
 either one makes lands in the same undo history a person's would. The
 tools are listed in the
 [`flutter3d_mcp` README](packages/flutter3d_mcp/README.md).
@@ -135,7 +135,7 @@ tools are listed in the
 | [`packages/flutter3d_game_strategy`](packages/flutter3d_game_strategy) | A fourth genre, and the first without a protagonist: ground made of samples, a crowd that takes orders and shoves itself apart, flow fields shared by destination, an economy, a fight, fog a side has to walk into, and a policy that plays a side without a mouse |
 | [`packages/flutter3d_level_scene`](packages/flutter3d_level_scene) | A level document turned into a scene: brushes into meshes, the level's materials, lights, probes, decals, mirrors and screens into nodes. The application's level loader and the editor both stand on it. Plain Dart |
 | [`packages/flutter3d_editor_core`](packages/flutter3d_editor_core) | The level editor with the editor taken out: the document being selected in, nudged, undone and written back, the handles a pointer hits, the palette a level builds out of itself, and the project a template becomes. Plain Dart, so a linter or a service can depend on it |
-| [`packages/flutter3d_mcp`](packages/flutter3d_mcp) | The editors offered to an agent over MCP on stdio, one document per process: the level editor's own commands (`editor.dart`, `dart run flutter3d_mcp:editor_mcp`), the modeller's — 147 editing tools and `render`, which hands the agent a picture of what it did (`model.dart`, `:model_mcp`) — and the kit every server here shares (`kit.dart`): a tool paired with its handler, answers that refuse without failing, and a loopback HTTP transport. Plain Dart |
+| [`packages/flutter3d_mcp`](packages/flutter3d_mcp) | The editors offered to an agent over MCP on stdio, one document per process: the level editor's own commands (`editor.dart`, `dart run flutter3d_mcp:editor_mcp`), the modeller's — 154 tools, `view.render` among them, which hands the agent a picture of what it did (`model.dart`, `:model_mcp`) — and the kit every server here shares (`kit.dart`): a tool paired with its handler, answers that refuse without failing, and a loopback HTTP transport. Plain Dart |
 | [`packages/flutter3d_editor_widgets`](packages/flutter3d_editor_widgets) | The controls the modeller and the level editor share instead of each keeping a copy: number, colour, range, enum and texture fields and the row they assemble into, over one theme |
 | [`packages/flutter3d_mesh`](packages/flutter3d_mesh) | The mesh a modeller edits, with the topology still in it: faces of any valency, half-edges that know their twin, and the operations that change them. Plain Dart. [README](packages/flutter3d_mesh/README.md) |
 | [`packages/flutter3d_model_core`](packages/flutter3d_model_core) | The headless half of the model editor: the project of objects, the sealed command every edit is one of, the history that takes them back, what it refuses to export, and the rig algorithms it runs: bone-name mapping, retargeting with a foot lock, automatic skin weights |
@@ -187,7 +187,7 @@ too.
 
 ## Coming from 0.8
 
-From 0.8 to this release the API changed in 2330 places, 314 of them left
+From 0.8 to this release the API changed in 2335 places, 317 of them left
 to you; 380 are backend internals no application called. One command does the rest:
 
 ```bash
@@ -271,7 +271,7 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-There are 14923 tests across 62 packages and 18 applications. The
+There are 14952 tests across 62 packages and 18 applications. The
 only ones that need a GPU are the Impeller half of the golden set. The other
 half is rendered by the software backend, which is what makes 96 scenes
 checkable in a headless run.
@@ -323,7 +323,7 @@ binary has not got, and binding a slot a compiled shader does not have takes
 the frame down. The message names nothing that leads back to the file that was
 edited.
 
-So `dart run tool/structure.dart` checks it: one of its 115 rules compares
+So `dart run tool/structure.dart` checks it: one of its 117 rules compares
 the bundle against the sources it was built from and says which of them are
 newer. The rule skips when there is no bundle at all, which is every fresh
 checkout and every CI run. `impellerc` is not there to build one, and a rule

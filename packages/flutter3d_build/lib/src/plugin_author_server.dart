@@ -44,36 +44,145 @@ const String pluginAuthorMcpVersion = '1.0.0-rc.1+1';
 const String pluginAuthorMcpSchemaVersion = '1.0.0';
 
 /// What each of [pluginAuthorTools] does to the disk: `plugin.create`
-/// writes a package, the other two only run and read.
+/// writes a package, the other two only run and read (the suite
+/// `plugin.conformance` runs writes its own report).
 const Map<String, ToolName> pluginAuthorToolNames = <String, ToolName>{
   'plugin.create': ToolName('plugin.create'),
   'plugin.conformance': ToolName('plugin.conformance', hints: ToolHints.reads),
   'plugin.report': ToolName('plugin.report', hints: ToolHints.reads),
 };
 
-/// The conformance suite [pluginConformanceChecks] make up, as
-/// `flutter3d_conformance`'s `conformanceSuiteVersion` names it: the version
-/// a badge earned here carries, `conformant@1.0`. A check added to the suite
-/// arrives in a new suite version, and this moves with it.
-const String _conformanceSuiteVersion = '1.0';
+/// The newest version of the `f3d.conformance` report this server reads,
+/// as `flutter3d_conformance`'s `conformanceReportFormat` writes it.
+const int _reportVersion = 1;
 
-/// The checks of `flutter3d_conformance`'s plugin suite, by the word each
-/// test's name carries — what [ConformanceRun.earnsBadge] counts.
+/// One outcome of a conformance report: a check, on a backend for the
+/// backends check, and how it went.
+final class ConformanceOutcome {
+  const ConformanceOutcome({
+    required this.check,
+    this.backend,
+    required this.passed,
+    required this.declined,
+    required this.says,
+  });
+
+  /// The check's name, as the suite reports it.
+  final String check;
+
+  /// The backend it ran on, for the backends check; null for the others.
+  final String? backend;
+
+  /// Whether it passed. A declined check did not.
+  final bool passed;
+
+  /// Whether the suite declined it: no world for determinism, no budget.
+  final bool declined;
+
+  /// What the check found, in a sentence.
+  final String says;
+}
+
+/// A plugin's `<package>.conformance.json`: what its conformance suite
+/// found, and the badge `flutter3d_conformance`'s `earnsBadge` gave it.
 ///
-/// **Written here rather than imported**, because the suite is a test
-/// library: depending on it would make the `test` package a dependency of
-/// every build hook. The names are the suite's `pluginCheckNames`, in its
-/// order, and `tool/structure` holds the two lists equal: a check the suite
-/// counts and this does not would give a badge the suite withholds.
-const List<String> pluginConformanceChecks = <String>[
-  'manifest',
-  'switch',
-  'names',
-  'determinism',
-  'backends',
-  'budget',
-  'materials',
-];
+/// **The suite is the only judge.** `runPluginConformance` writes this file
+/// once its checks have run, with the badge decided there; this server and
+/// the plugin catalogue read it and decide nothing. A copy of the suite's
+/// check list kept here could only disagree with it, and once did: it
+/// counted five checks where the suite counted seven.
+final class ConformanceReportFile {
+  const ConformanceReportFile({
+    required this.path,
+    required this.plugin,
+    required this.suite,
+    required this.badge,
+    required this.outcomes,
+  });
+
+  /// The file it was read from.
+  final String path;
+
+  /// The plugin's id, as its manifest says it.
+  final String plugin;
+
+  /// The suite version the checks belong to, such as `1.0`.
+  final String suite;
+
+  /// The badge the run earned, `conformant@1.0`, or null for none.
+  final String? badge;
+
+  /// Every outcome, in the order the checks ran.
+  final List<ConformanceOutcome> outcomes;
+
+  /// The report of [package] in [directory], `<package>.conformance.json`,
+  /// or null when there is none: absent, since a plugin whose suite has not
+  /// run has no report yet.
+  ///
+  /// Throws a [FormatException] for a file that is not an `f3d.conformance`
+  /// report this reads, saying why.
+  static ConformanceReportFile? readIn(String directory, String package) {
+    final file = File('$directory/$package.conformance.json');
+    if (!file.existsSync()) return null;
+    final Object? json;
+    try {
+      json = jsonDecode(file.readAsStringSync());
+    } on FormatException catch (error) {
+      throw FormatException('${file.path} is not JSON: ${error.message}');
+    }
+    if (json is! Map<String, Object?> || json['format'] != 'f3d.conformance') {
+      throw FormatException('${file.path} is not an f3d.conformance report');
+    }
+    final version = json['version'];
+    if (version is! int || version > _reportVersion) {
+      throw FormatException(
+        '${file.path} is f3d.conformance version $version, newer than this '
+        'build reads ($_reportVersion): update flutter3d_build',
+      );
+    }
+    final outcomes = json['outcomes'];
+    return ConformanceReportFile(
+      path: file.path,
+      plugin: '${json['plugin'] ?? package}',
+      suite: '${json['suite'] ?? ''}',
+      badge: json['badge'] is String ? json['badge']! as String : null,
+      outcomes: <ConformanceOutcome>[
+        if (outcomes is List)
+          for (final outcome in outcomes.whereType<Map<String, Object?>>())
+            ConformanceOutcome(
+              check: '${outcome['check']}',
+              backend: outcome['backend'] is String
+                  ? outcome['backend']! as String
+                  : null,
+              passed: outcome['passed'] == true,
+              declined: outcome['declined'] == true,
+              says: '${outcome['says'] ?? ''}',
+            ),
+      ],
+    );
+  }
+
+  /// One line a check, in the order the checks ran: passed, declined or
+  /// failed, with what a failed one found.
+  List<String> get lines => <String>[
+    for (final check in <String>{for (final o in outcomes) o.check})
+      _line(check, <ConformanceOutcome>[
+        for (final o in outcomes)
+          if (o.check == check) o,
+      ]),
+  ];
+
+  static String _line(String check, List<ConformanceOutcome> ran) {
+    final failed = ran
+        .where((ConformanceOutcome o) => !o.passed && !o.declined)
+        .firstOrNull;
+    return switch (failed) {
+      _ when ran.every((ConformanceOutcome o) => o.passed) => '$check: passed',
+      final ConformanceOutcome o => '$check: failed — ${o.says}',
+      null => '$check: declined',
+    };
+  }
+}
 
 /// What a run of a program answered: its exit code and both streams.
 ///
@@ -128,18 +237,14 @@ Future<PluginProcessResult> _runProcess(
 final class ConformanceTest {
   const ConformanceTest({
     required this.name,
-    required this.check,
     required this.passed,
     required this.declined,
     required this.says,
   });
 
-  /// The test's full name, groups included.
+  /// The test's full name, groups included. Which check it is, the suite
+  /// says in its report ([ConformanceReportFile]), not a word in this.
   final String name;
-
-  /// Which of [pluginConformanceChecks] it belongs to, or null for a test
-  /// that is not one of the suite's.
-  final String? check;
 
   /// Whether it passed. A declined test did not.
   final bool passed;
@@ -225,19 +330,8 @@ ConformanceTest _test(
 ) {
   final skipped = finished['skipped'] == true;
   final passed = !skipped && finished['result'] == 'success';
-  // A check name is a word or dotted words (`render.litModel`), matched
-  // whole and as written, whichever case the test's name has.
-  final check = pluginConformanceChecks
-      .where(
-        (String c) => RegExp(
-          '(?<![\\w.])${RegExp.escape(c)}(?![\\w.])',
-          caseSensitive: false,
-        ).hasMatch(name),
-      )
-      .firstOrNull;
   return ConformanceTest(
     name: name,
-    check: check,
     passed: passed,
     declined: skipped,
     says: passed
@@ -250,7 +344,11 @@ ConformanceTest _test(
 
 /// One run of a plugin's conformance suite.
 final class ConformanceRun {
-  const ConformanceRun({required this.exitCode, required this.tests});
+  const ConformanceRun({
+    required this.exitCode,
+    required this.tests,
+    this.report,
+  });
 
   /// What the test runner exited with.
   final int exitCode;
@@ -258,31 +356,15 @@ final class ConformanceRun {
   /// Every test it reported.
   final List<ConformanceTest> tests;
 
-  /// Whether the plugin earns the conformance badge on this run.
-  ///
-  /// **Every check run, and none of them failed or declined.** A declined
-  /// check is a check not made — a determinism check with no world to step,
-  /// a budget the manifest never declared — and a badge given for checks not
-  /// made says nothing. `flutter3d_conformance`'s README states the same
-  /// criterion for a person.
-  bool get earnsBadge =>
-      exitCode == 0 &&
-      tests.isNotEmpty &&
-      tests.every((ConformanceTest t) => t.passed) &&
-      pluginConformanceChecks.every(
-        (String check) => tests.any((ConformanceTest t) => t.check == check),
-      );
+  /// The `<package>.conformance.json` the suite wrote, or null when it
+  /// wrote none (a suite that does not call `runPluginConformance`, or one
+  /// that did not compile).
+  final ConformanceReportFile? report;
 
-  /// The badge this run earns, as it is written — `conformant@1.0`, naming
-  /// the suite the checks belong to — or null when it earns none.
-  String? get badge =>
-      earnsBadge ? 'conformant@$_conformanceSuiteVersion' : null;
-
-  /// The checks no test of this run covered.
-  List<String> get missing => <String>[
-    for (final check in pluginConformanceChecks)
-      if (!tests.any((ConformanceTest t) => t.check == check)) check,
-  ];
+  /// The badge the suite's report gives, `conformant@1.0`, or null for
+  /// none. Read, never decided here: `earnsBadge` in
+  /// `flutter3d_conformance` is the judge.
+  String? get badge => report?.badge;
 }
 
 /// What the author server works on: the plugins it created or was pointed
@@ -342,12 +424,17 @@ final class PluginWorkshop {
       );
     }
     final pubspec = File('${root.path}/pubspec.yaml');
-    final usesFlutter =
-        pubspec.existsSync() &&
-        RegExp(
-          r'^\s+flutter:\s*\n\s+sdk:\s*flutter',
-          multiLine: true,
-        ).hasMatch(pubspec.readAsStringSync());
+    final pubspecText = pubspec.existsSync() ? pubspec.readAsStringSync() : '';
+    final usesFlutter = RegExp(
+      r'^\s+flutter:\s*\n\s+sdk:\s*flutter',
+      multiLine: true,
+    ).hasMatch(pubspecText);
+    final package = _packageName(pubspecText);
+    // The report of an earlier run is not this run's: gone before the
+    // suite starts, it cannot be read as the answer of a suite that then
+    // failed to compile.
+    final previous = File('${root.path}/$package.conformance.json');
+    if (previous.existsSync()) previous.deleteSync();
     final result = await _run(usesFlutter ? 'flutter' : 'dart', <String>[
       'test',
       'test/conformance_test.dart',
@@ -364,12 +451,25 @@ final class PluginWorkshop {
             '${why.isEmpty ? '' : ':\n$why'}',
       );
     }
-    final run = ConformanceRun(exitCode: result.exitCode, tests: tests);
+    final ConformanceReportFile? report;
+    try {
+      report = ConformanceReportFile.readIn(root.path, package);
+    } on FormatException catch (error) {
+      return Answer(did: false, says: error.message);
+    }
+    final run = ConformanceRun(
+      exitCode: result.exitCode,
+      tests: tests,
+      report: report,
+    );
     _runs[root.path] = run;
     final failed = tests.where((ConformanceTest t) => !t.passed).length;
-    final badge = run.earnsBadge
-        ? '; the plugin earns the badge ${run.badge}'
-        : '';
+    final badge = switch (report) {
+      null => '; the suite wrote no $package.conformance.json, so no badge',
+      ConformanceReportFile(badge: final String badge) =>
+        '; the plugin earns the badge $badge',
+      _ => '',
+    };
     return Answer(
       did: true,
       says: <String>[
@@ -409,36 +509,46 @@ final class PluginWorkshop {
               '`$pluginMarkerKey:`)',
       },
     ];
-    final run = _runs[root.path];
-    if (run == null) {
-      lines.add('no conformance run yet: call plugin.conformance');
-    } else {
-      for (final check in pluginConformanceChecks) {
-        final tests = run.tests.where((ConformanceTest t) => t.check == check);
-        lines.add(switch (tests) {
-          _ when tests.isEmpty => '$check: not run',
-          _ when tests.every((ConformanceTest t) => t.passed) =>
-            '$check: passed',
-          _
-              when tests.any((ConformanceTest t) => t.declined) &&
-                  !tests.any((ConformanceTest t) => !t.passed && !t.declined) =>
-            '$check: declined',
-          _ => '$check: failed',
-        });
-      }
+    // What the suite last wrote, from the disk rather than this session:
+    // the same file the catalogue reads, whoever ran the suite.
+    final package = name is String ? name : _packageName('');
+    final ConformanceReportFile? report;
+    try {
+      report = ConformanceReportFile.readIn(root.path, package);
+    } on FormatException catch (error) {
+      return Answer(did: false, says: error.message);
+    }
+    if (report == null) {
       lines.add(
-        run.earnsBadge
-            ? 'badge: ${run.badge} — every check of suite '
-                  '$_conformanceSuiteVersion ran on every declared backend and '
-                  'passed'
-            : 'badge: not earned — every check has to run and pass, with a '
-                  'world given to determinism and a budget declared and kept'
-                  '${run.missing.isEmpty ? '' : ' (not run: ${run.missing.join(', ')})'}',
+        'no conformance report yet ($package.conformance.json, which the '
+        'suite writes): call plugin.conformance',
       );
+    } else {
+      lines
+        ..addAll(report.lines)
+        ..add(switch (report.badge) {
+          final String badge =>
+            'badge: $badge — every check of suite ${report.suite} ran on '
+                'every declared backend and passed, as '
+                '${report.path.split('/').last} records',
+          null =>
+            'badge: not earned — every check of suite ${report.suite} has to '
+                'run and pass, with a world given to determinism and a budget '
+                'declared and kept, as ${report.path.split('/').last} records',
+        });
     }
     return Answer(did: true, says: lines.join('\n'));
   }
 }
+
+/// The package [pubspec] names, which is the report's file name; `plugin`
+/// when it names none.
+String _packageName(String pubspec) =>
+    RegExp(
+      r'^name:\s*([a-z0-9_]+)',
+      multiLine: true,
+    ).firstMatch(pubspec)?.group(1) ??
+    'plugin';
 
 /// The entries a marker names, read as discovery reads them: one, a list,
 /// or a map of library to classes all come out as `<import>#<Class>`. A
@@ -508,8 +618,9 @@ final List<PluginAuthorTool> pluginAuthorTools = <PluginAuthorTool>[
       name: 'plugin.conformance',
       description:
           'Run the plugin\'s conformance suite (test/conformance_test.dart) '
-          'and say, test by test, what passed, failed or was declined. Run '
-          '`dart pub get` in the directory first.',
+          'and say, test by test, what passed, failed or was declined. The '
+          'suite writes <package>.conformance.json beside the pubspec, with '
+          'the badge it judged. Run `dart pub get` in the directory first.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'directory': _directory('the plugin package'),
@@ -526,7 +637,8 @@ final List<PluginAuthorTool> pluginAuthorTools = <PluginAuthorTool>[
       description:
           'Say what the plugin package is — its name and discovery marker — '
           'how each check went in its last conformance run, and whether it '
-          'earns the conformance badge.',
+          'earns the conformance badge. Read from the '
+          '<package>.conformance.json its suite wrote, which is the judge.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'directory': _directory('the plugin package'),
@@ -566,5 +678,6 @@ backend held to the device suite. Run `dart pub get` in
 it, edit the plugin, then call `plugin.conformance`, which runs its suite:
 the manifest, switching on and off at a step boundary, determinism (each step
 run twice from a snapshot), every declared backend, and the budget in the
-manifest. `plugin.report` says how each check went and whether the plugin
-earns the badge, which needs every check run and passed.''';
+manifest. The suite writes `<package>.conformance.json` with the badge it
+judged; `plugin.report` reads that file and says how each check went and
+whether the plugin earns the badge, which needs every check run and passed.''';

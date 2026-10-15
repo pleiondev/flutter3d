@@ -19,6 +19,8 @@ library;
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart'
     show packageName;
 
+import 'template_versions.dart';
+
 /// What a plugin is for, which decides what its template installs.
 ///
 /// **A final class with constant instances rather than an enum**, for the
@@ -236,19 +238,19 @@ String _pascal(String package) => package
 
 String _pubspec(PluginKind kind) {
   final dependencies = <String>[
-    '  flutter3d_plugin_api: ^1.0.0-rc.1',
+    dependencyLine('flutter3d_plugin_api'),
     if (kind == PluginKind.renderStep || kind == PluginKind.effect)
-      '  flutter3d_core: ^1.0.0-rc.1',
-    if (kind == PluginKind.renderStep) '  flutter3d_hardware: ^1.0.0-rc.1',
+      dependencyLine('flutter3d_core'),
+    if (kind == PluginKind.renderStep) dependencyLine('flutter3d_hardware'),
     if (kind == PluginKind.element) ...<String>[
-      '  flutter3d_fields: ^1.0.0-rc.1',
-      '  flutter3d_foundation: ^1.0.0-rc.1',
+      dependencyLine('flutter3d_fields'),
+      dependencyLine('flutter3d_foundation'),
     ],
-    if (kind.simulates) '  flutter3d_sim: ^1.0.0-rc.1',
+    if (kind.simulates) dependencyLine('flutter3d_sim'),
   ];
   final devDependencies = <String>[
-    '  flutter3d_conformance: ^1.0.0-rc.1',
-    if (!kind.simulates) '  flutter3d_sim: ^1.0.0-rc.1',
+    dependencyLine('flutter3d_conformance'),
+    if (!kind.simulates) dependencyLine('flutter3d_sim'),
     '  test: ^1.25.0',
   ];
   return '''
@@ -324,7 +326,11 @@ off at a step boundary, determinism (every step run twice from a snapshot),
 every backend the manifest declares, and the budget in the manifest's
 `extra`. A plugin earns the conformance badge when every check passes on every
 declared backend, with a world given to the determinism check and a budget
-declared and kept — `flutter3d_conformance`'s README says it in full.
+declared and kept — `flutter3d_conformance`'s README says it in full. The
+run writes `{{name}}.conformance.json` beside this pubspec, with the badge
+the suite gave: publish it with the package, and once it says
+`conformant@1.0`, write `conformance: conformant@1.0` under
+`flutter3d_plugins:` in the pubspec.
 
 ## Publishing
 

@@ -12,6 +12,12 @@ abstract final class CliExit
   static const int usage = 2
   static const int wouldOverwrite = 4
 
+final class CliOptionSet
+  String? unknownIn(List<String> arguments)
+  const CliOptionSet({this.flags = const <String>{}, this.valued = const <String>{}})
+  final Set<String> flags
+  final Set<String> valued
+
 final class ConvertCommandSettings
   ConvertCommandSettings copyWith({List<String>? inputs, String? output, bool? dryRun, bool? overwrite, String? assetPrefix, bool? materials, String? reportPath, bool? json, ModelSettings? models, bool? split, bool clearAssetPrefix = false, bool clearReportPath = false})
   const ConvertCommandSettings({required this.inputs, this.output = '.', this.dryRun = false, this.overwrite = false, this.assetPrefix, this.materials = true, this.reportPath, this.json = false, this.models = const ModelSettings(), this.split = false})
@@ -106,13 +112,15 @@ final class ToolFailedException extends ResourceException
 
 const ExternalTool blender = …
 
-const List<String> cliCommands = <String>['convert', 'create', 'init', 'plugins', 'shaders', 'migrate', 'lights', 'lightmap', 'doctor', 'help']
+const List<String> cliCommands = <String>['convert', 'create', 'init', 'plugins', 'shaders', 'migrate', 'lights', 'lightmap', 'visibility', 'decode-worker', 'doctor', 'help']
 
 Map<String, Object?> cliJson(String command, Map<String, Object?> body)
 
 const Map<String, String> cliJsonBodies = …
 
 const int cliJsonVersion = 1
+
+const Map<String, CliOptionSet> cliOptions = …
 
 String cliSurface()
 
@@ -135,6 +143,8 @@ const String createUsage = …
 const String dartFloor = '3.12.0'
 
 const String dartTested = '3.13.0'
+
+const String decodeWorkerUsage = …
 
 const String doctorUsage = …
 
@@ -180,7 +190,11 @@ Future<int> runFlutter3d(List<String> arguments)
 
 const String shadersUsage = …
 
+String unknownOption(String option)
+
 const ExternalTool usdcat = …
+
+const String visibilityUsage = …
 
 library package:flutter3d_build/convert.dart
 
@@ -291,6 +305,7 @@ final class AssetBuildReport
 final class AssetLayout
   AssetLayout({required this.projectRoot, AssetBuildManifest? manifest})
   Directory get generatedDir
+  Directory get reservedShaderDir
   Directory get sourcesDir
   List<AssetPlan> materialPlan()
   List<AssetPlan> plan()
@@ -354,20 +369,36 @@ final class BuildStepsReport
   final List<String> outputs
   final List<String> ran
 
+final class ConformanceOutcome
+  const ConformanceOutcome({required this.check, this.backend, required this.passed, required this.declined, required this.says})
+  final String check
+  final String says
+  final String? backend
+  final bool declined
+  final bool passed
+
+final class ConformanceReportFile
+  List<String> get lines
+  const ConformanceReportFile({required this.path, required this.plugin, required this.suite, required this.badge, required this.outcomes})
+  final List<ConformanceOutcome> outcomes
+  final String path
+  final String plugin
+  final String suite
+  final String? badge
+  static ConformanceReportFile? readIn(String directory, String package)
+
 final class ConformanceRun
-  List<String> get missing
   String? get badge
-  bool get earnsBadge
-  const ConformanceRun({required this.exitCode, required this.tests})
+  const ConformanceRun({required this.exitCode, required this.tests, this.report})
+  final ConformanceReportFile? report
   final List<ConformanceTest> tests
   final int exitCode
 
 final class ConformanceTest
   String get line
-  const ConformanceTest({required this.name, required this.check, required this.passed, required this.declined, required this.says})
+  const ConformanceTest({required this.name, required this.passed, required this.declined, required this.says})
   final String name
   final String says
-  final String? check
   final bool declined
   final bool passed
 
@@ -672,8 +703,6 @@ const String pluginAuthorMcpVersion = '1.0.0-rc.1+1'
 const Map<String, ToolName> pluginAuthorToolNames = …
 
 final List<PluginAuthorTool> pluginAuthorTools
-
-const List<String> pluginConformanceChecks = <String>['manifest', 'switch', 'names', 'determinism', 'backends', 'budget', 'materials']
 
 const String pluginMarkerKey = 'flutter3d_plugins'
 

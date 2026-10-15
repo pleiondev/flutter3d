@@ -198,6 +198,8 @@ hooks:
       textures: universal   # or bc, etc2, none
 ```
 
+A value that is not one of the choices fails the build, naming them, where it used to fall back to the platform's family; a key the hook does not read (`textures`, `deviceClasses` and `fullShaders` are the ones it does) is a warning in the build's log.
+
 **`universal` is the answer for a build that ships to more than one family**, the web above all. It is not a GPU format but a 4×4 block intermediate, cooked once; the upload turns it into BC, ASTC, ETC2 or RGBA8 against what the device says it samples, so one file serves a laptop and a phone from the same build, at twenty bytes a block.
 
 By hand, the converter takes the family by name, and `--no-mips` keeps the base level alone:
@@ -270,7 +272,7 @@ A project needs:
 | What its manifest lists | `shaders: [toon, lambert]` in `flutter3d_assets.yaml`, for lighting its code chooses (`RenderMaterial(lighting: LightingModel.toon)`), which a build cannot see |
 | What its plugins declare | `flutter3d_plugins: shaders: [toon]` in a plugin package's pubspec, or a map from a library to its needs so a library the application leaves out brings nothing |
 
-The engine's needs a project can name are `pbrLayered`, `blinnPhong`, `lambert`, `toon` and `impostor` (`ShaderStageNeed.engine`); a plugin names its own after its id, `acme.glow`. `shaders: full` writes every stage, as does `fullShaders: true` under `hooks: user_defines: flutter3d_build:` in `pubspec.yaml`, or `flutter3d shaders --full-shaders` by hand. The editor and the modeller carry every stage: they draw whatever a user opens, and they load the bundle `flutter3d_impeller` ships, which has all of them.
+The engine's needs a project can name are `pbrLayered`, `blinnPhong`, `lambert`, `toon` and `impostor` (`ShaderStageNeed.engine`); a plugin names its own after its id, `acme.glow`. `shaders: full` writes every stage, as does `fullShaders: true` under `hooks: user_defines:` and the project's own name in `pubspec.yaml`, or `flutter3d shaders --full-shaders` by hand. The editor and the modeller carry every stage: they draw whatever a user opens, and they load the bundle `flutter3d_impeller` ships, which has all of them.
 
 A stage left out and asked for is a `MissingShaderStageException` when the renderer first draws with it. It names the stage and the need that brings it, which is the word to add under `shaders:`:
 

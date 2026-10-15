@@ -36,7 +36,7 @@ The C physics core is held to the same standard across compilers and targets; th
 
 ## An agent works on the same documents you do
 
-The level editor and the model editor are MCP servers as well as applications, plain Dart over stdio: an agent's edits go through the same commands as a person's, land in the same undo history, and the model editor's `render` tool hands the agent a picture of what it did. Every package also ships agent skills (what its API is for, and the mistakes it has already paid for), which `dart run skills@ get` installs into your project. The [home page](/#an-agent-in-two-minutes) has the configuration.
+The level editor and the model editor are MCP servers as well as applications, plain Dart over stdio: an agent's edits go through the same commands as a person's, land in the same undo history, and the model editor's `view.render` tool hands the agent a picture of what it did. Every package also ships agent skills (what its API is for, and the mistakes it has already paid for), which `dart run skills@ get` installs into your project. The [home page](/#an-agent-in-two-minutes) has the configuration.
 
 ## Moving takes one command
 

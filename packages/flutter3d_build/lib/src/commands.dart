@@ -1,12 +1,12 @@
 /// The `flutter3d` command, as one function: [runFlutter3d].
 ///
 /// **Every entry point in `bin/` is this function.** `bin/flutter3d.dart`
-/// hands it the command line; `bin/convert.dart`, `bin/create.dart`,
-/// `bin/init.dart`, `bin/lightmap.dart`, `bin/lights.dart`, `bin/migrate.dart`,
-/// `bin/plugins.dart` and `bin/shaders.dart` are the same commands under the names
-/// `dart run flutter3d_build:<name>` reaches, each one line that puts its
-/// own name in front of the arguments. So the two spellings run the same code, and a
-/// command has one usage text, one exit code table and one `--json` shape.
+/// hands it the command line; every other file there but `plugin_mcp.dart`
+/// is one subcommand under the name `dart run flutter3d_build:<name>`
+/// reaches (`decode_worker` for `decode-worker`), each one line that puts
+/// its own name in front of the arguments. So the two spellings run the
+/// same code, and a command has one usage text, one exit code table and
+/// one `--json` shape.
 library;
 
 import 'dart:convert';
@@ -18,6 +18,7 @@ import 'package:flutter3d_build_hooks/flutter3d_build_hooks.dart'
 
 import 'cli_contract.dart';
 import 'convert/command.dart' show runConvertCommand;
+import 'decode_worker_command.dart' show runDecodeWorker;
 import 'doctor.dart' show runDoctor;
 import 'init.dart' show runInit;
 import 'lightmap_command.dart' show runLightmap;
@@ -28,6 +29,7 @@ import 'plugin_discovery.dart';
 import 'plugin_template.dart' show PluginKind;
 import 'project_template.dart' show ProjectKind, createProject;
 import 'shader_build.dart';
+import 'visibility_command.dart' show runVisibility;
 
 /// Runs `flutter3d <command> [arguments]` and returns its exit code
 /// ([CliExit]). Writes to stdout and stderr as the command does.
@@ -57,10 +59,18 @@ Future<int> runFlutter3d(List<String> arguments) async {
       return runLights(rest);
     case 'lightmap':
       return runLightmap(rest);
+    case 'visibility':
+      return runVisibility(rest);
+    case 'decode-worker':
+      return runDecodeWorker(rest);
     case 'help' || '-h' || '--help':
       if (rest.firstOrNull == '--surface') {
         stdout.write(cliSurface());
         return CliExit.ok;
+      }
+      if (cliOptions['help']!.unknownIn(rest) case final String unknown) {
+        stderr.writeln('${unknownOption(unknown)}\n\n$helpUsage');
+        return CliExit.usage;
       }
       return _help(rest.firstOrNull);
     case '--version':
@@ -72,40 +82,43 @@ Future<int> runFlutter3d(List<String> arguments) async {
   }
 }
 
+/// `flutter3d help <command>`: the command's own `--help`, which prints its
+/// usage to stdout and answers [CliExit.ok], so the two spellings cannot
+/// say different things.
 Future<int> _help(String? command) async {
-  switch (command) {
-    case null:
-      stdout.writeln(flutter3dUsage);
-    case 'convert':
-      stdout.writeln(convertUsage);
-    case 'doctor':
-      runDoctor(const <String>['--help']);
-    case 'create':
-      stdout.writeln(createUsage);
-    // Their own usage, from their own parsers. Each prints it as the answer
-    // to an option it does not take, and says so in its exit code; asked
-    // for, it is not an error.
-    case 'migrate':
-      await runMigrateCommand(const <String>['--help']);
-    case 'init':
-      await runInit(const <String>['--help']);
-    case 'lights':
-      await runLights(const <String>['--help']);
-    case 'lightmap':
-      runLightmap(const <String>['--help']);
-    case 'plugins':
-      stdout.writeln(pluginsUsage);
-    case 'shaders':
-      stdout.writeln(shadersUsage);
-    default:
-      stderr.writeln('No command "$command".\n\n$flutter3dUsage');
-      return CliExit.usage;
+  if (command == null) {
+    stdout.writeln(flutter3dUsage);
+    return CliExit.ok;
   }
-  return CliExit.ok;
+  if (command == 'help' || command == '-h' || command == '--help') {
+    stdout.writeln(helpUsage);
+    return CliExit.ok;
+  }
+  if (!cliCommands.contains(command)) {
+    stderr.writeln('No command "$command".\n\n$flutter3dUsage');
+    return CliExit.usage;
+  }
+  return runFlutter3d(<String>[command, '--help']);
 }
 
 /// `flutter3d create project <dir>`, `create plugin …` and `create --list`.
 int _create(List<String> arguments) {
+  if (arguments.contains('-h') || arguments.contains('--help')) {
+    stdout.writeln(createUsage);
+    return CliExit.ok;
+  }
+  // The form decides which options it reads: `--target` is a plugin's,
+  // and an option neither form takes is refused before anything is
+  // written, where it used to be dropped.
+  final form = switch (arguments.firstOrNull) {
+    'project' => 'create project',
+    'plugin' => 'create plugin',
+    _ => 'create',
+  };
+  if (cliOptions[form]!.unknownIn(arguments) case final String unknown) {
+    stderr.writeln('${unknownOption(unknown)}\n\n$createUsage');
+    return CliExit.usage;
+  }
   if (arguments.contains('--list')) {
     for (final kind in PluginKind.values) {
       stdout.writeln('${kind.name.padRight(12)} ${kind.about}');
@@ -124,17 +137,17 @@ int _create(List<String> arguments) {
 
 int _createPlugin(List<String> arguments) {
   String? option(String name) {
-    final at = arguments.indexOf('--$name');
+    final at = arguments.indexOf(name);
     if (at >= 0 && at + 1 < arguments.length) return arguments[at + 1];
-    final prefix = '--$name=';
+    final prefix = '$name=';
     return arguments
         .where((String a) => a.startsWith(prefix))
         .map((String a) => a.substring(prefix.length))
         .firstOrNull;
   }
 
-  final kindName = option('kind');
-  final name = option('name');
+  final kindName = option('--kind');
+  final name = option('--name');
   if (kindName == null || name == null) {
     stderr.writeln(createUsage);
     return CliExit.usage;
@@ -146,7 +159,11 @@ int _createPlugin(List<String> arguments) {
     stderr.writeln('${error.message}\n\n$createUsage');
     return CliExit.usage;
   }
-  final answer = PluginWorkshop().create(option('target') ?? name, name, kind);
+  final answer = PluginWorkshop().create(
+    option('--target') ?? name,
+    name,
+    kind,
+  );
   if (!answer.did) {
     stderr.writeln(answer.says);
     return CliExit.refused; // the target is not empty
@@ -201,14 +218,16 @@ int _createProject(List<String> arguments) {
 /// the dependencies' `flutter3d_plugins:` markers and the project's own
 /// `with:`, `without:` and `set:`, or checks that it is current.
 int _plugins(List<String> arguments) {
-  const known = <String>{'--check', '--json'};
-  final help = arguments.contains('-h') || arguments.contains('--help');
-  final unknown = arguments.where((String a) => !known.contains(a)).toList();
-  if (unknown.isNotEmpty) {
-    stderr.writeln(
-      help ? pluginsUsage : 'Unknown option ${unknown.first}.\n\n$pluginsUsage',
-    );
-    return help ? CliExit.ok : CliExit.usage;
+  if (arguments.contains('-h') || arguments.contains('--help')) {
+    stdout.writeln(pluginsUsage);
+    return CliExit.ok;
+  }
+  final unknown =
+      cliOptions['plugins']!.unknownIn(arguments) ??
+      arguments.where((String a) => !a.startsWith('-')).firstOrNull;
+  if (unknown != null) {
+    stderr.writeln('${unknownOption(unknown)}\n\n$pluginsUsage');
+    return CliExit.usage;
   }
   final check = arguments.contains('--check');
   final json = arguments.contains('--json');
@@ -276,32 +295,41 @@ int _plugins(List<String> arguments) {
 /// the build hook's shader step by hand (D15), against the project in the
 /// working directory.
 int _shaders(List<String> arguments) {
-  final known = <String>{'--full-shaders', '--json', '--target'};
+  if (arguments.contains('-h') || arguments.contains('--help')) {
+    stdout.writeln(shadersUsage);
+    return CliExit.ok;
+  }
+  int usage(String why) {
+    stderr.writeln('$why\n\n$shadersUsage');
+    return CliExit.usage;
+  }
+
+  if (cliOptions['shaders']!.unknownIn(arguments) case final String unknown) {
+    return usage(unknownOption(unknown));
+  }
   final targetAt = arguments.indexOf('--target');
-  final targetName = targetAt < 0 || targetAt + 1 >= arguments.length
-      ? 'any'
-      : arguments[targetAt + 1];
+  if (targetAt >= 0 && targetAt + 1 >= arguments.length) {
+    return usage('--target names native, web or any.');
+  }
+  final stray = <String>[
+    for (var i = 0; i < arguments.length; i++)
+      if (!arguments[i].startsWith('-') && i != targetAt + 1) arguments[i],
+  ];
+  if (stray.isNotEmpty) return usage('shaders takes no "${stray.first}".');
+  final targetName = targetAt >= 0
+      ? arguments[targetAt + 1]
+      : arguments
+                .where((String a) => a.startsWith('--target='))
+                .map((String a) => a.substring('--target='.length))
+                .lastOrNull ??
+            'any';
   final target = switch (targetName) {
     'native' => ShaderBuildTarget.native,
     'web' => ShaderBuildTarget.web,
     'any' => ShaderBuildTarget.any,
     _ => null,
   };
-  final unknown = <String>[
-    for (var i = 0; i < arguments.length; i++)
-      if (!known.contains(arguments[i]) && i != targetAt + 1) arguments[i],
-  ];
-  if (unknown.isNotEmpty ||
-      target == null ||
-      (targetAt >= 0 && targetAt + 1 >= arguments.length)) {
-    final help = arguments.contains('-h') || arguments.contains('--help');
-    stderr.writeln(
-      help
-          ? shadersUsage
-          : '${target == null ? 'Unknown target "$targetName"' : 'Unknown option ${unknown.firstOrNull ?? '--target'}'}.\n\n$shadersUsage',
-    );
-    return help ? CliExit.ok : CliExit.usage;
-  }
+  if (target == null) return usage('Unknown target "$targetName".');
   final root = Directory.current;
   try {
     final discovery = discoverPlugins(root);

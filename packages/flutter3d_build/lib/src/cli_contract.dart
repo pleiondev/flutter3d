@@ -24,7 +24,9 @@ abstract final class CliExit {
   static const int failure = 1;
 
   /// It was asked wrongly: an unknown subcommand or option, a missing
-  /// argument. The usage goes to stderr.
+  /// argument. The usage goes to stderr. Asked for with `-h`, `--help` or
+  /// `flutter3d help <command>`, the usage is an answer instead: stdout,
+  /// and [ok].
   static const int usage = 2;
 
   /// It declined, or found something out of date: `--check` with changes
@@ -96,9 +98,116 @@ const List<String> cliCommands = <String>[
   'migrate',
   'lights',
   'lightmap',
+  'visibility',
+  'decode-worker',
   'doctor',
   'help',
 ];
+
+/// The options one subcommand reads: [flags] alone, [valued] with the
+/// argument after them (or `--name=value`).
+///
+/// **The parser's first look, the same for every command.** Each command
+/// answers an option that is not here with [CliExit.usage] before it reads
+/// anything else, so `--knd=viewer` is refused rather than dropped, and a
+/// test holds each set to the flags its usage text names, both ways.
+final class CliOptionSet {
+  const CliOptionSet({
+    this.flags = const <String>{},
+    this.valued = const <String>{},
+  });
+
+  /// The options that stand alone, such as `--dry-run`.
+  final Set<String> flags;
+
+  /// The options that take a value, such as `--output <dir>`.
+  final Set<String> valued;
+
+  /// The first argument in [arguments] that looks like an option and is
+  /// none of [flags], [valued], `-h` or `--help`; null when there is none.
+  ///
+  /// The argument after a [valued] option is its value, whatever it looks
+  /// like, so `--density -1` names no unknown option.
+  String? unknownIn(List<String> arguments) {
+    for (var i = 0; i < arguments.length; i++) {
+      final argument = arguments[i];
+      if (!argument.startsWith('-') || argument == '-') continue;
+      final equals = argument.indexOf('=');
+      final name = equals < 0 ? argument : argument.substring(0, equals);
+      if (name == '-h' || name == '--help' || flags.contains(name)) continue;
+      if (valued.contains(name)) {
+        if (equals < 0) i++;
+        continue;
+      }
+      return argument;
+    }
+    return null;
+  }
+}
+
+/// What each subcommand reads, by the words that name it (`create plugin`
+/// for the form of `create` that makes a plugin).
+const Map<String, CliOptionSet> cliOptions = <String, CliOptionSet>{
+  'convert': CliOptionSet(
+    flags: <String>{
+      '--dry-run',
+      '--overwrite',
+      '--split',
+      '--no-materials',
+      '--json',
+      '--no-mips',
+      '--impostor',
+      '--chunks',
+    },
+    valued: <String>{
+      '-o',
+      '--output',
+      '--asset-prefix',
+      '--report',
+      '--textures',
+      '--lods',
+    },
+  ),
+  'create': CliOptionSet(flags: <String>{'--list'}),
+  'create project': CliOptionSet(valued: <String>{'--kind', '--name'}),
+  'create plugin': CliOptionSet(
+    valued: <String>{'--kind', '--name', '--target'},
+  ),
+  'init': CliOptionSet(flags: <String>{'--check', '--force'}),
+  'plugins': CliOptionSet(flags: <String>{'--check', '--json'}),
+  'shaders': CliOptionSet(
+    flags: <String>{'--full-shaders', '--json'},
+    valued: <String>{'--target'},
+  ),
+  'migrate': CliOptionSet(
+    flags: <String>{'--dry-run', '--data', '--backup', '--no-pub-get'},
+    valued: <String>{'--from', '--lints-from'},
+  ),
+  'lights': CliOptionSet(
+    flags: <String>{'--dry-run'},
+    valued: <String>{
+      '--optimize',
+      '--poses',
+      '--state',
+      '-o',
+      '--out',
+      '--preview',
+      '--classes',
+    },
+  ),
+  'lightmap': CliOptionSet(
+    flags: <String>{'--direct'},
+    valued: <String>{'--density', '--bounces', '--samples'},
+  ),
+  'visibility': CliOptionSet(valued: <String>{'--cell'}),
+  'decode-worker': CliOptionSet(),
+  'doctor': CliOptionSet(flags: <String>{'--json'}),
+  'help': CliOptionSet(flags: <String>{'--surface'}),
+};
+
+/// The sentence every command refuses an unknown option with, before its
+/// usage on stderr.
+String unknownOption(String option) => 'Unknown option $option.';
 
 /// What `flutter3d` prints with no arguments or `help`.
 const String flutter3dUsage =
@@ -119,8 +228,14 @@ Commands:
   migrate  Move a project written against flutter3d 0.8 to 1.0.
   lights    Fewer lights for a level, judged by the pictures they make.
   lightmap  Bake the light a level's walls throw on each other, beside it.
+  visibility
+            Bake which cells of a level see which, beside it.
+  decode-worker
+            Compile the browser's decode worker for a web build.
   doctor    Check the SDKs and the optional tools.
   help      This text, or a command's: flutter3d help <command>.
+
+  flutter3d --version prints the version of flutter3d_build.
 
 Exit codes:
   0  ok
@@ -129,10 +244,14 @@ Exit codes:
   3  refused, or out of date under --check
   4  would overwrite (convert)
 
+-h, --help and flutter3d help <command> print a command's usage to stdout
+and exit 0; an option a command does not take exits 2.
+
 --json, where a command takes it, prints one JSON document with
 "format": "f3d.cli" and "version": $cliJsonVersion.
 
-Every command also runs as `dart run flutter3d_build:<command>`.''';
+Every command also runs as `dart run flutter3d_build:<command>`, and
+decode-worker as `dart run flutter3d_build:decode_worker`.''';
 
 /// What `flutter3d help plugins` prints.
 const String pluginsUsage = '''
@@ -163,7 +282,8 @@ step by hand, and what prints the bundle's size.
 
   --full-shaders  Every stage, whatever is declared (what the editor
                   carries). In the hook: `fullShaders: true` under
-                  hooks: user_defines: flutter3d_build: in pubspec.yaml.
+                  hooks: user_defines: <this project's name>: in
+                  pubspec.yaml.
   --target        Which sections: native (Impeller), web (WebGL2) or any,
                   the default.
   --json          Print the result as JSON (format f3d.cli).''';
@@ -187,7 +307,8 @@ A project is one of:
 The level genres (platformer, shooter, racing, strategy) are made by the
 level editor. --list prints the plugin kinds.
 
-Exits 3 when the target directory is not empty.''';
+Exits 3 when the target directory is not empty, 2 for a kind or an option
+it does not know.''';
 
 /// `flutter3d convert`'s help.
 const String convertUsage = '''
@@ -263,6 +384,38 @@ Options:
                match what init writes. Otherwise a hook a person has
                edited is left alone and reported instead of overwritten.
   -h, --help   Show this text.
+
+Exit codes: 0 done, or nothing to do; 1 the directory is not there, or
+hook/build.dart was edited by hand and is left alone (with --check too);
+2 usage; 3 changes pending under --check.
+''';
+
+/// What `flutter3d help visibility` prints.
+const String visibilityUsage = '''
+usage: dart run flutter3d_build:visibility [--cell <metres>] <level.json> ...
+
+Bakes which cells of each level can see which into <level>.visibility.json
+beside it, the sidecar LevelLoader reads. Deterministic: two bakes of one
+level are the same bytes, so a committed table that differs from a fresh
+bake is a level nobody re-baked.
+
+  --cell <metres>   the side of a cell; default 3
+
+Exit codes: 0 every level baked; 1 one could not be read; 2 usage.
+''';
+
+/// What `flutter3d help decode-worker` prints.
+const String decodeWorkerUsage = '''
+usage: dart run flutter3d_build:decode_worker [<output>]
+
+Compiles the engine's decoders into the script a web build's Web Worker
+runs, web/flutter3d_decode_worker.js by default, the name
+WebDecodeWorker.use loads. It is compiled from flutter3d_core as this
+project resolves it, so run it again after an upgrade: a page and a worker
+from two releases do not talk, and the page then decodes in place.
+
+Exit codes: 0 compiled; 1 the compiler failed, or flutter3d_core is not
+in this project; 2 usage.
 ''';
 
 /// What `dart run flutter3d_build:lights` prints when it is asked wrongly.
@@ -328,6 +481,9 @@ this release, through every migration table after the one it is on.
                       pubspec.lock resolves); every table after it applies
   --no-pub-get        only the pubspec and the imports
   --lints-from <dir>  run flutter3d_lints:migrate from that checkout
+
+Exit codes: 0 migrated, or nothing to migrate; 1 the directory has no
+pubspec.yaml, or a step failed; 2 usage.
 ''';
 
 /// What `flutter3d help doctor` prints.
@@ -357,6 +513,8 @@ String cliSurface() {
     'migrate': migrateUsage,
     'lights': lightsUsage,
     'lightmap': lightmapUsage,
+    'visibility': visibilityUsage,
+    'decode-worker': decodeWorkerUsage,
     'doctor': doctorUsage,
     'help': helpUsage,
   };

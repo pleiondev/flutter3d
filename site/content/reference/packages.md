@@ -133,9 +133,9 @@ There is no package for this. The rules about how the repository is arranged (wh
 dart run tool/structure.dart
 ```
 
-115 rules, no device, and all but two read source text in under a second with no `pub get`. The two that do not are the snapshots of the API and of the tools for agents, which parse every published package with the analyzer and so wait for a resolved workspace. They were a `boundaries_test.dart` in each package until thirteen packages of twenty-one turned out to have none, all thirteen clean and not one of them checked. A runner that walks `packages/` covers a package the day it exists.
+117 rules, no device, and all but two read source text in under a second with no `pub get`. The two that do not are the snapshots of the API and of the tools for agents, which parse every published package with the analyzer and so wait for a resolved workspace. They were a `boundaries_test.dart` in each package until thirteen packages of twenty-one turned out to have none, all thirteen clean and not one of them checked. A runner that walks `packages/` covers a package the day it exists.
 
-The detectors prove they fire before a single file is scanned, and a broken detector stops the run rather than letting 115 green scans be reported behind it. See [Testing](/reference/testing/).
+The detectors prove they fire before a single file is scanned, and a broken detector stops the run rather than letting 117 green scans be reported behind it. See [Testing](/reference/testing/).
 
 ## Assembling an application
 
@@ -308,7 +308,7 @@ Plain Dart, held by the same scan the simulation and the editor's core are: no F
 #### `model.dart`
 The modeller offered to an agent, over MCP on stdio, one project per process: the shape `editor.dart` has for levels.
 
-A hundred and forty-seven editing tools, each one of the editor's own commands under its own name, plus `render` and `renderSheet`, which draw the project through the software backend and hand the agent a picture of what it just did. A path that does not exist yet starts a fresh project there, so the first call can be `addPrimitive`. It also proves the property everything under it is arranged for: a machine with the Dart SDK and no Flutter can resolve this package and start it, which CI asks in a container of exactly that kind.
+A hundred and fifty-four tools, each of the editor's commands under its own `area.verb` name, among them `view.render` and `view.renderSheet`, which draw the project through the software backend and hand the agent a picture of what it just did. A path that does not exist yet starts a fresh project there, so the first call can be `object.addPrimitive`. It also proves the property everything under it is arranged for: a machine with the Dart SDK and no Flutter can resolve this package and start it, which CI asks in a container of exactly that kind.
 
 #### `kit.dart`
 What the four MCP servers share, written once: `OfferedTool`, a tool and the code that runs it as one value; `ToolTableServer`, a server that is a list of those over one session; `Answer`, what a call did and the sentence about it, with a drawing tool's picture beside it, and the functions that turn a refusal into an error result an agent reads rather than a server that failed; and `LoopbackMcpServer`, any of those servers over `127.0.0.1` HTTP with a token per server, for an application handing an agent the session a person already has open. The token travels in the `Authorization: Bearer` header and in no URL, and every tool that reads or writes a file resolves it through one `ProjectRoot`, refusing a path that leaves the project. Plain Dart.

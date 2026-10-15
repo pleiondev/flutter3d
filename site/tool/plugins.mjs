@@ -14,6 +14,7 @@
 // is committed, so a build on a machine with no network shows the catalogue
 // as it was last fetched and says when that was.
 import { readFileSync, writeFileSync, readdirSync, existsSync, statSync } from 'node:fs';
+import { gunzipSync } from 'node:zlib';
 
 /** The catalogue's format version; `tool/build.mjs` refuses a newer one. */
 const CATALOGUE_VERSION = 1;
@@ -206,10 +207,58 @@ function readOurs() {
       touches: [...touches].sort().join(', '),
       kind: GENRES.has(p.name) ? 'genre' : p.addon ? 'addon' : 'other',
       demo: '',
-      conformance: false,
+      // The report the package's own suite last wrote here, if it ran.
+      conformance: existsSync(join(p.path, `${p.name}.conformance.json`))
+        ? suiteOfReport(readFileSync(join(p.path, `${p.name}.conformance.json`), 'utf8'))
+        : false,
     });
   }
   return ours.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// --------------------------------------------------------- conformance report
+
+// The suite version a `<package>.conformance.json` says the plugin passed:
+// the badge `runPluginConformance` wrote, `conformant@1.0`, as `1.0`; false
+// for a report that gives none or is not one. The suite judged it; the
+// catalogue only reads it.
+function suiteOfReport(text) {
+  try {
+    const report = JSON.parse(text);
+    if (report?.format !== 'f3d.conformance') return false;
+    return typeof report.badge === 'string' ? report.badge.replace(/^conformant@/, '') : false;
+  } catch {
+    return false;
+  }
+}
+
+// One file at the root of a package archive, a gzipped tar, or null. The
+// archive is what pub.dev serves for a version; nothing serves its files one
+// at a time.
+function fileInArchive(gzipped, name) {
+  const tar = gunzipSync(gzipped);
+  for (let at = 0; at + 512 <= tar.length; ) {
+    const header = tar.subarray(at, at + 512);
+    if (header.every((b) => b === 0)) break;
+    const text = (from, to) => header.subarray(from, to).toString('utf8').replace(/\0.*$/s, '');
+    const path = `${text(345, 500)}${text(0, 100)}`.replace(/^\.\//, '');
+    const size = parseInt(text(124, 136).trim() || '0', 8);
+    if (path === name) return tar.subarray(at + 512, at + 512 + size).toString('utf8');
+    at += 512 + Math.ceil(size / 512) * 512;
+  }
+  return null;
+}
+
+// What the catalogue shows for a package's badge: the suite its report says
+// it passed, and only when there is no report, what its pubspec declares
+// (`conformant@1.0`, `true` read as the first suite).
+function conformanceOf(report, block) {
+  if (report != null) return suiteOfReport(report);
+  return block.conformance === true
+    ? '1.0'
+    : typeof block.conformance === 'string'
+      ? String(block.conformance).replace(/^conformant@/, '')
+      : false;
 }
 
 // ---------------------------------------------------------------- community
@@ -233,6 +282,18 @@ async function readCommunity() {
     const info = await json(`https://pub.dev/api/packages/${encodeURIComponent(name)}`);
     const pubspec = info.latest?.pubspec ?? {};
     const block = pubspec.flutter3d_plugins ?? pubspec.flutter3d ?? {};
+    let report = null;
+    try {
+      const archive = info.latest?.archive_url;
+      if (archive) {
+        const response = await fetch(archive);
+        if (response.ok) {
+          report = fileInArchive(Buffer.from(await response.arrayBuffer()), `${name}.conformance.json`);
+        }
+      }
+    } catch {
+      report = null;
+    }
     let publisher = '';
     try {
       publisher = (await json(`https://pub.dev/api/packages/${encodeURIComponent(name)}/publisher`)).publisherId ?? '';
@@ -251,14 +312,9 @@ async function readCommunity() {
       touches: block.touches == null ? '' : String(block.touches),
       kind: 'community',
       demo: typeof block.demo === 'string' ? block.demo : '',
-      // The suite version the package says it passes: `conformant@1.0` in
-      // its pubspec, `true` read as the first suite.
-      conformance:
-        block.conformance === true
-          ? '1.0'
-          : typeof block.conformance === 'string'
-            ? String(block.conformance).replace(/^conformant@/, '')
-            : false,
+      // The suite version its `<name>.conformance.json` says it passed, and
+      // without one, what its pubspec declares.
+      conformance: conformanceOf(report, block),
     });
   }
   return out.sort((a, b) => a.name.localeCompare(b.name));

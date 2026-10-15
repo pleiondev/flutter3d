@@ -25,6 +25,7 @@ import 'layout.dart';
 import 'pipeline_version.dart';
 import 'plugin_discovery.dart';
 import 'shader_build.dart' show ShaderBuildTarget;
+import 'user_defines.dart';
 
 /// What one call to [runAssetBuild] did, for a hook's own log line and for
 /// a test to assert against without parsing stdout.
@@ -361,6 +362,23 @@ TextureFamily familyForTargetOS(OS? targetOS) => switch (targetOS) {
   _ => TextureFamily.auto,
 };
 
+/// Says on stderr, where the build's log keeps it, each key under
+/// `hooks: user_defines: <package>:` this build does not read. The defines
+/// are read from the project's pubspec, or from the workspace's above it
+/// when the project is a workspace member.
+void _warnUnreadUserDefines(Directory projectRoot, String package) {
+  for (Directory? at = projectRoot; at != null;) {
+    final pubspec = File('${at.path}/pubspec.yaml');
+    final text = pubspec.existsSync() ? pubspec.readAsStringSync() : '';
+    unknownUserDefineWarnings(text, package: package).forEach(stderr.writeln);
+    if (!RegExp(r'^resolution:\s*workspace', multiLine: true).hasMatch(text)) {
+      return;
+    }
+    final parent = at.parent;
+    at = parent.path == at.path ? null : parent;
+  }
+}
+
 TextureFamily _familyForTarget(BuildInput input) => familyForTargetOS(
   input.config.buildCodeAssets ? input.config.code.targetOS : null,
 );
@@ -429,17 +447,25 @@ Future<void> _buildAssets(
   // (or `etc2`, or `none`) under this package's key in its
   // `hook_user_defines`, which is also how `--textures` finally reaches the
   // application path. Failing that, the platform being built for.
-  final requested = input.userDefines['textures'];
-  final textures = requested is String
-      ? TextureFamily.tryParse(requested) ?? _familyForTarget(input)
-      : _familyForTarget(input);
+  // A value that is not one of the choices fails the build naming them; a
+  // key this does not read is a warning (`user_defines.dart`).
+  _warnUnreadUserDefines(projectRoot, input.packageName);
+  final TextureFamily? requested;
+  final List<DeviceClass>? requestedClasses;
+  try {
+    requested = texturesDefine(input.userDefines['textures']);
+    requestedClasses = deviceClassesDefine(input.userDefines['deviceClasses']);
+  } on FormatException catch (error) {
+    throw BuildError(message: error.message);
+  }
+  final textures = requested ?? _familyForTarget(input);
 
   // **Which device classes — `N7`.** Only matters to a manifest that names
   // some. A project's own `deviceClasses: [web]` user define first, for a
   // build the target cannot tell apart; failing that, the target: a native
   // build carries the phone and desktop files, a web build the web's alone.
   final deviceClasses =
-      parseDeviceClasses(input.userDefines['deviceClasses']) ??
+      requestedClasses ??
       deviceClassesForTargetOS(
         input.config.buildCodeAssets ? input.config.code.targetOS : null,
       );

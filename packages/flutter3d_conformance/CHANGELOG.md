@@ -1,3 +1,14 @@
+## 1.0.0-rc.1+1
+
+- **`runPluginConformance` writes the plugin's report.** Once its checks
+  have run, `<package>.conformance.json` (`f3d.conformance` version 1, the
+  `conformanceReport` of what ran) is written beside the pubspec of the
+  package the suite runs in, with the badge `earnsBadge` gave. It is the one
+  record of the badge: `flutter3d_build`'s `plugin.report` and the plugin
+  catalogue read it rather than judging again. A suite that calls it twice
+  writes one file with every outcome; a run filtered with `--name` earns
+  nothing; in a browser nothing is written.
+
 ## 1.0.0-rc.1
 
 - **The honesty check asks two more questions**: cubes are probed (a

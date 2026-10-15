@@ -5,7 +5,7 @@ import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
-import 'cli_contract.dart' show lightsUsage;
+import 'cli_contract.dart' show CliExit, cliOptions, lightsUsage, unknownOption;
 import 'device_classes.dart';
 import 'manifest.dart';
 
@@ -20,10 +20,18 @@ Future<int> runLights(
 }) async {
   final say = out ?? stdout;
   final complain = err ?? stderr;
+  if (arguments.contains('-h') || arguments.contains('--help')) {
+    say.writeln(lightsUsage);
+    return CliExit.ok;
+  }
+  if (cliOptions['lights']!.unknownIn(arguments) case final String unknown) {
+    complain.writeln('${unknownOption(unknown)}\n\n$lightsUsage');
+    return CliExit.usage;
+  }
   final options = _LightsOptions.parse(arguments);
   if (options == null) {
     complain.writeln(lightsUsage);
-    return 2;
+    return CliExit.usage;
   }
 
   final source = File(options.level);

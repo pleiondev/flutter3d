@@ -48,6 +48,10 @@
   bug in the caller; it is a `PluginException` now, naming what the name
   is and whose. A plugin's skinning hook is named in its namespace, where
   its view of the registry refused the name it was given.
+- **`dart run flutter3d_core:decode_worker` answers like `flutter3d
+  decode-worker`.** It is the same command, kept for a project without
+  `flutter3d_build`: the usage on stdout for `--help`, 2 for a command line
+  it cannot read and 1 when the compile fails, where it answered 64 and 69.
 - **Breaking: results that were records are final classes.**
   `AbsolutePixels`, `AnimationGraph`, `AtmosphereCycle`, `ColorVision`,
   `CubeLut`, `FrameContext`, `FrameFraction`, `IrradianceField`,

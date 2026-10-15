@@ -1529,17 +1529,45 @@ List<String> unexemptedEnumsIn(String source, Set<String> exempt) => <String>[
     if (!exempt.contains(name)) name,
 ];
 
-/// The subcommands (`== convert ==`) and flags (`--dry-run`) a CLI surface
-/// snapshot names, as `convert` and `convert --dry-run`.
+/// What a CLI surface snapshot promises, as words a release can lose: the
+/// subcommands (`== convert ==`) and flags (`--dry-run`) as `convert` and
+/// `convert --dry-run`; each code of the exit-code table under the
+/// top-level usage with the first word of its meaning, as `exit 3
+/// refused`; and every key of each `--json` body, nested ones by their
+/// path, as `--json convert reports[].mapped`.
+///
+/// **A key gone is a break, and so is a code renumbered.** A script reads
+/// `.reports[0].mapped` and checks `$? -eq 3`; the flags were the only
+/// part of the promise a regenerated snapshot could not drop unlabelled.
 Set<String> cliSurfaceWords(String surface) {
   final words = <String>{};
   var command = 'flutter3d';
+  var inExits = false;
   for (final line in surface.split('\n')) {
     final heading = RegExp(r'^== (\S+) ==$').firstMatch(line);
     if (heading != null) {
       command = heading[1]!;
-      words.add(command);
+      inExits = false;
+      if (command != '--json') words.add(command);
       continue;
+    }
+    if (command == '--json') {
+      final body = RegExp(r'^(\S+) (\{.*\})\s*$').firstMatch(line);
+      if (body != null) {
+        for (final key in cliJsonKeyPaths(body[2]!)) {
+          words.add('--json ${body[1]} $key');
+        }
+      }
+      continue;
+    }
+    if (command == 'flutter3d') {
+      if (line.trim() == 'Exit codes:') {
+        inExits = true;
+        continue;
+      }
+      final code = RegExp(r'^  (\d+)  ([A-Za-z]+)').firstMatch(line);
+      if (inExits && code != null) words.add('exit ${code[1]} ${code[2]}');
+      if (line.trim().isEmpty) inExits = false;
     }
     for (final flag in RegExp(
       r'(?<![\w-])--[a-z][a-z0-9-]*',
@@ -1549,6 +1577,137 @@ Set<String> cliSurfaceWords(String surface) {
   }
   return words;
 }
+
+/// Every key a `--json` body shape names (`{a, b?, c: [{d}]}`), nested
+/// keys by their path: `a`, `b`, `c`, `c[].d`. A parenthesised note
+/// (`current? (with --check)`) is not a key.
+List<String> cliJsonKeyPaths(String shape) {
+  final keys = <String>[];
+  final text = shape.replaceAll(RegExp(r'\([^)]*\)'), '');
+  var at = 0;
+  void skipSpace() {
+    while (at < text.length && text[at] == ' ') {
+      at++;
+    }
+  }
+
+  void object(String prefix) {
+    at++; // {
+    while (at < text.length && text[at] != '}') {
+      skipSpace();
+      final start = at;
+      while (at < text.length && !',:}'.contains(text[at])) {
+        at++;
+      }
+      final name = text.substring(start, at).trim().replaceAll('?', '');
+      if (name.isNotEmpty) keys.add('$prefix$name');
+      if (at < text.length && text[at] == ':') {
+        at++;
+        skipSpace();
+        if (at < text.length && text[at] == '[') {
+          at++;
+          skipSpace();
+          if (at < text.length && text[at] == '{') object('$prefix$name[].');
+          while (at < text.length && text[at] != ']') {
+            at++;
+          }
+          at++; // ]
+        } else if (at < text.length && text[at] == '{') {
+          object('$prefix$name.');
+        }
+      }
+      skipSpace();
+      if (at < text.length && text[at] == ',') at++;
+    }
+    at++; // }
+  }
+
+  final open = text.indexOf('{');
+  if (open < 0) return keys;
+  at = open;
+  object('');
+  return keys;
+}
+
+/// What in [source] decides a conformance badge rather than reading one: a
+/// `conformant@` text it builds, and a `const List<String>` naming two or
+/// more of the suite's [checks], a copy that can disagree with the suite.
+List<String> ownBadgeJudgesIn(String source, List<String> checks) {
+  final code = codeOf(source);
+  return <String>[
+    if (RegExp('[\'"]conformant@').hasMatch(code))
+      'builds a `conformant@` badge of its own',
+    for (final list in RegExp(
+      r'const\s+List<String>\s+(\w+)\s*=\s*<String>\[([^\]]*)\]',
+    ).allMatches(code))
+      if (<String>{
+            for (final item in RegExp(r"'([^']*)'").allMatches(list[2]!))
+              if (checks.contains(item[1])) item[1]!,
+          }
+          case final copied when copied.length >= 2)
+        _copiedChecks(list[1]!, copied),
+  ];
+}
+
+String _copiedChecks(String list, Set<String> copied) =>
+    'keeps `$list`, a copy of the suite\'s checks (${copied.join(', ')})';
+
+/// Whether [source] reads `CI` as a compile-time define
+/// (`bool.fromEnvironment('CI')`), which no CI runner passes, instead of
+/// from the process's environment.
+bool readsCiAsDefine(String source) =>
+    RegExp(r'''fromEnvironment\(\s*['"]CI['"]''').hasMatch(codeOf(source));
+
+/// The keys `flutter3d_assets.yaml`'s reader accepts, as `format`,
+/// `rules.glob` and `classes.lods`, and the format version it declares.
+({Set<String> keys, int? version}) assetsManifestShapeIn(String source) {
+  final code = codeOf(source);
+  final keys = <String>{
+    for (final (name, prefix) in const <(String, String)>[
+      ('_topLevelKeys', ''),
+      ('_classKeys', 'classes.'),
+      ('_ruleKeys', 'rules.'),
+    ])
+      if (RegExp(
+            'const Set<String> $name = <String>\\{([^}]*)\\}',
+          ).firstMatch(code)
+          case final set?)
+        for (final key in RegExp(r"'([^']*)'").allMatches(set[1]!))
+          '$prefix${key[1]}',
+  };
+  final version = RegExp(
+    r'static const int formatVersion\s*=\s*(\d+)',
+  ).firstMatch(code);
+  return (keys: keys, version: version == null ? null : int.parse(version[1]!));
+}
+
+/// Why the manifest reader [now] does not move its format with its keys
+/// against [released]: a key it reads that the released reader refused,
+/// with the same `formatVersion`. Empty when the keys did not grow, or the
+/// version did.
+///
+/// **A 1.0 build refuses an unknown key**, naming the keys it reads; only a
+/// newer `format:` gets the sentence "update flutter3d_build". A key added
+/// without the bump gives a team on two releases the first message for a
+/// file the second wrote correctly.
+List<String> assetsManifestGrowthProblems(String released, String now) {
+  final was = assetsManifestShapeIn(released);
+  final current = assetsManifestShapeIn(now);
+  final added = current.keys.difference(was.keys);
+  return switch ((was.version, current.version)) {
+    _ when added.isEmpty => const <String>[],
+    (final int then, final int version) when version <= then => <String>[
+      _manifestGrowth(added, then, version),
+    ],
+    _ => const <String>[],
+  };
+}
+
+String _manifestGrowth(Set<String> added, int then, int version) =>
+    'reads ${added.map((String k) => '`$k`').join(', ')}, which format '
+    '$then did not, and `formatVersion` is still $version: bump it, so a '
+    'build that cannot read the key says "update flutter3d_build" instead '
+    'of "unknown key"';
 
 /// A format as its `FormatSpec` declaration in the source says it: the id,
 /// the version it writes (resolved when it names a constant of the same
@@ -3617,6 +3776,101 @@ List<Finding> proveDetectorsWork() {
         ]) &&
         !cli.contains('convert --build'),
     'a subcommand and its flags, not a package name with a dash',
+  );
+  // A key a `--json` body drops, and an exit code moved to another number,
+  // are words gone from the surface, which the release rule asks a
+  // `**Breaking:**` entry for.
+  const releasedCli =
+      '== flutter3d ==\nExit codes:\n  0  ok\n  3  refused, or out of date\n'
+      '\n== --json ==\n'
+      'convert {output, reports: [{input, mapped, error?}]}\n'
+      'plugins {check, current? (with --check)}\n';
+  const nowCli =
+      '== flutter3d ==\nExit codes:\n  0  ok\n  5  refused, or out of date\n'
+      '\n== --json ==\n'
+      'convert {output, reports: [{input, error?}]}\n'
+      'plugins {check, current? (with --check)}\n';
+  final goneCli = cliSurfaceWords(
+    releasedCli,
+  ).difference(cliSurfaceWords(nowCli));
+  fires(
+    'cli surface json keys and exit codes',
+    goneCli.length == 2 &&
+        goneCli.contains('--json convert reports[].mapped') &&
+        goneCli.contains('exit 3 refused') &&
+        cliSurfaceWords(releasedCli).contains('--json plugins current') &&
+        !cliSurfaceWords(releasedCli).any((w) => w.contains('--check')),
+    'a nested key dropped and a code renumbered, not a note in parentheses',
+  );
+  // `plugin.report` once kept the suite's check list itself and counted 5
+  // of its 7; a copy, or a badge spelled out, is a second judge.
+  const suiteChecks = <String>['manifest', 'switch', 'names', 'budget'];
+  fires(
+    'own badge judges',
+    ownBadgeJudgesIn(
+          "const List<String> pluginConformanceChecks = <String>['manifest', "
+          "'switch', 'budget'];\n"
+          "String? get badge => ok ? 'conformant@1.0' : null;\n",
+          suiteChecks,
+        ).length ==
+        2,
+    'a copied check list and a badge built by hand',
+  );
+  quiet(
+    'own badge judges',
+    ownBadgeJudgesIn(
+      "/// earns `conformant@1.0` when the report says so\n"
+      "const List<String> tools = <String>['plugin.report', 'manifest'];\n"
+      "final badge = report.badge;\n",
+      suiteChecks,
+    ).isEmpty,
+    'a doc comment naming the badge, and a list with one check word in it',
+    'reading the report\'s badge, and saying it in prose, judge nothing',
+  );
+  fires(
+    'CI as a define',
+    readsCiAsDefine(
+      "final record = !const bool.fromEnvironment('CI', defaultValue: false);",
+    ),
+    'bool.fromEnvironment(\'CI\')',
+  );
+  quiet(
+    'CI as a define',
+    !readsCiAsDefine(
+      "final ci = Platform.environment['CI'];\n"
+      "// was: bool.fromEnvironment('CI')\n"
+      "const debug = bool.fromEnvironment('CIRCLE');\n",
+    ),
+    'the environment read, a comment, and another define',
+    'only the define nobody passes is the bug',
+  );
+  const manifestAt1 =
+      "const Set<String> _topLevelKeys = <String>{'format', 'rules'};\n"
+      "const Set<String> _ruleKeys = <String>{'glob', 'lods'};\n"
+      'static const int formatVersion = 1;\n';
+  fires(
+    'assets manifest growth',
+    assetsManifestGrowthProblems(
+          manifestAt1,
+          manifestAt1.replaceFirst("'lods'}", "'lods', 'decimate'}"),
+        ).length ==
+        1,
+    'a rule key added under format 1',
+  );
+  quiet(
+    'assets manifest growth',
+    assetsManifestGrowthProblems(
+          manifestAt1,
+          manifestAt1
+              .replaceFirst("'lods'}", "'lods', 'decimate'}")
+              .replaceFirst('= 1;', '= 2;'),
+        ).isEmpty &&
+        assetsManifestGrowthProblems(
+          manifestAt1,
+          manifestAt1.replaceFirst(", 'lods'}", '}'),
+        ).isEmpty,
+    'a key added with format 2, and a key taken away',
+    'the version moved with the key; a key gone is the reader\'s own break',
   );
   quiet(
     'format versions',

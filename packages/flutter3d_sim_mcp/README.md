@@ -18,6 +18,10 @@ genre-aware on purpose. It knows what a monster and a weapon are, because the
 question it answers ("what does the room look like from here, and is the
 player still alive") has no genre-agnostic version.
 
-It speaks MCP over a socket rather than literal stdio. `flutter test` itself
+The package has no `bin/`: the server needs a game, and only the game's own
+program has one. That program constructs `SimMcpServer` with a `SimSession`
+for its game over whatever channel it picks: stdin and stdout through
+`dart_mcp`'s `stdioChannel` for a host that starts it, or a socket it
+listens on. This repository's suite does the second, because `flutter test`
 rewrites everything a test writes to stdout with its own prefix, and a
 protocol tied to an exact line format does not survive that.

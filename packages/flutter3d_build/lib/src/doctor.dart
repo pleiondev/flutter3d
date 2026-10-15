@@ -619,7 +619,19 @@ int runDoctor(List<String> arguments, {IOSink? out}) {
   final sink = out ?? stdout;
   if (arguments.contains('-h') || arguments.contains('--help')) {
     sink.writeln(doctorUsage);
-    return 0;
+    return CliExit.ok;
+  }
+  // `doctor` takes nothing but `--json`: a path or a typo is refused, not
+  // read as a request for the plain report.
+  final unknown =
+      cliOptions['doctor']!.unknownIn(arguments) ??
+      arguments.where((String a) => !a.startsWith('-')).firstOrNull;
+  if (unknown != null) {
+    stderr.writeln(
+      '${unknown.startsWith('-') ? unknownOption(unknown) : 'doctor takes no argument "$unknown".'}'
+      '\n\n$doctorUsage',
+    );
+    return CliExit.usage;
   }
   final checks = runDoctorChecks(project: Directory.current);
   if (arguments.contains('--json')) {

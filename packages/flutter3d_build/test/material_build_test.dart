@@ -385,6 +385,27 @@ material Bad {
     });
   }, skip: Platform.isWindows ? 'the stub impellerc is a bash script' : null);
 
+  test('a material under assets_src/shaders/ is refused, and the engine\'s '
+      'bundle is left as it was', () {
+    // Mutation: drop the reserved-directory check, and
+    // `assets_src/shaders/flutter3d.f3dmat` compiles onto
+    // `flutter3d_generated/shaders/flutter3d.f3dshaders`, the engine's own.
+    final bundle =
+        File('${project.path}/flutter3d_generated/shaders/flutter3d.f3dshaders')
+          ..createSync(recursive: true)
+          ..writeAsStringSync('the engine');
+    final mine = source('shaders/flutter3d.f3dmat', _rim);
+    expect(
+      () => runMaterialBuild(project, log: log),
+      throwsA(
+        isA<MaterialBuildException>()
+            .having((e) => e.source, 'source', mine.path)
+            .having((e) => e.message, 'message', contains('move it')),
+      ),
+    );
+    expect(bundle.readAsStringSync(), 'the engine');
+  });
+
   test('a project with no materials looks for no compiler and no engine', () {
     // Mutation: call `MaterialCompilers.locate()` before checking the plan —
     // this process is not always a Flutter SDK's Dart, and a project with

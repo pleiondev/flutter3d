@@ -54,7 +54,8 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import '../cli_contract.dart' show CliExit, migrateUsage;
+import '../cli_contract.dart'
+    show CliExit, cliOptions, migrateUsage, unknownOption;
 import 'data.dart';
 import 'project.dart';
 import 'table.dart';
@@ -80,6 +81,10 @@ Future<int> runMigrateCommand(List<String> args) async {
     stdout.write(migrateUsage);
     return CliExit.ok;
   }
+  if (cliOptions['migrate']!.unknownIn(args) case final String unknown) {
+    stderr.write('${unknownOption(unknown)}\n\n$migrateUsage');
+    return CliExit.usage;
+  }
   if (positional.length != 1) {
     stderr.write(migrateUsage);
     return CliExit.usage;
@@ -87,9 +92,11 @@ Future<int> runMigrateCommand(List<String> args) async {
   final dryRun = args.contains('--dry-run');
   final pubGet = !args.contains('--no-pub-get');
   final project = Directory(positional.single).absolute;
+  // A directory that is not a project is a file that is not there, not a
+  // command line written wrongly.
   if (!File('${project.path}/pubspec.yaml').existsSync()) {
     stderr.writeln('${project.path} has no pubspec.yaml');
-    return CliExit.usage;
+    return CliExit.failure;
   }
 
   // The data files, on their own: no table, no `pub get`, nothing to undo
@@ -108,8 +115,10 @@ Future<int> runMigrateCommand(List<String> args) async {
   try {
     chain = await MigrationTable.shipped();
   } on StateError catch (e) {
+    // The tables shipped with this build do not read: a broken install,
+    // which no command line could have fixed.
     stderr.writeln(e.message);
-    return CliExit.usage;
+    return CliExit.failure;
   }
   // The release the project is on: what `--from` says, else what its
   // `pubspec.lock` resolves, else the release the first table starts at.

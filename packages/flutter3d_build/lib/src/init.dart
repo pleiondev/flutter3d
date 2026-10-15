@@ -20,7 +20,7 @@ import 'package:flutter3d_shaders/flutter3d_shaders.dart'
     show EngineBundleStamp;
 
 import 'build_assets.dart';
-import 'cli_contract.dart' show initUsage;
+import 'cli_contract.dart' show CliExit, cliOptions, initUsage, unknownOption;
 import 'layout.dart';
 
 export 'cli_contract.dart' show initUsage;
@@ -28,8 +28,9 @@ export 'cli_contract.dart' show initUsage;
 /// The version constraint a project outside this repository gets on this
 /// package — a caret on the version `flutter3d_build`'s own `pubspec.yaml`
 /// names, the way every sibling in the workspace writes its constraint on
-/// another, and updated by whatever release bumps that version. `init_test`
-/// reads the pubspec and holds the two together.
+/// another, and updated by whatever release bumps that version. It is the
+/// templates' entry for this package (`template_versions.dart`), which
+/// `template_versions_test` holds to every pubspec.
 const String flutter3dBuildVersionConstraint = '^1.0.0-rc.1+1';
 
 /// `hook/build.dart`'s own body — [buildAssets]'s doc comment names this
@@ -54,6 +55,11 @@ void main(List<String> arguments) async {
 
 /// What `init` wrote before 1.0.0-rc.1, without the lint line: a hook that
 /// says exactly this is init's own and current, not one a person edited.
+///
+/// **Every text a release wrote stays accepted, within the major and past
+/// it.** A generated project relies on its hook being init's (CONTRACTS,
+/// "Tools and the command line"); `init_test` keeps the list of every one,
+/// and a release that changes [hookBuildContent] adds the old text here.
 const String _hookBuildContentBefore = '''
 import 'package:flutter3d_build/flutter3d_build.dart';
 import 'package:hooks/hooks.dart';
@@ -399,35 +405,38 @@ Future<int> runInit(
   final stdoutSink = out ?? stdout;
   final stderrSink = err ?? stderr;
 
-  var check = false;
-  var force = false;
-  String? directory;
-  for (final argument in arguments) {
-    if (argument == '--check') {
-      check = true;
-    } else if (argument == '--force') {
-      force = true;
-    } else if (argument.startsWith('-')) {
-      // Covers `-h`/`--help` too — same convention `runConvert` uses: the
-      // usage text is what an unrecognised option gets, not a separate
-      // success path, so `--help` and a typo answer identically.
-      stderrSink.writeln(initUsage);
-      return 2;
-    } else {
-      directory = argument;
-    }
+  // Asked for, the usage is an answer on stdout; a typo is an error on
+  // stderr. Every command answers the two this way.
+  if (arguments.contains('-h') || arguments.contains('--help')) {
+    stdoutSink.writeln(initUsage);
+    return CliExit.ok;
   }
+  if (cliOptions['init']!.unknownIn(arguments) case final String unknown) {
+    stderrSink.writeln('${unknownOption(unknown)}\n\n$initUsage');
+    return CliExit.usage;
+  }
+  final check = arguments.contains('--check');
+  final force = arguments.contains('--force');
+  final directories = <String>[
+    for (final argument in arguments)
+      if (!argument.startsWith('-')) argument,
+  ];
+  if (directories.length > 1) {
+    stderrSink.writeln('init takes one project directory.\n\n$initUsage');
+    return CliExit.usage;
+  }
+  final directory = directories.firstOrNull;
 
   final root = projectRoot ?? Directory(directory ?? '.');
   if (!root.existsSync()) {
     stderrSink.writeln('No such directory: ${root.path}');
-    return 1;
+    return CliExit.failure;
   }
 
   final steps = planInit(root, force: force);
   if (steps.isEmpty) {
     stdoutSink.writeln('flutter3d_build: already up to date');
-    return 0;
+    return CliExit.ok;
   }
 
   var blocked = false;
@@ -441,6 +450,8 @@ Future<int> runInit(
     if (!check) step.apply!();
   }
 
-  if (check) return blocked ? 1 : 3;
-  return blocked ? 1 : 0;
+  // A hand-edited hook is 1 under --check too: nothing a run could do
+  // would make the project current, which is what 3 says.
+  if (check) return blocked ? CliExit.failure : CliExit.refused;
+  return blocked ? CliExit.failure : CliExit.ok;
 }
