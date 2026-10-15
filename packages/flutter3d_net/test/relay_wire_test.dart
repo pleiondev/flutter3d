@@ -20,6 +20,8 @@ import 'package:flutter3d_net/flutter3d_net.dart';
 import 'package:test/test.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
+import 'wire_contract.dart';
+
 Future<({Process process, int port})> _startRelay() async {
   final process = await Process.start('dart', <String>[
     'run',
@@ -104,6 +106,13 @@ void main() {
     expect(host.heard.first, containsPair(PeerWire.engineKey, 'relay'));
     expect(host.heard.first, containsPair('event', 'welcome'));
     expect(host.heard.first, isNot(contains('relay')));
+    // And as the snapshot has it, key for key: the real relay's words, not
+    // the constants this file names them by.
+    expectOnTheWire(host.heard.first, 'relay.welcome');
+    expectOnTheWire(
+      host.heard.firstWhere((m) => m['event'] == 'full'),
+      'relay.full',
+    );
     expect(guest.heard.first['slot'], 1);
     expect(
       host.heard.where((m) => m['event'] == 'full'),

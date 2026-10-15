@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1+1
 
+- **The wire is a snapshot.** `api/flutter3d_net.wire` lists every message
+  the engine and its relay send, by the keys that tell it apart and the keys
+  it carries, and every address the relay answers at, with a golden JSON
+  for each message under `test/fixtures/wire/v3/`. A test holds the
+  messages the code sends to it in literals, not the constants the code
+  names them by, and the structure check holds it to the base protocol 3
+  was recorded with: within a major a message may gain a key, never lose
+  one.
 - **Breaking: results that were records are final classes.**
   `RollbackSession` answered or held a record, which can never gain a field.
   Each answers a final class now, with the record's field names (a
