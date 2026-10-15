@@ -53,6 +53,32 @@ final class _Smear extends RenderNode {
   }
 }
 
+/// A pass over the whole picture: run once, whatever the views.
+final class _Whole extends RenderNode {
+  final List<int> seen = <int>[];
+
+  @override
+  String get name => 'acme.whole';
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColor];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColor];
+
+  @override
+  ViewRuns get viewRuns => ViewRuns.once;
+
+  @override
+  void execute(RenderFrame frame) {
+    seen.add(frame.viewIndex);
+    frame.resources.provide(
+      FrameResourceIds.hdrColor,
+      frame.resources.texture(FrameResourceIds.hdrColor),
+    );
+  }
+}
+
 ({Renderer renderer, Scene scene, CameraNode camera}) _stage() {
   final device = FakeBackend();
   final mesh = DeviceMesh.upload(device, CuboidShape().build());
@@ -148,6 +174,47 @@ void main() {
     ];
     expect(planned(<CameraNode>[it.camera]), isNot(contains('acme.smear')));
     expect(planned(<CameraNode>[it.camera, right]), contains('acme.smear'));
+  });
+
+  test('a node runs once per view with that view\'s index, unless it runs '
+      'once', () {
+    // Mutation: run every placed node once, and the second eye's node sees
+    // view 0 — the promise `FrameContext.viewIndex` makes, broken.
+    final it = _stage();
+    final right = CameraNode()..setPosition(0.064, 0.0, 0.0);
+    it.scene.add(right);
+    final each = _Smear(optional: true);
+    final whole = _Whole();
+    it.renderer.renderSteps
+      ..addNode(each, at: RenderAnchor.afterScene)
+      ..addNode(whole, at: RenderAnchor.afterScene);
+    it.renderer.render(
+      width: 64,
+      height: 48,
+      scene: it.scene,
+      settings: _plain,
+      views: <CameraView>[
+        CameraView(
+          camera: it.camera,
+          viewportFraction: const ViewportRect(0.0, 0.0, 0.5, 1.0),
+        ),
+        CameraView(
+          camera: right,
+          viewportFraction: const ViewportRect(0.5, 0.0, 0.5, 1.0),
+        ),
+      ],
+    );
+    expect(<int>[for (final f in each.seen) f.viewIndex], <int>[0, 1]);
+    expect(<int>[for (final f in each.seen) f.frameView!.index], <int>[0, 1]);
+    expect(identical(each.seen[1].view!.camera, right), isTrue);
+    expect(whole.seen, <int>[0]);
+
+    // One view, one run, as before.
+    final single = _stage();
+    final alone = _Smear(optional: true);
+    single.renderer.renderSteps.addNode(alone, at: RenderAnchor.afterScene);
+    _draw(single, _plain);
+    expect(alone.seen.single.viewIndex, 0);
   });
 
   test('a node reads last frame\'s view-projection of its view', () {

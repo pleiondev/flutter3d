@@ -225,6 +225,11 @@ final class FullscreenEffect extends RenderNode {
   @override
   bool get isActive => enabled;
 
+  /// Once a frame: a full-screen stage draws the whole picture, every view
+  /// of it at once.
+  @override
+  ViewRuns get viewRuns => ViewRuns.once;
+
   @override
   List<ResourceId> get reads => <ResourceId>[
     _target,

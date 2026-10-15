@@ -1062,6 +1062,20 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
         'hook or field demands, is handed or reports a placement.',
   ),
   BuildAllowance(
+    package: 'flutter3d_core',
+    members: <String>[
+      'EnvironmentDepthNode.release',
+      'FieldUpload.release',
+      'PassSkip.values',
+      'SplatGpuSort.release',
+    ],
+    reason:
+        'A node that holds GPU memory ends its life with `dispose`, which its '
+        'registration calls when it goes, and the frame names two more '
+        'reasons a pass did not run — still loading and quarantined after '
+        'it threw (1.0.0-rc.1+1).',
+  ),
+  BuildAllowance(
     package: 'flutter3d_shaders',
     members: <String>['kernelLanguageVersion'],
     reason:

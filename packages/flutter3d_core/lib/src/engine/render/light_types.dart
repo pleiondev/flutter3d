@@ -6,7 +6,12 @@ import 'dart:typed_data';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show PluginException, PluginRegistry, PluginScope, Registration;
+    show
+        NameTakenException,
+        PluginException,
+        PluginRegistry,
+        PluginScope,
+        Registration;
 
 import '../scene/light_node.dart';
 
@@ -125,16 +130,17 @@ final class LightTypes extends PluginRegistry {
   /// Makes [hook] pack every light of its type, with a code of its own,
   /// until the result is cancelled.
   ///
-  /// Throws an [ArgumentError] for a built-in type and for a type another
-  /// hook packs; through a plugin's view, a [PluginException] for a type
-  /// named outside the plugin's namespace.
+  /// Throws a [NameTakenException] for a built-in type and for a type
+  /// another hook packs; through a plugin's view, a [PluginException] for a
+  /// type named outside the plugin's namespace.
   Registration register(LightTypeHook hook) {
     final type = hook.type;
     if (LightType.values.contains(type)) {
-      throw ArgumentError.value(
+      throw NameTakenException(
         type.name,
-        'hook',
-        'is a built-in light type; a hook packs a LightType.custom of its own',
+        what: 'the light type',
+        owner: 'the engine',
+        detail: 'a hook packs a LightType.custom of its own',
       );
     }
     final problem = _scope?.manifest.nameProblem(
@@ -143,10 +149,10 @@ final class LightTypes extends PluginRegistry {
     );
     if (problem != null) throw PluginException(problem);
     if (_entryOf(type) != null) {
-      throw ArgumentError.value(
+      throw NameTakenException(
         type.name,
-        'hook',
-        'another hook already packs this light type',
+        what: 'the light type',
+        detail: 'another hook packs it',
       );
     }
     final entry = _LightTypeEntry(hook, firstPluginCode + _store.issued++);

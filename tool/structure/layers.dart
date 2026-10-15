@@ -315,7 +315,10 @@ const Set<String> pluginContractRoots = <String>{
 /// `DataSectionInstall`, a data section's three steps; and `SimSpawned`,
 /// what a queued spawn's builder is handed. Each is the one object those
 /// hooks take, so a minor can hand them more without breaking a plugin.
-const int pluginApiTypeBudget = 78;
+/// One more with the refusal every registry throws for a name already
+/// taken: `NameTakenException`, a `PluginException` a plugin's install
+/// catches with the rest, where an `ArgumentError` read as a bug.
+const int pluginApiTypeBudget = 79;
 
 /// The packages of the simulation stack: what steps a run, which a server
 /// replays with no window and no GPU.

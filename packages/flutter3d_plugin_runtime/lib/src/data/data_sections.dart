@@ -60,11 +60,10 @@ final class DataSections extends DataSectionRegistry {
       throw PluginException(problem);
     }
     if (this[name] != null) {
-      throw ArgumentError.value(
+      throw NameTakenException(
         name,
-        'section',
-        'is already read by another section; one name is one section in one '
-            'engine',
+        what: 'the data section',
+        detail: 'one name is one section in one engine',
       );
     }
     _sections.add(section);

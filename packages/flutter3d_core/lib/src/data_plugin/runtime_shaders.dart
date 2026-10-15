@@ -927,6 +927,10 @@ final class _RuntimeEffectNode extends RenderNode {
   RenderAnchor get defaultAnchor =>
       present ? RenderAnchor.beforePresent : RenderAnchor.afterScene;
 
+  /// Once a frame: it is a full-screen pass over the whole picture.
+  @override
+  ViewRuns get viewRuns => ViewRuns.once;
+
   @override
   void execute(RenderFrame frame) => effect?.execute(frame);
 }

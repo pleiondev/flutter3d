@@ -11,7 +11,7 @@ library;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
-import 'frame_graph.dart' show PassSkip, ResourceId, SkippedPass;
+import 'frame_graph.dart' show NodeFailure, PassSkip, ResourceId, SkippedPass;
 import 'frame_pacing.dart' show PipelineStall;
 import 'physical_camera.dart' show PhysicalCamera;
 import 'render_settings.dart' show RenderSettings;
@@ -199,8 +199,20 @@ final class FrameResult {
     ),
     this.pipelineStalls = const <PipelineStall>[],
     this.pipelineRefusals = const <PipelineRefusedException>[],
+    this.nodeFailures = const <NodeFailure>[],
     this.held = false,
   });
+
+  /// The nodes a plugin or the application placed that threw in this
+  /// frame, each with whose it was — quarantined from the next frame on,
+  /// where [skipped] lists each as `PassSkip.failed`.
+  ///
+  /// **Told once, on the frame that met it**, as [pipelineRefusals] are:
+  /// what a debug build reports (`SceneSurface`, under `Flutter3dView`,
+  /// hands each to `FlutterError.reportError`), and what a test asserts on.
+  /// Empty on
+  /// every frame nothing threw in.
+  final List<NodeFailure> nodeFailures;
 
   /// Pipelines the device would not build that this frame met for the first
   /// time, one entry per pipeline — taken from

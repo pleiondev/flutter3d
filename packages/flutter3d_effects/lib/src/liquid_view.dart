@@ -330,13 +330,9 @@ final class LiquidView {
   Future<void> steppedOn(Renderer renderer) async {
     if (_compute != null || _workload != null || _disposed) return;
     final workload = _workload = _SurfaceWorkload(this);
-    final added = await renderer.renderSteps.addWorkload(workload);
-    // Let go while it was being placed: handed straight back.
-    if (_disposed) {
-      added.cancel();
-      return;
-    }
-    _compute = added;
+    _compute = renderer.renderSteps.addWorkload(workload);
+    // Completes once the workload is told where it landed.
+    await renderer.renderSteps.whenPlaced();
   }
 
   /// The surface drawn from the buffer the workload built it in, or null

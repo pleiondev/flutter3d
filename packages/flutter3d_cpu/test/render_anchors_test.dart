@@ -43,6 +43,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
         LoopPhase,
         LoopRegistry,
         LoopSystem,
+        NameTakenException,
         PluginApiVersion,
         PluginHost,
         PluginManager,
@@ -526,19 +527,19 @@ void main() {
       final steps = _stage().renderer.renderSteps;
       expect(
         () => steps.addNode(_hdr('bloom'), at: RenderAnchor.afterBloom),
-        throwsArgumentError,
+        throwsA(isA<NameTakenException>()),
       );
       expect(
         () => steps.addNode(
           _hdr('reflection probe 9'),
           at: RenderAnchor.afterCaptures,
         ),
-        throwsArgumentError,
+        throwsA(isA<NameTakenException>()),
       );
       steps.addNode(_hdr('mine'), at: RenderAnchor.afterBloom);
       expect(
         () => steps.addNode(_hdr('mine'), at: RenderAnchor.afterScene),
-        throwsArgumentError,
+        throwsA(isA<NameTakenException>()),
       );
     });
 
@@ -663,10 +664,13 @@ void main() {
 
     test('is refused a built-in name, a second name, an unknown need', () {
       final steps = _stage().renderer.renderSteps;
-      expect(() => steps.addStep(RenderStep.bloom), throwsArgumentError);
+      expect(
+        () => steps.addStep(RenderStep.bloom),
+        throwsA(isA<NameTakenException>()),
+      );
       expect(
         () => steps.addStep(const RenderStep('bloom')),
-        throwsArgumentError,
+        throwsA(isA<NameTakenException>()),
       );
       expect(
         () => steps.addStep(
@@ -677,7 +681,7 @@ void main() {
       steps.addStep(_grade);
       expect(
         () => steps.addStep(const RenderStep('plugin grade')),
-        throwsArgumentError,
+        throwsA(isA<NameTakenException>()),
       );
       expect(steps.named('plugin grade'), same(_grade));
       expect(steps.all.last, same(_grade));

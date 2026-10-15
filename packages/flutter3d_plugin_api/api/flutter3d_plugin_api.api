@@ -300,6 +300,7 @@ final class ExternalStateInput
   int get hashCode
 
 abstract base class Flutter3dPlugin
+  Future<void> ready(PluginHost host)
   String toString()
   abstract PluginManifest get manifest
   abstract void install(PluginHost host)
@@ -371,6 +372,13 @@ abstract base class LoopRegistry extends PluginRegistry
   const LoopRegistry()
 
 typedef LoopSystem = void Function(LoopContext context);
+
+final class NameTakenException extends PluginException
+  NameTakenException(this.name, {required this.what, this.owner, String? detail})
+  String toString()
+  final String name
+  final String what
+  final String? owner
 
 final class OriginShifted extends BusEvent
   String get name
@@ -462,6 +470,7 @@ abstract base class PluginHost
   const PluginHost()
 
 final class PluginManager
+  Future<void> whenReady()
   List<PluginChange> applyPending(int step)
   List<PluginChange> get journal
   List<PluginStatus> get statuses
@@ -534,7 +543,8 @@ abstract base class PluginScope
 final class PluginStatus
   String get id
   String toString()
-  const PluginStatus({required this.manifest, required this.enabled, this.reason})
+  const PluginStatus({required this.manifest, required this.enabled, this.reason, this.error})
+  final Object? error
   final PluginManifest manifest
   final String? reason
   final bool enabled

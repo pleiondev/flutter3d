@@ -100,17 +100,30 @@ final class FrameGraph {
   /// are in [CompiledFrameGraph.created]; a node that asked where it runs
   /// ([FrameGraphBuilder.place]) is placed by [placer] — the hook the compute
   /// placement plugs into — and one nobody places is dropped as
-  /// [PassSkip.unsupported].
+  /// [PassSkip.unsupported]; one whose placement the placer is still
+  /// working out ([FramePlacer.pending]), like a node that is not
+  /// [FrameGraphNode.isReady], as [PassSkip.pending].
+  ///
+  /// [failed] names the passes quarantined after they threw: left out like
+  /// a switched-off pass, and reported as [PassSkip.failed].
   CompiledFrameGraph compile({
     required List<ResourceId> outputs,
     Set<String> disabled = const <String>{},
     Set<String> switchedOff = const <String>{},
+    Set<String> failed = const <String>{},
     FramePlacer? placer,
   }) {
     final declared = <FrameGraphNode, NodeDeclarations>{
       for (final node in _nodes) node: NodeDeclarations.of(node),
     };
-    final key = _inputsOf(declared, outputs, disabled, switchedOff, placer);
+    final key = _inputsOf(
+      declared,
+      outputs,
+      disabled,
+      switchedOff,
+      failed,
+      placer,
+    );
     final last = _lastCompiled;
     if (last != null && _sameInputs(key, _lastInputs)) {
       return _lastCompiled = _overNodes(last, _nodes);
@@ -120,6 +133,7 @@ final class FrameGraph {
       outputs: outputs,
       disabled: disabled,
       switchedOff: switchedOff,
+      failed: failed,
       placer: placer,
     );
     _lastInputs = key;
@@ -140,6 +154,7 @@ final class FrameGraph {
     List<ResourceId> outputs,
     Set<String> disabled,
     Set<String> switchedOff,
+    Set<String> failed,
     FramePlacer? placer,
   ) {
     final key = <Object?>[_external.length, ..._external];
@@ -156,7 +171,8 @@ final class FrameGraph {
       key
         ..add(node.name)
         ..add(node.isActive)
-        ..add(node.isSupported);
+        ..add(node.isSupported)
+        ..add(node.isReady);
       ids(d.reads);
       ids(d.optionalReads);
       ids(d.writes);
@@ -174,7 +190,9 @@ final class FrameGraph {
       ..add(disabled.length)
       ..addAll(disabled)
       ..add(switchedOff.length)
-      ..addAll(switchedOff);
+      ..addAll(switchedOff)
+      ..add(failed.length)
+      ..addAll(failed);
     return key;
   }
 
@@ -226,6 +244,7 @@ final class FrameGraph {
     required List<ResourceId> outputs,
     required Set<String> disabled,
     required Set<String> switchedOff,
+    required Set<String> failed,
     required FramePlacer? placer,
   }) {
     // Known at all, whether or not it runs this frame. The difference between
@@ -312,11 +331,19 @@ final class FrameGraph {
     // A node that asked where it runs is placed here, before anything is
     // versioned: one nobody can place is as absent as one this device
     // cannot run, and is reported the same way.
+    // A node that is still loading what it runs with — not ready, or a
+    // placement the placer has not finished — is left out as pending, and
+    // one that threw before is left out as failed: both as absent as a node
+    // this device cannot run, each reported under its own reason.
     final placements = <String, Object>{};
     final unplaced = <FrameGraphNode>{};
+    final waiting = <FrameGraphNode>{};
     for (final node in _nodes) {
       final request = declared[node]!.placement;
-      if (request == null || !node.isActive || disabled.contains(node.name)) {
+      if (request == null ||
+          !node.isActive ||
+          disabled.contains(node.name) ||
+          failed.contains(node.name)) {
         continue;
       }
       final placed = placer?.place(
@@ -324,15 +351,25 @@ final class FrameGraph {
       );
       if (placed == null) {
         unplaced.add(node);
+      } else if (identical(placed, FramePlacer.pending)) {
+        waiting.add(node);
       } else {
         placements[node.name] = placed;
       }
     }
     bool supported(FrameGraphNode node) =>
         node.isSupported && !unplaced.contains(node);
+    bool ready(FrameGraphNode node) => node.isReady && !waiting.contains(node);
 
     final active = _nodes
-        .where((n) => n.isActive && supported(n) && !disabled.contains(n.name))
+        .where(
+          (n) =>
+              n.isActive &&
+              ready(n) &&
+              supported(n) &&
+              !disabled.contains(n.name) &&
+              !failed.contains(n.name),
+        )
         .toList();
 
     // Versions, in registration order rather than in the order the frame turns
@@ -542,8 +579,14 @@ final class FrameGraph {
             // have run it, because that is the answer about what they did;
             // `unsupported` comes next, ahead of `settings`, since a device
             // that cannot run a pass makes its settings beside the point.
+            // A failed pass first: it is the answer that names a cause
+            // nobody configured. Pending before unsupported, since a node
+            // whose placement is still loading cannot say yet whether
+            // anything takes it.
             null => switch (node) {
+              _ when failed.contains(node.name) => PassSkip.failed,
               _ when disabled.contains(node.name) => PassSkip.disabled,
+              _ when node.isActive && !ready(node) => PassSkip.pending,
               _ when !supported(node) => PassSkip.unsupported,
               _ when switchedOff.contains(node.name) => PassSkip.switchedOff,
               _ => PassSkip.settings,

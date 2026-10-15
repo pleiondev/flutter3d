@@ -211,7 +211,8 @@ final class SplatGpuSort {
   }
 
   /// Gives every buffer back to [device]; the next [sort] makes new ones.
-  void release() {
+  /// Since 1.0.0-rc.1+1, `release`.
+  void dispose() {
     for (final buffer in <StorageBuffer?>[
       _keys,
       _keysB,

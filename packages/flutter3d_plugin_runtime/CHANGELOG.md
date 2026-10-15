@@ -1,3 +1,11 @@
+## 1.0.0-rc.1+1
+
+- **A data section's name already taken is a `NameTakenException`.**
+  `DataSections.register` refused a second section under one name with an
+  `ArgumentError`; it is the `PluginException` every registry throws for a
+  name already taken now, naming the name. A name the runtime reads itself
+  is still an `ArgumentError`, since no plugin can ever have it.
+
 ## 1.0.0-rc.1
 
 - **The Wasm plugin ABI's vocabulary is a file.** `api/wasm_abi.vocabulary`

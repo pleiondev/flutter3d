@@ -163,6 +163,28 @@ abstract base class FrameGraphNode {
   /// [PassSkip.unsupported].
   bool get isSupported => true;
 
+  /// Whether what the node runs with is ready this frame: false while a
+  /// pipeline, a kernel or a placement it waits for is still loading.
+  ///
+  /// **A registration is synchronous, a load is not.** A node is added at
+  /// once and its work loads behind it (`RendererSteps.addComputeStep`
+  /// places a step while the frame goes on); until the load is done the
+  /// node is left out of the frame as [PassSkip.pending], and whatever only
+  /// read what it writes is culled with it, as for a pass that cannot run.
+  /// The frame after the load is done has it.
+  ///
+  /// Asked once at compile, beside [isActive] and [isSupported].
+  bool get isReady => true;
+
+  /// Lets go of what the node holds on a device: called once, when the
+  /// registration that put it in a frame is cancelled, after no frame in
+  /// flight can still be using it.
+  ///
+  /// Empty here, since most nodes hold nothing of their own between frames.
+  /// A node that keeps a texture, a buffer or a pipeline across frames
+  /// overrides it — the one teardown verb a node has.
+  void dispose() {}
+
   /// Declares what this node touches, into [builder]: what [FrameGraph.compile]
   /// works the frame out from (1.0).
   ///
@@ -336,8 +358,60 @@ final class FramePlacementContext {
 abstract base class FramePlacer {
   const FramePlacer();
 
-  /// Where [context]'s node runs, or null when nowhere can.
+  /// What [place] answers for a node whose placement is still being
+  /// loaded: the node is left out of this frame as [PassSkip.pending], not
+  /// as [PassSkip.unsupported], and asked again at the next compile.
+  static const Object pending = _PendingPlacement();
+
+  /// Where [context]'s node runs, [pending] while that is still being
+  /// worked out, or null when nowhere can.
   Object? place(FramePlacementContext context);
+}
+
+final class _PendingPlacement {
+  const _PendingPlacement();
+
+  @override
+  String toString() => 'FramePlacer.pending';
+}
+
+/// A node that threw while it ran, and whose it was: what a frame reports
+/// for a quarantined pass ([PassSkip.failed]).
+///
+/// **The frame goes on, and says whose pass broke.** A node a plugin or the
+/// application placed that throws from its `execute` is taken out of the
+/// frames that follow, until its registration is made again (the plugin
+/// switched off and on); the rest of the frame is drawn, and what only read
+/// the node's output is culled or does without, as for a pass that did not
+/// run.
+final class NodeFailure {
+  /// [node] threw [error] at [stackTrace], in a pass [owner] placed.
+  const NodeFailure({
+    required this.node,
+    required this.owner,
+    required this.error,
+    required this.stackTrace,
+    this.plugin,
+  });
+
+  /// The node's name.
+  final String node;
+
+  /// Who placed it, as a person reads it: `plugin "acme.glow"`, or `the
+  /// application`.
+  final String owner;
+
+  /// The id of the plugin that placed it, or null for the application's.
+  final String? plugin;
+
+  /// What it threw.
+  final Object error;
+
+  /// Where.
+  final StackTrace stackTrace;
+
+  @override
+  String toString() => '"$node" of $owner threw: $error';
 }
 
 /// Why a pass that was registered did not run — `gfx-39n`.
@@ -437,9 +511,20 @@ final class PassSkip {
   /// a caller can change both.
   static const PassSkip declined = PassSkip._('declined');
 
+  /// What the pass runs with is still loading — a kernel being placed, a
+  /// pipeline being built ([FrameGraphNode.isReady] false, or a
+  /// [FramePlacer] answering [FramePlacer.pending]). The frame after the
+  /// load is done has it; nothing needs changing.
+  static const PassSkip pending = PassSkip._('pending');
+
+  /// The pass threw when it ran and is quarantined: left out of every frame
+  /// until the registration that placed it is made again.
+  /// [SkippedPass.failure] says what it threw and whose it was.
+  static const PassSkip failed = PassSkip._('failed');
+
   /// All of them, in the order a reader should try them: the three a caller
   /// asked for, then the two the frame decided, then the two the device or
-  /// the frame refused.
+  /// the frame refused, then the one that waits and the one that broke.
   static const List<PassSkip> values = <PassSkip>[
     settings,
     switchedOff,
@@ -448,7 +533,17 @@ final class PassSkip {
     starved,
     unsupported,
     declined,
+    pending,
+    failed,
   ];
+
+  /// The reason called [name], or null for one this version does not know.
+  static PassSkip? byName(String name) {
+    for (final reason in values) {
+      if (reason.name == name) return reason;
+    }
+    return null;
+  }
 
   @override
   String toString() => 'PassSkip.$name';
@@ -459,7 +554,7 @@ final class PassSkip {
 /// A class rather than a record, so it can later say more (what it would
 /// have read) without breaking a reader.
 final class SkippedPass {
-  const SkippedPass({required this.name, required this.reason});
+  const SkippedPass({required this.name, required this.reason, this.failure});
 
   /// The pass's name.
   final String name;
@@ -467,15 +562,24 @@ final class SkippedPass {
   /// Why it did not run.
   final PassSkip reason;
 
+  /// For a [PassSkip.failed] pass, what it threw and whose it was; null
+  /// for every other reason.
+  final NodeFailure? failure;
+
   @override
   bool operator ==(Object other) =>
-      other is SkippedPass && other.name == name && other.reason == reason;
+      other is SkippedPass &&
+      other.name == name &&
+      other.reason == reason &&
+      identical(other.failure, failure);
 
   @override
   int get hashCode => Object.hash(name, reason);
 
   @override
-  String toString() => 'SkippedPass($name, $reason)';
+  String toString() => failure == null
+      ? 'SkippedPass($name, $reason)'
+      : 'SkippedPass($name, $reason, ${failure!.owner})';
 }
 
 /// A graph that failed to compile, with the reason a person can act on.

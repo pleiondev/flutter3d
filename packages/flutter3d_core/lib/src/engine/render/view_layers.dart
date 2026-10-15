@@ -69,6 +69,10 @@ final class ProjectionLayerNode extends RenderNode {
   @override
   RenderAnchor get defaultAnchor => RenderAnchor.beforePresent;
 
+  /// Once a frame: it walks `frame.views` itself, a layer per view.
+  @override
+  ViewRuns get viewRuns => ViewRuns.once;
+
   /// Throws the refusal a frame drawn on [device] would meet copying into
   /// [image]: an [UnsupportedCapabilityException] naming
   /// `DeviceFeature.textureCopy` on a device without copies, and an
@@ -236,8 +240,15 @@ final class EnvironmentDepthNode extends RenderNode {
     frame.resources.provide(id, texture);
   }
 
-  /// Gives back every texture uploaded: when the session that fed it ends.
-  void release() {
+  /// Once a frame: the world's depth is one image whatever the views.
+  @override
+  ViewRuns get viewRuns => ViewRuns.once;
+
+  /// Gives back every texture uploaded: when the session that fed it ends,
+  /// and when the registration that added the node is cancelled. Since
+  /// 1.0.0-rc.1+1, `release`.
+  @override
+  void dispose() {
     for (final (device, texture) in _uploaded) {
       device.releaseTexture(texture);
     }

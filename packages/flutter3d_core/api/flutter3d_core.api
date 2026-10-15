@@ -897,14 +897,29 @@ final class ComputeContext
   final RenderFrame frame
   final String step
 
+final class ComputeNodePlacement
+  GraphicsDevice get device
+  ShaderHandle stage(String kernel)
+  String toString()
+  final ComputeSite site
+
+final class ComputePlacementRequest extends PlacementRequest
+  String get name
+  bool operator ==(Object other)
+  const ComputePlacementRequest(this.kernels)
+  final List<ComputeKernel> kernels
+  int get hashCode
+
 abstract base class ComputeStep extends RenderNode
   ComputePlacementException? get refusal
   ComputeSite? get site
   ComputeStep()
   Future<ComputePlacementException?> prepare(GraphicsDevice device)
   RenderAnchor get defaultAnchor
+  ViewRuns get viewRuns
   abstract List<ComputeKernel> get kernels
   abstract void record(ComputeContext context)
+  bool get isReady
   bool get isSupported
   void execute(RenderFrame frame)
 
@@ -1377,9 +1392,10 @@ final class EnvironmentDepthNode extends RenderNode
   List<ResourceId> get writes
   RenderAnchor get defaultAnchor
   String get name
+  ViewRuns get viewRuns
   static const ResourceId id = ResourceId('f3d.environment_depth')
+  void dispose()
   void execute(RenderFrame frame)
-  void release()
 
 abstract final class EnvironmentMap
   static ByteData hdrToRgba8(HdrImage image)
@@ -1616,11 +1632,13 @@ final class FieldUpload extends RenderNode
   RenderAnchor get defaultAnchor
   ResourceId get id
   String get name
+  ViewRuns get viewRuns
+  bool get isReady
   bool get isSupported
   final FieldResidence residence
   final HostField source
+  void dispose()
   void execute(RenderFrame frame)
-  void release()
 
 final class FileAssetSource extends AssetSource
   AssetUriResolver get resolveUri
@@ -1734,7 +1752,7 @@ final class FrameFraction extends ResourceSize
   final int divisor
 
 final class FrameGraph
-  CompiledFrameGraph compile({required List<ResourceId> outputs, Set<String> disabled = const <String>{}, Set<String> switchedOff = const <String>{}, FramePlacer? placer})
+  CompiledFrameGraph compile({required List<ResourceId> outputs, Set<String> disabled = const <String>{}, Set<String> switchedOff = const <String>{}, Set<String> failed = const <String>{}, FramePlacer? placer})
   FrameGraph()
   int get length
   static const Set<String> undisableable = <String>{'scene', 'composite', 'object ids'}
@@ -1763,8 +1781,10 @@ abstract base class FrameGraphNode
   List<ResourceId> get writes
   abstract String get name
   bool get isActive
+  bool get isReady
   bool get isSupported
   const FrameGraphNode()
+  void dispose()
   void setup(FrameGraphBuilder builder)
 
 final class FrameHeld extends BusEvent
@@ -1837,6 +1857,7 @@ final class FramePlacementContext
 abstract base class FramePlacer
   abstract Object? place(FramePlacementContext context)
   const FramePlacer()
+  static const Object pending = _PendingPlacement()
 
 abstract final class FrameResourceIds
   static ResourceId reflectionProbe(int index)
@@ -1907,11 +1928,12 @@ final class FrameResources
 final class FrameResult
   FrameResult toHeld()
   PassSkip? skipReasonOf(String name)
-  const FrameResult({required this.frame, required this.cpuMicros, required this.submitMicros, required this.drawCalls, required this.triangles, required this.instances, required this.culled, required this.pipelineSwitches, required this.debugLines, required this.lights, required this.lightsDropped, required this.pipelines, required this.shadowCasters, required this.skinnedDraws, this.shadowsDenied = 0, this.batchedDraws = 0, this.wireframeDeclined = false, this.alphaToCoverageDeclined = false, this.targetBytes = 0, this.exposure = RenderSettings.defaultExposure, this.passes = const <FramePass>[], this.resources = const <FrameResourceUse>[], this.skipped = const <SkippedPass>[], this.antiAliasing = const EffectiveAntiAliasing(msaaSamples: 1, fxaa: false, msaaDeclined: null), this.pipelineStalls = const <PipelineStall>[], this.pipelineRefusals = const <PipelineRefusedException>[], this.held = false})
+  const FrameResult({required this.frame, required this.cpuMicros, required this.submitMicros, required this.drawCalls, required this.triangles, required this.instances, required this.culled, required this.pipelineSwitches, required this.debugLines, required this.lights, required this.lightsDropped, required this.pipelines, required this.shadowCasters, required this.skinnedDraws, this.shadowsDenied = 0, this.batchedDraws = 0, this.wireframeDeclined = false, this.alphaToCoverageDeclined = false, this.targetBytes = 0, this.exposure = RenderSettings.defaultExposure, this.passes = const <FramePass>[], this.resources = const <FrameResourceUse>[], this.skipped = const <SkippedPass>[], this.antiAliasing = const EffectiveAntiAliasing(msaaSamples: 1, fxaa: false, msaaDeclined: null), this.pipelineStalls = const <PipelineStall>[], this.pipelineRefusals = const <PipelineRefusedException>[], this.nodeFailures = const <NodeFailure>[], this.held = false})
   double get ev100
   final EffectiveAntiAliasing antiAliasing
   final List<FramePass> passes
   final List<FrameResourceUse> resources
+  final List<NodeFailure> nodeFailures
   final List<PipelineRefusedException> pipelineRefusals
   final List<PipelineStall> pipelineStalls
   final List<SkippedPass> skipped
@@ -2012,6 +2034,7 @@ final class FullscreenEffect extends RenderNode
   List<ResourceId> get writes
   Map<String, Map<String, Float32List>> uniforms
   Map<String, TextureHandle> textures
+  ViewRuns get viewRuns
   bool enabled
   bool get isActive
   factory FullscreenEffect.material(BundledMaterials materials, String stage, {required String name, required ShaderHandle shader, bool present = false, bool enabled = true, Map<String, TextureHandle> textures = const <String, TextureHandle>{}, MaterialParameters? parameters, SamplerDescriptor sampler = SamplerDescriptor.linearClamp})
@@ -3468,6 +3491,15 @@ final class NodeDeclarations
   final List<ResourceId> writes
   final PlacementRequest? placement
 
+final class NodeFailure
+  String toString()
+  const NodeFailure({required this.node, required this.owner, required this.error, required this.stackTrace, this.plugin})
+  final Object error
+  final StackTrace stackTrace
+  final String node
+  final String owner
+  final String? plugin
+
 final class NodeHistory
   Float32List? instances
   Float32List? joints
@@ -3710,9 +3742,12 @@ abstract base class PassContributor
 final class PassSkip
   String toString()
   final String name
-  static const List<PassSkip> values = <PassSkip>[settings, switchedOff, disabled, unconsumed, starved, unsupported, declined]
+  static PassSkip? byName(String name)
+  static const List<PassSkip> values = <PassSkip>[settings, switchedOff, disabled, unconsumed, starved, unsupported, declined, pending, failed]
   static const PassSkip declined = PassSkip._('declined')
   static const PassSkip disabled = PassSkip._('disabled')
+  static const PassSkip failed = PassSkip._('failed')
+  static const PassSkip pending = PassSkip._('pending')
   static const PassSkip settings = PassSkip._('settings')
   static const PassSkip starved = PassSkip._('starved')
   static const PassSkip switchedOff = PassSkip._('switched off')
@@ -4048,6 +4083,7 @@ final class ProjectionLayerNode extends RenderNode
   RenderAnchor get defaultAnchor
   String get name
   TextureHandle? target
+  ViewRuns get viewRuns
   int get copied
   int get frames
   static void check(GraphicsDevice device, TextureHandle image, {required int views, required TextureFormat format})
@@ -4169,8 +4205,9 @@ final class ReflectionSettings
   final int steps
 
 final class RenderFrame extends FrameContext
-  RenderFrame({required super.device, required this.resources, required super.services, required super.settings, required super.width, required super.height, super.view, super.frameIndex, super.time, super.origin, super.views, super.viewIndex, this.sceneColor})
+  RenderFrame({required super.device, required this.resources, required super.services, required super.settings, required super.width, required super.height, super.view, super.frameIndex, super.time, super.origin, super.views, super.viewIndex, this.sceneColor, this.placement})
   final FrameResources resources
+  final Object? placement
   final TextureHandle? sceneColor
   vm.Matrix4 get viewProjection
 
@@ -4250,6 +4287,7 @@ final class RenderMaterial
 
 abstract base class RenderNode extends FrameGraphNode
   RenderAnchor get defaultAnchor
+  ViewRuns get viewRuns
   abstract void execute(RenderFrame frame)
   const RenderNode()
 
@@ -4448,10 +4486,7 @@ final class Renderer with RenderServices
   void warmUp({required int width, required int height, required Scene scene, required List<CameraView> views, RenderSettings settings = const RenderSettings()})
 
 final class RendererSteps extends RenderStepRegistry
-  Future<Registration> addComputeStep(ComputeStep step, {RenderAnchor? at, RenderStep? owner, List<String> after = const <String>[], List<String> before = const <String>[]})
-  Future<Registration> addFieldUpload(FieldUpload upload, {RenderAnchor? at, RenderStep? owner, List<String> after = const <String>[], List<String> before = const <String>[]})
-  Future<Registration> addWorkload(ComputeWorkload workload, {RenderAnchor? at})
-  Future<Registration> placeSkinningHook(SkinningHook hook)
+  Future<void> whenPlaced()
   GraphicsDevice get device
   Iterable<PluginRegistry> get companions
   List<PassContributor> get contributors
@@ -4462,11 +4497,15 @@ final class RendererSteps extends RenderStepRegistry
   List<SettingsSlot<Object>> get settings
   List<String> nodesAt(RenderAnchor anchor)
   Registration addAnchor(RenderAnchor anchor)
+  Registration addComputeStep(ComputeStep step, {RenderAnchor? at, RenderStep? owner, List<String> after = const <String>[], List<String> before = const <String>[]})
+  Registration addFieldUpload(FieldUpload upload, {RenderAnchor? at, RenderStep? owner, List<String> after = const <String>[], List<String> before = const <String>[]})
   Registration addMaterials(ShaderLibrary library)
   Registration addNode(RenderNode node, {RenderAnchor? at, RenderStep? step, List<String> after = const <String>[], List<String> before = const <String>[]})
   Registration addSettings(SettingsSlot<Object> slot)
   Registration addStep(RenderStep step)
+  Registration addWorkload(ComputeWorkload workload, {RenderAnchor? at})
   Registration fromDocument(PipelineDocument document)
+  Registration placeSkinningHook(SkinningHook hook)
   Registration provide(RenderStep step)
   RenderAnchor? anchorNamed(String name)
   RenderSettings settingsFor(PipelineDocument document, RenderSettings settings)
@@ -5029,7 +5068,8 @@ abstract base class SkinningHook
 final class SkippedPass
   String toString()
   bool operator ==(Object other)
-  const SkippedPass({required this.name, required this.reason})
+  const SkippedPass({required this.name, required this.reason, this.failure})
+  final NodeFailure? failure
   final PassSkip reason
   final String name
   int get hashCode
@@ -5192,7 +5232,7 @@ final class SplatGpuSort
   final bool readable
   int get sorts
   static bool availableOn(GraphicsDevice device)
-  void release()
+  void dispose()
   void relink()
   void sort(Uint32List keys, int count, {required int frameIndex})
 
@@ -5629,8 +5669,17 @@ final class ViewModelNode extends RenderNode
   Scene scene
   String get name
   ViewModelNode({required this.scene, required this.camera})
+  ViewRuns get viewRuns
   bool get isActive
   void execute(RenderFrame frame)
+
+final class ViewRuns
+  String toString()
+  final String name
+  static ViewRuns? byName(String name)
+  static const List<ViewRuns> values = <ViewRuns>[perView, once]
+  static const ViewRuns once = ViewRuns._('once')
+  static const ViewRuns perView = ViewRuns._('perView')
 
 final class ViewportRect
   String toString()
@@ -5722,9 +5771,9 @@ final class WorkloadStep extends ComputeStep
   bool get isSupported
   final ComputeWorkload workload
   late final List<ComputeKernel> kernels
+  void dispose()
   void execute(RenderFrame frame)
   void record(ComputeContext context)
-  void release()
 
 final class WorldRay
   LocalRay relativeTo(WorldPosition from)

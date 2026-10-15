@@ -13,6 +13,7 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show
         LinearColor,
+        NameTakenException,
         PluginException,
         PluginRegistry,
         PluginScope,
@@ -817,7 +818,7 @@ final class Renderer with RenderServices {
       slot.clear();
     }
     _pendingMeshes.forEach(_releaseMeshes);
-    _pendingWorkloads.forEach(_releaseWorkloads);
+    _pendingNodes.forEach(_disposeNodes);
     targetPool.trim();
 
     // The window-sized targets `_ensureTargets` owns. On a resize they go
@@ -1551,6 +1552,17 @@ final class Renderer with RenderServices {
   /// The nodes that run at the output size rather than the scene's: those
   /// registered after the temporal resolve. Empty while it is off.
   Set<FrameGraphNode> _outputSized = const <FrameGraphNode>{};
+
+  /// This frame's nodes placed through [renderSteps], each with its entry:
+  /// who placed it, whether it runs per view, and whether it failed. The
+  /// engine's own passes are not here; a pass of theirs that throws ends
+  /// the frame as it always did.
+  Map<FrameGraphNode, _AnchoredNode> _placedEntries =
+      const <FrameGraphNode, _AnchoredNode>{};
+
+  /// Where the frame's placer has put the nodes that asked with
+  /// `FrameGraphBuilder.place`, kept between frames.
+  late final _FramePlacements _placements = _FramePlacements(this);
 
   /// The scene, in linear light with no upper bound. Everything post-processing
   /// does depends on values above display white surviving this far, which is
@@ -3624,21 +3636,20 @@ final class Renderer with RenderServices {
       device: device,
       quality: quality,
     );
+    final placedEntries = <FrameGraphNode, _AnchoredNode>{};
     for (final anchor in RenderAnchor.values) {
       for (final at in renderSteps._store.anchorsFrom(anchor)) {
         for (final entry in renderSteps._store.orderedAt(at)) {
           final step = entry.step;
-          schedule.at(
-            anchor,
-            step == null
-                ? entry.node
-                : _SteppedNode(entry.node, step, stepContext),
-            after: entry.after,
-            before: entry.before,
-          );
+          final node = step == null
+              ? entry.node
+              : _SteppedNode(entry.node, step, stepContext);
+          placedEntries[node] = entry;
+          schedule.at(anchor, node, after: entry.after, before: entry.before);
         }
       }
     }
+    _placedEntries = placedEntries;
     // One graph for every frame, cleared and filled again: a frame that
     // registers what the last one did is not compiled again (see
     // `FrameGraph.compile`).
@@ -3682,6 +3693,13 @@ final class Renderer with RenderServices {
       also: renderSteps.added,
     );
     return graph.compile(
+      // `FrameGraphBuilder.place`, wired: a node's compute request goes to
+      // the hardware layer's placement through this renderer's placer.
+      placer: _placements.placer,
+      failed: <String>{
+        for (final entry in placed)
+          if (entry.failure != null) entry.node.name,
+      },
       switchedOff: stepsOff.isEmpty
           ? const <String>{}
           : <String>{
@@ -5739,6 +5757,9 @@ final class Renderer with RenderServices {
             readFloats: _captureFloats,
           );
     passState.journal = _capture?.journal;
+    // The placed nodes that threw in this frame, each quarantined from the
+    // next one on.
+    final nodeFailures = <NodeFailure>[];
     try {
       for (var i = 0; i < frameGraph.order.length; i++) {
         resources.beginNode(i);
@@ -5767,37 +5788,67 @@ final class Renderer with RenderServices {
         _passLabel = node.name;
         passState.journal?.beginPass(i, node.name);
         if (timing) developer.Timeline.startSync(node.name);
+        // A node placed through `renderSteps`: run once per view unless it
+        // says once (D20's promise, kept), and quarantined if it throws.
+        final entry = _placedEntries[node];
+        final runs = entry != null && node.viewRuns == ViewRuns.perView
+            ? math.max(1, _frameViews.length)
+            : 1;
         try {
-          node.execute(
-            RenderFrame(
-              device: device,
-              resources: resources,
-              services: this,
-              settings: settings,
-              view: views.first,
-              views: _frameViews,
-              frameIndex: _frameIndex,
-              time: _seconds,
-              origin: scene.origin,
-              // `R2`: after the temporal resolve, the output's size.
-              width: _outputSized.contains(node) ? _outputWidth : width,
-              height: _outputSized.contains(node) ? _outputHeight : height,
-              // Only for a node that asked for it. This convenience used to
-              // hand the scene color to every node in the frame, including
-              // the shadow passes that run before one exists and never wanted
-              // it — a read the graph was never told about, ordered against
-              // nothing. It was invisible until an undeclared read became an
-              // error.
-              //
-              // Still `tryTexture` for the nodes that did declare it: the
-              // scene runs first and a node drawing over the world has to cope
-              // with there being nothing yet. The view model returns early.
-              sceneColor:
-                  frameGraph.readVersionOf(i, FrameResourceIds.hdrColor) == null
-                  ? null
-                  : resources.tryTexture(FrameResourceIds.hdrColor),
-            )..state = passState,
-          );
+          for (var viewIndex = 0; viewIndex < runs; viewIndex++) {
+            node.execute(
+              RenderFrame(
+                device: device,
+                resources: resources,
+                services: this,
+                settings: settings,
+                view: views[viewIndex < views.length ? viewIndex : 0],
+                views: _frameViews,
+                viewIndex: viewIndex,
+                frameIndex: _frameIndex,
+                time: _seconds,
+                origin: scene.origin,
+                // `R2`: after the temporal resolve, the output's size.
+                width: _outputSized.contains(node) ? _outputWidth : width,
+                height: _outputSized.contains(node) ? _outputHeight : height,
+                // Only for a node that asked for it. This convenience used
+                // to hand the scene color to every node in the frame,
+                // including the shadow passes that run before one exists and
+                // never wanted it — a read the graph was never told about,
+                // ordered against nothing. It was invisible until an
+                // undeclared read became an error.
+                //
+                // Still `tryTexture` for the nodes that did declare it: the
+                // scene runs first and a node drawing over the world has to
+                // cope with there being nothing yet. The view model returns
+                // early.
+                sceneColor:
+                    frameGraph.readVersionOf(i, FrameResourceIds.hdrColor) ==
+                        null
+                    ? null
+                    : resources.tryTexture(FrameResourceIds.hdrColor),
+                placement: frameGraph.placementOf<Object>(node.name),
+              )..state = passState,
+            );
+          }
+        } on Object catch (error, stack) {
+          // The engine's own pass ends the frame, as it always did. A
+          // plugin's or the application's is quarantined, its owner named,
+          // and the frame goes on: what it wrote in place still holds the
+          // version before it, a fresh write it never made is read as
+          // nothing by an optional reader, and the frames after leave it
+          // out as `PassSkip.failed`.
+          if (entry == null) rethrow;
+          nodeFailures.add(entry.fail(error, stack));
+          // A resource it keeps and never bound is bound to a blank of its
+          // description, so the promise `endNode` holds every node to does
+          // not take the frame down with the node.
+          for (final id in frameGraph.keptBy(i)) {
+            if (resources.tryTexture(id) == null &&
+                frameGraph.descriptorOf(id) != null) {
+              resources.provide(id, resources.texture(id));
+            }
+          }
         } finally {
           if (timing) developer.Timeline.finishSync();
           _passLabel = null;
@@ -6013,12 +6064,32 @@ final class Renderer with RenderServices {
       // shadows have no node called that, and the report must still name them.
       // Then what the frame declined, which the fields above already say
       // one convention at a time.
+      // A quarantined pass carries what it threw and whose it was; one that
+      // threw in this very frame ran, so the compile did not skip it, and
+      // is listed here as failed all the same.
       skipped: <SkippedPass>[
-        ...RenderStepInternals.reportSkips(
+        for (final skip in RenderStepInternals.reportSkips(
           settings,
           frameGraph.skipped,
           also: renderSteps.added,
-        ),
+        ))
+          if (skip.reason == PassSkip.failed)
+            SkippedPass(
+              name: skip.name,
+              reason: skip.reason,
+              failure: renderSteps._store.nodes
+                  .where((entry) => entry.node.name == skip.name)
+                  .map((entry) => entry.failure)
+                  .firstOrNull,
+            )
+          else
+            skip,
+        for (final failure in nodeFailures)
+          SkippedPass(
+            name: failure.node,
+            reason: PassSkip.failed,
+            failure: failure,
+          ),
         ...FrameResult.declinedSkips(
           wireframe: wireframeDeclined,
           alphaToCoverage: passState.coverageDeclined,
@@ -6029,7 +6100,21 @@ final class Renderer with RenderServices {
       targetBytes: resources.targetBytes,
       pipelineStalls: List<PipelineStall>.unmodifiable(_frameStalls),
       pipelineRefusals: refusals,
+      nodeFailures: List<NodeFailure>.unmodifiable(nodeFailures),
     );
+    // Said once, on the frame it happened, in debug builds; the report
+    // carries it either way.
+    assert(() {
+      for (final failure in nodeFailures) {
+        developer.log(
+          '$failure; it is left out of the frames that follow',
+          name: 'flutter3d.nodeFailed',
+          error: failure.error,
+          stackTrace: failure.stackTrace,
+        );
+      }
+      return true;
+    }());
     // What a held frame answers with, until the next one is drawn.
     _lastResult = result;
     _lastRequestedSize = (requestedWidth, requestedHeight);
@@ -6110,8 +6195,8 @@ final class Renderer with RenderServices {
 
     // See [releaseMeshAfterFrame].
     _releaseMeshes(_pendingMeshes[slot]);
-    // See [_releaseWorkloadAfterFrame].
-    _releaseWorkloads(_pendingWorkloads[slot]);
+    // See [_disposeNodeAfterFrame].
+    _disposeNodes(_pendingNodes[slot]);
     // See [_releasePipelinesAfterFrame].
     _releasePipelines(_pendingPipelines[slot]);
   }
@@ -6469,26 +6554,30 @@ final class Renderer with RenderServices {
     (_) => <DeviceMesh>[],
   );
 
-  /// A workload's step taken out of the frame, its buffers let go once no
-  /// frame in flight can still be using them: filed under the last frame
-  /// submitted, as [releaseMeshAfterFrame] files a mesh.
-  void _releaseWorkloadAfterFrame(WorkloadStep step) {
+  /// A node taken out of the frame (its registration cancelled), disposed
+  /// once no frame in flight can still be using what it holds: filed under
+  /// the last frame submitted, as [releaseMeshAfterFrame] files a mesh. A
+  /// workload's buffers go this way, and so does whatever a plugin's node
+  /// keeps between frames.
+  void _disposeNodeAfterFrame(FrameGraphNode node) {
+    // Before the first frame nothing can be using it.
+    if (_frameIndex == 0) return node.dispose();
     final lastSubmitted =
         (_frameIndex + _kFramesInFlight - 1) % _kFramesInFlight;
-    _pendingWorkloads[lastSubmitted].add(step);
+    _pendingNodes[lastSubmitted].add(node);
   }
 
-  final List<List<WorkloadStep>> _pendingWorkloads =
-      List<List<WorkloadStep>>.generate(
+  final List<List<FrameGraphNode>> _pendingNodes =
+      List<List<FrameGraphNode>>.generate(
         _kFramesInFlight,
-        (_) => <WorkloadStep>[],
+        (_) => <FrameGraphNode>[],
       );
 
-  void _releaseWorkloads(List<WorkloadStep> steps) {
-    for (final step in steps) {
-      step.release();
+  void _disposeNodes(List<FrameGraphNode> nodes) {
+    for (final node in nodes) {
+      node.dispose();
     }
-    steps.clear();
+    nodes.clear();
   }
 
   void _releaseMeshes(List<DeviceMesh> meshes) {

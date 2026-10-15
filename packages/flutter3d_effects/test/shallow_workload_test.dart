@@ -121,7 +121,8 @@ _run({
   addTearDown(world.dispose);
   final renderer = Renderer.create(device: drawing);
   final workload = ShallowWaterWorkload(world, water);
-  final added = await renderer.renderSteps.addWorkload(workload);
+  final added = renderer.renderSteps.addWorkload(workload);
+  await renderer.renderSteps.whenPlaced();
   addTearDown(added.cancel);
   final step = renderer.renderSteps.workloadStep(workload)!;
   final draw = _frames(renderer);

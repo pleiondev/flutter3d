@@ -259,7 +259,7 @@ void main() {
     bool held(TextureHandle t) =>
         !device.releasedTextures.any((r) => identical(r, t));
     expect(occluder.seen.where(held).length, lessThanOrEqualTo(4));
-    depth.release();
+    depth.dispose();
     expect(occluder.seen.where(held), isEmpty);
   });
 }

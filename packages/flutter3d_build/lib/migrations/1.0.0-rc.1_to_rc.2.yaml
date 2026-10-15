@@ -2709,3 +2709,42 @@ entries:
       Its views are typed `CameraView`, which `RenderView` is now; `dart
       fix` renames the type where code names it, and code that only
       passes the views on is unchanged.
+
+  - id: core-EnvironmentDepthNode-release
+    package: flutter3d_core
+    symbol: EnvironmentDepthNode.release
+    kind: rename
+    to: EnvironmentDepthNode.dispose
+    guidance: >-
+      A node that holds GPU memory ends its life with `dispose`, which the
+      registration that added it calls when it goes; call it yourself only
+      for a node you never added.
+
+  - id: core-FieldUpload-release
+    package: flutter3d_core
+    symbol: FieldUpload.release
+    kind: rename
+    to: FieldUpload.dispose
+    guidance: >-
+      The storage goes with `dispose`, which cancelling the registration
+      of `RendererSteps.addFieldUpload` calls; a later `place` makes it
+      again.
+
+  - id: core-SplatGpuSort-release
+    package: flutter3d_core
+    symbol: SplatGpuSort.release
+    kind: rename
+    to: SplatGpuSort.dispose
+    guidance: >-
+      The sorter gives its buffers back with `dispose`, the one teardown
+      verb; the next `sort` makes new ones, as before.
+
+  - id: core-PassSkip-values
+    package: flutter3d_core
+    symbol: PassSkip.values
+    kind: none
+    reason: >-
+      Two reasons join the end of the list, `pending` and `failed`, and the
+      seven before them keep their order. A `switch` over `PassSkip` already
+      has a default, since it is an open set; one that lists every reason
+      by hand adds the two.

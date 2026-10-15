@@ -603,7 +603,7 @@ final class SplatContributor extends PassContributor {
     }
     final gpu = _gpu;
     if (gpu != null && identical(gpu.device, frame.device)) return gpu;
-    gpu?.release();
+    gpu?.dispose();
     // A new device has none of the old one's order: the next build sorts.
     quads.invalidateSort();
     _gpuSorted = -1;

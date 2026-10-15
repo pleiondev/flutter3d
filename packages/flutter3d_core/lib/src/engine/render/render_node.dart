@@ -235,7 +235,13 @@ final class RenderFrame extends FrameContext {
     super.views,
     super.viewIndex,
     this.sceneColor,
+    this.placement,
   });
+
+  /// Where the node runs, as the frame's placer answered the request it
+  /// made with `FrameGraphBuilder.place` — a `ComputeNodePlacement` for a
+  /// `ComputePlacementRequest` — or null for a node that asked nothing.
+  final Object? placement;
 
   /// The textures and buffers behind this frame's declared resources: what
   /// a node reads and writes by the [ResourceId]s it declared.
@@ -282,4 +288,53 @@ abstract base class RenderNode extends FrameGraphNode {
   /// in its own class, instead of relying on every caller to know. (It was
   /// `preferredPhase` before 1.0.)
   RenderAnchor get defaultAnchor => RenderAnchor.afterScene;
+
+  /// How often the frame runs this node: [ViewRuns.perView], once for each
+  /// of the frame's views with `FrameContext.viewIndex` set to it, unless
+  /// the node says [ViewRuns.once].
+  ///
+  /// **Per view by default, because a pass of a plugin's usually draws what
+  /// a camera sees.** A stereo pair, a headset's eyes, a split screen: a
+  /// node that reads `frame.viewMatrix`, `frame.frameView` or
+  /// `frame.perView(id)` is handed each view in turn and draws each. A node
+  /// that works on the whole picture or on no view at all — a compute step,
+  /// a full-screen pass over the finished frame, a copy into a headset's
+  /// layers that walks `frame.views` itself — runs once, with `viewIndex`
+  /// 0. A frame with no camera runs every node once.
+  ///
+  /// Read for the nodes placed through `RendererSteps`; the engine's own
+  /// passes walk the views themselves.
+  ViewRuns get viewRuns => ViewRuns.perView;
+}
+
+/// How often a frame runs a [RenderNode]: [perView] or [once].
+///
+/// **An open set**, a class with constants rather than an enum, so a way of
+/// running a later minor adds (once per view group, once per eye pair)
+/// breaks no `switch` written against these two.
+final class ViewRuns {
+  const ViewRuns._(this.name);
+
+  /// Once for each of the frame's views, `FrameContext.viewIndex` naming it.
+  static const ViewRuns perView = ViewRuns._('perView');
+
+  /// Once a frame, with `FrameContext.viewIndex` 0.
+  static const ViewRuns once = ViewRuns._('once');
+
+  /// Every way of running this version names.
+  static const List<ViewRuns> values = <ViewRuns>[perView, once];
+
+  /// The way called [name], or null for one this version does not know.
+  static ViewRuns? byName(String name) {
+    for (final runs in values) {
+      if (runs.name == name) return runs;
+    }
+    return null;
+  }
+
+  /// The stable name.
+  final String name;
+
+  @override
+  String toString() => 'ViewRuns.$name';
 }

@@ -8,6 +8,8 @@
 /// test was written by breaking what it covers; the mutation is named.
 library;
 
+import 'dart:async';
+
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:test/test.dart';
 
@@ -256,13 +258,90 @@ void main() {
         () =>
             manager().installAll(<Flutter3dPlugin>[_Plugin('a'), _Plugin('a')]),
         throwsA(
-          isA<PluginException>().having(
-            (e) => e.message,
-            'message',
-            contains('two plugins are named "a"'),
-          ),
+          isA<NameTakenException>()
+              .having((e) => e.name, 'name', 'a')
+              .having((e) => e.what, 'what', 'the plugin id'),
         ),
       );
+    });
+  });
+
+  group('a plugin that throws', () {
+    test('in install is left off with its dependents, and the rest '
+        'install', () {
+      // Mutation: rethrow from installAll as before, and "after" and
+      // "fire" never install because "broken" did not.
+      final broken = _Broken();
+      final plugins = manager()
+        ..installAll(<Flutter3dPlugin>[
+          _Plugin('before'),
+          broken,
+          _Plugin('fire', dependsOn: <String>['broken']),
+          _Plugin('after'),
+        ]);
+      final status = <String, PluginStatus>{
+        for (final s in plugins.statuses) s.id: s,
+      };
+      expect(status['before']!.enabled, isTrue);
+      expect(status['after']!.enabled, isTrue);
+      expect(status['broken']!.enabled, isFalse);
+      expect(status['broken']!.reason, contains('its install threw'));
+      expect(status['broken']!.error, isA<StateError>());
+      expect(status['fire']!.enabled, isFalse);
+      expect(status['fire']!.reason, contains('"broken"'));
+      // What it registered before it threw is withdrawn.
+      expect(loop.systems, <String>['before', 'after']);
+    });
+
+    test('in ready is switched off at the next boundary, with its '
+        'dependents', () async {
+      // Mutation: ignore what ready threw, and a plugin that never loaded
+      // what it draws with stays on.
+      final plugins = manager()
+        ..installAll(<Flutter3dPlugin>[
+          _Readies('slow'),
+          _Readies('bad', fails: true),
+          _Plugin('needs_bad', dependsOn: <String>['bad']),
+        ]);
+      expect(plugins.isEnabled('bad'), isTrue);
+      await plugins.whenReady();
+      expect(plugins.isEnabled('bad'), isTrue, reason: 'only at a boundary');
+      plugins.applyPending(1);
+      final status = <String, PluginStatus>{
+        for (final s in plugins.statuses) s.id: s,
+      };
+      expect(status['slow']!.enabled, isTrue);
+      expect(status['bad']!.enabled, isFalse);
+      expect(status['bad']!.reason, contains('its ready threw'));
+      expect(status['needs_bad']!.enabled, isFalse);
+      expect(status['needs_bad']!.reason, contains('"bad"'));
+      expect(loop.systems, <String>['slow']);
+    });
+
+    test('ready runs after install, and what it registers late is the '
+        'plugin\'s', () async {
+      final plugins = manager()..installAll(<Flutter3dPlugin>[_Readies('a')]);
+      expect(loop.systems, <String>['a']);
+      await plugins.whenReady();
+      expect(loop.systems, <String>['a', 'a.late']);
+      plugins
+        ..disable('a')
+        ..applyPending(1);
+      expect(loop.systems, isEmpty);
+    });
+
+    test('a registration made after the plugin was switched off is '
+        'withdrawn at once', () async {
+      // Mutation: file a late registration with whatever installation is
+      // current, and a plugin that is off keeps a system in the loop.
+      final waiting = _Readies('a', waits: true);
+      final plugins = manager()..installAll(<Flutter3dPlugin>[waiting]);
+      plugins
+        ..disable('a')
+        ..applyPending(1);
+      waiting.release();
+      await plugins.whenReady();
+      expect(loop.systems, isEmpty);
     });
   });
 
@@ -474,6 +553,48 @@ void main() {
     expect(told, SimulationProfile.accurate);
     expect(told!.isBitExact, isFalse);
   });
+}
+
+/// Registers a system, then throws from install.
+final class _Broken extends Flutter3dPlugin {
+  @override
+  PluginManifest get manifest =>
+      const PluginManifest(id: 'broken', apiVersion: PluginApiVersion(1, 0));
+
+  @override
+  void install(PluginHost host) {
+    host.loop.addSystem('broken', LoopPhase.rules, (_) {});
+    throw StateError('no assets');
+  }
+}
+
+/// Registers a system in install, and one more once its ready has loaded —
+/// or throws from ready when [fails], or waits for [release] when [waits].
+final class _Readies extends Flutter3dPlugin {
+  _Readies(this.id, {this.fails = false, this.waits = false});
+
+  final String id;
+  final bool fails;
+  final bool waits;
+  final Completer<void> _gate = Completer<void>();
+
+  void release() => _gate.complete();
+
+  @override
+  PluginManifest get manifest =>
+      PluginManifest(id: id, apiVersion: const PluginApiVersion(1, 0));
+
+  @override
+  void install(PluginHost host) =>
+      host.loop.addSystem(id, LoopPhase.rules, (_) {});
+
+  @override
+  Future<void> ready(PluginHost host) async {
+    if (waits) await _gate.future;
+    await Future<void>.delayed(Duration.zero);
+    if (fails) throw StateError('the library would not load');
+    if (id == 'a') host.loop.addSystem('a.late', LoopPhase.rules, (_) {});
+  }
 }
 
 final class _AsksForProfile extends Flutter3dPlugin {

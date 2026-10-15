@@ -178,8 +178,9 @@ final class McpTools extends McpToolRegistry {
   /// a tool without it.
   ///
   /// Throws an [ArgumentError] for a name that is not letters, digits, `_`
-  /// and `-`, for a published name longer than [maxNameLength], and for one
-  /// already added — naming who added it. Throws a [PluginException] when a
+  /// and `-` and for a published name longer than [maxNameLength], and a
+  /// [NameTakenException] for one already added — naming who added it.
+  /// Throws a [PluginException] when a
   /// plugin whose manifest does not list [PluginPermission.tools] adds one,
   /// and when a plugin names another [namespace] than its own.
   Registration addTool(ToolSpec tool, ProjectToolRun run, {String? namespace}) {
@@ -259,10 +260,11 @@ final class McpTools extends McpToolRegistry {
         ? 'the application'
         : 'plugin "${scope.manifest.id}"';
     if (named(name) case final ProjectTool taken) {
-      throw ArgumentError.value(
+      throw NameTakenException(
         name,
-        'tool',
-        'is already added, by ${taken.owner}; $owner cannot add it again',
+        what: 'the MCP tool',
+        owner: taken.owner,
+        detail: '$owner cannot add it again',
       );
     }
     final added = ProjectTool._(

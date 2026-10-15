@@ -917,7 +917,10 @@ rules hold them over every published API snapshot (`tool/structure/naming.dart`)
   a debug build, and the device's own `dispose` ends every handle it made
   (the whole contract is on `GraphicsDevice`). A `stop()` beside `dispose()`
   is a state transition (`start()` may follow it) and its doc says so, as
-  `PointerLock.release()` is the other half of `capture()`.
+  `PointerLock.release()` is the other half of `capture()`. A synchronous
+  `release()` that ends its object counts as a teardown verb and is
+  `dispose()`; a frame-graph node's is called by the registration that put
+  it in the frame, when that is cancelled.
 - **Creation verbs.** `create` is synchronous (the GPU's `create…Async` is the
   asynchronous variant of a synchronous one); a device or a session is
   opened (`open`, asynchronous); an asset is loaded, bytes are decoded, text

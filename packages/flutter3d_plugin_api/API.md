@@ -150,11 +150,22 @@ names the plugin and the claim (`'"outside.editor" ... only tooling'`).
 ### Installing and switching
 
 The engine owns a `PluginManager` (a plugin never sees it).
-`installAll` checks every manifest (`idProblem`, a duplicate id, the API
-version, each dependency's range) and throws a `PluginException` for the
-first that fails; then it installs in dependency order, and a plugin whose
-backend does not match or whose dependency is off is left off with a
-`PluginStatus.reason`. `enable(id)`, `disable(id)` and `reorder(order)` are
+`installAll` checks every manifest (`idProblem`, a duplicate id — a
+`NameTakenException` —, the API version, each dependency's range) and
+throws a `PluginException` for the first that fails; then it installs in
+dependency order. A plugin whose backend does not match, whose dependency
+is off, or whose `install` throws is left off with a `PluginStatus.reason`
+(and the throw in `PluginStatus.error`), what it registered withdrawn; the
+rest install.
+
+`install` is synchronous, and so is every registration: each returns its
+`Registration` at once, and what has to load behind one (a compute step's
+kernels) is pending in the frame until it has. What a plugin loads itself
+goes in `Future<void> ready(PluginHost host)`, called after each install;
+`PluginManager.whenReady` completes when every installed plugin's has, and
+one that throws switches the plugin and its dependents off at the next
+step boundary. A registration made after the plugin was switched off is
+withdrawn at once. `enable(id)`, `disable(id)` and `reorder(order)` are
 checked when called (disabling a plugin another enabled one depends on
 throws, naming the dependent) and take effect at the next step boundary.
 Each change is a `PluginChange` (`PluginEnabled`, `PluginDisabled`,
@@ -763,18 +774,23 @@ plugin's own anchor.
 | `addStep(RenderStep)` | A step switched like the engine's: `RenderSettings.without` and `only` switch it, and switching off a step it `needs` takes it down too |
 | `provide(RenderStep)` | Says the plugin provides one of the engine's steps (what a `RenderStepAddon` does) |
 | `addNode(RenderNode, {at, step, after, before})` | A node at an anchor, owned by a step |
-| `addComputeStep(ComputeStep, {at, owner, ...})` | A compute node, placed by the hardware layer (asynchronous) |
-| `addFieldUpload(FieldUpload, {at, owner, ...})` | Puts a host field on a device (asynchronous) |
+| `addComputeStep(ComputeStep, {at, owner, ...})` | A compute node, placed by the hardware layer behind the registration (`PassSkip.pending` until it is) |
+| `addWorkload(ComputeWorkload, {at})` | A simulation's workload, placed by the workload rule and told where it landed |
+| `addFieldUpload(FieldUpload, {at, owner, ...})` | Puts a host field on a device, placed behind the registration |
 | `addContributor(PassContributor)`, `removeContributor` | Draws into the scene pass |
-| `placeSkinningHook(SkinningHook)` | Skinning on the drawing device or the CPU |
+| `placeSkinningHook(SkinningHook)` | Skinning on the drawing device or the CPU, named `<namespace>.skinning_<n>` |
+| `whenPlaced()` | Completes once every placement started so far has settled — for a test or a loading screen, never a frame |
 | `addSettings(SettingsSlot)` | A settings group in `RenderSettings.extensions` |
 | `addMaterials(ShaderLibrary)` | A plugin's compiled stages |
 | `fromDocument(PipelineDocument)` | Nodes from a pipeline document |
 | `anchors`, `named(name)`, `anchorNamed(name)`, `nodesAt(anchor)`, `providerOf(step)` | Lookups |
 
-Refused: a step name outside the namespace or already taken, a built-in
-step added again, a `needs` nobody registered (`ArgumentError` or
-`PluginException`, naming the step and its owner).
+Refused: a step name outside the namespace (`PluginException`), a name
+already taken or a built-in step added again (`NameTakenException`, naming
+the name and its owner), a `needs` nobody registered (`ArgumentError`).
+
+Every registration returns at once. Cancelling one takes the node out and
+calls its `dispose` once no frame in flight can still be using it.
 
 `RenderStep(name, {passes, passPrefix, needs, switchOff, isOn})` is one
 switch over the frame. `isOn` and `switchOff` take one `RenderStepContext`
@@ -799,13 +815,23 @@ void renderStep(PluginHost host, FullscreenEffect effect) =>
 
 | Type | What it is |
 |---|---|
-| `RenderNode` (`abstract base`) | A frame graph node: `name`, `setup(FrameGraphBuilder)` (`read`, `readIfProduced`, `write`, `create`, `keep`, `place`), `execute(RenderFrame)`, `defaultAnchor`, `isActive`, `isSupported` |
+| `RenderNode` (`abstract base`) | A frame graph node: `name`, `setup(FrameGraphBuilder)` (`read`, `readIfProduced`, `write`, `create`, `keep`, `place`), `execute(RenderFrame)`, `defaultAnchor`, `isActive`, `isSupported`, `isReady` (false while what it runs with loads: `PassSkip.pending`), `viewRuns` (`ViewRuns.perView`, the default, runs it once per view with `viewIndex` set; `ViewRuns.once`), `dispose()` (called when its registration goes) |
+| `ComputePlacementRequest` | What a node that is not a compute step hands `FrameGraphBuilder.place` for compute of its own: the renderer's placer loads its kernels where the hardware layer says, the node is pending meanwhile, and `RenderFrame.placement` is then a `ComputeNodePlacement` (`site`, `stage(kernel)`) |
 | `FullscreenEffect` | A full-screen stage: `.overlay(...)`, `.present(...)`, and `FullscreenEffect.material(materials, stage, {name, shader, parameters, ...})` for a stage written in the material language, bound at its source's defaults (`parameters`), reading the surface buffer when its source reads `sceneDepth` (`readsSurface`) |
 | `ComputeStep` (`abstract base`) | `kernels` (`ComputeKernel`s in the kernel language, `kernelLanguageVersion` 2), `record(ComputeContext)`, `prepare(device)`, `site` (where the hardware layer put it, a `ComputeSite`); a step nothing can run is a `ComputePlacementException` (`refusal`) and is not run. A step asks for no placement |
 | `FieldUpload` | A host field carried into the frame as a 3D texture or a storage buffer (`residence`); `refusal` is a `FieldResidenceException` |
 | `PassContributor` (`abstract base`) | Draws into the scene pass: `encode(ContributorFrame)`, `boundsFor(view)`, `order`, `readsSceneDepth`, `isOverlay` |
 | `DrawListHook`, `SkinningHook`, `LodPolicy` | Through `RenderHooks`: keep or sort draws (`DrawListContext`), skin claimed meshes (`SkinningContext`, writing `FrameResourceIds.skinnedVertices`), choose LOD levels |
 | `SceneBindingSpec` | Through `SceneBindings.add`: a published component drawn as a node of a `SceneNodeKind`, with its fields mapped to material parameters, `interpolation` and `lifetime` |
+
+**A node that throws is quarantined, and the frame goes on.** The rest of
+the frame is drawn; from the next one the node is left out as
+`PassSkip.failed`, with `SkippedPass.failure` (a `NodeFailure`) naming it,
+the plugin that placed it and what it threw, and what only read its output
+is culled. `FrameResult.nodeFailures` lists the failures of the frame they
+happened in, which a debug build hands to `FlutterError.reportError`.
+Switching the plugin off and on places the node again. The engine's own
+passes still end the frame they throw in.
 
 `ComputeContext` holds `device`, `site`, `frame`, `step`,
 `stage(kernel)`, `beginPass()`, `isOnFrameDevice`. `ContributorFrame`

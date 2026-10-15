@@ -65,6 +65,11 @@ final class ViewModelNode extends RenderNode {
   @override
   bool get isActive => scene.meshes.isNotEmpty;
 
+  /// Once a frame: it draws through its own [camera] over the whole
+  /// picture, not through the frame's views.
+  @override
+  ViewRuns get viewRuns => ViewRuns.once;
+
   /// Its own pass, so nothing the scene left is believed.
   ///
   /// The weapon is drawn over a finished scene with its own depth buffer, which

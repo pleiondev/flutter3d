@@ -100,7 +100,8 @@ Future<Future<void> Function()?> _place(
     return null;
   }
   final (:renderer, :frame) = _renderer(device);
-  final added = await renderer.renderSteps.addWorkload(workload);
+  final added = renderer.renderSteps.addWorkload(workload);
+  await renderer.renderSteps.whenPlaced();
   addTearDown(added.cancel);
   final binding = renderer.renderSteps.workloadStep(workload)!.binding!;
   expect(computePlacementOf(binding.site!), machine.lands);
@@ -637,7 +638,8 @@ void main() {
     addTearDown(cpu.dispose);
     final onHost = ParticleCloudWorkload(50)..emit(_spray(50));
     addTearDown(onHost.dispose);
-    final added = await renderer.renderSteps.addWorkload(onHost);
+    final added = renderer.renderSteps.addWorkload(onHost);
+    await renderer.renderSteps.whenPlaced();
     addTearDown(added.cancel);
     expect(
       renderer.renderSteps.workloadStep(onHost)!.binding!.isOnHost,
@@ -659,7 +661,8 @@ void main() {
       final (:renderer, :frame) = _renderer(device);
       final onDevice = ParticleCloudWorkload(20)..emit(_spray(20));
       addTearDown(onDevice.dispose);
-      final added = await renderer.renderSteps.addWorkload(onDevice);
+      final added = renderer.renderSteps.addWorkload(onDevice);
+      await renderer.renderSteps.whenPlaced();
       onDevice.step(ParticleCloudStep(forces: _weather, dt: 1 / 60, steps: 10));
       await frame();
       await frame();

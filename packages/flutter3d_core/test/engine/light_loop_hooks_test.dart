@@ -17,6 +17,7 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show
+        NameTakenException,
         PluginApiVersion,
         PluginException,
         PluginManifest,
@@ -85,7 +86,10 @@ void main() {
 
     test('a built-in type, and a plugin\'s outside its namespace, refused', () {
       final types = LightTypes();
-      expect(() => types.register(_Bare(LightType.point)), throwsArgumentError);
+      expect(
+        () => types.register(_Bare(LightType.point)),
+        throwsA(isA<NameTakenException>()),
+      );
       final renderer = Renderer.create(device: FakeBackend());
       expect(renderer.renderSteps.companions, contains(renderer.lightTypes));
       expect(

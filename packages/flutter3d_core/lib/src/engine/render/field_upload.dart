@@ -152,6 +152,16 @@ final class FieldUpload extends RenderNode {
   @override
   bool get isSupported => _site != null;
 
+  /// False while a [place] is working out where the field goes: the frame
+  /// reports the upload as `PassSkip.pending` until it answers.
+  @override
+  bool get isReady => _placing == 0;
+  int _placing = 0;
+
+  /// Once a frame: the field has no view.
+  @override
+  ViewRuns get viewRuns => ViewRuns.once;
+
   /// Decides where the field is held for frames drawn on [device], and
   /// whether it can be. A [FieldResidence.texture3D] field is held on
   /// [device], which needs `DeviceFeature.texture3D` and
@@ -161,12 +171,18 @@ final class FieldUpload extends RenderNode {
   /// them.
   ///
   /// Answers the refusal when nothing fits, which [refusal] also holds;
-  /// null when placed. Placing again releases what the last placement made.
+  /// null when placed. Placing again lets go of what the last placement
+  /// made. Until it answers the upload is not [isReady].
   ///
   /// **Breaking in 1.0.0-rc.1+1:** given the device, not executors, and
   /// asynchronous, as a compute step's placement is.
-  Future<FieldResidenceException?> place(GraphicsDevice device) async {
-    release();
+  Future<FieldResidenceException?> place(GraphicsDevice device) {
+    _placing++;
+    return _place(device).whenComplete(() => _placing--);
+  }
+
+  Future<FieldResidenceException?> _place(GraphicsDevice device) async {
+    dispose();
     return _refusal = switch (residence) {
       FieldResidence.texture3D => _placeTexture(device),
       FieldResidence.buffer => await _placeBuffer(device),
@@ -290,8 +306,11 @@ final class FieldUpload extends RenderNode {
           );
   }
 
-  /// Releases what the last placement made on its device.
-  void release() {
+  /// Lets go of what the last placement made on its device: what a renderer
+  /// calls when the registration that added the upload is cancelled. A
+  /// later [place] makes it again. Since 1.0.0-rc.1+1, `release`.
+  @override
+  void dispose() {
     switch (_storage) {
       case final BufferField field:
         field.site.device.releaseStorageBuffer(field.buffer);

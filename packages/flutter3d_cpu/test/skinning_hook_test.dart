@@ -195,7 +195,8 @@ void main() {
     final copied = <Float32List>[];
     final hook = LinearBlendSkinning();
     registry.adopt(device);
-    final placed = await renderer.renderSteps.placeSkinningHook(hook);
+    final placed = renderer.renderSteps.placeSkinningHook(hook);
+    await renderer.renderSteps.whenPlaced();
     renderer.renderSteps.addNode(_Reader(copied));
     expect(renderer.hooks.skinningHooks, <SkinningHook>[hook]);
 
@@ -231,7 +232,8 @@ void main() {
     final (scene, _, camera) = _scene(device);
     const hook = _Fill();
     registry.adopt(device);
-    await renderer.renderSteps.placeSkinningHook(hook);
+    renderer.renderSteps.placeSkinningHook(hook);
+    await renderer.renderSteps.whenPlaced();
 
     renderer.render(
       width: 16,

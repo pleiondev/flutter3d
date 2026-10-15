@@ -85,8 +85,8 @@ void _checkName(String name, String argument) {
 /// [vmVersionExtension], so a tool attached to a running game asks one
 /// extension what the others are and which schema they speak.
 ///
-/// Registering a name twice throws an [ArgumentError], as `dart:developer`
-/// does. Returns the [Registration] that switches it off: the VM service
+/// Registering a name twice, or an alias another extension has, throws a
+/// [NameTakenException]. Returns the [Registration] that switches it off: the VM service
 /// cannot forget a name, so a switched-off extension answers an error saying
 /// so until it is registered again.
 Registration registerFlutter3dExtension(
@@ -97,7 +97,7 @@ Registration registerFlutter3dExtension(
 }) {
   _checkName(name, 'name');
   if (_registered[name] != null) {
-    throw ArgumentError.value(name, 'name', 'is already registered');
+    throw NameTakenException(name, what: 'the VM service extension');
   }
   for (final alias in aliases) {
     _checkName(alias, 'aliases');
@@ -105,10 +105,10 @@ Registration registerFlutter3dExtension(
     if (alias == name ||
         _registered.containsKey(alias) ||
         (held != null && held != name)) {
-      throw ArgumentError.value(
+      throw NameTakenException(
         alias,
-        'aliases',
-        'is already an extension\'s name or another extension\'s alias',
+        what: 'the VM service extension alias',
+        detail: 'it is an extension\'s name or another extension\'s alias',
       );
     }
   }

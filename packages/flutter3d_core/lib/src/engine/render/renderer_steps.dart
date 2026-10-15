@@ -128,9 +128,10 @@ final class RendererSteps extends RenderStepRegistry {
 
   /// Makes [step] one of this renderer's steps.
   ///
-  /// Throws an [ArgumentError] for a built-in step, for a name another step
-  /// already has, and for a step that needs one this renderer does not know
-  /// — add the need first.
+  /// Throws a [NameTakenException] for a built-in step and for a name
+  /// another step already has, naming who has it, and an [ArgumentError]
+  /// for a step that needs one this renderer does not know — add the need
+  /// first.
   ///
   /// Through a plugin's view, a [PluginException] for a step named outside
   /// the plugin's namespace, `<namespace>.<name>` (D23).
@@ -138,10 +139,11 @@ final class RendererSteps extends RenderStepRegistry {
     _notTooling('the render step "${step.name}"');
     _inNamespace(step.name, 'the render step');
     if (step.isBuiltIn) {
-      throw ArgumentError.value(
+      throw NameTakenException(
         step.name,
-        'step',
-        'is one of the engine\'s own steps; it needs no adding',
+        what: 'the render step',
+        owner: 'the engine',
+        detail: 'it is one of the engine\'s own steps and needs no adding',
       );
     }
     final taken = named(step.name);
@@ -150,10 +152,10 @@ final class RendererSteps extends RenderStepRegistry {
           .where((entry) => entry.step == taken)
           .map((entry) => entry.owner)
           .firstOrNull;
-      throw ArgumentError.value(
+      throw NameTakenException(
         step.name,
-        'step',
-        'a step of this name is already ${owner == null ? 'built in' : 'added, by $owner'}',
+        what: 'the render step',
+        owner: owner ?? 'the engine',
       );
     }
     for (final need in step.needs) {
@@ -179,13 +181,92 @@ final class RendererSteps extends RenderStepRegistry {
   /// built in or added; switched off, it makes [node] inactive and the frame
   /// reports the pass as switched off.
   ///
-  /// Throws an [ArgumentError] for a node named as one of the engine's
-  /// passes (`RenderSettings.passOrder`, or a `reflection probe N`), for a
-  /// name another added node has, for a step this renderer does not know,
-  /// and for a plugin's anchor nobody added with [addAnchor]. Through a
-  /// plugin's view, a [PluginException] for a node, or a resource it makes
-  /// (`FrameGraphBuilder.create`), named outside the plugin's namespace.
+  /// Throws a [NameTakenException] for a node named as one of the engine's
+  /// passes (`RenderSettings.passOrder`, or a `reflection probe N`) and for
+  /// a name another added node has, and an [ArgumentError] for a step this
+  /// renderer does not know and for a plugin's anchor nobody added with
+  /// [addAnchor]. Through a plugin's view, a [PluginException] for a node,
+  /// or a resource it makes (`FrameGraphBuilder.create`), named outside the
+  /// plugin's namespace.
+  ///
+  /// **Cancelling the result takes the node out and disposes it**
+  /// (`FrameGraphNode.dispose`), once no frame in flight can still be using
+  /// what it holds.
+  ///
+  /// **A node that throws is quarantined, and the frame goes on.** It is
+  /// left out of every frame after, reported as `PassSkip.failed` with the
+  /// plugin that placed it named (`SkippedPass.failure`); what only read
+  /// its output is culled or does without; the frame it threw in is drawn
+  /// to the end and lists it in `FrameResult.nodeFailures`. Placing it again
+  /// — the plugin switched off and on — lets it run again.
   Registration addNode(
+    RenderNode node, {
+    RenderAnchor? at,
+    RenderStep? step,
+    List<String> after = const <String>[],
+    List<String> before = const <String>[],
+  }) => _placeNode(
+    _checkedNode(node, at: at, step: step, after: after, before: before),
+  );
+
+  /// [entry] in the frame until the result is cancelled, which takes it
+  /// out, runs [also], and disposes its node once no frame in flight can
+  /// still be using it.
+  Registration _placeNode(_AnchoredNode entry, {void Function()? also}) {
+    _store.nodes.add(entry);
+    final registration = Registration(() {
+      _store.nodes.remove(entry);
+      also?.call();
+      _store.disposeNode(entry.node);
+    });
+    _scope?.track(registration);
+    return registration;
+  }
+
+  /// [placing], the load of what [entry]'s node runs with, followed: the
+  /// node stays pending in the frame until it settles (the node's own
+  /// `isReady`); an error it ends in quarantines the node, naming its
+  /// owner, rather than reaching nobody as an unhandled one; and once it
+  /// settles after the node was taken out, [afterCancelled] lets go of what
+  /// the load made. [whenPlaced] waits for it.
+  void _follow(
+    _AnchoredNode entry,
+    Future<Object?> placing, {
+    void Function()? afterCancelled,
+  }) {
+    late final Future<void> followed;
+    followed = placing
+        .then<void>(
+          (_) {},
+          onError: (Object error, StackTrace stack) {
+            if (_store.nodes.contains(entry)) entry.fail(error, stack);
+          },
+        )
+        .whenComplete(() {
+          _store.placing.remove(followed);
+          if (!_store.nodes.contains(entry)) afterCancelled?.call();
+        });
+    _store.placing.add(followed);
+  }
+
+  /// Completes once every placement started by this renderer's
+  /// registrations so far has settled — [addComputeStep], [addWorkload],
+  /// [addFieldUpload], [placeSkinningHook], and the compute a node asked
+  /// for with `FrameGraphBuilder.place` — placed, refused or failed.
+  ///
+  /// **What a test or a loading screen waits on; a frame never does.** The
+  /// registrations are synchronous and the frame draws without what is
+  /// still loading (`PassSkip.pending`); this is for a caller that wants
+  /// the frame with it.
+  Future<void> whenPlaced() async {
+    while (_store.placing.isNotEmpty) {
+      await Future.wait(List<Future<void>>.of(_store.placing));
+    }
+  }
+
+  /// [node] at [at] with its constraints, checked as [addNode] checks it and
+  /// not yet in the frame.
+  _AnchoredNode _checkedNode(
     RenderNode node, {
     RenderAnchor? at,
     RenderStep? step,
@@ -208,20 +289,22 @@ final class RendererSteps extends RenderStepRegistry {
     final name = node.name;
     if (RenderSettings.passOrder.contains(name) ||
         name.startsWith(RenderStep.reflectionProbes.passPrefix!)) {
-      throw ArgumentError.value(
+      throw NameTakenException(
         name,
-        'node',
-        'is the name of one of the engine\'s passes; a node needs a name of '
+        what: 'the node',
+        owner: 'the engine',
+        detail:
+            'it is one of the engine\'s passes; a node needs a name of '
             'its own',
       );
     }
     for (final entry in _store.nodes) {
       if (entry.node.name != name) continue;
-      throw ArgumentError.value(
+      throw NameTakenException(
         name,
-        'node',
-        'a node of this name is already at ${entry.anchor.name}, added by '
-            '${entry.owner}',
+        what: 'the node',
+        owner: entry.owner,
+        detail: 'it stands at ${entry.anchor.name}',
       );
     }
     if (step != null &&
@@ -233,7 +316,7 @@ final class RendererSteps extends RenderStepRegistry {
         'is not a step of this renderer. Add it with addStep first',
       );
     }
-    final entry = _AnchoredNode(
+    return _AnchoredNode(
       node,
       anchor,
       step,
@@ -243,10 +326,6 @@ final class RendererSteps extends RenderStepRegistry {
       _owner,
       _store.sequence++,
     );
-    _store.nodes.add(entry);
-    final registration = Registration(() => _store.nodes.remove(entry));
-    _scope?.track(registration);
-    return registration;
   }
 
   /// The device this renderer draws on, whose compute the hardware layer
@@ -259,33 +338,48 @@ final class RendererSteps extends RenderStepRegistry {
     ),
   };
 
-  /// Places [step] (`ComputeStep.prepare`) and adds it as a node at [at], as
-  /// [addNode] does — the one call that puts a compute step in the frame.
+  /// Adds [step] as a node at [at], as [addNode] does, and places it
+  /// (`ComputeStep.prepare`) — the one call that puts a compute step in the
+  /// frame.
   ///
-  /// **Placed before it is added, because a frame cannot wait.** Loading a
-  /// kernel is asynchronous on every device; the frame graph only asks the
-  /// step whether it was placed. Where it goes is the hardware layer's to
-  /// say, from the device this renderer draws on and the registry that
-  /// opened it: that device, the sidecar `registerWgpuSidecar` added, the
-  /// CPU `registerCpuBackend` added. A step nothing can run is added all
-  /// the same: the frame reports it as `PassSkip.unsupported`, with
-  /// `ComputeStep.refusal` saying why, and culls what only read its output.
+  /// **Added at once, placed behind it, because a frame cannot wait.**
+  /// Loading a kernel is asynchronous on every device; the registration is
+  /// not. The step is in the frame from this call on and reported as
+  /// `PassSkip.pending` until it is placed, and the frame after that runs
+  /// it. Where it goes is the hardware layer's to say, from the device this
+  /// renderer draws on and the registry that opened it: that device, the
+  /// sidecar `registerWgpuSidecar` added, the CPU `registerCpuBackend`
+  /// added. A step nothing can run stays in the frame as
+  /// `PassSkip.unsupported`, with `ComputeStep.refusal` saying why, and
+  /// culls what only read its output; a placement that fails some other way
+  /// quarantines the step as a node that threw is. Cancelling the result
+  /// while the placement is still loading takes the step out at once.
+  /// [whenPlaced] waits for the placement.
   ///
   /// Throws what [addNode] throws, before anything is loaded.
   ///
-  /// **Breaking in 1.0.0-rc.1+1:** no executors are handed in.
-  Future<Registration> addComputeStep(
+  /// **Breaking in 1.0.0-rc.1+1:** no executors are handed in, and the
+  /// result is the [Registration] itself, not a `Future` of it.
+  Registration addComputeStep(
     ComputeStep step, {
     RenderAnchor? at,
     RenderStep? owner,
     List<String> after = const <String>[],
     List<String> before = const <String>[],
-  }) async {
-    // The checks first, then the placement, then the node: a name refused
+  }) {
+    // The checks first, then the node, then the placement: a name refused
     // loads no kernel on any device.
-    addNode(step, at: at, step: owner, after: after, before: before).cancel();
-    await step.prepare(_drawing('addComputeStep'));
-    return addNode(step, at: at, step: owner, after: after, before: before);
+    final entry = _checkedNode(
+      step,
+      at: at,
+      step: owner,
+      after: after,
+      before: before,
+    );
+    final device = _drawing('addComputeStep');
+    final registration = _placeNode(entry);
+    _follow(entry, step.prepare(device));
+    return registration;
   }
 
   /// Puts [workload] in the frame, placed by the hardware layer's workload
@@ -299,31 +393,33 @@ final class RendererSteps extends RenderStepRegistry {
   /// `ComputeWorkload.placed` and draws from what that says, and neither it
   /// nor whoever adds it says where it may run.
   ///
-  /// Cancelling the result takes the step out of the frame
-  /// and lets go of its buffers once no frame in flight can be using them.
-  /// A workload nothing can run — no executor and no host code — is added
-  /// all the same and reported as `PassSkip.unsupported`, as a compute step
-  /// is.
-  Future<Registration> addWorkload(
-    ComputeWorkload workload, {
-    RenderAnchor? at,
-  }) async {
+  /// In the frame at once and placed behind it, as [addComputeStep] is:
+  /// `PassSkip.pending` until the workload is told. Cancelling the result
+  /// takes the step out of the frame and lets go of its buffers once no
+  /// frame in flight can be using them (`WorkloadStep.dispose`). A workload
+  /// nothing can run — no executor and no host code — stays in the frame
+  /// and is reported as `PassSkip.unsupported`, as a compute step is.
+  ///
+  /// **Breaking in 1.0.0-rc.1+1:** the result is the [Registration]
+  /// itself, not a `Future` of it.
+  Registration addWorkload(ComputeWorkload workload, {RenderAnchor? at}) {
     final step = WorkloadStep(workload);
-    addNode(step, at: at).cancel();
-    await step.prepare(_drawing('addWorkload'));
-    final added = addNode(step, at: at);
+    final entry = _checkedNode(step, at: at);
+    final device = _drawing('addWorkload');
     _store.workloads.add(step);
-    final registration = Registration(() {
-      added.cancel();
-      _store.workloads.remove(step);
-      final renderer = _store.renderer;
-      if (renderer == null) {
-        step.release();
-      } else {
-        renderer._releaseWorkloadAfterFrame(step);
-      }
-    });
-    _scope?.track(registration);
+    final registration = _placeNode(
+      entry,
+      also: () => _store.workloads.remove(step),
+    );
+    // A placement that lands after the step was taken out made buffers
+    // nobody will draw: they go at once, since no frame ever ran it there.
+    _follow(
+      entry,
+      step.prepare(device),
+      afterCancelled: () {
+        if (step.binding != null) step.dispose();
+      },
+    );
     return registration;
   }
 
@@ -336,79 +432,84 @@ final class RendererSteps extends RenderStepRegistry {
     return null;
   }
 
-  /// Places [upload] (`FieldUpload.place`) and adds it as a node, as
+  /// Adds [upload] as a node and places it (`FieldUpload.place`), as
   /// [addComputeStep] does for a compute step: the one call that puts a
   /// simulation's field in the frame.
   ///
-  /// An upload nothing can hold is added all the same: the frame reports it
-  /// as `PassSkip.unsupported`, with `FieldUpload.refusal` saying why, and
+  /// In the frame at once, `PassSkip.pending` until it is placed. An upload
+  /// nothing can hold stays in the frame: the frame reports it as
+  /// `PassSkip.unsupported`, with `FieldUpload.refusal` saying why, and
   /// culls whatever only read the field. Cancelling the registration takes
   /// the node out and lets go of the storage it held
-  /// (`FieldUpload.release`).
+  /// (`FieldUpload.dispose`).
   ///
   /// Throws what [addNode] throws, before anything is placed.
   ///
-  /// **Breaking in 1.0.0-rc.1+1:** no executors are handed in, and it is
-  /// asynchronous, as placing a compute step is.
-  Future<Registration> addFieldUpload(
+  /// **Breaking in 1.0.0-rc.1+1:** no executors are handed in, and the
+  /// result is the [Registration] itself, not a `Future` of it.
+  Registration addFieldUpload(
     FieldUpload upload, {
     RenderAnchor? at,
     RenderStep? owner,
     List<String> after = const <String>[],
     List<String> before = const <String>[],
-  }) async {
-    addNode(upload, at: at, step: owner, after: after, before: before).cancel();
-    await upload.place(_drawing('addFieldUpload'));
-    final added = addNode(
+  }) {
+    final entry = _checkedNode(
       upload,
       at: at,
       step: owner,
       after: after,
       before: before,
     );
-    final registration = Registration(() {
-      added.cancel();
-      upload.release();
-    });
-    _scope?.track(registration);
+    final device = _drawing('addFieldUpload');
+    final registration = _placeNode(entry);
+    _follow(entry, upload.place(device), afterCancelled: upload.dispose);
     return registration;
   }
 
-  /// Places [hook] and puts it in the frame: the one call that makes a
+  /// Puts [hook] in the frame and places it: the one call that makes a
   /// [SkinningHook] skin (D22b).
   ///
   /// A hook with kernels is placed as a `ComputeStep` is, by the hardware
   /// layer, except never beside the drawing device, whose vertices would
   /// reach it only through the host: on the drawing device, or on the CPU.
-  /// A [HostSkinningHook] needs no placement. The step runs before the
-  /// shadows and writes `FrameResourceIds.skinnedVertices`, which the scene
-  /// reads.
+  /// Until it is placed it claims no mesh, and the engine skins them as it
+  /// would without the hook. A [HostSkinningHook] needs no placement. The
+  /// step runs before the shadows and writes
+  /// `FrameResourceIds.skinnedVertices`, which the scene reads. Through a
+  /// plugin's view the step is named in the plugin's namespace,
+  /// `<namespace>.skinning_<n>`.
   ///
   /// The hook is listed in [RenderHooks.skinningHooks] too, and the result
   /// takes both out again.
   ///
   /// **Breaking in 1.0.0-rc.1+1:** no executors are handed in, a hook
-  /// demands nothing, and `skinningPlacement` and `skinningRefusal` are
-  /// gone: a hook nothing can place is reported by the frame, as any
-  /// compute step is.
-  Future<Registration> placeSkinningHook(SkinningHook hook) async {
+  /// demands nothing, `skinningPlacement` and `skinningRefusal` are gone (a
+  /// hook nothing can place is reported by the frame, as any compute step
+  /// is), and the result is the [Registration] itself, not a `Future` of
+  /// it.
+  Registration placeSkinningHook(SkinningHook hook) {
+    final scope = _scope;
     final step = _SkinningStep(
       hook,
       _store.skinning,
-      'skinning ${_store.sequence}',
+      scope == null
+          ? 'skinning ${_store.sequence}'
+          : '${scope.manifest.namespace}.skinning_${_store.sequence}',
     );
-    if (hook is! HostSkinningHook && hook.kernels.isNotEmpty) {
-      await prepareForThisFrame(step, _drawing('placeSkinningHook'));
-    }
+    final entry = _checkedNode(step);
+    final placed = hook is! HostSkinningHook && hook.kernels.isNotEmpty;
+    final device = placed ? _drawing('placeSkinningHook') : null;
     final listed = _store.hooks.addSkinningHook(hook);
-    final node = addNode(step);
     _store.skinning.steps.add(step);
-    final registration = Registration(() {
-      _store.skinning.steps.remove(step);
-      node.cancel();
-      listed.cancel();
-    });
-    _scope?.track(registration);
+    final registration = _placeNode(
+      entry,
+      also: () {
+        _store.skinning.steps.remove(step);
+        listed.cancel();
+      },
+    );
+    if (device != null) _follow(entry, prepareForThisFrame(step, device));
     return registration;
   }
 
@@ -434,23 +535,29 @@ final class RendererSteps extends RenderStepRegistry {
   /// may be placed at it from now on, and run right after the nodes at the
   /// anchor it follows.
   ///
-  /// Throws an [ArgumentError] for an engine anchor, for a name another
-  /// anchor has, and for an anchor following one this renderer does not
-  /// know — add that one first.
+  /// Throws a [NameTakenException] for an engine anchor and for a name
+  /// another anchor has, and an [ArgumentError] for an anchor following
+  /// one this renderer does not know — add that one first.
   Registration addAnchor(RenderAnchor anchor) {
     if (!anchor.isEngine) _inNamespace(anchor.name, 'the anchor');
     if (anchor.isEngine) {
-      throw ArgumentError.value(
+      throw NameTakenException(
         anchor.name,
-        'anchor',
-        'is one of the engine\'s own anchors; it needs no adding',
+        what: 'the anchor',
+        owner: 'the engine',
+        detail: 'it is one of the engine\'s own anchors and needs no adding',
       );
     }
-    if (anchorNamed(anchor.name) != null) {
-      throw ArgumentError.value(
+    if (anchorNamed(anchor.name) case final taken?) {
+      throw NameTakenException(
         anchor.name,
-        'anchor',
-        'an anchor of this name is already here',
+        what: 'the anchor',
+        owner: taken.isEngine
+            ? 'the engine'
+            : _store.anchors
+                  .where((entry) => entry.anchor == taken)
+                  .map((entry) => entry.owner)
+                  .firstOrNull,
       );
     }
     final follows = anchor.follows!;
@@ -524,8 +631,8 @@ final class RendererSteps extends RenderStepRegistry {
   /// switching an addon off takes its effects out.
   ///
   /// [step] is built in or one [addStep] added. Throws an [ArgumentError]
-  /// for a step this renderer does not know, and for one already provided —
-  /// naming who provides it.
+  /// for a step this renderer does not know, and a [NameTakenException] for
+  /// one already provided — naming who provides it.
   Registration provide(RenderStep step) {
     if (!step.isBuiltIn && !_store.steps.any((e) => e.step == step)) {
       throw ArgumentError.value(
@@ -536,10 +643,11 @@ final class RendererSteps extends RenderStepRegistry {
     }
     final owner = providerOf(step);
     if (owner != null) {
-      throw ArgumentError.value(
+      throw NameTakenException(
         step.name,
-        'step',
-        'is already provided, by $owner',
+        what: 'the provided step',
+        owner: owner,
+        detail: 'one plugin provides a step',
       );
     }
     final entry = _ProvidedStep(step, _owner);
@@ -590,8 +698,8 @@ final class RendererSteps extends RenderStepRegistry {
   /// from a document, and to list it.
   ///
   /// Adding the same slot twice is counted, as two addons of one family may
-  /// share one. Throws an [ArgumentError] for a different slot under an id
-  /// already taken.
+  /// share one. Throws a [NameTakenException] for a different slot under an
+  /// id already taken.
   Registration addSettings(SettingsSlot<Object> slot) {
     // The engine's own slots are what an addon of the engine's family
     // provides the settings of; any other is the plugin's, in its namespace.
@@ -600,10 +708,10 @@ final class RendererSteps extends RenderStepRegistry {
     }
     final taken = settingsNamed(slot.id);
     if (taken != null && !identical(taken, slot)) {
-      throw ArgumentError.value(
+      throw NameTakenException(
         slot.id,
-        'slot',
-        'another settings slot is already added under this id',
+        what: 'the settings slot',
+        detail: 'a different slot is added under this id',
       );
     }
     _store.settings.add(slot);
@@ -810,6 +918,21 @@ final class _StepStore {
   final ContributorRegistry contributors = ContributorRegistry();
   int sequence = 0;
 
+  /// The placements still loading: the registrations' and the frame
+  /// placer's. `RendererSteps.whenPlaced` waits on them.
+  final Set<Future<void>> placing = <Future<void>>{};
+
+  /// [node], taken out of the frame, disposed once no frame in flight can
+  /// still be using what it holds — at once with no renderer.
+  void disposeNode(FrameGraphNode node) {
+    final owner = renderer;
+    if (owner == null) {
+      node.dispose();
+    } else {
+      owner._disposeNodeAfterFrame(node);
+    }
+  }
+
   /// [engine] and every added anchor that stands after it, directly or
   /// through another added one, in the order the frame meets them: an
   /// anchor, then what follows it, depth first, in the order they were
@@ -889,6 +1012,22 @@ final class _AnchoredNode {
   final String owner;
   final int sequence;
 
+  /// What the node threw, once it threw: from then on it is quarantined,
+  /// left out of every frame as `PassSkip.failed`. State of the entry, not
+  /// of the node, so placing the node again lets it run.
+  NodeFailure? get failure => _failure;
+  NodeFailure? _failure;
+
+  /// Quarantines the node for [error], thrown at [stack]; the first failure
+  /// is the one kept.
+  NodeFailure fail(Object error, StackTrace stack) => _failure ??= NodeFailure(
+    node: node.name,
+    owner: owner,
+    plugin: scope?.manifest.id,
+    error: error,
+    stackTrace: stack,
+  );
+
   int get rank => scope?.rank ?? -1;
 
   static int compare(_AnchoredNode a, _AnchoredNode b) {
@@ -934,10 +1073,99 @@ final class _SteppedNode extends RenderNode {
   bool get isSupported => _node.isSupported;
 
   @override
+  bool get isReady => _node.isReady;
+
+  @override
   RenderAnchor get defaultAnchor => _node.defaultAnchor;
 
   @override
+  ViewRuns get viewRuns => _node.viewRuns;
+
+  @override
   void execute(RenderFrame frame) => _node.execute(frame);
+}
+
+/// Where a renderer's frames have placed the nodes that asked with
+/// `FrameGraphBuilder.place`: the frame's placer, wired to the hardware
+/// layer's placement (`placeComputeRequest`).
+///
+/// **The graph asks synchronously, the hardware answers later.** The first
+/// compile that meets a request starts its placement and answers
+/// [FramePlacer.pending]; once the placement settles the placer is a new
+/// one ([placer] changes with every answer that arrives), so the graph,
+/// which compiles again only when something it was asked changed, compiles
+/// the node in.
+final class _FramePlacements {
+  _FramePlacements(this._renderer);
+
+  final Renderer _renderer;
+  final Map<String, _Placing> _byNode = <String, _Placing>{};
+  int _answered = 0;
+
+  /// The placer this frame's compile is handed.
+  FramePlacer get placer => _ComputePlacer(this, _answered);
+
+  Object? _answer(FramePlacementContext context) {
+    final request = context.request;
+    if (request is! ComputePlacementRequest) return null;
+    final name = context.node.name;
+    final known = _byNode[name];
+    if (known != null && known.request == request) {
+      return known.done ? known.answer : FramePlacer.pending;
+    }
+    final placing = _byNode[name] = _Placing(request);
+    final store = _renderer.renderSteps._store;
+    late final Future<void> settled;
+    settled = placeComputeRequest(name, request, _renderer.device)
+        .then<void>(
+          (ComputeNodePlacement? placed) => placing.answer = placed,
+          onError: (Object error, StackTrace stack) {
+            // Not a refusal — the hardware layer turns those into null —
+            // but a placement that broke: the node is quarantined as one
+            // that threw is, naming whose it was.
+            for (final entry in store.nodes) {
+              if (entry.node.name == name) entry.fail(error, stack);
+            }
+          },
+        )
+        .whenComplete(() {
+          placing.done = true;
+          _answered++;
+          store.placing.remove(settled);
+        });
+    store.placing.add(settled);
+    return FramePlacer.pending;
+  }
+}
+
+/// One node's placement as [_FramePlacements] keeps it.
+final class _Placing {
+  _Placing(this.request);
+
+  final ComputePlacementRequest request;
+  bool done = false;
+  ComputeNodePlacement? answer;
+}
+
+/// The placer one compile is handed: equal to another while no placement
+/// has settled between them, which is what lets the graph reuse a compile.
+final class _ComputePlacer extends FramePlacer {
+  const _ComputePlacer(this._placements, this._answered);
+
+  final _FramePlacements _placements;
+  final int _answered;
+
+  @override
+  Object? place(FramePlacementContext context) => _placements._answer(context);
+
+  @override
+  bool operator ==(Object other) =>
+      other is _ComputePlacer &&
+      identical(other._placements, _placements) &&
+      other._answered == _answered;
+
+  @override
+  int get hashCode => Object.hash(identityHashCode(_placements), _answered);
 }
 
 /// The frame's passes placed at anchors, and put in order — the one

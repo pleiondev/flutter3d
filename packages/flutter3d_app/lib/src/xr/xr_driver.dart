@@ -354,7 +354,7 @@ final class XrDriver {
     }
     _steps.clear();
     _actions?.letGo();
-    environmentDepth.release();
+    environmentDepth.dispose();
     for (final (_, texture) in _panelImages.values) {
       renderer.device.releaseTexture(texture);
     }

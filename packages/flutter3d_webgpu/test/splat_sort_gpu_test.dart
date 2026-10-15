@@ -97,7 +97,7 @@ Future<void> _expectSameOrder(
   final gpu = SplatGpuSort(device, readable: true)
     ..sort(keys.keys, cloud.count, frameIndex: 0);
   final indices = await gpu.readIndices();
-  gpu.release();
+  gpu.dispose();
   expect(await device.debugDrainErrors(), isNull);
 
   expect(indices.length, cloud.count * 6);
@@ -178,7 +178,7 @@ void main() {
       gpu.sort(keys.keys, 2000, frameIndex: 2);
       final third = gpu.drawn(2)!.backend;
       expect(identical(third, first) || identical(third, second), isTrue);
-      gpu.release();
+      gpu.dispose();
       device.dispose();
     },
   );

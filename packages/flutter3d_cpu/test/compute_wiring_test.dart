@@ -11,6 +11,13 @@
 ///
 /// Mutation: add the node without `prepare` in `addComputeStep` and the step
 /// is never placed, so the frame skips it and nothing is recorded.
+///
+/// The registration is synchronous and the placement loads behind it: the
+/// frames before it lands are drawn without the step (`PassSkip.pending`).
+/// A node that is not a compute step asks for compute of its own with
+/// `FrameGraphBuilder.place`, and the renderer's placer takes the request
+/// to the hardware layer. Mutation: compile the frame without `placer:` and
+/// that node is unsupported for ever.
 library;
 
 import 'package:flutter3d_core/flutter3d_core.dart';
@@ -47,6 +54,35 @@ compute Step {
       ran.add(computePlacementOf(context.site));
 }
 
+/// A node that is not a compute step and asks for compute of its own: what
+/// it is handed is where the frame's placer put its kernels.
+final class _Placed extends RenderNode {
+  final List<ComputeNodePlacement> placements = <ComputeNodePlacement>[];
+
+  static final List<ComputeKernel> _kernels = ComputeKernel.parseAll('''
+compute Step {
+  buffer p: f32[] read_write;
+  kernel { }
+}
+''');
+
+  @override
+  String get name => 'test.placed';
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[_particles];
+
+  @override
+  void setup(FrameGraphBuilder builder) {
+    super.setup(builder);
+    builder.place(ComputePlacementRequest(_kernels));
+  }
+
+  @override
+  void execute(RenderFrame frame) =>
+      placements.add(frame.placement! as ComputeNodePlacement);
+}
+
 /// Reads the step's output, as a particle draw would, and hands the scene's
 /// colour on unchanged.
 final class _Reader extends RenderNode {
@@ -81,7 +117,8 @@ void main() {
       final step = _Step();
 
       registry.adopt(device);
-      final registration = await renderer.renderSteps.addComputeStep(step);
+      final registration = renderer.renderSteps.addComputeStep(step);
+      await renderer.renderSteps.whenPlaced();
       expect(step.refusal, isNull);
       expect(computePlacementOf(step.site!), ComputePlacement.cpu);
       final reader = renderer.renderSteps.addNode(_Reader());
@@ -105,12 +142,94 @@ void main() {
     },
   );
 
+  test('a step is in the frame at once, pending until it is placed', () async {
+    // Mutation: report a step that is still loading as unsupported, and a
+    // caller looks through its hardware for a limit that is a load.
+    final device = FakeBackend(maxColorAttachments: 4);
+    final registry = DeviceRegistry<Object>();
+    final cpu = registerCpuBackend(registry);
+    addTearDown(cpu.cancel);
+    final renderer = Renderer.create(device: device);
+    final step = _Step();
+    registry.adopt(device);
+    final camera = CameraNode()..setPosition(0.0, 2.0, 2.0);
+    camera.lookAt(Vector3.zero());
+    FrameResult draw() => renderer.render(
+      width: 16,
+      height: 16,
+      scene: Scene()..add(camera),
+      views: <CameraView>[CameraView(camera: camera)],
+    );
+
+    renderer.renderSteps
+      ..addComputeStep(step)
+      ..addNode(_Reader());
+    final before = draw();
+    expect(
+      before.skipped,
+      contains(
+        const SkippedPass(name: 'test.particles', reason: PassSkip.pending),
+      ),
+    );
+    expect(
+      before.skipped,
+      contains(
+        const SkippedPass(name: 'test.reader', reason: PassSkip.starved),
+      ),
+    );
+    expect(step.ran, isEmpty);
+
+    await renderer.renderSteps.whenPlaced();
+    draw();
+    expect(step.ran, <ComputePlacement>[ComputePlacement.cpu]);
+  });
+
+  test(
+    'a node asks for compute with place, and the renderer places it',
+    () async {
+      final device = FakeBackend(maxColorAttachments: 4);
+      final registry = DeviceRegistry<Object>();
+      final cpu = registerCpuBackend(registry);
+      addTearDown(cpu.cancel);
+      final renderer = Renderer.create(device: device);
+      registry.adopt(device);
+      final node = _Placed();
+      renderer.renderSteps
+        ..addNode(node)
+        ..addNode(_Reader());
+      final camera = CameraNode()..setPosition(0.0, 2.0, 2.0);
+      camera.lookAt(Vector3.zero());
+      FrameResult draw() => renderer.render(
+        width: 16,
+        height: 16,
+        scene: Scene()..add(camera),
+        views: <CameraView>[CameraView(camera: camera)],
+      );
+
+      expect(
+        draw().skipped,
+        contains(
+          const SkippedPass(name: 'test.placed', reason: PassSkip.pending),
+        ),
+      );
+      expect(node.placements, isEmpty);
+      await renderer.renderSteps.whenPlaced();
+      draw();
+      draw();
+      expect(node.placements, hasLength(2));
+      final placed = node.placements.first;
+      expect(computePlacementOf(placed.site), ComputePlacement.cpu);
+      expect(placed.stage('Step'), isNotNull);
+    },
+  );
+
   test('a step nothing can run is added, and says why', () async {
     final device = FakeBackend(maxColorAttachments: 4);
     final renderer = Renderer.create(device: device);
     final step = _Step();
     DeviceRegistry<Object>().adopt(device);
-    await renderer.renderSteps.addComputeStep(step);
+    renderer.renderSteps.addComputeStep(step);
+    await renderer.renderSteps.whenPlaced();
     expect(step.refusal!.reason, ComputeRefusalReason.noExecutor);
   });
 

@@ -568,7 +568,31 @@ abstract base class Flutter3dPlugin {
   ///
   /// Called at a step boundary — once at start, and again each time the
   /// plugin is switched back on — never in the middle of a step.
+  ///
+  /// **Synchronous, and so is every registration it makes**: each returns
+  /// its `Registration` at once. What has to load first — a kernel placed
+  /// on a device, a pipeline — loads behind the registration, and the frame
+  /// skips it as `PassSkip.pending` until it is there. What the plugin has
+  /// to load itself goes in [ready].
   void install(PluginHost host);
+
+  /// Loads what the plugin needs before it is whole — a shader library its
+  /// lighting model draws with, a table its system reads — after [install]
+  /// has registered everything, and completes when it has. Completes at
+  /// once unless overridden.
+  ///
+  /// **Awaited by whoever wants the plugin whole, never by a frame or a
+  /// step.** The engine calls it after each [install] and keeps going: what
+  /// the plugin registered already stands, and a registration that waits
+  /// on the load is pending meanwhile. `PluginManager.whenReady` completes
+  /// once every installed plugin's [ready] has. One that throws switches
+  /// the plugin off at the next step boundary, with its dependents, and
+  /// the error as `PluginStatus.reason`.
+  ///
+  /// Registrations made from here, after an `await`, are the plugin's like
+  /// those [install] made, and are withdrawn with them; one made after the
+  /// plugin was switched off is withdrawn at once.
+  Future<void> ready(PluginHost host) async {}
 
   /// Releases what [install] took that is not a registration. The
   /// registrations themselves are cancelled by the host after this returns.

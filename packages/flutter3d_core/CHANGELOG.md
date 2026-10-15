@@ -1,5 +1,53 @@
 ## 1.0.0-rc.1+1
 
+- **Breaking: a registration returns at once, and what it loads follows
+  it.** `RendererSteps.addComputeStep`, `addWorkload`, `addFieldUpload`
+  and `placeSkinningHook` answer the `Registration` itself, where three of
+  them answered a `Future` of it that a plugin's synchronous `install`
+  could not await: a placement that threw reached nobody, and a plugin
+  switched off while one loaded kept its node in the frame. The node is in
+  the frame from the call on and reported as `PassSkip.pending` until its
+  placement lands; `RendererSteps.whenPlaced` waits for it, for a test or
+  a loading screen. An `await` in front of the call still compiles and
+  waits for nothing; `await renderSteps.whenPlaced()` after it is what it
+  meant. A node whose own pipeline is still loading says so with
+  `FrameGraphNode.isReady`.
+- **Breaking: a node that holds GPU memory ends its life with `dispose`.**
+  `EnvironmentDepthNode`, `FieldUpload`, `SplatGpuSort` and `WorkloadStep`
+  had `release`, beside a `dispose` everywhere else; `dart fix` renames
+  it. `FrameGraphNode.dispose` is new, with an empty body, and the
+  registration that put a node in the frame calls it when it is cancelled,
+  once no frame in flight can still be using what the node holds.
+- **Breaking: `PassSkip` names two more reasons.** `PassSkip.values` ends
+  with `pending`, a pass still loading what it runs with, and `failed`, a
+  pass quarantined after it threw; `PassSkip.byName` reads them. The seven
+  before keep their order.
+- **A node that throws is quarantined, and the frame goes on.** A node a
+  plugin or the application placed that throws from `execute` is caught,
+  the rest of the frame drawn, and the node left out of every frame after
+  as `PassSkip.failed`; `SkippedPass.failure` is a `NodeFailure` naming the
+  node, the plugin that placed it and what it threw, and
+  `FrameResult.nodeFailures` lists the failures of the frame they happened
+  in. Placing the node again — the plugin switched off and on — lets it
+  run. The engine's own passes still end the frame they throw in.
+- **A node runs once per view.** A node placed through `RendererSteps`
+  is run for each of the frame's views with `FrameContext.viewIndex` and
+  `view` set to that view, as `viewIndex` always promised, unless its
+  `RenderNode.viewRuns` is `ViewRuns.once` — a compute step, a field
+  upload, a full-screen effect, the view model, the projection layer and
+  the environment depth say so. With one view nothing changes.
+- **`FrameGraphBuilder.place` is wired.** The renderer hands every frame's
+  compile a placer that takes a `ComputePlacementRequest` to the hardware
+  layer's placement; the node is pending until its kernels have loaded,
+  then reads where they did as a `ComputeNodePlacement` from
+  `RenderFrame.placement`. A request nothing can run is unsupported, as
+  before. `FramePlacer.pending` is what a placer answers meanwhile.
+- **A name taken is a `NameTakenException`.** `RendererSteps` (a step, a
+  node, an anchor, a provided step, a settings slot) and `LightTypes`
+  refused a name already taken with an `ArgumentError`, which reads as a
+  bug in the caller; it is a `PluginException` now, naming what the name
+  is and whose. A plugin's skinning hook is named in its namespace, where
+  its view of the registry refused the name it was given.
 - **Breaking: results that were records are final classes.**
   `AbsolutePixels`, `AnimationGraph`, `AtmosphereCycle`, `ColorVision`,
   `CubeLut`, `FrameContext`, `FrameFraction`, `IrradianceField`,
@@ -48,8 +96,7 @@
     `ComputeContext.executor` and `ComputeContext.placement` are gone for
     `ComputeContext.site`.
   - `RendererSteps.addComputeStep`, `placeSkinningHook` and
-    `addFieldUpload` take no executors; `addFieldUpload` is asynchronous,
-    as placing a compute step is. `RendererSteps.skinningPlacement` and
+    `addFieldUpload` take no executors. `RendererSteps.skinningPlacement` and
     `skinningRefusal` are gone: a hook nothing can place is reported by
     the frame as any compute step is.
   - `FieldUpload.place` takes the drawing device and is asynchronous;

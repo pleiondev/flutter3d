@@ -165,7 +165,7 @@ void main() {
     expect(seen.declaration.id, 'acme.heat');
     expect(seen.residence, FieldResidence.texture3D);
 
-    upload.release();
+    upload.dispose();
     expect(upload.isSupported, isFalse);
   });
 
@@ -232,7 +232,8 @@ void main() {
       );
       final renderer = Renderer.create(device: device);
       final upload = FieldUpload(HostField(_heat()));
-      final added = await renderer.renderSteps.addFieldUpload(upload);
+      final added = renderer.renderSteps.addFieldUpload(upload);
+      await renderer.renderSteps.whenPlaced();
       expect(upload.isSupported, isTrue);
       expect(
         renderer.renderSteps.nodesAt(RenderAnchor.beforeOpaque),
@@ -251,7 +252,8 @@ void main() {
       final device = FakeBackend();
       final renderer = Renderer.create(device: device);
       final upload = FieldUpload(HostField(_heat()));
-      await renderer.renderSteps.addFieldUpload(upload);
+      renderer.renderSteps.addFieldUpload(upload);
+      await renderer.renderSteps.whenPlaced();
       expect(upload.refusal!.capability, DeviceFeature.texture3D);
       expect(
         renderer.renderSteps.nodesAt(RenderAnchor.beforeOpaque),

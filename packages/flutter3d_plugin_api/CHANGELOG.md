@@ -1,5 +1,29 @@
 ## 1.0.0-rc.1+1
 
+- **One plugin that throws no longer stops the others.**
+  `PluginManager.installAll` checks the whole set first, as before, then
+  installs each plugin in turn: one whose `install` throws is left off with
+  what it registered withdrawn, `PluginStatus.reason` saying what it threw
+  and `PluginStatus.error` holding it, and so is every plugin that depends
+  on it, with a reason naming it. The rest install. A plugin switched on
+  at a step boundary is held to the same.
+- **New: `Flutter3dPlugin.ready`, the asynchronous half of installing.**
+  A plugin loads what it needs after `install` — a shader library, a
+  table — in `Future<void> ready(PluginHost host)`, called after each
+  install and awaited by nobody on the frame's or the step's path;
+  `PluginManager.whenReady` completes when every installed plugin's has.
+  One that throws switches the plugin off at the next step boundary, with
+  its dependents, and the error as its reason. What it registers after an
+  `await` is the plugin's like the rest; a registration made once the
+  plugin is off is withdrawn at once.
+- **New: `NameTakenException`, the one refusal of a name already taken.**
+  A `PluginException` naming the name, what it is and whose: a second
+  plugin with one id, an MCP tool added twice (`McpTools.addTool`), a VM
+  service extension or alias registered twice, a data section's name, and
+  the renderer's steps, nodes, anchors and light types. Each was an
+  `ArgumentError`, which reads as a bug, where the name is data two
+  plugins can both have thought of.
+
 - **Breaking: results that were records are final classes.** `OriginShifted`
   answered or held a record, which can never gain a field. Each answers a
   final class now, with the record's field names (a positional `$1` has a

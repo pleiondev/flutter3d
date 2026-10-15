@@ -90,7 +90,8 @@ export 'src/engine/platform/platform_feature.dart';
 export 'src/engine/render/adaptive_quality.dart';
 export 'src/engine/render/adaptive_scale.dart';
 export 'src/engine/render/cluster_draws.dart';
-export 'src/engine/render/compute_step.dart' hide prepareForThisFrame;
+export 'src/engine/render/compute_step.dart'
+    hide placeComputeRequest, prepareForThisFrame;
 export 'src/engine/render/debug_draw.dart';
 export 'src/engine/render/debug_draw_gizmos.dart';
 export 'src/engine/render/draw_journal.dart' hide engineDrawJournal;

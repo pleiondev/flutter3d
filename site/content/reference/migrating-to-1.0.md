@@ -5,7 +5,7 @@ description: Move a project written against flutter3d 0.8 to 1.0.0-rc.1, with on
 # Migrating from 0.8 to 1.0
 
 1.0 is the release the engine promises to keep: from it on, a break comes
-only in a major version. To get there, and on to this release, the API changed in 2326 places,
+only in a major version. To get there, and on to this release, the API changed in 2330 places,
 314 of them left to you; 380 are backend internals no application called.
 The rest a program carries out for you, and three
 tools share the work. All three read the same tables,
@@ -225,7 +225,7 @@ carried out:
 
 <!-- migration-table:start -->
 
-*Generated from `flutter3d_build/lib/migrations/` — 231 entries from 1.0.0-rc.1 to 1.0.0-rc.1+1, 6 by hand: 19 `dart fix`, 149 `migrate`, 6 by hand, 57 nothing to do.*
+*Generated from `flutter3d_build/lib/migrations/` — 235 entries from 1.0.0-rc.1 to 1.0.0-rc.1+1, 6 by hand: 22 `dart fix`, 149 `migrate`, 6 by hand, 58 nothing to do.*
 
 ### `flame_flutter3d`
 
@@ -293,8 +293,10 @@ carried out:
 - <a id="core-CubeLut-lookup-record"></a>**`CubeLut.lookup`** (`migrate`). `CubeLut` is a class: `.$1` is `.r`, `.$2` is `.g`, `.$3` is `.b`; a destructuring pattern is yours to rewrite. `lookup` answers an `RgbTriple` with `r`, `g` and `b`, where it answered a triple; destructure with `final RgbTriple(:r, :g, :b) = ...`.
 - <a id="core-DrawListContext"></a>**`DrawListContext`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
 - <a id="core-EnvironmentDepthNode-id-f3d"></a>**`EnvironmentDepthNode.id`** (nothing to do). The environment depth is the resource `f3d.environment_depth`; code that reads it through the constant is unchanged.
+- <a id="core-EnvironmentDepthNode-release"></a>**`EnvironmentDepthNode.release`** (`dart fix`). `EnvironmentDepthNode.release` is `EnvironmentDepthNode.dispose`. A node that holds GPU memory ends its life with `dispose`, which the registration that added it calls when it goes; call it yourself only for a node you never added.
 - <a id="core-FieldUpload-executor"></a>**`FieldUpload.executor`** (`dart fix`). `FieldUpload.executor` is `FieldUpload.site`.
 - <a id="core-FieldUpload-place"></a>**`FieldUpload.place`** (`migrate`). `FieldUpload.place` becomes `x.place({0}.device)`. It takes the device the frame is drawn on and answers a `Future`, as a compute step's placement does: `await` it where its refusal is read.
+- <a id="core-FieldUpload-release"></a>**`FieldUpload.release`** (`dart fix`). `FieldUpload.release` is `FieldUpload.dispose`. The storage goes with `dispose`, which cancelling the registration of `RendererSteps.addFieldUpload` calls; a later `place` makes it again.
 - <a id="core-FrameContext"></a>**`FrameContext`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
 - <a id="core-FrameContext-jitter-record"></a>**`FrameContext.jitter`** (`migrate`). `FrameContext` is a class: `.x` is `.x`, `.y` is `.y`; a destructuring pattern is yours to rewrite. `jitter` is a `PixelJitter` with `x` and `y`, in pixels, where it was a record; field reads are unchanged.
 - <a id="core-FrameFraction-resolve-record"></a>**`FrameFraction.resolve`** (`migrate`). `FrameFraction` is a class: `.$1` is `.width`, `.$2` is `.height`; a destructuring pattern is yours to rewrite. `resolve` answers a `PixelExtent` with `width` and `height`, where it answered a pair; only a destructuring pattern names the class.
@@ -309,6 +311,7 @@ carried out:
 - <a id="core-MeshOverlay"></a>**`MeshOverlay`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
 - <a id="core-OrbitController-suggestedDepthRange-record"></a>**`OrbitController.suggestedDepthRange`** (`migrate`). `OrbitController` is a class: `.near` is `.near`, `.far` is `.far`; a destructuring pattern is yours to rewrite. `suggestedDepthRange` answers `ClipDistances` with `near` and `far`, in metres, where it answered a record; field reads are unchanged.
 - <a id="core-PassContributor"></a>**`PassContributor`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
+- <a id="core-PassSkip-values"></a>**`PassSkip.values`** (nothing to do). Two reasons join the end of the list, `pending` and `failed`, and the seven before them keep their order. A `switch` over `PassSkip` already has a default, since it is an open set; one that lists every reason by hand adds the two.
 - <a id="core-ReactiveFrame"></a>**`ReactiveFrame`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
 - <a id="core-RenderStep-f3d"></a>**`RenderStep`** (nothing to do). Each built-in step is named `f3d.<name>` (`f3d.bloom`, `f3d.color_grade`). `RendererSteps.named` still finds one by its old word, and a pass keeps its name; code that compared a step's name with a string uses the new word.
 - <a id="core-RenderView-CameraView"></a>**`RenderView`** (`dart fix`). `RenderView` is `CameraView`. `package:flutter/rendering.dart` exports a `RenderView` too; the engine's camera onto a viewport or a texture is `CameraView`.
@@ -325,6 +328,7 @@ carried out:
 - <a id="core-SolidColorTexture"></a>**`SolidColorTexture`** (nothing to do). It takes or answers the final class that replaced a record (its own entry names the fields): a record literal passed to it is written as that class, with the same field names.
 - <a id="core-SolidColorTexture-texel-record"></a>**`SolidColorTexture.texel`** (`migrate`). `SolidColorTexture` is a class: `.r` is `.r`, `.g` is `.g`, `.b` is `.b`, `.a` is `.a`; a destructuring pattern is yours to rewrite. `texel` is a `TexelValue` with `r`, `g`, `b` and `a`, where it was a record; field reads are unchanged, and the `SolidColorTexture.texel` constructor is as it was.
 - <a id="core-SplatContributor"></a>**`SplatContributor`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.
+- <a id="core-SplatGpuSort-release"></a>**`SplatGpuSort.release`** (`dart fix`). `SplatGpuSort.release` is `SplatGpuSort.dispose`. The sorter gives its buffers back with `dispose`, the one teardown verb; the next `sort` makes new ones, as before.
 - <a id="core-TemporalClip-axes-record"></a>**`TemporalClip.axes`** (`migrate`). `TemporalClip` is a class: `.$1` is `.x`, `.$2` is `.y`, `.$3` is `.z`; a destructuring pattern is yours to rewrite. `axes` is a list of `ClipAxis` with `x`, `y` and `z`, where it was a list of triples; destructure with `ClipAxis(:x, :y, :z)`.
 - <a id="core-decodeUniversalBlock-record"></a>**`decodeUniversalBlock`** (`migrate`). `decodeUniversalBlock` is a class: `.$1` is `.r`, `.$2` is `.g`, `.$3` is `.b`, `.$4` is `.a`; a destructuring pattern is yours to rewrite. `decodeUniversalBlock` answers sixteen `Rgba8Texel`s with `r`, `g`, `b` and `a`, where it answered four-int tuples; `encodeUniversalBlock`, `encodeEtc2Rgb8Block` and `encodeAstc4x4Block` take the same list.
 - <a id="core-describeEmptyFrame"></a>**`describeEmptyFrame`** (nothing to do). Its views are typed `CameraView`, which `RenderView` is now; `dart fix` renames the type where code names it, and code that only passes the views on is unchanged.

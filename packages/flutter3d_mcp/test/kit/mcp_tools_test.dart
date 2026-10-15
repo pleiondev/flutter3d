@@ -170,8 +170,8 @@ void main() {
           .forPlugin(_Scope('wind', 0))
           .addTool(_tool('gust'), (_) => _says('again')),
       throwsA(
-        isA<ArgumentError>().having(
-          (ArgumentError e) => e.message,
+        isA<NameTakenException>().having(
+          (NameTakenException e) => e.message,
           'message',
           contains('plugin "wind"'),
         ),

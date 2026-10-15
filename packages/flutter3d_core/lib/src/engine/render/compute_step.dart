@@ -41,7 +41,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show RenderAnchor;
 import 'package:flutter3d_shaders/kernel.dart';
 
-import 'frame_graph.dart' show ResourceId;
+import 'frame_graph.dart' show PlacementRequest, ResourceId;
 import 'frame_plan.dart' show FrameResourceIds;
 import 'render_node.dart';
 
@@ -147,36 +147,43 @@ abstract base class ComputeStep extends RenderNode {
   @override
   bool get isSupported => _site != null;
 
+  /// False while a [prepare] is loading the kernels: the frame reports the
+  /// step as `PassSkip.pending` until it is placed or refused.
+  @override
+  bool get isReady => _preparing == 0;
+  int _preparing = 0;
+
+  /// Once a frame: compute has no view.
+  @override
+  ViewRuns get viewRuns => ViewRuns.once;
+
   /// Places this step for frames drawn on [device]: `FrameCompute.of`
   /// that device loads the step's [kernels] on the first of the frame's
   /// compute devices that takes them. A device that refuses the bundle is
   /// passed over, and its refusal kept as the cause.
   ///
   /// Answers the refusal when nothing fits, which [refusal] also holds;
-  /// null when placed.
+  /// null when placed. Until it answers the step is not [isReady].
   Future<ComputePlacementException?> prepare(GraphicsDevice device) =>
-      _prepare(device, besideFrame: true);
+      _waiting(_prepare(device, besideFrame: true));
+
+  /// [placing] with the step held not ready until it settles: what every
+  /// placement of a subclass goes through.
+  Future<T> _waiting<T>(Future<T> placing) {
+    _preparing++;
+    return placing.whenComplete(() => _preparing--);
+  }
 
   Future<ComputePlacementException?> _prepare(
     GraphicsDevice device, {
     required bool besideFrame,
   }) async {
-    final bundle = kernelBundle(name, kernels).encode();
     try {
-      final placed = await FrameCompute.of(device).place(name, (
-        GraphicsDevice on,
-      ) async {
-        final library = await on.loadShaders(bundle);
-        return <String, ShaderHandle>{
-          for (final kernel in kernels)
-            kernel.name:
-                library[kernel.name] ??
-                (throw StateError(
-                  '${on.backendName} loaded the bundle and has no stage '
-                  '"${kernel.name}"',
-                )),
-        };
-      }, besideFrame: besideFrame);
+      final placed = await FrameCompute.of(device).place(
+        name,
+        (GraphicsDevice on) => _loadKernels(on, name, kernels),
+        besideFrame: besideFrame,
+      );
       _place(placed.site, placed.loaded, null);
       return null;
     } on ComputePlacementException catch (refused) {
@@ -215,7 +222,117 @@ abstract base class ComputeStep extends RenderNode {
 Future<ComputePlacementException?> prepareForThisFrame(
   ComputeStep step,
   GraphicsDevice device,
-) => step._prepare(device, besideFrame: false);
+) => step._waiting(step._prepare(device, besideFrame: false));
+
+/// [kernels] loaded on [device] as one bundle called [name], each kernel's
+/// stage by its name.
+Future<Map<String, ShaderHandle>> _loadKernels(
+  GraphicsDevice device,
+  String name,
+  List<ComputeKernel> kernels,
+) async {
+  final library = await device.loadShaders(
+    kernelBundle(name, kernels).encode(),
+  );
+  return <String, ShaderHandle>{
+    for (final kernel in kernels)
+      kernel.name:
+          library[kernel.name] ??
+          (throw StateError(
+            '${device.backendName} loaded the bundle and has no stage '
+            '"${kernel.name}"',
+          )),
+  };
+}
+
+/// What a node that is not a [ComputeStep] asks with
+/// `FrameGraphBuilder.place` to have compute of its own: [kernels] loaded
+/// where the hardware layer puts them (`FrameCompute.place`), and the
+/// answer handed to it as `RenderFrame.placement`, a
+/// [ComputeNodePlacement].
+///
+/// **The frame's placer does the work.** A renderer hands the graph a
+/// placer that takes this request to the hardware layer's placement: the
+/// first frame that asks starts loading the kernels and leaves the node
+/// out as `PassSkip.pending`; the frame after the load is done runs it
+/// where they loaded; a request nothing can run leaves it out as
+/// `PassSkip.unsupported`. Asked again with an equal request — the same
+/// kernels — it answers what it answered, so a node may make its request
+/// afresh in every `setup`.
+final class ComputePlacementRequest extends PlacementRequest {
+  /// A request for [kernels], loaded together.
+  const ComputePlacementRequest(this.kernels);
+
+  /// The kernels the node dispatches.
+  final List<ComputeKernel> kernels;
+
+  @override
+  String get name => kernels.map((ComputeKernel k) => k.name).join(', ');
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! ComputePlacementRequest) return false;
+    if (other.kernels.length != kernels.length) return false;
+    for (var i = 0; i < kernels.length; i++) {
+      if (other.kernels[i].name != kernels[i].name ||
+          other.kernels[i].source != kernels[i].source) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  @override
+  int get hashCode => Object.hashAll(<Object>[
+    for (final kernel in kernels) ...<Object>[kernel.name, kernel.source],
+  ]);
+}
+
+/// Where the frame's placer put a node's [ComputePlacementRequest]: the
+/// site its work is encoded on and each kernel's stage there.
+final class ComputeNodePlacement {
+  const ComputeNodePlacement._(this.site, this._stages);
+
+  /// Where the kernels loaded.
+  final ComputeSite site;
+
+  final Map<String, ShaderHandle> _stages;
+
+  /// The device the work is encoded on.
+  GraphicsDevice get device => site.device;
+
+  /// The stage of the kernel called [kernel]. Throws an [ArgumentError] for
+  /// a name the request did not have.
+  ShaderHandle stage(String kernel) =>
+      _stages[kernel] ??
+      (throw ArgumentError.value(
+        kernel,
+        'kernel',
+        'is not one of the placed kernels (${_stages.keys.join(', ')})',
+      ));
+
+  @override
+  String toString() => 'ComputeNodePlacement($site)';
+}
+
+/// Places [request] for the node called [node] on frames drawn on
+/// [device], through the hardware layer: the placement, or null when
+/// nothing takes the kernels. Not exported; the renderer's placer calls it.
+Future<ComputeNodePlacement?> placeComputeRequest(
+  String node,
+  ComputePlacementRequest request,
+  GraphicsDevice device,
+) async {
+  try {
+    final placed = await FrameCompute.of(device).place(
+      node,
+      (GraphicsDevice on) => _loadKernels(on, node, request.kernels),
+    );
+    return ComputeNodePlacement._(placed.site, placed.loaded);
+  } on ComputePlacementException {
+    return null;
+  }
+}
 
 /// A `ComputeWorkload` in the frame: placed by the hardware layer's
 /// workload rule (`FrameCompute.placeHosted`), its buffers made where it
@@ -304,7 +421,12 @@ final class WorkloadStep extends ComputeStep {
   /// landed. Answers the refusal when nothing fits — no executor and no
   /// host code — and null when it is placed or left to its host code.
   @override
-  Future<ComputePlacementException?> prepare(GraphicsDevice device) async {
+  Future<ComputePlacementException?> prepare(GraphicsDevice device) =>
+      _waiting(_prepareWorkload(device));
+
+  Future<ComputePlacementException?> _prepareWorkload(
+    GraphicsDevice device,
+  ) async {
     _release();
     final PlacedWork<Map<String, ShaderHandle>>? placed;
     try {
@@ -371,8 +493,10 @@ final class WorkloadStep extends ComputeStep {
   }
 
   /// Lets go of its buffers and tells the workload: what a renderer calls
-  /// once no frame in flight can still be using them.
-  void release() {
+  /// once no frame in flight can still be using them, when the registration
+  /// that added the workload is cancelled. Since 1.0.0-rc.1+1, `release`.
+  @override
+  void dispose() {
     _release();
     _binding = null;
     workload.released();

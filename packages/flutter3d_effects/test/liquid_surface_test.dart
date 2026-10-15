@@ -110,7 +110,8 @@ void main() {
     final device = cpuComputeDevice(standInForGpu: true);
     final renderer = Renderer.create(device: device);
     final workload = _Surface(world, water);
-    final added = await renderer.renderSteps.addWorkload(workload);
+    final added = renderer.renderSteps.addWorkload(workload);
+    await renderer.renderSteps.whenPlaced();
     addTearDown(added.cancel);
     expect(
       computePlacementOf(workload.binding!.site!),

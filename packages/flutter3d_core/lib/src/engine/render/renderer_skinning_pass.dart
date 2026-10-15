@@ -38,7 +38,9 @@ final class _SkinningState {
       final joints = Float32List.fromList(skeleton.matrices);
       final asked = SkinningContext(node: node, jointMatrices: joints);
       for (final step in steps) {
-        if (!step.isSupported || !step.hook.claims(asked)) continue;
+        if (!step.isReady || !step.isSupported || !step.hook.claims(asked)) {
+          continue;
+        }
         claimed[node] = (step: step, joints: joints);
         break;
       }

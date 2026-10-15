@@ -171,9 +171,9 @@ final class DataSectionContext {
 abstract base class DataSectionRegistry extends PluginRegistry {
   const DataSectionRegistry();
 
-  /// Reads [section] from every data plugin read after this. Throws an
-  /// [ArgumentError] when another section already has its name, or is one
-  /// of the runtime's own.
+  /// Reads [section] from every data plugin read after this. Throws a
+  /// [NameTakenException] when another section already has its name, and
+  /// an [ArgumentError] when the name is one of the runtime's own keys.
   Registration register(DataSection section);
 
   /// The section registered under [name], or null.

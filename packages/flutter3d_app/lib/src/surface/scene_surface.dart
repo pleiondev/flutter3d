@@ -235,6 +235,25 @@ class _SceneSurfaceState extends State<SceneSurface> {
         );
         _last = frame;
         _lastSize = (width, height);
+        // A plugin's node that threw is quarantined and the frame drawn
+        // without it; a debug build says so where Flutter's errors go, once,
+        // on the frame it happened, naming whose node it was.
+        assert(() {
+          for (final failure in frame.nodeFailures) {
+            FlutterError.reportError(
+              FlutterErrorDetails(
+                exception: failure.error,
+                stack: failure.stackTrace,
+                library: 'flutter3d',
+                context: ErrorDescription(
+                  'while drawing the node "${failure.node}" of '
+                  '${failure.owner}; the frames after are drawn without it',
+                ),
+              ),
+            );
+          }
+          return true;
+        }());
         final seconds = _secondsSinceDrawn();
         onFrame?.call(FrameInfo(seconds: seconds, result: frame));
         // From the device rather than painted from an image: a backend whose
