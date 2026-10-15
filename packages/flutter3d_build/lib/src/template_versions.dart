@@ -19,7 +19,7 @@ const Map<String, String> templateConstraints = <String, String>{
   'flutter3d_core': '^1.0.0-rc.1+1',
   'flutter3d_fields': '^1.0.0-rc.1',
   'flutter3d_foundation': '^1.0.0-rc.1+1',
-  'flutter3d_hardware': '^1.0.0-rc.1+1',
+  'flutter3d_hardware': '^1.0.0-rc.1+2',
   'flutter3d_plugin_api': '^1.0.0-rc.1+1',
   'flutter3d_shaders': '^1.0.0-rc.1+1',
   'flutter3d_sim': '^1.0.0-rc.1+1',

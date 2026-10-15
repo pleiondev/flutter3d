@@ -258,10 +258,15 @@ List<TraceEvent> _everyEvent() => <TraceEvent>[
 void main() {
   test('every kind of event is here once', () {
     // A kind added to the hierarchy and not to this list would be a kind the
-    // round trip below never tries.
+    // round trip below never tries. Only the viewport comes twice, once
+    // with the default depth range and once with fractions and its own.
     final kinds = _everyEvent().map((e) => e.kind).toList();
-    expect(kinds.toSet(), hasLength(kinds.length));
-    expect(kinds, hasLength(52));
+    expect(
+      kinds.where((kind) => kind != 'setViewport').toSet(),
+      hasLength(kinds.length - 2),
+    );
+    expect(kinds.where((kind) => kind == 'setViewport'), hasLength(2));
+    expect(kinds.toSet(), hasLength(52));
   });
 
   test('a file read back writes the same file', () {
@@ -317,7 +322,7 @@ void main() {
               ]).encode(),
             ).events.single
             as TraceBeginRenderPass;
-    expect(read.colors.single.layer, 3);
+    expect(read.colors.map((c) => c.layer), <int>[3, 0, 0]);
     final depth = read.depth!;
     expect(
       (

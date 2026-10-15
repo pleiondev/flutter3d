@@ -952,7 +952,8 @@ void main() {
       ).setUint32(4, projectVersion + 1, Endian.little);
       expect(
         refusal(bytes),
-        'This project was written by version 3 and this build reads version 2. '
+        'This project was written by version ${projectVersion + 1} and this '
+        'build reads version $projectVersion. '
         'Open it in a newer build; there is nothing here that can guess what it '
         'added.',
       );
@@ -968,7 +969,7 @@ void main() {
       );
       expect(
         refusal(bytes),
-        'The header claims 500 sections, whose directory ends at byte 8016, '
+        'The header claims 500 sections of 16 bytes, whose directory runs '
         'past the end of a ${bytes.length}-byte file.',
       );
     });
