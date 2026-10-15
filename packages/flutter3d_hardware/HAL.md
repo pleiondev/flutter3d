@@ -662,6 +662,18 @@ stage does not declare answers false, and `bindPipeline` forgets every
 binding, as in a render pass. `dispatchIndirectArguments` and
 `drawIndexedIndirectArguments` write the argument layouts.
 
+**What no signature shows.** Storage writes of one dispatch are visible to
+the next in the same pass, and passes are ordered by submission. A pass runs
+when it is submitted, with what was bound for each dispatch, so a
+`writeBuffer` made while it is open lands before its dispatches: a GPU
+queue's order, which the software rasteriser keeps by running its
+dispatches at `submit`. Every encoder calls `checkStorageBinding` (the
+range inside the buffer, its offset a multiple of
+`minStorageBufferOffsetAlignment`) and `checkDispatch` (at most
+`maxComputeWorkgroupsPerDimension` along each axis) from `backend.dart`
+before it records, and refuses with a `RangeError` at the call; a structure
+rule holds every encoder to both.
+
 ### Multiview
 
 `RenderPassDescriptor.viewMask` names the views of one pass, a bit each;
@@ -696,11 +708,48 @@ step is placed in.
 layer chooses, demands, names or reports a placement; a structure rule
 holds every `lib/` outside it and the backends to that. The engine asks
 `FrameCompute.of(device)` — the compute of frames drawn on a device — and
-is told a `ComputeSite`: the device to encode on, and whether it is the
-frame's. `place(step, load, {besideFrame})` loads a step's work on each
+is told a `ComputeSite`: the device to encode on, whether it is the
+frame's, and `beginPass`, the one door to a compute pass above this layer
+(a structure rule holds every `lib/` but this layer's and the backends' to
+it). `place(step, load, {besideFrame, needs})` loads a step's work on each
 device in the rule's order and answers the first that takes it;
-`placeHosted(step, load, hasHost:)` is the workload rule for work with
-host code of its own; `placeStorage(step, holds)` puts a buffer.
+`placeHosted(step, load, hasHost:, needs:)` is the workload rule for work
+with host code of its own; `placeOnFrame(step, takes)` answers at once for
+work only the drawing device can run (the splat sort); `placeStorage(step,
+holds)` puts a buffer.
+
+**A requirement, never a placement.** What a piece of compute may say is
+what it cannot do without: a `ComputeRequirement` (an open class) in
+`ComputeNeeds`, with the size of its kernels and the inexact operations
+they use. `bitExact` is the same bytes on every machine; it is met
+everywhere by kernels that keep to the integers and the f32 `+`, `-`, `*`,
+and otherwise only by the work's own host code or a device that runs the
+kernels translated to Dart (`isSoftware`). `beyondPortableProfile` lifts the
+portable profile (`PortableComputeProfile`: 128 invocations a workgroup, 8
+storage buffers a kernel) to each device's own limits; without it, work
+past the profile is refused everywhere. The rule passes over a device that
+does not meet them, without loading the work there, and says why.
+
+**Exact, and within a declared tolerance.** The integers and the f32 `+`,
+`-`, `*` are the same bits on every placement. `/`, `sqrt`, `sin`, `cos`
+and `pow` are within `kernelTolerances` (a `KernelTolerance` each, WGSL's
+own accuracy rounded up), and `kernelToleranceChecks` in the conformance
+suite hold every device to it against the Dart translation.
+
+**A fallback is never silent.** A device whose load of the work throws is
+passed over and the work runs on the next; `PlacedWork.passedOver` lists
+every device passed over, and each failure is a `ComputeFallback` on
+`FrameCompute.fallbacks`, a `compute fallback` timeline event and a
+`flutter3d.compute` log line. Where assertions are on (a test, a debug
+build, conformance) it throws `ComputeFallbackError` instead
+(`FrameCompute.strict`); a `CapabilityException` falls back either way.
+
+**The engine instance owns its compute.** `FrameCompute` opens the
+registry's compute devices the first time a frame needs them and disposes
+them, with every value kept in `FrameCompute.cached` (a workload's kernels
+and pipelines), when the drawing device is lost or disposed, or at
+`FrameCompute.dispose`. Nothing in this layer or the engine keeps compute
+in a static cache; a structure rule holds the compute files to that.
 
 `ComputeExecutors(device:, sidecar:, cpu:)` writes the rule once, for this
 layer and the backends. `place(step:, accepts:)` goes to the first executor
@@ -714,8 +763,9 @@ attaches the registry's compute to every device it opens, and
 first time a frame needs it and left out (and reported) if it will not
 start. A test reads where a site is with `computePlacementOf`, from
 `testing.dart`, and puts work somewhere by configuring the devices and the
-registry it builds — `CpuDevice(standInForGpu: true)` in `flutter3d_cpu`
-stands in for a GPU — never by asking from the step.
+registry it builds — `cpuComputeDeviceStandingInForGpu()` from
+`flutter3d_cpu`'s `testing.dart` stands in for a GPU — never by asking from
+the step. `FakeBackend(compute: true)` records what a step encodes.
 
 **Kernels** are written once in the kernel language (`ComputeKernel` in
 `flutter3d_shaders`, versioned by an optional `kernel <N>` line,
@@ -729,10 +779,19 @@ rasteriser. A device without compute refuses a bundle that claims a kernel,
 by name. The conformance suite's kernels hold every placement to the same
 bytes.
 
+**The sidecar's cost.** Its readback starts the copy and maps without
+waiting, polled on later turns of the event loop, so a frame's read holds
+the caller for its encoding only; `readBufferSync` waits. Its limits are
+WebGPU's defaults, which is what a device asked for with no required limits
+is given.
+
 **What grows in a minor**: `ComputePlacement` values (a second queue, a
-remote device), `ComputeRefusalReason` values, kernel section versions.
-**What is frozen**: the placement order of the three existing values, and
-that nothing above this layer chooses among them.
+remote device), `ComputeRefusalReason` and `ComputeRequirement` values,
+kernel section versions, `kernelTolerances` entries for operations a kernel
+language version adds. **What is frozen**: the placement order of the three
+existing values, and that nothing above this layer chooses among them:
+work states what it requires (`ComputeRequirement`), and the rule here
+picks an executor that meets it, so a requirement is never a placement.
 
 ## Shaders
 

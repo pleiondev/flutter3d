@@ -22,6 +22,7 @@
 library;
 
 export 'src/backend_handles.dart';
+export 'src/compute_checks.dart';
 export 'src/handle_checks.dart';
 export 'src/synchronous_readback.dart';
 export 'src/uniform_scratch.dart';

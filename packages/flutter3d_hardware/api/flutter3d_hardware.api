@@ -12,6 +12,10 @@ final class UniformScratch
   UniformScratch()
   int get sizes
 
+void checkDispatch(DeviceLimits limits, int x, int y, int z)
+
+int checkStorageBinding(StorageBuffer buffer, DeviceLimits limits, {int offsetInBytes = 0, int? sizeInBytes})
+
 void debugCheckLive(Object handle, String operation)
 
 void forgetShader(Map<String, ShaderHandle?> handles, ShaderHandle handle)
@@ -232,6 +236,30 @@ final class ComputeExecutors
   final GraphicsDevice? sidecar
   static const List<ComputePlacement> aheadOfHost = <ComputePlacement>[ComputePlacement.device, ComputePlacement.sidecar]
 
+@immutable final class ComputeFallback
+  String get message
+  String toString()
+  final List<PassedOver> passedOver
+  final String landedOn
+  final String step
+
+final class ComputeFallbackError extends Error
+  ComputeFallbackError(this.fallback)
+  String toString()
+  final ComputeFallback fallback
+
+@immutable final class ComputeNeeds
+  String toString()
+  String? unmetOn(GraphicsDevice device)
+  bool operator ==(Object other)
+  const ComputeNeeds({this.requirements = const <ComputeRequirement>{}, this.invocationsPerWorkgroup = 1, this.storageBuffersPerStage = 0, this.inexactOperations = const <String>{}})
+  final Set<ComputeRequirement> requirements
+  final Set<String> inexactOperations
+  final int invocationsPerWorkgroup
+  final int storageBuffersPerStage
+  int get hashCode
+  static const ComputeNeeds none = ComputeNeeds()
+
 typedef ComputeOpener = Future<GraphicsDevice> Function(DeviceRequest request);
 
 @immutable final class ComputePipelineDescriptor
@@ -276,7 +304,16 @@ final class ComputePlacementException extends CapabilityException
   static const ComputeRefusalReason placementUnavailable = ComputeRefusalReason._('placementUnavailable')
   static const List<ComputeRefusalReason> values = <ComputeRefusalReason>[noExecutor, placementUnavailable, kernelRefused, notPlaced]
 
+@immutable final class ComputeRequirement
+  String toString()
+  final String name
+  static ComputeRequirement? byName(String name)
+  static const ComputeRequirement beyondPortableProfile = ComputeRequirement._('beyondPortableProfile')
+  static const ComputeRequirement bitExact = ComputeRequirement._('bitExact')
+  static const List<ComputeRequirement> values = <ComputeRequirement>[bitExact, beyondPortableProfile]
+
 @immutable final class ComputeSite
+  ComputeEncoder beginPass({String? label})
   GraphicsDevice get device
   String toString()
   bool get isOnFrameDevice
@@ -286,6 +323,7 @@ final class ComputePlacementException extends CapabilityException
 
 abstract base class ComputeWorkload
   ComputeWorkload()
+  Set<ComputeRequirement> get requirements
   abstract List<WorkloadBuffer> get buffers
   abstract String get kernelSource
   abstract String get name
@@ -571,11 +609,18 @@ final class FeatureStability
 
 final class FrameCompute
   ComputeSite get frame
+  ComputeSite? placeOnFrame(String step, bool Function(GraphicsDevice device) takes)
   Future<ComputeSite> placeStorage(String step, bool Function(GraphicsDevice device) holds)
-  Future<PlacedWork<T>> place<T>(String step, Future<T> Function(GraphicsDevice device) load, {bool besideFrame = true})
-  Future<PlacedWork<T>?> placeHosted<T>(String step, Future<T> Function(GraphicsDevice device) load, {required bool hasHost})
+  Future<PlacedWork<T>> place<T>(String step, Future<T> Function(GraphicsDevice device) load, {bool besideFrame = true, ComputeNeeds needs = ComputeNeeds.none})
+  Future<PlacedWork<T>?> placeHosted<T>(String step, Future<T> Function(GraphicsDevice device) load, {required bool hasHost, ComputeNeeds needs = ComputeNeeds.none})
+  Future<T> cached<T>(GraphicsDevice on, Object key, Future<T> Function() make, {void Function(T value)? release})
+  Stream<ComputeFallback> get fallbacks
+  bool get isDisposed
+  bool strict
   final GraphicsDevice device
+  int get cachedCount
   static FrameCompute of(GraphicsDevice device)
+  void dispose({bool drawingDeviceGone = false})
 
 enum FramebufferOrigin
   values: topLeft, bottomLeft
@@ -731,6 +776,16 @@ final class InputAttribute
   final String name
   final VertexFormat format
   final int offsetInBytes
+
+@immutable final class KernelTolerance
+  String toString()
+  bool admits(double expected, double actual)
+  bool operator ==(Object other)
+  const KernelTolerance({this.ulp = 0, this.absolute = 0, required this.over})
+  final String over
+  final double absolute
+  final int ulp
+  int get hashCode
 
 final class LayeredShaderLibrary with ShaderLibrary
   ShaderHandle? operator [](String name)
@@ -905,6 +960,13 @@ extension PassStateApply on PassEncoder
   int get hashCode
   void checkFeatures(DeviceFeatures features, {required String backend})
 
+@immutable final class PassedOver
+  String toString()
+  bool get didFail
+  final Object? error
+  final String backend
+  final String reason
+
 @immutable final class PipelineDescriptor
   String toString()
   bool operator ==(Object other)
@@ -967,6 +1029,7 @@ final class PipelineStatistic
 final class PlacedWork<T>
   String toString()
   final ComputeSite site
+  final List<PassedOver> passedOver
   final T loaded
 
 base mixin PlatformTextures<I extends Object> on GraphicsDevice
@@ -979,6 +1042,11 @@ final class PolygonMode
   static const List<PolygonMode> values = <PolygonMode>[fill, line]
   static const PolygonMode fill = PolygonMode._('fill')
   static const PolygonMode line = PolygonMode._('line')
+
+abstract final class PortableComputeProfile
+  static String? refusalFor({required int invocations, required int storageBuffers, required DeviceLimits limits, Set<ComputeRequirement> requirements = const <ComputeRequirement>{}})
+  static const int maxInvocationsPerWorkgroup = 128
+  static const int maxStorageBuffersPerStage = 8
 
 @immutable final class PowerPreference
   String toString()
@@ -1610,6 +1678,7 @@ abstract base class WorkloadRecorder
   abstract bool readBack(String buffer, void Function(ByteData bytes) done)
   abstract void dispatch(String kernel, int x, {int y = 1, int z = 1})
   abstract void write(String buffer, ByteData bytes, {int offsetInBytes = 0})
+  bool readBackRange(String buffer, int offsetInBytes, int? sizeInBytes, void Function(ByteData bytes) done)
 
 ImageExtent cappedImageSize(int width, int height, {int? maxDimension})
 
@@ -1639,6 +1708,8 @@ IndexWindow indexWindow(int bound, {int firstIndex = 0, int? indexCount})
 
 const int kernelSectionVersion = 1
 
+const Map<String, KernelTolerance> kernelTolerances = …
+
 const int materialSectionVersion = 1
 
 bool readbackConverts(TextureHandle texture, {ScreenRect? region})
@@ -1646,6 +1717,8 @@ bool readbackConverts(TextureHandle texture, {ScreenRect? region})
 const Set<TextureFormat> readbackFormats = <TextureFormat>{TextureFormat.r8g8b8a8UNormInt, TextureFormat.b8g8r8a8UNormInt}
 
 ScreenRect readbackRegionOf(TextureHandle texture, ScreenRect? region)
+
+int ulpsBetween(double a, double b)
 
 library package:flutter3d_hardware/shader_bundle.dart
 
@@ -1720,7 +1793,7 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback
   ComputePipelineHandle createComputePipeline(ShaderHandle shader)
   DepthRange get depthRange
   DeviceFeatures get features
-  FakeBackend({Set<String> missingShaders = const <String>{}, bool supportsWireframe = true, bool supportsAlphaToCoverage = true, bool supportsStencil = true, bool supportsRenderToMip = true, this.unsupportedFormats = const <TextureFormat>{}, int maxAnisotropy = 16, int maxColorAttachments = 2, this.stageBindings, this.framebufferOrigin = FramebufferOrigin.topLeft, Iterable<DeviceFeature> extraFeatures = const <DeviceFeature>[], this.refusingPipelines = const <String>{}, this.refusedBuilds})
+  FakeBackend({Set<String> missingShaders = const <String>{}, bool supportsWireframe = true, bool supportsAlphaToCoverage = true, bool supportsStencil = true, bool supportsRenderToMip = true, this.unsupportedFormats = const <TextureFormat>{}, int maxAnisotropy = 16, int maxColorAttachments = 2, this.stageBindings, this.framebufferOrigin = FramebufferOrigin.topLeft, Iterable<DeviceFeature> extraFeatures = const <DeviceFeature>[], this.refusingPipelines = const <String>{}, this.refusedBuilds, bool compute = false})
   Future<ByteData> readBuffer(StorageBuffer buffer)
   Future<ByteData> readback(TextureHandle texture, {ScreenRect? region})
   Future<List<int>> readQueryResults(QuerySet querySet, {int first = 0, int? count})
@@ -1752,6 +1825,7 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback
   final FakeShaderLibrary shaders
   final FramebufferOrigin framebufferOrigin
   final List<ByteData> uploadedPixels
+  final List<FakeComputePass> computePasses
   final List<FakeCubeTarget> createdCubeRenderTargets
   final List<FakeGeometryOverwrite> overwrites
   final List<FakeLoadedShaderLibrary> loadedLibraries
@@ -1785,6 +1859,7 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback
   void onFrameComplete(void Function() whenDone)
   void onGpuTimings(void Function(GpuFrameTimings timings)? listener)
   void overwriteGeometry(GeometryBuffer target, int offsetInBytes, ByteData bytes)
+  void releaseComputePipeline(ComputePipelineHandle pipeline)
   void releaseGeometry(GeometryBuffer geometry)
   void releasePipeline(PipelineHandle pipeline)
   void releaseQuerySet(QuerySet querySet)
@@ -1793,6 +1868,20 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback
   void reportError(DeviceError error)
   void writeBuffer(StorageBuffer target, int offsetInBytes, ByteData bytes)
   void writeTexture(TextureHandle target, ByteData data, {TextureRegion? region, int mipLevel = 0, int? bytesPerRow})
+
+final class FakeComputePass extends ComputeEncoder
+  FakeComputePass({required this.limits, this.label})
+  bool bindStorageBuffer(ShaderHandle stage, String name, StorageBuffer buffer, {int offsetInBytes = 0, int? sizeInBytes})
+  bool bindTexture(ShaderHandle stage, String name, TextureHandle texture, {SamplerDescriptor? sampler})
+  bool bindUniformBlock(ShaderHandle stage, String block, Map<String, Float32List> members)
+  bool get wasSubmitted
+  final DeviceLimits limits
+  final List<RecordedCall> commands
+  final String? label
+  int get dispatches
+  void bindPipeline(ComputePipelineHandle pipeline)
+  void dispatch(int x, [int y = 1, int z = 1])
+  void submit()
 
 final class FakeCubeTarget
   String toString()

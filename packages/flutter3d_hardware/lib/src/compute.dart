@@ -3,13 +3,19 @@
 ///
 /// **In the contract whole, before every backend runs it.** Every interface
 /// here is implemented by each backend package, which is pinned to this one by
-/// a caret range, so a member added in a patch release would break the backend
-/// that shipped before it. 0.8.0 therefore carries the whole shape. WebGPU and
-/// the software rasteriser run it; WebGL2 and Impeller leave
+/// a caret range, so what grows arrives with a default body. WebGPU, the wgpu
+/// sidecar and the software rasteriser run it; WebGL2 and Impeller leave
 /// `DeviceFeature.compute` out of their features and refuse the creators with
 /// `UnsupportedCapabilityException`. Impeller follows when flutter_gpu exposes compute
 /// pipelines (flutter/flutter#188480), and the shape follows its proposal
 /// (#188474) so that becomes a mapping rather than a redesign.
+///
+/// **What a pass promises.** Storage writes of one dispatch are visible to the
+/// next in the same pass, and passes are ordered by submission. A pass runs
+/// when it is submitted, so a `writeBuffer` made while it is open lands before
+/// its dispatches, as a GPU queue orders them; every encoder checks a storage
+/// range and a dispatch size at the call (`checkStorageBinding`,
+/// `checkDispatch` in `backend.dart`).
 library;
 
 import 'dart:typed_data';

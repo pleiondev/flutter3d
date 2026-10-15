@@ -11,6 +11,7 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'backend_handles.dart';
 import 'synchronous_readback.dart';
+import 'testing_fake_compute.dart';
 import 'testing_fake_pass.dart';
 import 'testing_recorded.dart';
 
@@ -107,8 +108,11 @@ final class FakeLoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary {
 /// names it in `extraFeatures`; a feature named there is *recorded* — each
 /// call becomes a [RecordedCall] in the pass or in [calls] — and a feature
 /// not named is refused with [UnsupportedCapabilityException], exactly as a real
-/// backend without it refuses. Compute is never available: a fake runs no
-/// stage, and `extraFeatures` may not name it.
+/// backend without it refuses. **Compute is recorded, not run**, since
+/// 1.0.0-rc.1+2: `FakeBackend(compute: true)` reports `DeviceFeature.compute`,
+/// makes compute pipelines and opens a [FakeComputePass] that records every
+/// bind and dispatch ([computePasses]), so a `ComputeStep` can be tested for
+/// what it encodes; `extraFeatures` still may not name compute.
 final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
   // The 0.8 cycle's half of the contract, declared in 0.8.0 and not built
   // here yet — see the end of `GraphicsDevice`. Each answer is the one that
@@ -118,14 +122,44 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
   void onGpuTimings(void Function(GpuFrameTimings timings)? listener) {}
 
   @override
-  ComputePipelineHandle createComputePipeline(ShaderHandle shader) =>
-      throw _noCompute();
+  ComputePipelineHandle createComputePipeline(ShaderHandle shader) {
+    if (!_compute) throw _noCompute();
+    calls.add(RecordedCall('createComputePipeline', arguments: shader));
+    return _born(
+      wrapComputePipeline(
+        owner: this,
+        backend: 'fake compute ${_serial++}',
+        shader: shader,
+      ),
+    );
+  }
+
+  @override
+  void releaseComputePipeline(ComputePipelineHandle pipeline) {
+    _live.remove(pipeline);
+    calls.add(RecordedCall('releaseComputePipeline', arguments: pipeline));
+  }
 
   @override
   ComputeEncoder beginComputePass({
     String? label,
     PassTimestampWrites? timestampWrites,
-  }) => throw _noCompute();
+  }) {
+    if (!_compute) throw _noCompute();
+    if (timestampWrites != null) {
+      features.require(DeviceFeature.timestampQuery, backend: _name);
+    }
+    final pass = FakeComputePass(limits: limits, label: label);
+    computePasses.add(pass);
+    return pass;
+  }
+
+  /// Whether this fake records compute — the constructor's `compute`.
+  final bool _compute;
+
+  /// Every compute pass opened, in order, for a test that asks what a step
+  /// bound and dispatched. Since 1.0.0-rc.1+2.
+  final List<FakeComputePass> computePasses = <FakeComputePass>[];
 
   /// Zeros of the buffer's length: a fake keeps no bytes. Refused for a
   /// buffer that was not made host-readable, as every backend refuses it.
@@ -211,24 +245,31 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
     Iterable<DeviceFeature> extraFeatures = const <DeviceFeature>[],
     this.refusingPipelines = const <String>{},
     this.refusedBuilds,
+    bool compute = false,
   }) : assert(
          !extraFeatures.contains(DeviceFeature.compute),
-         'a fake runs no compute stage, so it cannot report compute',
+         'compute is the constructor\'s compute: true, which records it',
        ),
+       _compute = compute,
        shaders = FakeShaderLibrary(
          missing: missingShaders,
          stageBindings: stageBindings,
        ),
-       limits = DeviceLimits(
-         maxSamplerAnisotropy: maxAnisotropy,
-         maxColorAttachments: maxColorAttachments,
-         maxComputeWorkgroupStorageSize: 0,
-         maxComputeInvocationsPerWorkgroup: 0,
-         maxComputeWorkgroupSizeX: 0,
-         maxComputeWorkgroupSizeY: 0,
-         maxComputeWorkgroupSizeZ: 0,
-         maxComputeWorkgroupsPerDimension: 0,
-       ),
+       limits = compute
+           ? DeviceLimits(
+               maxSamplerAnisotropy: maxAnisotropy,
+               maxColorAttachments: maxColorAttachments,
+             )
+           : DeviceLimits(
+               maxSamplerAnisotropy: maxAnisotropy,
+               maxColorAttachments: maxColorAttachments,
+               maxComputeWorkgroupStorageSize: 0,
+               maxComputeInvocationsPerWorkgroup: 0,
+               maxComputeWorkgroupSizeX: 0,
+               maxComputeWorkgroupSizeY: 0,
+               maxComputeWorkgroupSizeZ: 0,
+               maxComputeWorkgroupsPerDimension: 0,
+             ),
        _features = DeviceFeatures(<DeviceFeature>{
          DeviceFeature.offscreenMultisample,
          // Recorded, not evaluated: this device blends nothing, so the honest
@@ -262,6 +303,11 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
          // the x-ray stage has to draw nothing rather than configure a test
          // against an attachment with no stencil in it.
          if (supportsStencil) DeviceFeature.stencil,
+         if (compute) ...<DeviceFeature>[
+           DeviceFeature.compute,
+           DeviceFeature.buffers,
+           DeviceFeature.renderStageStorage,
+         ],
          ...extraFeatures,
        });
 

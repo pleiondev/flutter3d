@@ -33,6 +33,7 @@ import 'dart:typed_data';
 import 'package:meta/meta.dart';
 
 import 'compute_placement.dart';
+import 'compute_requirement.dart';
 import 'geometry_buffer.dart';
 
 /// One buffer a [ComputeWorkload]'s kernels bind, by the name its kernels
@@ -146,6 +147,27 @@ abstract base class WorkloadRecorder {
   /// called, while a read of it asked for earlier has not arrived yet: one
   /// read a buffer is in flight at a time.
   bool readBack(String buffer, void Function(ByteData bytes) done);
+
+  /// [readBack] of [sizeInBytes] bytes of [buffer] from [offsetInBytes]
+  /// (to its end when null): only that range crosses back where the device
+  /// can map one, so a workload that needs a few counters of a large state
+  /// does not copy the state — since 1.0.0-rc.1+2. The default reads it
+  /// all and hands [done] the range.
+  bool readBackRange(
+    String buffer,
+    int offsetInBytes,
+    int? sizeInBytes,
+    void Function(ByteData bytes) done,
+  ) => readBack(
+    buffer,
+    (ByteData bytes) => done(
+      ByteData.sublistView(
+        bytes,
+        offsetInBytes,
+        sizeInBytes == null ? null : offsetInBytes + sizeInBytes,
+      ),
+    ),
+  );
 }
 
 /// A simulation's step as kernels and buffers, for the engine to place and
@@ -172,6 +194,13 @@ abstract base class ComputeWorkload {
   /// placement rule prefers to the CPU executor
   /// ([ComputeExecutors.placeWorkload]).
   bool get hasHost => false;
+
+  /// What it cannot do without, which the placement rule meets: a
+  /// simulation whose state a replay or a rollback reads requires
+  /// [ComputeRequirement.bitExact], and is then kept off a GPU wherever its
+  /// kernels divide or call `sqrt`, `sin`, `cos` or `pow`. A requirement,
+  /// never a placement. None by default — since 1.0.0-rc.1+2.
+  Set<ComputeRequirement> get requirements => const <ComputeRequirement>{};
 
   /// Told where it runs, before the first [record] there; told again with
   /// [WorkloadBinding.host] when it falls back. The buffers are zeroed at

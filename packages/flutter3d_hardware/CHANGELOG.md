@@ -16,6 +16,56 @@
   two new tiers, `featureOutputChecks` and `drawnOutputChecks`, and the
   `outputChecks` table of which check holds each feature. WebGL2's
   `gpuTimestamps` and `multiview` rows follow the backend.
+- **A workload states a requirement, and the layer meets it.**
+  `ComputeRequirement` (new, an open set) is what a piece of compute cannot
+  do without: `bitExact`, the same bytes on every machine for a replay or a
+  rollback, and `beyondPortableProfile`. `ComputeWorkload.requirements` says
+  it (none by default), `ComputeNeeds` (new) carries it with the size of the
+  work's kernels to `FrameCompute.place` and `placeHosted`, and the rule
+  passes over a device that does not meet it, saying why. Nothing above the
+  layer still names a placement; HAL.md's frozen sentence now says so.
+- **Exact, and within a declared tolerance.** The integers and f32 `+`,
+  `-`, `*` are the same bits on every placement; `/`, `sqrt`, `sin`, `cos`
+  and `pow` carry a `KernelTolerance` in `kernelTolerances` (new), WGSL's
+  own accuracy rounded up, which conformance holds every device to against
+  the Dart translation. `ulpsBetween` (new) counts the units between two
+  f32 values.
+- **The portable kernel profile.** `PortableComputeProfile` (new): 128
+  invocations a workgroup and 8 storage buffers a kernel, what Vulkan and
+  OpenGL ES 3.1 guarantee. Work past it is refused on every device unless
+  it declares `beyondPortableProfile`, and is then held to each device's
+  `DeviceLimits`.
+- **Every encoder checks its ranges and its dispatches.**
+  `checkStorageBinding` and `checkDispatch` (new, in `backend.dart`) refuse
+  a storage offset off `minStorageBufferOffsetAlignment` and a dispatch
+  past `maxComputeWorkgroupsPerDimension` with a `RangeError` at the call,
+  on every backend, where WebGPU drained a validation error later and the
+  CPU ran it.
+- **A fallback is reported, and a test stops at it.** A kernel that fails
+  on a device and runs elsewhere is a `ComputeFallback` (new) on
+  `FrameCompute.fallbacks`, a `compute fallback` event on the timeline and
+  a `flutter3d.compute` log line, with the reason; `PlacedWork.passedOver`
+  lists each `PassedOver` (new) device. Where assertions are on —
+  tests, debug builds, conformance — it throws `ComputeFallbackError`
+  instead (`FrameCompute.strict`); a `CapabilityException` falls back
+  quietly either way.
+- **Compute belongs to the engine instance and goes with it.**
+  `FrameCompute` disposes the sidecar and the CPU device it opened, and
+  every value `FrameCompute.cached` (new) keeps, when its drawing device is
+  lost or disposed, or on `FrameCompute.dispose`; a device adopted again
+  lets go of its old compute.
+- **The one door to a compute pass above the layer.**
+  `ComputeSite.beginPass` (new) opens the pass on the site the rule placed,
+  and `FrameCompute.placeOnFrame` (new) answers at once for work only the
+  drawing device can run. A structure rule holds every `lib/` outside the
+  layer and the backends to opening passes there.
+- **A range read back.** `WorkloadRecorder.readBackRange` (new, with a
+  default body) reads a range of a workload's buffer, so a few counters of
+  a large state do not copy the state.
+- **Compute in the fake.** `FakeBackend(compute: true)` reports compute,
+  makes compute pipelines and opens a `FakeComputePass` (new) that records
+  every bind and dispatch after the checks a real encoder makes, in
+  `FakeBackend.computePasses`.
 - **Breaking: an opener takes one `DeviceRequest`.** `BackendOpener` and
   `ComputeOpener` were functions of a width and a height, and of nothing;
   a parameter added later would have made every backend's opener

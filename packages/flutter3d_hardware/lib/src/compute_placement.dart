@@ -14,14 +14,21 @@
 /// engine above asks [FrameCompute] for a [ComputeSite] and is told a
 /// device to encode on, never a placement, and nothing above this layer
 /// may ask for one. Which devices a frame has is the backends' to say,
-/// through the [DeviceRegistry] that opened its device.
+/// through the [DeviceRegistry] that opened its device. What a piece of
+/// compute may say is what it requires (`ComputeRequirement`, in
+/// [ComputeNeeds]), which the rule here meets — since 1.0.0-rc.1+2.
 library;
+
+import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show CapabilityException;
 import 'package:meta/meta.dart';
 
 import 'capabilities.dart';
+import 'compute.dart';
+import 'compute_requirement.dart';
 import 'device_registry.dart';
 import 'graphics_device.dart';
 
@@ -378,6 +385,14 @@ final class ComputeSite {
   /// buffers and textures can be bound as they are.
   bool get isOnFrameDevice => identical(device, frameDevice);
 
+  /// Opens a compute pass on [device], labelled [label]: the site's own
+  /// encoder, which the caller binds, dispatches and submits — since
+  /// 1.0.0-rc.1+2. **The one door to a compute pass above this layer**: a
+  /// structure rule holds every `lib/` but the hardware layer's and the
+  /// backends' to opening passes here, on a site the rule placed.
+  ComputeEncoder beginPass({String? label}) =>
+      device.beginComputePass(label: label);
+
   @override
   bool operator ==(Object other) =>
       other is ComputeSite &&
@@ -396,11 +411,90 @@ final class ComputeSite {
 ComputePlacement computePlacementOf(ComputeSite site) =>
     site._executor.placement;
 
+/// One executor a piece of compute was not put on, and why — since
+/// 1.0.0-rc.1+2.
+///
+/// **Named by its backend, never by its placement**: what a report or a log
+/// shows, which says what happened without giving anything above this layer
+/// a placement to choose by.
+@immutable
+final class PassedOver {
+  const PassedOver._(this.backend, this.reason, {this.error});
+
+  /// The device passed over, by its name for people
+  /// (`GraphicsDevice.backendName`).
+  final String backend;
+
+  /// Why, in a sentence.
+  final String reason;
+
+  /// What loading the work there threw, when that is why; null for a device
+  /// passed over for a requirement or a limit.
+  final Object? error;
+
+  /// Whether the work failed there, rather than not being asked of it.
+  bool get didFail => error != null;
+
+  @override
+  String toString() => 'PassedOver($backend: $reason)';
+}
+
+/// A piece of compute that failed on a device and ran elsewhere — since
+/// 1.0.0-rc.1+2: what [FrameCompute.fallbacks] reports, and the timeline
+/// and the log say, each time one happens.
+@immutable
+final class ComputeFallback {
+  const ComputeFallback._(this.step, this.passedOver, this.landedOn);
+
+  /// The work, by its name in the frame.
+  final String step;
+
+  /// Every device passed over before it landed, in the order tried; at
+  /// least one of them [PassedOver.didFail].
+  final List<PassedOver> passedOver;
+
+  /// Where it runs instead: a backend's name, or `its own host code`.
+  final String landedOn;
+
+  /// The fallback in a sentence, with each failure's reason.
+  String get message {
+    final failures = <String>[
+      for (final p in passedOver)
+        if (p.didFail) '${p.backend} failed it (${p.error})',
+    ];
+    return '"$step" fell back to $landedOn after ${failures.join('; ')}';
+  }
+
+  @override
+  String toString() => 'ComputeFallback: $message';
+}
+
+/// Thrown instead of falling back, where falling back would hide a mistake:
+/// a test, a debug build, a conformance run ([FrameCompute.strict]) —
+/// since 1.0.0-rc.1+2.
+///
+/// An [Error], not an exception: a kernel that fails on a device with
+/// compute and room for it is a bug in the kernel or the backend, which a
+/// release build survives by running it elsewhere and a debug build stops
+/// at, so it is seen.
+final class ComputeFallbackError extends Error {
+  ComputeFallbackError(this.fallback);
+
+  /// What would have happened.
+  final ComputeFallback fallback;
+
+  @override
+  String toString() =>
+      'ComputeFallbackError: ${fallback.message}. A release build runs it '
+      'there and reports it on FrameCompute.fallbacks; set '
+      'FrameCompute.strict to false to do so here.';
+}
+
 /// What [FrameCompute.place] and [FrameCompute.placeHosted] answer: where
-/// the work landed, and what loading it there gave — its kernels' stages,
-/// say. A class, so it can say more in a minor.
+/// the work landed, what loading it there gave — its kernels' stages, say
+/// — and every device passed over on the way.
 final class PlacedWork<T> {
-  const PlacedWork._(this.site, this.loaded);
+  const PlacedWork._(this.site, this.loaded, this.passedOver);
 
   /// Where it runs.
   final ComputeSite site;
@@ -408,8 +502,21 @@ final class PlacedWork<T> {
   /// What the load gave on [site]'s device.
   final T loaded;
 
+  /// The devices tried before [site], in order, each with why it was not
+  /// used — since 1.0.0-rc.1+2.
+  final List<PassedOver> passedOver;
+
   @override
   String toString() => 'PlacedWork($site)';
+}
+
+/// What [FrameCompute] found trying candidates in turn: what loaded where,
+/// who was passed over, and the first error.
+final class _Tried<T> {
+  _Tried();
+  final Map<ComputeExecutor, T> loaded = <ComputeExecutor, T>{};
+  final List<PassedOver> passed = <PassedOver>[];
+  Object? cause;
 }
 
 /// The compute a device's frames may use, and the hardware layer's rule for
@@ -422,9 +529,18 @@ final class PlacedWork<T> {
 /// without one, the device alone. A renderer, a compute step, a workload
 /// and a field ask it for a [ComputeSite] and are told the outcome, never
 /// a placement, and none of them is told where to look for executors.
+///
+/// **It owns what it opened, and goes with the device** — since
+/// 1.0.0-rc.1+2. The sidecar and the CPU device it opened, and every
+/// pipeline kept in [cached], belong to the engine instance drawing on
+/// [device]: they are disposed with [dispose], which the device's own
+/// teardown (a loss on `GraphicsDevice.lost`, its own `destroyed` among
+/// them) calls. Nothing in the layer keeps compute in a static cache.
 final class FrameCompute {
   FrameCompute._(this.device, this._open);
 
+  // Keyed by the device, weakly, and cleared by [dispose]: one instance's
+  // own state hung on its device, not a cache shared between instances.
   static final Expando<FrameCompute> _of = Expando<FrameCompute>(
     'frame compute',
   );
@@ -438,9 +554,43 @@ final class FrameCompute {
 
   final Future<ComputeExecutors> Function() _open;
   Future<ComputeExecutors>? _executors;
+  StreamSubscription<DeviceLoss>? _watch;
+  bool _disposed = false;
 
-  /// The executors, opened once.
-  Future<ComputeExecutors> _resolve() => _executors ??= _open();
+  /// Whether a piece of compute that fails on a device throws a
+  /// [ComputeFallbackError] instead of running elsewhere — since
+  /// 1.0.0-rc.1+2. True where assertions are on (a test, a debug build, a
+  /// conformance run), false in a release build, which falls back and
+  /// reports it on [fallbacks]. A failure the machine decides (a
+  /// `CapabilityException`) falls back either way.
+  bool strict = _assertionsOn();
+
+  static bool _assertionsOn() {
+    var on = false;
+    assert(on = true, 'only ever true');
+    return on;
+  }
+
+  final StreamController<ComputeFallback> _fallbacks =
+      StreamController<ComputeFallback>.broadcast();
+
+  /// Each piece of compute that failed on a device and runs elsewhere —
+  /// since 1.0.0-rc.1+2. The same is written to the timeline
+  /// (`compute fallback`) and the log (`flutter3d.compute`).
+  Stream<ComputeFallback> get fallbacks => _fallbacks.stream;
+
+  /// The executors, opened once, and let go with the device.
+  Future<ComputeExecutors> _resolve() {
+    if (_disposed) {
+      throw StateError('the compute of a disposed device was asked for');
+    }
+    _watch ??= device.lost.listen((DeviceLoss loss) {
+      if (!loss.isRecoverable && !loss.restored) {
+        dispose(drawingDeviceGone: true);
+      }
+    });
+    return _executors ??= _open();
+  }
 
   /// The drawing device itself, as a site: where what the frame samples is
   /// held.
@@ -450,74 +600,148 @@ final class FrameCompute {
   /// Places the work called [step]: [load]s it — its kernels, say — on each
   /// device the rule offers in turn, stopping at the first that takes it,
   /// and answers that site with what [load] gave. A device whose [load]
-  /// throws is passed over, its error kept as the refusal's cause.
-  /// [besideFrame] false keeps the work off a compute-only device beside
-  /// the frame's: for work the frame draws from in the same frame, which
-  /// would reach it only through the host.
+  /// throws is passed over, its error kept as the refusal's cause, and the
+  /// fallback reported ([strict], [fallbacks]). [besideFrame] false keeps
+  /// the work off a compute-only device beside the frame's: for work the
+  /// frame draws from in the same frame, which would reach it only through
+  /// the host. A device that does not meet [needs] is passed over without
+  /// being asked.
   ///
   /// Throws [ComputePlacementException] when nothing takes it.
   Future<PlacedWork<T>> place<T>(
     String step,
     Future<T> Function(GraphicsDevice device) load, {
     bool besideFrame = true,
+    ComputeNeeds needs = ComputeNeeds.none,
   }) async {
     final all = await _resolve();
     final executors = besideFrame ? all : all._withoutSidecar;
-    final loaded = <ComputeExecutor, T>{};
-    Object? cause;
-    // In placement order, stopping at the first that loads: the rule then
-    // chooses that one, and asking the rest would only load the work again
-    // on devices nobody will use.
-    for (final candidate in executors.available) {
-      try {
-        loaded[candidate] = await load(candidate.device);
-        break;
-      } on Object catch (error) {
-        cause ??= error;
-      }
-    }
+    final tried = await _loadOnFirst(executors.available, load, needs);
+    final ComputeExecutor chosen;
     try {
-      final chosen = executors.place(step: step, accepts: loaded.containsKey);
-      return PlacedWork._(ComputeSite._(chosen, device), loaded[chosen] as T);
+      chosen = executors.place(step: step, accepts: tried.loaded.containsKey);
     } on ComputePlacementException catch (refused) {
-      throw _withCause(refused, cause);
+      throw _withCause(refused, tried);
     }
+    _reportFallback(step, tried.passed, chosen.device.backendName);
+    return PlacedWork._(
+      ComputeSite._(chosen, device),
+      tried.loaded[chosen] as T,
+      List<PassedOver>.unmodifiable(tried.passed),
+    );
   }
 
   /// Places the work called [step] that has an implementation of its own on
   /// the host when [hasHost]: as [place], by the workload rule
   /// ([ComputeExecutors.placeWorkload]) — the GPUs first, then that host
   /// code, then the CPU executor for work with none. Null when its host
-  /// code is to run it.
+  /// code is to run it. [needs] as for [place]; the work's own host code
+  /// meets every requirement, being the work's own reference.
   ///
   /// Throws [ComputePlacementException] when nothing takes it.
   Future<PlacedWork<T>?> placeHosted<T>(
     String step,
     Future<T> Function(GraphicsDevice device) load, {
     required bool hasHost,
+    ComputeNeeds needs = ComputeNeeds.none,
   }) async {
     final executors = await _resolve();
-    final loaded = <ComputeExecutor, T>{};
-    Object? cause;
-    for (final candidate in executors.workloadCandidates(hasHost: hasHost)) {
-      try {
-        loaded[candidate] = await load(candidate.device);
-        break;
-      } on Object catch (error) {
-        cause ??= error;
-      }
-    }
+    final tried = await _loadOnFirst(
+      executors.workloadCandidates(hasHost: hasHost),
+      load,
+      needs,
+    );
+    final ComputeExecutor? chosen;
     try {
-      final chosen = executors.placeWorkload(
+      chosen = executors.placeWorkload(
         step: step,
         hasHost: hasHost,
-        accepts: loaded.containsKey,
+        accepts: tried.loaded.containsKey,
       );
-      if (chosen == null) return null;
-      return PlacedWork._(ComputeSite._(chosen, device), loaded[chosen] as T);
     } on ComputePlacementException catch (refused) {
-      throw _withCause(refused, cause);
+      throw _withCause(refused, tried);
     }
+    _reportFallback(
+      step,
+      tried.passed,
+      chosen?.device.backendName ?? 'its own host code',
+    );
+    if (chosen == null) return null;
+    return PlacedWork._(
+      ComputeSite._(chosen, device),
+      tried.loaded[chosen] as T,
+      List<PassedOver>.unmodifiable(tried.passed),
+    );
+  }
+
+  /// Each of [candidates] in order, stopping at the first that loads: the
+  /// rule then chooses that one, and asking the rest would only load the
+  /// work again on devices nobody will use. A device that does not meet
+  /// [needs] is passed over unasked.
+  Future<_Tried<T>> _loadOnFirst<T>(
+    List<ComputeExecutor> candidates,
+    Future<T> Function(GraphicsDevice device) load,
+    ComputeNeeds needs,
+  ) async {
+    final tried = _Tried<T>();
+    for (final candidate in candidates) {
+      final at = candidate.device;
+      final unmet = needs.unmetOn(at);
+      if (unmet != null) {
+        tried.passed.add(PassedOver._(at.backendName, unmet));
+        continue;
+      }
+      try {
+        tried.loaded[candidate] = await load(at);
+        break;
+      } on Object catch (error) {
+        tried.cause ??= error;
+        tried.passed.add(
+          PassedOver._(
+            at.backendName,
+            'the work failed there: $error',
+            error: error,
+          ),
+        );
+      }
+    }
+    return tried;
+  }
+
+  void _reportFallback(String step, List<PassedOver> passed, String landedOn) {
+    if (!passed.any((PassedOver p) => p.didFail)) return;
+    final fallback = ComputeFallback._(
+      step,
+      List<PassedOver>.unmodifiable(passed),
+      landedOn,
+    );
+    final mistaken = passed.any(
+      (PassedOver p) => p.didFail && p.error is! CapabilityException,
+    );
+    if (strict && mistaken) throw ComputeFallbackError(fallback);
+    developer.Timeline.instantSync(
+      'compute fallback',
+      arguments: <String, Object>{'step': step, 'to': landedOn},
+    );
+    developer.log(fallback.message, name: 'flutter3d.compute', level: 900);
+    if (!_fallbacks.isClosed) _fallbacks.add(fallback);
+  }
+
+  /// Where work called [step] runs that the frame draws from in the same
+  /// frame and that only a device holding it can run — the engine's own
+  /// stages a frame's draw reads, say: the drawing device, when it has
+  /// compute and [takes] it, or null, at once — since 1.0.0-rc.1+2. No
+  /// device beside the frame's is asked, and nothing is loaded, so there is
+  /// nothing to wait for.
+  ComputeSite? placeOnFrame(
+    String step,
+    bool Function(GraphicsDevice device) takes,
+  ) {
+    final executor = ComputeExecutors(
+      device: device,
+    ).executorFor(ComputePlacement.device);
+    if (executor == null || !takes(device)) return null;
+    return ComputeSite._(executor, device);
   }
 
   /// Places storage called [step] on the first device in placement order
@@ -536,23 +760,112 @@ final class FrameCompute {
     return ComputeSite._(chosen, device);
   }
 
+  final Map<GraphicsDevice, Map<Object, _Kept>> _kept =
+      Map<GraphicsDevice, Map<Object, _Kept>>.identity();
+
+  /// What [make] gives on [on] for [key], made once for this engine
+  /// instance and handed to every caller that asks with an equal [key]: a
+  /// workload's kernels and pipelines, loaded once however many steps run
+  /// it — since 1.0.0-rc.1+2.
+  ///
+  /// **Owned here, and let go with it**: [dispose] hands each value made to
+  /// its [release]. A [make] that fails is forgotten, so the next asking
+  /// tries again.
+  Future<T> cached<T>(
+    GraphicsDevice on,
+    Object key,
+    Future<T> Function() make, {
+    void Function(T value)? release,
+  }) {
+    if (_disposed) {
+      throw StateError('the compute of a disposed device was asked for');
+    }
+    final kept = _kept.putIfAbsent(on, () => <Object, _Kept>{});
+    if (kept[key] case final existing?) return existing.value as Future<T>;
+    final made = make();
+    kept[key] = _Kept(
+      made,
+      release == null ? null : (Object? value) => release(value as T),
+    );
+    made.then<void>(
+      (_) {},
+      onError: (Object _) {
+        if (identical(kept[key]?.value, made)) kept.remove(key);
+      },
+    );
+    return made;
+  }
+
+  /// How many values [cached] holds, across every device: for a test that
+  /// holds the instance to what it let go.
+  int get cachedCount =>
+      _kept.values.fold(0, (int n, Map<Object, _Kept> m) => n + m.length);
+
+  /// Lets go of everything this instance opened and kept: every value
+  /// [cached] holds, through its release, and the sidecar and the CPU
+  /// device opened for it, which are disposed — since 1.0.0-rc.1+2. The
+  /// drawing [device] is not disposed: it is its owner's. Called by the
+  /// device's own teardown, [drawingDeviceGone] then true so nothing is
+  /// handed back to a device already gone; a second call does nothing.
+  void dispose({bool drawingDeviceGone = false}) {
+    if (_disposed) return;
+    _disposed = true;
+    unawaited(_watch?.cancel());
+    if (identical(_of[device], this)) _of[device] = null;
+    for (final MapEntry(key: on, value: kept) in _kept.entries) {
+      if (drawingDeviceGone && identical(on, device)) continue;
+      for (final k in kept.values) {
+        if (k.release case final release?) {
+          k.value.then<void>(release, onError: (Object _) {});
+        }
+      }
+    }
+    _kept.clear();
+    if (_executors case final executors?) {
+      unawaited(
+        executors.then<void>((ComputeExecutors e) {
+          for (final other in <GraphicsDevice?>[e.sidecar, e.cpu]) {
+            if (other != null && !identical(other, device)) other.dispose();
+          }
+        }, onError: (Object _) {}),
+      );
+    }
+    unawaited(_fallbacks.close());
+  }
+
+  /// Whether [dispose] has run.
+  bool get isDisposed => _disposed;
+
   static ComputePlacementException _withCause(
     ComputePlacementException refused,
-    Object? cause,
+    _Tried<Object?> tried,
   ) => ComputePlacementException(
     step: refused.step,
     reason: refused.reason,
-    tried: refused.tried,
-    cause: cause ?? refused.cause,
+    tried: <String>[
+      ...refused.tried,
+      for (final p in tried.passed)
+        if (!p.didFail) '${p.backend}: ${p.reason}',
+    ],
+    cause: tried.cause ?? refused.cause,
   );
+}
+
+/// One value [FrameCompute.cached] keeps, and how it is let go.
+final class _Kept {
+  _Kept(this.value, this.release);
+  final Future<Object?> value;
+  final void Function(Object? value)? release;
 }
 
 /// Makes [open] the executors of frames drawn on [device], opened the first
 /// time they are asked for: what [DeviceRegistry.open] and
-/// [DeviceRegistry.adopt] do. Not exported.
+/// [DeviceRegistry.adopt] do. Whatever the device had before is let go.
+/// Not exported.
 void attachCompute(
   GraphicsDevice device,
   Future<ComputeExecutors> Function() open,
 ) {
+  FrameCompute._of[device]?.dispose();
   FrameCompute._of[device] = FrameCompute._(device, open);
 }

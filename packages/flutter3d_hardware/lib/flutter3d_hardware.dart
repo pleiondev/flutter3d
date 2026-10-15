@@ -46,6 +46,10 @@ export 'src/compute.dart' hide wrapComputePipeline, wrapStorageBuffer;
 /// CPU — and the rule that picks one.
 export 'src/compute_placement.dart' hide attachCompute, computePlacementOf;
 
+/// What a piece of compute requires of where it runs, the portable kernel
+/// profile, and the tolerance each inexact operation carries.
+export 'src/compute_requirement.dart';
+
 /// A simulation's compute as kernels and buffers, which the engine places
 /// and runs: the workload, its buffers, the recorder and where it landed.
 export 'src/compute_workload.dart';
