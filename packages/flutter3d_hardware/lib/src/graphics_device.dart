@@ -526,9 +526,11 @@ abstract base class GraphicsDevice with TextureAllocator {
   /// collector already reclaims, so its implementation is a no-op for a third,
   /// unrelated reason.
   ///
-  /// Call once, when the device is being torn down. Nothing here promises safe
+  /// Call when the device is being torn down. Nothing here promises safe
   /// reuse afterwards — a disposed device's handles are no longer valid on
-  /// backends that actually freed them.
+  /// backends that actually freed them. **A second call does nothing**, on
+  /// every backend: no throw, and no second loss on [lost], so a renderer
+  /// and the owner that opened the device can both let go of it.
   void dispose();
 
   // ------------------------------------------------------------------------
@@ -598,9 +600,10 @@ abstract base class GraphicsDevice with TextureAllocator {
   /// it; a feature it names and this device lacks answers false, and every
   /// call that feature gates throws `UnsupportedCapabilityException`.
   ///
-  /// **A mixin is a capability too, and the two agree.** Three capabilities
+  /// **A mixin is a capability too, and the two agree.** Four capabilities
   /// are types a device opts into rather than members every device carries:
-  /// [EncodedImageUpload], `SynchronousBufferReadback` (from
+  /// [EncodedImageUpload], `PlatformTextures` (since 1.0.0-rc.1+2),
+  /// `SynchronousBufferReadback` (from
   /// `package:flutter3d_hardware/testing.dart`, not the main library) and the
   /// `RenderBundleEncoder` an encoder mixes in. Each is asked with `is`, and
   /// where a [DeviceFeature] names the same thing

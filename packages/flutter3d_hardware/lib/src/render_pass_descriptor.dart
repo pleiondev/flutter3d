@@ -841,7 +841,7 @@ final class RenderPassDescriptor {
   /// view it is drawing as its view index. Null draws one view, the
   /// attachments' own [ColorTarget.layer]s, as every pass did before 1.0.
   ///
-  /// `DeviceFeature.multiview`, which no backend has yet; a device without
+  /// `DeviceFeature.multiview` (WebGL2 with `OVR_multiview2`); a device without
   /// it refuses the pass from `beginRenderPass` with the feature named.
   /// [views] and [forView] are how a caller draws the same views one pass
   /// at a time instead, and `ViewPasses` decides between the two.

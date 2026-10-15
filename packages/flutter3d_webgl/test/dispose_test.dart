@@ -126,10 +126,19 @@ void main() {
     },
   );
 
-  test('disposing twice is refused rather than silently accepted', () async {
+  test('disposing twice tells one loss and throws nothing', () async {
+    // The contract since 1.0.0-rc.1+1, held on every backend by the
+    // conformance check "a second dispose does nothing": a renderer and its
+    // owner can both let go. Mutation: put the `StateError` back.
     final device = await _makeDevice();
-    device.dispose();
-    expect(device.dispose, throwsStateError);
+    final losses = <DeviceLoss>[];
+    final listening = device.lost.listen(losses.add);
+    device
+      ..dispose()
+      ..dispose();
+    await Future<void>.delayed(Duration.zero);
+    await listening.cancel();
+    expect(losses, hasLength(1));
   });
 
   group('one at a time', () {

@@ -542,10 +542,7 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
         );
       }
       final texture = CpuTexture(side, side, format);
-      final bytes = source.buffer.asUint8List(source.offsetInBytes, need);
-      for (var i = 0; i < need; i++) {
-        texture.pixels[i] = bytes[i] / 255.0;
-      }
+      _decodeInto(texture.pixels, source, format, side * side);
       return texture;
     }
 
@@ -717,6 +714,10 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
       for (var x = 0; x < rect.width; x++) {
         final src = (y * rect.width + x) * 4;
         final dstTexel = ((rect.y + y) * target.width + (rect.x + x)) * 4;
+        if (isSrgbTwin(target.format)) {
+          decodeTexel(target.format, rgba, src, texture.pixels, dstTexel);
+          continue;
+        }
         for (var c = 0; c < 4; c++) {
           texture.pixels[dstTexel + c] = rgba.getUint8(src + c) / 255.0;
         }
@@ -1543,9 +1544,12 @@ void _decodeInto(
         into[i * 4 + 2] = 0.0;
         into[i * 4 + 3] = 1.0;
       }
-    // The formats 1.0 added, through the one codec `writeTexture` uses, so
-    // an upload and a write of the same bytes store the same floats.
-    case _ when !format.isMirrored && hasColourLayout(format):
+    // The formats 1.0 added, and the sRGB twins that are stored decoded,
+    // through the one codec `writeTexture` uses, so an upload and a write of
+    // the same bytes store the same floats.
+    case _
+        when (!format.isMirrored || isSrgbTwin(format)) &&
+            hasColourLayout(format):
       final size = format.bytesPerTexel;
       for (var i = 0; i < count; i++) {
         decodeTexel(format, pixels, i * size, into, i * 4);

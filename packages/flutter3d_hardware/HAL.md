@@ -289,16 +289,27 @@ refusal and is what a backend calls on the way into every gated call, so all
 backends refuse in the same words. `DeviceFeatures.none` is what a fake
 starts from.
 
-**Three capabilities are types rather than members**, asked with `is`:
+**Four capabilities are types rather than members**, asked with `is`:
 
 | Type | Mixed into | The feature that names the same thing |
 |---|---|---|
 | `EncodedImageUpload` (`decodeTexture`) | a device | none |
+| `PlatformTextures<I>` (`textureFromPlatformImage`) | a device; `I` is the platform's image (`dart:ui`'s `Image` on Flutter), which this layer may not name | none |
 | `SynchronousBufferReadback` (`readBufferSync`) | a device; exported from `backend.dart` and `testing.dart`, not the main library | `synchronousReadback` |
 | `RenderBundleEncoder` (`finish`) | an encoder | `renderBundles` |
 
 Where a feature names the same thing, a device lists it exactly when it is
 the type.
+
+**`PlatformTextures<I>` is a mixin with refusing bodies**, unlike the
+others: a backend that mixes it in overrides what it can, and a member a
+minor adds (a video frame, a camera image) reaches an old backend as a
+refusal. `textureFromPlatformImage(image)` wraps the image's own GPU texture
+with no copy through the host and throws a `DeviceResourceException` for an
+image it cannot wrap, after which the caller copies the pixels. Impeller is
+one for `dart:ui`'s `Image`, through flutter_gpu's `Texture.fromImage`; a
+widget drawn into a texture by `flutter3d_app` takes that road where the
+device has it.
 
 ### Limits and formats
 
@@ -660,8 +671,13 @@ is the fallback written once: one multiview pass where the device has
 `multiview` and the views fit `limits.maxMultiviewViews`, otherwise one pass
 per view, each needing `renderToArrayLayer` above view zero. The callback is
 handed a `ViewPass` whose `viewIndex` is null in the multiview case.
-`ViewPasses.inOnePass` answers which it will be. No backend reports
-`multiview` at 1.0.
+`ViewPasses.inOnePass` answers which it will be. WebGL2 reports `multiview`
+where the context offers `OVR_multiview2`: the views are consecutive layers
+of single-sampled 2D array attachments with no resolve (anything else is
+refused from `beginRenderPass`), and each program a multiview pass binds is
+linked again with its vertex stage declaring the view count. A stage reads
+its view as `gl_ViewID_OVR` only if it was written to; the engine's stages
+draw the same picture into every view.
 
 **What grows in a minor**: encoder members with refusing defaults,
 `RenderPassDescriptor` fields. **What is frozen**: the bodiless members
@@ -853,7 +869,11 @@ application rebuilds its renderer on the same device; any other means a new
 device. `PipelineRefusalReason.deviceLost` reports a pipeline lost with it.
 `dispose` releases everything, reports `DeviceLossReason.destroyed` on `lost`
 once (every backend, the null example and the wgpu sidecar included), and a
-handle used afterwards draws nothing.
+handle used afterwards draws nothing. **A second `dispose` does nothing**: no
+throw and no second loss; WebGL2 threw a `StateError` before its
+1.0.0-rc.1+1, and WebGPU before its 1.0.0-rc.1+2. A renderer and the owner that opened the device can
+both let go of it. The conformance checks `a dispose is told on lost as
+destroyed` and `a second dispose does nothing` hold every backend to both.
 
 **Errors that arrive late.** `errors` is a stream of `DeviceError` (`kind`, a
 `DeviceErrorKind`: `validation`, `outOfMemory`, `internal`, `shaderCompile`;
@@ -955,6 +975,8 @@ application where there is no test runner (Impeller's harness).
 | `capabilityChecks` | the honesty check, `every capability a device reports is honest`: each listed feature passes a minimal call, each unlisted one is refused by that feature's name. `unprobedFeatures` names what it cannot probe and why |
 | `computeChecks` (with `kernelChecks`) | `compute`; declines otherwise |
 | `multiviewChecks`, `sharingChecks`, `fieldResidenceChecks`, `xrChecks` | pass or decline on a device that does not draw |
+| `featureOutputChecks` | the bytes a 1.0 feature of buffers, copies, writes and sharing hands back, and the device's lifetime (its dispose told on `lost`, a second dispose harmless); declines without the feature |
+| `drawnOutputChecks` (in `shaderChecks`) | the pixels each 1.0 feature that changes a draw leaves, sRGB decoded and encoded; declines without the feature |
 | `shaderChecks` | the engine's stages compiled for the backend, and a rasteriser |
 | `loadedBundleChecks(ownShaders)` | a backend that can pack its own shaders as a loadable bundle |
 
@@ -963,6 +985,14 @@ A new backend runs `coreChecks` first, then everything but the shader tier
 backend's line), then the whole list once it draws. The fuzzer
 (`generateFuzzProgram`, `fuzzSeed`, `fuzzDifference`, `shrinkFinding`)
 compares a backend's pixels with a reference device's.
+
+**Every feature added in 1.0 is held by its output**, not by whether its
+call returns: `outputChecks` names, per feature, the check that compares
+what it drew or wrote with the software rasteriser's arithmetic, and
+`unmeasuredFeatures` the few no stage in the engine's bundle can draw yet
+(the shader-language features, render-stage storage, dual-source blending,
+the comparison sampler, read-write storage textures), each with its reason.
+`tool/structure.dart` holds the table to the feature list.
 
 **What grows in a minor**: checks and tiers, as the contract grows. A check
 for a feature declines on a device that does not list it, so a new feature's
@@ -1002,7 +1032,7 @@ What each reports, at this commit. "if …" is decided when the device opens;
 | `float32Filterable` | yes | if `OES_texture_float_linear` | if adapter | Metal on macOS | no |
 | `float32Renderable` | yes | if `EXT_color_buffer_float` | yes | Metal on macOS | no |
 | `fractionalViewport` | yes | no | yes | no | no |
-| `gpuTimestamps` | no | no | if adapter | no | no |
+| `gpuTimestamps` | no | if `EXT_disjoint_timer_query_webgl2` | if adapter | no | no |
 | `independentBlend` | yes | if `OES_draw_buffers_indexed` | yes | yes | no |
 | `indirectDispatch`, `indirectDraw` | yes | no | yes | no | no |
 | `indexUint32` | yes | yes | yes | yes | no |
@@ -1012,7 +1042,7 @@ What each reports, at this commit. "if …" is decided when the device opens;
 | `minMaxBlend` | yes | yes | yes | no | no |
 | `multiDraw`, `nonIndexedDraw` | yes | yes | yes | yes | no |
 | `multiDrawIndirect` | yes | no | if adapter | no | no |
-| `multiview` | no | no | no | no | no |
+| `multiview` | no | if `OVR_multiview2` | no | no | no |
 | `occlusionQuery` | yes | yes | yes | no | no |
 | `offscreenMultisample` | no | if MSAA proven | yes | if `flutter_gpu` says so | no |
 | `pipelineStatisticsQuery` | yes | no | no | no | no |

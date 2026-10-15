@@ -1,5 +1,21 @@
 ## 1.0.0-rc.1+2
 
+- **A platform image becomes a texture without a copy, where the device
+  can.** `PlatformTextures<I>` (new) is a device mixin asked with `is`, the
+  `EncodedImageUpload` pattern, with the platform's image as a type
+  parameter so this layer names no Flutter: `textureFromPlatformImage`
+  wraps the image's own GPU texture, and its body refuses with a
+  `DeviceResourceException` so a backend overrides what it can and a member
+  a minor adds (a video frame, a camera image) reaches an old backend as a
+  refusal. Impeller is one for `dart:ui`'s `Image`.
+- **A second `dispose` does nothing**, as `GraphicsDevice.dispose` now
+  says: no throw and no second loss on `lost`, on every backend, so a
+  renderer and the owner that opened the device can both let go of it.
+  HAL.md says it under "Lifetime", and the conformance suite checks it.
+- **HAL.md tells where 1.0's features are checked by their output**: the
+  two new tiers, `featureOutputChecks` and `drawnOutputChecks`, and the
+  `outputChecks` table of which check holds each feature. WebGL2's
+  `gpuTimestamps` and `multiview` rows follow the backend.
 - **Breaking: an opener takes one `DeviceRequest`.** `BackendOpener` and
   `ComputeOpener` were functions of a width and a height, and of nothing;
   a parameter added later would have made every backend's opener

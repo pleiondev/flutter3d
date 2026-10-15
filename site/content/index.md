@@ -176,7 +176,7 @@ flowchart TB
   simp --> physics
 ```
 
-The rest are left out of the diagram on purpose, because none of them changes what an app may know. Three of them are worth naming: `pad_input` and `flutter3d_pointer_lock` are gamepad and mouse capture, read once per frame by `flutter3d_game`, and `flutter3d_conformance` is test-only: it is what a backend has to pass before it can appear in the table below. `flutter3d_app` makes one decision of its own, which device to open (web or native at compile time, and which backend on each side at run time), so the conditional import an app needs is written once and not per project. [Assembling an application](/core/session/) walks through all of it with the real code that uses them. The rules the diagram states live outside any package, in `tool/structure.dart`: 127 checks that read source text and run before a build.
+The rest are left out of the diagram on purpose, because none of them changes what an app may know. Three of them are worth naming: `pad_input` and `flutter3d_pointer_lock` are gamepad and mouse capture, read once per frame by `flutter3d_game`, and `flutter3d_conformance` is test-only: it is what a backend has to pass before it can appear in the table below. `flutter3d_app` makes one decision of its own, which device to open (web or native at compile time, and which backend on each side at run time), so the conditional import an app needs is written once and not per project. [Assembling an application](/core/session/) walks through all of it with the real code that uses them. The rules the diagram states live outside any package, in `tool/structure.dart`: 131 checks that read source text and run before a build.
 
 Three of those rules hold the picture up:
 

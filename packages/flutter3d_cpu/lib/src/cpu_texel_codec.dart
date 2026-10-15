@@ -8,9 +8,13 @@
 /// decoder for one of those edges is how an upload and a copy come to
 /// disagree about the same bytes.
 ///
-/// The eight-bit colour formats keep the byte order they arrive in, sRGB and
-/// BGRA included: that is what `createTextureFromPixels` has always stored,
-/// and a `writeTexture` of the same bytes must store the same floats. The
+/// The eight-bit colour formats keep the byte order they arrive in, BGRA
+/// included: that is what `createTextureFromPixels` has always stored, and a
+/// `writeTexture` of the same bytes must store the same floats. **The sRGB
+/// twins are stored decoded**, linear as a draw into one leaves it, so a
+/// sampler reads 0.5 for the byte 188 as a GPU's does, and their bytes are
+/// encoded again on the way out ([srgbTwinsConverted] says where a copy
+/// between the two layouts crosses). The
 /// 32-bit integer formats are not here at all — a 32-bit float cannot hold
 /// every 32-bit integer, so the store cannot keep them, and
 /// `CpuDevice.textureFormatSupport` answers none for them.
@@ -21,6 +25,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'cpu_resources.dart' show cpuRefusal;
+import 'cpu_shaders_color.dart' show toLinear, toSrgb;
 import 'cpu_texture.dart';
 
 /// Reads one texel of [format] at [offset] in [bytes] into `into[at..at+3]`.
@@ -59,11 +64,16 @@ void decodeTexel(
       put(u8(0) / 255.0, 0, 0, 1);
     case TextureFormat.r8g8UNormInt:
       put(u8(0) / 255.0, u8(1) / 255.0, 0, 1);
-    case TextureFormat.r8g8b8a8UNormInt ||
-        TextureFormat.r8g8b8a8UNormIntSRGB ||
-        TextureFormat.b8g8r8a8UNormInt ||
-        TextureFormat.b8g8r8a8UNormIntSRGB:
+    case TextureFormat.r8g8b8a8UNormInt || TextureFormat.b8g8r8a8UNormInt:
       put(u8(0) / 255.0, u8(1) / 255.0, u8(2) / 255.0, u8(3) / 255.0);
+    case TextureFormat.r8g8b8a8UNormIntSRGB ||
+        TextureFormat.b8g8r8a8UNormIntSRGB:
+      put(
+        toLinear(u8(0) / 255.0),
+        toLinear(u8(1) / 255.0),
+        toLinear(u8(2) / 255.0),
+        u8(3) / 255.0,
+      );
     case TextureFormat.r8g8b8a8SNormInt:
       put(sn(0), sn(1), sn(2), sn(3));
     case TextureFormat.r8g8b8a8UInt:
@@ -155,13 +165,16 @@ void encodeTexel(
       for (var i = 0; i < 2; i++) {
         u8(i, unorm(c(i), 255));
       }
-    case TextureFormat.r8g8b8a8UNormInt ||
-        TextureFormat.r8g8b8a8UNormIntSRGB ||
-        TextureFormat.b8g8r8a8UNormInt ||
-        TextureFormat.b8g8r8a8UNormIntSRGB:
+    case TextureFormat.r8g8b8a8UNormInt || TextureFormat.b8g8r8a8UNormInt:
       for (var i = 0; i < 4; i++) {
         u8(i, unorm(c(i), 255));
       }
+    case TextureFormat.r8g8b8a8UNormIntSRGB ||
+        TextureFormat.b8g8r8a8UNormIntSRGB:
+      for (var i = 0; i < 3; i++) {
+        u8(i, unorm(toSrgb(c(i).isNaN ? 0.0 : c(i).clamp(0.0, 1.0)), 255));
+      }
+      u8(3, unorm(c(3), 255));
     case TextureFormat.r8g8b8a8SNormInt:
       for (var i = 0; i < 4; i++) {
         bytes.setInt8(offset + i, snorm(c(i)));
@@ -238,6 +251,31 @@ void encodeTexel(
             'TextureFormat.${format.name}',
       );
   }
+}
+
+/// Whether [format] is one of the eight-bit sRGB twins, whose texels this
+/// backend stores decoded.
+bool isSrgbTwin(TextureFormat format) =>
+    format == TextureFormat.r8g8b8a8UNormIntSRGB ||
+    format == TextureFormat.b8g8r8a8UNormIntSRGB;
+
+/// Converts copied [color] texels between a texture stored decoded and its
+/// plain twin, where the copy is of bytes: from an sRGB [source] they are
+/// encoded, into an sRGB [destination] decoded, and between two of a kind
+/// they are left alone. Alpha is never touched. Answers whether it converted.
+bool srgbTwinsConverted(
+  TextureFormat source,
+  TextureFormat destination,
+  Float32List color,
+) {
+  final from = isSrgbTwin(source);
+  if (from == isSrgbTwin(destination)) return false;
+  for (var i = 0; i < color.length; i++) {
+    if (i % 4 == 3) continue;
+    final v = color[i].clamp(0.0, 1.0);
+    color[i] = from ? toSrgb(v) : toLinear(v);
+  }
+  return true;
 }
 
 /// Whether [decodeTexel] and [encodeTexel] have a colour layout for [format].

@@ -18,10 +18,12 @@ import 'dart:convert';
 
 import 'api.dart';
 import 'boundaries.dart';
+import 'conformance.dart';
 import 'hal.dart';
 import 'layers.dart';
 import 'migration.dart';
 import 'naming.dart';
+import 'reach.dart';
 import 'schema.dart';
 
 /// One thing a rule found, with enough to act on it.
@@ -5938,6 +5940,10 @@ abstract final class FrameResourceIds {
 
   // The HAL's contract with its backends: `hal.dart` keeps its own proofs.
   broken.addAll(proveHalDetectorsWork());
+  // The conformance suite's hold on the features: `conformance.dart`.
+  broken.addAll(proveConformanceDetectorsWork());
+  // What the backends reach for: `reach.dart`.
+  broken.addAll(proveReachDetectorsWork());
 
   return broken;
 }

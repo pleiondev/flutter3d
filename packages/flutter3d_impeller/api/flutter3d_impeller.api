@@ -11,7 +11,7 @@ final class GpuFrameImage extends StatefulWidget
   final FilterQuality quality
   final TextureHandle frame
 
-final class GpuRenderBackend extends GraphicsDevice
+final class GpuRenderBackend extends GraphicsDevice with PlatformTextures<ui.Image>
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor)
   ComputeEncoder beginComputePass({String? label, PassTimestampWrites? timestampWrites})
   ComputePipelineHandle createComputePipeline(ShaderHandle shader)
@@ -43,6 +43,7 @@ final class GpuRenderBackend extends GraphicsDevice
   TextureHandle createTexture(TextureDescriptor descriptor)
   TextureHandle createTextureFromPixels({required int width, required int height, required TextureFormat format, required ByteData pixels, List<ByteData>? mipLevels})
   TextureHandle importTexture(NativeHandle handle, TextureDescriptor descriptor)
+  TextureHandle textureFromPlatformImage(ui.Image image, {String? label})
   TransferEncoder beginTransferPass({String? label})
   bool get isLost
   int get preferredSampleCount

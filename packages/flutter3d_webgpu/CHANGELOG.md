@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1+2
 
+- **A second `dispose` does nothing**, as on every backend, where it threw
+  a `StateError`: a renderer and the owner that opened the device can both
+  let go of it.
 - **The blend constant reaches the blend.** `setBlendColor` calls
   `setBlendConstant`, and the colour pair (`"constant"`,
   `"one-minus-constant"`) is honoured: `blendConstant` is listed now that

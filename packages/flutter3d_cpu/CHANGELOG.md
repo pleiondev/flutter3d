@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1+1
 
+- **An sRGB texture is stored decoded.** The rasteriser kept an sRGB
+  upload's bytes as they came and sampled them raw, so the byte 188 read
+  as 0.74 where every GPU reads 0.5, while a draw into the same format
+  kept linear values: two meanings in one store. Uploads, writes and
+  copies from a buffer now decode the sRGB twins, a copy out of one
+  encodes again, and a texture copy between an sRGB texture and its plain
+  twin crosses over, as the bytes it is promised to copy say. The engine
+  draws no sRGB texture, so no golden moves; the conformance check `an sRGB
+  texture is decoded when sampled and encoded when drawn` is what found
+  it.
 - **Strips and points are drawn.** The software rasteriser drew triangle and
   line lists and threw an untyped `UnsupportedError` from the draw for the
   other three topologies. It assembles all five now and lists

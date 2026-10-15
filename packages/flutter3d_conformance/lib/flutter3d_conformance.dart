@@ -14,8 +14,8 @@
 ///
 /// **Two tiers, and the split is a correction.** This file used to say it was
 /// shader-free as a whole, and that stopped being true the day a check needed a
-/// pipeline: 33 of the 57 link stages and draw. A new
-/// backend following the old promise would have met 33 shader checks
+/// pipeline: 59 of the 97 link stages and draw. A new
+/// backend following the old promise would have met 59 shader checks
 /// it could do nothing about, so the lists say which is which — [coreChecks]
 /// needs clears, uploads and readback alone, [shaderChecks] needs the bundle.
 /// The tiers answer "can this be asked yet", not "does this matter": the
@@ -67,6 +67,7 @@ import 'src/geometry_overwrite_checks.dart';
 import 'src/loaded_bundle_checks.dart';
 import 'src/multisample_checks.dart';
 import 'src/multiview_checks.dart';
+import 'src/output_checks.dart';
 import 'src/pass_coverage_checks.dart';
 import 'src/picking_checks.dart';
 import 'src/pipeline_checks.dart';
@@ -103,6 +104,12 @@ export 'src/kernel_checks.dart' show conformanceKernels, kernelChecks;
 export 'src/loaded_bundle_checks.dart'
     show OwnShaderSection, loadedBundleChecks;
 export 'src/multiview_checks.dart' show multiviewChecks;
+export 'src/output_checks.dart'
+    show
+        drawnOutputChecks,
+        featureOutputChecks,
+        outputChecks,
+        unmeasuredFeatures;
 export 'src/sharing_checks.dart' show sharingChecks;
 export 'src/xr_checks.dart' show xrChecks;
 
@@ -297,7 +304,7 @@ void runDeviceConformance({
 /// **This list is why the two exist separately.** The library used to say it
 /// was shader-free as a whole, and it stopped being true the day the third
 /// check needed a pipeline — so a new backend, following the promise, would
-/// have hit 33 shader checks it had no way to act on yet. Clears,
+/// have hit 59 shader checks it had no way to act on yet. Clears,
 /// uploads and readback only: the answers here are the cheapest ones to get,
 /// and they are the ones worth having first.
 List<ConformanceCheck> get coreChecks => <ConformanceCheck>[
@@ -512,6 +519,9 @@ List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
     name: 'a geometry overwrite leaves its neighbours untouched',
     run: checkGeometryOverwriteLeavesNeighboursUntouched,
   ),
+  // Since 1.0: every feature the HAL gained that changes a picture, held by
+  // the pixels it leaves rather than by whether its call returns.
+  ...drawnOutputChecks,
 ];
 
 /// Every check, as plain functions, for a harness that is not a test runner.
@@ -532,6 +542,10 @@ List<ConformanceCheck> get conformanceChecks => <ConformanceCheck>[
   // Since 1.0: a headset's two views reach their own layers of the
   // runtime's image, a pass each, copied, or in one multiview pass.
   ...xrChecks,
+  // Since 1.0: every feature the HAL gained that needs no stage, held by
+  // the bytes it hands back, and the lifetime every device owes — its
+  // dispose told on lost, a second one harmless.
+  ...featureOutputChecks,
 ];
 
 /// [conformanceChecks] and the check that needs the backend's own shaders

@@ -2681,13 +2681,13 @@ fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
   /// `GPUDevice.destroy` gives back the device — so what is left afterwards is
   /// a closure over a null.
   ///
-  /// Call once. A second call is a caller mistake worth surfacing rather than
-  /// one this device quietly absorbs.
+  /// **A second call does nothing**, as on every backend: a renderer and
+  /// the owner that opened the device can both let go of it, and the
+  /// conformance check "a second dispose does nothing" holds each backend to
+  /// that. It threw a `StateError` before.
   @override
   void dispose() {
-    if (_disposed) {
-      throw StateError('WebGpuDevice.dispose() was already called');
-    }
+    if (_disposed) return;
     _disposed = true;
     if (!_isLost) {
       _isLost = true;

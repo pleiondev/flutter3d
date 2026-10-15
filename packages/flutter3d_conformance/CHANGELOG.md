@@ -1,5 +1,35 @@
 ## 1.0.0-rc.1+1
 
+- **Every feature the HAL gained in 1.0 is held by what it draws or
+  writes, not by whether its call returns.** A probe that only made the call
+  passed every backend that had it, whichever way round it applied it: a
+  depth bias with its sign flipped, a write mask on the wrong channel, a
+  query in another unit. Thirty-seven checks compare pixels, bytes or query
+  results with the software rasteriser's arithmetic and decline on a device
+  without their feature: depth bias and its clamp, depth clamp, the write
+  mask, min and max blending, fractional and oversized viewports, reversed
+  depth, non-indexed, based, multi- and indirect draws, bundles, 32-bit
+  indices, uniform bytes and buffers, the three queries, buffers written,
+  copied and mapped, texture writes, cube arrays, 3D and 1D textures, the
+  samplers' clamps, the float and packed targets, zero-copy sharing and an
+  indirect dispatch. `featureOutputChecks` (new) is the shader-free half,
+  in `conformanceChecks`; `drawnOutputChecks` (new) the half that draws,
+  in `shaderChecks`. `outputChecks` (new) names the check that holds each
+  1.0 feature, and `unmeasuredFeatures` (new) the seven no stage in the
+  engine's bundle can draw yet, each with its reason; `tool/structure.dart`
+  holds the table to the HAL's feature list.
+- **The lifetime every device owes is checked**: its own dispose told on
+  `lost` as `destroyed` and `isLost` after it, a second dispose that
+  throws nothing and tells no second loss, and sRGB decoded when sampled
+  and encoded when drawn. The software rasteriser failed the last, and is
+  fixed.
+- **The compressed check asks by family feature and draws ASTC HDR too**:
+  a family a device lists is one a caller was told it may upload, so it is
+  the one that has to sample; the HDR family gets a void-extent block of
+  half floats.
+- **Strips and points are drawn exactly where they are listed**, and
+  refused exactly where they are not: the primitive check held the pixels
+  and not the feature report.
 - **`runPluginConformance` writes the plugin's report.** Once its checks
   have run, `<package>.conformance.json` (`f3d.conformance` version 1, the
   `conformanceReport` of what ran) is written beside the pubspec of the

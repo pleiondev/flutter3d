@@ -137,6 +137,22 @@ Future<void> checkPrimitiveTypesAreDrawnOrRefused(GraphicsDevice device) async {
     painted[type] = refused ? null : await _paintedPixels(device, target);
   }
 
+  // **Refused exactly where unlisted**, since 1.0.0-rc.1+2: a strip or a
+  // point is drawn by a device that lists its feature and refused by one
+  // that does not, never the other way round.
+  for (final (type, feature) in <(PrimitiveType, DeviceFeature)>[
+    (PrimitiveType.triangleStrip, DeviceFeature.primitiveStrips),
+    (PrimitiveType.lineStrip, DeviceFeature.primitiveStrips),
+    (PrimitiveType.point, DeviceFeature.pointPrimitives),
+  ]) {
+    final listed = device.features.has(feature);
+    require(
+      listed == (painted[type] != null),
+      'PrimitiveType.${type.name} was ${painted[type] == null ? 'refused' : 'drawn'} '
+      'by a device that ${listed ? 'lists' : 'does not list'} ${feature.name}',
+    );
+  }
+
   final filled = painted[PrimitiveType.triangle];
   require(
     filled != null && filled > _size * _size ~/ 4,

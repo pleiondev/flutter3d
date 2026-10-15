@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1+1
 
+- **A widget drawn into a texture is wrapped, not copied.** The device is
+  `PlatformTextures<ui.Image>`: `textureFromPlatformImage` wraps an image's
+  own GPU texture through flutter_gpu's `Texture.fromImage`, the inverse
+  of `frameImage`, and refuses an image with no texture of its own yet with
+  a `DeviceResourceException`, after which the caller copies its pixels.
 - **Strips, points and 32-bit indices are listed**, as the HAL names them
   before the freeze: every flutter_gpu path draws them.
 - **The viewport carries its depth range** to flutter_gpu's

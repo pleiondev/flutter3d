@@ -2212,6 +2212,8 @@ const Map<String, String> hookParametersAllowed = <String, String>{
       'flutter3d_elements: the world\'s fields as the core that steps them implements them and an element calls them; it grows by members with defaults, and its calls by named parameters a caller may leave out',
   'EncodedImageUpload':
       'flutter3d_hardware: a capability of the hardware interface, for GraphicsDevice\'s reason',
+  'PlatformTextures':
+      'flutter3d_hardware: a capability of the hardware interface, for GraphicsDevice\'s reason; the image and a label, as `decodeTexture` takes the bytes and its options',
   'EntityKind.place':
       'flutter3d_sim: a helper a kind calls from its spawn to place its collider, not a hook it overrides; it grows by named parameters a caller may leave out',
   'EntityKind.requireKeyExists':
@@ -3112,6 +3114,7 @@ const List<String> _hardwareBackendSide = <String>[
   'EncodedImageUpload',
   'ImageExtent',
   'LayeredShaderLibrary',
+  'PlatformTextures',
   'ShaderLibraryStack',
   'cappedImageSize',
   'decodeKernelSection',
@@ -3232,6 +3235,12 @@ final Map<String, String> facadeGapAllowed = <String, String>{
         'read off a parsed compute stage (`MaterialProgram.workgroupSize`), '
         'which `parseMaterial` builds and a caller never writes by hand; a '
         'kernel author imports `flutter3d_shaders/kernel.dart`',
+  for (final facade in facadePackages.keys)
+    '$facade:PlatformTextures':
+        'a capability a backend mixes into its device and a widget drawn '
+        'into a texture asks of one (`flutter3d_app`\'s `textureFromImage`): '
+        'a backend author imports `flutter3d_hardware`, and an application '
+        'hands the engine a device and never writes it',
   for (final facade in facadePackages.keys)
     for (final name in <String>['LayeredShaderLibrary', 'ShaderLibraryStack'])
       '$facade:$name':

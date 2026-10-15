@@ -115,6 +115,10 @@ Never decline(GraphicsDevice device, String why)
 
 Future<Uint8List> drawFuzzProgram(FuzzProgram program, DeviceFactory makeDevice)
 
+List<ConformanceCheck> get drawnOutputChecks
+
+List<ConformanceCheck> get featureOutputChecks
+
 List<ConformanceCheck> get fieldResidenceChecks
 
 Future<double> fuzzDifference(int seed, {required DeviceFactory device, required DeviceFactory reference, int threshold = 8})
@@ -129,6 +133,8 @@ List<ConformanceCheck> loadedBundleChecks(Future<OwnShaderSection?> Function() o
 
 List<ConformanceCheck> get multiviewChecks
 
+const Map<String, String> outputChecks = …
+
 bool refusesResource(Object? Function() call)
 
 void require(bool condition, String message)
@@ -142,6 +148,8 @@ List<ConformanceCheck> get sharingChecks
 Future<FuzzFinding> shrinkFinding(FuzzFinding finding, DeviceFactory makeDevice)
 
 List<FuzzTransform> transformsFor(FuzzProgram program, int seed)
+
+const Map<String, String> unmeasuredFeatures = …
 
 const Map<String, String> unprobedFeatures = …
 

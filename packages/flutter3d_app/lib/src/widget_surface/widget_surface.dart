@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart' hide Matrix4;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
+import 'platform_texture.dart';
 import 'widget_surface_pipeline.dart';
 
 /// `wg-01`: a live Flutter widget as a mesh in the 3D scene, the node
@@ -131,16 +132,16 @@ final class WidgetSurface {
     final generation = ++_generation;
     final image = await pipeline.currentImage();
     try {
-      final pixels = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      // Wrapped where the device takes the image whole, copied where it
+      // does not — see `textureFromImage`.
+      final handle = await textureFromImage(device, image);
+      if (handle == null) return;
       // Overtaken by a newer frame, or by [dispose]: this one's pixels are
       // older than what is (or is no longer) on the plane.
-      if (pixels == null || generation != _generation) return;
-      final handle = device.createTextureFromPixels(
-        width: image.width,
-        height: image.height,
-        format: TextureFormat.r8g8b8a8UNormInt,
-        pixels: pixels,
-      );
+      if (generation != _generation) {
+        device.releaseTexture(handle);
+        return;
+      }
       final previous = _texture;
       _texture = handle;
       node.material.albedo = handle;

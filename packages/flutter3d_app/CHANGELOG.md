@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1+1
 
+- **A widget surface skips the CPU round trip where the device can.**
+  `WidgetTexture.draw` and `WidgetSurface.tick` read the rasterised image
+  back with `toByteData` and uploaded it again on every backend; on
+  Impeller they now hand it to the device's `PlatformTextures<ui.Image>`
+  and sample the image's own texture, and copy only where the device takes
+  no platform image or refuses this one.
 - **Breaking: `RenderView` is `CameraView`.** `Flutter3dEngine`,
   `LoadedLevel`, `SceneSurface`, `ViewSettings` and `XrDriver` changed with
   it. `package:flutter/rendering.dart` exports a `RenderView` too, the root

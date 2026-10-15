@@ -38,6 +38,7 @@ import 'webgl_buffers.dart';
 import 'webgl_bundle.dart';
 import 'webgl_encoder.dart';
 import 'webgl_formats.dart';
+import 'webgl_frame_timer.dart';
 import 'webgl_framebuffer.dart';
 import 'webgl_image_decode.dart';
 import 'webgl_loaded_shaders.dart';
@@ -62,12 +63,25 @@ export 'webgl_types.dart';
 /// or is not there is written beside it, in [_decideFeatures].
 final class WebGlDevice extends GraphicsDevice
     with EncodedImageUpload, SynchronousBufferReadback {
-  // TODO(webgl): GPU timings per labelled pass — `onGpuTimings` could be fed
-  // from `EXT_disjoint_timer_query_webgl2`'s TIME_ELAPSED queries around each
-  // pass, which this backend already uses for timestamp query sets; nothing
-  // wires them to the frame's labels yet, so gpuTimestamps stays unlisted.
+  /// What the GPU spent on each labelled pass, a frame or two after it was
+  /// drawn: `EXT_disjoint_timer_query_webgl2`'s elapsed-time queries around
+  /// each pass with a label, read at the next [beginFrame] that finds them
+  /// answered (see [WebGlFrameTimer]). Ignored on a context without the
+  /// extension, which does not list `gpuTimestamps`.
   @override
-  void onGpuTimings(void Function(GpuFrameTimings timings)? listener) {}
+  void onGpuTimings(void Function(GpuFrameTimings timings)? listener) =>
+      _timingListener = _frameTimer == null ? null : listener;
+
+  void Function(GpuFrameTimings timings)? _timingListener;
+
+  /// The elapsed-time queries behind [onGpuTimings], where the extension was
+  /// granted — whether or not it counts timestamps, which [_timerQuery]
+  /// needs and this does not.
+  WebGlFrameTimer? _frameTimer;
+
+  /// `OVR_multiview2`, where the context offers it: a pass draws every view
+  /// of `RenderPassDescriptor.viewMask` at once, into consecutive layers.
+  web.OVR_multiview2? _multiview;
 
   // TODO(webgl): compute — WebGL2 has no compute stage; the WebGL 2.0
   // Compute draft was abandoned, and compute on the web goes through the
@@ -370,6 +384,12 @@ final class WebGlDevice extends GraphicsDevice
           .._blendFuncExtended =
               gl.getExtension('WEBGL_blend_func_extended') != null
           .._timerQuery = _grantedTimestamps(gl)
+          .._frameTimer =
+              gl.getExtension('EXT_disjoint_timer_query_webgl2') == null
+              ? null
+              : WebGlFrameTimer(gl)
+          .._multiview =
+              gl.getExtension('OVR_multiview2') as web.OVR_multiview2?
           .._multiDraw =
               gl.getExtension('WEBGL_multi_draw') as web.WEBGL_multi_draw?
           .._baseVertexBaseInstance = gl.getExtension(
@@ -421,6 +441,14 @@ final class WebGlDevice extends GraphicsDevice
         : null;
   }
 
+  /// `MAX_VIEWS_OVR`, where `OVR_multiview2` was granted.
+  int _maxViews() {
+    final value = _gl.getParameter(web.OVR_multiview2.MAX_VIEWS_OVR);
+    return value != null && value.isA<JSNumber>()
+        ? (value as JSNumber).toDartInt
+        : 1;
+  }
+
   /// Every [DeviceFeature] this context has, and beside each the reason it
   /// is or is not here.
   DeviceFeatures _decideFeatures() {
@@ -465,8 +493,10 @@ final class WebGlDevice extends GraphicsDevice
       // `DEPTH24_STENCIL8` is WebGL2 core, and it is the format every depth
       // attachment this backend makes is allocated in.
       DeviceFeature.stencil,
-      // Not gpuTimestamps (see the TODO at `onGpuTimings`), and not compute
-      // (see the TODO at `createStorageBuffer`).
+      // Elapsed-time queries around each labelled pass, which is what
+      // `onGpuTimings` reports; not compute (see the TODO at
+      // `createStorageBuffer`).
+      if (_frameTimer != null) DeviceFeature.gpuTimestamps,
       //
       // `OES_texture_float_linear` — `S2`. Filtering a 32-bit float texture
       // is this extension alone, and without it such a texture samples as
@@ -548,6 +578,11 @@ final class WebGlDevice extends GraphicsDevice
       // draws where it is not — which the contract allows.
       DeviceFeature.multiDraw,
       if (_baseVertexBaseInstance != null) DeviceFeature.baseVertexBaseInstance,
+      // `OVR_multiview2`: the views of a pass attach as consecutive layers
+      // of an array texture, and each program it binds is linked again with
+      // its vertex stage declaring the view count — see
+      // `WebGlShaderLibrary.multiviewProgram`.
+      if (_multiview != null && _maxViews() >= 2) DeviceFeature.multiview,
       // Not pipeline statistics: WebGL2 has no such query and no extension
       // for one.
     ]);
@@ -585,6 +620,7 @@ final class WebGlDevice extends GraphicsDevice
         256,
       ),
       maxColorAttachments: _maxColorAttachments,
+      maxMultiviewViews: _multiview == null ? 1 : _maxViews(),
       // GL budgets attachments by count, not bytes; the widest texel any
       // colour format here has is sixteen bytes.
       maxColorAttachmentBytesPerSample: _maxColorAttachments * 16,
@@ -868,11 +904,14 @@ final class WebGlDevice extends GraphicsDevice
   /// [DeviceLossReason.destroyed] before the stream closes — since
   /// 1.0.0-rc.1+2, the loss every backend owes for its own dispose. A context
   /// the browser already took has said so, and is not lost twice.
+  ///
+  /// **A second call does nothing**, since 1.0.0-rc.1+1, as on every
+  /// backend: a renderer and the owner that opened the device can both let
+  /// go of it, and a conformance harness disposes whatever a check left.
+  /// It threw a `StateError` before.
   @override
   void dispose() {
-    if (_disposed) {
-      throw StateError('WebGlDevice.dispose() was already called');
-    }
+    if (_disposed) return;
     _disposed = true;
     if (!_isLost && !_lost.isClosed) {
       _isLost = true;
@@ -901,6 +940,7 @@ final class WebGlDevice extends GraphicsDevice
     }
     _loaded.clear();
     _library.dispose();
+    _frameTimer?.dispose();
 
     // What can be released of the _canvas and the context, released honestly.
     // The platform-view registry has no unregister, and the factory closure
@@ -1594,7 +1634,7 @@ final class WebGlDevice extends GraphicsDevice
   /// The member is not dead weight — it is where a backend says "nothing",
   /// which is different from the engine assuming nothing needs saying.
   @override
-  void beginFrame() {}
+  void beginFrame() => _frameTimer?.endFrame(_timingListener);
 
   @override
   void onFrameComplete(void Function() whenDone) {
@@ -1628,7 +1668,47 @@ final class WebGlDevice extends GraphicsDevice
         'is not a timestamp set',
       );
     }
+    if (descriptor.viewMask != null) _checkViews(descriptor);
     return WebGlEncoder(this, _gl, descriptor);
+  }
+
+  /// Refuses a multiview pass `OVR_multiview2` cannot attach: its views have
+  /// to be consecutive layers of an array texture, single-sampled, with no
+  /// resolve (a blit has no multiview form).
+  void _checkViews(RenderPassDescriptor descriptor) {
+    final views = descriptor.views;
+    final first = views.first;
+    for (var i = 0; i < views.length; i++) {
+      if (views[i] != first + i) {
+        throw refuseResource(
+          'beginRenderPass',
+          'OVR_multiview2 draws consecutive layers, and the view mask '
+              '${descriptor.viewMask} names $views',
+        );
+      }
+    }
+    if (descriptor.colors.any((ColorTarget c) => c.resolveTexture != null)) {
+      throw refuseResource(
+        'beginRenderPass',
+        'a multiview pass resolves nothing: a blit has no multiview form',
+      );
+    }
+    final textures = <TextureHandle>[
+      for (final color in descriptor.colors) color.texture,
+      ?descriptor.depth?.texture,
+    ];
+    for (final texture in textures) {
+      final backend = texture.backend as WebGlTexture;
+      if (backend.target != web.WebGL2RenderingContext.TEXTURE_2D_ARRAY ||
+          texture.sampleCount != 1 ||
+          texture.depthOrArrayLayers < first + views.length) {
+        throw refuseResource(
+          'beginRenderPass',
+          'a multiview pass attaches single-sampled 2D array textures with a '
+              'layer for each view, and $texture is not one',
+        );
+      }
+    }
   }
 
   /// The platform view type this device's _canvas is registered under.
@@ -2152,6 +2232,12 @@ final class WebGlDevice extends GraphicsDevice
 extension WebGlDeviceInternals on WebGlDevice {
   web.HTMLCanvasElement get canvas => _canvas;
   web.EXT_disjoint_timer_query_webgl2? get timerQuery => _timerQuery;
+
+  /// The frame timer, while something listens on `onGpuTimings`.
+  WebGlFrameTimer? get frameTimer =>
+      _timingListener == null ? null : _frameTimer;
+  web.OVR_multiview2? get multiviewExtension => _multiview;
+  WebGlShaderLibrary get shaderLibrary => _library;
   web.WEBGL_multi_draw? get multiDrawExtension => _multiDrawExtension;
   web.OES_draw_buffers_indexed? get drawBuffersIndexed => _drawBuffersIndexed;
   JSObject? get baseVertexBaseInstanceExtension =>

@@ -969,6 +969,9 @@ final class PlacedWork<T>
   final ComputeSite site
   final T loaded
 
+base mixin PlatformTextures<I extends Object> on GraphicsDevice
+  TextureHandle textureFromPlatformImage(I image, {String? label})
+
 final class PolygonMode
   String toString()
   final String name

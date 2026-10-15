@@ -133,6 +133,9 @@ final class CpuTransferEncoder extends TransferEncoder {
               _cut(plane, source.x, source.y, width, height),
           ];
       for (var z = 0; z < to.length; z++) {
+        // A copy is of bytes, and an sRGB texture keeps its texels decoded:
+        // into or out of one from its plain twin, the floats cross over.
+        srgbTwinsConverted(a.format, b.format, read[z].color);
         _paste(to[z], destination.x, destination.y, width, height, read[z]);
       }
     });

@@ -89,6 +89,10 @@ export 'src/pass_state.dart';
 export 'src/pipeline_descriptor.dart';
 export 'src/pipeline_refusal.dart';
 
+/// A platform image (on Flutter, `dart:ui`'s `Image`) taken as a texture with
+/// no copy through the host, by a device that mixes it in.
+export 'src/platform_textures.dart';
+
 /// What a readback may ask for, checked once for every backend.
 export 'src/readback.dart';
 

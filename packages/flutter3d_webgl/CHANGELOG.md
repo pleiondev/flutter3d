@@ -1,5 +1,20 @@
 ## 1.0.0-rc.1+1
 
+- **GPU timings per labelled pass.** `onGpuTimings` reports what each
+  labelled pass spent, from `EXT_disjoint_timer_query_webgl2`'s elapsed
+  time queries around it, read a frame or two later once answered and
+  dropped when the timer was disjoint; `gpuTimestamps` is listed where the
+  extension is granted, whether or not it counts timestamps.
+- **Multiview through `OVR_multiview2`.** Where the context offers it, a
+  pass with a `viewMask` draws every view at once into consecutive layers
+  of single-sampled 2D array attachments, each program it binds linked
+  again with its vertex stage declaring the view count
+  (`WebGlShaderLibrary.multiviewProgram`, `withViewCount`); `multiview` is
+  listed and `maxMultiviewViews` is the context's `MAX_VIEWS_OVR`. A mask
+  that is not consecutive, or an attachment of another shape, is refused
+  from `beginRenderPass`.
+- **A second `dispose` does nothing**, as on every backend, where it threw
+  a `StateError`.
 - **Strips, points and 32-bit indices are listed**, with the alpha pair of
   the blend constant (`blendConstantAlpha`): all WebGL2 core, and named as
   features of the HAL before the freeze. The topology and the index width

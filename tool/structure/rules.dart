@@ -11,11 +11,13 @@ import 'dart:io';
 
 import 'api.dart';
 import 'boundaries.dart';
+import 'conformance.dart';
 import 'detectors.dart';
 import 'hal.dart';
 import 'layers.dart';
 import 'migration.dart';
 import 'naming.dart';
+import 'reach.dart';
 import 'repository.dart';
 import 'schema.dart';
 
@@ -65,6 +67,22 @@ List<Rule> get allRules => <Rule>[
   (
     name: 'the HAL keeps the shapes it settled before the freeze',
     run: halKeepsItsShapes,
+  ),
+  (
+    name: 'every feature added in 1.0 has a check that compares its output',
+    run: everyFeatureComparesItsOutput,
+  ),
+  (
+    name: 'conformance checks loss on dispose, a second dispose and sRGB',
+    run: conformanceChecksTheLifetime,
+  ),
+  (
+    name: 'a widget surface asks for the platform texture before a round trip',
+    run: widgetSurfacesSkipTheRoundTrip,
+  ),
+  (
+    name: 'WebGL2 asks for and uses the extensions its features rest on',
+    run: webglUsesItsExtensions,
   ),
   (name: 'the engine names no backend', run: _engineNamesNoBackend),
   (
@@ -3771,9 +3789,7 @@ List<Finding> _conformanceCheckCount() {
       .map((File f) => checksIn(f.readAsStringSync()))
       .fold(0, (int a, int b) => a + b);
 
-  final opens = librarySource.indexOf('get shaderChecks =>');
-  final closes = opens < 0 ? -1 : librarySource.indexOf('\n];', opens);
-  if (closes < 0) {
+  if (!librarySource.contains('get shaderChecks =>')) {
     return <Finding>[
       const Finding(
         'flutter3d_conformance.dart',
@@ -3782,7 +3798,15 @@ List<Finding> _conformanceCheckCount() {
       ),
     ];
   }
-  final shader = checksIn(librarySource.substring(opens, closes));
+  // Through the lists it spreads, which is how the 1.0 output checks join
+  // the tier: counted as written, the list held its own entries only.
+  final shader = checksThrough(
+    'shaderChecks',
+    checkListsIn(<String>[
+      for (final file in dartFilesIn(lib))
+        if (!isPluginCheck(file)) file.readAsStringSync(),
+    ]),
+  );
 
   final architecture = File('${repositoryRoot.path}/ARCHITECTURE.md');
   final text = architecture.existsSync() ? architecture.readAsStringSync() : '';

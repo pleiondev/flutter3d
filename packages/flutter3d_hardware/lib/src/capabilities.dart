@@ -556,13 +556,12 @@ final class DeviceFeature extends Capability {
   /// (`gl_ViewIndex`, `@builtin(view_index)`). How many views one pass may
   /// draw is `DeviceLimits.maxMultiviewViews`.
   ///
-  /// **The shape for stereo and for XR, before any backend draws it.** No
-  /// backend lists it today: WebGPU has no multiview yet, Impeller and the
-  /// software rasteriser none at all, and WebGL2's `OVR_multiview2` is not
-  /// wired. A pass that names a view mask on such a device is refused with
-  /// this feature named, and `ViewPasses` draws the same views as one pass
-  /// per view instead, each into its own layer, which every device with
-  /// [renderToArrayLayer] can.
+  /// **The shape for stereo and for XR.** WebGL2 lists it where the context
+  /// offers `OVR_multiview2`; WebGPU has no multiview yet, Impeller and the
+  /// software rasteriser none at all. A pass that names a view mask on such
+  /// a device is refused with this feature named, and `ViewPasses` draws the
+  /// same views as one pass per view instead, each into its own layer, which
+  /// every device with [renderToArrayLayer] can.
   static const multiview = DeviceFeature._(
     'multiview',
     FeatureStability.stable,

@@ -47,12 +47,37 @@ export 'gpu_frame_image.dart';
 /// names flutter_gpu, which is what makes the import graph a property somebody
 /// can check: `tool/structure.dart`'s "the hardware layer names no graphics
 /// API" rule scans for it.
-final class GpuRenderBackend extends GraphicsDevice {
+final class GpuRenderBackend extends GraphicsDevice
+    with PlatformTextures<ui.Image> {
   @override
   String get backendName => 'Impeller';
 
   @override
   String get backendId => 'impeller';
+
+  /// [image] — a widget rasterised by `RepaintBoundary.toImage`, a decoded
+  /// picture — as a texture over its own GPU storage, with no copy through
+  /// the host: flutter_gpu's `Texture.fromImage`, since 1.0.0-rc.1+1.
+  ///
+  /// The inverse of [frameImage]. An image with no GPU texture of its own
+  /// (one from `toImageSync` that has not rasterised yet) is refused with a
+  /// `DeviceResourceException`, and the caller copies its pixels instead.
+  @override
+  TextureHandle textureFromPlatformImage(ui.Image image, {String? label}) {
+    final TextureHandle texture;
+    try {
+      texture = wrapPlatformImage(image);
+    } on Exception catch (error) {
+      throw refuseResource(
+        'textureFromPlatformImage',
+        "flutter_gpu could not wrap the image's texture (an image from "
+            'toImageSync may not have one yet); read its pixels back instead',
+        cause: error,
+      );
+    }
+    if (label != null) setLabel(texture, label);
+    return texture;
+  }
 
   /// [frame] — a texture this device made, such as `FrameResult.frame` — as
   /// a `dart:ui` image over the same allocation, without a copy. What a

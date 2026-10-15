@@ -50,7 +50,10 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
               descriptor.depth?.mipLevel ?? 0,
             ),
       _depthReadOnly = descriptor.depth?.depthReadOnly ?? false,
-      _stencilReadOnly = descriptor.depth?.stencilReadOnly ?? false {
+      _stencilReadOnly = descriptor.depth?.stencilReadOnly ?? false,
+      _multiviewPass = descriptor.viewMask != null,
+      _views = descriptor.views.length,
+      _firstView = descriptor.views.first {
     _framebuffer = _gl.createFramebuffer();
     _gl.bindFramebuffer(web.WebGLRenderingContext.FRAMEBUFFER, _framebuffer);
 
@@ -268,7 +271,21 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
     // The pass's first timestamp, last of all its setup: what it times is
     // the pass's own work, as WebGPU's beginning-of-pass write does.
     _writeTimestamp(descriptor.timestampWrites?.beginningOfPassIndex);
+    // And the frame's timing of a labelled pass, for `onGpuTimings`.
+    final label = descriptor.label;
+    _timed = label != null && (_device.frameTimer?.begin(label) ?? false);
   }
+
+  /// Whether the pass names a view mask, and is drawn through
+  /// `OVR_multiview2` however many views it names; how many it draws at
+  /// once, and the layer of the first.
+  final bool _multiviewPass;
+  final int _views;
+  final int _firstView;
+
+  /// Whether this pass holds the frame timer's elapsed-time query, ended
+  /// with the pass.
+  bool _timed = false;
 
   /// What the pass was opened with: the formats `executeBundles` holds a
   /// bundle to, the query sets the queries write.
@@ -288,6 +305,19 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
     int mipLevel = 0,
     int layer = 0,
   }) {
+    if (_multiviewPass) {
+      // Every view at once, from the first view's layer: `OVR_multiview2`.
+      // `WebGlDevice.beginRenderPass` has held the attachment to that shape.
+      _device.multiviewExtension!.framebufferTextureMultiviewOVR(
+        web.WebGLRenderingContext.FRAMEBUFFER,
+        attachment,
+        (texture.backend as WebGlTexture).texture,
+        mipLevel,
+        _firstView,
+        _views,
+      );
+      return;
+    }
     try {
       attachToFramebuffer(
         _gl,
@@ -629,7 +659,7 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
     // link the draws until the next bind are skipped rather than drawn with
     // whatever program the context had before. One the device's record
     // leaves refused is skipped whether it linked or not.
-    final program = switch (pipeline.backend) {
+    final linked = switch (pipeline.backend) {
       _ when _device.pipelineRefusals.isRefused(pipeline) => null,
       final WebGlUnlinkedPipeline unlinked => _device.linkRefused(
         pipeline,
@@ -637,6 +667,12 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
       ),
       final other => other as WebGlProgram,
     };
+    // A multiview pass draws through the same pair linked with its vertex
+    // stage declaring the views, which `OVR_multiview2` requires of every
+    // program a multiview framebuffer draws with.
+    final program = linked == null || !_multiviewPass
+        ? linked
+        : _device.shaderLibrary.multiviewProgram(linked, _views);
     _pipelineRefused = program == null;
     if (program == null) {
       clearBindings();
@@ -1374,6 +1410,10 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
   /// framebuffer nulled so a second run deletes nothing twice — that null is
   /// also how [submit] recognises a pass already torn down.
   void _release() {
+    if (_timed) {
+      _device.frameTimer?.end();
+      _timed = false;
+    }
     for (final buffer in _transient) {
       _gl.deleteBuffer(buffer);
     }

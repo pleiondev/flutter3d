@@ -371,8 +371,8 @@ void main() {
     expect(device.debugTrackedResourceCount, greaterThan(before));
     device.dispose();
     expect(device.debugTrackedResourceCount, 0);
-    // `tearDown` would dispose twice, which the device refuses; make a fresh
-    // one for it to tear down.
+    // A fresh one for `tearDown` to tear down, so the next test's device is
+    // not this disposed one.
     device = await WebGlDevice.open(
       width: _width,
       height: _height,

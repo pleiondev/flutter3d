@@ -20,7 +20,7 @@
 /// a colour — the void extent — which is why the family with the most
 /// complicated encoder is the one whose block here is the simplest.
 ///
-/// **All three families, because two of them was an arbitrary line.** ASTC has
+/// **All four families, because two of them was an arbitrary line.** ASTC has
 /// a mapping on every backend and had never had a block drawn through it, which
 /// is exactly the status this check exists to end: a format the capability
 /// table names, the allocation accepts, and nothing has ever sampled.
@@ -82,26 +82,73 @@ Uint8List _astc4x4Solid() {
   ]);
 }
 
-Future<void> checkCompressedTextureSamples(GraphicsDevice device) async {
-  final candidates = <(TextureFormat, Uint8List)>[
-    (TextureFormat.bc1RGBAUNormInt, _bc1Solid()),
-    (TextureFormat.etc2RGB8UNormInt, _etc2Solid()),
-    (TextureFormat.astc4x4LDR, _astc4x4Solid()),
-  ];
+/// One 4×4 ASTC HDR block as a void extent: [_astc4x4Solid] with bit 9 set,
+/// which says the four channels are half floats rather than UNORM16.
+Uint8List _astc4x4HdrSolid() {
+  final halves = ByteData(8);
+  final channels = <int>[_r, _g, _b, 255];
+  for (var i = 0; i < 4; i++) {
+    halves.setUint16(i * 2, _half(channels[i] / 255), Endian.little);
+  }
+  return Uint8List.fromList(<int>[
+    0xFC, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, //
+    ...halves.buffer.asUint8List(),
+  ]);
+}
 
+/// [value], in `[0, 1]`, as an IEEE half float.
+int _half(double value) {
+  if (value == 0) return 0;
+  final bits = (ByteData(4)..setFloat32(0, value)).getUint32(0);
+  final exponent = ((bits >> 23) & 0xFF) - 127 + 15;
+  final mantissa = ((bits & 0x7FFFFF) + 0x1000) >> 13;
+  return (exponent << 10) + mantissa;
+}
+
+/// Each family by the feature that lists it, and the block drawn for it.
+///
+/// **By feature, not by asking `textureFormatSupport` alone**: the honesty
+/// check holds the two answers together, and a family listed here is one a
+/// caller was told it may upload, so it is the one that has to sample.
+List<(DeviceFeature, TextureFormat, Uint8List)> get _families =>
+    <(DeviceFeature, TextureFormat, Uint8List)>[
+      (
+        DeviceFeature.textureCompressionBC,
+        TextureFormat.bc1RGBAUNormInt,
+        _bc1Solid(),
+      ),
+      (
+        DeviceFeature.textureCompressionETC2,
+        TextureFormat.etc2RGB8UNormInt,
+        _etc2Solid(),
+      ),
+      (
+        DeviceFeature.textureCompressionASTC,
+        TextureFormat.astc4x4LDR,
+        _astc4x4Solid(),
+      ),
+      (
+        DeviceFeature.textureCompressionASTCHdr,
+        TextureFormat.astc4x4HDR,
+        _astc4x4HdrSolid(),
+      ),
+    ];
+
+Future<void> checkCompressedTextureSamples(GraphicsDevice device) async {
   // Not a failure: the interface says to ask, and a backend that answers
   // false is entitled to. A backend with none of the families — the software
   // rasteriser — is asked nothing here, and says so rather than passing.
-  final sampled = candidates
-      .where(
-        ((TextureFormat, Uint8List) c) =>
-            device.textureFormatSupport(c.$1).sampled,
-      )
-      .toList();
+  final sampled = <(TextureFormat, Uint8List)>[
+    for (final (feature, format, block) in _families)
+      if (device.features.has(feature) &&
+          device.textureFormatSupport(format).sampled)
+        (format, block),
+  ];
   if (sampled.isEmpty) {
     decline(
       device,
-      'samples none of BC1, ETC2 and ASTC 4x4, so no compressed block is drawn',
+      'samples none of BC1, ETC2, ASTC 4x4 and ASTC 4x4 HDR, so no '
+      'compressed block is drawn',
     );
   }
 

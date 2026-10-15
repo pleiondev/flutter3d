@@ -125,6 +125,27 @@ final RegExp _samplerDeclaration = RegExp(
   r'\buniform\s+(?:(?:lowp|mediump|highp)\s+)?\w*sampler\w*\s+(\w+)\s*;',
 );
 
+/// [source], a GLSL ES vertex stage, declaring [views] views for
+/// `OVR_multiview2`: the extension after the `#version` line and
+/// `layout(num_views = N) in;` after the last `#extension`, where a
+/// declaration may first stand. A stage that names the extension itself was
+/// written for multiview and is left as it is.
+///
+/// Public for the test that holds it to the engine's own sources.
+String withViewCount(String source, int views) {
+  if (source.contains('GL_OVR_multiview2')) return source;
+  final lines = source.split('\n');
+  final version = lines.indexWhere(
+    (String line) => line.trimLeft().startsWith('#version'),
+  );
+  lines.insert(version + 1, '#extension GL_OVR_multiview2 : require');
+  final lastExtension = lines.lastIndexWhere(
+    (String line) => line.trimLeft().startsWith('#extension'),
+  );
+  lines.insert(lastExtension + 1, 'layout(num_views = $views) in;');
+  return lines.join('\n');
+}
+
 /// Every `mediump` a stage spells, for [WebGlShaderLibrary.highpMaterials].
 final RegExp _mediump = RegExp(r'\bmediump\b');
 
@@ -385,6 +406,92 @@ final class WebGlShaderLibrary with ShaderLibrary {
     return _hold(vertex, fragment, linked, layout, owner);
   }
 
+  /// The programs [multiviewProgram] linked, by the program each stands in
+  /// for and the number of views.
+  final Map<web.WebGLProgram, Map<int, WebGlProgram>> _multiview =
+      Map<web.WebGLProgram, Map<int, WebGlProgram>>.identity();
+
+  /// [bound]'s pair linked again with its vertex stage declaring [views]
+  /// views ([withViewCount]), for a pass that draws them at once through
+  /// `OVR_multiview2` — GL refuses a draw into a multiview framebuffer with
+  /// a program that declares another count. Linked once per program and
+  /// count, and deleted with the program it stands in for; [bound]'s layout
+  /// carries over.
+  ///
+  /// The stage reads its view as `gl_ViewID_OVR` only if it was written to;
+  /// the engine's own stages do not, and draw the same picture into every
+  /// view.
+  WebGlProgram multiviewProgram(WebGlProgram bound, int views) {
+    final variant = _multiview
+        .putIfAbsent(bound.program, () => <int, WebGlProgram>{})
+        .putIfAbsent(views, () => _linkViews(bound.program, views));
+    return WebGlProgram(
+      variant.program,
+      variant.attributes,
+      variant.blocks,
+      variant.samplers,
+      layout: bound.layout,
+      fragmentOutputs: variant.fragmentOutputs,
+    );
+  }
+
+  WebGlProgram _linkViews(web.WebGLProgram program, int views) {
+    final attached =
+        _gl.getAttachedShaders(program)?.toDart ?? const <web.WebGLShader>[];
+    bool isVertex(web.WebGLShader shader) =>
+        (_gl.getShaderParameter(shader, web.WebGLRenderingContext.SHADER_TYPE)
+                as JSNumber?)
+            ?.toDartInt ==
+        web.WebGLRenderingContext.VERTEX_SHADER;
+    final vertex = attached.where(isVertex).first;
+    final fragment = attached.where((s) => !isVertex(s)).first;
+    final stage = compileWebGlShader(
+      _gl,
+      'a vertex stage with $views views',
+      withViewCount(_gl.getShaderSource(vertex) ?? '', views),
+      isVertex: true,
+    );
+    final linked = _gl.createProgram()!;
+    _gl
+      ..attachShader(linked, stage)
+      ..attachShader(linked, fragment)
+      ..linkProgram(linked)
+      // Flagged now and deleted with the program, as GL keeps an attached
+      // shader alive.
+      ..deleteShader(stage);
+    final ok =
+        _gl.getProgramParameter(linked, web.WebGLRenderingContext.LINK_STATUS)!
+            as JSBoolean;
+    if (!ok.toDart) {
+      final log = _gl.getProgramInfoLog(linked);
+      _gl.deleteProgram(linked);
+      throw ShaderCompileException(
+        shader: 'a program with $views views',
+        backend: webglBackendName,
+        log: log?.trim() ?? '',
+        target: ShaderBundle.webglSection,
+      );
+    }
+    return WebGlProgram(
+      linked,
+      _reflectAttributes(linked),
+      _reflectBlocks(linked),
+      _reflectSamplers(linked),
+      fragmentOutputs: _reflectOutputs(
+        linked,
+        _gl.getShaderSource(fragment) ?? '',
+      ),
+    );
+  }
+
+  /// Deletes the multiview programs linked from [program].
+  void _dropViews(web.WebGLProgram program) {
+    for (final variant
+        in _multiview.remove(program)?.values ?? const <WebGlProgram>[]) {
+      _gl.deleteProgram(variant.program);
+    }
+  }
+
   /// How many handles [link] gave out over each cached program and have not
   /// been [release]d: the program is deleted when the last one goes.
   final Map<WebGlProgram, int> _holders = Map<WebGlProgram, int>.identity();
@@ -428,6 +535,7 @@ final class WebGlShaderLibrary with ShaderLibrary {
       // it already.
       return;
     }
+    _dropViews(linked.program);
     _gl.deleteProgram(linked.program);
   }
 
@@ -484,6 +592,7 @@ final class WebGlShaderLibrary with ShaderLibrary {
 
   void _deleteRetired() {
     for (final program in _retired) {
+      _dropViews(program);
       _gl.deleteProgram(program);
     }
     _retired.clear();
@@ -588,6 +697,12 @@ final class WebGlShaderLibrary with ShaderLibrary {
       }
     }
     _programs.clear();
+    for (final variants in _multiview.values) {
+      for (final variant in variants.values) {
+        _gl.deleteProgram(variant.program);
+      }
+    }
+    _multiview.clear();
     _holders.clear();
     for (final handle in _handles.values.nonNulls) {
       _gl.deleteShader((handle.backend as WebGlShader).shader);
