@@ -1026,6 +1026,34 @@ final class BuildAllowance {
 /// Every break let through under `+N`, by package.
 const List<BuildAllowance> buildAllowances = <BuildAllowance>[
   BuildAllowance(
+    package: 'flutter3d_sim',
+    members: <String>['InputTapePlayback.InputTapePlayback'],
+    reason:
+        'A recorded run\'s playback checks the run itself (1.0.0-rc.1+1): '
+        'the unnamed constructor takes the `Demo` and the simulation it is '
+        'played on and refuses another, and the raw tape is '
+        '`InputTapePlayback.tape`, which `dart fix` rewrites the old call to.',
+  ),
+  BuildAllowance(
+    package: 'flutter3d_game',
+    members: <String>[
+      'DemoRecording.DemoRecording',
+      'DemoRecording.simulation',
+    ],
+    reason:
+        'A recording names the loop\'s whole simulation when it is given '
+        'none (1.0.0-rc.1+1): the parameter is optional without a default, '
+        'and `simulation` a getter of the same type; every call compiles.',
+  ),
+  BuildAllowance(
+    package: 'flutter3d_game_strategy',
+    members: <String>['OrderTapePlayback.OrderTapePlayback'],
+    reason:
+        'A recorded match\'s playback checks the match itself '
+        '(1.0.0-rc.1+1), as an input tape\'s does; the raw tape is '
+        '`OrderTapePlayback.tape`, which `dart fix` rewrites the old call to.',
+  ),
+  BuildAllowance(
     package: 'flutter3d_hardware',
     members: <String>[
       'ComputeExecutors.place',
@@ -1082,6 +1110,15 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
         'The language\'s version is 2 with its atomic buffers '
         '(1.0.0-rc.1+1): every version 1 source reads as it did, and the '
         'constant says which this build reads, as it promised to.',
+  ),
+  BuildAllowance(
+    package: 'flutter3d_model_core',
+    members: <String>['projectVersion'],
+    reason:
+        'The project format reads version 3, `.f3d`\'s flagged directory '
+        '(1.0.0-rc.1+1): a project with no flagged section is still written '
+        'at version 2, and the constant says which this build reads, as it '
+        'promised to.',
   ),
   BuildAllowance(
     package: 'flutter3d_net',

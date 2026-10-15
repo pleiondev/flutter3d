@@ -93,6 +93,14 @@ const Map<String, String> manualAllowlist = <String, String>{
   'build-ConformanceTest-check':
       'nothing replaces it by design: which check an outcome is lives in '
       'the suite\'s report, not in a test\'s name',
+  'sim-InputTapePlayback':
+      'which of the two constructors a call means depends on where its '
+      'tape came from, a recording or the run itself, which no kind can '
+      'read off the call',
+  'game_strategy-OrderTapePlayback':
+      'which of the two constructors a call means depends on where its '
+      'tape came from, a recording or the match itself, which no kind can '
+      'read off the call',
   'core-ComputeStep-demand':
       'an override to delete: no kind removes a member a class declares',
   'core-SkinningHook-demand':

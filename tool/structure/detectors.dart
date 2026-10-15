@@ -14,6 +14,8 @@
 /// at all — a green scan behind a broken detector is worse than a red one.
 library;
 
+import 'dart:convert';
+
 import 'api.dart';
 import 'boundaries.dart';
 import 'layers.dart';
@@ -1054,6 +1056,133 @@ List<int> versionsWithoutFixture(
   for (var version = since; version <= current; version++)
     if (!exists(fixture.replaceAll('<N>', '$version'))) version,
 ];
+
+// ------------------------------------------------- what a fixture holds
+
+/// The u32 little-endian word of [bytes] at [at], or null past the end.
+int? _u32(List<int> bytes, int at) => at + 4 > bytes.length
+    ? null
+    : bytes[at] |
+          bytes[at + 1] << 8 |
+          bytes[at + 2] << 16 |
+          bytes[at + 3] << 24;
+
+/// `F3D\n`, the magic of `.f3d`.
+const int _f3dMagic = 0x0A443346;
+
+/// `F3DP`, the magic of `.f3dproj`.
+const int _projectMagic = 0x50443346;
+
+/// The section kinds the directory of [bytes] lists, a `.f3d` or a
+/// `.f3dproj` read the way their readers walk them: the header's version,
+/// the entry size it implies or names, then one kind per entry. Null for
+/// anything else, or a directory that runs past the end.
+///
+/// **What the fixture rule could not see.** It counted a file per version
+/// and never opened one, so seven `.f3d` kinds and three `.f3dproj` kinds
+/// had no bytes anywhere and every check passed.
+Set<int>? sectionKindsOf(List<int> bytes) {
+  final magic = _u32(bytes, 0);
+  final version = _u32(bytes, 4);
+  final count = _u32(bytes, 8);
+  if (version == null || count == null) return null;
+  final (int header, int? entry) = switch (magic) {
+    _f3dMagic => (16, version == 1 ? 16 : _u32(bytes, 12)),
+    _projectMagic => version >= 3 ? (20, _u32(bytes, 16)) : (16, 16),
+    _ => (0, null),
+  };
+  if (entry == null || entry < 16 || header + count * entry > bytes.length) {
+    return null;
+  }
+  return <int>{
+    for (var i = 0; i < count; i++) _u32(bytes, header + i * entry)!,
+  };
+}
+
+/// The `static const int` constants of the class [className] in [source],
+/// name to value: a format's section kinds, as `F3dSection` declares them.
+Map<String, int> intConstantsOf(String source, String className) {
+  final start = RegExp(
+    'class\\s+${RegExp.escape(className)}\\b[^{]*\\{',
+  ).firstMatch(source);
+  if (start == null) return const <String, int>{};
+  final end = source.indexOf('\n}', start.end);
+  final body = source.substring(start.end, end < 0 ? source.length : end);
+  return <String, int>{
+    for (final match in RegExp(
+      r'static\s+const\s+int\s+(\w+)\s*=\s*(\d+)\s*;',
+    ).allMatches(codeOf(body)))
+      match.group(1)!: int.parse(match.group(2)!),
+  };
+}
+
+/// The version a fixture says it was written at: the u32 after the magic
+/// of a `.f3d` or a `.f3dproj`, or the `version` of a JSON document. Null
+/// where it says none this reads — a JSON shape from before the envelope,
+/// or a binary layout of another kind.
+///
+/// A fixture under `v<N>/` that says another version is the wrong file
+/// there: a reader would be held to a version nobody minted.
+int? fixtureVersionOf(List<int> bytes) {
+  final magic = _u32(bytes, 0);
+  if (magic == _f3dMagic || magic == _projectMagic) return _u32(bytes, 4);
+  final Object? decoded;
+  try {
+    decoded = jsonDecode(utf8.decode(bytes));
+  } on FormatException {
+    return null;
+  }
+  return switch (decoded) {
+    {'version': final int version} => version,
+    _ => null,
+  };
+}
+
+// ------------------------------------------------------------- the net wire
+
+/// Every line of a wire snapshot ([text], the shape of
+/// `packages/flutter3d_net/api/flutter3d_net.wire`) as a fact on its own: a
+/// block's header, or `header / line` for a line inside it. Comments, blank
+/// lines and the `protocol` line are not facts about a message.
+List<String> wireFactsOf(String text) {
+  final facts = <String>[];
+  var header = '';
+  for (final line in text.split('\n')) {
+    if (line.startsWith('#') || line.trim().isEmpty) continue;
+    if (!line.startsWith(' ')) {
+      if (line.startsWith('protocol ')) continue;
+      header = line.trim();
+      facts.add(header);
+    } else {
+      facts.add('$header / ${line.trim()}');
+    }
+  }
+  return facts;
+}
+
+/// The protocol major a wire snapshot names, or null.
+int? wireMajorOf(String text) => switch (RegExp(
+  r'^protocol (\d+)\.\d+\s*$',
+  multiLine: true,
+).firstMatch(text)) {
+  final RegExpMatch match => int.parse(match.group(1)!),
+  null => null,
+};
+
+/// The facts of [base] that [current] no longer has, when both name the
+/// same protocol major; nothing when [current] names a later one, which is
+/// where a message may change.
+List<String> wireFactsRemoved(String base, String current) {
+  final major = wireMajorOf(current);
+  if (major != null && major > (wireMajorOf(base) ?? major)) {
+    return const <String>[];
+  }
+  final have = wireFactsOf(current).toSet();
+  return <String>[
+    for (final fact in wireFactsOf(base))
+      if (!have.contains(fact)) fact,
+  ];
+}
 
 /// The Dart in [markdown]'s fenced code blocks, with every other line blank,
 /// so that a line number in the result is the line in the file.
@@ -2263,6 +2392,74 @@ List<int> takenNameArgumentErrorsIn(String source) {
   return out;
 }
 
+// ------------------------------------------------------ replays and saves
+
+/// [source] with each line's `//` comment blanked, the lines kept, so an
+/// offset still maps to its line.
+String _linesWithoutComments(String source) =>
+    source.split('\n').map(_codeOf).join('\n');
+
+/// The 1-based line of [offset] in [text].
+int _lineAt(String text, int offset) =>
+    '\n'.allMatches(text.substring(0, offset)).length + 1;
+
+/// The lines of [source] that play a recorded run's tape without checking
+/// the run: `InputTapePlayback.tape(demo.tape)` or
+/// `OrderTapePlayback.tape(match.tape)`, a `.tape` read off something.
+///
+/// **A replay that does not ask which simulation the run was recorded on
+/// diverges instead of refusing**, and eight of them did: each built the
+/// playback from `demo.tape` and none called `checkSimulation`. The unnamed
+/// constructors take the recording and check it themselves; the raw `.tape`
+/// form is for a tape the run made itself (a rewind point's), which is never
+/// a `.tape` read off a file's document.
+List<int> uncheckedRecordedPlaybacksIn(String source) {
+  final code = _linesWithoutComments(source);
+  final raw = RegExp(
+    r'\b(?:InputTapePlayback|OrderTapePlayback)\.tape\(\s*[A-Za-z_]\w*\.tape\b',
+  );
+  return <int>[for (final m in raw.allMatches(code)) _lineAt(code, m.start)];
+}
+
+/// Each `Snapshot(...)` in [source] that wraps another snapshot's data
+/// (its argument reads a `.data`, or a `data` taken out of one) and passes
+/// no `requires:`, with the
+/// argument as written, whitespace folded, for an exemption to name.
+///
+/// **A save that forgets which plugins it holds restores without them.**
+/// Four paths built a snapshot again from one's `data` and dropped its
+/// `requires`, so a save holding a plugin's state came back without the
+/// plugin, and was written once more requiring nothing.
+List<({int line, String argument})> snapshotsDroppingRequiresIn(String source) {
+  final code = _linesWithoutComments(source);
+  final found = <({int line, String argument})>[];
+  for (final m in RegExp(r'\bSnapshot\(').allMatches(code)) {
+    var depth = 1;
+    var at = m.end;
+    while (at < code.length && depth > 0) {
+      final c = code[at];
+      if (c == '(' || c == '[' || c == '{') depth++;
+      if (c == ')' || c == ']' || c == '}') depth--;
+      at++;
+    }
+    final inside = code.substring(m.end, at - 1);
+    // The constructor's own declaration, `Snapshot(this.data, ...)`.
+    if (inside.trimLeft().startsWith('this.')) continue;
+    // `.data` read off a snapshot, or a `data` taken out of one: an
+    // identifier, never the `'data'` key of a part's map.
+    if (!RegExp(r'''(?<!['"\w])data\b(?!['"])''').hasMatch(inside)) continue;
+    if (RegExp(r'\brequires\s*:').hasMatch(inside)) continue;
+    found.add((
+      line: _lineAt(code, m.start),
+      argument: inside
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim()
+          .replaceFirst(RegExp(r',$'), ''),
+    ));
+  }
+  return found;
+}
+
 // --------------------------------------------------------------- self-checks
 
 /// Proves every detector above fires, and stays quiet on what only looks alike.
@@ -2279,6 +2476,64 @@ List<Finding> proveDetectorsWork() {
   void quiet(String what, bool condition, String source, String why) {
     if (!condition) broken.add(Finding(what, 'fired on $source — $why'));
   }
+
+  // A recorded run's tape played without asking which simulation it was
+  // recorded on, and a snapshot built again without what it requires.
+  fires(
+    'unchecked recorded playbacks',
+    uncheckedRecordedPlaybacksIn(
+      'final p = InputTapePlayback.tape(demo.tape);',
+    ).isNotEmpty,
+    'InputTapePlayback.tape(demo.tape)',
+  );
+  fires(
+    'unchecked recorded playbacks',
+    uncheckedRecordedPlaybacksIn(
+      'final p = OrderTapePlayback.tape(\n  match.tape,\n);',
+    ).isNotEmpty,
+    'OrderTapePlayback.tape over two lines',
+  );
+  quiet(
+    'unchecked recorded playbacks',
+    uncheckedRecordedPlaybacksIn(
+      'loop.playback = InputTapePlayback.tape(point.tapeToPoint);\n'
+      'final q = InputTapePlayback(demo, simulation: running);\n'
+      '// InputTapePlayback.tape(demo.tape) is what this forbids',
+    ).isEmpty,
+    'a rewind point\'s tape, the checked form and a comment',
+    'a tape the run made itself is no recording, and prose is not code',
+  );
+  fires(
+    'snapshots dropping requires',
+    snapshotsDroppingRequiresIn(
+          "run: Snapshot(run),\nfinal s = Snapshot(<String, Object?>{\n"
+          "  part: <String, Object?>{'version': 1, 'data': runState.data},\n"
+          '});',
+        ).length ==
+        1,
+    'Snapshot({... runState.data}) without requires',
+  );
+  quiet(
+    'snapshots dropping requires',
+    snapshotsDroppingRequiresIn(
+      'Snapshot(<String, Object?>{\n'
+      "  id: <String, Object?>{'data': runState.data},\n"
+      '}, requires: runState.requires);\n'
+      'const Snapshot(<String, Object?>{});\n'
+      'Snapshot.fromJson(json);\n'
+      'const Snapshot(this.data, {this.requires = const <String>[]});',
+    ).isEmpty,
+    'a snapshot that carries requires, an empty one, and a read',
+    'only a snapshot rebuilt from another\'s data can drop what it requires',
+  );
+  fires(
+    'snapshots dropping requires',
+    snapshotsDroppingRequiresIn(
+          'Snapshot(\n  data.cast<String, Object?>(),\n)',
+        ).singleOrNull?.argument ==
+        'data.cast<String, Object?>()',
+    'the argument an exemption names',
+  );
 
   // The genre detector. The constant is the bug that was actually found; the
   // comment is what every previous attempt at a rule like this died of.
@@ -2996,6 +3251,123 @@ List<Finding> proveDetectorsWork() {
     ).isEmpty,
     'v2/physical.f3d at version 2',
     'the section is in a fixture at every version that writes it',
+  );
+
+  // What a fixture holds. A `.f3d` of version 1 with two sections, kinds 1
+  // and 23; the same bytes as a version 2 file whose header names 20-byte
+  // entries it does not have; a version 3 project with its fifth word.
+  List<int> words(List<int> values) => <int>[
+    for (final value in values) ...<int>[
+      value & 0xFF,
+      value >> 8 & 0xFF,
+      value >> 16 & 0xFF,
+      value >> 24 & 0xFF,
+    ],
+  ];
+  final twoSections = words(<int>[
+    0x0A443346, 1, 2, 0, //
+    1, 48, 0, 0, //
+    23, 48, 0, 0, //
+  ]);
+  fires(
+    'section kinds',
+    sectionKindsOf(twoSections)?.containsAll(<int>[1, 23]) ?? false,
+    'a version 1 .f3d with kinds 1 and 23',
+  );
+  quiet(
+    'section kinds',
+    sectionKindsOf(<int>[
+          ...twoSections.take(4),
+          ...words(<int>[2, 2, 20]),
+        ]) ==
+        null,
+    'a version 2 header naming entries past the end',
+    'a directory that runs out is no list of kinds',
+  );
+  fires(
+    'section kinds',
+    sectionKindsOf(
+          words(<int>[0x50443346, 3, 1, 0, 20, 0x80000001, 40, 0, 0, 2]),
+        )?.single ==
+        0x80000001,
+    'a version 3 project with one 20-byte entry',
+  );
+  fires(
+    'section constants',
+    intConstantsOf(
+          'abstract final class F3dSection {\n'
+              '  static const int layouts = 1;\n'
+              '  // static const int gone = 9;\n'
+              '  static const Set<int> known = <int>{layouts};\n'
+              '}\nclass Other {\n  static const int other = 2;\n}',
+          'F3dSection',
+        ).toString() ==
+        '{layouts: 1}',
+    'F3dSection with a commented constant and another class after it',
+  );
+  fires(
+    'fixture version',
+    fixtureVersionOf(utf8.encode('{"format": "f3d.level", "version": 2}')) == 2,
+    'a level of version 2',
+  );
+  fires(
+    'fixture version',
+    fixtureVersionOf(twoSections) == 1,
+    'a version 1 .f3d',
+  );
+  quiet(
+    'fixture version',
+    fixtureVersionOf(utf8.encode('{"fmat": 1}')) == null,
+    'a material from before the envelope',
+    'a shape with no version key reads as 1 and says nothing here',
+  );
+
+  // The wire. Mutation: compare whole lines and the `key slot` of one
+  // message passes for another's.
+  const wireBase =
+      '# comment\nprotocol 3.1\n\nmessage relay.welcome\n  tag f3d=relay\n'
+      '  key slot\n\nmessage relay.left\n  key slot\n';
+  fires(
+    'wire facts',
+    wireFactsRemoved(
+          wireBase,
+          wireBase.replaceFirst(
+            'message relay.welcome\n  tag f3d=relay\n'
+                '  key slot\n',
+            'message relay.welcome\n  tag f3d=relay\n',
+          ),
+        ).single ==
+        'message relay.welcome / key slot',
+    'a key dropped from one message and kept in another',
+  );
+  quiet(
+    'wire facts',
+    wireFactsRemoved(
+      wireBase,
+      '$wireBase  key code\nmessage relay.full\n',
+    ).isEmpty,
+    'a key and a message added within the major',
+    'within a major the wire may grow',
+  );
+  quiet(
+    'wire facts',
+    wireFactsRemoved(
+      wireBase,
+      'protocol 4.0\nmessage relay.left\n  key slot\n',
+    ).isEmpty,
+    'a message dropped at protocol 4',
+    'a new major is where a message may change',
+  );
+  fires(
+    'wire facts',
+    wireFactsRemoved(
+          wireBase,
+          wireBase
+              .replaceFirst('protocol 3.1', 'protocol 3.2')
+              .replaceFirst('message relay.left\n  key slot\n', ''),
+        ).length ==
+        2,
+    'a message dropped at protocol 3.2',
   );
 
   // Prose. The wrap is the whole reason this exists — the claim that went
@@ -5340,6 +5712,61 @@ abstract final class FrameResourceIds {
     'a row under the name from before the rename',
   );
 
+  // Platform channel names. The negative is the name the cloud saves had.
+  fires(
+    'a channel outside dev.flutter3d/',
+    channelNamesOutsideNamespaceIn(
+      "_channel = channel ?? const MethodChannel('flutter3d/cloud_saves');",
+    ).contains('flutter3d/cloud_saves'),
+    "MethodChannel('flutter3d/cloud_saves')",
+  );
+  fires(
+    'a channel outside dev.flutter3d/',
+    channelNamesOutsideNamespaceIn(
+      "static const EventChannel _channel = EventChannel(\n"
+      "    'gamepad/events',\n  );",
+    ).isNotEmpty,
+    'an event channel with its name on the next line',
+  );
+  quiet(
+    'a channel outside dev.flutter3d/',
+    channelNamesOutsideNamespaceIn(
+      "const EventChannel('dev.flutter3d/stereo/head');\n"
+      "/// Was `MethodChannel('flutter3d/cloud_saves')`.",
+    ).isEmpty,
+    'an engine channel, and the old name in a comment',
+    'the namespace is the rule, and prose explaining it must not break it',
+  );
+
+  // Platform calls without the catch. The negative is pointer lock's own
+  // `capture` as it was.
+  fires(
+    'a platform call without MissingPluginException',
+    unguardedPlatformCallsIn(
+      "Future<void> capture() => methodChannel.invokeMethod<void>('capture');",
+    ).isNotEmpty,
+    "methodChannel.invokeMethod<void>('capture')",
+  );
+  fires(
+    'a platform call without MissingPluginException',
+    unguardedPlatformCallsIn(
+      'Future<void> f() async {\n'
+      "  try {\n    await c.invokeMapMethod('a');\n"
+      '  } on PlatformException {\n    return;\n  }\n}',
+    ).isNotEmpty,
+    'a call caught for another exception',
+  );
+  quiet(
+    'a platform call without MissingPluginException',
+    unguardedPlatformCallsIn(
+      'Future<void> _call(String method) async {\n'
+      '  try {\n    if (ready) { await methodChannel.invokeMethod<void>(method); }\n'
+      '  } on MissingPluginException {\n    return;\n  }\n}',
+    ).isEmpty,
+    'a call inside a try that catches it, under a nested block',
+    'a guarded call is the rule kept',
+  );
+
   return broken;
 }
 
@@ -5955,3 +6382,69 @@ List<(String, String)> siblingPinsIn(String source, Set<String> packages) =>
         if (packages.contains(m.group(1)) && !m.group(2)!.contains(r'$'))
           (m.group(1)!, m.group(2)!),
     ];
+
+// ------------------------------------------------- platform channel names
+
+/// Each platform channel name [source] opens a channel on that is not under
+/// `dev.flutter3d/`.
+///
+/// **A channel name is a wire, and it cannot move once a 1.0 build answers
+/// on it.** The cloud saves were on `flutter3d/cloud_saves` while every
+/// other channel of the engine was `dev.flutter3d/…`: renaming it later is a
+/// break for every native side that answers it. A name built from a variable
+/// is not read; the literal is the one a native side copies.
+List<String> channelNamesOutsideNamespaceIn(String source) => <String>[
+  for (final m in RegExp(
+    r'\b(?:MethodChannel|EventChannel|BasicMessageChannel|'
+    r"OptionalMethodChannel)\s*\(\s*'([^'$]*)'",
+  ).allMatches(codeOf(source)))
+    if (!m.group(1)!.startsWith('dev.flutter3d/')) m.group(1)!,
+];
+
+// ------------------------------------- a native side that lacks a method
+
+/// The 1-based lines of [source] that call a method on a platform channel
+/// outside a `try` that catches `MissingPluginException`.
+///
+/// **A native side that lacks a method throws out of a call nobody
+/// wrapped.** A package the engine pins at `^0.5.0` can meet a native side
+/// without the handler for a method a later minor adds, and `invokeMethod`
+/// then throws out of a call the game never guarded. Catching it in Dart is
+/// only possible before the method exists, so every call catches it now.
+///
+/// Read by braces: a call counts as guarded when some `try {` before it
+/// closes after it and the clause after its block is
+/// `on MissingPluginException`.
+List<int> unguardedPlatformCallsIn(String source) {
+  final code = codeOf(source);
+  final tries = <(int, int)>[
+    for (final t in RegExp(r'\btry\s*\{').allMatches(code))
+      if (_blockEnd(code, t.end - 1) case final int end
+          when RegExp(
+            r'^\s*on\s+MissingPluginException\b',
+          ).hasMatch(code.substring(end + 1)))
+        (t.end, end),
+  ];
+  return <int>[
+    for (final call in RegExp(
+      r'\.invoke(?:Map|List)?Method\s*[<(]',
+    ).allMatches(code))
+      if (!tries.any(((int, int) t) => t.$1 <= call.start && call.start < t.$2))
+        '\n'.allMatches(code.substring(0, call.start)).length + 1,
+  ];
+}
+
+/// The offset of the `}` closing the `{` at [open] in [code], or null.
+int? _blockEnd(String code, int open) {
+  var depth = 0;
+  for (var i = open; i < code.length; i++) {
+    switch (code[i]) {
+      case '{':
+        depth++;
+      case '}':
+        depth--;
+        if (depth == 0) return i;
+    }
+  }
+  return null;
+}

@@ -606,10 +606,13 @@ void feed(InputState input, double celsius) => input.feedExternal(
 | `DeterminismCheck`, `DeterminismError` | Each step run twice in a debug build, naming the system that differed |
 
 ```dart
-void replay(EngineLoop loop, InputTape tape, Snapshot start) {
+void replay(EngineLoop loop, Demo demo, Snapshot start) {
+  // Refused with ReplayException when the run was recorded on another
+  // simulation; InputTapePlayback.tape plays a tape the run made itself.
+  final playback = InputTapePlayback(demo, simulation: loop.simulationVersion);
   loop.restore(start);
-  loop.playback = InputTapePlayback(tape);
-  loop.runSteps(tape.steps);
+  loop.playback = playback;
+  loop.runSteps(demo.steps);
 }
 ```
 

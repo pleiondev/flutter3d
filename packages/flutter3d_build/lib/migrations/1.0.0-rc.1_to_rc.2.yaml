@@ -129,8 +129,8 @@ packages:
     flutter3d_editor_play: ^0.9.0
     flutter3d_education_lti: ^0.9.0
     flutter3d_lints: ^0.9.0
-    flutter3d_pointer_lock: ^0.5.0
-    pad_input: ^0.5.0
+    flutter3d_pointer_lock: ^0.5.1
+    pad_input: ^0.5.1
   renamed:
   removed:
 
@@ -421,6 +421,16 @@ entries:
     kind: none
     reason: >-
       The version the project server announces follows the package's.
+
+  - id: model_core-projectVersion
+    package: flutter3d_model_core
+    symbol: projectVersion
+    kind: none
+    reason: >-
+      The project format reads version 3 now, the directory with flags and
+      an entry size; a project with no flagged section is still written as
+      version 2, which every earlier reader opens. Code that compared a
+      file's version with this constant reads the newer number.
 
   - id: net-WireHello-currentProtocolMinor
     package: flutter3d_net
@@ -2798,3 +2808,36 @@ entries:
     reason: >-
       The list gains `visibility` and `decode-worker`, the two commands
       that joined `flutter3d`. Nothing to change in code that reads it.
+
+  # A recorded run's playback checks the run itself; the raw tape is named.
+  - id: sim-InputTapePlayback
+    package: flutter3d_sim
+    symbol: InputTapePlayback
+    kind: manual
+    guidance: >-
+      A recorded run plays through `InputTapePlayback(demo, simulation:
+      loop.simulationVersion)`, which refuses a run recorded on another
+      simulation with `ReplayException` before a step is played; a tape the
+      run made itself, such as a rewind point's, or a test's, plays through
+      `InputTapePlayback.tape(tape)`, the old call with `.tape` added.
+
+  - id: game_strategy-OrderTapePlayback
+    package: flutter3d_game_strategy
+    symbol: OrderTapePlayback
+    kind: manual
+    guidance: >-
+      A recorded match plays through `OrderTapePlayback(match, simulation:
+      strategySimulationVersion)`, which refuses a match recorded on another
+      simulation with `ReplayException`; a tape played as it is goes
+      through `OrderTapePlayback.tape(tape)`, the old call with `.tape`
+      added.
+
+  - id: game-DemoRecording
+    package: flutter3d_game
+    symbol: DemoRecording
+    kind: none
+    reason: >-
+      Its `simulation` parameter is optional with no default, and the
+      field a getter of the same type: every call compiles as it was, and
+      a recording given no simulation names the attached loop's whole
+      `simulationVersion` instead of the engine's alone.

@@ -356,9 +356,11 @@ their own and do not carry it:
   `run`, a level's entities, a project's manifest inside `.f3dproj`. A
   nested document that can also stand alone (a voxel world, an input tape)
   carries the envelope in both places.
-- **Wire messages**: MCP tool answers, VM service extension answers and
-  network messages are versioned by their server's schema version and
-  snapshotted (below), not by an envelope.
+- **Wire messages**: MCP tool answers and VM service extension answers are
+  versioned by their server's schema version and snapshotted (below), not
+  by an envelope. Network messages are versioned by the protocol a
+  `PeerRoom` hello names (3.x), not by an envelope; see "The network wire"
+  below.
 - **A binary or non-JSON file**, whose envelope is its own magic and version
   word: `.f3d`, `.f3dproj`, `.f3dsplat`, `.f3dtrace`, the F3SB shader bundle,
   a lightmap, and the material language's optional `f3dmat <N>` line.
@@ -377,6 +379,18 @@ reader refuses instead of dropping it. A save (`f3d.save`) requires the
 namespace of every plugin whose snapshot part or component it holds, and
 the engine restoring it answers that from the plugins it has installed,
 refusing with their names where one is missing (`Snapshot.requires`).
+Every path that builds a save from another keeps its `requires`; a run's
+state taken out of one part (`GenrePlugin.runStateOf`) requires nothing,
+since the loop's capture names the plugins of every part. A save written
+without `requires`, by an rc build, restores as it is. A recorded run is
+replayed only on the simulation it names, plugins and subsystems included:
+`InputTapePlayback` checks the full `simulationVersion` itself and refuses
+another with a `ReplayException`.
+A material naming a plugin's lighting model requires that plugin: a
+`.fmat` lists its namespace in `requires`, a `.f3d` names the model in the
+plugin's namespace (`acme_ink.Ink`) in its `materialLighting` record, and a
+reader whose lighting models hold none of the plugin's refuses either,
+naming it, rather than drawing the material with another model.
 `generator` is who wrote it. YAML
 configuration says the same with `format: 1`.
 
@@ -387,8 +401,20 @@ The rules a reader keeps:
   the structure check counts.
 - **A newer file is refused with a sentence** naming both versions. It is
   never read halfway, and a reader never answers null for it.
+- **A number a reader takes from a document is a finite whole number**
+  where it counts something (`FormatSpec.wholeNumber`): `{"version": 1e999}`
+  is refused with the format's own exception, never an `UnsupportedError`.
 - **Unknown keys are kept.** A document opened and saved by an earlier minor
-  keeps what a later one added.
+  keeps what a later one added: every top-level key, and every key inside
+  the nested objects an editor rewrites, a level's (its brushes, lights,
+  entities, materials and prefabs), a pipeline's nodes and a plugin's
+  phases, events and systems (`FormatDocument.nestedUnknownIn`). A nested
+  object anywhere else is the reader's to rebuild, and a key a later minor
+  puts there is lost on save; a minor that needs one kept adds it to this
+  list. A component row read at its codec's version keeps the keys the codec
+did not read, written back on the next save. A section of
+  a binary container is kept the same way: `.f3d` and `.f3dproj` write back
+  every section of a kind they do not know.
 - **The shapes from before the envelope read as version 1:** `{"version": N}`,
   a format's own key (`{"f3dfx": 1}`, `{"f3dplugin": 1}`), an id the format
   lists as an alias, or no version at all.
@@ -405,6 +431,68 @@ formats go through the same registry. Ids are
 reading through `FormatSpec.aliases`. `Flutter3dView` builds the registry
 from `coreFormats` and `simFormats` and the formats it is handed
 (`gameFormats` from `flutter3d_game`), and a plugin asks the loop for it.
+
+### Binary containers
+
+`.f3d` and `.f3dproj` are a header and a directory of sections, each entry
+a kind, an offset, a length, a count and, from `.f3d` version 2 and
+`.f3dproj` version 3, a flags word whose size the header names. A reader
+steps over a kind it does not know and a writer keeps it, so a section a
+later minor adds survives a save by an earlier one. All 32 flag bits mean
+the same in every 1.x reader (`F3dSectionFlags`):
+
+- **bit 0, must-understand**: a reader that does not know the kind refuses
+  the file, naming it;
+- **bit 1, safe-to-copy**: a writer whose tables changed under the section
+  (an edited model) keeps it; one without the bit is dropped there, since
+  it may name records by an index the edit moved;
+- **bits 2–15, ignorable**: a reader that does not know one reads on;
+- **bits 16–31, must-understand-if-set**: a flag that changes how a
+  section's bytes read; a reader refuses a section it knows carrying one it
+  does not.
+
+A writer moves to the flagged version only for a file holding a flagged
+section, so a file without one is the bytes an earlier reader opens. A
+directory entry is at most 256 bytes. Every section kind either format
+writes is in the directory of a committed fixture, which the structure
+check reads.
+
+The F3SB shader bundle is a build artifact, never a file a plugin ships: a
+plugin package ships `.f3dmat` sources, the application's build compiles
+them for the backends it targets, and a bundle compiled by another Dart
+SDK is refused as stale.
+
+The physics core's world snapshot (`F3DS`, major 1) is a file a 1.x core
+keeps reading: the 1.0 bytes, in floats and in doubles, are committed and
+restored and stepped to a recorded digest, and a snapshot from the doubles
+build restores in the floats one, rounded.
+
+### The network wire
+
+Every message the engine puts on a peer wire and every message its relay
+sends is in `packages/flutter3d_net/api/flutter3d_net.wire`: the keys that
+tell it apart (`"f3d": "rollback"`, `"tag": "hello"`) and the keys it
+carries, with the addresses the relay answers at, and a golden JSON for each
+under `test/fixtures/wire/v<major>/`. The file is written by hand and a test
+holds the code's messages to it. Within a protocol major the wire only
+grows: a message may gain a key, never lose or change one, which the
+structure check holds against the base the major was recorded with. A game's
+own messages are its own, in the channel it opens on a `PeerRoom`.
+
+WebRTC carries reliable messages on the ordered, retransmitting channel
+`f3d.reliable` and unreliable ones on the unordered `f3d.unreliable`, which
+never retransmits (in a browser it may, until `flutter_webrtc` passes the
+setting). Its signalling is `{"f3d": "signal", "v": 1, …}`, and a peer
+signalling another `v` is refused.
+
+### Platform channels
+
+A platform channel the engine opens is named `dev.flutter3d/<name>`
+(`dev.flutter3d/cloud_saves`, `dev.flutter3d/gamepad/events`) and keeps its
+name and its messages within a major. `pad_input` and
+`flutter3d_pointer_lock` stay 0.x under the engine's `^0.5.0` pin, and catch
+`MissingPluginException` on every call, so a native side that lacks a method
+answers instead of throwing.
 
 ### Reserved names
 

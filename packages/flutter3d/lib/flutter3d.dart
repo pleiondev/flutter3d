@@ -605,6 +605,7 @@ export 'package:flutter3d_core/flutter3d_core.dart'
         exportToGlb,
         exportToObj,
         exportToStl,
+        f3dMaxSectionEntryBytes,
         f3dVendorKindStart,
         fileUriResolver,
         followCamera,

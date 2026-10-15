@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1+1
 
+- **`f3dMaxSectionEntryBytes` is exported**, beside `f3dVendorKindStart`:
+  the largest `.f3d` directory entry a reader accepts.
 - **Breaking: `RenderView` is `CameraView`.** `RenderView` and
   `RenderViewSettings` changed with it. `package:flutter/rendering.dart`
   exports a `RenderView` too, the root of a render tree, so a file importing

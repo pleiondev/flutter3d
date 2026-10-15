@@ -277,6 +277,14 @@ List<Rule> get allRules => <Rule>[
   ),
   (name: '.f3d writes codes, not enum ordinals', run: _noEnumOrdinalsInFormats),
   (
+    name: 'a recorded run is played only on the simulation it was recorded on',
+    run: _recordedPlaybacksChecked,
+  ),
+  (
+    name: 'a snapshot built from another keeps what it requires',
+    run: _snapshotsKeepRequires,
+  ),
+  (
     name: 'every break since the last release has its migration',
     run: _breaksHaveMigrations,
   ),
@@ -494,6 +502,185 @@ List<Rule> get allRules => <Rule>[
         'admits it',
     run: _ownLinesNamedAndPinned,
   ),
+  (
+    name: 'a platform channel is named under dev.flutter3d/',
+    run: _channelsUnderTheNamespace,
+  ),
+  (
+    name: 'a call to a platform side catches the method it lacks',
+    run: _platformCallsCatchMissing,
+  ),
+  (
+    name: 'a container format\'s fixtures hold every section kind it writes',
+    run: _sectionKindsInFixtures,
+  ),
+  (
+    name: 'the net wire only grows within its protocol major',
+    run: _wireOnlyGrows,
+  ),
+];
+
+/// Every section kind a container format declares is in the directory of
+/// one of its committed fixtures: each constant of `F3dSection` in some
+/// `.f3d` under `flutter3d_core`'s fixtures, each of `ProjectSection` in
+/// some `.f3dproj` under `flutter3d_model_core`'s.
+///
+/// **The fixture rule counted files and never opened one.** A reader that
+/// lost a section had nothing to fail against, and seven `.f3d` kinds and
+/// three `.f3dproj` kinds were in no committed bytes at all. This reads
+/// each fixture's directory the way the reader walks it.
+///
+/// Mutation: delete `v2/everything.f3d`, or add a constant to
+/// `F3dSection` with no fixture holding it, and this names the kind.
+List<Finding> _sectionKindsInFixtures() {
+  final found = <Finding>[];
+  final root = repositoryRoot.path;
+  for (final MapEntry(key: format, value: held) in sectionedFormats.entries) {
+    final reader = File('$root/${held.reader}');
+    final fixtures = Directory('$root/${held.fixtures}');
+    if (!reader.existsSync() || !fixtures.existsSync()) {
+      found.add(
+        Finding(held.reader, 'the $format reader or its fixtures moved'),
+      );
+      continue;
+    }
+    final kinds = intConstantsOf(reader.readAsStringSync(), held.className);
+    if (kinds.isEmpty) {
+      found.add(
+        Finding(held.reader, 'declares no `${held.className}` constants'),
+      );
+      continue;
+    }
+    final seen = <int>{
+      for (final file in fixtures.listSync(recursive: true).whereType<File>())
+        if (file.path.endsWith(format))
+          ...?sectionKindsOf(file.readAsBytesSync()),
+    };
+    for (final MapEntry(key: name, value: kind) in kinds.entries) {
+      if (!seen.contains(kind)) {
+        found.add(
+          Finding(
+            held.reader,
+            'declares `${held.className}.$name` ($kind), which no $format '
+            'under ${held.fixtures} holds: mint a fixture with it, once, so '
+            'a reader that stops reading it has bytes to fail against',
+          ),
+        );
+      }
+    }
+  }
+  return found;
+}
+
+/// `packages/flutter3d_net/api/flutter3d_net.wire` holds every line of the
+/// base its protocol major was recorded with
+/// (`tool/api/wire_base/flutter3d_net.wire`), names the protocol
+/// `WireHello` speaks, and has a golden message under
+/// `test/fixtures/wire/v<major>/` for each of its messages.
+///
+/// **No rule saw a wire.** CONTRACTS said network messages were snapshotted,
+/// and none was: every wire test built its messages from the same
+/// constants the code sends, so a renamed key passed. The snapshot is
+/// literal text, the package's `wire_snapshot_test.dart` holds the code to
+/// it, and this holds it to its base: within a major a message may gain a
+/// key, never lose one.
+///
+/// Mutation: delete `key slot` from `relay.left` in the snapshot, or a
+/// golden, and this names it.
+List<Finding> _wireOnlyGrows() {
+  final root = repositoryRoot.path;
+  const current = 'packages/flutter3d_net/api/flutter3d_net.wire';
+  const base = 'tool/api/wire_base/flutter3d_net.wire';
+  const hello = 'packages/flutter3d_net/lib/src/wire_hello.dart';
+  final files = <String, File>{
+    for (final path in <String>[current, base, hello])
+      path: File('$root/$path'),
+  };
+  final missing = <Finding>[
+    for (final MapEntry(:key, :value) in files.entries)
+      if (!value.existsSync())
+        Finding(key, 'is missing: the wire is held line by line to its base'),
+  ];
+  if (missing.isNotEmpty) return missing;
+  final text = files[current]!.readAsStringSync();
+  final found = <Finding>[
+    for (final fact in wireFactsRemoved(files[base]!.readAsStringSync(), text))
+      Finding(
+        current,
+        'no longer has `$fact`, which its protocol major was recorded with: '
+        'within a major a message may gain a key, never lose or change one. '
+        'Put it back, or, in a new major, record a new base',
+      ),
+  ];
+  final source = files[hello]!.readAsStringSync();
+  String? constant(String name) =>
+      RegExp('static const int $name = (\\d+);').firstMatch(source)?.group(1);
+  final speaks =
+      '${constant('currentProtocolMajor')}.${constant('currentProtocolMinor')}';
+  if (!text.contains(
+    RegExp('^protocol ${RegExp.escape(speaks)}\$', multiLine: true),
+  )) {
+    found.add(
+      Finding(
+        current,
+        'does not say `protocol $speaks`, the protocol `WireHello` speaks',
+      ),
+    );
+  }
+  final major = wireMajorOf(text);
+  for (final fact in wireFactsOf(text)) {
+    if (!fact.startsWith('message ') || fact.contains(' / ')) continue;
+    final name = fact.substring('message '.length);
+    final golden =
+        'packages/flutter3d_net/test/fixtures/wire/v$major/$name.json';
+    if (!File('$root/$golden').existsSync()) {
+      found.add(
+        Finding(
+          golden,
+          'is missing: every message of the wire has a golden the test '
+          'holds the snapshot to',
+        ),
+      );
+    }
+  }
+  return found;
+}
+
+/// Every platform channel a package's `lib/` opens is named
+/// `dev.flutter3d/…`.
+///
+/// Mutation: put `MethodChannel('flutter3d/cloud_saves')` back in
+/// `platform_cloud_saves.dart`, and this names the file and the channel.
+List<Finding> _channelsUnderTheNamespace() => <Finding>[
+  for (final package in packages.values)
+    for (final file in dartFilesIn(Directory('${package.path}/lib')))
+      for (final name in channelNamesOutsideNamespaceIn(
+        file.readAsStringSync(),
+      ))
+        Finding(
+          _inRepository(file),
+          'opens a platform channel named `$name`: name it `dev.flutter3d/…` '
+          'as every other channel is, before a 1.0 native side answers on it',
+        ),
+];
+
+/// Every method-channel call in the plugins the engine pins at 0.x catches
+/// `MissingPluginException`.
+///
+/// Mutation: write `capture()` back as a bare
+/// `methodChannel.invokeMethod<void>('capture')` in `flutter3d_pointer_lock`,
+/// and this names the line.
+List<Finding> _platformCallsCatchMissing() => <Finding>[
+  for (final name in const <String>['pad_input', 'flutter3d_pointer_lock'])
+    if (packages[name] case final Directory package)
+      for (final file in dartFilesIn(Directory('${package.path}/lib')))
+        for (final line in unguardedPlatformCallsIn(file.readAsStringSync()))
+          Finding(
+            '${_inRepository(file)}:$line',
+            'calls the native side outside a `try` that catches '
+                '`MissingPluginException`: a native side without the method '
+                'throws out of a call the game never wrapped',
+          ),
 ];
 
 /// Every published package off the engine's number is in [ownVersionLines]
@@ -6757,6 +6944,61 @@ List<Finding> _assetsKeysMoveFormat() {
   ];
 }
 
+/// Whether [tests] name the fixture [name] by its stem and the rest apart.
+bool _namedApart(String tests, String name) {
+  final dot = name.indexOf('.');
+  return dot > 0 &&
+      tests.contains("'${name.substring(0, dot)}'") &&
+      tests.contains(name.substring(dot));
+}
+
+/// What a package's tests say, all of it, read once per run of the fixture
+/// rule.
+final Map<String, String> _testSources = <String, String>{};
+
+/// What is wrong with [fixture], the file a format's reader is held to at
+/// [version]: it says another version than the directory it is in
+/// (`fixtureVersionOf`), or no test of [package] names it, so nothing
+/// opens it.
+///
+/// **The rule checked that a file existed.** That a test opened it was a
+/// convention, and that it was the version its directory said was nobody's
+/// business; a fixture re-minted at the current version under `v1/`, or one
+/// no test reads, passed.
+List<Finding> _fixtureContent(
+  File fixture,
+  int version, {
+  required Directory package,
+}) {
+  final said = fixtureVersionOf(fixture.readAsBytesSync());
+  final name = fixture.uri.pathSegments.last;
+  final tests = _testSources.putIfAbsent(package.path, () {
+    final directory = Directory('${package.path}/test');
+    return directory.existsSync()
+        ? <String>[
+            for (final file in dartFilesIn(directory)) file.readAsStringSync(),
+          ].join('\n')
+        : '';
+  });
+  return <Finding>[
+    if (said != null && said != version)
+      Finding(
+        _inRepository(fixture),
+        'says it is version $said and stands for version $version: a '
+        'fixture is the file that version wrote, minted once',
+      ),
+    // By its name, or by its stem and the rest apart, the way a test that
+    // opens several fixtures of one kind writes `'$name.f3d.experiment'`.
+    if (!tests.contains(name) && !_namedApart(tests, name))
+      Finding(
+        _inRepository(fixture),
+        'is named by no test under '
+        '${package.path.substring(repositoryRoot.path.length + 1)}/test, so '
+        'nothing opens it: a fixture no test reads holds nobody to it',
+      ),
+  ];
+}
+
 /// Each format a published package declares with a `FormatSpec`, and each in
 /// `versionedFormats`, has a fixture at every version from its `since` to the
 /// number its reader declares; every format version constant in a published
@@ -6781,6 +7023,7 @@ List<Finding> _assetsKeysMoveFormat() {
 /// `static const int formatVersion` to any published reader without listing
 /// it, or write `if (version != formatVersion)` in one, and this names it.
 List<Finding> _formatFixtures() {
+  _testSources.clear();
   final found = <Finding>[];
   final listed = <String>{};
   for (final MapEntry(key: name, value: format) in versionedFormats.entries) {
@@ -6811,6 +7054,17 @@ List<Finding> _formatFixtures() {
             fixture,
             'is missing: $name reads version $version, and only a file '
             'minted at that version shows it still opens',
+          ),
+        );
+      } else {
+        found.addAll(
+          _fixtureContent(
+            File('${repositoryRoot.path}/$fixture'),
+            version,
+            package: Directory(
+              '${repositoryRoot.path}/'
+              '${format.reader.split('/').take(2).join('/')}',
+            ),
           ),
         );
       }
@@ -6893,6 +7147,8 @@ List<Finding> _formatFixtures() {
                 'only a file minted at that version shows it still opens',
               ),
             );
+          } else {
+            found.addAll(_fixtureContent(File(path), at, package: package));
           }
         }
       }
@@ -6926,6 +7182,113 @@ List<Finding> _formatFixtures() {
           ),
         );
       }
+    }
+  }
+  return found;
+}
+
+/// No library plays a recorded run's tape without checking the run: every
+/// `InputTapePlayback.tape(x.tape)` and `OrderTapePlayback.tape(x.tape)` in
+/// a package's or an application's `lib/` is named in
+/// [uncheckedTapePlaybacks], with the reason.
+///
+/// **A replay checks the whole simulation, and the playback makes the
+/// check.** Eight replays built their playback from `demo.tape` and never
+/// asked which simulation the run was recorded on, so a plugin or a
+/// subsystem bump replayed and diverged at a checkpoint instead of refusing.
+/// `InputTapePlayback(demo, simulation: ...)` checks before a step is
+/// played; the raw `.tape` form is for a tape the run made itself.
+///
+/// Mutation: write `InputTapePlayback.tape(demo.tape)` back into
+/// `apps/flutter3d_demo_platformer/lib/src/ghost.dart`, and this names the
+/// line.
+List<Finding> _recordedPlaybacksChecked() {
+  final found = <Finding>[];
+  final seen = <String>{};
+  for (final dir in <Directory>[...packages.values, ...apps.values]) {
+    for (final file in dartFilesIn(Directory('${dir.path}/lib'))) {
+      final where = _inRepository(file);
+      final lines = uncheckedRecordedPlaybacksIn(file.readAsStringSync());
+      if (lines.isEmpty) continue;
+      if (uncheckedTapePlaybacks.containsKey(where)) {
+        seen.add(where);
+        continue;
+      }
+      for (final line in lines) {
+        found.add(
+          Finding(
+            '$where:$line',
+            'plays a recorded run\'s tape without checking the run: build '
+                'the playback from the recording, '
+                '`InputTapePlayback(demo, simulation: loop.simulationVersion)`, '
+                'which refuses another simulation itself',
+          ),
+        );
+      }
+    }
+  }
+  for (final where in uncheckedTapePlaybacks.keys) {
+    if (!seen.contains(where)) {
+      found.add(
+        Finding(
+          'uncheckedTapePlaybacks → $where',
+          'plays no recorded tape unchecked any more: take it off the list',
+        ),
+      );
+    }
+  }
+  return found;
+}
+
+/// No library builds a snapshot again from another's data and drops what it
+/// requires: every `Snapshot(...)` in a published package's `lib/` whose
+/// argument reads a `.data` passes `requires:`, or is named in
+/// [snapshotsWithoutRequires] by its file and argument, with the reason.
+///
+/// **A save requires the plugins whose state it holds**
+/// (`docs/CONTRACTS.md`, "The envelope"), and a restore refuses where one
+/// is missing. Four paths built the snapshot again without the list, so a
+/// save holding a plugin's state restored without the plugin and was
+/// written once more requiring nothing.
+///
+/// Mutation: drop `requires: runState.requires` from `loopStateWith` in
+/// `flutter3d_game/lib/src/run/run_part.dart`, and this names the line.
+/// `SaveRecord.read`, which wraps upgraded fields rather than a `.data`, is
+/// held by `save_record_test.dart` instead.
+List<Finding> _snapshotsKeepRequires() {
+  final found = <Finding>[];
+  final seen = <String>{};
+  for (final dir in _publishedPackages.values) {
+    for (final file in dartFilesIn(Directory('${dir.path}/lib'))) {
+      final where = _inRepository(file);
+      for (final (:line, :argument) in snapshotsDroppingRequiresIn(
+        file.readAsStringSync(),
+      )) {
+        final key = '$where#$argument';
+        if (snapshotsWithoutRequires.containsKey(key)) {
+          seen.add(key);
+          continue;
+        }
+        found.add(
+          Finding(
+            '$where:$line',
+            'builds a snapshot from another\'s data and drops what it '
+                'requires: pass `requires:` on, or name it in '
+                '`snapshotsWithoutRequires` with the reason',
+          ),
+        );
+      }
+    }
+  }
+  for (final key in snapshotsWithoutRequires.keys) {
+    if (!seen.contains(key)) {
+      found.add(
+        Finding(
+          'snapshotsWithoutRequires → $key',
+          'is no snapshot built without `requires` any more: take it off '
+              'the list',
+        ),
+      );
     }
   }
   return found;

@@ -5,7 +5,7 @@ description: Move a project written against flutter3d 0.8 to 1.0.0-rc.1, with on
 # Migrating from 0.8 to 1.0
 
 1.0 is the release the engine promises to keep: from it on, a break comes
-only in a major version. To get there, and on to this release, the API changed in 2335 places,
+only in a major version. To get there, and on to this release, the API changed in 2339 places,
 314 of them left to you; 380 are backend internals no application called.
 The rest a program carries out for you, and three
 tools share the work. All three read the same tables,
@@ -183,7 +183,7 @@ the game reads every version of them as before.
 | `f3d.pipeline` | `.pipeline.json` | `flutter3d_core` | v1–v2 | lifted to v2 through its chain |
 | `f3d.shaderBundle` | `.f3dshaders` | `flutter3d_hardware` | v1–v2 | read as it is: its version is in its own header |
 | `f3d.trace` | `.f3dtrace` | `flutter3d_hardware` | v1–v2 | read as it is: its version is in its own header |
-| `f3d.project` | `.f3dproj` | `flutter3d_model_core` | v1–v2 | read as it is: its version is in its own header |
+| `f3d.project` | `.f3dproj` | `flutter3d_model_core` | v1–v3 | read as it is: its version is in its own header |
 | `f3d.level` | `.level.json` | `flutter3d_sim` | v1–v5 | lifted to v5 by its reader |
 | `f3d.visibility` | `.visibility.json` | `flutter3d_sim` | v1 | nothing to lift |
 | `f3d.lightmap` | `.lightmap.bin` | `flutter3d_sim` | v1 | read as it is: its version is in its own header |
@@ -225,7 +225,7 @@ carried out:
 
 <!-- migration-table:start -->
 
-*Generated from `flutter3d_build/lib/migrations/` — 240 entries from 1.0.0-rc.1 to 1.0.0-rc.1+1, 9 by hand: 23 `dart fix`, 150 `migrate`, 9 by hand, 58 nothing to do.*
+*Generated from `flutter3d_build/lib/migrations/` — 244 entries from 1.0.0-rc.1 to 1.0.0-rc.1+1, 11 by hand: 23 `dart fix`, 150 `migrate`, 11 by hand, 60 nothing to do.*
 
 ### `flame_flutter3d`
 
@@ -403,11 +403,16 @@ carried out:
 - <a id="game-AxisSettings-shapeDelta-record"></a>**`AxisSettings.shapeDelta`** (`migrate`). `AxisSettings` is a class: `.$1` is `.x`, `.$2` is `.y`; a destructuring pattern is yours to rewrite. `shapeDelta` answers a `ShapedPair` with `x` and `y`, where it answered a pair; only a destructuring pattern names the class.
 - <a id="game-AxisSettings-shapePair-record"></a>**`AxisSettings.shapePair`** (`migrate`). `AxisSettings` is a class: `.$1` is `.x`, `.$2` is `.y`; a destructuring pattern is yours to rewrite. `shapePair` answers a `ShapedPair` with `x` and `y`, where it answered a pair; only a destructuring pattern names the class.
 - <a id="game-ColorRoles-confusions-record"></a>**`ColorRoles.confusions`** (`migrate`). `ColorRoles` is a class: `.a` is `.a`, `.b` is `.b`, `.by` is `.by`, `.distance` is `.distance`; a destructuring pattern is yours to rewrite. `confusions` answers a list of `ColorConfusion`, the class `ColorVision.confusions` answers, with the same `a`, `b`, `by` and `distance`; a list typed by the record shape names the class.
+- <a id="game-DemoRecording"></a>**`DemoRecording`** (nothing to do). Its `simulation` parameter is optional with no default, and the field a getter of the same type: every call compiles as it was, and a recording given no simulation names the attached loop's whole `simulationVersion` instead of the engine's alone.
 - <a id="game-flutter3d-export"></a>**`package:flutter3d/flutter3d.dart`** (nothing to do). The facade still re-exports the engine through this one line; only the names in it changed, `ComputeExecutor`, `ComputeExecutors` and `ComputePlacement` out and `ComputeSite` in, which their own entries cover.
 
 ### `flutter3d_game_physics`
 
 - <a id="game_physics-RagdollPart-tailLength-record"></a>**`RagdollPart.tailLength`** (`migrate`). `RagdollPart` is a class: `.of` is `.of`, `.times` is `.times`; a destructuring pattern is yours to rewrite. `tailLength` is a `RagdollTailLength` with the same `of` and `times`; write `RagdollTailLength(of: …, times: …)` where a record literal stood.
+
+### `flutter3d_game_strategy`
+
+- <a id="game_strategy-OrderTapePlayback"></a>**`OrderTapePlayback`** (by hand). A recorded match plays through `OrderTapePlayback(match, simulation: strategySimulationVersion)`, which refuses a match recorded on another simulation with `ReplayException`; a tape played as it is goes through `OrderTapePlayback.tape(tape)`, the old call with `.tape` added.
 
 ### `flutter3d_game_ui`
 
@@ -473,6 +478,7 @@ carried out:
 - <a id="model_core-dirtyRectOf-record"></a>**`dirtyRectOf`** (`migrate`). `dirtyRectOf` is a class: `.$1` is `.x`, `.$2` is `.y`, `.$3` is `.width`, `.$4` is `.height`; a destructuring pattern is yours to rewrite. `dirtyRectOf` takes a `List<TileCoord>` and answers a `TexelRect` (or null) with `x`, `y`, `width` and `height` where it answered a four-tuple; only a destructuring pattern names the class.
 - <a id="model_core-dirtyTilesBetween-record"></a>**`dirtyTilesBetween`** (`migrate`). `dirtyTilesBetween` is a class: `.$1` is `.x`, `.$2` is `.y`; a destructuring pattern is yours to rewrite. `dirtyTilesBetween` answers a list of `TileCoord` with `x` (column) and `y` (row) where it held `(tx, ty)` pairs; `$1`/`$2` become `x`/`y`.
 - <a id="model_core-polygonEdgesOf-record"></a>**`polygonEdgesOf`** (`migrate`). `polygonEdgesOf` is a class: `.$1` is `.low`, `.$2` is `.high`; a destructuring pattern is yours to rewrite. `polygonEdgesOf` answers a list of `EdgeVertices` with `low` and `high` where it held pairs; `$1`/`$2` become `low`/`high`.
+- <a id="model_core-projectVersion"></a>**`projectVersion`** (nothing to do). The project format reads version 3 now, the directory with flags and an entry size; a project with no flagged section is still written as version 2, which every earlier reader opens. Code that compared a file's version with this constant reads the newer number.
 - <a id="model_core-renderPost-record"></a>**`renderPost`** (`migrate`). `renderPost` is a class: `.settings` is `.settings`, `.graph` is `.graph`; a destructuring pattern is yours to rewrite. `renderPost` answers a `PostEdit` with the same `settings` and `graph`; field reads keep compiling, `final PostEdit(:settings, :graph) = ...` replaces the record pattern.
 - <a id="model_core-resolveIkConstraint-record"></a>**`resolveIkConstraint`** (`migrate`). `resolveIkConstraint` is a class: `.root` is `.root`, `.mid` is `.mid`, `.reachError` is `.reachError`; a destructuring pattern is yours to rewrite. `resolveIkConstraint` answers an `IkSolution` with the same `root`, `mid` and `reachError`; field reads keep compiling.
 - <a id="model_core-resolveLookAtConstraint-record"></a>**`resolveLookAtConstraint`** (`migrate`). `resolveLookAtConstraint` is a class: `.rotation` is `.rotation`, `.aimError` is `.aimError`; a destructuring pattern is yours to rewrite. `resolveLookAtConstraint` answers a `LookAtSolution` with the same `rotation` and `aimError`; field reads keep compiling.
@@ -539,6 +545,7 @@ carried out:
 - <a id="sim-HeatmapTrail-positions-record"></a>**`HeatmapTrail.positions`** (`migrate`). `HeatmapTrail` is a class: `.$1` is `.x`, `.$2` is `.z`; a destructuring pattern is yours to rewrite. `positions` is a list of `TrailPoint` with `x` and `z`, where each was a pair; build them with `TrailPoint(x: …, z: …)`.
 - <a id="sim-InputFrame"></a>**`InputFrame`** (nothing to do). It takes or answers the final class that replaced a record (its own entry names the fields): a record literal passed to it is written as that class, with the same field names.
 - <a id="sim-InputFrame-dualAxes-record"></a>**`InputFrame.dualAxes`** (`migrate`). `InputFrame` is a class: `.x` is `.x`, `.y` is `.y`; a destructuring pattern is yours to rewrite. `dualAxes` maps each name to a `DualAxisValue` with the same `x` and `y`; a map typed by the record shape, or a record literal put in it, names the class.
+- <a id="sim-InputTapePlayback"></a>**`InputTapePlayback`** (by hand). A recorded run plays through `InputTapePlayback(demo, simulation: loop.simulationVersion)`, which refuses a run recorded on another simulation with `ReplayException` before a step is played; a tape the run made itself, such as a rewind point's, or a test's, plays through `InputTapePlayback.tape(tape)`, the old call with `.tape` added.
 - <a id="sim-KeyHolder-base"></a>**`KeyHolder`** (`migrate`). `KeyHolder` is a `base` class: a class below it is `base` itself, and `implements KeyHolder` becomes `extends KeyHolder`. `KeyHolder` is a base mixin class: a holder mixes it in and is `base` or `final`; nothing implements it.
 - <a id="sim-LevelRules"></a>**`LevelRules`** (nothing to do). It takes or answers the final class that replaced a record (its own entry names the fields): a record literal passed to it is written as that class, with the same field names.
 - <a id="sim-LevelRules-perRoom-record"></a>**`LevelRules.perRoom`** (`migrate`). `LevelRules` is a class: `.entity` is `.entity`, `.count` is `.count`; a destructuring pattern is yours to rewrite. `perRoom` is a list of `RoomScatter` with the same `entity` and `count`; write `RoomScatter(entity: …, count: …)` where a record literal stood.

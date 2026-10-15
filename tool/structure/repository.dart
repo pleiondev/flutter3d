@@ -1594,6 +1594,25 @@ formatSectionFixtures = <String, Map<String, ({int since, String fixture})>>{
   },
 };
 
+/// The container formats whose fixtures are read for their section kinds,
+/// by suffix: the reader declaring the kinds, the class they are constants
+/// of, and the directory the fixtures are under. Every constant has to be
+/// in the directory of some fixture there.
+const Map<String, ({String reader, String className, String fixtures})>
+sectionedFormats =
+    <String, ({String reader, String className, String fixtures})>{
+      '.f3d': (
+        reader: 'packages/flutter3d_core/lib/src/formats/f3d/f3d_format.dart',
+        className: 'F3dSection',
+        fixtures: 'packages/flutter3d_core/test/fixtures',
+      ),
+      '.f3dproj': (
+        reader: 'packages/flutter3d_model_core/lib/src/project_format.dart',
+        className: 'ProjectSection',
+        fixtures: 'packages/flutter3d_model_core/test/fixtures',
+      ),
+    };
+
 /// A file format a 1.x build promises to keep reading: where its reader
 /// declares the version it writes, which constant that is, and the fixture
 /// minted at each version, with `<N>` standing for the version. [since] is
@@ -1738,6 +1757,26 @@ const Map<String, VersionedFormat> versionedFormats = <String, VersionedFormat>{
         'packages/flutter3d_game_racing/test/fixtures/v<N>/ring.track.json',
     since: 1,
   ),
+  // The physics core's world snapshot, by its major: a world of every
+  // subsystem, in each precision the core steps in, restored and stepped to
+  // a recorded digest by test/snapshot_fixture_test.dart and
+  // csrc/tests/test_snapshot_fixture.c.
+  'native physics snapshot (f32)': (
+    reader: 'packages/flutter3d_physics_native/lib/src/core/constants.dart',
+    constant: 'snapshotFormatVersion',
+    fixture:
+        'packages/flutter3d_physics_native/test/fixtures/v<N>/'
+        'world.f32.snapshot',
+    since: 1,
+  ),
+  'native physics snapshot (f64)': (
+    reader: 'packages/flutter3d_physics_native/lib/src/core/constants.dart',
+    constant: 'snapshotFormatVersion',
+    fixture:
+        'packages/flutter3d_physics_native/test/fixtures/v<N>/'
+        'world.f64.snapshot',
+    since: 1,
+  ),
 };
 
 /// Where a file format's code lives, for the rule that keeps enum ordinals
@@ -1754,6 +1793,53 @@ const List<String> formatCodePaths = <String>[
   'packages/flutter3d_hardware/lib/src/shader_bundle.dart',
   'packages/flutter3d_model_core/lib/src/project_format.dart',
 ];
+
+/// Libraries that play a recorded run's tape as it is, by path from the
+/// repository root, with the reason: the rule
+/// `a recorded run is played only on the simulation it was recorded on`
+/// lets each of these through, and fails on one that no longer needs it.
+const Map<String, String> uncheckedTapePlaybacks = <String, String>{
+  'packages/flutter3d_sim/lib/src/input/input_tape.dart':
+      'the checked constructor itself, which plays the tape after '
+      '`demo.checkSimulation`',
+  'packages/flutter3d_game_strategy/lib/src/order_tape.dart':
+      'the checked constructor itself, which plays the tape after '
+      '`demo.checkSimulation`',
+  'packages/flutter3d_sim/lib/src/telemetry/resimulation.dart':
+      'only for a game that names no simulation (`HeadlessGame.simulation` '
+      'null), whose tapes are played and let the checkpoints speak; a game '
+      'that names one is refused as `ResimulationOnOtherSimulation` first',
+  'packages/flutter3d_testing/lib/src/test_replay.dart':
+      'only for a tape that names no simulation, recorded before they had '
+      'numbers: its checkpoints speak for it',
+  'packages/flutter3d_testing/lib/src/replay_golden.dart':
+      'only when the caller gives no `simulation`, having checked the run '
+      'itself; given one, the playback checks it',
+  'packages/flutter3d_testing/lib/src/replay_pacing.dart':
+      'after `demo.checkSimulation` when a `simulation` is given, once for '
+      'every pass, since the tape is played again each one',
+};
+
+/// Snapshots a published library builds from another's data without its
+/// `requires`, by `path#argument` (the argument as written, whitespace
+/// folded), with the reason.
+const Map<String, String> snapshotsWithoutRequires = <String, String>{
+  'packages/flutter3d_sim/lib/src/loop/genre_plugin.dart#data.cast<String, Object?>()':
+      '`runStateOf`: one part\'s data, the genre\'s own, which goes back '
+      'through the genre; the other parts\' plugins stay in the loop\'s '
+      'capture, and a run state is digested whole, so carrying the loop\'s '
+      'list would move every checkpoint a tape was recorded with',
+  'packages/flutter3d_game/lib/src/run/run_part.dart#data.cast<String, Object?>()':
+      '`runStateIn`, for the reason `runStateOf` gives',
+  'packages/flutter3d_sim/lib/src/loop/run_loop.dart#data.cast<String, Object?>()':
+      '`RunLoop`\'s part restoring the run, which is handed one part\'s data '
+      'after the loop\'s restore has answered the capture\'s `requires`; and '
+      '`saveIn`, for the reason `GenrePlugin.runStateOf` gives',
+  'packages/flutter3d_conformance/lib/src/plugins/plugin_checks.dart#start.data':
+      '`rewindWorld` on a loop built without the plugin under test: the '
+      'check compares the world the two loops share and leaves the '
+      'plugin\'s state out on purpose, as its doc says',
+};
 
 /// Formats declared with a `FormatSpec` and no fixture, by id, with the
 /// reason. Short on purpose: a format a 1.x build reads needs a file minted
@@ -3240,6 +3326,20 @@ const List<String> _simulationBehindTheView = <String>[
   'CutsceneKind',
   'Damage',
   'Damageable',
+  // A recorded run, named by the checked `InputTapePlayback` the loop's
+  // `playback` holds, and what a run file is made of: read and replayed by
+  // `flutter3d_game`, which exports them.
+  'DataSourceTrace',
+  'Demo',
+  'DemoLevelSwap',
+  'DigestTrace',
+  'Divergence',
+  'EventDivergence',
+  'EventTrace',
+  'GhostFrame',
+  'PoseRecord',
+  'PoseRecordFrame',
+  'Tape',
   'DeterminismCheck',
   'DoorKind',
   'DualAxisAction',
