@@ -1774,6 +1774,7 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback
   int get liveHandleCount
   int get preferredSampleCount
   set supportsOffscreenMsaa(bool supported)
+  void Function(RenderPassDescriptor descriptor)? onBeginRenderPass
   void beginFrame()
   void dispose()
   void finishOldestFrame()

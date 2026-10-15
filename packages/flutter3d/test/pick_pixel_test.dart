@@ -32,8 +32,8 @@ const int _width = 64;
 const int _height = 48;
 
 /// An application node that fails. Registered in the overlay phase, it runs
-/// after the id pass, so the frame goes down with a question the device has
-/// already been handed.
+/// after the id pass, and it is quarantined: the frame goes on, and the
+/// question the device has already been handed is the device's to answer.
 final class _FailingNode extends RenderNode {
   const _FailingNode();
 
@@ -330,12 +330,18 @@ void main() {
     'a question whose frame fails is answered with the failure, once',
     () async {
       // The id pass has run and handed its readback to the device by the time
-      // the overlay throws, so the question is answered twice over: by the
-      // frame's catch, with the failure, and a microtask later by the device,
-      // with a pixel. Mutation: drop the `isCompleted` check in the pick pass —
-      // the second answer throws "Future already completed" from inside a
-      // `then`, which is an unhandled error nobody's `await` sees.
-      renderer.renderSteps.addNode(const _FailingNode());
+      // the device refuses a pass of the engine's after it, so the question
+      // is answered twice over: by the frame's catch, with the failure, and a
+      // microtask later by the device, with a pixel. The engine's own pass
+      // ends the frame; an application's would be quarantined instead.
+      // Mutation: drop the `isCompleted` check in the pick pass — the second
+      // answer throws "Future already completed" from inside a `then`, which
+      // is an unhandled error nobody's `await` sees.
+      device.onBeginRenderPass = (_) {
+        if (device.readbacks.isNotEmpty) {
+          throw StateError('the device went away');
+        }
+      };
       final asked = renderer.pickPixel(0.5, 0.5);
       expect(frame, throwsStateError);
       expect(device.readbacks, hasLength(1), reason: 'the id pass had run');
@@ -344,4 +350,27 @@ void main() {
       await pumpEventQueue();
     },
   );
+
+  test('an overlay of the application\'s that throws is quarantined, and the '
+      'question is answered with a pixel, once', () async {
+    // Mutation: rethrow from the per-node catch in `Renderer.render` for
+    // the application's nodes too — the frame fails, and the question is
+    // answered with the overlay's failure rather than with the mesh.
+    device.answerReadback = (_, _) => _pixelWith(2);
+    renderer.renderSteps.addNode(const _FailingNode());
+    final asked = renderer.pickPixel(0.5, 0.5);
+    final drawn = renderer.render(
+      width: _width,
+      height: _height,
+      scene: scene,
+      views: <CameraView>[view],
+    );
+    final failure = drawn.nodeFailures.single;
+    expect(failure.node, 'failing overlay');
+    expect(failure.owner, 'the application');
+    expect(failure.error, isStateError);
+    expect(device.readbacks, hasLength(1), reason: 'the id pass ran');
+    expect(identical(await asked, right), isTrue);
+    await pumpEventQueue();
+  });
 }

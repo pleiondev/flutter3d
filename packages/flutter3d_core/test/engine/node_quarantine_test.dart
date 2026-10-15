@@ -207,7 +207,13 @@ void main() {
       events: _Events(),
       registries: <PluginRegistry>[it.renderer.renderSteps],
     ).installAll(<Flutter3dPlugin>[_Acme(glow)]);
-    it.renderer.renderSteps.addNode(reader, at: RenderAnchor.afterScene);
+    // The application's nodes at an anchor come before the plugins', so a
+    // reader of the glow says it runs after it.
+    it.renderer.renderSteps.addNode(
+      reader,
+      at: RenderAnchor.afterScene,
+      after: const <String>['acme.glow'],
+    );
 
     final first = _draw(it);
     expect(glow.ran, 1);

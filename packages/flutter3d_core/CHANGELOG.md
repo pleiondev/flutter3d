@@ -30,6 +30,13 @@
   `FrameResult.nodeFailures` lists the failures of the frame they happened
   in. Placing the node again — the plugin switched off and on — lets it
   run. The engine's own passes still end the frame they throw in.
+- **A starved pass takes no version.** A pass that cannot run because
+  something it reads was not produced is left out the way a switched-off
+  one is: a pass it would have drawn over in place reads what the pass
+  before it left, and only what reads its own output starves after it. A
+  node at an anchor that reads the scene's colour and the output of a
+  step still loading, or of a quarantined node, starved the composite
+  with it, and the frame had no scene pass.
 - **A node runs once per view.** A node placed through `RendererSteps`
   is run for each of the frame's views with `FrameContext.viewIndex` and
   `view` set to that view, as `viewIndex` always promised, unless its

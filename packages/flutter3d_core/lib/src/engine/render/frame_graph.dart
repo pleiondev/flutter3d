@@ -459,7 +459,9 @@ final class PassSkip {
   static const PassSkip unconsumed = PassSkip._('unconsumed');
 
   /// Something it reads unconditionally was not produced this frame, so it
-  /// could not run. The cause is upstream; this is the effect.
+  /// could not run. The cause is upstream; this is the effect. Like a pass
+  /// that is off, it takes no version: a pass after it that reads what it
+  /// would have drawn over in place reads what the pass before it left.
   static const PassSkip starved = PassSkip._('starved');
 
   /// The device cannot run it — `gfx-50n`, and the fifth reason the note

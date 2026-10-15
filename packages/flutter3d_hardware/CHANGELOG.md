@@ -59,6 +59,11 @@
 - **`overwriteTexture`'s refusals are typed**: a format outside
   `readbackFormats` or a level above zero is a `DeviceResourceException`
   (the fake's too), where the doc said `UnsupportedError`.
+- **The fake device can fail a frame halfway.**
+  `FakeBackend.onBeginRenderPass` (new) is called with each render pass
+  before it opens, and what it throws `beginRenderPass` throws: a test
+  makes a frame fail on the engine's side after the passes it wants to
+  have run.
 
 ## 1.0.0-rc.1+1
 

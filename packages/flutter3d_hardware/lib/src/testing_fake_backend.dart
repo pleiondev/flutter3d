@@ -854,8 +854,17 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
     );
   }
 
+  /// Called with each render pass as it is asked for, before it is opened:
+  /// what it throws is what [beginRenderPass] throws.
+  ///
+  /// A test that wants a frame to fail on the engine's side — a device that
+  /// goes away halfway through, after some passes have already run — throws
+  /// from here for the pass it picks.
+  void Function(RenderPassDescriptor descriptor)? onBeginRenderPass;
+
   @override
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor) {
+    onBeginRenderPass?.call(descriptor);
     // `gfx-50n`. The fake refuses what a real device would refuse, because a
     // fake that accepted more would let a test record a pass no backend could
     // open — and a test that passes on a device nobody has is worse than no
