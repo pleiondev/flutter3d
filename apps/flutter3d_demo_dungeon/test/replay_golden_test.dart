@@ -175,7 +175,7 @@ void main() {
 
     final shown = await _shown();
     shown.level.staged.sim.restore(demo.start);
-    final playback = InputTapePlayback(demo.tape);
+    final playback = InputTapePlayback.tape(demo.tape);
     while (!playback.isFinished) {
       playback.applyTo(shown.input);
       shown.level.staged.sim.step(_dt);
@@ -193,7 +193,7 @@ void main() {
     Future<Uint8List> replayed() async {
       final shown = await _shown();
       shown.level.staged.sim.restore(demo.start);
-      final playback = InputTapePlayback(demo.tape);
+      final playback = InputTapePlayback.tape(demo.tape);
       while (!playback.isFinished) {
         playback.applyTo(shown.input);
         shown.level.staged.sim.step(_dt);

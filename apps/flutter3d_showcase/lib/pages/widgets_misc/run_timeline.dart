@@ -53,7 +53,7 @@ final class _RunTimeline {
 
   void releaseAt(RewindPoint point) {
     restore(point.snapshot);
-    final toPoint = InputTapePlayback(point.tapeToPoint);
+    final toPoint = InputTapePlayback.tape(point.tapeToPoint);
     while (!toPoint.isFinished) {
       toPoint.applyTo(input);
       stepSim(stepSeconds);

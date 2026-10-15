@@ -49,7 +49,10 @@ RunGhost ghostOf(Level level, Demo demo, {double hz = 30.0}) => ghostOfRun(
       recorder.tick(step * dt, position: feet, yaw: runner.yaw);
     }
 
-    final playback = InputTapePlayback(demo.tape);
+    final playback = InputTapePlayback(
+      demo,
+      simulation: platformerSimulationVersion,
+    );
     var step = 0;
     note(step);
     while (!playback.isFinished) {

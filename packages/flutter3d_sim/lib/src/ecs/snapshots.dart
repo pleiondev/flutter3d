@@ -52,6 +52,16 @@ final class Snapshots extends SnapshotRegistry {
   @override
   List<String> get parts => <String>[for (final part in _parts) part.id];
 
+  /// The version the part registered under [id] captures at, or null when
+  /// no part is: what a run's own snapshot, which carries no version of its
+  /// own, is wrapped with to go back in as that part.
+  int? versionOf(String id) {
+    for (final part in _parts) {
+      if (part.id == id) return part.version;
+    }
+    return null;
+  }
+
   /// Whether no part is registered.
   bool get isEmpty => _parts.isEmpty;
 
@@ -190,7 +200,13 @@ final class Snapshots extends SnapshotRegistry {
       final entry = snapshot.data[part.id];
       if (entry is! Map) continue;
       final version = switch (entry['version']) {
-        final num n => n.toInt(),
+        final num n => switch (FormatSpec.wholeNumber(n)) {
+          final int whole => whole,
+          null => throw SnapshotFormatException(
+            'the snapshot part "${part.id}" names version $n, which is not a '
+            'whole number',
+          ),
+        },
         _ => 1,
       };
       if (version > part.version) {

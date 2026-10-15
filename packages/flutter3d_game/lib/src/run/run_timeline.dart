@@ -655,7 +655,9 @@ final class RunTimeline {
     void Function()? each,
     bool observeAfter = false,
   }) {
-    final playback = InputTapePlayback(InputTape(seed: seed, frames: frames));
+    final playback = InputTapePlayback.tape(
+      InputTape(seed: seed, frames: frames),
+    );
     final previous = loop.playback;
     final wasMuted = input.muted;
     loop.playback = playback;

@@ -139,6 +139,7 @@ abstract base class BusEvent
   void digestInto(EventDigestSink sink)
 
 abstract base class ComponentCodec<T extends Object>
+  Map<String, Object?> unreadIn(ComponentRestoreContext<Object> context)
   Type get type
   abstract Object? encode(T value)
   abstract String get id

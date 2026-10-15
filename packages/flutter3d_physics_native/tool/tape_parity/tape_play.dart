@@ -106,9 +106,9 @@ List<String> _play(
   if (run is RestorableRun) run.restore(demo.start);
   final lines = <String>['parity $name start ${_digest(run)}'];
 
-  var playback = InputTapePlayback(demo.tape);
+  var playback = InputTapePlayback.tape(demo.tape);
   for (var step = 1; step <= tapeSteps; step++) {
-    if (playback.isFinished) playback = InputTapePlayback(demo.tape);
+    if (playback.isFinished) playback = InputTapePlayback.tape(demo.tape);
     playback.applyTo(input);
     input.beginStep();
     run.step(_dt);

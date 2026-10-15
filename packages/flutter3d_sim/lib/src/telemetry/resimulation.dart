@@ -47,6 +47,16 @@ final class ResimulationOnOtherPhysics extends Resimulation {
   final String running;
 }
 
+/// The run was recorded on another simulation than the game names
+/// ([HeadlessGame.simulation]): the same input plays out differently here, so
+/// it is not played at all.
+final class ResimulationOnOtherSimulation extends Resimulation {
+  const ResimulationOnOtherSimulation(this.reason);
+
+  /// Why, in the words of `Demo.refusalOn`.
+  final String reason;
+}
+
 /// A fresh run of the level does not start where the recording started: the
 /// demo began mid-run, or the game's spawning has changed since.
 final class ResimulationStartDiffers extends Resimulation {
@@ -103,6 +113,9 @@ final class ResimulationRetraced extends Resimulation {
 /// simulation the player ran — or finds that it did something else and says
 /// at which checkpoint.
 ///
+/// A run recorded on another simulation than [HeadlessGame.simulation] is
+/// [ResimulationOnOtherSimulation] before a step is played.
+///
 /// A run that diverges answers no metrics at all: a trail that parted from the
 /// player's at step 400 is a trail of somebody who never played.
 Resimulation resimulate({
@@ -124,6 +137,14 @@ Resimulation resimulate({
   if (demo.physics case final String recorded when recorded != running) {
     return ResimulationOnOtherPhysics(recorded: recorded, running: running);
   }
+  // The whole simulation, plugins and subsystems included, as the game names
+  // it; a game that names none plays the tape and lets the checkpoints speak.
+  final simulation = game.simulation;
+  if (simulation != null) {
+    if (demo.refusalOn(simulation) case final String reason) {
+      return ResimulationOnOtherSimulation(reason);
+    }
+  }
 
   final world = CollisionWorld(backend: physics);
   level.addTo(world);
@@ -140,7 +161,9 @@ Resimulation resimulate({
     return const ResimulationStartDiffers();
   }
 
-  final playback = InputTapePlayback(demo.tape);
+  final playback = simulation == null
+      ? InputTapePlayback.tape(demo.tape)
+      : InputTapePlayback(demo, simulation: simulation);
   final trace = DigestTrace(every: demo.checkpoints.every);
   final trail = <TrailPoint>[];
   for (var step = 1; step <= demo.steps; step++) {

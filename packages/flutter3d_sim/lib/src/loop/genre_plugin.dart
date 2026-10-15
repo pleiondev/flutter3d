@@ -169,16 +169,28 @@ abstract base class GenrePlugin<S extends Object> extends Flutter3dPlugin {
   /// tape recorded since 0.6 replaying; the loop restores it as its genre
   /// part, and the parts the file does not hold — the world, a plugin's —
   /// are left as the freshly staged level has them.
+  ///
+  /// [Snapshot.requires] goes with it: a run state that holds a plugin's
+  /// state is refused by the restore when that plugin is missing, where it
+  /// would otherwise come back without it.
   Snapshot loopStateOf(Snapshot runState) => Snapshot(<String, Object?>{
     manifest.id: <String, Object?>{
       'version': snapshotVersion,
       'data': runState.data,
     },
-  });
+  }, requires: runState.requires);
 
   /// This genre's part of [loopState], a loop's capture, as the run's own
   /// snapshot — what a checkpoint is digested from and a tape starts from;
   /// null when [loopState] holds none (absent).
+  ///
+  /// **It requires nothing**, and that is what it holds: one part's data,
+  /// this genre's, which [loopStateOf] puts back through this genre. The
+  /// other parts' state and their plugins stay in [loopState], whose
+  /// [Snapshot.requires] names them; a save that must keep a plugin's state
+  /// keeps the loop's capture. Carrying [loopState]'s list here would also
+  /// move every checkpoint digest a tape was recorded with, since a run
+  /// state is digested whole.
   Snapshot? runStateOf(Snapshot loopState) =>
       switch (loopState.data[manifest.id]) {
         {'data': final Map<Object?, Object?> data} => Snapshot(

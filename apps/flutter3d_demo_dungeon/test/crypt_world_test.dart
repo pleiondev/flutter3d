@@ -277,7 +277,7 @@ void main() {
 
     final again = await _crypt();
     again.level.staged.sim.restore(start);
-    final playback = InputTapePlayback(recorder.tape);
+    final playback = InputTapePlayback.tape(recorder.tape);
     while (!playback.isFinished) {
       playback.applyTo(again.input);
       _step(again.level, again.input);

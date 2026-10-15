@@ -92,7 +92,7 @@ void main() {
           ShooterPlugin()..simulation = replay.staged.sim,
         ],
       )..rewindTo(0, state: point.snapshot);
-      final playback = InputTapePlayback(point.tapeToPoint);
+      final playback = InputTapePlayback.tape(point.tapeToPoint);
       replayLoop.playback = playback;
       while (!playback.isFinished) {
         replayLoop.runSteps(1);

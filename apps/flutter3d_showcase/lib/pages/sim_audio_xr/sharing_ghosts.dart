@@ -110,6 +110,7 @@ Demo _record(Level level, List<Vector3> steps) {
     tape: recorder.tape,
     buildStamp: 'showcase',
     checkpoints: trace,
+    simulation: SimulationVersion.engineOnly,
   );
 }
 // #endregion record
@@ -169,7 +170,12 @@ RunTransport _inMemory(Map<String, Map<String, Object?>> store) =>
   final run = _start(level, input);
   final recorder = Recorder(hz: 30.0);
   const dt = 1.0 / 60.0;
-  final playback = InputTapePlayback(demo.tape);
+  final String? refused = demo.refusalOn(SimulationVersion.engineOnly);
+  if (refused != null) return (ghost: null, says: refused);
+  final playback = InputTapePlayback(
+    demo,
+    simulation: SimulationVersion.engineOnly,
+  );
   var step = 0;
   recorder.tick(
     0.0,

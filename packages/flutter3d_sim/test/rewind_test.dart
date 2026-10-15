@@ -98,7 +98,7 @@ List<String> _run(_Toy toy, RewindBuffer buffer, int steps) {
 _Toy _arrive(RewindPoint point) {
   final toy = _Toy(0);
   final loop = _loopOf(toy, InputState())..rewindTo(0, state: point.snapshot);
-  final playback = InputTapePlayback(point.tapeToPoint);
+  final playback = InputTapePlayback.tape(point.tapeToPoint);
   loop.playback = playback;
   while (!playback.isFinished) {
     loop.runSteps(1);

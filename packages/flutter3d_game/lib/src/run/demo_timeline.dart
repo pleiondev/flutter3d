@@ -34,8 +34,9 @@ import 'run_part.dart';
 /// `replayDemoOnLoop` plays such a run and this does not pretend to scrub it.
 ///
 /// So is a run recorded on a simulation other than this build's — [simulation]
-/// when given, the loop's `EngineLoop.simulationBase` otherwise; the check is
-/// never skipped. [ReplayException] carries the run's pose record, which
+/// when given, the loop's whole `EngineLoop.simulationVersion` otherwise,
+/// its plugins' and subsystems' numbers included; the playback makes the
+/// check itself, so it is never skipped. [ReplayException] carries the run's pose record, which
 /// scrubs on any build because nothing in it is simulated.
 RewindBuffer rewindBufferFromDemo({
   required Demo demo,
@@ -45,7 +46,12 @@ RewindBuffer rewindBufferFromDemo({
   double? history,
   SimulationVersion? simulation,
 }) {
-  demo.checkSimulation(simulation ?? loop.simulationBase);
+  // Refused here, before the loop is touched, when the run was recorded on
+  // another simulation.
+  final playback = InputTapePlayback(
+    demo,
+    simulation: simulation ?? loop.simulationVersion,
+  );
   if (demo.levelSwaps.isNotEmpty) {
     throw ArgumentError.value(
       demo,
@@ -63,7 +69,6 @@ RewindBuffer rewindBufferFromDemo({
     keyframeEvery: keyframeEvery,
     seed: demo.tape.seed,
   );
-  final playback = InputTapePlayback(demo.tape);
   final previous = loop.playback;
   final wasMuted = loop.input.muted;
   final attached = buffer.attach(loop);

@@ -24,6 +24,12 @@
   `ArgumentError`, which reads as a bug, where the name is data two
   plugins can both have thought of.
 
+- **`ComponentCodec.unreadIn`: the keys of a row its codec did not read**,
+  handed the `ComponentRestoreContext` of the row and the component read
+  back from it.
+  A default member, so a codec written against rc.1 keeps compiling: the
+  world keeps those keys beside the component and writes them back, so a
+  save opened by an earlier minor keeps what a later one added.
 - **Breaking: results that were records are final classes.** `OriginShifted`
   answered or held a record, which can never gain a field. Each answers a
   final class now, with the record's field names (a positional `$1` has a

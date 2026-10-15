@@ -5,6 +5,34 @@
   `flutter3d_build`: `--help` prints the usage and exits 0, a `--cell` that
   is not a size above 0 exits 2 where it threw, and a level that is not
   one exits 1 with its path.
+- **Breaking: a recorded run's playback checks the run itself.**
+  `InputTapePlayback(demo, simulation: loop.simulationVersion)` takes the
+  `Demo` and refuses a run recorded on another simulation with
+  `ReplayException` before a step is played, so no replay can forget to
+  ask, as eight did. `InputTapePlayback.tape(tape)` plays a tape as it is,
+  for a tape the run made itself and for tests; `dart fix` rewrites the old
+  call to it. `resimulate` refuses a run on another simulation than
+  `HeadlessGame.simulation` as `ResimulationOnOtherSimulation`.
+- **A save keeps the plugins it requires on the way through.**
+  `SaveRecord.read` and `GenrePlugin.loopStateOf` carry
+  `Snapshot.requires`, so a save holding a plugin's state is refused by
+  name where the plugin is missing, instead of restoring without it and
+  being written again requiring nothing. A save written without
+  `requires` still restores. `Snapshots.versionOf` says the version a part
+  captures at.
+- **A component row keeps the keys its codec did not read.** A row read at
+  its codec's version keeps what a later build added
+  (`ComponentCodec.unreadIn`) and writes it back on the next save, its own
+  keys winning; removing the component drops them.
+- **A version past what a double holds is refused in the format's words.**
+  `{"version": 1e999}` in a run, a tape or a save, and infinity in a
+  component's version or `changedAt`, threw `UnsupportedError`; each is
+  now the format's own exception, and `SaveRecord.read` still never throws.
+- **A telemetry upload carries the whole run.** `TelemetryUpload.prepare`
+  keeps the simulation, the level swaps, the loop changes, the events, the
+  poses, the probes and the keys this build does not know, and drops only
+  `recordedBy`; a consent whose time is not a string is refused as no
+  consent rather than a `TypeError`.
 - **Breaking: results that were records are final classes.** `Avoidance`,
   `BrushGeometry`, `HeatmapTrail`, `InputFrame`, `LevelRules`,
   `LightmapLayout`, `ResimulationRetraced`, `bracketFromTraces` and

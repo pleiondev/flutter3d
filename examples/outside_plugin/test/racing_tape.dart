@@ -105,7 +105,7 @@ EngineLoop racingLoop({
       ..throttle = loop.input.value(_throttle)
       ..steer = loop.input.value(_steer);
   });
-  loop.playback = InputTapePlayback(racingTape(steps: steps));
+  loop.playback = InputTapePlayback.tape(racingTape(steps: steps));
   also?.call(loop);
   return loop;
 }

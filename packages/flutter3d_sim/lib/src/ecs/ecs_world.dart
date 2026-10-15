@@ -153,6 +153,7 @@ final class EcsWorld extends SimWorld {
     for (final store in _stores.values) {
       store.values.remove(index);
       store.changedAt.remove(index);
+      store.unread.remove(index);
     }
     _generations[index]++;
     _free.add(index);
@@ -192,6 +193,7 @@ final class EcsWorld extends SimWorld {
     if (!isAlive(entity)) return;
     _stores[T]?.values.remove(entity.index);
     _stores[T]?.changedAt.remove(entity.index);
+    _stores[T]?.unread.remove(entity.index);
   }
 
   /// Every live entity carrying an [A], in the order the component was first
@@ -307,7 +309,17 @@ final class EcsWorld extends SimWorld {
       if (store.excludedBecause != null || codec == null) continue;
       final rows = <String, Object?>{};
       for (final value in store.values.entries) {
-        rows['${value.key}'] = codec.encode(value.value);
+        final encoded = codec.encode(value.value);
+        // What a later build wrote into the row and this one did not read
+        // goes back out, under the codec's own keys.
+        rows['${value.key}'] = switch ((encoded, store.unread[value.key])) {
+          (final Map<Object?, Object?> own, final Map<String, Object?> kept) =>
+            <String, Object?>{
+              ...kept,
+              for (final e in own.entries) '${e.key}': e.value,
+            },
+          _ => encoded,
+        };
       }
       components[codec.id] = rows;
       if (codec.version != 1) versions[codec.id] = codec.version;
@@ -340,7 +352,7 @@ final class EcsWorld extends SimWorld {
   static List<int> _integers(Object? value) => <int>[
     if (value is List)
       for (final item in value)
-        if (item is num) item.toInt(),
+        if (item is num && item.isFinite) item.toInt(),
   ];
 
   /// Replaces everything with what [from] describes.
@@ -366,7 +378,13 @@ final class EcsWorld extends SimWorld {
       _ => const <Object?, Object?>{},
     };
     int versionOf(String name) => switch (versions[name]) {
-      final num n => n.toInt(),
+      final num said => switch (FormatSpec.wholeNumber(said)) {
+        final int whole => whole,
+        null => throw SnapshotFormatException(
+          'the component "$name" names version $said, which is not a whole '
+          'number',
+        ),
+      },
       _ => 1,
     };
     final components = from['components'];
@@ -397,6 +415,7 @@ final class EcsWorld extends SimWorld {
 
     for (final store in _stores.values) {
       store.changedAt.clear();
+      store.unread.clear();
       // In-place components keep their instances: a save file cannot rebuild a
       // body that is registered in a collision world, and clearing here would
       // throw away the only one there is.
@@ -423,6 +442,7 @@ final class EcsWorld extends SimWorld {
               codec.restoreAny(
                 ComponentRestoreContext(present, row.value, version: version),
               );
+              _keepUnread(store, codec, index, row.value, present, version);
             }
             continue;
           }
@@ -431,7 +451,10 @@ final class EcsWorld extends SimWorld {
           final value = codec.decode(
             ComponentDecodeContext(row.value, version: version),
           );
-          if (value != null) store.values[index] = value;
+          if (value != null) {
+            store.values[index] = value;
+            _keepUnread(store, codec, index, row.value, value, version);
+          }
         }
       }
     }
@@ -477,13 +500,31 @@ final class EcsWorld extends SimWorld {
         for (final row in value.entries) {
           final index = int.tryParse('${row.key}');
           final step = row.value;
-          if (index == null || step is! num) continue;
+          if (index == null || step is! num || !step.isFinite) continue;
           if (store.values.containsKey(index)) {
             store.changedAt[index] = step.toInt();
           }
         }
       }
     }
+  }
+
+  /// Keeps the keys of [row] that [codec] did not read, for [save] to write
+  /// back: only for a row at the codec's own version, since an older row's
+  /// keys are the codec's past shape rather than a later build's.
+  static void _keepUnread(
+    ComponentStore store,
+    ComponentCodec<Object> codec,
+    int index,
+    Object? row,
+    Object value,
+    int version,
+  ) {
+    if (version != codec.version) return;
+    final unread = codec.unreadIn(
+      ComponentRestoreContext(value, row, version: version),
+    );
+    if (unread.isNotEmpty) store.unread[index] = unread;
   }
 
   ComponentStore _storeOf<T extends Object>() =>

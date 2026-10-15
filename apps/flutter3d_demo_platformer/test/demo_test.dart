@@ -99,7 +99,7 @@ void main() {
 
     final replay = _stage();
     replay.sim.restore(demo.start);
-    final playback = InputTapePlayback(demo.tape);
+    final playback = InputTapePlayback.tape(demo.tape);
     final replayCheckpoints = DigestTrace();
     var replayedSteps = 0;
     while (!playback.isFinished) {

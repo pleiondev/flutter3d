@@ -260,6 +260,9 @@ _Replayed _replayed(
     'the run was played on the $recorded physics and this server has only '
     '$running',
   ),
+  ResimulationOnOtherSimulation(:final reason) => _refused(
+    'the run was recorded on another simulation: $reason',
+  ),
   ResimulationStartDiffers() => _refused(
     'a fresh run of the level does not start where this one started',
   ),

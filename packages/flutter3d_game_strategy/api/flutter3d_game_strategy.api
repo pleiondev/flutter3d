@@ -224,8 +224,9 @@ final class OrderTape
   int get steps
 
 final class OrderTapePlayback
-  OrderTapePlayback(this.tape)
+  OrderTapePlayback.tape(this.tape)
   bool get isFinished
+  factory OrderTapePlayback(MatchDemo demo, {required SimulationVersion simulation})
   final OrderTape tape
   int get step
   void applyTo(OrderQueue queue)

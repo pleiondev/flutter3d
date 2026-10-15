@@ -287,7 +287,7 @@ void main() {
     // steps — the bracket's top then agrees and is widened to the end.
     DigestTrace trace(_Toy toy) {
       final input = InputState();
-      final playback = InputTapePlayback(_tape(1000));
+      final playback = InputTapePlayback.tape(_tape(1000));
       final trace = DigestTrace();
       for (var step = 0; !playback.isFinished; step++) {
         playback.applyTo(input);

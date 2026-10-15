@@ -127,7 +127,7 @@ void main() {
     // checked against the trace rather than only watched to the end.
     final replay = _stageCrypt();
     replay.staged.sim.restore(demo.start);
-    final playback = InputTapePlayback(demo.tape);
+    final playback = InputTapePlayback.tape(demo.tape);
     final replayCheckpoints = DigestTrace();
     var replayedSteps = 0;
     while (!playback.isFinished) {

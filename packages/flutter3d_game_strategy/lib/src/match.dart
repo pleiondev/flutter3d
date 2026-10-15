@@ -301,10 +301,13 @@ final class StrategyMatch {
   /// claims to describe. A finishing line moved between the save and the load
   /// is then honoured, which is the same boundary [MatchGoal] already sits on:
   /// the goal belongs to whoever staged the match.
-  Snapshot save() => Snapshot(<String, Object?>{
-    'simulation': simulation.save().data,
-    'bots': <Object?>[for (final Bot bot in bots) bot.save()],
-  });
+  Snapshot save() {
+    final inner = simulation.save();
+    return Snapshot(<String, Object?>{
+      'simulation': inner.data,
+      'bots': <Object?>[for (final Bot bot in bots) bot.save()],
+    }, requires: inner.requires);
+  }
 
   void restore(Snapshot snapshot) {
     final Map<String, Object?> from = snapshot.data;

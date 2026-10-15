@@ -370,8 +370,15 @@ Future<void> _replay(
 
   // The tape's start is the genre's run: restored as the loop's part, the
   // rest of the loop left as the staged level has it.
+  // On the loop's whole simulation, its plugins and subsystems included: a
+  // tape recorded on another is refused with the reason, which is a clearer
+  // failure than the checkpoint it would diverge at. A tape that names no
+  // simulation was recorded before they had numbers, and its checkpoints
+  // speak for it.
+  final playback = demo.simulation == null
+      ? InputTapePlayback.tape(demo.tape)
+      : InputTapePlayback(demo, simulation: loop.simulationVersion);
   loop.rewindTo(0, state: genre.loopStateOf(demo.start));
-  final playback = InputTapePlayback(demo.tape);
   final previous = loop.playback;
   loop.playback = playback;
   final last = <int>{...digests, ...goldens}.reduce((a, b) => a > b ? a : b);

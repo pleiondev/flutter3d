@@ -118,6 +118,35 @@ abstract base class ComponentCodec<T extends Object> {
   /// The component type this codec writes, for a registry that files codecs
   /// by type.
   Type get type => T;
+
+  /// The keys of the context's `data`, a row as it was read, that this
+  /// codec's own [encode] of the context's `value`, the component read back
+  /// from it, has no key for: what a later build added to the row and this
+  /// one does not know.
+  ///
+  /// **Kept, never dropped.** A world restoring a row at this codec's
+  /// [version] keeps these beside the component and writes them back into
+  /// the row it saves, its own keys winning, so a save opened and saved by
+  /// an earlier minor keeps what a later one added (`docs/CONTRACTS.md`,
+  /// "Unknown keys are kept"). A row of an older version is read by the
+  /// codec's own lift and keeps nothing: its keys are this codec's past
+  /// shape, not a later build's.
+  ///
+  /// Empty unless both are maps. A codec whose row is a map it fills from
+  /// keys it does not write back, or one that reads a key under another
+  /// name, overrides this to say which keys it read.
+  ///
+  /// The context's `value` is typed `Object`, so a world holding codecs of
+  /// many component types calls this on each; it is always a [T].
+  Map<String, Object?> unreadIn(ComponentRestoreContext<Object> context) =>
+      switch ((context.data, encode(context.value as T))) {
+        (final Map<Object?, Object?> read, final Map<Object?, Object?> own) =>
+          <String, Object?>{
+            for (final MapEntry(:key, :value) in read.entries)
+              if (!own.containsKey(key)) '$key': value,
+          },
+        _ => const <String, Object?>{},
+      };
 }
 
 final class _FunctionCodec<T extends Object> extends ComponentCodec<T> {

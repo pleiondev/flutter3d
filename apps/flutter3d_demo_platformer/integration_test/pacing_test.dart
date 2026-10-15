@@ -411,7 +411,7 @@ SimulationSetup _ascentApart(Object? arguments) {
   );
   world.update();
 
-  var playback = InputTapePlayback(demo.tape);
+  var playback = InputTapePlayback.tape(demo.tape);
   final genre = PlatformerPlugin(kinds: const <EntityKind>[])
     ..simulation = staged.sim;
   final loop = EngineLoop(input: input, plugins: <Flutter3dPlugin>[genre])
@@ -423,7 +423,7 @@ SimulationSetup _ascentApart(Object? arguments) {
     );
   loop.queries.add(_rewindQuestion, (_) {
     staged.sim.restore(demo.start);
-    playback = InputTapePlayback(demo.tape);
+    playback = InputTapePlayback.tape(demo.tape);
     return null;
   });
   for (final (what, unit, read) in <(String, Unit, Vector3 Function())>[

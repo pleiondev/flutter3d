@@ -108,7 +108,7 @@ void main() {
       filter: const ObserverFilter(probes: <String>{'tank.half'}),
       restore: (restore) => copy.rewindTo(restore.step, state: restore.start),
       replay: (input) {
-        copy.playback = InputTapePlayback(
+        copy.playback = InputTapePlayback.tape(
           InputTape(seed: 0, frames: <InputFrame>[input]),
         );
         copy.runSteps(1);

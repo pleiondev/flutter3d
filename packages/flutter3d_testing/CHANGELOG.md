@@ -9,6 +9,10 @@
 - **How long a picture holds is written down.** The software rasteriser's
   picture may change in a minor, under a `**Picture:**` label naming the
   cause, and never in a patch; `channel: 8` is frozen for 1.x.
+- **`replayGolden` and `replayPacing` take the simulation to check.** Given
+  `simulation:`, a tape recorded on another is refused with
+  `ReplayException` before a step is played; `testReplay` checks the
+  loop's whole `simulationVersion` for a tape that names one.
 - **Breaking: `RenderView` is `CameraView`.** `QualityScene` changed with
   it. `package:flutter/rendering.dart` exports a `RenderView` too, the root
   of a render tree, so a file importing both had to hide one.

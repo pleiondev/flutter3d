@@ -20,6 +20,11 @@ final class ComponentStore {
   /// `SimQuery.changed`.
   final Map<int, int> changedAt = <int, int>{};
 
+  /// Entity index to the keys its restored row held that the codec did not
+  /// read (`ComponentCodec.unreadIn`): what a later build wrote, written
+  /// back into the row on the next save. Dropped with the component.
+  final Map<int, Map<String, Object?>> unread = <int, Map<String, Object?>>{};
+
   /// How the component is written; null while it has none.
   ComponentCodec<Object>? codec;
 

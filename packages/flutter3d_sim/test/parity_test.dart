@@ -561,7 +561,7 @@ DigestTrace _play(InputTape tape, {int every = 25}) {
     position: Vector3(0.0, 1.0, 6.0),
   );
   final dice = GameRandom(tape.seed);
-  final playback = InputTapePlayback(tape);
+  final playback = InputTapePlayback.tape(tape);
   final input = InputState();
   final trace = DigestTrace(every: every);
   final wish = Vector3.zero();

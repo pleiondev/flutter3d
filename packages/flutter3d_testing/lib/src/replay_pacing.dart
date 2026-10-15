@@ -150,7 +150,14 @@ Future<PacingReport> replayPacing({
   /// A frame longer than this, in seconds, is a spike.
   double limit = 0.05,
   int Function()? clock,
+
+  /// The simulation [onStep] runs, `EngineLoop.simulationVersion` or a
+  /// genre's constant: given, a tape recorded on another is refused with
+  /// `ReplayException` before a frame is played. Null plays the tape as it
+  /// is, for a caller that checked [demo] itself (`Demo.checkSimulation`).
+  SimulationVersion? simulation,
 }) async {
+  if (simulation != null) demo.checkSimulation(simulation);
   if (repeats < 1) {
     throw ArgumentError.value(repeats, 'repeats', 'at least one pass');
   }
@@ -159,7 +166,8 @@ Future<PacingReport> replayPacing({
   var frame = 0;
   for (var pass = 0; pass < repeats; pass++) {
     rewind?.call();
-    final playback = InputTapePlayback(demo.tape);
+    // Checked once, above, when a simulation was given.
+    final playback = InputTapePlayback.tape(demo.tape);
     while (!playback.isFinished) {
       final start = now();
       playback.applyTo(input);

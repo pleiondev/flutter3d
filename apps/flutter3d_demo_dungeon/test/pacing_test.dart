@@ -49,7 +49,7 @@ void main() {
     final crypt = await _crypt()
       ..rewind(demo);
     final from = crypt.level.staged.player.body.position.clone();
-    final playback = InputTapePlayback(demo.tape);
+    final playback = InputTapePlayback.tape(demo.tape);
     var step = 0;
     while (!playback.isFinished) {
       playback.applyTo(crypt.input);
@@ -114,7 +114,7 @@ void main() {
     expect(probes.where((p) => !p.isCaptured), isEmpty);
 
     final made = crypt.renderer.targetPool.createdCount;
-    final playback = InputTapePlayback(demo.tape);
+    final playback = InputTapePlayback.tape(demo.tape);
     for (var frame = 0; frame < 6; frame++) {
       playback.applyTo(crypt.input);
       crypt.step(_dt);

@@ -1,3 +1,4 @@
+import 'package:flutter3d/flutter3d.dart' show SimulationVersion;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'golden.dart';
@@ -50,8 +51,16 @@ Future<void> replayGolden({
   /// As [expectMatchesGolden]'s: a percentage of pixels allowed to differ.
   double tolerance = 0.0,
   String? reason,
+
+  /// The simulation [onStep] runs, `EngineLoop.simulationVersion` or a
+  /// genre's constant: given, a tape recorded on another is refused with
+  /// `ReplayException` before a step is played. Null plays the tape as it
+  /// is, for a caller that checked [demo] itself (`Demo.checkSimulation`).
+  SimulationVersion? simulation,
 }) async {
-  final playback = InputTapePlayback(demo.tape);
+  final playback = simulation == null
+      ? InputTapePlayback.tape(demo.tape)
+      : InputTapePlayback(demo, simulation: simulation);
   for (var step = 1; step <= atStep; step++) {
     if (playback.isFinished) {
       throw StateError(

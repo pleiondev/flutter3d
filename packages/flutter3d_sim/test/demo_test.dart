@@ -41,6 +41,77 @@ Demo _demo({int steps = 3}) {
 }
 
 void main() {
+  group('a version past what a double holds', () {
+    // `jsonDecode` reads 1e999 as infinity, which passed every whole-number
+    // check and threw `UnsupportedError` from `toInt()` or `truncate()`.
+    // Mutation: drop `isFinite` from `FormatSpec.wholeNumber`.
+    Map<String, Object?> said(String format) =>
+        jsonDecode('{"format": "$format", "version": 1e999}')
+            as Map<String, Object?>;
+
+    test('is refused as a run, a tape and a snapshot', () {
+      expect(
+        () => Demo.fromJson(said('f3d.run')),
+        throwsA(isA<DemoFormatException>()),
+      );
+      expect(
+        () => InputTape.fromJson(said('f3d.inputTape')),
+        throwsA(isA<InputTapeFormatException>()),
+      );
+      expect(
+        () => Snapshot.fromJson(said('f3d.save')),
+        throwsA(isA<SnapshotFormatException>()),
+      );
+    });
+  });
+
+  group('a playback', () {
+    test('of a recorded run refuses another simulation itself', () {
+      // Every replay of a file goes through this constructor, so none can
+      // forget the check. Mutation: drop `demo.checkSimulation` from
+      // `InputTapePlayback`'s unnamed constructor, and the newer run plays.
+      final recorded = Demo.fromJson(
+        _demo().toJson()
+          ..['simulation'] = const SimulationVersion(engine: 99).toJson(),
+      );
+      expect(
+        () => InputTapePlayback(
+          recorded,
+          simulation: SimulationVersion.engineOnly,
+        ),
+        throwsA(isA<ReplayException>()),
+      );
+      final same = Demo.fromJson(
+        _demo().toJson()
+          ..['simulation'] = SimulationVersion.engineOnly.toJson(),
+      );
+      expect(
+        InputTapePlayback(same, simulation: SimulationVersion.engineOnly).step,
+        0,
+      );
+    });
+
+    test('checks the whole simulation, a plugin\'s number included', () {
+      // Recorded with a plugin at 1, replayed with it at 2: the base alone
+      // agrees, and the run would diverge instead of being refused.
+      final recorded = Demo.fromJson(
+        _demo().toJson()
+          ..['simulation'] = SimulationVersion.engineOnly
+              .withPlugins(const <String, int>{'acme.wind': 1})
+              .toJson(),
+      );
+      expect(
+        () => InputTapePlayback(
+          recorded,
+          simulation: SimulationVersion.engineOnly.withPlugins(
+            const <String, int>{'acme.wind': 2},
+          ),
+        ),
+        throwsA(isA<ReplayException>()),
+      );
+    });
+  });
+
   group('the document', () {
     test('survives a round trip through JSON', () {
       final written = _demo();
@@ -341,7 +412,7 @@ void main() {
               looked.add(input.lookDelta.x);
               slots.add(input.slotRequest);
             })
-            ..playback = InputTapePlayback(tape);
+            ..playback = InputTapePlayback.tape(tape);
 
       loop.frame(2 / 60);
 
@@ -364,7 +435,7 @@ void main() {
         jsonDecode(jsonEncode(recorder.tape.toJson())) as Map<String, Object?>,
       );
       final replayed = InputState();
-      InputTapePlayback(read).applyTo(replayed);
+      InputTapePlayback.tape(read).applyTo(replayed);
 
       expect(replayed.slotRequest, 2);
     });
@@ -380,7 +451,7 @@ void main() {
             ..addSystem('look', LoopPhase.rules, (_) {
               looked.add(input.lookDelta.x);
             })
-            ..playback = InputTapePlayback(
+            ..playback = InputTapePlayback.tape(
               InputTape(
                 seed: 1,
                 frames: const <InputFrame>[InputFrame(lookX: 0.5)],
@@ -401,7 +472,7 @@ void main() {
       input.press(_fire);
       expect(input.held(_fire), isFalse, reason: 'the keyboard is dropped');
 
-      InputTapePlayback(
+      InputTapePlayback.tape(
         InputTape(
           seed: 1,
           frames: const <InputFrame>[
@@ -435,7 +506,7 @@ void main() {
 
       // And the replay walks.
       final replayed = InputState();
-      InputTapePlayback(loop.recorders.single.tape).applyTo(replayed);
+      InputTapePlayback.tape(loop.recorders.single.tape).applyTo(replayed);
       expect(replayed.moveAxis, Vector2(0.0, 1.0));
     });
   });

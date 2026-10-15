@@ -188,7 +188,7 @@ void main() {
 
       // Nobody feeds this one: the tape is its whole input.
       final (replay, _) = _twin(<ExternalStateInput>[]);
-      replay.playback = InputTapePlayback(recorder.tape);
+      replay.playback = InputTapePlayback.tape(recorder.tape);
       replay.runSteps(50);
       expect(_celsius(replay, SiteTwin.waterProbe), live);
     });

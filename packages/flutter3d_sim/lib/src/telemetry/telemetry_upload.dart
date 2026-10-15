@@ -119,6 +119,17 @@ final class TelemetryUpload extends FormatDocument {
           dataSources: demo.dataSources,
           // What the server plays it again on: see `Demo.physics`.
           physics: demo.physics,
+          // Everything the run is beyond its tape, so the server plays the
+          // same run, or refuses it on its simulation: a swap or a loop
+          // change left out replays as another run. Only `recordedBy`, who
+          // the player is, stays on the device.
+          levelSwaps: demo.levelSwaps,
+          loopChanges: demo.loopChanges,
+          events: demo.events,
+          simulation: demo.simulation,
+          poses: demo.poses,
+          probes: demo.probes,
+          unknown: demo.unknown,
         ),
         policy: policy,
         consentedAt: consent.at!,
@@ -152,9 +163,12 @@ final class TelemetryUpload extends FormatDocument {
     }
     final consent = json['consent'];
     final policy = consent is Map ? consent['policy'] : null;
-    final at = consent is Map
-        ? DateTime.tryParse(consent['at'] as String? ?? '')
-        : null;
+    // A consent whose `at` is anything but a string is no consent: refused
+    // with this format's own exception, never a `TypeError` from a cast.
+    final at = switch (consent) {
+      {'at': final String said} => DateTime.tryParse(said),
+      _ => null,
+    };
     if (policy is! String || policy.isEmpty || at == null) {
       throw const TelemetryUploadFormatException(
         'the upload carries no consent, so it was not agreed to',

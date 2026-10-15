@@ -75,7 +75,7 @@ Demo _record() {
   );
   final DigestTrace checkpoints = DigestTrace(every: 20);
   final InputState input = InputState();
-  final InputTapePlayback playback = InputTapePlayback(tape);
+  final InputTapePlayback playback = InputTapePlayback.tape(tape);
   for (var step = 1; step <= tape.steps; step++) {
     playback.applyTo(input);
     game.step(input);
@@ -89,6 +89,7 @@ Demo _record() {
     tape: tape,
     buildStamp: 'showcase',
     checkpoints: checkpoints,
+    simulation: SimulationVersion.engineOnly,
   );
   return Demo.fromJson(
     jsonDecode(jsonEncode(demo.toJson())) as Map<String, Object?>,
@@ -166,9 +167,16 @@ _Verdict _replay(Demo demo, _Ball game, {Iterable<int>? digestAt}) {
     );
   }
 
+  // The ball runs the engine alone; a tape recorded on another simulation
+  // is refused by the playback, before a step is played.
+  final InputTapePlayback playback;
+  try {
+    playback = InputTapePlayback(demo, simulation: SimulationVersion.engineOnly);
+  } on ReplayException catch (refused) {
+    return _Refused(refused.reason);
+  }
   game.restore(demo.start);
   final InputState input = InputState();
-  final InputTapePlayback playback = InputTapePlayback(demo.tape);
   final int last = digests.reduce((a, b) => a > b ? a : b);
   int? agreed;
   for (var step = 1; step <= last; step++) {
@@ -264,8 +272,8 @@ final class ReplayTestsDemo extends ShowcaseDemo {
     _lower = _replay(_tape, _lowerBall);
     _upperBall.restore(_tape.start);
     _lowerBall.restore(_tape.start);
-    _upperPlay = InputTapePlayback(_tape.tape);
-    _lowerPlay = InputTapePlayback(_tape.tape);
+    _upperPlay = InputTapePlayback(_tape, simulation: SimulationVersion.engineOnly);
+    _lowerPlay = InputTapePlayback(_tape, simulation: SimulationVersion.engineOnly);
     // The lamps are the lower lane's checkpoints: green while they agree,
     // red where the replay failed, dark after it, since a failed replay stops.
     for (final (int k, int step) in _tape.checkpoints.steps.indexed) {
@@ -355,7 +363,10 @@ final class ReplayTestsDemo extends ShowcaseDemo {
         // agree through the steps before the first bounce.
         final _Ball probe = _Ball()..restore(_tape.start);
         final InputState input = InputState();
-        final InputTapePlayback play = InputTapePlayback(_tape.tape);
+        final InputTapePlayback play = InputTapePlayback(
+          _tape,
+          simulation: SimulationVersion.engineOnly,
+        );
         var firstBounce = 0;
         for (var step = 1; probe.bounces == 0; step++) {
           play.applyTo(input);

@@ -75,7 +75,7 @@ void main() {
     expect(frames[3].external, _fed[3]);
 
     // Played back into a loop nobody feeds, the run is the same run.
-    final replay = _loop()..playback = InputTapePlayback(recorder.tape);
+    final replay = _loop()..playback = InputTapePlayback.tape(recorder.tape);
     final replayed = <double>[];
     for (var i = 0; i < 4; i++) {
       replay.runSteps(1);
@@ -146,7 +146,7 @@ void main() {
       expect(run.tape.frames[2].external.single.quality, ReadingQuality.bad);
       expect(run.tape.frames[3].external, hasLength(2));
       expect(run.probes.map((p) => p.probe), <String>['tank', 'tank']);
-      final loop = _loop()..playback = InputTapePlayback(run.tape);
+      final loop = _loop()..playback = InputTapePlayback.tape(run.tape);
       loop.runSteps(run.steps);
       expect(loop.world.resource<_Tank>()!.level, 1.75);
       // The fixture is a file: the browser run has no disk to read it from.

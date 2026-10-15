@@ -19,6 +19,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show SimulationVersion;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -125,7 +127,7 @@ void main() {
     });
 
     test('runs out rather than looping when the match outlasts it', () {
-      final playback = OrderTapePlayback(
+      final playback = OrderTapePlayback.tape(
         OrderTape(seed: 1, frames: <List<StrategyOrder>>[<StrategyOrder>[]]),
       );
       final sim = StrategySimulation(random: GameRandom(1), ground: flat());
@@ -155,6 +157,50 @@ void main() {
     Map<String, Object?> written({OrderTape? tape}) =>
         jsonDecode(jsonEncode(demo(tape: tape).toJson()))
             as Map<String, Object?>;
+
+    test('is played only on the simulation it was recorded on', () {
+      // The playback checks the match itself, so no caller can forget to.
+      // Mutation: drop `demo.checkSimulation` from `OrderTapePlayback`'s
+      // unnamed constructor, and the newer match plays.
+      final newer = MatchDemo(
+        level: 'assets/levels/map_a.json',
+        levelHash: 'deadbeef',
+        start: const Snapshot(<String, Object?>{'random': 7}),
+        tape: OrderTape(seed: 7),
+        buildStamp: 'test-build',
+        checkpoints: DigestTrace(),
+        simulation: const SimulationVersion(genre: 'strategy', genreVersion: 2),
+      );
+      expect(
+        () => OrderTapePlayback(newer, simulation: strategySimulationVersion),
+        throwsA(isA<ReplayException>()),
+      );
+      final same = MatchDemo(
+        level: 'assets/levels/map_a.json',
+        levelHash: 'deadbeef',
+        start: const Snapshot(<String, Object?>{'random': 7}),
+        tape: OrderTape(seed: 7),
+        buildStamp: 'test-build',
+        checkpoints: DigestTrace(),
+        simulation: strategySimulationVersion,
+      );
+      expect(
+        OrderTapePlayback(same, simulation: strategySimulationVersion).step,
+        0,
+      );
+    });
+
+    test('a version past what a double holds is refused as a demo', () {
+      // `jsonDecode` reads 1e999 as infinity, which used to escape as an
+      // `UnsupportedError` from `truncate()`.
+      expect(
+        () => MatchDemo.fromJson(
+          jsonDecode('{"format": "f3d.match", "version": 1e999}')
+              as Map<String, Object?>,
+        ),
+        throwsA(isA<DemoFormatException>()),
+      );
+    });
 
     test('survives the trip a file makes', () {
       final MatchDemo came = MatchDemo.fromJson(

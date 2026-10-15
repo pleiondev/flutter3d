@@ -1,5 +1,22 @@
 ## 1.0.0-rc.1+1
 
+- **Breaking: a replay checks the loop's whole simulation.**
+  `replayDemoOnLoop` and `rewindBufferFromDemo` check against
+  `EngineLoop.simulationVersion`, the plugins' and subsystems' numbers
+  included, where they checked `simulationBase`, so a plugin bump refuses a
+  run instead of letting it diverge at a checkpoint; the playback makes the
+  check, before the loop is touched. `DemoRecording.simulation` is the
+  attached loop's `simulationVersion` when the constructor was given none.
+- **A run goes back into the loop at its part's version, with what it
+  requires.** `loopStateWith` wrapped every run at version 1 and dropped
+  `Snapshot.requires`; it takes the registered part's version and carries
+  the list.
+- **Breaking for a platform side: the cloud-saves channel is
+  `dev.flutter3d/cloud_saves`.** It was `flutter3d/cloud_saves`, the one
+  channel of the engine without the `dev.flutter3d/` prefix the others
+  carry, and a channel name cannot change once a 1.0 build answers on it.
+  The engine ships no native half of it, so only an application that
+  answers the channel itself renames its handler.
 - **Breaking: results that were records are final classes.** `ActionInput`,
   `ActorVisuals`, `AxisSettings` and `ColorRoles` answered or held a record,
   which can never gain a field. Each answers a final class now, with the

@@ -115,9 +115,26 @@ final class OrderTapeRecorder {
 /// **Runs out rather than looping**, the same way an input tape does: a match
 /// stepped past the end of its tape carries on with nobody giving it orders,
 /// which is what happens when a player takes over from a replay.
+///
+/// **A recorded match is played through the unnamed constructor, which
+/// checks it first**: a match recorded on another simulation is refused with
+/// [ReplayException], carrying its pose record, before an order is handed
+/// over. [OrderTapePlayback.tape] plays a tape as it is, for a tape this match
+/// recorded itself and for tests.
 final class OrderTapePlayback {
-  /// Plays [tape].
-  OrderTapePlayback(this.tape);
+  /// [demo]'s tape, refused with [ReplayException] unless [simulation] —
+  /// this build's `strategySimulationVersion` — is the one the match was
+  /// recorded on ([MatchDemo.checkSimulation]).
+  factory OrderTapePlayback(
+    MatchDemo demo, {
+    required SimulationVersion simulation,
+  }) {
+    demo.checkSimulation(simulation);
+    return OrderTapePlayback.tape(demo.tape);
+  }
+
+  /// Plays [tape] as it is, with no simulation to check it against.
+  OrderTapePlayback.tape(this.tape);
 
   /// What is being played.
   final OrderTape tape;
@@ -337,7 +354,7 @@ final class MatchDemo {
     if (version is! num) {
       throw const DemoFormatException('the document has no version in it');
     }
-    if (version < 1 || version != version.truncate()) {
+    if (version < 1 || FormatSpec.wholeNumber(version) == null) {
       throw DemoFormatException('the recording names format $version');
     }
     // A newer match, a `Demo` or anything else that is not one, or a

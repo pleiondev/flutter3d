@@ -90,7 +90,7 @@ void main() {
       }
 
       final replay = _Toy(recorder.tape.seed);
-      final playback = InputTapePlayback(recorder.tape);
+      final playback = InputTapePlayback.tape(recorder.tape);
       final replayed = InputState();
       while (!playback.isFinished) {
         playback.applyTo(replayed);
@@ -142,7 +142,7 @@ void main() {
       final after = _Toy(read.seed);
       for (final tape in <InputTape>[recorder.tape, read]) {
         final toy = identical(tape, recorder.tape) ? before : after;
-        final playback = InputTapePlayback(tape);
+        final playback = InputTapePlayback.tape(tape);
         final state = InputState();
         while (!playback.isFinished) {
           playback.applyTo(state);
@@ -165,7 +165,7 @@ void main() {
       recorder.record(input);
 
       final replayed = InputState();
-      InputTapePlayback(recorder.tape).applyTo(replayed);
+      InputTapePlayback.tape(recorder.tape).applyTo(replayed);
 
       expect(replayed.pressed(invented), isTrue);
     });
@@ -178,7 +178,7 @@ void main() {
       final input = InputState()..press(_jump);
       recorder.record(input);
 
-      final playback = InputTapePlayback(recorder.tape);
+      final playback = InputTapePlayback.tape(recorder.tape);
       final replayed = InputState();
       playback.applyTo(replayed);
       expect(playback.isFinished, isTrue);

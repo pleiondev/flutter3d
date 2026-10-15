@@ -361,6 +361,67 @@ void main() {
       expect(into.get<_Name>(here)!.value, 'here');
     });
 
+    test('a row keeps the keys its codec did not read', () {
+      // A 1.1 build adds `shield` to a row this build reads `hp` from. Opened
+      // and saved here, the row still carries it, and this build's own key
+      // wins. Mutation: drop `_keepUnread` from `EcsWorld.restore`, and the
+      // shield is gone from the save.
+      EcsWorld world() => EcsWorld()
+        ..components.register<_Name>(
+          ComponentCodec<_Name>.of(
+            id: 'name',
+            encode: (_Name n) => <String, Object?>{'hp': n.value},
+            decode: (context) => switch (context.data) {
+              {'hp': final String hp} => _Name(hp),
+              _ => null,
+            },
+          ),
+        );
+      final later = <String, Object?>{
+        'generations': <int>[0],
+        'free': <int>[],
+        'components': <String, Object?>{
+          'name': <String, Object?>{
+            '0': <String, Object?>{'hp': 'full', 'shield': 3},
+          },
+        },
+      };
+      final here = world()..restore(later);
+      final saved = here.save();
+      expect((saved['components']! as Map)['name'], <String, Object?>{
+        '0': <String, Object?>{'shield': 3, 'hp': 'full'},
+      });
+      // Its own key wins over a kept one, and a removed component takes its
+      // kept keys with it.
+      final entity = Entity.of(0, 0);
+      here.set(entity, _Name('low'));
+      expect(
+        ((here.save()['components']! as Map)['name'] as Map)['0'],
+        <String, Object?>{'shield': 3, 'hp': 'low'},
+      );
+      here
+        ..remove<_Name>(entity)
+        ..set(entity, _Name('new'));
+      expect(
+        ((here.save()['components']! as Map)['name'] as Map)['0'],
+        <String, Object?>{'hp': 'new'},
+      );
+    });
+
+    test('a component version past what a double holds is refused', () {
+      // `jsonDecode` reads 1e999 as infinity, whose `toInt()` threw an
+      // `UnsupportedError` out of a restore that promises its own exception.
+      final saved = _world().save()
+        ..['componentVersions'] = <String, Object?>{
+          'position': double.infinity,
+        };
+      (saved['components']! as Map)['position'] = <String, Object?>{};
+      expect(
+        () => _world().restore(saved),
+        throwsA(isA<SnapshotFormatException>()),
+      );
+    });
+
     test('a resource set after the save is gone after the restore', () {
       // The origin is a resource, written only while it is away from the
       // world origin. Mutation: leave a resource the save does not hold

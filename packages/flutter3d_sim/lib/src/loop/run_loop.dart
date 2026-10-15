@@ -87,7 +87,7 @@ final class RunLoop {
     loop.restore(
       Snapshot(<String, Object?>{
         partId: <String, Object?>{'version': 1, 'data': save.data},
-      }),
+      }, requires: save.requires),
     );
     return loop.capture();
   }

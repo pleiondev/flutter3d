@@ -29,15 +29,25 @@ Snapshot loopStateWith(EngineLoop loop, String part, Snapshot runState) {
           'register the run as one — a genre does under its plugin id',
     );
   }
-  // Version 1: a run's own snapshot carries no version of its own, and the
-  // first is the one every part reads.
+  // A run's own snapshot carries no version of its own: it was written by the
+  // part this build registers, so it goes back in at that part's version —
+  // a genre whose `snapshotVersion` moved past 1 would otherwise have its
+  // tapes restored as version 1. What it requires goes with it, so a run
+  // holding a plugin's state is refused where that plugin is missing.
   return Snapshot(<String, Object?>{
-    part: <String, Object?>{'version': 1, 'data': runState.data},
-  });
+    part: <String, Object?>{
+      'version': loop.snapshots.versionOf(part),
+      'data': runState.data,
+    },
+  }, requires: runState.requires);
 }
 
 /// The data of [part] in [loopState], a loop's capture, as the run's own
 /// snapshot; an empty one when [loopState] holds none of it.
+///
+/// It requires nothing, for the reason `GenrePlugin.runStateOf` gives: it
+/// holds [part]'s data alone, and the plugins of the other parts are named
+/// by [loopState]'s own [Snapshot.requires].
 Snapshot runStateIn(Snapshot loopState, String part) =>
     switch (loopState.data[part]) {
       {'data': final Map<Object?, Object?> data} => Snapshot(

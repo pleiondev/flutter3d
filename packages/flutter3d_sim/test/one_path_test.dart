@@ -200,7 +200,7 @@ void main() {
       // live step applies 'during'.
       final input = InputState();
       final loop = EngineLoop(input: input)
-        ..playback = InputTapePlayback(
+        ..playback = InputTapePlayback.tape(
           InputTape(
             seed: 0,
             frames: <InputFrame>[const InputFrame(), const InputFrame()],

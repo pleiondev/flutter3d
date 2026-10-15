@@ -3,6 +3,8 @@
 /// what these are about.
 library;
 
+import 'dart:convert';
+
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 
@@ -218,6 +220,63 @@ void main() {
         resolveSaves(local: late, remote: sameStep, base: early.digest),
         SaveResolution.ask,
       );
+    });
+  });
+
+  group('what a save requires', () {
+    test('a plugin\'s state is refused by name where the plugin is missing', () {
+      // The run held a plugin's part, so its capture required the plugin.
+      // `SaveRecord.read` built the run again without it, and the save
+      // restored into an engine that lacks the plugin and was written once
+      // more requiring nothing. Mutation: `run: Snapshot(run)` in
+      // `SaveRecord.read` again.
+      final written = SaveRecord(
+        level: 'a.json',
+        run: const Snapshot(<String, Object?>{
+          'acme.weather': <String, Object?>{
+            'version': 1,
+            'data': <String, Object?>{'rain': 0.5},
+          },
+        }, requires: <String>['acme']),
+      );
+      final read = SaveRecord.read(
+        jsonDecode(jsonEncode(written.toJson())),
+        const SaveSchema(),
+      );
+      final run = (read as SaveFound).record.run;
+      expect(run.requires, <String>['acme']);
+      expect(
+        () => Snapshots(world: EcsWorld()).restore(run),
+        throwsA(
+          isA<SnapshotFormatException>().having(
+            (e) => e.message,
+            'message',
+            contains('"acme"'),
+          ),
+        ),
+      );
+    });
+
+    test('a save written without one still restores', () {
+      // A 1.0 save is complete: `requires` absent reads as needing nothing.
+      final read = SaveRecord.read(<String, Object?>{
+        'level': 'a.json',
+        'run': <String, Object?>{'version': 1, 'world': <String, Object?>{}},
+      }, const SaveSchema());
+      expect((read as SaveFound).record.run.requires, isEmpty);
+    });
+
+    test('a schema or a step past what a double holds is not a throw', () {
+      // `SaveRecord.read` never throws; `toInt()` of infinity did.
+      final read = SaveRecord.read(
+        jsonDecode(
+          '{"level": "a.json", "schema": 1e999, "step": 1e999, '
+          '"run": {"version": 1}}',
+        ),
+        const SaveSchema(),
+      );
+      expect(read, isA<SaveFound>());
+      expect((read as SaveFound).record.step, 0);
     });
   });
 }

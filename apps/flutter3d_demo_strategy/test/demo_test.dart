@@ -159,7 +159,7 @@ void main() {
     final replay = openMatch(_map());
     final replayWorld = mapWorldOf(replay.simulation);
     replay.simulation.restore(demo.start);
-    final playback = OrderTapePlayback(demo.tape);
+    final playback = OrderTapePlayback.tape(demo.tape);
     final replayCheckpoints = DigestTrace();
     var replayedSteps = 0;
     while (!playback.isFinished) {
@@ -200,7 +200,7 @@ void main() {
     // (`simulation.pace` left null) makes the two crowds agree.
     final bare = openMatch(_map());
     bare.simulation.restore(demo.start);
-    final again = OrderTapePlayback(demo.tape);
+    final again = OrderTapePlayback.tape(demo.tape);
     while (!again.isFinished) {
       again.applyTo(bare.simulation.orders);
       bare.simulation.step(_dt);

@@ -209,10 +209,13 @@ final class _StrategyRun extends RestorableRun {
   }
 
   @override
-  Snapshot save() => Snapshot(<String, Object?>{
-    ...match.save().data,
-    'selected': List<int>.of(_selected),
-  });
+  Snapshot save() {
+    final inner = match.save();
+    return Snapshot(<String, Object?>{
+      ...inner.data,
+      'selected': List<int>.of(_selected),
+    }, requires: inner.requires);
+  }
 
   @override
   void restore(Snapshot snapshot) {

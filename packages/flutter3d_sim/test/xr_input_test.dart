@@ -140,7 +140,7 @@ void main() {
         jsonDecode(jsonEncode(recorder.tape.toJson())) as Map<String, Object?>,
       );
       final replay = EngineLoop(input: InputState())
-        ..playback = InputTapePlayback(tape);
+        ..playback = InputTapePlayback.tape(tape);
       XrPoses.install(replay);
       // Mutation: skip the inputs in `XrPoses.assimilate` and every head is
       // null; write the pose as floats and the equality below fails.
@@ -294,7 +294,7 @@ void main() {
 
       final replayWorld = CollisionWorld();
       final replay = EngineLoop(input: InputState())
-        ..playback = InputTapePlayback(
+        ..playback = InputTapePlayback.tape(
           InputTape.fromJson(
             jsonDecode(jsonEncode(recorder.tape.toJson()))
                 as Map<String, Object?>,

@@ -21,12 +21,16 @@ final class DemoRecording {
     required this.start,
     required int seed,
     int checkpointEvery = 25,
-    this.simulation = SimulationVersion.engineOnly,
+    SimulationVersion? simulation,
     this.bodies,
     int poseEvery = 4,
     double stepSeconds = 1.0 / 60.0,
     this.physics = const DartPhysics(),
-  }) : recorder = InputTapeRecorder(seed: seed),
+  }) : // A private field behind a public parameter name, which an
+       // initializing formal would print as `this._simulation`.
+       // ignore: prefer_initializing_formals
+       _simulation = simulation,
+       recorder = InputTapeRecorder(seed: seed),
        checkpoints = DigestTrace(every: checkpointEvery),
        poses = PoseRecorder(every: poseEvery, stepSeconds: stepSeconds);
 
@@ -35,10 +39,18 @@ final class DemoRecording {
   /// replay on another refuses rather than diverges.
   final PhysicsBackend physics;
 
-  /// The simulation the run is played in — the genre's constant, such as
-  /// `platformerSimulation` — written into the file so that a build on
-  /// another one refuses the tape rather than replaying it wrong.
-  final SimulationVersion simulation;
+  /// The simulation the run is played in, written into the file so that a
+  /// build on another one refuses the tape rather than replaying it wrong:
+  /// the one the constructor was given — a genre's constant, such as
+  /// `platformerSimulation` — or else the whole
+  /// `EngineLoop.simulationVersion` of the loop [attach] was given, its
+  /// plugins' and subsystems' numbers included, taken when it was attached.
+  /// [SimulationVersion.engineOnly] for a recording given neither.
+  SimulationVersion get simulation =>
+      _simulation ?? _attached ?? SimulationVersion.engineOnly;
+
+  final SimulationVersion? _simulation;
+  SimulationVersion? _attached;
 
   /// Where the run's bodies are now, asked every [PoseRecorder.every] steps
   /// by [observe] for the pose record written beside the tape; null records
@@ -132,6 +144,7 @@ final class DemoRecording {
       throw StateError('a recording is attached to one loop at a time');
     }
     _loop = loop;
+    _attached ??= loop.simulationVersion;
     _events = EventTrace();
     loop.recorders.add(recorder);
     _observers = <Registration>[
@@ -258,9 +271,9 @@ final class DemoReplay {
 /// a step is played: [ReplayException] says why and carries the run's pose
 /// record, which a viewer plays instead. This build's is [simulation] when
 /// given — a genre's constant, such as `platformerSimulationVersion` — and
-/// the loop's `EngineLoop.simulationBase` otherwise — without the plugins'
-/// numbers, as [DemoRecording] writes its default — and the check is never
-/// skipped.
+/// the loop's whole `EngineLoop.simulationVersion` otherwise, its plugins'
+/// and subsystems' numbers included, as [DemoRecording] writes by default.
+/// The playback makes the check itself, so it is never skipped.
 ///
 /// Given [actions] — the game's declared [ActionSet] — a tape recorded
 /// before the game read an axis where it once read two buttons is upgraded
@@ -275,7 +288,13 @@ DemoReplay replayDemoOnLoop({
   SimulationVersion? simulation,
   ActionSet? actions,
 }) {
-  demo.checkSimulation(simulation ?? loop.simulationBase);
+  // Refused here, before the loop is touched, when the run was recorded on
+  // another simulation.
+  final playback = InputTapePlayback(
+    demo,
+    simulation: simulation ?? loop.simulationVersion,
+    actions: actions,
+  );
   if (demo.levelSwaps.isNotEmpty && swapLevel == null) {
     throw ArgumentError.value(
       demo,
@@ -308,7 +327,6 @@ DemoReplay replayDemoOnLoop({
     ..rewindTo(0, state: start)
     ..schedule(demo.loopChanges);
   swapAt(0);
-  final playback = InputTapePlayback(demo.tape, actions: actions);
   final previous = loop.playback;
   final wasMuted = loop.input.muted;
   loop.playback = playback;

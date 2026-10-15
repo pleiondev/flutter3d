@@ -95,7 +95,7 @@ final class ReplaySide {
     final from = _kept.keys.where((k) => k <= steps).reduce(_max);
     final at = _at;
     final resume = at != null && at >= from && at <= steps ? at : from;
-    final playback = InputTapePlayback(
+    final playback = InputTapePlayback.tape(
       InputTape(seed: tape.seed, frames: tape.frames.sublist(resume, steps)),
     );
     final wasMuted = input.muted;

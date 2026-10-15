@@ -310,7 +310,7 @@ void main() {
       // restored into it, and the tape in place of the two policies.
       final replay = mirror(seamTwo: 34.0, policies: false);
       replay.simulation.restore(demo.start);
-      final playback = OrderTapePlayback(demo.tape);
+      final playback = OrderTapePlayback.tape(demo.tape);
       final replayCheckpoints = DigestTrace();
       var replayedSteps = 0;
       while (!playback.isFinished) {

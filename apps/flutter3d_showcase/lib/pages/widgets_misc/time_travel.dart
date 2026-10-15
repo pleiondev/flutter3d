@@ -103,7 +103,7 @@ final class _Run {
       )
       ..addSystem('toy', LoopPhase.rules, (_) => toy.step(input));
     rewind.attach(loop);
-    loop.playback = InputTapePlayback(_tape(steps));
+    loop.playback = InputTapePlayback.tape(_tape(steps));
     for (var step = 0; step < steps; step++) {
       seen[step] = toy.save();
       loop.runSteps(1);

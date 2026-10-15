@@ -1,3 +1,16 @@
+## 1.0.0-rc.1+1
+
+- **Breaking: a recorded match's playback checks the match itself.**
+  `OrderTapePlayback(match, simulation: strategySimulationVersion)` refuses
+  a match recorded on another simulation with `ReplayException` before an
+  order is handed over; `OrderTapePlayback.tape(tape)` plays a tape as it
+  is. `dart fix` rewrites the old call to it.
+- **A version past what a double holds is refused as a demo.**
+  `{"version": 1e999}` threw `UnsupportedError` out of `MatchDemo.fromJson`.
+- **A match's save carries what its simulation's save requires.**
+  `StrategyMatch.save` and the headless run's save wrapped the inner save's
+  data and dropped its `requires`.
+
 ## 1.0.0-rc.1
 
 - **Breaking: the strategy genre's hooks take the engine's contexts.** The

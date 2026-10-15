@@ -107,7 +107,7 @@ final class SaveRecord {
       return SaveNotRead(error.message);
     }
     final written = switch (json['schema']) {
-      final num value => value.toInt(),
+      final num value when value.isFinite => value.toInt(),
       // A save from before games had a schema: the first one.
       _ => 0,
     };
@@ -115,9 +115,12 @@ final class SaveRecord {
       SaveUpgraded(:final run, :final from) => SaveFound(
         SaveRecord(
           level: level,
-          run: Snapshot(run),
+          // The plugins the run needs travel with the upgraded fields: built
+          // without them, a save holding a plugin's state restored without
+          // the plugin and was written again requiring nothing.
+          run: Snapshot(run, requires: snapshot.requires),
           step: switch (json['step']) {
-            final num value => value.toInt(),
+            final num value when value.isFinite => value.toInt(),
             _ => 0,
           },
           schema: schema.version,

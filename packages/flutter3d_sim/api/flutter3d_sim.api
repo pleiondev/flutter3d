@@ -1464,8 +1464,9 @@ final class InputTapeFormatException extends Flutter3dFormatException
   final String message
 
 final class InputTapePlayback
-  InputTapePlayback(InputTape tape, {ActionSet? actions})
+  InputTapePlayback.tape(InputTape tape, {ActionSet? actions})
   bool get isFinished
+  factory InputTapePlayback(Demo demo, {required SimulationVersion simulation, ActionSet? actions})
   final InputTape tape
   int get step
   void applyTo(InputState input)
@@ -2489,6 +2490,10 @@ final class ResimulationOnOtherPhysics extends Resimulation
   final String recorded
   final String running
 
+final class ResimulationOnOtherSimulation extends Resimulation
+  const ResimulationOnOtherSimulation(this.reason)
+  final String reason
+
 final class ResimulationRetraced extends Resimulation
   RunOutcome get outcome
   const ResimulationRetraced({required this.run, required this.steps, required this.checkpoints, required this.trail, required this.finalDigest})
@@ -2906,6 +2911,7 @@ final class Snapshots extends SnapshotRegistry
   bool get holdsNothing
   bool get isEmpty
   int digest()
+  int? versionOf(String id)
   void restore(covariant Snapshot snapshot)
 
 final class SpawnContext

@@ -394,14 +394,14 @@ final class DemoFile
 
 final class DemoRecording
   Demo demo({required String buildStamp, String? platform, String? recordedBy})
-  DemoRecording({required this.level, required this.levelHash, required this.start, required int seed, int checkpointEvery = 25, this.simulation = SimulationVersion.engineOnly, this.bodies, int poseEvery = 4, double stepSeconds = 1.0 / 60.0, this.physics = const DartPhysics()})
+  DemoRecording({required this.level, required this.levelHash, required this.start, required int seed, int checkpointEvery = 25, SimulationVersion? simulation, this.bodies, int poseEvery = 4, double stepSeconds = 1.0 / 60.0, this.physics = const DartPhysics()})
+  SimulationVersion get simulation
   bool levelSwapped(Level next, {required int stepsAgo})
   final DigestTrace checkpoints
   final InputTapeRecorder recorder
   final Iterable<BodyPose> Function()? bodies
   final PhysicsBackend physics
   final PoseRecorder poses
-  final SimulationVersion simulation
   final Snapshot start
   final String level
   final String levelHash

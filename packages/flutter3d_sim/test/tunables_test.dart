@@ -42,7 +42,7 @@ final class _Walker {
 double _replayed(InputTape tape) {
   final walker = _Walker();
   final input = InputState();
-  final playback = InputTapePlayback(tape);
+  final playback = InputTapePlayback.tape(tape);
   while (!playback.isFinished) {
     playback.applyTo(input);
     input.beginStep();

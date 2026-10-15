@@ -216,6 +216,43 @@ void main() {
     expect(server.store.rows, isNot(contains(run)));
   });
 
+  test('a body without a length is cut off at the limit, and a consent '
+      'whose time is not a string is no consent', () async {
+    // Mutation: `readAsString()` again, which holds a chunked body whole
+    // before its length is checked.
+    final store = MemoryTelemetryStore();
+    final small = TelemetryService(
+      games: const <String, HeadlessGame>{'walk': _WalkGame()},
+      levels: <String, Level>{_level().digestHex: _level()},
+      store: store,
+      maxBodyBytes: 64,
+    );
+    final handler = telemetryRoutes(small).call;
+    final chunked = await handler(
+      Request(
+        'POST',
+        Uri.parse('http://localhost/runs'),
+        body: Stream<List<int>>.fromIterable(<List<int>>[
+          for (var i = 0; i < 10; i++) utf8.encode(' ' * 32),
+        ]),
+      ),
+    );
+    expect(chunked.statusCode, 413);
+
+    final server = _server();
+    final json =
+        jsonDecode(_upload(_record(stick: 1.0))) as Map<String, Object?>;
+    (json['consent']! as Map<String, Object?>)['at'] = 7;
+    final (status, answer) = await _call(
+      server,
+      'POST',
+      '/runs',
+      jsonEncode(json),
+    );
+    expect(status, 400, reason: '${answer['says']}');
+    expect(answer['says'], contains('no consent'));
+  });
+
   test('a run without consent is refused and nothing is kept', () async {
     // Mutation: a server that reads uploads whether or not they were agreed
     // to.

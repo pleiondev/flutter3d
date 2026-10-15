@@ -133,7 +133,7 @@ Future<Divergence?> checkReplay(Demo demo) async {
   final shown = await _shown();
   shown.level.staged.sim.restore(demo.start);
   final input = shown.input;
-  final playback = InputTapePlayback(demo.tape);
+  final playback = InputTapePlayback.tape(demo.tape);
   final trace = DigestTrace(every: demo.checkpoints.every);
   var step = 0;
   while (!playback.isFinished) {
@@ -154,7 +154,7 @@ Future<void> renderReplayVideo(Demo demo, String outputPath) async {
     final shown = await _shown();
     shown.level.staged.sim.restore(demo.start);
     final input = shown.input;
-    final playback = InputTapePlayback(demo.tape);
+    final playback = InputTapePlayback.tape(demo.tape);
     var step = 0;
     while (!playback.isFinished) {
       playback.applyTo(input);

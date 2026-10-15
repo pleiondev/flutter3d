@@ -430,7 +430,7 @@ final class Demo {
     if (version is! num) {
       throw const DemoFormatException('the document has no version in it');
     }
-    if (version < 1 || version != version.truncate()) {
+    if (version < 1 || FormatSpec.wholeNumber(version) == null) {
       throw DemoFormatException('the demo names format $version');
     }
     // Another format's document, a newer version or a `requires` this build

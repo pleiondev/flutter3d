@@ -8,6 +8,8 @@ import 'dart:convert';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show SimulationVersion;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -237,6 +239,43 @@ void main() {
       expect(read.game, 'walk');
       expect(read.policy, _policy);
       expect(read.demo.steps, 120);
+    });
+
+    test('carries every part of the run but who recorded it', () {
+      // The upload rebuilt the run from ten of its fields, so the server
+      // replayed a run with a loop change as another run, and could not
+      // refuse it on its simulation. Mutation: leave `loopChanges`,
+      // `simulation` or `unknown` out of `TelemetryUpload.prepare`.
+      final recorded = _record(_level(), stick: 1.0);
+      final full = Demo.fromJson(
+        recorded.toJson()
+          ..['simulation'] = SimulationVersion.engineOnly.withPlugins(
+            const <String, int>{'acme.wind': 2},
+          ).toJson()
+          ..['later'] = <String, Object?>{'kept': true},
+      );
+      final withChange = Demo(
+        level: full.level,
+        levelHash: full.levelHash,
+        start: full.start,
+        tape: full.tape,
+        buildStamp: full.buildStamp,
+        checkpoints: full.checkpoints,
+        recordedBy: 'somebody',
+        simulation: full.simulation,
+        loopChanges: const <LoopChange>[LoopTimeScale(step: 3, scale: 0.5)],
+        unknown: full.unknown,
+      );
+      final upload = TelemetryUpload.prepare(
+        game: 'walk',
+        demo: withChange,
+        consent: _granted(),
+        policy: _policy,
+      ).upload!;
+      expect(
+        jsonDecode(jsonEncode(upload.demo.toJson())),
+        jsonDecode(jsonEncode(withChange.toJson()..remove('recordedBy'))),
+      );
     });
 
     test('carries the physics the run was played on', () {

@@ -165,7 +165,7 @@ extension SnapshotFields on Map<String, Object?> {
 
   int integer(String key, {int orElse = 0}) {
     final value = this[key];
-    return value is num ? value.toInt() : orElse;
+    return value is num && value.isFinite ? value.toInt() : orElse;
   }
 
   bool flag(String key, {bool orElse = false}) {

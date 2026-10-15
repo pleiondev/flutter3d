@@ -142,7 +142,7 @@ final class ActionSet {
     final legacy = _legacyAxes.toList();
     if (tape.version >= 2 || legacy.isEmpty) return tape;
     final scratch = InputState();
-    final playback = InputTapePlayback(tape);
+    final playback = InputTapePlayback.tape(tape);
     final frames = <InputFrame>[];
     for (final frame in tape.frames) {
       playback.applyTo(scratch);

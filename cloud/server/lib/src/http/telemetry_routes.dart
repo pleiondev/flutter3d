@@ -34,7 +34,23 @@ Router telemetryRoutes(TelemetryService service) => Router()
         },
       ));
     }
-    return _json(await service.accept(await request.readAsString()));
+    // A chunked body announces no length: read it a chunk at a time and
+    // stop at the limit, rather than holding the whole of it first.
+    final bytes = <int>[];
+    await for (final chunk in request.read()) {
+      bytes.addAll(chunk);
+      if (bytes.length > service.maxBodyBytes) {
+        return _json((
+          status: 413,
+          body: <String, Object?>{
+            'says': 'a run is at most ${service.maxBodyBytes} bytes here',
+          },
+        ));
+      }
+    }
+    return _json(
+      await service.accept(utf8.decode(bytes, allowMalformed: true)),
+    );
   })
   ..delete('/runs/<id>', (Request request, String id) async {
     final run = int.tryParse(id);

@@ -3,7 +3,11 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
         ExternalStateInput,
         FormatDocument,
         FormatSpec,
-        Flutter3dFormatException;
+        Flutter3dFormatException,
+        SimulationVersion;
+
+import '../save/demo.dart' show Demo;
+import '../save/simulation_version.dart' show ReplayException;
 
 import 'action_set.dart';
 import 'game_action.dart';
@@ -346,8 +350,9 @@ final class InputTape extends FormatDocument {
   factory InputTape.fromJson(Map<String, Object?> json) {
     final version = switch (json['version']) {
       null => 1,
-      final num number when number == number.truncate() && number >= 1 =>
-        number.toInt(),
+      final Object said
+          when (FormatSpec.wholeNumber(said) ?? 0) >= 1 =>
+        FormatSpec.wholeNumber(said)!,
       final other => throw InputTapeFormatException(
         'the tape names version $other',
       ),
@@ -526,8 +531,31 @@ final class InputTapeRecorder {
 /// Given the game's [ActionSet], a version-1 tape is upgraded first — see
 /// `ActionSet.upgradeTape` — so a simulation that reads an axis where it once
 /// read two buttons replays an old run as it was played.
+///
+/// **A recorded run is played through the unnamed constructor, which checks
+/// it first.** A `.f3drun` names the simulation it was recorded on
+/// ([Demo.simulation]), and the same input played on another one goes
+/// somewhere else: the playback refuses it with [ReplayException], carrying
+/// the run's pose record, before a step is played, so no caller can forget
+/// to ask. [InputTapePlayback.tape] plays a tape as it is, for a tape this
+/// run recorded itself (a rewind point's) and for tests.
 final class InputTapePlayback {
-  InputTapePlayback(InputTape tape, {ActionSet? actions})
+  /// [demo]'s tape, refused with [ReplayException] unless [simulation] —
+  /// what this build runs, `EngineLoop.simulationVersion` — is the one the
+  /// run was recorded on ([Demo.checkSimulation]).
+  factory InputTapePlayback(
+    Demo demo, {
+    required SimulationVersion simulation,
+    ActionSet? actions,
+  }) {
+    demo.checkSimulation(simulation);
+    return InputTapePlayback.tape(demo.tape, actions: actions);
+  }
+
+  /// [tape] played as it is, with no simulation to check it against: a
+  /// tape this run recorded itself, such as a rewind point's, and a test's.
+  /// A recorded run goes through the unnamed constructor.
+  InputTapePlayback.tape(InputTape tape, {ActionSet? actions})
     : tape = actions == null ? tape : actions.upgradeTape(tape);
 
   final InputTape tape;

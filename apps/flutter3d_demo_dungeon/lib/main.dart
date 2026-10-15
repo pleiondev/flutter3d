@@ -1027,11 +1027,11 @@ class _GameScreenState extends State<GameScreen>
     // taken, nothing is read or shown ([_addSystems] says so of each).
     final toPoint = point.tapeToPoint;
     _loop
-      ..playback = InputTapePlayback(toPoint)
+      ..playback = InputTapePlayback.tape(toPoint)
       ..runSteps(toPoint.steps, resimulated: true);
     final player = _player;
     if (player != null) _smoothedPosition.jumpTo(player.body.position);
-    _loop.playback = InputTapePlayback(point.tapeFromPoint);
+    _loop.playback = InputTapePlayback.tape(point.tapeFromPoint);
   }
 
   /// Puts the present back once the tape has played, or drops it at once.
