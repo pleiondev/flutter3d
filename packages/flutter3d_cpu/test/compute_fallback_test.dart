@@ -102,6 +102,50 @@ final class _WriteAfterDispatch extends ComputeWorkload {
   }
 }
 
+const String _count = '''
+compute Count {
+  workgroup 4;
+  buffer values: u32[] read_write;
+  kernel {
+    let i = id.x;
+    if i >= len(values) { return; }
+    values[i] = values[i] + 1u;
+  }
+}
+''';
+
+/// A workload that counts its frames on the device and reads the count
+/// back every frame: which frame asked, and what it read.
+final class _Counter extends ComputeWorkload {
+  _Counter();
+
+  int _recorded = 0;
+  final List<(int, int)> seen = <(int, int)>[];
+
+  @override
+  String get name => 'counter';
+
+  @override
+  String get kernelSource => _count;
+
+  @override
+  List<WorkloadBuffer> get buffers => const <WorkloadBuffer>[
+    WorkloadBuffer('values', 16, readable: true),
+  ];
+
+  @override
+  void record(WorkloadRecorder recorder) {
+    final frame = ++_recorded;
+    recorder
+      ..dispatch('Count', 1)
+      ..readBack(
+        'values',
+        (ByteData bytes) =>
+            seen.add((frame, bytes.getUint32(0, Endian.little))),
+      );
+  }
+}
+
 Future<void> _settle() async {
   for (var i = 0; i < 8; i++) {
     await Future<void>.delayed(Duration.zero);
@@ -287,6 +331,50 @@ void main() {
       );
       await _settle();
       expect(_read(workload.result!), <int>[2, 4, 6, 8]);
+      renderer.dispose();
+    }
+  });
+
+  test('a frame drawn straight after another hands the workload what that '
+      'one read back, as it stood then', () async {
+    // Mutation: hand a read over only when its future lands, and frames
+    // drawn with no turn between them read nothing back at all; read it
+    // again after the next frame's dispatch, and each count is one ahead.
+    for (final executor in <CpuDevice Function()>[
+      cpuComputeDevice,
+      cpuComputeDeviceStandingInForGpu,
+    ]) {
+      final device = FakeBackend(maxColorAttachments: 4);
+      final registry = DeviceRegistry<Object>()
+        ..addComputeDevice(
+          ComputePlacement.cpu,
+          'cpu',
+          (_) async => executor(),
+        );
+      registry.adopt(device);
+      final renderer = Renderer.create(device: device);
+      final workload = _Counter();
+      renderer.renderSteps
+        ..addWorkload(workload)
+        ..addNode(_Reader());
+      await renderer.renderSteps.whenPlaced();
+      final camera = CameraNode()..setPosition(0.0, 2.0, 2.0);
+      camera.lookAt(Vector3.zero());
+      final scene = Scene()..add(camera);
+      for (var i = 0; i < 5; i++) {
+        renderer.render(
+          width: 16,
+          height: 16,
+          scene: scene,
+          views: <CameraView>[CameraView(camera: camera)],
+        );
+      }
+      expect(workload.seen, <(int, int)>[(1, 1), (2, 2), (3, 3), (4, 4)]);
+      await _settle();
+      expect(workload.seen.last, (
+        5,
+        5,
+      ), reason: 'the last frame\'s read lands on a later turn');
       renderer.dispose();
     }
   });

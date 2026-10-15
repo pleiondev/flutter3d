@@ -24,6 +24,13 @@
   two static `Expando`s kept them, and their pipelines, for good.
 - **A range read back.** `readBackRange` reads only the range where the
   device maps one.
+- **A read back is a frame behind at most.** Before a workload records a
+  frame, what the frames before it asked to read is handed over: a read
+  still in flight is read again in that turn where the device reads
+  synchronously (the wgpu sidecar, the CPU), and the buffer still holds what
+  it held when the read was asked for. A frame paced by a display finds its
+  read landed and waits for nothing; frames drawn back to back no longer
+  read a state several steps old, or nothing at all.
 
 ## 1.0.0-rc.1+1
 

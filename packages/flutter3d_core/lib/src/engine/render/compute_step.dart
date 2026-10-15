@@ -36,6 +36,7 @@ library;
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:flutter3d_hardware/backend.dart' show SynchronousBufferReadback;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show RenderAnchor;
@@ -519,11 +520,15 @@ final class WorkloadStep extends ComputeStep {
   }
 
   /// Records the workload's frame where it was placed, then hands what it
-  /// draws to the drawing device and starts its reads back.
+  /// draws to the drawing device and starts its reads back. What the frames
+  /// before asked to read is handed over first
+  /// ([_WorkloadResources.settle]), so the workload records knowing what it
+  /// last read.
   @override
   void record(ComputeContext context) {
     final resources = _resources;
     if (resources == null) return;
+    resources.settle();
     final recorder = _Recorder(resources);
     workload.record(recorder);
     recorder.flush(context.beginPass(label: name));
@@ -634,6 +639,10 @@ final class _WorkloadResources {
 
   /// The buffers a read of is in flight: one at a time each.
   final Set<String> _reading = <String>{};
+
+  /// The reads started and not handed over yet, by what they read: a
+  /// buffer's name, or a drawn copy's key.
+  final Map<String, _InFlight> _inFlight = <String, _InFlight>{};
   bool _disposed = false;
 
   /// Each drawn buffer as the drawing device binds it.
@@ -655,24 +664,65 @@ final class _WorkloadResources {
   void afterFrame(List<_Read> reads) {
     final device = site.device;
     for (final read in reads) {
-      unawaited(
-        _read(device, buffer(read.buffer), read.offset, read.size).then((
-          bytes,
-        ) {
-          _reading.remove(read.buffer);
-          if (!_disposed) read.done(bytes);
-        }),
+      final source = buffer(read.buffer);
+      _start(
+        read.buffer,
+        _read(device, source, read.offset, read.size),
+        (SynchronousBufferReadback d) => d.readBufferSync(
+          source,
+          offsetInBytes: read.offset,
+          sizeInBytes: read.size,
+        ),
+        read.done,
       );
     }
     for (final MapEntry(key: name, value: copy) in copies.entries) {
       final key = '\u0000copy $name';
       if (!_reading.add(key)) continue;
-      unawaited(
-        device.readBuffer(buffers[name]!).then((bytes) {
-          _reading.remove(key);
-          if (!_disposed) drawing.writeBuffer(copy, 0, bytes);
-        }),
+      final source = buffers[name]!;
+      _start(
+        key,
+        device.readBuffer(source),
+        (SynchronousBufferReadback d) => d.readBufferSync(source),
+        (ByteData bytes) => drawing.writeBuffer(copy, 0, bytes),
       );
+    }
+  }
+
+  /// Keeps the read of [key] in flight until [reading] lands or [settle]
+  /// reads it [again], whichever is first, and hands its bytes to [land]
+  /// once.
+  void _start(
+    String key,
+    Future<ByteData> reading,
+    ByteData Function(SynchronousBufferReadback device) again,
+    void Function(ByteData bytes) land,
+  ) {
+    final read = _inFlight[key] = _InFlight(again, land);
+    unawaited(reading.then((ByteData bytes) => _land(key, read, bytes)));
+  }
+
+  void _land(String key, _InFlight read, ByteData bytes) {
+    if (read.landed) return;
+    read.landed = true;
+    if (identical(_inFlight[key], read)) _inFlight.remove(key);
+    _reading.remove(key);
+    if (!_disposed) read.land(bytes);
+  }
+
+  /// Hands over every read an earlier frame asked for, before this frame
+  /// records: one still in flight is read again in this turn where the
+  /// device reads synchronously, and what it reads is what the buffer held
+  /// when the read was asked for, since nothing has run on it since. So a
+  /// workload's read is a frame behind at most, however soon one frame
+  /// follows another, as the workloads promise; frames paced by a display
+  /// find their reads landed and wait for nothing. Where the device has no
+  /// synchronous read (WebGPU), a read lands when the GPU is done.
+  void settle() {
+    final device = site.device;
+    if (_inFlight.isEmpty || device is! SynchronousBufferReadback) return;
+    for (final MapEntry(:key, :value) in _inFlight.entries.toList()) {
+      _land(key, value, value.again(device));
     }
   }
 
@@ -723,6 +773,17 @@ final class _WorkloadResources {
       b.dispose();
     }
   }
+}
+
+/// A read started and not handed over yet: how to read it again in the
+/// calling turn, and who is told.
+final class _InFlight {
+  _InFlight(this.again, this.land);
+  final ByteData Function(SynchronousBufferReadback device) again;
+  final void Function(ByteData bytes) land;
+
+  /// Whether its bytes were handed over, by whichever read came first.
+  bool landed = false;
 }
 
 /// A read a frame asked for: which buffer, which range, and who is told.

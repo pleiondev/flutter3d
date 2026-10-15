@@ -143,7 +143,9 @@ abstract base class WorkloadRecorder {
 
   /// Asks for the buffer [buffer], declared [WorkloadBuffer.readable], as
   /// it stands once this frame's dispatches are done: [done] is called
-  /// with its bytes, later, on the host's own turn. False, and [done] never
+  /// with its bytes, later, on the host's own turn, and where the device
+  /// reads synchronously before the workload's next frame records at the
+  /// latest, however soon that follows. False, and [done] never
   /// called, while a read of it asked for earlier has not arrived yet: one
   /// read a buffer is in flight at a time.
   bool readBack(String buffer, void Function(ByteData bytes) done);
