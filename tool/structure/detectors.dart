@@ -4073,6 +4073,81 @@ final c = switch (s) { 'x' || 'r' => 0, _ => 1 };
     'only code reports a check',
   );
 
+  // **A wire message under the reserved key.** The first two are the shapes
+  // `flame_multiplayer`'s tape and the relay's welcome had before protocol
+  // 3.1; the rule built on this is what keeps them from coming back.
+  fires(
+    'a bare wire message',
+    bareWireMessagesIn('''
+    wire.send(
+      PeerSend(
+        message: <String, Object?>{
+          'tape': step,
+          'frames': <String, Object?>{
+            for (final MapEntry(:key, :value) in frames.entries) '\$key': value,
+          },
+        },
+      ),
+    );''').single.keys.join(',') ==
+        'frames,tape',
+    "PartyTape's bare `tape` and `frames`",
+  );
+  fires(
+    'a bare wire message',
+    bareWireMessagesIn(
+      "socket.add(jsonEncode(<String, Object?>{'relay': 'welcome', "
+      "'slot': slot}));",
+    ).isNotEmpty,
+    "the relay's bare `relay` welcome",
+  );
+  fires(
+    'a bare wire message',
+    bareWireMessagesIn(
+      "send(PeerSend(message: const <String, Object?>{'watching': true}));",
+    ).isNotEmpty,
+    'a const literal',
+  );
+  fires(
+    'a bare wire message',
+    bareWireMessagesIn(
+          "send(PeerSend(message: {if (asking) 'hello': h, 'n': 1}));",
+        ).single.keys.join(',') ==
+        'hello,n',
+    'a key behind a collection `if`, untyped',
+  );
+  quiet(
+    'a bare wire message',
+    bareWireMessagesIn('''
+      PeerSend(
+        message: <String, Object?>{
+          PeerWire.engineKey: _party,
+          _event: _tape,
+          'step': step,
+          // 'tape': step, as it was.
+          'frames': <String, Object?>{'0': <String, Object?>{'a': 1}},
+        },
+      );''').isEmpty,
+    'a message under `PeerWire.engineKey`',
+    'the reserved key is what the rule asks for',
+  );
+  quiet(
+    'a bare wire message',
+    bareWireMessagesIn(
+      "jsonEncode(<String, Object?>{'f3d': 'relay', 'event': 'left'});",
+    ).isEmpty,
+    "a message under `'f3d'` spelled out",
+    'the key is the key, however it is written',
+  );
+  quiet(
+    'a bare wire message',
+    bareWireMessagesIn(
+      "/// `PeerSend(message: {'tape': 1})` was the old shape.\n"
+      "final note = 'message: {\"tape\": 1}';",
+    ).isEmpty,
+    'a message in a comment and in a string',
+    'prose explaining the rule must not break it',
+  );
+
   return broken;
 }
 
@@ -4460,4 +4535,184 @@ List<String> accessibilityTestGapsIn(String source) {
     if (!RegExp('[tT]extScaler').hasMatch(code))
       'never mounts at a larger text size',
   ];
+}
+
+// ------------------------------------------------------------- wire messages
+
+/// A message literal a wire encoder sends that has no reserved key: its
+/// 1-based line and its top-level keys, sorted, a spread written `...`.
+typedef BareWireMessage = ({int line, List<String> keys});
+
+/// Where a message is built: the map handed to `PeerSend(message: …)`, or
+/// the one a relay encodes and writes to a socket (`jsonEncode(…)`).
+final RegExp _wireMessageStart = RegExp(
+  r'(?:\bmessage:\s*|\bjsonEncode\(\s*)(?:const\s+)?\{',
+);
+
+/// The messages in [source] that a wire encoder sends with no reserved key
+/// at their top level — neither `'f3d'` nor a name ending in `engineKey`
+/// (`PeerWire.engineKey`). A bare top-level key on a shared wire is one a
+/// game's own message can carry, so a game's message is taken for the
+/// engine's or the engine's for a game's; and a key added there later
+/// cannot be told from what an older build sends.
+///
+/// Comments and string contents are read past, so prose and a quoted `{`
+/// change nothing. A key behind a collection `if` counts as a key; a
+/// spread is `...`, since what it spreads is not visible here.
+List<BareWireMessage> bareWireMessagesIn(String source) {
+  final found = <BareWireMessage>[];
+  final code = _blankTypeArguments(_blankCommentsAndStrings(source));
+  for (final start in _wireMessageStart.allMatches(code)) {
+    final open = start.end - 1;
+    final close = _closing(code, open);
+    if (close < 0) continue;
+    final keys = <String>[];
+    var reserved = false;
+    var at = open + 1;
+    for (final entry in _topLevel(code, open + 1, close)) {
+      final entryStart = at;
+      at += entry.length + 1;
+      var offset = 0;
+      final text = entry;
+      String trimmed() => text.substring(offset).trimLeft();
+      // `if (…) key: value` — the key after the condition.
+      while (RegExp(r'^if\s*\(').hasMatch(trimmed())) {
+        final lead = text.length - trimmed().length;
+        final shut = _closing(text, text.indexOf('(', lead));
+        if (shut < 0) break;
+        offset = shut + 1;
+      }
+      final rest = trimmed();
+      if (rest.isEmpty) continue;
+      if (rest.startsWith('...')) {
+        keys.add('...');
+        continue;
+      }
+      final colon = _topLevelColon(rest);
+      if (colon < 0) continue;
+      final keyAt = entryStart + (text.length - rest.length);
+      final written = source.substring(keyAt, keyAt + colon).trim();
+      final name =
+          RegExp(r"""^(['"])(\w*)\1$""").firstMatch(written)?.group(2) ??
+          written;
+      if (name == 'f3d' || RegExp(r'(?:^|\.)_?engineKey$').hasMatch(name)) {
+        reserved = true;
+      }
+      keys.add(name);
+    }
+    if (reserved) continue;
+    found.add((
+      line: '\n'.allMatches(code.substring(0, start.start)).length + 1,
+      keys: keys..sort(),
+    ));
+  }
+  return found;
+}
+
+/// [source] with every comment and the inside of every string literal
+/// turned to spaces, newlines kept, so offsets and lines still match.
+String _blankCommentsAndStrings(String source) {
+  final out = StringBuffer();
+  var i = 0;
+  while (i < source.length) {
+    final c = source[i];
+    if (source.startsWith('//', i)) {
+      while (i < source.length && source[i] != '\n') {
+        out.write(' ');
+        i++;
+      }
+      continue;
+    }
+    if (source.startsWith('/*', i)) {
+      final end = source.indexOf('*/', i + 2);
+      final stop = end < 0 ? source.length : end + 2;
+      for (; i < stop; i++) {
+        out.write(source[i] == '\n' ? '\n' : ' ');
+      }
+      continue;
+    }
+    if (c == "'" || c == '"') {
+      final quote = source.startsWith(c * 3, i) ? c * 3 : c;
+      out.write(quote);
+      i += quote.length;
+      while (i < source.length && !source.startsWith(quote, i)) {
+        if (source[i] == r'\' && i + 1 < source.length) {
+          out.write('  ');
+          i += 2;
+          continue;
+        }
+        out.write(source[i] == '\n' ? '\n' : ' ');
+        i++;
+      }
+      if (i < source.length) {
+        out.write(quote);
+        i += quote.length;
+      }
+      continue;
+    }
+    out.write(c);
+    i++;
+  }
+  return out.toString();
+}
+
+/// [code] with the type arguments of a literal (`<String, Object?>{`)
+/// turned to spaces, so their comma splits no entry and a `<` or `>` left
+/// is a comparison or an arrow.
+String _blankTypeArguments(String code) => code.replaceAllMapped(
+  RegExp(r'<[A-Za-z_][\w\s,?<>.]*>(?=\s*[\{\[])'),
+  (Match m) => ' ' * m.group(0)!.length,
+);
+
+/// The index of the bracket closing the one at [open] in [code], whose
+/// strings and comments are blank; -1 when it never closes.
+int _closing(String code, int open) {
+  var depth = 0;
+  for (var i = open; i < code.length; i++) {
+    switch (code[i]) {
+      case '(' || '[' || '{':
+        depth++;
+      case ')' || ']' || '}':
+        depth--;
+        if (depth == 0) return i;
+    }
+  }
+  return -1;
+}
+
+/// The comma-separated entries of [code] between [from] and [to], split at
+/// depth nought only.
+List<String> _topLevel(String code, int from, int to) {
+  final entries = <String>[];
+  var depth = 0;
+  var start = from;
+  for (var i = from; i < to; i++) {
+    switch (code[i]) {
+      case '(' || '[' || '{':
+        depth++;
+      case ')' || ']' || '}':
+        depth--;
+      case ',' when depth == 0:
+        entries.add(code.substring(start, i));
+        start = i + 1;
+    }
+  }
+  entries.add(code.substring(start, to));
+  return entries;
+}
+
+/// The first `:` of [entry] at depth nought, the one after a map key.
+int _topLevelColon(String entry) {
+  var depth = 0;
+  for (var i = 0; i < entry.length; i++) {
+    switch (entry[i]) {
+      case '(' || '[' || '{':
+        depth++;
+      case ')' || ']' || '}':
+        depth--;
+      case ':' when depth == 0:
+        return i;
+    }
+  }
+  return -1;
 }

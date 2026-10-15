@@ -872,6 +872,31 @@ String relative(File file, Directory dir) => file.path
     .substring(dir.path.length + 1)
     .replaceAll(Platform.pathSeparator, '/');
 
+/// The packages whose code writes the engine's wire messages, every `.dart`
+/// file under each one's `lib/` and `bin/` read by the rule "an engine wire message carries the
+/// reserved key": the network core with its relay, and the turns, the feed
+/// and the party built on it.
+const List<String> wireEncoders = <String>[
+  'flutter3d_net',
+  'flame_multiplayer',
+];
+
+/// The envelopes a wire wraps every message in, which carry bare keys on
+/// purpose, as `<package>/<path>#<keys, sorted>` with why. Everything on
+/// such a wire is inside the envelope, so a game's message is in its
+/// `body` and never beside its keys.
+const Map<String, String> wireFraming = <String, String>{
+  'flutter3d_net/lib/src/peer_room.dart#...,body,met,tag':
+      'the room\'s hello: every message on a room\'s wire is framed by '
+      '`tag`, and the hello is the room\'s own tag',
+  'flutter3d_net/lib/src/peer_room.dart#body,tag':
+      'a room\'s channel: every message on a room\'s wire is framed by '
+      '`tag`, the game\'s inside `body`',
+  'flutter3d_net/bin/relay.dart#body,from':
+      'the party envelope the relay signs a binary frame into, as it signs '
+      'every message it forwards',
+};
+
 /// Enums a published package may keep, and why each is machinery.
 ///
 /// **The rule this feeds refuses an enum in a published package**, because a

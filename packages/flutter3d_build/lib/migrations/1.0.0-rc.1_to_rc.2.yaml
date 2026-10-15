@@ -401,3 +401,13 @@ entries:
     kind: none
     reason: >-
       The version the project server announces follows the package's.
+
+  - id: net-WireHello-currentProtocolMinor
+    package: flutter3d_net
+    symbol: WireHello.currentProtocolMinor
+    kind: none
+    reason: >-
+      The protocol is 3.1 now: the relay's, the route's and the party's
+      messages carry the reserved key, and a party says the hello. A build
+      on 3.1 meets every other build of major 3, so code that compared a
+      hello's minor with this constant reads the newer number.

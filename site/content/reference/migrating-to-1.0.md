@@ -5,7 +5,7 @@ description: Move a project written against flutter3d 0.8 to 1.0.0-rc.1, with on
 # Migrating from 0.8 to 1.0
 
 1.0 is the release the engine promises to keep: from it on, a break comes
-only in a major version. To get there, and on to this release, the API changed in 2125 places,
+only in a major version. To get there, and on to this release, the API changed in 2126 places,
 314 of them left to you; 380 are backend internals no application called.
 The rest a program carries out for you, and three
 tools share the work. All three read the same tables,
@@ -225,7 +225,7 @@ carried out:
 
 <!-- migration-table:start -->
 
-*Generated from `flutter3d_build/lib/migrations/` — 30 entries from 1.0.0-rc.1 to 1.0.0-rc.1+1, 6 by hand: 12 `dart fix`, 3 `migrate`, 6 by hand, 9 nothing to do.*
+*Generated from `flutter3d_build/lib/migrations/` — 31 entries from 1.0.0-rc.1 to 1.0.0-rc.1+1, 6 by hand: 12 `dart fix`, 3 `migrate`, 6 by hand, 10 nothing to do.*
 
 ### `flutter3d_build`
 
@@ -273,6 +273,10 @@ carried out:
 - <a id="mcp-editorMcpVersion"></a>**`editorMcpVersion`** (nothing to do). The version the editor server announces follows the package's.
 - <a id="mcp-modelMcpVersion"></a>**`modelMcpVersion`** (nothing to do). The version the modelling server announces follows the package's.
 - <a id="mcp-projectMcpVersion"></a>**`projectMcpVersion`** (nothing to do). The version the project server announces follows the package's.
+
+### `flutter3d_net`
+
+- <a id="net-WireHello-currentProtocolMinor"></a>**`WireHello.currentProtocolMinor`** (nothing to do). The protocol is 3.1 now: the relay's, the route's and the party's messages carry the reserved key, and a party says the hello. A build on 3.1 meets every other build of major 3, so code that compared a hello's minor with this constant reads the newer number.
 
 ### `flutter3d_shaders`
 

@@ -80,10 +80,23 @@ abstract base class PeerWire {
   static const String engineKey = 'f3d';
 
   /// A party carried on [wire], which already hands what one machine sends
-  /// to all the others — a relay's party room — each message signed with its
-  /// sender's [slot].
+  /// to all the others — a relay's party room — each message in the
+  /// envelope `{"from": k, "body": …}` with its sender's [slot].
+  ///
+  /// **The relay signs `from`, not the sender.** This end writes its own
+  /// slot, for a fan-out with no relay in it; a relay's party replaces it
+  /// with the slot the socket was given, so one machine cannot speak as
+  /// another. An engine message addressed to one slot — `"to": n` beside
+  /// [engineKey], as an observer's step is — goes in the relay's route
+  /// envelope, `{"f3d": "route", "to": n, "body": …}`, and reaches that slot
+  /// alone; a game's message with a `to` field is the game's, and reaches
+  /// everybody.
   static PeerWire party(PeerWire wire, {required int slot}) =>
       _OverPeer(wire, slot);
+
+  /// What the relay's route envelope names under [engineKey]:
+  /// `{"f3d": "route", "to": n, "body": …}`.
+  static const String routeFrame = 'route';
 
   /// This machine's place among the machines the wire joins, the same
   /// number on every machine: nought for whoever made a room, one for who
@@ -432,7 +445,16 @@ final class _OverPeer extends PeerWire {
     final reliable = context.reliable;
     _wire.send(
       PeerSend(
-        message: <String, Object?>{'from': slot, 'body': message},
+        message: switch (message) {
+          {PeerWire.engineKey: String _, 'to': final int to} =>
+            <String, Object?>{
+              PeerWire.engineKey: PeerWire.routeFrame,
+              'to': to,
+              'from': slot,
+              'body': message,
+            },
+          _ => <String, Object?>{'from': slot, 'body': message},
+        },
         reliable: reliable,
       ),
     );

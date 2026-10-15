@@ -32,6 +32,18 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
 /// whole simulation where protocol 1 carried one number. A hello from an
 /// earlier major, or from before versions, is refused as another major, with
 /// the version to update to.
+///
+/// **Protocol 3.1** puts every message the engine's packages send under
+/// that key: the relay's own (`{"f3d": "relay", "event": "welcome", …}`,
+/// `RelayMessages`), the route a message addressed to one slot takes
+/// through it (`{"f3d": "route", "to": n, …}`), and `flame_multiplayer`'s
+/// party, turns and feed (`{"f3d": "party" | "baton" | "feed", …}`). A
+/// party's messages carry this hello, and a party machine acts on nothing
+/// from a machine whose hello it has not accepted. The relay signs
+/// everything it forwards in a party with the sender's slot, `from`, so a
+/// machine cannot speak as another. Protocol 3.0 never left a pre-release,
+/// so no machine a 1.x build meets sends its bare shapes; from 3.1 on the
+/// rule above holds as written.
 final class WireHello {
   const WireHello({
     required this.simulation,
@@ -45,8 +57,16 @@ final class WireHello {
   static const int currentProtocolMajor = 3;
 
   /// The protocol's minor in this build: the count of additions since the
-  /// major began.
-  static const int currentProtocolMinor = 0;
+  /// major began. 1: the relay's, the route's and the party's messages
+  /// carry the reserved key, and a party says this hello.
+  static const int currentProtocolMinor = 1;
+
+  /// The hello of a game that names no simulation: this build's protocol
+  /// and the engine's simulation alone, which meets only another that
+  /// names none.
+  static const WireHello engineOnly = WireHello(
+    simulation: SimulationVersion.engineOnly,
+  );
 
   final int protocolMajor;
   final int protocolMinor;
@@ -54,7 +74,7 @@ final class WireHello {
   /// The game's simulation — see the class doc.
   final SimulationVersion simulation;
 
-  /// The protocol as it is written: `3.0`.
+  /// The protocol as it is written: `3.1`.
   String get protocol => '$protocolMajor.$protocolMinor';
 
   /// The fields a hello carries, beside whatever else the message holds.

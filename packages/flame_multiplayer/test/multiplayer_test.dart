@@ -432,6 +432,49 @@ void main() {
       expect(x.isEven, isTrue);
       expect(x, greaterThan(80));
     });
+
+    test('a game\'s message and a turn on the same wire are not the other '
+        'machine\'s word, nor its word a turn', () {
+      final LoopbackPair(first: wireA, second: wireB) = LoopbackWire.pair();
+      final feed = PeerFeed(wireB);
+      final turns = <Map<String, Object?>>[];
+      final baton = BatonStream(
+        wireB,
+        holding: true,
+        onFrame: turns.add,
+        onEvent: turns.add,
+        onBaton: turns.add,
+      );
+      // Mutation: the feed and the turns back on bare `n` and `body` — the
+      // game's message is shown as the ghost, and taken for event 0.
+      wireA.send(
+        PeerSend(
+          message: <String, Object?>{
+            'k': 'e',
+            'n': 0,
+            'body': <String, Object?>{'chat': 'hi'},
+          },
+        ),
+      );
+      BatonStream(
+        wireA,
+        holding: true,
+        onFrame: (_) {},
+        onEvent: (_) {},
+        onBaton: (_) {},
+      ).tellEvent(<String, Object?>{'went': 'down'});
+      wireB.tick();
+      baton.step();
+      expect(feed.latest, isNull);
+      expect(turns, <Map<String, Object?>>[
+        <String, Object?>{'went': 'down'},
+      ]);
+      PeerFeed(wireA).tell(() => <String, Object?>{'x': 1});
+      wireB.tick();
+      baton.step();
+      expect(feed.latest, <String, Object?>{'x': 1});
+      expect(turns, hasLength(1));
+    });
   });
 
   test('a turn arriving out of order is replayed in the order it was '

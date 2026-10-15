@@ -1,3 +1,23 @@
+## 1.0.0-rc.1+1
+
+- **The party, the turns and the feed speak under the reserved key.**
+  `PartyTape`, `PartyTapeWatcher`, `AuthorityServer` and
+  `PredictingClient` send `{"f3d": "party", "event": …}`, `BatonStream`
+  `{"f3d": "baton", …}` and `PeerFeed` `{"f3d": "feed", …}`, where they
+  sent bare `tape`, `frames`, `watching`, `inputs`, `snapshot`, `k`, `n` and
+  `body`: a game's message with one of those fields was taken for the
+  engine's, and the feed read the turns' messages as its own. Each reads
+  only its own messages now.
+- **A party says the hello before it plays.** A spectator's ask and a
+  predicting machine's hands carry its `WireHello`, and the host's and the
+  authority's answers carry theirs, read as `PeerRoom` reads one. A machine
+  that said no hello is not acted on, and one on another protocol major or
+  simulation is refused: `PartyTape.refusals`, `AuthorityServer.refusals`,
+  `PartyTapeWatcher.refusal` and `PredictingClient.refusal` (new) say why,
+  naming what to update. Each takes `hello`, `WireHello.engineOnly` unless
+  the game names its simulation. Turns and the feed run on a `PeerRoom`
+  channel, behind the room's hello.
+
 ## 1.0.0-rc.1
 
 **The version jumps from 0.1.0 to 1.0.0-rc.1.** This package now stands on

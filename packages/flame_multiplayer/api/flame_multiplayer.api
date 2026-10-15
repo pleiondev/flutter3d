@@ -5,10 +5,12 @@
 library package:flame_multiplayer/flame_multiplayer.dart
 
 final class AuthorityServer<S>
-  AuthorityServer({required this.wire, required this.players, required this.applyAndStep, required this.save, required this.encode, this.snapshotEvery = 3})
+  AuthorityServer({required this.wire, required this.players, required this.applyAndStep, required this.save, required this.encode, this.snapshotEvery = 3, this.hello = WireHello.engineOnly})
+  Map<int, String> get refusals
   final Object? Function(S state) encode
   final PeerWire wire
   final S Function() save
+  final WireHello hello
   final int players
   final int snapshotEvery
   final void Function(Map<int, Map<String, Object?>> frames) applyAndStep
@@ -32,18 +34,22 @@ final class BatonStream
   void tellFrame(Map<String, Object?> frame)
 
 final class PartyTape<S>
-  PartyTape({required this.wire, required this.encode, this.host = 0})
+  Map<int, String> get refusals
+  PartyTape({required this.wire, required this.encode, this.host = 0, this.hello = WireHello.engineOnly})
   final Object? Function(S state) encode
   final PeerWire wire
+  final WireHello hello
   final int host
   void hear(PeerMessage heard)
   void settled(SettledStep<S> settled)
 
 final class PartyTapeWatcher<S>
-  PartyTapeWatcher({required this.wire, required this.decode, required this.restore, required this.applyAndStep})
+  PartyTapeWatcher({required this.wire, required this.decode, required this.restore, required this.applyAndStep, this.hello = WireHello.engineOnly})
+  String? get refusal
   bool advance()
   final PeerWire wire
   final S Function(Object? encoded) decode
+  final WireHello hello
   final void Function(Map<int, Map<String, Object?>> frames) applyAndStep
   final void Function(S state) restore
   int get waiting
@@ -59,10 +65,12 @@ final class PeerFeed
   void tell(Map<String, Object?> Function() state)
 
 final class PredictingClient<S>
-  PredictingClient({required this.wire, required this.captureLocalFrame, required this.predict, required this.restore, required this.decode, this.redundancy = 8})
+  PredictingClient({required this.wire, required this.captureLocalFrame, required this.predict, required this.restore, required this.decode, this.redundancy = 8, this.hello = WireHello.engineOnly})
+  String? get refusal
   final Map<String, Object?> Function() captureLocalFrame
   final PeerWire wire
   final S Function(Object? encoded) decode
+  final WireHello hello
   final int redundancy
   final void Function(Map<String, Object?> frame) predict
   final void Function(S state) restore

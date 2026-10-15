@@ -3,7 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:flutter3d_net/flutter3d_net.dart' show WireHello;
+import 'package:flutter3d_net/flutter3d_net.dart'
+    show PeerWire, RelayMessages, WireHello;
 
 /// `net-02`'s relay: one process, rooms named by a code in the URL path,
 /// no accounts.
@@ -31,12 +32,21 @@ import 'package:flutter3d_net/flutter3d_net.dart' show WireHello;
 /// this package's `RollbackSession` and `flame_multiplayer`'s
 /// `AuthorityServer`: everything
 /// one sends goes to every other, and each is told its slot first, in a
-/// message of the relay's own — `{"relay": "welcome", "slot": k, "size":
-/// N}` — since a party's slots have to be the same numbers on every
-/// machine and only the relay sees the order they arrive in. Who leaves is
-/// said too, `{"relay": "left", "slot": k}`. `/watch/<code>` joins a party
-/// to watch: its slot comes after the players', it hears everything and
-/// what it says reaches the players, so a spectator can ask for the tape.
+/// message of the relay's own — `{"f3d": "relay", "event": "welcome",
+/// "slot": k, "size": N, …}` (`RelayMessages`) — since a party's slots have
+/// to be the same numbers on every machine and only the relay sees the
+/// order they arrive in. Who leaves is said too, `{"f3d": "relay", "event":
+/// "left", "slot": k}`. `/watch/<code>` joins a party to watch: its slot
+/// comes after the players', it hears everything and what it says reaches
+/// the players, so a spectator can ask for the tape.
+///
+/// **A party's messages are signed by the relay.** Everything it forwards
+/// in a party is a JSON object with `from` set to the slot of the socket it
+/// came from, whatever that socket wrote there, so no machine speaks as
+/// another; a binary frame goes as the party wire's bytes frame inside
+/// `{"from": k, "body": {"f3d": "bytes", …}}`, and a frame that is neither
+/// is dropped. A room's two sockets need no signature and are forwarded
+/// verbatim.
 ///
 /// **A party has an owner, and only who the owner invites watches.** The
 /// machine that opens a party is told a token in its welcome, `"owner"`,
@@ -51,9 +61,11 @@ import 'package:flutter3d_net/flutter3d_net.dart' show WireHello;
 /// what it says reaches the authority alone, and it is let in whatever
 /// simulation it names, since a build that cannot replay the tape is sent
 /// poses. Its welcome says `"observing": true` and the party's
-/// `"simulation"`. A message the authority addresses with `"to": <slot>`,
-/// at its top level or in a party wire's envelope, reaches that slot
-/// alone: an observer's own filtered readings, not every observer's.
+/// `"simulation"`. A message in the route envelope,
+/// `{"f3d": "route", "to": n, "body": …}`, reaches slot n alone, without
+/// the route's keys: an observer's own filtered readings, not every
+/// observer's. A game's message with a `to` field of its own goes to
+/// everybody.
 ///
 /// **Every request is served on its own.** A machine that is slow to
 /// upgrade, or never answers the close frame of a refusal, holds up its own
@@ -63,7 +75,8 @@ import 'package:flutter3d_net/flutter3d_net.dart' show WireHello;
 /// for that game that is still filling, or a new one under a fresh code.
 /// The welcome carries the `code`, so friends can still be sent after a
 /// matched party, and once a party has all its players everyone in it is
-/// told `{"relay": "full", "size": N}` — the moment a game can start. A
+/// told `{"f3d": "relay", "event": "full", "size": N}` — the moment a game
+/// can start. A
 /// full party is matched no further, even when somebody leaves it: a race
 /// under way is not where a stranger should land.
 ///
@@ -87,7 +100,8 @@ import 'package:flutter3d_net/flutter3d_net.dart' show WireHello;
 /// protocol only grows. A machine that names no protocol is let in as
 /// before: the relay forwards what it cannot read, and the machines' own
 /// hello (`PeerRoom`) judges each other. A party's welcome names the
-/// relay's protocol as `"protocol": [major, minor]`.
+/// relay's protocol as `"protocol": [major, minor]`, and `joinParty`
+/// refuses a relay whose major is not its own.
 ///
 /// [port] defaults to `0`, which asks the system for whichever port is
 /// free — the line this prints on startup is how a caller that bound to
@@ -106,19 +120,29 @@ final class _Party {
   /// The simulation version its first machine named, "none" for none.
   final String simulation;
   final List<WebSocket?> players = <WebSocket?>[];
-  final List<WebSocket> watchers = <WebSocket>[];
 
-  /// The watchers that came by the observer path, each with its slot.
-  final Map<WebSocket, int> observers = <WebSocket, int>{};
+  /// The watchers, each with its slot: after the players', and the lowest
+  /// one free, so two never share one when somebody left.
+  final Map<WebSocket, int> watchers = <WebSocket, int>{};
 
-  /// The socket at [slot]: a player's, or an observer's.
+  /// The slot the next watcher is given.
+  int get freeWatcherSlot {
+    final taken = watchers.values.toSet();
+    var slot = size;
+    while (taken.contains(slot)) {
+      slot++;
+    }
+    return slot;
+  }
+
+  /// The socket at [slot]: a player's, or a watcher's.
   WebSocket? at(int slot) => slot < players.length
       ? players[slot]
-      : observers.entries.where((e) => e.value == slot).firstOrNull?.key;
+      : watchers.entries.where((e) => e.value == slot).firstOrNull?.key;
 
   Iterable<WebSocket> get everyone => <WebSocket>[
     for (final player in players) ?player,
-    ...watchers,
+    ...watchers.keys,
   ];
 }
 
@@ -336,9 +360,8 @@ Future<void> _joinParty(
   }
   final int slot;
   if (watching) {
-    slot = room.size + room.watchers.length;
-    room.watchers.add(socket);
-    if (observing) room.observers[socket] = slot;
+    slot = room.freeWatcherSlot;
+    room.watchers[socket] = slot;
   } else {
     final free = room.players.indexOf(null);
     if (free < 0 && room.players.length >= room.size) {
@@ -357,7 +380,8 @@ Future<void> _joinParty(
   }
   socket.add(
     jsonEncode(<String, Object?>{
-      'relay': 'welcome',
+      PeerWire.engineKey: RelayMessages.relay,
+      RelayMessages.event: RelayMessages.welcome,
       'slot': slot,
       'size': room.size,
       'watching': watching,
@@ -375,58 +399,99 @@ Future<void> _joinParty(
     onFull?.call();
     for (final other in room.everyone) {
       other.add(
-        jsonEncode(<String, Object?>{'relay': 'full', 'size': room.size}),
+        jsonEncode(<String, Object?>{
+          PeerWire.engineKey: RelayMessages.relay,
+          RelayMessages.event: RelayMessages.full,
+          'size': room.size,
+        }),
       );
     }
   }
   socket.listen(
-    (message) {
+    (Object? raw) {
+      // Signed with the slot this socket was given, whatever it claimed;
+      // what cannot be signed is not forwarded.
+      final signed = _signed(raw, slot);
+      if (signed == null) return;
+      final (:message, :to) = signed;
       // An observer speaks to the authority alone.
       if (observing) {
         room.at(0)?.add(message);
         return;
       }
-      // A message the authority addresses to one slot goes there alone; it
-      // is parsed only where it could be one, so a game's frames pass as
-      // they always did.
-      if (slot == 0 && room.observers.isNotEmpty && message is String) {
-        final to = _addressee(message);
-        if (to != null) {
-          room.at(to)?.add(message);
-          return;
+      // A route envelope reaches the slot it names alone.
+      if (to != null) {
+        final addressee = room.at(to);
+        if (addressee != null && !identical(addressee, socket)) {
+          addressee.add(message);
         }
+        return;
       }
       for (final other in room.everyone) {
         if (!identical(other, socket)) other.add(message);
       }
     },
     onDone: () {
-      room.observers.remove(socket);
       if (watching) {
         room.watchers.remove(socket);
       } else {
         room.players[slot] = null;
       }
       for (final other in room.everyone) {
-        other.add(jsonEncode(<String, Object?>{'relay': 'left', 'slot': slot}));
+        other.add(
+          jsonEncode(<String, Object?>{
+            PeerWire.engineKey: RelayMessages.relay,
+            RelayMessages.event: RelayMessages.left,
+            'slot': slot,
+          }),
+        );
       }
       if (room.everyone.isEmpty) parties.remove(code);
     },
   );
 }
 
-/// The slot a message is addressed to, `{"to": k, …}` at its top level or
-/// in a party wire's envelope (`{"from": …, "body": {"to": k, …}}`), or
-/// null for one to everybody (or one that is not JSON).
-int? _addressee(String message) {
-  if (!message.contains('"to"')) return null;
-  try {
-    return switch (jsonDecode(message)) {
-      {'to': final int slot} || {'body': {'to': final int slot}} => slot,
-      _ => null,
-    };
-  } on FormatException {
-    return null;
+/// [raw], a frame a party's machine in [slot] sent, as the relay forwards
+/// it: a JSON object with `from` set to [slot], and the slot a route
+/// envelope (`{"f3d": "route", "to": n, "body": …}`) names, or null for
+/// everybody. A binary frame goes as the party wire's bytes frame inside a
+/// signed envelope. Null for what is neither a JSON object nor bytes, which
+/// nothing on a party wire reads.
+({String message, int? to})? _signed(Object? raw, int slot) {
+  switch (raw) {
+    case final List<int> bytes:
+      return (
+        message: jsonEncode(<String, Object?>{
+          'from': slot,
+          'body': <String, Object?>{
+            PeerWire.engineKey: PeerWire.bytesFrame,
+            PeerWire.bytesKey: base64Encode(bytes),
+          },
+        }),
+        to: null,
+      );
+    case final String text:
+      final Object? decoded;
+      try {
+        decoded = jsonDecode(text);
+      } on FormatException {
+        return null;
+      }
+      if (decoded is! Map<String, Object?>) return null;
+      final to = switch (decoded) {
+        {PeerWire.engineKey: PeerWire.routeFrame, 'to': final int to} => to,
+        _ => null,
+      };
+      final envelope = Map<String, Object?>.of(decoded);
+      if (to != null) {
+        envelope
+          ..remove(PeerWire.engineKey)
+          ..remove('to');
+      }
+      envelope['from'] = slot;
+      return (message: jsonEncode(envelope), to: to);
+    default:
+      return null;
   }
 }
 

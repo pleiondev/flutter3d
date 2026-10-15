@@ -43,6 +43,10 @@ List<Rule> get allRules => <Rule>[
     name: 'only the hardware layer and the backends say where compute runs',
     run: _placementBehindHardware,
   ),
+  (
+    name: 'an engine wire message carries the reserved key',
+    run: _wireMessagesUnderTheKey,
+  ),
   (name: 'the hardware layer names no Flutter', run: _hardwareNamesNoFlutter),
   (name: 'the engine names no backend', run: _engineNamesNoBackend),
   (
@@ -3881,6 +3885,75 @@ const Map<String, String> namesComputeBackends = <String, String>{
   'flutter3d/example/lib/src/spike/backend_web.dart':
       'the example\'s own composition root, which opens WebGPU to show it',
 };
+
+/// **An engine wire message carries the reserved key.** In the
+/// [wireEncoders], every map handed to `PeerSend(message: …)` or encoded
+/// with `jsonEncode(…)` names `PeerWire.engineKey` (`"f3d"`) at its top
+/// level, so a game's message on the same wire is never taken for the
+/// engine's, and a key the engine adds in a minor cannot collide with one
+/// a game already sends. The framing envelopes a wire wraps every message
+/// in — the party's `{"from", "body"}`, the room's `{"tag", "body"}` — are
+/// listed in [wireFraming] by file and key set, each with why; a listed
+/// envelope that is gone fails too.
+///
+/// Mutation: send `PartyTape`'s step as `{'tape': step, 'frames': …}`
+/// again, or the relay's welcome as `{'relay': 'welcome', …}`, and this
+/// names the line and its keys.
+List<Finding> _wireMessagesUnderTheKey() {
+  final found = <Finding>[];
+  final listed = <String>{};
+  for (final home in wireEncoders) {
+    final dir = Directory('${repositoryRoot.path}/packages/$home');
+    if (!dir.existsSync()) {
+      found.add(
+        Finding(
+          'packages/$home',
+          'is listed in `wireEncoders` and is not there: take it off the '
+              'list, or name where the encoder went',
+        ),
+      );
+      continue;
+    }
+    // What the package sends, not what its tests send as a game would.
+    for (final file in <File>[
+      ...dartFilesIn(Directory('${dir.path}/lib')),
+      ...dartFilesIn(Directory('${dir.path}/bin')),
+    ]) {
+      final path = '$home/${relative(file, dir)}';
+      for (final (:line, :keys) in bareWireMessagesIn(
+        file.readAsStringSync(),
+      )) {
+        final framing = '$path#${keys.join(',')}';
+        if (wireFraming.containsKey(framing)) {
+          listed.add(framing);
+          continue;
+        }
+        found.add(
+          Finding(
+            'packages/$path:$line',
+            'sends a message with bare top-level keys (${keys.join(', ')}) '
+                'and no `PeerWire.engineKey`: put the engine\'s message under '
+                '`{"f3d": "<protocol>", …}`, or, for an envelope every message '
+                'on the wire is wrapped in, name `$framing` in `wireFraming` '
+                'with the reason',
+          ),
+        );
+      }
+    }
+  }
+  for (final framing in wireFraming.keys) {
+    if (!listed.contains(framing)) {
+      found.add(
+        Finding(
+          framing,
+          'is listed in `wireFraming` and no such message is sent any more: '
+          'take it off the list',
+        ),
+      );
+    }
+  }
+  return found;
+}
 
 /// **Where compute runs is the hardware layer's to say, and nobody else's.**
 /// Outside [computePlacers], `lib/` code — a package's, an application's,

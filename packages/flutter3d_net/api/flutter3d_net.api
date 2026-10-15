@@ -159,9 +159,17 @@ abstract base class PeerWire
   static const String bytesFrame = 'bytes'
   static const String bytesKey = 'b'
   static const String engineKey = 'f3d'
+  static const String routeFrame = 'route'
   void deliver(PeerDelivery context)
   void deliverBytes(PeerBytesDelivery context)
   void sendBytes(PeerSendBytes context)
+
+abstract final class RelayMessages
+  static const String event = 'event'
+  static const String full = 'full'
+  static const String left = 'left'
+  static const String relay = 'relay'
+  static const String welcome = 'welcome'
 
 final class RollbackSession<S>
   ({int step, S after})? get agreedEnd
@@ -270,8 +278,9 @@ final class WireHello
   int get hashCode
   int sharedMinor(WireHello other)
   static WireHello read(Map<String, Object?> said)
+  static const WireHello engineOnly = WireHello(simulation: SimulationVersion.engineOnly)
   static const int currentProtocolMajor = 3
-  static const int currentProtocolMinor = 0
+  static const int currentProtocolMinor = 1
 
 final class WireState
   String toString()

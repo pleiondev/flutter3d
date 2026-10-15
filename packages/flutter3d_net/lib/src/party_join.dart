@@ -7,6 +7,35 @@ import 'peer_wire.dart';
 import 'websocket_transport.dart';
 import 'wire_hello.dart';
 
+/// The relay's own words on the wire: what it names under
+/// `PeerWire.engineKey`, and the events its messages are.
+///
+/// **Under the reserved key, as every engine message is.** A relay's
+/// message is `{"f3d": "relay", "event": "welcome" | "full" | "left", …}`,
+/// so a game's message with a `relay` field is never taken for one. A
+/// message a machine wants to reach one slot alone travels in the route
+/// envelope (`PeerWire.routeFrame`), `{"f3d": "route", "to": n, "body": …}`,
+/// which the relay reads and nobody else sees: it hands the slot
+/// `{"from": k, "body": …}` as it hands everything it forwards in a party,
+/// `from` signed by the relay itself.
+abstract final class RelayMessages {
+  /// What the relay's own messages name under the reserved key.
+  static const String relay = 'relay';
+
+  /// The key a relay message names its event under.
+  static const String event = 'event';
+
+  /// The first thing a machine hears: its slot, the party's size and code,
+  /// the owner's token for whoever opened it, and the relay's protocol.
+  static const String welcome = 'welcome';
+
+  /// Every player's slot is taken.
+  static const String full = 'full';
+
+  /// A machine went away, and which slot it held.
+  static const String left = 'left';
+}
+
 /// A machine's place in a relay's party: its wire, the slot the relay gave
 /// it, the party's [code] — the one to send a friend — and [full], which
 /// completes once every player's slot is taken.
@@ -57,10 +86,15 @@ final class PartySeat {
 /// relay has said which slot is this machine's; a party of [size] when this
 /// machine is the first to ask for [code].
 ///
-/// The relay's own messages — the welcome, who left — arrive on the wire
-/// unsigned, and the [PartyWire] it hands back passes on only what machines
-/// sent, each with its sender's slot. [left] is told of a slot whose
-/// machine went away.
+/// The relay's own messages ([RelayMessages]) — the welcome, who left —
+/// arrive on the socket, and the seat's wire passes on only what machines
+/// sent, each with the slot the relay signed it with. [left] is told of a
+/// slot whose machine went away.
+///
+/// **The welcome's protocol is read.** A relay of another protocol major,
+/// or one from before its messages carried the reserved key, is refused
+/// here: the future fails with a sentence naming the protocol to update to,
+/// rather than playing on a relay whose messages this build misreads.
 ///
 /// [terms] is what every machine in the party has to share, the physics
 /// backend for one: the first to ask sets them, and the relay turns away a
@@ -192,10 +226,34 @@ Future<PartySeat> _seat(
       Completer<({int slot, int size, String code, String? owner})>();
   final full = Completer<void>();
   void Function(Map<String, Object?>)? onward;
+  void refuse(String reason) {
+    if (welcomed.isCompleted) return;
+    welcomed.completeError(StateError('the relay at $at: $reason'));
+    unawaited(socket.close());
+  }
+
   socket.listen((Map<String, Object?> message) {
+    if (message[PeerWire.engineKey] != RelayMessages.relay) {
+      // A relay from before 3.1 said its welcome under a bare `relay` key.
+      // Nothing else comes before the welcome, so this is that relay.
+      if (!welcomed.isCompleted && message['relay'] == RelayMessages.welcome) {
+        refuse(_relayRefusal(message['protocol'], bare: true)!);
+        return;
+      }
+      onward?.call(message);
+      return;
+    }
     switch (message) {
-      case {'relay': 'welcome', 'slot': final int slot, 'size': final int of}
+      case {
+            RelayMessages.event: RelayMessages.welcome,
+            'slot': final int slot,
+            'size': final int of,
+          }
           when !welcomed.isCompleted:
+        if (_relayRefusal(message['protocol']) case final reason?) {
+          refuse(reason);
+          return;
+        }
         // A relay from before matchmaking names no code; the one asked
         // for is the party's.
         final named = message['code'];
@@ -206,12 +264,14 @@ Future<PartySeat> _seat(
           code: named is String ? named : code ?? '',
           owner: owner is String ? owner : null,
         ));
-      case {'relay': 'full'}:
+      case {RelayMessages.event: RelayMessages.full}:
         if (!full.isCompleted) full.complete();
-      case {'relay': 'left', 'slot': final int slot}:
+      case {RelayMessages.event: RelayMessages.left, 'slot': final int slot}:
         left?.call(slot);
       default:
-        onward?.call(message);
+        // An event of a later minor: within a major the relay only adds,
+        // and what this build does not know it passes over.
+        break;
     }
   });
   // Turned away — a full party, other terms — before a welcome: say why
@@ -238,6 +298,35 @@ Future<PartySeat> _seat(
     socket: socket,
     owner: seat.owner,
   );
+}
+
+/// Why this build cannot play through a relay whose welcome named
+/// [protocol] (`[major, minor]`), a sentence naming what to update; null
+/// when it can. [bare] is a welcome from before the relay's messages
+/// carried the reserved key, which this build cannot read whatever it
+/// names.
+String? _relayRefusal(Object? protocol, {bool bare = false}) {
+  const ours =
+      '${WireHello.currentProtocolMajor}.${WireHello.currentProtocolMinor}';
+  final (major, theirs) = switch (protocol) {
+    [final int major, final int minor] => (major, '$major.$minor'),
+    _ => (null, null),
+  };
+  if (bare) {
+    return 'it speaks protocol ${theirs ?? 'from before versions'}, whose '
+        'messages this machine ($ours) does not read: update the relay to '
+        'protocol $ours';
+  }
+  if (major == null) {
+    return 'its welcome names no protocol and this machine speaks $ours: '
+        'update the relay to protocol $ours';
+  }
+  if (major == WireHello.currentProtocolMajor) return null;
+  return major > WireHello.currentProtocolMajor
+      ? 'it speaks protocol $theirs and this machine $ours: update this game '
+            'to protocol $major'
+      : 'it speaks protocol $theirs and this machine $ours: update the relay '
+            'to protocol ${WireHello.currentProtocolMajor}';
 }
 
 /// [inner]'s sending, and what [attach] hands on from behind the relay's

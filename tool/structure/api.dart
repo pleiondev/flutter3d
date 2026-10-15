@@ -1070,6 +1070,15 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
         'constant says which this build reads, as it promised to.',
   ),
   BuildAllowance(
+    package: 'flutter3d_net',
+    members: <String>['WireHello.currentProtocolMinor'],
+    reason:
+        'The protocol is 3.1 with the relay\'s and the party\'s messages '
+        'under the reserved key (1.0.0-rc.1+1): every build of major 3 still '
+        'meets it, and the constant says which minor this build speaks, as '
+        'it promised to.',
+  ),
+  BuildAllowance(
     package: 'flutter3d',
     members: <String>[
       'ComputeExecutor',

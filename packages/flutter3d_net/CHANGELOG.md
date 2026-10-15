@@ -1,3 +1,29 @@
+## 1.0.0-rc.1+1
+
+- **Breaking: protocol 3.1, and the relay speaks under the reserved key.**
+  `WireHello.currentProtocolMinor` is 1. The relay's welcome, `full` and
+  `left` are `{"f3d": "relay", "event": …}` (`RelayMessages`, new) where
+  they were a bare `{"relay": …}`, which a game's message with a `relay`
+  field could be taken for. A message for one slot goes in the route
+  envelope `{"f3d": "route", "to": n, "body": …}` (`PeerWire.routeFrame`,
+  new): `PeerWire.party` puts an engine message with a `to` in it, as the
+  observer's are, and a game's own `to` now reaches everybody instead of
+  being routed by the relay. Protocol 3.0 never left a pre-release, so no
+  released machine speaks the old shapes.
+- **The relay signs what it forwards in a party.** Every message gets
+  `from` set to the slot of the socket it came from, whatever the socket
+  wrote there, so one machine cannot speak as another; a binary frame goes
+  as the party wire's bytes frame inside a signed envelope, and a frame that
+  is neither JSON nor bytes is dropped. A watcher's slot is the lowest one
+  free, so two watchers never share one after somebody left.
+- **`joinParty` reads the welcome's protocol.** A relay of another major,
+  one whose welcome names no protocol, or one from before its messages
+  carried the reserved key is refused with a sentence naming what to
+  update, where the seat used to wait out its timeout or play on a relay it
+  misread.
+- **`WireHello.engineOnly`**: the hello of a game that names no
+  simulation, for a default parameter.
+
 ## 1.0.0-rc.1
 
 - **Breaking: a rollback step is handed a `RollbackStep`.**

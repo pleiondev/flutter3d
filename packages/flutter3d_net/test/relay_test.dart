@@ -365,11 +365,16 @@ void main() {
     });
 
     first.wire.send(PeerSend(message: const <String, Object?>{'ask': 'join'}));
-    authority.wire.send(
-      PeerSend(message: <String, Object?>{'to': first.slot, 'only': 'you'}),
-    );
+    // Addressed as the observer's messages are: an engine message with a
+    // `to`, which the party wire puts in the relay's route envelope.
+    final addressed = <String, Object?>{
+      PeerWire.engineKey: ObserverMessages.step,
+      'to': first.slot,
+      'only': 'you',
+    };
+    authority.wire.send(PeerSend(message: addressed));
     final got = await firstGot.future.timeout(const Duration(seconds: 5));
-    expect(got, <String, Object?>{'to': first.slot, 'only': 'you'});
+    expect(got, addressed);
     // Mutation: forward an observer's message to everybody, or an addressed
     // one to every observer.
     await Future<void>.delayed(const Duration(milliseconds: 200));

@@ -3,6 +3,8 @@
 library;
 
 import 'package:flame_multiplayer/flame_multiplayer.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show SimulationVersion;
 import 'package:test/test.dart';
 
 /// Where everybody is: one number a slot, and each step's moves coupled so
@@ -208,5 +210,125 @@ void main() {
     // the round trip and a snapshot's interval hold — a client that kept
     // what the authority had run would pile up every frame it ever sent.
     expect(clients.map((c) => c.unacknowledged), everyElement(lessThan(12)));
+  });
+
+  group('the hello before the party', () {
+    // The other build's hello: the next protocol major.
+    const ahead = WireHello(
+      simulation: SimulationVersion.engineOnly,
+      protocolMajor: WireHello.currentProtocolMajor + 1,
+    );
+
+    test('an authority runs no hands from a machine that said no hello, or '
+        'one it cannot play with, and each side says why', () {
+      final party = LoopbackParty(3);
+      final ran = <int, int>{};
+      final authority = AuthorityServer<int>(
+        wire: party.wire(0),
+        players: 3,
+        applyAndStep: (frames) {
+          for (final MapEntry(:key, :value) in frames.entries) {
+            if (value['dx'] case final int dx) ran[key] = (ran[key] ?? 0) + dx;
+          }
+        },
+        save: () => 0,
+        encode: (s) => s,
+        snapshotEvery: 1,
+      );
+      final other = PredictingClient<int>(
+        wire: party.wire(1),
+        captureLocalFrame: () => const <String, Object?>{'dx': 1},
+        predict: (_) {},
+        restore: (_) {},
+        decode: (e) => e! as int,
+        hello: ahead,
+      );
+      for (var tick = 0; tick < 20; tick++) {
+        other.advance();
+        // Slot two sends hands the way a build from before the hello did:
+        // under the key, with no hello. Mutation: queue hands before a
+        // hello is heard, and these run.
+        party
+            .wire(2)
+            .send(
+              PeerSend(
+                message: const <String, Object?>{
+                  'f3d': 'party',
+                  'event': 'inputs',
+                  'inputs': <String, Object?>{
+                    '0': <String, Object?>{'dx': 5},
+                  },
+                },
+                reliable: false,
+              ),
+            );
+        authority.advance();
+        party.tick();
+      }
+      // Mutation: the hello not compared — the next major's hands run.
+      expect(ran, isEmpty);
+      expect(
+        authority.refusals[1],
+        contains('update this game to protocol ${ahead.protocolMajor}'),
+      );
+      expect(authority.refusals.containsKey(2), isFalse);
+      // The client reads the authority's hello off its state and refuses it
+      // in its own words.
+      expect(
+        other.refusal,
+        contains('update the other game to protocol ${ahead.protocolMajor}'),
+      );
+    });
+
+    test('a spectator on another protocol is told so and sent no tape, and a '
+        'party\'s messages never reach the game as its own', () {
+      final party = LoopbackParty(3);
+      final tape = PartyTape<int>(wire: party.wire(0), encode: (s) => s);
+      final heardByGame = <Map<String, Object?>>[];
+      party.wire(0).listenFrom((heard) {
+        tape.hear(heard);
+        if (heard.message['f3d'] == null) heardByGame.add(heard.message);
+      });
+      var restored = false;
+      final watcher = PartyTapeWatcher<int>(
+        wire: party.wire(1),
+        decode: (e) => e! as int,
+        restore: (_) => restored = true,
+        applyAndStep: (_) {},
+        hello: ahead,
+      );
+      final welcome = PartyTapeWatcher<int>(
+        wire: party.wire(2),
+        decode: (e) => e! as int,
+        restore: (_) => restored = true,
+        applyAndStep: (_) {},
+      );
+      for (var step = 0; step < 6; step++) {
+        tape.settled(
+          SettledStep<int>(
+            step: step,
+            after: step,
+            frames: const <int, Map<String, Object?>>{},
+          ),
+        );
+        watcher.ask();
+        party.tick();
+      }
+      expect(watcher.refusal, contains('protocol ${ahead.protocolMajor}'));
+      expect(watcher.next, isNull);
+      expect(restored, isFalse);
+      expect(tape.refusals.keys, <int>[1]);
+      // A spectator on this build is let in once it asks.
+      welcome.ask();
+      // One tick for the ask to arrive, one for the answer.
+      party
+        ..tick()
+        ..tick();
+      expect(welcome.refusal, isNull);
+      expect(welcome.next, 6);
+      // Mutation: the ask back as a bare `{"watching": true}` — a game's
+      // own message would then start the tape.
+      expect(heardByGame, isEmpty);
+    });
   });
 }
