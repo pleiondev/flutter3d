@@ -499,7 +499,7 @@ signalling another `v` is refused.
 A platform channel the engine opens is named `dev.flutter3d/<name>`
 (`dev.flutter3d/cloud_saves`, `dev.flutter3d/gamepad/events`) and keeps its
 name and its messages within a major. `pad_input` and
-`flutter3d_pointer_lock` stay 0.x under the engine's `^0.5.0` pin, and catch
+`flutter3d_pointer_lock` carry the engine's number and its pin, and catch
 `MissingPluginException` on every call, so a native side that lacks a method
 answers instead of throwing.
 

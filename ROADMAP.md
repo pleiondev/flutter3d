@@ -15,9 +15,9 @@ the plan disagree, the plan was revised later and this file is wrong.
 
 ## Where it stands
 
-61 packages are to be published. In the tree, 59 of them are at
-`1.0.0-rc.1`, and `pad_input` and `flutter3d_pointer_lock` stay on their own line at
-0.5.0. pub.dev still has 0.8.x as the newest, and nothing of the candidate
+61 packages are to be published. In the tree, all 61 are at
+`1.0.0-rc.1`, the two platform plugins `pad_input` and
+`flutter3d_pointer_lock` included. pub.dev still has 0.8.x as the newest, and nothing of the candidate
 is published yet. The API shape,
 the materials catalog, the hot-path work, the seams for 1.x and the
 contracts rc.2 fills are in. What is left for rc.1 is release work: every

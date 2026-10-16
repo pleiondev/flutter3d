@@ -178,7 +178,7 @@ breaks. A minor adds. A break comes only in a major, after a deprecation.
 Every public name is covered, with no experimental exceptions, and the
 snapshot in each package's `api/` is what a release is compared against.
 
-**The engine ships under one major.minor.** The 59 packages of the shelf
+**The engine ships under one major.minor.** The 61 packages of the shelf
 share a major and a minor, now the release candidate `1.0.0-rc.1`, and ask
 for `'>=1.0.0-rc.1 <1.1.0'` of each other, one minor, so a 1.1 of one never
 resolves under a 1.0 of another; an application asks with a caret. A minor
@@ -207,7 +207,8 @@ and only a change to what a module may import or export moves it. `flame_multipl
 joined the shelf's number at `1.0.0-rc.1`, because they stand on
 `flutter3d_net` and break with it; `flame_multiplayer_dashwire` keeps it
 outside the promise, below. `pad_input` and `flutter3d_pointer_lock` name no
-sibling and keep their own lines below 1.0.
+sibling and still carry the shelf's number: they are released with the
+engine, so the number says which engine they go with.
 
 **Four packages carry the engine's number and are outside the 1.0
 promise:** `flame_multiplayer_dashwire`, `flutter3d_lints`,

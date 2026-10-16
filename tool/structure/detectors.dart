@@ -566,9 +566,9 @@ String? liveGetterReasonProblem(String reason, String doc) {
   final chain =
       reason.contains('answers a copy') ||
       reason.contains('builds a new vector');
-  final live = RegExp(
-    r'^live: [^;]+, read-only by contract;',
-  ).firstMatch(reason)?.group(0);
+  final live = RegExp(r'^live: [^;]+, read-only by contract;')
+      .firstMatch(reason)
+      ?.group(0);
   if (!chain && live == null) {
     return 'is excused for a reason of neither kind: name the getter its '
         'chain ends in (`… answers a copy`), or start with '
@@ -641,9 +641,8 @@ List<({String subject, int line})> keptVectorParametersIn(String source) {
           p.group(1)!,
       };
       if (vectors.isEmpty) continue;
-      final lead = RegExp(
-        r'^\s*(?:async\s*)?(=>|\{|:)',
-      ).firstMatch(span.substring(close + 1));
+      final lead = RegExp(r'^\s*(?:async\s*)?(=>|\{|:)')
+          .firstMatch(span.substring(close + 1));
       if (lead == null) continue;
       final start = close + 1 + lead.end;
       final body = switch (lead.group(1)) {
@@ -1083,9 +1082,8 @@ Set<String> readableMembersIn(String api, String type) {
   var inside = false;
   for (final line in api.split('\n')) {
     if (!line.startsWith(' ')) {
-      inside = RegExp(
-        '^(?:\\w+ )*class ${RegExp.escape(type)}(?:\\s|\$)',
-      ).hasMatch(line);
+      inside = RegExp('^(?:\\w+ )*class ${RegExp.escape(type)}(?:\\s|\$)')
+          .hasMatch(line);
       continue;
     }
     if (!inside) continue;
@@ -1118,9 +1116,9 @@ Set<String> materialGroupsIn(String api) {
 
 /// Whether [source]'s code reads [member] of something: `.member` as a
 /// whole word, a named argument (`member:`) and a comment not counting.
-bool readsMember(String source, String member) => RegExp(
-  '\\??\\.${RegExp.escape(member)}\\b(?!\\s*:)',
-).hasMatch(codeOf(source));
+bool readsMember(String source, String member) =>
+    RegExp('\\??\\.${RegExp.escape(member)}\\b(?!\\s*:)')
+        .hasMatch(codeOf(source));
 
 // ------------------------------------------------- a section's fixture
 
@@ -1182,9 +1180,8 @@ Set<int>? sectionKindsOf(List<int> bytes) {
 /// The `static const int` constants of the class [className] in [source],
 /// name to value: a format's section kinds, as `F3dSection` declares them.
 Map<String, int> intConstantsOf(String source, String className) {
-  final start = RegExp(
-    'class\\s+${RegExp.escape(className)}\\b[^{]*\\{',
-  ).firstMatch(source);
+  final start = RegExp('class\\s+${RegExp.escape(className)}\\b[^{]*\\{')
+      .firstMatch(source);
   if (start == null) return const <String, int>{};
   final end = source.indexOf('\n}', start.end);
   final body = source.substring(start.end, end < 0 ? source.length : end);
@@ -1877,16 +1874,14 @@ bool readsCiAsDefine(String source) =>
       ('_classKeys', 'classes.'),
       ('_ruleKeys', 'rules.'),
     ])
-      if (RegExp(
-            'const Set<String> $name = <String>\\{([^}]*)\\}',
-          ).firstMatch(code)
+      if (RegExp('const Set<String> $name = <String>\\{([^}]*)\\}')
+              .firstMatch(code)
           case final set?)
         for (final key in RegExp(r"'([^']*)'").allMatches(set[1]!))
           '$prefix${key[1]}',
   };
-  final version = RegExp(
-    r'static const int formatVersion\s*=\s*(\d+)',
-  ).firstMatch(code);
+  final version = RegExp(r'static const int formatVersion\s*=\s*(\d+)')
+      .firstMatch(code);
   return (keys: keys, version: version == null ? null : int.parse(version[1]!));
 }
 
@@ -2766,9 +2761,8 @@ List<Finding> proveDetectorsWork() {
   // recorded on, and a snapshot built again without what it requires.
   fires(
     'unchecked recorded playbacks',
-    uncheckedRecordedPlaybacksIn(
-      'final p = InputTapePlayback.tape(demo.tape);',
-    ).isNotEmpty,
+    uncheckedRecordedPlaybacksIn('final p = InputTapePlayback.tape(demo.tape);')
+        .isNotEmpty,
     'InputTapePlayback.tape(demo.tape)',
   );
   fires(
@@ -2813,9 +2807,9 @@ List<Finding> proveDetectorsWork() {
   );
   fires(
     'snapshots dropping requires',
-    snapshotsDroppingRequiresIn(
-          'Snapshot(\n  data.cast<String, Object?>(),\n)',
-        ).singleOrNull?.argument ==
+    snapshotsDroppingRequiresIn('Snapshot(\n  data.cast<String, Object?>(),\n)')
+            .singleOrNull
+            ?.argument ==
         'data.cast<String, Object?>()',
     'the argument an exemption names',
   );
@@ -3071,23 +3065,20 @@ List<Finding> proveDetectorsWork() {
   // Shared mutables.
   fires(
     'shared mutables',
-    sharedMutablesIn(
-      'static final Vector3 up = Vector3(0.0, 1.0, 0.0);',
-    ).isNotEmpty,
+    sharedMutablesIn('static final Vector3 up = Vector3(0.0, 1.0, 0.0);')
+        .isNotEmpty,
     'a static final Vector3',
   );
   fires(
     'shared mutables',
-    sharedMutablesIn(
-      'static final Matrix4 identity = Matrix4.zero();',
-    ).isNotEmpty,
+    sharedMutablesIn('static final Matrix4 identity = Matrix4.zero();')
+        .isNotEmpty,
     'a static final Matrix4',
   );
   quiet(
     'shared mutables',
-    sharedMutablesIn(
-      'static Vector3 get up => Vector3(0.0, 1.0, 0.0);',
-    ).isEmpty,
+    sharedMutablesIn('static Vector3 get up => Vector3(0.0, 1.0, 0.0);')
+        .isEmpty,
     'a getter',
     'the fix must not be reported as the fault',
   );
@@ -3207,9 +3198,8 @@ List<Finding> proveDetectorsWork() {
   );
   quiet(
     'world literals',
-    worldLiteralsIn(
-      '/// 9.81 m/s², as the core has it.\nfinal g = w.g;',
-    ).isEmpty,
+    worldLiteralsIn('/// 9.81 m/s², as the core has it.\nfinal g = w.g;')
+        .isEmpty,
     'a doc comment',
     'prose explaining the rule must not break it',
   );
@@ -3240,9 +3230,8 @@ List<Finding> proveDetectorsWork() {
   );
   fires(
     'world literals',
-    worldLiteralsIn(
-      ': gravity = gravity ?? Vector3(0.0, -22.0, 0.0) {',
-    ).isNotEmpty,
+    worldLiteralsIn(': gravity = gravity ?? Vector3(0.0, -22.0, 0.0) {')
+        .isNotEmpty,
     'a down vector where gravity is named',
   );
   fires(
@@ -3290,9 +3279,9 @@ List<Finding> proveDetectorsWork() {
   // F3D_WATER_HEAT passes; drop the σ value test and a renamed σ passes.
   fires(
     'core copies',
-    cDefinesCopyingTheWorldIn(
-          '#define F3D_WATER_HEAT F3D_R(4186.0)',
-        ).single.name ==
+    cDefinesCopyingTheWorldIn('#define F3D_WATER_HEAT F3D_R(4186.0)')
+            .single
+            .name ==
         'F3D_WATER_HEAT',
     'water under its own name',
   );
@@ -3360,9 +3349,8 @@ List<Finding> proveDetectorsWork() {
   );
   fires(
     'light intensities',
-    smallLightIntensitiesIn(
-      "LightNode(name: 'sun', intensity: 2.5)",
-    ).isNotEmpty,
+    smallLightIntensitiesIn("LightNode(name: 'sun', intensity: 2.5)")
+        .isNotEmpty,
     "LightNode(intensity: 2.5)",
   );
   fires(
@@ -3820,23 +3808,20 @@ List<Finding> proveDetectorsWork() {
   // a file that rule reads.
   fires(
     'prose',
-    proseOf(
-      '/// the loader read thirty-one\n/// files.',
-    ).contains('thirty-one files'),
+    proseOf('/// the loader read thirty-one\n/// files.')
+        .contains('thirty-one files'),
     'a claim wrapped across two doc-comment lines',
   );
   fires(
     'prose',
-    proseOf(
-      '// eleven of them, and\n// no more than that.',
-    ).contains('eleven of them, and no more than that.'),
+    proseOf('// eleven of them, and\n// no more than that.')
+        .contains('eleven of them, and no more than that.'),
     'a claim wrapped across two line comments',
   );
   quiet(
     'prose',
-    !proseOf(
-      '// ends in six\nfinal x = 1;\n// files begin here',
-    ).contains('six files'),
+    !proseOf('// ends in six\nfinal x = 1;\n// files begin here')
+        .contains('six files'),
     'two comments with code between them',
     'the last word of one and the first of the next are not a phrase',
   );
@@ -3887,9 +3872,10 @@ List<Finding> proveDetectorsWork() {
   );
   fires(
     'public members',
-    publicMembersIn(
-      'class A {\n  /// Says who.\n  final int width = 1;\n}',
-    ).single.doc.contains('Says who'),
+    publicMembersIn('class A {\n  /// Says who.\n  final int width = 1;\n}')
+        .single
+        .doc
+        .contains('Says who'),
     'the doc comment above a field',
   );
   quiet(
@@ -3900,9 +3886,8 @@ List<Finding> proveDetectorsWork() {
   );
   quiet(
     'public members',
-    publicMembersIn(
-      'class A {\n  @override\n  int get length => 1;\n}',
-    ).isEmpty,
+    publicMembersIn('class A {\n  @override\n  int get length => 1;\n}')
+        .isEmpty,
     'an @override',
     'the thing it implements is what names it',
   );
@@ -4602,9 +4587,8 @@ List<Finding> proveDetectorsWork() {
       '\n== --json ==\n'
       'convert {output, reports: [{input, error?}]}\n'
       'plugins {check, current? (with --check)}\n';
-  final goneCli = cliSurfaceWords(
-    releasedCli,
-  ).difference(cliSurfaceWords(nowCli));
+  final goneCli = cliSurfaceWords(releasedCli)
+      .difference(cliSurfaceWords(nowCli));
   fires(
     'cli surface json keys and exit codes',
     goneCli.length == 2 &&
@@ -4692,16 +4676,14 @@ List<Finding> proveDetectorsWork() {
   );
   fires(
     'exact version gates',
-    exactVersionGatesIn(
-      'final v = 1;\n    if (version != formatVersion) {\n',
-    ).contains(2),
+    exactVersionGatesIn('final v = 1;\n    if (version != formatVersion) {\n')
+        .contains(2),
     'version != formatVersion',
   );
   fires(
     'exact version gates',
-    exactVersionGatesIn(
-      'if (said != ShaderBundle.sectionVersion) {}',
-    ).isNotEmpty,
+    exactVersionGatesIn('if (said != ShaderBundle.sectionVersion) {}')
+        .isNotEmpty,
     'a qualified constant',
   );
   quiet(
@@ -4745,9 +4727,8 @@ List<Finding> proveDetectorsWork() {
   );
   fires(
     'an enum ordinal in a file',
-    enumOrdinalsIn(
-      'final a = 1;\npath: AnimationPath.values[pathIndex],',
-    ).contains(2),
+    enumOrdinalsIn('final a = 1;\npath: AnimationPath.values[pathIndex],')
+        .contains(2),
     'an enum read back by its ordinal',
   );
   quiet(
@@ -4795,9 +4776,8 @@ List<Finding> proveDetectorsWork() {
   );
   fires(
     'the layers',
-    layered(<String, Set<String>>{
-      'new': <String>{},
-    }).any(((String, String?, String) p) => p.$1 == 'new' && p.$2 == null),
+    layered(<String, Set<String>>{'new': <String>{}})
+        .any(((String, String?, String) p) => p.$1 == 'new' && p.$2 == null),
     'a package with no layer',
   );
   quiet(
@@ -5182,14 +5162,15 @@ dev_dependencies:
   // package's own, and an allowed user are not.
   fires(
     'restricted libraries',
-    restrictedLibraryProblems(<String, Set<String>>{
-      'game': restrictedLibrariesIn(
-        "import 'package:cpu/testing.dart';\n"
-        "import 'package:cpu/cpu.dart';",
-      ),
-    }, allowed: const <String, Map<String, String>>{}).any(
-      ((String, String, String) p) => p.$2 == 'package:cpu/testing.dart',
-    ),
+    restrictedLibraryProblems(
+      <String, Set<String>>{
+        'game': restrictedLibrariesIn(
+          "import 'package:cpu/testing.dart';\n"
+          "import 'package:cpu/cpu.dart';",
+        ),
+      },
+      allowed: const <String, Map<String, String>>{},
+    ).any(((String, String, String) p) => p.$2 == 'package:cpu/testing.dart'),
     "game's lib importing package:cpu/testing.dart",
   );
   quiet(
@@ -5331,9 +5312,8 @@ dev_dependencies:
       );
   fires(
     'declare what you name',
-    undeclared(const <String>{
-      'sim',
-    }).any(((String, String, String, String) u) => u.$3 == 'CollisionWorld'),
+    undeclared(const <String>{'sim'})
+        .any(((String, String, String, String) u) => u.$3 == 'CollisionWorld'),
     'CollisionWorld named by an application that depends on sim alone',
   );
   quiet(
@@ -5431,16 +5411,14 @@ dev_dependencies:
 
   fires(
     'a timeout past a minute',
-    longTimeoutsIn(
-      'library;\n@Timeout(Duration(minutes: 20))\nlibrary;',
-    ).any((LongTimeout t) => t.line == 2),
+    longTimeoutsIn('library;\n@Timeout(Duration(minutes: 20))\nlibrary;')
+        .any((LongTimeout t) => t.line == 2),
     'a file given twenty minutes',
   );
   fires(
     'a timeout past a minute',
-    longTimeoutsIn(
-      '  }, timeout: const Timeout(Duration(seconds: 90)));',
-    ).isNotEmpty,
+    longTimeoutsIn('  }, timeout: const Timeout(Duration(seconds: 90)));')
+        .isNotEmpty,
     'a test given ninety seconds',
   );
   fires(
@@ -5486,9 +5464,8 @@ dev_dependencies:
   );
   fires(
     'a package timeout past a minute',
-    longYamlTimeoutsIn(
-      'timeout: 1m\ntags:\n  slow:\n    timeout: 2m\n',
-    ).any((LongTimeout t) => t.line == 4),
+    longYamlTimeoutsIn('timeout: 1m\ntags:\n  slow:\n    timeout: 2m\n')
+        .any((LongTimeout t) => t.line == 4),
     'a tag given two minutes',
   );
   quiet(
@@ -5572,9 +5549,8 @@ dev_dependencies:
   );
   fires(
     'motion without reduction',
-    motionWithoutReductionIn(
-          'late final c = AnimationController(vsync: this);',
-        ).single ==
+    motionWithoutReductionIn('late final c = AnimationController(vsync: this);')
+            .single ==
         1,
     'an AnimationController in a library that never asks',
   );
@@ -5635,30 +5611,28 @@ dev_dependencies:
     );
   }
 
-  // Every package that names a sibling is on the engine's number. Four
-  // left it for 0.9.0 once; a package of the repository at 0.9.0 is what
-  // this exists to name.
+  // Every package is on the engine's number. Four left it for 0.9.0 once,
+  // and the two platform plugins kept 0.5 because they name no sibling; a
+  // package of the repository at either is what this exists to name.
   fires(
     'off the engine number',
-    offTheEngineNumber(<String, ({String version, bool namesSibling})>{
-          'flutter3d_lints': (version: '0.9.0', namesSibling: true),
-          'flutter3d_editor_play': (
-            version: '1.0.0-rc.1+1',
-            namesSibling: true,
-          ),
+    offTheEngineNumber(<String, String>{
+          'flutter3d_lints': '0.9.0',
+          'pad_input': '0.5.1',
+          'flutter3d_editor_play': '1.0.0-rc.1+1',
         }, '1.0.0-rc.1').join(',') ==
-        'flutter3d_lints',
-    'a package of the repository at 0.9.0',
+        'flutter3d_lints,pad_input',
+    'a package at 0.9.0, and a platform plugin at 0.5.1',
   );
   quiet(
     'off the engine number',
-    offTheEngineNumber(<String, ({String version, bool namesSibling})>{
-      'pad_input': (version: '0.5.0', namesSibling: false),
-      'flutter3d_editor_play': (version: '1.0.0-rc.1+1', namesSibling: true),
-      'flutter3d_impeller': (version: '1.0.1', namesSibling: true),
+    offTheEngineNumber(<String, String>{
+      'pad_input': '1.0.0-rc.1',
+      'flutter3d_editor_play': '1.0.0-rc.1+1',
+      'flutter3d_impeller': '1.0.1',
     }, '1.0.0-rc.1').isEmpty,
-    'a plugin that names no sibling, a build and a patch',
-    'each is on the number, or stands on nothing of the engine',
+    'the release, a build and a patch',
+    'each is on the number',
   );
 
   // A policy document's revision line. The SECURITY.md of 0.x said "nothing
@@ -5812,9 +5786,8 @@ final c = switch (s) { 'x' || 'r' => 0, _ => 1 };
   );
   fires(
     'kernel words',
-    kernelWords(
-      table: kernelTable.replaceFirst("'let': 1", "'let': newest"),
-    ).isNotEmpty,
+    kernelWords(table: kernelTable.replaceFirst("'let': 1", "'let': newest"))
+        .isNotEmpty,
     'a version that is not a number',
   );
   fires(
@@ -6085,9 +6058,8 @@ kernel word atomicAdd 2
   );
   fires(
     'vocabulary',
-    vocabulary(
-      vocabularyBase.replaceFirst('kernel word let 1\n', ''),
-    ).isNotEmpty,
+    vocabulary(vocabularyBase.replaceFirst('kernel word let 1\n', ''))
+        .isNotEmpty,
     'a word of the base dropped',
   );
   fires(
@@ -6097,9 +6069,8 @@ kernel word atomicAdd 2
   );
   fires(
     'vocabulary',
-    vocabulary(
-      vocabularyBase.replaceFirst('version 2', 'version 1'),
-    ).isNotEmpty,
+    vocabulary(vocabularyBase.replaceFirst('version 2', 'version 1'))
+        .isNotEmpty,
     'the newest version going down',
   );
 
@@ -6397,24 +6368,21 @@ bool onEngineNumber(String version, String engine) {
       caretAdmits(engine, version);
 }
 
-/// The packages of [packages] off the engine's number [engine], in order:
-/// each at a version [onEngineNumber] does not put on it, unless it names
-/// no sibling.
+/// The packages of [versions] off the engine's number [engine], in order:
+/// each at a version [onEngineNumber] does not put on it.
 ///
-/// **Every package that stands on another of the repository carries the
-/// engine's number.** A number of its own says nothing a reader can use and
-/// moves five places at once when it changes; a package outside the 1.0
-/// promise says so in SUPPORT.md and by its reasoned third-party
-/// exemptions, not by a 0.x line. A package that names no sibling
-/// (`pad_input`, `flutter3d_pointer_lock`) is a platform plugin anybody may
-/// use without the engine, on a line of its own.
-List<String> offTheEngineNumber(
-  Map<String, ({String version, bool namesSibling})> packages,
-  String engine,
-) => <String>[
-  for (final MapEntry(key: name, value: p) in packages.entries)
-    if (p.namesSibling && !onEngineNumber(p.version, engine)) name,
-];
+/// **Every package of the repository carries the engine's number.** A
+/// number of its own says nothing a reader can use and moves five places at
+/// once when it changes; a package outside the 1.0 promise says so in
+/// SUPPORT.md and by its reasoned third-party exemptions, not by a 0.x
+/// line. That holds for a platform plugin that names no sibling too
+/// (`pad_input`, `flutter3d_pointer_lock`): it is released with the engine,
+/// so it says which engine it was released with.
+List<String> offTheEngineNumber(Map<String, String> versions, String engine) =>
+    <String>[
+      for (final MapEntry(key: name, value: version) in versions.entries)
+        if (!onEngineNumber(version, engine)) name,
+    ];
 
 // ------------------------------------------------------- a policy's revision
 
@@ -6483,9 +6451,8 @@ const Duration testMinute = Duration(minutes: 1);
 /// once had is not the allowance. A future's own `.timeout(...)` is not a
 /// test's and is not read.
 List<LongTimeout> longTimeoutsIn(String source) {
-  final code = <String>[
-    for (final line in source.split('\n')) _codeOf(line),
-  ].join('\n');
+  final code = <String>[for (final line in source.split('\n')) _codeOf(line)]
+      .join('\n');
   int lineAt(int offset) =>
       '\n'.allMatches(code.substring(0, offset)).length + 1;
 
@@ -6507,9 +6474,8 @@ List<LongTimeout> longTimeoutsIn(String source) {
         .trim()
         .replaceAll(RegExp(r',$'), '')
         .trim();
-    final duration = RegExp(
-      r'^(?:const\s+)?Duration\s*\(([^)]*)\)$',
-    ).firstMatch(inside);
+    final duration = RegExp(r'^(?:const\s+)?Duration\s*\(([^)]*)\)$')
+        .firstMatch(inside);
     final Duration? given = duration == null
         ? null
         : _durationOf(duration.group(1)!);
@@ -6578,9 +6544,8 @@ List<LongTimeout> longYamlTimeoutsIn(String yaml) {
   final lines = yaml.split('\n');
   final found = <LongTimeout>[];
   for (var i = 0; i < lines.length; i++) {
-    final match = RegExp(
-      r'^\s*timeout:\s*(\S+)',
-    ).firstMatch(lines[i].split('#').first);
+    final match = RegExp(r'^\s*timeout:\s*(\S+)')
+        .firstMatch(lines[i].split('#').first);
     if (match == null) continue;
     final value = match.group(1)!.replaceAll(RegExp('["\']'), '');
     final unit = RegExp(r'^([0-9.]+)(ms|s|m|h|x)$').firstMatch(value);
@@ -6981,9 +6946,8 @@ List<String> unprefixedRenderNamesIn(String source, {required bool engine}) =>
         r"RenderStep\._\(|RenderStep\(|ResourceId\()\s*'([^'$]*)'",
       ).allMatches(codeOf(source)))
         if (!m.group(1)!.contains('{{') &&
-            !RegExp(
-              engine ? r'^f3d\.[a-z0-9_]+$' : r'^[a-z][a-z0-9_]*\.[^ ]+$',
-            ).hasMatch(m.group(1)!))
+            !RegExp(engine ? r'^f3d\.[a-z0-9_]+$' : r'^[a-z][a-z0-9_]*\.[^ ]+$')
+                .hasMatch(m.group(1)!))
           m.group(1)!,
     ];
 
@@ -7044,9 +7008,8 @@ List<int> unguardedPlatformCallsIn(String source) {
   final tries = <(int, int)>[
     for (final t in RegExp(r'\btry\s*\{').allMatches(code))
       if (_blockEnd(code, t.end - 1) case final int end
-          when RegExp(
-            r'^\s*on\s+MissingPluginException\b',
-          ).hasMatch(code.substring(end + 1)))
+          when RegExp(r'^\s*on\s+MissingPluginException\b')
+              .hasMatch(code.substring(end + 1)))
         (t.end, end),
   ];
   return <int>[

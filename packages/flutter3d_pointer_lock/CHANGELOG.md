@@ -1,3 +1,12 @@
+## 1.0.0-rc.1
+
+* **The package carries the engine's number.** It moves from 0.5.1 to
+  `1.0.0-rc.1`, the version every package of flutter3d is at, though it
+  names none of them: it is released with the engine, so its number says
+  which engine it goes with, and the engine asks for it with the same
+  `'>=1.0.0-rc.1 <1.1.0'` it asks of every sibling. The API is unchanged;
+  an application that pinned `^0.5.0` moves the pin, which `migrate` does.
+
 ## 0.5.1
 
 * **A native side without a method answers nothing, not an exception.**

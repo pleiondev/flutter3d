@@ -125,8 +125,6 @@ guide: https://flutter3d.pleion.dev/reference/migrating-to-1.0/
 packages:
   constraint: ^1.0.0-rc.1
   versions:
-    flutter3d_pointer_lock: ^0.5.1
-    pad_input: ^0.5.1
   renamed:
   removed:
 

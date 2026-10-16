@@ -82,4 +82,4 @@ dev_dependencies:
   test: ^1.25.0
   # `PadButton`, which the settings panel's tests press to rebind an action
   # to a pad.
-  pad_input: ^0.5.0
+  pad_input: '>=1.0.0-rc.1 <1.1.0'
