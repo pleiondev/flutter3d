@@ -53,7 +53,7 @@ dependencies:
   vector_math: ^2.2.0
 
   # The links from a page to its guide on the documentation site.
-  url_launcher: ^6.3.0
+  url_launcher: ^6.3.3
 
 dev_dependencies:
   flutter_test:

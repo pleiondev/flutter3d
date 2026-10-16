@@ -76,7 +76,7 @@ dependencies:
   # bytes — decoding one is the one thing `dart:ui` usually does that this
   # package cannot reach. Pure Dart, no Flutter SDK behind it either, the
   # same as every other dependency here.
-  image: ^4.10.1
+  image: ^4.12.0
 
 dev_dependencies:
   # `RecordingDevice`, which a test wraps round the impostor bake's device to
