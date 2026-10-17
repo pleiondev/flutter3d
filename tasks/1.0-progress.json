@@ -74,7 +74,7 @@
     "4.3/4.3D": "done",
     "4.3/4.3E": "done",
     "4.3/4.3H": "done",
-    "4.3/4.3I": "todo",
+    "4.3/4.3I": "done",
     "4.3/4.3P": "todo",
     "4.3/4.3Q": "done",
     "4.3/4.3S": "done",
@@ -86,6 +86,7 @@
   },
   "notes": {
     "0/0.5": "dart-apitool installed; the impeller runner is still to set up",
+    "4.3/4.3I": "Wasm render ABI 3 with its sections and sample, render checks in the badge, ten plugin kinds compiled in CI, PBR injection points, editor menus and tool modes, sha256; the Wasm render node runs the render checks on the recording fake, its CPU picture needs flutter3d_app's material compiler and the GPU backends their own suites",
     "4.3/4.3P": "the fluids of fix/drops-look, carried onto the 1.0 contracts through the compute placement",
     "4.3/4.3Q": "orthographic cascades, the timeline's tapes, migrate --data pipeline; the platformer replay_test blocks P1",
     "4.3/4.3S": "Direct3D 12 as a reference standard: reserved names, the sidecar's backend, WARP in CI, the HLSL lint, the feature mask",
