@@ -53,21 +53,34 @@ void main() {
   });
 
   test('a single drop falls as the world falls', () {
+    // Smaller than the capillary length, it flies as one body: no
+    // particles, and with no air given, a free fall.
     final fluid = ParticleFluid(medium: FluidMedium.water, spacing: 0.002);
     fluid.inject(fluid.particleVolume, Vector3(0, 1, 0), Vector3.zero());
+    expect(fluid.count, 0);
     for (var i = 0; i < 500; i++) {
       fluid.step(1 / 1000, gravity: Vector3(0, -1.62, 0));
     }
-    final y = fluid.positions.single.y;
+    final y = fluid.drops.single.position.y;
     expect(1 - y, closeTo(0.5 * 1.62 * 0.25, 0.5 * 1.62 * 0.25 * 0.01));
   });
 
   test('what is less than a particle waits in the bank, and is counted', () {
     final fluid = ParticleFluid(medium: FluidMedium.water, spacing: 0.002);
-    fluid.inject(2.5 * fluid.particleVolume, Vector3.zero(), Vector3.zero());
+    fluid.inject(
+      2.5 * fluid.particleVolume,
+      Vector3.zero(),
+      Vector3.zero(),
+      asParticles: true,
+    );
     expect(fluid.count, 2);
     expect(fluid.volume, closeTo(2.5 * fluid.particleVolume, 1e-18));
-    fluid.inject(0.5 * fluid.particleVolume, Vector3.zero(), Vector3.zero());
+    fluid.inject(
+      0.5 * fluid.particleVolume,
+      Vector3.zero(),
+      Vector3.zero(),
+      asParticles: true,
+    );
     expect(fluid.count, 3);
   });
 
@@ -168,7 +181,9 @@ void main() {
     bool lying(Vector3 p, Vector3 v) => p.y < 0.006;
     final retired = <RetiredParticles>[];
     var first = double.infinity;
-    for (var frame = 0; frame < 120 && fluid.count > 0; frame++) {
+    // Drops a splash throws off are retired as they come to lie, too.
+    bool any() => fluid.count + fluid.drops.length > 0;
+    for (var frame = 0; frame < 120 && any(); frame++) {
       world.advance(1 / 60);
       final gone = fluid.retire(elapsed: 1 / 60, after: 0.25, settled: lying);
       if (!gone.isEmpty) {
@@ -176,21 +191,29 @@ void main() {
         first = math.min(first, frame / 60);
       }
     }
-    expect(fluid.count, 0, reason: 'all of it came down');
+    expect(any(), isFalse, reason: 'all of it came down');
     // Five centimetres is a tenth of a second's fall, and a quarter more
     // lying low: nothing goes sooner.
     expect(first, greaterThan(0.3));
     for (final gone in retired) {
-      for (final p in gone.positions) {
+      for (final p in [
+        ...gone.positions,
+        for (final d in gone.drops) d.position,
+      ]) {
         expect(p.y, lessThan(0.006));
       }
     }
     final volume = retired.fold(0.0, (s, r) => s + r.volume);
-    expect(volume, closeTo(27 * fluid.particleVolume, 1e-18));
+    // What the drops gave off to the room's air on the way is counted too.
+    expect(
+      volume + fluid.evaporated,
+      closeTo(27 * fluid.particleVolume, 1e-18),
+    );
     expect(fluid.retired, closeTo(volume, 1e-18));
     expect(world.volume, closeTo(total, total * 1e-12));
     final dye = retired.fold(0.0, (s, r) => s + (r.amounts['dye'] ?? 0.0));
-    expect(dye, closeTo(3.0 * volume, 1e-15));
+    // Only the water left: every bit of the dye lies on the floor.
+    expect(dye, closeTo(3.0 * 27 * fluid.particleVolume, 1e-15));
   });
 
   test('a particle the test lets go of starts its time again', () {

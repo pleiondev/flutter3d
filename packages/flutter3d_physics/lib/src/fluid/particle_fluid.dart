@@ -2,22 +2,32 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_matter/flutter3d_matter.dart' show standardGravity;
 import 'package:vector_math/vector_math.dart';
 
+import 'fluid_air.dart';
 import 'fluid_medium.dart';
 import 'fluid_solver.dart';
 import 'jet.dart';
+import 'wetting.dart';
 
 /// A flat surface particles rest on — a bench, a floor: the points with
 /// `normal · p ≥ offset` are clear of it.
 final class PlaneObstacle with JetObstacle {
-  PlaneObstacle({required Vector3 normal, required this.offset})
+  /// The plane facing [normal] at [offset] metres from the origin along it,
+  /// made of [surface] (the liquid's own angle, as on glass, when null).
+  PlaneObstacle({required Vector3 normal, required this.offset, this.surface})
     : normal = normal.normalized();
 
   final Vector3 normal;
 
   /// The plane's distance from the origin along [normal], in metres.
   final double offset;
+
+  /// What the plane is made of: a phenolic bench top
+  /// ([SolidSurface.benchTop]) beads water that glass spreads.
+  @override
+  final SolidSurface? surface;
 
   @override
   bool reaches(Vector3 center, double distance) =>
@@ -37,6 +47,7 @@ final class RetiredParticles {
     required this.positions,
     required this.particleVolume,
     this.amounts = const {},
+    this.drops = const <LiquidDrop>[],
   });
 
   /// None taken out.
@@ -51,16 +62,90 @@ final class RetiredParticles {
   /// How much liquid each one was, in cubic metres.
   final double particleVolume;
 
-  /// How much of each solute they carried between them: each one's
-  /// concentration times its volume, summed. Over [volume], their mixture's
-  /// concentrations.
+  /// How much of each solute they carried between them, the [drops]
+  /// included: each one's concentration times its volume, summed. Over
+  /// [volume], their mixture's concentrations.
   final Map<String, double> amounts;
 
-  /// Cubic metres taken out: every particle.
-  double get volume => positions.length * particleVolume;
+  /// The drops taken out with them, each its own volume
+  /// ([ParticleFluid.drops]): a drop come to rest on a floor is taken out
+  /// as the particles lying there are.
+  final List<LiquidDrop> drops;
+
+  /// Cubic metres taken out: every particle and every drop.
+  double get volume =>
+      positions.length * particleVolume +
+      drops.fold(0.0, (s, d) => s + d.volume);
 
   /// Whether none were taken out.
-  bool get isEmpty => positions.isEmpty;
+  bool get isEmpty => positions.isEmpty && drops.isEmpty;
+}
+
+/// One drop of a [ParticleFluid], as one body: where it is, how fast it
+/// goes, how much it holds and what is dissolved in it.
+///
+/// **A class, not a record**, so a field a later minor adds (a
+/// temperature, the wall it hangs on) breaks no code that reads one.
+final class LiquidDrop {
+  /// A drop of [volume] cubic metres at [position] moving at [velocity],
+  /// carrying [concentrations].
+  const LiquidDrop({
+    required this.position,
+    required this.velocity,
+    required this.volume,
+    this.concentrations = const <String, double>{},
+  });
+
+  /// Its middle, in the world.
+  final Vector3 position;
+
+  /// How fast it goes, m/s.
+  final Vector3 velocity;
+
+  /// How much liquid it is, in cubic metres.
+  final double volume;
+
+  /// What is dissolved in it, by species.
+  final Map<String, double> concentrations;
+
+  /// Its radius as a sphere, in metres.
+  double get radius => Portable.pow(3.0 * volume / (4.0 * math.pi), 1.0 / 3.0);
+}
+
+/// A drop's state as [ParticleFluid] keeps it, in double precision.
+final class _Drop {
+  _Drop(this.x, this.v, this.volume, this.c);
+
+  /// Its middle, in metres, and its velocity, in metres per second.
+  _V x;
+  _V v;
+
+  /// How much liquid it is, in cubic metres.
+  double volume;
+
+  /// What is dissolved in it, by species.
+  Map<String, double> c;
+
+  /// How long `ParticleFluid.retire`'s test has held of it, seconds.
+  double settled = 0.0;
+
+  /// Its radius as a sphere, in metres.
+  double get radius => Portable.pow(3.0 * volume / (4.0 * math.pi), 1.0 / 3.0);
+
+  /// [w] cubic metres at [at] moving at [u] carrying [carried], taken in:
+  /// the middle, the velocity and the concentrations weighed by volume.
+  void absorb(_V at, _V u, double w, Map<String, double> carried) {
+    final total = volume + w;
+    final a = volume / total;
+    final b = w / total;
+    x = x * a + at * b;
+    v = v * a + u * b;
+    c = {
+      for (final k in {...c.keys, ...carried.keys})
+        k: (c[k] ?? 0.0) * a + (carried[k] ?? 0.0) * b,
+    };
+    volume = total;
+  }
 }
 
 /// Liquid that has left every vessel and stream — drops, splashes, a puddle
@@ -182,15 +267,28 @@ final class ParticleFluid {
   double get particleVolume => spacing * spacing * spacing;
   double get _mass => medium.density * particleVolume;
 
-  /// The particles' places.
-  List<Vector3> get positions => [for (final p in _x) p.toVector3()];
+  /// Where the liquid is: each particle's place, then each drop's middle
+  /// ([drops]), so whatever draws the spilt liquid as points draws the drops
+  /// too.
+  List<Vector3> get positions => [
+    for (final p in _x) p.toVector3(),
+    for (final d in _drops) d.x.toVector3(),
+  ];
 
-  /// Every particle's velocity, in the order of [positions].
-  List<Vector3> get velocities => [for (final v in _v) v.toVector3()];
+  /// The velocity at each of [positions], in its order.
+  List<Vector3> get velocities => [
+    for (final v in _v) v.toVector3(),
+    for (final d in _drops) d.v.toVector3(),
+  ];
+
+  /// How many particles the solve steps: the first [count] of [positions].
   int get count => _x.length;
 
-  /// Cubic metres here: every particle and the bank.
-  double get volume => _x.length * particleVolume + _bank;
+  /// Cubic metres here: every particle, every drop and the bank.
+  double get volume =>
+      _x.length * particleVolume +
+      _drops.fold(0.0, (s, d) => s + d.volume) +
+      _bank;
 
   /// Cubic metres handed to receivers so far.
   double get received => _received;
@@ -223,12 +321,33 @@ final class ParticleFluid {
     required double after,
     required bool Function(Vector3 position, Vector3 velocity) settled,
   }) {
-    if (_x.isEmpty) return RetiredParticles.none;
+    if (_x.isEmpty && _drops.isEmpty) return RetiredParticles.none;
     final position = Vector3.zero();
     final velocity = Vector3.zero();
     final gone = <Vector3>[];
     final amounts = <String, double>{};
     final v = particleVolume;
+    final goneDrops = <LiquidDrop>[];
+    for (var i = _drops.length - 1; i >= 0; i--) {
+      final d = _drops[i];
+      position.setValues(d.x.x, d.x.y, d.x.z);
+      velocity.setValues(d.v.x, d.v.y, d.v.z);
+      d.settled = settled(position, velocity) ? d.settled + elapsed : 0.0;
+      if (d.settled < after) continue;
+      goneDrops.add(
+        LiquidDrop(
+          position: d.x.toVector3(),
+          velocity: d.v.toVector3(),
+          volume: d.volume,
+          concentrations: Map.unmodifiable(d.c),
+        ),
+      );
+      d.c.forEach((key, c) {
+        amounts[key] = (amounts[key] ?? 0.0) + c * d.volume;
+      });
+      _retired += d.volume;
+      _drops.removeAt(i);
+    }
     var kept = 0;
     for (var i = 0; i < _x.length; i++) {
       final x = _x[i];
@@ -249,7 +368,7 @@ final class ParticleFluid {
       _settled[kept] = time;
       kept++;
     }
-    if (gone.isEmpty) return RetiredParticles.none;
+    if (gone.isEmpty && goneDrops.isEmpty) return RetiredParticles.none;
     _x.length = kept;
     _v.length = kept;
     _c.length = kept;
@@ -259,20 +378,51 @@ final class ParticleFluid {
       positions: gone,
       particleVolume: v,
       amounts: amounts,
+      drops: goneDrops,
     );
   }
 
   /// Adds [amount] cubic metres at [position] moving at [velocity], with
-  /// [concentrations] dissolved in it: as many whole particles as it and
-  /// the bank make, laid out round [position] at the spacing so none start
-  /// on top of another, each carrying what the bank holds per cubic metre.
+  /// [concentrations] dissolved in it.
+  ///
+  /// **Less than a drop the capillary length across is one drop**, of
+  /// exactly [amount], in flight ([drops]), unless the air it last flew
+  /// through would tear it apart. Anything else, or anything put
+  /// [asParticles] — liquid laid straight onto a wall — is as many whole
+  /// particles as it and the bank make, laid out round [position] at the
+  /// spacing so none start on top of another, each carrying what the bank
+  /// holds per cubic metre.
   void inject(
     double amount,
     Vector3 position,
     Vector3 velocity, {
     Map<String, double> concentrations = const {},
+    bool asParticles = false,
   }) {
+    if (!asParticles && _isDrop(amount, position, velocity)) {
+      _drops.add(
+        _Drop(
+          _V(position.x, position.y, position.z),
+          _V(velocity.x, velocity.y, velocity.z),
+          amount,
+          Map.of(concentrations),
+        ),
+      );
+      return;
+    }
+    _addToParticles(amount, position, velocity, concentrations);
+  }
+
+  void _addToParticles(
+    double amount,
+    Vector3 position,
+    Vector3 velocity,
+    Map<String, double> concentrations,
+  ) {
     _bank += amount;
+    _bankFed = true;
+    _bankAt.setValues(position.x, position.y, position.z);
+    _bankVelocity.setValues(velocity.x, velocity.y, velocity.z);
     concentrations.forEach((key, c) {
       _bankAmounts[key] = (_bankAmounts[key] ?? 0.0) + c * amount;
     });
@@ -317,12 +467,23 @@ final class ParticleFluid {
   /// The solve itself is the [solver]'s; how many substeps it takes, which
   /// walls it is given and what is caught after are worked out here, the
   /// same on every backend.
+  ///
+  /// The [drops] are flown first, each as the body it is, through [air]
+  /// where there is some and by [gravityAt] their own place where gravity
+  /// differs from place to place; the particles then by [gravity], and
+  /// those that have left every wall gathered into drops again.
   void step(
     double dt, {
     required Vector3 gravity,
     List<JetObstacle> obstacles = const [],
     List<JetReceiver> receivers = const [],
+    FluidAir? air,
+    Vector3 Function(Vector3 point)? gravityAt,
   }) {
+    if (gravity.length > 0.0) _lastG = gravity.length;
+    _lastAir = air;
+    _releaseBank();
+    _stepDrops(dt, gravity, obstacles, receivers, air, gravityAt);
     if (_x.isEmpty) return;
     // A quarter of the capillary time a substep at most, and never fewer
     // than asked. How far a particle goes in one is not held here: it is
@@ -407,13 +568,308 @@ final class ParticleFluid {
             ..concentrations = _c[i],
         );
         _received += particleVolume;
-        _x.removeAt(i);
-        _v.removeAt(i);
-        _c.removeAt(i);
-        _settled.removeAt(i);
+        _removeParticle(i);
         break;
       }
     }
+    _clustersToDrops(walls);
+  }
+
+  void _removeParticle(int i) {
+    _x.removeAt(i);
+    _v.removeAt(i);
+    _c.removeAt(i);
+    _settled.removeAt(i);
+  }
+
+  // ------------------------------------------------------------- drops
+
+  /// **A drop in flight is one body.** Falling, it does not feel its own
+  /// weight, and what would break it up is the air: it holds together while
+  /// its aerodynamic Weber number ρ_a·u²·d/σ is under about twelve (Pilch
+  /// and Erdman, Int. J. Multiphase Flow 13, 1987), and a four-millimetre
+  /// drop at a metre a second is at a fifteenth of one. So it moves as one:
+  /// its drag a sphere's ([FluidAir.dragOnSphere]), its evaporation a
+  /// sphere's, its hold on a wall Furmidge's ([SolidSurface.retention]).
+  /// Laid out as particles it was dozens of bodies stepped at the capillary
+  /// time, and a block of them, free in the air, rang until it flew apart.
+  ///
+  /// Particles are for liquid on a wall: a drop that lands on a wall wider
+  /// than the capillary length, or meets the particles, becomes particles;
+  /// particles that leave every wall gather into a drop again.
+  final List<_Drop> _drops = [];
+
+  /// The air last flown through and the strength of the gravity last
+  /// stepped under, which [inject] judges a drop by.
+  FluidAir? _lastAir;
+  double _lastG = standardGravity;
+
+  /// Whether liquid went into the bank since the last step, and where the
+  /// last of it came in and how fast.
+  bool _bankFed = false;
+  final Vector3 _bankAt = Vector3.zero();
+  final Vector3 _bankVelocity = Vector3.zero();
+
+  /// **What is less than a particle is let go too**, once no more liquid
+  /// comes to make it one: as a droplet of its own amount, where the last
+  /// came in. Kept in the bank, the end of every run of drops, up to a
+  /// particle's worth of it, was counted and was nowhere.
+  void _releaseBank() {
+    final fed = _bankFed;
+    _bankFed = false;
+    if (fed || _bank <= 0.0) return;
+    _drops.add(
+      _Drop(
+        _V(_bankAt.x, _bankAt.y, _bankAt.z),
+        _V(_bankVelocity.x, _bankVelocity.y, _bankVelocity.z),
+        _bank,
+        {for (final e in _bankAmounts.entries) e.key: e.value / _bank},
+      ),
+    );
+    _bank = 0.0;
+    _bankAmounts.clear();
+  }
+
+  /// The critical aerodynamic Weber number.
+  static const double _breakupWeber = 12.0;
+
+  /// The drops in flight or held on a wall, each one body: a fresh list.
+  List<LiquidDrop> get drops => [
+    for (final d in _drops)
+      LiquidDrop(
+        position: d.x.toVector3(),
+        velocity: d.v.toVector3(),
+        volume: d.volume,
+        concentrations: Map.unmodifiable(d.c),
+      ),
+  ];
+
+  /// Cubic metres evaporated from the drops so far.
+  double get evaporated => _evaporated;
+  double _evaporated = 0.0;
+
+  bool _isDrop(double volume, Vector3 position, Vector3 velocity) {
+    if (volume <= 0.0 || medium.surfaceTension <= 0.0) return false;
+    final d = Portable.pow(6.0 * volume / math.pi, 1.0 / 3.0);
+    if (d > medium.capillaryLength(_lastG)) return false;
+    final air = _lastAir;
+    if (air == null) return true;
+    final u = velocity - air.windAt(position);
+    return air.density * u.length2 * d / medium.surfaceTension < _breakupWeber;
+  }
+
+  /// Each drop moved on by [dt]: the air's drag and evaporation, a wall
+  /// holding it or letting it slide, the walls it meets, the receivers it
+  /// reaches; drops that touch run together, and a drop that touches the
+  /// particles or lands wider than the capillary length becomes particles.
+  void _stepDrops(
+    double dt,
+    Vector3 gravity,
+    List<JetObstacle> obstacles,
+    List<JetReceiver> receivers,
+    FluidAir? air,
+    Vector3 Function(Vector3 point)? gravityAt,
+  ) {
+    if (_drops.isEmpty) return;
+    _mergeDrops();
+    for (var i = _drops.length - 1; i >= 0; i--) {
+      final d = _drops[i];
+      final reach = d.radius + 0.5 * spacing;
+      // Less than a particle stays a droplet beside them: laid out as
+      // particles it would only wait in the bank.
+      if (d.volume < particleVolume) continue;
+      if (!_x.any((p) => p.distance2(d.x) < reach * reach)) continue;
+      _drops.removeAt(i);
+      _addToParticles(d.volume, d.x.toVector3(), d.v.toVector3(), d.c);
+    }
+    final rho = medium.density;
+    for (var i = _drops.length - 1; i >= 0; i--) {
+      final d = _drops[i];
+      final at = d.x.toVector3();
+      final g = gravityAt?.call(at) ?? gravity;
+      final r = d.radius;
+      final a = _V(g.x, g.y, g.z);
+      if (air != null) {
+        final drag = air.dragOnSphere(d.v.toVector3(), at, 2.0 * r, rho);
+        a.add(_V(drag.x, drag.y, drag.z));
+        _evaporate(d, dt, air);
+        if (d.volume <= 0.0) {
+          _drops.removeAt(i);
+          continue;
+        }
+      }
+      final walls = obstaclesNear(
+        obstacles,
+        at,
+        (d.v.length + g.length * dt) * dt + 2.0 * r,
+      );
+      final touch = _touching(d, walls);
+      // On a wall and wider than the capillary length, its weight flattens
+      // it: it spreads there as particles.
+      if (touch != null &&
+          2.0 * r > medium.capillaryLength(math.max(g.length, 1e-9))) {
+        _drops.removeAt(i);
+        _addToParticles(d.volume, at, d.v.toVector3(), d.c);
+        continue;
+      }
+      if (touch != null) {
+        // Held whole by its edge, or sliding with what of its weight along
+        // the wall the edge cannot hold.
+        final n = touch.normal;
+        final into = a.x * n.x + a.y * n.y + a.z * n.z;
+        final along = _V(a.x - n.x * into, a.y - n.y * into, a.z - n.z * into);
+        final pull = rho * d.volume * along.length;
+        final hold = touch.solid.retention(
+          medium,
+          2.0 * touch.solid.baseRadius(medium, d.volume),
+        );
+        if (pull <= hold) {
+          d.v = _V(0, 0, 0);
+        } else {
+          d.v.addScaled(along, (1.0 - hold / pull) * dt);
+          final off = d.v.x * n.x + d.v.y * n.y + d.v.z * n.z;
+          if (off < 0.0) d.v.addScaled(n, -off);
+        }
+      } else {
+        d.v.addScaled(a, dt);
+      }
+      // In pieces no longer than its radius, held out of the walls after
+      // each: what meets a wall loses the part of its speed into it.
+      final pieces = (d.v.length * dt / r).ceil().clamp(1, 64);
+      for (var k = 0; k < pieces; k++) {
+        d.x.addScaled(d.v, dt / pieces);
+        for (final o in walls) {
+          final hit = o.touch(d.x.toVector3(), r);
+          if (hit == null) continue;
+          final n = _V(hit.normal.x, hit.normal.y, hit.normal.z);
+          d.x.addScaled(n, hit.depth);
+          final off = d.v.x * n.x + d.v.y * n.y + d.v.z * n.z;
+          if (off < 0.0) d.v.addScaled(n, -off);
+        }
+      }
+      final now = d.x.toVector3();
+      for (final receiver in receivers) {
+        if (!receiver.catches(now, r)) continue;
+        receiver.receive(
+          _landing
+            ..volume = d.volume
+            ..point = now
+            ..velocity = d.v.toVector3()
+            ..medium = medium
+            ..concentrations = d.c,
+        );
+        _received += d.volume;
+        _drops.removeAt(i);
+        break;
+      }
+    }
+  }
+
+  /// The wall [d] touches, its way out and what it is made of, if any.
+  ({_V normal, SolidSurface solid})? _touching(
+    _Drop d,
+    List<JetObstacle> walls,
+  ) {
+    final at = d.x.toVector3();
+    for (final o in walls) {
+      final hit = o.touch(at, d.radius * 1.05);
+      if (hit != null) {
+        return (
+          normal: _V(hit.normal.x, hit.normal.y, hit.normal.z),
+          solid: o.surface ?? SolidSurface.glass,
+        );
+      }
+    }
+    return null;
+  }
+
+  /// Drops that touch run together: their liquid, momentum and what is
+  /// dissolved, into one at their centre of volume.
+  void _mergeDrops() {
+    var merged = true;
+    while (merged) {
+      merged = false;
+      outer:
+      for (var i = 0; i < _drops.length; i++) {
+        for (var j = i + 1; j < _drops.length; j++) {
+          final a = _drops[i];
+          final b = _drops[j];
+          final reach = a.radius + b.radius;
+          if (a.x.distance2(b.x) >= reach * reach) continue;
+          a.absorb(b.x, b.v, b.volume, b.c);
+          _drops.removeAt(j);
+          merged = true;
+          break outer;
+        }
+      }
+    }
+  }
+
+  /// [d]'s evaporation in [dt] ([FluidAir.sphereEvaporation]), what is
+  /// dissolved left behind in less liquid.
+  void _evaporate(_Drop d, double dt, FluidAir air) {
+    final wind = air.windAt(d.x.toVector3());
+    final through = _V(d.v.x - wind.x, d.v.y - wind.y, d.v.z - wind.z).length;
+    final rate = air.sphereEvaporation(medium, 2.0 * d.radius, through);
+    if (rate <= 0.0) return;
+    final gone = math.min(rate / medium.density * dt, d.volume);
+    _evaporated += gone;
+    final kept = d.volume - gone;
+    if (kept > 0.0) {
+      d.c = {for (final e in d.c.entries) e.key: e.value * d.volume / kept};
+    }
+    d.volume = kept;
+  }
+
+  /// Particles gathered into a drop — each within a spacing and a half of
+  /// another of it — that touch no wall become that drop: one body again,
+  /// in flight.
+  void _clustersToDrops(List<JetObstacle> walls) {
+    final n = _x.length;
+    if (n == 0 || medium.surfaceTension <= 0.0) return;
+    final parent = List<int>.generate(n, (i) => i);
+    int root(int i) {
+      var r = i;
+      while (parent[r] != r) {
+        parent[r] = parent[parent[r]];
+        r = parent[r];
+      }
+      return r;
+    }
+
+    final grid = _Grid(h, _x);
+    final close = 2.25 * spacing * spacing;
+    for (var i = 0; i < n; i++) {
+      for (final j in grid.near(i, _x)) {
+        if (_x[i].distance2(_x[j]) < close) parent[root(i)] = root(j);
+      }
+    }
+    final volume = <int, double>{};
+    final momentum = <int, _V>{};
+    final onWall = <int>{};
+    for (var i = 0; i < n; i++) {
+      final r = root(i);
+      volume[r] = (volume[r] ?? 0.0) + particleVolume;
+      (momentum[r] ??= _V(0, 0, 0)).addScaled(_v[i], particleVolume);
+      final at = _x[i].toVector3();
+      if (walls.any((o) => o.touch(at, spacing) != null)) onWall.add(r);
+    }
+    final into = <int, _Drop>{};
+    for (final MapEntry(key: r, value: v) in volume.entries) {
+      if (onWall.contains(r)) continue;
+      final velocity = (momentum[r]! * (1.0 / v)).toVector3();
+      if (_isDrop(v, _x[r].toVector3(), velocity)) {
+        into[r] = _Drop(_V(0, 0, 0), _V(0, 0, 0), 0.0, {});
+      }
+    }
+    if (into.isEmpty) return;
+    for (var i = n - 1; i >= 0; i--) {
+      final d = into[root(i)];
+      if (d == null) continue;
+      d.absorb(_x[i], _v[i], particleVolume, _c[i]);
+      _removeParticle(i);
+    }
+    _drops.addAll(into.values);
   }
 
   /// The cohesion coefficient that makes the work of pulling the lattice

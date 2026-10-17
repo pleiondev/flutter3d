@@ -5,6 +5,7 @@ import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'capillary.dart';
+import 'fluid_air.dart';
 import 'fluid_medium.dart';
 import 'fluid_solver.dart';
 import 'free_surface.dart';
@@ -12,6 +13,7 @@ import 'jet.dart';
 import 'liquid_layer.dart';
 import 'outflow.dart';
 import 'vessel_shape.dart';
+import 'wetting.dart';
 
 /// What ran over a vessel's lip in one step, in the world.
 final class Spill {
@@ -378,6 +380,54 @@ final class LiquidBody with JetReceiver {
     return spill;
   }
 
+  /// **What evaporates from its open surface in [dt]** into [air], cubic
+  /// metres of liquid, taken from the top layer's solvent: what is
+  /// dissolved stays, and grows stronger.
+  ///
+  /// Vapour leaves the surface by diffusing up the air standing over it to
+  /// the mouth, and from the mouth out into the room: Stefan's tube, a
+  /// column L tall over the surface's area A, then the mouth as a disc of
+  /// radius r, whose diffusive conductance is 4·D·r (Crank, The Mathematics
+  /// of Diffusion, 2nd ed., 1975). In series, the rate is
+  /// Δc / (L/(D·A) + 1/(4·D·r)): a few microlitres an hour from a test
+  /// tube in room air. Taken a nanolitre at a time, about once a second
+  /// there, so a sleeping glass is woken only to be lowered by a few
+  /// nanometres and is left asleep. Only a turned vessel
+  /// ([RevolvedVessel]) has a mouth to count; any other gives nothing.
+  double evaporate(double dt, FluidAir air) {
+    if (_layers.isEmpty) return 0.0;
+    final top = _layers.last;
+    final shape = this.shape;
+    if (shape is! RevolvedVessel) return 0.0;
+    final deficit = air.vapourDeficit(top.medium);
+    if (deficit <= 0.0) return 0.0;
+    final d = air.vapourDiffusivity;
+    final surfaceRadius = shape.radiusAt(height.clamp(shape.floor, shape.top));
+    final mouth = shape.radiusAt(shape.top);
+    if (surfaceRadius <= 0.0 || mouth <= 0.0) return 0.0;
+    final edge = shape.lip(_up);
+    final column = math.max((edge?.height ?? shape.top) - height, 0.0);
+    final area = math.pi * surfaceRadius * surfaceRadius;
+    final resistance = column / (d * area) + 1.0 / (4.0 * d * mouth);
+    _evaporating += deficit / resistance / top.medium.density * dt;
+    if (_evaporating < 1e-12) return 0.0;
+    final gone = math.min(_evaporating, top.volume);
+    _evaporating = 0.0;
+    top.volume -= gone;
+    if (top.volume <= 1e-15) _layers.removeLast();
+    if (_asleep) {
+      // A few nanometres lower and still asleep.
+      _sleptVolume = volume;
+    } else {
+      _relayIfMoved();
+    }
+    return gone;
+  }
+
+  /// What has evaporated and not yet been taken, cubic metres: a step's
+  /// worth is far less than a level can show.
+  double _evaporating = 0.0;
+
   bool _asleep = false;
   double _sleptVolume = double.nan;
   double _sleptDisplaced = double.nan;
@@ -635,6 +685,10 @@ final class InsideWalls with JetObstacle {
 
   final LiquidBody body;
 
+  /// Laboratory glass.
+  @override
+  SolidSurface get surface => SolidSurface.glass;
+
   @override
   bool reaches(Vector3 center, double distance) =>
       body._reaches(center, distance + body.wallThickness);
@@ -678,6 +732,10 @@ final class OutsideWalls with JetObstacle {
 
   /// How far out from the vessel's inside the outside is, in metres.
   final double thickness;
+
+  /// Laboratory glass.
+  @override
+  SolidSurface get surface => SolidSurface.glass;
 
   @override
   bool reaches(Vector3 center, double distance) =>

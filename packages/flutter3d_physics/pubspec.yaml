@@ -26,6 +26,10 @@ platforms:
   windows:
 
 dependencies:
+  # The field contract (S3): a gravity that differs from place to place is
+  # read off, and written as, a field of `f3d.gravity` the rest of the world
+  # shares. Plain Dart, as this package is.
+  flutter3d_fields: '>=1.0.0-rc.1 <1.1.0'
   # `WorldPosition`, `Portable` and the crossings into `vector_math`.
   flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
   # What a world and its bodies are made of: `WorldProperties`, the material

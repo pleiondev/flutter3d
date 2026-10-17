@@ -5,8 +5,10 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'fluid_air.dart';
 import 'fluid_medium.dart';
 import 'fluid_solver.dart';
+import 'wetting.dart';
 
 /// When something thrown at [velocity] from [height] reaches [floor] under
 /// gravity [g] pointing down: the later root of height + v_y·t − g t²/2 =
@@ -114,6 +116,13 @@ abstract base mixin class JetObstacle {
   /// for everything in flight together, so the walls far from it are not
   /// asked again for each parcel, piece and pass.
   bool reaches(Vector3 center, double distance);
+
+  /// What it is made of, as a liquid meets it: the angle a drop's edge
+  /// stands at on it and how hard that edge holds the drop
+  /// ([SolidSurface]). Null by default: the liquid's own angle
+  /// ([FluidMedium.contactAngle], on glass) with
+  /// [SolidSurface.defaultHysteresis].
+  SolidSurface? get surface => null;
 }
 
 /// [obstacles] that something within [distance] of [center] could touch.
@@ -249,6 +258,32 @@ final class Jet {
     return k <= 57.7 ? 0.0 : math.min(0.5, 0.1 * (k / 57.7 - 1.0));
   }
 
+  /// How far a stream of [medium] leaving at [flow] m³/s and [speed] m/s
+  /// goes before it parts, metres, by how it leaves: infinite when it is
+  /// laminar, which parts where its own ripples have grown [breakupGrowth]
+  /// e-foldings instead.
+  ///
+  /// **Laminar or turbulent by the Reynolds number** ρvD/μ of the stream
+  /// as it leaves. Under 2300 it is smooth. Past 4000 it leaves already
+  /// disturbed and parts sooner, at L/D = 8.51·We^0.32 (Grant and
+  /// Middleman, AIChE J. 12, 1966, for turbulent jets). Between the two
+  /// the length runs from the laminar one, 12·D·(√We + 3We/Re), to the
+  /// turbulent with Re: no law holds there, and a straight line does not
+  /// pretend to one.
+  static double intactLength(FluidMedium medium, double flow, double speed) {
+    if (flow <= 0.0 || speed <= 0.0 || medium.surfaceTension <= 0.0) {
+      return double.infinity;
+    }
+    final d = 2.0 * math.sqrt(flow / (speed * math.pi));
+    final re = medium.density * speed * d / medium.viscosity;
+    if (re <= 2300.0) return double.infinity;
+    final we = medium.density * speed * speed * d / medium.surfaceTension;
+    final laminar = 12.0 * d * (math.sqrt(we) + 3.0 * we / re);
+    final turbulent = 8.51 * d * Portable.pow(we, 0.32);
+    final t = ((re - 2300.0) / 1700.0).clamp(0.0, 1.0);
+    return laminar + t * (turbulent - laminar);
+  }
+
   /// How much has left the lip, and how much of it receivers have taken.
   /// In cubic metres.
   double get emitted => _emitted;
@@ -294,6 +329,7 @@ final class Jet {
     final w = math.max(width, 1e-6);
     _parcels.add(
       _Parcel(
+        intact: intactLength(medium ?? this.medium, flow, speed),
         position: point.clone(),
         velocity: velocity.clone(),
         volume: volume,
@@ -308,17 +344,31 @@ final class Jet {
   }
 
   /// Moves every parcel on by [dt] under [gravity], against [obstacles],
-  /// into [receivers]; returns the drops it broke into.
+  /// into [receivers], through [air] where there is some; returns the drops
+  /// it broke into.
   ///
-  /// The flight is the [solver]'s; where a parcel lands and whether it
-  /// parts are worked out here, the same on every backend.
+  /// The flight is the [solver]'s; the air's push across it, where a parcel
+  /// lands and whether it parts are worked out here, the same on every
+  /// backend.
+  ///
+  /// **The air across it**, as on a long cylinder: what blows across a
+  /// stream bends it, at ½·C_d·ρ_a·u⊥²·d a metre over its ρ·πd²/4 a metre,
+  /// with White's C_d for a cylinder ([FluidAir.cylinderDrag]). Along it
+  /// the air only rubs, a skin friction that over the centimetres of a pour
+  /// comes to nothing, and is left out.
   List<JetDrop> step(
     double dt, {
     required Vector3 gravity,
     List<JetObstacle> obstacles = const [],
     List<JetReceiver> receivers = const [],
+    FluidAir? air,
   }) {
     final drops = <JetDrop>[];
+    if (air != null) {
+      for (final p in _parcels) {
+        if (!p.onWall) _blowAcross(p, air, dt);
+      }
+    }
     if (_parcels.isNotEmpty) {
       // Every parcel, and as far as any moves this step, in one ball.
       final low = _parcels.first.position.clone();
@@ -401,7 +451,8 @@ final class Jet {
         continue;
       }
       // A rivulet on a wall does not part: the wall holds it.
-      if (!p.onWall && p.growth >= breakupGrowth) {
+      p.travelled += (p.position - p.previous).length;
+      if (!p.onWall && (p.growth >= breakupGrowth || p.travelled >= p.intact)) {
         // Drops of 1.89 diameters, as many as its volume makes.
         final d = 2.0 * math.sqrt(p.section / math.pi) * 1.89;
         final one = math.pi * d * d * d / 6.0;
@@ -427,6 +478,28 @@ final class Jet {
       ..clear()
       ..addAll(kept);
     return drops;
+  }
+
+  /// [p]'s velocity bent by the air blowing across it for [dt].
+  static void _blowAcross(_Parcel p, FluidAir air, double dt) {
+    final radius = math.sqrt(p.section / math.pi);
+    if (radius <= 0.0) return;
+    final speed = p.velocity.length;
+    final u = p.velocity - air.windAt(p.position);
+    if (speed > 0.0) {
+      u.addScaled(p.velocity, -u.dot(p.velocity) / (speed * speed));
+    }
+    final across = u.length;
+    if (across <= 0.0) return;
+    final d = 2.0 * radius;
+    final re = air.density * across * d / air.viscosity;
+    final k =
+        -2.0 *
+        FluidAir.cylinderDrag(re) *
+        air.density *
+        across /
+        (math.pi * p.medium.density * d);
+    p.velocity.addScaled(u, k * dt);
   }
 
   /// Every parcel through the air for [dt], by the [solver]: written out as
@@ -609,6 +682,7 @@ void flyParcelsInDart(ParcelFlight flight) {
 
 final class _Parcel {
   _Parcel({
+    required this.intact,
     required this.position,
     required this.velocity,
     required this.volume,
@@ -648,6 +722,13 @@ final class _Parcel {
   /// How far its ripples have grown: a unitless count of e-foldings.
   double growth = 0.0;
   bool onWall = false;
+
+  /// How far it has come from the lip, in metres.
+  double travelled = 0.0;
+
+  /// How far a stream that left as it did goes before it parts, in metres
+  /// ([Jet.intactLength]).
+  final double intact;
 
   /// Where it was at the start of the step.
   final Vector3 previous = Vector3.zero();

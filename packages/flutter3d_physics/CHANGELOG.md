@@ -1,5 +1,45 @@
 ## 1.0.0-rc.1+1
 
+- **The liquids have air.** A `FluidWorld` reads its `FluidAir` from the
+  world's properties (temperature, pressure, the new humidity, wind):
+  drops fall against a sphere's drag at their own size, streams bend in a
+  crosswind, and open liquid evaporates — a vessel up its column and out
+  of its mouth (Stefan's tube), a puddle off its surface (Hu and Larson),
+  a drop off its sphere (Ranz and Marshall). Only the solvent leaves, and
+  `FluidWorld.evaporated` keeps the count, so `volume` still finds every
+  cubic metre. Only water has a vapour curve so far.
+- **Laminar or turbulent by the Reynolds number.** A `Pipe` loses to
+  Darcy's friction (`Pipe.frictionFactor`: 64/Re, Haaland for its
+  `roughness`, a straight line through the transition), handed to the
+  column's solver as an effective viscosity, so the core and the reference
+  agree; a stream leaving above Re 2300 parts at Grant and Middleman's
+  turbulent length (`Jet.intactLength`).
+- **A drop's edge holds it, by the surface it is on.** `SolidSurface` reads
+  a liquid's angle and its hysteresis from the catalogue's pairs, a wall
+  says what it is made of (`JetObstacle.surface`, `PlaneObstacle(surface:)`,
+  glass for a vessel's), and a drop stays put while its weight along the
+  wall is under Furmidge's σ·w·(cos θr − cos θa).
+- **A drop flies as one body.** Liquid under the capillary length, and
+  particles that leave every wall, are a `LiquidDrop` (`ParticleFluid.drops`,
+  drawn among `positions`): a sphere's drag and evaporation, held or
+  sliding on a wall, run together with the drops it meets, particles again
+  where it lands wider than the capillary length. `inject(asParticles:)`
+  lays liquid straight onto a wall; what is short of a particle is let go
+  as a droplet instead of waiting in the bank for ever; `retire` takes
+  drops at rest too (`RetiredParticles.drops`).
+- **Puddles.** `PuddleSurface` on a `FluidWorld`'s `puddles` takes what
+  lands as `Puddle`s, one body each: a cap at the surface's angle or a
+  puddle 2ℓc·sin(θ/2) deep, spreading as Huppert's gravity current,
+  running together, evaporating.
+- **Stokes's torque.** A body turning in a liquid is slowed by 8πμR³ω on
+  the sphere of its volume, implicitly about its own axes.
+- **Gravity from place to place.** `FluidWorld(field:)` takes a
+  `GravityField`: `AttractorGravity` (a uniform part and `Attractor`s,
+  μ/r² outside and a uniform ball inside) or `SampledGravity`, a field of
+  `f3d.gravity` of the shared field contract, which `writeField` also
+  writes. Each vessel levels across its own gravity and each drop falls by
+  the gravity where it is.
+
 - **Breaking: `CollisionBox.boundsHalfExtents` and
   `CollisionWedge.boundsHalfExtents` are public `final` fields**, the same
   vector as `halfExtents`, where a getter answered it. A box and a wedge

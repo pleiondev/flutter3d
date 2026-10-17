@@ -1482,6 +1482,8 @@ const Map<String, String> propertyReaders = <String, String>{
       'flutter3d_physics_native/lib/src/native_world.dart',
   'WorldProperties.airPressure':
       'flutter3d_physics_native/lib/src/native_world.dart',
+  'WorldProperties.airHumidity':
+      'flutter3d_physics/lib/src/fluid/fluid_air.dart',
   'WorldProperties.medium': 'flutter3d_sim/lib/src/level/level.dart',
   'WorldProperties.profile':
       'flutter3d_physics/lib/src/cloth/cloth_settings.dart',
@@ -3164,6 +3166,7 @@ const List<String> _matterPhysics = <String>[
   'standardAtmosphere',
   'standardGravity',
   'standardGravityVector',
+  'standardRelativeHumidity',
   'standardSpeedOfSound',
   'stefanBoltzmann',
   'zeroCelsius',
@@ -3273,6 +3276,27 @@ final Map<String, String> facadeGapAllowed = <String, String>{
         'imports `flutter3d_game`, which exports it, or `flutter3d_sim` '
         'itself, as the modeller and the lessons do (`flutter3d_education`\'s '
         '`lab.dart` re-exports what a lab names)',
+  for (final facade in <String>[
+    'flutter3d_app',
+    'flutter3d_game',
+    'flutter3d_game_kit',
+    'flutter3d_game_physics',
+    'flutter3d_game_platformer',
+    'flutter3d_game_racing',
+    'flutter3d_game_shooter',
+    'flutter3d_game_strategy',
+    'flutter3d_game_ui',
+  ])
+    for (final name in <String>[
+      'FluidAir',
+      'SolidSurface',
+      if (facade != 'flutter3d_app') ...<String>['Puddle', 'PuddleSurface'],
+    ])
+      '$facade:$name':
+          'a liquid\'s air, its puddles and what a wall is made of, which a '
+          'bench or a laboratory builds from `flutter3d_physics` itself: a '
+          'game a facade serves hands its world a floor (`PlaneObstacle`) '
+          'and leaves the air its world\'s and the surface the default',
   for (final name in _physicsBehindTheView)
     'flutter3d_app:$name':
         'the physics a loaded level\'s collision world is made of, its stock '

@@ -242,15 +242,28 @@ void main() {
       // them over where they are, and in half a second the drop is six
       // millimetres off.
       Vector3 fall(FluidSolver solver) {
-        final fluid = ParticleFluid(
-          medium: FluidMedium.water,
-          spacing: 0.002,
-          solver: solver,
-        )..inject(8e-9, Vector3(0.7, 1, -0.4), Vector3.zero());
+        final fluid =
+            ParticleFluid(
+                medium: FluidMedium.water,
+                spacing: 0.002,
+                solver: solver,
+              )
+              // A block wider than the capillary length, which stays
+              // particles for the solver to step; a single particle's worth
+              // is a drop, which neither solver steps.
+              ..inject(
+                27 * 8e-9,
+                Vector3(0.7, 1, -0.4),
+                Vector3.zero(),
+                asParticles: true,
+              );
         for (var i = 0; i < 500; i++) {
           fluid.step(1 / 1000, gravity: Vector3(0, -1.62, 0));
         }
-        return fluid.positions.single;
+        expect(fluid.drops, isEmpty);
+        final positions = fluid.positions;
+        return positions.fold(Vector3.zero(), (s, p) => s + p) /
+            positions.length.toDouble();
       }
 
       expect((fall(_core) - fall(_reference)).length, lessThan(1e-5));

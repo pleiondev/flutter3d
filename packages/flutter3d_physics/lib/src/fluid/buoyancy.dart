@@ -184,6 +184,12 @@ final class FloatingBody {
     final v = body.velocity;
     final bodies = Float64List.fromList([v.x, v.y, v.z, body.inverseMass]);
     final (kind, a, b, c) = _sizes(body.collider.shape);
+    _resistTurning(
+      kind == FloatPush.other ? 0.0 : _wholeVolume(kind, a, b, c),
+      under,
+      medium,
+      dt,
+    );
     if (profile.allowsAdaptiveSteps) {
       _integrate(bodies, kind, a, b, c, under, medium, gravity, dt);
       v.setValues(bodies[0], bodies[1], bodies[2]);
@@ -208,6 +214,34 @@ final class FloatingBody {
     );
     v.setValues(bodies[0], bodies[1], bodies[2]);
     return under;
+  }
+
+  /// **Turning, the liquid holds it back too**: a sphere spinning slowly in
+  /// a viscous liquid feels Stokes's torque 8πμR³ω (Lamb, Hydrodynamics,
+  /// 6th ed., 1932, §334), here on the sphere of the body's [whole] volume
+  /// and the share of it [under], taken implicitly about the body's own
+  /// axes so a thick liquid stops it at any step and never turns it back.
+  /// In Dart on every backend: the push records carry no spin. Without it a
+  /// ball set spinning in glycerol spun on for ever.
+  void _resistTurning(
+    double whole,
+    double under,
+    FluidMedium medium,
+    double dt,
+  ) {
+    final spin = body.angularVelocity;
+    if (!body.rotates || spin.length2 <= 0.0 || whole <= 0.0) return;
+    final r = Portable.pow(3.0 * whole / (4.0 * math.pi), 1.0 / 3.0);
+    final share = (under / whole).clamp(0.0, 1.0);
+    final c = 8.0 * math.pi * medium.viscosity * r * r * r * share;
+    final turn = body.orientation.asRotationMatrix();
+    final local = (turn.clone()..transpose()).transformed(spin);
+    final inverse = body.inverseInertiaLocal;
+    local
+      ..x /= 1.0 + c * inverse.x * dt
+      ..y /= 1.0 + c * inverse.y * dt
+      ..z /= 1.0 + c * inverse.z * dt;
+    spin.setFrom(turn.transformed(local));
   }
 
   /// The kind and the sizes of [shape], as `FloatPush` writes them.

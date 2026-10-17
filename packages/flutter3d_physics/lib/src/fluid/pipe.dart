@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'fluid_solver.dart';
@@ -12,9 +13,12 @@ import 'liquid_body.dart';
 /// **The liquid in it has mass**, so it is not pushed through at once but
 /// accelerated: the pressure difference between its ends drives the column
 /// — the pipe's own length over its section, and the liquid standing in each
-/// vessel above it over the vessel's — and friction holds it back, linearly
-/// for a slow viscous flow (Hagen–Poiseuille, 8μL/πr⁴) and as the square of
-/// the flow for the losses where it enters and leaves (K·ρQ|Q|/2a²). Two
+/// vessel above it over the vessel's — and friction holds it back: along
+/// the pipe as Darcy's f·(L/D)·ρv²/2, f the [frictionFactor] at the flow's
+/// [reynolds] number — Hagen–Poiseuille's 8μL/πr⁴ while it is laminar,
+/// Haaland's for the bore's [roughness] once it is turbulent — and as the
+/// square of the flow for the losses where it enters and leaves
+/// (K·ρQ|Q|/2a²). Two
 /// vessels joined this way swing about a common level before they settle on
 /// it — a U-tube's period 2π√(l/2g) for a column l long — and a thick liquid
 /// creeps to it without swinging.
@@ -33,6 +37,7 @@ final class Pipe {
     required this.radius,
     required this.length,
     this.minorLoss = 1.5,
+    this.roughness = 1.5e-6,
   });
 
   /// The two vessels, and where the pipe opens into each (vessel frame).
@@ -51,8 +56,58 @@ final class Pipe {
   /// and 1 out for sharp ends. A unitless coefficient.
   final double minorLoss;
 
+  /// The height of the bumps on the bore, metres: 1.5 µm by default, drawn
+  /// glass and plastic tubing. What turbulent friction feels; a laminar
+  /// flow does not.
+  final double roughness;
+
   /// Cubic metres a second from [from] to [to]; negative the other way.
   double flow = 0.0;
+
+  /// The flow's Reynolds number, ρ·v·D/μ, no unit: under 2300 laminar, over
+  /// 4000 turbulent.
+  double get reynolds {
+    final medium = from.medium;
+    final v = flow.abs() / (math.pi * radius * radius);
+    return medium.density * v * 2.0 * radius / medium.viscosity;
+  }
+
+  /// Darcy's friction factor at Reynolds number [re] in a bore of
+  /// [relativeRoughness] ε/D, no unit.
+  ///
+  /// Laminar, Hagen and Poiseuille's 64/Re, exact. Turbulent, Haaland's
+  /// explicit form of Colebrook's, 1/√f = −1.8·log₁₀((ε/D/3.7)^1.11 +
+  /// 6.9/Re) (J. Fluids Eng. 105, 1983), within a couple of percent of it.
+  /// Between 2300 and 4000 the flow is neither, and goes from one to the
+  /// other with Re: no law holds there, and a straight line between the two
+  /// does not pretend to one.
+  static double frictionFactor(double re, {double relativeRoughness = 0.0}) {
+    if (re <= 0.0) return double.infinity;
+    double turbulent() {
+      final x = Portable.pow(relativeRoughness / 3.7, 1.11) + 6.9 / re;
+      final inverse = -1.8 * Portable.log(x) / math.ln10;
+      return 1.0 / (inverse * inverse);
+    }
+
+    final laminar = 64.0 / re;
+    if (re <= 2300.0) return laminar;
+    if (re >= 4000.0) return turbulent();
+    final t = (re - 2300.0) / 1700.0;
+    return (1.0 - t) * laminar + t * turbulent();
+  }
+
+  /// Darcy's loss over Poiseuille's at the flow there is: f·Re/64, one for a
+  /// laminar flow and at no flow. Darcy's Δp/Q = f·L·ρ·|Q|/(2·D·a²) is
+  /// Poiseuille's 8μL/πr⁴ times this, so the column's solver, which holds
+  /// it back by Poiseuille's friction, holds it back by Darcy's when handed
+  /// the viscosity times this.
+  double get _darcyOverPoiseuille {
+    final re = reynolds;
+    if (re <= 2300.0) return 1.0;
+    return frictionFactor(re, relativeRoughness: roughness / (2.0 * radius)) *
+        re /
+        64.0;
+  }
 
   /// Moves the liquid in the pipe on by [dt] under [gravity]. The column is
   /// driven on by [solver] — the reference unless a `FluidWorld` passes the
@@ -79,7 +134,7 @@ final class Pipe {
       ..[PipeFlow.radius] = radius
       ..[PipeFlow.length] = length
       ..[PipeFlow.density] = medium.density
-      ..[PipeFlow.viscosity] = medium.viscosity
+      ..[PipeFlow.viscosity] = medium.viscosity * _darcyOverPoiseuille
       ..[PipeFlow.minorLoss] = minorLoss;
     solver.flowPipes(PipeFlow(pipes: record, dt: dt));
     flow = record[PipeFlow.flow];

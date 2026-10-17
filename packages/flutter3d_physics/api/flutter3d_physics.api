@@ -4,6 +4,21 @@
 
 library package:flutter3d_physics/flutter3d_physics.dart
 
+final class Attractor
+  Attractor({required this.position, required this.mu, this.radius = 0.0})
+  factory Attractor.ofMass({required Vector3 position, required double mass, double radius = 0.0})
+  final Vector3 position
+  final double mu
+  final double radius
+  static const double gravitationalConstant = 6.67430e-11
+
+final class AttractorGravity extends GravityField
+  AttractorGravity({Vector3? uniform, List<Attractor>? attractors})
+  HostField writeField(FieldDeclaration declaration)
+  Vector3 at(Vector3 point)
+  final List<Attractor> attractors
+  final Vector3 uniform
+
 abstract base class BodyForce
   abstract void addForce(BodyForceContext context)
   const BodyForce()
@@ -448,6 +463,26 @@ final class FloatingBody
   double submergedIn(LiquidBody liquid)
   final RigidBody body
 
+final class FluidAir
+  FluidAir({required this.temperature, required this.pressure, required this.humidity, Vector3? wind, this.densityOverride})
+  String toString()
+  Vector3 dragOnSphere(Vector3 velocity, Vector3 point, double diameter, double density)
+  Vector3 get wind
+  Vector3 windAt(Vector3 point)
+  double get density
+  double get vapourDiffusivity
+  double get vapourPressure
+  double get viscosity
+  double sphereEvaporation(FluidMedium medium, double diameter, double speed)
+  double vapourDeficit(FluidMedium medium)
+  factory FluidAir.of(WorldProperties world)
+  final double humidity
+  final double pressure
+  final double temperature
+  final double? densityOverride
+  static double cylinderDrag(double re)
+  static final FluidAir standard
+
 final class FluidMedium
   FluidMedium at(MatterState state)
   FluidMedium copyWith({String? name, double? density, double? viscosity, double? surfaceTension, double? contactAngle})
@@ -477,14 +512,19 @@ abstract base class FluidSolver
   void ringModes(ModeRinging ringing)
 
 final class FluidWorld
-  FluidWorld({required this.gravity, this.step = 1.0 / 240.0, this.particleSpacing = 0.002, this.floor, FluidSolver? solver, PhysicsBackend backend = const DartPhysics(), this.profile = SimulationProfile.deterministic})
+  FluidWorld({required this.gravity, this.step = 1.0 / 240.0, this.particleSpacing = 0.002, this.floor, FluidSolver? solver, PhysicsBackend backend = const DartPhysics(), this.profile = SimulationProfile.deterministic, WorldProperties? world, FluidAir? air, this.field})
+  Vector3 gravityAt(Vector3 point)
+  double get evaporated
   double get time
   double get volume
+  final FluidAir air
   final FluidSolver solver
+  final GravityField? field
   final List<FloatingBody> floating
   final List<JetObstacle>? floor
   final List<LiquidBody> bodies
   final List<Pipe> pipes
+  final List<PuddleSurface> puddles
   final Map<LiquidBody, Jet> jets
   final Map<String, ParticleFluid> particles
   final SimulationProfile profile
@@ -518,15 +558,21 @@ final class FreeSurface
   void layOut(VesselShape shape, Vector3 up, double height)
   void step(double dt, {required double g, required double depth, FluidSolver solver = const DartFluid()})
 
+abstract final class GravityField
+  abstract Vector3 at(Vector3 point)
+  const GravityField()
+  static const String quantity = 'f3d.gravity'
+
 final class InsideWalls with JetObstacle
   InsideWalls(this.body)
   ObstacleTouch? touch(Vector3 point, double radius)
+  SolidSurface get surface
   bool reaches(Vector3 center, double distance)
   final LiquidBody body
 
 final class Jet
   Jet({required this.medium, this.breakupGrowth = 12.0, this.solver = const DartFluid()})
-  List<JetDrop> step(double dt, {required Vector3 gravity, List<JetObstacle> obstacles = const [], List<JetReceiver> receivers = const []})
+  List<JetDrop> step(double dt, {required Vector3 gravity, List<JetObstacle> obstacles = const [], List<JetReceiver> receivers = const [], FluidAir? air})
   List<List<JetSample>> get runs
   bool get isFlowing
   double clingSpeed(double thickness)
@@ -537,6 +583,7 @@ final class Jet
   final FluidMedium medium
   final FluidSolver solver
   final double breakupGrowth
+  static double intactLength(FluidMedium medium, double flow, double speed)
   void emit({required double flow, required double dt, required Vector3 point, required Vector3 velocity, required double width, required Vector3 across, FluidMedium? medium, Map<String, double> concentrations = const {}})
 
 final class JetDrop
@@ -557,6 +604,7 @@ final class JetLanding
 
 abstract base mixin class JetObstacle
   JetObstacle()
+  SolidSurface? get surface
   abstract ObstacleTouch? touch(Vector3 point, double radius)
   abstract bool reaches(Vector3 center, double distance)
 
@@ -633,6 +681,7 @@ final class LiquidBody with JetReceiver
   bool catches(Vector3 point, double radius)
   double depthAbove(Vector3 point)
   double displaced
+  double evaporate(double dt, FluidAir air)
   double get capillaryPressure
   double get clock
   double get gravity
@@ -650,6 +699,14 @@ final class LiquidBody with JetReceiver
   void place(Matrix3 turn, Vector3 at, {double? time})
   void pour(double amount, {FluidMedium? medium, Map<String, double> concentrations = const {}, Vector3? where, double knock = 0.0})
   void receive(JetLanding landing)
+
+final class LiquidDrop
+  const LiquidDrop({required this.position, required this.velocity, required this.volume, this.concentrations = const <String, double>{}})
+  double get radius
+  final Map<String, double> concentrations
+  final Vector3 position
+  final Vector3 velocity
+  final double volume
 
 final class LiquidLayer
   LiquidLayer withdraw(double amount)
@@ -728,6 +785,7 @@ final class OrificeStream
 final class OutsideWalls with JetObstacle
   ObstacleTouch? touch(Vector3 point, double radius)
   OutsideWalls(this.body, {required this.thickness})
+  SolidSurface get surface
   bool reaches(Vector3 center, double distance)
   final LiquidBody body
   final double thickness
@@ -754,11 +812,13 @@ final class ParcelFlight
   static const int volume = 9
 
 final class ParticleFluid
+  List<LiquidDrop> get drops
   List<Vector3> get positions
   List<Vector3> get velocities
   ParticleFluid({required this.medium, required this.spacing, this.iterations = 4, this.substeps = 2, this.solver = const DartFluid()})
   RetiredParticles retire({required double elapsed, required double after, required bool Function(Vector3 position, Vector3 velocity) settled})
   double get capillaryTime
+  double get evaporated
   double get particleVolume
   double get received
   double get retired
@@ -770,8 +830,8 @@ final class ParticleFluid
   final int iterations
   final int substeps
   int get count
-  void inject(double amount, Vector3 position, Vector3 velocity, {Map<String, double> concentrations = const {}})
-  void step(double dt, {required Vector3 gravity, List<JetObstacle> obstacles = const [], List<JetReceiver> receivers = const []})
+  void inject(double amount, Vector3 position, Vector3 velocity, {Map<String, double> concentrations = const {}, bool asParticles = false})
+  void step(double dt, {required Vector3 gravity, List<JetObstacle> obstacles = const [], List<JetReceiver> receivers = const [], FluidAir? air, Vector3 Function(Vector3 point)? gravityAt})
 
 final class ParticleMotion
   ParticleMotion({required this.state, required this.medium, required this.spacing, required this.iterations, required this.substeps, required this.dt, required this.gravity, required this.cohesion, required this.latticeSum, required this.restStiffness, this.walls = const <JetObstacle>[]})
@@ -805,8 +865,9 @@ abstract base class PhysicsConstraint
   const PhysicsConstraint()
 
 final class Pipe
-  Pipe({required this.from, required this.at, required this.to, required this.toAt, required this.radius, required this.length, this.minorLoss = 1.5})
+  Pipe({required this.from, required this.at, required this.to, required this.toAt, required this.radius, required this.length, this.minorLoss = 1.5, this.roughness = 1.5e-6})
   double flow
+  double get reynolds
   final LiquidBody from
   final LiquidBody to
   final Vector3 at
@@ -814,6 +875,8 @@ final class Pipe
   final double length
   final double minorLoss
   final double radius
+  final double roughness
+  static double frictionFactor(double re, {double relativeRoughness = 0.0})
   void step(double dt, {required Vector3 gravity, FluidSolver solver = const DartFluid()})
 
 final class PipeFlow
@@ -836,10 +899,37 @@ final class PipeFlow
 
 final class PlaneObstacle with JetObstacle
   ObstacleTouch? touch(Vector3 point, double radius)
-  PlaneObstacle({required Vector3 normal, required this.offset})
+  PlaneObstacle({required Vector3 normal, required this.offset, this.surface})
   bool reaches(Vector3 center, double distance)
+  final SolidSurface? surface
   final Vector3 normal
   final double offset
+
+final class Puddle
+  Map<String, double> get concentrations
+  Puddle({required this.medium, required Vector3 center, required Vector3 normal, double? angle})
+  double age
+  double capHeight(double radius)
+  double evaporate(double dt, FluidAir air, double g)
+  double get volume
+  double radius(double g)
+  double restRadius(double g)
+  final FluidMedium medium
+  final Vector3 center
+  final Vector3 normal
+  final double angle
+  void add(double volume, Vector3 point, Map<String, double> concentrations)
+  void merge(Puddle other)
+
+final class PuddleSurface with JetReceiver
+  PuddleSurface(this.surface)
+  bool catches(Vector3 point, double radius)
+  double evaporate(double dt, FluidAir air)
+  double get volume
+  final List<Puddle> puddles
+  final PlaneObstacle surface
+  void receive(JetLanding landing)
+  void step(double dt, {required Vector3 gravity})
 
 final class Pusher
   Pusher(this.dynamics)
@@ -865,9 +955,10 @@ final class RayQuery
   int mask
 
 final class RetiredParticles
-  RetiredParticles({required this.positions, required this.particleVolume, this.amounts = const {}})
+  RetiredParticles({required this.positions, required this.particleVolume, this.amounts = const {}, this.drops = const <LiquidDrop>[]})
   bool get isEmpty
   double get volume
+  final List<LiquidDrop> drops
   final List<Vector3> positions
   final Map<String, double> amounts
   final double particleVolume
@@ -936,6 +1027,11 @@ abstract base class RigidDynamics
   void push(CharacterPush push)
   void restoreState(Object? saved)
 
+final class SampledGravity extends GravityField
+  SampledGravity(this.field)
+  Vector3 at(Vector3 point)
+  final HostField field
+
 abstract final class SegmentMassShares
   static const Map<String, double> wholeBody = …
   static const double foot = 0.0137
@@ -952,6 +1048,23 @@ abstract final class SegmentMassShares
 abstract base mixin class ShapePhysics
   ShapePhysics()
   int get customShapeSamples
+
+final class SolidSurface
+  String get name
+  String toString()
+  const SolidSurface(this.material, {this.pairs = Materials.pairs})
+  double angleFor(FluidMedium medium)
+  double baseRadius(FluidMedium medium, double volume)
+  double hysteresisFor(FluidMedium medium)
+  double retention(FluidMedium medium, double width)
+  final List<MaterialPair> pairs
+  final PhysicalMaterial material
+  static SolidSurface? byName(String name)
+  static const List<SolidSurface> values = <SolidSurface>[glass, ptfe, benchTop]
+  static const SolidSurface benchTop = SolidSurface(Materials.bakelite)
+  static const SolidSurface glass = SolidSurface(Materials.glass)
+  static const SolidSurface ptfe = SolidSurface(Materials.ptfe)
+  static const double defaultHysteresis = 0.17
 
 final class SpatialGrid
   SpatialGrid({this.cellSize = 4.0})
@@ -1026,6 +1139,18 @@ final class TubeMeniscus
   late final double meanHeight
   late final double peak
   late final double wallRise
+
+final class VapourCurve
+  const VapourCurve({required this.a, required this.b, required this.c, required this.molarMass, this.isWater = false})
+  double saturationDensity(double temperature)
+  double saturationPressure(double temperature)
+  final bool isWater
+  final double a
+  final double b
+  final double c
+  final double molarMass
+  static VapourCurve? of(FluidMedium medium)
+  static const VapourCurve water = VapourCurve(a: 610.94, b: 17.625, c: 243.04, molarMass: FluidAir._waterMolar, isWater: true)
 
 final class VesselLip
   String toString()
@@ -1105,6 +1230,8 @@ abstract base class WorldRays
 abstract base class WorldSweeps
   abstract bool sweep(SweepQuery query)
   const WorldSweeps()
+
+double capBaseRadius(double volume, double angle)
 
 double circularSegment(double radius, double offset)
 
