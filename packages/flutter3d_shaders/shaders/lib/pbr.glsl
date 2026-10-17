@@ -665,7 +665,33 @@ vec3 EonAlbedo(vec3 rho, float r, float mu) {
   return rho * e + EonMultiAlbedo(rho, FonAverage(r)) * (1.0 - e);
 }
 
+// **The injection points of a material lit by this model** — version 3 of
+// the material language, `lighting standard;`. A material switches each on
+// with its define before it includes this file and defines it after:
+// `ShadeSurfaceHook` rewrites the surface once its maps are applied,
+// `ShadeLightHook` answers each light given this model's own answer, and
+// `F3dLightTypeHook` (in `lib/surface.glsl`) lets a plugin's light type into
+// the loop. The engine's own stages define none of them, and compile to what
+// they did.
+#ifdef F3D_SURFACE_HOOK
+void ShadeSurfaceHook(inout Surface s);
+#endif
+#ifdef F3D_LIGHT_HOOK
+vec3 ShadeLightHook(Surface s, LightSample light, vec3 standard);
+
+// The model's answer to one light, before a material's light hook. Split
+// from `ShadeLight` only under the hook, so a stage without one keeps the
+// single function it always had.
+vec3 StandardLight(Surface s, LightSample light);
+
 vec3 ShadeLight(Surface s, LightSample light) {
+  return ShadeLightHook(s, light, StandardLight(s, light));
+}
+
+vec3 StandardLight(Surface s, LightSample light) {
+#else
+vec3 ShadeLight(Surface s, LightSample light) {
+#endif
   // Perceptual roughness is squared to get the GGX alpha; this is what makes
   // the roughness slider feel linear. Held at the lobe's own floor, which
   // sits above the surface's.
@@ -761,6 +787,9 @@ void main() {
 #ifdef F3D_LAYERED
   ReadLayersOnMaps(s);
   ReadIridescence(s);
+#endif
+#ifdef F3D_SURFACE_HOOK
+  ShadeSurfaceHook(s);
 #endif
 
   float metallic = clamp(s.metallic, 0.0, 1.0);

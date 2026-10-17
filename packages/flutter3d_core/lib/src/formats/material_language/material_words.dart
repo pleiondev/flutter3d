@@ -32,6 +32,9 @@ const Map<String, int> materialWordVersions = <String, int>{
   'texture': 1,
   'lighttype': 3,
   'version': 3,
+  // `lighting standard;`: the engine's model the injection points are in.
+  'lighting': 3,
+  'standard': 3,
   // Blocks.
   'fragment': 1,
   'light': 1,
@@ -42,6 +45,7 @@ const Map<String, int> materialWordVersions = <String, int>{
   'workgroup': 2,
   'kernel': 2,
   'updates': 3,
+  'surface': 3,
   // Statements.
   'let': 1,
   'return': 1,
@@ -211,8 +215,16 @@ const Set<String> materialVariantReservedNames = <String>{
   'MorphInstanceInfo',
 };
 
-/// Names a `let` cannot take from version 3: the light row's struct.
-const Set<String> materialVersion3ReservedNames = <String>{'F3dLightRow'};
+/// Names a `let` cannot take from version 3: the light row's struct, and
+/// the standard model's injection points as `lib/pbr.glsl` and
+/// `lib/surface.glsl` declare them.
+const Set<String> materialVersion3ReservedNames = <String>{
+  'F3dLightRow',
+  'StandardLight',
+  'ShadeSurfaceHook',
+  'ShadeLightHook',
+  'F3dLightTypeHook',
+};
 
 /// Prefixes a `let` cannot start with, by the version that took each:
 /// GLSL's own in every version, the generated stage's from version 2.

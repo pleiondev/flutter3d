@@ -1447,6 +1447,79 @@ void main() {
   light: 0.332800000000, 0.166400000000, 0.0832000000000
   at 0.95: 0.700000000000, 0.600000000000, 0.500000000000, 0.900000000000
   light: 0.332800000000, 0.166400000000, 0.0832000000000
+== test/fixtures/v3/sheen_standard.f3dmat
+name SheenStandard v3 material inputs [albedo, lightParams, nDotL, nDotV, roughness, standard]
+params [sheen:vec3=[0.3, 0.25, 0.4] uniform MaterialParams, wear:float=[0.25] uniform MaterialParams, f3d_lighttype_tube:float=[-1.0] uniform MaterialParams]
+textures []
+lighting standard
+surface:
+  let worn = call:clamp:float(param:wear:float, const:float[0.0], const:float[1.0])
+  out roughness = call:mix:float(input:roughness:float, const:float[1.0], binary:*:float(local:worn:float, const:float[0.5]))
+  out albedo = binary:*:vec3(input:albedo:vec3, binary:-:float(const:float[1.0], binary:*:float(const:float[0.2], local:worn:float)))
+light:
+  let rim = call:pow:float(binary:-:float(const:float[1.0], input:nDotV:float), const:float[5.0])
+  let tubeGain = binary:+:float(const:float[1.0], binary:*:float(input:tube:float, swizzle:float[0](input:lightParams:vec4)))
+  return binary:+:vec3(binary:*:vec3(input:standard:vec3, local:tubeGain:float), binary:*:vec3(binary:*:vec3(param:sheen:vec3, local:rim:float), input:nDotL:float))
+--- glsl
+#version 460 core
+
+// Generated from a material written in the material language,
+// lit by the engine's standard model: `lighting/pbr.frag`
+// with the material's injection points switched on before it
+// and defined after it. The source is the thing to edit.
+#define F3D_SURFACE_HOOK
+#define F3D_LIGHT_HOOK
+#define F3D_LIGHT_TYPE_HOOK
+#include <lib/pbr.glsl>
+
+uniform MaterialParams {
+  vec3 sheen;
+  float wear;
+  float f3d_lighttype_tube;
+}
+material_params;
+
+// The row of the light being sampled, which the light block
+// reads — version 3.
+float f3d_light_kind = 0.0;
+vec4 f3d_light_params = vec4(0.0);
+float f3d_is_tube = 0.0;
+
+// Asked of every light: its row for the light block, and
+// whether a plugin's light is one this material lights.
+bool F3dLightTypeHook(float code, vec4 params) {
+  f3d_light_kind = code;
+  f3d_light_params = params;
+  f3d_is_tube = abs(code - material_params.f3d_lighttype_tube) < 0.5 ? 1.0 : 0.0;
+  return code < 15.5 || f3d_is_tube > 0.5;
+}
+
+// The material's surface block: the surface as read, then
+// what the block writes, before any light.
+void ShadeSurfaceHook(inout Surface s) {
+  float worn = clamp(material_params.wear, 0.0, 1.0);
+  float f3d_out_roughness = mix(s.roughness, 1.0, (worn * 0.5));
+  vec3 f3d_out_albedo = (s.albedo * (1.0 - (0.2 * worn)));
+  s.roughness = f3d_out_roughness;
+  s.albedo = f3d_out_albedo;
+}
+
+// The material's light block, once per light, with the
+// standard model's own answer as `standard`.
+vec3 ShadeLightHook(Surface s, LightSample light, vec3 f3d_standard) {
+  float rim = pow((1.0 - s.n_dot_v), 5.0);
+  float tubeGain = (1.0 + (f3d_is_tube * f3d_light_params.x));
+  return ((f3d_standard * tubeGain) + ((material_params.sheen * rim) * light.n_dot_l));
+}
+
+
+--- evaluated
+  surface at 0.05: roughness 0.650000000000; albedo 0.760000000000, 0.380000000000, 0.190000000000
+  light: 1.32070982625, 1.00059152187, 0.760946435000
+  surface at 0.5: roughness 0.650000000000; albedo 0.760000000000, 0.380000000000, 0.190000000000
+  light: 1.20487500000, 0.904062500000, 0.606500000000
+  surface at 0.95: roughness 0.650000000000; albedo 0.760000000000, 0.380000000000, 0.190000000000
+  light: 1.20000004875, 0.900000040625, 0.600000065000
 == ../flutter3d/test/fixtures/materials/hatch.f3dmat
 name Hatch v3 material inputs []
 params [inkColor:vec3=[0.1, 0.1, 0.1] uniform MaterialParams, spacing:float=[4.0] uniform MaterialParams]

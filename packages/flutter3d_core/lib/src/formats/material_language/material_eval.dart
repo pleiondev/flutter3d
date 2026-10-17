@@ -180,6 +180,26 @@ Map<String, List<double>> evaluateMaterialVertex(
   return runner.written;
 }
 
+/// What [program]'s `surface` block writes for one fragment — version 3, a
+/// material lit by the standard model: each output it names, by name,
+/// computed against the surface as read. An output the block does not
+/// write is absent, and the caller keeps the surface's own; a written
+/// `normal` is the caller's to make unit length, as the emitted stage does.
+/// Throws a [StateError] for a program with no block.
+Map<String, List<double>> evaluateMaterialSurface(
+  MaterialProgram program,
+  MaterialSurfaceValues surface,
+) {
+  final body =
+      program.surface ??
+      (throw StateError('"${program.name}" has no surface block.'));
+  final runner = _Runner(program.name, surface, vertexBlock: true);
+  for (final statement in body) {
+    statement.accept(runner);
+  }
+  return runner.written;
+}
+
 List<double> _run(
   String name,
   List<MaterialStatement> body,
@@ -214,10 +234,12 @@ final class _Runner extends MaterialStatementVisitor<List<double>?> {
 
   @override
   List<double>? visitOutput(MaterialOutput statement) {
-    // Only a vertex block writes outputs, and it is run by
-    // [evaluateMaterialVertex].
+    // Only a vertex or a surface block writes outputs, run by
+    // [evaluateMaterialVertex] and [evaluateMaterialSurface].
     if (!vertexBlock) {
-      throw StateError('"$name" writes an output outside a vertex block.');
+      throw StateError(
+        '"$name" writes an output outside a vertex or a surface block.',
+      );
     }
     written[statement.output.name] = statement.value.accept(_evaluator);
     return null;

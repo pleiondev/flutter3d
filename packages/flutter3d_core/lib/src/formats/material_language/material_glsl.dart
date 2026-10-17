@@ -55,6 +55,7 @@ String emitMaterialFragment(MaterialProgram program) {
           'which lowerMaterialCompute writes in the kernel language',
     );
   }
+  if (program.isStandard) return _emitStandard(program);
   final light = program.light;
   final state = program.state;
   // Version 2's lit path: the hooks, the switches, or both. Without any of
@@ -330,6 +331,126 @@ String emitMaterialFragment(MaterialProgram program) {
 /// metres: far enough that every soft edge and every fog reads it as
 /// nothing there, and well inside a half float.
 const String materialNothingBehind = '1000000.0';
+
+/// A material lit by the engine's standard model (`lighting standard;`,
+/// version 3): `lighting/pbr.frag`'s stage, the material's injection points
+/// switched on in front of it and defined after it.
+///
+/// **The standard model is included, not copied.** `lib/pbr.glsl` declares
+/// a prototype for each injection point a define switches on and calls it
+/// where the point is — the surface after its maps, each light's answer,
+/// a plugin's light in the loop — so a material injecting into it is the
+/// engine's metal-rough stage, its environment, its maps and its shadows,
+/// to the line, and binds what that stage binds ([describeMaterial]).
+///
+/// What the material's blocks become:
+///
+/// * `surface` is `ShadeSurfaceHook(inout Surface s)`: its outputs are
+///   computed against the surface as read, then written to it; a written
+///   normal is made unit length and the view's cosine taken again;
+/// * `light` is `ShadeLightHook(Surface s, LightSample light, vec3
+///   f3d_standard)`, `standard` being the model's own answer;
+/// * a `lighttype`, or a read of the light's row, is `F3dLightTypeHook`,
+///   which `SampleLight` asks of every light: it fills the row the light
+///   block reads and says whether a plugin's light is one this material
+///   lights, which the model then lights as a point at its row.
+String _emitStandard(MaterialProgram program) {
+  final surface = program.surface;
+  final light = program.light;
+  final row = program.readsLightRow;
+  final out = StringBuffer()
+    ..writeln('#version 460 core')
+    ..writeln()
+    ..writeln('// Generated from a material written in the material language,')
+    ..writeln('// lit by the engine\'s standard model: `lighting/pbr.frag`')
+    ..writeln('// with the material\'s injection points switched on before it')
+    ..writeln('// and defined after it. The source is the thing to edit.');
+  if (surface != null) out.writeln('#define F3D_SURFACE_HOOK');
+  if (light != null) out.writeln('#define F3D_LIGHT_HOOK');
+  if (row) out.writeln('#define F3D_LIGHT_TYPE_HOOK');
+  out
+    ..writeln('#include <lib/pbr.glsl>')
+    ..writeln();
+  if (program.inputsUsed.contains('instance')) {
+    out
+      ..writeln('in vec4 v_instance;')
+      ..writeln();
+  }
+  _uniformBlock(out, program, samplers: true);
+  if (row) {
+    out
+      ..writeln('// The row of the light being sampled, which the light block')
+      ..writeln('// reads — version 3.')
+      ..writeln('float f3d_light_kind = 0.0;')
+      ..writeln('vec4 f3d_light_params = vec4(0.0);');
+    for (final name in program.lightTypes.keys) {
+      out.writeln('float f3d_is_$name = 0.0;');
+    }
+    out
+      ..writeln()
+      ..writeln('// Asked of every light: its row for the light block, and')
+      ..writeln('// whether a plugin\'s light is one this material lights.')
+      ..writeln('bool F3dLightTypeHook(float code, vec4 params) {')
+      ..writeln('  f3d_light_kind = code;')
+      ..writeln('  f3d_light_params = params;');
+    for (final name in program.lightTypes.keys) {
+      out.writeln(
+        '  f3d_is_$name = abs(code - material_params.'
+        '${materialLightTypeMember(name)}) < 0.5 ? 1.0 : 0.0;',
+      );
+    }
+    final own = <String>[
+      for (final name in program.lightTypes.keys) ' || f3d_is_$name > 0.5',
+    ].join();
+    out
+      ..writeln('  return code < 15.5$own;')
+      ..writeln('}')
+      ..writeln();
+  }
+  if (surface != null) {
+    out
+      ..writeln('// The material\'s surface block: the surface as read, then')
+      ..writeln('// what the block writes, before any light.')
+      ..writeln('void ShadeSurfaceHook(inout Surface s) {');
+    for (final statement in surface) {
+      out.writeln(switch (statement) {
+        MaterialOutput(:final output, :final value) =>
+          '  ${output.type.name} f3d_out_${output.name} = ${_glsl(value)};',
+        _ => statement.accept(const _GlslStatements(_noReturn)),
+      });
+    }
+    for (final statement in surface) {
+      if (statement is! MaterialOutput) continue;
+      final output = statement.output;
+      out.writeln(
+        output.name == 'normal'
+            ? '  s.n = normalize(f3d_out_normal);\n'
+                  '  s.n_dot_v = max(dot(s.n, s.v), 1e-4);'
+            : '  ${output.glsl} = f3d_out_${output.name};',
+      );
+    }
+    out
+      ..writeln('}')
+      ..writeln();
+  }
+  if (light != null) {
+    out
+      ..writeln('// The material\'s light block, once per light, with the')
+      ..writeln('// standard model\'s own answer as `standard`.')
+      ..writeln(
+        'vec3 ShadeLightHook(Surface s, LightSample light, '
+        'vec3 ${materialStandardLightInput.glsl}) {',
+      );
+    _statements(out, light, (value) => '  return ${_glsl(value)};');
+    out
+      ..writeln('}')
+      ..writeln();
+  }
+  return out.toString();
+}
+
+Never _noReturn(Expression value) =>
+    throw StateError('a surface block returns nothing');
 
 /// `P8`: the uniforms, as the blocks the engine binds `RenderMaterial.parameters`
 /// to — `MaterialParams`, and each block of the material's own (D21) —
@@ -756,8 +877,11 @@ MaterialBindings describeMaterial(MaterialProgram program) {
   // `P8`: a lighting hook makes it a lit model, which applies the normal,
   // occlusion and emissive maps and reads the shadows and the light list —
   // all of it live, because the parser holds the fragment body to reading
-  // `lit`, which adds every one of them up.
-  final lit = program.light != null;
+  // `lit`, which adds every one of them up. Version 3: the standard model
+  // is lit through all of it, its metallic-roughness map and its
+  // environment too, as `LightingModel.pbr` is.
+  final lit = program.light != null || program.isStandard;
+  final standard = program.isStandard;
 
   // A material that reads nothing off the lit surface still goes through
   // `ReadSurface`, which is what applies the base colour tint and the mask
@@ -777,9 +901,11 @@ MaterialBindings describeMaterial(MaterialProgram program) {
         samples.contains('occlusion_texture') ||
         samples.contains('emissive_texture') ||
         samples.contains('metallic_roughness_texture'),
-    usesMetallicRoughnessMap: samples.contains('metallic_roughness_texture'),
-    usesMetallic: reads.contains('metallic'),
+    usesMetallicRoughnessMap:
+        standard || samples.contains('metallic_roughness_texture'),
+    usesMetallic: standard || reads.contains('metallic'),
     usesLightList: lit,
+    usesEnvironment: standard,
     uniforms: <String, List<double>>{
       for (final parameter in program.parameters)
         if (parameter.uniform) parameter.name: parameter.defaultValue,
@@ -817,6 +943,7 @@ final class MaterialBindings {
     required this.usesMetallicRoughnessMap,
     required this.usesMetallic,
     this.usesLightList = false,
+    this.usesEnvironment = false,
     this.uniforms = const <String, List<double>>{},
     this.kind = MaterialStageKind.surface,
     this.state = MaterialFileState.none,
@@ -888,6 +1015,10 @@ final class MaterialBindings {
   /// emits, whose stage declares no light list.
   final bool usesLightList;
 
+  /// Whether the stage samples the environment and its tables: a material
+  /// lit by the standard model — version 3 — as `LightingModel.pbr` does.
+  final bool usesEnvironment;
+
   /// The [LightingModel] these bindings describe, with the label and entry
   /// point the application chose.
   ///
@@ -928,6 +1059,7 @@ final class MaterialBindings {
       usesMetallicRoughnessMap: usesMetallicRoughnessMap,
       usesMetallic: usesMetallic,
       usesLightList: usesLightList,
+      usesEnvironment: usesEnvironment,
       usesMaterialParameters: usesMaterialParameters,
       vertexStageMorphs: vertexStageMorphs,
       usesSceneDepth: usesSceneDepth,

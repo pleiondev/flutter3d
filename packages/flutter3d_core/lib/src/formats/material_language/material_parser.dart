@@ -448,6 +448,7 @@ final class _Block {
     this.opening, {
     required this.inputs,
     this.returns,
+    this.outputs = const <MaterialInput>[],
     this.samples = true,
   });
 
@@ -460,14 +461,22 @@ final class _Block {
   /// The inputs it reads by name.
   final List<MaterialInput> inputs;
 
-  /// The type its `return` must have; null for a `vertex` block, which has
-  /// outputs instead.
+  /// The type its `return` must have; null for a `vertex` or a `surface`
+  /// block, which has [outputs] instead.
   final ExpressionType? returns;
+
+  /// What its `out` statements may write: a `vertex` block's or a
+  /// `surface` block's.
+  final List<MaterialInput> outputs;
 
   /// Whether `sample(...)` may be called in it.
   final bool samples;
 
-  bool get isVertex => returns == null;
+  /// Whether it is a block of `out` statements rather than one `return`.
+  bool get writes => returns == null;
+
+  /// Whether it is the `vertex` block, whose names are the vertex stage's.
+  bool get isVertex => opening == 'vertex';
 }
 
 /// Every input a version 2 surface names in one block or another, for the
@@ -508,8 +517,16 @@ final class _Parser extends ExpressionParser {
   /// The body being read, or null between bodies.
   _Block? block;
 
-  /// Whether the body being read is the `light` block — `P8`.
-  bool get inLight => identical(block, lightBlock);
+  /// Whether the body being read is the `light` block — `P8` — the
+  /// standard model's or a material's own.
+  bool get inLight => block?.opening == 'light';
+
+  /// The engine's model the material is lit by — `lighting standard;`,
+  /// version 3 — or null for a material that lights itself.
+  String? lighting;
+
+  /// Whether the material is lit by the standard model.
+  bool get standard => lighting == materialStandardLighting;
 
   /// Where the fragment body first read `lit`, to point at when the material
   /// turns out to have no `light` block to gather it.
@@ -560,7 +577,30 @@ final class _Parser extends ExpressionParser {
     'vertex block',
     'vertex',
     inputs: materialVertexInputs,
+    outputs: materialVertexOutputs,
     samples: false,
+  );
+
+  /// Version 3, beside `lighting standard`: the standard model's answer to
+  /// one light, read as `standard`.
+  final _Block standardLightBlock = const _Block(
+    'light block',
+    'light',
+    inputs: <MaterialInput>[
+      ...materialInputs,
+      ...materialLightInputs,
+      materialStandardLightInput,
+    ],
+    returns: ExpressionType.vec3,
+  );
+
+  /// Version 3, beside `lighting standard`: the surface the model lights,
+  /// rewritten.
+  final _Block surfaceBlock = const _Block(
+    'surface block',
+    'surface',
+    inputs: materialInputs,
+    outputs: materialSurfaceOutputs,
   );
   final _Block fullscreenBlock = const _Block(
     'full-screen stage',
@@ -621,6 +661,7 @@ final class _Parser extends ExpressionParser {
     List<MaterialStatement>? vertex;
     List<MaterialStatement>? ambient;
     List<MaterialStatement>? composite;
+    List<MaterialStatement>? surfaceHook;
     var state = MaterialFileState.none;
     var workgroup = const WorkgroupSize(8, 8, 1);
     ExpressionToken? lightAt;
@@ -628,6 +669,8 @@ final class _Parser extends ExpressionParser {
     ExpressionToken? compositeAt;
     ExpressionToken? stateAt;
     ExpressionToken? workgroupAt;
+    ExpressionToken? lightingAt;
+    ExpressionToken? fragmentAt;
 
     /// The body a word opens, read once.
     List<MaterialStatement> once(
@@ -663,7 +706,62 @@ final class _Parser extends ExpressionParser {
           version >= materialLanguageUpdatesVersion) {
         position++;
         parseLightType();
+      } else if (word == 'lighting' &&
+          surface &&
+          version < materialLanguageUpdatesVersion) {
+        fail(
+          '"lighting" is material language version 3: open the file with '
+          '"f3dmat 3".',
+        );
+      } else if (word == 'lighting' && surface) {
+        position++;
+        if (lightingAt != null) {
+          fail('a material is lit one way, said once.', where: where);
+        }
+        if (body != null ||
+            light != null ||
+            vertex != null ||
+            ambient != null ||
+            composite != null ||
+            surfaceHook != null) {
+          fail(
+            '"lighting" says what the blocks after it inject into, so it '
+            'comes before them.',
+            where: where,
+          );
+        }
+        lightingAt = where;
+        final model = expectToken('name', 'the model after "lighting"');
+        if (model.text != materialStandardLighting) {
+          fail(
+            '"${model.text}" is not a model a material can be lit by: '
+            '"lighting $materialStandardLighting;" is the engine\'s '
+            'metal-rough model, and a material that names none lights '
+            'itself.',
+            where: model,
+          );
+        }
+        expectToken(';', '";" after the model');
+        lighting = model.text;
+      } else if (word == 'surface' &&
+          surface &&
+          version < materialLanguageUpdatesVersion) {
+        fail(
+          '"surface" is material language version 3: open the file with '
+          '"f3dmat 3".',
+        );
+      } else if (word == 'surface' && surface) {
+        if (!standard) {
+          fail(
+            'the surface block rewrites the surface the standard model '
+            'lights: declare "lighting $materialStandardLighting;" first, or '
+            'shape the surface in the fragment body.',
+            where: where,
+          );
+        }
+        surfaceHook = once(surfaceHook, where, 'surface block', surfaceBlock);
       } else if (word == 'fragment' && kind != MaterialStageKind.compute) {
+        fragmentAt ??= where;
         position++;
         if (body != null) fail('a material has one fragment body.');
         body = parseBody(surface ? fragmentBlock : fullscreenBlock);
@@ -675,7 +773,7 @@ final class _Parser extends ExpressionParser {
         if (light != null) {
           fail('a material has one light block.', where: lightAt);
         }
-        light = parseBody(lightBlock);
+        light = parseBody(standard ? standardLightBlock : lightBlock);
       } else if (surface &&
           version < materialLanguageStagesVersion &&
           const <String>{
@@ -744,7 +842,39 @@ final class _Parser extends ExpressionParser {
         });
       }
     }
-    if (body == null) {
+    // Version 3: the standard model writes the surface itself, and gathers
+    // its own environment and every light, so what a material lighting
+    // itself says about them has nothing here to say it to.
+    if (standard) {
+      if (fragmentAt != null) {
+        fail(
+          'a material lit by the standard model has no fragment body: the '
+          'model writes the surface, which a "surface" block rewrites and a '
+          '"light" block answers each light of.',
+          where: fragmentAt,
+        );
+      }
+      for (final (hook, at) in <(String, ExpressionToken?)>[
+        ('ambient', ambientAt),
+        ('composite', compositeAt),
+      ]) {
+        if (at == null) continue;
+        fail(
+          'the standard model takes its own environment and adds its own '
+          'light up, so a material lit by it has no $hook block.',
+          where: at,
+        );
+      }
+      if (!state.environment || !state.directional) {
+        fail(
+          '"environment" and "directional" switch light out of what a '
+          'material\'s own light block gathers; the standard model gathers '
+          'all of it.',
+          where: stateAt,
+        );
+      }
+    }
+    if (body == null && !standard) {
       fail(
         kind == MaterialStageKind.compute
             ? 'the compute stage has no kernel.'
@@ -760,7 +890,7 @@ final class _Parser extends ExpressionParser {
         where: where,
       );
     }
-    if (light != null && litAt == null) {
+    if (light != null && litAt == null && !standard) {
       fail(
         'the light block is never read: a fragment body that does not read '
         '"lit" gathers no lights, and the compiled shader would drop the '
@@ -828,7 +958,7 @@ final class _Parser extends ExpressionParser {
       updates: <MaterialUpdate>[for (final (_, update) in updates) update],
       parameters: parameters,
       textures: textures,
-      body: body,
+      body: body ?? const <MaterialStatement>[],
       light: light,
       vertex: vertex,
       ambient: ambient,
@@ -839,6 +969,8 @@ final class _Parser extends ExpressionParser {
       state: state,
       workgroupSize: workgroup,
       lightTypes: Map<String, String>.unmodifiable(lightTypes),
+      lighting: lighting,
+      surface: surfaceHook,
     );
   }
 
@@ -1375,6 +1507,7 @@ final class _Parser extends ExpressionParser {
         ...materialInputs,
         ...materialLightInputs,
         materialLitInput,
+        if (standard) materialStandardLightInput,
         ...switch (block) {
           null => _surfaceVersion2Inputs,
           final body => body.inputs,
@@ -1508,9 +1641,9 @@ final class _Parser extends ExpressionParser {
         expectToken(';', '";" after the binding');
         locals[nameToken.text] = value.type;
         statements.add(MaterialLet(nameToken.text, value));
-      } else if (body.isVertex && skipWordIf('out')) {
+      } else if (body.writes && skipWordIf('out')) {
         statements.add(parseOutput());
-      } else if (!body.isVertex && skipWordIf('return')) {
+      } else if (!body.writes && skipWordIf('return')) {
         final value = parseExpression();
         if (value.type != body.returns) {
           fail(switch (body.opening) {
@@ -1545,20 +1678,25 @@ final class _Parser extends ExpressionParser {
         }
       } else {
         fail(
-          body.isVertex
-              ? '"${current.text}" is not a statement: a vertex block is '
-                    '"let" bindings and "out" outputs.'
+          body.writes
+              ? '"${current.text}" is not a statement: a $what is "let" '
+                    'bindings and "out" outputs.'
               : '"${current.text}" is not a statement: a $what is "let" '
                     'bindings and one "return".',
         );
       }
     }
-    if (body.isVertex) {
+    if (body.writes) {
       if (outputs.isEmpty) {
         fail(
-          'the vertex block writes nothing: give it an "out" — position, '
-          'world or normal — or leave the block out and keep the engine\'s '
-          'vertex stage.',
+          body.isVertex
+              ? 'the vertex block writes nothing: give it an "out" — '
+                    'position, world or normal — or leave the block out and '
+                    'keep the engine\'s vertex stage.'
+              : 'the surface block writes nothing: give it an "out" — '
+                    '${body.outputs.map((o) => o.name).join(', ')} — or '
+                    'leave the block out and keep the surface the engine '
+                    'read.',
         );
       }
     } else if (statements.isEmpty || statements.last is! MaterialReturn) {
@@ -1568,19 +1706,23 @@ final class _Parser extends ExpressionParser {
     return statements;
   }
 
-  /// `out name = value;` in a `vertex` block — version 2.
+  /// `out name = value;` in a `vertex` block — version 2 — or a `surface`
+  /// block — version 3.
   MaterialOutput parseOutput() {
     final nameToken = expectToken('name', 'the output\'s name');
     final name = nameToken.text;
+    final body = block!;
     final output =
-        materialVertexOutputs.where((o) => o.name == name).firstOrNull ??
+        body.outputs.where((o) => o.name == name).firstOrNull ??
         fail(
-          '"$name" is not an output: a vertex block writes '
-          '${materialVertexOutputs.map((o) => o.name).join(', ')}.',
+          '"$name" is not an output: a ${body.what} writes '
+          '${body.outputs.map((o) => o.name).join(', ')}.',
           where: nameToken,
         );
     if (!outputs.add(name)) fail('"$name" is written twice.', where: nameToken);
-    if (outputs.contains('position') && outputs.contains('world')) {
+    if (body.isVertex &&
+        outputs.contains('position') &&
+        outputs.contains('world')) {
       fail(
         'a vertex block writes "position", before the model transform, or '
         '"world", after it — not both.',

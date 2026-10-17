@@ -579,6 +579,14 @@ vec3 g_rect_corners[4];
 #endif  // F3D_LAYERED
 #endif  // F3D_LTC
 
+#ifdef F3D_LIGHT_TYPE_HOOK
+/// Told every light's type code and its row's last vec4 before it is
+/// sampled: whether a plugin's light (a code from 16 up) is one the stage
+/// lights. Defined by a material lit by the standard model that declares a
+/// plugin's light type — see `lib/pbr.glsl`'s injection points.
+bool F3dLightTypeHook(float code, vec4 params);
+#endif
+
 /// Resolves light [index] against the surface.
 ///
 /// Returns `n_dot_l == 0` for anything that contributes nothing — behind the
@@ -632,6 +640,14 @@ LightSample SampleLight(int index, Surface s) {
   }
 
   float type = position.w;
+
+#ifdef F3D_LIGHT_TYPE_HOOK
+  // Version 3 of the material language: a material lit by the standard
+  // model that declares a plugin's light type, or reads the light's row, is
+  // told every light's row, and a plugin's light it declares is lit as a
+  // point at its row's position, its own numbers in the row's last vec4.
+  if (F3dLightTypeHook(type, cone) && type > 15.5) type = 1.0;
+#endif
 
   // **A plugin's light type leaves first.** Codes from 16 up are handed to a
   // `LightTypeHook` once per renderer; its own hook packed the row and its own

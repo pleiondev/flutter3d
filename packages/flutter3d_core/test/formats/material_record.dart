@@ -26,6 +26,9 @@ const List<String> materialRecordSources = <String>[
   // reading the light's row and a light type by name.
   'test/fixtures/v3/rim_glow.f3dmat',
   'test/fixtures/v3/tube_light.f3dmat',
+  // And the standard model's injection points: a surface block, a light
+  // block reading `standard`, and a plugin's light type in its loop.
+  'test/fixtures/v3/sheen_standard.f3dmat',
   '../flutter3d/test/fixtures/materials/hatch.f3dmat',
 ];
 
@@ -55,8 +58,14 @@ void _describe(MaterialProgram program, StringBuffer text) {
     ..writeln(
       'textures ${[for (final t in program.textures) '${t.name}=${t.bindingName}']}',
     );
+  // Version 3: the model a material is lit by, written only where it names
+  // one, so the record of every other source is what it was.
+  if (program.lighting case final lighting?) {
+    text.writeln('lighting $lighting');
+  }
   for (final (name, body) in <(String, List<MaterialStatement>?)>[
-    ('fragment', program.body),
+    ('fragment', program.isStandard ? null : program.body),
+    ('surface', program.surface),
     ('light', program.light),
     ('vertex', program.vertex),
     ('ambient', program.ambient),
@@ -91,9 +100,21 @@ void _describe(MaterialProgram program, StringBuffer text) {
     text.writeln('--- evaluated');
     for (final facing in <double>[0.05, 0.5, 0.95]) {
       final surface = _surface(facing);
-      text.writeln(
-        '  at $facing: ${_round(evaluateMaterial(variant, surface))}',
-      );
+      if (variant.isStandard) {
+        // The standard model writes the surface: what the record holds of
+        // the material is what its surface block writes and its answer to
+        // the light given the model's own.
+        if (variant.surface != null) {
+          final written = evaluateMaterialSurface(variant, surface);
+          text.writeln(
+            '  surface at $facing: ${[for (final MapEntry(:key, :value) in written.entries) '$key ${_round(value)}'].join('; ')}',
+          );
+        }
+      } else {
+        text.writeln(
+          '  at $facing: ${_round(evaluateMaterial(variant, surface))}',
+        );
+      }
       if (variant.light != null) {
         text.writeln(
           '  light: ${_round(evaluateMaterialLight(variant, surface))}',
@@ -139,6 +160,8 @@ MaterialSurfaceValues _surface(double facing) => MaterialSurfaceValues(
     'lightKind': <double>[16],
     'lightParams': <double>[2, 0.5, 0, 0],
     'tube': <double>[1],
+    // Version 3's standard model: its own answer to the light.
+    'standard': <double>[0.4, 0.3, 0.2],
   },
   sample: (slot, u, v) => <double>[u, v, 0.5, 1],
 );

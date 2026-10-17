@@ -58,6 +58,14 @@ final class MaterialProgramStage extends CpuFragmentShader {
 
   @override
   Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c) {
+    // Version 3: a material lit by the standard model is the engine's
+    // metal-rough stage with the material's injection points filled, as the
+    // emitted stage is `pbr.frag` with its hooks defined.
+    if (program.isStandard) {
+      return PbrShader.hooked(
+        _StandardHooks(program, bindings, c),
+      ).run(v, bindings, c);
+    }
     final s = readSurface(v, bindings, c);
     // Null is the GLSL's `discard`, which `ReadSurface` performs for a masked
     // material under its cutoff — the emitted shader gets it from the same
@@ -69,29 +77,7 @@ final class MaterialProgramStage extends CpuFragmentShader {
     // lights gathered through the block — as the emitted shader does.
     final light = program.light;
     if (light != null) applyCommonMaps(s, v, bindings, c);
-    final inputs = <String, List<double>>{
-      'albedo': <double>[s.albedo.x, s.albedo.y, s.albedo.z],
-      'alpha': <double>[s.alpha],
-      'normal': <double>[s.normal.x, s.normal.y, s.normal.z],
-      'view': <double>[s.view.x, s.view.y, s.view.z],
-      'nDotV': <double>[s.nDotV],
-      'metallic': <double>[s.metallic],
-      'roughness': <double>[s.roughness],
-      'occlusion': <double>[s.occlusion],
-      'emissive': <double>[s.emissive.r, s.emissive.g, s.emissive.b],
-      'ambient': <double>[s.ambient.x, s.ambient.y, s.ambient.z],
-      'uv': <double>[
-        v[CpuMeshLayout.varyingUv],
-        v[CpuMeshLayout.varyingUv + 1],
-      ],
-      'world': <double>[s.world.x, s.world.y, s.world.z],
-      'instance': <double>[
-        v[CpuMeshLayout.varyingInstance],
-        v[CpuMeshLayout.varyingInstance + 1],
-        v[CpuMeshLayout.varyingInstance + 2],
-        v[CpuMeshLayout.varyingInstance + 3],
-      ],
-    };
+    final inputs = _surfaceInputs(s, v);
     // `P8`: the draw's `MaterialParams`, which is `RenderMaterial.parameters`,
     // member by member as the GLSL reads its block — or the block of the
     // material's own a uniform names (D21).
@@ -233,6 +219,153 @@ final class MaterialProgramStage extends CpuFragmentShader {
       normal: s.normal,
       roughness: 1,
     );
+  }
+}
+
+/// The surface's inputs as a block reads them, from [s] and the varyings
+/// [v].
+Map<String, List<double>> _surfaceInputs(
+  Surface s,
+  Float32List v,
+) => <String, List<double>>{
+  'albedo': <double>[s.albedo.x, s.albedo.y, s.albedo.z],
+  'alpha': <double>[s.alpha],
+  'normal': <double>[s.normal.x, s.normal.y, s.normal.z],
+  'view': <double>[s.view.x, s.view.y, s.view.z],
+  'nDotV': <double>[s.nDotV],
+  'metallic': <double>[s.metallic],
+  'roughness': <double>[s.roughness],
+  'occlusion': <double>[s.occlusion],
+  'emissive': <double>[s.emissive.r, s.emissive.g, s.emissive.b],
+  'ambient': <double>[s.ambient.x, s.ambient.y, s.ambient.z],
+  'uv': <double>[v[CpuMeshLayout.varyingUv], v[CpuMeshLayout.varyingUv + 1]],
+  'world': <double>[s.world.x, s.world.y, s.world.z],
+  'instance': <double>[
+    v[CpuMeshLayout.varyingInstance],
+    v[CpuMeshLayout.varyingInstance + 1],
+    v[CpuMeshLayout.varyingInstance + 2],
+    v[CpuMeshLayout.varyingInstance + 3],
+  ],
+};
+
+/// A material lit by the standard model, its blocks as the model's
+/// injection points — version 3, `lighting standard;`: what `pbr.frag`'s
+/// `ShadeSurfaceHook`, `ShadeLightHook` and `F3dLightTypeHook` are in the
+/// emitted stage.
+///
+/// One a fragment, for the draw's [bindings]: the material's uniforms and
+/// textures are the draw's, and the light row a `lighttype` reads is the
+/// light being sampled now.
+final class _StandardHooks extends PbrHooks {
+  _StandardHooks(this.program, this.bindings, FragmentContext c)
+    : _footprint = uvFootprint(c),
+      uniforms = <String, List<double>>{
+        for (final parameter in program.parameters)
+          if (parameter.uniform)
+            parameter.name: ?bindings.read(parameter.block!, parameter.name),
+      };
+
+  final MaterialProgram program;
+  final ShaderBindings bindings;
+  final Map<String, List<double>> uniforms;
+  final UvFootprint _footprint;
+  Float32List _varyings = Float32List(0);
+  double _kind = 0.0;
+  Vector4 _params = Vector4.zero();
+
+  List<double> _sample(MaterialTextureSlot slot, double u, double w) {
+    final texture = bindings.textures[slot.bindingName];
+    if (texture == null) return const <double>[1, 1, 1, 1];
+    final texel = texture.sample(u, w, du: _footprint.du, dv: _footprint.dv);
+    return <double>[texel.x, texel.y, texel.z, texel.w];
+  }
+
+  @override
+  bool get readsLightRow => program.readsLightRow;
+
+  @override
+  void surface(Surface s, Float32List v, ShaderBindings b, FragmentContext c) {
+    _varyings = v;
+    final written = program.surface;
+    if (written == null) return;
+    final outputs = evaluateMaterialSurface(
+      program,
+      MaterialSurfaceValues(
+        inputs: _surfaceInputs(s, v),
+        uniforms: uniforms,
+        sample: _sample,
+      ),
+    );
+    for (final MapEntry(key: name, :value) in outputs.entries) {
+      switch (name) {
+        case 'albedo':
+          s.albedo.setValues(value[0], value[1], value[2]);
+        case 'alpha':
+          s.alpha = value[0];
+        case 'normal':
+          s.normal
+            ..setValues(value[0], value[1], value[2])
+            ..normalize();
+          s.nDotV = math.max(s.normal.dot(s.view), 1e-4);
+        case 'metallic':
+          s.metallic = value[0];
+        case 'roughness':
+          s.roughness = value[0];
+        case 'occlusion':
+          s.occlusion = value[0];
+        case 'emissive':
+          s.emissive.setValues(value[0], value[1], value[2]);
+      }
+    }
+  }
+
+  @override
+  bool lightType(double code, Vector4 params) {
+    _kind = code;
+    _params = params;
+    return code < 15.5 ||
+        program.lightTypes.keys.any((String name) => _isType(name, code));
+  }
+
+  bool _isType(String name, double code) =>
+      switch (uniforms[materialLightTypeMember(name)]) {
+        final own? => (code - own[0]).abs() < 0.5,
+        _ => false,
+      };
+
+  @override
+  Vector3 light(Surface s, LightSample light, Vector3 standard) {
+    if (program.light == null) return standard;
+    final half = (light.direction + s.view)..normalize();
+    final answer = evaluateMaterialLight(
+      program,
+      MaterialSurfaceValues(
+        inputs: <String, List<double>>{
+          ..._surfaceInputs(s, _varyings),
+          'lightDir': <double>[
+            light.direction.x,
+            light.direction.y,
+            light.direction.z,
+          ],
+          'halfDir': <double>[half.x, half.y, half.z],
+          'nDotL': <double>[light.nDotL],
+          'nDotH': <double>[light.nDotH],
+          'vDotH': <double>[light.vDotH],
+          'lightKind': <double>[_kind],
+          'lightParams': <double>[_params.x, _params.y, _params.z, _params.w],
+          materialStandardLightInput.name: <double>[
+            standard.x,
+            standard.y,
+            standard.z,
+          ],
+          for (final name in program.lightTypes.keys)
+            name: <double>[if (_isType(name, _kind)) 1.0 else 0.0],
+        },
+        uniforms: uniforms,
+        sample: _sample,
+      ),
+    );
+    return Vector3(answer[0], answer[1], answer[2]);
   }
 }
 

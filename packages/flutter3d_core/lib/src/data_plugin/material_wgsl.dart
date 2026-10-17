@@ -74,11 +74,17 @@ PackedStage spliceMaterialWgsl(
 }) {
   Never refuse(String why) => throw RuntimeShadersException('$from: $why');
 
-  if (program.light != null) {
+  if (program.isLit) {
     refuse(
-      'a material with a light block is compiled for WebGPU by the build '
-      '(assets_src/), not while the game runs: at run time WebGPU takes a '
-      'material that returns the light its surface emits',
+      program.isStandard
+          ? 'a material lit by the standard model is compiled for WebGPU by '
+                'the build (assets_src/), not while the game runs: at run '
+                'time WebGPU takes a material that returns the light its '
+                'surface emits'
+          : 'a material with a light block is compiled for WebGPU by the '
+                'build (assets_src/), not while the game runs: at run time '
+                'WebGPU takes a material that returns the light its surface '
+                'emits',
     );
   }
   if (program.inputsUsed.contains('instance')) {

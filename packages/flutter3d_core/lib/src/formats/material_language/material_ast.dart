@@ -190,6 +190,40 @@ const List<MaterialInput> materialLightInputs = <MaterialInput>[
   ),
 ];
 
+/// What a `light` block reads beside [materialInputs] and
+/// [materialLightInputs] in a material lit by the engine's standard model
+/// (`lighting standard;`) — version 3: `standard`, the standard model's own
+/// answer to this light, which the block returns as it is or changes. The
+/// engine multiplies what it returns by the light's radiance, `n·l` and
+/// shadow, as it does the standard model's.
+const MaterialInput materialStandardLightInput = MaterialInput(
+  'standard',
+  ExpressionType.vec3,
+  'f3d_standard',
+  since: 3,
+);
+
+/// What a `surface` block may write in a material lit by the standard model
+/// — version 3, with `out name = value;`: the surface the model lights,
+/// after the engine has read it and applied its maps, before any light. A
+/// field the block does not write keeps the engine's value; a written
+/// `normal` is made unit length and the view's cosine taken again.
+const List<MaterialInput> materialSurfaceOutputs = <MaterialInput>[
+  MaterialInput('albedo', ExpressionType.vec3, 's.albedo', since: 3),
+  MaterialInput('alpha', ExpressionType.float, 's.alpha', since: 3),
+  MaterialInput('normal', ExpressionType.vec3, 's.n', since: 3),
+  MaterialInput('metallic', ExpressionType.float, 's.metallic', since: 3),
+  MaterialInput('roughness', ExpressionType.float, 's.roughness', since: 3),
+  MaterialInput('occlusion', ExpressionType.float, 's.occlusion', since: 3),
+  MaterialInput('emissive', ExpressionType.vec3, 's.emissive', since: 3),
+];
+
+/// The lighting a material can name with `lighting <name>;` — version 3:
+/// `standard`, the engine's metal-rough model, into which the material's
+/// `surface`, `light` and `lighttype` declarations inject. A material that
+/// names none lights itself, as every material before version 3 did.
+const String materialStandardLighting = 'standard';
+
 /// What a `light` block's `lighttype tube = acme.tube;` declaration reads
 /// as `tube`: one while the block shades a light of that type, nought
 /// otherwise — version 3. The code is the renderer's, handed out in
@@ -884,9 +918,33 @@ final class MaterialProgram {
     this.version = firstMaterialVersion,
     this.updates = const <MaterialUpdate>[],
     this.lightTypes = const <String, String>{},
+    this.lighting,
+    this.surface,
   });
 
   final String name;
+
+  /// The engine's model the material is lit by — `lighting standard;`,
+  /// version 3 ([materialStandardLighting]) — or null for a material that
+  /// lights itself through its own `light` and `fragment` blocks.
+  ///
+  /// **The standard model with injection points.** A material lit by the
+  /// standard model is the engine's metal-rough stage, its environment, its
+  /// maps and its shadows, with three places of the material's own: its
+  /// `surface` block rewrites the surface before any light; its `light`
+  /// block answers each light, reading the model's own answer as
+  /// `standard`; and a `lighttype` it declares is lit by the model in its
+  /// light loop, as a point light, where the engine's own stages skip it.
+  /// It has no `fragment` body: the model writes the surface.
+  final String? lighting;
+
+  /// Whether the material is lit by the engine's standard model.
+  bool get isStandard => lighting == materialStandardLighting;
+
+  /// The `surface` block — version 3, beside `lighting standard`: `let`s
+  /// and [MaterialOutput]s of [materialSurfaceOutputs], run once per
+  /// fragment before any light. Null for a material without one.
+  final List<MaterialStatement>? surface;
 
   /// Each `lighttype` declaration, version 3: the name the `light` block
   /// reads (one for a light of that type) to the light type's name
@@ -1017,8 +1075,9 @@ final class MaterialProgram {
   /// not have that problem: what it reads is what is written down.
   final Set<String> inputsUsed;
 
-  /// Whether the stage gathers lights: a surface with a `light` block.
-  bool get isLit => light != null;
+  /// Whether the stage gathers lights: a surface with a `light` block, or
+  /// one lit by the engine's standard model.
+  bool get isLit => light != null || isStandard;
 
   /// Whether the fragment body reads the scene behind it —
   /// [materialSceneInputs], or a full-screen stage's `sceneDepth`.
@@ -1124,6 +1183,8 @@ MaterialProgram specializeMaterial(
     version: program.version,
     updates: program.updates,
     lightTypes: program.lightTypes,
+    lighting: program.lighting,
+    surface: foldOptional(program.surface),
   );
 }
 

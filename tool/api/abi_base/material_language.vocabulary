@@ -120,6 +120,7 @@ f3dmat input light lightKind float 3
 f3dmat input light lightParams vec4 3
 f3dmat input light nDotH float 1
 f3dmat input light nDotL float 1
+f3dmat input light standard vec3 3
 f3dmat input light vDotH float 1
 f3dmat input lit lit vec3 1
 f3dmat input scene sceneDepth float 2
@@ -146,6 +147,14 @@ f3dmat input vertex origin vec3 2
 f3dmat input vertex position vec3 2
 f3dmat input vertex uv vec2 2
 f3dmat input vertex world vec3 2
+f3dmat lighting standard 3
+f3dmat output surface albedo vec3 3
+f3dmat output surface alpha float 3
+f3dmat output surface emissive vec3 3
+f3dmat output surface metallic float 3
+f3dmat output surface normal vec3 3
+f3dmat output surface occlusion float 3
+f3dmat output surface roughness float 3
 f3dmat output vertex normal vec3 2
 f3dmat output vertex position vec3 2
 f3dmat output vertex world vec3 2
@@ -154,6 +163,7 @@ f3dmat prefix gl_ 1
 f3dmat reserved every AccumulateLights 1
 f3dmat reserved every ApplyCommonMaps 1
 f3dmat reserved every F3dLightRow 3
+f3dmat reserved every F3dLightTypeHook 3
 f3dmat reserved every LightSample 1
 f3dmat reserved every LightVisibility 1
 f3dmat reserved every MaterialLights 2
@@ -164,7 +174,10 @@ f3dmat reserved every SceneDepthInfo 2
 f3dmat reserved every ShadeAmbient 2
 f3dmat reserved every ShadeComposite 2
 f3dmat reserved every ShadeLight 1
+f3dmat reserved every ShadeLightHook 3
+f3dmat reserved every ShadeSurfaceHook 3
 f3dmat reserved every ShadowFactor 1
+f3dmat reserved every StandardLight 3
 f3dmat reserved every Surface 1
 f3dmat reserved every WriteSurface 1
 f3dmat reserved every active 1
@@ -484,6 +497,7 @@ f3dmat word fullscreen 2
 f3dmat word kernel 2
 f3dmat word let 1
 f3dmat word light 1
+f3dmat word lighting 3
 f3dmat word lighttype 3
 f3dmat word material 1
 f3dmat word off 2
@@ -495,7 +509,9 @@ f3dmat word rename 3
 f3dmat word return 1
 f3dmat word sample 1
 f3dmat word scale 3
+f3dmat word standard 3
 f3dmat word state 2
+f3dmat word surface 3
 f3dmat word texture 1
 f3dmat word uniform 1
 f3dmat word updates 3

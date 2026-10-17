@@ -46,7 +46,10 @@ String materialVocabularySnapshot() {
 
   final inputLists = <String, List<MaterialInput>>{
     'surface': materialInputs,
-    'light': materialLightInputs,
+    'light': <MaterialInput>[
+      ...materialLightInputs,
+      materialStandardLightInput,
+    ],
     'lit': const <MaterialInput>[materialLitInput],
     'scene': materialSceneInputs,
     'vertex': materialVertexInputs,
@@ -69,6 +72,13 @@ String materialVocabularySnapshot() {
         'f3dmat input $list ${input.name} ${input.type} ${input.since}',
     for (final output in materialVertexOutputs)
       'f3dmat output vertex ${output.name} ${output.type} ${output.since}',
+    for (final output in materialSurfaceOutputs)
+      'f3dmat output surface ${output.name} ${output.type} ${output.since}',
+    [
+      'f3dmat lighting',
+      materialStandardLighting,
+      materialWordVersions['lighting'],
+    ].join(' '),
     for (final builtin in materialBuiltins)
       'f3dmat builtin ${builtin.name} ${materialBuiltinVersions[builtin.name]}',
     for (final type in ExpressionType.numeric.values) 'f3dmat type $type 1',

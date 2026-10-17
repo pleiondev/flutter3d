@@ -29,7 +29,7 @@ The first line may name the version: `f3dmat 1`, `f3dmat 2` or `f3dmat 3`. A fil
 Each construct below is read only in a file whose version has it. A version 1 file keeps every name it used, so a `let sceneDepth` written before version 2 still compiles.
 
 - **Version 2** adds the `state`, `vertex`, `ambient` and `composite` blocks, the `fullscreen` and `compute` kinds, the scene inputs (`sceneDepth`, `viewDepth`, `scenePosition`), and a material's own blocks and textures: `uniform(Hair) vec3 tint = ...;` is a member of a block called `Hair`, and `texture fur;` a texture of the material's own, bound as `material_fur`. It reserves names starting `f3d_` for the generated stage.
-- **Version 3** adds what a light block knows of the light (`lightKind`, `lightParams` and `lighttype`), the `instance` input of the vertex block, which is then drawn on instanced and lightmapped draws too, and a material's own version with its `updates`.
+- **Version 3** adds what a light block knows of the light (`lightKind`, `lightParams` and `lighttype`), the `instance` input of the vertex block, which is then drawn on instanced and lightmapped draws too, a material's own version with its `updates`, and the [standard model's injection points](#injecting-into-the-standard-model): `lighting standard;`, the `surface` block and the `standard` input of the light block.
 
 A material's own version is not the language's. `material Hatch version 3 { ... }` counts the changes to one material's parameters, and its `updates` block says how a value an instance set for an older version carries forward:
 
@@ -55,7 +55,7 @@ A source is one of three kinds, each named by the word it opens with:
 
 | Kind | Opens with | Bodies | Becomes |
 |---|---|---|---|
-| Surface | `material` | `fragment`, and optionally `light`, `ambient`, `composite`, `vertex`, `state`, `updates` | a lighting model a `RenderMaterial` draws with |
+| Surface | `material` | `fragment`, and optionally `light`, `ambient`, `composite`, `vertex`, `state`, `updates`; or, under `lighting standard;`, optionally `surface`, `light`, `vertex`, `state`, `updates` | a lighting model a `RenderMaterial` draws with |
 | Full-screen | `fullscreen` | `fragment` | a stage a `FullscreenEffect` or a plugin's render step draws |
 | Compute | `compute` | `kernel`, optionally `workgroup` | a texture computed texel by texel, lowered to the kernel language |
 
@@ -91,6 +91,27 @@ material Hatch {
 ```
 
 These hooks are how a [registered lighting model](/core/rendering/) is written: `MaterialBindings.lightingModel` builds a `LightingModel` from the source, and `LightingModels.register` makes its name one a material file may use.
+
+### Injecting into the standard model
+
+A material need not light itself. From version 3, `lighting standard;` makes it the engine's own metal-rough model, with its environment, its maps and its shadows, and the material's blocks become places in it:
+
+- `surface { out roughness = ...; }` rewrites the surface after the engine has read it and applied its maps, before any light. It writes `albedo`, `alpha`, `normal`, `metallic`, `roughness`, `occlusion` and `emissive` with `out`, each computed against the surface as it was read; what it does not write keeps the engine's value, and a written `normal` is made unit length.
+- `light { return ...; }` answers each light, as a material's own light block does, and reads the model's own answer as `standard`. Returning `standard` is the model unchanged; `standard + sheen * rim` adds a term to it.
+- `lighttype tube = acme.tube;` lets a plugin's light type into the model's light loop, which skips every plugin light otherwise. The model lights it as a point at its row's position, and the light block reads `tube`, `lightKind` and `lightParams` to treat it as its own.
+
+```text
+f3dmat 3
+material Velvet {
+  lighting standard;
+  uniform vec3 sheen = vec3(0.3, 0.25, 0.4);
+  lighttype tube = acme.tube;
+  surface { out roughness = mix(roughness, 1.0, 0.5); }
+  light { return standard * (1.0 + tube * lightParams.x) + sheen * pow(1.0 - nDotV, 5.0) * nDotL; }
+}
+```
+
+A material lit by the standard model has no `fragment` body, since the model writes the surface, and no `ambient` or `composite` block, since the model gathers its own environment. `lighting` comes before the blocks. A material with no `surface` or `light` block draws exactly as the built-in PBR does on every backend. The stage it compiles to is `lighting/pbr.frag` with the material's points switched on, and it binds what that stage binds.
 
 ### State
 

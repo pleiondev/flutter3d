@@ -515,11 +515,49 @@ final class _Layers {
   Vector3 anisotropyB = Vector3(0.0, 1.0, 0.0);
 }
 
+/// The injection points of the standard model, as a material lit by it
+/// (`lighting standard;`, version 3 of the material language) fills them:
+/// `lib/pbr.glsl`'s `ShadeSurfaceHook`, `ShadeLightHook` and
+/// `F3dLightTypeHook`, each a method here with the answer of a stage that
+/// defines none by default.
+///
+/// Extendable outside this package: `flutter3d_app`'s material stage
+/// implements it over a program's blocks.
+abstract base class PbrHooks {
+  const PbrHooks();
+
+  /// `ShadeSurfaceHook`: rewrites [s] once its maps are applied, before any
+  /// light. Leaves it as it is by default.
+  void surface(Surface s, Float32List v, ShaderBindings b, FragmentContext c) {}
+
+  /// `ShadeLightHook`: the answer to [light], given the model's own
+  /// [standard]. [standard] by default.
+  Vector3 light(Surface s, LightSample light, Vector3 standard) => standard;
+
+  /// `F3dLightTypeHook`: told every light's type [code] and its row's last
+  /// `vec4`, [params], before it is sampled; whether a plugin's light (a
+  /// code from 16 up) is one the stage lights. The engine's four only, by
+  /// default.
+  bool lightType(double code, Vector4 params) => code < 15.5;
+
+  /// Whether [lightType] is asked at all: a stage that declares no plugin
+  /// light and reads no light's row is not.
+  bool get readsLightRow => false;
+}
+
 final class PbrShader extends CpuFragmentShader {
-  const PbrShader() : layered = false;
+  const PbrShader() : layered = false, hooks = null;
 
   /// `pbr_layered.frag`: the same stage with `F3D_LAYERED` — `M1`.
-  const PbrShader.layered() : layered = true;
+  const PbrShader.layered() : layered = true, hooks = null;
+
+  /// `pbr.frag` with a material's injection points — version 3 of the
+  /// material language, `lighting standard;` — filled by [hooks].
+  const PbrShader.hooked(PbrHooks this.hooks) : layered = false;
+
+  /// The injection points a material lit by this model fills, or null for
+  /// the engine's own stage.
+  final PbrHooks? hooks;
 
   /// Whether this is the layered stage, which reads `LayerInfo` and the coat
   /// map. Plain metal-rough takes none of the branches it guards, so the
@@ -712,6 +750,8 @@ final class PbrShader extends CpuFragmentShader {
     applyCommonMaps(s, v, b, c, transformed: layered);
     applyMetallicRoughnessMap(s, v, b, c, transformed: layered);
     layers?.readOnMaps(s, b, c);
+    final hooks = this.hooks;
+    hooks?.surface(s, v, b, c);
     final specularStrength = b.vec4('FragInfo', 'material', Vector4.zero()).w;
     // `EnergyCompensation()` — `L1`.
     final compensate =
@@ -733,6 +773,7 @@ final class PbrShader extends CpuFragmentShader {
       b,
       c,
       shadowed: true,
+      lightType: hooks != null && hooks.readsLightRow ? hooks.lightType : null,
       shade: (s, light) {
         // Perceptual roughness squared is the GGX alpha; this is what makes the
         // roughness slider feel linear. Held at the lobe's own floor, which
@@ -816,7 +857,11 @@ final class PbrShader extends CpuFragmentShader {
         // The pi puts the result back on the scale the tone mapper and the
         // exposure default were calibrated against.
         final base = diffuse + specular;
-        if (layers == null) return base..scale(_pi);
+        if (layers == null) {
+          return hooks == null
+              ? (base..scale(_pi))
+              : hooks.light(s, light, base..scale(_pi));
+        }
         // Under the sheen, what its albedo leaves; under the coat, what its
         // Fresnel lets through; on top, the coat's lobe.
         final sheen = layers.sheen * sheenLobe(layers.sheenRoughness, s, light);

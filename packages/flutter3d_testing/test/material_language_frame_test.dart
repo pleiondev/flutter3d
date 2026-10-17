@@ -292,4 +292,66 @@ material LangLambert {
       );
     },
   );
+
+  group('the standard model\'s injection points — version 3', () {
+    LightingModel modelOf(MaterialProgram program) => describeMaterial(
+      program,
+    ).lightingModel(label: program.name, shaderName: program.name);
+
+    test('a material lit by it that injects nothing is the hand-written '
+        'PBR', () async {
+      // A surface block that writes what it read and a light block that
+      // returns the model's own answer change no pixel: the injection
+      // points are where they say, and the stage around them is
+      // `PbrShader`'s, under a sun with a shadow.
+      //
+      // Mutation: apply the surface hook before the maps in `PbrShader`, or
+      // hand the light hook the answer before the pi.
+      const source = '''
+f3dmat 3
+material LangStandard {
+  lighting standard;
+  surface { out albedo = albedo; }
+  light { return standard; }
+}
+''';
+      final program = _program(source, const MaterialVariant('LangStandard'));
+      final builtIn = await _render(LightingModel.pbr, null, sun: true);
+      final written = await _render(
+        modelOf(program),
+        CpuStage.fragment(MaterialProgramStage(program)),
+        sun: true,
+      );
+      expect(
+        _differing(builtIn, written),
+        0,
+        reason: 'the standard model with nothing injected is not the PBR',
+      );
+    });
+
+    test('what each point injects reaches the picture', () async {
+      // Mutation: skip the surface hook or the light hook in `PbrShader`.
+      final builtIn = await _render(LightingModel.pbr, null, sun: true);
+      const rough =
+          'f3dmat 3\nmaterial LangRough { lighting standard; '
+          'surface { out roughness = 1.0; out albedo = vec3(0.1, 0.7, 0.1); } }';
+      const half =
+          'f3dmat 3\nmaterial LangHalf { lighting standard; '
+          'light { return standard * 0.5; } }';
+      for (final source in <String>[rough, half]) {
+        final parsed = parseMaterial(source);
+        final program = _program(source, MaterialVariant(parsed.name));
+        final written = await _render(
+          modelOf(program),
+          CpuStage.fragment(MaterialProgramStage(program)),
+          sun: true,
+        );
+        expect(
+          _differing(builtIn, written),
+          greaterThan(0),
+          reason: '${parsed.name} drew the plain PBR',
+        );
+      }
+    });
+  });
 }

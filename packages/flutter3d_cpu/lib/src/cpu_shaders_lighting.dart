@@ -268,7 +268,17 @@ Vector3 rectangleClosestPoint(
 ///
 /// Returns null for a light that contributes nothing, which is the `n_dot_l <=
 /// 0` early-out in `AccumulateLights`.
-LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
+///
+/// [lightType] is `F3dLightTypeHook` (version 3 of the material language): told
+/// every light's type code and its row's last `vec4` before it is sampled,
+/// it answers whether a plugin's light (a code from 16 up) is one the stage
+/// lights, which is then sampled as a point at its row.
+LightSample? sampleLight(
+  ShaderBindings bindings,
+  int index,
+  Surface s, {
+  bool Function(double code, Vector4 params)? lightType,
+}) {
   // A light past the eighth comes from the frame's light list — `gfx-74n`. The
   // row holds the same four vectors the slot arrays do, in the same order, so
   // everything below this reads one shape.
@@ -302,17 +312,22 @@ LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
       ? lightListTexel(bindings, row, 3)
       : bindings.vec4('FragInfo', 'light_cone', Vector4.zero(), at: index);
 
+  // `F3D_LIGHT_TYPE_HOOK`: a plugin's light the stage declares is lit as a
+  // point at its row.
+  final hooked = lightType != null && lightType(position.w, coneOf());
+  final type = hooked && position.w > 15.5 ? 1.0 : position.w;
+
   // A plugin's light type (codes from 16 up) leaves first: its own hook
   // packed the row and its own lighting model reads it — `SampleLight`'s
   // branch of the same name.
-  if (position.w > 15.5) return null;
+  if (type > 15.5) return null;
 
   // **A rectangle leaves before the aim is normalised — `gfx-77n`.** For every
   // other kind `direction.xyz` points somewhere and its length means nothing;
   // for this one the length *is* half the panel's width, and normalising would
   // throw the size away. Transcribed from the branch of the same name in
   // `SampleLight`.
-  if (position.w > 2.5) {
+  if (type > 2.5) {
     final cone = coneOf();
     final halfWidth = Vector3(direction.x, direction.y, direction.z);
     final halfHeight = Vector3(cone.x, cone.y, cone.z);
@@ -382,7 +397,7 @@ LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
 
   Vector3 toLight;
   var lightAttenuation = 1.0;
-  if (position.w < 0.5) {
+  if (type < 0.5) {
     // Directional: the direction to the light is the reverse of the one it
     // points.
     toLight = -aim;
@@ -402,7 +417,7 @@ LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
   // not transcribed, left behind when they were. This file's header promises
   // that where it departs from the GLSL it says so, which is only worth
   // anything if a departure it names is one it has.
-  if (position.w > 1.5) {
+  if (type > 1.5) {
     final cone = fromList
         ? lightListTexel(bindings, row, 3)
         : bindings.vec4('FragInfo', 'light_cone', Vector4.zero(), at: index);
@@ -436,11 +451,12 @@ Vector3 accumulateLights(
   FragmentContext c, {
   required Vector3 Function(Surface s, LightSample light) shade,
   required bool shadowed,
+  bool Function(double code, Vector4 params)? lightType,
 }) {
   var total = Vector3.zero();
   final count = lightCount(b, s.world);
   for (var i = 0; i < count; i++) {
-    final light = sampleLight(b, i, s);
+    final light = sampleLight(b, i, s, lightType: lightType);
     if (light == null) continue;
     // `LightHasShadow` — `gfx-74n`. Only the first eight carry one: the atlas
     // has six rows and the slot table eight entries, so a light from the list
