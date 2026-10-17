@@ -76,6 +76,31 @@ void main() {
     expect(world.wind, Vector3.zero());
   });
 
+  test('the air is half saturated unless a world says, and says so only '
+      'then', () {
+    // The default world is written as it was before the air had a
+    // humidity, so every snapshot and digest of it stays what it was.
+    // Mutation: write the key always, and the standard world's file grows.
+    expect(WorldProperties.standard.airHumidity, standardRelativeHumidity);
+    expect(WorldProperties.standard.toJson().containsKey('airHumidity'), false);
+    final desert = WorldProperties(airHumidity: 0.1);
+    expect(desert.toJson()['airHumidity'], 0.1);
+    expect(WorldProperties.fromJson(desert.toJson()), desert);
+    expect(desert, isNot(WorldProperties.standard));
+    expect(desert.copyWith(airHumidity: 0.5), WorldProperties.standard);
+    // Humidity is the vapour's, not the drag's: dry air's density stays.
+    expect(desert.airDensity, standardAirDensity);
+    expect(() => WorldProperties(airHumidity: 1.5), throwsArgumentError);
+    expect(
+      () => WorldProperties.fromJson(<String, Object?>{'airHumidity': -0.1}),
+      throwsA(isA<WorldPropertiesFormatException>()),
+    );
+    final patch = WorldPropertiesPatch(airHumidity: 0.9);
+    expect(patch.airHumidity, 0.9);
+    expect(patch.over(WorldProperties.standard).airHumidity, 0.9);
+    expect(WorldPropertiesPatch(wind: Vector3.zero()).airHumidity, isNull);
+  });
+
   test("a level's scalar gravity reads as down y, over the game's world", () {
     final game = WorldProperties(gravity: Vector3(0.0, -24.0, 0.0));
     final level = WorldProperties.fromJson(<String, Object?>{

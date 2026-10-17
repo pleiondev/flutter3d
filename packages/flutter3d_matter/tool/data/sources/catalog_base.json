@@ -985,8 +985,25 @@
       "first": "f3d.water",
       "second": "f3d.glass",
       "contactAngle": 0.35,
-      "source": "about 20°: laboratory glass as it is used, not freshly cleaned — a freshly cleaned glass wets completely (Adamson and Gast, Physical Chemistry of Surfaces, 6th ed., 1997, ch. X)",
+      "contactAngleHysteresis": 0.17,
+      "source": "about 20°: laboratory glass as it is used, not freshly cleaned — a freshly cleaned glass wets completely (Adamson and Gast, Physical Chemistry of Surfaces, 6th ed., 1997, ch. X); its edge holds over about 10° between advancing and receding, an estimate of the spread on such glass",
       "confidence": "handbook"
+    },
+    {
+      "first": "f3d.water",
+      "second": "f3d.ptfe",
+      "contactAngle": 1.92,
+      "contactAngleHysteresis": 0.17,
+      "source": "about 110°: water on smooth PTFE, measured at 108–112° (Adamson and Gast, Physical Chemistry of Surfaces, 6th ed., 1997, ch. X); about 10° of hysteresis, an estimate for a smooth clean surface, where a worn one holds more",
+      "confidence": "estimate"
+    },
+    {
+      "first": "f3d.water",
+      "second": "f3d.bakelite",
+      "contactAngle": 1.31,
+      "contactAngleHysteresis": 0.44,
+      "source": "about 75°, its edge holding over about 25°: an estimate for a phenolic-resin laboratory bench top, of the order water beads at on cured phenolic laminates, and not one measurement",
+      "confidence": "estimate"
     },
     {
       "first": "f3d.glycerol",

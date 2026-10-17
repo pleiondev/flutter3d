@@ -215,6 +215,34 @@ void main() {
     );
   });
 
+  test('a liquid on a solid says how far its edge holds, and reads back', () {
+    // Water beads on PTFE and the bench's phenolic top and spreads on glass;
+    // each edge holds over a spread of angles that keeps a small drop still.
+    // Mutation: drop the key from the JSON, and the pair reads back without
+    // its hysteresis.
+    final catalogue = MaterialCatalog.builtIn();
+    final glass = catalogue.pairOf('f3d.water', 'f3d.glass')!;
+    final ptfe = catalogue.pairOf('f3d.water', 'f3d.ptfe')!;
+    final bench = catalogue.pairOf('f3d.bakelite', 'f3d.water')!;
+    expect(glass.contactAngleHysteresis, 0.17);
+    expect(ptfe.contactAngle, greaterThan(math.pi / 2));
+    expect(bench.contactAngle, greaterThan(glass.contactAngle!));
+    expect(bench.contactAngleHysteresis, greaterThan(0.0));
+    final read = MaterialPair.fromJson(bench.toJson());
+    expect(read.contactAngleHysteresis, bench.contactAngleHysteresis);
+    expect(read.contactAngle, bench.contactAngle);
+    expect(
+      MaterialPair(
+        'f3d.water',
+        'f3d.glass',
+        contactAngleHysteresis: 4.0,
+        source: 'a test',
+      ).problems(),
+      contains(contains('hysteresis')),
+    );
+    expect(Materials.pairs.every((p) => p.problems().isEmpty), isTrue);
+  });
+
   test('a contact says how its friction was come by', () {
     final catalogue = MaterialCatalog.builtIn();
     // Mutation: drop the confidence, or take the pair's when the rule was

@@ -185,13 +185,14 @@ final class MaterialPair
   String get key
   String toString()
   bool involves(String id)
-  const MaterialPair(this.first, this.second, {this.friction, this.restitution, this.rollingResistance, this.contactAngle, this.confidence, required this.source})
+  const MaterialPair(this.first, this.second, {this.friction, this.restitution, this.rollingResistance, this.contactAngle, this.contactAngleHysteresis, this.confidence, required this.source})
   factory MaterialPair.fromJson(Map<String, Object?> json)
   final Confidence? confidence
   final String first
   final String second
   final String source
   final double? contactAngle
+  final double? contactAngleHysteresis
   final double? friction
   final double? restitution
   final double? rollingResistance
@@ -631,8 +632,8 @@ final class WorldProperties
   String toString()
   Vector3 get gravity
   Vector3 get wind
-  WorldProperties copyWith({Vector3? gravity, double? airTemperature, double? airPressure, double? airDensity, bool clearAirDensity = false, Vector3? wind, String? medium, SimulationProfile? profile, GeoOrigin? geoOrigin, bool clearGeoOrigin = false})
-  WorldProperties({Vector3? gravity, this.airTemperature = standardAirTemperature, this.airPressure = standardAtmosphere, double? airDensity, Vector3? wind, this.medium = 'f3d.air', this.profile = SimulationProfile.deterministic, this.geoOrigin})
+  WorldProperties copyWith({Vector3? gravity, double? airTemperature, double? airPressure, double? airDensity, bool clearAirDensity = false, double? airHumidity, Vector3? wind, String? medium, SimulationProfile? profile, GeoOrigin? geoOrigin, bool clearGeoOrigin = false})
+  WorldProperties({Vector3? gravity, this.airTemperature = standardAirTemperature, this.airPressure = standardAtmosphere, double? airDensity, this.airHumidity = standardRelativeHumidity, Vector3? wind, this.medium = 'f3d.air', this.profile = SimulationProfile.deterministic, this.geoOrigin})
   bool operator ==(Object other)
   double get airDensity
   double get gravityMagnitude
@@ -642,6 +643,7 @@ final class WorldProperties
   final GeoOrigin? geoOrigin
   final SimulationProfile profile
   final String medium
+  final double airHumidity
   final double airPressure
   final double airTemperature
   final double? airDensityOverride
@@ -666,9 +668,10 @@ final class WorldPropertiesPatch
   bool get isEmpty
   bool operator ==(Object other)
   double? get airDensity
+  double? get airHumidity
   double? get airPressure
   double? get airTemperature
-  factory WorldPropertiesPatch({Vector3? gravity, double? airTemperature, double? airPressure, double? airDensity, Vector3? wind, String? medium, SimulationProfile? profile, GeoOrigin? geoOrigin})
+  factory WorldPropertiesPatch({Vector3? gravity, double? airTemperature, double? airPressure, double? airDensity, double? airHumidity, Vector3? wind, String? medium, SimulationProfile? profile, GeoOrigin? geoOrigin})
   factory WorldPropertiesPatch.fromJson(Map<String, Object?> json)
   int get hashCode
   static const WorldPropertiesPatch empty = WorldPropertiesPatch._(<String, Object?>{})
@@ -706,6 +709,8 @@ const double standardAtmosphere = 101325.0
 const double standardGravity = 9.81
 
 Vector3 get standardGravityVector
+
+const double standardRelativeHumidity = 0.5
 
 const double standardSpeedOfSound = 343.0
 

@@ -1,3 +1,18 @@
+## 1.0.0-rc.1+1
+
+- **The air holds water.** `WorldProperties.airHumidity`, its relative
+  humidity from nought to one, half saturated by default
+  (`standardRelativeHumidity`), in `copyWith`, the JSON and
+  `WorldPropertiesPatch`, and written only when it is not the default, so
+  the standard world reads and digests as before. It is what open liquid
+  evaporates into; dry air's density stays what bodies are dragged by.
+- **A liquid's edge on a solid holds over a spread of angles.**
+  `MaterialPair.contactAngleHysteresis`, the advancing angle less the
+  receding one, in the JSON and checked to 0…π. Water on glass holds over
+  about 10°, and the catalogue gains water on PTFE (about 110°) and on a
+  phenolic bench top (`f3d.bakelite`, about 75°, holding over 25°), each
+  with its source and marked an estimate where it is one.
+
 ## 1.0.0-rc.1
 
 - **A state that saves is one that loads.** `MatterState.withQuantity`

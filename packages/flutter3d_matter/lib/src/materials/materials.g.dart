@@ -29785,9 +29785,28 @@ abstract final class Materials {
       'f3d.water',
       'f3d.glass',
       contactAngle: 0.35,
+      contactAngleHysteresis: 0.17,
       confidence: Confidence.handbook,
       source:
-          'about 20°: laboratory glass as it is used, not freshly cleaned — a freshly cleaned glass wets completely (Adamson and Gast, Physical Chemistry of Surfaces, 6th ed., 1997, ch. X)',
+          'about 20°: laboratory glass as it is used, not freshly cleaned — a freshly cleaned glass wets completely (Adamson and Gast, Physical Chemistry of Surfaces, 6th ed., 1997, ch. X); its edge holds over about 10° between advancing and receding, an estimate of the spread on such glass',
+    ),
+    MaterialPair(
+      'f3d.water',
+      'f3d.ptfe',
+      contactAngle: 1.92,
+      contactAngleHysteresis: 0.17,
+      confidence: Confidence.estimate,
+      source:
+          'about 110°: water on smooth PTFE, measured at 108–112° (Adamson and Gast, Physical Chemistry of Surfaces, 6th ed., 1997, ch. X); about 10° of hysteresis, an estimate for a smooth clean surface, where a worn one holds more',
+    ),
+    MaterialPair(
+      'f3d.water',
+      'f3d.bakelite',
+      contactAngle: 1.31,
+      contactAngleHysteresis: 0.44,
+      confidence: Confidence.estimate,
+      source:
+          'about 75°, its edge holding over about 25°: an estimate for a phenolic-resin laboratory bench top, of the order water beads at on cured phenolic laminates, and not one measurement',
     ),
     MaterialPair(
       'f3d.glycerol',

@@ -27,6 +27,7 @@ final class MaterialPair {
     this.restitution,
     this.rollingResistance,
     this.contactAngle,
+    this.contactAngleHysteresis,
     this.confidence,
     required this.source,
   });
@@ -57,6 +58,7 @@ final class MaterialPair {
       restitution: number('restitution'),
       rollingResistance: number('rollingResistance'),
       contactAngle: number('contactAngle'),
+      contactAngleHysteresis: number('contactAngleHysteresis'),
       confidence: switch (json['confidence']) {
         null => null,
         final String name when name.isNotEmpty => Confidence.named(name),
@@ -96,6 +98,13 @@ final class MaterialPair {
   /// turn does not wet. Null when not known.
   final double? contactAngle;
 
+  /// For a liquid on a solid, how far apart the angle its edge advances at
+  /// and the angle it recedes at are, radians: the edge does not move at
+  /// any angle between them, which is what holds a raindrop still on a
+  /// window (Furmidge, 1962). [contactAngle] is taken as their middle. Null
+  /// when not known.
+  final double? contactAngleHysteresis;
+
   /// Where the numbers come from.
   final String source;
 
@@ -123,13 +132,14 @@ final class MaterialPair {
     'restitution': ?restitution,
     'rollingResistance': ?rollingResistance,
     'contactAngle': ?contactAngle,
+    'contactAngleHysteresis': ?contactAngleHysteresis,
     'confidence': ?confidence?.name,
     'source': source,
   };
 
   /// What is implausible about this pair, one sentence each: a friction
   /// outside 0…5, a restitution or rolling resistance outside 0…1, a contact
-  /// angle outside 0…π, an empty source.
+  /// angle or its hysteresis outside 0…π, an empty source.
   List<String> problems() {
     final found = <String>[];
     void range(String what, double? value, double low, double high) {
@@ -142,6 +152,12 @@ final class MaterialPair {
     range('restitution', restitution, 0.0, 1.0);
     range('rolling resistance', rollingResistance, 0.0, 1.0);
     range('contact angle, rad', contactAngle, 0.0, math.pi);
+    range(
+      'contact angle hysteresis, rad',
+      contactAngleHysteresis,
+      0.0,
+      math.pi,
+    );
     if (source.trim().isEmpty) found.add('$key: no source');
     return found;
   }

@@ -16006,7 +16006,18 @@
     },
     "f3d.glass|f3d.water": {
       "contactAngle": 0.35,
+      "contactAngleHysteresis": 0.17,
       "confidence": "handbook"
+    },
+    "f3d.ptfe|f3d.water": {
+      "contactAngle": 1.92,
+      "contactAngleHysteresis": 0.17,
+      "confidence": "estimate"
+    },
+    "f3d.bakelite|f3d.water": {
+      "contactAngle": 1.31,
+      "contactAngleHysteresis": 0.44,
+      "confidence": "estimate"
     },
     "f3d.glass|f3d.glycerol": {
       "contactAngle": 0.45,

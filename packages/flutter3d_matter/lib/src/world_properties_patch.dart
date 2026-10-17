@@ -21,7 +21,8 @@ import 'world_properties.dart';
 ///
 /// **Its document is a world's own JSON with keys left out** — `gravity` (a
 /// vector, or m/s² down y), `airTemperature`, `airPressure`, `airDensity`,
-/// `wind`, `medium`, `profile`, `geoOrigin` — kept as it was written: a key this build does not know
+/// `airHumidity`, `wind`, `medium`, `profile`, `geoOrigin` — kept as it was
+/// written: a key this build does not know
 /// (a `stepRate` from before 1.0, say) is kept and written back, and a value
 /// is never sent through float32 on the way, so a patch read and written is
 /// the same document.
@@ -35,6 +36,7 @@ final class WorldPropertiesPatch {
     double? airTemperature,
     double? airPressure,
     double? airDensity,
+    double? airHumidity,
     Vector3? wind,
     String? medium,
     SimulationProfile? profile,
@@ -47,6 +49,7 @@ final class WorldPropertiesPatch {
         'airTemperature': ?airTemperature,
         'airPressure': ?airPressure,
         'airDensity': ?airDensity,
+        'airHumidity': ?airHumidity,
         if (wind != null) 'wind': <double>[wind.x, wind.y, wind.z],
         'medium': ?medium,
         if (profile != null) 'profile': profile.toJson(),
@@ -99,6 +102,10 @@ final class WorldPropertiesPatch {
   /// The air's density it sets explicitly, kg/m³, or null.
   double? get airDensity =>
       _json.containsKey('airDensity') ? _alone!.airDensityOverride : null;
+
+  /// The air's relative humidity it sets, nought to one, or null.
+  double? get airHumidity =>
+      _json.containsKey('airHumidity') ? _alone!.airHumidity : null;
 
   /// The wind it sets, m/s, or null. A fresh vector each call.
   Vector3? get wind => _json.containsKey('wind') ? _alone!.wind : null;

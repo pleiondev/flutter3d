@@ -54,6 +54,13 @@ const double standardSpeedOfSound = 343.0;
 /// by definition (10th CGPM, 1954).
 const double standardAtmosphere = 101325.0;
 
+/// The air's relative humidity in a world nobody has dampened or dried, from
+/// nought to one: half saturated, a heated room's. What open liquid
+/// evaporates into (`FluidAir` in `flutter3d_physics`); dry air's density,
+/// [standardAirDensity], is what every body is dragged by whatever the
+/// humidity, as it always was.
+const double standardRelativeHumidity = 0.5;
+
 /// How fast sound travels in dry air at [temperature], K, m/s.
 ///
 /// An ideal gas's c = √(γ R T / M), which goes as √T: [standardSpeedOfSound]

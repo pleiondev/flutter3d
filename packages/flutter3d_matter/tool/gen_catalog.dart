@@ -1544,7 +1544,7 @@ final class _Catalogue {
         '    MaterialPair(${_s(pair['first']! as String)}, '
         '${_s(pair['second']! as String)}, '
         '${<String>[
-          for (final key in <String>['friction', 'restitution', 'rollingResistance', 'contactAngle'])
+          for (final key in <String>['friction', 'restitution', 'rollingResistance', 'contactAngle', 'contactAngleHysteresis'])
             if (pair[key] case final num v) '$key: ${_d(v.toDouble())}',
           if (pair['confidence'] case final String c) 'confidence: Confidence.$c',
           'source: ${_s(pair['source']! as String)}',
@@ -1692,6 +1692,7 @@ final class _Catalogue {
             'friction',
             'restitution',
             'contactAngle',
+            'contactAngleHysteresis',
             'confidence',
           ])
             if (pair[key] != null) key: pair[key],

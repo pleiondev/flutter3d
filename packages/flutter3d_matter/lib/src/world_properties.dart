@@ -64,6 +64,7 @@ final class WorldProperties {
     this.airTemperature = standardAirTemperature,
     this.airPressure = standardAtmosphere,
     double? airDensity,
+    this.airHumidity = standardRelativeHumidity,
     Vector3? wind,
     this.medium = 'f3d.air',
     this.profile = SimulationProfile.deterministic,
@@ -74,6 +75,9 @@ final class WorldProperties {
     _positive(airTemperature, 'airTemperature');
     _positive(airPressure, 'airPressure');
     if (airDensity != null) _positive(airDensity, 'airDensity');
+    if (!(airHumidity >= 0.0 && airHumidity <= 1.0)) {
+      throw ArgumentError.value(airHumidity, 'airHumidity', 'not 0 to 1');
+    }
     if (!_finite(_gravity)) {
       throw ArgumentError.value(gravity, 'gravity', 'not finite');
     }
@@ -161,6 +165,13 @@ final class WorldProperties {
     final airTemperature = positive('airTemperature');
     final airPressure = positive('airPressure');
     final explicitDensity = positive('airDensity');
+    final airHumidity = switch (json['airHumidity']) {
+      null => null,
+      final num value when value >= 0 && value <= 1 => value.toDouble(),
+      final other => throw WorldPropertiesFormatException(
+        '"airHumidity" must be a relative humidity from 0 to 1, not $other',
+      ),
+    };
     // A level that sets the air's temperature or pressure and not its
     // density means the density that air has, not the base's override.
     final keepsBaseDensity = airTemperature == null && airPressure == null;
@@ -171,6 +182,7 @@ final class WorldProperties {
       airDensity:
           explicitDensity ??
           (keepsBaseDensity ? from.airDensityOverride : null),
+      airHumidity: airHumidity ?? from.airHumidity,
       wind: vector('wind') ?? from._wind,
       medium: medium ?? from.medium,
       profile: profile ?? from.profile,
@@ -199,6 +211,14 @@ final class WorldProperties {
   /// The air's density a world set explicitly, kg/m³; null when it is
   /// derived ([airDensity]).
   final double? airDensityOverride;
+
+  /// The air's relative humidity, nought to one: the water vapour it holds
+  /// over what it holds saturated at [airTemperature]. What open liquid
+  /// evaporates into, and the vapour's part of a fluid world's air
+  /// (`FluidAir` in `flutter3d_physics`); [standardRelativeHumidity] by
+  /// default. [airDensity] stays dry air's, which every recorded run was
+  /// made with.
+  final double airHumidity;
 
   /// The id of the material the world is filled with, in its
   /// `MaterialCatalog`: `f3d.air` by default.
@@ -258,6 +278,7 @@ final class WorldProperties {
     double? airPressure,
     double? airDensity,
     bool clearAirDensity = false,
+    double? airHumidity,
     Vector3? wind,
     String? medium,
     SimulationProfile? profile,
@@ -268,6 +289,7 @@ final class WorldProperties {
     airTemperature: airTemperature ?? this.airTemperature,
     airPressure: airPressure ?? this.airPressure,
     airDensity: clearAirDensity ? null : (airDensity ?? airDensityOverride),
+    airHumidity: airHumidity ?? this.airHumidity,
     wind: wind ?? _wind,
     medium: medium ?? this.medium,
     profile: profile ?? this.profile,
@@ -275,15 +297,17 @@ final class WorldProperties {
   );
 
   /// The world as JSON, every field: what a snapshot and a level hold.
-  /// `airDensity` only when [airDensityOverride] says it; `profile` only
-  /// when it is not [SimulationProfile.deterministic] and `geoOrigin` only
-  /// when there is one, so the default world is written, and digested, as
-  /// it was before either existed.
+  /// `airDensity` only when [airDensityOverride] says it; `airHumidity`
+  /// only when it is not [standardRelativeHumidity], `profile` only when it
+  /// is not [SimulationProfile.deterministic] and `geoOrigin` only when
+  /// there is one, so the default world is written, and digested, as it was
+  /// before any of them existed.
   Map<String, Object?> toJson() => <String, Object?>{
     'gravity': <double>[_gravity.x, _gravity.y, _gravity.z],
     'airTemperature': airTemperature,
     'airPressure': airPressure,
     'airDensity': ?airDensityOverride,
+    if (airHumidity != standardRelativeHumidity) 'airHumidity': airHumidity,
     'wind': <double>[_wind.x, _wind.y, _wind.z],
     'medium': medium,
     if (profile != SimulationProfile.deterministic) 'profile': profile.toJson(),
@@ -306,6 +330,7 @@ final class WorldProperties {
       other.airTemperature == airTemperature &&
       other.airPressure == airPressure &&
       other.airDensityOverride == airDensityOverride &&
+      other.airHumidity == airHumidity &&
       other._wind == _wind &&
       other.medium == medium &&
       other.profile == profile &&
@@ -319,6 +344,7 @@ final class WorldProperties {
     airTemperature,
     airPressure,
     airDensityOverride,
+    airHumidity,
     _wind.x,
     _wind.y,
     _wind.z,
