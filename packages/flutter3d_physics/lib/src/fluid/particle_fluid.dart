@@ -284,6 +284,27 @@ final class ParticleFluid {
   /// How many particles the solve steps: the first [count] of [positions].
   int get count => _x.length;
 
+  /// What is dissolved in the particles and drops together, as
+  /// concentrations of the liquid they make between them: what to draw
+  /// them the colour of. Empty when there is none of either.
+  Map<String, double> get concentrations {
+    final amounts = <String, double>{};
+    var volume = 0.0;
+    void add(Map<String, double> c, double v) {
+      volume += v;
+      c.forEach((k, x) => amounts[k] = (amounts[k] ?? 0.0) + x * v);
+    }
+
+    for (final c in _c) {
+      add(c, particleVolume);
+    }
+    for (final d in _drops) {
+      add(d.c, d.volume);
+    }
+    if (volume <= 0.0) return const {};
+    return {for (final e in amounts.entries) e.key: e.value / volume};
+  }
+
   /// Cubic metres here: every particle, every drop and the bank.
   double get volume =>
       _x.length * particleVolume +

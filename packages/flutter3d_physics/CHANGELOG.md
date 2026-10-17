@@ -26,7 +26,9 @@
   where it lands wider than the capillary length. `inject(asParticles:)`
   lays liquid straight onto a wall; what is short of a particle is let go
   as a droplet instead of waiting in the bank for ever; `retire` takes
-  drops at rest too (`RetiredParticles.drops`).
+  drops at rest too (`RetiredParticles.drops`). `ParticleFluid.concentrations`
+  says what the particles and drops carry between them, to draw them the
+  colour of it.
 - **Puddles.** `PuddleSurface` on a `FluidWorld`'s `puddles` takes what
   lands as `Puddle`s, one body each: a cap at the surface's angle or a
   puddle 2ℓc·sin(θ/2) deep, spreading as Huppert's gravity current,

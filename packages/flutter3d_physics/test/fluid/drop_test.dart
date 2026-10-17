@@ -38,6 +38,19 @@ void main() {
     expect(drop.velocity.x, closeTo((0.1 - 0.2) / 3, 1e-7));
   });
 
+  test('the spilt liquid says what is dissolved in it, drops and all', () {
+    // What draws it reads one colour off it. Mutation: leave the drops out,
+    // and a drop of dye reads as clear water.
+    final fluid = ParticleFluid(medium: FluidMedium.water, spacing: 0.001)
+      ..inject(1e-9, Vector3.zero(), Vector3.zero(), concentrations: {'d': 2})
+      ..inject(27e-9, Vector3(0.1, 0, 0), Vector3.zero(), asParticles: true);
+    expect(fluid.concentrations['d'], closeTo(2 * 1e-9 / 28e-9, 1e-9));
+    expect(
+      ParticleFluid(medium: FluidMedium.water, spacing: 0.001).concentrations,
+      isEmpty,
+    );
+  });
+
   test('a free block of particles gathers into one drop', () {
     // Eight particles laid out as a block, free in the air: under the
     // capillary length, a drop in flight is held whole by surface tension

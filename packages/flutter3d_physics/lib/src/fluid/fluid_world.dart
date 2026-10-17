@@ -61,8 +61,7 @@ final class FluidWorld {
     FluidAir? air,
     this.field,
   }) : solver = solver ?? backend.fluid,
-       air =
-           air ?? (world == null ? FluidAir.standard : FluidAir.of(world));
+       air = air ?? (world == null ? FluidAir.standard : FluidAir.of(world));
 
   /// What the steps promise about their numbers. Under a profile that
   /// allows adaptive steps, what floats is pushed by its own equation

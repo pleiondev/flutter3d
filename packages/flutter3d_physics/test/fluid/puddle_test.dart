@@ -64,10 +64,9 @@ void main() {
     // Huppert's R ∝ t^⅛ for a viscous current, up to the puddle's rest
     // radius. Mutation: take the rest radius at once, and honey is as
     // spread as water from the first step.
-    PuddleSurface lying(FluidMedium medium) =>
-        _bench()
-          ..receive(JetLanding(volume: 1e-6, medium: medium))
-          ..step(0.01, gravity: Vector3(0, -g, 0));
+    PuddleSurface lying(FluidMedium medium) => _bench()
+      ..receive(JetLanding(volume: 1e-6, medium: medium))
+      ..step(0.01, gravity: Vector3(0, -g, 0));
     final water = lying(FluidMedium.water);
     final honey = lying(FluidMedium.glycerol.copyWith(viscosity: 10.0));
     final fast = water.puddles.single;

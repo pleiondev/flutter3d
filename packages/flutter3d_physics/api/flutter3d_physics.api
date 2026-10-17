@@ -815,6 +815,7 @@ final class ParticleFluid
   List<LiquidDrop> get drops
   List<Vector3> get positions
   List<Vector3> get velocities
+  Map<String, double> get concentrations
   ParticleFluid({required this.medium, required this.spacing, this.iterations = 4, this.substeps = 2, this.solver = const DartFluid()})
   RetiredParticles retire({required double elapsed, required double after, required bool Function(Vector3 position, Vector3 velocity) settled})
   double get capillaryTime
