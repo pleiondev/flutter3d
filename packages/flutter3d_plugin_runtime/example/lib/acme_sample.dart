@@ -12,6 +12,7 @@ import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart'
     show ClearColor, ColorTarget, DepthTarget, RenderPassDescriptor;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
+import 'package:flutter3d_shaders/kernel.dart' show ComputeKernel;
 
 /// A light type of the plugin's own: a tube, lit as a point by the engine's
 /// stages until its own model reads it.
@@ -231,6 +232,61 @@ final class PixCodec extends TextureCodec {
   }
 }
 
+/// What [SparksStep] writes and [SparksNode] reads.
+const ResourceId sparksResource = ResourceId('acme_sample.sparks');
+
+/// A compute step of the plugin's own: one kernel, placed by the hardware
+/// layer where it chooses and skipped with the typed refusal where nothing
+/// computes it. It dispatches nothing; what it holds a frame to is where
+/// the step is placed and that the frame runs it there.
+final class SparksStep extends ComputeStep {
+  SparksStep();
+
+  @override
+  String get name => 'acme_sample.sparks';
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[sparksResource];
+
+  @override
+  late final List<ComputeKernel> kernels = ComputeKernel.parseAll('''
+kernel 1
+compute Sparks {
+  workgroup 64;
+  buffer sparks: f32[] read_write;
+  kernel { }
+}
+''');
+
+  @override
+  void record(ComputeContext context) {}
+}
+
+/// Reads the sparks after the scene, as a draw of them would, and hands the
+/// scene's colour on: the reader that keeps [SparksStep] in the frame,
+/// which culls a step whose output nothing reads.
+final class SparksNode extends RenderNode {
+  const SparksNode();
+
+  @override
+  String get name => 'acme_sample.sparks shown';
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+    sparksResource,
+    FrameResourceIds.hdrColor,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColor];
+
+  @override
+  void execute(RenderFrame frame) => frame.resources.provide(
+    FrameResourceIds.hdrColor,
+    frame.resources.texture(FrameResourceIds.hdrColor),
+  );
+}
+
 /// The kind of node the plugin's components are shown as.
 final class EmberKind extends SceneNodeKind {
   const EmberKind();
@@ -325,7 +381,9 @@ final class AcmeSamplePlugin extends Flutter3dPlugin {
     if (steps == null) return;
     steps
       ..addStep(smearStep)
-      ..addNode(smear ?? SmearNode(), step: smearStep);
+      ..addNode(smear ?? SmearNode(), step: smearStep)
+      ..addComputeStep(SparksStep())
+      ..addNode(const SparksNode());
     host.registry<LightTypes>().register(const TubeHook());
     host.registry<LightingModels>()
       ..register(hairModel)

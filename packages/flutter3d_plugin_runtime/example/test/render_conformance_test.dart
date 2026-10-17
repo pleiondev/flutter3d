@@ -20,13 +20,19 @@
 /// under the plugin's name.
 library;
 
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter3d_conformance_render/flutter3d_conformance_render.dart';
+import 'package:flutter3d_core/data_plugins.dart';
+import 'package:flutter3d_core/flutter3d_core.dart' show Renderer;
 import 'package:flutter3d_cpu/builtin.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart' show GraphicsDevice;
 import 'package:flutter3d_hardware/testing.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show PluginRegistry;
+import 'package:flutter3d_plugin_runtime/flutter3d_plugin_runtime.dart';
 import 'package:flutter3d_plugin_runtime_example/acme_sample.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -70,12 +76,27 @@ final class _HairStage extends CpuFragmentShader {
 }
 
 final PluginRenderPoints _points = PluginRenderPoints(
-  nodes: const <String>['acme_sample.smear', 'acme_sample.glow streak'],
+  nodes: const <String>[
+    'acme_sample.smear',
+    'acme_sample.sparks',
+    'acme_sample.sparks shown',
+    'acme_sample.glow streak',
+  ],
+  computeStep: 'acme_sample.sparks',
   litModel: hairModel,
   lightType: tubeLight,
   decal: decalStage,
   velocityReader: 'acme_sample.smear',
   shadows: const SoftSun(),
+  drawList: const HideHook(),
+  lod: const CoarsePolicy(),
+  // A `.pix` of four by two: the magic and the size, its texels nought.
+  codec: PluginCodecPoint(
+    name: 'acme_sample.pix',
+    sample: Uint8List.fromList(<int>[...'PIX!'.codeUnits, 4, 2]),
+    width: 4,
+    height: 2,
+  ),
 );
 
 void main() {
@@ -115,6 +136,50 @@ void main() {
         'acme_sample__Hair': const CpuStage.fragment(_HairStage()),
         'acme_sample__Decal': builtinCpuShaders()['Decal']!,
       }),
+    );
+  });
+
+  group('the Wasm render sample, as data', () {
+    // `plugin/acme_pulse.f3dplugin`: a render step whose material the run
+    // time compiles and whose frame a Wasm render module drives, through the
+    // same checks as the Dart plugin. Mutation: hand the engine's loop no
+    // backend, and the data plugin's render steps are never installed.
+    //
+    // **On the recording fake, which takes any stage.** The software
+    // rasteriser draws a run-time material only with the material-language
+    // compiler `flutter3d_app` hands it (`materialLanguageCompiler`), a
+    // Flutter package this example does not reach; an application's own
+    // suite runs the same group on it.
+    late DataPlugin pulse;
+    setUpAll(() async {
+      pulse = await DataPluginLoader(sections: DataSections(renderDataSections))
+          .load(
+            File('plugin/acme_pulse.f3dplugin').readAsStringSync(),
+            MemoryPluginSource(<String, Uint8List>{
+              for (final name in <String>['pulse.wasm', 'pulse.f3dmat'])
+                name: File('plugin/$name').readAsBytesSync(),
+            }),
+          );
+    });
+    List<PluginRegistry> runtimeShaders(
+      Renderer renderer,
+      GraphicsDevice device,
+    ) => <PluginRegistry>[
+      RuntimeShaders(
+        backend: RuntimeBackends.cpu,
+        loadShaders: device.loadShaders,
+        addMaterials: renderer.renderSteps.addMaterials,
+      ),
+    ];
+    runPluginRenderConformance(
+      () => pulse,
+      backend: 'fake, data',
+      points: const PluginRenderPoints(
+        nodes: <String>['acme_sample.pulse.beat'],
+      ),
+      device: FakeBackend.new,
+      registries: runtimeShaders,
+      engineBackend: RuntimeBackends.cpu,
     );
   });
 

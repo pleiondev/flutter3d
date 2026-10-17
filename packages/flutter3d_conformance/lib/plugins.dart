@@ -21,7 +21,7 @@
 /// );
 /// ```
 ///
-/// ## The 7 plugin checks
+/// ## The 8 plugin checks
 ///
 /// * **plugin.manifest** — the id is well formed, the plugin API version installs on
 ///   this engine, every permission is one the engine knows, a budget reads,
@@ -51,6 +51,10 @@
 ///   in SI within what anything real has (`PhysicalMaterial.problems`);
 ///   every pair it measures has one of its own in it and a source; and all of
 ///   it is gone when it is switched off. A plugin that brings none passes.
+/// * **plugin.render** — installed on the software backend with the
+///   harness's registries, whether the plugin places nodes in the frame:
+///   one that does names `render.nodes` in its outcome's `requires`, and the
+///   render suite's checks on `cpu` are then part of its badge.
 ///
 /// ## The badge
 ///
@@ -60,6 +64,15 @@
 /// manifest. [earnsBadge] answers it and [badgeFor] names it. A declined
 /// check — no world, no budget, assertions off — is never green and keeps
 /// the badge away, because a check that was not asked has not been passed.
+///
+/// **Render conformance counts for a plugin that draws.** A plugin that
+/// places nodes in the frame (`plugin.render`) earns the badge only with the
+/// render checks it requires passed on the software backend, `cpu`
+/// (`runPluginRenderConformance` of `flutter3d_conformance_render`), and a
+/// plugin of any kind keeps it only while no render check it ran failed on
+/// any backend. The two suites write one report: each keeps the other's
+/// outcomes in `<package>.conformance.json` and replaces its own, so the
+/// badge in it is judged on both, whichever ran last.
 ///
 /// **The badge names the suite it was earned against.** A check added later
 /// joins a new suite version, never an old one, so a plugin that earned
@@ -92,6 +105,7 @@ const List<String> pluginCheckNames = <String>[
   'plugin.backends',
   'plugin.budget',
   'plugin.materials',
+  'plugin.render',
 ];
 
 /// Runs every plugin check against the plugin [create] makes, and returns
@@ -126,7 +140,10 @@ const Map<String, List<String>> conformanceSuites = <String, List<String>>{
 };
 
 /// Whether [outcomes] earn the badge of [suite]: every check of that suite
-/// ran, every one passed and none declined.
+/// ran, every one passed and none declined; every check an outcome
+/// [PluginCheckOutcome.requires] — the render checks of a plugin that draws
+/// — passed on the software backend, `cpu`, and was not declined there; and
+/// no render check failed on any backend.
 bool earnsBadge(
   List<PluginCheckOutcome> outcomes, {
   String suite = conformanceSuiteVersion,
@@ -140,10 +157,27 @@ bool earnsBadge(
     );
   }
   final ran = outcomes.where((o) => checks.contains(o.check)).toList();
+  final required = <String>{for (final o in ran) ...o.requires};
   return ran.isNotEmpty &&
       checks.every((name) => ran.any((o) => o.check == name)) &&
-      ran.every((o) => o.passed && !o.declined);
+      ran.every((o) => o.passed && !o.declined) &&
+      required.every(
+        (name) => outcomes.any(
+          (o) =>
+              o.check == name &&
+              o.backend == renderBadgeBackend &&
+              o.passed &&
+              !o.declined,
+        ),
+      ) &&
+      !outcomes.any(
+        (o) => o.check.startsWith('render.') && !o.passed && !o.declined,
+      );
 }
+
+/// The backend a render check a badge requires is passed on: the software
+/// rasteriser, which every machine has and CI runs on every change.
+const String renderBadgeBackend = 'cpu';
 
 /// The badge [outcomes] earn, as it is written — `conformant@1.0` — for the
 /// newest suite they pass; null when they pass none.
@@ -187,9 +221,41 @@ Map<String, Object?> conformanceReport(
         'passed': o.passed,
         'declined': o.declined,
         'says': o.says,
+        if (o.requires.isNotEmpty) 'requires': o.requires,
       },
   ],
 };
+
+/// [ran] in place of the outcomes of [isOurs] in the report already in the
+/// package, if there is one: what a suite writes, so the plugin suite and
+/// the render suite, each in a test file of its own, leave one report
+/// holding both, judged by [earnsBadge] on both.
+List<PluginCheckOutcome> mergedOutcomes(
+  String plugin,
+  List<PluginCheckOutcome> ran, {
+  required bool Function(PluginCheckOutcome outcome) isOurs,
+}) => <PluginCheckOutcome>[
+  for (final json in readConformanceReportOutcomes(plugin))
+    if (PluginCheckOutcome.fromJson(json) case final kept? when !isOurs(kept))
+      kept,
+  ...ran,
+];
+
+/// Writes [ran], the render checks' outcomes of [plugin] on the backends
+/// they ran on, into the package's `<package>.conformance.json`, beside
+/// the plugin suite's and replacing the render outcomes of those backends,
+/// with the badge judged again on all of them. What
+/// `runPluginRenderConformance` calls once its checks are done.
+void recordRenderOutcomes(String plugin, List<PluginCheckOutcome> ran) {
+  final backends = <String?>{for (final o in ran) o.backend};
+  final merged = mergedOutcomes(
+    plugin,
+    ran,
+    isOurs: (o) =>
+        o.check.startsWith('render.') && backends.contains(o.backend),
+  );
+  writeConformanceReportFile(plugin, () => conformanceReport(plugin, merged));
+}
 
 /// What every [runPluginConformance] of this test run found so far, in the
 /// order its checks ran: the outcomes the report file is written from.
@@ -222,10 +288,13 @@ void runPluginConformance(
     }
     found.clear();
     final plugin = session.manifest.id;
-    writeConformanceReportFile(
+    // The render suite's outcomes, if it ran first, stay beside these.
+    final merged = mergedOutcomes(
       plugin,
-      () => conformanceReport(plugin, _reported),
+      _reported,
+      isOurs: (o) => !o.check.startsWith('render.'),
     );
+    writeConformanceReportFile(plugin, () => conformanceReport(plugin, merged));
   });
   final declared = session.manifest.backends.toList();
   for (final check in pluginChecks) {

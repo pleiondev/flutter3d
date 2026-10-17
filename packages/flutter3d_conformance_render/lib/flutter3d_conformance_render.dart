@@ -21,10 +21,11 @@
 /// );
 /// ```
 ///
-/// ## The 7 render checks
+/// ## The 12 render checks
 ///
 /// * **render.nodes**: every node the plugin places runs in a frame, and
-///   none once the plugin is switched off.
+///   none once the plugin is switched off; and the points name every node
+///   it places.
 /// * **render.litModel**: a box drawn through the plugin's lit model is a
 ///   picture of its own, and every block and texture of its slot table
 ///   reaches the stage: moving a block's first member, or darkening a
@@ -41,12 +42,34 @@
 ///   camera velocity, with neither of the engine's readers on.
 /// * **render.shadows**: each producer the technique hands the frame, for
 ///   the directional map and for the cube atlas, is run.
+/// * **render.drawList**: the draw-list hook is the renderer's while the
+///   plugin is on, is asked of a frame's meshes, and is gone once it is
+///   off.
+/// * **render.lod**: the level-of-detail policy is among the renderer's, a
+///   frame with a group in it asks the chain, and it goes with the plugin.
+/// * **render.skinning**: the skinning hook is placed, and goes with the
+///   plugin.
+/// * **render.compute**: the compute step's node runs where the device
+///   computes and is skipped with the typed refusal where it does not.
+/// * **render.codec**: the image format is among the engine's codecs,
+///   decodes its sample to the size given, and goes with the plugin.
 ///
 /// A device that draws no picture (a recording fake) is held to the
 /// structure: the parts that compare pictures are declined, saying so.
+///
+/// ## The badge
+///
+/// **For a plugin that draws, these are part of the badge.** The plugin
+/// suite's `plugin.render` finds whether the plugin places nodes in the
+/// frame; one that does earns `conformant@1.0` only with `render.nodes`
+/// passed here on `cpu`. [runPluginRenderConformance] writes its outcomes
+/// into the plugin's `<package>.conformance.json` beside the plugin
+/// suite's, and a render check that failed on any backend keeps the badge
+/// away.
 library;
 
-import 'package:flutter3d_conformance/plugins.dart' show PluginCheckOutcome;
+import 'package:flutter3d_conformance/plugins.dart'
+    show PluginCheckOutcome, recordRenderOutcomes;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show Flutter3dPlugin;
 import 'package:test/test.dart';
@@ -55,23 +78,29 @@ import 'src/render_checks.dart';
 
 export 'src/render_checks.dart'
     show
+        PluginCodecPoint,
         PluginRenderPoints,
         RenderCheckDevice,
         RenderCheckMaterials,
+        RenderCheckRegistries,
         checkPluginRender,
         pluginRenderCheckNames;
 
 /// The render checks of [points] as tests, one a check, for the plugin
 /// [create] makes on the devices [device] opens, named for [backend].
 ///
-/// [materials] is [checkPluginRender]'s: the plugin's stages loaded for a
-/// GPU backend. A declined check is reported as skipped with its reason.
+/// [materials], [registries] and [engineBackend] are [checkPluginRender]'s:
+/// the plugin's stages loaded for a GPU backend, what the application hands
+/// the plugin beside the renderer, and the backend the engine says it draws
+/// with. A declined check is reported as skipped with its reason.
 void runPluginRenderConformance(
   Flutter3dPlugin Function() create, {
   required RenderCheckDevice device,
   required PluginRenderPoints points,
   required String backend,
   RenderCheckMaterials? materials,
+  RenderCheckRegistries? registries,
+  String? engineBackend,
 }) {
   late final Future<List<PluginCheckOutcome>> outcomes = checkPluginRender(
     create,
@@ -79,7 +108,14 @@ void runPluginRenderConformance(
     points: points,
     backend: backend,
     materials: materials,
+    registries: registries,
+    engineBackend: engineBackend,
   );
+  // Into the plugin's report, beside the plugin suite's: the badge of a
+  // plugin that draws is judged on both.
+  tearDownAll(() async {
+    recordRenderOutcomes(create().manifest.id, await outcomes);
+  });
   for (final check in pluginRenderCheckNames) {
     test('$check on $backend', () async {
       final found = (await outcomes).where((o) => o.check == check).toList();

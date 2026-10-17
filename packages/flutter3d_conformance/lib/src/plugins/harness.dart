@@ -60,7 +60,38 @@ final class PluginCheckOutcome {
     required this.says,
     this.backend,
     this.declined = false,
+    this.requires = const <String>[],
   });
+
+  /// Reads one outcome as `conformanceReport` writes it; null for an entry
+  /// that is not one.
+  static PluginCheckOutcome? fromJson(Object? json) => switch (json) {
+    {
+      'check': final String check,
+      'passed': final bool passed,
+      'says': final String says,
+    } =>
+      PluginCheckOutcome(
+        check: check,
+        passed: passed,
+        says: says,
+        backend: json['backend'] is String ? json['backend']! as String : null,
+        declined: json['declined'] == true,
+        requires: switch (json['requires']) {
+          final List<Object?> list when list.every((e) => e is String) =>
+            List<String>.unmodifiable(list.cast<String>()),
+          _ => const <String>[],
+        },
+      ),
+    _ => null,
+  };
+
+  /// The checks this outcome makes part of the badge, which must each have
+  /// passed on the software backend (`cpu`) for it to be earned: what
+  /// `plugin.render` names for a plugin that places nodes in the frame —
+  /// the render checks of `flutter3d_conformance_render`. Empty for every
+  /// other outcome.
+  final List<String> requires;
 
   /// One of `pluginCheckNames`.
   final String check;
@@ -145,3 +176,9 @@ String? budgetProblemOf(PluginManifest manifest) {
   if (raw.isEmpty) return 'its budget is empty, which promises nothing';
   return null;
 }
+
+/// The render checks a plugin's badge needs: the software backend's
+/// `render.nodes` for a plugin that places a node in the frame, which
+/// `flutter3d_conformance_render` reports and `plugin.render` names in its
+/// outcome's [PluginCheckOutcome.requires].
+const List<String> renderChecksForNodes = <String>['render.nodes'];

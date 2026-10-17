@@ -26,6 +26,7 @@ final List<PluginCheck> pluginChecks = <PluginCheck>[
   (name: 'plugin.backends', run: _backends),
   (name: 'plugin.budget', run: _budget),
   (name: 'plugin.materials', run: _materials),
+  (name: 'plugin.render', run: _render),
 ];
 
 /// The backends a plugin that names none is installed on: no backend at all
@@ -147,11 +148,31 @@ List<String> _shape(EngineLoop loop) => <String>[
         '  system $system in ${phase.name}',
     ],
   ...<String>[
-    for (final declared in loop.events.declared) 'event ${declared.name}',
+    for (final declared in _ownedEvents(loop)) 'event ${declared.name}',
     for (final field in loop.fields.declared) 'field ${field.id}',
     for (final solver in loop.subsystems.declared) 'subsystem ${solver.id}',
   ]..sort(),
 ];
+
+/// The events on [loop]'s bus that the application or one of its plugins
+/// declared.
+///
+/// **An engine package's own event is the engine's**, even when a plugin's
+/// install is what first needed it: the Wasm runtime declares its trap the
+/// first time a Wasm system is installed, under its own scope, and keeps it
+/// for every later module. Such a declaration names one of
+/// [PluginManifest.engineNamespaces] and no plugin of the loop, and is held
+/// to neither the plugin's namespace nor its switching off.
+Iterable<EventDeclaration> _ownedEvents(EngineLoop loop) {
+  final plugins = <String>{
+    for (final status in loop.plugins.statuses) status.id,
+  };
+  return loop.events.declared.where(
+    (d) =>
+        plugins.contains(d.declaredBy) ||
+        !PluginManifest.engineNamespaces.contains(d.declaredBy),
+  );
+}
 
 String _difference(List<String> want, List<String> got) {
   final missing = want.where((s) => !got.contains(s)).toList();
@@ -325,7 +346,7 @@ Set<(String, String)> _named(EngineLoop loop) => <(String, String)>{
       ('the phase', phase.name),
       for (final system in loop.systemsIn(phase)) ('the system', system),
     ],
-  for (final declared in loop.events.declared) ('the event', declared.name),
+  for (final declared in _ownedEvents(loop)) ('the event', declared.name),
   for (final field in loop.fields.declared) ('the field', field.id),
   for (final solver in loop.subsystems.declared) ('the subsystem', solver.id),
 };
@@ -693,6 +714,93 @@ List<PluginCheckOutcome> _budget(PluginSession session) {
   } on Object catch (error) {
     return <PluginCheckOutcome>[
       outcome('stepping it threw: ${_describe(error)}', passed: false),
+    ];
+  }
+}
+
+// -------------------------------------------------------------------- render
+
+/// Whether the plugin places nodes in the frame, and so whether the render
+/// checks are part of its badge: installed on the software backend with
+/// the harness's registries, the nodes the renderer's steps hold with it
+/// and not without it.
+///
+/// **Render conformance counts where it is the plugin's work.** A plugin
+/// that places a node answers to `runPluginRenderConformance` on `cpu`
+/// too: its outcome here names `render.nodes` in
+/// [PluginCheckOutcome.requires], and `earnsBadge` holds the report to it.
+/// A harness that hands no renderer's steps reaches no frame, which the
+/// outcome says.
+List<PluginCheckOutcome> _render(PluginSession session) {
+  PluginCheckOutcome outcome({
+    required bool passed,
+    required String says,
+    List<String> requires = const <String>[],
+  }) => PluginCheckOutcome(
+    check: 'plugin.render',
+    backend: 'cpu',
+    passed: passed,
+    says: says,
+    requires: requires,
+  );
+  try {
+    List<String>? placed({required bool withPlugin}) {
+      final registries =
+          session.harness.registries?.call('cpu') ?? const <PluginRegistry>[];
+      final steps = registries.whereType<RenderStepRegistry>().firstOrNull;
+      if (steps == null) return null;
+      EngineLoop(
+        input: InputState(),
+        plugins: <Flutter3dPlugin>[
+          ...?session.harness.dependencies?.call(),
+          if (withPlugin) session.create(),
+        ],
+        registries: registries,
+        backend: 'cpu',
+        profile: session.harness.profile,
+      );
+      return steps.nodeNames;
+    }
+
+    final without = placed(withPlugin: false);
+    final drawn = placed(withPlugin: true);
+    if (without == null || drawn == null) {
+      return <PluginCheckOutcome>[
+        outcome(
+          passed: true,
+          says:
+              'the harness hands no renderer\'s steps among its registries, '
+              'so nothing of the plugin\'s reached a frame here; a plugin '
+              'that draws is checked with them, and its nodes with the '
+              'render suite',
+        ),
+      ];
+    }
+    final own = <String>[
+      for (final name in drawn)
+        if (!without.contains(name)) name,
+    ];
+    if (own.isEmpty) {
+      return <PluginCheckOutcome>[
+        outcome(passed: true, says: 'it places no node in the frame'),
+      ];
+    }
+    return <PluginCheckOutcome>[
+      outcome(
+        passed: true,
+        says:
+            'it places ${own.join(', ')} in the frame, so the render checks '
+            'on cpu are part of its badge: run runPluginRenderConformance '
+            'with backend "cpu" beside this suite',
+        requires: renderChecksForNodes,
+      ),
+    ];
+  } on Object catch (error) {
+    return <PluginCheckOutcome>[
+      outcome(
+        passed: false,
+        says: 'installing it on cpu threw: ${_describe(error)}',
+      ),
     ];
   }
 }

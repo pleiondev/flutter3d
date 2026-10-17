@@ -31,6 +31,10 @@ dependencies:
   flutter3d_hardware:
     path: ../../flutter3d_hardware
 
+  # The kernel language its compute step is written in.
+  flutter3d_shaders:
+    path: ../../flutter3d_shaders
+
   # The light type its own kind is based on, and the colour its gizmo is
   # drawn in.
   flutter3d_foundation:

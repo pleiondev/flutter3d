@@ -41,7 +41,7 @@ state in `loop.world` or adds a `SnapshotPart` for it, and the checks
 capture, restore and digest it through `EngineLoop.snapshots`, the same path
 a rollback and a replay take.
 
-The 7 plugin checks:
+The 8 plugin checks:
 
 - **plugin.manifest**: the id is well formed, the API version installs, every
   permission is one the engine knows, a budget reads, the manifest survives
@@ -69,6 +69,10 @@ The 7 plugin checks:
   density in g/cm³ or a temperature in °C is caught. Each pair it measures
   has one of its own in it and a source, and all of it is gone when the
   plugin is switched off. A plugin that brings none passes.
+- **plugin.render**: installed on the software backend with the harness's
+  registries, whether the plugin places nodes in the frame. One that does
+  names `render.nodes` in its outcome's `requires`, and the render checks of
+  `flutter3d_conformance_render` on `cpu` are then part of its badge.
 
 `checkPluginConformance` returns the same outcomes as a list, for a tool that
 reports rather than fails.
@@ -79,7 +83,10 @@ reports rather than fails.
 declared backend, with a world given to determinism and a budget declared and
 kept, on the plugin API version in its manifest. `earnsBadge(outcomes)`
 answers it. A declined check (no world, no budget, assertions off) is
-reported as skipped, never as passed, and keeps the badge away.
+reported as skipped, never as passed, and keeps the badge away. A plugin
+that draws earns it only with the render checks it requires passed on
+`cpu`, and keeps it only while no render check it ran failed on any
+backend.
 
 `runPluginConformance` writes what it found to `<package>.conformance.json`
 beside your pubspec once its checks have run: the `f3d.conformance` report,

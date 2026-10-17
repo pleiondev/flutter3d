@@ -102,4 +102,10 @@ abstract base class RenderStepRegistry extends PluginRegistry {
   /// Where a plugin's node may go, in the order the frame meets them —
   /// [RenderAnchor.values] for this engine.
   List<RenderAnchor> get anchors => RenderAnchor.values;
+
+  /// The name of every node placed through this registry and its plugins'
+  /// views, at every anchor, in the order the frame meets them; the
+  /// engine's own passes are not among them. What the conformance suite
+  /// reads to know whether a plugin draws. Empty unless the renderer says.
+  List<String> get nodeNames => const <String>[];
 }

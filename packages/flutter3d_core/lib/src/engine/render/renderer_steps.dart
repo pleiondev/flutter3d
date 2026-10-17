@@ -140,6 +140,12 @@ final class RendererSteps extends RenderStepRegistry {
     for (final entry in _store.orderedAt(anchor)) entry.node.name,
   ];
 
+  /// Every node added, at every anchor, in the order the frame meets them.
+  @override
+  List<String> get nodeNames => <String>[
+    for (final anchor in anchors) ...nodesAt(anchor),
+  ];
+
   /// Makes [step] one of this renderer's steps.
   ///
   /// Throws a [NameTakenException] for a built-in step and for a name

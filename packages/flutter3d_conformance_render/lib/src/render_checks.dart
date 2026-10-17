@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter3d_conformance/plugins.dart' show PluginCheckOutcome;
+import 'package:flutter3d_core/data_plugins.dart' show RuntimeShaders;
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show LightType, MaterialParameters;
@@ -28,11 +29,41 @@ final class PluginRenderPoints {
     this.decal,
     this.velocityReader,
     this.shadows,
+    this.drawList,
+    this.lod,
+    this.skinning,
+    this.computeStep,
+    this.codec,
   });
 
   /// The nodes the plugin places in the frame graph, by name, which a frame
-  /// runs while it is on and does not once it is off.
+  /// runs while it is on and does not once it is off. Every node the plugin
+  /// places is named here: one it places and this does not name fails
+  /// `render.nodes`.
   final List<String> nodes;
+
+  /// A draw-list hook the plugin adds, by its type: found among the
+  /// renderer's while the plugin is on, asked of a frame's meshes, and gone
+  /// once it is off.
+  final DrawListHook? drawList;
+
+  /// A level-of-detail policy the plugin adds, by its type: found among the
+  /// renderer's while the plugin is on, asked by a frame with a group in it,
+  /// and gone once it is off.
+  final LodPolicy? lod;
+
+  /// A skinning hook the plugin places, by its type: listed among the
+  /// renderer's while the plugin is on and gone once it is off.
+  final SkinningHook? skinning;
+
+  /// The name of a compute step's node the plugin places, which a frame
+  /// runs where the device computes and skips with the typed refusal
+  /// (`PassSkip.unsupported`) where it does not — never fails or leaves
+  /// pending.
+  final String? computeStep;
+
+  /// An image format the plugin brings, with a sample it decodes.
+  final PluginCodecPoint? codec;
 
   /// A lit model the plugin registers, drawn on a box with every member of
   /// its slot table's blocks and every texture of its own bound.
@@ -53,6 +84,29 @@ final class PluginRenderPoints {
   final ShadowTechnique? shadows;
 }
 
+/// An image format a plugin brings, for `render.codec`: its codec's name
+/// and a file in its format, with the size it decodes to where the check
+/// should hold it to one.
+final class PluginCodecPoint {
+  const PluginCodecPoint({
+    required this.name,
+    required this.sample,
+    this.width,
+    this.height,
+  });
+
+  /// The codec's name, `acme.pix`.
+  final String name;
+
+  /// A file the codec reads.
+  final Uint8List sample;
+
+  /// The width and height, in texels, the sample decodes to; null for
+  /// any.
+  final int? width;
+  final int? height;
+}
+
 /// The render checks' names, in the order they are reported.
 const List<String> pluginRenderCheckNames = <String>[
   'render.nodes',
@@ -62,6 +116,11 @@ const List<String> pluginRenderCheckNames = <String>[
   'render.decal',
   'render.velocity',
   'render.shadows',
+  'render.drawList',
+  'render.lod',
+  'render.skinning',
+  'render.compute',
+  'render.codec',
 ];
 
 const int _size = 32;
@@ -76,20 +135,55 @@ typedef RenderCheckDevice = FutureOr<GraphicsDevice> Function();
 typedef RenderCheckMaterials =
     FutureOr<ShaderLibrary?> Function(GraphicsDevice device);
 
+/// The registries an application hands the plugin beside the renderer's
+/// own, made for each fresh [renderer] on [device]: the runtime shaders a
+/// data plugin's materials and render steps are compiled through, a
+/// subsystem's registry a plugin asks its host for.
+typedef RenderCheckRegistries =
+    List<PluginRegistry> Function(Renderer renderer, GraphicsDevice device);
+
 /// One renderer with the plugin installed into it on a fresh device.
 final class _Stage {
-  _Stage(this.device, Flutter3dPlugin plugin, {ShaderLibrary? materials})
-    : renderer = Renderer.create(device: device, materials: materials) {
+  _Stage(
+    this.device,
+    Flutter3dPlugin plugin, {
+    ShaderLibrary? materials,
+    RenderCheckRegistries? registries,
+    String? engineBackend,
+  }) : renderer = Renderer.create(device: device, materials: materials) {
+    extra = registries?.call(renderer, device) ?? const <PluginRegistry>[];
     loop = EngineLoop(
       input: InputState(),
-      registries: <PluginRegistry>[renderer.renderSteps],
+      registries: <PluginRegistry>[renderer.renderSteps, decoders, ...extra],
       plugins: <Flutter3dPlugin>[plugin],
+      backend: engineBackend,
     );
   }
 
   final GraphicsDevice device;
   final Renderer renderer;
+
+  /// The decoders a plugin's image format registers with.
+  final ModelDecoders decoders = ModelDecoders();
+
+  /// What the application handed beside the renderer's registries.
+  late final List<PluginRegistry> extra;
   late final EngineLoop loop;
+
+  /// Completes once what the install started is in place: a compute step's
+  /// placement, and the stages the runtime shaders compile behind a data
+  /// plugin's materials and render steps.
+  Future<void> get settled => Future.wait(<Future<void>>[
+    renderer.renderSteps.whenPlaced(),
+    for (final registry in extra)
+      if (registry is RuntimeShaders) registry.settled,
+  ]);
+
+  /// Switches the one plugin off at the next step boundary.
+  void switchOff() {
+    loop.plugins.disable(loop.plugins.order.single);
+    loop.runSteps(1);
+  }
 
   late final DeviceMesh _box = DeviceMesh.upload(
     device,
@@ -199,16 +293,34 @@ String _describe(Object error) => switch (error) {
 /// which the renderer consults before the device's own. Left out, the
 /// device itself answers the plugin's stage names, as a software device
 /// built with them does.
+///
+/// **[registries] is what the application hands beside the renderer**: a
+/// data plugin's render steps, its Wasm render nodes among them, are
+/// compiled through the engine's `RuntimeShaders`, which a check waits on
+/// before it draws. [engineBackend] is the backend the engine's loop says
+/// it draws with (`RuntimeBackends.cpu`), which a data plugin's render
+/// sections install on and an engine that says none skips; null for none,
+/// as a Dart plugin needs.
 Future<List<PluginCheckOutcome>> checkPluginRender(
   Flutter3dPlugin Function() create, {
   required RenderCheckDevice device,
   required PluginRenderPoints points,
   required String backend,
   RenderCheckMaterials? materials,
+  RenderCheckRegistries? registries,
+  String? engineBackend,
 }) async {
   Future<_Stage> stage() async {
     final opened = await device();
-    return _Stage(opened, create(), materials: await materials?.call(opened));
+    final made = _Stage(
+      opened,
+      create(),
+      materials: await materials?.call(opened),
+      registries: registries,
+      engineBackend: engineBackend,
+    );
+    await made.settled;
+    return made;
   }
 
   final probe = await stage();
@@ -245,24 +357,60 @@ Future<List<PluginCheckOutcome>> checkPluginRender(
       ? null
       : 'this device draws the same picture with a box as without, so no '
             'picture is compared';
+  // Every node the plugin places, which `render.nodes` holds the points to.
+  final placed = probe.renderer.renderSteps.nodeNames;
+
+  /// Whether a hook of [hook]'s type is among [hooks].
+  bool registered(Object hook, Iterable<Object> hooks) =>
+      hooks.any((h) => h.runtimeType == hook.runtimeType);
 
   return <PluginCheckOutcome>[
-    if (points.nodes.isNotEmpty)
+    if (points.nodes.isNotEmpty || placed.isNotEmpty)
       await guarded('render.nodes', (stage) async {
-        final ran = <String>{
-          for (final pass in stage.render(stage.scene()).passes) pass.name,
-        };
-        final missing = points.nodes.where((n) => !ran.contains(n)).toList();
-        if (missing.isNotEmpty) {
+        final unnamed = placed.where((n) => !points.nodes.contains(n)).toList();
+        if (unnamed.isNotEmpty) {
           return outcome(
             'render.nodes',
             false,
-            'the frame did not run ${missing.join(', ')}',
+            'it places ${unnamed.join(', ')}, which the points do not name: '
+                'name every node it places in PluginRenderPoints.nodes',
           );
         }
-        final id = stage.loop.plugins.order.single;
-        stage.loop.plugins.disable(id);
-        stage.loop.runSteps(1);
+        // A compute step loads where it is placed behind its registration,
+        // and the frames before it lands skip it as pending: the stage was
+        // settled before this frame, so it is the first one that counts.
+        final frame = stage.render(stage.scene());
+        final ran = <String>{for (final pass in frame.passes) pass.name};
+        final skips = <String, PassSkip>{
+          for (final skip in frame.skipped) skip.name: skip.reason,
+        };
+        // A node this device computes nothing for is skipped with the typed
+        // refusal, and a reader of what it would have written starves with
+        // it: the frame said why, as `render.compute` accepts.
+        final refused = points.nodes
+            .where((n) => skips[n] == PassSkip.unsupported)
+            .toSet();
+        final missing = points.nodes
+            .where(
+              (n) =>
+                  !ran.contains(n) &&
+                  !refused.contains(n) &&
+                  !(refused.isNotEmpty && skips[n] == PassSkip.starved),
+            )
+            .toList();
+        if (missing.isNotEmpty) {
+          final why = <String>[
+            for (final n in missing)
+              if (skips[n] case final reason?) '$n ${reason.name}',
+          ];
+          return outcome(
+            'render.nodes',
+            false,
+            'the frame did not run ${missing.join(', ')}'
+                '${why.isEmpty ? '' : ' (skipped: ${why.join(', ')})'}',
+          );
+        }
+        stage.switchOff();
         final after = <String>{
           for (final pass in stage.render(stage.scene()).passes) pass.name,
         };
@@ -518,6 +666,153 @@ Future<List<PluginCheckOutcome>> checkPluginRender(
           says.isEmpty
               ? 'it produced nothing the frame asked of it'
               : says.join('; '),
+        );
+      }),
+    if (points.drawList case final hook?)
+      await guarded('render.drawList', (stage) async {
+        final hooks = stage.renderer.hooks;
+        if (!registered(hook, hooks.drawListHooks)) {
+          return outcome(
+            'render.drawList',
+            false,
+            'no draw-list hook of its ${hook.runtimeType} is the renderer\'s',
+          );
+        }
+        // A frame asks it of every mesh, which a hook that throws on one
+        // fails here.
+        stage.render(stage.scene());
+        stage.switchOff();
+        final gone = !registered(hook, hooks.drawListHooks);
+        return outcome(
+          'render.drawList',
+          gone,
+          gone
+              ? 'its ${hook.runtimeType} was asked of a frame\'s meshes, and '
+                    'went with the plugin'
+              : 'its ${hook.runtimeType} stayed once the plugin was off',
+        );
+      }),
+    if (points.lod case final policy?)
+      await guarded('render.lod', (stage) async {
+        final hooks = stage.renderer.hooks;
+        if (!registered(policy, hooks.lodPolicies)) {
+          return outcome(
+            'render.lod',
+            false,
+            'no level-of-detail policy of its ${policy.runtimeType} is the '
+                'renderer\'s',
+          );
+        }
+        // A group of two levels in the frame, so the chain is asked.
+        stage.render(
+          stage.scene()..add(
+            LodGroup(
+              levels: <LodLevel>[
+                LodLevel(
+                  node: MeshNode(stage._box, RenderMaterial()),
+                  maxScreenFraction: 0.5,
+                ),
+                LodLevel(
+                  node: MeshNode(stage._box, RenderMaterial()),
+                  maxScreenFraction: 0.0,
+                ),
+              ],
+            ),
+          ),
+        );
+        stage.switchOff();
+        final gone = !registered(policy, hooks.lodPolicies);
+        return outcome(
+          'render.lod',
+          gone,
+          gone
+              ? 'its ${policy.runtimeType} chose for a group, and went with '
+                    'the plugin'
+              : 'its ${policy.runtimeType} stayed once the plugin was off',
+        );
+      }),
+    if (points.skinning case final hook?)
+      await guarded('render.skinning', (stage) async {
+        final hooks = stage.renderer.hooks;
+        if (!registered(hook, hooks.skinningHooks)) {
+          return outcome(
+            'render.skinning',
+            false,
+            'no skinning hook of its ${hook.runtimeType} is listed: place it '
+                'with RendererSteps.placeSkinningHook',
+          );
+        }
+        stage.render(stage.scene());
+        stage.switchOff();
+        final gone = !registered(hook, hooks.skinningHooks);
+        return outcome(
+          'render.skinning',
+          gone,
+          gone
+              ? 'its ${hook.runtimeType} was placed, and went with the plugin'
+              : 'its ${hook.runtimeType} stayed once the plugin was off',
+        );
+      }),
+    if (points.computeStep case final node?)
+      await guarded('render.compute', (stage) async {
+        // Placed asynchronously: a few frames for the placement to settle,
+        // each a microtask apart, before what the frame says is final.
+        FrameResult? last;
+        for (var frame = 0; frame < 8; frame++) {
+          last = stage.render(stage.scene());
+          final skipped = last.skipped.where((s) => s.name == node);
+          if (skipped.every((s) => s.reason != PassSkip.pending)) break;
+          await Future<void>.delayed(Duration.zero);
+        }
+        final result = last!;
+        final ran = result.passes.any((p) => p.name == node);
+        final skip = result.skipped.where((s) => s.name == node).firstOrNull;
+        final refused = skip?.reason == PassSkip.unsupported;
+        return outcome(
+          'render.compute',
+          ran || refused,
+          ran
+              ? '"$node" ran on this device'
+              : refused
+              ? '"$node" was skipped with the typed refusal, this device '
+                    'computing nothing it asks'
+              : skip == null
+              ? 'the frame neither ran nor skipped "$node"'
+              : '"$node" was skipped as ${skip.reason.name}',
+        );
+      }),
+    if (points.codec case final codec?)
+      await guarded('render.codec', (stage) async {
+        final codecs = stage.decoders.textureCodecs;
+        if (!codecs.codecs.any((c) => c.name == codec.name)) {
+          return outcome(
+            'render.codec',
+            false,
+            '"${codec.name}" is not among the engine\'s texture codecs',
+          );
+        }
+        final texture = await uploadEncodedImage(
+          stage.device,
+          codec.sample,
+          decodeImage: (_) async => null,
+          platformDecode: false,
+          codecs: codecs,
+        );
+        final sized =
+            (codec.width == null || texture.width == codec.width) &&
+            (codec.height == null || texture.height == codec.height);
+        stage.switchOff();
+        final gone = !codecs.codecs.any((c) => c.name == codec.name);
+        return outcome(
+          'render.codec',
+          sized && gone,
+          !sized
+              ? '"${codec.name}" decoded the sample to ${texture.width} by '
+                    '${texture.height}, not ${codec.width} by ${codec.height}'
+              : gone
+              ? '"${codec.name}" decoded the sample to ${texture.width} by '
+                    '${texture.height}, and went with the plugin'
+              : '"${codec.name}" stayed once the plugin was off',
         );
       }),
   ];

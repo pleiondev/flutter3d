@@ -20,6 +20,23 @@ File conformanceReportFileIn(Directory directory, String plugin) {
   return File('${directory.path}/${name ?? plugin}.conformance.json');
 }
 
+/// The outcomes of the report already beside the pubspec of the package
+/// the test runner was started in, as JSON; none where there is no report
+/// or it does not read.
+List<Object?> readConformanceReportOutcomes(String plugin) {
+  final file = conformanceReportFileIn(Directory.current, plugin);
+  if (!file.existsSync()) return const <Object?>[];
+  try {
+    return switch (jsonDecode(file.readAsStringSync())) {
+      {'format': 'f3d.conformance', 'outcomes': final List<Object?> outcomes} =>
+        outcomes,
+      _ => const <Object?>[],
+    };
+  } on FormatException {
+    return const <Object?>[];
+  }
+}
+
 /// Writes [report] beside the pubspec of the package the test runner was
 /// started in, which is the plugin's own: `dart test` runs from the
 /// package root.

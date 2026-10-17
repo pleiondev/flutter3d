@@ -4,6 +4,9 @@
 /// and `plugin.report` read it.
 library;
 
+/// Reads nothing: a browser has no package directory.
+List<Object?> readConformanceReportOutcomes(String plugin) => const <Object?>[];
+
 /// Writes nothing: a browser has no package directory.
 void writeConformanceReportFile(
   String plugin,

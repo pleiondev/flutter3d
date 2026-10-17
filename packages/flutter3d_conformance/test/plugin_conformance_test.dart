@@ -206,6 +206,41 @@ PhysicalMaterial _jam({String source = 'Orchard lab notes, 2026'}) =>
       ),
     );
 
+/// An engine package's own scope, as a runtime that declares its events
+/// the first time a plugin needs them uses one.
+final class _EngineScope extends PluginScope {
+  const _EngineScope();
+
+  @override
+  PluginManifest get manifest => const PluginManifest(
+    id: 'flutter3d_plugin_runtime',
+    apiVersion: PluginApiVersion.current,
+  );
+
+  @override
+  int get rank => -1;
+
+  @override
+  void track(Registration registration) {}
+}
+
+/// A plugin whose install has an engine package declare that package's own
+/// event, once for the engine and kept, as a Wasm system's install does for
+/// the runtime's trap.
+final class _NeedsEngineEvent extends _Good {
+  _NeedsEngineEvent(super.world);
+
+  @override
+  void install(PluginHost host) {
+    super.install(host);
+    if (!host.events.declared.any((d) => d.name == 'wasm.trapped')) {
+      host.events
+          .forPlugin(const _EngineScope())
+          .declare<_Tick>('wasm.trapped');
+    }
+  }
+}
+
 PluginCheckOutcome _only(List<PluginCheckOutcome> outcomes, String check) =>
     outcomes.singleWhere((o) => o.check == check);
 
@@ -445,6 +480,177 @@ void main() {
     expect(names.says, contains('the system "count"'));
     expect(names.says, contains('"unspaced.<name>"'));
   });
+
+  test('an event an engine package declares on a plugin\'s install is the '
+      'engine\'s, not the plugin\'s', () {
+    // Mutation: compare every declaration on the bus, whoever made it. The
+    // runtime's own event, declared the first time a plugin's Wasm system
+    // is installed and kept for the engine, fails a correct plugin's names
+    // and switch.
+    final world = _World();
+    final outcomes = checkPluginConformance(
+      () => _NeedsEngineEvent(world),
+      harness: world.harness(),
+    );
+    expect(_only(outcomes, 'plugin.names').passed, isTrue);
+    expect(_only(outcomes, 'plugin.switch').passed, isTrue);
+  });
+
+  group('a plugin that draws', () {
+    test('is found placing its nodes, and its badge then needs the render '
+        'checks on cpu', () {
+      // Mutation: leave `requires` empty on `plugin.render`. A plugin whose
+      // pass never ran would earn the badge on the loop's checks alone.
+      final world = _World();
+      PluginHarness harness() => PluginHarness(
+        steps: 20,
+        registries: (backend) => <PluginRegistry>[_Steps()],
+        setUp: world.harness().setUp,
+      );
+      final outcomes = checkPluginConformance(
+        () => _Drawing(world),
+        harness: harness(),
+      );
+      final render = _only(outcomes, 'plugin.render');
+      expect(render.passed, isTrue);
+      expect(render.requires, <String>['render.nodes']);
+      expect(render.says, contains('drawing.glow'));
+      expect(earnsBadge(outcomes), isFalse);
+
+      const nodes = PluginCheckOutcome(
+        check: 'render.nodes',
+        backend: 'cpu',
+        passed: true,
+        says: 'ran',
+      );
+      expect(earnsBadge(<PluginCheckOutcome>[...outcomes, nodes]), isTrue);
+      // Declined on the fake does not take it; a failure anywhere does.
+      expect(
+        earnsBadge(<PluginCheckOutcome>[
+          ...outcomes,
+          nodes,
+          const PluginCheckOutcome(
+            check: 'render.litModel',
+            backend: 'fake',
+            passed: false,
+            declined: true,
+            says: 'no picture',
+          ),
+        ]),
+        isTrue,
+      );
+      expect(
+        earnsBadge(<PluginCheckOutcome>[
+          ...outcomes,
+          nodes,
+          const PluginCheckOutcome(
+            check: 'render.decal',
+            backend: 'webgl',
+            passed: false,
+            says: 'painted nothing',
+          ),
+        ]),
+        isFalse,
+      );
+      // The required check on another backend only is not the one asked.
+      expect(
+        earnsBadge(<PluginCheckOutcome>[
+          ...outcomes,
+          const PluginCheckOutcome(
+            check: 'render.nodes',
+            backend: 'fake',
+            passed: true,
+            says: 'ran',
+          ),
+        ]),
+        isFalse,
+      );
+    });
+
+    test('a plugin that places no node needs no render check', () {
+      // Mutation: require the render checks of every plugin. One that only
+      // steps the simulation could never earn the badge.
+      final world = _World();
+      final outcomes = checkPluginConformance(
+        () => _Good(world),
+        harness: PluginHarness(
+          steps: 20,
+          registries: (backend) => <PluginRegistry>[_Steps()],
+          setUp: world.harness().setUp,
+        ),
+      );
+      expect(_only(outcomes, 'plugin.render').requires, isEmpty);
+      expect(earnsBadge(outcomes), isTrue);
+    });
+
+    test('the report writes what an outcome requires, and reads it back', () {
+      // Mutation: leave `requires` out of the report. The judge reading a
+      // merged report would give the badge without the render checks.
+      const outcome = PluginCheckOutcome(
+        check: 'plugin.render',
+        backend: 'cpu',
+        passed: true,
+        says: 'it places nodes',
+        requires: <String>['render.nodes'],
+      );
+      final written = conformanceReport('drawing', const <PluginCheckOutcome>[
+        outcome,
+      ]);
+      final read = PluginCheckOutcome.fromJson(
+        jsonDecode(jsonEncode((written['outcomes']! as List<Object?>).single)),
+      )!;
+      expect(read.requires, <String>['render.nodes']);
+      expect(read.backend, 'cpu');
+      expect(read.check, 'plugin.render');
+    });
+  });
+}
+
+/// A renderer's steps as far as the contract sees them: the names of the
+/// nodes placed through it.
+final class _Steps extends RenderStepRegistry {
+  _Steps();
+
+  final List<String> placed = <String>[];
+
+  @override
+  List<String> get nodeNames => List<String>.unmodifiable(placed);
+
+  @override
+  RenderStepRegistry forPlugin(PluginScope scope) => _ScopedSteps(this, scope);
+}
+
+final class _ScopedSteps extends RenderStepRegistry {
+  _ScopedSteps(this.root, this.scope);
+
+  final _Steps root;
+  final PluginScope scope;
+
+  /// Places [name], withdrawn with the plugin.
+  void place(String name) {
+    root.placed.add(name);
+    scope.track(Registration(() => root.placed.remove(name)));
+  }
+
+  @override
+  List<String> get nodeNames => root.nodeNames;
+
+  @override
+  RenderStepRegistry forPlugin(PluginScope scope) => root.forPlugin(scope);
+}
+
+/// `_Good`, and a node in the frame.
+final class _Drawing extends _Good {
+  _Drawing(super.world);
+
+  @override
+  String get id => 'drawing';
+
+  @override
+  void install(PluginHost host) {
+    super.install(host);
+    (host.registry<RenderStepRegistry>() as _ScopedSteps).place('drawing.glow');
+  }
 }
 
 /// Counts as `_Good` does, under a system name with no namespace.
