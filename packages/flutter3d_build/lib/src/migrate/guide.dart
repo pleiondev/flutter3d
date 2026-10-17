@@ -156,7 +156,7 @@ String generateGuideTable(List<MigrationTable> tables) {
       ..writeln(
         '*Generated from `flutter3d_build/lib/migrations/` — '
         '${table.entries.length} entries from ${table.from} to '
-        '${table.to}, ${counts['by hand'] ?? 0} by hand: '
+        '${table.toName}, ${counts['by hand'] ?? 0} by hand: '
         '${counts.entries.map((MapEntry<String, int> c) => '${c.value} ${c.key}').join(', ')}.*',
       );
     for (final package in byPackage.keys.toList()..sort()) {
@@ -173,7 +173,7 @@ String generateGuideTable(List<MigrationTable> tables) {
           if (e.kind == 'internal') e,
       ];
       if (internal.isNotEmpty) {
-        out.writeln(_internalRow(package, internal, table.to));
+        out.writeln(_internalRow(package, internal, table.toName));
       }
       for (final e in entries) {
         if (e.kind == 'internal') continue;

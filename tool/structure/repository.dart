@@ -13,6 +13,22 @@ library;
 
 import 'dart:io';
 
+/// The number the next publication of the release line goes out under, as
+/// `1.0.0-rc.2`; null while it is not chosen.
+///
+/// **Chosen when it is published, not before** (decided 2026-10-18). 45
+/// packages went to pub.dev as `1.0.0-rc.1` on 2026-10-14, and the
+/// candidate is finished in the tree first under that same number, so
+/// nothing in the tree says yet what the finished candidate is called. While
+/// this is null, `a break in a published API is labelled and versioned` and
+/// its twin for the tools still hold every change since the tag to its
+/// CHANGELOG label, but skip the comparison of a version with the published
+/// one, the package's and each server's own; and the open migration table
+/// says `to: unchosen`. Set on the day of the publication, and both rules
+/// ask again for a version past the tag, held against this number, and the
+/// table for `to:` this number.
+const String? nextPublication = null;
+
 /// Every package that holds one genre's vocabulary.
 ///
 /// Two of them did not exist when the list was written. They are named anyway,

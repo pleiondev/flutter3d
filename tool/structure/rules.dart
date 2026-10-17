@@ -394,8 +394,9 @@ List<Rule> get allRules => <Rule>[
     name: 'no public name collides with Flutter, Dart or vector_math',
     run: () {
       final sdk = sdkNamesFrom(
-        File('${repositoryRoot.path}/tool/structure/sdk_names.txt')
-            .readAsStringSync(),
+        File(
+          '${repositoryRoot.path}/tool/structure/sdk_names.txt',
+        ).readAsStringSync(),
       )..removeWhere((String uri, _) => sdkLibrariesKnownOnly.contains(uri));
       return <Finding>[
         ..._namingRule(
@@ -1409,9 +1410,9 @@ List<Finding> _hardwareNamesNoApi() {
         ),
   ];
 
-  if (File('${dir.path}/pubspec.yaml')
-      .readAsStringSync()
-      .contains('flutter_gpu')) {
+  if (File(
+    '${dir.path}/pubspec.yaml',
+  ).readAsStringSync().contains('flutter_gpu')) {
     found.add(
       const Finding(
         'flutter3d_hardware',
@@ -1721,13 +1722,13 @@ String? _resolveImport(String uri, String from, Map<String, String> roots) {
     final root = roots[rest.substring(0, slash)];
     return root == null
         ? null
-        : Uri.file('$root/${rest.substring(slash + 1)}')
-              .normalizePath()
-              .toFilePath();
+        : Uri.file(
+            '$root/${rest.substring(slash + 1)}',
+          ).normalizePath().toFilePath();
   }
-  return Uri.file('${File(from).parent.path}/$uri')
-      .normalizePath()
-      .toFilePath();
+  return Uri.file(
+    '${File(from).parent.path}/$uri',
+  ).normalizePath().toFilePath();
 }
 
 // ------------------------------------------------------------ one assembly
@@ -1824,8 +1825,9 @@ List<Finding> _noHarnessAssembly() {
 /// pubspec's `workspace:`, and this names it.
 List<Finding> _listsAgree() {
   final found = <Finding>[];
-  final workspace = File('${repositoryRoot.path}/pubspec.yaml')
-      .readAsStringSync();
+  final workspace = File(
+    '${repositoryRoot.path}/pubspec.yaml',
+  ).readAsStringSync();
   final members = <String>[
     for (final line in workspace.split('\n'))
       if (RegExp(r'^\s+-\s+(packages|apps)/').hasMatch(line)) line.trim(),
@@ -2397,9 +2399,9 @@ List<Finding> _exemptionsResolve() {
       found.add(Finding(label, '$package is not there'));
       return;
     }
-    final real = dartFilesIn(Directory(dir.path))
-        .map((File f) => relative(f, dir))
-        .toSet();
+    final real = dartFilesIn(
+      Directory(dir.path),
+    ).map((File f) => relative(f, dir)).toSet();
     if (!real.contains(path)) {
       final near = real.firstWhere(
         (String r) => r.toLowerCase() == path.toLowerCase(),
@@ -2513,9 +2515,9 @@ List<Finding> _exemptionsResolve() {
   // that is what the rule matches on. Same rot, same case trap.
   final hardware = packages['flutter3d_hardware'];
   if (hardware != null) {
-    final names = dartFilesIn(Directory(hardware.path))
-        .map((File f) => f.uri.pathSegments.last)
-        .toSet();
+    final names = dartFilesIn(
+      Directory(hardware.path),
+    ).map((File f) => f.uri.pathSegments.last).toSet();
     for (final name in hardwareMayUseFlutter.keys) {
       if (!names.contains(name)) {
         found.add(
@@ -2910,10 +2912,9 @@ List<Finding> _testCount() {
   // prose is a number nobody recounts.
   final root = repositoryRoot;
   final declaration = RegExp(r'^\s*(test|testWidgets|testWithFlameGame)\(');
-  int testsIn(Directory dir) =>
-      dartFilesIn(dir)
-          .map((f) => f.readAsLinesSync().where(declaration.hasMatch).length)
-          .fold(0, (a, b) => a + b);
+  int testsIn(Directory dir) => dartFilesIn(dir)
+      .map((f) => f.readAsLinesSync().where(declaration.hasMatch).length)
+      .fold(0, (a, b) => a + b);
 
   // Broken out per directory rather than summed as it goes, because the site's
   // testing page prints the breakdown as a table and a table nothing counts is
@@ -2944,8 +2945,9 @@ List<Finding> _testCount() {
   final found = <Finding>[];
 
   final architecture = File('${root.path}/ARCHITECTURE.md').readAsStringSync();
-  final claimed = RegExp(r'\*\*(\d+) tests\*\* across (\d+) packages')
-      .firstMatch(architecture);
+  final claimed = RegExp(
+    r'\*\*(\d+) tests\*\* across (\d+) packages',
+  ).firstMatch(architecture);
   if (claimed == null) {
     found.add(
       const Finding(
@@ -2978,8 +2980,9 @@ List<Finding> _testCount() {
   // in prose is one nobody recounts, and a digit is what a reader and a rule
   // both read the same way. Written as a word, it is a finding of its own.
   final readme = File('${root.path}/README.md').readAsStringSync();
-  final saidInProse = _countPhrasing(r'(\d+) tests across # packages')
-      .firstMatch(readme);
+  final saidInProse = _countPhrasing(
+    r'(\d+) tests across # packages',
+  ).firstMatch(readme);
   if (saidInProse == null) {
     found.add(
       const Finding(
@@ -4559,9 +4562,9 @@ List<Finding> _placementBehindHardware() {
       '$name/lib': Directory('${dir.path}/lib'),
     for (final dir in <Directory>[
       if (Directory('${repositoryRoot.path}/examples').existsSync())
-        ...Directory('${repositoryRoot.path}/examples')
-            .listSync()
-            .whereType<Directory>(),
+        ...Directory(
+          '${repositoryRoot.path}/examples',
+        ).listSync().whereType<Directory>(),
     ])
       '${dir.path.split(Platform.pathSeparator).last}/lib': Directory(
         '${dir.path}/lib',
@@ -4644,9 +4647,9 @@ Map<String, Directory> _computeHomes() => <String, Directory>{
     '$name/lib': Directory('${dir.path}/lib'),
   for (final dir in <Directory>[
     if (Directory('${repositoryRoot.path}/examples').existsSync())
-      ...Directory('${repositoryRoot.path}/examples')
-          .listSync()
-          .whereType<Directory>(),
+      ...Directory(
+        '${repositoryRoot.path}/examples',
+      ).listSync().whereType<Directory>(),
   ])
     '${dir.path.split(Platform.pathSeparator).last}/lib': Directory(
       '${dir.path}/lib',
@@ -4916,9 +4919,9 @@ List<Finding> _kernelGuideAndSample() {
   final computes =
       sample.existsSync() &&
       dartFilesIn(sample).any(
-        (File f) =>
-            RegExp(r'extends\s+ComputeStep\b')
-                .hasMatch(codeOf(f.readAsStringSync())),
+        (File f) => RegExp(
+          r'extends\s+ComputeStep\b',
+        ).hasMatch(codeOf(f.readAsStringSync())),
       );
   if (!computes) {
     found.add(
@@ -5232,10 +5235,9 @@ List<Finding> _webPackagesReachNoIo() {
     // From its public libraries, as pub.dev reads it: what `lib/src` holds
     // counts only where one of them reaches it.
     final queue = <File>[
-      ...Directory('${entry.value.path}/lib')
-          .listSync()
-          .whereType<File>()
-          .where((f) => f.path.endsWith('.dart')),
+      ...Directory(
+        '${entry.value.path}/lib',
+      ).listSync().whereType<File>().where((f) => f.path.endsWith('.dart')),
     ];
     while (queue.isNotEmpty) {
       final file = queue.removeLast();
@@ -5358,8 +5360,9 @@ List<Finding> _platformsDeclared() {
   final text = support.readAsStringSync();
   for (final entry in published.entries) {
     if (entry.key == 'flutter3d_hardware') continue;
-    final isBackend = dartFilesIn(Directory('${entry.value.path}/lib'))
-        .any((File file) => declaresGraphicsDevice(file.readAsStringSync()));
+    final isBackend = dartFilesIn(
+      Directory('${entry.value.path}/lib'),
+    ).any((File file) => declaresGraphicsDevice(file.readAsStringSync()));
     if (isBackend && !text.contains('`${entry.key}`')) {
       found.add(
         Finding(
@@ -5838,8 +5841,9 @@ List<Finding> _accessibleUis() {
     final package = path.split('/').first;
     final dir = all[package];
     if (dir == null ||
-        !File('${dir.path}/${path.substring(package.length + 1)}')
-            .existsSync()) {
+        !File(
+          '${dir.path}/${path.substring(package.length + 1)}',
+        ).existsSync()) {
       found.add(
         Finding(
           'accessibleColorsAllowed → $path',
@@ -6511,8 +6515,16 @@ List<Finding> _snapshotsCurrent({
 ///  * an addition: the pubspec has moved a minor past the tag (any release,
 ///    before 1.0). A patch adds nothing.
 ///
+/// **The version waits for the publication's number.** While
+/// `nextPublication` in `repository.dart` is null, the label is asked as
+/// above and the version is not: the tree still carries the published
+/// number, and the one the changes go out under is chosen when they do.
+/// Once it is set, the version is held past the tag against it.
+///
 /// Mutation: remove a public member, regenerate the snapshot, and this asks
-/// for the label and the major until both are there.
+/// for the label and the major until both are there; or set
+/// `nextPublication` to a number below the tag, and every package that
+/// changed since it is named.
 List<Finding> _apiBreaksLabelled() => _breaksSinceRelease(
   surface: 'the API',
   snapshotsOf: (String name) => <String>['api/$name.api'],
@@ -6580,8 +6592,15 @@ List<Finding> _breaksSinceRelease({
   required List<ApiChange> Function(String before, String after) classify,
   required String diff,
   Map<String, String> Function(String snapshot)? versionsIn,
+  String? next = nextPublication,
 }) {
   final root = repositoryRoot;
+  // While the number is not chosen, a finding says why no version is asked.
+  final unchosen = next == null
+      ? ' (the version is not asked yet: the number of the next publication '
+            'is chosen when it is published, at step 5.7, and set as '
+            '`nextPublication` in tool/structure/repository.dart)'
+      : '';
   String? git(List<String> args) {
     try {
       final result = Process.runSync('git', args, workingDirectory: root.path);
@@ -6660,20 +6679,25 @@ List<Finding> _breaksSinceRelease({
           '${changes.length} changes; run `$diff` in tool/api against '
           '`git show $tag:$path` to see them';
 
-      if (then != null && now != null && !bumpIsEnoughFrom(needed, then, now)) {
+      // The version past the tag: the next publication's, compared only
+      // once its number is chosen (`nextPublication`).
+      final problem = then == null || now == null
+          ? null
+          : publicationVersionProblem(needed, then, now, next);
+      if (problem != null) {
         found.add(
           Finding(
             '$home/pubspec.yaml',
             '$surface ${needed == Bump.major ? 'broke' : 'grew'} since $tag '
-                '($hint), and $now is not '
-                '${preReleaseOf(then).isEmpty ? 'a ${needed == Bump.major ? 'major' : 'minor'} release' : 'a release'} '
-                'past $then',
+                '($hint), and $problem',
           ),
         );
       }
 
-      // Each server's own schema version, against what its changes need.
-      if (versionsIn != null) {
+      // Each server's own schema version, against what its changes need:
+      // a number announced with the publication, so compared once it is
+      // chosen too.
+      if (versionsIn != null && next != null) {
         final promised = versionsIn(released);
         final announced = versionsIn(current);
         for (final server in promised.keys.where(announced.containsKey)) {
@@ -6708,7 +6732,7 @@ List<Finding> _breaksSinceRelease({
           Finding(
             '$home/CHANGELOG.md',
             '$surface broke since $tag and the ${section.heading} section '
-                'has no "$breakingLabel" entry',
+                'has no "$breakingLabel" entry$unchosen',
           ),
         );
         continue;
@@ -6718,7 +6742,7 @@ List<Finding> _breaksSinceRelease({
           Finding(
             '$home/CHANGELOG.md',
             '`$subject` broke since $tag and no "$breakingLabel" entry of '
-                'the ${section.heading} section names it',
+                'the ${section.heading} section names it$unchosen',
           ),
         );
       }
@@ -6844,9 +6868,9 @@ List<Finding> _breaksHaveMigrations() {
   ];
   for (final file in generated) {
     if (!file.existsSync()) continue;
-    final said = RegExp(r'table-stamp: (\S+)')
-        .firstMatch(file.readAsStringSync())
-        ?.group(1);
+    final said = RegExp(
+      r'table-stamp: (\S+)',
+    ).firstMatch(file.readAsStringSync())?.group(1);
     if (said == null) continue;
     if (said != stamp) {
       found.add(
@@ -6939,12 +6963,12 @@ List<Finding> _breaksHaveMigrations() {
       final now = _pubspecVersionText(
         File('${dir.path}/pubspec.yaml').readAsStringSync(),
       );
-      if (now == null || onEngineNumber(now, table.to)) continue;
+      if (now == null || onEngineNumber(now, engineNumberOf(table))) continue;
       if (table.versions[name] != '^$now') {
         found.add(
           Finding(
             tableName,
-            '`$name` is at $now, not ${table.to}: `packages: versions:` has '
+            '`$name` is at $now, not ${engineNumberOf(table)}: `packages: versions:` has '
             'to say `$name: ^$now`, or `migrate` moves its dependents to a '
             'version it does not have',
           ),
@@ -7006,8 +7030,12 @@ List<Finding> _manualCeiling() {
 /// carry. Inert until the tag exists: before `v1.0.0-rc.1` nothing is
 /// closed.
 ///
+/// **And the open table ends at the next publication.** Its `to:` is
+/// `nextPublication`, or `unchosen` while that is null.
+///
 /// Mutation: tag a commit `v<to>` of the open table locally, then append an
-/// entry to it, and this names the table and where the entry belongs.
+/// entry to it, and this names the table and where the entry belongs; or
+/// write a number in the open table's `to:` while `nextPublication` is null.
 List<Finding> _closedMigrationTables() {
   final tables = _migrationTables();
   if (tables.isEmpty) return const <Finding>[];
@@ -7029,12 +7057,17 @@ List<Finding> _closedMigrationTables() {
       if (line.trim().isNotEmpty) line.trim(),
   };
   const where = 'packages/flutter3d_build/lib/migrations';
+  final texts = <String, String>{
+    for (final (f, _) in tables) f.uri.pathSegments.last: f.readAsStringSync(),
+  };
   return <Finding>[
+    if (unchosenTableProblem(texts, tags: tags, next: nextPublication) case (
+      final file,
+      final why,
+    ))
+      Finding('$where/$file', why),
     for (final (file, why) in closedTableProblems(
-      tables: <String, String>{
-        for (final (f, _) in tables)
-          f.uri.pathSegments.last: f.readAsStringSync(),
-      },
+      tables: texts,
       tags: tags,
       atTag: (String tag, String file) => git(<String>[
         'show',
@@ -7181,8 +7214,9 @@ List<Finding> _cliSurfaceCurrent() {
     '${tags.first}:packages/flutter3d_build/api/flutter3d_build.cli',
   ], workingDirectory: repositoryRoot.path);
   if (released.exitCode != 0) return found;
-  final gone = cliSurfaceWords(released.stdout as String)
-      .difference(cliSurfaceWords(committed));
+  final gone = cliSurfaceWords(
+    released.stdout as String,
+  ).difference(cliSurfaceWords(committed));
   if (gone.isEmpty) return found;
   final changelog = File('$home/CHANGELOG.md');
   final top = changelog.existsSync()
@@ -7224,8 +7258,9 @@ List<Finding> _kernelWordsVersioned() {
   const versionPath = '$shaders/kernel_version.dart';
   String read(String path) =>
       File('${repositoryRoot.path}/$path').readAsStringSync();
-  final newest = RegExp(r'const\s+int\s+kernelLanguageVersion\s*=\s*(\d+)\s*;')
-      .firstMatch(codeOf(read(versionPath)));
+  final newest = RegExp(
+    r'const\s+int\s+kernelLanguageVersion\s*=\s*(\d+)\s*;',
+  ).firstMatch(codeOf(read(versionPath)));
   if (newest == null) {
     return <Finding>[
       const Finding(versionPath, 'declares no kernelLanguageVersion'),
@@ -7282,9 +7317,9 @@ List<Finding> _checkNamesFollowToolNames() {
   final table = read(_toolTable);
   final pattern = table == null
       ? null
-      : RegExp(r"static final RegExp pattern = RegExp\(\s*r'([^']*)'")
-            .firstMatch(table)
-            ?.group(1);
+      : RegExp(
+          r"static final RegExp pattern = RegExp\(\s*r'([^']*)'",
+        ).firstMatch(table)?.group(1);
   if (pattern != toolNamePatternSource) {
     found.add(
       Finding(
@@ -8524,8 +8559,9 @@ List<Finding> _signaturesNameImportableTypes() {
         ...library.declarations.keys,
   };
   final sdk = sdkNamesFrom(
-    File('${repositoryRoot.path}/tool/structure/sdk_names.txt')
-        .readAsStringSync(),
+    File(
+      '${repositoryRoot.path}/tool/structure/sdk_names.txt',
+    ).readAsStringSync(),
   );
   final found = <Finding>[];
   final used = <String>{};
@@ -8656,8 +8692,9 @@ List<Finding> _thrownTypesArePublic() {
           for (final m in export.members) m.split(' ').first,
       ],
     for (final names in sdkNamesFrom(
-      File('${repositoryRoot.path}/tool/structure/sdk_names.txt')
-          .readAsStringSync(),
+      File(
+        '${repositoryRoot.path}/tool/structure/sdk_names.txt',
+      ).readAsStringSync(),
     ).values)
       ...names,
   };

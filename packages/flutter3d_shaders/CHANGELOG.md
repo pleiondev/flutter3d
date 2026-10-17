@@ -52,7 +52,7 @@
   2"`). Version 2's `atomic…` words stay taken in version 1 sources, as
   they were: no version 1 source ever used them as names. Additive: every
   source that parsed still parses and means what it meant.
-- **Kernel language 2: atomic buffers.** A buffer of `i32` or `u32` may be
+- **Breaking: kernel language 2, with atomic buffers.** A buffer of `i32` or `u32` may be
   declared `atomic`, and is read and written only through `atomicLoad`,
   `atomicStore`, `atomicExchange` and `atomicAdd` (the last two as a value
   or as a statement), each element by any number of invocations at once:
@@ -60,8 +60,9 @@
   neighbours. WGSL gets `array<atomic<T>>` and WGSL's atomics; the Dart
   kernel, which runs invocations one after another, the plain read and
   write. A source that uses them opens with `kernel 2`, and one that does
-  not reads as before; `kernelLanguageVersion` is 2. Additive: every
-  kernel 1 source means what it meant.
+  not reads as before. `kernelLanguageVersion` is 2, which is the break:
+  code that compared it with 1 sees the new number. Every kernel 1 source
+  means what it meant.
 - **The kernel language has a version, and refuses what it cannot read.**
   `kernelLanguageVersion` (new, 1) and `kernelLanguageFirstVersion` (new):
   a source may open with `kernel <N>`, after a `.f3dmat` file's

@@ -71,7 +71,7 @@ String migratePubspec(
       final name = '${key.value}';
       if (!table.owns(name)) continue;
       if (table.removedPackages[name] case final guidance?) {
-        notes.add('`$name` is gone in ${table.to}: $guidance');
+        notes.add('`$name` is gone in ${table.toName}: $guidance');
         continue;
       }
       final renamed = table.renamedPackages[name];
@@ -92,7 +92,7 @@ String migratePubspec(
         final end = newline < 0 ? pubspec.length : newline + 1;
         edits.add((offset: start, length: end - start, text: ''));
         notes.add(
-          '`$name` is part of `$renamed` in ${table.to}, which the pubspec '
+          '`$name` is part of `$renamed` in ${table.toName}, which the pubspec '
           'already names: its entry went',
         );
         continue;
@@ -122,7 +122,7 @@ String migratePubspec(
             if (section != 'dependency_overrides') {
               notes.add(
                 '`$target` is a ${value.containsKey('path') ? 'path' : 'git'} '
-                'dependency, left as it is: point it at ${table.to}',
+                'dependency, left as it is: point it at ${table.toName}',
               );
             }
           } else if (value.nodes['version'] case final YamlScalar v) {
@@ -365,7 +365,7 @@ final class MigrationReport {
     final out = StringBuffer()
       ..writeln(
         '${dryRun ? 'Would migrate' : 'Migrated'} from ${table.from} to '
-        '${table.to}.',
+        '${table.toName}.',
       )
       ..writeln();
     for (final s in steps) {

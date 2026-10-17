@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: a7f9f2d67feecc35
+# table-stamp: a36f0984b88e7da9
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -146,7 +146,7 @@ transforms:
         newElement:
           uris: ['package:flutter3d_game_ui/flutter3d_game_ui.dart']
           class: 'TapToRestart'
-  - title: 'flutter3d 1.0.0-rc.1+1: game_ui-LicenseEntry-LicenseSection'
+  - title: 'flutter3d after 1.0.0-rc.1: game_ui-LicenseEntry-LicenseSection'
     date: 2026-10-14
     element:
       uris: ['package:flutter3d_game_ui/flutter3d_game_ui.dart', 'package:flutter3d_game_ui/screens.dart']

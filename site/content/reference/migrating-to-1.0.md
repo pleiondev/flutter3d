@@ -225,7 +225,7 @@ carried out:
 
 <!-- migration-table:start -->
 
-*Generated from `flutter3d_build/lib/migrations/` — 272 entries from 1.0.0-rc.1 to 1.0.0-rc.1+1, 15 by hand: 23 `dart fix`, 160 `migrate`, 15 by hand, 74 nothing to do.*
+*Generated from `flutter3d_build/lib/migrations/` — 272 entries from 1.0.0-rc.1 to the release after 1.0.0-rc.1, 15 by hand: 23 `dart fix`, 160 `migrate`, 15 by hand, 74 nothing to do.*
 
 ### `flame_flutter3d`
 

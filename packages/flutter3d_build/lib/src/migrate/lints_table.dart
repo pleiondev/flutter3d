@@ -139,53 +139,53 @@ String _message(MigrationEntry e, MigrationTable table) {
   final callable = e.member ?? e.topName;
   return switch (e.kind) {
     'implementsToWith' =>
-      '`${e.topName}` is a base mixin class in ${table.to}: a class mixes it '
+      '`${e.topName}` is a base mixin class in ${table.toName}: a class mixes it '
           'in with `with` and is `base`, `final` or `sealed` itself.',
     'subclassModifier' when e.to == 'base' && e.text.isEmpty =>
-      '`${e.topName}` is a `base` class in ${table.to}: a class below it is '
+      '`${e.topName}` is a `base` class in ${table.toName}: a class below it is '
           '`base`, `final` or `sealed` itself, and extends it rather than '
           'implementing it.',
     'subclassModifier' when e.text.isEmpty =>
-      '`${e.topName}` is a `final` class in ${table.to}: code outside its '
+      '`${e.topName}` is a `final` class in ${table.toName}: code outside its '
           'package can no longer extend or implement it; hold one instead.',
     'rewrite' when e.text.isEmpty =>
-      '`${e.symbol}` is deprecated in ${table.to}; the fix asks the same '
+      '`${e.symbol}` is deprecated in ${table.toName}; the fix asks the same '
           'receiver `${_flat(e.template!).replaceAll('{target}.', '').replaceAll('{target}', 'it').replaceAll('{0}', '…').replaceAll('{arguments}', '…').replaceAll('{typeArguments}', 'T')}` '
           'instead.',
     'internal' =>
       '`${e.symbol}` was ${e.package}\'s own and is not exported since '
-          '${table.to}.',
+          '${table.toName}.',
     'regroup' when e.text.isEmpty =>
       '`${e.arguments.join('`, `')}` of `$callable` moved into '
-          '`${e.into}: ${e.options}(…)` in ${table.to}.',
+          '`${e.into}: ${e.options}(…)` in ${table.toName}.',
     'enumToClass' when e.text.isEmpty =>
-      '`${e.topName}` is not an enum or a sealed type in ${table.to}: a '
+      '`${e.topName}` is not an enum or a sealed type in ${table.toName}: a '
           '`switch` over it needs a case for the values added later.',
     'recordToClass' when e.text.isEmpty =>
-      '`${e.topName}` is a class in ${table.to}, not a record: '
+      '`${e.topName}` is a class in ${table.toName}, not a record: '
           '${e.fieldMap.entries.map((MapEntry<String, String> f) => '`.${f.key}` is `.${f.value}`').join(', ')}.',
     'nullToThrow' when e.text.isEmpty =>
-      '`$callable` throws `${e.exception}` in ${table.to} where it returned '
+      '`$callable` throws `${e.exception}` in ${table.toName} where it returned '
           'null.',
     'argument' when e.text.isEmpty =>
       '${e.arguments.map((String a) => '`$a:`').join(', ')} of `${e.symbol}` '
           '${e.to == null ? 'takes a value of another type' : 'is `${e.to}:`'} '
-          'in ${table.to}.',
+          'in ${table.toName}.',
     'moved' =>
       '`${e.topName}` is ${e.name == null ? '' : '`${e.name}`, '}imported '
-          'from `${e.to}` in ${table.to}.',
+          'from `${e.to}` in ${table.toName}.',
     'rename' when e.member != null =>
-      '`${e.symbol}` is `${e.topName}.${renamedMember(e)}` in ${table.to}.',
-    'rename' => '`${e.topName}` is `${e.to}` in ${table.to}.',
+      '`${e.symbol}` is `${e.topName}.${renamedMember(e)}` in ${table.toName}.',
+    'rename' => '`${e.topName}` is `${e.to}` in ${table.toName}.',
     'parameters' when toNamedOf(e).isEmpty =>
       '${renamedParametersOf(e).entries.map((MapEntry<String, String> r) => r.value.isEmpty ? '`${r.key}:` is gone' : '`${r.key}:` is `${r.value}:`').join(', ')} '
-          'of `${_callable(e)}` in ${table.to}.',
+          'of `${_callable(e)}` in ${table.toName}.',
     'parameters' =>
       '${toNamedOf(e).values.map((String a) => '`$a:`').join(', ')} of '
           '`${_callable(e)}` ${toNamedOf(e).length == 1 ? 'is a named argument' : 'are named arguments'} '
-          'in ${table.to}, not a positional one.',
+          'in ${table.toName}, not a positional one.',
     'hookContext' when e.text.isEmpty =>
-      '`${e.symbol}` takes one `${e.fields['context']}` in ${table.to}: an '
+      '`${e.symbol}` takes one `${e.fields['context']}` in ${table.toName}: an '
           'override reads its old parameters from it, and a call builds one.',
     _ => firstSentence(e.text),
   };

@@ -133,7 +133,7 @@ Future<int> runMigrateCommand(List<String> args) async {
   if (tables.isEmpty) {
     stdout.writeln(
       'The project is on $from, and the newest migration table goes to '
-      '${chain.last.to}: nothing to migrate.',
+      '${chain.last.toName}: nothing to migrate.',
     );
     return CliExit.ok;
   }

@@ -286,7 +286,7 @@ typedef FixDataProblem = (String, String);
           ..sort();
 
     String title(MigrationEntry e, [String? what]) =>
-        "flutter3d ${table.to}: ${what ?? e.id}";
+        "flutter3d ${table.unchosen ? 'after ${table.from}' : table.to}: ${what ?? e.id}";
 
     // A type a `rename` entry covers is no longer shown under its old name
     // anywhere, so a library re-export that lost it is not a move to report:

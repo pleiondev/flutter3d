@@ -1,6 +1,9 @@
-# How code written against flutter3d 1.0.0-rc.1 moves to the `+N`
-# republications of it that carry breaks, and on to 1.0.0-rc.2: the open
-# table, whose `to:` moves with the release it ends at.
+# How code written against flutter3d 1.0.0-rc.1, as published, moves to the
+# next publication: the open table, whose `to:` moves with the release it
+# ends at. While that release's number is not chosen, `to:` is `unchosen`
+# (the structure rule holds it to `nextPublication` in
+# tool/structure/repository.dart), and the tools call it the release after
+# `from:`.
 #
 # The one source of every migration: `tool/generate_migrations.dart` in
 # flutter3d_build turns it into each package's `lib/fix_data.yaml` (for
@@ -112,7 +115,7 @@
 
 format: 1
 from: 1.0.0-rc.1
-to: 1.0.0-rc.1+1
+to: unchosen
 # The date `dart fix` shows on every fix generated from this table.
 date: 2026-10-14
 guide: https://flutter3d.pleion.dev/reference/migrating-to-1.0/

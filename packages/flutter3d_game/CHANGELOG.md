@@ -8,8 +8,10 @@
   `.f3drun` replays the branch that was played rather than the future it
   left. `DemoRecording.levelSwaps` lists
   the swaps written so far.
-- **`MaterialComputePlacement` is re-exported**, what
-  `MaterialComputeKernel.place` answers.
+- **Breaking: `MaterialComputePlacement` is re-exported**, what
+  `MaterialComputeKernel.place` answers, which changes the line that
+  re-exports `flutter3d.dart`: a library that imports another
+  `MaterialComputePlacement` beside this package hides one of the two.
 - **Breaking: a replay checks the loop's whole simulation.**
   `replayDemoOnLoop` and `rewindBufferFromDemo` check against
   `EngineLoop.simulationVersion`, the plugins' and subsystems' numbers

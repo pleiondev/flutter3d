@@ -996,6 +996,35 @@ bool bumpIsEnoughFrom(Bump needed, String released, String current) {
   return bumpIsEnough(needed, then, now);
 }
 
+/// Why the changes since the release [released] that need [needed] are not
+/// versioned enough, or null. [current] is the pubspec's version and [next]
+/// the number of the next publication (`nextPublication` in
+/// `repository.dart`).
+///
+/// **Nothing to compare while [next] is null.** The number the changes go
+/// out under is not chosen yet, and the tree still carries the published
+/// one, so a comparison would only say that. Once it is chosen, [next] has
+/// to be past [released] as [bumpIsEnoughFrom] says, and so does [current],
+/// the number the packages are actually at.
+String? publicationVersionProblem(
+  Bump needed,
+  String released,
+  String current,
+  String? next,
+) {
+  if (next == null || needed == Bump.none) return null;
+  final what = preReleaseOf(released).isEmpty
+      ? 'a ${needed == Bump.major ? 'major' : 'minor'} release'
+      : 'a release';
+  if (!bumpIsEnoughFrom(needed, released, next)) {
+    return 'the next publication, $next, is not $what past $released';
+  }
+  if (!bumpIsEnoughFrom(needed, released, current)) {
+    return '$current is not $what past $released';
+  }
+  return null;
+}
+
 /// A break a `+N` republication may carry over the pre-release it breaks:
 /// the [members] of [package] it names, and why.
 ///
@@ -2481,6 +2510,29 @@ List<(String, String)> proveApiDetectorsWork() {
   }
   if (bumpIsEnoughFrom(Bump.major, '1.0.0', '1.1.0')) {
     broken.add(('api versions', 'called 1.1.0 enough for a break from 1.0.0'));
+  }
+  // The next publication: nothing compared while its number is not chosen,
+  // the full comparison once it is, a number below the tag included.
+  for (final (next, current, quiet) in <(String?, String, bool)>[
+    (null, '1.0.0-rc.1', true),
+    ('1.0.0-rc.2', '1.0.0-rc.2', true),
+    ('0.9.0', '1.0.0-rc.1', false),
+    ('1.0.0-rc.1', '1.0.0-rc.1', false),
+    ('1.0.0-rc.2', '1.0.0-rc.1', false),
+  ]) {
+    final problem = publicationVersionProblem(
+      Bump.major,
+      '1.0.0-rc.1',
+      current,
+      next,
+    );
+    if ((problem == null) != quiet) {
+      broken.add((
+        'next publication',
+        '${quiet ? 'asked for' : 'let through'} a break from 1.0.0-rc.1 at '
+            '$current with the next publication ${next ?? 'not chosen'}',
+      ));
+    }
   }
   // The named allowances: only the member listed, only in its package, only
   // under a larger build number of the same pre-release.

@@ -13,6 +13,11 @@ import 'dart:isolate';
 import 'package:yaml/yaml.dart';
 import '../build_exceptions.dart';
 
+/// The `to:` of the open table while the number of the next publication is
+/// not chosen: the table ends at the release after its `from`, whatever it
+/// is called.
+const String unchosenRelease = 'unchosen';
+
 /// One entry of a migration table.
 final class MigrationEntry {
   MigrationEntry(this.fields);
@@ -139,7 +144,8 @@ final class MigrationTable {
       to: '${doc['to']}',
       guide: '${doc['guide'] ?? ''}',
       date: '${doc['date'] ?? ''}',
-      constraint: '${packages['constraint'] ?? '^${doc['to']}'}',
+      constraint:
+          '${packages['constraint'] ?? '^${doc['to'] == unchosenRelease ? doc['from'] : doc['to']}'}',
       versions: strings(packages['versions']),
       renamedPackages: strings(packages['renamed']),
       removedPackages: strings(packages['removed']),
@@ -182,7 +188,8 @@ final class MigrationTable {
         (MigrationTable a, MigrationTable b) => compareReleases(a.from, b.from),
       );
     for (var i = 1; i < ordered.length; i++) {
-      if (compareReleases(ordered[i - 1].to, ordered[i].from) != 0) {
+      if (ordered[i - 1].unchosen ||
+          compareReleases(ordered[i - 1].to, ordered[i].from) != 0) {
         throw StateError(
           'the migration tables do not chain: one ends at '
           '${ordered[i - 1].to} and the next starts at ${ordered[i].from}',
@@ -194,13 +201,18 @@ final class MigrationTable {
 
   /// The tables of [chain] a project on [release] still has to cross: every
   /// one whose `to` is newer. A release the first table's `from` names only
-  /// by its minor (`0.8.3` under `from: 0.8.5`) crosses it too.
+  /// by its minor (`0.8.3` under `from: 0.8.5`) crosses it too. A table
+  /// whose `to` is [unchosenRelease] ends after its `from`, so a project on
+  /// that release or before crosses it.
   static List<MigrationTable> after(
     String release,
     List<MigrationTable> chain,
   ) => <MigrationTable>[
     for (final table in chain)
-      if (compareReleases(table.to, release) > 0) table,
+      if (table.unchosen
+          ? compareReleases(table.from, release) >= 0
+          : compareReleases(table.to, release) > 0)
+        table,
   ];
 
   /// [chain] read as one table, the way a project several releases behind
@@ -281,7 +293,17 @@ final class MigrationTable {
 
   final int format;
   final String from;
+
+  /// The release the table ends at, or [unchosenRelease].
   final String to;
+
+  /// Whether [to] is [unchosenRelease]: the number of the next publication
+  /// is not chosen yet.
+  bool get unchosen => to == unchosenRelease;
+
+  /// [to] as a person reads it: the number, or "the release after" [from]
+  /// while it is not chosen.
+  String get toName => unchosen ? 'the release after $from' : to;
 
   /// The migration guide on the site.
   final String guide;

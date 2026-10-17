@@ -985,6 +985,45 @@ String? openMigrationTable(
   _ => null,
 };
 
+/// The `to:` of the open table while the number of the next publication is
+/// not chosen: the word `flutter3d_build`'s reader takes for the release
+/// after the table's `from:`.
+const String unchosenRelease = 'unchosen';
+
+/// The release a [table] ends at as a version: its `to:`, or its `from:`
+/// while that is [unchosenRelease], since the tree is still at that number.
+String engineNumberOf(MigrationTable table) =>
+    table.to == unchosenRelease ? table.from : table.to;
+
+/// Why the open table of [tables] (file name to text) does not end at
+/// [next], the number of the next publication (`nextPublication`), as
+/// `(file, why)`; null when it does, or when the newest table is tagged
+/// and so closed.
+///
+/// **The table's `to:` is the publication's number, and so it waits for
+/// it.** While [next] is null it says [unchosenRelease]; once [next] is
+/// set, it says [next].
+(String, String)? unchosenTableProblem(
+  Map<String, String> tables, {
+  required Set<String> tags,
+  required String? next,
+}) {
+  final newest = newestMigrationTable(tables);
+  if (newest == null) return null;
+  final (name, table) = newest;
+  if (tags.contains('v${table.to}')) return null;
+  final want = next ?? unchosenRelease;
+  if (table.to == want) return null;
+  return (
+    name,
+    next == null
+        ? 'ends at ${table.to}, and the number of the next publication is '
+              'not chosen (`nextPublication` is null): `to: $unchosenRelease`'
+        : 'ends at ${table.to}, and the next publication is $next '
+              '(`nextPublication`): `to: $next`',
+  );
+}
+
 /// The last of [tables] (file name to text) in the chain, with its file
 /// name; null when there are none.
 (String, MigrationTable)? newestMigrationTable(Map<String, String> tables) =>
@@ -1397,6 +1436,29 @@ entries:
       broken.add((
         'closed tables',
         'found $found with tags $tags, where $problems are wrong',
+      ));
+    }
+  }
+
+  // The open table's `to:` waits for the next publication's number.
+  for (final (to, tags, next, fires)
+      in const <(String, Set<String>, String?, bool)>[
+        (unchosenRelease, <String>{'v1.0.0'}, null, false),
+        ('1.0.1', <String>{'v1.0.0'}, null, true),
+        (unchosenRelease, <String>{'v1.0.0'}, '1.0.1', true),
+        ('1.0.1', <String>{'v1.0.0'}, '1.0.1', false),
+        ('1.0.1', <String>{'v1.0.0', 'v1.0.1'}, null, false),
+      ]) {
+    final found = unchosenTableProblem(
+      <String, String>{'1.0_to_next.yaml': 'from: 1.0.0\nto: $to\nentries:\n'},
+      tags: tags,
+      next: next,
+    );
+    if ((found != null) != fires) {
+      broken.add((
+        'unchosen table',
+        '${fires ? 'missed' : 'named'} `to: $to` with the next publication '
+            '${next ?? 'not chosen'}',
       ));
     }
   }
