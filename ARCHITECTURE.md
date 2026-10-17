@@ -3586,13 +3586,20 @@ its full-screen stages.
   only draws says so with its reason, and the files the scan found inside a
   step are listed in `tasks/0.9-plugins.md` to move onto `Portable`.
 - **Conformance and a badge.** `package:flutter3d_conformance/plugins.dart`
-  runs five checks. *Manifest*: the id, the API version, the permissions,
+  runs 8 checks. *Manifest*: the id, the API version, the permissions,
   the budget, and a round trip through JSON. *Switch*: off at a step
   boundary returns the loop and the bus to what they were without it, and
-  on brings it back. *Determinism*: every step run twice from one state, and
-  two fresh runs compared step by step. *Backends*: on each declared backend,
-  and off with a reason on one it does not declare. *Budget*: step time and
-  events per step under what `extra['budget']` declares. A plugin earns the
+  on brings it back. *Names*: every system, phase, event, field and
+  subsystem the plugin adds is in its namespace. *Determinism*: every step
+  run twice from one state, and two fresh runs compared step by step.
+  *Backends*: on each declared backend, and off with a reason on one it does
+  not declare. *Budget*: step time and events per step under what
+  `extra['budget']` declares. *Materials*: the physical materials it
+  declares, under its id, with sources and SI values in range, gone again
+  when it is switched off. *Render*: whether it places nodes in the frame,
+  and if it does, the render checks join its badge. The number is
+  `pluginChecks` in `plugin_checks.dart`, and a structure rule holds this
+  sentence to it. A plugin earns the
   badge when every check passes on every declared backend, with a world
   given to determinism and a budget declared and kept.
 - **A template.** `dart run flutter3d_build:create plugin --kind

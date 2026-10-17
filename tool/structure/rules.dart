@@ -3850,6 +3850,10 @@ List<File> _prosePages() {
 /// is a claim of its own, held to that directory alone, in the same files plus
 /// the package README a plugin author reads. Shown to fire by adding a sixth
 /// plugin check: the plugin sentences go stale and the backend ones do not.
+///
+/// **ARCHITECTURE.md §12.1 is held too**, by its own phrasing ("`plugins.dart`
+/// runs N checks"): it said five while `pluginChecks` listed seven, because
+/// no rule read that page. Shown to fire by writing five back.
 List<Finding> _conformanceCheckCount() {
   final lib = Directory(
     '${repositoryRoot.path}/packages/flutter3d_conformance/lib',
@@ -3949,6 +3953,13 @@ List<Finding> _conformanceCheckCount() {
       (RegExpMatch m) => plugin,
       'plugin checks',
     ),
+    // ARCHITECTURE.md §12.1's sentence, which said five for as long as
+    // there were seven.
+    (
+      _countPhrasing(r'`package:flutter3d_conformance/plugins\.dart`\s+runs #'),
+      (RegExpMatch m) => plugin,
+      'plugin checks',
+    ),
   ];
 
   // The site restates all of it — the backends page is where a third party
@@ -3963,6 +3974,7 @@ List<Finding> _conformanceCheckCount() {
       'packages/flutter3d_webgl/test/conformance_test.dart',
       'packages/flutter3d/example/lib/conformance_main.dart',
       'packages/flutter3d_conformance/README.md',
+      'ARCHITECTURE.md',
     ].map((String at) => File('${repositoryRoot.path}/$at')),
     ..._prosePages(),
   ]) {
