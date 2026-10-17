@@ -242,6 +242,43 @@ List<String> halTermsMissingFrom(String halMd) => <String>[
     if (!halMd.contains(phrase)) 'does not say "$phrase": $why',
 ];
 
+/// The heading of the table in `HAL.md` that says what every
+/// `DeviceFeature` is on Direct3D 12.
+const String d3d12FeatureTable = '### Each feature on Direct3D 12';
+
+/// The `DeviceFeature` constants in [snapshot] that [halMd]'s
+/// [d3d12FeatureTable] has no row for, by name.
+///
+/// **Every feature says how it maps onto Direct3D 12** (decided
+/// 2026-10-17, beside Vulkan, Metal and WebGPU): a feature added without
+/// its row is a decision nobody checked against the fourth standard. A row
+/// is a table line under the heading whose first cell names the constant
+/// in backticks; the table ends at the next heading.
+List<String> featuresWithoutD3d12RowIn(String snapshot, String halMd) {
+  final features = <String>[
+    for (final m in RegExp(
+      r'^  static const (\w+) = DeviceFeature\._\(',
+      multiLine: true,
+    ).allMatches(snapshot))
+      m.group(1)!,
+  ];
+  final start = halMd.indexOf(d3d12FeatureTable);
+  if (start < 0) return features;
+  final rest = halMd.substring(start + d3d12FeatureTable.length);
+  final next = rest.indexOf('\n#');
+  final table = next < 0 ? rest : rest.substring(0, next);
+  final rows = <String>{
+    for (final line in table.split('\n'))
+      if (line.startsWith('| `'))
+        for (final m in RegExp(r'`(\w+)`').allMatches(line.split('|')[1]))
+          m.group(1)!,
+  };
+  return <String>[
+    for (final feature in features)
+      if (!rows.contains(feature)) feature,
+  ];
+}
+
 /// What `HAL.md` must keep saying, and why (decisions 90 and 91).
 const Map<String, String> halTerms = <String, String>{
   '**It is versioned with the\nengine**':
@@ -333,6 +370,17 @@ List<Finding> halKeepsItsShapes() {
         Finding('packages/$halPackage/HAL.md', problem)
     else
       Finding('packages/$halPackage/HAL.md', 'is not there'),
+    if (snapshot.existsSync() && doc.existsSync())
+      for (final feature in featuresWithoutD3d12RowIn(
+        snapshot.readAsStringSync(),
+        doc.readAsStringSync(),
+      ))
+        Finding(
+          'packages/$halPackage/HAL.md',
+          'has no row for `DeviceFeature.$feature` under '
+              '"$d3d12FeatureTable": every feature says how it maps onto '
+              'Direct3D 12, beside Vulkan, Metal and WebGPU',
+        ),
   ];
 }
 
@@ -507,6 +555,32 @@ abstract base mixin class PassEncoder {
       good.replaceAll('PassViewport viewport', 'ScreenRect rect'),
     ).isNotEmpty,
     'a viewport of whole pixels again',
+  );
+  // The Direct3D 12 row per feature. Mutation: read every backticked name
+  // in the line, and a row that mentions a feature in its second cell
+  // covers it; read past the table, and a later section's table does.
+  const twoFeatures =
+      '  static const wireframe = DeviceFeature._(\'wireframe\', s)\n'
+      '  static const workGraphs = DeviceFeature._(\'work-graphs\', r)\n';
+  fires(
+    'a feature without its Direct3D 12 row',
+    featuresWithoutD3d12RowIn(
+      twoFeatures,
+      '$d3d12FeatureTable\n\n| Feature | Direct3D 12 |\n|---|---|\n'
+      '| `wireframe` | always; unlike `workGraphs` |\n\n## Next\n\n'
+      '| `workGraphs` | elsewhere |\n',
+    ).contains('workGraphs'),
+    'a row naming the feature only in its second cell, and a later table',
+  );
+  quiet(
+    'a feature without its Direct3D 12 row',
+    featuresWithoutD3d12RowIn(
+      twoFeatures,
+      '$d3d12FeatureTable\n\n| `wireframe` | always |\n'
+      '| `workGraphs` (reserved) | work graphs |\n',
+    ).isEmpty,
+    'a table with a row for each',
+    'a feature with its row is no finding',
   );
   fires(
     'the HAL terms',

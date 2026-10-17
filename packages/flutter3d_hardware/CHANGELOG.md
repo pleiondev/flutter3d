@@ -1,5 +1,29 @@
 ## 1.0.0-rc.1+2
 
+- **Direct3D 12 is the fourth standard the HAL answers to**, beside
+  Vulkan, Metal and WebGPU. HAL.md's new "The reference standards" maps
+  the vocabulary and every `DeviceFeature` onto it, and each feature a
+  change adds says how it maps; a structure rule fails on a feature
+  without its row. Nothing frozen had to change for it.
+- **`workGraphs` and `samplerFeedback` are reserved**: Direct3D 12's, which
+  the other three standards lack, named before the freeze so a minor can
+  give each its calls.
+- **The Direct3D 12 handle kinds.** `NativeHandleKind.d3d12SharedResource`
+  and `d3d12SharedFence` (new), and `isFence` (new) to tell a fence kind
+  from memory; a share never picks a fence kind for a texture or a buffer.
+  `checkNativeImport` (new, in `backend.dart`) is what a backend's imports
+  call: a kind the device does not list, or memory handed in as a fence, is
+  refused by name rather than read as the nearest kind it does list. No
+  backend takes the new kinds yet, and every one refuses them.
+- **The `d3d12` bundle section is reserved** (`ShaderBundle.d3d12Section`,
+  new). Nothing writes it yet.
+- **A feature mask over a live device.** `MaskedDevice` (new, in
+  `testing.dart`) wraps any device and answers as if it lacked the
+  features a test names: the report, the limits and format answers they
+  carry, and a refusal by name from every call they gate. A fallback branch
+  runs on the machine at hand; the honesty check passes through it on the
+  software rasteriser with each feature masked in turn.
+
 - **A platform image becomes a texture without a copy, where the device
   can.** `PlatformTextures<I>` (new) is a device mixin asked with `is`, the
   `EncodedImageUpload` pattern, with the platform's image as a type

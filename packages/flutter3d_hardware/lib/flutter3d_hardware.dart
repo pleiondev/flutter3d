@@ -115,7 +115,7 @@ export 'src/shader_bundle.dart';
 
 /// Textures, buffers and fences two devices see: without a copy where both
 /// can, through host memory where they cannot.
-export 'src/sharing.dart' hide wrapFence;
+export 'src/sharing.dart' hide checkNativeImport, wrapFence;
 export 'src/texture.dart' hide wrapTexture;
 
 /// Copies between buffers and textures.

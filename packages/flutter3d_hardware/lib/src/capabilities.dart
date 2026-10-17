@@ -757,6 +757,34 @@ final class DeviceFeature extends Capability {
     FeatureStability.reserved,
   );
 
+  // 1.0.0-rc.1+2: the names Direct3D 12 has and the other three standards
+  // have not yet, taken before the freeze so a minor can give each its calls.
+
+  /// Work the GPU schedules for itself: a graph of nodes, each a compute
+  /// (or mesh) shader that launches records into the nodes after it, with
+  /// no round trip through the CPU between them. Direct3D 12's work graphs
+  /// (Agility SDK 1.613); Vulkan has an AMD extension, Metal and WebGPU
+  /// nothing. On Vulkan and Metal a backend would run the graph as a chain
+  /// of indirect dispatches. Reserved so that a GPU-driven pipeline above
+  /// the HAL has a name to ask for; whether it becomes a call here or a
+  /// layer of its own is not decided.
+  static const workGraphs = DeviceFeature._(
+    'work-graphs',
+    FeatureStability.reserved,
+  );
+
+  /// The GPU records which mip levels and regions of a texture a sampling
+  /// draw actually touched, into a feedback texture the host reads: the
+  /// input a texture streamer decides residency from. Direct3D 12's sampler
+  /// feedback (MinMip and MipRegionUsed maps); Vulkan, Metal and WebGPU have
+  /// no equivalent, and a backend there would derive the same answer from
+  /// a shader that writes it out. Useful only beside sparse (tiled)
+  /// textures, which arrive in a minor of their own.
+  static const samplerFeedback = DeviceFeature._(
+    'sampler-feedback',
+    FeatureStability.reserved,
+  );
+
   /// Every feature this version of the contract names, in declaration order.
   ///
   /// What a capability report lists and what the conformance honesty check
@@ -843,6 +871,8 @@ final class DeviceFeature extends Capability {
     blendConstantAlpha,
     fractionalViewport,
     uniformBuffers,
+    workGraphs,
+    samplerFeedback,
   ];
 
   /// The feature called [name], or null for a name this version does not

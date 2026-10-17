@@ -25,6 +25,7 @@ import 'package:meta/meta.dart';
 
 import 'capabilities.dart';
 import 'compute.dart';
+import 'device_exceptions.dart';
 import 'graphics_device.dart';
 import 'resources.dart';
 import 'texture.dart';
@@ -32,7 +33,7 @@ import 'texture.dart';
 /// What a [NativeHandle] holds.
 ///
 /// **An open set**: a class with constants, so a kind a later minor adds
-/// (a Direct3D shared handle, a dma-buf) does not break a `switch` written
+/// (a dma-buf, a kind of a later API) does not break a `switch` written
 /// against this one. [name] is what a report writes and [byName] reads.
 @immutable
 final class NativeHandleKind {
@@ -84,6 +85,33 @@ final class NativeHandleKind {
     'vulkanSemaphoreWin32',
   );
 
+  /// A Direct3D 12 resource (a texture or a buffer) as an NT `HANDLE`, from
+  /// `ID3D12Device::CreateSharedHandle` on a resource made with
+  /// `D3D12_HEAP_FLAG_SHARED`, opened with `OpenSharedHandle`. The same
+  /// handle is what Direct3D 11 opens with `OpenSharedResource1` and what
+  /// Vulkan imports as `VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT`,
+  /// so it is the kind a Windows producer and a Windows consumer meet on.
+  ///
+  /// **Since 1.0.0-rc.1+2, and taken by no backend yet.** A Win32 handle
+  /// like [vulkanMemoryWin32], and not the same thing: a device that takes
+  /// Vulkan's kind refuses this one rather than import it as Vulkan memory
+  /// (`checkNativeImport`).
+  static const NativeHandleKind d3d12SharedResource = NativeHandleKind._(
+    'd3d12SharedResource',
+  );
+
+  /// A Direct3D 12 fence as an NT `HANDLE`, from `CreateSharedHandle` on an
+  /// `ID3D12Fence` made with `D3D12_FENCE_FLAG_SHARED`: a 64-bit timeline
+  /// whose values only grow, which is what a `GpuFence` is. Vulkan imports
+  /// it as a timeline semaphore
+  /// (`VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_D3D12_FENCE_BIT`).
+  ///
+  /// **Since 1.0.0-rc.1+2, and taken by no backend yet**; refused, never
+  /// read as a [vulkanSemaphoreWin32], by a device that does not list it.
+  static const NativeHandleKind d3d12SharedFence = NativeHandleKind._(
+    'd3d12SharedFence',
+  );
+
   /// Every kind this version names, in declaration order. A later version
   /// appends.
   static const List<NativeHandleKind> values = <NativeHandleKind>[
@@ -96,6 +124,8 @@ final class NativeHandleKind {
     vulkanMemoryWin32,
     vulkanSemaphoreFd,
     vulkanSemaphoreWin32,
+    d3d12SharedResource,
+    d3d12SharedFence,
   ];
 
   /// The kind called [name], or null for one this version does not know.
@@ -109,8 +139,63 @@ final class NativeHandleKind {
   /// The stable name, and the wire name.
   final String name;
 
+  /// Whether the kind names a fence (an `MTLSharedEvent`, a Vulkan
+  /// semaphore, a Direct3D 12 fence) rather than memory. A fence kind is
+  /// never chosen to share a texture or a buffer through, and memory is
+  /// never imported as a fence.
+  bool get isFence =>
+      this == metalSharedEvent ||
+      this == vulkanSemaphoreFd ||
+      this == vulkanSemaphoreWin32 ||
+      this == d3d12SharedFence;
+
   @override
   String toString() => 'NativeHandleKind.$name';
+}
+
+/// Refuses [handle] unless this device can import it as [operation] asks:
+/// its kind is one of [accepts] (the device's `shareableKinds`), and it is
+/// a fence kind exactly when [fence] is. Since 1.0.0-rc.1+2, from
+/// `package:flutter3d_hardware/backend.dart`.
+///
+/// **For a backend's `importTexture`, `importBuffer` and `importFence`, on
+/// the way in, after the feature check.** Several kinds are the same
+/// integer underneath (a Win32 handle is Vulkan memory, a Direct3D 12
+/// resource or a fence), and an API handed one as another either fails far
+/// from the call or maps memory it was never given. So a kind the device
+/// does not list is refused by name, never substituted for the nearest one
+/// it does.
+///
+/// Throws a [DeviceResourceException] naming [backend] and the kind.
+void checkNativeImport(
+  NativeHandle handle, {
+  required Set<NativeHandleKind> accepts,
+  required bool fence,
+  required String backend,
+  required String operation,
+}) {
+  final kind = handle.kind;
+  if (kind.isFence != fence) {
+    throw DeviceResourceException(
+      operation: operation,
+      backend: backend,
+      reason:
+          '${kind.name} names ${kind.isFence ? 'a fence' : 'memory'}, and '
+          '$operation imports ${fence ? 'a fence' : 'memory'}',
+    );
+  }
+  if (!accepts.contains(kind)) {
+    final listed = accepts.isEmpty
+        ? 'none'
+        : accepts.map((NativeHandleKind k) => k.name).join(', ');
+    throw DeviceResourceException(
+      operation: operation,
+      backend: backend,
+      reason:
+          'it does not import ${kind.name} (it imports $listed), and a '
+          'handle of one kind is never read as another',
+    );
+  }
 }
 
 /// A native object one device hands another, by [kind] and [address].
@@ -262,7 +347,8 @@ NativeHandleKind? _commonKind(
   }
   final theirs = consumer.shareableKinds;
   for (final kind in producer.shareableKinds) {
-    if (theirs.contains(kind)) return kind;
+    // A fence kind in common shares no memory.
+    if (!kind.isFence && theirs.contains(kind)) return kind;
   }
   return null;
 }

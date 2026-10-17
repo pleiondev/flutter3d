@@ -104,6 +104,32 @@ void main() {
     expect(back.encode().buffer.asUint8List(), bytes.buffer.asUint8List());
   });
 
+  test('the d3d12 section name is reserved and distinct, and rides along', () {
+    // Nothing writes it yet. Mutation: spell it as another section's id,
+    // and a Direct3D backend would read a different backend's bytes.
+    expect(ShaderBundle.d3d12Section, 'd3d12');
+    expect(<String>{
+      ShaderBundle.impellerSection,
+      ShaderBundle.webglSection,
+      ShaderBundle.webgpuSection,
+      ShaderBundle.materialSection,
+      ShaderBundle.kernelSection,
+    }, isNot(contains(ShaderBundle.d3d12Section)));
+    final bundle = ShaderBundle(
+      name: 'reserved',
+      sdk: '',
+      stages: const <ShaderBundleStage>[],
+      sections: <String, ByteData>{
+        ShaderBundle.d3d12Section: _payload(<int>[0x44, 0x58]),
+      },
+    );
+    final back = ShaderBundle.decode(bundle.encode());
+    expect(back.section(ShaderBundle.d3d12Section)!.buffer.asUint8List(), <int>[
+      0x44,
+      0x58,
+    ]);
+  });
+
   test('a decoded section is a copy that starts at zero', () {
     // A backend hands its section to a native parser, and a view with an
     // offset into the whole bundle is the kind of thing a parser reads from

@@ -35,8 +35,9 @@ Contents:
 14. [Conformance](#conformance)
 15. [The backends](#the-backends)
 16. [Testing helpers](#testing-helpers)
-17. [Coverage and growth](#coverage-and-growth)
-18. [Writing a fifth backend](#writing-a-fifth-backend)
+17. [The reference standards](#the-reference-standards)
+18. [Coverage and growth](#coverage-and-growth)
+19. [Writing a fifth backend](#writing-a-fifth-backend)
 
 ## What the HAL is and is not
 
@@ -266,7 +267,11 @@ otherwise; `askedBy` answers `` `GraphicsDevice.features` ``. Each carries a
   gives one its calls and turns it stable. The reserved features at 1.0:
   `asyncCompute`, `bindlessResources`, `conservativeRasterization`,
   `depthBounds`, `depthResolve`, `immediateData`, `meshShaders`,
-  `presenterColorSpaces`, `rayQuery`, `shaderInt64`, `variableRateShading`.
+  `presenterColorSpaces`, `rayQuery`, `samplerFeedback`, `shaderInt64`,
+  `variableRateShading`, `workGraphs`. `samplerFeedback` and `workGraphs`
+  are Direct3D 12's, which the other three standards lack (since
+  1.0.0-rc.1+2): named before the freeze so a minor can give each its
+  calls.
 
 Compare features by identity or by `name`. `DeviceFeature.values` lists all
 of them; `byName` reads a name a report wrote.
@@ -448,7 +453,19 @@ A `GpuFence` is a timeline: `createFence` starts it at zero,
 call is done, `waitFence(fence, value)` holds later work on the GPU without
 blocking the CPU, and values only grow. `NativeHandle(kind, address)` is
 what crosses: an IOSurface, an `MTLTexture`, an `AHardwareBuffer`, Vulkan
-memory or a semaphore as a file descriptor or a Win32 handle.
+memory or a semaphore as a file descriptor or a Win32 handle, and since
+1.0.0-rc.1+2 a Direct3D 12 resource or fence as an NT handle
+(`d3d12SharedResource`, `d3d12SharedFence`). `NativeHandleKind.isFence`
+says which kinds are fences; a share never picks one for memory.
+
+**A kind is refused, never substituted.** Several kinds are the same
+integer underneath (a Win32 handle may be Vulkan memory, a Direct3D 12
+resource or a fence), so a backend's `importTexture`, `importBuffer` and
+`importFence` call `checkNativeImport` (in `backend.dart`) after the
+feature check: a kind outside the device's `shareableKinds`, or memory
+handed in as a fence, is a `DeviceResourceException` naming the kind. No
+backend takes the Direct3D 12 kinds yet, so every one refuses them, by
+`sharedTextures`, `sharedBuffers` or `sharedFences`.
 
 ### Queries
 
@@ -834,6 +851,7 @@ a rebuild.
 | `material` | the software rasteriser | each material-language stage's source (`encodeMaterialSection`) |
 | `kernel` | every device with compute | each kernel's source, in the kernel language |
 | `flutter3d.stamp` | the build and `doctor` | the `EngineBundleStamp` |
+| `d3d12` (`ShaderBundle.d3d12Section`) | nothing yet: reserved for a Direct3D 12 backend | DXIL or HLSL with each name's register and space, when it has a writer; none today |
 | a backend's own | that backend | whatever its `MaterialCompiler` writes; no two backends share one |
 
 `EngineBundleStamp` (in `flutter3d_shaders`) is what the engine's own bundle
@@ -1158,9 +1176,154 @@ a test in `flutter3d_build` holds the template to the example file for file.
 | `renderFrame(device:)` | `flutter3d_testing` | opens a `BackendOpener` with a `DeviceRequest` of the frame's size, draws the engine's frame, reads the pixels back, disposes the device; the software rasteriser when `device` is left out |
 | `testReplay(device:)`, `expectReplayMatches(device:)` | `flutter3d_testing` | replay a tape and compare goldens on one device opened for the run |
 | `drawOnce` | `flutter3d_testing` | the layer under both, for a test that keeps its own device and renderer |
+| `MaskedDevice(inner, disabledFeatures:)` | `testing.dart` | any live device answering as if it lacked the features named: `features`, the limits and format answers they carry, and a refusal by name from every call they gate (device, render, compute and transfer passes), so a fallback branch runs on the machine at hand; the honesty check passes through it on the software rasteriser with each of its features masked in turn |
 
 A golden set drawn on a backend belongs to that backend: keep it in a
 directory of its own.
+
+## The reference standards
+
+The HAL is checked against four explicit APIs: **Vulkan, Metal, WebGPU and
+Direct3D 12**. Names follow WebGPU where WebGPU has the thing, and the
+default limits are WebGPU's minimums; WebGPU was itself designed to fit the
+other three, so most of the vocabulary maps onto all four without effort.
+Direct3D 12 joined the list in 1.0.0-rc.1+2 as a check rather than a
+model: it is where WebGPU's portability hides costs a native backend pays
+(2048 shader-visible samplers, the strip cut value inside a pipeline
+object, `SV_InstanceID` without its base, no specialisation constants in
+DXIL, 14 constant buffers a stage on Direct3D 11 hardware).
+
+**Every new HAL feature says how it maps onto each of the four.** A
+`DeviceFeature` a change adds, stable or reserved, gets its row in the
+table below in the same change, saying what it is on Direct3D 12 (the call,
+the feature query, or "none: refused"); its doc comment says what it is on
+Vulkan, Metal and WebGPU. The structure rule "the HAL keeps the shapes it
+settled before the freeze" fails on a `DeviceFeature` in the snapshot with
+no row here. A new field or
+member says the same in its doc comment where its mapping is not obvious.
+
+Nothing in the frozen 1.0 signatures had to change for Direct3D 12: what a
+backend there needs beyond 1.0 arrives in a minor, as new constants of open
+classes, descriptor fields and members with refusing defaults.
+
+### The vocabulary on Direct3D 12
+
+| HAL | Direct3D 12 | What a backend does |
+|---|---|---|
+| `DeviceRegistry`, `DeviceRequest` | `IDXGIFactory6::EnumAdapterByGpuPreference`, `D3D12CreateDevice` | `powerPreference` becomes `DXGI_GPU_PREFERENCE`; `checkSatisfiedBy` passes over an adapter that falls short. WARP is the software adapter CI can run on |
+| `features`, `limits`, `textureFormatSupport` | feature level 11_0 to 12_2, `CheckFeatureSupport` (`OPTIONS` to `OPTIONS21`, `FORMAT_SUPPORT`) | each tier becomes a feature; feature level 11_0 already covers WebGPU's default limits |
+| `lost`, `errors` | `DXGI_ERROR_DEVICE_REMOVED` and `_RESET`, a TDR; `ID3D12InfoQueue1::RegisterMessageCallback` | a removal is an unrecoverable `DeviceLoss`; the debug layer's messages go to `errors` |
+| one queue, passes in submission order | a direct queue (and the copy and compute queues a backend keeps inside) | a copy queue may serve `TransferEncoder`; a compute queue waits for `asyncCompute` |
+| `CommandEncoder`, `ComputeEncoder`, `TransferEncoder` | a command list and its allocator | one list per pass, or a share of one; allocators rotate on `beginFrame` and `onFrameComplete` |
+| `RenderPassDescriptor`, `LoadAction`, `StoreAction`, `resolveTexture` | `BeginRenderPass` with `D3D12_RENDER_PASS_BEGINNING_ACCESS` and `_ENDING_ACCESS` | nearly one to one: clear, preserve, discard, resolve; `deviceTransient` is ordinary memory discarded at the end |
+| binding by name (`bindTexture`, `bindUniformBlock`, `bindStorageBuffer`, `bindUniformBytes`) | a root signature (64 DWORDs of constants, root descriptors, tables) | the backend builds one per pipeline from the stages' reflection, maps each name to a root parameter or a table slot, and copies descriptors into a shader-visible ring per draw (or caches tables as the WebGPU backend caches bind groups) |
+| `SamplerDescriptor`, a value | a sampler heap of at most 2048 shader-visible descriptors | a cache keyed by the description, with eviction; `releaseSampler` is the hook |
+| `createPipeline` and `PassState` | a monolithic PSO | looked up in a cache at `draw()`, keyed by the stages, the pass state, the target formats and sample count, the topology type **and the index format** (the strip cut value lives in the PSO) |
+| no barriers, hazards tracked by the backend | legacy resource states or enhanced barriers (Agility SDK 1.608) | per subresource state, as a Vulkan backend keeps; a pass is a natural barrier point; writes in one compute pass are visible to the next dispatch, which is a UAV barrier between dispatches unless the bindings prove it unneeded |
+| allocation, staging, deferred destruction | heaps, placed and reserved resources, residency | inside the backend (D3D12MA); objects are kept until the frame's fence passes |
+| `writeBuffer`, `writeTexture`, `readback`, `mapBuffer`, `BufferTextureLayout` | upload and readback heaps, `Map`, `CopyTextureRegion` | a row pitch of 256 bytes, as WebGPU's; a write outside a pass goes through a staging ring before the next pass |
+| `GpuFence` | `ID3D12Fence`, a 64-bit timeline | one to one |
+| `NativeHandle`, `shareableKinds` | `CreateSharedHandle`, `OpenSharedHandle` | `d3d12SharedResource` and `d3d12SharedFence` |
+| `QuerySet`, `readQueryResults`, `PipelineStatistic` | query heaps, `ResolveQueryData`, `D3D12_QUERY_DATA_PIPELINE_STATISTICS` | one to one; the five counters are all there |
+| `RenderBundle` | a bundle command list | the same restrictions: no targets, clears or queries inside |
+| `drawIndirect`, `multiDrawIndirect`, `dispatchIndirect` | `ExecuteIndirect` with a command signature | `SV_VertexID` and `SV_InstanceID` leave out the base vertex and first instance, so a backend passes them in a root constant, as naga does |
+| shaders, F3SB sections | DXIL from DXC (DXBC from FXC at shader model 5.1) | SPIR-V, naga's HLSL, DXC; the `d3d12` section is reserved, and CI lints every engine stage through that road |
+| presenters | a DXGI flip swap chain | a presenter hands the frame to Flutter through a shared texture; the HAL presents nothing |
+| `framebufferOrigin`, `depthRange` | top left, 0 to 1 | the same; nothing flips |
+
+Where Direct3D 12 needs something the HAL leaves to the backend, the cost is
+the backend's and the shape is unchanged: an Agility SDK build exports
+`D3D12SDKVersion` from the executable, which a Flutter application does in
+`windows/runner`; the material binding budget (16 textures, 16 samplers,
+12 blocks a stage) fits even Direct3D 11's 14 constant buffers.
+
+### Each feature on Direct3D 12
+
+| Feature | Direct3D 12 |
+|---|---|
+| `offscreenMultisample` | `SampleDesc.Count` above one and `ResolveSubresource`; four samples for the common formats at feature level 11_0 |
+| `blendConstant` | `OMSetBlendFactor` and `D3D12_BLEND_BLEND_FACTOR` |
+| `blendConstantAlpha` | `D3D12_BLEND_ALPHA_FACTOR`, where `OPTIONS13.AlphaBlendFactorSupported`; refused otherwise |
+| `manualMipmaps` | always: a chain in the resource and in the view |
+| `cubeTextures` | always: a `TextureCube` view over six array slices |
+| `renderToMipLevel` | always: the render target view's `MipSlice` |
+| `wireframe` | always: `D3D12_FILL_MODE_WIREFRAME` |
+| `alphaToCoverage` | always: `AlphaToCoverageEnable` |
+| `stencil` | always: `D24_UNORM_S8_UINT` and `D32_FLOAT_S8X24_UINT` |
+| `gpuTimestamps` | timestamp queries on the direct queue, `GetTimestampFrequency` |
+| `compute` | always at feature level 11_0: a compute PSO and `Dispatch` |
+| `float32Filterable` | per format, `CheckFeatureSupport(FORMAT_SUPPORT)` sample with a linear filter |
+| `float32Renderable` | per format, render target support |
+| `float32Blendable` | per format, blendable support |
+| `independentBlend` | always: `IndependentBlendEnable` |
+| `textureArrays` | always |
+| `texture3D` | always |
+| `cubeArrayTextures` | always at feature level 11_0: a `TextureCubeArray` view |
+| `renderToArrayLayer` | always: the render target view's `FirstArraySlice` |
+| `textureWrites` | always: an upload heap and `CopyTextureRegion` |
+| `buffers` | always: committed buffers |
+| `bufferCopy` | always: `CopyBufferRegion`; a clear through `ClearUnorderedAccessViewUint` or a copy from zeroed memory |
+| `textureCopy` | always: `CopyTextureRegion` |
+| `bufferTextureCopy` | always: `CopyTextureRegion` with a placed footprint (256-byte rows, 512-byte offsets) |
+| `storageTextures` | always: a `RWTexture2D` unordered access view |
+| `readWriteStorageTextures` | typed UAV loads: the 32-bit single-channel formats always, the rest where `OPTIONS.TypedUAVLoadAdditionalFormats` |
+| `renderStageStorage` | unordered access views in any stage |
+| `indirectDraw` | `ExecuteIndirect` with a draw signature |
+| `indirectDispatch` | `ExecuteIndirect` with a dispatch signature |
+| `indirectFirstInstance` | `StartInstanceLocation` in the arguments, read by the shader through a root constant |
+| `nonIndexedDraw` | always: `DrawInstanced` |
+| `depthBias` | the rasteriser state's bias (a PSO field), or `RSSetDepthBias` where `OPTIONS16.DynamicDepthBiasSupported` |
+| `depthBiasClamp` | always: `DepthBiasClamp` |
+| `colorWriteMask` | always: `RenderTargetWriteMask` |
+| `depthClamp` | always: `DepthClipEnable` false clamps to the viewport's depth range |
+| `minMaxBlend` | always: `D3D12_BLEND_OP_MIN` and `_MAX` |
+| `dualSourceBlending` | always: the `SRC1` factors, on target zero |
+| `samplerCompare` | always: a comparison filter and `SampleCmp` |
+| `samplerLodClamp` | always: `MinLOD` and `MaxLOD` |
+| `samplerBorderColor` | always: `D3D12_TEXTURE_ADDRESS_MODE_BORDER` with a `BorderColor` in a heap sampler |
+| `occlusionQuery` | always: `D3D12_QUERY_TYPE_OCCLUSION` |
+| `timestampQuery` | always: `D3D12_QUERY_TYPE_TIMESTAMP` and `ResolveQueryData` |
+| `textureCompressionBC` | always at feature level 11_0 |
+| `textureCompressionETC2` | none: refused |
+| `textureCompressionASTC` | none: refused |
+| `textureCompressionASTCHdr` | none: refused |
+| `rg11b10Renderable` | per format: `R11G11B10_FLOAT` render target support |
+| `shaderF16` | shader model 6.2 with `OPTIONS4.Native16BitShaderOpsSupported` |
+| `subgroups` | shader model 6.0 wave operations, `OPTIONS1.WaveOps` |
+| `clipDistances` | always: `SV_ClipDistance` |
+| `uniformBytes` | root constants, or a constant buffer view into an upload ring |
+| `mappedBuffers` | always: `Map` on an upload or readback heap |
+| `synchronousReadback` | a readback heap and a CPU wait on the frame's fence |
+| `pipelineStatisticsQuery` | always: `D3D12_QUERY_TYPE_PIPELINE_STATISTICS` |
+| `renderBundles` | always: bundles |
+| `multiDraw` | a loop of `DrawIndexedInstanced`, or `ExecuteIndirect` over arguments written to an upload buffer |
+| `multiDrawIndirect` | `ExecuteIndirect` with `MaxCommandCount` and a count buffer |
+| `baseVertexBaseInstance` | always: `BaseVertexLocation` and `StartInstanceLocation`, the shader reading them through a root constant |
+| `reversedDepth` | always: `D32_FLOAT` and a greater comparison |
+| `viewportBeyondTarget` | always: viewports from −32768 to 32767 |
+| `multiview` | view instancing, `OPTIONS3.ViewInstancingTier`, `SV_ViewID` |
+| `sharedTextures` | a resource on a `D3D12_HEAP_FLAG_SHARED` heap and `CreateSharedHandle`: `d3d12SharedResource` |
+| `sharedBuffers` | the same, for a buffer |
+| `sharedFences` | an `ID3D12Fence` made with `D3D12_FENCE_FLAG_SHARED`: `d3d12SharedFence` |
+| `texture1D` | always |
+| `primitiveStrips` | always, with `IBStripCutValue` in the PSO for restart |
+| `pointPrimitives` | always: a point list, one pixel a point |
+| `indexUint32` | always: `R32_UINT` indices |
+| `fractionalViewport` | always: a viewport in floats |
+| `uniformBuffers` | a root constant buffer view at a buffer's GPU address, 256-byte aligned |
+| `rayQuery` (reserved) | inline `RayQuery`, raytracing tier 1.1; the full DXR pipeline with shader tables has no name in the HAL yet |
+| `meshShaders` (reserved) | amplification and mesh shaders, `OPTIONS7.MeshShaderTier` |
+| `bindlessResources` (reserved) | shader model 6.6 `ResourceDescriptorHeap`, resource binding tier 3 |
+| `immediateData` (reserved) | root constants |
+| `variableRateShading` (reserved) | variable rate shading tiers 1 and 2, `OPTIONS6` |
+| `depthResolve` (reserved) | `ResolveSubresourceRegion` with a minimum, maximum or sample-zero mode |
+| `asyncCompute` (reserved) | a compute queue, ordered by fences |
+| `shaderInt64` (reserved) | shader model 6.0 `OPTIONS1.Int64ShaderOps`, 64-bit atomics from shader model 6.6 |
+| `conservativeRasterization` (reserved) | `OPTIONS.ConservativeRasterizationTier` |
+| `depthBounds` (reserved) | `OMSetDepthBounds`, `OPTIONS2.DepthBoundsTestSupported` |
+| `presenterColorSpaces` (reserved) | a presenter's swap chain with `SetColorSpace1` (scRGB, HDR10) |
+| `workGraphs` (reserved) | work graphs, `OPTIONS21.WorkGraphsTier`, a state object and `DispatchGraph` |
+| `samplerFeedback` (reserved) | `OPTIONS7.SamplerFeedbackTier`, `WriteSamplerFeedback` into a MinMip or MipRegionUsed map |
 
 ## Coverage and growth
 

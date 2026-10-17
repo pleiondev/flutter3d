@@ -38,8 +38,28 @@ void main() {
           'conservative-rasterization',
           'depth-bounds',
           'presenter-color-spaces',
+          // Direct3D 12's, named before the freeze.
+          'work-graphs',
+          'sampler-feedback',
         ]),
       );
+    });
+
+    test('the Direct3D 12 names are reserved and cannot be reported', () {
+      // Mutation: make either stable without a call behind it, and a
+      // backend could list a capability no member delivers.
+      for (final feature in <DeviceFeature>[
+        DeviceFeature.workGraphs,
+        DeviceFeature.samplerFeedback,
+      ]) {
+        expect(feature.stability, FeatureStability.reserved);
+        expect(DeviceFeature.byName(feature.name), same(feature));
+        expect(
+          () => DeviceFeatures(<DeviceFeature>[feature]),
+          throwsArgumentError,
+        );
+        expect(DeviceFeatures.none.missing, contains(feature));
+      }
     });
 
     test('multiview and sharing are stable, with calls behind them', () {
