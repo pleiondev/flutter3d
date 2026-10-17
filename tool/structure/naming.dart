@@ -1242,15 +1242,17 @@ List<NamingProblem> unimportableTypesIn(
 }
 
 /// The types [source] throws by name (`throw FooException(…)`,
-/// `throw const Foo.named(…)`), public ones only: a private type is caught
-/// by nobody outside, which is its own decision.
+/// `throw const Foo.named(…)`, `Error.throwWithStackTrace(Foo(…), trace)`),
+/// public ones only: a private type is caught by nobody outside, which is
+/// its own decision.
 ///
 /// **A thrown type is API whether or not a library exports it.** A caller
 /// catches it by name (E.6), and `GpuDeviceException` was thrown, named as
 /// the target of a rename, and exported by nobody.
 Set<String> thrownTypesIn(String source) => <String>{
   for (final m in RegExp(
-    r'\bthrow\s+(?:const\s+)?(?:[a-z_]\w*\.)?([A-Z][\w$]*)\s*[(.<]',
+    r'(?:\bthrow\s+|\bError\.throwWithStackTrace\(\s*)'
+    r'(?:const\s+)?(?:[a-z_]\w*\.)?([A-Z][\w$]*)\s*[(.<]',
   ).allMatches(source.replaceAll(RegExp(r'^\s*//.*$', multiLine: true), '')))
     m.group(1)!,
 };
