@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-16",
+  "updated": "2026-10-17",
   "note": "Status of every row of 1.0-rc1-plan.md and 1.0-api-migrations.md, by `<wave>/<row>`: done, partial, active, blocked or todo (the default). Each wave's integration updates it with the plan's status lines; tool/progress.dart draws the dashboard from both.",
   "rows": {
     "0/0.1": "done",
@@ -75,12 +75,24 @@
     "4.3/4.3E": "done",
     "4.3/4.3H": "done",
     "4.3/4.3I": "todo",
+    "4.3/4.3P": "todo",
+    "4.3/4.3Q": "todo",
     "4.3/4.3B": "todo",
     "4.3/4.3N": "todo",
+    "4.3/4.3.6": "todo",
     "4.3/4.3Z": "todo"
   },
   "notes": {
     "0/0.5": "dart-apitool installed; the impeller runner is still to set up",
+    "4.3/4.3P": "the fluids of fix/drops-look, carried onto the 1.0 contracts through the compute placement",
+    "4.3/4.3Q": "orthographic cascades, the timeline's tapes, migrate --data pipeline; the platformer replay_test blocks P1",
+    "4.3/4.3.6": "the third recheck; rc.1's scope freezes after it",
+    "goal/P2": "tool/soak.sh exists; the run on the A55 is to do",
+    "goal/P3": "VM, dart2js and dart2wasm equal on macOS; Linux and MSVC from GitHub-hosted runners, Android and iOS with P1",
+    "goal/P4": "moved to rc.2: the timer and the report exist, the eight phones do not",
+    "goal/Nightly": "three green nights for rc.1, seven for rc.2; the runner is to set up",
+    "goal/Twins": "real source (REST poller), tape and RunTimeline scrub, GeoOrigin, ± 0.02 mm at 5 km in CONTRACTS with its test",
+    "goal/Laboratories": "pendulum number, LTI wire, Semantics, experiment fixture, the profiles sentence on the education page; the Chromebook and iPad reports are left",
     "3.2/3Z": "rules and loose ends in; 3 tests red on the base and the Mac findings handed to wave 4",
     "3.4/3X": "in 1.0.0; XR seams frozen; multiview, occlusion and isolate poses left for rc.2",
     "3.3/3W": "in 1.0.0; fields, subsystems, outside plugin; field frame on 3 backends still to run on the Mac",
@@ -107,12 +119,12 @@
   "goals": {
     "P1": "todo",
     "P2": "todo",
-    "P3": "todo",
-    "P4": "todo",
+    "P3": "partial",
+    "P4": "blocked",
     "P5": "todo",
-    "Nightly": "todo",
+    "Nightly": "blocked",
     "Games": "todo",
-    "Twins": "todo",
-    "Laboratories": "todo"
+    "Twins": "done",
+    "Laboratories": "partial"
   }
 }
