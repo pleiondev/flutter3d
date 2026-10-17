@@ -7,6 +7,25 @@
   without them. When an answer arrives is the machine's, so a world under a
   bit-exact profile refuses it; in the browser, which has no isolate here,
   it answers at once.
+- **The spilt liquid's pair loops are kernels, placed by the hardware
+  layer.** `liquidPairKernels` writes the Position Based Fluids loops over
+  pairs of neighbours (density, colour-field normals, cohesion and
+  curvature, the density constraint and its correction, XSPH) once in the
+  kernel language, over flat buffers and compressed neighbour rows.
+  `KernelLiquid` is a `FluidSolver` that steps the particles with them,
+  the walls, the moves and the neighbour rows on the host, the loops
+  handed to an executor (`LiquidPairLoops`, made for a fluid's
+  `LiquidPairConstants`). This package names no device: where the kernels
+  run is placed in `flutter3d_effects` (`placeKernelLiquid`), bit-exact on
+  the CPU kernel under a bit-exact profile.
+- **A native CPU executor beside them.** The loops in C, a few neighbours
+  at a time on the processor's AVX2, AVX-512F or NEON lanes, chosen at
+  run time, built by the hook as a library apart from the core (with -O3,
+  never failing the build) and taken as the work's own host code where
+  the run need not replay (`KernelLiquid.native`). Held to the CPU kernel within
+  `KernelLiquid.nativeTolerance`, a part in ten thousand of a spacing and
+  of the fastest velocity a substep; refused under a bit-exact profile.
+  `LiquidKernelExecutor` says which ran.
 
 ## 1.0.0-rc.1
 

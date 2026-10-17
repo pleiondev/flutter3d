@@ -246,6 +246,60 @@ final class JointTissue
   final double limitStiffness
   static const JointTissue human = …
 
+final class KernelLiquid extends FluidSolver
+  KernelLiquid({required LiquidPairLoops Function(LiquidLoopsContext context) loops, required this.executor, required this.backend, this.rest = const DartFluid()})
+  String toString()
+  final FluidSolver rest
+  final LiquidKernelExecutor executor
+  final String backend
+  static KernelLiquid? native({SimulationProfile profile = SimulationProfile.deterministic, FluidSolver rest = const DartFluid()})
+  static bool get isNativeLanesBuilt
+  static const String workName = 'liquid pairs'
+  static const double nativeTolerance = 1e-4
+  void flowPipes(PipeFlow flow)
+  void flyParcels(ParcelFlight flight)
+  void moveParticles(ParticleMotion motion)
+  void pushBodies(FloatPush push)
+  void ringModes(ModeRinging ringing)
+
+final class LiquidKernelExecutor
+  String toString()
+  final String name
+  static LiquidKernelExecutor? byName(String name)
+  static const LiquidKernelExecutor kernel = LiquidKernelExecutor._('kernel')
+  static const LiquidKernelExecutor nativeSimd = LiquidKernelExecutor._('nativeSimd')
+  static const List<LiquidKernelExecutor> values = <LiquidKernelExecutor>[kernel, nativeSimd]
+
+final class LiquidLoopsContext
+  final LiquidPairConstants constants
+  final Vector3 origin
+
+final class LiquidPairConstants
+  Float64List get list
+  LiquidPairConstants(ParticleMotion motion)
+  bool sameAs(LiquidPairConstants other)
+  double get cohesion
+  double get h2
+  double get h6
+  double get poly6
+  double get spiky
+  double get wq
+  final double gamma
+  final double h
+  final double mass
+  final double norm
+  final double restDensity
+  final double restStiffness
+
+abstract base class LiquidPairLoops
+  abstract void deltas(Float64List p, Int32List start, Int32List list, int n, Float64List lambda, Float64List delta, {required bool artificial})
+  abstract void densities(Float64List x, Int32List start, Int32List list, int n, Float64List density)
+  abstract void forces(Float64List x, Int32List start, Int32List list, int n, Float64List density, Float64List normal, Float64List accel)
+  abstract void lambdas(Float64List p, Int32List start, Int32List list, int n, Float64List lambda, Float64List crowd)
+  abstract void normals(Float64List x, Int32List start, Int32List list, int n, Float64List density, Float64List normal)
+  abstract void viscosity(Float64List p, Float64List v, Int32List start, Int32List list, int n, double share, Float64List smoothed)
+  const LiquidPairLoops()
+
 final class MuscleTone
   JointGroupTone toneOf(JointGroup? group)
   const MuscleTone({required this.stiffness, required this.damping, required this.maxTorque, this.groups = const <JointGroupTone>[], this.floor = 0.0, this.fade = 0.0})
@@ -1150,6 +1204,10 @@ const int fluidParamFloats = 32
 const int fluidParticleFloats = 4
 
 const int gridNone = 4294967295
+
+final String liquidPairKernels
+
+const int liquidParamFloats = 17
 
 Future<void> loadPhysicsCore({Uint8List? bytes, String url = defaultPhysicsCoreUrl, int threads = 1, String threadsUrl = defaultPhysicsCoreThreadsUrl, String workerUrl = defaultPhysicsWorkerUrl})
 

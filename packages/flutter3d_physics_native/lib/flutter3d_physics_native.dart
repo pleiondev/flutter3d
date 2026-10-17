@@ -11,6 +11,8 @@ library;
 export 'src/background/background_shapes.dart';
 export 'src/core/load.dart';
 export 'src/fire_exposure.dart';
+export 'src/liquid_kernels.dart';
+export 'src/liquid_lanes.dart' show LiquidPairLoops;
 // The core's own ClothMesh and ClothSettings by the names CoreClothMesh and
 // CoreClothSettings: flutter3d_physics, which a game imports beside this,
 // has the plain names for the cloth every backend steps.

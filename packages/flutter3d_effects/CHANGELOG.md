@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1+1
 
+- **The spilt liquid's pair loops are placed like any compute.**
+  `placeKernelLiquid` asks `FrameCompute.placeHosted` where
+  `flutter3d_physics_native`'s liquid kernels run and builds its
+  `KernelLiquid` there: the native lanes where the run need not replay,
+  otherwise the first device that computes and reads back in the same
+  turn, and only the CPU kernel under a bit-exact profile, where a GPU is
+  passed over for its division and square roots.
+
 - **Breaking: results that were records are final classes.** `Elements`,
   `FireView` and `LiquidView` answered or held a record, which can never
   gain a field. Each answers a final class now, with the record's field

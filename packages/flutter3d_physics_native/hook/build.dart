@@ -12,6 +12,8 @@
 // Only the core: the particles, debris, cloth and fluid it steps on the
 // CPU are the same systems a GPU steps through the hardware layer, from the
 // kernels in `lib/src/visual_kernels.dart`, which need nothing built here.
+// And, apart from it, the liquid's native CPU executor (`csrc/lanes/`),
+// optimised and vectorised, which a build without a C compiler goes without.
 import 'package:code_assets/code_assets.dart';
 import 'package:hooks/hooks.dart';
 import 'package:logging/logging.dart';
@@ -71,6 +73,24 @@ void main(List<String> args) async {
                   Architecture.ia32) ...<String>['-msse2', '-mfpmath=sse'],
             ],
     ).run(input: input, output: output, logger: logger);
+    // The liquid's native CPU executor, apart from the core: optimised and
+    // vectorised, so not under the core's deterministic flags, and never
+    // the reason a build fails. Without it the liquid runs its kernels.
+    try {
+      await CBuilder.library(
+        name: 'f3d_liquid_lanes',
+        assetName: 'src/liquid_lanes_native.dart',
+        sources: const <String>['csrc/lanes/f3d_liquid_lanes.c'],
+        includes: const <String>['csrc/lanes'],
+        std: 'c11',
+        flags: msvc ? const <String>['/O2'] : const <String>['-O3'],
+      ).run(input: input, output: output, logger: logger);
+    } on Object catch (error) {
+      logger.warning(
+        'flutter3d_physics_native: no native liquid executor ($error); the '
+        'liquid runs its kernels.',
+      );
+    }
   });
 }
 

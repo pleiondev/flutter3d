@@ -21,6 +21,7 @@ library;
 export 'src/elements.dart';
 export 'src/fire_light.dart';
 export 'src/fire_view.dart';
+export 'src/liquid_kernel_placement.dart';
 export 'src/liquid_look.dart';
 export 'src/liquid_shapes.dart';
 export 'src/liquid_view.dart';

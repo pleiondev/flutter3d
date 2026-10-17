@@ -69,6 +69,20 @@ Built with `-DF3D_REAL_DOUBLE`, the core uses doubles throughout instead. That b
 
 The core is the `deterministic` profile's engine. Under `SimulationProfile.accurate`, which promises double maths and adaptive steps rather than bits, a simulation runs the Dart engine in `flutter3d_physics`, and native cloth refuses a profile that is not bit-exact so its owner falls back to the Dart cloth. Two things are exact in doubles here under either profile: a body's place in the world, a `WorldPosition` with the origin added, and the laws and expressions the core evaluates.
 
+## The liquid's pair loops as kernels
+
+The loops over pairs of neighbours that a spilt liquid's substep is made of (its density, colour-field normals, cohesion and curvature, the density constraint and its correction, XSPH's viscosity) are written once in the kernel language, as `liquidPairKernels`, over flat buffers and compressed neighbour rows. `KernelLiquid` is a `FluidSolver` that steps the particles with them; the walls, the moves and the neighbour rows stay on the host, in Dart.
+
+```dart
+// flutter3d_effects, which speaks to devices; this package names none.
+final liquid = await placeKernelLiquid(FrameCompute.of(device));
+final world = FluidWorld(gravity: gravity, solver: liquid);
+```
+
+Where the loops run is the hardware layer's to say, and the simulation imports nothing that draws: `placeKernelLiquid` in `flutter3d_effects` asks `FrameCompute.placeHosted` and builds the solver on the executor the work landed on. Under a bit-exact profile (`SimulationProfile.deterministic`, the default) the work requires `ComputeRequirement.bitExact`: the kernels divide and take square roots, which a GPU computes only to within a tolerance, so a GPU is passed over and they run on the CPU kernel, their Dart translation rounded to f32 after every operation, which gives the same bytes on every machine and in the browser. Where the run need not replay, the device's or the sidecar's compute takes them if it reads back in the same turn.
+
+Beside the kernels there is a native CPU executor, the work's own host code: the same loops in C (`csrc/lanes/`), summing two, four or eight neighbours at a time on the processor's NEON, AVX2 or AVX-512F lanes, chosen when first asked rather than when built. The hook builds it as a library apart from the core, with `-O3` and none of the core's deterministic flags, and builds nothing, without failing, where there is no C compiler. It runs in doubles and adds in another order, so it is held to the CPU kernel within `KernelLiquid.nativeTolerance` (one substep's positions within a part in ten thousand of the spacing, its velocities within a part in ten thousand of the fastest; on a squeezed block they are a few tenths of a nanometre apart) and is refused under a bit-exact profile. `KernelLiquid.native` hands it out where it may, and `LiquidKernelExecutor` says which ran. There is no native executor in the browser.
+
 ## Laws in the core
 
 A body's material can follow its temperature. `NativeWorld.setMaterialLaws(body, material)` gives the core the specific heat, conductivity and emissivity laws of a `PhysicalMaterial`, tables and formulas alike, compiled to the expression language's bytecode. Each step begins by evaluating them at the body's temperature. `NativeExpression` runs any expression of the language in the core, such as a probe's derived quantity. The C interpreter (`csrc/src/f3d_expr.c`) computes in binary64 on the same portable maths as Dart's in both builds, and `test/law_parity_test.dart` holds the two to the bit on every expression fixture and every law of the catalogue. In the f32 core a body's temperature is an f32 and the value a law writes into its material is rounded to f32 once; the test holds that value to Dart's at the same f32 temperature, rounded the same way. A world that sets no law steps exactly as before.

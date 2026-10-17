@@ -2186,6 +2186,8 @@ const Map<String, String> hookParametersAllowed = <String, String>{
   'BackendOpener':
       'flutter3d_hardware: opening a backend at a surface\'s size, the one shape every backend\'s `open` has; the hardware interface, for GraphicsDevice\'s reason',
   'BinaryStorage': 'flutter3d_app: a key and its bytes, for Storage\'s reason',
+  'LiquidPairLoops':
+      'flutter3d_physics_native: a loop over pairs of neighbours as flat buffers and their lengths, the shape the kernels bind and the C lanes take, called several times a substep; a context object each call would be an allocation in the hottest loop the liquid has, and an executor is the engine\'s own',
   'BridgeSpace':
       'flame_flutter3d: a Flame point to a scene position (and an angle to a rotation), written into the caller\'s vector per component per frame: a coordinate transform whose inputs are the coordinates',
   'CollisionShape':

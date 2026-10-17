@@ -346,4 +346,6 @@ double mistShare(double speed, {double g = standardGravity, double? viscosity})
 
 MeshData particleMesh(List<Vector3> positions, double radius)
 
+Future<KernelLiquid> placeKernelLiquid(FrameCompute compute, {SimulationProfile profile = SimulationProfile.deterministic, FluidSolver rest = const DartFluid()})
+
 double rippleSteepness(double speed)

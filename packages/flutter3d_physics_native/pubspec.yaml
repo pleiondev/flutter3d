@@ -47,12 +47,12 @@ dependencies:
   # liquid presets are views of, and what `tool/gen_materials.dart` writes
   # the C header from.
   flutter3d_matter: '>=1.0.0-rc.1 <1.1.0'
+  # `SimulationProfile`: a bit-exact run refuses the liquid's native lanes.
+  flutter3d_plugin_api: '>=1.0.0-rc.1 <1.1.0'
 
 dev_dependencies:
   test: ^1.25.0
   flutter_lints: ^6.0.0
-  # `SimulationProfile`, which a test sets a world's profile to.
-  flutter3d_plugin_api: '>=1.0.0-rc.1 <1.1.0'
 
 # The core as a WebAssembly module, for the browser: a Flutter web app
 # serves it from assets/packages/flutter3d_physics_native/web/.
