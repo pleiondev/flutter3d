@@ -8,10 +8,13 @@
 /// seconds a program, and the suite spent most of its quarter of an hour
 /// compiling the same files with the same flags.
 ///
-/// **What the key is.** The compiler, the flags, and every byte of every
-/// source and header under `csrc/src` and `csrc/include`: an edit to any of
-/// them, or a flag a test adds, is a new key and a fresh build, so a kept
-/// object is never one the sources have moved on from. A key's objects are
+/// **What the key is.** The compiler, what its `--version` says, the flags,
+/// and every byte of every source and header under `csrc/src` and
+/// `csrc/include`: an edit to any of them, a flag a test adds, or an update
+/// of the toolchain under the same `cc` is a new key and a fresh build, so a
+/// kept object is never one the sources or the compiler have moved on from.
+/// The version is asked on every build, not remembered: a compiler is never
+/// taken to be what it was earlier in the run. A key's objects are
 /// written into a directory of their own and renamed into place whole, so
 /// two test files building the same key at once each see a complete set.
 /// Keys whose flags match the new one are removed when it is made: the
@@ -57,7 +60,11 @@ Future<List<String>> coreObjects(String compiler, List<String> flags) async {
   final flagsKey = _hex(
     _fnv(_fnvOffset, '$compiler ${flags.join(' ')}'.codeUnits),
   );
-  var content = _fnv(_fnvOffset, flagsKey.codeUnits);
+  final said = await Process.run(compiler, const <String>['--version']);
+  var content = _fnv(
+    _fnv(_fnvOffset, flagsKey.codeUnits),
+    '${said.exitCode} ${said.stdout}'.codeUnits,
+  );
   for (final file in _inputs()) {
     content = _fnv(content, file.path.codeUnits);
     content = _fnv(content, file.readAsBytesSync());
