@@ -24,6 +24,10 @@ checks it on every push:
   it yet. A report is welcome and a fix may wait for a minor.
 - **No**: does not work, or does not exist on that platform.
 
+One more mark stands for a cell whose level is not decided yet: **To verify**
+means expected to work, with a run on real hardware planned and not yet
+done. It is read as Best effort until that run says otherwise.
+
 | Platform | Impeller (Metal) | Impeller (Vulkan) | Impeller (OpenGL ES) | WebGL2 | WebGPU | CPU |
 |---|---|---|---|---|---|---|
 | macOS | Supported | No | No | | | Supported |
@@ -32,6 +36,7 @@ checks it on every push:
 | Windows | No | Best effort | Best effort | | | Best effort |
 | Linux | No | No | No | | | CI |
 | Web (Chrome) | | | | CI | Supported | Best effort |
+| Web (Chrome on Windows) | | | | To verify in the Windows session (ANGLE on Direct3D 11) | To verify in the Windows session (Dawn on Direct3D 12) | Best effort |
 | Web (Safari, Firefox) | | | | Best effort | Best effort | Best effort |
 
 A blank cell is a backend that cannot exist there: Impeller is not in the
@@ -69,6 +74,21 @@ What sits behind each level:
   wireframe are missing, and the device says so through `features`.
 - **Windows.** CI builds the five games and the editor, and runs the native
   physics core's tests under MSVC. Nobody has played a game on Windows yet.
+  **Which API Impeller draws through there is Flutter's choice**, not
+  flutter3d's: Flutter 3.47 made Impeller the default renderer on Windows
+  ([flutter#188140](https://github.com/flutter/flutter/pull/188140), in the
+  [3.47.0 release notes](https://docs.flutter.dev/release/release-notes/release-notes-3.47.0)),
+  and where a machine has no usable Vulkan it falls back to OpenGL ES
+  through ANGLE on Direct3D 11
+  ([flutter#187288](https://github.com/flutter/flutter/pull/187288), same
+  release, which fixed a black screen on that path). Which of the two a
+  given machine takes, and whether `flutter_gpu` behaves the same on both,
+  is checked in the Windows session (D56); until then both cells stay Best
+  effort. That session also runs the WebGPU and WebGL2 suites in Chrome on
+  a real GPU, which is Dawn on Direct3D 12 and ANGLE on Direct3D 11.
+  Direct3D 12 itself is already in CI in one place: the wgpu sidecar's
+  compute and sharing checks run on `windows-latest` through WARP, the
+  software Direct3D 12 adapter (the `wgpu-warp` job).
 - **Linux.** Every test suite in the repository runs here, and the `render`
   job draws every golden scene through the CPU backend under Xvfb. The
   embedder keeps Flutter GPU off unless the engine is given
