@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1+1
 
+- **A replay refuses a run on another physics backend.** `ReplaySubject`
+  gains `physics`, the backend the run steps on; when the tape's
+  `Demo.physics` names another, the replay fails before it steps, saying
+  both. A run whose core would not load fell back to the reference without
+  a word and failed as a divergence at the first checkpoint.
 - **A missing golden fails on CI.** `expectMatchesGolden`, and with it
   `testReplay` and `expectReplayMatches`, read `CI` from the process's
   environment, which every runner sets, where they read a compile-time

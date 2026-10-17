@@ -67,6 +67,7 @@ typedef ReplayStarter = FutureOr<ReplaySubject> Function(ReplayStart start);
 abstract base class ReplaySubject
   ReplaySubject()
   String? get levelHash
+  String? get physics
   abstract EngineLoop get loop
   abstract FutureOr<FrameSubject> frame(int step)
   abstract GenrePlugin<Object> get genre

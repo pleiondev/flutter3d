@@ -79,6 +79,17 @@ abstract base class ReplaySubject {
   /// bug in the simulation and sends whoever reads it looking there.
   String? get levelHash => null;
 
+  /// The name of the physics backend the run steps on — `'native'` or
+  /// `'dart'` from `flutter3d_physics_native`'s `PhysicsStart.backend` — or
+  /// null when the game cannot say, which is the default.
+  ///
+  /// Asked so that a run that fell back from the backend the tape was
+  /// recorded on ([Demo.physics]) fails as that, before it steps, rather
+  /// than as a divergence at the first checkpoint: the two backends are not
+  /// promised to agree, and a core that would not load — a missing library,
+  /// one built for another ABI — falls back without a word.
+  String? get physics => null;
+
   /// The loop the run is stepped in, built on [ReplayStart.input], with
   /// [genre] installed and its `simulation` set to the run.
   EngineLoop get loop;
@@ -365,6 +376,21 @@ Future<void> _replay(
       'tape played into '
       'edited geometry diverges for a reason that is not a bug; record the '
       'tape again.',
+    );
+  }
+
+  // A tape is replayed on the backend it was recorded on or not at all: the
+  // core and the reference are not promised the same bits, and a run that
+  // fell back from one to the other would read as a divergence at the first
+  // checkpoint.
+  final recordedOn = demo.physics;
+  final runningOn = run.physics;
+  if (recordedOn != null && runningOn != null && recordedOn != runningOn) {
+    fail(
+      '$label was recorded on the $recordedOn physics and this run is on '
+      '$runningOn. The two backends are not promised to agree step for step; '
+      'start the run on $recordedOn (startPhysics(asked: '
+      'demo.physics)), and if it fell back, its PhysicsStart says why.',
     );
   }
 

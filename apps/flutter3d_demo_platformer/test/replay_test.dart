@@ -36,6 +36,7 @@ final class _Ascent extends ReplaySubject {
     this._staged,
     this._fixtures,
     this._runnerNode,
+    this._physics,
     InputState input,
   ) : _follow = FollowCamera(world: _loaded.collision) {
     genre.simulation = _staged.sim;
@@ -60,7 +61,15 @@ final class _Ascent extends ReplaySubject {
 
   static Future<_Ascent> open(ReplayStart start) async {
     // On the backend it was recorded on: the two are not promised to agree.
-    await startPhysics(asked: start.demo.physics ?? askedPhysics);
+    // A core that will not load falls back to the reference, which the tape
+    // was not recorded on; the replay refuses that by name (`physics`), and
+    // the reason it fell back is said here.
+    final physics = await startPhysics(
+      asked: start.demo.physics ?? askedPhysics,
+    );
+    if (physics.fallbackBecause case final String because) {
+      fail('the physics core would not start, so this run fell back: $because');
+    }
     final (:kinds, :loaded, :fixtures) = await openLevel(
       start.demo.level,
       device: start.device,
@@ -76,13 +85,21 @@ final class _Ascent extends ReplaySubject {
     final runnerNode = RunnerVisuals(
       model: '',
     ).box(start.device, loaded.scene, staged.runner);
-    return _Ascent._(loaded, staged, fixtures, runnerNode, start.input);
+    return _Ascent._(
+      loaded,
+      staged,
+      fixtures,
+      runnerNode,
+      physics,
+      start.input,
+    );
   }
 
   final LoadedLevel _loaded;
   final Staged _staged;
   final FixtureVisuals _fixtures;
   final SceneNode _runnerNode;
+  final PhysicsStart _physics;
   final FollowCamera _follow;
   final CameraNode _camera = CameraNode(projection: ascentLens.base);
   double _elapsed = 0.0;
@@ -95,6 +112,9 @@ final class _Ascent extends ReplaySubject {
 
   @override
   String? get levelHash => _loaded.level.digestHex;
+
+  @override
+  String? get physics => _physics.backend.name;
 
   @override
   Future<FrameSubject> frame(int step) async {

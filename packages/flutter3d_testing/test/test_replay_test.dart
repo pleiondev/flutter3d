@@ -79,7 +79,7 @@ final class _WalkGenre extends GenrePlugin<_Walk> {
 
 /// The walk, installed in a loop the way a game installs its genre.
 final class _Walker extends ReplaySubject {
-  _Walker(InputState input, {int? strayFrom, this.hash})
+  _Walker(InputState input, {int? strayFrom, this.hash, this.runsOn})
     : walk = _Walk(input, strayFrom: strayFrom) {
     genre.simulation = walk;
     loop = EngineLoop(input: input, plugins: <Flutter3dPlugin>[genre]);
@@ -87,6 +87,7 @@ final class _Walker extends ReplaySubject {
 
   final _Walk walk;
   final String? hash;
+  final String? runsOn;
 
   @override
   final _WalkGenre genre = _WalkGenre();
@@ -99,6 +100,9 @@ final class _Walker extends ReplaySubject {
 
   @override
   String? get levelHash => hash;
+
+  @override
+  String? get physics => runsOn;
 
   @override
   FrameSubject frame(int step) {
@@ -119,7 +123,7 @@ final class _Walker extends ReplaySubject {
 
 /// Twenty steps of the walker, held forward on two steps out of three, with
 /// a checkpoint every five — the way a game's own recorder writes a run.
-Demo _record({int steps = 20}) {
+Demo _record({int steps = 20, String? physics}) {
   final input = InputState();
   final walk = _Walk(input);
   final start = walk.save();
@@ -142,6 +146,7 @@ Demo _record({int steps = 20}) {
     tape: recorder.tape,
     buildStamp: 'test-build',
     checkpoints: checkpoints,
+    physics: physics,
   );
 }
 
@@ -242,12 +247,14 @@ void main() {
       Iterable<int> goldensAt = const <int>[],
       Demo? demo,
       String? hash,
+      String? runsOn,
     }) async {
       _Walker? walker;
       await expectLater(
         expectReplayMatches(
           demo ?? _record(),
-          start: (start) => walker = _Walker(start.input, hash: hash),
+          start: (start) =>
+              walker = _Walker(start.input, hash: hash, runsOn: runsOn),
           digestAt: digestAt,
           goldensAt: goldensAt,
           goldenDirectory: dir.path,
@@ -289,6 +296,20 @@ void main() {
       final walker = await refused(
         _failsWith('the level line.json has changed'),
         hash: 'baadf00d',
+      );
+      expect(walker.steps, 0, reason: 'refused before the first step');
+    });
+
+    test('a run on another physics backend than the recording', () async {
+      // Mutation: skip the check, and a run that fell back from the core to
+      // the reference diverges at the first checkpoint, which sends the
+      // reader into the simulation rather than to the backend it got.
+      final walker = await refused(
+        _failsWith(
+          'was recorded on the native physics and this run is on dart',
+        ),
+        demo: _record(physics: 'native'),
+        runsOn: 'dart',
       );
       expect(walker.steps, 0, reason: 'refused before the first step');
     });
