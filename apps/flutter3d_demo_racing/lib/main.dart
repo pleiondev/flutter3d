@@ -471,7 +471,18 @@ class _RaceScreenState extends State<RaceScreen>
   /// `rp-02`'s door onto this run, over the VM service: through the loop
   /// and its snapshots, so whichever race the plugin is stepping is the one
   /// rewound.
-  late final RunTimeline _timeline = RunTimeline(rewind: _rewind, loop: _loop);
+  late final RunTimeline _timeline = RunTimeline(
+    rewind: _rewind,
+    loop: _loop,
+    // A branch cuts the demo's tape where it cut the buffer's. One back past
+    // the grid, into the circuit before, leaves a demo no file can hold, and
+    // a circuit is only ever written from the grid: it stops recording.
+    onBranched: (branch) {
+      if (_demo?.branched(stepsAgo: branch.stepsAgo) == false) {
+        _endRecording();
+      }
+    },
+  );
 
   /// `rp-04`'s "send this run", called remotely rather than from a button
   /// this game draws itself — the last few seconds `_rewind` has kept, as

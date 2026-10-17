@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1+1
 
+- **`InputTapeRecorder.truncate(steps)`** keeps the first `steps` entries,
+  for a run rewound and gone on from there: the next entry writes the step
+  the run takes instead of the one it left.
 - **`dart run flutter3d_sim:bake_visibility` answers like `flutter3d
   visibility`.** It is the same command, kept for a project without
   `flutter3d_build`: `--help` prints the usage and exits 0, a `--cell` that

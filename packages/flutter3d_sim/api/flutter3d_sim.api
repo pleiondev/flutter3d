@@ -1475,6 +1475,7 @@ final class InputTapeRecorder
   InputTapeRecorder({required int seed})
   final InputTape tape
   void record(InputState input)
+  void truncate(int steps)
 
 final class InterpolatedAngle
   InterpolatedAngle([double initial = 0.0])

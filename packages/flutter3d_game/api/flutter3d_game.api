@@ -395,7 +395,9 @@ final class DemoFile
 final class DemoRecording
   Demo demo({required String buildStamp, String? platform, String? recordedBy})
   DemoRecording({required this.level, required this.levelHash, required this.start, required int seed, int checkpointEvery = 25, SimulationVersion? simulation, this.bodies, int poseEvery = 4, double stepSeconds = 1.0 / 60.0, this.physics = const DartPhysics()})
+  List<DemoLevelSwap> get levelSwaps
   SimulationVersion get simulation
+  bool branched({required int stepsAgo})
   bool levelSwapped(Level next, {required int stepsAgo})
   final DigestTrace checkpoints
   final InputTapeRecorder recorder
@@ -851,7 +853,7 @@ final class RunTimeline
   InputState get input
   List<TimelineCommand> get history
   RewindPoint? preview(double secondsAgo)
-  RunTimeline({required this.rewind, required this.loop})
+  RunTimeline({required this.rewind, required this.loop, this.onBranched})
   ScrubAnswer branchHere()
   ScrubAnswer scrubTo(int step)
   bool get isPaused
@@ -860,6 +862,7 @@ final class RunTimeline
   double get stepSeconds
   final EngineLoop loop
   final RewindBuffer rewind
+  final void Function(TimelineBranch branch)? onBranched
   int swapLevel(void Function() swap, {required String levelDigest})
   int? get scrubbedAt
   void pause()
@@ -1007,6 +1010,14 @@ final class SyncReport
   final String message
   final String? remoteVersion
   final SyncOutcome outcome
+
+final class TimelineBranch
+  String toString()
+  bool operator ==(Object other)
+  const TimelineBranch({required this.step, required this.stepsAgo})
+  final int step
+  final int stepsAgo
+  int get hashCode
 
 final class TimelineBranched extends TimelineCommand
   bool operator ==(Object other)

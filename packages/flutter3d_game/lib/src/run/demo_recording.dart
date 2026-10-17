@@ -78,6 +78,11 @@ final class DemoRecording {
 
   final List<DemoLevelSwap> _swaps = <DemoLevelSwap>[];
 
+  /// The levels swapped in under the run so far, oldest first: the last is
+  /// the level on screen, when there is one.
+  List<DemoLevelSwap> get levelSwaps =>
+      List<DemoLevelSwap>.unmodifiable(_swaps);
+
   /// How many steps have been recorded.
   int get steps => recorder.tape.steps;
 
@@ -114,6 +119,35 @@ final class DemoRecording {
     _swaps
       ..removeWhere((swap) => swap.step >= at)
       ..add(DemoLevelSwap(step: at, level: next));
+    checkpoints.forgetAfter(at);
+    poses.forgetAfter(at);
+    _probes.removeWhere((reading) => reading.step > at);
+    _loopChanges.removeWhere((change) => change.step > at);
+    _events?.forgetAfter(at - 1);
+    return true;
+  }
+
+  /// Writes down that the run was rewound [stepsAgo] steps and goes on from
+  /// there — `RunTimeline.onBranched`'s count, counted back from now as
+  /// [levelSwapped]'s is.
+  ///
+  /// The tape is cut at that step ([InputTapeRecorder.truncate]), and the
+  /// checkpoints, poses, probe readings, loop changes and events after it
+  /// are forgotten: they describe the future the branch left. A checkpoint
+  /// at the step itself stays, since the state after that many steps is the
+  /// one the run goes on from; so does a swap at that step, which took
+  /// effect before it, while a swap after it goes.
+  ///
+  /// False, and nothing changed, when the branch went back before this
+  /// recording began: the start it holds is then a state the run no longer
+  /// passes through, and the caller begins a new recording from the present,
+  /// as for [levelSwapped].
+  bool branched({required int stepsAgo}) {
+    RangeError.checkNotNegative(stepsAgo, 'stepsAgo');
+    final at = recorder.tape.steps - stepsAgo;
+    if (at < 0) return false;
+    recorder.truncate(at);
+    _swaps.removeWhere((swap) => swap.step > at);
     checkpoints.forgetAfter(at);
     poses.forgetAfter(at);
     _probes.removeWhere((reading) => reading.step > at);
@@ -213,7 +247,7 @@ final class DemoRecording {
     checkpoints: checkpoints,
     platform: platform,
     recordedBy: recordedBy,
-    levelSwaps: List<DemoLevelSwap>.unmodifiable(_swaps),
+    levelSwaps: levelSwaps,
     // What it replays on: see `Demo.physics`.
     physics: physics.name,
     loopChanges: List<LoopChange>.unmodifiable(_loopChanges),

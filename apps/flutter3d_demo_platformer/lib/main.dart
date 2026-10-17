@@ -232,7 +232,11 @@ class _GameScreenState extends State<GameScreen> {
   /// loop and its snapshots, so whichever level the genre is stepping is the
   /// one rewound, its elements with it. Made once the loop is, in
   /// [_engineReady].
-  late final RunTimeline _timeline = RunTimeline(rewind: _rewind, loop: _loop);
+  late final RunTimeline _timeline = RunTimeline(
+    rewind: _rewind,
+    loop: _loop,
+    onBranched: _recordBranch,
+  );
 
   /// `rp-04`'s "send this run", called remotely rather than from a button
   /// this game draws itself — the last few seconds `_rewind` has kept, as
@@ -534,6 +538,23 @@ class _GameScreenState extends State<GameScreen> {
     if (demo.levelSwapped(next, stepsAgo: _rewind.step - step)) return;
     _record(asset: demo.level, levelHash: demo.levelHash, start: sim.save());
     _demo?.levelSwapped(next, stepsAgo: 0);
+  }
+
+  /// A branch through [_timeline] — a release on the scrubber, or "branch
+  /// here" from the editor — cuts the demo's tape where it cut the buffer's,
+  /// so the `.f3drun` holds the run that went on and not the future it left.
+  ///
+  /// A branch back before this demo began starts it again from now, in the
+  /// level it was loaded as and with the level on screen swapped in at its
+  /// first step, as [_recordSwap] does.
+  void _recordBranch(TimelineBranch branch) {
+    final demo = _demo;
+    final sim = _sim;
+    if (demo == null || sim == null) return;
+    if (demo.branched(stepsAgo: branch.stepsAgo)) return;
+    final swaps = demo.levelSwaps;
+    _record(asset: demo.level, levelHash: demo.levelHash, start: sim.save());
+    if (swaps.isNotEmpty) _demo?.levelSwapped(swaps.last.level, stepsAgo: 0);
   }
 
   /// Writes the run down when it ends, either way.

@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1+2
 
+- **A branch cuts a demo with the buffer.** `RunTimeline(onBranched:)`
+  hears every `releaseAt` and `branchHere` as a `TimelineBranch`: the step
+  the run goes on from and how far back that was.
+  `DemoRecording.branched(stepsAgo:)` cuts the tape there and forgets the
+  checkpoints, poses, probes, loop changes and events after it, so a saved
+  `.f3drun` replays the branch that was played rather than the future it
+  left. `DemoRecording.levelSwaps` lists
+  the swaps written so far.
 - **`MaterialComputePlacement` is re-exported**, what
   `MaterialComputeKernel.place` answers.
 

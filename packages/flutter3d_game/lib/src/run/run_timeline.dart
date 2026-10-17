@@ -87,6 +87,32 @@ final class TimelineLevelSwapped extends TimelineCommand {
   int get hashCode => Object.hash(step, levelDigest);
 }
 
+/// What [RunTimeline.onBranched] is told when a branch has cut the future.
+final class TimelineBranch {
+  /// A branch to [step], [stepsAgo] steps before the old present.
+  const TimelineBranch({required this.step, required this.stepsAgo});
+
+  /// The step the run now goes on from, in the buffer's count.
+  final int step;
+
+  /// How many steps before the old present [step] was: the count
+  /// `DemoRecording.branched` takes, since that tape and the buffer do not
+  /// start at the same step.
+  final int stepsAgo;
+
+  @override
+  bool operator ==(Object other) =>
+      other is TimelineBranch &&
+      other.step == step &&
+      other.stepsAgo == stepsAgo;
+
+  @override
+  int get hashCode => Object.hash(step, stepsAgo);
+
+  @override
+  String toString() => 'TimelineBranch(step: $step, stepsAgo: $stepsAgo)';
+}
+
 /// The last seconds were lived again under new code, from [fromStep] to the
 /// present — `RunTimeline.replayUnderNewCode`.
 final class TimelineReplayed extends TimelineCommand {
@@ -256,7 +282,9 @@ final class RunTimeline {
   /// A timeline over [rewind], which must be attached to [loop]
   /// (`rewind.attach(loop)`): its recorder writes the loop's live steps and
   /// its keyframes are the loop's captures.
-  RunTimeline({required this.rewind, required this.loop});
+  ///
+  /// [onBranched] hears every branch: see its own note.
+  RunTimeline({required this.rewind, required this.loop, this.onBranched});
 
   /// Where the recent past is kept, and what [releaseAt] cuts.
   final RewindBuffer rewind;
@@ -264,6 +292,16 @@ final class RunTimeline {
   /// The loop the run is stepped in, whose snapshots every rewind restores
   /// and whose steps every replay runs.
   final EngineLoop loop;
+
+  /// Told when [releaseAt] or [branchHere] has cut the future: the step the
+  /// run now goes on from, and how many steps before the old present that
+  /// was ([TimelineBranch]). Called after the cut.
+  ///
+  /// **What a recording beside the buffer needs to follow a branch.** The
+  /// loop's other recorders — a `DemoRecording`'s — wrote the steps the
+  /// branch left, and nothing the loop does takes them back: the replay up
+  /// to the branch is resimulated and not written again.
+  final void Function(TimelineBranch branch)? onBranched;
 
   /// The live devices — the loop's — muted while a replay plays.
   InputState get input => loop.input;
@@ -335,7 +373,10 @@ final class RunTimeline {
   /// at [point]. The timeline is left running (not paused): a release is
   /// asking to keep playing from here, not to pause on arrival — call [pause]
   /// afterwards for that.
+  ///
+  /// [onBranched] hears the step cut to, after the cut.
   void releaseAt(RewindPoint point) {
+    final from = rewind.step;
     final offset = _offset;
     _forgetScrub();
     _restoreKeyframe(point, offset);
@@ -343,6 +384,9 @@ final class RunTimeline {
     rewind.cut(point);
     _paused = false;
     _history.add(TimelineBranched(point.step));
+    onBranched?.call(
+      TimelineBranch(step: point.step, stepsAgo: from - point.step),
+    );
   }
 
   /// Replaces the level under the run without the run jumping: [swap] puts
@@ -541,7 +585,7 @@ final class RunTimeline {
   ///
   /// **Stays paused**, unlike [releaseAt]: the person branching is looking
   /// at the moment they chose, and the first step of the new branch is
-  /// theirs to take.
+  /// theirs to take. [onBranched] hears the step, as from [releaseAt].
   ScrubAnswer branchHere() {
     final at = _scrubbedAt;
     final point = at == null ? null : rewind.rewindTo(at);
@@ -551,9 +595,11 @@ final class RunTimeline {
         'from; scrub to a step first',
       );
     }
+    final from = rewind.step;
     rewind.cut(point);
     _forgetScrub();
     _history.add(TimelineBranched(at));
+    onBranched?.call(TimelineBranch(step: at, stepsAgo: from - at));
     return ScrubMoved(at);
   }
 

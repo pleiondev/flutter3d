@@ -1058,7 +1058,13 @@ class _GameScreenState extends State<GameScreen>
   /// `rp-02`'s door onto this run, over the VM service — see
   /// `registerTimelineExtensions`. Through the loop and its snapshots, so
   /// whichever simulation the shooter is stepping is the one rewound.
-  late final RunTimeline _timeline = RunTimeline(rewind: _rewind, loop: _loop);
+  late final RunTimeline _timeline = RunTimeline(
+    rewind: _rewind,
+    loop: _loop,
+    // A branch cuts the demo's tape where it cut the buffer's. The two begin
+    // together, so a branch never reaches back past the demo's start.
+    onBranched: (branch) => _demo?.branched(stepsAgo: branch.stepsAgo),
+  );
 
   /// `rp-06`: how long each step of `sim.step` cost, read back over the same
   /// VM service `_timeline` is on.
