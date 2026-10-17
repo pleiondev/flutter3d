@@ -20,7 +20,8 @@ uniform FogInfo {
   /// fog.
   vec4 fog;
 
-  /// xyz: camera position in world space.
+  /// xyz: camera position in world space. w: how fast the fog thins
+  /// upwards, per metre — `P5`, see [FogTransmittance]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -39,6 +40,21 @@ float FogDistance(vec3 world) {
   return fog_info.projection.x > 0.5
       ? max(dot(world - fog_info.eye.xyz, fog_info.forward.xyz), 0.0)
       : distance(world, fog_info.eye.xyz);
+}
+
+/// How much of [world] the fog leaves, from nought to one: `ApplyFog`'s
+/// share in `color.glsl`, the height fog integrated along the ray — `P5` —
+/// so a spark high over the eye fogs as the thinner air up there does, and
+/// a puff of smoke in a hollow as the ground beside it. One with no fog.
+float FogTransmittance(vec3 world) {
+  float density = fog_info.fog.w;
+  if (density <= 0.0) return 1.0;
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (world.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
+  return clamp(exp(-density * FogDistance(world)), 0.0, 1.0);
 }
 
 /// The unit direction from [world] back along the ray that reached it: to

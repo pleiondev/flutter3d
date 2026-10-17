@@ -1362,10 +1362,9 @@ final class FogSettings {
   ///
   /// What the shader is handed at the eye: the fog block has one spare lane,
   /// which carries the falloff, so the base height is folded into the
-  /// density here rather than sent. Particles and splats, which fog by
-  /// distance alone, take the same number and so fog as a flat fog as thick
-  /// as the air at the camera — exact for the flat fog, and an approximation
-  /// once it has a falloff.
+  /// density here rather than sent. Particles and splats take the same
+  /// number and the same falloff, and integrate the height fog along the ray
+  /// as the lit stages do.
   double densityAt(double y) {
     final falloff = resolvedHeightFalloff;
     if (falloff == 0.0) return density;

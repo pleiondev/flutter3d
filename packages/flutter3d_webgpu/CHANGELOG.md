@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1+2
 
+- `engine_shaders.dart` regenerated: the light shafts' and the volumetric
+  fog's cascade under an orthographic camera, and the height fog on
+  particles and splats.
 - **A second `dispose` does nothing**, as on every backend, where it threw
   a `StateError`: a renderer and the owner that opened the device can both
   let go of it.

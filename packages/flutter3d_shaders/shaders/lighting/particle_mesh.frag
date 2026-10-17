@@ -50,11 +50,7 @@ void main() {
   // Attenuation rather than a mix, for the reason spelled out in
   // lighting/particle.frag: blending toward the fog colour makes a distant
   // additive particle *add* fog to the wall behind it.
-  float fogged = 1.0;
-  if (fog_info.fog.w > 0.0) {
-    fogged = clamp(
-        exp(-fog_info.fog.w * FogDistance(v_world_position)), 0.0, 1.0);
-  }
+  float fogged = FogTransmittance(v_world_position);
 
   frag_color = vec4(v_color.rgb * v_color.a * intensity * fogged, 1.0);
 }

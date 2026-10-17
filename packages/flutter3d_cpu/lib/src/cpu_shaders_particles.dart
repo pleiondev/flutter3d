@@ -55,6 +55,22 @@ double fogDistance(ShaderBindings b, double x, double y, double z) {
   return math.max(dx * forward.x + dy * forward.y + dz * forward.z, 0.0);
 }
 
+/// `FogTransmittance` of `contributor_eye.glsl`: how much of a point the fog
+/// leaves, from nought to one — `ApplyFog`'s share in `color.glsl`, the
+/// height fog integrated along the ray, so a spark high over the eye fogs as
+/// the thinner air up there does. One with no fog.
+double fogTransmittance(ShaderBindings b, double x, double y, double z) {
+  final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
+  if (fog.w <= 0.0) return 1.0;
+  final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
+  final falloff = eye.w;
+  final k = falloff * (y - eye.y);
+  final density = falloff <= 0.0
+      ? fog.w
+      : fog.w * (k.abs() > 1e-3 ? (1.0 - math.exp(-k)) / k : 1.0 - 0.5 * k);
+  return math.exp(-density * fogDistance(b, x, y, z)).clamp(0.0, 1.0);
+}
+
 /// `TowardsEyeFrom` of `contributor_eye.glsl`: the unit direction back along
 /// the ray that reached a point, nought at the eye.
 Vector3 towardsEyeFrom(ShaderBindings b, double x, double y, double z) {
@@ -122,12 +138,7 @@ final class ParticleTexturedShader extends CpuFragmentShader {
       texel = texture.sample(v[4], v[5], du: du, dv: dv);
     }
 
-    var fogged = 1.0;
-    final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
-    if (fog.w > 0.0) {
-      final d = fogDistance(b, v[6], v[7], v[8]);
-      fogged = math.exp(-fog.w * d).clamp(0.0, 1.0);
-    }
+    final fogged = fogTransmittance(b, v[6], v[7], v[8]);
 
     // The texture's alpha is coverage and the particle's is brightness, so the
     // two multiply.
@@ -215,8 +226,7 @@ final class ParticleSixWayShader extends CpuFragmentShader {
     // covers what is behind it.
     final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
     if (fog.w > 0.0) {
-      final d = fogDistance(b, world.x, world.y, world.z);
-      final fogged = math.exp(-fog.w * d).clamp(0.0, 1.0);
+      final fogged = fogTransmittance(b, world.x, world.y, world.z);
       color
         ..x = fog.x + (color.x - fog.x) * fogged
         ..y = fog.y + (color.y - fog.y) * fogged
@@ -282,7 +292,6 @@ final class ParticleMeshShader extends CpuFragmentShader {
 
   @override
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
-    final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
     // `TowardsEyeFrom`: to the eye, or against the view axis through an
     // orthographic lens — `P7`.
     final towards = towardsEyeFrom(b, v[4], v[5], v[6]);
@@ -301,12 +310,7 @@ final class ParticleMeshShader extends CpuFragmentShader {
     // a face that vanished there would carve a dark seam along it.
     final intensity = 0.35 + 0.65 * facing;
 
-    var fogged = 1.0;
-    if (fog.w > 0.0) {
-      fogged = math
-          .exp(-fog.w * fogDistance(b, v[4], v[5], v[6]))
-          .clamp(0.0, 1.0);
-    }
+    final fogged = fogTransmittance(b, v[4], v[5], v[6]);
 
     final scale = v[3] * intensity * fogged;
     return Vector4(v[0] * scale, v[1] * scale, v[2] * scale, 1.0);
@@ -331,12 +335,7 @@ final class ParticleShader extends CpuFragmentShader {
         falloff *
         (soft ? softParticleFade(b, c, v[6], v[7], v[8]) : 1.0);
 
-    var fogged = 1.0;
-    final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
-    if (fog.w > 0.0) {
-      final d = fogDistance(b, v[6], v[7], v[8]);
-      fogged = math.exp(-fog.w * d).clamp(0.0, 1.0);
-    }
+    final fogged = fogTransmittance(b, v[6], v[7], v[8]);
 
     final scale = v[3] * intensity * fogged;
     // Alpha one with the colour premultiplied: these draw additively, so the
@@ -371,8 +370,7 @@ final class SplatShader extends CpuFragmentShader {
     var bl = v[2];
     final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
     if (fog.w > 0.0) {
-      final d = fogDistance(b, v[6], v[7], v[8]);
-      final visibility = math.exp(-fog.w * d).clamp(0.0, 1.0);
+      final visibility = fogTransmittance(b, v[6], v[7], v[8]);
       // A mix rather than an attenuation, which is the opposite of the particle
       // stage and for the opposite reason: this is blended, so a splat that
       // faded toward black would put black into the wall behind it.
@@ -448,8 +446,7 @@ final class SplatHashedShader extends CpuFragmentShader {
 
     final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
     if (fog.w <= 0.0) return Vector4(v[0], v[1], v[2], 1.0);
-    final d = fogDistance(b, v[6], v[7], v[8]);
-    final visibility = math.exp(-fog.w * d).clamp(0.0, 1.0);
+    final visibility = fogTransmittance(b, v[6], v[7], v[8]);
     return Vector4(
       fog.x + (v[0] - fog.x) * visibility,
       fog.y + (v[1] - fog.y) * visibility,

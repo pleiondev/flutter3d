@@ -46,13 +46,7 @@ void main() {
   // and come out brighter than the wall it is supposed to be fading into;
   // multiplying toward zero is what "further away contributes less" means when
   // the destination is only ever added to.
-  float fogged = 1.0;
-  if (fog_info.fog.w > 0.0) {
-    fogged = clamp(
-        exp(-fog_info.fog.w * FogDistance(v_world_position)),
-        0.0,
-        1.0);
-  }
+  float fogged = FogTransmittance(v_world_position);
 
 #ifdef F3D_SOFT_PARTICLE
   intensity *= SoftParticleFade(v_world_position);

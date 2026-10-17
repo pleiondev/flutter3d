@@ -108,13 +108,7 @@ void main() {
 
   // A mix toward the fog, unlike the additive stages: this one covers what is
   // behind it, and covered smoke far away should read as the fog does.
-  float fogged = 1.0;
-  if (fog_info.fog.w > 0.0) {
-    fogged = clamp(
-        exp(-fog_info.fog.w * FogDistance(v_world_position)),
-        0.0,
-        1.0);
-  }
+  float fogged = FogTransmittance(v_world_position);
   color = mix(fog_info.fog.rgb, color, fogged);
 
   float coverage = clamp(v_color.a * positive.a, 0.0, 1.0);

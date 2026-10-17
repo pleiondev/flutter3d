@@ -2185,23 +2185,33 @@ extension _ShadowPasses on Renderer {
           ? (centreDepth - sceneRadius, centreDepth + sceneRadius)
           : seen.reduce((a, b) => (math.min(a.$1, b.$1), math.max(a.$2, b.$2)));
       final start = math.max(orthographic.near, nearest);
-      final end = math.max(
+      // The length taken as itself rather than as `end - start`, which in
+      // doubles comes back a bit either side of the reach as `start` moves:
+      // at a reach that is a power of two, that is a grid step twice as long.
+      final length = math.max(
         math.min(
-          math.min(orthographic.far, furthest),
-          start + math.max(settings.viewDistance, 1.0),
+          math.min(orthographic.far, furthest) - start,
+          math.max(settings.viewDistance, 1.0),
         ),
-        start + 1.0,
+        1.0,
       );
+      // **Both ends on a grid** — see [_cascadeQuantum]. What the slabs are
+      // fitted to slides with every pan and every caster that rises or
+      // falls, and the snap below keeps a map's texels still only while its
+      // radius is.
+      final step = _cascadeQuantum(length);
+      final low = (start / step).floorToDouble() * step;
+      final high = ((start + length) / step).ceilToDouble() * step;
       // All of it to the near slabs: the last cascade is the whole scene
       // either way, and a fragment the frame shows should not need it.
       final slabs = count - 1;
       for (var i = 0; i < slabs; i++) {
-        final from = start + (end - start) * i / slabs;
-        final to = start + (end - start) * (i + 1) / slabs;
+        final from = low + (high - low) * i / slabs;
+        final to = low + (high - low) * (i + 1) / slabs;
         splits[i] = to;
         final half = (to - from) * 0.5;
         centers.add(eyeAt + forward.scaled(from + half));
-        radii.add(math.sqrt(across * across + half * half));
+        radii.add(_roundUpToQuantum(math.sqrt(across * across + half * half)));
       }
     } else if (count > 1 && camera != null) {
       final eyeAt = camera.readViewOrigin();
@@ -2525,6 +2535,40 @@ final class _Scroll {
   /// In the shadow map's clip space depth.
   final double dz;
   final List<vm.Frustum> strips;
+}
+
+/// A step for rounding a length of about [length]: a sixteenth of the power
+/// of two at or above it — `P7`'s orthographic slabs.
+///
+/// **Rounded, because the fit moves with everything.** An orthographic
+/// view's near slabs are fitted to where the frame meets the casters, which
+/// slides with every pan of the camera and every caster that rises or falls
+/// — a character jumping is enough. The shadow pass snaps each map to whole
+/// texels of its radius, and a radius that changes every frame is a texel
+/// grid that rescales every frame: shadow edges crawl, and the scroll that
+/// keeps a still tile from being redrawn refuses a map whose scale changed.
+/// On steps a sixteenth of the length's power of two the radii and the slab
+/// ends stay put until the fit has moved by a whole step, and a radius
+/// rounded up is at most an eighth longer than it needs to be.
+///
+/// The power of two is found by doubling and halving, exactly, rather than
+/// by a logarithm, whose last bit at a power of two is the platform's.
+double _cascadeQuantum(double length) {
+  final target = math.max(length, 1e-3);
+  var power = 1.0;
+  while (power < target) {
+    power *= 2.0;
+  }
+  while (power * 0.5 >= target) {
+    power *= 0.5;
+  }
+  return power / 16.0;
+}
+
+/// [length] rounded up onto its [_cascadeQuantum].
+double _roundUpToQuantum(double length) {
+  final step = _cascadeQuantum(length);
+  return (length / step).ceilToDouble() * step;
 }
 
 /// Where the ray from [origin] along [direction] (unit length) is inside the

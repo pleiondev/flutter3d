@@ -328,7 +328,10 @@ final class LightShaftsShader extends CpuFragmentShader {
     for (var i = 0; i < steps && i < 64; i++) {
       final travelled = offset + i * stride;
       final at = origin + along * travelled;
-      final lit = litAt(at, (at - eye).length);
+      // By the way along the ray from the eye's plane, as the GLSL picks
+      // the cascade: the distance from the eye through a perspective lens,
+      // the depth along the axis through an orthographic one — `P7`.
+      final lit = litAt(at, travelled);
       inscatter += transmittance * (1.0 - stepTransmittance) * lit;
       transmittance *= stepTransmittance;
     }

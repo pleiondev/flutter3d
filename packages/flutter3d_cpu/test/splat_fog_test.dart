@@ -20,16 +20,20 @@ import 'package:vector_math/vector_math.dart';
 const int _width = 32;
 const int _height = 24;
 
-/// One opaque red splat at the origin, seen from five metres, as the centre
-/// pixel's colour.
-List<double> _center(SplatComposite composite, FogSettings fog) {
+/// One opaque red splat at the origin, seen from five metres — or from
+/// [eye] — as the centre pixel's colour.
+List<double> _center(
+  SplatComposite composite,
+  FogSettings fog, {
+  Vector3? eye,
+}) {
   final device = CpuDevice(
     width: _width,
     height: _height,
     shaders: CpuShaderLibrary(builtinCpuShaders()),
   );
   final camera = CameraNode()
-    ..setPosition(0.0, 0.0, 5.0)
+    ..setPositionFrom(eye ?? Vector3(0.0, 0.0, 5.0))
     ..lookAt(Vector3.zero());
   final scene = Scene()
     ..ambientIntensity = 0.0
@@ -81,6 +85,31 @@ void main() {
       // Five metres at two per metre leaves e^-10 of the splat's own colour.
       expect(fogged[0], lessThan(0.05));
       expect(fogged[2], greaterThan(0.5));
+    });
+
+    test('in a height fog a ${composite.name} splat above the eye fogs as '
+        'the thinner air there does', () {
+      // Mutation: leave the falloff out of `fogTransmittance` (or out of
+      // `eye.w` in SplatContributor), and the splat fogs at the camera's
+      // density the whole way up.
+      final eye = Vector3(0.0, -4.0, 5.0);
+      final fog = FogSettings(
+        color: LinearColor.black,
+        density: 0.4,
+        heightFalloff: 0.5,
+        baseHeight: -4.0,
+      );
+      double linear(double encoded) => encoded <= 0.04045
+          ? encoded / 12.92
+          : math.pow((encoded + 0.055) / 1.055, 2.4).toDouble();
+      final clear = linear(
+        _center(composite, const FogSettings(), eye: eye)[0],
+      );
+      final fogged = linear(_center(composite, fog, eye: eye)[0]);
+      final k = 0.5 * 4.0;
+      final mean = (1.0 - math.exp(-k)) / k;
+      expect(clear, greaterThan(0.5), reason: 'the splat is not there');
+      expect(fogged / clear, closeTo(math.exp(-0.4 * mean * eye.length), 0.02));
     });
 
     test('through an orthographic camera a ${composite.name} splat fogs by '

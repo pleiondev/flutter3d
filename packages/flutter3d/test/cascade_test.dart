@@ -638,6 +638,69 @@ void main() {
       expect(moved, lessThanOrEqualTo(4));
     });
 
+    test('a small pan or a caster rising leaves the near slabs where they '
+        'were', () async {
+      // The slabs are fitted to where the frame meets the casters, which
+      // slides with every pan and with every caster that rises or falls. The
+      // shadow pass snaps each map to whole texels of its radius, so a radius
+      // or a slab end that moves every frame is a texel grid that rescales
+      // every frame, and the shadow edges crawl. On a grid of their own size
+      // they stay put until the fit has moved by a whole step.
+      //
+      // Mutation: drop the rounding of the slab ends and the radii in the
+      // shadow pass's orthographic branch, and a centimetre's pan moves both.
+      final scene = _postYard();
+      final post = MeshNode(
+        DeviceMesh.upload(
+          CpuDevice(
+            width: 4,
+            height: 4,
+            shaders: CpuShaderLibrary(builtinCpuShaders()),
+          ),
+          CuboidShape(size: Vector3(0.8, 7.0, 0.8)).build(),
+        ),
+        RenderMaterial(baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0)),
+      )..setPosition(3.0, 3.5, 3.0);
+      scene.add(post);
+      const shadows = ShadowSettings(cascades: 3, viewDistance: 400.0);
+      final axis = Vector3(0.3, -1.0, 0.2)..normalize();
+      final camera = CameraNode()
+        ..projection = const OrthographicProjection(height: 30.0, far: 400.0);
+      scene.add(camera);
+      Future<(List<double>, List<double>)> slabs(Vector3 eye) async {
+        camera
+          ..setPositionFrom(eye)
+          ..lookAt(eye + axis);
+        final engine = _engine();
+        engine.renderer.render(
+          width: _width,
+          height: _height,
+          scene: scene,
+          views: <CameraView>[CameraView(camera: camera)],
+          settings: const RenderSettings(
+            shadows: shadows,
+            bloom: BloomSettings(enabled: false),
+          ),
+        );
+        return (
+          engine.renderer.debugCascadeRadii.take(2).toList(),
+          engine.renderer.debugCascadeSplits,
+        );
+      }
+
+      final eye = Vector3(0.0, 20.0, 0.0) - axis.scaled(10.0);
+      final (radii, depths) = await slabs(eye);
+      final up = Vector3(0.0, 1.0, 0.0);
+      final (pannedRadii, pannedDepths) = await slabs(eye + up.scaled(0.01));
+      expect(pannedRadii, radii, reason: 'a centimetre up moved the radii');
+      expect(pannedDepths, depths, reason: 'a centimetre up moved the slabs');
+
+      post.setPosition(3.0, 3.55, 3.0);
+      final (risenRadii, risenDepths) = await slabs(eye);
+      expect(risenRadii, radii, reason: 'a caster rising moved the radii');
+      expect(risenDepths, depths, reason: 'a caster rising moved the slabs');
+    });
+
     test('three cascades shadow the same things as one', () async {
       // Mutation: give the orthographic cascades the perspective path's
       // spheres, and the slab a fragment stands in is not one any cascade

@@ -6907,6 +6907,15 @@ extension RendererInternals on Renderer {
   /// The centre of each directional cascade the last frame fitted.
   List<vm.Vector3> get debugCascadeCentres => _debugCascadeCentres;
 
+  /// Where the first and the second directional cascade end, as the
+  /// shaders pick by them (`shadow_cascades.xy`): distance from the eye
+  /// through a perspective lens, depth along the axis through an
+  /// orthographic one.
+  List<double> get debugCascadeSplits => List<double>.unmodifiable(<double>[
+    _shadowCascades[0],
+    _shadowCascades[1],
+  ]);
+
   /// The depth pyramid occlusion is tested against, when there is one.
   HiZOcclusion? get debugHiZ => _debugHiZ;
 

@@ -46748,7 +46748,8 @@ layout(std140) uniform FogInfo {
   /// fog.
   vec4 fog;
 
-  /// xyz: camera position in world space.
+  /// xyz: camera position in world space. w: how fast the fog thins
+  /// upwards, per metre — `P5`, see [FogTransmittance]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -46767,6 +46768,21 @@ float FogDistance(vec3 world) {
   return fog_info.projection.x > 0.5
       ? max(dot(world - fog_info.eye.xyz, fog_info.forward.xyz), 0.0)
       : distance(world, fog_info.eye.xyz);
+}
+
+/// How much of [world] the fog leaves, from nought to one: `ApplyFog`'s
+/// share in `color.glsl`, the height fog integrated along the ray — `P5` —
+/// so a spark high over the eye fogs as the thinner air up there does, and
+/// a puff of smoke in a hollow as the ground beside it. One with no fog.
+float FogTransmittance(vec3 world) {
+  float density = fog_info.fog.w;
+  if (density <= 0.0) return 1.0;
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (world.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
+  return clamp(exp(-density * FogDistance(world)), 0.0, 1.0);
 }
 
 /// The unit direction from [world] back along the ray that reached it: to
@@ -46798,13 +46814,7 @@ void main() {
   // and come out brighter than the wall it is supposed to be fading into;
   // multiplying toward zero is what "further away contributes less" means when
   // the destination is only ever added to.
-  float fogged = 1.0;
-  if (fog_info.fog.w > 0.0) {
-    fogged = clamp(
-        exp(-fog_info.fog.w * FogDistance(v_world_position)),
-        0.0,
-        1.0);
-  }
+  float fogged = FogTransmittance(v_world_position);
 
 #ifdef F3D_SOFT_PARTICLE
   intensity *= SoftParticleFade(v_world_position);
@@ -46973,7 +46983,8 @@ layout(std140) uniform FogInfo {
   /// fog.
   vec4 fog;
 
-  /// xyz: camera position in world space.
+  /// xyz: camera position in world space. w: how fast the fog thins
+  /// upwards, per metre — `P5`, see [FogTransmittance]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -46992,6 +47003,21 @@ float FogDistance(vec3 world) {
   return fog_info.projection.x > 0.5
       ? max(dot(world - fog_info.eye.xyz, fog_info.forward.xyz), 0.0)
       : distance(world, fog_info.eye.xyz);
+}
+
+/// How much of [world] the fog leaves, from nought to one: `ApplyFog`'s
+/// share in `color.glsl`, the height fog integrated along the ray — `P5` —
+/// so a spark high over the eye fogs as the thinner air up there does, and
+/// a puff of smoke in a hollow as the ground beside it. One with no fog.
+float FogTransmittance(vec3 world) {
+  float density = fog_info.fog.w;
+  if (density <= 0.0) return 1.0;
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (world.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
+  return clamp(exp(-density * FogDistance(world)), 0.0, 1.0);
 }
 
 /// The unit direction from [world] back along the ray that reached it: to
@@ -47018,13 +47044,7 @@ void main() {
   // Attenuation rather than a mix. Blending an additive particle toward the
   // fog colour makes a distant one *add* fog to the wall behind it — the same
   // note as the other two particle stages, kept because each is read alone.
-  float fogged = 1.0;
-  if (fog_info.fog.w > 0.0) {
-    fogged = clamp(
-        exp(-fog_info.fog.w * FogDistance(v_world_position)),
-        0.0,
-        1.0);
-  }
+  float fogged = FogTransmittance(v_world_position);
 
   // The texture's alpha is coverage and the particle's is brightness, so the
   // two multiply rather than one replacing the other: a faded spark of a
@@ -47509,7 +47529,8 @@ layout(std140) uniform FogInfo {
   /// fog.
   vec4 fog;
 
-  /// xyz: camera position in world space.
+  /// xyz: camera position in world space. w: how fast the fog thins
+  /// upwards, per metre — `P5`, see [FogTransmittance]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -47528,6 +47549,21 @@ float FogDistance(vec3 world) {
   return fog_info.projection.x > 0.5
       ? max(dot(world - fog_info.eye.xyz, fog_info.forward.xyz), 0.0)
       : distance(world, fog_info.eye.xyz);
+}
+
+/// How much of [world] the fog leaves, from nought to one: `ApplyFog`'s
+/// share in `color.glsl`, the height fog integrated along the ray — `P5` —
+/// so a spark high over the eye fogs as the thinner air up there does, and
+/// a puff of smoke in a hollow as the ground beside it. One with no fog.
+float FogTransmittance(vec3 world) {
+  float density = fog_info.fog.w;
+  if (density <= 0.0) return 1.0;
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (world.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
+  return clamp(exp(-density * FogDistance(world)), 0.0, 1.0);
 }
 
 /// The unit direction from [world] back along the ray that reached it: to
@@ -47601,13 +47637,7 @@ void main() {
 
   // A mix toward the fog, unlike the additive stages: this one covers what is
   // behind it, and covered smoke far away should read as the fog does.
-  float fogged = 1.0;
-  if (fog_info.fog.w > 0.0) {
-    fogged = clamp(
-        exp(-fog_info.fog.w * FogDistance(v_world_position)),
-        0.0,
-        1.0);
-  }
+  float fogged = FogTransmittance(v_world_position);
   color = mix(fog_info.fog.rgb, color, fogged);
 
   float coverage = clamp(v_color.a * positive.a, 0.0, 1.0);
@@ -47780,7 +47810,8 @@ layout(std140) uniform FogInfo {
   /// fog.
   vec4 fog;
 
-  /// xyz: camera position in world space.
+  /// xyz: camera position in world space. w: how fast the fog thins
+  /// upwards, per metre — `P5`, see [FogTransmittance]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -47799,6 +47830,21 @@ float FogDistance(vec3 world) {
   return fog_info.projection.x > 0.5
       ? max(dot(world - fog_info.eye.xyz, fog_info.forward.xyz), 0.0)
       : distance(world, fog_info.eye.xyz);
+}
+
+/// How much of [world] the fog leaves, from nought to one: `ApplyFog`'s
+/// share in `color.glsl`, the height fog integrated along the ray — `P5` —
+/// so a spark high over the eye fogs as the thinner air up there does, and
+/// a puff of smoke in a hollow as the ground beside it. One with no fog.
+float FogTransmittance(vec3 world) {
+  float density = fog_info.fog.w;
+  if (density <= 0.0) return 1.0;
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (world.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
+  return clamp(exp(-density * FogDistance(world)), 0.0, 1.0);
 }
 
 /// The unit direction from [world] back along the ray that reached it: to
@@ -47830,13 +47876,7 @@ void main() {
   // and come out brighter than the wall it is supposed to be fading into;
   // multiplying toward zero is what "further away contributes less" means when
   // the destination is only ever added to.
-  float fogged = 1.0;
-  if (fog_info.fog.w > 0.0) {
-    fogged = clamp(
-        exp(-fog_info.fog.w * FogDistance(v_world_position)),
-        0.0,
-        1.0);
-  }
+  float fogged = FogTransmittance(v_world_position);
 
 #ifdef F3D_SOFT_PARTICLE
   intensity *= SoftParticleFade(v_world_position);
@@ -48005,7 +48045,8 @@ layout(std140) uniform FogInfo {
   /// fog.
   vec4 fog;
 
-  /// xyz: camera position in world space.
+  /// xyz: camera position in world space. w: how fast the fog thins
+  /// upwards, per metre — `P5`, see [FogTransmittance]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -48024,6 +48065,21 @@ float FogDistance(vec3 world) {
   return fog_info.projection.x > 0.5
       ? max(dot(world - fog_info.eye.xyz, fog_info.forward.xyz), 0.0)
       : distance(world, fog_info.eye.xyz);
+}
+
+/// How much of [world] the fog leaves, from nought to one: `ApplyFog`'s
+/// share in `color.glsl`, the height fog integrated along the ray — `P5` —
+/// so a spark high over the eye fogs as the thinner air up there does, and
+/// a puff of smoke in a hollow as the ground beside it. One with no fog.
+float FogTransmittance(vec3 world) {
+  float density = fog_info.fog.w;
+  if (density <= 0.0) return 1.0;
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (world.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
+  return clamp(exp(-density * FogDistance(world)), 0.0, 1.0);
 }
 
 /// The unit direction from [world] back along the ray that reached it: to
@@ -48050,13 +48106,7 @@ void main() {
   // Attenuation rather than a mix. Blending an additive particle toward the
   // fog colour makes a distant one *add* fog to the wall behind it — the same
   // note as the other two particle stages, kept because each is read alone.
-  float fogged = 1.0;
-  if (fog_info.fog.w > 0.0) {
-    fogged = clamp(
-        exp(-fog_info.fog.w * FogDistance(v_world_position)),
-        0.0,
-        1.0);
-  }
+  float fogged = FogTransmittance(v_world_position);
 
   // The texture's alpha is coverage and the particle's is brightness, so the
   // two multiply rather than one replacing the other: a faded spark of a
@@ -48542,7 +48592,8 @@ layout(std140) uniform FogInfo {
   /// fog.
   vec4 fog;
 
-  /// xyz: camera position in world space.
+  /// xyz: camera position in world space. w: how fast the fog thins
+  /// upwards, per metre — `P5`, see [FogTransmittance]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -48561,6 +48612,21 @@ float FogDistance(vec3 world) {
   return fog_info.projection.x > 0.5
       ? max(dot(world - fog_info.eye.xyz, fog_info.forward.xyz), 0.0)
       : distance(world, fog_info.eye.xyz);
+}
+
+/// How much of [world] the fog leaves, from nought to one: `ApplyFog`'s
+/// share in `color.glsl`, the height fog integrated along the ray — `P5` —
+/// so a spark high over the eye fogs as the thinner air up there does, and
+/// a puff of smoke in a hollow as the ground beside it. One with no fog.
+float FogTransmittance(vec3 world) {
+  float density = fog_info.fog.w;
+  if (density <= 0.0) return 1.0;
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (world.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
+  return clamp(exp(-density * FogDistance(world)), 0.0, 1.0);
 }
 
 /// The unit direction from [world] back along the ray that reached it: to
@@ -48634,13 +48700,7 @@ void main() {
 
   // A mix toward the fog, unlike the additive stages: this one covers what is
   // behind it, and covered smoke far away should read as the fog does.
-  float fogged = 1.0;
-  if (fog_info.fog.w > 0.0) {
-    fogged = clamp(
-        exp(-fog_info.fog.w * FogDistance(v_world_position)),
-        0.0,
-        1.0);
-  }
+  float fogged = FogTransmittance(v_world_position);
   color = mix(fog_info.fog.rgb, color, fogged);
 
   float coverage = clamp(v_color.a * positive.a, 0.0, 1.0);
@@ -48713,7 +48773,8 @@ layout(std140) uniform FogInfo {
   /// fog.
   vec4 fog;
 
-  /// xyz: camera position in world space.
+  /// xyz: camera position in world space. w: how fast the fog thins
+  /// upwards, per metre — `P5`, see [FogTransmittance]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -48732,6 +48793,21 @@ float FogDistance(vec3 world) {
   return fog_info.projection.x > 0.5
       ? max(dot(world - fog_info.eye.xyz, fog_info.forward.xyz), 0.0)
       : distance(world, fog_info.eye.xyz);
+}
+
+/// How much of [world] the fog leaves, from nought to one: `ApplyFog`'s
+/// share in `color.glsl`, the height fog integrated along the ray — `P5` —
+/// so a spark high over the eye fogs as the thinner air up there does, and
+/// a puff of smoke in a hollow as the ground beside it. One with no fog.
+float FogTransmittance(vec3 world) {
+  float density = fog_info.fog.w;
+  if (density <= 0.0) return 1.0;
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (world.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
+  return clamp(exp(-density * FogDistance(world)), 0.0, 1.0);
 }
 
 /// The unit direction from [world] back along the ray that reached it: to
@@ -48771,10 +48847,7 @@ void main() {
   // fading into the air.
   vec3 colour = v_color.rgb;
   if (fog_info.fog.w > 0.0) {
-    float visibility = clamp(
-        exp(-fog_info.fog.w * FogDistance(v_world_position)),
-        0.0,
-        1.0);
+    float visibility = FogTransmittance(v_world_position);
     colour = mix(fog_info.fog.rgb, colour, visibility);
   }
 
@@ -48895,7 +48968,8 @@ layout(std140) uniform FogInfo {
   /// fog.
   vec4 fog;
 
-  /// xyz: camera position in world space.
+  /// xyz: camera position in world space. w: how fast the fog thins
+  /// upwards, per metre — `P5`, see [FogTransmittance]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -48914,6 +48988,21 @@ float FogDistance(vec3 world) {
   return fog_info.projection.x > 0.5
       ? max(dot(world - fog_info.eye.xyz, fog_info.forward.xyz), 0.0)
       : distance(world, fog_info.eye.xyz);
+}
+
+/// How much of [world] the fog leaves, from nought to one: `ApplyFog`'s
+/// share in `color.glsl`, the height fog integrated along the ray — `P5` —
+/// so a spark high over the eye fogs as the thinner air up there does, and
+/// a puff of smoke in a hollow as the ground beside it. One with no fog.
+float FogTransmittance(vec3 world) {
+  float density = fog_info.fog.w;
+  if (density <= 0.0) return 1.0;
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (world.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
+  return clamp(exp(-density * FogDistance(world)), 0.0, 1.0);
 }
 
 /// The unit direction from [world] back along the ray that reached it: to
@@ -48997,10 +49086,7 @@ void main() {
 
   vec3 colour = v_color.rgb;
   if (fog_info.fog.w > 0.0) {
-    float visibility = clamp(
-        exp(-fog_info.fog.w * FogDistance(v_world_position)),
-        0.0,
-        1.0);
+    float visibility = FogTransmittance(v_world_position);
     colour = mix(fog_info.fog.rgb, colour, visibility);
   }
 
@@ -49066,7 +49152,8 @@ layout(std140) uniform FogInfo {
   /// fog.
   vec4 fog;
 
-  /// xyz: camera position in world space.
+  /// xyz: camera position in world space. w: how fast the fog thins
+  /// upwards, per metre — `P5`, see [FogTransmittance]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -49085,6 +49172,21 @@ float FogDistance(vec3 world) {
   return fog_info.projection.x > 0.5
       ? max(dot(world - fog_info.eye.xyz, fog_info.forward.xyz), 0.0)
       : distance(world, fog_info.eye.xyz);
+}
+
+/// How much of [world] the fog leaves, from nought to one: `ApplyFog`'s
+/// share in `color.glsl`, the height fog integrated along the ray — `P5` —
+/// so a spark high over the eye fogs as the thinner air up there does, and
+/// a puff of smoke in a hollow as the ground beside it. One with no fog.
+float FogTransmittance(vec3 world) {
+  float density = fog_info.fog.w;
+  if (density <= 0.0) return 1.0;
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (world.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
+  return clamp(exp(-density * FogDistance(world)), 0.0, 1.0);
 }
 
 /// The unit direction from [world] back along the ray that reached it: to
@@ -49121,11 +49223,7 @@ void main() {
   // Attenuation rather than a mix, for the reason spelled out in
   // lighting/particle.frag: blending toward the fog colour makes a distant
   // additive particle *add* fog to the wall behind it.
-  float fogged = 1.0;
-  if (fog_info.fog.w > 0.0) {
-    fogged = clamp(
-        exp(-fog_info.fog.w * FogDistance(v_world_position)), 0.0, 1.0);
-  }
+  float fogged = FogTransmittance(v_world_position);
 
   frag_color = vec4(v_color.rgb * v_color.a * intensity * fogged, 1.0);
 }
@@ -51822,15 +51920,17 @@ void main() {
   float sigma = max(shaft_info.scatter.w, 0.0);
   float stepTransmittance = exp(-sigma * stride);
   float transmittance = exp(-sigma * offset);
-  vec3 eye = shaft_info.camera.xyz;
   float inscatter = 0.0;
   for (int i = 0; i < 64; i++) {
     if (i >= steps) break;
     float travelled = offset + float(i) * stride;
     vec3 at = origin + along * travelled;
-    // The cascade chosen by distance from the eye, the metric `shadow.glsl`
-    // picks a surface's cascade by, so a shaft and the ground under it agree.
-    float lit = LitAt(at, length(at - eye));
+    // The cascade chosen by the metric `shadow.glsl` picks a surface's
+    // cascade by, so a shaft and the ground under it agree: the way along
+    // the ray from the eye's plane, which is the distance from the eye
+    // through a perspective lens and the depth along the axis through an
+    // orthographic one (`P7`), whose cascades are slabs of depth.
+    float lit = LitAt(at, travelled);
     inscatter += transmittance * (1.0 - stepTransmittance) * lit;
     transmittance *= stepTransmittance;
   }
@@ -52389,7 +52489,6 @@ void main() {
   float g = fog_info.sun.w;
   float sunPhase = HenyeyGreenstein(dot(along, fog_info.sun.xyz), g);
   bool clustered = fog_info.albedo.w > 0.5;
-  vec3 eye = fog_info.camera.xyz;
   float transmittance = 1.0;
   vec3 inscatter = vec3(0.0);
   for (int i = 0; i < 64; i++) {
@@ -52398,8 +52497,11 @@ void main() {
     vec3 at = origin + along * travelled;
     float stepTransmittance = exp(-Density(at.y) * stride);
 
+    // The cascade by the way along the ray from the eye's plane, as
+    // `light_shafts.frag` picks it: the distance from the eye through a
+    // perspective lens, the depth through an orthographic one (`P7`).
     vec3 light = fog_info.sun_radiance.rgb *
-                     (sunPhase * LitAt(at, length(at - eye))) +
+                     (sunPhase * LitAt(at, travelled)) +
                  fog_info.ambient.rgb * 0.07957747;
     if (clustered) {
       light += fog_info.albedo.rgb * ClusterLight(at, along, g);

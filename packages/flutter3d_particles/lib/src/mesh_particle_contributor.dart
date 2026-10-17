@@ -212,12 +212,14 @@ final class MeshParticleContributor extends PassContributor {
     _fog[1] = color.g;
     _fog[2] = color.b;
     view.camera.readViewOrigin(_eye);
-    // The air as thick as it is at the camera: a height fog's falloff is not
-    // integrated here — `FogSettings.densityAt` says what that costs.
+    // The air as thick as it is at the camera, and how fast it thins
+    // upwards: the stage integrates a height fog along the ray as the lit
+    // stages' `ApplyFog` does — `P5`.
     _fog[3] = fog.densityAt(_eye.y);
     _eyeData[0] = _eye.x;
     _eyeData[1] = _eye.y;
     _eyeData[2] = _eye.z;
+    _eyeData[3] = fog.resolvedHeightFalloff;
     // The view axis and the lens, so the stage measures the fog from the
     // eye's plane through an orthographic camera rather than in rings round a
     // point the picture does not depend on — `P7`.

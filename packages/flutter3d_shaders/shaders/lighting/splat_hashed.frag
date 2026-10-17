@@ -122,10 +122,7 @@ void main() {
 
   vec3 colour = v_color.rgb;
   if (fog_info.fog.w > 0.0) {
-    float visibility = clamp(
-        exp(-fog_info.fog.w * FogDistance(v_world_position)),
-        0.0,
-        1.0);
+    float visibility = FogTransmittance(v_world_position);
     colour = mix(fog_info.fog.rgb, colour, visibility);
   }
 

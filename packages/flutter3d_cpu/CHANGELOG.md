@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1+2
 
+- **The light shafts and the volumetric fog pick a cascade as a surface
+  does**, by the way along the ray from the eye's plane: the distance from
+  the eye through a perspective lens, as before, and the depth along the
+  axis through an orthographic one, where a step at the edge of the frame
+  read a later cascade than the ground under it.
+- **Particles and splats integrate the height fog** (`fogTransmittance`),
+  as `ApplyFog` does for the lit stages.
 - **Breaking: standing in for a GPU is a test's knob, in `testing.dart`.**
   `CpuDevice(standInForGpu:)`, `CpuDevice.standInForGpu` and
   `cpuComputeDevice(standInForGpu:)` are gone from the main library;

@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1+1
 
+- **`light_shafts.frag` and `volumetric_fog.frag` pick a cascade by the way
+  along the ray from the eye's plane**, which is the depth along the axis
+  through an orthographic lens, where the renderer cuts the cascades.
+- **`FogTransmittance` in `lib/contributor_eye.glsl`**: every particle and
+  splat stage fogs by it, the height fog integrated along the ray as
+  `ApplyFog` does, from the falloff in `FogInfo.eye.w`.
 - **A backend's compiler runs as a process of its own.**
   `runMaterialCompiler` (in `compile.dart`) is the whole of a backend
   package's compiler executable, and `encodeMaterialCompileRequest` and

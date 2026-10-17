@@ -1,5 +1,14 @@
 ## 1.0.0-rc.1+2
 
+- **An orthographic view's near shadow slabs hold still.** Their ends and
+  their radii round onto steps a sixteenth of their length's power of two,
+  so a camera panning by less than a step, or a caster rising or falling,
+  leaves each map's texel grid where it was: shadow edges no longer crawl
+  under an isometric camera, and a still tile scrolls instead of being
+  redrawn. `orthographic-shadows` moves by a texel at its outlines.
+- **Splats fog in a height fog as the ground does.** The splat contributor
+  binds the fog's falloff (`FogInfo.eye.w`), and the stages integrate it
+  along the ray where they fogged at the camera's density the whole way.
 - **Breaking: the splat sort is placed, not handed a device.**
   `SplatGpuSort.place(device)` (new) asks the hardware layer for the
   drawing device's site (`FrameCompute.placeOnFrame`) and answers null

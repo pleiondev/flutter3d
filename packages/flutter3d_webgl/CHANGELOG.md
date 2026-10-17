@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1+1
 
+- `engine_shaders.dart` regenerated: the light shafts' and the volumetric
+  fog's cascade under an orthographic camera, and the height fog on
+  particles and splats.
 - **GPU timings per labelled pass.** `onGpuTimings` reports what each
   labelled pass spent, from `EXT_disjoint_timer_query_webgl2`'s elapsed
   time queries around it, read a frame or two later once answered and

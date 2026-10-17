@@ -40,13 +40,7 @@ void main() {
   // Attenuation rather than a mix. Blending an additive particle toward the
   // fog colour makes a distant one *add* fog to the wall behind it — the same
   // note as the other two particle stages, kept because each is read alone.
-  float fogged = 1.0;
-  if (fog_info.fog.w > 0.0) {
-    fogged = clamp(
-        exp(-fog_info.fog.w * FogDistance(v_world_position)),
-        0.0,
-        1.0);
-  }
+  float fogged = FogTransmittance(v_world_position);
 
   // The texture's alpha is coverage and the particle's is brightness, so the
   // two multiply rather than one replacing the other: a faded spark of a

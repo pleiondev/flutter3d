@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1+1
 
+- **A particle above or below the eye fogs as the air there does.** Both
+  contributors bind the height fog's falloff, and the stages integrate it
+  along the ray, where a spark high over the camera fogged at the camera's
+  density.
 - **Breaking: results that were records are final classes.** `EffectRender`,
   `ParticleEffects` and `importSixWay` answered or held a record, which can
   never gain a field. Each answers a final class now, with the record's

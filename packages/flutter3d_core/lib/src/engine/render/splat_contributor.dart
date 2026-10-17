@@ -839,10 +839,13 @@ final class SplatContributor extends PassContributor {
       ..[1] = color.g
       ..[2] = color.b
       ..[3] = fog.densityAt(eye.y);
+    // And how fast it thins upwards, which the stages integrate along the
+    // ray as the lit stages' `ApplyFog` does — `P5`.
     _eye
       ..[0] = eye.x
       ..[1] = eye.y
-      ..[2] = eye.z;
+      ..[2] = eye.z
+      ..[3] = fog.resolvedHeightFalloff;
     // Through an orthographic camera the fog is measured from the eye's
     // plane, along the axis — `P7`.
     _forward

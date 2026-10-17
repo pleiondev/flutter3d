@@ -477,7 +477,7 @@ FogSettings(
 )
 ```
 
-The fog lies on the ground: it is `density` thick at `baseHeight` (nought) and thins upwards by `heightFalloff`, 0.05 per metre unless you say otherwise, which halves it every fourteen metres. At eye height that is within a tenth of `density`; a roof ten metres up stands in six tenths of it. The ray is integrated in closed form, an exponential more than a flat fog and no extra pass. `heightFalloff: 0.0` is the flat fog, the same numbers to the bit. Particles and splats fog as a flat fog as thick as the air at the camera.
+The fog lies on the ground: it is `density` thick at `baseHeight` (nought) and thins upwards by `heightFalloff`, 0.05 per metre unless you say otherwise, which halves it every fourteen metres. At eye height that is within a tenth of `density`; a roof ten metres up stands in six tenths of it. The ray is integrated in closed form, an exponential more than a flat fog and no extra pass. `heightFalloff: 0.0` is the flat fog, the same numbers to the bit. Particles and splats thin upwards with it, integrated the same way.
 
 Every lit shader applies fog as it writes the HDR target (`ApplyFog` in `lib/color.glsl`, called from `WriteSurface`), in linear space, before the tone map. It is not a post pass, and for an extension that difference decides who gets fog: a shader that writes the frame directly writes the fog with it, so a lighting model of your own gets fog for free and a post pass of your own does not. A level document can carry its own `fogColor` and `fogDensity`, which is how the games get theirs.
 

@@ -532,6 +532,8 @@ double eyeDistance(Float32List v, ShaderBindings b)
 
 double fogDistance(ShaderBindings b, double x, double y, double z)
 
+double fogTransmittance(ShaderBindings b, double x, double y, double z)
+
 double fract(double x)
 
 double hashedAlphaNoise(double x, double y, double z, double cutoff)
