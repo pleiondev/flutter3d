@@ -170,13 +170,13 @@ final class PluginBudget
 final class PluginCheckOutcome
   String toString()
   const PluginCheckOutcome({required this.check, required this.passed, required this.says, this.backend, this.declined = false, this.requires = const <String>[]})
+  factory PluginCheckOutcome.fromJson(Object? json)
   final List<String> requires
   final String check
   final String says
   final String? backend
   final bool declined
   final bool passed
-  static PluginCheckOutcome? fromJson(Object? json)
 
 final class PluginHarness
   const PluginHarness({this.registries, this.setUp, this.dependencies, this.steps = 600, this.profile = SimulationProfile.deterministic})

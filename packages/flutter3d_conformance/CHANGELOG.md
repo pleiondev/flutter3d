@@ -7,6 +7,10 @@
   `runPluginRenderConformance` records into the same report
   (`recordRenderOutcomes`), and keeps it only while no render check it ran
   failed on any backend.
+- **Breaking: `PluginCheckOutcome.fromJson` refuses what it cannot read.**
+  A factory that throws a `FormatException` for an entry without a string
+  `check`, a bool `passed` and a string `says`, where it answered null;
+  `mergedOutcomes` still leaves such an entry of an old report out.
 - **An engine package's own event is not the plugin's.** The Wasm
   runtime declares its trap the first time a plugin's Wasm system is
   installed and keeps it for the engine; `plugin.names` and

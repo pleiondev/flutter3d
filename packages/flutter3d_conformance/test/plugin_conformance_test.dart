@@ -598,10 +598,25 @@ void main() {
       ]);
       final read = PluginCheckOutcome.fromJson(
         jsonDecode(jsonEncode((written['outcomes']! as List<Object?>).single)),
-      )!;
+      );
       expect(read.requires, <String>['render.nodes']);
       expect(read.backend, 'cpu');
       expect(read.check, 'plugin.render');
+    });
+
+    test('an entry that is not an outcome is refused, saying so', () {
+      // Mutation: answer null again. A reader that cannot read an entry
+      // throws, and the merge is what leaves such an entry out.
+      expect(
+        () => PluginCheckOutcome.fromJson(<String, Object?>{'check': 1}),
+        throwsA(
+          isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            contains('not a check outcome'),
+          ),
+        ),
+      );
     });
   });
 }

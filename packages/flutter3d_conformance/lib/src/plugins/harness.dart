@@ -63,9 +63,10 @@ final class PluginCheckOutcome {
     this.requires = const <String>[],
   });
 
-  /// Reads one outcome as `conformanceReport` writes it; null for an entry
-  /// that is not one.
-  static PluginCheckOutcome? fromJson(Object? json) => switch (json) {
+  /// Reads one outcome as `conformanceReport` writes it. Throws a
+  /// [FormatException] for an entry that is not one: an entry without a
+  /// `check`, a `passed` and a `says` of their types.
+  factory PluginCheckOutcome.fromJson(Object? json) => switch (json) {
     {
       'check': final String check,
       'passed': final bool passed,
@@ -83,7 +84,11 @@ final class PluginCheckOutcome {
           _ => const <String>[],
         },
       ),
-    _ => null,
+    _ => throw FormatException(
+      'not a check outcome: an outcome has a string "check", a bool '
+      '"passed" and a string "says"',
+      json,
+    ),
   };
 
   /// The checks this outcome makes part of the badge, which must each have

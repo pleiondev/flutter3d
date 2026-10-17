@@ -230,16 +230,28 @@ Map<String, Object?> conformanceReport(
 /// package, if there is one: what a suite writes, so the plugin suite and
 /// the render suite, each in a test file of its own, leave one report
 /// holding both, judged by [earnsBadge] on both.
+///
+/// An entry of the report already there that this build of the suite
+/// cannot read ([PluginCheckOutcome.fromJson] refuses it) is left out, and
+/// the report is written anew with what ran.
 List<PluginCheckOutcome> mergedOutcomes(
   String plugin,
   List<PluginCheckOutcome> ran, {
   required bool Function(PluginCheckOutcome outcome) isOurs,
 }) => <PluginCheckOutcome>[
   for (final json in readConformanceReportOutcomes(plugin))
-    if (PluginCheckOutcome.fromJson(json) case final kept? when !isOurs(kept))
-      kept,
+    if (_readOutcome(json) case final kept? when !isOurs(kept)) kept,
   ...ran,
 ];
+
+/// [json] read as an outcome, or null where it is not one.
+PluginCheckOutcome? _readOutcome(Object? json) {
+  try {
+    return PluginCheckOutcome.fromJson(json);
+  } on FormatException {
+    return null;
+  }
+}
 
 /// Writes [ran], the render checks' outcomes of [plugin] on the backends
 /// they ran on, into the package's `<package>.conformance.json`, beside
