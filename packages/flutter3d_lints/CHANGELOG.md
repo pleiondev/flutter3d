@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **The engine's number, outside the 1.0 promise.** Its signatures carry
   types of a package before 1.0 or of one that takes a major a year, so a
@@ -6,9 +6,6 @@
   labelled here. SUPPORT.md names the four packages outside the promise;
   the number says which engine release this one goes with, and every pin
   the engine writes on it is the engine's own.
-
-## 1.0.0-rc.1
-
 - **Breaking: the rule classes are the package's own.**
   `StepReadsNoClock`, `StepTakesSeededRandom`, `StepUsesPortableMath`,
   `StepPrefixesDartMath`, `simulationRules()` and the plugin class
@@ -112,3 +109,4 @@
   by name under `diagnostics:`, or silenced for a file that runs once a
   frame rather than in the step with
   `// ignore_for_file: flutter3d_lints/<rule>`.
+

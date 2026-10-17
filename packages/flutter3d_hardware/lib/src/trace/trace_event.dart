@@ -726,7 +726,7 @@ abstract base class TracePassEvent extends TraceEvent {
   final int pass;
 }
 
-/// `PassEncoder.setViewport`: a [PassViewport] since 1.0.0-rc.1+2, written as
+/// `PassEncoder.setViewport`: a [PassViewport] since 1.0.0-rc.1, written as
 /// the four whole numbers a `ScreenRect` was whenever it covers whole pixels
 /// and the whole depth range, so older traces read and newer ones of such a
 /// pass are byte for byte what they were.

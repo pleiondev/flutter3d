@@ -3,7 +3,7 @@ description: >-
   Water, fire and bodies in a world of the physics core's, stepped with no
   renderer: flames held to bodies, waters poured and fed, plugin elements
   over the world's fields, and their events.
-version: 1.0.0-rc.1+1
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues

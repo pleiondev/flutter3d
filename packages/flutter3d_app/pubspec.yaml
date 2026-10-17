@@ -1,6 +1,6 @@
 name: flutter3d_app
 description: "What a Flutter app on flutter3d is assembled from: the backend and its runtime fallback, the surface a frame reaches Flutter through, widgets in the scene, levels, storage."
-version: 1.0.0-rc.1+1
+version: 1.0.0-rc.1
 resolution: workspace
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
@@ -46,7 +46,7 @@ dependencies:
 
   # The vocabulary the backend choice is made in. Neither backend appears in
   # any signature here — `openDevice` returns a `GraphicsDevice`.
-  flutter3d_hardware: ^1.0.0-rc.1+2
+  flutter3d_hardware: ^1.0.0-rc.1
 
   # The two implementations the conditional export in `backend_native.dart`/
   # `backend_web.dart` picks between by `dart.library.js_interop`, because the

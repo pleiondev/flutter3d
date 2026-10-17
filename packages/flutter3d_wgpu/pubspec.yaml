@@ -1,6 +1,6 @@
 name: flutter3d_wgpu
 description: "The compute sidecar for flutter3d: a compute-only GraphicsDevice over wgpu-native through dart:ffi, so compute steps run on the GPU when the drawing device has none."
-version: 1.0.0-rc.1+2
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -28,7 +28,7 @@ platforms:
 dependencies:
   # The contract the sidecar is a device of, and where its placement is
   # named (`ComputePlacement.sidecar`).
-  flutter3d_hardware: ^1.0.0-rc.1+2
+  flutter3d_hardware: ^1.0.0-rc.1
   # The kernel language: a bundle's kernel section, translated to the WGSL
   # wgpu-native compiles.
   flutter3d_shaders: '>=1.0.0-rc.1 <1.1.0'

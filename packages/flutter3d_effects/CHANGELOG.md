@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **The spilt liquid's pair loops are placed like any compute.**
   `placeKernelLiquid` asks `FrameCompute.placeHosted` where
@@ -7,14 +7,12 @@
   otherwise the first device that computes and reads back in the same
   turn, and only the CPU kernel under a bit-exact profile, where a GPU is
   passed over for its division and square roots.
-
 - **Breaking: results that were records are final classes.** `Elements`,
   `FireView` and `LiquidView` answered or held a record, which can never
   gain a field. Each answers a final class now, with the record's field
   names (a positional `$1` has a name of its own), `==` and `hashCode`. A
   field read compiles as before; a destructuring pattern names the class,
   and `flutter3d_build:migrate` rewrites the `$1` reads.
-
 - **A shallow water can be stepped on a GPU.** `ShallowWaterWorkload` (new)
   is the physics core's shallow water substep as a `ComputeWorkload`: on
   WebGPU's compute or the wgpu sidecar its columns are stepped there, the
@@ -48,8 +46,6 @@
   sends only as far as this frame or the last drew it rather than all of
   its capacity, and a bubble cloud's size settles without building a
   matrix per try. What is drawn is the same, vertex for vertex.
-
-## 1.0.0-rc.1
 - **Breaking: the effects' colours are `LinearColor`s.** `Elements.sun`'s
   and `LiquidLook.sun`'s `light`, `SeabedLook.sun`'s, `sky`'s `zenith` and
   `horizon`, `LiquidLook.glow` and `Liquid.glow`. The generated
@@ -358,3 +354,4 @@
   the core's leaning axis, lit smoke at the plume's speed, embers,
   firelight, and the watched bodies charring as they burn. Plain Dart, with
   the material shipped compiled as `LiquidLook.asset`.
+

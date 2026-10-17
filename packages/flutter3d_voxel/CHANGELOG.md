@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **Breaking: results that were records are final classes.** `VoxelHit`
   answered or held a record, which can never gain a field. Each answers a
@@ -6,9 +6,6 @@
   name of its own), `==` and `hashCode`. A field read compiles as before; a
   destructuring pattern names the class, and `flutter3d_build:migrate`
   rewrites the `$1` reads.
-
-## 1.0.0-rc.1
-
 - **A voxel world is a format of its own.** `VoxelWorld.toJson` writes the
   envelope (`f3d.voxelWorld`, `VoxelWorld.format`), keeps the keys a later
   build added, and refuses a newer world; a world saved before the envelope
@@ -75,3 +72,4 @@
   it entered by is where a placed block goes.
 
 Its `flutter3d_*` dependencies ask for `^1.0.0`.
+

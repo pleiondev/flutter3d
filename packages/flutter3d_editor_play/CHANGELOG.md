@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **The engine's number, outside the 1.0 promise.** Its signatures carry
   types of a package before 1.0 or of one that takes a major a year, so a
@@ -12,9 +12,6 @@
   the record's field names (a positional `$1` has a name of its own), `==`
   and `hashCode`. A field read compiles as before; a destructuring pattern
   names the class, and `flutter3d_build:migrate` rewrites the `$1` reads.
-
-## 1.0.0-rc.1
-
 - **Breaking: `GameEventLog` is made by a run**, which fills it from the
   game it attached to.
 - **`FakeGame.posts` takes `data:` and `time:` by name**, so an event can
@@ -110,3 +107,4 @@
   `fakeFlutterRun`, a `flutter run --machine` a test controls.
 
 Its `flutter3d_*` dependencies ask for `^1.0.0`.
+

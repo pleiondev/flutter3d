@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **A panel runs a typed command.** `EditorPanelContext.runCommand` takes
   an `EditorCommandValue`, a plugin's command class or the editor's own,
@@ -10,9 +10,6 @@
   name of its own), `==` and `hashCode`. A field read compiles as before; a
   destructuring pattern names the class, and `flutter3d_build:migrate`
   rewrites the `$1` reads.
-
-## 1.0.0-rc.1
-
 - **Breaking: `ColorField` and `NumberField` are `final class`es.** Wrap
   one rather than extending it; a new option is then an addition.
 - **A plugin's panel is published under its namespace**,

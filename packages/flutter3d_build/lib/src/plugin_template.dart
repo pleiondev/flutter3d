@@ -1135,7 +1135,7 @@ environment:
   sdk: ">=3.12.0 <4.0.0"
 
 dependencies:
-  flutter3d_hardware: ^1.0.0-rc.1+2
+  flutter3d_hardware: ^1.0.0-rc.1
   flutter3d_shaders: ^1.0.0-rc.1
   flutter3d_foundation: ^1.0.0-rc.1
 

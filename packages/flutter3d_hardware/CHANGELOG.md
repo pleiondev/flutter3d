@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+2
+## 1.0.0-rc.1
 
 - **Direct3D 12 is the fourth standard the HAL answers to**, beside
   Vulkan, Metal and WebGPU. HAL.md's new "The reference standards" maps
@@ -23,7 +23,6 @@
   carry, and a refusal by name from every call they gate. A fallback branch
   runs on the machine at hand; the honesty check passes through it on the
   software rasteriser with each feature masked in turn.
-
 - **A platform image becomes a texture without a copy, where the device
   can.** `PlatformTextures<I>` (new) is a device mixin asked with `is`, the
   `EncodedImageUpload` pattern, with the platform's image as a type
@@ -156,16 +155,12 @@
   before it opens, and what it throws `beginRenderPass` throws: a test
   makes a frame fail on the engine's side after the passes it wants to
   have run.
-
-## 1.0.0-rc.1+1
-
 - **Breaking: results that were records are final classes.** `FakeBackend`,
   `cappedImageSize`, `encodedImageSize` and `indexWindow` answered or held a
   record, which can never gain a field. Each answers a final class now, with
   the record's field names (a positional `$1` has a name of its own), `==`
   and `hashCode`. A field read compiles as before; a destructuring pattern
   names the class, and `flutter3d_build:migrate` rewrites the `$1` reads.
-
 - **Breaking: where compute runs is this package's alone.** A step no
   longer demands a placement: `ComputeExecutors.place` takes no `demand`,
   and `ComputePlacementException` has none to report (its constructor
@@ -201,9 +196,6 @@
   CPU; the workload rule keeps a workload with host code off one, and
   `ComputeExecutors.workloadCandidates` lists where the rule may put a
   workload, in order.
-
-## 1.0.0-rc.1
-
 - **A pipeline is built from a descriptor.** `PipelineDescriptor` (`vertex`,
   `fragment`, `layout`, `label`) and `ComputePipelineDescriptor` (`shader`,
   `label`) are final classes, and `GraphicsDevice.createPipelineFrom`,

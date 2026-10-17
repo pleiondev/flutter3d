@@ -118,7 +118,7 @@ final class DeviceFeature extends Capability {
   /// `one-minus-constant`, which read the constant channel by channel. Was
   /// `supportsBlendColor`.
   ///
-  /// **The colour pair only, since 1.0.0-rc.1+2.** It named all four
+  /// **The colour pair only, since 1.0.0-rc.1.** It named all four
   /// constant-reading factors, and WebGPU, which has no factor that reads the
   /// constant's alpha for every channel, could list none of them. The alpha
   /// pair is [blendConstantAlpha].
@@ -616,7 +616,7 @@ final class DeviceFeature extends Capability {
     FeatureStability.stable,
   );
 
-  // 1.0.0-rc.1+2: capabilities every backend was assumed to have, named now,
+  // 1.0.0-rc.1: capabilities every backend was assumed to have, named now,
   // because a feature that gates a call 1.0 backends already accept can
   // never be added later — the honesty check would then fail a 1.0 backend
   // that does not list it.
@@ -757,7 +757,7 @@ final class DeviceFeature extends Capability {
     FeatureStability.reserved,
   );
 
-  // 1.0.0-rc.1+2: the names Direct3D 12 has and the other three standards
+  // 1.0.0-rc.1: the names Direct3D 12 has and the other three standards
   // have not yet, taken before the freeze so a minor can give each its calls.
 
   /// Work the GPU schedules for itself: a graph of nodes, each a compute

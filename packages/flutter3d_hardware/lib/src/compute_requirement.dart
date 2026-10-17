@@ -1,6 +1,6 @@
 /// What a piece of compute needs of where it runs, as a requirement rather
 /// than a placement; the portable kernel profile; and what is exact and
-/// what carries a tolerance — since 1.0.0-rc.1+2.
+/// what carries a tolerance — since 1.0.0-rc.1.
 ///
 /// **A requirement, never a placement.** A workload or a step says what it
 /// cannot do without ([ComputeRequirement]): the same bytes on every

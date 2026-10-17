@@ -1,6 +1,6 @@
 name: flutter3d_webgpu
 description: "A WebGPU backend for flutter3d: the fourth implementation of flutter3d_hardware, and the first one whose API bakes per-draw state into the pipeline object."
-version: 1.0.0-rc.1+2
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -29,7 +29,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter3d_hardware: ^1.0.0-rc.1+2
+  flutter3d_hardware: ^1.0.0-rc.1
 
   # `ResourceException`, which `GpuDeviceException` extends.
   flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'

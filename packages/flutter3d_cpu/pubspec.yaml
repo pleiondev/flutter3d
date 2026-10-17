@@ -2,7 +2,7 @@ name: flutter3d_cpu
 description: >-
   A software backend for flutter3d_hardware: no GPU, no shading language, and
   therefore the sharpest test of whether the interface is an interface.
-version: 1.0.0-rc.1+2
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -27,7 +27,7 @@ platforms:
   windows:
 
 dependencies:
-  flutter3d_hardware: ^1.0.0-rc.1+2
+  flutter3d_hardware: ^1.0.0-rc.1
   # `stageBindings`: what each of the engine's compiled stages keeps, which
   # the library hands every stage as `ShaderHandle.kept` and the encoder
   # refuses binds against — `gfx-92n`. A table of names and nothing else.

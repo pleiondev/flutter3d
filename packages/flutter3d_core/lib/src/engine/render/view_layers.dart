@@ -246,7 +246,7 @@ final class EnvironmentDepthNode extends RenderNode {
 
   /// Gives back every texture uploaded: when the session that fed it ends,
   /// and when the registration that added the node is cancelled. Since
-  /// 1.0.0-rc.1+1, `release`.
+  /// 1.0.0-rc.1, `release`.
   @override
   void dispose() {
     for (final (device, texture) in _uploaded) {

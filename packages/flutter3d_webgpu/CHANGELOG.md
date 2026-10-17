@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+2
+## 1.0.0-rc.1
 
 - `engine_shaders.dart` regenerated: the light shafts' and the volumetric
   fog's cascade under an orthographic camera, and the height fog on
@@ -30,15 +30,11 @@
 - **Every refusal is typed.** A value WebGPU has no spelling for is a
   `DeviceResourceException` (`webgpuRefusal`), where it was an
   `UnsupportedError`.
-
 - **A compute pass keeps the bind groups it made.** A dispatch that binds the
   same storage ranges as one before it — a workload's kernel every frame —
   sets the bind group made then rather than asking the browser for another;
   a pipeline keeps the last thirty-two of each group. A river's water,
   stepped on the GPU, dispatches nine kernels a reach a frame.
-
-## 1.0.0-rc.1+1
-
 - **A device is opened with the adapter's limits on a pipeline layout.**
   `webgpuRequiredLimits` now asks for the adapter's
   `maxDynamicUniformBuffersPerPipelineLayout`, `maxBindGroups`,
@@ -53,9 +49,6 @@
   `pipelineRefusals`, naming the limit, and its draws are skipped. The
   refusal was kept with the pipeline, so a pair made and given back every
   second was refused, and thrown from `beginFrame`, every second.
-
-## 1.0.0-rc.1
-
 - **An axis clamped to the border is refused by `samplerBorderColor`**;
   a border colour no axis uses is not refused.
 - **`texture1D` and `depthBiasClamp` are listed**, and a depth bias is

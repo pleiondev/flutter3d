@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **Breaking: results that were records are final classes.**
   `ElementsSimulation` answered or held a record, which can never gain a
@@ -6,9 +6,6 @@
   positional `$1` has a name of its own), `==` and `hashCode`. A field read
   compiles as before; a destructuring pattern names the class, and
   `flutter3d_build:migrate` rewrites the `$1` reads.
-
-## 1.0.0-rc.1
-
 - **`radiantFluxOn` stands a flame by `FireExposure.standingMiddleOf`**,
   the core package's one rule for a flame under a ceiling, which the
   platformer's runner now burns by too.
@@ -97,3 +94,4 @@
 - **`SmokePlume`**: the plume's virtual origin, width, centreline speed and
   optical depth, which `seenThroughSmoke` reads and `FireView.plumeDepth`
   draws with. The numbers are the ones `FireView` had.
+

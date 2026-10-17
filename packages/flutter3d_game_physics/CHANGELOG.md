@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **Breaking: results that were records are final classes.** `RagdollPart`
   answered or held a record, which can never gain a field. Each answers a
@@ -6,9 +6,6 @@
   name of its own), `==` and `hashCode`. A field read compiles as before; a
   destructuring pattern names the class, and `flutter3d_build:migrate`
   rewrites the `$1` reads.
-
-## 1.0.0-rc.1
-
 - **`party.dart` exports `PartySeat`**, the seat `PartySession.open`'s
   `stage` is handed, so the callback can name it with this import alone.
 - **Breaking: `RagdollCorpses.begin` takes one `ActorDeathContext`**, as
@@ -158,3 +155,4 @@
 
 - **No `dart:io`.** Writing the run to a file is left to the application,
   so the package runs on the web.
+

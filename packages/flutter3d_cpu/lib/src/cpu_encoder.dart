@@ -232,7 +232,7 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
   @override
   void setScissor(ScreenRect rect) => _scissor = rect;
 
-  /// All five, since 1.0.0-rc.1+2: strips through [_assembleStrip], with
+  /// All five, since 1.0.0-rc.1: strips through [_assembleStrip], with
   /// restart on an all-ones index, and points through [_rasterisePoint].
   /// It refused three of them from the draw with an untyped error before.
   @override
@@ -2163,7 +2163,7 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
 /// How a target keeps what is written to it.
 enum _Storage { float, unorm8, unorm8Srgb }
 
-/// A [PassViewport] as the rasteriser measures it — since 1.0.0-rc.1+2.
+/// A [PassViewport] as the rasteriser measures it — since 1.0.0-rc.1.
 ///
 /// **Its corner split in two**: the whole pixel window positions are counted
 /// from ([originX], [originY]), which is added to a pixel's index where the

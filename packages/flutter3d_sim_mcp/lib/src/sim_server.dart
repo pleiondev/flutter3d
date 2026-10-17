@@ -9,7 +9,7 @@ import 'sim_tools.dart';
 /// A constant, because a compiled server has no pubspec to read. It said
 /// 0.1.0 while the package moved on, since "kept beside the pubspec's" was a
 /// comment and nothing checked it; `server_version_test.dart` does now.
-const String simMcpVersion = '1.0.0-rc.1+1';
+const String simMcpVersion = '1.0.0-rc.1';
 
 /// The version of this server's tools — names and input schemas — as the
 /// `initialize` result announces it beside [simMcpVersion].

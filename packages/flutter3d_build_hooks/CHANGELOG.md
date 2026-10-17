@@ -1,13 +1,10 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **`compileMaterial(namespace:)` compiles a plugin's material in its
   namespace.** The bare name the source writes (`material Hair`) is the
   stage `<namespace>__Hair` (`materialStageIn`), every stage and the source
   the bundle carries renamed to match, so the plugin's lighting model finds
   it; a name in another plugin's namespace is refused.
-
-## 1.0.0-rc.1
-
 - **A material over the binding budget does not build, on any backend.**
   Each stage is counted from its GLSL before the sections are written, where
   only the WebGPU section counted, and only with glslang and naga installed.
@@ -39,3 +36,4 @@
   materials in its build hook, as `flutter3d_effects` does, depends on this
   and no longer resolves `flutter3d_build`'s converters, MCP servers and
   `dart_mcp` into every game that depends on it.
+

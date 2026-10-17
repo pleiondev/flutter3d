@@ -1,6 +1,6 @@
 name: flutter3d_post
 description: "Post-processing for flutter3d, one library per family: light, shading, reflections, atmosphere, motion and style, and a standard preset of all six. Each effect is a plugin."
-version: 1.0.0-rc.1+1
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues

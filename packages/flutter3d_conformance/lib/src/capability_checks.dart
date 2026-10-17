@@ -645,7 +645,7 @@ final Map<DeviceFeature, _Probe> _probes = <DeviceFeature, _Probe>{
       ),
     ),
   ),
-  // Since 1.0.0-rc.1+2: the capabilities every backend was assumed to have,
+  // Since 1.0.0-rc.1: the capabilities every backend was assumed to have,
   // asked for the way a caller asks, from the call that names them.
   DeviceFeature.blendConstantAlpha: (
     needs: const <DeviceFeature>[DeviceFeature.blendConstant],

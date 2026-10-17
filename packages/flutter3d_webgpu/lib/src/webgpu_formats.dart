@@ -224,7 +224,7 @@ TextureFormatSupport webgpuTextureFormatSupport(
 
 /// What [operation] throws for a request this backend has the feature for
 /// and still cannot honour — a value WebGPU has no spelling for, one a later
-/// version names — since 1.0.0-rc.1+2: the HAL's `DeviceResourceException`,
+/// version names — since 1.0.0-rc.1: the HAL's `DeviceResourceException`,
 /// where it was an untyped `UnsupportedError`.
 DeviceResourceException webgpuRefusal(String operation, String reason) =>
     DeviceResourceException(
@@ -244,7 +244,7 @@ DeviceResourceException webgpuRefusal(String operation, String reason) =>
 ///
 ///  * `blend-constant-alpha` — GL's `CONSTANT_ALPHA` pair, which this API
 ///    cannot form in a colour equation. Until the blend constant was split
-///    in two (1.0.0-rc.1+2) that pair took `blend-constant` with it; see
+///    in two (1.0.0-rc.1) that pair took `blend-constant` with it; see
 ///    `WebGpuEncoder.setBlendColor`.
 ///  * `wireframe` — WebGPU has no polygon fill mode.
 ///  * `render-stage-storage` — the render stages' reflection carries no
@@ -323,7 +323,7 @@ DeviceFeatures webgpuDeviceFeatures({
   // the rectangle lies inside the attachment, so a window of a larger frame
   // is drawn here through a crop of its projection.
   //
-  // Since 1.0.0-rc.1+2: `setBlendConstant` and the colour pair it feeds,
+  // Since 1.0.0-rc.1: `setBlendConstant` and the colour pair it feeds,
   // every topology with restart always on for strips, `uint32` indices,
   // and a viewport in floats. Not `blend-constant-alpha`, which this API
   // cannot form — see [gpuBlendFactor].

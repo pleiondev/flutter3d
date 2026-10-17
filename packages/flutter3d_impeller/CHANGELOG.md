@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **A widget drawn into a texture is wrapped, not copied.** The device is
   `PlatformTextures<ui.Image>`: `textureFromPlatformImage` wraps an image's
@@ -14,13 +14,9 @@
   `DeviceResourceException` (`impellerRefusal`, and `unmirroredFormat`
   answers one), where it was an `UnsupportedError`. The opener takes the
   HAL's `DeviceRequest`.
-
 - **The shader bundle is the one the sources compile to.** 1.0.0-rc.1 went
   up with a bundle built before 18 of its shaders last changed, so a stage
   could ask for a slot the compiled one does not have. Nothing else differs.
-
-## 1.0.0-rc.1
-
 - **`wireframe` is listed where a line mode draws lines**: on Metal and
   Vulkan, not on Impeller's OpenGL ES path, which has no `glPolygonMode`;
   there `setPolygonMode(PolygonMode.line)` is refused by the feature.

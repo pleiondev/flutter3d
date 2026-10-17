@@ -21,7 +21,7 @@ import 'texture.dart';
 /// A rectangle of a render target, in whole pixels: the scissor, a readback
 /// region, an overwrite's region.
 ///
-/// **The viewport is a [PassViewport] since 1.0.0-rc.1+2**, with a rectangle in
+/// **The viewport is a [PassViewport] since 1.0.0-rc.1**, with a rectangle in
 /// doubles and a depth range, which is what WebGPU and flutter_gpu set; the
 /// scissor stays whole pixels on every API. [PassViewport.ofRect] turns one of
 /// these into the viewport over the same pixels.
@@ -179,7 +179,7 @@ final class PassViewport {
 
 /// What a colour attachment is cleared to: four channels of one kind.
 ///
-/// **An immutable value of doubles, since 1.0.0-rc.1+2.** It was a
+/// **An immutable value of doubles, since 1.0.0-rc.1.** It was a
 /// `vector_math` `Vector4`: mutable inside an immutable descriptor, the one
 /// third-party type in the contract, and float32, so an integer target (an
 /// `r32UInt` id buffer) cleared exactly only up to 2^24. A double holds every
@@ -307,7 +307,7 @@ final class ClearColorKind {
   String toString() => 'ClearColorKind.$name';
 }
 
-/// The features a [PrimitiveType] needs — since 1.0.0-rc.1+2.
+/// The features a [PrimitiveType] needs — since 1.0.0-rc.1.
 extension PrimitiveTypeFeatures on PrimitiveType {
   /// Throws [UnsupportedCapabilityException] when [features] lacks what
   /// this topology needs: a strip (`primitiveStrips`) or points
@@ -340,7 +340,7 @@ extension PrimitiveTypeFeatures on PrimitiveType {
 }
 
 /// The features an [IndexType] needs, and its restart value — since
-/// 1.0.0-rc.1+2.
+/// 1.0.0-rc.1.
 extension IndexTypeFeatures on IndexType {
   /// Throws [UnsupportedCapabilityException] when [features] lacks what
   /// this index width needs: 32-bit indices (`indexUint32`).
@@ -442,7 +442,7 @@ final class BlendState {
   /// Whether any factor is [BlendFactor.blendAlpha] or
   /// [BlendFactor.oneMinusBlendAlpha], which read the constant's alpha for
   /// every channel — what a backend without
-  /// `DeviceFeature.blendConstantAlpha` refuses. Since 1.0.0-rc.1+2.
+  /// `DeviceFeature.blendConstantAlpha` refuses. Since 1.0.0-rc.1.
   bool get usesBlendAlpha =>
       _readsConstantAlpha(sourceColorFactor) ||
       _readsConstantAlpha(destinationColorFactor) ||

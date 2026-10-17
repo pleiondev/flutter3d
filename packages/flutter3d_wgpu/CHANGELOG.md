@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+2
+## 1.0.0-rc.1
 
 - **The sidecar decides its backend and says which.** It opened wgpu with
   every backend enabled, so a Windows machine computed on Direct3D 12 or
@@ -26,18 +26,12 @@
 - **The encoder checks ranges and dispatches**, as every backend's does: a
   storage offset off the 256-byte alignment, which wgpu would have refused
   late, is a `RangeError` at the call.
-
-## 1.0.0-rc.1+1
-
 - **Its own dispose is a loss.** The sidecar reported no loss at all; its
   `dispose` reports `DeviceLossReason.destroyed` on `lost` (new) and
   `isLost` follows.
 - **What it cannot draw is refused in the HAL's words**: a render pass,
   pipeline or geometry is a `DeviceResourceException`, where it was an
   `UnsupportedError`. Its registration takes the HAL's `DeviceRequest`.
-
-## 1.0.0-rc.1
-
 - **Breaking: `wgpu_native_hook.dart` is no library of this package.** The
   fetch of the pinned wgpu-native is the build hook's own file,
   `hook/wgpu_native.dart`; nothing an application imports changes.
@@ -62,3 +56,4 @@
   `MTLTexture` behind a sidecar texture on Metal. The sidecar does not report
   `DeviceFeature.sharedTextures`, since it cannot import one back, so a
   `SharedTexture` between it and Impeller copies through host memory.
+

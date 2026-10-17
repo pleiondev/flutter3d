@@ -44,7 +44,7 @@ final class BufferField extends FieldStorage {
   final StorageBuffer buffer;
 
   /// Where it lives: where a compute step that steps it runs. Since
-  /// 1.0.0-rc.1+1, in place of the executor.
+  /// 1.0.0-rc.1, in place of the executor.
   final ComputeSite site;
 
   @override
@@ -133,7 +133,7 @@ final class FieldUpload extends RenderNode {
   );
   FieldStorage? _storage;
 
-  /// Where the last [place] put the field, or null. Since 1.0.0-rc.1+1, in
+  /// Where the last [place] put the field, or null. Since 1.0.0-rc.1, in
   /// place of `executor`.
   ComputeSite? get site => _site;
 
@@ -174,7 +174,7 @@ final class FieldUpload extends RenderNode {
   /// null when placed. Placing again lets go of what the last placement
   /// made. Until it answers the upload is not [isReady].
   ///
-  /// **Breaking in 1.0.0-rc.1+1:** given the device, not executors, and
+  /// **Breaking in 1.0.0-rc.1:** given the device, not executors, and
   /// asynchronous, as a compute step's placement is.
   Future<FieldResidenceException?> place(GraphicsDevice device) {
     _placing++;
@@ -308,7 +308,7 @@ final class FieldUpload extends RenderNode {
 
   /// Lets go of what the last placement made on its device: what a renderer
   /// calls when the registration that added the upload is cancelled. A
-  /// later [place] makes it again. Since 1.0.0-rc.1+1, `release`.
+  /// later [place] makes it again. Since 1.0.0-rc.1, `release`.
   @override
   void dispose() {
     switch (_storage) {

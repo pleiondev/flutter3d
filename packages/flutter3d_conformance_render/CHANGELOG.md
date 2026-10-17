@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **Five more render checks.** `render.drawList`, `render.lod`,
   `render.skinning`, `render.compute` and `render.codec`, each set through
@@ -23,9 +23,6 @@
   a reader had to quote, and after 1.0 a rename would break every report
   reader. A structure rule holds every check name to the words of
   `ToolName.pattern`, and every render check to `render.<word>`.
-
-## 1.0.0-rc.1
-
 - **`render.lit model defaults`** (new, 7 checks): a box drawn through a
   plugin's lit model by a material that sets nothing is the box drawn with
   every member at its declared default and every texture of its own white.
@@ -46,3 +43,4 @@
   was published; they need the renderer, `flutter3d_core`, and
   `flutter3d_conformance`, which every backend takes as a dev dependency,
   no longer does.
+

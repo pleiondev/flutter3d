@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **The party, the turns and the feed speak under the reserved key.**
   `PartyTape`, `PartyTapeWatcher`, `AuthorityServer` and
@@ -17,8 +17,6 @@
   naming what to update. Each takes `hello`, `WireHello.engineOnly` unless
   the game names its simulation. Turns and the feed run on a `PeerRoom`
   channel, behind the room's hello.
-
-## 1.0.0-rc.1
 
 **The version jumps from 0.1.0 to 1.0.0-rc.1.** This package now stands on
 `flutter3d_net`, which is on the engine's 1.0 line, and pub asks a package

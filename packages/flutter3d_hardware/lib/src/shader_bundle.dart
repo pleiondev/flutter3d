@@ -240,7 +240,7 @@ final class ShaderBundle {
 
   /// The section a Direct3D 12 backend will read: each stage as DXIL (or
   /// the HLSL it is compiled from) with the register and space every name
-  /// was given, by stage name. **Reserved since 1.0.0-rc.1+2: nothing
+  /// was given, by stage name. **Reserved since 1.0.0-rc.1: nothing
   /// writes it and nothing reads it yet.** Named before the freeze so that
   /// no other backend's `MaterialCompiler` takes the name; a bundle that
   /// carries it today is read by every device as a section it does not

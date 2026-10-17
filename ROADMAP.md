@@ -1,6 +1,6 @@
 # Roadmap
 
-Revised 2026-10-15, for the 1.0.0-rc.1+2 tree.
+Revised 2026-10-15, for the 1.0.0-rc.1 tree.
 
 This file is rewritten at every candidate and at every release, and a
 structure rule fails when the version it names is not the one the packages

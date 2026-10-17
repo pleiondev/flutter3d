@@ -1,5 +1,5 @@
 /// The operations of the kernel language that are not exact, each held to
-/// the tolerance `kernelTolerances` declares for it — since 1.0.0-rc.1+2.
+/// the tolerance `kernelTolerances` declares for it — since 1.0.0-rc.1.
 ///
 /// **The device against the Dart translation of the same kernel.** The
 /// kernel runs on the device and, in this process, translated to Dart (the

@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **Breaking: results that were records are final classes.**
   `BridgeProjector`, `CellGridComponent`, `ColliderRegistry`,
@@ -21,15 +21,11 @@
   both had to hide one. `RenderViewSettings` is `CameraViewSettings` and
   `FrameView.ofRenderView` is `FrameView.ofCameraView`; `dart fix` renames
   them.
-
 - **`SpriteBillboardComponent` takes `castsShadow:`.** True by default, as
   before. Each card is a draw of its own into every shadow cascade it
   reaches, where the colour pass draws the cards of a kind as one, so a
   bank of reeds whose shadows are a few pixels across can leave them out.
   Additive: nothing that worked against 1.0.0-rc.1 changes.
-
-## 1.0.0-rc.1
-
 - **Breaking: `Model3dComponent.openSharedDevice` is gone from the main
   library.** A game had a global it could change; a test opens the shared
   device another way with `overrideSharedDeviceOpener` from the new

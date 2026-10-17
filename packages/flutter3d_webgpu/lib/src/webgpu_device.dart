@@ -353,7 +353,7 @@ final class WebGpuDevice extends GraphicsDevice
   late final WebGpuTimer _timer = WebGpuTimer(_gpuDevice);
 
   /// The staging buffers [readBuffer] and a read [mapBuffer] copy through,
-  /// kept between reads — since 1.0.0-rc.1+2.
+  /// kept between reads — since 1.0.0-rc.1.
   late final WebGpuStagingPool _staging = WebGpuStagingPool(_gpuDevice);
 
   late final bool _hdrDisplay = () {
@@ -829,7 +829,7 @@ fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
   /// [webgpuRequiredLimits] asks for what the adapter reports, which it
   /// always grants; what a bundle may count on everywhere is the minimum
   /// (`MaterialStageBudget`), which the build holds a material to. Since
-  /// 1.0.0-rc.1+1 that includes the uniform blocks with a dynamic offset in
+  /// 1.0.0-rc.1 that includes the uniform blocks with a dynamic offset in
   /// one pipeline layout, and the bind groups, storage buffers and storage
   /// textures (`webgpuRequestedLimits`): every uniform block here has a
   /// dynamic offset, and a pair of 9 was refused at WebGPU's 8 on an
@@ -1831,7 +1831,7 @@ fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
   bool get isLost => _isLost;
 
   /// What the browser refused after the call returned, at the start of the
-  /// frame after — the ledger's [DeviceError]s, since 1.0.0-rc.1+2. A loss
+  /// frame after — the ledger's [DeviceError]s, since 1.0.0-rc.1. A loss
   /// goes to [lost] instead, and the refusals before it are dropped.
   @override
   Stream<DeviceError> get errors => _deviceErrors.stream;
@@ -1940,7 +1940,7 @@ fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
   /// [ShaderCompileException] for WGSL that did not compile, or a
   /// [DeviceResourceException] for any other refusal — the earliest a
   /// synchronous caller can hear an answer that arrives as a promise.
-  /// **Never thrown, since 1.0.0-rc.1+2**, as the contract now says of every
+  /// **Never thrown, since 1.0.0-rc.1**, as the contract now says of every
   /// backend's `beginFrame`: a throw here failed the frame that happened to
   /// start next, for a call it never made. Nothing is reported once the
   /// device is lost; [lost] says that.

@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **The wire is a snapshot.** `api/flutter3d_net.wire` lists every message
   the engine and its relay send, by the keys that tell it apart and the keys
@@ -14,7 +14,6 @@
   positional `$1` has a name of its own), `==` and `hashCode`. A field read
   compiles as before; a destructuring pattern names the class, and
   `flutter3d_build:migrate` rewrites the `$1` reads.
-
 - **Breaking: protocol 3.1, and the relay speaks under the reserved key.**
   `WireHello.currentProtocolMinor` is 1. The relay's welcome, `full` and
   `left` are `{"f3d": "relay", "event": …}` (`RelayMessages`, new) where
@@ -38,9 +37,6 @@
   misread.
 - **`WireHello.engineOnly`**: the hello of a game that names no
   simulation, for a default parameter.
-
-## 1.0.0-rc.1
-
 - **Breaking: a rollback step is handed a `RollbackStep`.**
   `RollbackSession.applyAndStep` and `EngineRollback.applyFrames` take one
   `RollbackStep` (new): the `step`, every slot's `frames`, `statusOf(slot)`

@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **The liquids have air.** A `FluidWorld` reads its `FluidAir` from the
   world's properties (temperature, pressure, the new humidity, wind):
@@ -51,13 +51,11 @@
   `f3d.gravity` of the shared field contract, which `writeField` also
   writes. Each vessel levels across its own gravity and each drop falls by
   the gravity where it is.
-
 - **Breaking: `CollisionBox.boundsHalfExtents` and
   `CollisionWedge.boundsHalfExtents` are public `final` fields**, the same
   vector as `halfExtents`, where a getter answered it. A box and a wedge
   are their own bounds, so the broadphase reads the live vector and a read
   compiles as before.
-
 - **Breaking: results that were records are final classes.** `MeshVessel`,
   `RevolvedVessel`, `VesselShape`, `VesselVolumes`, `circularWeir`,
   `orificeFlow` and `overCircularLip` answered or held a record, which can
@@ -70,7 +68,6 @@
   mixed in (`with`) rather than implemented, so a member a minor adds
   arrives with a body and breaks nobody. Write `with` where a class wrote
   `implements`; a class that mixes one in is `base` or `final`.
-
 - **Spilt particles can be retired.** `ParticleFluid.retire` takes out the
   particles a caller's test has held true of for a given time, a puddle
   lying on a bench, say, and hands back where they were and what they
@@ -79,9 +76,6 @@
   went from sixty frames a second to one. `ParticleFluid.retired` counts
   what was taken out, and `FluidWorld.volume` still includes it. Additive:
   nothing that worked against 1.0.0-rc.1 changes.
-
-## 1.0.0-rc.1
-
 - **A contact's ids read back.** `CollisionWorld.colliderOf(id)` is
   `idOf` the other way, null once the collider has left, and
   `RigidDynamics.bodyOfId(id)` (a member with a default body, so every

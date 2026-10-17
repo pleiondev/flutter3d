@@ -340,7 +340,7 @@ final class BufferUsage {
   static const BufferUsage index = BufferUsage._(2);
 
   /// Bound as a stage's uniform block by `PassEncoder.bindUniformBuffer` —
-  /// `DeviceFeature.uniformBuffers`, since 1.0.0-rc.1+2.
+  /// `DeviceFeature.uniformBuffers`, since 1.0.0-rc.1.
   static const BufferUsage uniform = BufferUsage._(4);
 
   /// Needs `DeviceFeature.compute` or `DeviceFeature.renderStageStorage`.

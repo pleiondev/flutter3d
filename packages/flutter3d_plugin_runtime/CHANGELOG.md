@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **Breaking: Wasm render modules, ABI 3.** A `.f3dplugin`'s `wasmRender`
   section declares a module that drives one of its render steps frame by
@@ -28,9 +28,6 @@
   `WasmSystemSpec` hold what their `keys` do not name in `unknown` and write
   it back, so a tool of this build saving a later `.f3dplugin` keeps what
   that build said inside each phase, event and system.
-
-## 1.0.0-rc.1
-
 - **The Wasm plugin ABI's vocabulary is a file.** `api/wasm_abi.vocabulary`
   holds the newest ABI and the oldest a host runs (1, through 1.x), and
   every import and export with the ABI it arrived in; `dart run
@@ -282,3 +279,4 @@
 - **Interpreted Dart is an interface.** `ScriptRuntime` is what a script
   runtime implements, held to a Wasm module's rules. None ships: `dart_eval`
   was evaluated and not adopted, for the reasons in `tasks/0.9-plugins.md`.
+

@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **`light_shafts.frag` and `volumetric_fog.frag` pick a cascade by the way
   along the ray from the eye's plane**, which is the depth along the axis
@@ -17,7 +17,6 @@
   section another backend's writes with an `ArgumentError`; it is the
   plugin API's typed refusal now, naming the section and its compiler.
   The package depends on `flutter3d_plugin_api` for it.
-
 - **Breaking: the scene's colour copy is spelled `SceneColorCopy` in the
   shader ABI.** The entry point `SceneColourCopy`, the `LayerInfo` member
   `scene_colour` and the sampler `scene_colour_texture` are `SceneColorCopy`,
@@ -25,7 +24,6 @@
   tag: they are bound by name on Impeller, WebGL2 and the CPU, so a British
   word there would be frozen for 1.x. A prebuilt plugin stage that reads
   the copy is rebuilt against this bundle.
-
 - **The shader ABI file writes varyings, sampler kinds and attribute
   formats.** `api/flutter3d_shaders.abi` gains each vertex stage's `out`s
   and each fragment stage's `in`s and colour outputs in declaration order,
@@ -64,9 +62,6 @@
   write. A source that uses them opens with `kernel 2`, and one that does
   not reads as before; `kernelLanguageVersion` is 2. Additive: every
   kernel 1 source means what it meant.
-
-## 1.0.0-rc.1
-
 - **The kernel language has a version, and refuses what it cannot read.**
   `kernelLanguageVersion` (new, 1) and `kernelLanguageFirstVersion` (new):
   a source may open with `kernel <N>`, after a `.f3dmat` file's

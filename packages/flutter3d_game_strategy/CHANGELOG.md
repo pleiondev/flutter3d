@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **Breaking: a recorded match's playback checks the match itself.**
   `OrderTapePlayback(match, simulation: strategySimulationVersion)` refuses
@@ -10,9 +10,6 @@
 - **A match's save carries what its simulation's save requires.**
   `StrategyMatch.save` and the headless run's save wrapped the inner save's
   data and dropped its `requires`.
-
-## 1.0.0-rc.1
-
 - **Breaking: the strategy genre's hooks take the engine's contexts.** The
   plugin's `stepSimulation`, `publishEvents` and `restoreSimulation` take
   a `GenreStepContext`, `GenrePublishContext` and `GenreRestoreContext`,

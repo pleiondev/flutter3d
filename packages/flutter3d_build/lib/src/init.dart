@@ -31,7 +31,7 @@ export 'cli_contract.dart' show initUsage;
 /// another, and updated by whatever release bumps that version. It is the
 /// templates' entry for this package (`template_versions.dart`), which
 /// `template_versions_test` holds to every pubspec.
-const String flutter3dBuildVersionConstraint = '^1.0.0-rc.1+1';
+const String flutter3dBuildVersionConstraint = '^1.0.0-rc.1';
 
 /// `hook/build.dart`'s own body — [buildAssets]'s doc comment names this
 /// exact text, kept here as the one place that spells it out so the two

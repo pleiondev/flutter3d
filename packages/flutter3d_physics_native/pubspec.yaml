@@ -1,6 +1,6 @@
 name: flutter3d_physics_native
 description: "The physics core in C11: rigid bodies stepped natively through dart:ffi, and in the browser as WebAssembly. flutter3d_physics is its reference."
-version: 1.0.0-rc.1+1
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues

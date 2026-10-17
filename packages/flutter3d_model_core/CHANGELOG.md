@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **The project, its history and the material commands read the engine's
   lighting models.** `readProject`, `CommandJournal.replay` and
@@ -31,9 +31,6 @@
   field names (a positional `$1` has a name of its own), `==` and
   `hashCode`. A field read compiles as before; a destructuring pattern names
   the class, and `flutter3d_build:migrate` rewrites the `$1` reads.
-
-## 1.0.0-rc.1
-
 - **A texture clamped to its border is read back as it was written.** The
   project file writes `clampToBorder` for `SamplerAddressMode.clampToBorder`
   and reads the word again; it wrote the name and read nothing before.

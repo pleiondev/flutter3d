@@ -1,5 +1,5 @@
 /// A live device that answers as if it lacked some of its features —
-/// since 1.0.0-rc.1+2.
+/// since 1.0.0-rc.1.
 ///
 /// **Why.** Every capability the engine branches on has a fallback: a pass
 /// per view without `multiview`, the CPU without `compute`, a copy without

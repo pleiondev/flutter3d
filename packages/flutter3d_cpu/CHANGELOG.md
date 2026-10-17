@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+2
+## 1.0.0-rc.1
 
 - **The light shafts and the volumetric fog pick a cascade as a surface
   does**, by the way along the ray from the eye's plane: the distance from
@@ -26,9 +26,6 @@
   `minStorageBufferOffsetAlignment` or a dispatch past
   `maxComputeWorkgroupsPerDimension` is a `RangeError` at the call, as on
   every backend.
-
-## 1.0.0-rc.1+1
-
 - **An sRGB texture is stored decoded.** The rasteriser kept an sRGB
   upload's bytes as they came and sampled them raw, so the byte 188 read
   as 0.74 where every GPU reads 0.5, while a draw into the same format
@@ -56,21 +53,18 @@
   read and a value a later version names by a `DeviceResourceException`
   (`cpuRefusal`), where each was an `UnsupportedError`. The opener takes the
   HAL's `DeviceRequest`.
-
 - **The scene's colour copy is `SceneColorCopyShader`** in `builtin.dart`,
   after the stage it draws, which the shader ABI spells the American way
   now. `builtin.dart` is outside semver.
 - **`WorkgroupSize` is the shader package's, imported from there.** A
   compute stage's `workgroupSize` answers `flutter3d_shaders`'
   `WorkgroupSize`, which this package does not re-export.
-
 - **Breaking: results that were records are final classes.**
   `CpuComputeShader` and `cpuTestDevice` answered or held a record, which
   can never gain a field. Each answers a final class now, with the record's
   field names (a positional `$1` has a name of its own), `==` and
   `hashCode`. A field read compiles as before; a destructuring pattern names
   the class, and `flutter3d_build:migrate` rewrites the `$1` reads.
-
 - **The software rasteriser says it is software.** `CpuDevice.isSoftware`
   answers true, so a compute workload with host code of its own — a physics
   core's water — is not placed on it to be interpreted in Dart while the
@@ -81,9 +75,6 @@
   kernels on it as on a GPU: how those kernels are held against the
   simulation's own CPU step without one. Configured on the device, never
   asked for by the work. Additive.
-
-## 1.0.0-rc.1
-
 - **`depthBiasClamp` is listed.** The rasteriser always capped the offset
   at the clamp, and the list left it out, so a clamp was refused.
 - **A border is read on `clampToBorder` axes only**, with transparent black

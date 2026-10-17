@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - `engine_shaders.dart` regenerated: the light shafts' and the volumetric
   fog's cascade under an orthographic camera, and the height fog on
@@ -35,9 +35,6 @@
   no layout, a copy between kinds it keeps apart, a value a later version
   names) is a `DeviceResourceException` (`webglRefusal`), where it was an
   `UnsupportedError`. The opener takes the HAL's `DeviceRequest`.
-
-## 1.0.0-rc.1
-
 - **An axis clamped to the border is refused by `samplerBorderColor`**;
   a border colour no axis uses is not refused.
 - **A 1D texture and a depth-bias clamp are refused by their features**,

@@ -97,7 +97,7 @@ Future<void> checkWireframeIsDrawnOrRefused(GraphicsDevice device) async {
 /// Every [PrimitiveType] is assembled as itself, or refused as one.
 ///
 /// Every backend in the repository that draws assembles all five since
-/// 1.0.0-rc.1+2, strips and points behind `DeviceFeature.primitiveStrips` and
+/// 1.0.0-rc.1, strips and points behind `DeviceFeature.primitiveStrips` and
 /// `DeviceFeature.pointPrimitives`; one without them refuses from
 /// `setPrimitiveType`. The interesting half is not the refusal — it is that
 /// a backend which quietly assembled `point` as `triangle` would draw a
@@ -140,7 +140,7 @@ Future<void> checkPrimitiveTypesAreDrawnOrRefused(GraphicsDevice device) async {
     painted[type] = refused ? null : await _paintedPixels(device, target);
   }
 
-  // **Refused exactly where unlisted**, since 1.0.0-rc.1+2: a strip or a
+  // **Refused exactly where unlisted**, since 1.0.0-rc.1: a strip or a
   // point is drawn by a device that lists its feature and refused by one
   // that does not, never the other way round.
   for (final (type, feature) in <(PrimitiveType, DeviceFeature)>[
@@ -199,7 +199,7 @@ Future<void> checkPrimitiveTypesAreDrawnOrRefused(GraphicsDevice device) async {
       'one triangle, so this backend assembled it as edges or points.',
     );
 
-    // **Primitive restart is always on for strips**, since 1.0.0-rc.1+2:
+    // **Primitive restart is always on for strips**, since 1.0.0-rc.1:
     // the same two triangles drawn as a list and as one strip broken by an
     // all-ones index cover the same pixels. Mutation: treat 0xFFFF as an
     // index in the software rasteriser's `_assembleStrip`, and the strip

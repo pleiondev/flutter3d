@@ -108,7 +108,7 @@ Future<void> checkBlendColorReachesTheBlend(GraphicsDevice device) async {
     'backend whose setter is global context state has to put it back.',
   );
 
-  // **The alpha pair, since 1.0.0-rc.1+2**: `CONSTANT_ALPHA` reads the
+  // **The alpha pair, since 1.0.0-rc.1**: `CONSTANT_ALPHA` reads the
   // constant's alpha into every channel, behind a feature of its own,
   // because WebGPU has the colour pair and cannot form this one. Mutation:
   // map `BlendFactor.blendAlpha` to `CONSTANT_COLOR` on WebGL2, and the

@@ -10,13 +10,13 @@
 /// kernel section.
 ///
 /// **Decided here and nowhere else.** This file names the three, decides
-/// between them, and is the only place that does: since 1.0.0-rc.1+1 the
+/// between them, and is the only place that does: since 1.0.0-rc.1 the
 /// engine above asks [FrameCompute] for a [ComputeSite] and is told a
 /// device to encode on, never a placement, and nothing above this layer
 /// may ask for one. Which devices a frame has is the backends' to say,
 /// through the [DeviceRegistry] that opened its device. What a piece of
 /// compute may say is what it requires (`ComputeRequirement`, in
-/// [ComputeNeeds]), which the rule here meets — since 1.0.0-rc.1+2.
+/// [ComputeNeeds]), which the rule here meets — since 1.0.0-rc.1.
 library;
 
 import 'dart:async';
@@ -128,7 +128,7 @@ final class ComputeRefusalReason {
   );
 
   /// A placement asked for is missing or has no compute. Nothing asks for
-  /// one since 1.0.0-rc.1+1, so no refusal gives this reason; it stays so a
+  /// one since 1.0.0-rc.1, so no refusal gives this reason; it stays so a
   /// `switch` written against 1.0.0-rc.1 compiles.
   static const ComputeRefusalReason placementUnavailable =
       ComputeRefusalReason._('placementUnavailable');
@@ -176,7 +176,7 @@ final class ComputeRefusalReason {
 /// frame reports the step as unsupported and goes on; a caller that asked
 /// [FrameCompute] directly catches this.
 ///
-/// **Breaking in 1.0.0-rc.1+1: no `demand`.** A step no longer asks where
+/// **Breaking in 1.0.0-rc.1: no `demand`.** A step no longer asks where
 /// it runs, so there is no demand to report.
 final class ComputePlacementException extends CapabilityException {
   const ComputePlacementException({
@@ -277,7 +277,7 @@ final class ComputeExecutors {
   ///
   /// Throws [ComputePlacementException] when nothing fits.
   ///
-  /// **Breaking in 1.0.0-rc.1+1: no `demand`.** Where a step runs is this
+  /// **Breaking in 1.0.0-rc.1: no `demand`.** Where a step runs is this
   /// rule's to say, never the step's.
   ComputeExecutor place({
     required String step,
@@ -307,14 +307,14 @@ final class ComputeExecutors {
 
   /// The placements a `ComputeWorkload` with an implementation of its own
   /// on the host is tried at before that implementation, in order: the GPUs
-  /// only. Since 1.0.0-rc.1+1.
+  /// only. Since 1.0.0-rc.1.
   static const List<ComputePlacement> aheadOfHost = <ComputePlacement>[
     ComputePlacement.device,
     ComputePlacement.sidecar,
   ];
 
   /// Where the workload called [step] runs: an executor, or null for its
-  /// own host implementation — since 1.0.0-rc.1+1.
+  /// own host implementation — since 1.0.0-rc.1.
   ///
   /// **The workload rule, written once.** The drawing device's compute,
   /// then the sidecar ([aheadOfHost]); then, when it [hasHost], its own
@@ -362,7 +362,7 @@ final class ComputeExecutors {
 }
 
 /// Where one piece of a frame's compute runs, as the hardware layer chose
-/// it: the device its work is encoded on — since 1.0.0-rc.1+1.
+/// it: the device its work is encoded on — since 1.0.0-rc.1.
 ///
 /// **The outcome, never the choice.** The engine above records on
 /// [device], binds the frame's own buffers there when [isOnFrameDevice],
@@ -387,7 +387,7 @@ final class ComputeSite {
 
   /// Opens a compute pass on [device], labelled [label]: the site's own
   /// encoder, which the caller binds, dispatches and submits — since
-  /// 1.0.0-rc.1+2. **The one door to a compute pass above this layer**: a
+  /// 1.0.0-rc.1. **The one door to a compute pass above this layer**: a
   /// structure rule holds every `lib/` but the hardware layer's and the
   /// backends' to opening passes here, on a site the rule placed.
   ComputeEncoder beginPass({String? label}) =>
@@ -412,7 +412,7 @@ ComputePlacement computePlacementOf(ComputeSite site) =>
     site._executor.placement;
 
 /// One executor a piece of compute was not put on, and why — since
-/// 1.0.0-rc.1+2.
+/// 1.0.0-rc.1.
 ///
 /// **Named by its backend, never by its placement**: what a report or a log
 /// shows, which says what happened without giving anything above this layer
@@ -440,7 +440,7 @@ final class PassedOver {
 }
 
 /// A piece of compute that failed on a device and ran elsewhere — since
-/// 1.0.0-rc.1+2: what [FrameCompute.fallbacks] reports, and the timeline
+/// 1.0.0-rc.1: what [FrameCompute.fallbacks] reports, and the timeline
 /// and the log say, each time one happens.
 @immutable
 final class ComputeFallback {
@@ -471,7 +471,7 @@ final class ComputeFallback {
 
 /// Thrown instead of falling back, where falling back would hide a mistake:
 /// a test, a debug build, a conformance run ([FrameCompute.strict]) —
-/// since 1.0.0-rc.1+2.
+/// since 1.0.0-rc.1.
 ///
 /// An [Error], not an exception: a kernel that fails on a device with
 /// compute and room for it is a bug in the kernel or the backend, which a
@@ -503,7 +503,7 @@ final class PlacedWork<T> {
   final T loaded;
 
   /// The devices tried before [site], in order, each with why it was not
-  /// used — since 1.0.0-rc.1+2.
+  /// used — since 1.0.0-rc.1.
   final List<PassedOver> passedOver;
 
   @override
@@ -520,7 +520,7 @@ final class _Tried<T> {
 }
 
 /// The compute a device's frames may use, and the hardware layer's rule for
-/// where each piece of it runs — since 1.0.0-rc.1+1.
+/// where each piece of it runs — since 1.0.0-rc.1.
 ///
 /// **Asked of the device, answered here.** [FrameCompute.of] is what frames
 /// drawn on a device have: the executors the [DeviceRegistry] that opened
@@ -531,7 +531,7 @@ final class _Tried<T> {
 /// a placement, and none of them is told where to look for executors.
 ///
 /// **It owns what it opened, and goes with the device** — since
-/// 1.0.0-rc.1+2. The sidecar and the CPU device it opened, and every
+/// 1.0.0-rc.1. The sidecar and the CPU device it opened, and every
 /// pipeline kept in [cached], belong to the engine instance drawing on
 /// [device]: they are disposed with [dispose], which the device's own
 /// teardown (a loss on `GraphicsDevice.lost`, its own `destroyed` among
@@ -559,7 +559,7 @@ final class FrameCompute {
 
   /// Whether a piece of compute that fails on a device throws a
   /// [ComputeFallbackError] instead of running elsewhere — since
-  /// 1.0.0-rc.1+2. True where assertions are on (a test, a debug build, a
+  /// 1.0.0-rc.1. True where assertions are on (a test, a debug build, a
   /// conformance run), false in a release build, which falls back and
   /// reports it on [fallbacks]. A failure the machine decides (a
   /// `CapabilityException`) falls back either way.
@@ -575,7 +575,7 @@ final class FrameCompute {
       StreamController<ComputeFallback>.broadcast();
 
   /// Each piece of compute that failed on a device and runs elsewhere —
-  /// since 1.0.0-rc.1+2. The same is written to the timeline
+  /// since 1.0.0-rc.1. The same is written to the timeline
   /// (`compute fallback`) and the log (`flutter3d.compute`).
   Stream<ComputeFallback> get fallbacks => _fallbacks.stream;
 
@@ -730,7 +730,7 @@ final class FrameCompute {
   /// Where work called [step] runs that the frame draws from in the same
   /// frame and that only a device holding it can run — the engine's own
   /// stages a frame's draw reads, say: the drawing device, when it has
-  /// compute and [takes] it, or null, at once — since 1.0.0-rc.1+2. No
+  /// compute and [takes] it, or null, at once — since 1.0.0-rc.1. No
   /// device beside the frame's is asked, and nothing is loaded, so there is
   /// nothing to wait for.
   ComputeSite? placeOnFrame(
@@ -766,7 +766,7 @@ final class FrameCompute {
   /// What [make] gives on [on] for [key], made once for this engine
   /// instance and handed to every caller that asks with an equal [key]: a
   /// workload's kernels and pipelines, loaded once however many steps run
-  /// it — since 1.0.0-rc.1+2.
+  /// it — since 1.0.0-rc.1.
   ///
   /// **Owned here, and let go with it**: [dispose] hands each value made to
   /// its [release]. A [make] that fails is forgotten, so the next asking
@@ -814,7 +814,7 @@ final class FrameCompute {
 
   /// Lets go of everything this instance opened and kept: every value
   /// [cached] holds, through its release, and the sidecar and the CPU
-  /// device opened for it, which are disposed — since 1.0.0-rc.1+2. The
+  /// device opened for it, which are disposed — since 1.0.0-rc.1. The
   /// drawing [device] is not disposed: it is its owner's. Called by the
   /// device's own teardown, [drawingDeviceGone] then true so nothing is
   /// handed back to a device already gone; a second call does nothing.

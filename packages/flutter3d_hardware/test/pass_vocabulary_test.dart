@@ -1,4 +1,4 @@
-/// The values a pass is described with since 1.0.0-rc.1+2: a viewport with
+/// The values a pass is described with since 1.0.0-rc.1: a viewport with
 /// a depth range, a clear colour that holds every integer, and the
 /// topologies, index widths and blend factors that became capabilities.
 ///

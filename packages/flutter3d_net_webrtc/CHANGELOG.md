@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **A reliable message arrives in order again.** The transport opened one
   unordered channel, so every message was retransmitted but none was
@@ -17,9 +17,6 @@
   naming both, a malformed one is dropped, and a field of the wrong type no
   longer throws inside the signalling listener. Peers of 1.0.0-rc.1, which
   sent the bare `{"kind": …}`, do not connect to this one.
-
-## 1.0.0-rc.1
-
 - **Breaking: `WebRtcTransport.send` and `sendBytes` take one context**, a
   `PeerSend` and a `PeerSendBytes`, as every `PeerWire` does now.
 - **`WebRtcTransport` carries bytes as binary messages** on the data

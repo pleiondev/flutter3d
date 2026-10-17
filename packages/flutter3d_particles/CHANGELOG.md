@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **A particle above or below the eye fogs as the air there does.** Both
   contributors bind the height fog's falloff, and the stages integrate it
@@ -21,9 +21,6 @@
   both had to hide one. `RenderViewSettings` is `CameraViewSettings` and
   `FrameView.ofRenderView` is `FrameView.ofCameraView`; `dart fix` renames
   them.
-
-## 1.0.0-rc.1
-
 - **Breaking: `ParticleGlow` is made by its emitter.** A `LightEmitter`
   keeps its own as `glow`; one made by hand belonged to no emitter.
 - **Breaking: `Particle.color` is `Particle.linearRgba`.** The same

@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **Breaking: results that were records are final classes.** `ConvexHull`,
   `EditMesh`, `StaticMeshShape`, `closestPointOn`, `importMeshData`,
@@ -8,9 +8,6 @@
   `$1` has a name of its own), `==` and `hashCode`. A field read compiles as
   before; a destructuring pattern names the class, and
   `flutter3d_build:migrate` rewrites the `$1` reads.
-
-## 1.0.0-rc.1
-
 - **Breaking: `MeshBrush` is a `final class`**, so it can gain a setting
   in a minor.
 - **Breaking: `MeshHit` and `SimplifiedMesh` are classes** with the same

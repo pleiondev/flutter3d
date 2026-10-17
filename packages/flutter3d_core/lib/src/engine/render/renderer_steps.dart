@@ -378,7 +378,7 @@ final class RendererSteps extends RenderStepRegistry {
   ///
   /// Throws what [addNode] throws, before anything is loaded.
   ///
-  /// **Breaking in 1.0.0-rc.1+1:** no executors are handed in, and the
+  /// **Breaking in 1.0.0-rc.1:** no executors are handed in, and the
   /// result is the [Registration] itself, not a `Future` of it.
   Registration addComputeStep(
     ComputeStep step, {
@@ -406,7 +406,7 @@ final class RendererSteps extends RenderStepRegistry {
   /// rule for the device this renderer draws on: the GPUs the frame has,
   /// then the workload's own host code where it has some, then the CPU
   /// device; [workloadStep] answers what it was told
-  /// ([WorkloadStep.binding], [WorkloadStep.refusal]) — since 1.0.0-rc.1+1.
+  /// ([WorkloadStep.binding], [WorkloadStep.refusal]) — since 1.0.0-rc.1.
   ///
   /// **The workload is told, the caller decides nothing.** A simulation
   /// handing its step over learns where it runs through
@@ -420,7 +420,7 @@ final class RendererSteps extends RenderStepRegistry {
   /// nothing can run — no executor and no host code — stays in the frame
   /// and is reported as `PassSkip.unsupported`, as a compute step is.
   ///
-  /// **Breaking in 1.0.0-rc.1+1:** the result is the [Registration]
+  /// **Breaking in 1.0.0-rc.1:** the result is the [Registration]
   /// itself, not a `Future` of it.
   Registration addWorkload(ComputeWorkload workload, {RenderAnchor? at}) {
     final step = WorkloadStep(workload);
@@ -465,7 +465,7 @@ final class RendererSteps extends RenderStepRegistry {
   ///
   /// Throws what [addNode] throws, before anything is placed.
   ///
-  /// **Breaking in 1.0.0-rc.1+1:** no executors are handed in, and the
+  /// **Breaking in 1.0.0-rc.1:** no executors are handed in, and the
   /// result is the [Registration] itself, not a `Future` of it.
   Registration addFieldUpload(
     FieldUpload upload, {
@@ -503,7 +503,7 @@ final class RendererSteps extends RenderStepRegistry {
   /// The hook is listed in [RenderHooks.skinningHooks] too, and the result
   /// takes both out again.
   ///
-  /// **Breaking in 1.0.0-rc.1+1:** no executors are handed in, a hook
+  /// **Breaking in 1.0.0-rc.1:** no executors are handed in, a hook
   /// demands nothing, `skinningPlacement` and `skinningRefusal` are gone (a
   /// hook nothing can place is reported by the frame, as any compute step
   /// is), and the result is the [Registration] itself, not a `Future` of

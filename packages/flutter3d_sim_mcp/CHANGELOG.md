@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **Breaking: results that were records are final classes.**
   `DiagnosticFrame` and `PlaytestRun` answered or held a record, which can
@@ -10,9 +10,6 @@
   `renderMcpVersion` still said `1.0.0-rc.1` after the package moved on, so
   a client's log named a build that was not running. Each follows the
   pubspec, and a test holds them to it.
-
-## 1.0.0-rc.1
-
 - **`DiagnosticSession` is exported**, which `DiagnosticMcpServer` and a
   `DiagnosticTool` name.
 - **Breaking: `DiagnosticView` and `PlaytestOutcome` are open sets, and

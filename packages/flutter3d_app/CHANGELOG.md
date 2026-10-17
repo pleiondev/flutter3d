@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **A widget surface skips the CPU round trip where the device can.**
   `WidgetTexture.draw` and `WidgetSurface.tick` read the rasterised image
@@ -19,7 +19,6 @@
   `LevelLoader.load`/`build` (`lightingModels:`, `codecs:`),
   `ModelVisuals`, `HotSwap.loadModel` and `HotSwap.loadTexture` hand the
   readers what the plugins brought.
-
 - **Breaking: `RenderView` is `CameraView`.** `Flutter3dEngine`,
   `LoadedLevel`, `SceneSurface`, `ViewSettings` and `XrDriver` changed with
   it. `package:flutter/rendering.dart` exports a `RenderView` too, the root
@@ -30,9 +29,6 @@
   widget of the engine's names its creation callback `onCreated`, as
   `Flutter3dView` does; it is still handed the scene's controller. `dart
   fix` renames the argument.
-
-## 1.0.0-rc.1
-
 - **The facade exports the stock implementations of what it exports**:
   the particle emitters and affectors with their curves and gradients,
   `ManualTime`, `LogTime`, `IsolateSimulation`, `ContactEvent` and the

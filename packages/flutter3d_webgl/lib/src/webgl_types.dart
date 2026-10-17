@@ -17,7 +17,7 @@ const String webglBackendName = 'WebGL2';
 
 /// What [operation] throws for a request this backend has the feature for
 /// and still cannot honour — a format WebGL2 has no layout for, a copy
-/// between two kinds of buffer it keeps apart — since 1.0.0-rc.1+2: the
+/// between two kinds of buffer it keeps apart — since 1.0.0-rc.1: the
 /// HAL's `DeviceResourceException`, in the words every backend refuses with,
 /// where it was an untyped `UnsupportedError`.
 DeviceResourceException webglRefusal(String operation, String reason) =>

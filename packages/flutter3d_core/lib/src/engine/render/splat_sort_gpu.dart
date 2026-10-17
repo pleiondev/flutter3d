@@ -79,7 +79,7 @@ final class SplatGpuSort {
   /// [readable] makes every index buffer readable back, for a test that
   /// holds the order to the CPU's.
   ///
-  /// **Breaking in 1.0.0-rc.1+2**: in place of the constructor, which took
+  /// **Breaking in 1.0.0-rc.1**: in place of the constructor, which took
   /// the device as it was and bypassed the placement.
   static SplatGpuSort? place(GraphicsDevice device, {bool readable = false}) {
     final site = FrameCompute.of(
@@ -233,7 +233,7 @@ final class SplatGpuSort {
   }
 
   /// Gives every buffer back to [device]; the next [sort] makes new ones.
-  /// Since 1.0.0-rc.1+1, `release`.
+  /// Since 1.0.0-rc.1, `release`.
   void dispose() {
     for (final buffer in <StorageBuffer?>[
       _keys,

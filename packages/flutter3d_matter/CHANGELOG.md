@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **The air holds water.** `WorldProperties.airHumidity`, its relative
   humidity from nought to one, half saturated by default
@@ -12,9 +12,6 @@
   about 10°, and the catalogue gains water on PTFE (about 110°) and on a
   phenolic bench top (`f3d.bakelite`, about 75°, holding over 25°), each
   with its source and marked an estimate where it is one.
-
-## 1.0.0-rc.1
-
 - **A state that saves is one that loads.** `MatterState.withQuantity`
   and `MatterState.at(also:)` refuse an id that is not
   `<namespace>.<name>` with the `MaterialFormatException` `fromJson` gives
@@ -169,3 +166,4 @@
   is stepped is the loop's (`WorldTiming`, `EngineLoop.stepSeconds` in
   `flutter3d_sim`). `standardStepRate` moved to `flutter3d_sim` with it. A
   document that still carries a `stepRate` key reads, the key passed over.
+

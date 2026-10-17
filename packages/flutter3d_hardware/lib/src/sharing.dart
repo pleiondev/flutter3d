@@ -92,7 +92,7 @@ final class NativeHandleKind {
   /// Vulkan imports as `VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT`,
   /// so it is the kind a Windows producer and a Windows consumer meet on.
   ///
-  /// **Since 1.0.0-rc.1+2, and taken by no backend yet.** A Win32 handle
+  /// **Since 1.0.0-rc.1, and taken by no backend yet.** A Win32 handle
   /// like [vulkanMemoryWin32], and not the same thing: a device that takes
   /// Vulkan's kind refuses this one rather than import it as Vulkan memory
   /// (`checkNativeImport`).
@@ -106,7 +106,7 @@ final class NativeHandleKind {
   /// it as a timeline semaphore
   /// (`VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_D3D12_FENCE_BIT`).
   ///
-  /// **Since 1.0.0-rc.1+2, and taken by no backend yet**; refused, never
+  /// **Since 1.0.0-rc.1, and taken by no backend yet**; refused, never
   /// read as a [vulkanSemaphoreWin32], by a device that does not list it.
   static const NativeHandleKind d3d12SharedFence = NativeHandleKind._(
     'd3d12SharedFence',
@@ -155,7 +155,7 @@ final class NativeHandleKind {
 
 /// Refuses [handle] unless this device can import it as [operation] asks:
 /// its kind is one of [accepts] (the device's `shareableKinds`), and it is
-/// a fence kind exactly when [fence] is. Since 1.0.0-rc.1+2, from
+/// a fence kind exactly when [fence] is. Since 1.0.0-rc.1, from
 /// `package:flutter3d_hardware/backend.dart`.
 ///
 /// **For a backend's `importTexture`, `importBuffer` and `importFence`, on

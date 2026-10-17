@@ -43,7 +43,7 @@
 /// so the main library does not offer it. A backend that has it imports it
 /// from here to mix it in.
 ///
-/// **And [MaskedDevice]**, since 1.0.0-rc.1+2: any live device, answering
+/// **And [MaskedDevice]**, since 1.0.0-rc.1: any live device, answering
 /// as if it lacked the features a test names, so the fallback branch of
 /// each runs on the machine at hand.
 library;

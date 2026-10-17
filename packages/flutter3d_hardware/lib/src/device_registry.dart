@@ -42,7 +42,7 @@ typedef ComputeOpener = Future<GraphicsDevice> Function(DeviceRequest request);
 /// targets per frame (Impeller) takes the size and is not held to it; one
 /// that cannot (the software rasteriser, WebGL2's canvas) draws at it.
 ///
-/// **One [DeviceRequest], since 1.0.0-rc.1+2**, where it was a width and a
+/// **One [DeviceRequest], since 1.0.0-rc.1**, where it was a width and a
 /// height as named parameters: an opener is a function type every backend
 /// assigns to, so a parameter added later would make every `open` written
 /// before it unassignable. A field with a default on the request breaks
@@ -51,7 +51,7 @@ typedef ComputeOpener = Future<GraphicsDevice> Function(DeviceRequest request);
 /// [DeviceRequest.checkSatisfiedBy].
 typedef BackendOpener = Future<GraphicsDevice> Function(DeviceRequest request);
 
-/// What an application asks of the device it opens — since 1.0.0-rc.1+2.
+/// What an application asks of the device it opens — since 1.0.0-rc.1.
 ///
 /// The size of the surface it starts at, and what WebGPU's `requestAdapter`
 /// and `requestDevice` take: the features and limits the application cannot
@@ -313,7 +313,7 @@ final class DeviceRegistry<P extends Object> {
   /// will start is something a correct program meets, not a mistake in it.)
   ///
   /// **The device opened takes its compute from here**, since
-  /// 1.0.0-rc.1+1, as [adopt] says: its frames' [FrameCompute] offers the
+  /// 1.0.0-rc.1, as [adopt] says: its frames' [FrameCompute] offers the
   /// compute devices added with [addComputeDevice], opened the first time
   /// a frame needs them, each that will not start told to [onFallback].
   Future<GraphicsDevice> open({
@@ -325,7 +325,7 @@ final class DeviceRegistry<P extends Object> {
     onFallback: onFallback,
   );
 
-  /// [open], for everything [request] asks — since 1.0.0-rc.1+2.
+  /// [open], for everything [request] asks — since 1.0.0-rc.1.
   ///
   /// Each backend is handed [request]; a device that does not satisfy it
   /// ([DeviceRequest.checkSatisfiedBy]) is disposed and counted as that
@@ -343,7 +343,7 @@ final class DeviceRegistry<P extends Object> {
   /// Makes the compute devices added here ([addComputeDevice]) the ones
   /// frames drawn on [device] may place their compute on, beside [device]
   /// itself — opened the first time a frame needs them, each that will not
-  /// start told to [onRefused] and left out — since 1.0.0-rc.1+1.
+  /// start told to [onRefused] and left out — since 1.0.0-rc.1.
   ///
   /// [open] does this for every device it opens. A layer that opens a
   /// device some other way, or a test that makes one directly, adopts it to

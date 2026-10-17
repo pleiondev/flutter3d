@@ -1,5 +1,5 @@
 /// Compute on the fake device: a pass that records what it was told and
-/// runs nothing — since 1.0.0-rc.1+2.
+/// runs nothing — since 1.0.0-rc.1.
 ///
 /// **For a plugin author's test of a `ComputeStep`.** A step's `record`
 /// can be handed a `FakeBackend(compute: true)` and asked what it did:

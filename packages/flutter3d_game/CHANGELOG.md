@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+2
+## 1.0.0-rc.1
 
 - **A branch cuts a demo with the buffer.** `RunTimeline(onBranched:)`
   hears every `releaseAt` and `branchHere` as a `TimelineBranch`: the step
@@ -10,9 +10,6 @@
   the swaps written so far.
 - **`MaterialComputePlacement` is re-exported**, what
   `MaterialComputeKernel.place` answers.
-
-## 1.0.0-rc.1+1
-
 - **Breaking: a replay checks the loop's whole simulation.**
   `replayDemoOnLoop` and `rewindBufferFromDemo` check against
   `EngineLoop.simulationVersion`, the plugins' and subsystems' numbers
@@ -33,7 +30,6 @@
 - **The HAL's new names are exported**: `ClearColor`, `ClearColorKind`,
   `DeviceError`, `DeviceErrorKind`, `DeviceRequest`, `PassViewport` and
   `PowerPreference`.
-
 - **Breaking: results that were records are final classes.** `ActionInput`,
   `ActorVisuals`, `AxisSettings` and `ColorRoles` answered or held a record,
   which can never gain a field. Each answers a final class now, with the
@@ -46,14 +42,10 @@
   both had to hide one. `RenderViewSettings` is `CameraViewSettings` and
   `FrameView.ofRenderView` is `FrameView.ofCameraView`; `dart fix` renames
   them.
-
 - **Breaking: the placement types are no longer re-exported.**
   `ComputeExecutor`, `ComputeExecutors` and `ComputePlacement` are the
   hardware layer's and the backends' own, as in `flutter3d`; `ComputeSite`
   is re-exported in their place.
-
-## 1.0.0-rc.1
-
 - **The plugin and matter exceptions, `Materials` and `ExternalIdSpace`**
   are re-exported from `flutter3d`.
 - **The facade exports what fills the bases it exports.** The variants

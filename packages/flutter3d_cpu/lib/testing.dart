@@ -107,7 +107,7 @@ CpuTestKit cpuTestDevice({int width = 96, int height = 72}) {
 /// drawn in its base colour: `'Liquid': cpuUnlitStage`.
 const CpuStage cpuUnlitStage = CpuStage.fragment(UnlitShader());
 
-/// A [cpuComputeDevice] standing in for a GPU — since 1.0.0-rc.1+2, in place
+/// A [cpuComputeDevice] standing in for a GPU — since 1.0.0-rc.1, in place
 /// of `CpuDevice(standInForGpu: true)` and `cpuComputeDevice(standInForGpu:
 /// true)`.
 ///

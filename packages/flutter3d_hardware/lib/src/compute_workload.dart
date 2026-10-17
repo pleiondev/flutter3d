@@ -1,5 +1,5 @@
 /// A simulation's compute, handed to the engine as kernels and buffers
-/// rather than as code that knows where it runs — 1.0.0-rc.1+1.
+/// rather than as code that knows where it runs — 1.0.0-rc.1.
 ///
 /// **The simulation says what, the engine says where.** A physics core that
 /// wants its step on a GPU does not open a device, test which backend it was
@@ -153,7 +153,7 @@ abstract base class WorkloadRecorder {
   /// [readBack] of [sizeInBytes] bytes of [buffer] from [offsetInBytes]
   /// (to its end when null): only that range crosses back where the device
   /// can map one, so a workload that needs a few counters of a large state
-  /// does not copy the state — since 1.0.0-rc.1+2. The default reads it
+  /// does not copy the state — since 1.0.0-rc.1. The default reads it
   /// all and hands [done] the range.
   bool readBackRange(
     String buffer,
@@ -201,7 +201,7 @@ abstract base class ComputeWorkload {
   /// simulation whose state a replay or a rollback reads requires
   /// [ComputeRequirement.bitExact], and is then kept off a GPU wherever its
   /// kernels divide or call `sqrt`, `sin`, `cos` or `pow`. A requirement,
-  /// never a placement. None by default — since 1.0.0-rc.1+2.
+  /// never a placement. None by default — since 1.0.0-rc.1.
   Set<ComputeRequirement> get requirements => const <ComputeRequirement>{};
 
   /// Told where it runs, before the first [record] there; told again with

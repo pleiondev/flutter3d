@@ -260,7 +260,7 @@ void webgpuCheckIndirect(StorageBuffer buffer, int offset, int size) {
 final class WebGpuComputeEncoder extends ComputeEncoder {
   /// A pass on [_gpu], held to [_limits]. Uniform blocks are written into
   /// [_uniforms], the device's frame arena, when it is given — since
-  /// 1.0.0-rc.1+2, rather than a buffer made and destroyed per bind.
+  /// 1.0.0-rc.1, rather than a buffer made and destroyed per bind.
   WebGpuComputeEncoder(
     this._gpu, {
     required this._features,
@@ -813,7 +813,7 @@ Future<({Uint8List bytes, void Function() release})> webgpuMapRead(
 }
 
 /// The staging buffers a device reads back through, kept between reads
-/// rather than made per read — since 1.0.0-rc.1+2: a simulation that reads
+/// rather than made per read — since 1.0.0-rc.1: a simulation that reads
 /// its state every frame reuses the same few. Owned by the device and
 /// destroyed with it.
 final class WebGpuStagingPool {

@@ -109,7 +109,7 @@ final class FakeLoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary {
 /// call becomes a [RecordedCall] in the pass or in [calls] — and a feature
 /// not named is refused with [UnsupportedCapabilityException], exactly as a real
 /// backend without it refuses. **Compute is recorded, not run**, since
-/// 1.0.0-rc.1+2: `FakeBackend(compute: true)` reports `DeviceFeature.compute`,
+/// 1.0.0-rc.1: `FakeBackend(compute: true)` reports `DeviceFeature.compute`,
 /// makes compute pipelines and opens a [FakeComputePass] that records every
 /// bind and dispatch ([computePasses]), so a `ComputeStep` can be tested for
 /// what it encodes; `extraFeatures` still may not name compute.
@@ -204,7 +204,7 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
          DeviceFeature.blendConstant,
          DeviceFeature.blendConstantAlpha,
          // What every drawing backend in the repository lists since
-         // 1.0.0-rc.1+2, so a caller under test can name them and be
+         // 1.0.0-rc.1, so a caller under test can name them and be
          // recorded doing it.
          DeviceFeature.primitiveStrips,
          DeviceFeature.pointPrimitives,
@@ -241,7 +241,7 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
   final bool _compute;
 
   /// Every compute pass opened, in order, for a test that asks what a step
-  /// bound and dispatched. Since 1.0.0-rc.1+2.
+  /// bound and dispatched. Since 1.0.0-rc.1.
   final List<FakeComputePass> computePasses = <FakeComputePass>[];
 
   /// What this fake reports. Mutable only through [supportsOffscreenMsaa]'s

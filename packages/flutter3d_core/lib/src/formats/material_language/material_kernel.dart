@@ -53,7 +53,7 @@ const String materialComputeParameters = 'params';
 
 /// Where [MaterialComputeKernel.place] put a material's kernel: the site
 /// the hardware layer chose and the kernel's stage there — since
-/// 1.0.0-rc.1+2.
+/// 1.0.0-rc.1.
 final class MaterialComputePlacement {
   const MaterialComputePlacement._(this.site, this.stage);
 
@@ -147,7 +147,7 @@ final class MaterialComputeKernel {
   /// layer places it: the stage on the site it chose — the drawing device's
   /// compute, or a GPU beside it — or null, and the texture is [bake]d on
   /// the CPU at load, the bake being this kernel's own host code — since
-  /// 1.0.0-rc.1+2. [requirements] as a compute step states them.
+  /// 1.0.0-rc.1. [requirements] as a compute step states them.
   ///
   /// A site that is not the frame's own ([ComputeSite.isOnFrameDevice]
   /// false) hands its texture to the drawing device through

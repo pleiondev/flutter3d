@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **The engine's number, outside the 1.0 promise.** Its signatures carry
   `WireConnection` from dashwire, which is before 1.0, so a dashwire
@@ -6,8 +6,6 @@
   SUPPORT.md names the four packages outside the promise; the number says
   which engine release this one goes with, and every pin the engine writes
   on it is the engine's own.
-
-## 1.0.0-rc.1
 
 **The version jumps from 0.1.0 to 1.0.0-rc.1**, with `flame_multiplayer`,
 which this adapter asks for as `^1.0.0-rc.1`. That package stands on

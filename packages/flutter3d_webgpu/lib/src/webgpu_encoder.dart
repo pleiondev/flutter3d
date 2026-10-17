@@ -1335,7 +1335,7 @@ final class WebGpuEncoder extends WebGpuRecorder with CommandEncoder {
   void setStencilReference(int value) =>
       _pass.setStencilReference(StencilState.narrowReference(value));
 
-  /// Straight through to `setBlendConstant`, since 1.0.0-rc.1+2.
+  /// Straight through to `setBlendConstant`, since 1.0.0-rc.1.
   ///
   /// WebGPU has `setBlendConstant`, and two of the four constant-reading
   /// `BlendFactor` values map straight onto `"constant"` and

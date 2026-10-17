@@ -85,7 +85,7 @@ ScreenRect screenRectFromJson(Object? json) {
 }
 
 /// A viewport on the wire: four whole numbers, as a `ScreenRect` was before
-/// 1.0.0-rc.1+2, when it covers whole pixels and the whole depth range — so
+/// 1.0.0-rc.1, when it covers whole pixels and the whole depth range — so
 /// a trace of such a pass is byte for byte what it was — and six numbers,
 /// the depth range last, otherwise.
 List<Object?> viewportToJson(PassViewport v) =>
@@ -106,7 +106,7 @@ PassViewport viewportFromJson(Object? json) {
 }
 
 /// A clear colour on the wire: four numbers for a float clear, as the
-/// `Vector4` it was before 1.0.0-rc.1+2 wrote them, and the kind's name
+/// `Vector4` it was before 1.0.0-rc.1 wrote them, and the kind's name
 /// first for an integer one.
 List<Object?> clearColorToJson(ClearColor c) => <Object?>[
   if (c.kind != ClearColorKind.float) c.kind.name,

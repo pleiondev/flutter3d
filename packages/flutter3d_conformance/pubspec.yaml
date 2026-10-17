@@ -3,7 +3,7 @@ description: >-
   The behaviour a flutter3d_hardware backend has to have, as tests it can run
   against itself. Plain Dart: neither it nor its one dependency,
   flutter3d_shaders, imports Flutter.
-version: 1.0.0-rc.1+2
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -32,7 +32,7 @@ dependencies:
   # deliberate and unusual: this package *is* tests, and the backends that run
   # them take it as a dev dependency of their own.
   test: ^1.25.0
-  flutter3d_hardware: ^1.0.0-rc.1+2
+  flutter3d_hardware: ^1.0.0-rc.1
   # The refusal the capability checks hold every backend to,
   # `UnsupportedCapabilityException`, which every layer throws.
   flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'

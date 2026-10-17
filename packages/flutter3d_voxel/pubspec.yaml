@@ -1,6 +1,6 @@
 name: flutter3d_voxel
 description: "A world of blocks: chunks, a seeded terrain, edits kept as deltas, greedy meshes to draw, greedy boxes to collide with and the navigation mesh baked again where an edit landed."
-version: 1.0.0-rc.1+1
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues

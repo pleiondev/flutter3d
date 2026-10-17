@@ -1,5 +1,5 @@
 /// The checks every compute encoder makes the same way — since
-/// 1.0.0-rc.1+2, from `package:flutter3d_hardware/backend.dart`.
+/// 1.0.0-rc.1, from `package:flutter3d_hardware/backend.dart`.
 ///
 /// **Refused on the VM as WebGPU refuses it in the browser.** A storage
 /// range at an offset the device cannot bind, or a dispatch past

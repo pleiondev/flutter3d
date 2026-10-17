@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **Breaking: results that were records are final classes.** `TouchButton`
   answered or held a record, which can never gain a field. Each answers a
@@ -10,9 +10,6 @@
   `LicenseRecord` changed with it: `package:flutter/foundation.dart` exports
   a `LicenseEntry`, the license registry's, so a credits screen importing
   both had to hide one. `dart fix` renames it.
-
-## 1.0.0-rc.1
-
 - **Breaking: `SpokenEvents` is `flutter3d_game_ui.spoken_events`** by
   default, where it was `flutter3d_addon_access.spoken_events`. A run
   recorded under the old id reads as naming the new one.
@@ -327,3 +324,4 @@
   says its code, and opens a friend's; every answer is a sentence, because
   a share that failed silently is a code nobody can open. Its words are the
   game's.
+

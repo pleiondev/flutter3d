@@ -270,13 +270,13 @@ otherwise; `askedBy` answers `` `GraphicsDevice.features` ``. Each carries a
   `presenterColorSpaces`, `rayQuery`, `samplerFeedback`, `shaderInt64`,
   `variableRateShading`, `workGraphs`. `samplerFeedback` and `workGraphs`
   are Direct3D 12's, which the other three standards lack (since
-  1.0.0-rc.1+2): named before the freeze so a minor can give each its
+  1.0.0-rc.1): named before the freeze so a minor can give each its
   calls.
 
 Compare features by identity or by `name`. `DeviceFeature.values` lists all
 of them; `byName` reads a name a report wrote.
 
-**Named before the freeze, since 1.0.0-rc.1+2**: `primitiveStrips`,
+**Named before the freeze, since 1.0.0-rc.1**: `primitiveStrips`,
 `pointPrimitives` and `indexUint32`, which every backend had been assumed to
 have; `blendConstantAlpha`, the half of the blend constant WebGPU cannot
 form, split from `blendConstant`; `fractionalViewport`; and `uniformBuffers`
@@ -454,7 +454,7 @@ call is done, `waitFence(fence, value)` holds later work on the GPU without
 blocking the CPU, and values only grow. `NativeHandle(kind, address)` is
 what crosses: an IOSurface, an `MTLTexture`, an `AHardwareBuffer`, Vulkan
 memory or a semaphore as a file descriptor or a Win32 handle, and since
-1.0.0-rc.1+2 a Direct3D 12 resource or fence as an NT handle
+1.0.0-rc.1 a Direct3D 12 resource or fence as an NT handle
 (`d3d12SharedResource`, `d3d12SharedFence`). `NativeHandleKind.isFence`
 says which kinds are fences; a share never picks one for memory.
 
@@ -556,7 +556,7 @@ attachment), `setColorWriteMask`, `setAlphaToCoverage`, `setDepthBias`
 built on pipeline state objects accumulates this state and looks a PSO up at
 `draw()`; `PassState` and the `setState` extension exist for it, a hashable
 value whose unset fields mean "emit nothing". **`PassState` has a field for
-every setter** since 1.0.0-rc.1+2 (`colorWriteMask` with its attachment,
+every setter** since 1.0.0-rc.1 (`colorWriteMask` with its attachment,
 `depthBias`, `depthClamp` and `alphaToCoverage` joined the seven it had), and
 a structure rule holds the two lists together; `setBlendColor` is the one
 setter without a field, since the constant is dynamic state on every API and
@@ -568,7 +568,7 @@ never part of a pipeline object.
 ends it and the next index starts a new one, as WebGPU and WebGL2 always do. A
 list has no restart, and an all-ones index in one is undefined. Points need
 `pointPrimitives` and are one pixel wide everywhere. 32-bit indices need
-`indexUint32`. All three became features in 1.0.0-rc.1+2, before the freeze,
+`indexUint32`. All three became features in 1.0.0-rc.1, before the freeze,
 because a feature added later gates a call 1.0 backends already accept, and
 the honesty check would then fail a 1.0 backend that does not list it.
 
@@ -948,7 +948,7 @@ device. `PipelineRefusalReason.deviceLost` reports a pipeline lost with it.
 once (every backend, the null example and the wgpu sidecar included), and a
 handle used afterwards draws nothing. **A second `dispose` does nothing**: no
 throw and no second loss; WebGL2 threw a `StateError` before its
-1.0.0-rc.1+1, and WebGPU before its 1.0.0-rc.1+2. A renderer and the owner that opened the device can
+1.0.0-rc.1, and WebGPU before its 1.0.0-rc.1. A renderer and the owner that opened the device can
 both let go of it. The conformance checks `a dispose is told on lost as
 destroyed` and `a second dispose does nothing` hold every backend to both.
 
@@ -958,7 +958,7 @@ destroyed` and `a second dispose does nothing` hold every backend to both.
 thrown), for an API that answers after the call returned: WebGPU's error
 scopes and `uncapturederror` reach it at the start of the next frame. A
 refusal the device does not survive is a `DeviceLoss`, never both.
-**`beginFrame` throws none of them**, on any backend, since 1.0.0-rc.1+2;
+**`beginFrame` throws none of them**, on any backend, since 1.0.0-rc.1;
 WebGPU threw the last frame's refusals there before, a term no other backend
 kept.
 
@@ -1009,7 +1009,7 @@ cannot draw wireframe refuses `setPolygonMode(PolygonMode.line)` rather than
 filling the triangles. A backend that has not built a feature yet says so
 the same way, with a `TODO(<backend>)` at the refusal.
 
-**No `UnsupportedError` reaches a caller**, since 1.0.0-rc.1+2. A backend's
+**No `UnsupportedError` reaches a caller**, since 1.0.0-rc.1. A backend's
 own conversions (a format it has no layout for, a value a later version
 names, a copy between kinds it keeps apart) throw a `DeviceResourceException`
 through `refuseResource` or the backend's helper over the same constructor;
@@ -1187,7 +1187,7 @@ The HAL is checked against four explicit APIs: **Vulkan, Metal, WebGPU and
 Direct3D 12**. Names follow WebGPU where WebGPU has the thing, and the
 default limits are WebGPU's minimums; WebGPU was itself designed to fit the
 other three, so most of the vocabulary maps onto all four without effort.
-Direct3D 12 joined the list in 1.0.0-rc.1+2 as a check rather than a
+Direct3D 12 joined the list in 1.0.0-rc.1 as a check rather than a
 model: it is where WebGPU's portability hides costs a native backend pays
 (2048 shader-visible samplers, the strip cut value inside a pipeline
 object, `SV_InstanceID` without its base, no specialisation constants in
@@ -1363,7 +1363,7 @@ would have broken a backend written against 1.0: strips, points and 32-bit
 indices as features; the opener's one `DeviceRequest`; the `errors` stream
 and a `beginFrame` that never throws; the immutable `ClearColor`; the
 blend constant in two features; and the viewport in doubles with a depth
-range. They are `1.0.0-rc.1+2`, labelled in the CHANGELOG, with their
+range. They are `1.0.0-rc.1`, labelled in the CHANGELOG, with their
 migrations.
 
 Some absences are design rather than gaps: the HAL has no swapchain or

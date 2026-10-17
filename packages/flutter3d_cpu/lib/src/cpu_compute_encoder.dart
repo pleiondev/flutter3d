@@ -12,7 +12,7 @@ import 'cpu_shader.dart';
 
 /// Records one compute pass — `GraphicsDevice.beginComputePass`.
 ///
-/// **Queue semantics, as a GPU's** (since 1.0.0-rc.1+2): a dispatch is
+/// **Queue semantics, as a GPU's** (since 1.0.0-rc.1): a dispatch is
 /// checked when it is recorded and run, with what was bound for it, when
 /// the pass is [submit]ted, so a `writeBuffer` made while the pass is open
 /// lands before its dispatches, as WebGPU's queue puts it. [submit] then

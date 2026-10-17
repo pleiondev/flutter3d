@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **An editor plugin's menus, toolbar and tool modes.** `EditorPieces`
   takes `addMenuItem` (an `EditorMenuItem` under a menu, with an
@@ -26,9 +26,6 @@
   the record's field names (a positional `$1` has a name of its own), `==`
   and `hashCode`. A field read compiles as before; a destructuring pattern
   names the class, and `flutter3d_build:migrate` rewrites the `$1` reads.
-
-## 1.0.0-rc.1
-
 - **Breaking: the editor's tints are `LinearColor`s.** `Handle.tint`,
   `Placeable.tint`, `PaletteEntry.tint`, `Look.tint`, `Part.color`,
   `tintFor`, `Looks.tintFor` and `atLeast`.

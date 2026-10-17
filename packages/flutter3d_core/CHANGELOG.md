@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+2
+## 1.0.0-rc.1
 
 - **An orthographic view's near shadow slabs hold still.** Their ends and
   their radii round onto steps a sixteenth of their length's power of two,
@@ -52,9 +52,6 @@
   it held when the read was asked for. A frame paced by a display finds its
   read landed and waits for nothing; frames drawn back to back no longer
   read a state several steps old, or nothing at all.
-
-## 1.0.0-rc.1+1
-
 - **Taking over what the engine draws is declared.** A plugin from outside
   the engine provides one of the engine's steps only as a
   `RenderStepAddon` that lists it in `replaces` (new), and a library it
@@ -95,7 +92,6 @@
   too.** `LightingModels.register`, `TextureCodecs.add`,
   `ModelDecoders.addSource` and `AssetSources.add` refused a taken name
   with an `ArgumentError`.
-
 - **Breaking: a registration returns at once, and what it loads follows
   it.** `RendererSteps.addComputeStep`, `addWorkload`, `addFieldUpload`
   and `placeSkinningHook` answer the `Registration` itself, where three of
@@ -192,7 +188,6 @@
   because each is refreshed when it is read and a field read runs no code,
   and their docs now say so: live, the object's own cache, read-only by
   contract.
-
 - **Breaking: results that were records are final classes.**
   `AbsolutePixels`, `AnimationGraph`, `AtmosphereCycle`, `ColorVision`,
   `CubeLut`, `FrameContext`, `FrameFraction`, `IrradianceField`,
@@ -251,6 +246,7 @@
   Code that handed `registry.computeExecutors(device)` in drops the
   argument; a test that wanted a particular device configures the
   registry or the device it builds (`DeviceRegistry.adopt`).
+
 - **Breaking: GLSL's words are not a material's names, in any version.**
   A `let`, a `uniform` or a full-screen stage's texture called `filter`,
   `input`, `shared`, `sampler3D` or any other keyword or reserved word of
@@ -295,9 +291,6 @@
   `FrameResourceIds.computedVertices` (new) while one is in the frame, so
   each runs before the draws; a step taken out lets go of its buffers once
   no frame in flight uses them.
-
-## 1.0.0-rc.1
-
 - **A plan asks a step's switch what a frame would ask it.**
   `Renderer.planFrame` hands `RenderStepContext.views` the views it plans,
   at the size of the last frame drawn, so a step on only for a stereo pair

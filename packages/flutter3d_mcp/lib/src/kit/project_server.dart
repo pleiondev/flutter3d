@@ -6,7 +6,7 @@ import 'package:flutter3d_plugin_api/tools.dart';
 import 'tool_table.dart';
 
 /// The version [ProjectMcpServer] tells a client it is: the pubspec's.
-const String projectMcpVersion = '1.0.0-rc.1+1';
+const String projectMcpVersion = '1.0.0-rc.1';
 
 /// The version of [ProjectMcpServer]'s own tools, of which there are none.
 ///

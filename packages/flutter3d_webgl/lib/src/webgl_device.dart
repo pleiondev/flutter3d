@@ -990,10 +990,10 @@ final class WebGlDevice extends GraphicsDevice
 
   /// Gives every resource back, and says so on [lost] as
   /// [DeviceLossReason.destroyed] before the stream closes — since
-  /// 1.0.0-rc.1+2, the loss every backend owes for its own dispose. A context
+  /// 1.0.0-rc.1, the loss every backend owes for its own dispose. A context
   /// the browser already took has said so, and is not lost twice.
   ///
-  /// **A second call does nothing**, since 1.0.0-rc.1+1, as on every
+  /// **A second call does nothing**, since 1.0.0-rc.1, as on every
   /// backend: a renderer and the owner that opened the device can both let
   /// go of it, and a conformance harness disposes whatever a check left.
   /// It threw a `StateError` before.

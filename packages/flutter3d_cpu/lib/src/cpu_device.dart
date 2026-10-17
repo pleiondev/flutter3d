@@ -54,7 +54,7 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
   /// in `package:flutter3d_cpu/testing.dart`): the hardware layer then
   /// places work with host code of its own on it as on a GPU, which is how
   /// a simulation's kernels are checked against its own CPU step on the
-  /// CPU. **A test's knob, since 1.0.0-rc.1+2**, and no longer a parameter
+  /// CPU. **A test's knob, since 1.0.0-rc.1**, and no longer a parameter
   /// of the constructor, so it does not freeze into the API.
   @override
   bool get isSoftware => !_standsInForGpu;
@@ -204,7 +204,7 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
     DeviceFeature.synchronousReadback,
     // Recorded calls, replayed — see `CpuRenderBundleEncoder`.
     DeviceFeature.renderBundles,
-    // Since 1.0.0-rc.1+2. The rasteriser assembles every topology the
+    // Since 1.0.0-rc.1. The rasteriser assembles every topology the
     // contract names: strips with restart on an all-ones index, and points
     // one pixel wide (`CpuEncoder._assembleStrip`, `_rasterisePoint`).
     DeviceFeature.primitiveStrips,

@@ -30,7 +30,7 @@ import 'plugin_discovery.dart'
 import 'plugin_template.dart';
 
 /// The version this server tells a client it is: the pubspec's.
-const String pluginAuthorMcpVersion = '1.0.0-rc.1+1';
+const String pluginAuthorMcpVersion = '1.0.0-rc.1';
 
 /// The version of this server's tools — names and input schemas — announced
 /// beside [pluginAuthorMcpVersion]. It moves only when

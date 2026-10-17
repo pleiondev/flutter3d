@@ -99,7 +99,7 @@ final class RecordedIndices extends Recorded {
 final class RecordedViewport extends Recorded {
   const RecordedViewport(this.viewport);
 
-  /// The viewport as it was set — a [PassViewport] since 1.0.0-rc.1+2.
+  /// The viewport as it was set — a [PassViewport] since 1.0.0-rc.1.
   final PassViewport viewport;
 
   /// [viewport]'s rectangle in whole pixels, which is what every pass of

@@ -27,7 +27,7 @@
 /// through `SharedBuffer` or `SharedTexture`, which copy through host
 /// memory where the two devices share nothing.
 ///
-/// **Breaking in 1.0.0-rc.1+1.** A step no longer demands a placement
+/// **Breaking in 1.0.0-rc.1.** A step no longer demands a placement
 /// (`demand` is gone), is no longer handed executors (`prepare` takes the
 /// device the frame is drawn on), and learns a [ComputeSite], not an
 /// executor: where compute runs is the hardware layer's alone.
@@ -62,7 +62,7 @@ final class ComputeContext {
   /// device that draws it.
   final RenderFrame frame;
 
-  /// Where the step was placed. Since 1.0.0-rc.1+1, in place of the
+  /// Where the step was placed. Since 1.0.0-rc.1, in place of the
   /// executor.
   final ComputeSite site;
 
@@ -119,7 +119,7 @@ abstract base class ComputeStep extends RenderNode {
   /// it places it: `ComputeRequirement.bitExact` for a step a replay or a
   /// rollback reads, `beyondPortableProfile` for kernels past the portable
   /// profile. A requirement, never a placement. None by default — since
-  /// 1.0.0-rc.1+2.
+  /// 1.0.0-rc.1.
   Set<ComputeRequirement> get requirements => const <ComputeRequirement>{};
 
   /// Where compute meant for the frame's draws belongs when nobody says:
@@ -137,7 +137,7 @@ abstract base class ComputeStep extends RenderNode {
   );
 
   /// Where the last [prepare] placed this step, or null. Since
-  /// 1.0.0-rc.1+1, in place of `executor`.
+  /// 1.0.0-rc.1, in place of `executor`.
   ComputeSite? get site => _site;
 
   /// Why this step is not placed: the refusal of the last [prepare], or
@@ -383,7 +383,7 @@ Future<ComputeNodePlacement?> placeComputeRequest(
 
 /// A `ComputeWorkload` in the frame: placed by the hardware layer's
 /// workload rule (`FrameCompute.placeHosted`), its buffers made where it
-/// landed, and its work recorded there once a frame — since 1.0.0-rc.1+1.
+/// landed, and its work recorded there once a frame — since 1.0.0-rc.1.
 ///
 /// **Where is decided by the hardware layer, never here and never by the
 /// workload.** [prepare] hands the workload's kernels to `FrameCompute`,
@@ -543,7 +543,7 @@ final class WorkloadStep extends ComputeStep {
 
   /// Lets go of its buffers and tells the workload: what a renderer calls
   /// once no frame in flight can still be using them, when the registration
-  /// that added the workload is cancelled. Since 1.0.0-rc.1+1, `release`.
+  /// that added the workload is cancelled. Since 1.0.0-rc.1, `release`.
   @override
   void dispose() {
     _release();

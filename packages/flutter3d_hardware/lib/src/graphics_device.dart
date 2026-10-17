@@ -327,7 +327,7 @@ abstract base class GraphicsDevice with TextureAllocator {
   /// needs the two ends to agree on what the bytes mean, and a third format
   /// each backend would decode differently is exactly the mismatch
   /// [readback] already refuses. Refuses (throws a [DeviceResourceException]
-  /// built by [refuseResource], since 1.0.0-rc.1+2) any
+  /// built by [refuseResource], since 1.0.0-rc.1) any
   /// other [target].format, including every compressed one — a block
   /// covers a 4x4 texel footprint, and a region write that lands mid-block
   /// would ask a backend to rewrite a compressed block from decoded bytes
@@ -408,7 +408,7 @@ abstract base class GraphicsDevice with TextureAllocator {
   /// this as nothing.
   ///
   /// **Never throws what the device said about an earlier frame**, since
-  /// 1.0.0-rc.1+2. An API that answers late (WebGPU's error scopes and
+  /// 1.0.0-rc.1. An API that answers late (WebGPU's error scopes and
   /// `uncapturederror`) reports a refusal it heard after the call on
   /// [errors], and one that cannot go on reports a [DeviceLoss] on [lost]; a
   /// throw here would land in whichever frame happened to start next, a long
@@ -602,7 +602,7 @@ abstract base class GraphicsDevice with TextureAllocator {
   ///
   /// **A mixin is a capability too, and the two agree.** Four capabilities
   /// are types a device opts into rather than members every device carries:
-  /// [EncodedImageUpload], `PlatformTextures` (since 1.0.0-rc.1+2),
+  /// [EncodedImageUpload], `PlatformTextures` (since 1.0.0-rc.1),
   /// `SynchronousBufferReadback` (from
   /// `package:flutter3d_hardware/testing.dart`, not the main library) and the
   /// `RenderBundleEncoder` an encoder mixes in. Each is asked with `is`, and
@@ -762,7 +762,7 @@ abstract base class GraphicsDevice with TextureAllocator {
   String get backendId => backendName.toLowerCase();
 
   /// Whether this device does its work on the CPU, as the software
-  /// rasteriser does, rather than on a GPU — since 1.0.0-rc.1+1.
+  /// rasteriser does, rather than on a GPU — since 1.0.0-rc.1.
   ///
   /// What `ComputeExecutors.placeWorkload` asks before it places a workload
   /// that has code of its own on the host: such a workload runs that code
@@ -1029,7 +1029,7 @@ abstract base class GraphicsDevice with TextureAllocator {
   bool get isLost => false;
 
   /// What the device refused after the call that asked, and survived — since
-  /// 1.0.0-rc.1+2.
+  /// 1.0.0-rc.1.
   ///
   /// **For an API that answers late.** WebGPU hands a pipeline, a texture or
   /// a submit back at once and says whether it accepted it later, through an
@@ -1091,7 +1091,7 @@ final class DeviceLoss {
 }
 
 /// A refusal the device heard after the call that caused it, and survived —
-/// `GraphicsDevice.errors`, since 1.0.0-rc.1+2.
+/// `GraphicsDevice.errors`, since 1.0.0-rc.1.
 @immutable
 final class DeviceError {
   /// An error of [kind] about [operation], as the backend said it in

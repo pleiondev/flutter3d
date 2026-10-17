@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **Breaking: `RenderView` is `CameraView`.** `LevelScene` and
   `LevelSceneParts` changed with it. `package:flutter/rendering.dart`
@@ -6,9 +6,6 @@
   both had to hide one. `RenderViewSettings` is `CameraViewSettings` and
   `FrameView.ofRenderView` is `FrameView.ofCameraView`; `dart fix` renames
   them.
-
-## 1.0.0-rc.1
-
 - **Breaking: `LevelBatch` is a class** with the same `node`, `mesh`,
   `bounds` and `brush`, so a batch can later say more of what it draws.
 - **A substance named by id is read from the catalogue.**
@@ -33,3 +30,4 @@
   loader used to depend on the editor's document layer to reach them; now
   the application and the editor both stand on this, and a game resolves no
   editor to load a level. `dart fix` moves the imports.
+

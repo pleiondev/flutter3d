@@ -139,7 +139,7 @@ const Map<String, Object?> editorAnswerSchema = …
 
 const String editorMcpSchemaVersion = '1.2.0'
 
-const String editorMcpVersion = '1.0.0-rc.1+1'
+const String editorMcpVersion = '1.0.0-rc.1'
 
 const Map<String, ToolName> editorToolNames = …
 
@@ -437,7 +437,7 @@ const Map<String, Object?> editorAnswerSchema = …
 
 const String editorMcpSchemaVersion = '1.2.0'
 
-const String editorMcpVersion = '1.0.0-rc.1+1'
+const String editorMcpVersion = '1.0.0-rc.1'
 
 const Map<String, ToolName> editorToolNames = …
 
@@ -449,7 +449,7 @@ const String modelMcpSchemaVersion = '1.1.0'
 
 const String modelMcpUsage = …
 
-const String modelMcpVersion = '1.0.0-rc.1+1'
+const String modelMcpVersion = '1.0.0-rc.1'
 
 const List<OfferedPrompt> modelPrompts = …
 
@@ -461,7 +461,7 @@ ToolResult pictureResultOf(Answer answer)
 
 const String projectMcpSchemaVersion = '1.0.0'
 
-const String projectMcpVersion = '1.0.0-rc.1+1'
+const String projectMcpVersion = '1.0.0-rc.1'
 
 String? refuseArguments(ToolSpec tool, Map<String, Object?> arguments)
 
@@ -607,7 +607,7 @@ ToolResult pictureResultOf(Answer answer)
 
 const String projectMcpSchemaVersion = '1.0.0'
 
-const String projectMcpVersion = '1.0.0-rc.1+1'
+const String projectMcpVersion = '1.0.0-rc.1'
 
 String? refuseArguments(ToolSpec tool, Map<String, Object?> arguments)
 
@@ -727,7 +727,7 @@ const String modelMcpSchemaVersion = '1.1.0'
 
 const String modelMcpUsage = …
 
-const String modelMcpVersion = '1.0.0-rc.1+1'
+const String modelMcpVersion = '1.0.0-rc.1'
 
 const List<OfferedPrompt> modelPrompts = …
 

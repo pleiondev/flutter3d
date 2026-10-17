@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **`InputTapeRecorder.truncate(steps)`** keeps the first `steps` entries,
   for a run rewound and gone on from there: the next entry writes the step
@@ -49,9 +49,6 @@
   rather than implemented, so a member a minor adds arrives with a body and
   breaks nobody. Write `with` where a class wrote `implements`; a class that
   mixes one in is `base` or `final`.
-
-## 1.0.0-rc.1
-
 - **Breaking: `MechanismEvents` is made by its world**, which keeps it as
   `events`; one made by hand was never filled.
 - **Breaking: `Actor.onDamage` is handed the `Damage`.** It took the

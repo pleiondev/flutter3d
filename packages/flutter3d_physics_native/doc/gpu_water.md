@@ -193,22 +193,22 @@ device standing in for a GPU and on the wgpu sidecar, against the core:
 
 ## Public surface
 
-- `flutter3d_hardware` (1.0.0-rc.1+1): `ComputeWorkload`,
+- `flutter3d_hardware` (1.0.0-rc.1): `ComputeWorkload`,
   `WorkloadBuffer`, `WorkloadRecorder`, `WorkloadBinding`, `FrameCompute`,
   `ComputeSite`, `DeviceRegistry.adopt`, `ComputeExecutors.placeWorkload`,
   `workloadCandidates` and `aheadOfHost`, `GraphicsDevice.isSoftware`; a
   step's `demand` is gone.
-- `flutter3d_core` (1.0.0-rc.1+1): `WorkloadStep`,
+- `flutter3d_core` (1.0.0-rc.1): `WorkloadStep`,
   `RendererSteps.addWorkload` and `workloadStep`,
   `FrameResourceIds.computedVertices`; compute steps, hooks and fields are
   placed by the hardware layer and handed no executors.
-- `flutter3d_cpu` (1.0.0-rc.1+1): `CpuDevice.isSoftware` and
+- `flutter3d_cpu` (1.0.0-rc.1): `CpuDevice.isSoftware` and
   `standInForGpu`.
-- `flutter3d_webgpu` (1.0.0-rc.1+2): no API; a compute pass keeps its bind
+- `flutter3d_webgpu` (1.0.0-rc.1): no API; a compute pass keeps its bind
   groups.
-- `flutter3d_shaders` (1.0.0-rc.1+1): kernel language 2, its atomic
+- `flutter3d_shaders` (1.0.0-rc.1): kernel language 2, its atomic
   buffers.
-- `flutter3d_effects` (1.0.0-rc.1+1): `ShallowWaterWorkload`,
+- `flutter3d_effects` (1.0.0-rc.1): `ShallowWaterWorkload`,
   `LiquidView.steppedOn`, `ParticleCloudWorkload`, `DebrisWorkload`,
   `ClothWorkload`, `FluidWorkload`.
 - `flutter3d_physics_native` (1.0.0-rc.1, its first upload): the visual

@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **Breaking: five more plugin kinds.** `flutter3d create plugin --kind`
   and `plugin.create` take `material` (also `lit-model`), `compute`,
@@ -28,7 +28,6 @@
   as `acme__hair`; one no installed package compiles stops the build,
   naming the package or the manifest that declared it, where it was
   dropped.
-
 - **Breaking: results that were records are final classes.**
   `createProject`, `markerOf`, `selectPlugins` and `splitLargeMeshes`
   answered or held a record, which can never gain a field. Each answers a
@@ -39,7 +38,6 @@
 - **Breaking: `AssetManifest` is `AssetBuildManifest`.** `AssetLayout` and
   `AssetManifest` changed with it: `package:flutter/services.dart` exports
   an `AssetManifest`, the runtime one. `dart fix` renames it.
-
 - **Breaking: the conformance badge has one judge, and it is the suite.**
   `plugin.report` reads `<package>.conformance.json`, the report
   `flutter3d_conformance`'s `runPluginConformance` writes with the badge its
@@ -91,11 +89,6 @@
   or plugin `create` writes asks for each package of this repository at
   the version it is released at, from one table a test holds to the
   pubspecs, where 24 literals said `^1.0.0-rc.1` whatever the release.
-- **The plugin MCP server announces `1.0.0-rc.1+1`**, and `init` writes
-  `flutter3d_build: ^1.0.0-rc.1+1`.
-
-## 1.0.0-rc.1
-
 - **`create plugin --kind tool` depends on the plugin API alone.** The
   plugin imports `package:flutter3d_plugin_api/tools.dart` for `McpTools`,
   where it depended on `flutter3d_mcp`, so a game that ships a tool plugin

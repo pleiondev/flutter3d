@@ -1019,7 +1019,7 @@ final class IndexType {
 /// How vertices are assembled into primitives.
 ///
 /// **Lists need nothing; strips and points are capabilities**, since
-/// 1.0.0-rc.1+2: [triangleStrip] and [lineStrip] are
+/// 1.0.0-rc.1: [triangleStrip] and [lineStrip] are
 /// `DeviceFeature.primitiveStrips`, with primitive restart always on, and
 /// [point] is `DeviceFeature.pointPrimitives`. `PassEncoder.setPrimitiveType`
 /// has the rules; what a backend may never do is assemble one of these as

@@ -1,6 +1,6 @@
 name: flutter3d_mcp
 description: "MCP servers for flutter3d over stdio: a level editor and a model editor an agent can drive, the project server, and the kit every flutter3d server is built on."
-version: 1.0.0-rc.1+1
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues

@@ -53,7 +53,7 @@ const Object _unsetBlend = Object();
 
 /// A pass's rasteriser state. Unset fields are not emitted.
 ///
-/// **Every setter a pass has, since 1.0.0-rc.1+2**: the colour write mask,
+/// **Every setter a pass has, since 1.0.0-rc.1**: the colour write mask,
 /// the depth bias, the depth clamp and alpha to coverage joined the seven it
 /// was written with, so a backend that accumulates state for a pipeline
 /// object has the whole of it in one value. The four are gated by their
@@ -87,7 +87,7 @@ final class PassState {
          'on: setStencil takes the front and, optionally, the back',
        );
 
-  /// The viewport, a [PassViewport] since 1.0.0-rc.1+2 (`PassViewport.ofRect` for
+  /// The viewport, a [PassViewport] since 1.0.0-rc.1 (`PassViewport.ofRect` for
   /// the pixels of a [ScreenRect]).
   final PassViewport? viewport;
   final ScreenRect? scissor;

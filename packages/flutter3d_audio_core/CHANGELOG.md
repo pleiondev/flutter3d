@@ -1,18 +1,14 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **Breaking: `AudioListener.right` is a public `final` field.** The
   listener derives it whenever it is aimed and refreshes it in place, so it
   is live state and says so by its shape; a read compiles as before.
-
 - **Breaking: results that were records are final classes.**
   `EqualPowerPanner` answered or held a record, which can never gain a
   field. Each answers a final class now, with the record's field names (a
   positional `$1` has a name of its own), `==` and `hashCode`. A field read
   compiles as before; a destructuring pattern names the class, and
   `flutter3d_build:migrate` rewrites the `$1` reads.
-
-## 1.0.0-rc.1
-
 - **Breaking: `AudioPlugin` is `flutter3d_audio_core`** by default, the
   package that ships it, where it was `flutter3d_audio`, the name of the
   SoLoud package. A run recorded under the old id reads as naming the new

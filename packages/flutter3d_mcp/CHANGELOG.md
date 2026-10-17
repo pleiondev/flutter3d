@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **A plugin's editor command reaches an agent only with the `tools`
   permission, and is never safer than it says.** `shareCommands` offers a
@@ -6,14 +6,12 @@
   `PluginPermission.tools`, as `McpTools.addTool` holds a plugin's own
   tools to, and carries the command's hints, a command that gave none
   offered as destructive.
-
 - **Breaking: results that were records are final classes.** `GameAsk`,
   `PieceReport` and `ProjectRoot` answered or held a record, which can never
   gain a field. Each answers a final class now, with the record's field
   names (a positional `$1` has a name of its own), `==` and `hashCode`. A
   field read compiles as before; a destructuring pattern names the class,
   and `flutter3d_build:migrate` rewrites the `$1` reads.
-
 - **`tools/list` offers each tool once, under its current name.** The old
   names of renamed tools (209 here: `render`, `addBrush`, `capture_draw`
   and the rest) still answer when called, until 2.0, through the same brake,
@@ -21,10 +19,7 @@
   agent stops reading every renamed tool twice into its context, and a
   prompt cannot learn a name that is already on its way out. The snapshot
   keeps each one as an `alias` line, so dropping one is still a break the
-  schema rule sees. The servers announce `1.0.0-rc.1+1`.
-
-## 1.0.0-rc.1
-
+  schema rule sees.
 - **The tools' contract is the plugin API's.** `McpTools`,
   `McpToolRegistry`, `ProjectTool`, `ProjectToolRun`, `ToolCall`,
   `SessionToolCall`, `ToolSpec`, `ToolHints` and `ToolResult` are declared
@@ -418,3 +413,4 @@ character's graph by name over the project's clips, with the whole shape
 described in the tool, and is told where a wrong one is wrong.
 
 Its `flutter3d_*` dependencies ask for `^1.0.0`.
+

@@ -1,10 +1,7 @@
-## 1.0.0-rc.1+2
+## 1.0.0-rc.1
 
 - **`MaterialComputePlacement` is re-exported**, what
   `MaterialComputeKernel.place` answers.
-
-## 1.0.0-rc.1+1
-
 - **Every loader is handed what the engine's plugins brought.**
   `loadMaterialDocument`, `loadMaterial`, `loadModelAsset`,
   `loadModelByPath` and `ModelWardrobe.load` take `lightingModels:` (the
@@ -15,29 +12,23 @@
   format is decoded by its codec before the engine's own.
   `pluginMaterialAssetFor` is where the build hook wrote a plugin
   material's stages.
-
 - **`f3dMaxSectionEntryBytes` is exported**, beside `f3dVendorKindStart`:
   the largest `.f3d` directory entry a reader accepts.
 - **The HAL's new names are exported**: `ClearColor`, `ClearColorKind`,
   `DeviceError`, `DeviceErrorKind`, `DeviceRequest`, `PassViewport`,
   `PowerPreference`, `PrimitiveTypeFeatures` and `IndexTypeFeatures`, which
   the types this package already exported now name.
-
 - **Breaking: `RenderView` is `CameraView`.** `RenderView` and
   `RenderViewSettings` changed with it. `package:flutter/rendering.dart`
   exports a `RenderView` too, the root of a render tree, so a file importing
   both had to hide one. `RenderViewSettings` is `CameraViewSettings` and
   `FrameView.ofRenderView` is `FrameView.ofCameraView`; `dart fix` renames
   them.
-
 - **Breaking: the placement types are no longer re-exported.**
   `ComputeExecutor`, `ComputeExecutors` and `ComputePlacement` are the
   hardware layer's and the backends' own: where compute runs is decided
   there, and nothing a game or a plugin writes names it. `ComputeSite`
   (new here), what a compute step is told, is re-exported in their place.
-
-## 1.0.0-rc.1
-
 - **The plugin and matter exceptions are exported**
   (`ConstraintCycleException`, `FormatRegistrationException`,
   `PluginFormatException`, `MaterialFormatException`,

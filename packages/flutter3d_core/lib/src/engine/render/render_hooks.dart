@@ -184,7 +184,7 @@ abstract base class SkinningHook {
 
   /// The kernels [record] dispatches, as a `ComputeStep`'s are: what
   /// placing the hook loads where it lands. Where that is, the hardware
-  /// layer says: since 1.0.0-rc.1+1 a hook demands no placement.
+  /// layer says: since 1.0.0-rc.1 a hook demands no placement.
   List<ComputeKernel> get kernels => const <ComputeKernel>[];
 
   /// Records the skinning of [context]'s mesh into its

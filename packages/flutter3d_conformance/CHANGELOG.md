@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+2
+## 1.0.0-rc.1
 
 - **Breaking: a plugin that draws earns its badge with the render checks.**
   `plugin.render`, the eighth of `pluginCheckNames`, finds whether the
@@ -18,9 +18,6 @@
   `cos` and `pow` in a kernel on the device and in its Dart translation,
   and hold every result to the tolerance `kernelTolerances` declares, over
   the inputs it is declared for. `toleranceKernels` (new) is their source.
-
-## 1.0.0-rc.1+1
-
 - **Every feature the HAL gained in 1.0 is held by what it draws or
   writes, not by whether its call returns.** A probe that only made the call
   passed every backend that had it, whichever way round it applied it: a
@@ -75,9 +72,6 @@
   two to the same pixels.
 - **The blend constant's alpha pair** reaches the blend where it is listed
   and is refused by its own feature where it is not.
-
-## 1.0.0-rc.1
-
 - **The honesty check asks two more questions**: cubes are probed (a
   device without `cubeTextures` refuses `createCubeTextureFromPixels` by
   name since 1.0), and a `preferredSampleCount` above one without

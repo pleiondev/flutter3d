@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **A replay refuses a run on another physics backend.** `ReplaySubject`
   gains `physics`, the backend the run steps on; when the tape's
@@ -21,15 +21,11 @@
 - **`renderFrame(device:)` and `testReplay(device:)` hand the opener a
   `DeviceRequest`** of the frame's size, as the HAL's `BackendOpener` takes
   one now.
-
 - **Breaking: `RenderView` is `CameraView`.** `QualityScene` changed with
   it. `package:flutter/rendering.dart` exports a `RenderView` too, the root
   of a render tree, so a file importing both had to hide one.
   `RenderViewSettings` is `CameraViewSettings` and `FrameView.ofRenderView`
   is `FrameView.ofCameraView`; `dart fix` renames them.
-
-## 1.0.0-rc.1
-
 - **Breaking: `QualityMeasurement` is a class** with the same `setting`,
   `cost` and `flip`, so a row can later carry more measures.
 - **Breaking: `FrameSubject` and `RenderedFrame` are classes.** A replay

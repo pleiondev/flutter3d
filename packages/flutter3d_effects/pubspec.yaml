@@ -3,7 +3,7 @@ description: >-
   The elements' water and fire, drawn: a lit water surface, a waterfall
   with its spray, bubbles and froth, flames, smoke, embers and firelight,
   and a liquid in a vessel.
-version: 1.0.0-rc.1+1
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -30,7 +30,7 @@ platforms:
 dependencies:
   # The scene, meshes, materials and the renderer the views draw into — the
   # Flutter-free core, so the package runs under `dart test`.
-  flutter3d_core: '>=1.0.0-rc.1+1 <1.1.0'
+  flutter3d_core: '>=1.0.0-rc.1 <1.1.0'
   # The flames, embers and smoke, and the six-way smoke sheet's baker.
   flutter3d_particles: '>=1.0.0-rc.1 <1.1.0'
   # What is drawn: the elements' simulation, which steps the world, the
@@ -53,11 +53,11 @@ dependencies:
   # would otherwise resolve into every game (decision G of
   # `tasks/1.0-arch-review.md`).
   flutter3d_build_hooks: '>=1.0.0-rc.1 <1.1.0'
-  flutter3d_shaders: '>=1.0.0-rc.1+1 <1.1.0'
+  flutter3d_shaders: '>=1.0.0-rc.1 <1.1.0'
   hooks: ^2.0.0
 
   # The graphics vocabulary, named here directly.
-  flutter3d_hardware: ^1.0.0-rc.1+1
+  flutter3d_hardware: ^1.0.0-rc.1
 
   # What a world is made of: its properties, the materials and the constants.
   flutter3d_matter: '>=1.0.0-rc.1 <1.1.0'
@@ -65,7 +65,7 @@ dependencies:
 dev_dependencies:
   test: ^1.25.0
   # The software device the tests draw on.
-  flutter3d_cpu: '>=1.0.0-rc.1+2 <1.1.0'
+  flutter3d_cpu: '>=1.0.0-rc.1 <1.1.0'
   # The wgpu sidecar: a water's step on a real GPU beside a drawing device
   # without compute, held to the core's (`shallow_workload_test.dart`).
   flutter3d_wgpu: '>=1.0.0-rc.1 <1.1.0'

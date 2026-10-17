@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **New: `RenderProgram`.** What drives a render step frame by frame, the
   shape a Wasm render module is run in: it sets the step's parameters by
@@ -36,7 +36,6 @@
   the renderer's steps, nodes, anchors and light types. Each was an
   `ArgumentError`, which reads as a bug, where the name is data two
   plugins can both have thought of.
-
 - **`ComponentCodec.unreadIn`: the keys of a row its codec did not read**,
   handed the `ComponentRestoreContext` of the row and the component read
   back from it.
@@ -54,9 +53,6 @@
   bloom`, as every plugin's name carries its namespace and none has a space.
   `RenderAnchor.named` still finds an anchor by the old word, which files
   written before carry.
-
-## 1.0.0-rc.1
-
 - **New: `tools.dart`, what a plugin hands an agent.** `McpTools`,
   `McpToolRegistry`, `ProjectTool`, `ProjectToolRun`, `ToolCall`,
   `SessionToolCall`, `ToolSpec`, `ToolHints`, `ToolResult` and its content
@@ -430,3 +426,4 @@
   context are `base` classes, so a new member arrives with a default. The
   kinds a later minor may extend are open value classes rather than enums.
   A manifest read from a document keeps the keys it does not know.
+

@@ -1,13 +1,10 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **Breaking: the sky and the outlines are steps in this package's
   namespace.** `outlinesStep` and `skyStep` are `flutter3d_post.sky` and
   `flutter3d_post.outlines`, where they had no namespace: every name a
   plugin registers carries one, and a structure rule now holds it. Code that
   found them by name uses the new words.
-
-## 1.0.0-rc.1
-
 - **Breaking: each effect's plugin id is this package's.** `BloomAddon` is
   `flutter3d_post.bloom`, and so on for all 23, where they were
   `flutter3d_addon_light.bloom` and the like; the three reflections are
@@ -207,3 +204,4 @@
 - **Installing it changes nothing about the frame.** With the preset
   installed, the frame order fixture's 244 frames come out byte for byte the
   same as with no addon. What it adds is a switch for every effect.
+

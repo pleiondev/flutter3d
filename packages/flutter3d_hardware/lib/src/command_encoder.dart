@@ -125,7 +125,7 @@ export 'render_pass_descriptor.dart';
 abstract base mixin class PassEncoder {
   /// Where the rasteriser maps clip space, and onto which depths.
   ///
-  /// **A [PassViewport] since 1.0.0-rc.1+2**: a rectangle in doubles and a depth
+  /// **A [PassViewport] since 1.0.0-rc.1**: a rectangle in doubles and a depth
   /// range, where it was a [ScreenRect] of whole pixels with the depth range
   /// fixed at `[0, 1]`. A rectangle that is not whole pixels needs
   /// `DeviceFeature.fractionalViewport`; a backend calls
@@ -140,7 +140,7 @@ abstract base mixin class PassEncoder {
 
   /// How the following draws assemble their vertices.
   ///
-  /// **Strips and points are capabilities, since 1.0.0-rc.1+2**:
+  /// **Strips and points are capabilities, since 1.0.0-rc.1**:
   /// [PrimitiveType.triangleStrip] and [PrimitiveType.lineStrip] need
   /// `DeviceFeature.primitiveStrips`, [PrimitiveType.point] needs
   /// `DeviceFeature.pointPrimitives`, and triangle and line lists need
@@ -238,7 +238,7 @@ abstract base mixin class PassEncoder {
   /// channel of [color] per channel, [BlendFactor.blendAlpha] and
   /// [BlendFactor.oneMinusBlendAlpha] read its alpha for every channel — GL's
   /// `CONSTANT_COLOR`/`CONSTANT_ALPHA` split, which is what Metal and Vulkan
-  /// spell the same way. **Two features since 1.0.0-rc.1+2**:
+  /// spell the same way. **Two features since 1.0.0-rc.1**:
   /// `DeviceFeature.blendConstant` is this setter and the colour pair, which
   /// WebGPU has; `DeviceFeature.blendConstantAlpha` is the alpha pair, which
   /// it has not.
@@ -306,7 +306,7 @@ abstract base mixin class PassEncoder {
   void bindVertexData(ByteData bytes, int vertexCount, {int slot = 0});
 
   /// Binds indices the device already holds. [IndexType.int32] needs
-  /// `DeviceFeature.indexUint32` since 1.0.0-rc.1+2; a backend calls
+  /// `DeviceFeature.indexUint32` since 1.0.0-rc.1; a backend calls
   /// `IndexTypeFeatures.checkFeatures` here and in [bindIndexData].
   void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount);
 
@@ -605,7 +605,7 @@ abstract base mixin class PassEncoder {
 
   /// Binds [sizeInBytes] bytes of [buffer] from [offsetInBytes] as the
   /// uniform block [blockName] of [stage] — `DeviceFeature.uniformBuffers`,
-  /// since 1.0.0-rc.1+2. False when the stage declares no such block, as
+  /// since 1.0.0-rc.1. False when the stage declares no such block, as
   /// [bindUniformBlock] answers.
   ///
   /// The buffer must have been made with `BufferUsage.uniform`; the bytes

@@ -127,7 +127,7 @@ void main() {
   );
 
   test('disposing twice tells one loss and throws nothing', () async {
-    // The contract since 1.0.0-rc.1+1, held on every backend by the
+    // The contract since 1.0.0-rc.1, held on every backend by the
     // conformance check "a second dispose does nothing": a renderer and its
     // owner can both let go. Mutation: put the `StateError` back.
     final device = await _makeDevice();

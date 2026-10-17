@@ -57,7 +57,7 @@ final class GpuRenderBackend extends GraphicsDevice
 
   /// [image] — a widget rasterised by `RepaintBoundary.toImage`, a decoded
   /// picture — as a texture over its own GPU storage, with no copy through
-  /// the host: flutter_gpu's `Texture.fromImage`, since 1.0.0-rc.1+1.
+  /// the host: flutter_gpu's `Texture.fromImage`, since 1.0.0-rc.1.
   ///
   /// The inverse of [frameImage]. An image with no GPU texture of its own
   /// (one from `toImageSync` that has not rasterised yet) is refused with a

@@ -8,7 +8,7 @@
 /// software rasteriser. Everything that draws is refused by name: there is
 /// no surface and no render pipeline, by design.
 ///
-/// **A readback that does not hold the caller**, since 1.0.0-rc.1+2:
+/// **A readback that does not hold the caller**, since 1.0.0-rc.1:
 /// [readBuffer] starts the copy, maps the staging buffer without waiting
 /// and polls the device on later turns, so a workload's per-frame read
 /// costs the UI isolate the copy's encoding, not the GPU's time. Staging
@@ -250,7 +250,7 @@ final class WgpuComputeDevice extends GraphicsDevice
 
   // ---------------------------------------------------------- what it refuses
 
-  /// A [DeviceResourceException] from [refuseResource], since 1.0.0-rc.1+2:
+  /// A [DeviceResourceException] from [refuseResource], since 1.0.0-rc.1:
   /// the sidecar has the calls the contract gives every device and no
   /// surface to draw them on, which is a request it cannot honour rather
   /// than a feature it lacks. Its limits say the same — no colour
@@ -855,7 +855,7 @@ final class WgpuComputeDevice extends GraphicsDevice
       StreamController<DeviceLoss>.broadcast();
 
   /// One [DeviceLossReason.destroyed], when [dispose] runs — since
-  /// 1.0.0-rc.1+2. The C side reports no loss of its own to listen to; the
+  /// 1.0.0-rc.1. The C side reports no loss of its own to listen to; the
   /// one this device causes itself it owes every caller, as every backend
   /// does.
   @override

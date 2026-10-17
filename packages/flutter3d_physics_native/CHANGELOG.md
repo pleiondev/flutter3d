@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **A liquid's shapes worked out off the frame.** `BackgroundShapeSolver`,
   handed to a `FluidWorld` as its `shapes`, works out a cross-section's
@@ -26,9 +26,6 @@
   `KernelLiquid.nativeTolerance`, a part in ten thousand of a spacing and
   of the fastest velocity a substep; refused under a bit-exact profile.
   `LiquidKernelExecutor` says which ran.
-
-## 1.0.0-rc.1
-
 - **A 1.0 snapshot is committed bytes, not a round trip.** A world of
   every subsystem (a car, a chain of links, joints, a hull, a mesh, a
   compound, fire, a stream with spray and bubbles) is kept as the 1.0 core
@@ -1498,3 +1495,4 @@
   same scenario to the same bits.
 
 Its `flutter3d_*` dependencies ask for `^1.0.0`.
+

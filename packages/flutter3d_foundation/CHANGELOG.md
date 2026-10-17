@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **`FormatDocument.nestedUnknownIn` and `FormatDocument.writeNested`
   keep a nested object's unknown keys.** For the objects an editor
@@ -14,9 +14,6 @@
   positional `$1` has a name of its own), `==` and `hashCode`. A field read
   compiles as before; a destructuring pattern names the class, and
   `flutter3d_build:migrate` rewrites the `$1` reads.
-
-## 1.0.0-rc.1
-
 - **`MaterialParameters` and its schema live here.** `MaterialParameters`,
   `ParameterKey`, `ParameterType`, `ParameterDeclaration`,
   `MaterialParameterSchema` and `MaterialParameterException` moved from
@@ -149,3 +146,4 @@
 - **`PlacedEvent`**, the shape of an event that says where it happened,
   comes from `flutter3d_particles`, so the elements' simulation can
   publish a placed event without depending on what draws it.
+

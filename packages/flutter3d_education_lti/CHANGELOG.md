@@ -1,4 +1,4 @@
-## 1.0.0-rc.1+1
+## 1.0.0-rc.1
 
 - **The engine's number, outside the 1.0 promise.** Its signatures carry
   types of a package before 1.0 or of one that takes a major a year, so a
@@ -12,9 +12,6 @@
   positional `$1` has a name of its own), `==` and `hashCode`. A field read
   compiles as before; a destructuring pattern names the class, and
   `flutter3d_build:migrate` rewrites the `$1` reads.
-
-## 1.0.0-rc.1
-
 - **New: a package of its own.** The LTI 1.3 launch, the AGS and xAPI
   clients and `CheckReporter` were the `lti.dart` library of
   `flutter3d_education`, and `flutter3d_lti` before that (its history is in
@@ -57,3 +54,4 @@
 `setAlphaToCoverage`. Nothing in this package changed.
 
 Its `flutter3d_*` dependencies ask for `^1.0.0`.
+

@@ -20,7 +20,7 @@
 ///   lost says so on `GraphicsDevice.lost`, and [takeFrame] then answers
 ///   nothing, because the loss is the news and the refusals are its echo.
 ///
-/// **Reported, never thrown, since 1.0.0-rc.1+2.** `beginFrame` threw the
+/// **Reported, never thrown, since 1.0.0-rc.1.** `beginFrame` threw the
 /// frame's refusals until then, a term of the contract this one backend had
 /// made up; the contract says now that `beginFrame` throws none.
 ///
@@ -110,7 +110,7 @@ final class WebGpuErrorLedger {
   /// nothing was said.
   ///
   /// Called by `beginFrame`, which reports what it answers on
-  /// `GraphicsDevice.errors` — **and never throws it**, since 1.0.0-rc.1+2:
+  /// `GraphicsDevice.errors` — **and never throws it**, since 1.0.0-rc.1:
   /// a refusal of the frame before thrown from the start of this one failed
   /// a frame for nothing it did. With [deviceLost] the complaints are
   /// dropped instead; the loss is reported on `GraphicsDevice.lost`.
